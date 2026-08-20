@@ -10,9 +10,7 @@ Configuration hierarchy (highest precedence wins):
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, fields
-from pathlib import Path
-from typing import Any
+from dataclasses import dataclass, field, fields
 
 
 ENV_PREFIX = "THINKBOX_"
