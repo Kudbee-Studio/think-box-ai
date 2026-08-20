@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import shlex
 from typing import Any
 
 from backend.plugins.base import Tool, ToolResult
@@ -24,9 +23,9 @@ class GitTool(Tool):
             "diff": ["git", "diff"],
             "log": ["git", "log", "--oneline", "-20"],
             "branch": ["git", "branch", "-a"],
-            "checkout": lambda args: ["git", "checkout", shlex.quote(args.get("branch", ""))],
-            "commit": lambda args: ["git", "commit", "-am", shlex.quote(args.get("message", "agent commit"))],
-            "add": lambda args: ["git", "add", shlex.quote(args.get("path", "."))],
+            "checkout": lambda args: ["git", "checkout", args.get("branch", "")],
+            "commit": lambda args: ["git", "commit", "-am", args.get("message", "agent commit")],
+            "add": lambda args: ["git", "add", args.get("path", ".")],
         }
 
         cmd = commands.get(action)
