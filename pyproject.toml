@@ -1,0 +1,31 @@
+[project]
+name = "thinkbox-ai"
+version = "0.1.0"
+description = "An intelligent execution environment for AI agents"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "THINK BOX AI contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+thinkbox = "apps.cli.main:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.thinkbox]
+default_provider = "openai_compat"
+default_model = "gpt-4o-mini"
+max_think_box_depth = 2
+audit_log_retention_days = 90
