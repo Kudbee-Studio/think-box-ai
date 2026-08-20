@@ -1,9 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "thinkbox-ai"
+name = "think-box-ai"
 version = "0.1.0"
 description = "An intelligent execution environment for AI agents"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
-license = { text = "MIT" }
 authors = [{ name = "THINK BOX AI contributors" }]
 dependencies = []
 
@@ -18,11 +23,15 @@ test = [
 ]
 
 [project.scripts]
-thinkbox = "apps.cli.main:cli"
+think-box-ai = "think_box_ai.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["think_box_ai*"]
 
 [tool.thinkbox]
 default_provider = "openai_compat"
