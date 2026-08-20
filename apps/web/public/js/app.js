@@ -56,31 +56,32 @@ function handleMessage(msg) {
       appendTerminalMessage('system', `Session: ${state.sessionId.slice(0, 8)}`);
       break;
 
-    case 'status':
+    case 'STATUS':
       setStatus(msg.data.status, msg.data.status === 'running' ? 'Running' : 'Idle');
       break;
 
-    case 'stream':
-      appendTerminalStream(msg.data);
+    case 'TOKEN':
+      appendTerminalStream(msg.data.value);
       break;
 
-    case 'thought':
-      addThought(msg.data);
+    case 'THOUGHT':
+      addThought(msg.data.content);
       break;
 
-    case 'task_update':
+    case 'TASK_UPDATE':
       addTask(msg.data);
       break;
 
-    case 'tool_call':
+    case 'TOOL_CALL':
       appendTerminalMessage('plugin', `🔧 [${msg.data.tool}] ${JSON.stringify(msg.data.args)}`);
       break;
 
-    case 'tool_result':
+    case 'TOOL_RESULT': {
       const result = msg.data.result;
       const icon = result?.success !== false ? '✓' : '✗';
       appendTerminalMessage('plugin', `${icon} [${msg.data.tool}] ${result?.data?.content || result?.error || JSON.stringify(result)}`);
       break;
+    }
 
     case 'plugin_result':
       appendTerminalMessage('plugin', `[${msg.data.plugin}] ${msg.data.result.success ? '✓' : '✗'} ${msg.data.result.content || msg.data.result.error || ''}`);
