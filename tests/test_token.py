@@ -27,14 +27,14 @@ def test_transfer_success():
 def test_transfer_insufficient_balance():
     sender = ThinkToken("0xSENDER", balance=100)
     receiver = ThinkToken("0xRECEIVER", balance=0)
-    with pytest.raises(ValueError, match="Insufficient balance"):
+    with pytest.raises(ValueError, match="Insufficient balance\\."):
         sender.transfer(receiver, 200)
 
 
 def test_transfer_non_positive_amount():
     sender = ThinkToken("0xSENDER", balance=100)
     receiver = ThinkToken("0xRECEIVER", balance=0)
-    with pytest.raises(ValueError, match="positive"):
+    with pytest.raises(ValueError, match="amount must be positive\\."):
         sender.transfer(receiver, 0)
 
 
