@@ -62,12 +62,12 @@ async def get_plugins() -> dict[str, Any]:
 # ─── SSE token stream ───────────────────────────────────────────
 async def token_stream(goal: str, model: str) -> AsyncGenerator[str, None]:
     """Stream model tokens via SSE."""
-    messages = [
-        {"role": "system", "content": "You are kudbEE, an intelligent agent OS. You help developers accomplish goals by using tools. Think step by step. Be concise and actionable."},
-        {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step."},
-    ]
-
     try:
+        messages = [
+            {"role": "system", "content": "You are kudbEE, an intelligent agent OS. You help developers accomplish goals by using tools. Think step by step. Be concise and actionable."},
+            {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step."},
+        ]
+
         async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
             yield f"data: {token}\n\n"
     except Exception:
