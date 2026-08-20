@@ -18,7 +18,7 @@ from core.tools.registry import ToolDefinition, tool
 )
 async def shell_exec_async(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     command = args.get("command", "")
-    cwd = args.get("cwd", context.get("project_root", "."))
+    cwd = args.get("cwd", context.get("project_root", ".") if context else ".")
     timeout = int(args.get("timeout", 30))
     if not command:
         return {"success": False, "error": "Missing 'command' argument"}

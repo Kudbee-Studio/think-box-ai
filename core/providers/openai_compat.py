@@ -40,25 +40,28 @@ class OpenAICompatProvider:
             },
         )
 
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                choice = data["choices"][0]["message"]
-                return CompletionResponse(
-                    content=choice["content"],
-                    model=data.get("model", self._model),
-                    usage=data.get("usage", {}),
-                )
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                from core.foundation.errors import ProviderRateLimitError
-                raise ProviderRateLimitError() from e
-            elif e.code == 401:
-                from core.foundation.errors import ProviderUnavailableError
-                raise ProviderUnavailableError() from e
-            else:
-                from core.foundation.errors import ProviderError
-                raise ProviderError() from e
+        def _fetch() -> CompletionResponse:
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    choice = data["choices"][0]["message"]
+                    return CompletionResponse(
+                        content=choice["content"],
+                        model=data.get("model", self._model),
+                        usage=data.get("usage", {}),
+                    )
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    from core.foundation.errors import ProviderRateLimitError
+                    raise ProviderRateLimitError() from e
+                elif e.code == 401:
+                    from core.foundation.errors import ProviderUnavailableError
+                    raise ProviderUnavailableError() from e
+                else:
+                    from core.foundation.errors import ProviderError
+                    raise ProviderError() from e
+
+        return await __import__('asyncio').to_thread(_fetch)
 
     def stream(self, messages: list[Message], **kwargs: Any):
         raise NotImplementedError("Streaming not implemented for OpenAICompatProvider")
