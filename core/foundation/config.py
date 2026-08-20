@@ -87,7 +87,7 @@ def load_config(project_root: Path | None = None) -> ThinkBoxConfig:
     if project_root is None:
         project_root = Path.cwd()
 
-    defaults = {f.name: f.default for f in fields(ThinkBoxConfig) if f.default is not field(default_factory=dict)}
+    defaults = ThinkBoxConfig().__dict__.copy()
     pyproject_config = _load_pyproject_config(project_root)
     env_overrides = _load_env_overrides()
 
