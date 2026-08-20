@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kudbEE — Agent OS</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">🐝</div>
+        <div class="title">
+          <h1>kudbEE</h1>
+          <span class="subtitle">Agent OS</span>
+        </div>
+      </div>
+      <div class="header-center">
+        <div class="model-selector">
+          <label for="model-select">Model:</label>
+          <select id="model-select">
+            <option value="">Loading...</option>
+          </select>
+          <button id="refresh-models" class="btn-icon" title="Refresh models">🔄</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-indicator">
+          <span id="status-dot" class="status-dot idle"></span>
+          <span id="status-text">Idle</span>
+        </div>
+        <button id="clear-chat" class="btn-secondary">Clear</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Left Sidebar: File Explorer -->
+      <aside class="sidebar-left">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📁 Files</h3>
+            <button id="refresh-files" class="btn-icon" title="Refresh">🔄</button>
+          </div>
+          <div id="file-tree" class="file-tree">
+            <div class="file-tree-empty">No files yet</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🔌 Plugins</h3>
+          </div>
+          <div id="plugin-list" class="plugin-list">
+            <!-- Plugins injected here -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: Terminal & Reasoning -->
+      <section class="center">
+        <div class="panel terminal-panel">
+          <div class="panel-header">
+            <h3>💬 Terminal</h3>
+            <div class="terminal-actions">
+              <button id="run-goal" class="btn-primary" disabled>▶ Run</button>
+              <button id="stop-goal" class="btn-danger" disabled>⏹ Stop</button>
+            </div>
+          </div>
+          <div id="terminal" class="terminal">
+            <div class="terminal-welcome">
+              <div class="welcome-line">THINK BOX AI — Devin-like Interface</div>
+              <div class="welcome-line">Type a goal and press Run to start.</div>
+              <div class="welcome-line">Make sure Ollama is running: <code>ollama serve</code></div>
+              <div class="welcome-line"></div>
+            </div>
+          </div>
+          <div class="terminal-input-area">
+            <input
+              type="text"
+              id="goal-input"
+              placeholder="Enter your goal... (e.g., 'Create a hello world Python script')"
+              disabled
+            />
+            <button id="submit-goal" class="btn-primary" disabled>Run</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Sidebar: Tasks & Thoughts -->
+      <aside class="sidebar-right">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📋 Tasks</h3>
+          </div>
+          <div id="task-list" class="task-list">
+            <div class="empty-state">No tasks yet</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>💭 Thoughts</h3>
+            <span id="thought-count" class="badge">0</span>
+          </div>
+          <div id="thought-list" class="thought-list">
+            <div class="empty-state">No thoughts yet</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
