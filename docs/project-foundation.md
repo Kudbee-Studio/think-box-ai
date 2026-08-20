@@ -8,12 +8,9 @@
 
 ## 1. Current State
 
-The repository is a **blank slate**. A single initial commit contains only a
-`README.md` with the project name. There is no existing code, no configuration
-files, no dependencies, and no tests.
+The repository now contains initial scaffolding for THINK BOX AI (core foundation, memory store, tooling stubs, and tests).
 
-This is intentional. The goal of Phase 0 is to build a **correct architectural
-foundation**, not a feature-complete product.
+This document is a snapshot of the *initial* state and should be updated as the codebase evolves; avoid describing the repo as a blank slate once code is present.
 
 ### What exists
 
