@@ -20,13 +20,13 @@ class GitTool(Tool):
         cwd = args.get("cwd", context.get("project_root", "."))
 
         commands = {
-            "status": "git status -sb",
-            "diff": "git diff",
-            "log": "git log --oneline -20",
-            "branch": "git branch -a",
-            "checkout": lambda args: f"git checkout {args.get('branch', '')}",
-            "commit": lambda args: f'git commit -am "{args.get("message", "agent commit")}"',
-            "add": lambda args: f"git add {args.get('path', '.')}",
+            "status": ["git", "status", "-sb"],
+            "diff": ["git", "diff"],
+            "log": ["git", "log", "--oneline", "-20"],
+            "branch": ["git", "branch", "-a"],
+            "checkout": lambda args: ["git", "checkout", shlex.quote(args.get("branch", ""))],
+            "commit": lambda args: ["git", "commit", "-am", shlex.quote(args.get("message", "agent commit"))],
+            "add": lambda args: ["git", "add", shlex.quote(args.get("path", "."))],
         }
 
         cmd = commands.get(action)
@@ -36,8 +36,8 @@ class GitTool(Tool):
             return ToolResult(success=False, error=f"Unknown git action: {action}")
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                cmd,
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
