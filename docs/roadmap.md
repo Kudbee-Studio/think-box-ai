@@ -17,9 +17,9 @@
 - [x] `core/providers/` — ModelProvider protocol, OpenAI-compatible provider
 - [x] `core/tools/` — registry, decorator, 5 built-in tools (file_read, file_write, shell_exec, http_request, memory_query)
 - [x] `core/runtime/` — Agent, Goal, Step, ThinkBox, Planner, Actor, Observer
-- [x] `tests/unit/` — 62 tests passing
-- [x] `tests/integration/` — 6 tests passing
-- [x] `tests/e2e/` — 3 tests passing
+- [x] `tests/unit/` — tests passing
+- [x] `tests/integration/` — tests passing
+- [ ] `tests/e2e/` — pending
 
 ### 0.2 Event schema (FINAL — do not change after this)
 ```python
@@ -80,15 +80,12 @@ Behavior:
 ### 1.1 Backend structure
 ```
 apps/web/
-├── server.py              # Express server (already built)
 ├── package.json
-├── services/
-│   └── plugins.js         # Plugin manager (already built)
 ├── public/
 │   ├── index.html
 │   ├── css/main.css
 │   └── js/app.js
-└── runtime_bridge.py      # Python bridge (already built)
+└── runtime_bridge.py      # Python bridge
 ```
 
 ### 1.2 FastAPI backend (NEW — replace Node.js with Python)
