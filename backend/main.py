@@ -217,6 +217,10 @@ async def handle_message(ws: WebSocket, session_id: str, msg: dict[str, Any]) ->
     elif msg_type == "reject":
         action_id = msg.get("action_id", "")
         action_label = action_id or "<unknown>"
+        if not action_id:
+            await event_bus.broadcast_thought(f"Action {action_label} not found or already handled", status="error")
+            return
+
         pending = pending_approval.get(session_id)
         if not pending or pending["action_id"] != action_id:
             await event_bus.broadcast_thought(f"Action {action_label} not found or already handled", status="error")
