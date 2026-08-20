@@ -12,7 +12,7 @@ class ThinkToken:
     """Represents a Think Token balance for an account."""
 
     def __init__(self, address: str, balance: int = 0) -> None:
-        if not isinstance(balance, int):
+        if not isinstance(balance, int) or isinstance(balance, bool):
             raise TypeError("Balance must be an integer.")
         if balance < 0:
             raise ValueError("Balance must be non-negative.")
