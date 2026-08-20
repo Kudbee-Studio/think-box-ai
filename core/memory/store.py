@@ -82,8 +82,8 @@ class MemoryStore:
         if hasattr(self._local, "conn") and self._local.conn is not None:
             try:
                 self._local.conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close SQLite connection", extra={"error": str(e)})
             self._local.conn = None
 
     def put(self, entry: MemoryEntry) -> None:
