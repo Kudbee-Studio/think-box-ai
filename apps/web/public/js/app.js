@@ -65,11 +65,11 @@ function handleMessage(msg) {
       break;
 
     case 'THOUGHT':
-      addThought(msg.data.content);
+      addThought({ ...msg.data, timestamp: msg.timestamp });
       break;
 
     case 'TASK_UPDATE':
-      addTask(msg.data);
+      addTask({ ...msg.data, timestamp: msg.timestamp });
       break;
 
     case 'TOOL_CALL':
