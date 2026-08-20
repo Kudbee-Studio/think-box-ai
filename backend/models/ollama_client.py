@@ -46,18 +46,22 @@ async def stream_chat(
                 json=payload,
                 headers={"Content-Type": "application/json"},
             ) as resp:
-                async for line in resp.content:
-                    line_str = line.decode("utf-8").strip()
-                    if not line_str:
-                        continue
-                    try:
-                        data = json.loads(line_str)
+                buffer = ""
+                async for chunk in resp.content.iter_any():
+                    buffer += chunk.decode("utf-8", errors="replace")
+                    while "\n" in buffer:
+                        line_str, buffer = buffer.split("\n", 1)
+                        line_str = line_str.strip()
+                        if not line_str:
+                            continue
+                        try:
+                            data = json.loads(line_str)
+                        except json.JSONDecodeError:
+                            continue
                         if "message" in data and "content" in data["message"]:
                             yield data["message"]["content"]
                         if data.get("done"):
-                            break
-                    except json.JSONDecodeError:
-                        continue
+                            return
     except Exception as e:
         yield f"[Error: {str(e)}]"
 
