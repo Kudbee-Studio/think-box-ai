@@ -5,10 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from backend.plugins.base import Tool
+from backend.plugins.browser import BrowserTool
+from backend.plugins.code_analyzer import CodeAnalyzerTool
+from backend.plugins.docker import DockerTool
 from backend.plugins.filesystem import FileListTool, FileReadTool, FileWriteTool
 from backend.plugins.git import GitTool
 from backend.plugins.http import HttpTool
 from backend.plugins.terminal import TerminalTool
+from backend.plugins.test_runner import TestRunnerTool
 
 
 class PluginRegistry:
@@ -27,6 +31,10 @@ class PluginRegistry:
             TerminalTool(),
             GitTool(),
             HttpTool(),
+            BrowserTool(),
+            TestRunnerTool(),
+            CodeAnalyzerTool(),
+            DockerTool(),
         ]
         for tool in defaults:
             self.register(tool)
@@ -38,6 +46,14 @@ class PluginRegistry:
     def get(self, name: str) -> Tool | None:
         """Get a tool by name."""
         return self._tools.get(name)
+
+    def list_tools(self) -> list[Tool]:
+        """List all registered tools."""
+        return list(self._tools.values())
+
+    def get_enabled(self) -> list[Tool]:
+        """Get all enabled tools (all by default)."""
+        return list(self._tools.values())
 
     def list_tools(self) -> list[dict[str, Any]]:
         """List all registered tools with schemas."""

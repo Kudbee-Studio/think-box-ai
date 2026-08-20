@@ -79,12 +79,16 @@ function handleMessage(msg) {
     case 'TOOL_RESULT': {
       const result = msg.data.result;
       const icon = result?.error ? '✗' : '✓';
-      appendTerminalMessage('plugin', `${icon} [${msg.data.tool}] ${result?.data?.content || result?.error || JSON.stringify(result)}`);
+      appendTerminalMessage('plugin', `${icon} [${msg.data.tool}] ${result?.data?.content || result?.error || JSON.stringify(result?.data || result)}`);
       break;
     }
 
     case 'plugin_result':
       appendTerminalMessage('plugin', `[${msg.data.plugin}] ${msg.data.result.success ? '✓' : '✗'} ${msg.data.result.content || msg.data.result.error || ''}`);
+      break;
+
+    case 'RISKY_ACTION':
+      showApprovalModal(msg.data);
       break;
 
     case 'models':
@@ -315,6 +319,40 @@ function stopGoal() {
     state.ws.send(JSON.stringify({ type: 'stop' }));
     appendTerminalMessage('system', 'Stopping...');
   }
+}
+
+// ─── Approval Modal ─────────────────────────────────────────────
+function showApprovalModal(data) {
+  const modal = document.getElementById('approval-modal');
+  const description = document.getElementById('approval-description');
+  const actionId = document.getElementById('approval-action-id');
+  const riskLevel = document.getElementById('approval-risk-level');
+
+  description.textContent = data.description || 'A tool requires your approval before executing.';
+  actionId.textContent = data.action_id || 'unknown';
+  riskLevel.textContent = data.risk_level || 'medium';
+  riskLevel.className = `badge ${data.risk_level || 'medium'}`;
+
+  modal.style.display = 'flex';
+
+  const approveBtn = document.getElementById('approve-btn');
+  const rejectBtn = document.getElementById('reject-btn');
+
+  const close = () => {
+    modal.style.display = 'none';
+    approveBtn.replaceWith(approveBtn.cloneNode(true));
+    rejectBtn.replaceWith(rejectBtn.cloneNode(true));
+  };
+
+  approveBtn.onclick = () => {
+    state.ws.send(JSON.stringify({ type: 'approve', action_id: data.action_id }));
+    close();
+  };
+
+  rejectBtn.onclick = () => {
+    state.ws.send(JSON.stringify({ type: 'reject', action_id: data.action_id }));
+    close();
+  };
 }
 
 // ─── Utilities ─────────────────────────────────────────────────

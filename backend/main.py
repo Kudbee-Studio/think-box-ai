@@ -11,7 +11,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from backend.core.event_bus import event_bus
-from backend.models.ollama_client import list_models, stream_chat
+from backend.agent_loop import run_agent_task
+from backend.models.ollama_client import list_models
 from backend.plugins.registry import plugin_registry
 
 app = FastAPI(title="kudbEE Agent OS", version="0.1.0")
@@ -232,33 +233,15 @@ async def handle_message(ws: WebSocket, session_id: str, msg: dict[str, Any]) ->
 
 async def run_agent_task(ws: WebSocket, session_id: str, goal: str, model: str) -> None:
     """Run the agent loop for a goal."""
-    await event_bus.broadcast_thought(f"Starting goal: {goal}", status="info")
-    await event_bus.broadcast_task_update(str(uuid.uuid4()), "running", goal)
+    from backend.agent_loop import AgentLoop
 
-    try:
-        messages = [
-            {"role": "system", "content": "You are kudbEE, an intelligent agent OS. You help developers accomplish goals by using tools. Think step by step. Be concise and actionable."},
-            {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step. If you need to use a tool, describe what you would do."},
-        ]
+    loop = AgentLoop(session_id=session_id, model=model)
+    result = await loop.run(goal)
 
-        full_response = ""
-        async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
-            full_response += token
-            await event_bus.broadcast_token(token)
-
-        await event_bus.broadcast_thought(f"Goal completed: {goal}", status="success")
-        await event_bus.broadcast_task_update(str(uuid.uuid4()), "completed", goal[:100])
-        await event_bus.broadcast_status("idle")
-        sessions[session_id]["status"] = "idle"
-        sessions[session_id]["current_task"] = None
-
-        await ws.send_json({"type": "result", "data": {"success": True, "result": full_response}})
-
-    except Exception as e:
-        await event_bus.broadcast_thought(f"Error: {str(e)}", status="error")
-        await event_bus.broadcast_status("error")
-        sessions[session_id]["status"] = "idle"
-        await ws.send_json({"type": "error", "data": str(e)})
+    if result.get("success"):
+        await ws.send_json({"type": "result", "data": {"success": True, "result": result.get("result", "")}})
+    else:
+        await ws.send_json({"type": "error", "data": result.get("error", "Unknown error")})
 
 
 if __name__ == "__main__":
