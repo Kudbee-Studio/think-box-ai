@@ -14,7 +14,7 @@ from core.tools.registry import ToolDefinition, tool
     input_schema={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},
 )
 def memory_query(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
-    store = context.get("memory_store")
+    store = context.get("memory_store") if context else None
     if store is None:
         return {"success": False, "error": "No memory store available in context"}
     key = args.get("key", "")

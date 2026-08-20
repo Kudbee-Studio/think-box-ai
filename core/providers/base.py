@@ -31,13 +31,13 @@ class CompletionResponse:
 class ModelProvider(Protocol):
     capabilities: ProviderCapabilities
 
-    def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResponse:
+    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResponse:
         ...
 
-    def stream(self, messages: list[Message], **kwargs: Any):
+    async def stream(self, messages: list[Message], **kwargs: Any):
         ...
 
-    def embed(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
+    async def embed(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
         ...
 
 

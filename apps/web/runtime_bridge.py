@@ -53,7 +53,7 @@ async def run_agent_loop(goal_statement: str, model: str = "deepseek-coder:6.7b"
 
         logger.info("Running goal", extra={"goal": goal_statement, "model": model})
 
-        result = agent.run(
+        result = await agent.run(
             goal=goal,
             planner=Planner(task_memory=task_memory),
             actor=Actor(

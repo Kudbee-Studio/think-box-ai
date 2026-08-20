@@ -39,7 +39,7 @@ class Agent:
     def create_think_box(self, goal: Goal) -> ThinkBox:
         return ThinkBox(goal=goal)
 
-    def run(
+    async def run(
         self,
         goal: Goal,
         planner: Any = None,
@@ -51,7 +51,7 @@ class Agent:
         steps = planner.plan(tb) if planner else []
         ThinkBoxLifecycle.transition(tb, "executing")
         for step in steps:
-            result = actor.execute_step(self, tb, step) if actor else {"status": "success"}
+            result = await actor.execute_step(self, tb, step) if actor else {"status": "success"}
             if observer and not observer.validate(tb, step, result):
                 ThinkBoxLifecycle.transition(tb, "failed")
                 return {"status": "failed", "think_box": tb}
