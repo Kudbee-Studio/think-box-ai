@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 from typing import Any
 
 from backend.plugins.base import Tool, ToolResult
