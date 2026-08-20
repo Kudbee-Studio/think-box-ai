@@ -9,12 +9,14 @@ from core.foundation.bootstrap import RuntimeContext, bootstrap, shutdown
 from core.foundation.config import ThinkBoxConfig, load_config
 from core.foundation.errors import (
     ApprovalDeniedError,
+    GovernanceError,
     MemoryConflictError,
     MemoryError,
     MemoryKeyError,
     ProviderError,
     ProviderRateLimitError,
     ProviderUnavailableError,
+    RuntimeError,
     ThinkBoxError,
     ThinkBoxLimitError,
     ToolApprovalRequiredError,
