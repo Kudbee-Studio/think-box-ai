@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 from typing import Any
 
 from backend.plugins.base import Tool, ToolResult
@@ -23,8 +24,9 @@ class TerminalTool(Tool):
             return ToolResult(success=False, error="Missing 'command' argument")
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
+            cmd_parts = shlex.split(command)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd_parts,
                 cwd=cwd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

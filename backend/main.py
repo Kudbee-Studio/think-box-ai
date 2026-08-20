@@ -27,6 +27,7 @@ app.add_middleware(
 
 # ─── State ──────────────────────────────────────────────────────
 sessions: dict[str, dict[str, Any]] = {}
+pending_approval: dict[str, dict[str, Any]] = {}
 
 
 # ─── Health ─────────────────────────────────────────────────────
@@ -168,8 +169,28 @@ async def handle_message(ws: WebSocket, session_id: str, msg: dict[str, Any]) ->
             return
 
         await event_bus.broadcast_tool_call(plugin_name, plugin_input)
+
+        if plugin.requires_approval:
+            action_id = str(uuid.uuid4())[:8]
+            await event_bus.broadcast_risky_action(
+                action_id=action_id,
+                description=f"Tool {plugin_name} requires approval",
+                risk_level="medium",
+            )
+            pending_approval[session_id] = {
+                "action_id": action_id,
+                "plugin_name": plugin_name,
+                "plugin_input": plugin_input,
+            }
+            return
+
         result = await plugin.run(plugin_input, context={"session_id": session_id})
-        await event_bus.broadcast_tool_result(plugin_name, result.data if result.success else {"error": result.error})
+        payload = {
+            "success": result.success,
+            "data": result.data,
+            "error": result.error,
+        }
+        await event_bus.broadcast_tool_result(plugin_name, payload)
 
     elif msg_type == "list_models":
         models = await list_models()
@@ -177,10 +198,35 @@ async def handle_message(ws: WebSocket, session_id: str, msg: dict[str, Any]) ->
 
     elif msg_type == "approve":
         action_id = msg.get("action_id", "")
+        pending = pending_approval.pop(session_id, None)
+        if not pending or pending["action_id"] != action_id:
+            await event_bus.broadcast_thought(f"Action {action_id} not found or already handled", status="error")
+            return
+
+        plugin_name = pending["plugin_name"]
+        plugin_input = pending["plugin_input"]
+        result = await plugin_registry.get(plugin_name).run(plugin_input, context={"session_id": session_id})
+        payload = {
+            "success": result.success,
+            "data": result.data,
+            "error": result.error,
+        }
+        await event_bus.broadcast_tool_result(plugin_name, payload)
         await event_bus.broadcast_thought(f"Action {action_id} approved by user", status="success")
 
     elif msg_type == "reject":
         action_id = msg.get("action_id", "")
+        action_label = action_id or "<unknown>"
+        if not action_id:
+            await event_bus.broadcast_thought(f"Action {action_label} not found or already handled", status="error")
+            return
+
+        pending = pending_approval.get(session_id)
+        if not pending or pending["action_id"] != action_id:
+            await event_bus.broadcast_thought(f"Action {action_label} not found or already handled", status="error")
+            return
+
+        pending_approval.pop(session_id, None)
         await event_bus.broadcast_thought(f"Action {action_id} rejected by user", status="error")
 
 
