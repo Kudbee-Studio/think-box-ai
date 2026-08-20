@@ -53,10 +53,11 @@ class AuditLog:
 class PermissionChecker:
     policy: ApprovalPolicy = ApprovalPolicy.MANUAL
 
-    def check(self, permission: str) -> bool:
+    def check(self, permission: str | PermissionLevel) -> bool:
+        permission_value = permission.value if isinstance(permission, PermissionLevel) else permission
         if self.policy == ApprovalPolicy.AUTO_APPROVE_ALL:
             return True
-        if self.policy == ApprovalPolicy.AUTO_APPROVE_READ and permission == PermissionLevel.READ_ONLY:
+        if self.policy == ApprovalPolicy.AUTO_APPROVE_READ and permission_value == PermissionLevel.READ_ONLY.value:
             return True
         return False
 
