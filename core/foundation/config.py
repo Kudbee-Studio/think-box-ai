@@ -9,8 +9,11 @@ Configuration hierarchy (highest precedence wins):
 
 from __future__ import annotations
 
+import builtins
 import os
 from dataclasses import dataclass, field, fields
+from pathlib import Path
+from typing import Any
 
 
 ENV_PREFIX = "THINKBOX_"
@@ -61,7 +64,7 @@ def _load_pyproject_config(project_root: Path) -> dict[str, Any]:
                         value = value == "true"
                     config[key] = value
     except Exception as e:
-        raise RuntimeError(f"Failed to load config from {pyproject}") from e
+        raise builtins.RuntimeError(f"Failed to load config from {pyproject}") from e
 
     return config
 

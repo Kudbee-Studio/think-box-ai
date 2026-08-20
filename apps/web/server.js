@@ -331,21 +331,23 @@ wss.on('connection', (ws) => {
       const msg = JSON.parse(raw.toString());
 
       switch (msg.type) {
-        case 'run_goal':
+        case 'run_goal': {
           session.config.model = msg.model || session.config.model;
           session.broadcast({ type: 'status', data: 'running' });
           const result = await session.runGoal(msg.goal);
           ws.send(JSON.stringify({ type: 'result', data: result }));
           break;
+        }
 
         case 'stop':
           session.stop();
           break;
 
-        case 'plugin_execute':
+        case 'plugin_execute': {
           const result = await session.executePlugin(msg.plugin, msg.input);
           ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, result } }));
           break;
+        }
 
         case 'update_config':
           Object.assign(session.config, msg.config);

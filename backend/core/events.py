@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -22,6 +23,6 @@ def create_event(event_type: EventType, data: dict[str, Any]) -> dict[str, Any]:
     """Create a standardized event."""
     return {
         "type": event_type.value,
-        "timestamp": __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "data": data,
     }

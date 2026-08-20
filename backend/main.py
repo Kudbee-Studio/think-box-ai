@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +17,7 @@ from backend.models.ollama_client import list_models, stream_chat
 from backend.plugins.registry import plugin_registry
 
 app = FastAPI(title="kudbEE Agent OS", version="0.1.0")
+logger = logging.getLogger(__name__)
 
 # CORS for local dev
 app.add_middleware(
@@ -64,8 +67,12 @@ async def token_stream(goal: str, model: str) -> AsyncGenerator[str, None]:
         {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step."},
     ]
 
-    async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
-        yield f"data: {token}\n\n"
+    try:
+        async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
+            yield f"data: {token}\n\n"
+    except Exception:
+        logger.exception("SSE token stream failed")
+        yield "data: [ERROR]\n\n"
     yield "data: [DONE]\n\n"
 
 
@@ -112,7 +119,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
         while True:
             raw = await ws.receive_text()
-            msg: dict[str, Any] = __import__('json').loads(raw)
+            msg: dict[str, Any] = json.loads(raw)
             await handle_message(ws, session_id, msg)
 
     except WebSocketDisconnect:
