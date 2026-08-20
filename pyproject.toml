@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "think-box-ai"
+version = "0.1.0"
+description = "Think Box AI — Think Token (THNK) utility and SDK"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+think-box-ai = "think_box_ai.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["think_box_ai*"]
