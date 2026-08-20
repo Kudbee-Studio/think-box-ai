@@ -78,7 +78,7 @@ function handleMessage(msg) {
 
     case 'TOOL_RESULT': {
       const result = msg.data.result;
-      const icon = result?.success !== false ? '✓' : '✗';
+      const icon = result?.error ? '✗' : '✓';
       appendTerminalMessage('plugin', `${icon} [${msg.data.tool}] ${result?.data?.content || result?.error || JSON.stringify(result)}`);
       break;
     }
