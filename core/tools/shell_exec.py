@@ -50,5 +50,5 @@ shell_exec._tool_definition = ToolDefinition(
     handler=shell_exec_async,
     permission="exec",
     requires_approval=True,
-    input_schema={"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]},
+    input_schema={"type": "object", "properties": {"command": {"type": "string"}, "cwd": {"type": "string"}, "timeout": {"type": "integer"}}, "required": ["command"]},
 )

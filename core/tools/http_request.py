@@ -14,7 +14,7 @@ from core.tools.registry import ToolDefinition, tool
     description="Make an HTTP request",
     permission="network",
     requires_approval=True,
-    input_schema={"type": "object", "properties": {"url": {"type": "string"}, "method": {"type": "string"}, "headers": {"type": "object"}, "body": {"type": "object"}}, "required": ["url"]},
+    input_schema={"type": "object", "properties": {"url": {"type": "string"}, "method": {"type": "string"}, "headers": {"type": "object"}, "body": {"type": "object"}, "timeout": {"type": "integer"}}, "required": ["url"]},
 )
 async def _http_request_async(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     import aiohttp

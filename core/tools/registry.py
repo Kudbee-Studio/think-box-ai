@@ -69,7 +69,13 @@ class ToolRegistry:
         if tool is None:
             from core.foundation.errors import ToolNotFoundError
             raise ToolNotFoundError(f"Tool not found: {tool_name}")
-        required = tool.input_schema.get("required", list(tool.input_schema.keys()))
+        schema = tool.input_schema
+        if "required" in schema:
+            required = list(schema["required"])
+        elif "properties" in schema:
+            required = list(schema["properties"].keys())
+        else:
+            required = [k for k in schema.keys() if k not in ("type", "properties", "additionalProperties")]
         missing = [k for k in required if k not in args]
         if missing:
             from core.foundation.errors import ToolError
