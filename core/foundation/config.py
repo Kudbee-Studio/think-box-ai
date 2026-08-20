@@ -60,8 +60,8 @@ def _load_pyproject_config(project_root: Path) -> dict[str, Any]:
                     elif value in ("true", "false"):
                         value = value == "true"
                     config[key] = value
-    except Exception:
-        pass
+    except Exception as e:
+        raise RuntimeError(f"Failed to load config from {pyproject}") from e
 
     return config
 
