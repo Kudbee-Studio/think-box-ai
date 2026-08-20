@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from think_box_ai import __version__, __token_symbol__
+from think_box_ai import __version__
+from think_box_ai.token import SYMBOL
 
 
 def main() -> None:
@@ -17,7 +18,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.info:
-        print(f"Token symbol : {__token_symbol__}")
+        print(f"Token symbol : {SYMBOL}")
         print(f"Version      : {__version__}")
     else:
         parser.print_help()
