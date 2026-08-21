@@ -1,0 +1,67 @@
+"""Docker Compose for kudbEE with PostgreSQL 19 + pgvector.
+
+This provides the production-grade memory backend with vector search support.
+For local development without Docker, the backend falls back to SQLite.
+
+Usage:
+  docker compose up -d postgres
+  docker compose -f docker-compose.yml up -d
+
+Services:
+  postgres   — PostgreSQL 19 Beta with pgvector extension for semantic memory search
+  backend    — FastAPI backend (optional, for containerized deployment)
+  frontend   — Next.js 16.3 frontend (optional, for containerized deployment)
+"""
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg19-beta
+    container_name: kudbee-postgres
+    environment:
+      POSTGRES_DB: kudbee
+      POSTGRES_USER: kudbee
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kudbee-dev-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kudbee -d kudbee"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kudbee-backend
+    environment:
+      DATABASE_URL: postgresql://kudbee:${POSTGRES_PASSWORD:-kudbee-dev-password}@postgres:5432/kudbee
+      MEMORY_BACKEND: postgres
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/web/next
+      dockerfile: Dockerfile
+    container_name: kudbee-frontend
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local

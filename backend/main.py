@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator
@@ -15,9 +16,16 @@ from fastapi.responses import StreamingResponse
 from backend.core.event_bus import event_bus
 from backend.models.ollama_client import list_models, stream_chat
 from backend.plugins.registry import plugin_registry
+from core.memory.postgres_store import PostgresMemoryStore
 
 app = FastAPI(title="kudbEE Agent OS", version="0.1.0")
 logger = logging.getLogger(__name__)
+
+# ─── Memory Store (PostgreSQL 19 + pgvector with SQLite fallback) ──
+memory_store = PostgresMemoryStore(
+    database_url=os.getenv("DATABASE_URL"),
+    fallback_db_path=os.getenv("MEMORY_DB_PATH", "memory.db"),
+)
 
 # CORS for local dev
 app.add_middleware(
@@ -27,6 +35,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── Startup / Shutdown ─────────────────────────────────────────
+@app.on_event("startup")
+async def startup() -> None:
+    """Connect to the memory store (PostgreSQL with SQLite fallback)."""
+    await memory_store.connect()
+    logger.info("Memory store initialized", extra={"backend": memory_store.backend})
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    """Close the memory store."""
+    await memory_store.close()
+
 
 # ─── State ──────────────────────────────────────────────────────
 sessions: dict[str, dict[str, Any]] = {}
@@ -41,6 +63,7 @@ async def health() -> dict[str, Any]:
         "version": "0.1.0",
         "sessions": len(sessions),
         "plugins": len(plugin_registry.list_tools()),
+        "memory_backend": memory_store.backend,
     }
 
 

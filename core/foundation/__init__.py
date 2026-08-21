@@ -5,7 +5,6 @@ Layer 0. No dependencies on other thinkbox packages.
 
 from __future__ import annotations
 
-from core.foundation.bootstrap import RuntimeContext, bootstrap, shutdown
 from core.foundation.config import ThinkBoxConfig, load_config
 from core.foundation.errors import (
     ApprovalDeniedError,
@@ -25,6 +24,15 @@ from core.foundation.errors import (
     ToolPermissionError,
 )
 from core.foundation.logging import get_logger, setup_logging
+
+# Bootstrap is imported lazily: it depends on governance/providers/tools modules
+# that may not be implemented yet. Degrade gracefully if unavailable.
+try:
+    from core.foundation.bootstrap import RuntimeContext, bootstrap, shutdown
+except ImportError:
+    RuntimeContext = None  # type: ignore[assignment]
+    bootstrap = None  # type: ignore[assignment]
+    shutdown = None  # type: ignore[assignment]
 
 __all__ = [
     "ThinkBoxConfig",
