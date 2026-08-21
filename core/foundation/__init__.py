@@ -25,6 +25,15 @@ from core.foundation.errors import (
 )
 from core.foundation.logging import get_logger, setup_logging
 
+# Bootstrap is imported lazily: it depends on governance/providers/tools modules
+# that may not be implemented yet. Degrade gracefully if unavailable.
+try:
+    from core.foundation.bootstrap import RuntimeContext, bootstrap, shutdown
+except ImportError:
+    RuntimeContext = None  # type: ignore[assignment]
+    bootstrap = None  # type: ignore[assignment]
+    shutdown = None  # type: ignore[assignment]
+
 __all__ = [
     "ThinkBoxConfig",
     "load_config",

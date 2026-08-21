@@ -113,11 +113,20 @@ function appendTerminalMessage(role, content) {
   if (welcome) welcome.remove();
 
   const msg = document.createElement('div');
-  msg.className = `terminal-message ${role}`;
+  msg.className = `terminal-message ${sanitizeCssToken(role)}`.trim();
 
   const header = document.createElement('div');
   header.className = 'message-header';
-  header.innerHTML = `<span class="message-role">${role}</span><span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+
+  const roleLabel = document.createElement('span');
+  roleLabel.className = 'message-role';
+  roleLabel.textContent = role;
+
+  const timeLabel = document.createElement('span');
+  timeLabel.className = 'message-time';
+  timeLabel.textContent = new Date().toLocaleTimeString();
+
+  header.append(roleLabel, timeLabel);
 
   const body = document.createElement('div');
   body.className = 'message-content';
@@ -212,15 +221,30 @@ function renderTasks() {
     return;
   }
 
-  container.innerHTML = state.tasks.map(task => `
-    <div class="task-item ${task.status}">
-      <div class="task-header">
-        <span class="task-status ${task.status}">${task.status}</span>
-      </div>
-      <div class="task-description">${escapeHtml(task.description)}</div>
-      <div class="task-time">${new Date(task.timestamp).toLocaleTimeString()}</div>
-    </div>
-  `).join('');
+  container.replaceChildren(...state.tasks.map(task => {
+    const item = document.createElement('div');
+    const status = sanitizeCssToken(task.status);
+    item.className = `task-item ${status}`.trim();
+
+    const header = document.createElement('div');
+    header.className = 'task-header';
+
+    const badge = document.createElement('span');
+    badge.className = `task-status ${status}`.trim();
+    badge.textContent = task.status || '';
+    header.appendChild(badge);
+
+    const description = document.createElement('div');
+    description.className = 'task-description';
+    description.textContent = task.description || '';
+
+    const time = document.createElement('div');
+    time.className = 'task-time';
+    time.textContent = new Date(task.timestamp).toLocaleTimeString();
+
+    item.append(header, description, time);
+    return item;
+  }));
 }
 
 // ─── Thoughts ──────────────────────────────────────────────────
@@ -239,15 +263,29 @@ function renderThoughts() {
     return;
   }
 
-  container.innerHTML = state.thoughts.slice(-50).reverse().map(thought => `
-    <div class="thought-item ${thought.status || 'info'}">
-      <div class="thought-header">
-        <span class="thought-type">${thought.type || 'thought'}</span>
-        <span>${new Date(thought.timestamp).toLocaleTimeString()}</span>
-      </div>
-      <div class="thought-content">${escapeHtml(thought.content || thought.plugin || '')}</div>
-    </div>
-  `).join('');
+  container.replaceChildren(...state.thoughts.slice(-50).reverse().map(thought => {
+    const item = document.createElement('div');
+    item.className = `thought-item ${sanitizeCssToken(thought.status || 'info')}`.trim();
+
+    const header = document.createElement('div');
+    header.className = 'thought-header';
+
+    const type = document.createElement('span');
+    type.className = 'thought-type';
+    type.textContent = thought.type || 'thought';
+
+    const time = document.createElement('span');
+    time.textContent = new Date(thought.timestamp).toLocaleTimeString();
+
+    header.append(type, time);
+
+    const content = document.createElement('div');
+    content.className = 'thought-content';
+    content.textContent = thought.content || thought.plugin || '';
+
+    item.append(header, content);
+    return item;
+  }));
 }
 
 // ─── Plugins ───────────────────────────────────────────────────
@@ -258,16 +296,35 @@ function renderPlugins() {
     return;
   }
 
-  container.innerHTML = state.plugins.map(plugin => `
-    <div class="plugin-item">
-      <span class="plugin-icon">${plugin.icon || '🔌'}</span>
-      <div class="plugin-info">
-        <div class="plugin-name">${plugin.name}</div>
-        <div class="plugin-desc">${plugin.description}</div>
-      </div>
-      <span class="plugin-badge ${plugin.permission}">${plugin.permission}</span>
-    </div>
-  `).join('');
+  container.replaceChildren(...state.plugins.map(plugin => {
+    const item = document.createElement('div');
+    item.className = 'plugin-item';
+
+    const icon = document.createElement('span');
+    icon.className = 'plugin-icon';
+    icon.textContent = plugin.icon || '🔌';
+
+    const info = document.createElement('div');
+    info.className = 'plugin-info';
+
+    const name = document.createElement('div');
+    name.className = 'plugin-name';
+    name.textContent = plugin.name || '';
+
+    const description = document.createElement('div');
+    description.className = 'plugin-desc';
+    description.textContent = plugin.description || '';
+
+    info.append(name, description);
+
+    const badge = document.createElement('span');
+    const permission = sanitizeCssToken(plugin.permission);
+    badge.className = `plugin-badge ${permission}`.trim();
+    badge.textContent = plugin.permission || '';
+
+    item.append(icon, info, badge);
+    return item;
+  }));
 }
 
 // ─── Models ────────────────────────────────────────────────────
@@ -283,9 +340,12 @@ function renderModels() {
     return;
   }
 
-  select.innerHTML = state.models.map(m =>
-    `<option value="${m.name}">${m.name} (${(m.size / 1e9).toFixed(1)}GB)</option>`
-  ).join('');
+  select.replaceChildren(...state.models.map((model) => {
+    const option = document.createElement('option');
+    option.value = model.name || '';
+    option.textContent = `${model.name || ''} (${(model.size / 1e9).toFixed(1)}GB)`;
+    return option;
+  }));
 }
 
 // ─── Actions ───────────────────────────────────────────────────
@@ -322,6 +382,10 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function sanitizeCssToken(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
 // ─── Event Listeners ───────────────────────────────────────────

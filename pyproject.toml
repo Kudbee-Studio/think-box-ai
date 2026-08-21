@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "think-box-ai"
 version = "0.1.0"
-description = "Think Box AI — Think Token (THNK) utility and SDK"
+description = "An intelligent execution environment for AI agents"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
+authors = [{ name = "THINK BOX AI contributors" }]
 dependencies = []
 
 [project.optional-dependencies]

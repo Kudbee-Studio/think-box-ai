@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
+import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,8 +16,16 @@ from fastapi.responses import StreamingResponse
 from backend.core.event_bus import event_bus
 from backend.models.ollama_client import list_models, stream_chat
 from backend.plugins.registry import plugin_registry
+from core.memory.postgres_store import PostgresMemoryStore
 
 app = FastAPI(title="kudbEE Agent OS", version="0.1.0")
+logger = logging.getLogger(__name__)
+
+# ─── Memory Store (PostgreSQL 19 + pgvector with SQLite fallback) ──
+memory_store = PostgresMemoryStore(
+    database_url=os.getenv("DATABASE_URL"),
+    fallback_db_path=os.getenv("MEMORY_DB_PATH", "memory.db"),
+)
 
 # CORS for local dev
 app.add_middleware(
@@ -24,6 +35,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─── Startup / Shutdown ─────────────────────────────────────────
+@app.on_event("startup")
+async def startup() -> None:
+    """Connect to the memory store (PostgreSQL with SQLite fallback)."""
+    await memory_store.connect()
+    logger.info("Memory store initialized", extra={"backend": memory_store.backend})
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    """Close the memory store."""
+    await memory_store.close()
+
 
 # ─── State ──────────────────────────────────────────────────────
 sessions: dict[str, dict[str, Any]] = {}
@@ -39,6 +64,7 @@ async def health() -> dict[str, Any]:
         "version": "0.1.0",
         "sessions": len(sessions),
         "plugins": len(plugin_registry.list_tools()),
+        "memory_backend": memory_store.backend,
     }
 
 
@@ -60,13 +86,17 @@ async def get_plugins() -> dict[str, Any]:
 # ─── SSE token stream ───────────────────────────────────────────
 async def token_stream(goal: str, model: str) -> AsyncGenerator[str, None]:
     """Stream model tokens via SSE."""
-    messages = [
-        {"role": "system", "content": "You are kudbEE, an intelligent agent OS. You help developers accomplish goals by using tools. Think step by step. Be concise and actionable."},
-        {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step."},
-    ]
+    try:
+        messages = [
+            {"role": "system", "content": "You are kudbEE, an intelligent agent OS. You help developers accomplish goals by using tools. Think step by step. Be concise and actionable."},
+            {"role": "user", "content": f"Goal: {goal}\n\nAvailable tools: {', '.join([t.name for t in plugin_registry.get_enabled()])}\n\nExecute this goal step by step."},
+        ]
 
-    async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
-        yield f"data: {token}\n\n"
+        async for token in stream_chat(model, messages, temperature=0.7, max_tokens=4096):
+            yield f"data: {token}\n\n"
+    except Exception:
+        logger.exception("SSE token stream failed")
+        yield "data: [ERROR]\n\n"
     yield "data: [DONE]\n\n"
 
 
@@ -113,7 +143,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
         while True:
             raw = await ws.receive_text()
-            msg: dict[str, Any] = __import__('json').loads(raw)
+            msg: dict[str, Any] = json.loads(raw)
             await handle_message(ws, session_id, msg)
 
     except WebSocketDisconnect:
