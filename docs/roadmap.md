@@ -6,11 +6,11 @@
 
 ---
 
-## STAGE 0 — Foundation Lock (Week 1) ✅ COMPLETE
+## STAGE 0 — Foundation Lock (Week 1)
 
 **Goal:** Stable Python package, event schema, agent loop contract, plugin interface.
 
-**Status:** Complete as of commit e677fb7. All core modules implemented and tests passing.
+**Status:** Core modules implemented as of commit e677fb7. Secrets/capabilities resolution (Stage 9.5) and e2e tests (deferred to Phase 2) remain pending.
 
 ### 0.1 Core Python package
 - [x] `core/foundation/` — config, logging, errors, bootstrap
@@ -21,8 +21,7 @@
 - [x] `core/runtime/` — Agent, Goal, Step, ThinkBox, Planner, Actor, Observer
 - [x] `tests/unit/` — tests passing
 - [x] `tests/integration/` — tests passing
-- [x] `tests/e2e/` — pending (deferred to Phase 2)
-- [x] `core/foundation/secrets.py` — SecretResolver for secrets/capabilities abstraction
+- [ ] `tests/e2e/` — deferred to Phase 2
 
 ### 0.2 Event schema (FINAL — do not change after this)
 ```python
