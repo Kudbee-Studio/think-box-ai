@@ -9,12 +9,14 @@ from core.providers.base import (
     ProviderCapabilities,
     ProviderRegistry,
 )
+from core.providers.ollama import OllamaProvider
 from core.providers.openai_compat import OpenAICompatProvider
 
 __all__ = [
     "CompletionResponse",
     "Message",
     "ModelProvider",
+    "OllamaProvider",
     "OpenAICompatProvider",
     "ProviderCapabilities",
     "ProviderRegistry",
