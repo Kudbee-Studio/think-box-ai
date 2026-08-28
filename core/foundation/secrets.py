@@ -81,10 +81,9 @@ class SecretResolver:
             key: Secret name.
 
         Returns:
-            True if the secret can be resolved.
+            True if the secret can be resolved to a non-None value.
         """
-        env_key = f"{ENV_PREFIX}{key}"
-        return env_key in os.environ or key in self._defaults
+        return self.resolve(key) is not None
 
 
 class SecretResolutionError(Exception):
