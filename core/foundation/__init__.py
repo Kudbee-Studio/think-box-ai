@@ -24,12 +24,15 @@ from core.foundation.errors import (
     ToolPermissionError,
 )
 from core.foundation.logging import get_logger, setup_logging
+from core.foundation.secrets import SecretResolver, SecretResolutionError
 
 __all__ = [
     "ThinkBoxConfig",
     "load_config",
     "setup_logging",
     "get_logger",
+    "SecretResolver",
+    "SecretResolutionError",
     "ThinkBoxError",
     "ProviderError",
     "ProviderUnavailableError",
