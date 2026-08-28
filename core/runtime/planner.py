@@ -12,15 +12,20 @@ class Step:
     description: str
     action: str
     expected_output: dict[str, Any] | None = None
+    parameters: dict[str, Any] | None = None
 
 
 class Planner:
     def __init__(self, task_memory: Any = None) -> None:
         self.task_memory = task_memory
 
-    def plan(self, think_box: Any) -> list[Step]:
+    async def plan(self, think_box: Any) -> list[Step]:
         goal = getattr(think_box, "goal", None)
         statement = goal.statement if goal else "unknown goal"
+        # If provider is set, call its complete method (placeholder behavior)
+        if hasattr(self, "provider") and self.provider is not None:
+            # Assume provider.complete returns a dict; await it
+            await self.provider.complete(["plan", statement])
         return [
             Step(
                 id="step-1",

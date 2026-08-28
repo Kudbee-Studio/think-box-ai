@@ -29,12 +29,16 @@ class Agent:
         task_memory: Any = None,
         config: Any = None,
         tool_registry: Any = None,
+        approval_gate: Any = None,
+        audit_log: Any = None,
     ) -> None:
         self.agent_id = agent_id
         self.session_memory = session_memory
         self.task_memory = task_memory
         self.config = config
         self.tool_registry = tool_registry
+        self.approval_gate = approval_gate
+        self.audit_log = audit_log
 
     def create_think_box(self, goal: Goal) -> ThinkBox:
         return ThinkBox(goal=goal)
@@ -48,7 +52,7 @@ class Agent:
     ) -> dict[str, Any]:
         tb = self.create_think_box(goal)
         ThinkBoxLifecycle.transition(tb, "planning")
-        steps = planner.plan(tb) if planner else []
+        steps = await planner.plan(tb) if planner else []
         ThinkBoxLifecycle.transition(tb, "executing")
         for step in steps:
             result = await actor.execute_step(self, tb, step) if actor else {"status": "success"}
