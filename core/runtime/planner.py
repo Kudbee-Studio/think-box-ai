@@ -18,7 +18,7 @@ class Planner:
     def __init__(self, task_memory: Any = None) -> None:
         self.task_memory = task_memory
 
-    def plan(self, think_box: Any) -> list[Step]:
+    async def plan(self, think_box: Any) -> list[Step]:
         goal = getattr(think_box, "goal", None)
         statement = goal.statement if goal else "unknown goal"
         return [

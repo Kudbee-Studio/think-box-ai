@@ -48,7 +48,7 @@ class Agent:
     ) -> dict[str, Any]:
         tb = self.create_think_box(goal)
         ThinkBoxLifecycle.transition(tb, "planning")
-        steps = planner.plan(tb) if planner else []
+        steps = await planner.plan(tb) if planner else []
         ThinkBoxLifecycle.transition(tb, "executing")
         for step in steps:
             result = await actor.execute_step(self, tb, step) if actor else {"status": "success"}
