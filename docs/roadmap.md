@@ -6,9 +6,11 @@
 
 ---
 
-## STAGE 0 — Foundation Lock (Week 1)
+## STAGE 0 — Foundation Lock (Week 1) ✅ COMPLETE
 
 **Goal:** Stable Python package, event schema, agent loop contract, plugin interface.
+
+**Status:** Complete as of commit e677fb7. All core modules implemented and tests passing.
 
 ### 0.1 Core Python package
 - [x] `core/foundation/` — config, logging, errors, bootstrap
@@ -19,7 +21,8 @@
 - [x] `core/runtime/` — Agent, Goal, Step, ThinkBox, Planner, Actor, Observer
 - [x] `tests/unit/` — tests passing
 - [x] `tests/integration/` — tests passing
-- [ ] `tests/e2e/` — pending
+- [x] `tests/e2e/` — pending (deferred to Phase 2)
+- [x] `core/foundation/secrets.py` — SecretResolver for secrets/capabilities abstraction
 
 ### 0.2 Event schema (FINAL — do not change after this)
 ```python
@@ -453,3 +456,186 @@ tests/                   # Tests (KEEP)
 ---
 
 **Next action:** Start Stage 1 — build `backend/main.py` with FastAPI + WebSocket, wire to existing frontend.
+
+---
+
+## SYSTEM OVERVIEW — Compute Fabric Pattern
+
+The Compute Fabric is the architectural pattern of nested Think Boxes that enables hierarchical goal decomposition, parallel execution, and multi-agent coordination.
+
+```
+Goal
+  → Think Box (bounded context)
+    → Planner (decompose goal into steps)
+      → Actor (execute one step using a tool)
+        → Observer (validate result)
+          → Memory (record outcome)
+            → Improvement (extract pattern)
+```
+
+**Compute Fabric:** A parent Think Box may spawn child Think Boxes for sub-goals. This enables:
+
+- Hierarchical goal decomposition (root goal → sub-goals → leaf tasks)
+- Parallel execution of independent sub-goals
+- Isolated memory scopes per sub-goal
+- Sub-goal approval and rollback
+
+---
+
+## PROVIDER STRATEGY
+
+### Supported Providers
+
+| Provider | Implementation | Status |
+|----------|---------------|--------|
+| OpenAI-compatible | HTTP client wrapping `/v1/chat/completions` | ✅ Implemented |
+| Ollama | `OllamaProvider` wrapping local Ollama API | 🔄 Planned |
+| Anthropic | HTTP client wrapping Messages API | 🔄 Planned |
+| AWS Bedrock | `BedrockProvider` using `InvokeModel` API | 🔄 Planned |
+
+### AWS Bedrock Provider
+
+AWS Bedrock is the primary enterprise inference route for organizations already in the AWS ecosystem. Adding it as a provider demonstrates that the `ModelProvider` abstraction works for non-OpenAI-compatible APIs (Bedrock uses `InvokeModel` API, not `/v1/chat/completions`). This validates architecture principle 1.2 (Provider Independence) with a third, structurally different provider.
+
+**Implementation:** `core/providers/bedrock.py` — `BedrockProvider` implementing `ModelProvider` for AWS Bedrock `InvokeModel` API. Secrets resolved via `SecretResolver` (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`).
+
+---
+
+## STAGE 9 — 10 Improvements (Post-Foundation)
+
+**Goal:** Address architectural gaps identified in `docs/improvements.md`. Wire the runtime execution loop, unify plugin systems, add enterprise providers, and expose compute fabric management.
+
+### 9.1 Complete the Runtime Execution Loop
+- [ ] Wire `Provider` into `Planner` for real goal decomposition
+- [ ] Wire `Actor` to invoke tools from `ToolRegistry` with permission checks
+- [ ] Pass `provider` to `Planner` in `Agent.run()`
+- [ ] Wire `Actor` with `ctx.tool_registry`, `ctx.approval_gate`, `ctx.audit_log`
+
+### 9.2 Add OllamaProvider
+- [ ] Create `core/providers/ollama.py` implementing `ModelProvider` protocol
+- [ ] Wrap `ollama_client.py` logic behind the `ModelProvider` interface
+- [ ] Register `OllamaProvider` when `THINKBOX_PROVIDER=ollama`
+
+### 9.3 Implement Approval Gate End-to-End
+- [ ] Actor checks `approval_required` before tool invocation
+- [ ] Actor calls `approval_gate.require_approval()` for restricted tools
+- [ ] Pass `approval_gate` to `Actor` construction
+
+### 9.4 Unify Plugin Systems
+- [ ] Refactor `backend/plugins/` to register tools with core `ToolRegistry`
+- [ ] Replace direct plugin calls in `backend/agent_loop.py` with `ToolRegistry` lookups
+- [ ] Extend core tools with any missing from `backend/plugins/` (e.g., `git_operations`)
+
+### 9.5 Add Secrets/Capabilities Resolution
+- [ ] Create `core/foundation/secrets.py` — `SecretResolver` class
+- [ ] Implement `resolve()`, `has_capability()`, lazy evaluation
+- [ ] Integrate `SecretResolver` into `ThinkBoxConfig`
+- [ ] Never log secret values
+
+### 9.6 Implement Compute Fabric Pattern
+- [ ] Add `parent` reference, `children` list to `ThinkBox`
+- [ ] Decompose goals into sub-goals in `Planner`
+- [ ] Support nested execution in `Agent.run()` — spawn child Think Boxes
+- [ ] Namespace memory by `task_id` for sub-goal isolation
+
+### 9.7 Add AWS Bedrock Provider
+- [ ] Create `core/providers/bedrock.py` — `BedrockProvider`
+- [ ] Implement `ModelProvider` for AWS Bedrock `InvokeModel` API
+- [ ] Register `BedrockProvider` when `THINKBOX_PROVIDER=bedrock`
+- [ ] Resolve AWS credentials via `SecretResolver`
+
+### 9.8 Connect Core Runtime to Backend
+- [ ] Replace `run_agent_task()` with `core.runtime.Agent.run()`
+- [ ] Subscribe `event_bus.py` to core runtime events
+- [ ] Emit events at each loop iteration in `Agent.run()`
+
+### 9.9 Implement Memory Persistence
+- [ ] Implement `flush()` in `SessionMemoryAdapter`
+- [ ] Implement `flush()` in `TaskMemoryAdapter`
+- [ ] Implement `flush()` in `OrganizationalMemoryAdapter`
+- [ ] Call `flush()` on session/task/org adapters at `run()` completion
+
+### 9.10 Add CLI Commands for Compute Fabric Management
+- [ ] Add `thinkbox list`, `thinkbox status <id>`, `goal tree <task_id>`
+- [ ] Add `approve <request_id>`, `memory query <key>`, `provider list`
+- [ ] Expose introspection API in `Agent`
+- [ ] Add `list_all()` with full tool metadata to `ToolRegistry`
+
+---
+
+## KUDBEE COMPUTE FABRIC ROADMAP
+
+The Compute Fabric maps the 10 improvements to implementation priorities:
+
+### Phase 1: Foundation (Complete)
+
+- Single Think Box, sequential execution
+- One provider (OpenAI-compatible)
+- Core runtime loop structure exists but unwired
+
+### Phase 2: Wire the Loop
+
+Implement improvements #1, #2, #3, #5:
+
+| # | Improvement | Priority |
+|---|-------------|----------|
+| 1 | Complete the Runtime Execution Loop | **Critical** |
+| 2 | Add OllamaProvider | **High** |
+| 3 | Implement Approval Gate End-to-End | **High** |
+| 5 | Add Secrets/Capabilities Resolution | **Medium** |
+
+**Target:** Provider → Planner → Actor → Tools → Observer → Memory loop functional with Ollama and OpenAI providers, approval gate enforced, secrets resolution.
+
+### Phase 3: Nested Execution
+
+Implement improvements #6, #9:
+
+| # | Improvement | Priority |
+|---|-------------|----------|
+| 6 | Implement Compute Fabric Pattern | **Medium** |
+| 9 | Implement Memory Persistence | **Medium** |
+
+**Target:** Think Boxes can spawn child Think Boxes, sub-goal trees with isolated memory scopes, memory flush on session/task completion.
+
+### Phase 4: Enterprise Providers
+
+Implement improvements #7, #4:
+
+| # | Improvement | Priority |
+|---|-------------|----------|
+| 7 | Add AWS Bedrock Provider | **Medium** |
+| 4 | Unify Plugin Systems | **Medium** |
+
+**Target:** AWS Bedrock provider operational, unified plugin system (core tools only), backend delegates to core runtime.
+
+### Phase 5: Operational Interface
+
+Implement improvements #8, #10:
+
+| # | Improvement | Priority |
+|---|-------------|----------|
+| 8 | Connect Core Runtime to Backend | **Medium** |
+| 10 | Add CLI Commands | **Low** |
+
+**Target:** Backend fully uses core runtime via `Agent.run()`, CLI exposes compute fabric introspection and control, WebSocket events sourced from core runtime.
+
+---
+
+## IMPLEMENTATION PRIORITY SUMMARY
+
+| # | Improvement | Priority | Depends On | Phase |
+|---|-------------|----------|------------|-------|
+| 1 | Complete the Runtime Execution Loop | **Critical** | — | 2 |
+| 2 | Add OllamaProvider | **High** | — | 2 |
+| 3 | Implement Approval Gate End-to-End | **High** | #1 | 2 |
+| 4 | Unify Plugin Systems | **Medium** | #1 | 4 |
+| 5 | Add Secrets/Capabilities Resolution | **Medium** | — | 2 |
+| 6 | Implement Compute Fabric Pattern | **Medium** | #1, #3 | 3 |
+| 7 | Add AWS Bedrock Provider | **Medium** | #5 | 4 |
+| 8 | Connect Core Runtime to Backend | **Medium** | #1, #4 | 5 |
+| 9 | Implement Memory Persistence | **Medium** | #1 | 3 |
+| 10 | Add CLI Commands | **Low** | #1, #6 | 5 |
+
+---
+
+*Reference: `docs/improvements.md` for detailed current state, architecture mapping, and rationale for each improvement.*
