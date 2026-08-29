@@ -399,3 +399,48 @@ class MemoryStore:
         if row is None:
             return None
         return self.add_challenge(token_id, "replay", row["o"])
+
+    def export_box(self, box_id: str) -> dict[str, Any]:
+        """Export all data for a Think Box as a serializable dict."""
+        if not box_id:
+            raise ValueError("box_id required")
+        tokens = self.list_tokens(box_id)
+        for token in tokens:
+            token["challenges"] = self.list_challenges(token["id"])
+        return {
+            "version": 1,
+            "box_id": box_id,
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "tokens": tokens,
+        }
+
+    def import_box(self, data: dict[str, Any]) -> str:
+        """Import a Think Box from exported data. Returns box_id."""
+        if not isinstance(data, dict):
+            raise ValueError("data must be a dict")
+        box_id = data.get("box_id")
+        if not box_id:
+            raise ValueError("data.box_id required")
+        for token in data.get("tokens", []):
+            claim = token.get("claim", "")
+            author = token.get("author", "")
+            grounded = token.get("grounded", True)
+            existing = self.mint_token(box_id, claim, author, grounded)
+            if existing is not None:
+                for ch in token.get("challenges", []):
+                    self.add_challenge(existing, ch["type"], ch["o"])
+        return box_id
+
+    def delete_box(self, box_id: str) -> bool:
+        """Delete a Think Box and all its tokens/challenges."""
+        if not box_id:
+            return False
+        conn = self._get_conn()
+        token_rows = conn.execute(
+            "SELECT id FROM think_tokens WHERE box_id = ?", (box_id,)
+        ).fetchall()
+        for row in token_rows:
+            conn.execute("DELETE FROM challenges WHERE token_id = ?", (row["id"],))
+        conn.execute("DELETE FROM think_tokens WHERE box_id = ?", (box_id,))
+        conn.commit()
+        return True

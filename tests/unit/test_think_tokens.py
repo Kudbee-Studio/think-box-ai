@@ -125,6 +125,55 @@ class TestThinkTokens(unittest.TestCase):
         result = self.store.challenge_replay(token_id)
         self.assertIsNone(result)
 
+    def test_export_box(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        self.store.add_challenge(token_id, "exec", outcome=1)
+        data = self.store.export_box("tb-1")
+        self.assertEqual(data["box_id"], "tb-1")
+        self.assertEqual(data["version"], 1)
+        self.assertEqual(len(data["tokens"]), 1)
+        self.assertEqual(len(data["tokens"][0]["challenges"]), 1)
+
+    def test_import_box(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        self.store.add_challenge(token_id, "exec", outcome=1)
+        data = self.store.export_box("tb-1")
+
+        # Delete original
+        self.store.delete_box("tb-1")
+
+        # Import
+        imported_id = self.store.import_box(data)
+        self.assertEqual(imported_id, "tb-1")
+        tokens = self.store.list_tokens("tb-1")
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0]["claim"], "test")
+
+    def test_import_does_not_duplicate(self):
+        self.store.mint_token(box_id="tb-1", claim="test")
+        data = self.store.export_box("tb-1")
+        self.store.import_box(data)  # Import again
+        tokens = self.store.list_tokens("tb-1")
+        self.assertEqual(len(tokens), 1)  # Still 1, no duplicate
+
+    def test_delete_box(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        self.store.add_challenge(token_id, "exec", outcome=1)
+        self.assertTrue(self.store.delete_box("tb-1"))
+        self.assertEqual(len(self.store.list_tokens("tb-1")), 0)
+        self.assertEqual(len(self.store.list_challenges(token_id)), 0)
+
+    def test_delete_empty_box(self):
+        self.assertTrue(self.store.delete_box("tb-nonexistent"))  # No error
+
+    def test_export_invalid_box(self):
+        with self.assertRaises(ValueError):
+            self.store.export_box("")
+
+    def test_import_invalid_data(self):
+        with self.assertRaises(ValueError):
+            self.store.import_box({})
+
     # ------------------------------------------------------------------
     # Jury challenge tests
     # ------------------------------------------------------------------

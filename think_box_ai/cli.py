@@ -368,6 +368,56 @@ def cmd_challenge_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    """Export a Think Box to stdout or a file."""
+    store = _get_store()
+    try:
+        data = store.export_box(args.id)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    output = json.dumps(data, indent=2)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(output)
+        print(f"exported to {args.output}")
+    else:
+        print(output)
+    return 0
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    """Import a Think Box from a JSON file."""
+    store = _get_store()
+    try:
+        with open(args.file) as f:
+            data = json.load(f)
+        box_id = store.import_box(data)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    print(f"imported box: {box_id}")
+    return 0
+
+
+def cmd_delete(args: argparse.Namespace) -> int:
+    """Delete a Think Box and all its tokens/challenges."""
+    store = _get_store()
+    if not store.delete_box(args.id):
+        print(f"error: box not found or invalid: {args.id}", file=sys.stderr)
+        return 1
+
+    # Also try to delete evidence file
+    evidence_file = _evidence_file(args.id)
+    if os.path.exists(evidence_file):
+        os.remove(evidence_file)
+
+    print(f"deleted box: {args.id}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -430,6 +480,22 @@ def main() -> int:
     p_replay = subparsers.add_parser("challenge-replay", help="Replay the most recent challenge")
     p_replay.add_argument("token_id", help="Token ID")
     p_replay.set_defaults(func=cmd_challenge_replay)
+
+    # thinkbox export <id> [-o FILE]
+    p_export = subparsers.add_parser("export", help="Export a Think Box")
+    p_export.add_argument("id", help="Think Box ID")
+    p_export.add_argument("-o", "--output", help="Output file (default: stdout)")
+    p_export.set_defaults(func=cmd_export)
+
+    # thinkbox import <file>
+    p_import = subparsers.add_parser("import", help="Import a Think Box from JSON")
+    p_import.add_argument("file", help="JSON file to import")
+    p_import.set_defaults(func=cmd_import)
+
+    # thinkbox delete <id>
+    p_delete = subparsers.add_parser("delete", help="Delete a Think Box")
+    p_delete.add_argument("id", help="Think Box ID")
+    p_delete.set_defaults(func=cmd_delete)
 
     args = parser.parse_args()
 

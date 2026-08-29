@@ -138,6 +138,74 @@ class TestThinkboxCLI(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
 
+    def test_export_import_roundtrip(self):
+        import subprocess
+        # Create + exec
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        tb_id = result.stdout.strip()
+
+        subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "roundtrip"],
+            capture_output=True, text=True,
+        )
+
+        # Export
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "export", tb_id, "-o", ".kilo/export_test.json"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+
+        # Delete original
+        subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "delete", tb_id],
+            capture_output=True, text=True,
+        )
+
+        # Import
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "import", ".kilo/export_test.json"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(tb_id, result.stdout)
+
+        # Verify tokens exist
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("roundtrip", result.stdout)
+
+    def test_delete_removes_data(self):
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        tb_id = result.stdout.strip()
+
+        subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "delete_me"],
+            capture_output=True, text=True,
+        )
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "delete", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1)  # No tokens found
+
     def test_full_workflow(self):
         """Test the complete workflow: create -> exec -> evidence -> tokens -> score."""
         import subprocess
