@@ -27,8 +27,12 @@
 - None
 
 ### Blocked
-- Firecracker microVM boot is BLOCKED: no /dev/kvm (directory, not char device)
-  on UpCloud Managed Kubernetes worker (PREMIUM-4xCPU-8GB plan)
+- Firecracker microVM boot is BLOCKED: UpCloud API catalog confirms no
+  bare-metal/nested-virt plans exist (DEV, STARTER, PREMIUM, CLOUDNATIVE,
+  HIMEM, HICPU, GPU, GPU-SPOT only). Current host kudbee-host-v1
+  (PREMIUM-4xCPU-8GB, fi-hel2) empirically lacks /dev/kvm. No other provider
+  credentials are configured, so a KVM-capable host cannot be provisioned
+  in this environment. Path forward documented in ADR-002.
 
 ## Optimization Research (Firecracker Best Practices)
 

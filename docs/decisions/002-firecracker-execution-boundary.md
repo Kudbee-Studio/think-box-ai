@@ -189,10 +189,50 @@ as a KVM guest. Nested virtualization is not exposed — CPU flags lack `vmx`/`s
 and `/dev/kvm` is a directory rather than a character device. `kvm_amd` and
 `kvm_intel` kernel modules cannot be loaded.
 
-**UpCloud plan:** `PREMIUM-4xCPU-8GB` in zone `fi-hel2`. All UpCloud plan
-families (PREMIUM, CLOUDNATIVE, HIMEM, HICPU, STARTER, DEV) run as KVM guests
-without nested virt passthrough. UpCloud does not currently offer bare-metal
-or dedicated-host plans with nested virtualization support.
+**UpCloud plan:** `PREMIUM-4xCPU-8GB` in zone `fi-hel2`.
+
+**Definitive catalog check (2026-08-29, via UpCloud API `/1.3/price` and
+`/1.3/account`):**
+- Available plan families: DEV, STARTER, PREMIUM, CLOUDNATIVE, HIMEM, HICPU,
+  GPU, GPU-SPOT. No `bare-metal`, `dedicated`, or `nested-virt` family exists.
+- Account resource limits show only `cloud_server_dev_*` and
+  `cloud_server_starter_*` families; `gpus: 0`. No bare-metal/dedicated-KVM
+  quota is exposed.
+- Private Cloud offers dedicated compute hosts, but documentation and API
+  indicate these run the same KVM-based cloud servers without nested-virt
+  passthrough to guests.
+- Official docs (`upcloud.com/docs/products/cloud-servers/system-architecture/`)
+  describe KVM with "hardware-assisted virtualisation" and "strong isolation",
+  but do **not** mention nested virtualization as a feature.
+
+**Conclusion:** UpCloud cannot provide a host with usable `/dev/kvm` for
+Firecracker. Provisioning another UpCloud server would fail identically
+(the managed Kubernetes worker `kudbee-host-v1` UUID `000d8567-...` was
+empirically confirmed: `/dev/kvm` is a directory, no `vmx`/`svm` CPU flags,
+`kvm_amd`/`kvm_intel` modules fail to load).
+
+## Next Step (Infrastructure)
+
+Because UpCloud cannot supply nested virtualization, the smallest practical
+path to a real Firecracker proof is to use a different provider that exposes
+KVM to guests. Documented options (no credentials configured here):
+
+- **Hetzner Cloud** — all VPS instances (CPX21/31/41, etc.) support nested
+  KVM. Estimated cost: ~€4.55–€20/month. Smallest useful: CPX31 (4 vCPU,
+  8 GB RAM).
+- **DigitalOcean** — all Droplets support nested virtualization.
+- **AWS** — limited nested-virt on select instances (C8i/M8i/R8i as of 2026).
+- **Google Cloud** — select machine types with nested virt enabled.
+
+The existing `FirecrackerExecProvider` requires no code changes to work on
+a KVM-capable host; only the `firecracker_config` paths need to point at
+the host's kernel, rootfs, and Firecracker binary. The integration test
+`tests/integration/test_firecracker_execution.py` will automatically run
+the real `echo "KUDBEE_FIRECRACKER_OK"` proof when `/dev/kvm` is present.
+
+If a KVM-capable host is not provisioned, the runtime continues to function
+with `LocalExecProvider` (default) and `FirecrackerExecProvider` gracefully
+reports `ExecutionUnavailableError`.
 
 ## Consequences
 

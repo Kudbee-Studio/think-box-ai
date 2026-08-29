@@ -409,9 +409,15 @@ because UpCloud managed K8s nodes do not use the standard SSH-key injection flow
 - **MicroVM boot FAILS**: `InstanceStart` returns
   `Kvm error: Error creating KVM object: Is a directory (os error 21)`.
   The `/dev/kvm` on this host is a directory, not a character device.
+- UpCloud API catalog (`/1.3/price`, `/1.3/account`) confirms no bare-metal
+  or nested-virt plans exist. All plan families (DEV, STARTER, PREMIUM,
+  CLOUDNATIVE, HIMEM, HICPU, GPU, GPU-SPOT) are KVM guests without nested
+  virt passthrough. Provisioning another UpCloud server would fail identically.
+- No other cloud provider credentials are configured in this environment.
 - Firecracker on this host is NOT usable for real microVM execution.
 - See `docs/decisions/002-firecracker-execution-boundary.md` for the
-  full architectural decision.
+  full architectural decision and documented path forward (Hetzner,
+  DigitalOcean, AWS, GCP).
 
 **Software milestone — DONE:**
 - A new `core/execution/` layer is implemented (see `docs/decisions/003-execution-provider.md`):
