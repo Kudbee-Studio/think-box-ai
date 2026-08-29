@@ -174,6 +174,21 @@ class TestThinkTokens(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.import_box({})
 
+    def test_integrity_check_healthy(self):
+        from core.memory.store import check_integrity
+        self.store.mint_token(box_id="tb-1", claim="test")
+        issues = check_integrity(self.store)
+        self.assertEqual(len(issues), 0)
+
+    def test_foreign_keys_enabled(self):
+        # Verify foreign keys are enforced
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        self.store.add_challenge(token_id, "exec", outcome=1)
+        # Deleting the token should cascade or fail due to FK constraint
+        self.store.delete_box("tb-1")
+        challenges = self.store.list_challenges(token_id)
+        self.assertEqual(len(challenges), 0)
+
     # ------------------------------------------------------------------
     # Jury challenge tests
     # ------------------------------------------------------------------

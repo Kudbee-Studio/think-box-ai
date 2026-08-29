@@ -85,6 +85,28 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
+def check_integrity(store: MemoryStore) -> list[str]:
+    """Run data integrity checks. Returns list of issues (empty = healthy)."""
+    conn = store._get_conn()
+    issues: list[str] = []
+
+    # Check foreign key integrity
+    fk_violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+    for v in fk_violations:
+        issues.append(f"FK violation: {v['table']}({v['rowid']}) -> {v['parent']}")
+
+    # Check for orphaned challenges
+    orphans = conn.execute(
+        """SELECT c.id FROM challenges c
+           LEFT JOIN think_tokens t ON c.token_id = t.id
+           WHERE t.id IS NULL"""
+    ).fetchall()
+    for o in orphans:
+        issues.append(f"Orphaned challenge: {o['id']}")
+
+    return issues
+
+
 class MemoryStore:
     """Thread-safe SQLite-backed key-value store for memory entries."""
 
@@ -104,6 +126,7 @@ class MemoryStore:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA busy_timeout=5000")
+            conn.execute("PRAGMA foreign_keys=ON")
             self._local.conn = conn
         return self._local.conn
 
