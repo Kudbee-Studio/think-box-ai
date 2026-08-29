@@ -449,4 +449,51 @@ Key blockers:
 If adopted in Phase 2+, the integration path is documented in the ADR.
 
 
-</content>
+---
+
+## 14. Current State (Phase 1)
+
+### 14.1 CLI
+
+The `thinkbox` CLI is the primary operator interface:
+
+```bash
+thinkbox create                    # Generate Think Box ID
+thinkbox exec <id> -- <argv>       # Execute command, prints output
+thinkbox evidence <id>             # Show execution evidence
+thinkbox tokens <id>               # List tokens
+thinkbox token-score <tid>         # Print Elo score
+thinkbox challenge-jury <tid>      # LLM jury challenge
+thinkbox challenge-human <tid> <v> # Manual scoring (pass/fail/neutral)
+thinkbox list                      # List all boxes
+thinkbox status <id>               # Box status
+thinkbox clear-cache              # Clear provider cache
+```
+
+### 14.2 Token System
+
+- **Mint**: Only when exec evidence row has `ok=true`
+- **Challenge types**: exec (w=3), jury (w=2), human (w=2), replay (w=1, future)
+- **Elo**: `s += 0.25 * w * (o - sigmoid(s - 1.0))`, floor 0, cap 100
+- **Storage**: SQLite at `~/.local/share/thinkbox/thinkbox.db`
+
+### 14.3 Provider Router
+
+- Multi-provider routing with priority ordering
+- Automatic failover on error
+- Snapshot hashing for dedup (in-memory + persistent SQLite cache with TTL)
+- Wired into `openai_compat` provider as optional backend
+
+### 14.4 Hosts
+
+| Host | Purpose | KVM | GPU |
+|------|---------|-----|-----|
+| cloudchamber | isolation lab, CLI dev | Yes (char device, API 12) | No |
+| kudbee-host-v1 + K8s | control only | No | No |
+
+### 14.5 Session Notes
+
+- Work continues across sessions — check `kilo_local_recall` for prior context
+- Small commits are preferred (50+ per feature is fine)
+- Each significant change gets its own PR
+- Founder reviews and merges PRs — KILO does not merge</content>
