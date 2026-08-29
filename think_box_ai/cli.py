@@ -13,6 +13,16 @@ EVIDENCE_DIR = os.path.expanduser("~/.local/share/thinkbox/evidence")
 DB_PATH = os.environ.get("THINKBOX_DB_PATH", os.path.expanduser("~/.local/share/thinkbox/thinkbox.db"))
 
 
+def _get_db_path() -> str:
+    """Get DB path from environment or default."""
+    return os.environ.get("THINKBOX_DB_PATH", os.path.expanduser("~/.local/share/thinkbox/thinkbox.db"))
+
+
+def _get_evidence_dir() -> str:
+    """Get evidence dir from environment or default."""
+    return os.environ.get("THINKBOX_EVIDENCE_DIR", os.path.expanduser("~/.local/share/thinkbox/evidence"))
+
+
 def _ensure_evidence_dir() -> None:
     os.makedirs(EVIDENCE_DIR, exist_ok=True)
 

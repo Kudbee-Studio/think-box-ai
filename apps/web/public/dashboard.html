@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KUDBEE - Think Box AI</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #2a2a3a;
+            --text: #e0e0e0;
+            --text-dim: #888;
+            --accent: #00d4aa;
+            --accent-dim: #00a88a;
+            --danger: #ff4444;
+            --warning: #ffaa00;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--accent); }
+        .logo span { color: var(--text); }
+        .main { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 60px); }
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .content { padding: 1rem; overflow-y: auto; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .card h3 { color: var(--accent); margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; }
+        .box-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .box-item:hover { background: rgba(0, 212, 170, 0.1); }
+        .box-item:last-child { border-bottom: none; }
+        .state { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        .state.created { background: #333; color: var(--text); }
+        .state.executing { background: var(--warning); color: #000; }
+        .state.complete { background: var(--accent); color: #000; }
+        .state.failed { background: var(--danger); color: #fff; }
+        .token-score { color: var(--accent); font-weight: bold; }
+        .btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { background: var(--accent-dim); }
+        .input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .exec-output {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">KUDBEE<span>·AI</span></div>
+        <div>
+            <button class="btn" onclick="refreshData()">Refresh</button>
+        </div>
+    </div>
+    <div class="main">
+        <div class="sidebar">
+            <div class="card">
+                <h3>Think Boxes</h3>
+                <div id="boxes-list"></div>
+            </div>
+            <div class="card">
+                <h3>Create New</h3>
+                <input type="text" class="input" id="goal-input" placeholder="Goal...">
+                <button class="btn" style="width:100%; margin-top:0.5rem;" onclick="createBox()">Create</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card">
+                <h3>Agent Demo</h3>
+                <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                    <input type="text" class="input" id="demo-input" placeholder="Enter command..." style="flex:1;">
+                    <button class="btn" onclick="runDemo()">Run</button>
+                </div>
+                <div class="exec-output" id="demo-output">Ready...</div>
+            </div>
+            <div class="card">
+                <h3>Selected Box Details</h3>
+                <div id="box-details">Select a box from the sidebar</div>
+            </div>
+            <div class="card">
+                <h3>UpCloud Status</h3>
+                <div id="upcloud-status">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:8000';
+
+        async function api(path, opts = {}) {
+            const res = await fetch(API + path, {
+                headers: { 'Content-Type': 'application/json' },
+                ...opts,
+            });
+            return res.json();
+        }
+
+        async function refreshData() {
+            const boxes = await api('/api/v1/boxes');
+            renderBoxes(boxes.boxes);
+
+            const upcloud = await api('/api/v1/upcloud');
+            document.getElementById('upcloud-status').innerHTML = `
+                <p>API Status: <span class="state ${upcloud.api_health?.status === 'ok' ? 'complete' : 'failed'}">${upcloud.api_health?.status || 'unknown'}</span></p>
+                <p>Active Servers: ${upcloud.servers?.length || 0}</p>
+                <p>Credit: $${upcloud.usage?.credit_remaining || 0}</p>
+            `;
+        }
+
+        function renderBoxes(boxes) {
+            const el = document.getElementById('boxes-list');
+            if (!boxes || boxes.length === 0) {
+                el.innerHTML = '<p style="color:var(--text-dim)">No boxes yet</p>';
+                return;
+            }
+            el.innerHTML = boxes.map(b => `
+                <div class="box-item" onclick="selectBox('${b.id}')">
+                    <strong>${b.id.slice(0, 12)}...</strong>
+                    <span class="state ${b.state}">${b.state}</span>
+                    <br><small style="color:var(--text-dim)">${b.goal?.slice(0, 40) || 'no goal'}</small>
+                </div>
+            `).join('');
+        }
+
+        async function selectBox(id) {
+            const box = await api(`/api/v1/boxes/${id}`);
+            document.getElementById('box-details').innerHTML = `
+                <p><strong>ID:</strong> ${box.id}</p>
+                <p><strong>State:</strong> <span class="state ${box.state}">${box.state}</span></p>
+                <p><strong>Goal:</strong> ${box.goal || 'none'}</p>
+                <p><strong>Tokens:</strong> ${box.tokens?.length || 0}</p>
+                ${box.tokens?.map(t => `<p class="token-score">${t.claim?.slice(0, 30)}... s=${t.s.toFixed(4)}</p>`).join('') || ''}
+            `;
+        }
+
+        async function createBox() {
+            const goal = document.getElementById('goal-input').value;
+            if (!goal) return;
+            await api('/api/v1/boxes', { method: 'POST', body: JSON.stringify({ goal }) });
+            document.getElementById('goal-input').value = '';
+            refreshData();
+        }
+
+        async function runDemo() {
+            const cmd = document.getElementById('demo-input').value;
+            if (!cmd) return;
+            const output = document.getElementById('demo-output');
+            output.textContent = 'Running...\n';
+
+            // Create box
+            const box = await api('/api/v1/boxes', { method: 'POST', body: JSON.stringify({ goal: cmd }) });
+            output.textContent += `Think Box: ${box.id}\n`;
+
+            // Execute
+            const result = await api(`/api/v1/boxes/${box.id}/exec`, {
+                method: 'POST',
+                body: JSON.stringify({ command: cmd }),
+            });
+            output.textContent += `Execution: ${result.status}\n`;
+            output.textContent += `Output:\n${result.output}\n`;
+
+            // Get tokens
+            const details = await api(`/api/v1/boxes/${box.id}`);
+            output.textContent += `\nTokens: ${details.tokens?.length || 0}\n`;
+            if (details.tokens?.[0]) {
+                output.textContent += `Confidence: s=${details.tokens[0].s.toFixed(4)}\n`;
+            }
+
+            refreshData();
+        }
+
+        refreshData();
+    </script>
+</body>
+</html>

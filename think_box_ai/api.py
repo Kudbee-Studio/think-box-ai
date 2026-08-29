@@ -10,7 +10,13 @@ import time
 import uuid
 from typing import Any
 
-from core.execution import LocalExecProvider
+try:
+    from core.execution import LocalExecProvider
+    _HAS_EXECUTION = True
+except ImportError:
+    _HAS_EXECUTION = False
+
+from core.tools import shell_exec
 from core.governance.audit import AuditLog
 from core.memory.store import MemoryStore
 from core.providers.base import Message
@@ -85,31 +91,29 @@ async def delete_box(box_id: str) -> dict[str, Any]:
 @app.post("/api/v1/boxes/{box_id}/exec")
 async def exec_command(box_id: str, command: str) -> dict[str, Any]:
     """Execute a command in a Think Box."""
-    from core.runtime.actor import Actor
-    from core.runtime.planner import Step
+    import asyncio
 
     store = _get_store()
     box = store.get_box(box_id)
     if box is None:
         raise HTTPException(status_code=404, detail="Box not found")
 
-    provider = LocalExecProvider()
-    audit_log = AuditLog()
-    actor = Actor(audit_log=audit_log, execution_provider=provider)
+    result = asyncio.run(shell_exec({"command": command}))
+    execution_ok = result.get("success", False)
 
-    step = Step(
-        id=f"exec-{uuid.uuid4().hex[:8]}",
-        description=command,
-        action="execute",
-        command=command,
-    )
-    agent = type("FakeAgent", (), {"agent_id": "api-agent"})()
-    think_box = type("FakeThinkBox", (), {"think_box_id": box_id})()
+    if execution_ok:
+        token_id = store.mint_token(box_id=box_id, claim=command[:200], grounded=True)
+        if token_id:
+            store.add_challenge(token_id, "exec", outcome=1)
+        store.update_box_state(box_id, "complete")
+    else:
+        store.update_box_state(box_id, "failed")
 
-    import asyncio
-    result = asyncio.run(actor.execute_step(agent, think_box, step))
-    store.update_box_state(box_id, "complete")
-    return result
+    return {
+        "status": "success" if execution_ok else "error",
+        "output": result.get("stdout", ""),
+        "return_code": result.get("return_code", 1),
+    }
 
 
 @app.get("/api/v1/boxes/{box_id}/tokens")
