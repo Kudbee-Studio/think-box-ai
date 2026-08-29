@@ -107,6 +107,24 @@ class TestThinkTokens(unittest.TestCase):
     def test_list_tokens_empty_id(self):
         self.assertEqual(self.store.list_tokens(""), [])
 
+    def test_replay_challenge(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        self.store.add_challenge(token_id, "exec", outcome=1)
+        initial = self.store.get_token(token_id)["s"]
+        challenge_id = self.store.challenge_replay(token_id)
+        self.assertIsNotNone(challenge_id)
+        token = self.store.get_token(token_id)
+        self.assertGreater(token["s"], initial)
+        challenges = self.store.list_challenges(token_id)
+        self.assertEqual(len(challenges), 2)
+        self.assertEqual(challenges[1]["type"], "replay")
+        self.assertEqual(challenges[1]["w"], 1.0)
+
+    def test_replay_no_prior_challenge(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        result = self.store.challenge_replay(token_id)
+        self.assertIsNone(result)
+
     # ------------------------------------------------------------------
     # Jury challenge tests
     # ------------------------------------------------------------------

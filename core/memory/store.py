@@ -385,3 +385,17 @@ class MemoryStore:
             outcome = 0
 
         return self.add_challenge(token_id, "jury", outcome)
+
+    def challenge_replay(self, token_id: str) -> str | None:
+        """Replay the most recent non-replay challenge for a token.
+
+        Returns challenge_id on success, None if no prior challenge exists.
+        """
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT type, o FROM challenges WHERE token_id = ? AND type != 'replay' ORDER BY created_at DESC LIMIT 1",
+            (token_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self.add_challenge(token_id, "replay", row["o"])

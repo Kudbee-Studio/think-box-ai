@@ -342,6 +342,32 @@ def cmd_challenge_human(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_challenge_replay(args: argparse.Namespace) -> int:
+    """Replay the most recent challenge for a token."""
+    store = _get_store()
+    token = store.get_token(args.token_id)
+    if token is None:
+        print(f"token not found: {args.token_id}", file=sys.stderr)
+        return 1
+
+    before = token["s"]
+    challenge_id = store.challenge_replay(args.token_id)
+
+    if challenge_id is None:
+        print("error: no prior challenge to replay", file=sys.stderr)
+        return 1
+
+    token = store.get_token(args.token_id)
+    print(json.dumps({
+        "challenge_id": challenge_id,
+        "type": "replay",
+        "before": round(before, 4),
+        "after": round(token["s"], 4),
+        "delta": round(token["s"] - before, 4),
+    }, indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -399,6 +425,11 @@ def main() -> int:
     p_human.add_argument("token_id", help="Token ID")
     p_human.add_argument("verdict", choices=["pass", "fail", "neutral"], help="Human verdict")
     p_human.set_defaults(func=cmd_challenge_human)
+
+    # thinkbox challenge-replay <tid>
+    p_replay = subparsers.add_parser("challenge-replay", help="Replay the most recent challenge")
+    p_replay.add_argument("token_id", help="Token ID")
+    p_replay.set_defaults(func=cmd_challenge_replay)
 
     args = parser.parse_args()
 
