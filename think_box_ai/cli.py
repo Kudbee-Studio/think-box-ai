@@ -315,6 +315,7 @@ def main() -> int:
         prog="thinkbox",
         description="Think Box AI — create, exec, evidence, tokens, jury",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__import__('think_box_ai').__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # thinkbox create
