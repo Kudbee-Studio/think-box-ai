@@ -138,6 +138,59 @@ class TestThinkboxCLI(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
 
+    def test_full_workflow(self):
+        """Test the complete workflow: create -> exec -> evidence -> tokens -> score."""
+        import subprocess
+
+        # Create
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        tb_id = result.stdout.strip()
+        self.assertTrue(tb_id.startswith("tb-"))
+
+        # Exec
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "workflow_test"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("workflow_test", result.stdout)
+
+        # Evidence
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "evidence", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        evidence = json.loads(result.stdout.strip())
+        self.assertEqual(evidence["ok"], True)
+        self.assertEqual(evidence["exit_code"], 0)
+
+        # Tokens
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        token = json.loads(result.stdout.strip())
+        self.assertEqual(token["claim"], "echo workflow_test")
+        self.assertGreater(token["s"], 1.0)  # Score increased from exec challenge
+
+        # Token score
+        token_id = token["id"]
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "token-score", token_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        score = json.loads(result.stdout.strip())
+        self.assertEqual(score["id"], token_id)
+        self.assertIsNotNone(score["last_challenge"])
+        self.assertEqual(score["last_challenge"]["type"], "exec")
+
 
 class TestThinkboxCLIJuryMocked(unittest.TestCase):
     def setUp(self):
