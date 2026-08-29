@@ -146,6 +146,15 @@ def cmd_evidence(args: argparse.Namespace) -> int:
         if e.get("action") == "execution_evidence"
     ]
 
+    # Apply filters
+    if args.status == "ok":
+        evidence = [e for e in evidence if e.get("metadata", {}).get("ok")]
+    elif args.status == "error":
+        evidence = [e for e in evidence if not e.get("metadata", {}).get("ok")]
+
+    if args.limit:
+        evidence = evidence[:args.limit]
+
     if not evidence:
         print(f"no evidence found for {think_box_id}", file=sys.stderr)
         return 1
@@ -465,6 +474,8 @@ def main() -> int:
     # thinkbox evidence <id>
     p_evidence = subparsers.add_parser("evidence", help="Show evidence for a Think Box")
     p_evidence.add_argument("id", help="Think Box ID")
+    p_evidence.add_argument("--status", choices=["ok", "error"], help="Filter by status")
+    p_evidence.add_argument("--limit", type=int, help="Limit number of results")
     p_evidence.set_defaults(func=cmd_evidence)
 
     # thinkbox tokens <id>
