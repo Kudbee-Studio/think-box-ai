@@ -338,6 +338,43 @@ def cmd_agent(args: argparse.Namespace) -> int:
     return 0 if execution_ok else 1
 
 
+def cmd_connect(args: argparse.Namespace) -> int:
+    """Human-in-the-loop verification gate for approving operations."""
+    store = _get_store()
+
+    if args.action == "list":
+        # List pending approvals
+        boxes = store.list_boxes()
+        pending = [b for b in boxes if b.get("state") == "awaiting_approval"]
+        if not pending:
+            print("No pending approvals")
+            return 0
+        for b in pending:
+            print(json.dumps({"id": b["id"], "goal": b.get("goal", ""), "state": b["state"]}, indent=2))
+        return 0
+
+    if args.action == "approve":
+        # Approve a box
+        store.update_box_state(args.id, "approved")
+        print(json.dumps({"id": args.id, "state": "approved"}))
+        return 0
+
+    if args.action == "reject":
+        # Reject a box
+        store.update_box_state(args.id, "rejected")
+        print(json.dumps({"id": args.id, "state": "rejected"}))
+        return 0
+
+    if args.action == "request":
+        # Create a new approval request
+        box_id = f"tb-{uuid.uuid4().hex[:12]}"
+        store.save_box(box_id, goal=args.description, state="awaiting_approval")
+        print(json.dumps({"id": box_id, "state": "awaiting_approval", "description": args.description}, indent=2))
+        return 0
+
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="kudbee",
@@ -405,6 +442,13 @@ def main() -> int:
     p_status = subparsers.add_parser("status", help="Box status")
     p_status.add_argument("id", help="Think Box ID")
     p_status.set_defaults(func=cmd_status)
+
+    # connect (human-in-the-loop)
+    p_connect = subparsers.add_parser("connect", help="Human-in-the-loop verification")
+    p_connect.add_argument("action", choices=["list", "approve", "reject", "request"], help="Action")
+    p_connect.add_argument("--id", help="Box ID for approve/reject")
+    p_connect.add_argument("--description", help="Description for request")
+    p_connect.set_defaults(func=cmd_connect)
 
     args = parser.parse_args()
 
