@@ -248,6 +248,57 @@ def cmd_challenge_jury(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_list(args: argparse.Namespace) -> int:
+    """List all Think Boxes with evidence."""
+    store = _get_store()
+    conn = store._get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT box_id FROM think_tokens ORDER BY box_id"
+    ).fetchall()
+
+    if not rows:
+        print("no think boxes found", file=sys.stderr)
+        return 1
+
+    for row in rows:
+        box_id = row["box_id"]
+        tokens = store.list_tokens(box_id)
+        print(f"{box_id}  tokens={len(tokens)}")
+
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """Show detailed status for a Think Box."""
+    store = _get_store()
+    tokens = store.list_tokens(args.id)
+
+    if not tokens:
+        print(f"no tokens found for {args.id}", file=sys.stderr)
+        return 1
+
+    total_score = sum(t["s"] for t in tokens)
+    grounded = sum(1 for t in tokens if t["grounded"])
+
+    print(json.dumps({
+        "box_id": args.id,
+        "token_count": len(tokens),
+        "total_score": round(total_score, 4),
+        "avg_score": round(total_score / len(tokens), 4),
+        "grounded": grounded,
+        "tokens": [
+            {
+                "id": t["id"],
+                "claim": t["claim"],
+                "s": round(t["s"], 4),
+                "grounded": bool(t["grounded"]),
+            }
+            for t in tokens
+        ],
+    }, indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -285,6 +336,15 @@ def main() -> int:
     p_jury.add_argument("token_id", help="Token ID")
     p_jury.add_argument("--base-url", default=None, help="LLM endpoint base URL")
     p_jury.set_defaults(func=cmd_challenge_jury)
+
+    # thinkbox list
+    p_list = subparsers.add_parser("list", help="List all Think Boxes with tokens")
+    p_list.set_defaults(func=cmd_list)
+
+    # thinkbox status <id>
+    p_status = subparsers.add_parser("status", help="Show Think Box status")
+    p_status.add_argument("id", help="Think Box ID")
+    p_status.set_defaults(func=cmd_status)
 
     args = parser.parse_args()
 
