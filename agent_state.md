@@ -6,9 +6,10 @@
 - Phase 3: Real-time dashboard with SSE streaming
 - THINK BOX CONNECT: Human-in-the-loop verification gate
 - Multi-User Security: API key authentication
-- CLI with 14 commands (create, exec, evidence, tokens, token-score, challenge-jury, challenge-human, chat, agent, list, status, connect)
-- Think Token minting and Elo scoring
-- Dashboard server with SSE streaming and live terminal
+- LongCat 2.0 provider: Meituan's 1.6T MoE model (1M context, API key needs credits)
+- UpCloud connection: Server management, GPU plans (L4, L40S, H100, B200)
+- CLI with 14 commands
+- Dashboard server with SSE streaming
 
 ## IN-PROGRESS
 - Grant & Capital Pipeline (NVIDIA Inception / AWS Activate)
