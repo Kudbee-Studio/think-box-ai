@@ -270,6 +270,26 @@ The runtime queries capabilities at startup and adjusts behavior accordingly.
 | OpenAI-compatible | HTTP client wrapping `/v1/chat/completions` | Covers OpenAI, Groq, Together, vLLM, Ollama, any compatible API |
 | Anthropic | HTTP client wrapping Messages API | If network access is available during development |
 
+### 6.5 Provider Router
+
+The `ProviderRouter` enables multi-provider routing and failover:
+
+```python
+router = ProviderRouter({
+    "providers": [
+        {"name": "openai_compat", "model": "gpt-4o-mini"},
+        {"name": "openai_compat", "model": "local", "base_url": "http://localhost:8000/v1"},
+    ],
+    "order": ["openai_compat"],
+    "snapshot_cache": True,
+    "persistent_cache_path": "~/.local/share/thinkbox/snapshot_cache.db",
+})
+```
+
+**Snapshot hashing**: SHA-256 of model input for cache/dedup
+**Failover**: Tries providers in order, continues on error
+**Snapshot cache**: Skips model call when input unchanged (in-memory + persistent SQLite)
+
 **Not implemented in Phase 1:**
 - Local GGUF models (deferred until local inference is needed)
 - Custom fine-tuned models (use OpenAI-compatible endpoint instead)
