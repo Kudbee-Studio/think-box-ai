@@ -418,6 +418,32 @@ def cmd_delete(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_leaderboard(args: argparse.Namespace) -> int:
+    """Show top-scoring tokens across all boxes."""
+    store = _get_store()
+    conn = store._get_conn()
+    rows = conn.execute(
+        "SELECT id, box_id, claim, s, grounded FROM think_tokens ORDER BY s DESC LIMIT ?",
+        (args.limit,),
+    ).fetchall()
+
+    if not rows:
+        print("no tokens found", file=sys.stderr)
+        return 1
+
+    print(json.dumps([
+        {
+            "id": row["id"],
+            "box_id": row["box_id"],
+            "claim": row["claim"],
+            "s": round(row["s"], 4),
+            "grounded": bool(row["grounded"]),
+        }
+        for row in rows
+    ], indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -496,6 +522,11 @@ def main() -> int:
     p_delete = subparsers.add_parser("delete", help="Delete a Think Box")
     p_delete.add_argument("id", help="Think Box ID")
     p_delete.set_defaults(func=cmd_delete)
+
+    # thinkbox leaderboard [limit]
+    p_lb = subparsers.add_parser("leaderboard", help="Show top-scoring tokens")
+    p_lb.add_argument("--limit", type=int, default=10, help="Number of tokens to show")
+    p_lb.set_defaults(func=cmd_leaderboard)
 
     args = parser.parse_args()
 
