@@ -1,4 +1,17 @@
-"""OpenAI-compatible provider for THINK BOX AI."""
+"""OpenAI-compatible provider for THINK BOX AI.
+
+Supports any OpenAI-compatible API including:
+- OpenAI
+- Groq, Together, vLLM, Ollama
+- Inception Labs Mercury 2
+- Any OpenAI-compatible endpoint
+
+Special parameters for Mercury:
+- reasoning_effort: instant | low | medium | high
+- reasoning_summary: bool
+- diffusing: bool (stream intermediate denoising steps)
+- realtime: bool (optimize for lowest latency)
+"""
 
 from __future__ import annotations
 
@@ -24,6 +37,25 @@ class OpenAICompatProvider:
             supports_system_prompt=True,
         )
 
+    def _build_payload(self, messages: list[Message], stream: bool, **kwargs: Any) -> dict[str, Any]:
+        """Build request payload with support for extended parameters."""
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "stream": stream,
+        }
+        # Pass through standard OpenAI parameters
+        for param in ["temperature", "max_tokens", "max_completion_tokens", "stop",
+                      "tools", "tool_choice", "response_format", "user"]:
+            if param in kwargs:
+                payload[param] = kwargs[param]
+        # Mercury-specific parameters
+        for param in ["reasoning_effort", "reasoning_summary", "reasoning_summary_wait",
+                      "diffusing", "realtime"]:
+            if param in kwargs:
+                payload[param] = kwargs[param]
+        return payload
+
     async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResponse:
         if self._router is not None:
             return await self._router.complete(messages, **kwargs)
@@ -32,11 +64,7 @@ class OpenAICompatProvider:
         import urllib.request
         import urllib.error
 
-        payload = {
-            "model": self._model,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
-            "stream": False,
-        }
+        payload = self._build_payload(messages, stream=False, **kwargs)
 
         req = urllib.request.Request(
             f"{self._base_url}/chat/completions",
@@ -49,7 +77,7 @@ class OpenAICompatProvider:
 
         def _fetch() -> CompletionResponse:
             try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                with urllib.request.urlopen(req, timeout=60) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     choice = data["choices"][0]["message"]
                     return CompletionResponse(
@@ -74,16 +102,13 @@ class OpenAICompatProvider:
         """Stream completion tokens from OpenAI-compatible endpoint.
 
         Yields individual tokens as they arrive.
+        Supports Mercury-specific parameters.
         """
         import json
         import urllib.request
         import urllib.error
 
-        payload = {
-            "model": self._model,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
-            "stream": True,
-        }
+        payload = self._build_payload(messages, stream=True, **kwargs)
 
         req = urllib.request.Request(
             f"{self._base_url}/chat/completions",
@@ -96,16 +121,16 @@ class OpenAICompatProvider:
 
         def _stream():
             try:
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with urllib.request.urlopen(req, timeout=120) as resp:
                     for line in resp:
                         line = line.decode("utf-8").strip()
                         if not line.startswith("data: "):
                             continue
-                        data = line[6:]
-                        if data == "[DONE]":
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
                             return
                         try:
-                            chunk = json.loads(data)
+                            chunk = json.loads(data_str)
                             delta = chunk["choices"][0].get("delta", {})
                             token = delta.get("content", "")
                             if token:

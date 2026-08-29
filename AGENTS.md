@@ -524,4 +524,21 @@ thinkbox clear-cache              # Clear provider cache
 - Prompt injection mitigation (claim delimiters in jury)
 - Foreign key enforcement in SQLite
 - No secrets in logs or evidence
-- Configurable base directory via `THINKBOX_BASE_DIR`</content>
+- Configurable base directory via `THINKBOX_BASE_DIR`
+
+### 14.8 Model Providers
+
+**Inception Labs Mercury 2** (configured):
+```bash
+export OPENAI_API_KEY="sk-..."
+export OPENAI_BASE_URL="https://api.inceptionlabs.ai/v1"
+export OPENAI_MODEL="mercury-2"
+```
+
+**Mercury-specific parameters:**
+- `reasoning_effort`: instant | low | medium | high
+- `reasoning_summary`: bool (return reasoning summary)
+- `diffusing`: bool (stream intermediate denoising steps)
+- `realtime`: bool (optimize for lowest latency)
+
+**Standard parameters:** temperature, max_tokens, stop, tools, tool_choice, response_format</content>
