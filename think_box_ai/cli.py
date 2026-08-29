@@ -299,6 +299,17 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_clear_cache(args: argparse.Namespace) -> int:
+    """Clear the provider snapshot cache."""
+    cache_path = os.path.expanduser("~/.local/share/thinkbox/snapshot_cache.db")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+        print("snapshot cache cleared")
+    else:
+        print("no snapshot cache found")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -345,6 +356,10 @@ def main() -> int:
     p_status = subparsers.add_parser("status", help="Show Think Box status")
     p_status.add_argument("id", help="Think Box ID")
     p_status.set_defaults(func=cmd_status)
+
+    # thinkbox clear-cache
+    p_clear = subparsers.add_parser("clear-cache", help="Clear provider snapshot cache")
+    p_clear.set_defaults(func=cmd_clear_cache)
 
     args = parser.parse_args()
 
