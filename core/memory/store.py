@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -17,6 +18,18 @@ logger = get_logger(__name__)
 
 SCHEMA_VERSION = 1
 
+ETA = 0.25
+CHALLENGER_S = 1.0
+TOKEN_FLOOR = 0.0
+TOKEN_CAP = 100.0
+
+CHALLENGE_WEIGHTS = {
+    "exec": 3.0,
+    "jury": 2.0,
+    "human": 2.0,
+    "replay": 1.0,
+}
+
 _CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS memory_entries (
     key TEXT PRIMARY KEY,
@@ -29,6 +42,25 @@ CREATE TABLE IF NOT EXISTS memory_entries (
     metadata TEXT DEFAULT '{}',
     confidence REAL DEFAULT 1.0
 );
+CREATE TABLE IF NOT EXISTS think_tokens (
+    id TEXT PRIMARY KEY,
+    box_id TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    s REAL NOT NULL DEFAULT 1.0,
+    author TEXT NOT NULL DEFAULT '',
+    grounded INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS challenges (
+    id TEXT PRIMARY KEY,
+    token_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    opponent REAL NOT NULL DEFAULT 1.0,
+    o INTEGER NOT NULL DEFAULT 0,
+    w REAL NOT NULL DEFAULT 0.0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (token_id) REFERENCES think_tokens(id)
+);
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL
@@ -36,7 +68,13 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 CREATE INDEX IF NOT EXISTS idx_memory_layer ON memory_entries(layer);
 CREATE INDEX IF NOT EXISTS idx_memory_task ON memory_entries(task_id);
 CREATE INDEX IF NOT EXISTS idx_memory_agent ON memory_entries(agent_id);
+CREATE INDEX IF NOT EXISTS idx_tokens_box ON think_tokens(box_id);
+CREATE INDEX IF NOT EXISTS idx_challenges_token ON challenges(token_id);
 """
+
+
+def _sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
 
 
 class MemoryStore:
@@ -209,3 +247,81 @@ class MemoryStore:
             metadata=json.loads(row["metadata"]),
             confidence=row["confidence"],
         )
+
+    # ------------------------------------------------------------------
+    # Think tokens
+    # ------------------------------------------------------------------
+    def mint_token(
+        self,
+        box_id: str,
+        claim: str,
+        author: str = "",
+        grounded: bool = True,
+    ) -> str | None:
+        """Mint a think token for a box. Returns token ID or None if duplicate."""
+        claim = claim[:200]
+        conn = self._get_conn()
+        existing = conn.execute(
+            "SELECT id FROM think_tokens WHERE box_id = ? AND claim = ?",
+            (box_id, claim),
+        ).fetchone()
+        if existing is not None:
+            return None
+        token_id = f"tt-{__import__('uuid').uuid4().hex[:12]}"
+        conn.execute(
+            "INSERT INTO think_tokens (id, box_id, claim, s, author, grounded, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (token_id, box_id, claim, 1.0, author, 1 if grounded else 0, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return token_id
+
+    def get_token(self, token_id: str) -> dict | None:
+        """Get a token by ID."""
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM think_tokens WHERE id = ?", (token_id,)).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+    def list_tokens(self, box_id: str) -> list[dict]:
+        """List all tokens for a box."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM think_tokens WHERE box_id = ? ORDER BY created_at", (box_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def add_challenge(
+        self,
+        token_id: str,
+        challenge_type: str,
+        outcome: int,
+    ) -> str | None:
+        """Add a challenge to a token and update its Elo score."""
+        if challenge_type not in CHALLENGE_WEIGHTS:
+            return None
+        w = CHALLENGE_WEIGHTS[challenge_type]
+        conn = self._get_conn()
+        token = conn.execute("SELECT s FROM think_tokens WHERE id = ?", (token_id,)).fetchone()
+        if token is None:
+            return None
+        s_current = token["s"]
+        expected = _sigmoid(s_current - CHALLENGER_S)
+        s_new = s_current + ETA * w * (outcome - expected)
+        s_new = max(TOKEN_FLOOR, min(TOKEN_CAP, s_new))
+        challenge_id = f"ch-{__import__('uuid').uuid4().hex[:12]}"
+        conn.execute(
+            "INSERT INTO challenges (id, token_id, type, opponent, o, w, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (challenge_id, token_id, challenge_type, CHALLENGER_S, outcome, w, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.execute("UPDATE think_tokens SET s = ? WHERE id = ?", (s_new, token_id))
+        conn.commit()
+        return challenge_id
+
+    def list_challenges(self, token_id: str) -> list[dict]:
+        """List all challenges for a token."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT * FROM challenges WHERE token_id = ? ORDER BY created_at", (token_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]

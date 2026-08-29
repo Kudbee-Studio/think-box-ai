@@ -6,16 +6,18 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 import uuid
 from typing import Any
 
 from core.execution import LocalExecProvider
-from core.governance.audit import AuditLog
+from core.memory.store import MemoryStore
 from core.runtime.actor import Actor
 from core.runtime.planner import Step
 
 
 EVIDENCE_DIR = os.path.expanduser("~/.local/share/thinkbox/evidence")
+DB_PATH = os.path.expanduser("~/.local/share/thinkbox/thinkbox.db")
 
 
 def _ensure_evidence_dir() -> None:
@@ -48,9 +50,28 @@ def _load_evidence(think_box_id: str) -> list[dict[str, Any]]:
     return entries
 
 
-def _create_actor(think_box_id: str) -> Actor:
+def _get_store() -> MemoryStore:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    return MemoryStore(DB_PATH)
+
+
+def _mint_token_for_evidence(store: MemoryStore, think_box_id: str, command: str, ok: bool) -> str | None:
+    """Mint a token if exec was successful and token doesn't exist."""
+    if not ok:
+        return None
+    return store.mint_token(box_id=think_box_id, claim=command, author="cli-agent", grounded=True)
+
+
+def _apply_exec_challenge(store: MemoryStore, token_id: str, ok: bool) -> None:
+    """Apply an exec challenge to a token."""
+    outcome = 1 if ok else -1
+    store.add_challenge(token_id, "exec", outcome)
+
+
+def _create_actor(think_box_id: str) -> tuple[Actor, MemoryStore]:
     """Create an Actor with LocalExecProvider and persistent evidence."""
     provider = LocalExecProvider()
+    store = _get_store()
 
     class PersistentAuditLog:
         def record(self, action: str, actor: str, outcome: str, metadata: dict | None = None) -> None:
@@ -65,7 +86,7 @@ def _create_actor(think_box_id: str) -> Actor:
             return _load_evidence(think_box_id)
 
     audit_log = PersistentAuditLog()
-    return Actor(audit_log=audit_log, execution_provider=provider)
+    return Actor(audit_log=audit_log, execution_provider=provider), store
 
 
 def cmd_create(args: argparse.Namespace) -> int:
@@ -81,10 +102,10 @@ def cmd_exec(args: argparse.Namespace) -> int:
     command = " ".join(args.argv)
 
     if not command:
-        print("error: no command provided", file=__import__("sys").stderr)
+        print("error: no command provided", file=sys.stderr)
         return 1
 
-    actor = _create_actor(think_box_id)
+    actor, store = _create_actor(think_box_id)
 
     step = Step(
         id=f"cli-exec-{uuid.uuid4().hex[:8]}",
@@ -97,13 +118,22 @@ def cmd_exec(args: argparse.Namespace) -> int:
 
     result = asyncio.run(actor.execute_step(agent, think_box, step))
 
-    if result.get("status") == "error":
-        print(f"error: {result.get('error', 'unknown error')}", file=__import__("sys").stderr)
-        return 1
-
     if result.get("output"):
         print(result["output"], end="")
-    return 0
+
+    # Mint token for successful exec
+    evidence = _load_evidence(think_box_id)
+    latest = next(
+        (e for e in reversed(evidence) if e.get("action") == "execution_evidence"),
+        None,
+    )
+    if latest and latest.get("metadata", {}).get("ok"):
+        token_id = _mint_token_for_evidence(store, think_box_id, command, ok=True)
+        if token_id:
+            _apply_exec_challenge(store, token_id, ok=True)
+
+    # Return the command's exit code (default 0)
+    return result.get("return_code", 0)
 
 
 def cmd_evidence(args: argparse.Namespace) -> int:
@@ -117,7 +147,7 @@ def cmd_evidence(args: argparse.Namespace) -> int:
     ]
 
     if not evidence:
-        print(f"no evidence found for {think_box_id}", file=__import__("sys").stderr)
+        print(f"no evidence found for {think_box_id}", file=sys.stderr)
         return 1
 
     for entry in evidence:
@@ -137,10 +167,60 @@ def cmd_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tokens(args: argparse.Namespace) -> int:
+    """List tokens for a Think Box."""
+    store = _get_store()
+    tokens = store.list_tokens(args.id)
+
+    if not tokens:
+        print(f"no tokens found for {args.id}", file=sys.stderr)
+        return 1
+
+    for token in tokens:
+        print(json.dumps({
+            "id": token["id"],
+            "claim": token["claim"],
+            "s": round(token["s"], 4),
+            "grounded": bool(token["grounded"]),
+            "created_at": token["created_at"],
+        }, indent=2))
+
+    return 0
+
+
+def cmd_token_score(args: argparse.Namespace) -> int:
+    """Print token score and last challenge."""
+    store = _get_store()
+    token = store.get_token(args.token_id)
+
+    if token is None:
+        print(f"token not found: {args.token_id}", file=sys.stderr)
+        return 1
+
+    challenges = store.list_challenges(args.token_id)
+    last = challenges[-1] if challenges else None
+
+    print(json.dumps({
+        "id": token["id"],
+        "claim": token["claim"],
+        "s": round(token["s"], 4),
+        "grounded": bool(token["grounded"]),
+        "created_at": token["created_at"],
+        "last_challenge": {
+            "type": last["type"],
+            "o": last["o"],
+            "w": last["w"],
+            "created_at": last["created_at"],
+        } if last else None,
+    }, indent=2))
+
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
-        description="Think Box AI — create, exec, evidence",
+        description="Think Box AI — create, exec, evidence, tokens",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -158,6 +238,16 @@ def main() -> int:
     p_evidence = subparsers.add_parser("evidence", help="Show evidence for a Think Box")
     p_evidence.add_argument("id", help="Think Box ID")
     p_evidence.set_defaults(func=cmd_evidence)
+
+    # thinkbox tokens <id>
+    p_tokens = subparsers.add_parser("tokens", help="List tokens for a Think Box")
+    p_tokens.add_argument("id", help="Think Box ID")
+    p_tokens.set_defaults(func=cmd_tokens)
+
+    # thinkbox token-score <tid>
+    p_score = subparsers.add_parser("token-score", help="Print token score and last challenge")
+    p_score.add_argument("token_id", help="Token ID")
+    p_score.set_defaults(func=cmd_token_score)
 
     args = parser.parse_args()
 
