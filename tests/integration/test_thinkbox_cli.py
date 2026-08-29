@@ -191,6 +191,37 @@ class TestThinkboxCLI(unittest.TestCase):
         self.assertIsNotNone(score["last_challenge"])
         self.assertEqual(score["last_challenge"]["type"], "exec")
 
+    def test_clear_cache_no_cache(self):
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "clear-cache"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("no snapshot cache", result.stdout)
+
+    def test_exec_failure_no_token(self):
+        """Failed exec should not mint a token."""
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        tb_id = result.stdout.strip()
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "false"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1)  # Command failed
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 1)  # No tokens
+        self.assertIn("no tokens", result.stderr)
+
 
 class TestThinkboxCLIJuryMocked(unittest.TestCase):
     def setUp(self):
