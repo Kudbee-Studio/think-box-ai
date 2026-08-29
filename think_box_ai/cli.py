@@ -372,7 +372,74 @@ def cmd_connect(args: argparse.Namespace) -> int:
         print(json.dumps({"id": box_id, "state": "awaiting_approval", "description": args.description}, indent=2))
         return 0
 
+    if args.action == "grant":
+        # Generate grant application packet
+        return cmd_connect_grant(args)
+
     return 1
+
+
+def cmd_connect_grant(args: argparse.Namespace) -> int:
+    """Generate grant application packet for NVIDIA Inception or AWS Activate."""
+    store = _get_store()
+
+    if args.grant_type == "nvidia":
+        packet = {
+            "program": "NVIDIA Inception",
+            "status": "draft",
+            "benefits": {
+                "dgx_cloud_credits": "$100,000",
+                "aws_credits": "$100,000",
+                "nebius_credits": "$150,000",
+                "hardware_pricing": "Preferred GPU rebate",
+                "training": "Free DLI courses",
+            },
+            "requirements": [
+                "At least one employed developer",
+                "Working website",
+                "Officially incorporated (< 10 years)",
+                "Not a consultancy/crypto/cloud reseller",
+            ],
+            "application_url": "https://programs.nvidia.com/phoenix/application",
+            "timeline": "1-4 weeks review",
+            "next_steps": [
+                "Submit company profile + pitch deck",
+                "Use business email (not Gmail)",
+                "Wait for approval",
+                "Request credits separately after approval",
+            ],
+        }
+    elif args.grant_type == "aws":
+        packet = {
+            "program": "AWS Activate",
+            "status": "draft",
+            "tiers": {
+                "founders": {"credits": "$1,000-$5,000", "timeline": "1-3 days"},
+                "portfolio": {"credits": "up to $200,000", "timeline": "1-2 weeks"},
+            },
+            "requirements": [
+                "Corporate email (domain-matched)",
+                "Paid-tier AWS account",
+                "Live website",
+                "Pre-Series B, <10 years old",
+            ],
+            "application_url": "https://aws.amazon.com/activate/",
+            "next_steps": [
+                "Create AWS Builder ID",
+                "Complete Activate profile",
+                "Link AWS account",
+                "Submit application",
+            ],
+        }
+    else:
+        print(f"error: unknown grant type '{args.grant_type}'", file=sys.stderr)
+        return 1
+
+    # Save grant packet to box
+    box_id = f"tb-{uuid.uuid4().hex[:12]}"
+    store.save_box(box_id, goal=f"Grant: {args.grant_type}", state="grant_pending")
+    print(json.dumps(packet, indent=2))
+    return 0
 
 
 def main() -> int:
@@ -445,9 +512,10 @@ def main() -> int:
 
     # connect (human-in-the-loop)
     p_connect = subparsers.add_parser("connect", help="Human-in-the-loop verification")
-    p_connect.add_argument("action", choices=["list", "approve", "reject", "request"], help="Action")
+    p_connect.add_argument("action", choices=["list", "approve", "reject", "request", "grant"], help="Action")
     p_connect.add_argument("--id", help="Box ID for approve/reject")
     p_connect.add_argument("--description", help="Description for request")
+    p_connect.add_argument("--grant-type", choices=["nvidia", "aws"], help="Grant type for grant action")
     p_connect.set_defaults(func=cmd_connect)
 
     args = parser.parse_args()

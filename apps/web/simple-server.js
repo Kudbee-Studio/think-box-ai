@@ -192,3 +192,16 @@ server.listen(PORT, () => {
     console.log(`KUDBEE Dashboard running at http://localhost:${PORT}`);
     console.log(`SSE stream: http://localhost:${PORT}/api/stream`);
 });
+
+// ─── WebSocket Stub (future: bidirectional terminal) ────────────
+// To activate: npm install ws
+// import { WebSocketServer } from 'ws';
+// const wss = new WebSocketServer({ server });
+// wss.on('connection', (ws) => {
+//     ws.on('message', (msg) => {
+//         const { box_id, command } = JSON.parse(msg.toString());
+//         runCli(['exec', box_id, '--', command], (chunk) => {
+//             ws.send(JSON.stringify({ type: 'output', chunk }));
+//         });
+//     });
+// });

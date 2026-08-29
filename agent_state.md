@@ -1,27 +1,37 @@
-# KUDBEE Agent Progress
+# KUDBEE Agent State
 
-## COMPLETED
-- Phase 1: Docker + CI/CD + API foundation
-- Phase 2: Agent demo with token tracking (working)
-- Phase 3: Real-time dashboard with SSE streaming
-- THINK BOX CONNECT: Human-in-the-loop verification gate
-- Multi-User Security: API key authentication
-- LongCat 2.0 provider: Meituan's 1.6T MoE model (1M context, API key needs credits)
-- UpCloud connection: Server management, GPU plans (L4, L40S, H100, B200)
-- CLI with 14 commands
-- Dashboard server with SSE streaming
+## System Status: ACTIVE
 
-## IN-PROGRESS
-- Grant & Capital Pipeline (NVIDIA Inception / AWS Activate)
-- Dashboard UI polish
+### Provider Integrations
 
-## NEXT
-1. NVIDIA Inception application
-2. AWS Activate application
-3. 90-second demo video
-4. Final integration test
+| Provider | Status | Endpoint | Notes |
+|----------|--------|----------|-------|
+| LongCat 2.0 | active_needs_credits | https://api.longcat.chat/openai | HTTP 402 - add credits |
+| Mercury 2 | active | https://api.inceptionlabs.ai/v1 | Working |
+| OpenAI Compat | active | configurable | Multi-provider |
 
-## BLOCKERS/ERRORS
-- FastAPI not available (using Node.js server instead)
-- Test isolation issue with `unittest discover`
+### Infrastructure
 
+| Component | Status | Details |
+|-----------|--------|---------|
+| UpCloud | connected | Think Box v1 (4xCPU-8GB) |
+| GPU Spot | ready | L4, L40S, H100, B200 available |
+| Dashboard | running | http://localhost:3001 |
+
+### Completed Milestones
+- [x] Phase 1: Docker + CI/CD + API foundation
+- [x] Phase 2: Agent demo with token tracking
+- [x] Phase 3: Real-time dashboard with SSE
+- [x] THINK BOX CONNECT: Human-in-the-loop gate
+- [x] Multi-User Security: API key auth
+- [x] LongCat 2.0 provider integration
+- [x] UpCloud connection module
+
+### Next Steps
+- [ ] Add credits to LongCat account
+- [ ] WebSocket streaming for dashboard
+- [ ] Grant application packets (NVIDIA Inception, AWS Activate)
+- [ ] Final integration test
+
+### Last Updated
+2026-08-29T21:57:59+00:00
