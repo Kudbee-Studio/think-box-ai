@@ -384,22 +384,34 @@ because UpCloud managed K8s nodes do not use the standard SSH-key injection flow
 
 ### 13.4 Known Limitations
 
-- KVM is NOT available: `/dev/kvm` does not exist, no `vmx`/`svm` CPU flags,
-  `modprobe kvm_amd` fails. Firecracker runs in software-emulation mode.
+- **KVM is NOT available and CANNOT be enabled**: `/dev/kvm` exists as a
+  directory (not a character device). No `vmx`/`svm` CPU flags are exposed.
+  `modprobe kvm_amd` and `modprobe kvm_intel` both fail with "SVM/VMX not
+  supported by CPU". The host itself is a KVM guest (UpCloud infrastructure),
+  but nested virtualization is not passed through to the guest.
+- Firecracker v1.16.1 binary will start and respond to API calls, but
+  `InstanceStart` fails with: `Kvm error: Error creating KVM object: Is a
+  directory (os error 21)`. Firecracker REQUIRES `/dev/kvm` with the
+  `KVM_GET_API_VERSION` ioctl — without it, the microVM cannot boot.
 - No Docker installed; containerd 1.7.29 is the only container runtime.
-- The node is managed by a Kubernetes cluster — direct VM modifications
-  should be avoided to prevent cluster drift.
+- The node is managed by an UpCloud Managed Kubernetes cluster — direct VM
+  modifications (kernel upgrade, nested virt enablement, KVM device node
+  creation) are not possible without changing the UpCloud server plan or
+  provisioning a new server.
 - SSH key injection via UpCloud server API does not work for managed K8s
   nodes. Use `kubectl debug` method described above.
 
-### 13.5 Firecracker Installation Status
+### 13.5 Firecracker Status
 
-- Firecracker v1.16.1 binary verified running on the node (API responds to
-  Unix socket). Installed at `/opt/firecracker/` on the node.
-- Firecracker runs in software-emulation mode (no KVM). This is acceptable
-  for Phase 1 PoC but documented as a production limitation.
-- MicroVM boot test is in progress. Kernel and rootfs images are being
-  downloaded for end-to-end validation.
+- Firecracker v1.16.1 binary verified starting and responding to API
+  requests over Unix socket.
+- **MicroVM boot FAILS**: `InstanceStart` returns
+  `Kvm error: Error creating KVM object: Is a directory (os error 21)`.
+  The `/dev/kvm` on this host is a directory, not a character device.
+- Firecracker on this host is NOT usable for real microVM execution.
+- See `docs/decisions/002-firecracker-execution-boundary.md` for the
+  full architectural decision. A new `core/execution/` layer is planned
+  that will work once a KVM-capable host is available.
 
 ### 13.6 Agent Framework Decision
 
