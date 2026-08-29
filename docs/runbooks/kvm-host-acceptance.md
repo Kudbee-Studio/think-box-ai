@@ -195,18 +195,31 @@ claims are not a substitute.
 
 ## Cycle FC-VSOCK result (2026-08-29)
 
-**Approach B (Unix socket + binary header + CID 3):** Connection reset by peer.
-**Approach C (Ubuntu 5.x kernel + Alpine rootfs + agent):** Agent boots and
-listens, but vsock connect still reset by Firecracker proxy.
+**vsock: YES** (working on cloudchamber with Firecracker v1.16.1).
 
-**Finding:** Firecracker v1.16.1's vsock Unix socket proxy resets host
-connections even when a guest agent is confirmed listening (via console log:
-`[vsock-agent] listening on port 1024`). This is a known limitation of
-Firecracker v1.16.1's vsock implementation.
+**Handshake protocol (Firecracker vsock proxy):**
+1. Host connects to Unix socket at `uds_path` (from `/vsock` API)
+2. Host sends `CONNECT <port>\n`
+3. Host reads `OK <guest_cid>\n` (or error)
+4. Host sends command as JSON line: `{"cmd": "..."}\n`
+5. Host reads response JSON lines: `{"stream":"stdout","data":"..."}`, `{"exit":N}`
 
-**Recommended fix:** Upgrade to Firecracker v1.7+ which has a rewritten vsock
-implementation.
+**Guest agent:** Static C binary (`vsock-agent`) injected into rootfs at
+`/usr/local/bin/vsock-agent`. Booted as PID 1 (`init=/usr/local/bin/vsock-agent`).
+Uses `popen()` to execute commands, returns JSON over vsock.
 
-**Current test status:** `tests/integration/test_firecracker_execution.py`
-runs (not skips) on `cloudchamber` but fails at vsock connect. This is
-expected until Firecracker is upgraded.
+**Kernel:** Ubuntu 5.x kernel (`~/.cache/kudbee-fc/ubuntu-kernel`) required —
+the Firecracker CI minimal kernel (4.14.x) has virtio-mmio DMA issues.
+
+**Proof:** Inline test passes:
+```
+health: True
+return_code: 0
+stdout: 'KUDBEE_FIRECRACKER_OK\n'
+provider: firecracker
+```
+
+**Known issue:** `pytest tests/integration/test_firecracker_execution.py` has a
+timing issue where `read_response` gets empty data. The inline test (direct
+`asyncio.run(provider.execute(...))`) passes. Likely an event loop interaction
+between pytest and the blocking socket reads.
