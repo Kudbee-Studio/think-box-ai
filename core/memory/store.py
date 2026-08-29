@@ -259,6 +259,10 @@ class MemoryStore:
         grounded: bool = True,
     ) -> str | None:
         """Mint a think token for a box. Returns token ID or None if duplicate."""
+        if not box_id or not isinstance(box_id, str):
+            raise ValueError("box_id must be a non-empty string")
+        if not claim or not isinstance(claim, str):
+            raise ValueError("claim must be a non-empty string")
         claim = claim[:200]
         conn = self._get_conn()
         existing = conn.execute(
@@ -270,13 +274,15 @@ class MemoryStore:
         token_id = f"tt-{__import__('uuid').uuid4().hex[:12]}"
         conn.execute(
             "INSERT INTO think_tokens (id, box_id, claim, s, author, grounded, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (token_id, box_id, claim, 1.0, author, 1 if grounded else 0, datetime.now(timezone.utc).isoformat()),
+            (token_id, box_id, claim, 1.0, author[:50], 1 if grounded else 0, datetime.now(timezone.utc).isoformat()),
         )
         conn.commit()
         return token_id
 
     def get_token(self, token_id: str) -> dict | None:
         """Get a token by ID."""
+        if not token_id:
+            return None
         conn = self._get_conn()
         row = conn.execute("SELECT * FROM think_tokens WHERE id = ?", (token_id,)).fetchone()
         if row is None:
@@ -285,6 +291,8 @@ class MemoryStore:
 
     def list_tokens(self, box_id: str) -> list[dict]:
         """List all tokens for a box."""
+        if not box_id:
+            return []
         conn = self._get_conn()
         rows = conn.execute(
             "SELECT * FROM think_tokens WHERE box_id = ? ORDER BY created_at", (box_id,)
@@ -300,6 +308,8 @@ class MemoryStore:
         """Add a challenge to a token and update its Elo score."""
         if challenge_type not in CHALLENGE_WEIGHTS:
             return None
+        if outcome not in (-1, 0, 1):
+            raise ValueError("outcome must be -1, 0, or 1")
         w = CHALLENGE_WEIGHTS[challenge_type]
         conn = self._get_conn()
         token = conn.execute("SELECT s FROM think_tokens WHERE id = ?", (token_id,)).fetchone()

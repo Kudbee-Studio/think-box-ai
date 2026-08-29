@@ -88,6 +88,25 @@ class TestThinkTokens(unittest.TestCase):
         result = self.store.add_challenge("tt-nonexistent", "exec", outcome=1)
         self.assertIsNone(result)
 
+    def test_mint_token_empty_box_id_raises(self):
+        with self.assertRaises(ValueError):
+            self.store.mint_token(box_id="", claim="test")
+
+    def test_mint_token_empty_claim_raises(self):
+        with self.assertRaises(ValueError):
+            self.store.mint_token(box_id="tb-1", claim="")
+
+    def test_add_challenge_invalid_outcome_raises(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+        with self.assertRaises(ValueError):
+            self.store.add_challenge(token_id, "exec", outcome=5)
+
+    def test_get_token_empty_id(self):
+        self.assertIsNone(self.store.get_token(""))
+
+    def test_list_tokens_empty_id(self):
+        self.assertEqual(self.store.list_tokens(""), [])
+
     # ------------------------------------------------------------------
     # Jury challenge tests
     # ------------------------------------------------------------------
