@@ -90,6 +90,54 @@ class TestThinkboxCLI(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("JURY_UNAVAILABLE", result.stderr)
 
+    def test_list_shows_boxes(self):
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        tb_id = result.stdout.strip()
+        subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "hi"],
+            capture_output=True, text=True,
+        )
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "list"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(tb_id, result.stdout)
+
+    def test_status_shows_tokens(self):
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "create"],
+            capture_output=True, text=True,
+        )
+        tb_id = result.stdout.strip()
+        subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "hi"],
+            capture_output=True, text=True,
+        )
+
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "status", tb_id],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        data = json.loads(result.stdout.strip())
+        self.assertEqual(data["box_id"], tb_id)
+        self.assertGreaterEqual(data["token_count"], 1)
+
+    def test_status_bogus_id_returns_error(self):
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "think_box_ai.cli", "status", "tb-bogus"],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+
 
 class TestThinkboxCLIJuryMocked(unittest.TestCase):
     def setUp(self):
