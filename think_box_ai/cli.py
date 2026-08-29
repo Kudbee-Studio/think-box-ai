@@ -338,6 +338,17 @@ def cmd_agent(args: argparse.Namespace) -> int:
     return 0 if execution_ok else 1
 
 
+def cmd_health(args: argparse.Namespace) -> int:
+    """Run health checks and display results."""
+    from core.foundation.health import full_health_check
+    import json
+
+    db_path = _get_db_path()
+    report = full_health_check(db_path if __import__("os").path.exists(db_path) else None)
+    print(json.dumps(report, indent=2))
+    return 0 if report["status"] == "ok" else 1
+
+
 def cmd_connect(args: argparse.Namespace) -> int:
     """Human-in-the-loop verification gate for approving operations."""
     store = _get_store()
@@ -500,6 +511,10 @@ def main() -> int:
     p_agent = subparsers.add_parser("agent", help="Run full agent demo")
     p_agent.add_argument("goal", nargs="+", help="Goal/command to execute")
     p_agent.set_defaults(func=cmd_agent)
+
+    # health
+    p_health = subparsers.add_parser("health", help="Run health checks")
+    p_health.set_defaults(func=cmd_health)
 
     # list
     p_list = subparsers.add_parser("list", help="List all Think Boxes")

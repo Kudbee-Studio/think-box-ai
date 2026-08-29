@@ -13,6 +13,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { RateLimiter } from './rate_limit.js';
+
+const rateLimiter = new RateLimiter();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3001;
@@ -73,10 +76,11 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-    // Health check (public)
+    // Health check (public) — aggregated
     if (req.url === '/api/health') {
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() }));
+        const result = await runCli(['health']);
+        res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime(), cli_health: result.stdout }));
         return;
     }
 

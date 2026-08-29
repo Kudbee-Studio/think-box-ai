@@ -11,6 +11,7 @@ from core.providers.base import (
 )
 from core.providers.longcat import LongCatProvider
 from core.providers.openai_compat import OpenAICompatProvider
+from core.providers.fallback import FallbackProvider
 
 try:
     from core.providers.router import ProviderRouter, SnapshotCache
@@ -22,6 +23,7 @@ except ImportError:
 
 __all__ = [
     "CompletionResponse",
+    "FallbackProvider",
     "LongCatProvider",
     "Message",
     "ModelProvider",
