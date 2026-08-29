@@ -12,6 +12,7 @@ from core.providers.base import (
 from core.providers.longcat import LongCatProvider
 from core.providers.openai_compat import OpenAICompatProvider
 from core.providers.fallback import FallbackProvider
+from core.providers.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
 
 try:
     from core.providers.router import ProviderRouter, SnapshotCache
@@ -22,6 +23,8 @@ except ImportError:
     snapshot_hash = None
 
 __all__ = [
+    "CircuitBreaker",
+    "CircuitBreakerRegistry",
     "CompletionResponse",
     "FallbackProvider",
     "LongCatProvider",

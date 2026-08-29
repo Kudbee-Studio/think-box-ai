@@ -1,10 +1,10 @@
-"""Provider fallback chain with automatic failover."""
+"""Provider fallback chain with circuit breaker protection."""
 
 from __future__ import annotations
-import asyncio
 import logging
 from typing import AsyncGenerator, Any, List, Tuple
 from core.providers.base import BaseProvider, CompletionResponse, Message, ProviderRegistry
+from core.providers.circuit_breaker import CircuitBreakerRegistry
 from core.foundation.error_codes import ErrorCode, format_error_response
 from core.foundation.errors import ProviderError, ProviderUnavailableError
 
@@ -12,15 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class FallbackProvider(BaseProvider):
-    """Executes provider requests sequentially across a fallback hierarchy.
+    """Executes provider requests sequentially across a fallback hierarchy with circuit breaker.
     
     Time Complexity: O(P) where P is the number of initialized providers.
-    Space Complexity: O(1) auxiliary overhead.
+    Space Complexity: O(P) for circuit breaker instances.
     """
 
     def __init__(self, provider_names: List[str], config: dict[str, Any]) -> None:
         super().__init__(config)
         self._providers: List[Tuple[str, BaseProvider]] = []
+        self._breakers: dict[str, Any] = {}
         
         for name in provider_names:
             provider_cls = ProviderRegistry.get(name)
@@ -28,6 +29,7 @@ class FallbackProvider(BaseProvider):
                 logger.warning("Provider '%s' missing from ProviderRegistry; skipping.", name)
                 continue
             self._providers.append((name, provider_cls(config)))
+            self._breakers[name] = CircuitBreakerRegistry.get(name)
             
         if not self._providers:
             raise ProviderError(
@@ -38,13 +40,14 @@ class FallbackProvider(BaseProvider):
             )
 
     async def complete(self, messages: List[Message], **kwargs: Any) -> CompletionResponse:
-        """Iterates through registered providers until a valid response is returned."""
+        """Iterates through providers with circuit breaker protection."""
         last_exception: Exception | None = None
         
         for name, provider in self._providers:
+            breaker = self._breakers[name]
             try:
-                logger.info("Routing request to primary/fallback provider: %s", name)
-                return await provider.complete(messages, **kwargs)
+                logger.info("Routing request to provider: %s (circuit: %s)", name, breaker.state.value)
+                return await breaker.call(provider.complete, messages, **kwargs)
             except Exception as exc:
                 logger.warning("Provider '%s' failed: %s", name, str(exc))
                 last_exception = exc
@@ -54,19 +57,30 @@ class FallbackProvider(BaseProvider):
             format_error_response(
                 ErrorCode.PROVIDER_UNAVAILABLE,
                 f"All providers failed. Last error: {last_exception}",
-                providers=[name for name, _ in self._providers]
+                providers=[name for name, _ in self._providers],
+                circuits=CircuitBreakerRegistry.get_all(),
             )["message"]
         )
 
     async def stream(self, messages: List[Message], **kwargs: Any) -> AsyncGenerator[str, None]:
-        """Streams from first available provider."""
+        """Streams from first available provider with circuit breaker."""
         for name, provider in self._providers:
+            breaker = self._breakers[name]
             try:
+                if not breaker.allow_request():
+                    logger.info("Circuit open for '%s', skipping.", name)
+                    continue
                 async for token in provider.stream(messages, **kwargs):
                     yield token
+                breaker.record_success()
                 return
             except Exception as exc:
+                breaker.record_failure()
                 logger.warning("Provider '%s' stream failed: %s", name, str(exc))
                 continue
         
         raise ProviderUnavailableError("All providers failed to stream")
+
+    def get_circuit_status(self) -> dict[str, Any]:
+        """Return circuit breaker status for all providers."""
+        return CircuitBreakerRegistry.get_all()
