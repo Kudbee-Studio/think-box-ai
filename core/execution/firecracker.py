@@ -1,0 +1,411 @@
+"""Firecracker microVM execution provider for THINK BOX AI.
+
+This provider runs commands inside a Firecracker microVM to give Think Box
+work a strong isolation boundary (separate kernel, separate address space).
+
+IMPORTANT — honesty constraints
+--------------------------------
+Firecracker REQUIRES a real ``/dev/kvm`` character device exposing the
+``KVM_GET_API_VERSION`` ioctl. On hosts where that is unavailable (e.g. the
+current UpCloud Managed Kubernetes worker, which is itself a KVM guest with
+nested virtualization disabled), this provider MUST NOT pretend to work.
+
+- ``health_check()`` returns ``False`` unless a real ``/dev/kvm`` char device
+  exists, the Firecracker binary is present, and a guest-command transport
+  (virtio-vsock) is usable.
+- ``execute()`` raises ``ExecutionUnavailableError`` when not healthy. We
+  never return a fake ``KUDBEE_FIRECRACKER_OK``.
+
+When KVM IS available, the provider:
+  1. starts the Firecracker VMM process (optionally under the jailer),
+  2. configures machine/boot/drive via the REST API over a Unix socket,
+  3. boots the microVM,
+  4. sends the command to a minimal guest agent over virtio-vsock,
+  5. captures structured stdout/stderr/exit-code,
+  6. shuts the microVM down and cleans up the process + socket.
+
+The host-side vsock protocol is documented in
+``docs/decisions/003-execution-provider.md`` and a reference guest agent is
+described there. The runtime never sees Firecracker internals — only the
+``ExecutionProvider`` contract.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import socket
+import time
+import urllib.request
+import uuid
+from typing import Any
+
+from core.execution.base import (
+    ExecResult,
+    ExecutionProvider,
+    ExecutionProviderRegistry,
+    ExecutionUnavailableError,
+)
+from core.foundation.logging import get_logger
+
+logger = get_logger(__name__)
+
+# virtio-vsock guest CID used by the Firecracker guest agent.
+DEFAULT_GUEST_CID = 3
+DEFAULT_VSOCK_PORT = 1024
+
+# AF_VSOCK is not always exposed by Python's socket module; use the
+# well-known Linux constant (40) when unavailable.
+_AF_VSOCK = getattr(socket, "AF_VSOCK", 40)
+
+
+class _VsockClient:
+    """Minimal virtio-vsock client for host<->guest command transport."""
+
+    def __init__(self, guest_cid: int, port: int, connect_timeout: float = 5.0) -> None:
+        self._guest_cid = guest_cid
+        self._port = port
+        self._connect_timeout = connect_timeout
+        self._sock: "socket.socket | None" = None
+
+    @staticmethod
+    def available() -> bool:
+        """Return True if the host kernel supports AF_VSOCK sockets."""
+        try:
+            with socket.socket(_AF_VSOCK, socket.SOCK_STREAM) as s:
+                return True
+        except OSError:
+            return False
+
+    def connect(self) -> None:
+        self._sock = socket.socket(_AF_VSOCK, socket.SOCK_STREAM)
+        self._sock.settimeout(self._connect_timeout)
+        self._sock.connect((self._guest_cid, self._port))
+
+    def send_command(self, command: str) -> None:
+        if self._sock is None:
+            raise ExecutionUnavailableError(message="vsock not connected")
+        payload = json.dumps({"cmd": command}).encode("utf-8")
+        self._sock.sendall(payload + b"\n")
+
+    def read_response(self, timeout: float) -> dict[str, Any]:
+        """Read a single JSON line from the guest agent."""
+        if self._sock is None:
+            raise ExecutionUnavailableError(message="vsock not connected")
+        self._sock.settimeout(timeout)
+        buf = b""
+        while b"\n" not in buf:
+            chunk = self._sock.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+        line = buf.split(b"\n", 1)[0].decode("utf-8", errors="replace")
+        return json.loads(line)
+
+    def close(self) -> None:
+        if self._sock is not None:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+            self._sock = None
+
+
+@ExecutionProviderRegistry.register("firecracker")
+class FirecrackerExecProvider:
+    """Execute commands inside a Firecracker microVM."""
+
+    name = "firecracker"
+
+    def __init__(self, config: "dict[str, Any] | None" = None) -> None:
+        self._config = config or {}
+        self._firecracker_bin: str = self._config.get("firecracker_bin", "/usr/local/bin/firecracker")
+        self._jailer_bin: str = self._config.get("jailer_bin", "/usr/local/bin/jailer")
+        self._kernel_image: str | None = self._config.get("kernel_image")
+        self._rootfs: str | None = self._config.get("rootfs")
+        self._socket_dir: str = self._config.get("socket_dir", "/srv/firecracker")
+        self._vcpu_count: int = int(self._config.get("vcpu_count", 1))
+        self._mem_size_mib: int = int(self._config.get("mem_size_mib", 128))
+        self._guest_cid: int = int(self._config.get("guest_cid", DEFAULT_GUEST_CID))
+        self._vsock_port: int = int(self._config.get("vsock_port", DEFAULT_VSOCK_PORT))
+        self._use_jailer: bool = bool(self._config.get("use_jailer", False))
+        self._boot_args: str = self._config.get(
+            "boot_args", "console=ttyS0 reboot=k panic=1 pci=off"
+        )
+        # Transient per-execution state, cleared on cleanup.
+        self._active: dict[str, Any] = {}
+
+    # ------------------------------------------------------------------
+    # Health / capability detection (never fakes KVM availability)
+    # ------------------------------------------------------------------
+    async def health_check(self) -> bool:
+        """Return True only if a REAL microVM can be booted here."""
+        if not os.path.exists(self._firecracker_bin):
+            logger.warning("Firecracker binary not found", extra={"path": self._firecracker_bin})
+            return False
+        if not self._kernel_image or not os.path.exists(self._kernel_image):
+            logger.warning("Firecracker kernel image missing", extra={"kernel": self._kernel_image})
+            return False
+        if not self._rootfs or not os.path.exists(self._rootfs):
+            logger.warning("Firecracker rootfs missing", extra={"rootfs": self._rootfs})
+            return False
+        if not self._real_kvm_device():
+            logger.warning("/dev/kvm is not a usable KVM character device")
+            return False
+        if not _VsockClient.available():
+            logger.warning("virtio-vsock (AF_VSOCK) unavailable on host")
+            return False
+        return True
+
+    @staticmethod
+    def _real_kvm_device() -> bool:
+        """True only if /dev/kvm is a character device exposing KVM ioctl.
+
+        A directory named /dev/kvm (as on the current UpCloud worker) does
+        NOT satisfy this check.
+        """
+        try:
+            st = os.stat("/dev/kvm")
+        except OSError:
+            return False
+        import stat as _stat
+
+        if not _stat.S_ISCHR(st.st_mode):
+            return False
+        # Attempt the KVM_GET_API_VERSION ioctl (0xAE00) to prove the
+        # device is genuinely a KVM node, not a placeholder.
+        import fcntl
+
+        KVM_GET_API_VERSION = 0xAE00
+        try:
+            with open("/dev/kvm", "rb") as fd:
+                return fcntl.ioctl(fd, KVM_GET_API_VERSION) > 0
+        except OSError:
+            return False
+
+    # ------------------------------------------------------------------
+    # Execution lifecycle
+    # ------------------------------------------------------------------
+    async def execute(self, command: str, timeout: float = 30.0) -> ExecResult:
+        if not await self.health_check():
+            raise ExecutionUnavailableError(
+                message="Firecracker execution unavailable: KVM/guest transport missing"
+            )
+
+        microvm_id = f"kudbee-{uuid.uuid4().hex[:12]}"
+        api_socket = os.path.join(self._socket_dir, f"{microvm_id}.sock")
+        os.makedirs(self._socket_dir, exist_ok=True)
+
+        started = time.monotonic()
+        process: "asyncio.subprocess.Process | None" = None
+        vsock: "_VsockClient | None" = None
+        try:
+            process = await self._start_vmm(microvm_id, api_socket)
+            await self._configure(microvm_id, api_socket)
+            await self._boot(api_socket)
+
+            vsock = _VsockClient(self._guest_cid, self._vsock_port)
+            vsock.connect()
+            vsock.send_command(command)
+
+            stdout_chunks: list[str] = []
+            stderr_chunks: list[str] = []
+            return_code = -1
+            deadline = time.monotonic() + timeout
+            while True:
+                remaining = max(0.1, deadline - time.monotonic())
+                try:
+                    msg = vsock.read_response(remaining)
+                except (socket.timeout, TimeoutError):
+                    raise ExecutionUnavailableError(message="guest agent response timed out")
+                if "exit" in msg:
+                    return_code = int(msg["exit"])
+                    break
+                stream = msg.get("stream", "stdout")
+                data = msg.get("data", "")
+                (stdout_chunks if stream == "stdout" else stderr_chunks).append(data)
+                if time.monotonic() >= deadline:
+                    raise ExecutionUnavailableError(message="command timed out in guest")
+
+            duration = time.monotonic() - started
+            return ExecResult(
+                stdout="".join(stdout_chunks),
+                stderr="".join(stderr_chunks),
+                return_code=return_code,
+                duration=duration,
+                provider=self.name,
+                microvm_id=microvm_id,
+                metadata={"api_socket": api_socket},
+            )
+        except ExecutionUnavailableError:
+            raise
+        except Exception as e:  # noqa: BLE001 - report as ExecResult, never swallow
+            duration = time.monotonic() - started
+            logger.error("Firecracker execution error", extra={"error": str(e)})
+            return ExecResult(
+                stdout="",
+                stderr=str(e),
+                return_code=-1,
+                duration=duration,
+                provider=self.name,
+                microvm_id=microvm_id,
+                error="firecracker_error",
+            )
+        finally:
+            if vsock is not None:
+                vsock.close()
+            await self._shutdown(api_socket, process)
+            self._cleanup(api_socket, microvm_id)
+
+    # ------------------------------------------------------------------
+    # Low-level helpers (kept separate so unit tests can mock them)
+    # ------------------------------------------------------------------
+    async def _start_vmm(self, microvm_id: str, api_socket: str) -> "asyncio.subprocess.Process":
+        args = [self._firecracker_bin, "--api-sock", api_socket, "--id", microvm_id]
+        if self._use_jailer:
+            # The jailer spawns firecracker itself; exec the jailer instead.
+            args = [
+                self._jailer_bin,
+                "--id", microvm_id,
+                "--exec-file", self._firecracker_bin,
+                "--uid", "0",
+                "--gid", "0",
+                "--",
+                "--api-sock", api_socket,
+            ]
+        return await asyncio.create_subprocess_exec(*args)
+
+    async def _configure(self, microvm_id: str, api_socket: str) -> None:
+        await self._api_put(
+            api_socket,
+            "/machine-config",
+            {"vcpu_count": self._vcpu_count, "mem_size_mib": self._mem_size_mib, "smt": False},
+        )
+        await self._api_put(
+            api_socket,
+            "/boot-source",
+            {"kernel_image_path": self._kernel_image, "boot_args": self._boot_args},
+        )
+        await self._api_put(
+            api_socket,
+            "/drive/rootfs",
+            {
+                "drive_id": "rootfs",
+                "path_on_host": self._rootfs,
+                "is_root_device": True,
+                "is_read_only": False,
+            },
+        )
+
+    async def _boot(self, api_socket: str) -> None:
+        await self._api_put(api_socket, "/actions", {"action_type": "InstanceStart"})
+
+    async def _shutdown(self, api_socket: str, process: "asyncio.subprocess.Process | None") -> None:
+        try:
+            await self._api_put(api_socket, "/actions", {"action_type": "SendCtrlAltDel"})
+        except Exception:  # noqa: BLE001 - best-effort graceful shutdown
+            logger.debug("SendCtrlAltDel failed; will terminate process")
+        if process is not None:
+            try:
+                process.terminate()
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except (ProcessLookupError, asyncio.TimeoutError):
+                process.kill()
+
+    def _cleanup(self, api_socket: str, microvm_id: str) -> None:
+        try:
+            os.remove(api_socket)
+        except OSError:
+            pass
+        self._active.pop(microvm_id, None)
+
+    async def _api_put(self, api_socket: str, path: str, payload: "dict[str, Any]") -> Any:
+        """PUT *payload* to the Firecracker API over a Unix socket.
+
+        Uses only the standard library. Isolated here so tests can mock it.
+        """
+        import urllib.request
+
+        url = f"http://localhost{path}"
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=data, method="PUT", headers={"Content-Type": "application/json"}
+        )
+        # Bind the HTTP request to the Firecracker Unix socket.
+        opener = urllib.request.build_opener(_UnixSocketHandler(api_socket))
+        with opener.open(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return json.loads(body) if body else None
+
+    async def shutdown(self) -> None:
+        """Release any persistent resources (none held between executions)."""
+        return None
+
+
+class _UnixSocketHandler(urllib.request.AbstractHTTPHandler):
+    """urllib handler that routes requests to a Unix domain socket."""
+
+    def __init__(self, socket_path: str) -> None:
+        super().__init__()
+        self._socket_path = socket_path
+
+    def _get_connection(self, host: str, timeout: float):  # type: ignore[override]
+        return _UnixConnection(self._socket_path)
+
+
+class _UnixConnection:
+    def __init__(self, socket_path: str) -> None:
+        self._path = socket_path
+
+    def request(self, method: str, url: str, body: "bytes | None" = None, headers: "dict | None" = None) -> None:
+        self._method = method
+        self._url = url
+        self._body = body
+        self._headers = headers or {}
+
+    def getresponse(self):  # type: ignore[no-untyped-def]
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        sock.connect(self._path)
+        path = self._url.split("?", 1)[0]
+        req_line = f"{self._method} {path} HTTP/1.1\r\n"
+        sock.sendall(req_line.encode("utf-8"))
+        sock.sendall(b"Host: localhost\r\n")
+        for k, v in self._headers.items():
+            sock.sendall(f"{k}: {v}\r\n".encode("utf-8"))
+        sock.sendall(b"Connection: close\r\n")
+        if self._body:
+            sock.sendall(f"Content-Length: {len(self._body)}\r\n".encode("utf-8"))
+            sock.sendall(b"\r\n")
+            sock.sendall(self._body)
+        else:
+            sock.sendall(b"\r\n")
+        return _HTTPResponse(sock)
+
+
+class _HTTPResponse:
+    def __init__(self, sock: "socket.socket") -> None:
+        self._sock = sock
+        self.status = 0
+        self.reason = ""
+        self._body = b""
+
+    def read(self) -> bytes:
+        if self._body:
+            return self._body
+        data = b""
+        while True:
+            chunk = self._sock.recv(65536)
+            if not chunk:
+                break
+            data += chunk
+        self._sock.close()
+        # Parse status line + headers minimally, keep body.
+        head, _, body = data.partition(b"\r\n\r\n")
+        status_line = head.split(b"\r\n", 1)[0].decode("utf-8", errors="replace")
+        parts = status_line.split(" ", 2)
+        if len(parts) >= 2:
+            self.status = int(parts[1])
+        self._body = body
+        return body
