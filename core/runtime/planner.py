@@ -12,6 +12,7 @@ class Step:
     description: str
     action: str
     expected_output: dict[str, Any] | None = None
+    command: str | None = None
 
 
 class Planner:
