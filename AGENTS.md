@@ -314,4 +314,81 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
+---
+
+## 13. Think Box Infrastructure Access
+
+This section documents how to access and operate on the Think Box v1 VM
+(UpCloud managed Kubernetes node `kudbee-host-v1`).
+
+### 13.1 Environment Variables
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `THINKBOX_UPCLOUD_API_TOKEN` | UpCloud API token (Bearer auth) | `ucat_01M...` |
+| `UPCLOUD_SERVER_HOSTNAME` | Target server hostname | `kudbee-host-v1` |
+| `UPCLOUD_SERVER_IP` | Public IP | `212.147.250.183` |
+| `UPCLOUD_SSH_USER` | SSH user | `root` |
+| `UPCLOUD_SSH_KEY_PATH` | Path to SSH private key | `~/.ssh/kilo-upcloud` |
+
+### 13.2 UpCloud API Authentication
+
+This environment uses an UpCloud API token (format `ucat_...`). Authentication
+uses the Bearer header:
+
+```bash
+curl -H "Authorization: Bearer $THINKBOX_UPCLOUD_API_TOKEN" \
+  https://api.upcloud.com/1.3/server
+```
+
+The token also works with the UpCloud CLI (`upctl`) via the `UPCLOUD_TOKEN`
+environment variable. Install `upctl` from
+<https://github.com/UpCloudLtd/upcloud-cli/releases>.
+
+### 13.3 Establishing SSH Access
+
+The Think Box is a **managed Kubernetes node** (UpCloud Managed K8s,
+cluster `think-box-test`, Kubernetes v1.35). SSH keys are NOT injected via the
+UpCloud server SSH-key API for managed K8s nodes.
+
+**Method:** Use `kubectl debug` to create a privileged pod on the node and
+write the SSH public key to `authorized_keys` on the host filesystem.
+
+```bash
+# 1. Get kubeconfig from UpCloud CLI
+export UPCLOUD_TOKEN="$THINKBOX_UPCLOUD_API_TOKEN"
+upctl kubernetes config think-box-test --output yaml > kubeconfig.yaml
+
+# 2. Create a debug pod with host filesystem access
+export KUBECONFIG=kubeconfig.yaml
+kubectl debug node/<node-name> -n default \
+  --image=busybox --copy-to=debug-node -- sh -c "sleep 300"
+
+# 3. Write SSH key to authorized_keys
+kubectl exec <debug-pod-name> -c debugger -- sh -c \
+  "echo '<public-key>' > /host/root/.ssh/authorized_keys && \
+   chmod 600 /host/root/.ssh/authorized_keys"
+
+# 4. SSH to the node
+ssh -i ~/.ssh/kilo-upcloud root@212.147.250.183
+
+# 5. Clean up debug pod
+kubectl delete pod <debug-pod-name> -n default
+```
+
+**SSH user:** `root` (the node has `PermitRootLogin yes` in sshd_config).
+
+**Why SSH previously failed:** The `/root/.ssh/authorized_keys` file existed
+(0 bytes) but was empty. No public key was written to it during provisioning
+because UpCloud managed K8s nodes do not use the standard SSH-key injection flow.
+
+### 13.4 Known Limitations
+
+- No Firecracker installation found on the node (K8s node uses containerd,
+  not Firecracker microVMs).
+- No Docker installed; containerd is the only container runtime.
+- The node is managed by a Kubernetes cluster — direct VM modifications
+  should be avoided to prevent cluster drift.
+
+
 </content>
