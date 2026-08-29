@@ -340,6 +340,15 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_health(args: argparse.Namespace) -> int:
+    """Run health checks and print report."""
+    from core.foundation.health import full_health_check
+    db_path = os.path.expanduser("~/.local/share/thinkbox/thinkbox.db")
+    report = full_health_check(db_path if os.path.exists(db_path) else None)
+    print(json.dumps(report, indent=2))
+    return 0 if report["status"] == "ok" else 1
+
+
 def cmd_challenges(args: argparse.Namespace) -> int:
     """List challenges for a token."""
     store = _get_store()
@@ -587,6 +596,10 @@ def main() -> int:
     p_ch = subparsers.add_parser("challenges", help="List challenges for a token")
     p_ch.add_argument("token_id", help="Token ID")
     p_ch.set_defaults(func=cmd_challenges)
+
+    # thinkbox health
+    p_health = subparsers.add_parser("health", help="Run health checks")
+    p_health.set_defaults(func=cmd_health)
 
     args = parser.parse_args()
 
