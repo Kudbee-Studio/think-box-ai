@@ -69,6 +69,9 @@ class _VsockClient:
       3. Read "OK <guest_cid>\\n" (or an error).
       4. Send command as a JSON line.
       5. Read response JSON lines (stream data + exit code).
+
+    All socket operations are blocking; use asyncio.to_thread() or
+    loop.run_in_executor() to avoid blocking the event loop.
     """
 
     def __init__(
@@ -95,7 +98,6 @@ class _VsockClient:
 
     def connect(self) -> None:
         """Connect to the Firecracker vsock Unix socket and handshake."""
-        # Retry: the guest agent may not be listening immediately after boot.
         last_err: Exception | None = None
         for attempt in range(50):
             try:
@@ -133,6 +135,39 @@ class _VsockClient:
         payload = json.dumps({"cmd": command}).encode("utf-8")
         self._sock.sendall(payload + b"\n")
 
+    def execute_command(self, command: str, timeout: float) -> ExecResult:
+        """Execute a command over vsock and return the result. Blocking."""
+        self.connect()
+        try:
+            self.send_command(command)
+            stdout_chunks: list[str] = []
+            stderr_chunks: list[str] = []
+            return_code = -1
+            deadline = time.monotonic() + timeout
+            while True:
+                remaining = max(1.0, deadline - time.monotonic())
+                try:
+                    msg = self.read_response(remaining)
+                except (socket.timeout, TimeoutError):
+                    raise ExecutionUnavailableError(message="guest agent response timed out")
+                if "exit" in msg:
+                    return_code = int(msg["exit"])
+                    break
+                stream = msg.get("stream", "stdout")
+                data = msg.get("data", "")
+                (stdout_chunks if stream == "stdout" else stderr_chunks).append(data)
+                if time.monotonic() >= deadline:
+                    raise ExecutionUnavailableError(message="command timed out in guest")
+            return ExecResult(
+                stdout="".join(stdout_chunks),
+                stderr="".join(stderr_chunks),
+                return_code=return_code,
+                duration=0.0,
+                provider="firecracker",
+            )
+        finally:
+            self.close()
+
     def read_response(self, timeout: float) -> dict[str, Any]:
         """Read a single JSON line from the guest agent."""
         if self._sock is None:
@@ -146,7 +181,9 @@ class _VsockClient:
             buf += chunk
         line = buf.split(b"\n", 1)[0].decode("utf-8", errors="replace")
         if not line:
-            raise ExecutionUnavailableError(message="vsock read returned empty response")
+            raise ExecutionUnavailableError(
+                message=f"vsock read returned empty response (buf={buf!r})"
+            )
         return json.loads(line)
 
     def close(self) -> None:
@@ -253,27 +290,12 @@ class FirecrackerExecProvider:
             await self._boot(api_socket)
 
             vsock = _VsockClient(self._guest_cid, self._vsock_port, vsock_uds)
-            vsock.connect()
-            vsock.send_command(command)
-
-            stdout_chunks: list[str] = []
-            stderr_chunks: list[str] = []
-            return_code = -1
-            deadline = time.monotonic() + timeout
-            while True:
-                remaining = max(1.0, deadline - time.monotonic())
-                try:
-                    msg = vsock.read_response(remaining)
-                except (socket.timeout, TimeoutError):
-                    raise ExecutionUnavailableError(message="guest agent response timed out")
-                if "exit" in msg:
-                    return_code = int(msg["exit"])
-                    break
-                stream = msg.get("stream", "stdout")
-                data = msg.get("data", "")
-                (stdout_chunks if stream == "stdout" else stderr_chunks).append(data)
-                if time.monotonic() >= deadline:
-                    raise ExecutionUnavailableError(message="command timed out in guest")
+            result = await asyncio.to_thread(vsock.execute_command, command, timeout)
+            result.microvm_id = microvm_id
+            result.metadata = {"api_socket": api_socket}
+            duration = time.monotonic() - started
+            result.duration = duration
+            return result
 
             duration = time.monotonic() - started
             return ExecResult(

@@ -90,10 +90,13 @@ class TestFirecrackerExecProviderUnit(unittest.TestCase):
         provider = self._make_provider()
 
         fake_vsock = MagicMock()
-        fake_vsock.read_response.side_effect = [
-            {"stream": "stdout", "data": "KUDBEE_FIRECRACKER_OK\n"},
-            {"exit": 0},
-        ]
+        fake_vsock.execute_command.return_value = ExecResult(
+            stdout="KUDBEE_FIRECRACKER_OK\n",
+            stderr="",
+            return_code=0,
+            duration=1.0,
+            provider="firecracker",
+        )
         # Pretend kernel/rootfs/firecracker binaries exist on disk.
         real_exists = os.path.exists
 
