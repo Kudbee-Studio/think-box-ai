@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -116,6 +118,53 @@ class TestProviderRouter(unittest.TestCase):
         router._cache["abc"] = CompletionResponse("x", "y")
         router.clear_cache()
         self.assertEqual(len(router._cache), 0)
+
+
+class TestSnapshotCache(unittest.TestCase):
+    def setUp(self):
+        self._tmpdir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self._tmpdir, "cache.db")
+
+    def test_put_and_get(self):
+        from core.providers.router import SnapshotCache
+        cache = SnapshotCache(self.db_path)
+        resp = CompletionResponse("hello", "model", {"tokens": 5})
+        cache.put("key1", resp)
+        result = cache.get("key1")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.content, "hello")
+        self.assertEqual(result.model, "model")
+
+    def test_get_missing(self):
+        from core.providers.router import SnapshotCache
+        cache = SnapshotCache(self.db_path)
+        self.assertIsNone(cache.get("nonexistent"))
+
+    def test_ttl_expiry(self):
+        from core.providers.router import SnapshotCache
+        cache = SnapshotCache(self.db_path, ttl=0.01)
+        cache.put("key1", CompletionResponse("x", "y"))
+        import time
+        time.sleep(0.02)
+        self.assertIsNone(cache.get("key1"))
+
+    def test_clear(self):
+        from core.providers.router import SnapshotCache
+        cache = SnapshotCache(self.db_path)
+        cache.put("k1", CompletionResponse("a", "b"))
+        cache.put("k2", CompletionResponse("c", "d"))
+        cache.clear()
+        self.assertIsNone(cache.get("k1"))
+        self.assertIsNone(cache.get("k2"))
+
+    def test_cross_process(self):
+        from core.providers.router import SnapshotCache
+        cache1 = SnapshotCache(self.db_path)
+        cache1.put("key1", CompletionResponse("shared", "model"))
+        cache2 = SnapshotCache(self.db_path)
+        result = cache2.get("key1")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.content, "shared")
 
 
 if __name__ == "__main__":
