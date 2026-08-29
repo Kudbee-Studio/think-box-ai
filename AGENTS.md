@@ -465,8 +465,16 @@ thinkbox tokens <id>               # List tokens
 thinkbox token-score <tid>         # Print Elo score
 thinkbox challenge-jury <tid>      # LLM jury challenge
 thinkbox challenge-human <tid> <v> # Manual scoring (pass/fail/neutral)
-thinkbox list                      # List all boxes
-thinkbox status <id>               # Box status
+thinkbox challenge-replay <tid>    # Replay last challenge
+thinkbox challenges <tid>          # List challenges for token
+thinkbox export <id> [-o FILE]     # Export box to JSON
+thinkbox import <file>             # Import box from JSON
+thinkbox delete <id>               # Delete box and data
+thinkbox leaderboard [--limit N]   # Top-scoring tokens
+thinkbox upcloud                   # UpCloud dashboard
+thinkbox health                    # Health checks
+thinkbox clear-cache              # Clear provider cache
+thinkbox --version                 # Print version
 thinkbox clear-cache              # Clear provider cache
 ```
 
@@ -496,4 +504,24 @@ thinkbox clear-cache              # Clear provider cache
 - Work continues across sessions — check `kilo_local_recall` for prior context
 - Small commits are preferred (50+ per feature is fine)
 - Each significant change gets its own PR
-- Founder reviews and merges PRs — KILO does not merge</content>
+- Founder reviews and merges PRs — KILO does not merge
+- Test isolation: run unit tests before integration tests (`python3 -m unittest tests.unit.test_execution tests.unit.test_think_tokens ...`)
+- `unittest discover` has test isolation issues — CLI tests depend on execution order
+
+### 14.6 Infrastructure
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| UpCloud | `core/infrastructure/upcloud.py` | Server management, dashboard |
+| Health | `core/foundation/health.py` | Multi-subsystem health checks |
+| Errors | `core/infrastructure/errors.py` | Circuit breaker, safe_call |
+| Context | `core/memory/context.py` | Sliding window, LRU cache |
+
+### 14.7 Security
+
+- Path traversal protection on filesystem tools
+- Shell injection prevention (shlex + exec)
+- Prompt injection mitigation (claim delimiters in jury)
+- Foreign key enforcement in SQLite
+- No secrets in logs or evidence
+- Configurable base directory via `THINKBOX_BASE_DIR`</content>
