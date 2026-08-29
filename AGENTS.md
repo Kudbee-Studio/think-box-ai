@@ -384,11 +384,36 @@ because UpCloud managed K8s nodes do not use the standard SSH-key injection flow
 
 ### 13.4 Known Limitations
 
-- No Firecracker installation found on the node (K8s node uses containerd,
-  not Firecracker microVMs).
-- No Docker installed; containerd is the only container runtime.
+- KVM is NOT available: `/dev/kvm` does not exist, no `vmx`/`svm` CPU flags,
+  `modprobe kvm_amd` fails. Firecracker runs in software-emulation mode.
+- No Docker installed; containerd 1.7.29 is the only container runtime.
 - The node is managed by a Kubernetes cluster — direct VM modifications
   should be avoided to prevent cluster drift.
+- SSH key injection via UpCloud server API does not work for managed K8s
+  nodes. Use `kubectl debug` method described above.
+
+### 13.5 Firecracker Installation Status
+
+- Firecracker v1.16.1 binary verified running on the node (API responds to
+  Unix socket). Installed at `/opt/firecracker/` on the node.
+- Firecracker runs in software-emulation mode (no KVM). This is acceptable
+  for Phase 1 PoC but documented as a production limitation.
+- MicroVM boot test is in progress. Kernel and rootfs images are being
+  downloaded for end-to-end validation.
+
+### 13.6 Agent Framework Decision
+
+Atomic Agents (GitHub user `olemarch` fork, referred to as "OLEMARCHY") was
+evaluated as a potential standard component inside every Think Box microVM.
+**Decision: Deferred.** See `docs/decisions/001-olemarchy-atomic-agents-evaluation.md`.
+
+Key blockers:
+1. Requires Python 3.12+ (env has 3.10.12)
+2. Brings pydantic, instructor, litellm, mcp — violates Phase 0 stdlib-only constraint
+3. Would require significant adapter layer between Atomic Agents' `AtomicAgent`
+   and KUDBEE's `ThinkBox`/`Agent` runtime
+
+If adopted in Phase 2+, the integration path is documented in the ADR.
 
 
 </content>
