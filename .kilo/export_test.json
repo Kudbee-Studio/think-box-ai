@@ -1,25 +1,25 @@
 {
   "version": 1,
-  "box_id": "tb-a7db3d2043d5",
-  "exported_at": "2026-08-29T17:34:06.894375+00:00",
+  "box_id": "tb-3b7dda06aafc",
+  "exported_at": "2026-08-29T18:03:17.133584+00:00",
   "tokens": [
     {
-      "id": "tt-15a326622bd2",
-      "box_id": "tb-a7db3d2043d5",
+      "id": "tt-17c7e00b7b58",
+      "box_id": "tb-3b7dda06aafc",
       "claim": "echo roundtrip",
       "s": 1.375,
       "author": "cli-agent",
       "grounded": 1,
-      "created_at": "2026-08-29T17:34:06.697360+00:00",
+      "created_at": "2026-08-29T18:03:16.971100+00:00",
       "challenges": [
         {
-          "id": "ch-56a017eb2700",
-          "token_id": "tt-15a326622bd2",
+          "id": "ch-5b98585e51a8",
+          "token_id": "tt-17c7e00b7b58",
           "type": "exec",
           "opponent": 1.0,
           "o": 1,
           "w": 3.0,
-          "created_at": "2026-08-29T17:34:06.697940+00:00"
+          "created_at": "2026-08-29T18:03:16.971743+00:00"
         }
       ]
     }
