@@ -362,6 +362,51 @@ def cmd_challenges(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_upcloud(args: argparse.Namespace) -> int:
+    """Show UpCloud dashboard (servers, status, usage)."""
+    from core.infrastructure.upcloud import get_dashboard_data
+    from think_box_ai.format import print_header, print_box, bold, cyan, green, yellow
+
+    print_header("UpCloud Dashboard")
+
+    data = get_dashboard_data()
+
+    api = data.get("api_health", {})
+    status_color = green if api.get("status") == "ok" else yellow
+    print_box(
+        "API Health",
+        f"Status: {status_color(api.get('status', 'unknown'))}\n"
+        f"Response Time: {api.get('duration_ms', '?')}ms",
+    )
+    print()
+
+    servers = data.get("servers", [])
+    if servers:
+        for s in servers:
+            state_color = green if s["state"] == "started" else yellow
+            print_box(
+                s["hostname"],
+                f"UUID: {cyan(s['uuid'][:12])}...\n"
+                f"State: {state_color(s['state'])}\n"
+                f"Plan: {s['plan']}\n"
+                f"Cores: {s['cores']}  Memory: {s['memory_gb']}GB\n"
+                f"IPs: {', '.join(s['ip_addresses']) if s['ip_addresses'] else 'none'}",
+            )
+            print()
+    else:
+        print("  No servers found.")
+        print()
+
+    usage = data.get("usage", {})
+    print_box(
+        "Account",
+        f"Credit Remaining: {green('$' + str(usage.get('credit_remaining', 0)))}\n"
+        f"GPU Plans Available: {data.get('gpu_plans_available', 0)}",
+    )
+
+    return 0
+
+
 def cmd_challenge_human(args: argparse.Namespace) -> int:
     """Apply a human challenge (manual scoring)."""
     store = _get_store()
@@ -712,6 +757,10 @@ def main() -> int:
     # thinkbox health
     p_health = subparsers.add_parser("health", help="Run health checks")
     p_health.set_defaults(func=cmd_health)
+
+    # thinkbox upcloud
+    p_upcloud = subparsers.add_parser("upcloud", help="UpCloud dashboard")
+    p_upcloud.set_defaults(func=cmd_upcloud)
 
     args = parser.parse_args()
 
