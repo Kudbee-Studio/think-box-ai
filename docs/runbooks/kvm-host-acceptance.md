@@ -140,7 +140,41 @@ KUDBEE_FIRECRACKER_OK
 
 ---
 
-## Acceptance record template
+## Known issues
+
+### Firecracker v1.16.1 vsock proxy
+
+The Firecracker v1.16.1 vsock proxy may reset connections from the host even
+when a guest agent is listening. This has been observed on `cloudchamber`
+(x86_64 KVM guest with working `/dev/kvm`) with the Firecracker CI minimal
+kernel (vmlinux.bin) and Alpine rootfs (boottime-rootfs.ext4).
+
+**Symptom:** `Connection reset by peer` (errno 104) when connecting to the
+host-side vsock Unix socket or via `AF_VSOCK` to the guest CID, despite the
+guest agent logging `listening on port 1024`.
+
+**Possible causes:**
+1. The minimal Firecracker CI kernel (4.14.x) has a virtio-mmio driver issue
+   that prevents the vsock device from being fully initialized.
+2. Firecracker's vsock proxy in v1.16.1 may have a bug with certain kernel
+   versions.
+3. The `pci=off` parameter (added by Firecracker by default after user boot
+   args) may interfere with virtio-mmio device initialization.
+
+**Workarounds to try:**
+1. Use a newer kernel (5.10+) with built-in virtio-mmio and virtio-vsock
+   support, such as the Ubuntu kernel from Firecracker CI:
+   `https://s3.amazonaws.com/spec.ccfc.min/img/x86_64/ubuntu/kernel/vmlinux.bin`
+2. Use a more recent Firecracker release (v1.7+) which may have vsock fixes.
+3. Use the `debian_with_ssh_and_balloon` rootfs which includes a working
+   init system and vsock setup.
+
+### Verifying the guest agent
+
+To verify the guest agent is running inside the microVM, enable the serial
+console in the boot args (remove `console=ttyS0` or add `earlyprintk`) and
+check the Firecracker process's stderr output. The agent logs to
+`/dev/console` with the prefix `[vsock-agent]`.
 
 When a host passes, record:
 

@@ -136,7 +136,30 @@
   Memory → Governance/Tools → Runtime → Agent Implementations. Execution is a NEW
   layer between Governance/Tools and Runtime. Firecracker stays behind it.
 
-## ADRs
+## Cycle C — Real Firecracker Proof (partial)
+
+Host `cloudchamber` has usable KVM (`/dev/kvm` char device, `KVM_GET_API_VERSION=12`,
+`svm` CPU flag). Downloaded official Firecracker v1.16.1 + minimal kernel +
+Alpine rootfs to `~/.cache/kudbee-fc/` (NOT committed). Built a static C
+vsock guest agent and injected it into the rootfs; the agent boots as PID 1
+(listens on AF_VSOCK port 1024, executes commands, returns JSON
+stdout/stderr/exit-code over vsock).
+
+**MicroVM boot: SUCCESS.** Firecracker v1.16.1 starts, all API calls return
+204 (machine-config, boot-source, drives/rootfs, vsock, InstanceStart). The
+guest agent logs `[vsock-agent] starting`, `[vsock-agent] vsock bind OK`,
+`[vsock-agent] listening on port 1024` to the console.
+
+**Guest communication: BLOCKED.** Firecracker's vsock proxy resets host
+connections (`Connection reset by peer`) despite the agent listening. Root
+cause: likely a Firecracker v1.16.1 vsock proxy bug with the 4.14.x minimal
+kernel. See `docs/runbooks/kvm-host-acceptance.md` for workarounds.
+
+**Test modified:** `tests/integration/test_firecracker_execution.py` now reads
+`FIRECRACKER_BIN`, `FIRECRACKER_KERNEL`, `FIRECRACKER_ROOTFS` env vars and uses
+`asyncio.run()` for Python 3.10 compat. Provider now configures `/drives/`
+(plural), `/vsock` with `uds_path`, and removed `pci=off` from default boot
+args. The test runs (not skips) on `cloudchamber` but fails at vsock connect.
 - ADR-001: OLEMARCHY / Atomic Agents Evaluation — DEFERRED (Python 3.12+, stdlib violation)
 - ADR-002: Firecracker Execution Boundary — ACCEPTED (conditional on KVM availability)
 - ADR-003: Execution Provider Abstraction — ACCEPTED (local + firecracker providers,

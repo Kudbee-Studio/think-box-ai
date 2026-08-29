@@ -78,9 +78,24 @@ class _VsockClient:
             return False
 
     def connect(self) -> None:
-        self._sock = socket.socket(_AF_VSOCK, socket.SOCK_STREAM)
-        self._sock.settimeout(self._connect_timeout)
-        self._sock.connect((self._guest_cid, self._port))
+        # Retry: the guest agent may not be listening immediately after boot.
+        # A fresh socket is needed each attempt because a failed connect
+        # leaves the socket in an unusable state.
+        last_err: Exception | None = None
+        for _ in range(50):
+            try:
+                sock = socket.socket(_AF_VSOCK, socket.SOCK_STREAM)
+                sock.settimeout(self._connect_timeout)
+                sock.connect((self._guest_cid, self._port))
+                self._sock = sock
+                return
+            except OSError as e:
+                last_err = e
+                sock.close()
+                time.sleep(0.2)
+        raise ExecutionUnavailableError(
+            message=f"vsock connect failed after retries: {last_err}"
+        )
 
     def send_command(self, command: str) -> None:
         if self._sock is None:
@@ -130,7 +145,7 @@ class FirecrackerExecProvider:
         self._vsock_port: int = int(self._config.get("vsock_port", DEFAULT_VSOCK_PORT))
         self._use_jailer: bool = bool(self._config.get("use_jailer", False))
         self._boot_args: str = self._config.get(
-            "boot_args", "console=ttyS0 reboot=k panic=1 pci=off"
+            "boot_args", "console=ttyS0 reboot=k panic=1 pci=realloc init=/usr/local/bin/vsock-agent"
         )
         # Transient per-execution state, cleared on cleanup.
         self._active: dict[str, Any] = {}
@@ -288,13 +303,23 @@ class FirecrackerExecProvider:
         )
         await self._api_put(
             api_socket,
-            "/drive/rootfs",
+            "/drives/rootfs",
             {
                 "drive_id": "rootfs",
                 "path_on_host": self._rootfs,
                 "is_root_device": True,
                 "is_read_only": False,
             },
+        )
+        # Configure the virtio-vsock device so the host can reach the guest
+        # agent over AF_VSOCK. v1.16.1 requires uds_path; the guest CID is
+        # self._guest_cid. The Unix socket is a side-channel; the provider
+        # connects over AF_VSOCK directly.
+        vsock_uds = os.path.join(self._socket_dir, f"{microvm_id}-vsock.sock")
+        await self._api_put(
+            api_socket,
+            "/vsock",
+            {"guest_cid": self._guest_cid, "uds_path": vsock_uds},
         )
 
     async def _boot(self, api_socket: str) -> None:

@@ -27,13 +27,17 @@ import unittest
 from core.execution.firecracker import FirecrackerExecProvider
 
 # Locations used by a properly provisioned execution host (see ADR-003).
-DEFAULT_KERNEL = "/srv/firecracker/vmlinux"
-DEFAULT_ROOTFS = "/srv/firecracker/rootfs.ext4"
-DEFAULT_FIRECRACKER = shutil.which("firecracker") or "/usr/local/bin/firecracker"
+# Override via environment variables for portable test runs.
+DEFAULT_KERNEL = os.environ.get("FIRECRACKER_KERNEL", "/srv/firecracker/vmlinux")
+DEFAULT_ROOTFS = os.environ.get("FIRECRACKER_ROOTFS", "/srv/firecracker/rootfs.ext4")
+DEFAULT_FIRECRACKER = os.environ.get(
+    "FIRECRACKER_BIN",
+    shutil.which("firecracker") or "/usr/local/bin/firecracker",
+)
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _kvm_usable() -> bool:
