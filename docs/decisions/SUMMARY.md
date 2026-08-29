@@ -110,28 +110,52 @@
 - Console: GET /console_output — valid in v1.16.1
 
 ### Repository State
-- No existing ExecutionProvider, FirecrackerExecProvider, or core/execution/ package
-- No execution-related config in ThinkBoxConfig
-- core/foundation/config.py has a bug (uses Path without import)
+- `core/execution/` package now EXISTS: `base.py` (ExecResult, ExecutionProvider
+  Protocol, ExecutionProviderRegistry, ExecutionUnavailableError), `local.py`
+  (LocalExecProvider), `firecracker.py` (FirecrackerExecProvider), `__init__.py`.
+- `ThinkBoxConfig` now has `exec_provider` (default "local") and `firecracker_config`.
+- `core/foundation/config.py` Path import bug FIXED (added `from pathlib import Path`).
+- `core/foundation/bootstrap.py` wires `execution_provider` into `RuntimeContext`
+  via a lazy import inside `_create_execution_provider()` (composition root).
+- `core/runtime/actor.py` routes `Step(action="execute", command=...)` to the
+  execution provider; governance (approval gate + audit) stays above execution.
+- `core/runtime/planner.py` `Step` gained an optional `command` field.
+- `LocalExecProvider` is REAL and functional (asyncio subprocess) — the runtime's
+  execution contract is satisfied today on the KVM-less host.
+- `FirecrackerExecProvider` is fully implemented (REST API + vsock + lifecycle)
+  but `health_check()` returns False here (no real /dev/kvm) and `execute()`
+  raises ExecutionUnavailableError. Nothing is faked.
+- Tests: `tests/unit/test_execution.py` (14 tests, mock Firecracker),
+  `tests/integration/test_firecracker_execution.py` (real KUDBEE_FIRECRACKER_OK
+  proof-of-life, auto-skips without KVM).
 - Existing architecture: AGENTS.md §1.1 defines 5 layers: Foundation → Provider →
-  Memory → Governance/Tools → Runtime → Agent Implementations
-- Firecracker belongs as a NEW "Execution" concern, NOT replacing any existing layer
+  Memory → Governance/Tools → Runtime → Agent Implementations. Execution is a NEW
+  layer between Governance/Tools and Runtime. Firecracker stays behind it.
 
 ## ADRs
 - ADR-001: OLEMARCHY / Atomic Agents Evaluation — DEFERRED (Python 3.12+, stdlib violation)
 - ADR-002: Firecracker Execution Boundary — ACCEPTED (conditional on KVM availability)
+- ADR-003: Execution Provider Abstraction — ACCEPTED (local + firecracker providers,
+  honest KVM gating, governance above execution)
 
 ## Relevant Files
 - @AGENTS.md: §13.4-13.6 updated with KVM/Firecracker blocker findings
 - @docs/decisions/001-olemarchy-atomic-agents-evaluation.md: ADR-001
-- @docs/decisions/002-firecracker-execution-boundary.md: ADR-002 (updated with KVM blocker)
+- @docs/decisions/002-firecracker-execution-boundary.md: ADR-002 (KVM blocker)
+- @docs/decisions/003-execution-provider.md: ADR-003 (execution provider design)
+- @core/execution/__init__.py: public surface (ExecResult, ExecutionProvider, registry)
+- @core/execution/base.py: ExecResult, ExecutionProvider Protocol, ExecutionProviderRegistry
+- @core/execution/local.py: LocalExecProvider (real subprocess)
+- @core/execution/firecracker.py: FirecrackerExecProvider (KVM-gated, lifecycle)
+- @core/runtime/actor.py: Actor — routes execute steps to execution provider
+- @core/runtime/planner.py: Step — added optional command field
 - @core/runtime/agent.py: Agent class, ThinkBox dataclass, lifecycle
-- @core/runtime/actor.py: Actor class — future execution routing point
-- @core/runtime/planner.py: Step dataclass — action field determines execution
 - @core/runtime/thinkbox.py: ThinkBoxState enum, ThinkBoxLifecycle
-- @core/foundation/bootstrap.py: RuntimeContext, bootstrap() — future exec provider wiring
-- @core/foundation/config.py: ThinkBoxConfig — needs exec_provider field
+- @core/foundation/bootstrap.py: RuntimeContext + _create_execution_provider (lazy import)
+- @core/foundation/config.py: ThinkBoxConfig — exec_provider, firecracker_config (Path import fixed)
 - @core/providers/base.py: ProviderRegistry pattern — model for ExecutionProviderRegistry
 - @core/tools/registry.py: ToolRegistry, ToolDefinition, tool decorator
 - @core/governance/audit.py: PermissionChecker, ApprovalGate, AuditLog
 - @core/memory/store.py: MemoryStore (SQLite)
+- @tests/unit/test_execution.py: 14 unit tests (mock Firecracker)
+- @tests/integration/test_firecracker_execution.py: real proof-of-life, skips w/o KVM

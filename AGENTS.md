@@ -401,8 +401,9 @@ because UpCloud managed K8s nodes do not use the standard SSH-key injection flow
 - SSH key injection via UpCloud server API does not work for managed K8s
   nodes. Use `kubectl debug` method described above.
 
-### 13.5 Firecracker Status
+### 13.5 Firecracker & Execution Status
 
+**Infrastructure milestone (KVM host) — BLOCKED on this node:**
 - Firecracker v1.16.1 binary verified starting and responding to API
   requests over Unix socket.
 - **MicroVM boot FAILS**: `InstanceStart` returns
@@ -410,8 +411,22 @@ because UpCloud managed K8s nodes do not use the standard SSH-key injection flow
   The `/dev/kvm` on this host is a directory, not a character device.
 - Firecracker on this host is NOT usable for real microVM execution.
 - See `docs/decisions/002-firecracker-execution-boundary.md` for the
-  full architectural decision. A new `core/execution/` layer is planned
-  that will work once a KVM-capable host is available.
+  full architectural decision.
+
+**Software milestone — DONE:**
+- A new `core/execution/` layer is implemented (see `docs/decisions/003-execution-provider.md`):
+  - `ExecutionProvider` Protocol + `ExecResult` + `ExecutionProviderRegistry`.
+  - `LocalExecProvider` — REAL asyncio subprocess execution (functional today).
+  - `FirecrackerExecProvider` — full Firecracker REST-API + vsock lifecycle,
+    but `health_check()` returns `False` here (no real `/dev/kvm`) and
+    `execute()` raises `ExecutionUnavailableError`. Nothing is faked.
+- `ThinkBoxConfig` has `exec_provider` (default `local`) + `firecracker_config`.
+- `bootstrap()` wires `RuntimeContext.execution_provider` (lazy import).
+- `Actor` routes `Step(action="execute")` to the provider; governance
+  (approval gate + audit) stays ABOVE execution.
+- Tests: `tests/unit/test_execution.py` (mock Firecracker),
+  `tests/integration/test_firecracker_execution.py` (real
+  `echo "KUDBEE_FIRECRACKER_OK"` proof-of-life, auto-skips without KVM).
 
 ### 13.6 Agent Framework Decision
 
