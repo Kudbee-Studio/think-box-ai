@@ -43,6 +43,7 @@ class RuntimeContext:
     provider: ModelProvider | None = None
     tool_registry: ToolRegistry | None = None
     approval_gate: ApprovalGate | None = None
+    execution_provider: Any | None = None
     project_root: Path = field(default_factory=Path.cwd)
 
     def create_session(self, session_id: str, agent_id: str) -> SessionMemoryAdapter:
@@ -93,6 +94,37 @@ def _create_provider(config: ThinkBoxConfig) -> ModelProvider | None:
         return provider_cls(provider_config)
     except Exception as e:
         logger.warning("Failed to create provider", extra={"error": str(e)})
+        return None
+
+
+def _create_execution_provider(config: ThinkBoxConfig) -> Any | None:
+    """Create the configured execution provider.
+
+    Returns ``None`` if the provider name is unknown. The returned provider
+    may report itself unavailable via ``health_check()`` (e.g. Firecracker
+    without a usable ``/dev/kvm``); callers must handle that gracefully and
+    must not treat its absence as a fatal error.
+    """
+    provider_name = config.exec_provider
+    # Lazy import: bootstrap is the composition root. core.execution sits
+    # ABOVE the Foundation layer, so we avoid a static upward import edge.
+    from core.execution import ExecutionProviderRegistry
+
+    provider_cls = ExecutionProviderRegistry.get(provider_name)
+    if provider_cls is None:
+        logger.warning(
+            "Execution provider not found in registry",
+            extra={"provider": provider_name, "available": ExecutionProviderRegistry.list_providers()},
+        )
+        return None
+
+    try:
+        if provider_name == "firecracker":
+            fc_cfg = dict(config.firecracker_config)
+            return provider_cls(fc_cfg)
+        return provider_cls({})
+    except Exception as e:  # noqa: BLE001 - degrade gracefully
+        logger.warning("Failed to create execution provider", extra={"error": str(e)})
         return None
 
 
@@ -177,6 +209,8 @@ def bootstrap(
 
     tool_registry = _create_tool_registry(audit_log) if with_tools else None
 
+    execution_provider = _create_execution_provider(config)
+
     logger.info("THINK BOX AI bootstrap complete")
 
     return RuntimeContext(
@@ -187,6 +221,7 @@ def bootstrap(
         provider=provider,
         tool_registry=tool_registry,
         approval_gate=approval_gate,
+        execution_provider=execution_provider,
         project_root=project_root,
     )
 

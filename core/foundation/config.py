@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field, fields
+from pathlib import Path
 
 
 ENV_PREFIX = "THINKBOX_"
@@ -31,6 +32,8 @@ class ThinkBoxConfig:
     log_level: str = "INFO"
     data_dir: str = "./thinkbox_data"
     provider_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    exec_provider: str = "local"
+    firecracker_config: dict[str, Any] = field(default_factory=dict)
 
 
 def _load_pyproject_config(project_root: Path) -> dict[str, Any]:
