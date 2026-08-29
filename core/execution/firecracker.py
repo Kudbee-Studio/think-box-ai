@@ -37,7 +37,6 @@ import json
 import os
 import socket
 import time
-import urllib.request
 import uuid
 from typing import Any
 
@@ -323,89 +322,37 @@ class FirecrackerExecProvider:
     async def _api_put(self, api_socket: str, path: str, payload: "dict[str, Any]") -> Any:
         """PUT *payload* to the Firecracker API over a Unix socket.
 
-        Uses only the standard library. Isolated here so tests can mock it.
+        Uses only the standard library (``http.client`` bound to an
+        ``AF_UNIX`` socket). Isolated here so tests can mock it. The
+        Firecracker API returns ``204 No Content`` for successful PUTs;
+        we return the parsed JSON body when one is present.
         """
-        import urllib.request
+        import http.client
 
-        url = f"http://localhost{path}"
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=data, method="PUT", headers={"Content-Type": "application/json"}
-        )
-        # Bind the HTTP request to the Firecracker Unix socket.
-        opener = urllib.request.build_opener(_UnixSocketHandler(api_socket))
-        with opener.open(req, timeout=10) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-            return json.loads(body) if body else None
+        body = json.dumps(payload).encode("utf-8")
+        conn = http.client.HTTPConnection("localhost")
+        # Route the connection over the Firecracker Unix socket.
+        conn.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        conn.sock.settimeout(10)
+        conn.sock.connect(api_socket)
+        try:
+            conn.request(
+                "PUT",
+                path,
+                body=body,
+                headers={"Content-Type": "application/json"},
+            )
+            resp = conn.getresponse()
+            raw = resp.read().decode("utf-8", errors="replace")
+            if resp.status >= 400:
+                raise ExecutionUnavailableError(
+                    message=f"Firecracker API {path} failed: {resp.status} {raw}"
+                )
+            return json.loads(raw) if raw else None
+        finally:
+            conn.sock.close()
 
     async def shutdown(self) -> None:
         """Release any persistent resources (none held between executions)."""
         return None
-
-
-class _UnixSocketHandler(urllib.request.AbstractHTTPHandler):
-    """urllib handler that routes requests to a Unix domain socket."""
-
-    def __init__(self, socket_path: str) -> None:
-        super().__init__()
-        self._socket_path = socket_path
-
-    def _get_connection(self, host: str, timeout: float):  # type: ignore[override]
-        return _UnixConnection(self._socket_path)
-
-
-class _UnixConnection:
-    def __init__(self, socket_path: str) -> None:
-        self._path = socket_path
-
-    def request(self, method: str, url: str, body: "bytes | None" = None, headers: "dict | None" = None) -> None:
-        self._method = method
-        self._url = url
-        self._body = body
-        self._headers = headers or {}
-
-    def getresponse(self):  # type: ignore[no-untyped-def]
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.settimeout(10)
-        sock.connect(self._path)
-        path = self._url.split("?", 1)[0]
-        req_line = f"{self._method} {path} HTTP/1.1\r\n"
-        sock.sendall(req_line.encode("utf-8"))
-        sock.sendall(b"Host: localhost\r\n")
-        for k, v in self._headers.items():
-            sock.sendall(f"{k}: {v}\r\n".encode("utf-8"))
-        sock.sendall(b"Connection: close\r\n")
-        if self._body:
-            sock.sendall(f"Content-Length: {len(self._body)}\r\n".encode("utf-8"))
-            sock.sendall(b"\r\n")
-            sock.sendall(self._body)
-        else:
-            sock.sendall(b"\r\n")
-        return _HTTPResponse(sock)
-
-
-class _HTTPResponse:
-    def __init__(self, sock: "socket.socket") -> None:
-        self._sock = sock
-        self.status = 0
-        self.reason = ""
-        self._body = b""
-
-    def read(self) -> bytes:
-        if self._body:
-            return self._body
-        data = b""
-        while True:
-            chunk = self._sock.recv(65536)
-            if not chunk:
-                break
-            data += chunk
-        self._sock.close()
-        # Parse status line + headers minimally, keep body.
-        head, _, body = data.partition(b"\r\n\r\n")
-        status_line = head.split(b"\r\n", 1)[0].decode("utf-8", errors="replace")
-        parts = status_line.split(" ", 2)
-        if len(parts) >= 2:
-            self.status = int(parts[1])
-        self._body = body
         return body
