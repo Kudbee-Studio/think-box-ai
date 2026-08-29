@@ -56,6 +56,18 @@ class ProviderRateLimitError(ProviderError):
 
 
 @dataclass
+class ProviderAuthError(ProviderError):
+    error_type: str = field(default="provider_auth")
+    message: str = "Model provider authentication failed"
+
+
+@dataclass
+class ProviderPaymentRequiredError(ProviderError):
+    error_type: str = field(default="provider_payment_required")
+    message: str = "Model provider requires payment or credits"
+
+
+@dataclass
 class MemoryError(ThinkBoxError):
     error_type: str = field(default="memory_error")
 
