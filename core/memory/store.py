@@ -325,3 +325,53 @@ class MemoryStore:
             "SELECT * FROM challenges WHERE token_id = ? ORDER BY created_at", (token_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def challenge_jury(self, token_id: str, base_url: str | None) -> str | None:
+        """Run a jury challenge against an LLM endpoint.
+
+        Returns challenge_id on success, None if URL unset or fail-closed.
+        """
+        if not base_url:
+            return None
+        token = self.get_token(token_id)
+        if token is None:
+            return None
+
+        import urllib.request
+        import urllib.error
+
+        prompt = (
+            f"Does the following claim survive scrutiny? "
+            f"Reply ONLY YES or NO.\n\nClaim: {token['claim']}"
+        )
+        body = json.dumps({
+            "model": "local",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 5,
+        }).encode()
+
+        req = urllib.request.Request(
+            f"{base_url.rstrip('/')}/v1/chat/completions",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer local",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read())
+                text = data["choices"][0]["message"]["content"].strip().upper()
+        except Exception:
+            return None
+
+        if "YES" in text:
+            outcome = 1
+        elif "NO" in text:
+            outcome = -1
+        else:
+            outcome = 0
+
+        return self.add_challenge(token_id, "jury", outcome)

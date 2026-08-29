@@ -217,10 +217,41 @@ def cmd_token_score(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_challenge_jury(args: argparse.Namespace) -> int:
+    """Run a jury challenge against an LLM endpoint."""
+    base_url = args.base_url or os.environ.get("THINKBOX_JURY_URL") or os.environ.get("OPENAI_BASE_URL")
+
+    if not base_url:
+        print("error: JURY_UNAVAILABLE — set --base-url, THINKBOX_JURY_URL, or OPENAI_BASE_URL", file=sys.stderr)
+        return 2
+
+    store = _get_store()
+    token = store.get_token(args.token_id)
+    if token is None:
+        print(f"token not found: {args.token_id}", file=sys.stderr)
+        return 1
+
+    before = token["s"]
+    challenge_id = asyncio.run(asyncio.to_thread(store.challenge_jury, args.token_id, base_url))
+
+    if challenge_id is None:
+        print("error: jury challenge failed (timeout, error, or non-YES/NO reply)", file=sys.stderr)
+        return 1
+
+    token = store.get_token(args.token_id)
+    print(json.dumps({
+        "challenge_id": challenge_id,
+        "before": round(before, 4),
+        "after": round(token["s"], 4),
+        "delta": round(token["s"] - before, 4),
+    }, indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
-        description="Think Box AI — create, exec, evidence, tokens",
+        description="Think Box AI — create, exec, evidence, tokens, jury",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -248,6 +279,12 @@ def main() -> int:
     p_score = subparsers.add_parser("token-score", help="Print token score and last challenge")
     p_score.add_argument("token_id", help="Token ID")
     p_score.set_defaults(func=cmd_token_score)
+
+    # thinkbox challenge-jury <tid> [--base-url URL]
+    p_jury = subparsers.add_parser("challenge-jury", help="Run a jury challenge against an LLM")
+    p_jury.add_argument("token_id", help="Token ID")
+    p_jury.add_argument("--base-url", default=None, help="LLM endpoint base URL")
+    p_jury.set_defaults(func=cmd_challenge_jury)
 
     args = parser.parse_args()
 

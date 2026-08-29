@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -86,6 +87,102 @@ class TestThinkTokens(unittest.TestCase):
     def test_challenge_nonexistent_token(self):
         result = self.store.add_challenge("tt-nonexistent", "exec", outcome=1)
         self.assertIsNone(result)
+
+    # ------------------------------------------------------------------
+    # Jury challenge tests
+    # ------------------------------------------------------------------
+    def test_jury_no_url_returns_none(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="echo hello")
+        result = self.store.challenge_jury(token_id, None)
+        self.assertIsNone(result)
+
+    def test_jury_empty_url_returns_none(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="echo hello")
+        result = self.store.challenge_jury(token_id, "")
+        self.assertIsNone(result)
+
+    def test_jury_nonexistent_token(self):
+        result = self.store.challenge_jury("tt-nonexistent", "http://localhost:8000")
+        self.assertIsNone(result)
+
+
+class TestJuryChallengeMocked(unittest.TestCase):
+    """Tests for jury challenge with mocked HTTP responses."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self._tmpdir, "test.db")
+        self.store = MemoryStore(self.db_path)
+
+    def _mock_response(self, content: str):
+        mock_resp = unittest.mock.MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "choices": [{"message": {"content": content}}]
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = lambda s, *a: None
+        return mock_resp
+
+    def test_jury_yes_increases_score(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="2+2=4")
+        initial = self.store.get_token(token_id)["s"]
+
+        with unittest.mock.patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = self._mock_response("YES")
+            challenge_id = self.store.challenge_jury(token_id, "http://localhost:8000")
+
+        self.assertIsNotNone(challenge_id)
+        token = self.store.get_token(token_id)
+        self.assertGreater(token["s"], initial)
+        challenges = self.store.list_challenges(token_id)
+        self.assertEqual(len(challenges), 1)
+        self.assertEqual(challenges[0]["type"], "jury")
+        self.assertEqual(challenges[0]["w"], 2.0)
+        self.assertEqual(challenges[0]["o"], 1)
+
+    def test_jury_no_decreases_score(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="2+2=5")
+        initial = self.store.get_token(token_id)["s"]
+
+        with unittest.mock.patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = self._mock_response("NO")
+            challenge_id = self.store.challenge_jury(token_id, "http://localhost:8000")
+
+        self.assertIsNotNone(challenge_id)
+        token = self.store.get_token(token_id)
+        self.assertLess(token["s"], initial)
+
+    def test_jury_garbage_reply_outcome_zero(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="something")
+
+        with unittest.mock.patch("urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value = self._mock_response("maybe perhaps")
+            challenge_id = self.store.challenge_jury(token_id, "http://localhost:8000")
+
+        self.assertIsNotNone(challenge_id)
+        challenges = self.store.list_challenges(token_id)
+        self.assertEqual(challenges[0]["o"], 0)
+        # Score changes slightly due to Elo formula (o - expected)
+        self.assertNotEqual(self.store.get_token(token_id)["s"], 1.0)
+
+    def test_jury_timeout_returns_none(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+
+        with unittest.mock.patch("urllib.request.urlopen", side_effect=TimeoutError):
+            result = self.store.challenge_jury(token_id, "http://localhost:8000")
+
+        self.assertIsNone(result)
+        self.assertEqual(len(self.store.list_challenges(token_id)), 0)
+
+    def test_jury_connection_error_returns_none(self):
+        token_id = self.store.mint_token(box_id="tb-1", claim="test")
+
+        import urllib.error
+        with unittest.mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
+            result = self.store.challenge_jury(token_id, "http://localhost:8000")
+
+        self.assertIsNone(result)
+        self.assertEqual(len(self.store.list_challenges(token_id)), 0)
 
 
 if __name__ == "__main__":
