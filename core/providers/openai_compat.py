@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from core.providers.base import CompletionResponse, Message, ModelProvider, ProviderCapabilities, ProviderRegistry
+from core.providers.router import ProviderRouter
 
 
 @ProviderRegistry.register("openai_compat")
@@ -13,6 +14,9 @@ class OpenAICompatProvider:
         self._api_key = config.get("api_key", "")
         self._model = config.get("model", "gpt-4o-mini")
         self._base_url = config.get("base_url", "https://api.openai.com/v1")
+        self._router: ProviderRouter | None = None
+        if config.get("providers"):
+            self._router = ProviderRouter(config)
         self.capabilities = ProviderCapabilities(
             completion=True,
             streaming=config.get("streaming", False),
@@ -21,6 +25,9 @@ class OpenAICompatProvider:
         )
 
     async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResponse:
+        if self._router is not None:
+            return await self._router.complete(messages, **kwargs)
+
         import json
         import urllib.request
         import urllib.error
