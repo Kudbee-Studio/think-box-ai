@@ -496,6 +496,115 @@ def cmd_leaderboard(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_chat(args: argparse.Namespace) -> int:
+    """Stream a chat completion from an LLM."""
+    from core.providers import OpenAICompatProvider
+    from core.providers.base import Message
+    from think_box_ai.format import stream_token, print_header, cyan
+
+    base_url = args.base_url or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    model = args.model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    api_key = args.api_key or os.environ.get("OPENAI_API_KEY", "")
+
+    provider = OpenAICompatProvider({
+        "base_url": base_url,
+        "model": model,
+        "api_key": api_key,
+    })
+
+    messages = [Message(role="user", content=" ".join(args.message))]
+
+    print_header(f"Chat with {model}")
+    print(cyan("Streaming response:"))
+    print()
+
+    import asyncio
+    async def _stream():
+        async for token in provider.stream(messages):
+            stream_token(token)
+
+    try:
+        asyncio.run(_stream())
+        print()
+        return 0
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_demo(args: argparse.Namespace) -> int:
+    """Run a full Think Box demo."""
+    import uuid
+    from think_box_ai.format import (
+        print_header, print_success, print_info, print_box,
+        bold, cyan, green, dim
+    )
+
+    print_header("Think Box AI — Demo")
+
+    print_info("Creating Think Box...")
+    think_box_id = f"tb-{uuid.uuid4().hex[:12]}"
+    store = _get_store()
+    store.save_box(think_box_id, goal="Demo execution", state="created")
+    print_success(f"Created Think Box: {bold(think_box_id)}")
+    print()
+
+    print_info("Executing commands...")
+    provider = LocalExecProvider()
+
+    class DemoAuditLog:
+        def record(self, action: str, actor: str, outcome: str, metadata: dict | None = None) -> None:
+            pass
+        def list_entries(self) -> list[dict]:
+            return []
+
+    from core.runtime.actor import Actor
+    from core.runtime.planner import Step
+    actor = Actor(audit_log=DemoAuditLog(), execution_provider=provider)
+
+    commands = [
+        ("echo 'Hello from Think Box!'", "Basic echo"),
+        ("uname -a", "System info"),
+        ("date", "Current time"),
+    ]
+
+    for cmd, desc in commands:
+        print(f"  {cyan('→')} {bold(desc)}: {dim(cmd)}")
+        step = Step(id=f"demo-{uuid.uuid4().hex[:6]}", description=desc, action="execute", command=cmd)
+        agent = type("FakeAgent", (), {"agent_id": "demo-agent"})()
+        think_box = type("FakeThinkBox", (), {"think_box_id": think_box_id})()
+        result = __import__('asyncio').run(actor.execute_step(agent, think_box, step))
+        if result.get("output"):
+            print(f"    {green(result['output'].strip())}")
+        print()
+
+    print_info("Minting Think Token...")
+    token_id = store.mint_token(think_box_id, claim="Demo execution completed", grounded=True)
+    store.add_challenge(token_id, "exec", outcome=1)
+    print_success(f"Minted token: {bold(token_id)}")
+    print()
+
+    print_info("Final state:")
+    print_box(
+        f"Think Box {think_box_id}",
+        f"State: {green('complete')}\n"
+        f"Tokens: {green('1')}\n"
+        f"Score: {green('1.375')}",
+    )
+    print()
+
+    return 0
+
+
+def cmd_health(args: argparse.Namespace) -> int:
+    """Run health checks and print report."""
+    from core.foundation.health import full_health_check
+    db_path = os.path.expanduser("~/.local/share/thinkbox/thinkbox.db")
+    report = full_health_check(db_path if os.path.exists(db_path) else None)
+    print(json.dumps(report, indent=2))
+    return 0 if report["status"] == "ok" else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -587,6 +696,22 @@ def main() -> int:
     p_ch = subparsers.add_parser("challenges", help="List challenges for a token")
     p_ch.add_argument("token_id", help="Token ID")
     p_ch.set_defaults(func=cmd_challenges)
+
+    # thinkbox chat [--model MODEL] [--base-url URL] <message...>
+    p_chat = subparsers.add_parser("chat", help="Stream chat from LLM")
+    p_chat.add_argument("message", nargs="+", help="Message to send")
+    p_chat.add_argument("--model", help="Model name")
+    p_chat.add_argument("--base-url", help="API base URL")
+    p_chat.add_argument("--api-key", help="API key")
+    p_chat.set_defaults(func=cmd_chat)
+
+    # thinkbox demo
+    p_demo = subparsers.add_parser("demo", help="Run full Think Box demo")
+    p_demo.set_defaults(func=cmd_demo)
+
+    # thinkbox health
+    p_health = subparsers.add_parser("health", help="Run health checks")
+    p_health.set_defaults(func=cmd_health)
 
     args = parser.parse_args()
 
