@@ -163,3 +163,17 @@
 - @core/memory/store.py: MemoryStore (SQLite)
 - @tests/unit/test_execution.py: 14 unit tests (mock Firecracker)
 - @tests/integration/test_firecracker_execution.py: real proof-of-life, skips w/o KVM
+- @tests/integration/test_local_execution.py: 3 integration tests proving
+  LocalExecProvider end-to-end (direct, via Actor, Firecracker fail-closed)
+
+## Honest Local Boundary
+
+The current UpCloud host (kudbee-host-v1) cannot run Firecracker: `/dev/kvm` is a
+directory, not a usable character device, and no nested-virtualization plan exists
+in UpCloud's catalog. `LocalExecProvider` is therefore the live default — it is a
+real asyncio subprocess backend, not a mock, and it satisfies KUDBEE's execution
+contract today. `FirecrackerExecProvider` remains fully implemented and fail-closed:
+`health_check()` returns False here, and `execute()` raises
+`ExecutionUnavailableError`. Nothing is faked. The next infrastructure step is a
+machine with empirically usable KVM (e.g., Hetzner CPX31 or equivalent), not more
+code on this guest.
