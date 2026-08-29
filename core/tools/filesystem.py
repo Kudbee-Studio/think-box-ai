@@ -7,10 +7,27 @@ from typing import Any
 
 from core.tools.registry import ToolDefinition, tool
 
+# Base directory for file operations - prevents path traversal
+_BASE_DIR = os.environ.get("THINKBOX_BASE_DIR", os.getcwd())
+
+
+def _safe_path(file_path: str) -> str | None:
+    """Resolve and validate that path is within allowed base directory."""
+    if not file_path:
+        return None
+    base = os.path.realpath(_BASE_DIR)
+    target = os.path.realpath(os.path.join(base, file_path))
+    if not target.startswith(base + os.sep) and target != base:
+        return None
+    return target
+
 
 def _read_file_sync(file_path: str) -> tuple[str | None, int | None, str | None]:
+    safe_path = _safe_path(file_path)
+    if safe_path is None:
+        return None, None, f"Access denied: path outside allowed directory"
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(safe_path, "r", encoding="utf-8") as f:
             content = f.read()
         return content, len(content), None
     except FileNotFoundError:
@@ -20,11 +37,14 @@ def _read_file_sync(file_path: str) -> tuple[str | None, int | None, str | None]
 
 
 def _write_file_sync(file_path: str, content: str, mode: str) -> tuple[str | None, int | None, str | None]:
+    safe_path = _safe_path(file_path)
+    if safe_path is None:
+        return None, None, f"Access denied: path outside allowed directory"
     try:
         write_mode = "a" if mode == "append" else "w"
-        with open(file_path, write_mode, encoding="utf-8") as f:
+        with open(safe_path, write_mode, encoding="utf-8") as f:
             f.write(content)
-        return file_path, len(content.encode("utf-8")), None
+        return safe_path, len(content.encode("utf-8")), None
     except Exception as e:
         return None, None, str(e)
 

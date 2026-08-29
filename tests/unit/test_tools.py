@@ -146,3 +146,32 @@ class TestToolDecorator(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFilesystemSecurity(unittest.TestCase):
+    """Tests for path traversal protection."""
+
+    def test_safe_path_blocks_traversal(self):
+        from core.tools.filesystem import _safe_path
+        self.assertIsNone(_safe_path("../../etc/passwd"))
+        self.assertIsNone(_safe_path("/etc/passwd"))
+        self.assertIsNone(_safe_path(""))
+
+    def test_safe_path_allows_relative(self):
+        import os
+        from core.tools.filesystem import _safe_path
+        result = _safe_path("subdir/file.txt")
+        self.assertIsNotNone(result)
+        self.assertTrue(result.startswith(os.getcwd()))
+
+    def test_read_blocks_traversal(self):
+        from core.tools.filesystem import _read_file_sync
+        content, size, error = _read_file_sync("../../etc/passwd")
+        self.assertIsNone(content)
+        self.assertIn("Access denied", error)
+
+    def test_write_blocks_traversal(self):
+        from core.tools.filesystem import _write_file_sync
+        path, size, error = _write_file_sync("../../tmp/evil.txt", "data", "w")
+        self.assertIsNone(path)
+        self.assertIn("Access denied", error)
