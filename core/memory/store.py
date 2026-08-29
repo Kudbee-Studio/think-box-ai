@@ -51,6 +51,14 @@ CREATE TABLE IF NOT EXISTS think_tokens (
     grounded INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS think_boxes (
+    id TEXT PRIMARY KEY,
+    goal TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'created',
+    context TEXT DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+);
 CREATE TABLE IF NOT EXISTS challenges (
     id TEXT PRIMARY KEY,
     token_id TEXT NOT NULL,
@@ -442,5 +450,73 @@ class MemoryStore:
         for row in token_rows:
             conn.execute("DELETE FROM challenges WHERE token_id = ?", (row["id"],))
         conn.execute("DELETE FROM think_tokens WHERE box_id = ?", (box_id,))
+        conn.execute("DELETE FROM think_boxes WHERE id = ?", (box_id,))
         conn.commit()
         return True
+
+    # ------------------------------------------------------------------
+    # Think Box persistence
+    # ------------------------------------------------------------------
+    def save_box(self, box_id: str, goal: str = "", state: str = "created", context: dict | None = None) -> None:
+        """Persist a Think Box to SQLite."""
+        if not box_id:
+            raise ValueError("box_id required")
+        conn = self._get_conn()
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """INSERT OR REPLACE INTO think_boxes (id, goal, state, context, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (box_id, goal[:500], state, json.dumps(context or {}), now),
+        )
+        conn.commit()
+
+    def get_box(self, box_id: str) -> dict | None:
+        """Get a Think Box by ID."""
+        if not box_id:
+            return None
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM think_boxes WHERE id = ?", (box_id,)).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["context"] = json.loads(result.get("context", "{}"))
+        return result
+
+    def update_box_state(self, box_id: str, state: str) -> bool:
+        """Update Think Box state. Sets completed_at if terminal."""
+        if not box_id:
+            return False
+        conn = self._get_conn()
+        now = datetime.now(timezone.utc).isoformat()
+        if state in ("complete", "failed", "cancelled"):
+            conn.execute(
+                "UPDATE think_boxes SET state = ?, completed_at = ? WHERE id = ?",
+                (state, now, box_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE think_boxes SET state = ? WHERE id = ?",
+                (state, box_id),
+            )
+        conn.commit()
+        return True
+
+    def list_boxes(self, state: str | None = None, limit: int = 100) -> list[dict]:
+        """List Think Boxes, optionally filtered by state."""
+        conn = self._get_conn()
+        if state:
+            rows = conn.execute(
+                "SELECT * FROM think_boxes WHERE state = ? ORDER BY created_at DESC LIMIT ?",
+                (state, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM think_boxes ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        results = []
+        for row in rows:
+            r = dict(row)
+            r["context"] = json.loads(r.get("context", "{}"))
+            results.append(r)
+        return results

@@ -92,6 +92,9 @@ def _create_actor(think_box_id: str) -> tuple[Actor, MemoryStore]:
 def cmd_create(args: argparse.Namespace) -> int:
     """Create a new Think Box and print its ID."""
     think_box_id = f"tb-{uuid.uuid4().hex[:12]}"
+    goal = " ".join(args.goal) if args.goal else ""
+    store = _get_store()
+    store.save_box(think_box_id, goal=goal, state="created")
     print(think_box_id)
     return 0
 
@@ -105,7 +108,18 @@ def cmd_exec(args: argparse.Namespace) -> int:
         print("error: no command provided", file=sys.stderr)
         return 1
 
-    actor, store = _create_actor(think_box_id)
+    store = _get_store()
+
+    # Verify box exists
+    box = store.get_box(think_box_id)
+    if box is None:
+        print(f"error: think box not found: {think_box_id}", file=sys.stderr)
+        return 1
+
+    # Update state to executing
+    store.update_box_state(think_box_id, "executing")
+
+    actor, _ = _create_actor(think_box_id)
 
     step = Step(
         id=f"cli-exec-{uuid.uuid4().hex[:8]}",
@@ -117,6 +131,11 @@ def cmd_exec(args: argparse.Namespace) -> int:
     think_box = type("FakeThinkBox", (), {"think_box_id": think_box_id})()
 
     result = asyncio.run(actor.execute_step(agent, think_box, step))
+
+    if result.get("status") == "error":
+        store.update_box_state(think_box_id, "failed")
+        print(f"error: {result.get('error', 'unknown error')}", file=sys.stderr)
+        return 1
 
     if result.get("output"):
         print(result["output"], end="")
@@ -132,7 +151,9 @@ def cmd_exec(args: argparse.Namespace) -> int:
         if token_id:
             _apply_exec_challenge(store, token_id, ok=True)
 
-    # Return the command's exit code (default 0)
+    # Update state to complete
+    store.update_box_state(think_box_id, "complete")
+
     return result.get("return_code", 0)
 
 
@@ -483,8 +504,9 @@ def main() -> int:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__import__('think_box_ai').__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # thinkbox create
+    # thinkbox create [--goal TEXT]
     p_create = subparsers.add_parser("create", help="Create a new Think Box")
+    p_create.add_argument("--goal", nargs="*", default=[], help="Goal statement")
     p_create.set_defaults(func=cmd_create)
 
     # thinkbox exec <id> -- <argv>
