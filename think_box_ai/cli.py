@@ -310,6 +310,38 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_challenge_human(args: argparse.Namespace) -> int:
+    """Apply a human challenge (manual scoring)."""
+    store = _get_store()
+    token = store.get_token(args.token_id)
+    if token is None:
+        print(f"token not found: {args.token_id}", file=sys.stderr)
+        return 1
+
+    outcome_map = {"pass": 1, "fail": -1, "neutral": 0}
+    outcome = outcome_map.get(args.verdict)
+    if outcome is None:
+        print(f"error: invalid verdict '{args.verdict}'. Use: pass, fail, neutral", file=sys.stderr)
+        return 1
+
+    before = token["s"]
+    challenge_id = store.add_challenge(args.token_id, "human", outcome)
+
+    if challenge_id is None:
+        print("error: challenge failed", file=sys.stderr)
+        return 1
+
+    token = store.get_token(args.token_id)
+    print(json.dumps({
+        "challenge_id": challenge_id,
+        "verdict": args.verdict,
+        "before": round(before, 4),
+        "after": round(token["s"], 4),
+        "delta": round(token["s"] - before, 4),
+    }, indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -361,6 +393,12 @@ def main() -> int:
     # thinkbox clear-cache
     p_clear = subparsers.add_parser("clear-cache", help="Clear provider snapshot cache")
     p_clear.set_defaults(func=cmd_clear_cache)
+
+    # thinkbox challenge-human <tid> <verdict>
+    p_human = subparsers.add_parser("challenge-human", help="Apply a human challenge (pass/fail/neutral)")
+    p_human.add_argument("token_id", help="Token ID")
+    p_human.add_argument("verdict", choices=["pass", "fail", "neutral"], help="Human verdict")
+    p_human.set_defaults(func=cmd_challenge_human)
 
     args = parser.parse_args()
 
