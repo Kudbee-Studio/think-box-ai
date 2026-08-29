@@ -209,3 +209,158 @@ class MemoryStore:
             metadata=json.loads(row["metadata"]),
             confidence=row["confidence"],
         )
+
+    # ------------------------------------------------------------------
+    # Think Box persistence
+    # ------------------------------------------------------------------
+    def _ensure_box_schema(self) -> None:
+        """Create think_boxes, think_tokens, challenges tables if missing."""
+        conn = self._get_conn()
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS think_boxes (
+                id TEXT PRIMARY KEY,
+                goal TEXT NOT NULL DEFAULT '',
+                state TEXT NOT NULL DEFAULT 'created',
+                context TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS think_tokens (
+                id TEXT PRIMARY KEY,
+                box_id TEXT NOT NULL,
+                claim TEXT NOT NULL,
+                s REAL NOT NULL DEFAULT 1.0,
+                author TEXT NOT NULL DEFAULT '',
+                grounded INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (box_id) REFERENCES think_boxes(id)
+            );
+            CREATE TABLE IF NOT EXISTS challenges (
+                id TEXT PRIMARY KEY,
+                token_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                opponent REAL NOT NULL DEFAULT 1.0,
+                o INTEGER NOT NULL DEFAULT 0,
+                w REAL NOT NULL DEFAULT 0.0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (token_id) REFERENCES think_tokens(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_tokens_box ON think_tokens(box_id);
+            CREATE INDEX IF NOT EXISTS idx_challenges_token ON challenges(token_id);
+            PRAGMA foreign_keys = ON;
+        """)
+
+    def save_box(self, box_id: str, goal: str = "", state: str = "created", context: dict | None = None) -> None:
+        """Persist a Think Box."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        conn.execute(
+            """INSERT OR REPLACE INTO think_boxes (id, goal, state, context, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (box_id, goal[:500], state, json.dumps(context or {}), __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()),
+        )
+        conn.commit()
+
+    def get_box(self, box_id: str) -> dict | None:
+        """Get a Think Box by ID."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM think_boxes WHERE id = ?", (box_id,)).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["context"] = json.loads(result.get("context", "{}"))
+        return result
+
+    def update_box_state(self, box_id: str, state: str) -> bool:
+        """Update Think Box state."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        if state in ("complete", "failed", "cancelled"):
+            conn.execute("UPDATE think_boxes SET state = ?, completed_at = ? WHERE id = ?", (state, now, box_id))
+        else:
+            conn.execute("UPDATE think_boxes SET state = ? WHERE id = ?", (state, box_id))
+        conn.commit()
+        return True
+
+    def list_boxes(self, limit: int = 100) -> list[dict]:
+        """List all Think Boxes."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM think_boxes ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def mint_token(self, box_id: str, claim: str, author: str = "", grounded: bool = True) -> str | None:
+        """Mint a think token. Returns token ID or None if duplicate."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        claim = claim[:200]
+        existing = conn.execute("SELECT id FROM think_tokens WHERE box_id = ? AND claim = ?", (box_id, claim)).fetchone()
+        if existing is not None:
+            return None
+        token_id = f"tt-{__import__('uuid').uuid4().hex[:12]}"
+        conn.execute(
+            "INSERT INTO think_tokens (id, box_id, claim, s, author, grounded, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (token_id, box_id, claim, 1.0, author[:50], 1 if grounded else 0, __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return token_id
+
+    def get_token(self, token_id: str) -> dict | None:
+        """Get a token by ID."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        row = conn.execute("SELECT * FROM think_tokens WHERE id = ?", (token_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_tokens(self, box_id: str) -> list[dict]:
+        """List tokens for a box."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM think_tokens WHERE box_id = ? ORDER BY created_at", (box_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def add_challenge(self, token_id: str, challenge_type: str, outcome: int) -> str | None:
+        """Add a challenge and update Elo score."""
+        self._ensure_box_schema()
+        if challenge_type not in ("exec", "jury", "human", "replay"):
+            return None
+        weights = {"exec": 3.0, "jury": 2.0, "human": 2.0, "replay": 1.0}
+        w = weights[challenge_type]
+        conn = self._get_conn()
+        token = conn.execute("SELECT s FROM think_tokens WHERE id = ?", (token_id,)).fetchone()
+        if token is None:
+            return None
+        import math
+        s_current = token["s"]
+        expected = 1.0 / (1.0 + math.exp(-(s_current - 1.0)))
+        s_new = s_current + 0.25 * w * (outcome - expected)
+        s_new = max(0.0, min(100.0, s_new))
+        challenge_id = f"ch-{__import__('uuid').uuid4().hex[:12]}"
+        conn.execute(
+            "INSERT INTO challenges (id, token_id, type, opponent, o, w, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (challenge_id, token_id, challenge_type, 1.0, outcome, w, __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()),
+        )
+        conn.execute("UPDATE think_tokens SET s = ? WHERE id = ?", (s_new, token_id))
+        conn.commit()
+        return challenge_id
+
+    def list_challenges(self, token_id: str) -> list[dict]:
+        """List challenges for a token."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM challenges WHERE token_id = ? ORDER BY created_at", (token_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_box(self, box_id: str) -> bool:
+        """Delete a Think Box and all its tokens/challenges."""
+        self._ensure_box_schema()
+        conn = self._get_conn()
+        token_rows = conn.execute("SELECT id FROM think_tokens WHERE box_id = ?", (box_id,)).fetchall()
+        for row in token_rows:
+            conn.execute("DELETE FROM challenges WHERE token_id = ?", (row["id"],))
+        conn.execute("DELETE FROM think_tokens WHERE box_id = ?", (box_id,))
+        conn.execute("DELETE FROM think_boxes WHERE id = ?", (box_id,))
+        conn.commit()
+        return True
