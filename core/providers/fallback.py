@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from typing import AsyncGenerator, Any, List, Tuple
-from core.providers.base import BaseProvider, CompletionResponse, Message, ProviderRegistry
+from core.providers.base import ModelProvider, CompletionResponse, Message, ProviderRegistry
 from core.providers.circuit_breaker import CircuitBreakerRegistry
 from core.foundation.error_codes import ErrorCode, format_error_response
 from core.foundation.errors import ProviderError, ProviderUnavailableError
@@ -11,7 +11,7 @@ from core.foundation.errors import ProviderError, ProviderUnavailableError
 logger = logging.getLogger(__name__)
 
 
-class FallbackProvider(BaseProvider):
+class FallbackProvider(ModelProvider):
     """Executes provider requests sequentially across a fallback hierarchy with circuit breaker.
     
     Time Complexity: O(P) where P is the number of initialized providers.
@@ -20,7 +20,7 @@ class FallbackProvider(BaseProvider):
 
     def __init__(self, provider_names: List[str], config: dict[str, Any]) -> None:
         super().__init__(config)
-        self._providers: List[Tuple[str, BaseProvider]] = []
+        self._providers: List[Tuple[str, ModelProvider]] = []
         self._breakers: dict[str, Any] = {}
         
         for name in provider_names:
