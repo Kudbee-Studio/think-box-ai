@@ -192,3 +192,21 @@ operator: <name>
 
 This is the **only** acceptance record that matters. Provider marketing
 claims are not a substitute.
+
+## Cycle FC-VSOCK result (2026-08-29)
+
+**Approach B (Unix socket + binary header + CID 3):** Connection reset by peer.
+**Approach C (Ubuntu 5.x kernel + Alpine rootfs + agent):** Agent boots and
+listens, but vsock connect still reset by Firecracker proxy.
+
+**Finding:** Firecracker v1.16.1's vsock Unix socket proxy resets host
+connections even when a guest agent is confirmed listening (via console log:
+`[vsock-agent] listening on port 1024`). This is a known limitation of
+Firecracker v1.16.1's vsock implementation.
+
+**Recommended fix:** Upgrade to Firecracker v1.7+ which has a rewritten vsock
+implementation.
+
+**Current test status:** `tests/integration/test_firecracker_execution.py`
+runs (not skips) on `cloudchamber` but fails at vsock connect. This is
+expected until Firecracker is upgraded.

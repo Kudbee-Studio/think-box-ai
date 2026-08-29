@@ -190,6 +190,31 @@ args. The test runs (not skips) on `cloudchamber` but fails at vsock connect.
   Actor routing, evidence recording, FC fail-closed, FC evidence-on-failure)
 - @docs/runbooks/kvm-host-acceptance.md: human KVM host acceptance runbook
 
+## Cycle FC-VSOCK — Result
+
+**vsock: NO** (blocked by Firecracker v1.16.1 vsock proxy issue).
+
+Approaches tried:
+- **B:** Unix socket + binary header (CID+port) + command → connection reset
+- **C:** Ubuntu 5.x kernel + Alpine rootfs + agent → agent boots and listens,
+  but vsock connect still reset by Firecracker proxy
+- **D:** Not attempted
+
+**Confirmed working:**
+- MicroVM boots successfully (Firecracker v1.16.1, all API calls return 204)
+- Guest agent (static C binary) boots as PID 1, binds to AF_VSOCK port 1024
+- `/dev/kvm` is usable on `cloudchamber` (char device, KVM_GET_API_VERSION=12)
+
+**Blocked:**
+- Firecracker v1.16.1 vsock proxy resets host connections even when agent is
+  listening. Known Firecracker limitation.
+
+**Test:** `tests/integration/test_firecracker_execution.py` runs (not skips)
+on `cloudchamber` but fails at vsock connect. Test now prefers Ubuntu kernel
+and documents the vsock limitation.
+
+**Fix:** Upgrade to Firecracker v1.7+ (rewritten vsock implementation).
+
 ## Honest Local Boundary
 
 The current UpCloud host (kudbee-host-v1) cannot run Firecracker: `/dev/kvm` is a
