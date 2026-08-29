@@ -71,8 +71,13 @@ thinkbox challenge-jury tt-1234567890ab --base-url http://localhost:8000/v1
 | `thinkbox token-score <tid>` | Print token Elo score + last challenge |
 | `thinkbox challenge-jury <tid>` | Run LLM jury challenge |
 | `thinkbox challenge-human <tid> <verdict>` | Manual scoring (pass/fail/neutral) |
+| `thinkbox challenge-replay <tid>` | Replay the most recent challenge |
 | `thinkbox list` | List all boxes with tokens |
 | `thinkbox status <id>` | Detailed box status |
+| `thinkbox export <id> [-o FILE]` | Export box to JSON |
+| `thinkbox import <file>` | Import box from JSON |
+| `thinkbox delete <id>` | Delete a box and all its data |
+| `thinkbox leaderboard [--limit N]` | Top-scoring tokens |
 | `thinkbox clear-cache` | Clear provider snapshot cache |
 | `thinkbox --version` | Print version |
 
@@ -141,7 +146,7 @@ think-box-ai/
 | exec   | 3      | ok=true → o=+1, ok=false → o=-1 |
 | jury   | 2      | LLM YES/NO/garbage → o=+1/-1/0 |
 | human  | 2      | pass/fail/neutral → o=+1/-1/0 |
-| replay | 1      | (future) |
+| replay | 1      | Replays last challenge outcome |
 
 ### Elo Formula
 
