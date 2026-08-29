@@ -314,4 +314,73 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
+---
+
+## 14. Current State (Phase 1 Complete)
+
+### 14.1 CLI
+
+The `kudbee` CLI is the primary operator interface:
+
+```bash
+kudbee create --goal "..."       # Create Think Box
+kudbee exec <id> -- <cmd>        # Execute command
+kudbee evidence <id>             # Show evidence
+kudbee tokens <id>               # List tokens
+kudbee token-score <tid>         # Print Elo score
+kudbee challenge-jury <tid>      # LLM jury challenge
+kudbee challenge-human <tid> <v> # Manual scoring
+kudbee chat "message"            # Stream chat from LLM
+kudbee agent "goal"              # Full agent demo
+kudbee connect list              # Pending approvals
+kudbee connect request --desc ".." # Create approval request
+kudbee connect approve --id <id> # Approve request
+kudbee list                      # List all boxes
+kudbee status <id>               # Box status
+kudbee upcloud                   # UpCloud dashboard
+kudbee health                    # Health checks
+kudbee --version                 # Print version
+```
+
+### 14.2 Model Providers
+
+| Provider | Status | Endpoint | Notes |
+|----------|--------|----------|-------|
+| LongCat 2.0 | needs_credits | https://api.longcat.chat/openai | 1.6T MoE, 1M context |
+| Mercury 2 | active | https://api.inceptionlabs.ai/v1 | Working |
+| OpenAI Compat | active | configurable | Multi-provider |
+
+### 14.3 Infrastructure
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| UpCloud | connected | Think Box v1 (4xCPU-8GB) |
+| GPU Spot | ready | L4, L40S, H100, B200 available |
+| Dashboard | running | http://localhost:3001 |
+
+### 14.4 Think Token System
+
+- **Mint**: Only when exec evidence row has `ok=true`
+- **Challenge types**: exec (w=3), jury (w=2), human (w=2), replay (w=1)
+- **Elo**: `s += 0.25 * w * (o - sigmoid(s - 1.0))`, floor 0, cap 100
+- **Storage**: SQLite at `~/.local/share/thinkbox/thinkbox.db`
+
+### 14.5 Security
+
+- Path traversal protection on filesystem tools
+- Shell injection prevention (shlex + exec)
+- Prompt injection mitigation (claim delimiters in jury)
+- Foreign key enforcement in SQLite
+- No secrets in logs or evidence
+- API key authentication for API endpoints
+
+### 14.6 Session Notes
+
+- Work continues across sessions — check `kilo_local_recall` for prior context
+- Small commits are preferred (50+ per feature is fine)
+- Each significant change gets its own PR
+- Founder reviews and merges PRs — KILO does not merge
+- Test isolation: run unit tests before integration tests
+- LongCat API key: configured but needs credits (HTTP 402)
+
 </content>

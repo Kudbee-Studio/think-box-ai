@@ -11,6 +11,11 @@ from core.providers.base import (
 )
 from core.providers.openai_compat import OpenAICompatProvider
 
+try:
+    from core.providers.longcat import LongCatProvider
+except ImportError:
+    LongCatProvider = None
+
 __all__ = [
     "CompletionResponse",
     "Message",
@@ -18,4 +23,5 @@ __all__ = [
     "OpenAICompatProvider",
     "ProviderCapabilities",
     "ProviderRegistry",
+    "LongCatProvider",
 ]
