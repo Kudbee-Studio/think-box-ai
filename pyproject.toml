@@ -5,16 +5,23 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "think-box-ai"
 version = "0.1.0"
-description = "Think Box AI — Think Token (THNK) utility and SDK"
+description = "Think Box AI — Agent execution environment with token tracking"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+    "mypy>=1.0",
 ]
 test = [
     "pytest>=8.0",
@@ -23,6 +30,7 @@ test = [
 
 [project.scripts]
 think-box-ai = "think_box_ai.cli:main"
+thinkbox = "think_box_ai.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -30,7 +38,19 @@ asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["think_box_ai*"]
+include = ["think_box_ai*", "core*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
 
 [tool.thinkbox]
 default_provider = "openai_compat"
