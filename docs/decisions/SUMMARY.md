@@ -163,8 +163,9 @@
 - @core/memory/store.py: MemoryStore (SQLite)
 - @tests/unit/test_execution.py: 14 unit tests (mock Firecracker)
 - @tests/integration/test_firecracker_execution.py: real proof-of-life, skips w/o KVM
-- @tests/integration/test_local_execution.py: 3 integration tests proving
-  LocalExecProvider end-to-end (direct, via Actor, Firecracker fail-closed)
+- @tests/integration/test_local_execution.py: 5 integration tests (direct,
+  Actor routing, evidence recording, FC fail-closed, FC evidence-on-failure)
+- @docs/runbooks/kvm-host-acceptance.md: human KVM host acceptance runbook
 
 ## Honest Local Boundary
 
@@ -177,3 +178,16 @@ contract today. `FirecrackerExecProvider` remains fully implemented and fail-clo
 `ExecutionUnavailableError`. Nothing is faked. The next infrastructure step is a
 machine with empirically usable KVM (e.g., Hetzner CPX31 or equivalent), not more
 code on this guest.
+
+## Cycle B — Evidence + KVM Runbook
+
+Every `execute` through `Actor._execute_via_provider` now appends one
+`execution_evidence` record via the existing `AuditLog` (no new log). Fields:
+`think_box_id`, `step_id`, `provider`, `argv`, `exit_code`, `stdout`/`stderr`
+(truncated 2k), `started_at`, `finished_at`, `ok`, `error`. Evidence is recorded
+on both success and failure paths — Firecracker unavailability yields `ok=false`,
+never a fake success row. A human KVM host acceptance runbook lives at
+`docs/runbooks/kvm-host-acceptance.md` (uname, systemd-detect-virt, CPU flags,
+`/dev/kvm` char-device + `KVM_GET_API_VERSION` ioctl, env vars to unskip the
+Firecracker test). Nitro Enclaves are a secrets plane, not this provider. Next
+infrastructure is a human KVM host; the agent does not open cloud accounts.

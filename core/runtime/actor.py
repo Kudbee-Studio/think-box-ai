@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime
+import shlex
 from typing import Any
 
 from core.execution.base import ExecResult, ExecutionUnavailableError
@@ -9,6 +11,14 @@ from core.foundation.errors import ToolPermissionError
 from core.foundation.logging import get_logger
 
 logger = get_logger(__name__)
+
+_EVIDENCE_TRUNCATE = 2000
+
+
+def _truncate(text: str, limit: int = _EVIDENCE_TRUNCATE) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "...[truncated]"
 
 
 class Actor:
@@ -44,10 +54,12 @@ class Actor:
         if provider is None:
             return {"status": "success", "output": f"[no-execution-provider] {step.command}"}
 
+        agent_id = getattr(agent, "agent_id", "unknown")
+        think_box_id = getattr(think_box, "think_box_id", getattr(think_box, "id", "unknown"))
+
         # Governance gate: EXEC permission must be satisfied before the
         # command is handed to the execution substrate.
         if self.approval_gate is not None and self.audit_log is not None:
-            agent_id = getattr(agent, "agent_id", "unknown")
             requires_approval = self.approval_gate.require_approval(
                 tool_name="shell_exec",
                 permission="exec",
@@ -66,9 +78,24 @@ class Actor:
                     context={"step": step.id},
                 )
 
+        started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         try:
             result: ExecResult = await provider.execute(step.command)
         except ExecutionUnavailableError as e:
+            self._record_evidence(
+                think_box_id=think_box_id,
+                agent_id=agent_id,
+                step_id=step.id,
+                provider=getattr(provider, "name", "unknown"),
+                argv=shlex.split(step.command) if step.command else [],
+                exit_code=-1,
+                stdout="",
+                stderr=str(e),
+                started_at=started_at,
+                finished_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                ok=False,
+                error="execution_unavailable",
+            )
             logger.warning("Execution provider unavailable", extra={"error": str(e)})
             return {
                 "status": "error",
@@ -76,6 +103,22 @@ class Actor:
                 "error": str(e),
                 "provider": getattr(provider, "name", "unknown"),
             }
+
+        finished_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self._record_evidence(
+            think_box_id=think_box_id,
+            agent_id=agent_id,
+            step_id=step.id,
+            provider=result.provider,
+            argv=shlex.split(step.command) if step.command else [],
+            exit_code=result.return_code,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            started_at=started_at,
+            finished_at=finished_at,
+            ok=result.return_code == 0,
+            error=result.error,
+        )
 
         return {
             "status": "success" if result.return_code == 0 else "error",
@@ -86,3 +129,45 @@ class Actor:
             "microvm_id": result.microvm_id,
             "duration": result.duration,
         }
+
+    def _record_evidence(
+        self,
+        *,
+        think_box_id: str,
+        agent_id: str,
+        step_id: str,
+        provider: str,
+        argv: list[str],
+        exit_code: int,
+        stdout: str,
+        stderr: str,
+        started_at: str,
+        finished_at: str,
+        ok: bool,
+        error: str | None = None,
+    ) -> None:
+        """Append one execution-evidence record via the existing audit log.
+
+        Every execute leaves evidence. No secrets are stored — argv is the
+        command as given, stdout/stderr are truncated to 2k.
+        """
+        if self.audit_log is None:
+            return
+        self.audit_log.record(
+            action="execution_evidence",
+            actor=agent_id,
+            outcome="ok" if ok else "error",
+            metadata={
+                "think_box_id": think_box_id,
+                "step_id": step_id,
+                "provider": provider,
+                "argv": argv,
+                "exit_code": exit_code,
+                "stdout": _truncate(stdout),
+                "stderr": _truncate(stderr),
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "ok": ok,
+                "error": error,
+            },
+        )
