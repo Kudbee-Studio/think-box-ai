@@ -17,15 +17,15 @@ from core.runtime.planner import Step
 
 
 EVIDENCE_DIR = os.path.expanduser("~/.local/share/thinkbox/evidence")
-DB_PATH = os.path.expanduser("~/.local/share/thinkbox/thinkbox.db")
+DB_PATH = os.environ.get("THINKBOX_DB_PATH", os.path.expanduser("~/.local/share/thinkbox/thinkbox.db"))
 
 
 def _ensure_evidence_dir() -> None:
-    os.makedirs(EVIDENCE_DIR, exist_ok=True)
+    os.makedirs(_get_evidence_dir(), exist_ok=True)
 
 
 def _evidence_file(think_box_id: str) -> str:
-    return os.path.join(EVIDENCE_DIR, f"{think_box_id}.jsonl")
+    return os.path.join(_get_evidence_dir(), f"{think_box_id}.jsonl")
 
 
 def _append_evidence(think_box_id: str, entry: dict[str, Any]) -> None:
@@ -50,9 +50,21 @@ def _load_evidence(think_box_id: str) -> list[dict[str, Any]]:
     return entries
 
 
+def _get_db_path() -> str:
+    """Get DB path from environment or default."""
+    return os.environ.get("THINKBOX_DB_PATH", os.path.expanduser("~/.local/share/thinkbox/thinkbox.db"))
+
+
+def _get_evidence_dir() -> str:
+    """Get evidence dir from environment or default."""
+    return os.environ.get("THINKBOX_EVIDENCE_DIR", os.path.expanduser("~/.local/share/thinkbox/evidence"))
+
+
 def _get_store() -> MemoryStore:
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    return MemoryStore(DB_PATH)
+    """Create a MemoryStore with the current DB path."""
+    db_path = _get_db_path()
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return MemoryStore(db_path)
 
 
 def _mint_token_for_evidence(store: MemoryStore, think_box_id: str, command: str, ok: bool) -> str | None:

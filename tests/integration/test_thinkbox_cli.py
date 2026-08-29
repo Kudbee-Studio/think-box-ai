@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import io
 import json
 import os
+import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from think_box_ai import cli
 
@@ -15,57 +15,41 @@ from think_box_ai import cli
 class TestThinkboxCLI(unittest.TestCase):
     def setUp(self):
         self._tmpdir = tempfile.mkdtemp()
-        self._orig_dir = cli.EVIDENCE_DIR
-        cli.EVIDENCE_DIR = os.path.join(self._tmpdir, "evidence")
+        self._env = os.environ.copy()
+        self._env["THINKBOX_DB_PATH"] = os.path.join(self._tmpdir, "test.db")
+        self._env["THINKBOX_EVIDENCE_DIR"] = os.path.join(self._tmpdir, "evidence")
 
     def tearDown(self):
-        cli.EVIDENCE_DIR = self._orig_dir
+        pass
+
+    def _run(self, args):
+        """Run CLI with test environment."""
+        return subprocess.run(
+            ["python3", "-m", "think_box_ai.cli"] + args,
+            capture_output=True, text=True, env=self._env,
+        )
 
     def test_create_returns_id(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         self.assertEqual(result.returncode, 0)
         self.assertTrue(result.stdout.strip().startswith("tb-"))
 
     def test_exec_echoes_output(self):
-        import subprocess
-        # Create a Think Box
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
+        self.assertEqual(result.returncode, 0)
         tb_id = result.stdout.strip()
 
-        # Execute echo
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "KUDBEE_LOCAL_OK"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["exec", tb_id, "--", "echo", "KUDBEE_LOCAL_OK"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("KUDBEE_LOCAL_OK", result.stdout)
 
     def test_evidence_shows_ok(self):
-        import subprocess
-        # Create + exec
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
 
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "KUDBEE_LOCAL_OK"],
-            capture_output=True, text=True,
-        )
+        self._run(["exec", tb_id, "--", "echo", "KUDBEE_LOCAL_OK"])
 
-        # Check evidence
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "evidence", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["evidence", tb_id])
         self.assertEqual(result.returncode, 0)
         data = json.loads(result.stdout.strip())
         self.assertEqual(data["ok"], True)
@@ -73,186 +57,101 @@ class TestThinkboxCLI(unittest.TestCase):
         self.assertEqual(data["provider"], "local")
 
     def test_bogus_id_returns_error(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "evidence", "tb-nonexistent"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["evidence", "tb-nonexistent"])
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("no evidence", result.stderr)
 
     def test_challenge_jury_no_url_exits_2(self):
-        import subprocess
+        # Ensure no URL is set for this test
+        env = self._env.copy()
+        env.pop("OPENAI_BASE_URL", None)
+        env.pop("THINKBOX_JURY_URL", None)
         result = subprocess.run(
             ["python3", "-m", "think_box_ai.cli", "challenge-jury", "tt-any"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, env=env,
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("JURY_UNAVAILABLE", result.stderr)
 
     def test_list_shows_boxes(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "hi"],
-            capture_output=True, text=True,
-        )
+        self._run(["exec", tb_id, "--", "echo", "test"])
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "list"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["list"])
         self.assertEqual(result.returncode, 0)
         self.assertIn(tb_id, result.stdout)
 
     def test_status_shows_tokens(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "hi"],
-            capture_output=True, text=True,
-        )
+        self._run(["exec", tb_id, "--", "echo", "test"])
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "status", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["status", tb_id])
         self.assertEqual(result.returncode, 0)
         data = json.loads(result.stdout.strip())
         self.assertEqual(data["box_id"], tb_id)
         self.assertGreaterEqual(data["token_count"], 1)
 
     def test_status_bogus_id_returns_error(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "status", "tb-bogus"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["status", "tb-bogus"])
         self.assertNotEqual(result.returncode, 0)
 
     def test_export_import_roundtrip(self):
-        import subprocess
-        # Create + exec
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
+        self._run(["exec", tb_id, "--", "echo", "roundtrip"])
 
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "roundtrip"],
-            capture_output=True, text=True,
-        )
-
-        # Export
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "export", tb_id, "-o", ".kilo/export_test.json"],
-            capture_output=True, text=True,
-        )
+        export_path = os.path.join(self._tmpdir, "export.json")
+        result = self._run(["export", tb_id, "-o", export_path])
         self.assertEqual(result.returncode, 0)
 
-        # Delete original
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "delete", tb_id],
-            capture_output=True, text=True,
-        )
+        self._run(["delete", tb_id])
 
-        # Import
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "import", ".kilo/export_test.json"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["import", export_path])
         self.assertEqual(result.returncode, 0)
         self.assertIn(tb_id, result.stdout)
 
-        # Verify tokens exist
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["tokens", tb_id])
         self.assertEqual(result.returncode, 0)
         self.assertIn("roundtrip", result.stdout)
 
     def test_delete_removes_data(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
+        self._run(["exec", tb_id, "--", "echo", "delete_me"])
 
-        subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "delete_me"],
-            capture_output=True, text=True,
-        )
-
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "delete", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["delete", tb_id])
         self.assertEqual(result.returncode, 0)
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
-            capture_output=True, text=True,
-        )
-        self.assertEqual(result.returncode, 1)  # No tokens found
+        result = self._run(["tokens", tb_id])
+        self.assertEqual(result.returncode, 1)
 
     def test_full_workflow(self):
         """Test the complete workflow: create -> exec -> evidence -> tokens -> score."""
-        import subprocess
-
-        # Create
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         self.assertEqual(result.returncode, 0)
         tb_id = result.stdout.strip()
         self.assertTrue(tb_id.startswith("tb-"))
 
-        # Exec
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "workflow_test"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["exec", tb_id, "--", "echo", "workflow_test"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("workflow_test", result.stdout)
 
-        # Evidence
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "evidence", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["evidence", tb_id])
         self.assertEqual(result.returncode, 0)
         evidence = json.loads(result.stdout.strip())
         self.assertEqual(evidence["ok"], True)
         self.assertEqual(evidence["exit_code"], 0)
 
-        # Tokens
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["tokens", tb_id])
         self.assertEqual(result.returncode, 0)
         token = json.loads(result.stdout.strip())
         self.assertEqual(token["claim"], "echo workflow_test")
-        self.assertGreater(token["s"], 1.0)  # Score increased from exec challenge
+        self.assertGreater(token["s"], 1.0)
 
-        # Token score
         token_id = token["id"]
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "token-score", token_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["token-score", token_id])
         self.assertEqual(result.returncode, 0)
         score = json.loads(result.stdout.strip())
         self.assertEqual(score["id"], token_id)
@@ -260,33 +159,19 @@ class TestThinkboxCLI(unittest.TestCase):
         self.assertEqual(score["last_challenge"]["type"], "exec")
 
     def test_clear_cache_no_cache(self):
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "clear-cache"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["clear-cache"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("no snapshot cache", result.stdout)
 
     def test_exec_failure_no_token(self):
         """Failed exec should not mint a token."""
-        import subprocess
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "false"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["exec", tb_id, "--", "false"])
         self.assertEqual(result.returncode, 1)  # Command failed
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["tokens", tb_id])
         self.assertEqual(result.returncode, 1)  # No tokens
         self.assertIn("no tokens", result.stderr)
 
@@ -294,56 +179,47 @@ class TestThinkboxCLI(unittest.TestCase):
 class TestThinkboxCLIJuryMocked(unittest.TestCase):
     def setUp(self):
         self._tmpdir = tempfile.mkdtemp()
-        self._orig_dir = cli.EVIDENCE_DIR
-        cli.EVIDENCE_DIR = os.path.join(self._tmpdir, "evidence")
-        self._orig_db = cli.DB_PATH
-        cli.DB_PATH = os.path.join(self._tmpdir, "test.db")
+        self._env = os.environ.copy()
+        self._env["THINKBOX_DB_PATH"] = os.path.join(self._tmpdir, "test.db")
+        self._env["THINKBOX_EVIDENCE_DIR"] = os.path.join(self._tmpdir, "evidence")
 
     def tearDown(self):
-        cli.EVIDENCE_DIR = self._orig_dir
-        cli.DB_PATH = self._orig_db
+        pass
+
+    def _run(self, args):
+        return subprocess.run(
+            ["python3", "-m", "think_box_ai.cli"] + args,
+            capture_output=True, text=True, env=self._env,
+        )
 
     def test_challenge_jury_no_url_exits_2(self):
-        import subprocess
+        # Ensure no URL is set for this test
+        env = self._env.copy()
+        env.pop("OPENAI_BASE_URL", None)
+        env.pop("THINKBOX_JURY_URL", None)
         result = subprocess.run(
             ["python3", "-m", "think_box_ai.cli", "challenge-jury", "tt-any"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, env=env,
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("JURY_UNAVAILABLE", result.stderr)
 
     def test_challenge_jury_mocked_yes_via_cli(self):
-        import subprocess
         # Create a token first
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "create"],
-            capture_output=True, text=True,
-        )
+        result = self._run(["create"])
         tb_id = result.stdout.strip()
+        self._run(["exec", tb_id, "--", "echo", "hello"])
 
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "exec", tb_id, "--", "echo", "hello"],
-            capture_output=True, text=True,
-        )
-        self.assertEqual(result.returncode, 0)
-
-        # Get token id
-        result = subprocess.run(
-            ["python3", "-m", "think_box_ai.cli", "tokens", tb_id],
-            capture_output=True, text=True,
-        )
+        result = self._run(["tokens", tb_id])
         token_id = json.loads(result.stdout.strip())["id"]
 
         # Test the store directly with mock
-        import importlib
-        import think_box_ai.cli as cli_mod
-        importlib.reload(cli_mod)
         from core.memory.store import MemoryStore
-        store = MemoryStore(cli_mod.DB_PATH)
+        store = MemoryStore(self._env["THINKBOX_DB_PATH"])
         token_before = store.get_token(token_id)["s"]
 
-        with unittest.mock.patch("urllib.request.urlopen") as mock_urlopen:
-            mock_resp = unittest.mock.MagicMock()
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
             mock_resp.read.return_value = json.dumps({
                 "choices": [{"message": {"content": "YES"}}]
             }).encode()
@@ -355,7 +231,7 @@ class TestThinkboxCLIJuryMocked(unittest.TestCase):
 
         self.assertIsNotNone(challenge_id)
         token_after = store.get_token(token_id)["s"]
-        self.assertGreater(token_after, token_before)  # YES should increase score
+        self.assertGreater(token_after, token_before)
 
 
 if __name__ == "__main__":

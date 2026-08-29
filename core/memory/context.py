@@ -13,7 +13,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.providers.base import Message
+# Note: We avoid importing from core.providers to prevent layer violations.
+# Message is a simple dataclass defined locally for context management.
+@dataclass
+class Message:
+    role: str
+    content: str
 
 
 @dataclass

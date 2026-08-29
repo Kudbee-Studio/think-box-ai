@@ -359,8 +359,13 @@ class MemoryStore:
         import urllib.error
 
         prompt = (
-            f"Does the following claim survive scrutiny? "
-            f"Reply ONLY YES or NO.\n\nClaim: {token['claim']}"
+            "Does the following claim survive scrutiny? "
+            "Reply ONLY YES or NO.\n\n"
+            "Claim:\n"
+            "<<<BEGIN CLAIM>>>\n"
+            f"{token['claim'][:500]}\n"
+            "<<<END CLAIM>>>\n\n"
+            "Reply ONLY YES or NO."
         )
         body = json.dumps({
             "model": "local",
