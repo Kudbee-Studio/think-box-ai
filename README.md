@@ -23,6 +23,9 @@ Think Box AI provides:
 - **Think Tokens** — Elo-scored claims backed by execution evidence
 - **Provider Router** — multi-provider routing with failover and snapshot dedup
 - **CLI** — operator commands for create, exec, evidence, tokens, challenges
+- **Dashboard** — React frontend at `apps/web/`
+- **Backend** — FastAPI + WebSocket + SSE at `backend/`
+- **Infrastructure** — UpCloud for cloud deployment
 
 ---
 
@@ -131,9 +134,20 @@ think-box-ai/
 
 ---
 
-## Architecture
+## Think Box Lifecycle
 
-### Token Model
+```
+create → executing → complete
+                  → failed
+                  → cancelled
+```
+
+1. **Create**: `thinkbox create --goal "..."` — generates ID, persists to SQLite
+2. **Execute**: `thinkbox exec <id> -- <argv>` — runs command via LocalExecProvider
+3. **Evidence**: Every execution leaves an evidence row (append-only JSONL)
+4. **Tokens**: Minted when evidence shows `ok=true`
+5. **Challenges**: exec, jury, human, replay — each updates Elo score
+6. **Complete**: State transitions to `complete` or `failed`
 
 - **Mint**: Only when `thinkbox exec` evidence row has `ok=true`
 - **Claim**: argv joined, capped at 200 chars
