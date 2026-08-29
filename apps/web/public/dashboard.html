@@ -3,72 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KUDBEE - Think Box AI</title>
+    <title>KUDBEE — Think Box AI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
     <style>
         :root {
             --bg: #0a0a0f;
             --surface: #12121a;
             --border: #2a2a3a;
             --text: #e0e0e0;
-            --text-dim: #888;
+            --text-dim: #666;
             --accent: #00d4aa;
             --accent-dim: #00a88a;
             --danger: #ff4444;
             --warning: #ffaa00;
+            --font-mono: 'Menlo', 'Monaco', 'Courier New', monospace;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            overflow: hidden;
         }
         .header {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
+            padding: 0.75rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 48px;
         }
-        .logo { font-size: 1.5rem; font-weight: bold; color: var(--accent); }
-        .logo span { color: var(--text); }
+        .logo { font-size: 1.2rem; font-weight: bold; color: var(--accent); }
+        .logo span { color: var(--text); opacity: 0.7; }
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-dim); }
         .status-dot {
             width: 8px; height: 8px; border-radius: 50%;
             background: var(--accent);
-            display: inline-block;
-            margin-right: 0.5rem;
             animation: pulse 2s infinite;
         }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .main { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 52px); }
+        .status-dot.disconnected { background: var(--danger); animation: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .main { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 48px); }
         .sidebar {
             background: var(--surface);
             border-right: 1px solid var(--border);
             padding: 1rem;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
-        .content { padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
         .card {
-            background: var(--surface);
+            background: rgba(255,255,255,0.02);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
+            border-radius: 6px;
+            padding: 0.75rem;
         }
-        .card h3 { color: var(--accent); margin-bottom: 0.75rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .card h3 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
         .box-item {
-            padding: 0.5rem;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
+            padding: 0.4rem 0.5rem;
             border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
         }
         .box-item:hover { background: rgba(0, 212, 170, 0.1); }
-        .box-item:last-child { border-bottom: none; }
-        .state { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; float: right; }
-        .state.created { background: #333; color: var(--text); }
-        .state.executing { background: var(--warning); color: #000; }
-        .state.complete { background: var(--accent); color: #000; }
-        .state.failed { background: var(--danger); color: #fff; }
+        .box-item.active { background: rgba(0, 212, 170, 0.15); border-left: 2px solid var(--accent); }
+        .terminal-container { display: flex; flex-direction: column; height: 100%; }
+        .terminal-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .terminal-title { font-size: 0.8rem; color: var(--text-dim); }
+        .terminal-wrapper { flex: 1; padding: 0.5rem; overflow: hidden; }
+        .#terminal { width: 100%; height: 100%; }
+        .input-row {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .input-row input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+        .input-row input:focus { outline: none; border-color: var(--accent); }
         .btn {
             background: var(--accent);
             color: #000;
@@ -76,123 +119,152 @@
             padding: 0.5rem 1rem;
             border-radius: 4px;
             cursor: pointer;
-            font-weight: bold;
-            font-size: 0.85rem;
+            font-weight: 600;
+            font-size: 0.8rem;
+            white-space: nowrap;
         }
         .btn:hover { background: var(--accent-dim); }
-        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
-        .input {
-            background: var(--bg);
-            border: 1px solid var(--border);
+        .btn-secondary {
+            background: transparent;
             color: var(--text);
-            padding: 0.5rem;
-            border-radius: 4px;
-            width: 100%;
-            font-family: inherit;
-        }
-        .terminal {
-            background: #000;
             border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1rem;
-            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-            font-size: 0.8rem;
-            white-space: pre-wrap;
-            word-break: break-word;
-            min-height: 200px;
-            max-height: 400px;
-            overflow-y: auto;
-            color: #00d4aa;
         }
-        .terminal-line { margin: 0; line-height: 1.4; }
-        .metric { display: inline-block; margin-right: 1.5rem; }
-        .metric-value { color: var(--accent); font-weight: bold; font-size: 1.1rem; }
-        .metric-label { color: var(--text-dim); font-size: 0.7rem; text-transform: uppercase; }
-        .flex-row { display: flex; gap: 0.5rem; align-items: center; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; }
-        .token-tag {
-            display: inline-block;
-            background: rgba(0, 212, 170, 0.15);
-            color: var(--accent);
-            padding: 0.15rem 0.4rem;
-            border-radius: 3px;
-            font-size: 0.7rem;
-            margin-right: 0.25rem;
-        }
-        .live-indicator {
-            font-size: 0.65rem;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+        .metrics { display: flex; gap: 1.5rem; }
+        .metric-value { color: var(--accent); font-weight: bold; font-size: 1rem; }
+        .metric-label { color: var(--text-dim); font-size: 0.65rem; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">KUDBEE<span>·AI</span></div>
-        <div class="flex-between" style="gap:1rem;">
-            <span class="live-indicator"><span class="status-dot"></span>LIVE</span>
-            <button class="btn btn-sm" onclick="refreshData()">Refresh</button>
+        <div class="header-right">
+            <div class="metrics">
+                <div>
+                    <div class="metric-value" id="m-boxes">0</div>
+                    <div class="metric-label">Boxes</div>
+                </div>
+                <div>
+                    <div class="metric-value" id="m-tokens">0</div>
+                    <div class="metric-label">Tokens</div>
+                </div>
+            </div>
+            <div class="status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Connecting...</span>
+            </div>
         </div>
     </div>
     <div class="main">
         <div class="sidebar">
             <div class="card">
-                <div class="flex-between" style="margin-bottom:0.5rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
                     <h3>Think Boxes</h3>
-                    <span id="box-count" class="token-tag">0</span>
+                    <span id="box-count" style="color:var(--accent);font-size:0.7rem">0</span>
                 </div>
                 <div id="boxes-list"></div>
             </div>
             <div class="card">
                 <h3>Create New</h3>
-                <input type="text" class="input" id="goal-input" placeholder="Goal..." onkeydown="if(event.key==='Enter')createBox()">
-                <button class="btn" style="width:100%; margin-top:0.5rem;" onclick="createBox()">Create</button>
+                <input type="text" id="goal-input" placeholder="Enter goal..." style="width:100%;margin-bottom:0.5rem;">
+                <button class="btn" style="width:100%" onclick="createBox()">Create Box</button>
             </div>
         </div>
-        <div class="content">
-            <div class="card">
-                <h3>Agent Execution</h3>
-                <div class="flex-row" style="margin-bottom:0.75rem;">
-                    <input type="text" class="input" id="exec-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')runExec()">
-                    <button class="btn" onclick="runExec()">Run</button>
-                </div>
-                <div class="terminal" id="exec-terminal">Ready...</div>
-            </div>
-            <div class="card">
-                <div class="flex-between">
-                    <h3>System Metrics</h3>
-                </div>
-                <div style="display:flex; gap:2rem; flex-wrap:wrap;">
-                    <div class="metric">
-                        <div class="metric-value" id="m-boxes">0</div>
-                        <div class="metric-label">Boxes</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="m-tokens">0</div>
-                        <div class="metric-label">Tokens</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="m-executions">0</div>
-                        <div class="metric-label">Executions</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="m-score">—</div>
-                        <div class="metric-label">Avg Score</div>
-                    </div>
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <span class="terminal-title" id="terminal-title">Terminal — Select a box</span>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-secondary" onclick="clearTerminal()">Clear</button>
+                    <button class="btn" onclick="runAgentDemo()">Run Demo</button>
                 </div>
             </div>
-            <div class="card">
-                <h3>Selected Box</h3>
-                <div id="box-details">Select a box from the sidebar</div>
+            <div class="terminal-wrapper">
+                <div id="terminal"></div>
+            </div>
+            <div class="input-row">
+                <input type="text" id="cmd-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')runCommand()">
+                <button class="btn" onclick="runCommand()">Execute</button>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script>
         const API = window.location.origin;
         let selectedBox = null;
+        let term, fitAddon;
 
+        // ─── Terminal Setup ─────────────────────────────────────
+        function initTerminal() {
+            term = new Terminal({
+                cursorBlink: true,
+                fontSize: 13,
+                fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+                scrollback: 10000,
+                theme: {
+                    background: '#0a0a0f',
+                    foreground: '#00d4aa',
+                    cursor: '#00d4aa',
+                    selection: 'rgba(0, 212, 170, 0.3)',
+                    black: '#0a0a0f',
+                    red: '#ff4444',
+                    green: '#00d4aa',
+                    yellow: '#ffaa00',
+                    blue: '#4488ff',
+                    magenta: '#ff44ff',
+                    cyan: '#44ffff',
+                    white: '#e0e0e0',
+                }
+            });
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+            window.addEventListener('resize', () => fitAddon.fit());
+            term.writeln('\x1b[32m✓ KUDBEE Terminal Ready\x1b[0m');
+            term.writeln('\x1b[90mSelect a box and enter commands to begin.\x1b[0m\n');
+        }
+
+        function writeTerminal(text) {
+            if (term) term.write(text);
+        }
+
+        function clearTerminal() {
+            if (term) term.clear();
+        }
+
+        // ─── SSE Connection ─────────────────────────────────────
+        function connectSSE() {
+            const es = new EventSource(API + '/api/stream');
+            const dot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+
+            es.onopen = () => {
+                dot.classList.remove('disconnected');
+                statusText.textContent = 'Live';
+            };
+            es.onerror = () => {
+                dot.classList.add('disconnected');
+                statusText.textContent = 'Reconnecting...';
+            };
+            es.addEventListener('box_created', (e) => {
+                const data = JSON.parse(e.data);
+                writeTerminal(`\x1b[33m[box created] ${data.id}\x1b[0m\n`);
+                refreshData();
+            });
+            es.addEventListener('exec_output', (e) => {
+                const data = JSON.parse(e.data);
+                writeTerminal(data.chunk);
+            });
+            es.addEventListener('exec_complete', (e) => {
+                const data = JSON.parse(e.data);
+                writeTerminal(`\n\x1b[33m[exit: ${data.code}]\x1b[0m$ `);
+                refreshData();
+            });
+        }
+
+        // ─── API Helpers ────────────────────────────────────────
         async function api(path, opts = {}) {
             const res = await fetch(API + path, {
                 headers: { 'Content-Type': 'application/json' },
@@ -201,40 +273,7 @@
             return res.json();
         }
 
-        // SSE for live updates
-        function connectSSE() {
-            const es = new EventSource(API + '/api/stream');
-            es.addEventListener('box_created', (e) => {
-                const data = JSON.parse(e.data);
-                appendTerminal(`[box created] ${data.id}`);
-                refreshData();
-            });
-            es.addEventListener('exec_output', (e) => {
-                const data = JSON.parse(e.data);
-                if (selectedBox && data.box_id === selectedBox) {
-                    appendTerminal(data.chunk, false);
-                }
-            });
-            es.addEventListener('exec_complete', (e) => {
-                const data = JSON.parse(e.data);
-                appendTerminal(`\n[exit code: ${data.code}]`);
-                refreshData();
-            });
-        }
-
-        function appendTerminal(text, newline = true) {
-            const term = document.getElementById('exec-terminal');
-            const span = document.createElement('span');
-            span.className = 'terminal-line';
-            span.textContent = text + (newline ? '\n' : '');
-            term.appendChild(span);
-            term.scrollTop = term.scrollHeight;
-        }
-
-        function clearTerminal() {
-            document.getElementById('exec-terminal').innerHTML = '';
-        }
-
+        // ─── Box Management ─────────────────────────────────────
         async function refreshData() {
             try {
                 const boxes = await api('/api/boxes');
@@ -249,23 +288,21 @@
         function renderBoxes(boxes) {
             const el = document.getElementById('boxes-list');
             if (!boxes || boxes.length === 0) {
-                el.innerHTML = '<p style="color:var(--text-dim);font-size:0.8rem">No boxes yet</p>';
+                el.innerHTML = '<p style="color:var(--text-dim);font-size:0.75rem">No boxes yet</p>';
                 return;
             }
             el.innerHTML = boxes.map(b => `
-                <div class="box-item" onclick="selectBox('${b}')">
-                    ${b.slice(0, 18)}...
+                <div class="box-item ${b === selectedBox ? 'active' : ''}" onclick="selectBox('${b}')">
+                    ${b.slice(0, 14)}...
                 </div>
             `).join('');
         }
 
         async function selectBox(id) {
             selectedBox = id;
-            const box = await api(`/api/boxes/${id}`);
-            document.getElementById('box-details').innerHTML = `
-                <p><strong>ID:</strong> ${id}</p>
-                <p><strong>Tokens:</strong> ${box.tokens?.length || 0}</p>
-            `;
+            document.getElementById('terminal-title').textContent = `Terminal — ${id.slice(0, 18)}`;
+            writeTerminal(`\x1b[36m→ Selected: ${id}\x1b[0m\n`);
+            renderBoxes((await api('/api/boxes')).boxes);
         }
 
         async function createBox() {
@@ -276,31 +313,45 @@
             refreshData();
         }
 
-        async function runExec() {
-            const cmd = document.getElementById('exec-input').value;
-            if (!cmd) return;
-            clearTerminal();
-            appendTerminal(`$ ${cmd}\n`);
-
-            if (!selectedBox) {
-                appendTerminal('[error: select a box first]');
-                return;
-            }
+        // ─── Command Execution ──────────────────────────────────
+        async function runCommand() {
+            const cmd = document.getElementById('cmd-input').value;
+            if (!cmd || !selectedBox) return;
+            writeTerminal(`$ ${cmd}\n`);
+            document.getElementById('cmd-input').value = '';
 
             try {
-                const res = await api(`/api/boxes/${selectedBox}/exec`, {
+                await api(`/api/boxes/${selectedBox}/exec`, {
                     method: 'POST',
                     body: JSON.stringify({ command: cmd }),
                 });
-                document.getElementById('exec-input').value = '';
             } catch (e) {
-                appendTerminal(`[error: ${e.message}]`);
+                writeTerminal(`\x1b[31m[error: ${e.message}]\x1b[0m\n`);
             }
         }
 
-        // Init
-        refreshData();
+        async function runAgentDemo() {
+            const goal = document.getElementById('goal-input').value || 'echo Hello from KUDBEE';
+            writeTerminal(`\n\x1b[36m═══ Running Agent Demo ═══\x1b[0m\n`);
+            writeTerminal(`Goal: ${goal}\n`);
+
+            const box = await api('/api/boxes', { method: 'POST', body: JSON.stringify({ goal }) });
+            selectedBox = box.id;
+            await selectBox(box.id);
+
+            await api(`/api/boxes/${box.id}/exec`, {
+                method: 'POST',
+                body: JSON.stringify({ command: goal }),
+            });
+
+            writeTerminal(`\n\x1b[36m═══ Demo Complete ═══\x1b[0m\n`);
+            refreshData();
+        }
+
+        // ─── Initialize ─────────────────────────────────────────
+        initTerminal();
         connectSSE();
+        refreshData();
     </script>
 </body>
 </html>
