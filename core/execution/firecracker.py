@@ -60,11 +60,27 @@ _AF_VSOCK = getattr(socket, "AF_VSOCK", 40)
 
 
 class _VsockClient:
-    """Minimal virtio-vsock client for host<->guest command transport."""
+    """Minimal virtio-vsock client for host<->guest command transport.
 
-    def __init__(self, guest_cid: int, port: int, connect_timeout: float = 5.0) -> None:
+    Firecracker's vsock proxy uses a Unix domain socket on the host. The
+    protocol is:
+      1. Connect to the Unix socket (uds_path from the /vsock API).
+      2. Send "CONNECT <port>\\n".
+      3. Read "OK <guest_cid>\\n" (or an error).
+      4. Send command as a JSON line.
+      5. Read response JSON lines (stream data + exit code).
+    """
+
+    def __init__(
+        self,
+        guest_cid: int,
+        port: int,
+        vsock_uds: str,
+        connect_timeout: float = 10.0,
+    ) -> None:
         self._guest_cid = guest_cid
         self._port = port
+        self._vsock_uds = vsock_uds
         self._connect_timeout = connect_timeout
         self._sock: "socket.socket | None" = None
 
@@ -78,20 +94,34 @@ class _VsockClient:
             return False
 
     def connect(self) -> None:
+        """Connect to the Firecracker vsock Unix socket and handshake."""
         # Retry: the guest agent may not be listening immediately after boot.
-        # A fresh socket is needed each attempt because a failed connect
-        # leaves the socket in an unusable state.
         last_err: Exception | None = None
-        for _ in range(50):
+        for attempt in range(50):
             try:
-                sock = socket.socket(_AF_VSOCK, socket.SOCK_STREAM)
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 sock.settimeout(self._connect_timeout)
-                sock.connect((self._guest_cid, self._port))
+                sock.connect(self._vsock_uds)
+                # Firecracker vsock handshake: request connection to guest port
+                sock.sendall(f"CONNECT {self._port}\n".encode("utf-8"))
+                buf = b""
+                while b"\n" not in buf:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                if not buf.startswith(b"OK"):
+                    raise ExecutionUnavailableError(
+                        message=f"vsock handshake failed: {buf.decode(errors='replace')!r}"
+                    )
                 self._sock = sock
                 return
-            except OSError as e:
+            except (OSError, ExecutionUnavailableError) as e:
                 last_err = e
-                sock.close()
+                try:
+                    sock.close()
+                except OSError:
+                    pass
                 time.sleep(0.2)
         raise ExecutionUnavailableError(
             message=f"vsock connect failed after retries: {last_err}"
@@ -115,6 +145,8 @@ class _VsockClient:
                 break
             buf += chunk
         line = buf.split(b"\n", 1)[0].decode("utf-8", errors="replace")
+        if not line:
+            raise ExecutionUnavailableError(message="vsock read returned empty response")
         return json.loads(line)
 
     def close(self) -> None:
@@ -209,6 +241,7 @@ class FirecrackerExecProvider:
 
         microvm_id = f"kudbee-{uuid.uuid4().hex[:12]}"
         api_socket = os.path.join(self._socket_dir, f"{microvm_id}.sock")
+        vsock_uds = os.path.join(self._socket_dir, f"{microvm_id}-vsock.sock")
         os.makedirs(self._socket_dir, exist_ok=True)
 
         started = time.monotonic()
@@ -219,7 +252,7 @@ class FirecrackerExecProvider:
             await self._configure(microvm_id, api_socket)
             await self._boot(api_socket)
 
-            vsock = _VsockClient(self._guest_cid, self._vsock_port)
+            vsock = _VsockClient(self._guest_cid, self._vsock_port, vsock_uds)
             vsock.connect()
             vsock.send_command(command)
 
@@ -228,7 +261,7 @@ class FirecrackerExecProvider:
             return_code = -1
             deadline = time.monotonic() + timeout
             while True:
-                remaining = max(0.1, deadline - time.monotonic())
+                remaining = max(1.0, deadline - time.monotonic())
                 try:
                     msg = vsock.read_response(remaining)
                 except (socket.timeout, TimeoutError):
@@ -312,9 +345,7 @@ class FirecrackerExecProvider:
             },
         )
         # Configure the virtio-vsock device so the host can reach the guest
-        # agent over AF_VSOCK. v1.16.1 requires uds_path; the guest CID is
-        # self._guest_cid. The Unix socket is a side-channel; the provider
-        # connects over AF_VSOCK directly.
+        # agent over the Firecracker vsock Unix socket.
         vsock_uds = os.path.join(self._socket_dir, f"{microvm_id}-vsock.sock")
         await self._api_put(
             api_socket,
