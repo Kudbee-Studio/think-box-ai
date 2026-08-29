@@ -319,6 +319,28 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_challenges(args: argparse.Namespace) -> int:
+    """List challenges for a token."""
+    store = _get_store()
+    challenges = store.list_challenges(args.token_id)
+
+    if not challenges:
+        print(f"no challenges found for {args.token_id}", file=sys.stderr)
+        return 1
+
+    for ch in challenges:
+        print(json.dumps({
+            "id": ch["id"],
+            "type": ch["type"],
+            "opponent": ch["opponent"],
+            "o": ch["o"],
+            "w": ch["w"],
+            "created_at": ch["created_at"],
+        }, indent=2))
+
+    return 0
+
+
 def cmd_challenge_human(args: argparse.Namespace) -> int:
     """Apply a human challenge (manual scoring)."""
     store = _get_store()
@@ -538,6 +560,11 @@ def main() -> int:
     p_lb = subparsers.add_parser("leaderboard", help="Show top-scoring tokens")
     p_lb.add_argument("--limit", type=int, default=10, help="Number of tokens to show")
     p_lb.set_defaults(func=cmd_leaderboard)
+
+    # thinkbox challenges <tid>
+    p_ch = subparsers.add_parser("challenges", help="List challenges for a token")
+    p_ch.add_argument("token_id", help="Token ID")
+    p_ch.set_defaults(func=cmd_challenges)
 
     args = parser.parse_args()
 
