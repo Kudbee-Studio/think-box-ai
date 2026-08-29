@@ -63,8 +63,66 @@ class OpenAICompatProvider:
 
         return await __import__('asyncio').to_thread(_fetch)
 
-    def stream(self, messages: list[Message], **kwargs: Any):
-        raise NotImplementedError("Streaming not implemented for OpenAICompatProvider")
+    async def stream(self, messages: list[Message], **kwargs: Any):
+        """Stream completion tokens from OpenAI-compatible endpoint.
+
+        Yields individual tokens as they arrive via SSE.
+        """
+        import json
+        import urllib.request
+        import urllib.error
+
+        payload = {
+            "model": self._model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "stream": True,
+        }
+        # Pass through additional params
+        for param in ["temperature", "max_tokens", "reasoning_effort", "diffusing", "realtime"]:
+            if param in kwargs:
+                payload[param] = kwargs[param]
+
+        req = urllib.request.Request(
+            f"{self._base_url}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+            },
+        )
+
+        loop = __import__('asyncio').get_event_loop()
+
+        def _stream():
+            try:
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    for line in resp:
+                        line = line.decode("utf-8").strip()
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
+                            return
+                        try:
+                            chunk = json.loads(data_str)
+                            delta = chunk["choices"][0].get("delta", {})
+                            token = delta.get("content", "")
+                            if token:
+                                yield token
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    from core.foundation.errors import ProviderRateLimitError
+                    raise ProviderRateLimitError() from e
+                raise
+
+        # Run blocking generator in thread and yield asynchronously
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(lambda: list(_stream()))
+            for token in await loop.run_in_executor(None, lambda: future.result()):
+                yield token
 
     def embed(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
         raise NotImplementedError("Embedding not supported by OpenAICompatProvider")

@@ -66,6 +66,18 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (req.url?.startsWith('/api/boxes/') && req.url.endsWith('/exec')) {
+        const boxId = req.url.split('/')[3];
+        let body = '';
+        req.on('data', (d) => { body += d; });
+        req.on('end', async () => {
+            const { command } = JSON.parse(body || '{}');
+            const result = await runCli(['exec', boxId, '--', ...command.split(' ')]);
+            res.end(JSON.stringify({ output: result.stdout, code: result.code }));
+        });
+        return;
+    }
+
     // Serve dashboard
     if (req.url === '/' || req.url === '/dashboard') {
         const html = fs.readFileSync(path.join(__dirname, 'public', 'dashboard.html'), 'utf-8');
