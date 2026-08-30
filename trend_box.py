@@ -46,15 +46,15 @@ class TrendResearcher:
         # For now, use heuristic scoring based on known trends
         
         scores = {
-            "perfume": {"demand": 94, "competition": 62, "margin": 68, "overall": 89},
-            "vitamin_c_serum": {"demand": 88, "competition": 71, "margin": 72, "overall": 85},
-            "portable_sealer": {"demand": 82, "competition": 45, "margin": 78, "overall": 82},
-            "wireless_fan": {"demand": 79, "competition": 53, "margin": 65, "overall": 76},
-            "smart_home_gadget": {"demand": 85, "competition": 68, "margin": 70, "overall": 80},
+            "perfume": {"demand": 94, "competition": 62, "margin": 68, "overall_score": 89},
+            "vitamin_c_serum": {"demand": 88, "competition": 71, "margin": 72, "overall_score": 85},
+            "portable_sealer": {"demand": 82, "competition": 45, "margin": 78, "overall_score": 82},
+            "wireless_fan": {"demand": 79, "competition": 53, "margin": 65, "overall_score": 76},
+            "smart_home_gadget": {"demand": 85, "competition": 68, "margin": 70, "overall_score": 80},
         }
         
         score = scores.get(name.lower().replace(" ", "_"), {
-            "demand": 50, "competition": 50, "margin": 50, "overall": 50
+            "demand": 50, "competition": 50, "margin": 50, "overall_score": 50
         })
         
         return {
