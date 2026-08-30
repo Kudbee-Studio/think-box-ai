@@ -237,3 +237,47 @@ contradicts it.
 **Next step:** `docs/architecture-v1.md` translates these findings into a
 design. `docs/inspection-report-2026-08-30.md` contains the full inspection
 details.
+
+---
+
+## 9. Infrastructure (verified 2026-08-30)
+
+The KUDBEE project manages production infrastructure on UpCloud. All infrastructure
+is documented in `docs/infrastructure/`.
+
+### Quick Reference
+
+| Resource | Count | Documentation |
+|----------|-------|---------------|
+| Servers | 10 | `docs/infrastructure/SERVERS.md` |
+| GPUs | 2x NVIDIA L40S | `docs/infrastructure/SERVERS.md` |
+| Public IPs | 12 | `docs/infrastructure/UPCLOUD.md` |
+| Floating IPs | 2 | `docs/infrastructure/NETWORK.md` |
+| Networks | 6+ | `docs/infrastructure/NETWORK.md` |
+| Routers | 3 | `docs/infrastructure/NETWORK.md` |
+
+### Access
+
+| Method | Status | Documentation |
+|--------|--------|---------------|
+| UpCloud API | ✅ Working | `docs/infrastructure/ACCESS.md` |
+| SSH (production) | ❌ Blocked (no key) | `docs/infrastructure/SSH.md` |
+| Web Console | ✅ Available | `docs/infrastructure/ACCESS.md` |
+
+### Key Infrastructure Findings
+
+1. **All production servers are publickey-only SSH** — no password auth
+2. **GPU server (kudbee-gpu-primary)** is alive and reachable via private IP but SSH blocked
+3. **Think Box v1 (kudbee-host-v1-mercury)** was deployed from UpCloud K8s 1.35 template
+4. **Kubernetes is NOT running** on any server (ports 6443, 10250, 2379 all closed)
+5. **Mercury 2 was NOT found** in this environment (investigation pending)
+6. **Utility network routing** works between servers in fi-hel2 zone
+7. **Floating IPs** are attached but need OS-level configuration to route
+
+### Disaster Recovery
+
+If the environment is lost, follow `docs/infrastructure/RECOVERY.md`.
+
+### Agent Onboarding
+
+New agents should read `docs/infrastructure/AGENT-FIRST-15-MINUTES.md` first.
