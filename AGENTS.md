@@ -305,7 +305,114 @@ features before the foundation is solid.
 
 ---
 
-## 12. Enforcement
+## 12. Infrastructure Operations
+
+### 12.1 UpCloud API
+
+The project manages infrastructure on UpCloud. All API operations MUST follow
+the verified patterns in `docs/infrastructure/UPCLOUD-API-REFERENCE.md`.
+
+**CRITICAL STOP FORMAT:**
+```json
+{"stop_server": {"stop_type": "hard", "timeout": "60"}}
+```
+NEVER use `{"server": {...}}` for stop — returns `UNKNOWN_ATTRIBUTE`.
+
+**CRITICAL SSH WAIT TIME:**
+After a server reaches `started` state, wait **60 seconds** (not 30) before
+attempting SSH. The SSH daemon needs time to start even after the OS is running.
+
+### 12.2 SSH Access
+
+- Account-level SSH keys are stored in UpCloud Control Panel, NOT locally
+- New servers need SSH key added at creation via `login_user.ssh_keys`
+- Emergency console access: UpCloud Control Panel → Server → Console
+- Use `StrictHostKeyChecking=accept-new` to avoid host key prompts
+
+### 12.3 Server Lifecycle
+
+1. Create ONE server at a time
+2. Wait for `started` state
+3. Wait additional **60 seconds** for SSH
+4. Verify SSH access before creating next server
+5. Use rate limiter (`rate_limiter.py`) for all API calls
+
+### 12.4 Server Creation (VERIFIED)
+
+**Source:** https://developers.upcloud.com/1.3/8-servers/#create-server
+
+#### IPv6 TOGGLE
+
+IPv6 is **per-interface**, NOT automatic. To enable: include an interface with `"family": "IPv6"`. To disable: omit it.
+
+```json
+{
+  "networking": {
+    "interfaces": {
+      "interface": [
+        {
+          "ip_addresses": {"ip_address": [{"family": "IPv4"}]},
+          "type": "public"
+        },
+        {
+          "ip_addresses": {"ip_address": [{"family": "IPv4"}]},
+          "type": "utility"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### SSH KEY INJECTION
+
+SSH keys are injected via **metadata service** (http://169.254.169.254/metadata/v1/). Two requirements:
+
+1. Enable metadata: `"metadata": "yes"`
+2. Provide keys in `login_user.ssh_keys` block
+
+```json
+{
+  "login_user": {
+    "username": "root",
+    "ssh_keys": {
+      "ssh_key": ["ssh-ed25519 AAAA... user@host"]
+    }
+  }
+}
+```
+
+#### METADATA SERVICE
+
+- Can be enabled at creation or later via modify
+- Required for cloud-init templates (Ubuntu 22.04+)
+- Query metadata: `curl http://169.254.169.254/metadata/v1.json`
+
+#### CLONING TEMPLATES
+
+When cloning a cloud-init template, metadata MUST be enabled:
+
+```json
+{
+  "server": {
+    "metadata": "yes",
+    "storage_devices": {
+      "storage_device": [{
+        "action": "clone",
+        "storage": "template-uuid"
+      }]
+    }
+  }
+}
+```
+
+#### SSH WAIT TIME
+
+Official docs say 30 seconds. **Be proactive: wait 60 seconds.** SSH daemon needs time to start after OS boots.
+
+---
+
+## 13. Enforcement
 
 These rules are enforced by:
 - Code review
