@@ -76,11 +76,13 @@ def status():
             print(f"  {s.strip()}")
     
     print("\n☁️  Cloud APIs:")
-    mercury = ssh_cmd("python3 /opt/kudbee/mercury2.py 2>/dev/null || echo 'Mercury not configured'")
-    print(f"  Mercury 2: {mercury[:100]}")
+    mercury = ssh_cmd("python3 /opt/kudbee/mercury2.py 2>/dev/null || echo 'Not configured'")
+    if mercury:
+        print(f"  Mercury 2: {mercury[:100]}")
     
     print("\n📦 Inception API:")
-    print(f"  Key: vck_4Bcs...{ssh_cmd('tail -c 10 /opt/kudbee/inception_config.json 2>/dev/null | grep -o "[^\"]*$"')}")
+    key_tail = ssh_cmd("tail -c 10 /opt/kudbee/inception_config.json 2>/dev/null")
+    print(f"  Key ending: ...{key_tail[-6:] if key_tail else 'not found'}")
     print(f"  Status: Configured (needs SSL debug)")
 
 
