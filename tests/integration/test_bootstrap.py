@@ -124,7 +124,7 @@ class TestRuntimeLoopIntegration(unittest.TestCase):
                 tb = agent.create_think_box(goal)
 
                 planner = Planner(task_memory=task_memory)
-                steps = planner.plan(tb)
+                steps = asyncio.run(planner.plan(tb))
                 self.assertGreater(len(steps), 0)
 
                 mock_store = MagicMock()
