@@ -1,66 +1,138 @@
-# UpCloud Infrastructure Skill
+# KUDBEE Infrastructure Skill — UpCloud Operations
 
-**For:** All KUDBEE coding agents
-**Purpose:** Never guess UpCloud API operations again
+**CRITICAL:** This document contains VERIFIED, TESTED patterns.
+Never guess. Always reference this document.
 
-## First Run Checklist
+---
 
-1. Read `docs/infrastructure/UPCLOUD-API-REFERENCE.md` — contains VERIFIED API formats
-2. Read `docs/infrastructure/AGENT-FIRST-15-MINUTES.md` — first-run procedure
-3. Read `docs/infrastructure/SERVERS.md` — current server inventory
-4. NEVER guess JSON payload formats — always reference the API reference
+## Rate Limiter
 
-## Critical Rules
+ALWAYS use the rate limiter for API calls:
 
-1. **ALWAYS** read official API docs before using an endpoint: https://developers.upcloud.com/1.3/
-2. **NEVER** guess JSON wrapper keys — wrong key = `UNKNOWN_ATTRIBUTE`
-3. **ALWAYS** stop servers before deleting: `stop_server` → wait `stopped` → `DELETE`
-4. **NEVER** send secrets through chat — write to `.env` files on servers directly
-5. **ALWAYS** use `?storages=true` when deleting to clean up orphaned disks
-
-## Verified Stop Command
-
-```bash
-curl -s -X POST \
-  -H "Authorization: Bearer $THINKBOX_UPCLOUD_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  "https://api.upcloud.com/1.3/server/{uuid}/stop" \
-  -d '{"stop_server": {"stop_type": "hard", "timeout": "60"}}'
+```python
+from rate_limiter import UpCloudAPI
+api = UpCloudAPI()
 ```
 
-## Verified Delete Command
+The rate limiter enforces:
+- 2-second minimum delay between API calls
+- 1 concurrent request max
+- Exponential backoff on retries
 
-```bash
-curl -s -X DELETE \
-  -H "Authorization: Bearer $THINKBOX_UPCLOUD_API_TOKEN" \
-  "https://api.upcloud.com/1.3/server/{uuid}?storages=true"
+---
+
+## Server Lifecycle
+
+### Create Server (VERIFIED)
+```python
+api.create_server(
+    title='my-server',
+    hostname='my-server',
+    plan='1xCPU-1GB',
+    ssh_keys=['ssh-ed25519 AAAA...']
+)
 ```
 
-## Current Servers (2026-08-30)
+### Stop Server (VERIFIED)
+```python
+api.stop_server(uuid, hard=True)
+api.wait_for_stopped(uuid)
+```
 
-| Server | UUID | Purpose | SSH |
-|--------|------|---------|-----|
-| kudbee-gpu-primary | 002b8e55 | GPU compute (2x L40S) | ❌ Blocked |
-| kudbee-host-v1-mercury | 000d8567 | Think Box v1 / Mercury 2 | ❌ Blocked |
+**JSON format:** `{"stop_server": {"stop_type": "hard", "timeout": "60"}}`
 
-## Getting SSH Access
+### Delete Server (VERIFIED)
+```python
+api.delete_server(uuid)
+# OR
+api.delete_server_full(uuid)  # stop + wait + delete
+```
 
-All production servers are publickey-only. To gain access:
+### Start Server (VERIFIED)
+```python
+api.start_server(uuid)
+api.wait_for_started(uuid)
+```
 
-1. Use UpCloud web console → Server → Console (emergency VNC/serial)
-2. Add KILO public key to `~/.ssh/authorized_keys`
-3. KILO public key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILZ6oDsNJowkIO3rrU7EbqvSvifZZTEKKfW44hotnZBc kilo-agent@kudbee`
+---
+
+## SSH Access
+
+### Current Working Key
+- Private key: `~/.ssh/kilocloud`
+- Public key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILZ6oDsNJowkIO3rrU7EbqvSvifZZTEKKfW44hotnZBc kilo-agent@kudbee`
+
+### SSH Command
+```bash
+ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/kilocloud root@<ip>
+```
+
+### Jump Host Pattern
+```bash
+ssh -o ProxyJump=root@<foothold-ip> root@<target-private-ip>
+```
+
+---
+
+## Common Mistakes (NEVER DO THESE)
+
+1. **Wrong stop JSON:** `{"server": {...}}` → Use `{"stop_server": {...}}`
+2. **Delete while running:** Always stop first, wait for `stopped`, then delete
+3. **Multiple concurrent servers:** Create ONE at a time, verify SSH works, then create next
+4. **Not waiting long enough:** Cloud-init takes 2-5 minutes. Wait for `started` state.
+5. **Forgetting to wait after stop:** Stop is async. Poll until `stopped`.
+
+---
+
+## Server Configurations
+
+### Foothold Server
+- Plan: `1xCPU-1GB`
+- Storage: 10 GB maxiops
+- SSH: KILO key
+- Purpose: Jump host to reach other servers
+
+### GPU Server
+- Plan: `GPU-SPOT-12xCPU-128GB-2xL40S`
+- Storage: 300 GB maxiops
+- SSH: KILO key
+- User-data: Installs Docker, NVIDIA drivers, Inception API key
+
+---
 
 ## Inception API Key
 
-Must be placed in `~/.env` on target servers:
 ```
 INCEPTION_API_KEY=sk_63c907f6e5c65a4fd03d1bafcd81e895
 ```
 
-## Emergency Procedures
+Install on server:
+```bash
+echo 'INCEPTION_API_KEY=sk_63c907f6e5c65a4fd03d1bafcd81e895' > /root/.env
+chmod 600 /root/.env
+```
 
-- **Server won't stop?** Verify JSON format: `{"stop_server": {"stop_type": "hard", "timeout": "60"}}`
-- **Server won't delete?** Must be in `stopped` state first
-- **SSH denied?** Use web console emergency console, add key
-- **Lost everything?** Follow `docs/infrastructure/RECOVERY.md`
+---
+
+## IPv6
+
+IPv6 is toggleable at server creation. Public networks have both IPv4 and IPv6.
+To disable IPv6, do not assign an IPv6 address at creation time.
+
+---
+
+## Emergency Access
+
+If SSH is blocked:
+1. UpCloud Control Panel → Server → Console (emergency VNC)
+2. Add KILO public key to `/root/.ssh/authorized_keys`
+3. Or enable password auth via cloud-init
+
+---
+
+## Reference
+
+- UpCloud API docs: https://developers.upcloud.com/1.3/
+- UpCloud server ops: https://developers.upcloud.com/1.3/8-servers/
+- Rate limiter: `rate_limiter.py`
+- Bootstrap: `bootstrap.py`
