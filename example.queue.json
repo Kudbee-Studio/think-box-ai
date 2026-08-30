@@ -1,0 +1,32 @@
+{
+    "id": "kudbee-demo-001",
+    "created": "2026-08-30T09:25:00Z",
+    "priority": "high",
+    "items": [
+        {
+            "task": "Research the top 5 AI music generation companies and summarize their strengths and weaknesses",
+            "type": "research",
+            "output_format": "markdown"
+        },
+        {
+            "task": "Design a KUDBEE Think Box architecture document that explains how AI agents can be deployed in isolated environments with music generation capabilities",
+            "type": "architecture",
+            "output_format": "markdown"
+        },
+        {
+            "task": "Write a Python script that demonstrates how to use the Inception API for music generation with the ACE-Step model",
+            "type": "code",
+            "output_format": "python"
+        },
+        {
+            "task": "Create a KUDBEE investor pitch deck outline that highlights the token economy, think boxes, and autonomous agent capabilities",
+            "type": "pitch",
+            "output_format": "markdown"
+        }
+    ],
+    "config": {
+        "model": "gpt-oss:120b",
+        "temperature": 0.7,
+        "max_tokens": 4096
+    }
+}
