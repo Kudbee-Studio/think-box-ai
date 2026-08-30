@@ -203,6 +203,88 @@ body {
     margin-top: 1rem;
     background: #000;
 }
+
+/* Worker Progress */
+.worker-progress {
+    margin-bottom: 1.5rem;
+}
+.progress-bar-lg {
+    height: 32px;
+    background: #1a1a2e;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #333;
+}
+.progress-fill-lg {
+    height: 100%;
+    border-radius: 16px;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #000;
+    min-width: 60px;
+}
+.progress-fill-lg.idle { background: #333; color: #888; }
+.progress-fill-lg.working { background: linear-gradient(90deg, #00d4ff, #00ff88); }
+.progress-fill-lg.warning { background: linear-gradient(90deg, #ffaa00, #ff6600); }
+.progress-fill-lg.error { background: linear-gradient(90deg, #ff4444, #ff0000); color: #fff; }
+.worker-task-name {
+    font-size: 0.9rem;
+    color: #00d4ff;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+.worker-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.3rem;
+}
+
+/* Resource Bars */
+.resource-bar {
+    height: 20px;
+    background: #1a1a2e;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.3rem 0;
+    border: 1px solid #222;
+}
+.resource-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #000;
+}
+.resource-fill.low { background: #00ff88; }
+.resource-fill.medium { background: #ffb74d; }
+.resource-fill.high { background: #ff4081; color: #fff; }
+
+/* Ollama Status */
+.ollama-model {
+    background: #1a1a2e;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 4px 0;
+    font-family: monospace;
+    font-size: 0.8rem;
+    border-left: 3px solid #00ff88;
+}
+
+/* Temperature */
+.temp { color: #00ff88; }
+.temp.hot { color: #ffb74d; }
+.temp.danger { color: #ff4081; }
 </style>
 </head>
 <body>
@@ -219,6 +301,72 @@ body {
 
 <div class="grid">
 
+<!-- Worker Progress Panel -->
+<div class="panel">
+    <h2>⚡ Worker Progress</h2>
+    <div class="worker-progress">
+        <div class="worker-task-name" id="workerTask">Waiting for work...</div>
+        <div class="progress-bar-lg">
+            <div class="progress-fill-lg idle" id="workerProgress" style="width: 0%">0%</div>
+        </div>
+        <div class="worker-meta">
+            <span id="workerStatus">IDLE</span>
+            <span id="workerStarted">Started: --</span>
+        </div>
+    </div>
+    <div style="margin-top:1rem;">
+        <div class="metric-row">
+            <span class="metric-label">Uptime</span>
+            <span class="metric-value green" id="uptime">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Server IP</span>
+            <span class="metric-value cyan" id="serverIp">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- System Resources -->
+<div class="panel">
+    <h2>📊 System Resources</h2>
+    <div style="margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+            <span>CPU Usage</span>
+            <span id="cpuText">--%</span>
+        </div>
+        <div class="resource-bar">
+            <div class="resource-fill low" id="cpuBar" style="width: 0%">0%</div>
+        </div>
+    </div>
+    <div style="margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+            <span>Memory</span>
+            <span id="memText">-- / -- GB</span>
+        </div>
+        <div class="resource-bar">
+            <div class="resource-fill low" id="memBar" style="width: 0%">0%</div>
+        </div>
+    </div>
+    <div style="margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+            <span>Disk (Root)</span>
+            <span id="diskText">--%</span>
+        </div>
+        <div class="resource-bar">
+            <div class="resource-fill low" id="diskBar" style="width: 0%">0%</div>
+        </div>
+    </div>
+    <div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+            <span>Disk (Video Models)</span>
+            <span id="diskVideoText">--%</span>
+        </div>
+        <div class="resource-bar">
+            <div class="resource-fill low" id="diskVideoBar" style="width: 0%">0%</div>
+        </div>
+    </div>
+</div>
+
 <!-- Agent Status Panel -->
 <div class="panel">
     <h2>🤖 Agent States</h2>
@@ -229,7 +377,7 @@ body {
 
 <!-- System Health -->
 <div class="panel">
-    <h2>📊 System Health</h2>
+    <h2>🏥 System Health</h2>
     <div id="healthMetrics">
         <div class="metric-row">
             <span class="metric-label">Total Agents</span>
@@ -266,6 +414,18 @@ body {
     </div>
 </div>
 
+<!-- Ollama Status -->
+<div class="panel">
+    <h2>🧠 Ollama Server</h2>
+    <div id="ollamaStatus">
+        <div class="metric-row">
+            <span class="metric-label">Status</span>
+            <span class="metric-value" id="ollamaState">--</span>
+        </div>
+        <div id="ollamaModels"></div>
+    </div>
+</div>
+
 <!-- Agent Topology -->
 <div class="panel">
     <h2>🕸️ Swarm Topology</h2>
@@ -299,6 +459,7 @@ body {
 
 <script>
 const API = 'http://87.58.149.157:8081';
+const STATUS_API = 'http://87.58.149.157:8765';
 
 async function fetchJSON(url) {
     try {
@@ -327,6 +488,103 @@ function stateDot(state) {
     if (state.includes('STANDBY')) return '🟡';
     if (state.includes('BLOCKED')) return '🔴';
     return '⚫';
+}
+
+function resourceClass(pct) {
+    if (pct > 80) return 'high';
+    if (pct > 50) return 'medium';
+    return 'low';
+}
+
+async function refreshWorkerProgress() {
+    const data = await fetchJSON(`${STATUS_API}/`);
+    if (data.error) {
+        document.getElementById('workerTask').textContent = 'Worker monitor offline';
+        document.getElementById('workerProgress').className = 'progress-fill-lg error';
+        document.getElementById('workerProgress').style.width = '100%';
+        document.getElementById('workerProgress').textContent = 'OFFLINE';
+        return;
+    }
+    
+    const worker = data.worker_status || {};
+    const progress = worker.progress || 0;
+    const status = worker.status || 'idle';
+    const task = worker.current_task || 'Waiting for work';
+    
+    document.getElementById('workerTask').textContent = task;
+    document.getElementById('workerStatus').textContent = status.toUpperCase();
+    document.getElementById('workerStarted').textContent = 'Started: ' + (worker.started_at ? worker.started_at.slice(0, 19) : '--');
+    
+    const progressEl = document.getElementById('workerProgress');
+    progressEl.style.width = progress + '%';
+    progressEl.textContent = progress + '%';
+    progressEl.className = 'progress-fill-lg ' + (status === 'working' ? 'working' : status === 'error' ? 'error' : 'idle');
+    
+    // Uptime and IP
+    document.getElementById('uptime').textContent = data.uptime || '--';
+    const network = data.network || [];
+    const publicIp = network.find(n => n.iface === 'eth0');
+    document.getElementById('serverIp').textContent = publicIp ? publicIp.ip : '--';
+}
+
+async function refreshResources() {
+    const data = await fetchJSON(`${STATUS_API}/`);
+    if (data.error) return;
+    
+    // CPU
+    const cpu = data.cpu || 0;
+    document.getElementById('cpuText').textContent = cpu.toFixed(1) + '%';
+    const cpuBar = document.getElementById('cpuBar');
+    cpuBar.style.width = cpu + '%';
+    cpuBar.textContent = cpu.toFixed(0) + '%';
+    cpuBar.className = 'resource-fill ' + resourceClass(cpu);
+    
+    // Memory
+    const mem = data.memory || {};
+    const memPct = mem.percent || 0;
+    const memUsedGB = (mem.used_mb / 1024).toFixed(1);
+    const memTotalGB = (mem.total_mb / 1024).toFixed(1);
+    document.getElementById('memText').textContent = `${memUsedGB} / ${memTotalGB} GB`;
+    const memBar = document.getElementById('memBar');
+    memBar.style.width = memPct + '%';
+    memBar.textContent = memPct.toFixed(0) + '%';
+    memBar.className = 'resource-fill ' + resourceClass(memPct);
+    
+    // Disk
+    const disk = data.disk || {};
+    for (const mount in disk) {
+        const info = disk[mount];
+        if (mount === '/') {
+            document.getElementById('diskText').textContent = info.percent + '% (' + info.used + '/' + info.total + ')';
+            const diskBar = document.getElementById('diskBar');
+            diskBar.style.width = info.percent + '%';
+            diskBar.textContent = info.percent + '%';
+            diskBar.className = 'resource-fill ' + resourceClass(info.percent);
+        } else if (mount.includes('video')) {
+            document.getElementById('diskVideoText').textContent = info.percent + '% (' + info.used + '/' + info.total + ')';
+            const diskVideoBar = document.getElementById('diskVideoBar');
+            diskVideoBar.style.width = info.percent + '%';
+            diskVideoBar.textContent = info.percent + '%';
+            diskVideoBar.className = 'resource-fill ' + resourceClass(info.percent);
+        }
+    }
+}
+
+async function refreshOllama() {
+    const data = await fetchJSON(`${STATUS_API}/`);
+    if (data.error) return;
+    
+    const ollama = data.ollama || {};
+    const running = ollama.running || false;
+    document.getElementById('ollamaState').textContent = running ? '🟢 Running' : '🔴 Stopped';
+    document.getElementById('ollamaState').className = 'metric-value ' + (running ? 'green' : 'red');
+    
+    let modelsHtml = '';
+    for (const model of (ollama.models || [])) {
+        const sizeGB = (model.size / (1024**3)).toFixed(1);
+        modelsHtml += `<div class="ollama-model">${model.name} (${sizeGB} GB)</div>`;
+    }
+    document.getElementById('ollamaModels').innerHTML = modelsHtml || '<div style="color:#666;font-size:0.8rem;">No models loaded</div>';
 }
 
 async function refreshAgents() {
@@ -376,30 +634,45 @@ async function refreshHealth() {
 }
 
 async function refreshGPU() {
-    // GPU data from nvidia-smi (embedded in page load, refreshed via separate endpoint if available)
-    const gpuData = [
-        { id: 0, name: 'NVIDIA L40S', used: 8727, total: 46068 },
-        { id: 1, name: 'NVIDIA L40S', used: 3, total: 46068 },
-        { id: 2, name: 'NVIDIA L40S', used: 3, total: 46068 },
-    ];
+    const data = await fetchJSON(`${STATUS_API}/`);
+    if (data.error) {
+        // Fallback to hardcoded
+        const gpuData = [
+            { id: 0, name: 'NVIDIA L40S', used: 8727, total: 46068, temp: 45, util: 0 },
+            { id: 1, name: 'NVIDIA L40S', used: 3, total: 46068, temp: 40, util: 0 },
+            { id: 2, name: 'NVIDIA L40S', used: 3, total: 46068, temp: 40, util: 0 },
+        ];
+        renderGPU(gpuData);
+        return;
+    }
     
+    renderGPU(data.gpu || []);
+}
+
+function renderGPU(gpuData) {
     let html = '';
     for (const gpu of gpuData) {
-        const pct = (gpu.used / gpu.total * 100).toFixed(1);
+        if (gpu.error) {
+            html += `<div style="color:#ff4081;font-size:0.8rem;">${gpu.error}</div>`;
+            continue;
+        }
+        const pct = ((gpu.mem_used / gpu.mem_total) * 100).toFixed(1);
         const cls = pct > 80 ? 'high' : pct > 30 ? 'medium' : 'low';
+        const tempClass = gpu.temp > 80 ? 'danger' : gpu.temp > 70 ? 'hot' : 'temp';
         html += `
-            <div style="margin-bottom:0.8rem;">
+            <div style="margin-bottom:1rem;">
                 <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
-                    <span>GPU ${gpu.id}: ${gpu.name}</span>
-                    <span>${gpu.used} MB / ${gpu.total} MB (${pct}%)</span>
+                    <span>GPU ${gpu.index}: ${gpu.name}</span>
+                    <span class="${tempClass}">${gpu.temp}°C | ${gpu.gpu_util}% util</span>
                 </div>
                 <div class="gpu-bar">
                     <div class="gpu-fill ${cls}" style="width:${pct}%"></div>
                 </div>
+                <div style="font-size:0.7rem;color:#666;">${gpu.mem_used} MB / ${gpu.mem_total} MB (${pct}%)</div>
             </div>
         `;
     }
-    document.getElementById('gpuStatus').innerHTML = html;
+    document.getElementById('gpuStatus').innerHTML = html || '<div style="color:#666;">No GPUs detected</div>';
 }
 
 async function refreshTopology() {
@@ -445,6 +718,9 @@ function updateClock() {
 
 async function refreshAll() {
     await Promise.all([
+        refreshWorkerProgress(),
+        refreshResources(),
+        refreshOllama(),
         refreshAgents(),
         refreshHealth(),
         refreshGPU(),
@@ -467,7 +743,6 @@ setInterval(refreshAll, 5000);
 
 // Simulate agent activity (for demo)
 setInterval(async () => {
-    // Randomly update an agent heartbeat to show live data
     const agents = await fetchJSON(`${API}/api/agents`);
     if (agents.agents && agents.agents.length > 0) {
         const agent = agents.agents[Math.floor(Math.random() * agents.agents.length)];
