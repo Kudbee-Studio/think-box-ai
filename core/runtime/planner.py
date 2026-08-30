@@ -11,6 +11,7 @@ class Step:
     id: str
     description: str
     action: str
+    command: str | None = None
     expected_output: dict[str, Any] | None = None
 
 
