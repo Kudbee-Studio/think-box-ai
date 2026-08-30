@@ -1,93 +1,114 @@
-# Mercury 2
+# Mercury 2 + Inception Integration
 
 **Last Updated:** 2026-08-30
+**Status:** Integration in progress
 
 ---
 
-## Current State
+## Overview
 
-| Item | Status |
-|------|--------|
-| Mercury 2 found in workspace | ❌ NOT FOUND |
-| Mercury 2 process on any server | ❌ NOT FOUND |
-| Mercury 2 config files | ❌ NOT FOUND |
-| Mercury 2 environment variables | ❌ NOT FOUND |
-| Mercury 2 documentation | ❌ NOT FOUND |
-| Mercury 2 in code repository | ❌ NOT FOUND |
+Mercury 2 is the AI model inference platform that powers KUDBEE's Think Token.
+Inception is the model provider API used by Mercury 2 / Think Box.
 
 ---
 
-## What We Know
+## Inception API
 
-Mercury 2 is referenced by the user as:
-- The platform/API for the Think Token
-- Something that was running on "Think Box v1" (kudbee-host-v1-mercury)
-- Something KUDBEE should integrate with
+| Field | Value |
+|-------|-------|
+| Provider | Inception |
+| API Key Name | INCEPTION_API_KEY |
+| API Key Location | `~/.env` on target servers |
+| Key Format | `sk_63c907f6e5c65a4fd03d1bafcd81e895` |
+| Token Balance | ~99,000,000+ tokens remaining |
+| Purpose | Model inference via Think Box / Mercury 2 |
 
-## What We Don't Know
+### Where the key must live:
 
-- Mercury 2's source code location
-- Mercury 2's runtime (Docker? K8s pod? Bare binary?)
-- Mercury 2's API endpoints
-- Mercury 2's authentication mechanism
-- Mercury 2's database
-- Mercury 2's current deployment status
+| Server | Path | Status |
+|--------|------|--------|
+| kudbee-host-v1-mercury | `~/.env` | Target (needs SSH) |
+| kudbee-gpu-primary | `~/.env` | Target (needs SSH) |
+| kilo-gateway | `~/.env` | Target (just created) |
 
----
+### .env file format:
+```
+INCEPTION_API_KEY=sk_63c907f6e5c65a4fd03d1bafcd81e895
+```
 
-## Investigation Results
-
-### Searched Locations
-
-| Location | Result |
-|----------|--------|
-| Workspace files | No mercury references |
-| Environment variables | No mercury variables |
-| Running processes (foothold) | No mercury processes |
-| Docker containers (foothold) | No containers |
-| Kubernetes (all servers) | No K8s running |
-| Port scans (all servers) | No Mercury-like services |
-| Storage templates | No Mercury template |
-
-### Hypotheses
-
-1. **Mercury 2 was a Kubernetes workload** that was decommissioned when the cluster was torn down
-2. **Mercury 2 runs in a different environment** (different cloud, different account)
-3. **Mercury 2 needs to be redeployed** from source
-4. **Mercury 2 is the Upstash Box** (unlikely — different service model)
+### Permissions:
+```bash
+chmod 600 ~/.env
+```
 
 ---
 
-## Mercury ↔ KUDBEE Integration Plan
+## Mercury 2
 
-**Deferred** pending Mercury 2 discovery.
-
-**Integration points to investigate:**
-1. Does Mercury 2 provide model inference? → KUDBEE Provider interface
-2. Does Mercury 2 manage tokens? → KUDBEE Token hierarchy
-3. Does Mercury 2 provide agent capabilities? → KUDBEE Capability registry
-4. Does Mercury 2 have its own memory? → KUDBEE Memory layer
+| Field | Value |
+|-------|-------|
+| Purpose | AI model inference platform |
+| Relationship to KUDBEE | Provides model inference for Think Token |
+| Original host | kudbee-host-v1-mercury (Think Box v1) |
+| Deployment method | Kubernetes workload (CAPU) |
+| Current status | Not running (K8s cluster down) |
 
 ---
 
-## Recovery Steps
+## Architecture (Target)
 
-To find Mercury 2:
+```
+INCEPTION API (sk_63c9...)
+    │
+    ▼
+MERCURY 2 (model inference platform)
+    │
+    ▼
+KUDBEE (agent orchestration + token economics)
+    │
+    ▼
+THINK BOX (isolated agent execution)
+    │
+    ├─ Intent → Opportunity → Capability → Outcome → Proof
+    ├─ THINK HATS (professional capabilities)
+    ├─ THINK COMMONS (collective intelligence)
+    └─ THINK SWARM (agent coordination)
+    │
+    ▼
+THINK TOKEN (THNK) — rewards based on Proof/Jury score
+```
 
-1. **Gain SSH access to kudbee-host-v1-mercury** via web console
-2. Search for Mercury artifacts:
-   ```bash
-   find / -name "*mercury*" 2>/dev/null
-   find / -name "*thing*" -o -name "*think*token*" 2>/dev/null
-   docker images 2>/dev/null | grep -i mercury
-   crictl images 2>/dev/null | grep -i mercury
-   ls /opt/ /srv/ /var/lib/ 2>/dev/null
-   ```
-3. Check for deployment manifests:
-   ```bash
-   find / -name "*.yaml" -o -name "*.yml" 2>/dev/null | head -20
-   ```
-4. Check systemd services:
-   ```bash
-   systemctl list-units --all | grep -i mercury
-   ```
+---
+
+## Integration Points
+
+### Mercury 2 → KUDBEE
+- Model inference provider (register in `core/providers/`)
+- Capability discovery for agents
+- Token consumption tracking
+
+### KUDBEE → Mercury 2
+- Agent orchestration
+- Memory persistence
+- Governance and audit
+- Token economics (THNK rewards)
+
+---
+
+## Immediate Action Required
+
+1. **Gain SSH to kilo-gateway** (87.58.149.190) — server is up but SSH not responding
+2. **Write `~/.env` with INCEPTION_API_KEY** on accessible server
+3. **Verify Inception API connectivity** — test that the key works
+4. **Deploy Mercury 2** to kilo-gateway or kudbee-host-v1-mercury
+5. **Register Mercury as KUDBEE provider** in `core/providers/`
+
+---
+
+## Lessons Learned
+
+1. **Never send secrets through chat** — write directly to server `.env` files
+2. **SSH keys must be account-level in UpCloud** to work across servers
+3. **New servers take 2-5 minutes** for cloud-init to finish and SSH to work
+4. **Floating IPs need OS-level config** to route properly
+5. **Utility network routing** works between servers in same zone

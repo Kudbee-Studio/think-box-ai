@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-08-30 — CRITICAL: UpCloud Stop API Format
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-08-30 |
+| Discovery | UpCloud stop API requires `{"stop_server": {"stop_type": "hard", "timeout": "60"}}` — NOT `{"server": {...}}` |
+| Evidence | Official docs at https://developers.upcloud.com/1.3/8-servers/ confirm the wrapper key is `stop_server` |
+| Architectural Consequence | Using wrong key causes `UNKNOWN_ATTRIBUTE` error; servers won't stop, can't be deleted |
+| Decision | Created `UPCLOUD-API-REFERENCE.md` with verified formats for ALL operations |
+| Status | VERIFIED |
+
+**LESSON:** Always read official API docs before using an endpoint. Never guess JSON format.
+**REFERENCE:** `docs/infrastructure/UPCLOUD-API-REFERENCE.md`
+
+---
+
+## 2026-08-30 — Server Cleanup
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-08-30 |
+| Discovery | 8 orphan/temp servers were wasting resources |
+| Evidence | Server inventory showed 10 servers, only 2 needed |
+| Architectural Consequence | Cleaned down to 2 servers: kudbee-gpu-primary, kudbee-host-v1-mercury |
+| Decision | Deleted all non-essential servers using verified stop+delete procedure |
+| Status | VERIFIED |
+
+---
+
 ## 2026-08-30 — Initial Discovery
 
 | Field | Value |

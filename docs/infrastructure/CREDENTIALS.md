@@ -50,6 +50,27 @@
 | Usage | Git HTTPS authentication |
 | Scope | Kudbee-Studio/think-box-ai repository |
 
+### Inception API Key
+
+| Field | Value |
+|-------|-------|
+| Name | INCEPTION_API_KEY |
+| Source | User-provided |
+| Location | `~/.env` on target UpCloud servers |
+| Format | `sk_63c907f6e5c65a4fd03d1bafcd81e895` |
+| Token Balance | ~99,000,000+ tokens |
+| Purpose | Model inference for Mercury 2 / Think Box |
+| Required On | kudbee-host-v1-mercury, kudbee-gpu-primary |
+
+**To install on a server:**
+```bash
+# SSH into server, then:
+echo 'INCEPTION_API_KEY=sk_63c907f6e5c65a4fd03d1bafcd81e895' > ~/.env
+chmod 600 ~/.env
+```
+
+---
+
 ### Upstash Box API Key
 
 | Field | Value |
