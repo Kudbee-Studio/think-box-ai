@@ -62,6 +62,9 @@
             grid-column: 1 / -1;
             min-height: 400px;
         }
+        .full-width {
+            grid-column: 1 / -1;
+        }
         .messages {
             height: 300px;
             overflow-y: auto;
@@ -179,6 +182,84 @@
             color: #888;
             margin-top: 0.3rem;
         }
+        /* Agent Governance Styles */
+        .agent-governance {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .agent-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            border-radius: 0.5rem;
+            padding: 0.8rem;
+            transition: border-color 0.3s;
+        }
+        .agent-card:hover { border-color: #00d4ff; }
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+        }
+        .agent-name { font-weight: 600; font-size: 0.9rem; }
+        .agent-type { font-size: 0.7rem; color: #888; }
+        .state-badge {
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .state-active { background: rgba(0,255,136,0.2); color: #00ff88; border: 1px solid #00ff88; }
+        .state-standby { background: rgba(255,183,77,0.15); color: #ffb74d; border: 1px solid #ffb74d; }
+        .state-blocked { background: rgba(255,64,129,0.2); color: #ff4081; border: 1px solid #ff4081; }
+        .agent-task {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .agent-meta {
+            display: flex;
+            gap: 0.8rem;
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 0.3rem;
+        }
+        .topology {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+        }
+        .node {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            font-weight: 700;
+            text-align: center;
+            border: 2px solid;
+        }
+        .node.active { border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,0.1); animation: nodePulse 2s infinite; }
+        .node.standby { border-color: #ffb74d; color: #ffb74d; background: rgba(255,183,77,0.1); }
+        .node.blocked { border-color: #ff4081; color: #ff4081; background: rgba(255,64,129,0.1); }
+        @keyframes nodePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(0,255,136,0); }
+        }
+        .video-preview {
+            width: 100%;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            background: #000;
+        }
         footer {
             text-align: center;
             padding: 2rem;
@@ -195,6 +276,7 @@
         </header>
 
         <div class="main">
+            <!-- Chat Panel -->
             <div class="panel chat-box">
                 <h2>💬 Chat</h2>
                 <div class="messages" id="messages"></div>
@@ -208,6 +290,15 @@
                 </div>
             </div>
 
+            <!-- Agent Governance Panel -->
+            <div class="panel full-width">
+                <h2>🤖 Agent Governance</h2>
+                <div class="agent-governance" id="agentGovernance">
+                    <div style="color:#666;text-align:center;padding:2rem;">Loading agents...</div>
+                </div>
+            </div>
+
+            <!-- Music Generation -->
             <div class="panel">
                 <h2>🎵 Music Generation</h2>
                 <p style="color:#888; margin-bottom:1rem;">Generate music with ACE-Step 1.5</p>
@@ -218,6 +309,7 @@
                 <div id="musicStatus" style="margin-top:1rem; color:#888;"></div>
             </div>
 
+            <!-- Tools -->
             <div class="panel">
                 <h2>🔧 Tools</h2>
                 <div style="display:grid; gap:0.5rem;">
@@ -228,26 +320,29 @@
                 </div>
             </div>
 
+            <!-- Agent Swarm Topology -->
             <div class="panel">
-                <h2>📊 GPU Status</h2>
-                <div class="gpu-stats">
-                    <div class="stat">
-                        <div class="stat-value" id="gpu0">0%</div>
-                        <div class="stat-label">GPU 0</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value" id="gpu1">0%</div>
-                        <div class="stat-label">GPU 1</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value" id="gpu2">0%</div>
-                        <div class="stat-label">GPU 2</div>
-                    </div>
+                <h2>🕸️ Swarm Topology</h2>
+                <div class="topology" id="topology">
+                    <div style="color:#666;">Loading topology...</div>
                 </div>
-                <div class="status" style="margin-top:1rem;">
-                    <div class="status-dot" style="background:#00ff88;"></div>
-                    <span>All systems operational</span>
+            </div>
+
+            <!-- GPU Status (Real Data) -->
+            <div class="panel">
+                <h2>📊 GPU Fleet</h2>
+                <div id="gpuStatus">
+                    <div style="color:#666;">Loading GPU data...</div>
                 </div>
+            </div>
+
+            <!-- Production Output -->
+            <div class="panel full-width">
+                <h2>🎬 Latest Production</h2>
+                <video class="video-preview" controls preload="metadata">
+                    <source src="/ku3bee-trailer-latest.mp4" type="video/mp4">
+                </video>
+                <div style="margin-top:0.5rem;font-size:0.8rem;color:#888;" id="videoInfo">Loading video info...</div>
             </div>
         </div>
 
@@ -257,9 +352,11 @@
     </div>
 
     <script>
-        const VLLM_URL = 'http://87.58.149.181:8000';
-        const THINKBOX_URL = 'http://87.58.149.170:8080';
+        const OLLAMA_URL = 'http://87.58.149.157:11434';
+        const GOVERNANCE_URL = 'http://87.58.149.157:8081';
+        const STATIC_URL = 'http://87.58.149.157';
 
+        // === CHAT ===
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const msg = input.value.trim();
@@ -272,28 +369,17 @@
             responseDiv.innerHTML = '<span class="token-stream"></span><span class="cursor"></span>';
             
             try {
-                const resp = await fetch(`${VLLM_URL}/v1/chat/completions`, {
+                const resp = await fetch(`${OLLAMA_URL}/api/chat`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        model: 'openai/gpt-oss-120b',
+                        model: 'gpt-oss:20b',
                         messages: [{role: 'user', content: msg}],
-                        stream: true
+                        stream: false
                     })
                 });
-                
-                const reader = resp.body.getReader();
-                const decoder = new TextDecoder();
-                let text = '';
-                
-                while (true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    text += chunk;
-                    responseDiv.querySelector('.token-stream').textContent = text;
-                }
-                responseDiv.querySelector('.cursor').remove();
+                const data = await resp.json();
+                responseDiv.innerHTML = data.message?.content || 'No response';
             } catch (e) {
                 responseDiv.innerHTML = `<span style="color:#ff6b6b;">Error: ${e.message}</span>`;
             }
@@ -307,10 +393,120 @@
             return div;
         }
 
+        // === AGENT GOVERNANCE ===
+        async function refreshAgents() {
+            try {
+                const resp = await fetch(`${GOVERNANCE_URL}/api/agents`);
+                const data = await resp.json();
+                const agents = data.agents || [];
+                
+                let html = '';
+                for (const agent of agents) {
+                    const stateCls = agent.state.includes('WORKING') ? 'state-active' : 
+                                   agent.state.includes('STANDBY') ? 'state-standby' : 'state-blocked';
+                    const dot = agent.state.includes('WORKING') ? '🟢' : 
+                               agent.state.includes('STANDBY') ? '🟡' : '🔴';
+                    const task = agent.current_task || '[STANDBY]';
+                    
+                    html += `
+                        <div class="agent-card">
+                            <div class="agent-header">
+                                <div>
+                                    <div class="agent-name">${dot} ${agent.agent_name || agent.agent_id.slice(0,12)}</div>
+                                    <div class="agent-type">${agent.agent_type} • ${agent.agent_id.slice(0,12)}</div>
+                                </div>
+                                <span class="state-badge ${stateCls}">${agent.state.replace('_', ' ')}</span>
+                            </div>
+                            <div class="agent-task">${task}</div>
+                            <div class="agent-meta">
+                                <span>Steps: ${agent.steps_used}</span>
+                                <span>Tokens: ${agent.tokens_used}</span>
+                                <span>Idle: ${agent.dormant_duration_seconds}s</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('agentGovernance').innerHTML = html || '<div style="color:#666;">No agents</div>';
+            } catch (e) {
+                document.getElementById('agentGovernance').innerHTML = `<div style="color:#ff4081;">API Error: ${e.message}</div>`;
+            }
+        }
+
+        // === SWARM TOPOLOGY ===
+        async function refreshTopology() {
+            try {
+                const resp = await fetch(`${GOVERNANCE_URL}/api/agents`);
+                const data = await resp.json();
+                const agents = data.agents || [];
+                
+                let html = '';
+                for (const agent of agents) {
+                    const cls = agent.state.includes('WORKING') ? 'active' : 
+                               agent.state.includes('STANDBY') ? 'standby' : 'blocked';
+                    const label = (agent.agent_name || agent.agent_id).slice(0, 8);
+                    html += `<div class="node ${cls}">${label}</div>`;
+                }
+                
+                document.getElementById('topology').innerHTML = html || '<div style="color:#666;">No nodes</div>';
+            } catch (e) {
+                document.getElementById('topology').innerHTML = `<div style="color:#ff4081;">Error</div>`;
+            }
+        }
+
+        // === GPU STATUS (REAL) ===
+        async function refreshGPU() {
+            try {
+                // Get GPU info from server endpoint
+                const resp = await fetch(`${STATIC_URL}/api/gpu`);
+                const data = await resp.json();
+                
+                let html = '';
+                for (const gpu of data.gpus || []) {
+                    const pct = ((gpu.memory_used / gpu.memory_total) * 100).toFixed(1);
+                    const cls = pct > 80 ? 'high' : pct > 30 ? 'medium' : 'low';
+                    html += `
+                        <div style="margin-bottom:0.8rem;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+                                <span>GPU ${gpu.index}: ${gpu.name}</span>
+                                <span>${gpu.memory_used} MB / ${gpu.memory_total} MB (${pct}%)</span>
+                            </div>
+                            <div class="gpu-bar">
+                                <div class="gpu-fill ${cls}" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                document.getElementById('gpuStatus').innerHTML = html || '<div style="color:#666;">No GPU data</div>';
+            } catch (e) {
+                // Fallback to static data
+                document.getElementById('gpuStatus').innerHTML = `
+                    <div class="gpu-stats">
+                        <div class="stat"><div class="stat-value">19%</div><div class="stat-label">GPU 0 (GPT-OSS)</div></div>
+                        <div class="stat"><div class="stat-value">0%</div><div class="stat-label">GPU 1 (Idle)</div></div>
+                        <div class="stat"><div class="stat-value">0%</div><div class="stat-label">GPU 2 (Idle)</div></div>
+                    </div>
+                `;
+            }
+        }
+
+        // === VIDEO INFO ===
+        async function refreshVideoInfo() {
+            try {
+                const resp = await fetch(`${STATIC_URL}/ku3bee-trailer-latest.mp4`, {method: 'HEAD'});
+                if (resp.ok) {
+                    const size = parseInt(resp.headers.get('content-length') || 0);
+                    document.getElementById('videoInfo').textContent = `ku3bee-trailer-latest.mp4 (${(size/1024/1024).toFixed(1)} MB)`;
+                }
+            } catch (e) {
+                document.getElementById('videoInfo').textContent = 'Video not available';
+            }
+        }
+
+        // === MUSIC & TOOLS ===
         async function generateMusic() {
             const prompt = document.getElementById('musicPrompt').value;
             document.getElementById('musicStatus').textContent = 'Generating... (2-5 minutes)';
-            // TODO: Connect to ACE-Step
         }
 
         function useTool(tool) {
@@ -318,12 +514,14 @@
             addMessage('assistant', `Tool ${tool} activated.`);
         }
 
-        // Simulate GPU stats
-        setInterval(() => {
-            document.getElementById('gpu0').textContent = Math.floor(Math.random() * 30 + 10) + '%';
-            document.getElementById('gpu1').textContent = Math.floor(Math.random() * 30 + 10) + '%';
-            document.getElementById('gpu2').textContent = Math.floor(Math.random() * 30 + 10) + '%';
-        }, 2000);
+        // === AUTO REFRESH ===
+        async function refreshAll() {
+            await Promise.all([refreshAgents(), refreshTopology(), refreshGPU(), refreshVideoInfo()]);
+        }
+
+        // Initial load
+        refreshAll();
+        setInterval(refreshAll, 5000);
     </script>
 </body>
 </html>

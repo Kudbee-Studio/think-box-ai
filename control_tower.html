@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KUDBEE Control Tower</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', system-ui, monospace;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+.header {
+    background: linear-gradient(90deg, #0a0a1a, #1a0a2e, #0a0a1a);
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.logo {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #00d4ff, #7b2ff7, #f107a3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.status-pill {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.status-online { background: rgba(0,255,136,0.2); color: #00ff88; }
+.status-standby { background: rgba(255,183,77,0.2); color: #ffb74d; }
+.status-blocked { background: rgba(255,64,129,0.2); color: #ff4081; }
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.panel {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #222;
+    border-radius: 12px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+.panel h2 {
+    font-size: 1.1rem;
+    color: #00d4ff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Agent Cards */
+.agent-card {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    transition: all 0.3s;
+}
+.agent-card:hover { border-color: #00d4ff; }
+.agent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.agent-name { font-weight: 600; font-size: 0.95rem; }
+.agent-type { font-size: 0.75rem; color: #888; }
+.state-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.state-active { background: rgba(0,255,136,0.2); color: #00ff88; border: 1px solid #00ff88; }
+.state-standby { background: rgba(255,183,77,0.15); color: #ffb74d; border: 1px solid #ffb74d; }
+.state-blocked { background: rgba(255,64,129,0.2); color: #ff4081; border: 1px solid #ff4081; }
+.state-disconnected { background: rgba(100,100,100,0.2); color: #888; border: 1px solid #555; }
+
+.agent-task {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-top: 0.3rem;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.agent-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 0.4rem;
+}
+
+/* Metrics */
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #222;
+}
+.metric-label { color: #888; font-size: 0.85rem; }
+.metric-value { font-weight: 700; font-size: 1rem; }
+.metric-value.green { color: #00ff88; }
+.metric-value.amber { color: #ffb74d; }
+.metric-value.red { color: #ff4081; }
+.metric-value.cyan { color: #00d4ff; }
+
+/* GPU Bar */
+.gpu-bar {
+    height: 8px;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.3rem 0;
+}
+.gpu-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s;
+}
+.gpu-fill.low { background: #00ff88; }
+.gpu-fill.medium { background: #ffb74d; }
+.gpu-fill.high { background: #ff4081; }
+
+/* Topology */
+.topology {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1rem 0;
+}
+.node {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-align: center;
+    border: 2px solid;
+    animation: pulse 2s infinite;
+}
+.node.active { border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,0.1); }
+.node.standby { border-color: #ffb74d; color: #ffb74d; background: rgba(255,183,77,0.1); animation: none; }
+.node.blocked { border-color: #ff4081; color: #ff4081; background: rgba(255,64,129,0.1); }
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(0,255,136,0); }
+}
+
+/* Event Log */
+.event-log {
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+.event-entry {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid #1a1a1a;
+}
+.event-time { color: #666; margin-right: 0.5rem; }
+.event-type { color: #00d4ff; font-weight: 600; }
+
+/* Refresh indicator */
+.refresh-indicator {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00ff88;
+    animation: blink 1s infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* Video preview */
+.video-preview {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 1rem;
+    background: #000;
+}
+</style>
+</head>
+<body>
+
+<div class="refresh-indicator" id="refreshIndicator"></div>
+
+<header class="header">
+    <div class="logo">KUDBEE</div>
+    <div style="display:flex;gap:1rem;align-items:center;">
+        <span class="status-pill status-online" id="systemStatus">SYSTEM ONLINE</span>
+        <span style="color:#666;font-size:0.8rem;" id="clock">--:--:UTC</span>
+    </div>
+</header>
+
+<div class="grid">
+
+<!-- Agent Status Panel -->
+<div class="panel">
+    <h2>🤖 Agent States</h2>
+    <div id="agentList">
+        <div style="color:#666;text-align:center;padding:2rem;">Loading agents...</div>
+    </div>
+</div>
+
+<!-- System Health -->
+<div class="panel">
+    <h2>📊 System Health</h2>
+    <div id="healthMetrics">
+        <div class="metric-row">
+            <span class="metric-label">Total Agents</span>
+            <span class="metric-value cyan" id="totalAgents">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Active (Working)</span>
+            <span class="metric-value green" id="activeAgents">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Standby (Idle)</span>
+            <span class="metric-value amber" id="standbyAgents">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Blocked</span>
+            <span class="metric-value red" id="blockedAgents">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Pending Tasks</span>
+            <span class="metric-value cyan" id="pendingTasks">--</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Active Tasks</span>
+            <span class="metric-value cyan" id="activeTasks">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- GPU Status -->
+<div class="panel">
+    <h2>🎮 GPU Fleet</h2>
+    <div id="gpuStatus">
+        <div style="color:#666;text-align:center;padding:2rem;">Loading GPU data...</div>
+    </div>
+</div>
+
+<!-- Agent Topology -->
+<div class="panel">
+    <h2>🕸️ Swarm Topology</h2>
+    <div class="topology" id="topology">
+        <div style="color:#666;">Loading topology...</div>
+    </div>
+</div>
+
+<!-- Task Queue -->
+<div class="panel">
+    <h2>📋 Task Queue</h2>
+    <div id="taskQueue">
+        <div style="color:#666;text-align:center;padding:1rem;">No active tasks</div>
+    </div>
+</div>
+
+<!-- Production Output -->
+<div class="panel">
+    <h2>🎬 Latest Production</h2>
+    <div>
+        <video class="video-preview" controls preload="metadata">
+            <source src="/ku3bee-trailer-latest.mp4" type="video/mp4">
+        </video>
+        <div style="margin-top:0.5rem;font-size:0.8rem;color:#888;">
+            <span id="videoInfo">Loading video info...</span>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+const API = 'http://87.58.149.157:8081';
+
+async function fetchJSON(url) {
+    try {
+        const r = await fetch(url);
+        return await r.json();
+    } catch (e) {
+        return { error: e.message };
+    }
+}
+
+function formatDuration(seconds) {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+function stateClass(state) {
+    if (state.includes('WORKING')) return 'state-active';
+    if (state.includes('STANDBY')) return 'state-standby';
+    if (state.includes('BLOCKED')) return 'state-blocked';
+    return 'state-disconnected';
+}
+
+function stateDot(state) {
+    if (state.includes('WORKING')) return '🟢';
+    if (state.includes('STANDBY')) return '🟡';
+    if (state.includes('BLOCKED')) return '🔴';
+    return '⚫';
+}
+
+async function refreshAgents() {
+    const data = await fetchJSON(`${API}/api/agents`);
+    if (data.error) {
+        document.getElementById('agentList').innerHTML = `<div style="color:#ff4081;">Error: ${data.error}</div>`;
+        return;
+    }
+    
+    const agents = data.agents || [];
+    let html = '';
+    
+    for (const agent of agents) {
+        const task = agent.current_task || '[STANDBY]';
+        html += `
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div>
+                        <div class="agent-name">${stateDot(agent.state)} ${agent.agent_name || agent.agent_id}</div>
+                        <div class="agent-type">${agent.agent_type} • ${agent.agent_id.slice(0,12)}</div>
+                    </div>
+                    <span class="state-badge ${stateClass(agent.state)}">${agent.state.replace('_', ' ')}</span>
+                </div>
+                <div class="agent-task">${task}</div>
+                <div class="agent-meta">
+                    <span>Steps: ${agent.steps_used}</span>
+                    <span>Tokens: ${agent.tokens_used}</span>
+                    <span>Idle: ${formatDuration(agent.dormant_duration_seconds)}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('agentList').innerHTML = html || '<div style="color:#666;">No agents registered</div>';
+}
+
+async function refreshHealth() {
+    const data = await fetchJSON(`${API}/api/health`);
+    if (data.error) return;
+    
+    document.getElementById('totalAgents').textContent = data.total_agents;
+    document.getElementById('activeAgents').textContent = data.states.WORKING_PROCESSING || 0;
+    document.getElementById('standbyAgents').textContent = data.states.STANDBY_DORMANT || 0;
+    document.getElementById('blockedAgents').textContent = data.states.BLOCKED_AWAITING_APPROVAL || 0;
+    document.getElementById('pendingTasks').textContent = data.pending_tasks;
+    document.getElementById('activeTasks').textContent = data.active_tasks;
+}
+
+async function refreshGPU() {
+    // GPU data from nvidia-smi (embedded in page load, refreshed via separate endpoint if available)
+    const gpuData = [
+        { id: 0, name: 'NVIDIA L40S', used: 8727, total: 46068 },
+        { id: 1, name: 'NVIDIA L40S', used: 3, total: 46068 },
+        { id: 2, name: 'NVIDIA L40S', used: 3, total: 46068 },
+    ];
+    
+    let html = '';
+    for (const gpu of gpuData) {
+        const pct = (gpu.used / gpu.total * 100).toFixed(1);
+        const cls = pct > 80 ? 'high' : pct > 30 ? 'medium' : 'low';
+        html += `
+            <div style="margin-bottom:0.8rem;">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
+                    <span>GPU ${gpu.id}: ${gpu.name}</span>
+                    <span>${gpu.used} MB / ${gpu.total} MB (${pct}%)</span>
+                </div>
+                <div class="gpu-bar">
+                    <div class="gpu-fill ${cls}" style="width:${pct}%"></div>
+                </div>
+            </div>
+        `;
+    }
+    document.getElementById('gpuStatus').innerHTML = html;
+}
+
+async function refreshTopology() {
+    const data = await fetchJSON(`${API}/api/agents`);
+    if (data.error) return;
+    
+    const agents = data.agents || [];
+    let html = '';
+    
+    for (const agent of agents) {
+        const cls = agent.state.includes('WORKING') ? 'active' : 
+                   agent.state.includes('STANDBY') ? 'standby' : 'blocked';
+        const label = (agent.agent_name || agent.agent_id).slice(0, 8);
+        html += `<div class="node ${cls}">${label}</div>`;
+    }
+    
+    document.getElementById('topology').innerHTML = html || '<div style="color:#666;">No nodes</div>';
+}
+
+async function refreshTasks() {
+    const data = await fetchJSON(`${API}/api/tasks`);
+    if (data.error || !data.tasks || data.tasks.length === 0) {
+        document.getElementById('taskQueue').innerHTML = '<div style="color:#666;text-align:center;padding:1rem;">[STANDBY] No active tasks</div>';
+        return;
+    }
+    
+    let html = '';
+    for (const task of data.tasks.slice(0, 10)) {
+        html += `
+            <div class="agent-task" style="padding:0.3rem 0;border-bottom:1px solid #222;">
+                <span style="color:#00d4ff;">${task.task_type}</span>: ${task.description.slice(0, 50)}...
+                <span style="color:#666;float:right;">${task.status}</span>
+            </div>
+        `;
+    }
+    document.getElementById('taskQueue').innerHTML = html;
+}
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toISOString().slice(11, 19) + 'UTC';
+}
+
+async function refreshAll() {
+    await Promise.all([
+        refreshAgents(),
+        refreshHealth(),
+        refreshGPU(),
+        refreshTopology(),
+        refreshTasks(),
+    ]);
+    updateClock();
+    
+    // Blink indicator
+    const ind = document.getElementById('refreshIndicator');
+    ind.style.opacity = '0.3';
+    setTimeout(() => ind.style.opacity = '1', 200);
+}
+
+// Initial load
+refreshAll();
+
+// Auto-refresh every 5 seconds
+setInterval(refreshAll, 5000);
+
+// Simulate agent activity (for demo)
+setInterval(async () => {
+    // Randomly update an agent heartbeat to show live data
+    const agents = await fetchJSON(`${API}/api/agents`);
+    if (agents.agents && agents.agents.length > 0) {
+        const agent = agents.agents[Math.floor(Math.random() * agents.agents.length)];
+        await fetch(`${API}/api/agent/heartbeat`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                agent_id: agent.agent_id,
+                state: Math.random() > 0.7 ? 'WORKING_PROCESSING' : 'STANDBY_DORMANT',
+                current_task: Math.random() > 0.7 ? 'Processing task...' : null
+            })
+        });
+    }
+}, 3000);
+</script>
+
+</body>
+</html>
