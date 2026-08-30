@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""KUDBEE CLI - Local command line interface (stdlib only)"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+GPU_SERVER = "87.58.149.157"
+THINKBOX_URL = f"http://{GPU_SERVER}:9090"
+OLLAMA_URL = f"http://{GPU_SERVER}:11434"
+SSH_KEY = Path(__file__).parent / ".ssh" / "kilocloud"
+
+
+def ssh_cmd(cmd):
+    """Run command on GPU server."""
+    result = subprocess.run(
+        ["ssh", "-o", "StrictHostKeyChecking=no", "-i", str(SSH_KEY),
+         f"root@{GPU_SERVER}", cmd],
+        capture_output=True, text=True, timeout=30
+    )
+    return result.stdout.strip()
+
+
+def http_get(url):
+    """HTTP GET using urllib."""
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def http_post(url, data):
+    """HTTP POST using urllib."""
+    try:
+        body = json.dumps(data).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def status():
+    """Show system status."""
+    print("=" * 60)
+    print("  KUDBEE System Status")
+    print("=" * 60)
+    
+    print("\nGPU:")
+    gpu = ssh_cmd("nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null")
+    for line in gpu.split("\n"):
+        if line.strip():
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) >= 4:
+                print(f"  GPU {parts[0]}: {parts[1]}, {parts[2]}, {parts[3]}")
+    
+    print("\nModels:")
+    data = http_get(f"{OLLAMA_URL}/api/tags")
+    for m in data.get("models", []):
+        print(f"  {m['name']}: {m.get('size', 0)/1e9:.1f} GB")
+    
+    print("\nThink Boxes:")
+    data = http_get(f"{THINKBOX_URL}/status")
+    print(f"  Total: {data.get('total_boxes', 0)}, Active: {data.get('active', 0)}, Done: {data.get('completed', 0)}")
+    
+    print("\nServices:")
+    svcs = ssh_cmd("systemctl list-units --type=service --state=running 2>/dev/null | grep -iE 'kudbee|ollama|nginx|docker' | awk '{print $1}'")
+    for s in svcs.split("\n"):
+        if s.strip():
+            print(f"  {s.strip()}")
+    
+    print("\n☁️  Cloud APIs:")
+    mercury = ssh_cmd("python3 /opt/kudbee/mercury2.py 2>/dev/null || echo 'Mercury not configured'")
+    print(f"  Mercury 2: {mercury[:100]}")
+    
+    print("\n📦 Inception API:")
+    print(f"  Key: vck_4Bcs...{ssh_cmd('tail -c 10 /opt/kudbee/inception_config.json 2>/dev/null | grep -o "[^\"]*$"')}")
+    print(f"  Status: Configured (needs SSL debug)")
+
+
+def boxes():
+    """List Think Boxes."""
+    data = http_get(f"{THINKBOX_URL}/boxes")
+    if not data.get("boxes"):
+        print("No Think Boxes created yet.")
+        return
+    
+    print(f"{'ID':<25} {'Type':<20} {'Status':<12} {'Created'}")
+    print("-" * 80)
+    for b in data["boxes"]:
+        print(f"{b['box_id']:<25} {b['type']:<20} {b['status']:<12} {b['created'][:19]}")
+
+
+def create_box(box_type, task):
+    """Create a Think Box."""
+    data = http_post(f"{THINKBOX_URL}/create", {"type": box_type, "task": task})
+    print(f"Created: {data.get('box_id')}")
+    print(f"Status: {data.get('status')}")
+    if data.get("result"):
+        result = data["result"]
+        if isinstance(result, dict) and "content" in result:
+            print(f"\nOutput:\n{result['content'][:800]}")
+        else:
+            print(f"Result: {json.dumps(result, indent=2)[:500]}")
+
+
+def deploy():
+    """Deploy latest code to GPU server."""
+    print("Deploying to GPU server...")
+    files = ["core/providers/visual.py", "production.py", "packs.py", "trend_box.py"]
+    for f in files:
+        src = Path(__file__).parent / f
+        if src.exists():
+            subprocess.run(["scp", "-o", "StrictHostKeyChecking=no", "-i", str(SSH_KEY), str(src), f"root@{GPU_SERVER}:/opt/kudbee/{f}"], capture_output=True)
+            print(f"  Deployed: {f}")
+    ssh_cmd("systemctl restart kudbee-boxes 2>/dev/null || true")
+    print("Deploy complete!")
+
+
+def store(action):
+    """Manage storefront."""
+    if action == "status":
+        print("Storefront: http://87.58.149.157/store/")
+    elif action == "products":
+        data = http_post(f"{THINKBOX_URL}/research", {"query": "trending"})
+        if data.get("result", {}).get("products"):
+            for i, p in enumerate(data["result"]["products"], 1):
+                print(f"{i}. {p['name']} (Score: {p['score']}/100)")
+    elif action == "create":
+        ssh_cmd("python3 /opt/kudbee/trend_box.py store")
+        print("Store updated")
+
+
+def produce(brief):
+    """Run production pipeline."""
+    print(f"Production: {brief}")
+    print("=" * 50)
+    
+    steps = [
+        ("Script Writer", "script-writer", brief),
+        ("Director", "director", f"Storyboard for: {brief}"),
+        ("Music", "music", f"Score for: {brief}"),
+    ]
+    
+    for name, box_type, task in steps:
+        print(f"\n  Running {name}...")
+        data = http_post(f"{THINKBOX_URL}/create", {"type": box_type, "task": task})
+        print(f"  Status: {data.get('status')}")
+    
+    print("\nProduction pipeline complete!")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="KUDBEE CLI")
+    sub = parser.add_subparsers(dest="command")
+    
+    sub.add_parser("status", help="Show system status")
+    sub.add_parser("boxes", help="List Think Boxes")
+    sub.add_parser("deploy", help="Deploy to GPU server")
+    
+    create = sub.add_parser("create", help="Create Think Box")
+    create.add_argument("type", help="Box type")
+    create.add_argument("task", help="Task description")
+    
+    store_p = sub.add_parser("store", help="Manage storefront")
+    store_p.add_argument("action", choices=["status", "products", "create"])
+    
+    prod = sub.add_parser("produce", help="Run production pipeline")
+    prod.add_argument("brief", help="Production brief")
+    
+    args = parser.parse_args()
+    
+    if args.command == "status":
+        status()
+    elif args.command == "boxes":
+        boxes()
+    elif args.command == "create":
+        create_box(args.type, args.task)
+    elif args.command == "deploy":
+        deploy()
+    elif args.command == "store":
+        store(args.action)
+    elif args.command == "produce":
+        produce(args.brief)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
