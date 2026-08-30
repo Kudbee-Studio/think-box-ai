@@ -53,7 +53,16 @@
 - [ ] Test Inception API (99M+ tokens)
 - [ ] Integrate with Think Token rewards
 
-### Phase 3 — Think Box Production ⏳
+### Phase 4 — Visual Production ⏳
+- [ ] Install LTX-2.3 (video + audio)
+- [ ] Install FLUX/Qwen-Image (images)
+- [ ] Install Coqui XTTS (voice cloning)
+- [ ] Build Media Pack architecture (swappable capability cartridges)
+- [ ] Deploy production swarm (Director → Image → Video → Voice → Editor → Jury)
+- [ ] Generate 90-second autonomous trailer
+- [ ] Build iPad storyboard interface (sketch → cinematic shot)
+
+### Phase 5 — Think Box Production ⏳
 - [ ] Firecracker microVM isolation
 - [ ] Agent identity + auth tokens
 - [ ] Think Box deployment
