@@ -1,49 +1,73 @@
 # THINK BOX AI — Project Foundation
 
-**Status:** Phase 0 — Foundation
+**Status:** Phase 0 — Foundation (verified 2026-08-30)
 **Date:** 2026-08-20
 **Repository:** `Kudbee-Studio/think-box-ai`
+**Inspection Report:** See `docs/inspection-report-2026-08-30.md`
 
 ---
 
 ## 1. Current State
 
-The repository contains the kudbEE agent OS implementation: FastAPI backend, WebSocket/SSE event bus, Ollama streaming client, 6 built-in plugins, kudbEE branded frontend, and a complete Python core (foundation, memory, governance, providers, tools, runtime).
+The repository contains two parallel systems:
 
-### What exists
+1. **`core/` — Phase 0 Python runtime** (complete, tested, stdlib-only)
+2. **`backend/` + `apps/web/` — Stage 1 FastAPI web app** (code exists, deps NOT installed)
 
-| Item | State |
-|------|-------|
-| Code | FastAPI backend + Python core + frontend |
-| Tests | Unit, integration, and e2e tests |
-| Configuration | pyproject.toml, AGENTS.md |
-| Dependencies | FastAPI, uvicorn, aiohttp, websockets |
-| Documentation | Architecture v1, roadmap, project foundation |
-| Git history | Multiple commits on `main` |
-| Remote | `origin` → `Kudbee-Studio/think-box-ai` (GitHub) |
+### What exists (verified 2026-08-30)
+
+| Item | State | Location |
+|------|-------|----------|
+| Think Token logic | Implemented | `think_box_ai/token.py` |
+| Token CLI | Minimal (`--version`, `--info`) | `think_box_ai/cli.py` |
+| Foundation layer (config, logging, errors, bootstrap) | Complete | `core/foundation/` |
+| Memory layer (SQLite + 3 adapters + schemas) | Complete | `core/memory/` |
+| Governance layer (audit, permissions, approval) | Complete | `core/governance/` |
+| Provider layer (protocol + OpenAI-compatible) | Partial | `core/providers/` |
+| Tool registry + 5 built-in tools | Complete | `core/tools/` |
+| Agent runtime (Agent/ThinkBox/Planner/Actor/Observer) | Skeleton | `core/runtime/` |
+| FastAPI backend + WebSocket + SSE | Code exists, not runnable | `backend/main.py` |
+| Backend plugins (6 tools) | Code exists | `backend/plugins/` |
+| Ollama streaming client | Code exists, needs aiohttp | `backend/models/ollama_client.py` |
+| Frontend (vanilla HTML/CSS/JS) | Code exists | `apps/web/public/` |
+| Unit + integration tests | 23/24 pass | `tests/unit/`, `tests/integration/` |
+
+### Verified environment (2026-08-30)
+
+| Resource | Value |
+|----------|-------|
+| Python | 3.10.12 |
+| pip | NOT available |
+| External packages | NONE installed (no aiohttp, fastapi, pydantic, upstash-box) |
+| Tests passing | 23/24 (test_token.py fails — no pytest) |
+| Bootstrap | Works — registers 5 tools, provider=None |
 
 ### What does NOT exist (and should not be assumed)
 
 - No agent framework is vendored or copied.
 - No AI model is downloaded or embedded.
 - No microservices are scaffolded.
-- No UI exists. UI is explicitly deferred.
+- No KUDBEE protocol implementation (THINK primitives, HATS, COMMONS, SWARM).
+- No Upstash Box SDK installed.
+- No UpCloud integration code.
+- No connection between `core/` and `backend/` systems.
 
 ---
 
 ## 2. Detected Environment
 
-### Runtime
+### Runtime (verified 2026-08-30)
 
 | Tool | Version | Path |
 |------|---------|------|
 | Python | 3.10.12 | `/usr/bin/python3` |
+| pip | NOT available | — |
 | Node.js | v22.22.3 | `/usr/local/bin/node` |
 | npm | 10.9.8 | `/usr/local/bin/npm` |
 | Bun | 1.3.12 | `/usr/local/bin/bun` |
 | Git | 2.55.0 | `/usr/bin/git` |
 
-### Hardware
+### Hardware (container)
 
 | Resource | Value |
 |----------|-------|
@@ -53,25 +77,31 @@ The repository contains the kudbEE agent OS implementation: FastAPI backend, Web
 
 ### Network
 
-- Outbound HTTPS is available (pypi.org reachable).
-- GitHub remote is authenticated via a personal access token embedded in the
-  remote URL. Treat this as a **security concern** (see Risks).
+- Outbound HTTPS is available.
+- GitHub remote: `https://github.com/Kudbee-Studio/think-box-ai.git`
 
-### Available Python libraries (system)
+### Available Python libraries (verified 2026-08-30)
 
-Standard library plus OS-level packaging tools only. **No AI/ML libraries**
-are installed:
+**Standard library only.** No external packages installed:
 
+- `aiohttp` — NOT installed
+- `fastapi` — NOT installed
+- `pydantic` — NOT installed
+- `upstash-box` — NOT installed
+- `httpx` — NOT installed
+- `pytest` — NOT installed
 - `pydantic` — NOT installed
 - `llama-index` — NOT installed
 - `langchain` — NOT installed
 - `llama-cpp-python` — NOT installed
 - `ollama` — NOT installed
 
-### Available Node packages (global)
+### Provisioned Cloud Resources (verified 2026-08-30)
 
-- `@kilocode/cli` (the tool running this session)
-- `corepack`, `npm`, `pnpm`
+| Resource | Type | Status |
+|----------|------|--------|
+| Upstash Box | Sandbox container | Provisioned (API key + URL set), SDK NOT installed |
+| UpCloud GPU | GPU server | API token set, SSH key NOT provisioned to this container |
 
 ---
 
@@ -140,19 +170,18 @@ system evolves.
 
 ## 6. Security Concerns
 
-### Immediate
+### Immediate (verified 2026-08-30)
 
-1. **Token in remote URL.** The `origin` remote contains a GitHub personal
-   access token in the URL. This is a **credential leak risk**. It must be
-   removed from the config and rotated on GitHub. Do not commit it further.
+1. **No secrets in this repo.** No `.env`, no API keys, no credentials in code.
+   Secrets are injected via environment variables at runtime only.
 
-2. **No secrets in this repo.** No `.env`, no API keys, no credentials. Any
-   secret must be injected at runtime via environment variables or a
-   secrets manager, never stored.
+2. **API keys in container environment.** The following are set as env vars
+   in the sandboxed container: `UPSTASH_BOX_API_TOKEN`, `THINKBOX_UPCLOUD_API_TOKEN`,
+   `GH_TOKEN`, `KILO_AUTH_CONTENT`. These are ephemeral to this container but
+   must not be logged, committed, or exposed.
 
-3. **LFS filter configured.** Git LFS is set in `.git/config`. Large binary
-   artifacts (models, datasets) must go through LFS if committed at all.
-   Prefer not committing models.
+3. **No pip available.** Cannot install dependencies without bootstrapping pip
+   first (`python3 -m ensurepip`).
 
 ### Architectural (future)
 
@@ -162,10 +191,49 @@ system evolves.
 
 ---
 
-## 7. What This Document Is
+## 7. Architecture Notes (verified 2026-08-30)
+
+### Two Parallel Systems
+
+The codebase contains two disconnected systems:
+
+1. **`core/`** — Pure Python agent runtime (Phase 0). Stdlib-only, fully tested.
+   Uses `bootstrap()` to create a `RuntimeContext` with memory, governance,
+   tools, and optional provider. The Planner, Actor, and Observer classes
+   exist but are not yet model-driven (Planner returns a hardcoded step,
+   Actor returns mock results).
+
+2. **`backend/` + `apps/web/`** — FastAPI web app (Stage 1). Requires external
+   dependencies (fastapi, uvicorn, aiohttp, pydantic). Has its own tool system
+   (`backend/plugins/`) that duplicates the `core/tools/` concepts. Connects
+   to a vanilla JS frontend via WebSocket.
+
+**These systems are not connected.** `backend/main.py` does not import from
+`core/`. They share no code, no memory store, no tool registry.
+
+### KUDBEE Direction (documented intent, not yet implemented)
+
+The KUDBEE vision extends beyond the current implementation:
+
+- **THINK Protocol**: opportunity → outcome (broader than MCP)
+- **Primitives**: Intent, Opportunity, Capability, Swarm, Outcome, Proof
+- **Think Boxes**: isolated agent execution environments (currently a dataclass, not an environment)
+- **THINK HATS**: professional capabilities
+- **THINK COMMONS**: governed, provenance-aware collective intelligence
+- **THINK SWARM**: coordinates/competes capabilities
+- **Execution substrates**: Upstash Box, Firecracker, UpCloud GPU, local/external runtimes
+
+None of these are implemented in code. They are architectural intent documented
+for future phases.
+
+---
+
+## 8. What This Document Is
 
 This is a **snapshot**, not a spec. It records what was found at the moment of
-initialization. It will be revised when reality contradicts it.
+initialization and verified on 2026-08-30. It will be revised when reality
+contradicts it.
 
 **Next step:** `docs/architecture-v1.md` translates these findings into a
-design.
+design. `docs/inspection-report-2026-08-30.md` contains the full inspection
+details.
