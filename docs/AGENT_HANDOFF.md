@@ -96,21 +96,24 @@ think-box-ai/
 7. **No Groq, no Inception** — banned providers
 8. **No GPU start/stop** — power is human-only
 
-## Current Phase: Production Hardening
+## Current Phase: Production Hardening + Indexing
 
 ### Done
 - CLI v2 with global flags, colors, JSON output
 - Job queue with worker, templates, catalog
 - Governance audit log
 - Backend API v0.3 with job/findings endpoints
-- Test runner (no pytest)
-- Public packet for JOB #0001
+- Test runner (no pytest), 41 tests passing
+- Public packets for JOB #0001-0004
+- Local indexing system (SQLite + FTS5)
+- Project memory + session store
+- Shell completions (bash + zsh)
+- Config profiles (ollama, freetoken)
 
 ### In Progress
-- Shell completion generation
+- Auto-capture hooks
 - Job dependencies (parent/child)
-- Actual receipts/metrics
-- Config profiles
+- Vector search (LanceDB)
 
 ### Blocked
 - GPU stopped (Kudbee must start)
@@ -137,11 +140,42 @@ Verdicts: `succeeded | failed | unproven | blocked`.
 
 Hats: `researcher | runner | director | camera | jury`.
 
-## Provider Order
+## Local Indexing
 
-1. Ollama (local)
-2. FreeToken on GPU (87.58.150.62:1919)
-3. OpenAI-compatible
+SQLite + FTS5 database at `data/thinkbox.db`.
+
+```bash
+# Search messages + memory
+thinkbox memory search "deploy"
+
+# Read session transcript
+thinkbox memory show <session_id>
+
+# Store memory
+thinkbox memory remember "key" "value"
+
+# Get project context
+thinkbox memory context
+```
+
+### Schema
+- `sessions` — session metadata (id, title, project_hash)
+- `messages` — conversation turns (auto-indexed via FTS5 triggers)
+- `project_memory` — durable facts, environment, corrections
+- Project-scoped via SHA-256 hash of repo path
+
+### Python API
+```python
+from core.indexing.memory import ProjectMemory, SessionStore
+from core.indexing.search import SearchEngine
+
+engine = SearchEngine()
+results = engine.search_messages("query", project=".")
+
+pm = ProjectMemory(".")
+pm.remember("key", "value")
+pm.save_correction("lang", "Python")
+```
 
 ## Next Owner Checklist
 
