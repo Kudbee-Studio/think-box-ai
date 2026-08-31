@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./control_tower.html:/var/www/html/index.html:ro
+    depends_on:
+      - worker-monitor
+      - governance
+
+  worker-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    ports:
+      - "8765:8765"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  governance:
+    build:
+      context: .
+      dockerfile: Dockerfile.governance
+    ports:
+      - "8081:8081"
+    volumes:
+      - governance-data:/opt/kudbee/memory
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  governance-data:
+  ollama-models:

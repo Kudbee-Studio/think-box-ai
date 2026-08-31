@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY agent_governance.py .
+RUN chmod +x agent_governance.py
+
+RUN mkdir -p /opt/kudbee/memory
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD curl -f http://localhost:8081/api/health || exit 1
+
+CMD ["python3", "agent_governance.py"]
