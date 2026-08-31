@@ -1,0 +1,33 @@
+{
+  "id": "job_gpu_serve_20b",
+  "intent": "Serve the 20B model on the GPU via FreeToken and wire Think Box openai_compat to it.",
+  "hat": "runner",
+  "inputs": {
+    "gpu_uuid": "00d832ec-8565-447b-86ac-74bf9bd41e57",
+    "floating_ip": "87.58.150.62",
+    "port": 1919,
+    "model_size": "20B",
+    "parent_job": "job_gpu_find_models"
+  },
+  "plan": [
+    "Wait for job_gpu_find_models to complete",
+    "SSH BatchMode to 87.58.150.62",
+    "ft serve --host 127.0.0.1 --port 1919 --model <20b_path>",
+    "Verify health: curl 127.0.0.1:1919/v1/models",
+    "Wire Think Box openai_compat to http://127.0.0.1:1919/v1 via SSH tunnel"
+  ],
+  "capabilities": {
+    "tools": ["shell_exec", "http_get"],
+    "sources": [],
+    "needs_gpu": true,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "blocked",
+    "reason": "Depends on job_gpu_find_models. Needs Kudbee START + SSH key + firewall :22 from laptop IP. Serve on 127.0.0.1:1919 via SSH tunnel. Firewall default is drop-all.",
+    "confidence": 0.0
+  },
+  "notes": "Firewall default is drop-all. Serve binds loopback only. Access via SSH tunnel: ssh -N -L 1919:127.0.0.1:1919 -i <key> USER@87.58.150.62"
+}

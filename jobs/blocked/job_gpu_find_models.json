@@ -1,0 +1,31 @@
+{
+  "id": "job_gpu_find_models",
+  "intent": "When GPU is started, find 20B and 120B model weights on data disks (not the 50GB boot disk).",
+  "hat": "runner",
+  "inputs": {
+    "gpu_uuid": "00d832ec-8565-447b-86ac-74bf9bd41e57",
+    "floating_ip": "87.58.150.62",
+    "search_paths": ["/mnt", "/data", "/models", "/home"]
+  },
+  "plan": [
+    "Poll GET until GPU state=started",
+    "SSH BatchMode to 87.58.150.62",
+    "nvidia-smi",
+    "lsblk / df -h to map disks",
+    "find 20B and 120B on data disks",
+    "Write paths to data/infra_upcloud.ini"
+  ],
+  "capabilities": {
+    "tools": ["shell_exec", "fs_read", "fs_write"],
+    "sources": [],
+    "needs_gpu": true,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "blocked",
+    "reason": "Needs Kudbee to start GPU, add firewall :22 from laptop IP, and provide SSH key.",
+    "confidence": 0.0
+  }
+}
