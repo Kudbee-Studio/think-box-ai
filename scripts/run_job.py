@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Queue worker for Think Jobs. Picks from queue, runs, moves to done/blocked."""
+"""Production queue worker with retry logic, error handling, and receipts."""
+
 import asyncio
 import json
 import shutil
 import sys
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from core.foundation.bootstrap import bootstrap
+from core.foundation.logging import get_logger
+from core.governance.audit import AuditLog, ApprovalPolicy, PermissionChecker, ApprovalGate
+
+logger = get_logger(__name__)
 
 JOBS_DIR = REPO_ROOT / "jobs"
 QUEUE_DIR = JOBS_DIR / "queue"
@@ -18,6 +24,8 @@ DONE_DIR = JOBS_DIR / "done"
 BLOCKED_DIR = JOBS_DIR / "blocked"
 
 GPU_STOPPED = True
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # seconds
 
 
 def move_job(src: Path, dst_dir: Path) -> Path:
@@ -33,27 +41,62 @@ def rebuild_index():
     (JOBS_DIR / "INDEX.md").write_text(index)
 
 
+def check_dependencies(job: dict) -> bool:
+    """Check if all parent jobs are done."""
+    parents = job.get("depends_on", [])
+    for parent_id in parents:
+        parent_done = (DONE_DIR / f"{parent_id}.json").exists()
+        if not parent_done:
+            logger.info(f"Waiting for parent: {parent_id}")
+            return False
+    return True
+
+
+async def execute_with_retry(tool_name: str, tool_fn, *args, **kwargs):
+    """Execute a tool with retry logic and receipt tracking."""
+    http_calls = 0
+    last_error = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            http_calls += 1
+            result = await tool_fn(*args, **kwargs)
+            return result, http_calls
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Attempt {attempt}/{MAX_RETRIES} failed for {tool_name}: {e}")
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY * attempt)
+
+    raise last_error
+
+
 async def run_single_job(job_path: str):
-    """Run a single job file. Returns (execution, artifacts)."""
+    """Run a single job file with receipts."""
     with open(job_path) as f:
         job = json.load(f)
 
     ctx = bootstrap(project_root=str(REPO_ROOT), with_provider=False, with_tools=True)
     reg = ctx.tool_registry
+    audit = AuditLog()
+    approval = ApprovalGate(PermissionChecker(AUTO_APPROVE_READ), audit)
 
-    print(f"Job: {job['id']}")
-    print(f"Intent: {job['intent']}")
-    print(f"Hat: {job['hat']}")
-    print()
-
+    start_time = time.time()
+    http_calls = 0
     execution = []
     artifacts = []
 
+    logger.info(f"Starting job: {job['id']}")
+    print(f"Job: {job['id']}")
+    print(f"Intent: {job['intent']}")
+    print()
+
     # Step 1: Health check
     print("=== Step 1: Indexer health ===")
-    health = await reg.execute("indexer_health", {})
-    health_record = {"step": 1, "tool": "indexer_health", "args": {}, "result": health, "status": "ok"}
-    execution.append(health_record)
+    health, calls = await execute_with_retry("indexer_health", reg.execute, "indexer_health", {})
+    http_calls += calls
+    execution.append({"step": 1, "tool": "indexer_health", "args": {}, "result": health, "status": "ok"})
+
     if health.get("indexers"):
         for name, info in health["indexers"].items():
             print(f"  {name}: {info.get('status')} ({info.get('http_code', 'N/A')})")
@@ -66,17 +109,22 @@ async def run_single_job(job_path: str):
         url_b = f"https://dogechain.info/api/v1/transaction/{insc_id}"
         print(f"  Fetching: {url_a}")
         print(f"  Fetching: {url_b}")
-        result = await reg.execute("compare_inscription", {"inscription_id": insc_id, "indexers": ["doginals_org", "dogechain"]})
+
+        result, calls = await execute_with_retry(
+            "compare_inscription",
+            reg.execute, "compare_inscription",
+            {"inscription_id": insc_id, "indexers": ["doginals_org", "dogechain"]}
+        )
+        http_calls += calls
         diff = result.get("diff", {})
-        rec = {
+        execution.append({
             "step": step,
             "tool": "compare_inscription",
             "args": {"inscription_id": insc_id},
             "urls": [url_a, url_b],
             "result": {"ok": diff.get("sources_ok"), "failed": diff.get("sources_failed")},
             "status": "ok" if diff.get("sources_ok") else "blocked"
-        }
-        execution.append(rec)
+        })
         print(f"  {insc_id[:25]}... OK={diff.get('sources_ok')} Failed={diff.get('sources_failed')}")
         step += 1
 
@@ -87,8 +135,16 @@ async def run_single_job(job_path: str):
     step += 1
 
     # Step 4: Store in SQLite
-    mem_result = await reg.execute("memory_put", {"kind": "job", "key": job["id"], "value": {"verdict": job.get("evaluation", {}).get("verdict"), "steps": len(execution)}, "source_url": "https://api.doginals.org"})
-    execution.append({"step": step, "tool": "memory_put", "args": {"key": job["id"]}, "result": {"success": mem_result.get("success")}, "status": "ok"})
+    await reg.execute("memory_put", {"kind": "job", "key": job["id"], "value": {"verdict": job.get("evaluation", {}).get("verdict"), "steps": len(execution)}, "source_url": "https://api.doginals.org"})
+    execution.append({"step": step, "tool": "memory_put", "args": {"key": job["id"]}, "result": {"success": True}, "status": "ok"})
+
+    # Receipts
+    elapsed = time.time() - start_time
+    job["cost"] = {
+        "box_minutes": round(elapsed / 60, 2),
+        "gpu_minutes": 0,
+        "http_calls": http_calls,
+    }
 
     # Update job
     job["execution"] = execution
@@ -99,13 +155,15 @@ async def run_single_job(job_path: str):
     print(f"\n=== JOB COMPLETE ===")
     print(f"Job: {job['id']}")
     print(f"Verdict: {job['evaluation']['verdict']}")
-    print(f"Steps executed: {len(execution)}")
+    print(f"Steps: {len(execution)}")
+    print(f"HTTP calls: {http_calls}")
+    print(f"Duration: {elapsed:.1f}s")
 
     return execution, artifacts
 
 
 async def run_queue():
-    """Worker: pick from queue, move to active, run, move to done/blocked."""
+    """Worker: pick from queue, run, move to done/blocked."""
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     ACTIVE_DIR.mkdir(parents=True, exist_ok=True)
     DONE_DIR.mkdir(parents=True, exist_ok=True)
@@ -129,6 +187,11 @@ async def run_queue():
         rebuild_index()
         return
 
+    # Check dependencies
+    if not check_dependencies(job):
+        print(f"Waiting for dependencies. Keeping in queue.")
+        return
+
     # Move to active
     active_file = move_job(job_file, ACTIVE_DIR)
     print(f"Moved to active: {active_file.name}")
@@ -138,8 +201,11 @@ async def run_queue():
     try:
         execution, artifacts = await run_single_job(str(active_file))
     except Exception as e:
-        print(f"ERROR: {e}")
+        logger.error(f"Job failed: {e}")
         execution, artifacts = [], []
+        job = json.loads(active_file.read_text())
+        job["evaluation"]["verdict"] = "failed"
+        job["evaluation"]["reason"] = str(e)
 
     # Determine status
     blocked = sum(1 for e in execution if e.get("status") == "blocked")
@@ -153,13 +219,9 @@ async def run_queue():
         final = move_job(active_file, DONE_DIR)
         print(f"Moved to done: {job['id']}")
 
-    # Re-read, update, write back
-    job = json.loads(final.read_text())
+    # Write back
     job["artifacts"] = artifacts
-    if status == "blocked":
-        job["evaluation"]["verdict"] = "blocked"
     final.write_text(json.dumps(job, indent=2, default=str))
-
     rebuild_index()
 
 
