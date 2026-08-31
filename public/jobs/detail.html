@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Detail — Think Box AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../#features">Features</a></li>
+        <li><a href="../#jobs">Jobs</a></li>
+        <li><a href="../#verdicts">Verdicts</a></li>
+        <li><a href="../jobs/">Browse</a></li>
+        <li><a href="../findings/">Findings</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-12));">
+    <div class="container">
+      <div id="job-detail">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Turn intent into proof.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../jobs/">Jobs</a>
+          <a href="../findings/">Findings</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/job-detail.js"></script>
+</body>
+</html>
