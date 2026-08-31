@@ -25,8 +25,8 @@ async def main():
     reg = ctx.tool_registry
 
     print(f"Tools registered: {len(reg.list_tools())}")
-    assert len(reg.list_tools()) == 17, f"Expected 17 tools, got {len(reg.list_tools())}"
-    print("OK: 17 tools registered")
+    assert len(reg.list_tools()) == 18, f"Expected 18 tools, got {len(reg.list_tools())}"
+    print("OK: 18 tools registered")
     print()
 
     # Test 1: indexer_health
