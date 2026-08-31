@@ -1,0 +1,44 @@
+{
+  "id": "job_inscription_001",
+  "intent": "Look up a single inscription or transaction across available indexers and record what each returns.",
+  "hat": "researcher",
+  "inputs": {
+    "inscription_id": "15f3b73df7e5c072becb1d84191843ba080734805addfccb650929719080f62ei0"
+  },
+  "plan": [
+    "Check indexer health",
+    "Fetch from each available indexer",
+    "Parse any DRC-20 JSON found",
+    "Write finding to data/findings/inscription_<id>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": [
+      "indexer_health",
+      "http_get",
+      "doginals_inscription",
+      "doge_tx",
+      "compare_inscription",
+      "parse_drc20",
+      "fs_write",
+      "memory_put"
+    ],
+    "sources": [
+      "api.doginals.org"
+    ],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  },
+  "cost": {
+    "box_minutes": 0,
+    "gpu_minutes": 0,
+    "http_calls": 0
+  }
+}
