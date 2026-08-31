@@ -32,7 +32,7 @@ from core.tools.registry import ToolRegistry
 from core.tools.fs import fs_read, fs_write, fs_list
 from core.tools.http import http_get
 from core.tools.memory import memory_put, memory_get, memory_search, init_memory_db
-from core.tools.doginals import doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
+from core.tools.doginals import indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
 
 import core.providers.ollama
 import core.providers.openai_compat
@@ -113,7 +113,7 @@ def _create_tool_registry(audit_log: AuditLog, project_root: Path) -> ToolRegist
     builtin_tools = [file_read, file_write, shell_exec, http_request, memory_query,
                      fs_read, fs_write, fs_list, http_get,
                      memory_put, memory_get, memory_search,
-                     doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture]
+                     indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture]
     for t in builtin_tools:
         if hasattr(t, "_tool_definition"):
             registry.register(t._tool_definition)
