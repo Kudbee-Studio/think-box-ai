@@ -1,17 +1,11 @@
 # STATUS.md — Think Box AI Research Agent
 
-## What Works ✅
-- 17 tools registered and functional
-- Agent loop with XML tool-call parsing
-- SQLite research memory (memory_put/get/search)
-- Filesystem tools (fs_read/write/list) — jailed to repo + data/
-- HTTP tool with rate limiting
-- Doginals domain tools (doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture)
-- FastAPI backend (/health, /run, /stream, /ws)
-- Bootstrap wires all components
+**Session:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
+**Branch:** session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
 
-## Verified Tool Count: 18
+## What Works
 
+### Tools (18 registered)
 | # | Tool | Status |
 |---|------|--------|
 | 1 | file_read | ✅ |
@@ -33,29 +27,68 @@
 | 17 | parse_drc20 | ✅ |
 | 18 | load_fixture | ✅ |
 
+### Backend
+- /health returns OK with provider + tool count
+- /run endpoint works
+- /stream and /ws implemented
+
+### What Passed Today
+- ✅ 18 tools register and respond
+- ✅ Bootstrap completes
+- ✅ indexer_health tool correctly identifies live/dead sources
+- ✅ memory_put/get/search persist to SQLite
+- ✅ Findings written to data/findings/dogi_indexer_split.md
+- ✅ Fixtures load correctly
+
+### What Failed / Blocked
+- ❌ dogechain.info returns 403 (Cloudflare anti-bot) — not TLS, not fixable from box
+- ❌ doginals.org inscription endpoints return 404 (not public, only /health works)
+- ❌ api.inception.ai TLS SNI rejected by CDN — never use from box
+- ❌ wonky-ord.dogeord.io DNS resolution failure
+- ❌ ordinalswallet.com connection timeout (522)
+- ❌ No Ollama on box (not installed)
+
 ## Source Reachability (2026-08-31)
 
 ### Live (returned data)
-- **api.doginals.org** — /v1/health OK; inscription endpoints 404 (not public)
-- **api.github.com** — OK
-- **example.com** — OK
+| Source | HTTP | Notes |
+|--------|------|-------|
+| api.doginals.org | 200 | Only /v1/health; inscription routes 404 |
+| api.github.com | 200 | OK |
 
 ### Blocked (TLS OK, app-layer block)
-- **dogechain.info** — HTTP 403 (Cloudflare anti-bot challenge)
+| Source | HTTP | Notes |
+|--------|------|-------|
+| dogechain.info | 403 | Cloudflare anti-bot challenge |
 
 ### Dead (network-level failure)
-- **wonky-ordinals.fly.dev** — DNS resolution failure
-- **ordinalswallet.com** — HTTP 522 (connection timeout)
-- **api.inception.ai** — TLS alert 112 (CDN SNI reject from AWS IPs)
+| Source | Error |
+|--------|-------|
+| wonky-ord.dogeord.io | DNS resolution failure |
+| ordinalswallet.com | Connection timeout (522) |
+| api.inception.ai | TLS alert 112 (CDN SNI reject) |
 
-## Model Provider Status
+## Model Provider Order
 
-| Provider | Box | Cloud Local | Notes |
-|----------|-----|-------------|-------|
-| Ollama | ❌ Not installed | ❌ Not installed | Install locally |
-| Inception | ❌ TLS fail | ❌ TLS 525 | Don't use from cloud |
-| OpenAI | ✅ Reachable | ✅ Reachable | Needs key |
-| Groq | ✅ Reachable | ✅ Reachable | Needs key |
+1. **Ollama** (preferred) — local, install with `ollama pull llama3.1:8b`
+2. **FreeToken** — GPU server at `http://87.58.150.62:1919/v1` when started by Kudbee
+3. **OpenAI-compatible** — any standard provider with valid key
+
+## DOGI Proof Result
+
+**Status:** Partial — tools work, inscription data inaccessible.
+
+The 21M vs 2.1B DOGI deploy split remains **unverified** because:
+- dogechain.info is Cloudflare-blocked (403)
+- doginals.org doesn't expose inscription data publicly (404)
+- Other indexers are dead (DNS/timeout)
+
+See: `data/findings/dogi_indexer_split.md`
+
+## Key Limitation
+
+The indexer-split thesis **cannot be proven with public APIs alone**.
+Requires: paid indexer API, residential proxy, or local ord indexer.
 
 ## How to Run Locally
 
@@ -63,39 +96,10 @@
 git checkout session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
 pip install -r backend/requirements.txt
 
-# Option A: Local Ollama
+# Ollama provider
 ollama pull llama3.1:8b
-python3 -m uvicorn backend.main:app --port 8000 &
-
-# Option B: Groq (free tier)
-export THINKBOX_DEFAULT_PROVIDER=openai_compat
-export THINKBOX_OPENAI_COMPAT_API_KEY=gsk_your_key
-export THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.groq.com/openai/v1
-export THINKBOX_DEFAULT_MODEL=llama-3.1-8b-instant
 python3 -m uvicorn backend.main:app --port 8000 &
 
 # Run proof
 python3 scripts/prove_dogi.py
 ```
-
-## DOGI Proof Result
-
-**Status:** Partial — tools work, but inscription data inaccessible via public APIs.
-
-See: `data/findings/dogi_indexer_split.md`
-
-## FreeToken Integration
-
-**Status:** Documented, not yet deployed.
-
-See: `data/findings/freetoken_integration.md`
-
-KudbeeZero fork: https://github.com/KudbeeZero/kudbee-freetoken (identical to upstream FlashML).
-
-**Plan:** Run FreeToken on UpCloud GPU spot → point Think Box at its OpenAI-compatible API.
-
-## Key Finding
-
-The indexer-split thesis is **not provable via public APIs alone**. Most inscription
-indexers don't expose public endpoints, require auth, or are unreachable. To prove
-the thesis, we need a paid API, residential proxy, or local indexer.

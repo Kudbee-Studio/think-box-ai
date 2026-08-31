@@ -16,11 +16,16 @@ pip install -r backend/requirements.txt
 ollama pull llama3.1:8b
 # Default config works — just run.
 
-# Option B: Inception API (Mercury 2, ~1M free tokens)
+# Option B: FreeToken on GPU (when started by Kudbee)
 export THINKBOX_DEFAULT_PROVIDER=openai_compat
-export THINKBOX_OPENAI_COMPAT_API_KEY=sk_63c907f6e5c65a4fd03d1bafcd81e895
-export THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.inception.ai/v1
-export THINKBOX_DEFAULT_MODEL=mercury-2
+export THINKBOX_OPENAI_COMPAT_BASE_URL=http://87.58.150.62:1919/v1
+export THINKBOX_DEFAULT_MODEL=qwen/qwen3.6-27b
+
+# Option C: OpenAI-compatible (generic)
+export THINKBOX_DEFAULT_PROVIDER=openai_compat
+export THINKBOX_OPENAI_COMPAT_API_KEY=sk-...
+export THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.openai.com/v1
+export THINKBOX_DEFAULT_MODEL=gpt-4o-mini
 
 # 4. Run
 python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
@@ -34,46 +39,38 @@ curl -X POST http://localhost:8000/run \
 
 ## Upstash Box Limitations
 
-The Upstash Box sandbox has a **transparent TLS proxy** that blocks outbound HTTPS
-to hosts not in its whitelist. HTTP works, HTTPS does not.
+The Upstash Box sandbox has limited HTTPS outbound access.
 
-**Workaround for testing:**
-- Run the backend locally (where HTTPS works)
-- Use the box for code development, git operations, and testing non-HTTPS tools
-- The box CAN reach: GitHub API, HTTP endpoints
-- The box CANNOT reach: Inception API, most HTTPS APIs
+**Box CAN reach:**
+- api.github.com
+- api.doginals.org (health only)
 
-**To enable HTTPS on a new box**, configure `attachHeaders`:
-```python
-box = Box.create(
-    runtime="python",
-    attach_headers={
-        "api.inception.ai": {"Authorization": "Bearer <REDACTED>"},
-    },
-)
-```
-The host proxy will then allow TLS connections to `api.inception.ai`.
+**Box CANNOT reach:**
+- api.inception.ai (CDN SNI reject)
+- wonky-ord.dogeord.io (DNS dead)
+- ordinalswallet.com (timeout)
+- dogechain.info (Cloudflare 403)
+
+**Workaround:** Run the backend locally or use GPU server for model inference.
 
 ## Provider Status (as of 2026-08-31)
 
-| Provider | From Box | From Cloud | Notes |
-|----------|----------|------------|-------|
+| Provider | Box | Cloud | Notes |
+|----------|-----|-------|-------|
 | Ollama (local) | ❌ Not installed | ❌ Not installed | Install locally |
-| Inception (Mercury 2) | ❌ TLS SNI rejected | ❌ TLS 525 | Their CDN issue |
+| FreeToken (GPU) | ❌ No GPU | ✅ When started | At 87.58.150.62:1919 |
 | OpenAI | ✅ Reachable | ✅ Reachable | Needs valid key |
-| Groq | ✅ Reachable | ✅ Reachable | Needs valid key |
-| Together | ✅ Reachable | ✅ Reachable | Needs valid key |
 
-**Bottom line**: Install Ollama locally, or use OpenAI/Groq/Together with a valid key.
-Do NOT use Inception from cloud/box environments — their CDN rejects SNI from AWS IPs.
+**Provider order:** Ollama → FreeToken → OpenAI-compatible
 
-## Tools Available (17 total)
+## Tools Available (18 total)
 
 | Tool | Purpose |
 |------|---------|
 | fs_read / fs_write / fs_list | Filesystem access (jailed to repo + data/) |
 | http_get | HTTP GET with rate limiting (400ms/host) |
 | memory_put / memory_get / memory_search | SQLite research memory |
+| indexer_health | Check which indexers are reachable |
 | doge_tx | Fetch Dogecoin transaction |
 | doginals_inscription | Fetch inscription from indexer |
 | compare_inscription | Compare across multiple indexers |

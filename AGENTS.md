@@ -23,7 +23,7 @@ review.
 ### 1.2 Provider Independence
 
 No model provider is hardcoded. The runtime must work identically with:
-- OpenAI-compatible APIs (OpenAI, Groq, Together, vLLM, Ollama)
+- OpenAI-compatible APIs (OpenAI, Together, vLLM, Ollama)
 - Anthropic Messages API
 - Local models (Phase 2+)
 
@@ -305,7 +305,72 @@ features before the foundation is solid.
 
 ---
 
-## 12. Enforcement
+## 13. Environment & Infrastructure
+
+### 13.1 UpCloud (READ ONLY unless Kudbee explicitly says start/stop)
+
+**Rule: Do NOT create, delete, start, stop, resize, or modify servers without explicit Kudbee instruction.**
+
+| Field | Value |
+|-------|-------|
+| **UUID** | `00d832ec-8565-447b-86ac-74bf9bd41e57` |
+| **Hostname** | `gpu-ubuntu-20cpu-256gb-fi-hel2` |
+| **Plan** | GPU-SPOT-20xCPU-256GB-3xL40S |
+| **Zone** | fi-hel2 |
+| **Floating IP** | 87.58.150.62 |
+| **Public NIC** | 87.58.148.168 |
+| **Utility IP** | 10.6.21.222 |
+| **Template** | Ubuntu 24.04 + NVIDIA/CUDA |
+| **SSH Key** | thinkbox-agent (BatchMode only, no interactive) |
+
+**Verify only:**
+```bash
+curl -s "https://api.upcloud.com/1.3/server" -H "Authorization: Bearer $THINKBOX_UPCLOUD_API_TOKEN"
+```
+
+**Spot instances may be powered off by UpCloud. This is not "broken." Do not recreate.**
+
+### 13.2 Upstash Box
+
+| Field | Value |
+|-------|-------|
+| **Box ID** | `wanted-tuna-71803` |
+| **Status** | resumed/idle |
+| **Runtime** | Python 3.13 |
+| **Branch** | `session/agent_79e656bf-37c6-46f2-833e-1eb027b99152` |
+
+**Reachability from box:**
+- ✅ dogechain.info (403 CF anti-bot, not TLS)
+- ✅ api.doginals.org (health endpoint)
+- ✅ api.github.com
+- ❌ api.inception.ai (CDN SNI reject — never use from box)
+- ❌ wonky-ord.dogeord.io (DNS dead)
+- ❌ ordinalswallet.com (timeout)
+
+**Model provider on box:** Ollama (preferred) or FreeToken on GPU. Never Inception.
+
+### 13.3 Databases
+
+- **Upstash Redis**: Deleted (saved $25/mo)
+- **Upstash Vector**: Empty, left as-is
+
+### 13.4 Cost Constraints
+
+- Budget: ~$340 remaining
+- Do NOT create UpCloud CPU boxes ($430/mo unnecessary)
+- Do NOT use Inception API (unreachable from box)
+- GPU spot may be revoked — this is normal
+
+### 13.5 FreeToken
+
+- Repo: https://github.com/KudbeeZero/kudbee-freetoken
+- Purpose: Edge-native MoE serving (250B+ models on consumer GPUs)
+- Status: Documented in `data/findings/freetoken_integration.md`
+- Not yet deployed. Requires GPU server + Kudbee approval to install.
+
+---
+
+## 14. Enforcement
 
 These rules are enforced by:
 - Code review
