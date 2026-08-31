@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /data/raw/
+Disallow: /jobs/active/
+
+Sitemap: https://thinkbox.ai/sitemap.xml
