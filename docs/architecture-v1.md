@@ -267,7 +267,7 @@ The runtime queries capabilities at startup and adjusts behavior accordingly.
 
 | Provider | Implementation | Notes |
 |----------|---------------|-------|
-| OpenAI-compatible | HTTP client wrapping `/v1/chat/completions` | Covers OpenAI, Groq, Together, vLLM, Ollama, any compatible API |
+| OpenAI-compatible | HTTP client wrapping `/v1/chat/completions` | Covers OpenAI, Together, vLLM, Ollama, any compatible API |
 | Anthropic | HTTP client wrapping Messages API | If network access is available during development |
 
 **Not implemented in Phase 1:**
