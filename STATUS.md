@@ -12,11 +12,12 @@ file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write
 ## CLI Commands
 
 ```
-thinkbox job list/show/submit/queue/diff/run
-thinkbox findings list/show/preview
+thinkbox job list/show/submit/queue/diff/run/cancel/retry
+thinkbox findings list/show/preview/export
 thinkbox config show/set/profile
+thinkbox memory search/show/list/remember/forget/context
 thinkbox box status/health
-thinkbox serve / watch
+thinkbox doctor / init / watch
 Global: --json --plain --quiet --verbose --dry-run --no-color
 ```
 
