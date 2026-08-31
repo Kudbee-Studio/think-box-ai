@@ -33,3 +33,12 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Research artifacts
+data/raw/
+data/findings/
+data/thinkbox.sqlite
+data/thinkbox.sqlite-*
+
+# Keep fixtures
+!data/fixtures/
