@@ -54,8 +54,8 @@ All 7 assets (dogi 21m, dbit, dcex, dogx, Doge Runestone, DogeBuds, Dogemaps): *
 `public/index.html` — JOB #0001 + catalog + verdict legend + templates
 `public/HOW_TO_QUEUE.md` — how to schedule a job
 
-## Provider Order
+## Public Packet
 
-1. Ollama (local)
-2. FreeToken on GPU (87.58.150.62:1919 when started)
-3. OpenAI-compatible
+Phase: **public packet** — making THINK JOB #0001 a complete public artifact.
+Page: `public/index.html`
+Packet: `public/job-0001/`

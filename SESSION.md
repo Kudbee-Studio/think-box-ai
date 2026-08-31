@@ -2,12 +2,13 @@
 
 **Session ID:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
+**Phase:** public packet
 **Created:** 2026-08-31
-**Status:** Handoff complete
+**Status:** In progress
 
 ## Last Commit
 
-`3e544b6` — "feat: queue worker + check_jobs test runner"
+`4fdc7c5` — "feat: public packet + receipts + inscription dry-run job"
 
 ## Push Status
 
