@@ -84,6 +84,16 @@ python3 scripts/prove_dogi.py
 
 See: `data/findings/dogi_indexer_split.md`
 
+## FreeToken Integration
+
+**Status:** Documented, not yet deployed.
+
+See: `data/findings/freetoken_integration.md`
+
+KudbeeZero fork: https://github.com/KudbeeZero/kudbee-freetoken (identical to upstream FlashML).
+
+**Plan:** Run FreeToken on UpCloud GPU spot → point Think Box at its OpenAI-compatible API.
+
 ## Key Finding
 
 The indexer-split thesis is **not provable via public APIs alone**. Most inscription
