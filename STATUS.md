@@ -99,3 +99,12 @@ KudbeeZero fork: https://github.com/KudbeeZero/kudbee-freetoken (identical to up
 The indexer-split thesis is **not provable via public APIs alone**. Most inscription
 indexers don't expose public endpoints, require auth, or are unreachable. To prove
 the thesis, we need a paid API, residential proxy, or local indexer.
+
+## Frontend v1
+
+Landing page, jobs listing, findings browser, job detail, about.
+Design system with dark theme, responsive layout, animations.
+Pure HTML/CSS/JS — no build step.
+
+Serve: `python3 scripts/serve_frontend.py 8080`
+PR: https://github.com/Kudbee-Studio/think-box-ai/pull/58
