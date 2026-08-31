@@ -10,6 +10,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -22,7 +23,7 @@ from core.runtime.loop import AgentLoop
 
 logger = get_logger(__name__)
 
-app = FastAPI(title="THINK BOX AI", version="0.2.0")
+app = FastAPI(title="THINK BOX AI", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +35,8 @@ app.add_middleware(
 
 ctx: RuntimeContext | None = None
 sessions: dict[str, dict[str, Any]] = {}
+JOBS_DIR = Path(__file__).resolve().parent.parent / "jobs"
+FINDINGS_DIR = Path(__file__).resolve().parent.parent / "data" / "findings"
 
 
 @app.on_event("startup")
@@ -55,7 +58,7 @@ async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "think-box-ai",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "provider": ctx.provider.__class__.__name__ if ctx.provider else None,
         "tools": len(ctx.tool_registry.list_tools()) if ctx.tool_registry else 0,
         "sessions": len(sessions),
@@ -72,6 +75,41 @@ async def get_tools() -> dict[str, Any]:
     if not ctx or not ctx.tool_registry:
         return {"tools": []}
     return {"tools": [t.to_dict() for t in ctx.tool_registry.list_tools()]}
+
+
+@app.get("/findings")
+async def list_findings() -> dict[str, Any]:
+    if not FINDINGS_DIR.exists():
+        return {"findings": []}
+    findings = [f.name for f in sorted(FINDINGS_DIR.glob("*.md"))]
+    return {"findings": findings}
+
+
+@app.get("/jobs")
+async def list_jobs() -> dict[str, Any]:
+    jobs = []
+    for state in ["queue", "active", "done", "blocked"]:
+        state_dir = JOBS_DIR / state
+        if not state_dir.is_dir():
+            continue
+        for jf in sorted(state_dir.glob("job_*.json")):
+            job = json.loads(jf.read_text())
+            jobs.append({
+                "id": job["id"],
+                "hat": job["hat"],
+                "state": state,
+                "verdict": job.get("evaluation", {}).get("verdict", "—"),
+            })
+    return {"jobs": jobs}
+
+
+@app.get("/jobs/{job_id}")
+async def get_job(job_id: str) -> dict[str, Any]:
+    for state in ["queue", "active", "done", "blocked"]:
+        job_file = JOBS_DIR / state / f"{job_id}.json"
+        if job_file.exists():
+            return json.loads(job_file.read_text())
+    return {"error": "Job not found"}
 
 
 @app.post("/run")
