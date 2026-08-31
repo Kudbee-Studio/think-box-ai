@@ -52,11 +52,10 @@ Reason: api.doginals.org wallet endpoints not public.
 | SSH key | unknown until laptop |
 | Models | 20B + 120B on attached disks |
 
-## Provider Order
+## Tests
 
-1. Ollama (local)
-2. FreeToken on GPU (87.58.150.62:1919 when started)
-3. OpenAI-compatible
+**Status:** Test file added (`tests/unit/test_jobs.py`). Cannot run — pytest not installed (no pip).
+**Coverage:** schema loads, template validates, runner blocked when GPU stopped, all verdicts valid.
 
 ## Public Page
 
