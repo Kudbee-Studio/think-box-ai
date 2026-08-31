@@ -40,25 +40,26 @@ These are used to verify the DOGI indexer-split thesis (21M vs 2.1B supply).
 2. **FreeToken** — GPU server at `http://87.58.150.62:1919/v1` when started by Kudbee
 3. **OpenAI-compatible** — any standard provider with valid key
 
-## UpCloud Notes
+## UpCloud GPU Server
 
-- UUID: `00d832ec-8565-447b-86ac-74bf9bd41e57` (ends in e57, not e51)
-- Power state: HUMAN ONLY
-- Floating IP: 87.58.150.62
+- UUID: `00d832ec-8565-447b-86ac-74bf9bd41e57`
+- Hostname: `gpu-ubuntu-20cpu-256gb-fi-hel2`
+- Floating IP: `87.58.150.62`
 - Plan: GPU-SPOT-20xCPU-256GB-3xL40S
-- Do NOT start/stop without Kudbee authorization
+- **Current state: STOPPED** (as of 2026-08-31T13:50:36Z)
+- Power: HUMAN ONLY — Kudbee must start
+- Models: 20B and 120B weights on attached disks (per Kudbee)
 
-## GPU Server Plan (when started by Kudbee)
+## Next Human Action
 
+**Kudbee must start the GPU server** before model paths can be found or served.
+
+Once started:
 1. SSH BatchMode to 87.58.150.62
 2. Find models: `lsblk`, `df -h`, `find /mnt /data /models /home -iname '*gguf' -o -iname 'config.json'`
-3. Pick server:
-   - GGUF → llama.cpp or ollama
-   - MoE HF → `ft serve --host 0.0.0.0 --port 1919 --model <path>`
-4. Health check: `curl 127.0.0.1:1919/v1/models` or `/api/tags`
-5. Wire think-box: `openai_compat` → `http://87.58.150.62:1919/v1`
-6. Use tmux/systemd so SSH drop doesn't kill server
-7. 20B model for DOGI proof, 120B for later work
+3. Serve: GGUF → ollama/llama.cpp; MoE HF → `ft serve --host 0.0.0.0 --port 1919 --model <path>`
+4. Wire Think Box: `openai_compat` → `http://87.58.150.62:1919/v1`
+5. Use 20B model for DOGI proof
 
 ## Provider Order
 
