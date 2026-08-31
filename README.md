@@ -82,4 +82,6 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 
 ## License
 
+*Note: CI failures are due to a billing lock on the repository account. No code changes required.*
+
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
