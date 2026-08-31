@@ -8,26 +8,38 @@
 
 file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write, fs_list, http_get, memory_put, memory_get, memory_search, indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
 
-## DOGI Proof
+## Job Queue
 
-**Status:** Honest proof completed — `unproven`.
-**Finding:** `data/findings/dogi_indexer_split.md`
+| ID | Hat | Verdict | Location |
+|----|-----|---------|----------|
+| job_dogi_split_001 | researcher | unproven | jobs/ |
+| job_wallet_scan_001 | researcher | blocked | jobs/ |
+| job_gpu_find_models | runner | blocked | jobs/queue/ |
+| job_gpu_serve_20b | runner | blocked | jobs/queue/ |
+
+### Wallet Verdicts (DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8)
+| Asset | Verdict |
+|-------|---------|
+| dogi 21m ticker | blocked |
+| dbit | blocked |
+| dcex | blocked |
+| dogx | blocked |
+| Doge Runestone | blocked |
+| DogeBuds | blocked |
+| Dogemaps | blocked |
+
+Reason: api.doginals.org wallet endpoints not public.
+
+## Source Reachability
 
 | Source | HTTP | Notes |
 |--------|------|-------|
-| api.doginals.org | 200 | Health only; inscription endpoints 404 |
+| api.doginals.org | 200 | Health only; wallet/inscription endpoints 404 |
+| api.github.com | 200 | OK |
 | dogechain.info | 403 | Cloudflare anti-bot |
 | wonky-ord.dogeord.io | — | DNS dead |
 | ordinalswallet.com | — | Timeout |
 | api.inception.ai | ❌ | TLS SNI reject (banned) |
-
-## Think Job
-
-**Status:** First job executed.
-**Job ID:** job_dogi_split_001
-**Verdict:** unproven
-**Schema:** jobs/schema.json
-**Runner:** scripts/run_job.py
 
 ## UpCloud GPU
 
