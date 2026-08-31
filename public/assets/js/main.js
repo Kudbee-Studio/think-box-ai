@@ -128,6 +128,14 @@ function initScrollReveal() {
   document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
 }
 
+// Mobile menu toggle
+function toggleMobileMenu() {
+  const menu = document.getElementById("mobileMenu");
+  if (menu) {
+    menu.classList.toggle("active");
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderJobs();
   renderVerdicts();

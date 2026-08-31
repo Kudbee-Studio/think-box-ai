@@ -3,8 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Think Box AI — Turn Intent Into Proof</title>
-  <meta name="description" content="Think Box AI turns human intent into verified outcomes. Research jobs, indexer consensus, on-chain proof.">
+  <title>Think Box AI — Turn Intent Into Verified Proof</title>
+  <meta name="description" content="Think Box AI runs narrow research jobs against live public APIs, persists findings to immutable proof files, and delivers honest verdicts. Researcher hat for indexer consensus.">
+  <meta name="keywords" content="AI research, indexer consensus, Doginals, DRC-20, on-chain proof, verification, Think Box">
+  <meta name="author" content="Think Box AI">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Think Box AI — Turn Intent Into Verified Proof">
+  <meta property="og:description" content="Research jobs that deliver honest verdicts. No overclaiming. No marketing spin.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thinkbox.ai">
+  <meta property="og:image" content="https://thinkbox.ai/assets/og-image.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Think Box AI — Turn Intent Into Verified Proof">
+  <meta name="twitter:description" content="Research jobs that deliver honest verdicts.">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://thinkbox.ai">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Think Box AI",
+    "description": "Turn human intent into verified outcomes with narrow research jobs",
+    "url": "https://thinkbox.ai",
+    "applicationCategory": "ResearchApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,11 +51,13 @@
   <link rel="stylesheet" href="assets/css/components.css">
   <link rel="stylesheet" href="assets/css/animations.css">
   <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
 </head>
 <body>
+  <a href="#main" class="skip-link">Skip to content</a>
 
   <!-- Navigation -->
-  <nav class="nav">
+  <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="container nav-inner">
       <a href="/" class="nav-logo">
         <div class="nav-logo-icon">TB</div>
@@ -36,8 +73,22 @@
       <div>
         <a href="#jobs" class="btn btn-primary">View Jobs</a>
       </div>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
     </div>
   </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="#features" onclick="toggleMobileMenu()">Features</a></li>
+      <li><a href="#jobs" onclick="toggleMobileMenu()">Jobs</a></li>
+      <li><a href="#verdicts" onclick="toggleMobileMenu()">Verdicts</a></li>
+      <li><a href="jobs/" onclick="toggleMobileMenu()">Browse</a></li>
+      <li><a href="findings/" onclick="toggleMobileMenu()">Findings</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
 
   <!-- Hero -->
   <section class="hero grid-bg">
@@ -167,6 +218,7 @@
       </div>
     </div>
   </footer>
+  </main>
 
   <script src="assets/js/main.js"></script>
 </body>
