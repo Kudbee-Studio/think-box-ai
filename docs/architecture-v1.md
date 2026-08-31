@@ -403,11 +403,17 @@ Permissions are checked at two points:
 Agents start with `READ_ONLY` permission. Elevated permissions are granted
 explicitly per session or per task.
 
-### 8.4 Sandboxing (Future)
+### 8.4 Sandboxing (Phase 1)
 
-Tool execution must eventually run in a sandbox. Phase 1 does not implement
-sandboxing. The architecture must be designed so that the execution boundary
-is clear and replaceable.
+Phase 1 sandbox: Docker harness, host-orchestrator + container tools.
+Firecracker later.
+
+When `HARNESS=1` (or config `sandbox.enabled=true`) and Docker is reachable,
+all tool side effects are routed into an isolated container via `docker exec`.
+The orchestrator and model calls stay on host; only tool execution moves
+into the container. If Docker is not reachable, the harness defaults off with
+a single warning and tools fall back to host subprocess. Firecracker and
+CloudVM backends are stubs for Phase 2+.
 
 ---
 

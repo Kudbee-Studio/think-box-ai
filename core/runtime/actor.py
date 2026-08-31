@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger("thinkbox.runtime.actor")
 
 
 class Actor:
@@ -18,8 +21,32 @@ class Actor:
         self.audit_log = audit_log
         self.memory_store = memory_store
 
-    async def execute_step(self, agent: Any, think_box: Any, step: Any) -> dict[str, Any]:
+    async def execute_step(
+        self,
+        agent: Any,
+        think_box: Any,
+        step: Any,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         tool_registry = getattr(agent, "tool_registry", self.tool_registry)
         if tool_registry is None:
             return {"status": "success", "output": "No tools available"}
-        return {"status": "success", "output": f"Executed step: {step.description}"}
+        step_tool = getattr(step, "tool", None) or getattr(step, "action", None)
+        if step_tool is None or step_tool == "execute":
+            return {"status": "success", "output": f"Executed step: {step.description}"}
+        from core.foundation.errors import ToolNotFoundError
+
+        tool_def = tool_registry.get(step_tool)
+        if tool_def is None:
+            raise ToolNotFoundError(f"Tool not found: {step_tool}")
+        step_input = getattr(step, "input", {}) or {}
+        if context is None:
+            context = {}
+        if self.memory_store is not None and "memory_store" not in context:
+            context["memory_store"] = self.memory_store
+        result = await tool_def.handler(step_input, context)
+        logger.info(
+            "actor_step tool=%s outcome=%s",
+            step_tool, result.get("status", "unknown"),
+        )
+        return {"status": "success", "tool": step_tool, "output": result}
