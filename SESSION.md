@@ -7,7 +7,7 @@
 
 ## Last Commit
 
-`641903b` — "docs: researcher hat contract + honest DOGI proof"
+`8932f62` — "feat: Think Job schema + DOGI job + runner"
 
 ## Push Status
 

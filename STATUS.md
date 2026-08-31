@@ -21,9 +21,13 @@ file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write
 | ordinalswallet.com | — | Timeout |
 | api.inception.ai | ❌ | TLS SNI reject (banned) |
 
-## Researcher Hat
+## Think Job
 
-Contract: `data/findings/RESEARCHER_HAT.md`
+**Status:** First job executed.
+**Job ID:** job_dogi_split_001
+**Verdict:** unproven
+**Schema:** jobs/schema.json
+**Runner:** scripts/run_job.py
 
 ## UpCloud GPU
 
