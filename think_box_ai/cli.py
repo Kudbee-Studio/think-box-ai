@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from think_box_ai import __version__
-from think_box_ai.commands import box, config, findings, job, watch
+from think_box_ai.commands import box, config, findings, job, memory, watch
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -100,6 +100,34 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser = subparsers.add_parser("watch", help="Live job monitoring")
     watch_parser.add_argument("--interval", type=int, default=5, help="Refresh interval")
     watch_parser.set_defaults(func=lambda a: watch.watch(a.interval))
+
+    # memory
+    memory_parser = subparsers.add_parser("memory", help="Project memory + session recall")
+    memory_sub = memory_parser.add_subparsers(dest="memory_command")
+
+    mem_search = memory_sub.add_parser("search", help="Search messages + memory")
+    mem_search.add_argument("query", help="Search query")
+    mem_search.add_argument("--limit", type=int, default=10)
+    mem_search.set_defaults(func=lambda a: memory.memory_search(a.query, limit=a.limit))
+
+    mem_show = memory_sub.add_parser("show", help="Show session transcript")
+    mem_show.add_argument("session_id", help="Session ID")
+    mem_show.set_defaults(func=lambda a: memory.memory_show(a.session_id))
+
+    mem_list = memory_sub.add_parser("list", help="List project memory")
+    mem_list.set_defaults(func=lambda a: memory.memory_list())
+
+    mem_remember = memory_sub.add_parser("remember", help="Store a memory")
+    mem_remember.add_argument("key", help="Memory key")
+    mem_remember.add_argument("value", help="Memory value")
+    mem_remember.set_defaults(func=lambda a: memory.memory_remember(a.key, a.value))
+
+    mem_forget = memory_sub.add_parser("forget", help="Delete a memory")
+    mem_forget.add_argument("key", help="Memory key")
+    mem_forget.set_defaults(func=lambda a: memory.memory_forget(a.key))
+
+    mem_context = memory_sub.add_parser("context", help="Get project startup context")
+    mem_context.set_defaults(func=lambda a: memory.memory_context())
 
     return parser
 
