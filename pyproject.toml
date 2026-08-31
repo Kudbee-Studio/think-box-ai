@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "think-box-ai"
-version = "0.1.0"
-description = "Think Box AI — Think Token (THNK) utility and SDK"
+version = "0.2.0"
+description = "Think Box AI — Think Job control plane and CLI"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -31,7 +31,7 @@ asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["think_box_ai*", "think_box_ai.commands*"]
+include = ["think_box_ai*", "think_box_ai.commands*", "think_box_ai.ui*", "think_box_ai.utils*"]
 
 [tool.thinkbox]
 default_provider = "openai_compat"

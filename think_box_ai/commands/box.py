@@ -5,6 +5,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from ..ui.colors import bold, dim
+from ..utils.output import is_json_mode, output_json
+
 JOBS_DIR = Path(__file__).resolve().parent.parent.parent / "jobs"
 
 
@@ -17,7 +20,11 @@ def box_status() -> None:
         print("UPSTASH_BOX_API_KEY not set.")
         return
 
-    print(f"Box ID: {box_id}")
+    if is_json_mode():
+        output_json({"box_id": box_id, "api_key_set": bool(api_key)})
+        return
+
+    print(bold(f"Box ID: {box_id}"))
     print("Use Upstash API for live status.")
 
 
