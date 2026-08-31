@@ -1,0 +1,32 @@
+{
+  "id": "job_marketplace_vs_chain_001",
+  "intent": "Compare marketplace metadata against on-chain inscription data for a given ticker.",
+  "hat": "researcher",
+  "inputs": {
+    "ticker": "",
+    "marketplace_url": "",
+    "chain_source": "api.doginals.org"
+  },
+  "plan": [
+    "Fetch marketplace metadata for ticker",
+    "Fetch on-chain inscription data",
+    "Compare: supply, deploy txid, holder count",
+    "Record discrepancies",
+    "Write finding to data/findings/marketplace_<ticker>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": ["indexer_health", "http_get", "doginals_inscription", "compare_inscription", "fs_write", "memory_put"],
+    "sources": ["api.doginals.org"],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  },
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
+}
