@@ -10,7 +10,7 @@
 - FastAPI backend (/health, /run, /stream, /ws)
 - Bootstrap wires all components
 
-## Verified Tool Count: 17
+## Verified Tool Count: 18
 
 | # | Tool | Status |
 |---|------|--------|
@@ -26,11 +26,12 @@
 | 10 | memory_put | ✅ |
 | 11 | memory_get | ✅ |
 | 12 | memory_search | ✅ |
-| 13 | doge_tx | ✅ |
-| 14 | doginals_inscription | ✅ |
-| 15 | compare_inscription | ✅ |
-| 16 | parse_drc20 | ✅ |
-| 17 | load_fixture | ✅ |
+| 13 | indexer_health | ✅ |
+| 14 | doge_tx | ✅ |
+| 15 | doginals_inscription | ✅ |
+| 16 | compare_inscription | ✅ |
+| 17 | parse_drc20 | ✅ |
+| 18 | load_fixture | ✅ |
 
 ## Source Reachability (2026-08-31)
 
