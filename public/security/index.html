@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Education — Think Box AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../#features">Features</a></li>
+        <li><a href="../#jobs">Jobs</a></li>
+        <li><a href="../#verdicts">Verdicts</a></li>
+        <li><a href="../jobs/">Browse</a></li>
+        <li><a href="../findings/">Findings</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../#features" onclick="toggleMobileMenu()">Features</a></li>
+      <li><a href="../#jobs" onclick="toggleMobileMenu()">Jobs</a></li>
+      <li><a href="../#verdicts" onclick="toggleMobileMenu()">Verdicts</a></li>
+      <li><a href="../jobs/" onclick="toggleMobileMenu()">Browse</a></li>
+      <li><a href="../findings/" onclick="toggleMobileMenu()">Findings</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+  <!-- Warning Banner -->
+  <div style="background: linear-gradient(90deg, #ef4444, #dc2626); padding: var(--space-4); text-align: center; color: white; font-weight: var(--font-semibold); font-size: var(--text-sm);">
+    ⚠️ SECURITY EDUCATION MODULE — FOR DEMONSTRATION PURPOSES ONLY ⚠️
+  </div>
+
+  <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+    <div class="container">
+      <div class="section-header">
+        <h1>Wallet Drain <span class="gradient-text">Attack Vectors</span></h1>
+        <p>Understanding how attackers drain wallets so you can protect yourself</p>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="card" style="border-color: var(--color-danger); margin-bottom: var(--space-8);">
+        <h3 style="color: var(--color-danger); margin-bottom: var(--space-4);">⚠️ Important Disclaimer</h3>
+        <p>This page demonstrates common wallet draining attack vectors for <strong>educational purposes only</strong>. The code patterns shown are for understanding how attacks work so you can protect yourself. Never use this knowledge to harm others.</p>
+      </div>
+
+      <!-- Attack Steps -->
+      <h2 style="margin-bottom: var(--space-6);">How the Attack Works</h2>
+      <div class="timeline" style="margin-bottom: var(--space-12);">
+        <div class="timeline-item">
+          <strong>Step 1: Lure</strong>
+          <span class="text-muted">— Attacker creates a fake NFT mint, airdrop, or marketplace that looks legitimate.</span>
+        </div>
+        <div class="timeline-item">
+          <strong>Step 2: Connect</strong>
+          <span class="text-muted">— User connects their wallet (e.g., Woof Wallet, MetaMask).</span>
+        </div>
+        <div class="timeline-item">
+          <strong>Step 3: Sign</strong>
+          <span class="text-muted">— User signs a transaction that approves the attacker to spend their tokens.</span>
+        </div>
+        <div class="timeline-item error">
+          <strong>Step 4: Drain</strong>
+          <span class="text-muted">— Attacker calls transferFrom() to sweep all approved tokens.</span>
+        </div>
+      </div>
+
+      <!-- Code Pattern -->
+      <h2 style="margin-bottom: var(--space-6);">Malicious Code Pattern</h2>
+      <p style="margin-bottom: var(--space-4);">This is what a wallet drainer looks like in JavaScript:</p>
+      <div class="code-block" style="margin-bottom: var(--space-8);">
+<pre>// MALICIOUS: Fake NFT mint site
+async function mint() {
+  // Step 1: Get user's wallet
+  const accounts = await window.doge.requestAccounts();
+  const userWallet = accounts[0];
+
+  // Step 2: Create approval transaction
+  // This looks like a mint but actually approves the attacker
+  const maliciousTx = {
+    from: userWallet,
+    to: TOKEN_CONTRACT,
+    data: encodeApprove(ATTACKER_ADDRESS, MAX_UINT256) // Unlimited approval!
+  };
+
+  // Step 3: User thinks they're minting, but they're approving
+  await window.doge.sendTransaction(maliciousTx);
+
+  // Step 4: Attacker drains wallet
+  await drainWallet(userWallet, ATTACKER_ADDRESS);
+}</pre>
+      </div>
+
+      <!-- Protection -->
+      <h2 style="margin-bottom: var(--space-6);">How to Protect Yourself</h2>
+      <div class="features-grid">
+        <div class="card">
+          <h3>Check Approvals</h3>
+          <p>Regularly review and revoke token approvals you've granted. Use tools like revoke.cash.</p>
+        </div>
+        <div class="card">
+          <h3>Verify Contracts</h3>
+          <p>Always verify the contract address before signing. Scammers clone popular sites.</p>
+        </div>
+        <div class="card">
+          <h3>Use Hardware Wallets</h3>
+          <p>Hardware wallets show exactly what you're signing on the device screen.</p>
+        </div>
+        <div class="card">
+          <h3>Never Share Seeds</h3>
+          <p>Never enter your seed phrase anywhere. No legitimate site will ask for it.</p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Live Demo Section -->
+      <h2 style="margin-bottom: var(--space-6);">Interactive Demonstration</h2>
+      <p style="margin-bottom: var(--space-4);">Enter a wallet address to see how an attacker would view it. This does NOT connect to any wallet or perform transactions.</p>
+
+      <div class="card" style="max-width: 600px;">
+        <label style="display: block; margin-bottom: var(--space-2); font-weight: var(--font-medium);">Wallet Address (testnet only)</label>
+        <input type="text" id="demoWallet" placeholder="D8vF... or testnet address" class="search-input" style="margin-bottom: var(--space-4);">
+        <button class="btn btn-secondary" onclick="simulateRecon()">Simulate Attacker Recon</button>
+        <div id="demoResult" style="margin-top: var(--space-4);"></div>
+      </div>
+
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Security Education</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../jobs/">Jobs</a>
+          <a href="../findings/">Findings</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    function simulateRecon() {
+      const addr = document.getElementById('demoWallet').value.trim();
+      const result = document.getElementById('demoResult');
+      if (!addr || addr.length < 10) {
+        result.innerHTML = '<p style="color: var(--color-danger);">Invalid address. This is a simulation only.</p>';
+        return;
+      }
+      result.innerHTML = `
+        <div class="code-block">
+          <p style="color: var(--color-warning);">⚠️ SIMULATION — No real connection made</p>
+          <p>Attacker would scan: <code>${addr.substring(0,8)}...${addr.slice(-4)}</code></p>
+          <p>Would check: DOGE balance, DRC-20 tokens, NFT holdings</p>
+          <p>Would identify: High-value targets for phishing</p>
+          <p style="color: var(--color-success); margin-top: var(--space-3);">Protection: Use a new address for each mint. Never reuse.</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
