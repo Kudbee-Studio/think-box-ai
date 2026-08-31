@@ -70,5 +70,22 @@ ul{line-height:1.6}
 <li>job_gpu_serve_20b — <strong class="blocked">blocked</strong> until human START</li>
 </ul>
 
+<h2>Catalog</h2>
+<table>
+<tr><th>id</th><th>hat</th><th>state</th><th>verdict</th><th>artifact</th></tr>
+<tr><td>job_dogi_split_001</td><td>researcher</td><td>done</td><td class="unproven">unproven</td><td><a href="data/findings/dogi_indexer_split.md">finding</a></td></tr>
+<tr><td>job_wallet_scan_001</td><td>researcher</td><td>blocked</td><td class="blocked">blocked</td><td><a href="data/findings/wallet_DDCkpBDN.md">finding</a></td></tr>
+<tr><td>job_gpu_find_models</td><td>runner</td><td>blocked</td><td class="blocked">blocked</td><td>—</td></tr>
+<tr><td>job_gpu_serve_20b</td><td>runner</td><td>blocked</td><td class="blocked">blocked</td><td>—</td></tr>
+</table>
+
+<h2>Templates</h2>
+<p>Copy, fill inputs, drop in <code>jobs/queue/</code>:</p>
+<ul>
+<li><a href="jobs/templates/template_wallet_scan.json">template_wallet_scan.json</a> — wallet address</li>
+<li><a href="jobs/templates/template_compare_tickers.json">template_compare_tickers.json</a> — two tickers + claimed supplies</li>
+<li><a href="jobs/templates/template_inscription.json">template_inscription.json</a> — inscription or txid</li>
+</ul>
+
 </body>
 </html>

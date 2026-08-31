@@ -1,0 +1,29 @@
+{
+  "id": "job_wallet_scan_001",
+  "intent": "Scan a public wallet for known Doginals assets and assign per-asset verdicts.",
+  "hat": "researcher",
+  "inputs": {
+    "wallet": "DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8",
+    "expected_assets": []
+  },
+  "plan": [
+    "Check indexer health",
+    "Query api.doginals.org for wallet holdings",
+    "Assign per-asset verdict: original-21m | later-deploy | other-ticker | nft | unproven | blocked",
+    "Write finding to data/findings/wallet_<address>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": ["indexer_health", "http_get", "fs_read", "fs_write", "memory_put"],
+    "sources": ["api.doginals.org"],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  }
+}

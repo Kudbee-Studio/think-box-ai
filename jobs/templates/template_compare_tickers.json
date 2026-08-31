@@ -1,0 +1,31 @@
+{
+  "id": "job_compare_tickers_001",
+  "intent": "Compare two claimed ticker deployments and determine which sources recognize each.",
+  "hat": "researcher",
+  "inputs": {
+    "ticker_a": "",
+    "ticker_b": "",
+    "claimed_supply_a": "",
+    "claimed_supply_b": ""
+  },
+  "plan": [
+    "Check indexer health",
+    "Fetch each ticker from available indexers",
+    "Compare responses: which sources show A, which show B, which show both or neither",
+    "Write finding to data/findings/compare_<a>_<b>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": ["indexer_health", "http_get", "doginals_inscription", "compare_inscription", "fs_write", "memory_put"],
+    "sources": ["api.doginals.org"],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  }
+}
