@@ -56,3 +56,30 @@ def set_config(key: str, value: str) -> None:
     ENV_FILE.write_text("\n".join(lines) + "\n")
     print(f"Set {key} = {value}")
     print(f"Updated: {ENV_FILE}")
+
+
+def use_profile(profile: str) -> None:
+    """Load a profile from .env.<profile>."""
+    from pathlib import Path
+    profile_file = Path(__file__).resolve().parent.parent.parent / f".env.{profile}"
+    if not profile_file.exists():
+        print(f"Profile not found: {profile}")
+        print("Available: ollama, freetoken")
+        return
+
+    lines = profile_file.read_text().splitlines()
+    if ENV_FILE.exists():
+        existing = ENV_FILE.read_text().splitlines()
+    else:
+        existing = []
+
+    for line in lines:
+        if "=" in line and not line.startswith("#"):
+            key = line.split("=")[0]
+            # Remove existing entry
+            existing = [l for l in existing if not l.startswith(f"{key}=")]
+            existing.append(line)
+
+    ENV_FILE.write_text("\n".join(existing) + "\n")
+    print(f"Loaded profile: {profile}")
+    print(f"Updated: {ENV_FILE}")

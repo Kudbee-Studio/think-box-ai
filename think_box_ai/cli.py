@@ -79,6 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
     config_set.add_argument("value", help="Config value")
     config_set.set_defaults(func=lambda a: config.set_config(a.key, a.value))
 
+    config_profile = config_sub.add_parser("profile", help="Load a config profile")
+    config_profile.add_argument("name", help="Profile name (ollama, freetoken)")
+    config_profile.set_defaults(func=lambda a: config.use_profile(a.name))
+
     # box
     box_parser = subparsers.add_parser("box", help="Upstash box")
     box_sub = box_parser.add_subparsers(dest="box_command")
