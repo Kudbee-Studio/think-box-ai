@@ -2,11 +2,10 @@
 
 **Session:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
-**Created:** 2026-08-31
 
 ## Project Overview
 
-Think Box AI is a research agent for proving indexer consensus on inscription chains.
+Think Box AI is a control plane for Think Jobs. Researcher Hat first.
 18 tools, SQLite memory, agent loop with XML tool calls.
 
 ## DOGI Fixtures
@@ -20,8 +19,9 @@ Think Box AI is a research agent for proving indexer consensus on inscription ch
 - UUID: `00d832ec-8565-447b-86ac-74bf9bd41e57`
 - Hostname: `gpu-ubuntu-20cpu-256gb-fi-hel2`
 - Floating IP: `87.58.150.62`
+- Plan: GPU-SPOT-20xCPU-256GB-3xL40S
 - State: stopped (Kudbee shut down)
-- SSH key: unknown until laptop (not ~/.ssh/kilo-upcloud)
+- SSH key: unknown until laptop
 - Models: 20B + 120B on attached data disks
 
 ## Source Blocklist
@@ -41,4 +41,4 @@ Think Box AI is a research agent for proving indexer consensus on inscription ch
 
 ## Push Status
 
-Original branch blocked by leaked gsk_. Clean branch pushed: `session/agent_79e656bf-clean`.
+Clean branch pushed: `session/agent_79e656bf-clean`. No secrets.
