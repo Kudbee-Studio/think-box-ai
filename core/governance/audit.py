@@ -35,7 +35,7 @@ class PermissionLevel(str, Enum):
 class AuditEntry:
     action: str
     actor: str
-: str
+    outcome: str
     metadata: dict[str, Any]
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

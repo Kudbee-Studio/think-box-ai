@@ -18,13 +18,16 @@ def discover_tests() -> unittest.TestSuite:
     if not test_dir.exists():
         return suite
 
+    # Add root to path for imports
+    sys.path.insert(0, str(REPO_ROOT))
+
     for test_file in test_dir.rglob("test_*.py"):
         # Convert path to module name
         rel = test_file.relative_to(REPO_ROOT)
         module_name = str(rel).replace("/", ".").replace(".py", "")
         try:
-            module = __import__(module_name, fromlist=[""])
-            suite.addTests(loader.loadTestsFromModule(module))
+            spec = __import__(module_name, fromlist=[""])
+            suite.addTests(loader.loadTestsFromModule(spec))
         except Exception as e:
             print(f"  WARN: Could not load {module_name}: {e}")
 
