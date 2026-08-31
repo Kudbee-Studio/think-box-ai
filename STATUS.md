@@ -12,10 +12,10 @@ file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write
 
 | ID | Hat | Verdict | Location |
 |----|-----|---------|----------|
-| job_dogi_split_001 | researcher | unproven | jobs/ |
-| job_wallet_scan_001 | researcher | blocked | jobs/ |
-| job_gpu_find_models | runner | blocked | jobs/queue/ |
-| job_gpu_serve_20b | runner | blocked | jobs/queue/ |
+| job_dogi_split_001 | researcher | unproven | jobs/done/ |
+| job_wallet_scan_001 | researcher | blocked | jobs/blocked/ |
+| job_gpu_find_models | runner | blocked | jobs/blocked/ |
+| job_gpu_serve_20b | runner | blocked | jobs/blocked/ |
 
 ### Wallet Verdicts (DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8)
 | Asset | Verdict |
@@ -57,3 +57,12 @@ Reason: api.doginals.org wallet endpoints not public.
 1. Ollama (local)
 2. FreeToken on GPU (87.58.150.62:1919 when started)
 3. OpenAI-compatible
+
+## Public Page
+
+Path: `public/index.html`
+How-to: `public/HOW_TO_QUEUE.md`
+
+GitHub Pages guess: enable Pages on `session/agent_79e656bf-clean` branch, `/public` folder (or `/docs`).
+URL would be: `https://kudbee-studio.github.io/think-box-ai/`
+Cannot change repo settings from here — Kudbee must enable in Settings → Pages.
