@@ -42,14 +42,17 @@ def build_parser() -> argparse.ArgumentParser:
     job_sub.add_parser("queue", help="Show queue contents").set_defaults(func=lambda a: job.show_queue())
 
     job_submit = job_sub.add_parser("submit", help="Submit a job from template")
-    job_submit.add_argument("template", help="Template name")
+    job_submit.add_argument("template", nargs="?", help="Template name")
     job_submit.add_argument("args", nargs="*", help="Key=value inputs")
-    job_submit.set_defaults(func=lambda a: job.submit_job(a.template, a.args))
+    job_submit.set_defaults(func=lambda a: job.submit_job(a.template, a.args) if a.template else job.submit_wizard())
 
     job_diff = job_sub.add_parser("diff", help="Compare two jobs")
     job_diff.add_argument("id1", help="First job ID")
     job_diff.add_argument("id2", help="Second job ID")
     job_diff.set_defaults(func=lambda a: job.diff_jobs(a.id1, a.id2))
+
+    job_run = job_sub.add_parser("run", help="Run queue worker")
+    job_run.set_defaults(func=lambda a: print("Worker: python3 scripts/run_job.py"))
 
     # findings
     findings_parser = subparsers.add_parser("findings", help="Findings browser")

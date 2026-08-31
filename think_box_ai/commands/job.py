@@ -150,6 +150,50 @@ def submit_job(template_name: str, args: list[str] | None = None) -> None:
     print(f"Location: {queue_path}")
 
 
+def submit_wizard() -> None:
+    """Interactive job submission wizard."""
+    from ..ui.prompt import select, prompt, confirm
+    from ..ui.colors import bold
+
+    templates = sorted((JOBS_DIR / "templates").glob("template_*.json"))
+    if not templates:
+        print("No templates available.")
+        return
+
+    names = [t.stem.replace("template_", "") for t in templates]
+    print(bold("\nJob Submission Wizard"))
+    idx = select("Choose a template:", names)
+    if idx < 0:
+        return
+
+    tmpl_path = templates[idx]
+    job = json.loads(tmpl_path.read_text())
+    job_id = prompt("Job ID", f"job_{names[idx]}_001")
+    job["id"] = job_id
+
+    # Fill inputs
+    if job.get("inputs"):
+        print(bold("\nFill inputs (press Enter to skip):"))
+        for k, v in job["inputs"].items():
+            if isinstance(v, list):
+                continue
+            val = prompt(f"  {k}", str(v) if v else "")
+            if val:
+                job["inputs"][k] = val
+
+    if is_dry_run():
+        print(f"\n[dry-run] Would submit: {job_id}")
+        print(json.dumps(job, indent=2))
+        return
+
+    if confirm(f"Submit {job_id}?", default=True):
+        queue_path = JOBS_DIR / "queue" / f"{job_id}.json"
+        queue_path.write_text(json.dumps(job, indent=2))
+        print(f"Submitted: {job_id}")
+    else:
+        print("Cancelled.")
+
+
 def diff_jobs(id1: str, id2: str) -> None:
     """Compare two jobs."""
     r1 = _load_job(id1)
