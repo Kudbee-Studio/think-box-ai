@@ -14,7 +14,8 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from core.foundation.bootstrap import bootstrap, RuntimeContext
 from core.foundation.logging import get_logger
@@ -22,7 +23,7 @@ from core.runtime.loop import AgentLoop
 
 logger = get_logger(__name__)
 
-app = FastAPI(title="THINK BOX AI", version="0.2.0")
+app = FastAPI(title="THINK BOX AI", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
