@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..ui.colors import bold, dim
+from ..utils.output import output_json, is_json_mode
+
 FINDINGS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "findings"
 
 
@@ -12,7 +15,14 @@ def list_findings() -> None:
     if not FINDINGS_DIR.exists():
         print("No findings found.")
         return
-    for f in sorted(FINDINGS_DIR.glob("*.md")):
+
+    findings = sorted(FINDINGS_DIR.glob("*.md"))
+    if is_json_mode():
+        output_json([str(f.name) for f in findings])
+        return
+
+    print(bold("Findings:"))
+    for f in findings:
         print(f"  {f.name}")
 
 
@@ -24,6 +34,22 @@ def show_finding(name: str) -> None:
         return
     for m in matches:
         print(f"\n{'='*60}")
-        print(f"File: {m.name}")
+        print(bold(f"File: {m.name}"))
         print(f"{'='*60}")
         print(m.read_text())
+
+
+def preview_finding(name: str) -> None:
+    """Preview first 20 lines of a finding."""
+    matches = list(FINDINGS_DIR.glob(f"*{name}*.md"))
+    if not matches:
+        print(f"No finding matches: {name}")
+        return
+    for m in matches:
+        lines = m.read_text().splitlines()
+        print(bold(f"\n{m.name}"))
+        print(dim(f"  ({len(lines)} lines)\n"))
+        for line in lines[:20]:
+            print(f"  {line}")
+        if len(lines) > 20:
+            print(dim(f"  ... ({len(lines) - 20} more lines)"))

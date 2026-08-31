@@ -64,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
     findings_show.add_argument("name", help="Finding name or partial match")
     findings_show.set_defaults(func=lambda a: findings.show_finding(a.name))
 
+    findings_preview = findings_sub.add_parser("preview", help="Preview finding (first 20 lines)")
+    findings_preview.add_argument("name", help="Finding name or partial match")
+    findings_preview.set_defaults(func=lambda a: findings.preview_finding(a.name))
+
     # config
     config_parser = subparsers.add_parser("config", help="Configuration")
     config_sub = config_parser.add_subparsers(dest="config_command")
