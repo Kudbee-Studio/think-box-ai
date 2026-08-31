@@ -8,7 +8,7 @@
 
 ## Last Commit
 
-`4855483` — "feat: backend API v0.3 — job list/get, findings, health"
+`90ccc20` — "feat: public packets 0003-0004 + verdict registry"
 
 ## Push Status
 
@@ -16,20 +16,29 @@ Clean branch pushed. No secrets in history.
 
 ## What Was Done This Session
 
-1. Unified agent runtime (18 tools, XML tool-call parsing)
-2. DOGI proof (unproven verdict, honest assessment)
-3. FreeToken integration analysis
-4. Groq removed (secret leak)
-5. MISSION/ROADMAP/AGENTS from Kudbee
-6. Think Job system (schema, queue, worker, templates, catalog)
-7. CLI v2 (global flags, colors, JSON output, watch, wizard)
-8. Governance audit log
-9. Backend API v0.3 (job list/get, findings)
-10. Test runner (no pytest)
-11. Public packet (JOB #0001)
-12. Game plan + agent handoff docs
+### Phase 1: Foundation
+- Unified agent runtime (18 tools, XML tool-call parsing)
+- DOGI proof (unproven verdict, honest assessment)
+- FreeToken integration analysis
+- Groq removed (secret leak)
 
-## Job Table
+### Phase 2: CLI v2
+- Global flags (--json, --plain, --quiet, --verbose, --dry-run)
+- Colorized output, verdict coloring
+- Job diff, submit wizard, watch command
+- Shell completions, config profiles
+
+### Phase 3: Production Hardening
+- Governance audit log + approval gate
+- Backend API v0.3 (job list/get, findings)
+- Production worker (retry logic, receipts, dependencies)
+- Test runner (no pytest), health check
+- Agent handoff docs, architecture docs, API reference
+- Contributing guide
+- Public packets (job-0001 through job-0004)
+- Verdict registry
+
+## Job Table (7 jobs)
 
 | ID | Hat | Verdict |
 |----|-----|---------|

@@ -13,14 +13,14 @@ file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write
 
 ```
 thinkbox job list/show/submit/queue/diff/run
-thinkings findings list/show/preview
-thinkbox config show/set
+thinkbox findings list/show/preview
+thinkbox config show/set/profile
 thinkbox box status/health
 thinkbox serve / watch
 Global: --json --plain --quiet --verbose --dry-run --no-color
 ```
 
-## Job Queue
+## Job Queue (7 jobs)
 
 | ID | Hat | Verdict | Location |
 |----|-----|---------|----------|
@@ -35,9 +35,10 @@ Global: --json --plain --quiet --verbose --dry-run --no-color
 ## Test Results
 
 **Runner:** `scripts/run_tests.py` (unittest, no pytest needed)
-**Job Validation:** `scripts/check_jobs.py` — 89 pass, 0 fail
+**Result:** 30 tests, 2 errors (provider tests hit real API — expected)
+**Job Validation:** `scripts/check_jobs.py` — all pass
 
-## Backend API
+## Backend API v0.3
 
 ```
 GET  /health          — status, provider, tools
@@ -49,6 +50,11 @@ POST /run             — run a goal
 GET  /stream          — SSE streaming
 WS   /ws              — WebSocket
 ```
+
+## Governance
+
+Audit log, permission checker, approval gate.
+Policy: AUTO_APPROVE_READ (default), MANUAL, AUTO_APPROVE_ALL.
 
 ## Source Reachability
 
@@ -80,8 +86,22 @@ Default: drop-all inbound/outbound. Console works. SSH :22 blocked.
 
 `public/index.html` — JOB #0001 + catalog + verdict legend
 `public/job-0001/` — complete job packet
+`public/job-0002/` — compare job packet
+`public/job-0003/` — inscription job packet
+`public/job-0004/` — wallet job packet
+`public/verdicts.md` — verdict registry
 `public/HOW_TO_QUEUE.md` — how to submit jobs
 `public/findings.md` — findings browser
+
+## Shell Completion
+
+`scripts/completions/thinkbox.bash` — source in .bashrc
+`scripts/completions/thinkbox.zsh` — source in .zshrc
+
+## Config Profiles
+
+`.env.ollama` — local Ollama
+`.env.freetoken` — FreeToken on GPU
 
 ## Provider Order
 
