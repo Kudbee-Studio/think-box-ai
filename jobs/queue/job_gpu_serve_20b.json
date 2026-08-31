@@ -1,0 +1,32 @@
+{
+  "id": "job_gpu_serve_20b",
+  "intent": "Serve the 20B model on the GPU via FreeToken and wire Think Box openai_compat to it.",
+  "hat": "runner",
+  "inputs": {
+    "gpu_uuid": "00d832ec-8565-447b-86ac-74bf9bd41e57",
+    "floating_ip": "87.58.150.62",
+    "port": 1919,
+    "model_size": "20B",
+    "parent_job": "job_gpu_find_models"
+  },
+  "plan": [
+    "Wait for job_gpu_find_models to complete",
+    "SSH BatchMode to 87.58.150.62",
+    "ft serve --host 0.0.0.0 --port 1919 --model <20b_path>",
+    "Verify health: curl 127.0.0.1:1919/v1/models",
+    "Wire Think Box openai_compat to http://87.58.150.62:1919/v1"
+  ],
+  "capabilities": {
+    "tools": ["shell_exec", "http_get"],
+    "sources": [],
+    "needs_gpu": true,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "blocked",
+    "reason": "Depends on job_gpu_find_models. Needs Kudbee START + SSH key.",
+    "confidence": 0.0
+  }
+}
