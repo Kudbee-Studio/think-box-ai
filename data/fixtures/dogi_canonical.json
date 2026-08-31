@@ -18,9 +18,8 @@
     "EXAMPLE_INSCRIPTION_ID_2"
   ],
   "indexers_to_test": [
-    "ordinalsdotcom",
-    "wonky",
-    "doginals_org"
+    "doginals_org",
+    "dogechain"
   ],
   "expected_behavior": "Different indexers may report different 'canonical' deploys for DOGI. The proof is showing that compare_inscription returns different results across indexers for the same inscription_id."
 }

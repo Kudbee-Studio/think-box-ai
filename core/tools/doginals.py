@@ -2,7 +2,7 @@
 
 Uses only public APIs:
 - dogechain.info for Dogecoin transaction data
-- Public inscription indexers for Doginals/DRC-20 data
+- api.doginals.org for Doginals/DRC-20 inscription data
 """
 
 from __future__ import annotations
@@ -16,10 +16,42 @@ from core.tools.registry import tool
 
 _FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "fixtures"
 
+_INDEXER_URLS = {
+    "doginals_org": "https://api.doginals.org/v1/health",
+    "dogechain": "https://dogechain.info/api/v1/block/1",
+    "ordinalsdotcom": "https://api.ordinalswallet.com/v1/status",
+    "wonky": "https://wonky-ord.dogeord.io/",
+    "unisat": "https://open-api.unisat.io/v1/indexer/status",
+}
+
+
+@tool(
+    name="indexer_health",
+    description="Check which Doginals indexers are reachable. Returns status for each: ok, http_code, or error.",
+    permission="network",
+    input_schema={"type": "object", "properties": {}, "required": []},
+)
+async def indexer_health(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    import urllib.request
+    import urllib.error
+
+    results = {}
+    for name, url in _INDEXER_URLS.items():
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "ThinkBoxAI-Research/0.2"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                results[name] = {"status": "ok", "http_code": resp.status}
+        except urllib.error.HTTPError as e:
+            results[name] = {"status": "error", "http_code": e.code, "error": str(e.reason)}
+        except Exception as e:
+            results[name] = {"status": "unreachable", "error": str(e)[:100]}
+
+    return {"success": True, "indexers": results}
+
 
 @tool(
     name="doge_tx",
-    description="Fetch a Dogecoin transaction from dogechain.info. Returns tx details including inputs, outputs, and block info.",
+    description="Fetch a Dogecoin transaction from dogechain.info. Returns tx details.",
     permission="network",
     input_schema={"type": "object", "properties": {"txid": {"type": "string"}}, "required": ["txid"]},
 )
@@ -36,14 +68,9 @@ async def doge_tx(args: dict[str, Any], context: dict[str, Any] | None = None) -
 
         req = urllib.request.Request(url, headers={"User-Agent": "ThinkBoxAI-Research/0.2"})
         with urllib.request.urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(resp.read().decode())
 
-        return {
-            "success": True,
-            "txid": txid,
-            "data": data,
-            "source": "dogechain.info",
-        }
+        return {"success": True, "txid": txid, "data": data, "source": "dogechain.info"}
     except urllib.error.HTTPError as e:
         return {"success": False, "error": f"HTTP {e.code}: {e.reason}", "txid": txid, "source": "dogechain.info"}
     except Exception as e:
@@ -52,22 +79,19 @@ async def doge_tx(args: dict[str, Any], context: dict[str, Any] | None = None) -
 
 @tool(
     name="doginals_inscription",
-    description="Fetch inscription data from a public Doginals indexer. Supports multiple indexers for comparison.",
+    description="Fetch inscription data from a public Doginals indexer.",
     permission="network",
     input_schema={"type": "object", "properties": {"inscription_id": {"type": "string"}, "indexer": {"type": "string"}}, "required": ["inscription_id"]},
 )
 async def doginals_inscription(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     inscription_id = args.get("inscription_id", "")
-    indexer = args.get("indexer", "ordinalsdotcom")
+    indexer = args.get("indexer", "doginals_org")
     if not inscription_id:
         return {"success": False, "error": "Missing 'inscription_id'"}
 
     endpoints = {
-        "ordinalsdotcom": f"https://api.ordinalswallet.com/inscription/{inscription_id}",
-        "ord_api": f"https://ordinals.com/inscription/{inscription_id}",
-        "wonky": f"https://wonky-ordinals.fly.dev/inscription/{inscription_id}",
-        "doginals_org": f"https://doginals.org/api/inscription/{inscription_id}",
-        "unisat": f"https://open-api.unisat.io/v1/indexer/inscription/info/{inscription_id}",
+        "doginals_org": f"https://api.doginals.org/v1/inscription/{inscription_id}",
+        "dogechain": f"https://dogechain.info/api/v1/transaction/{inscription_id}",
     }
 
     url = endpoints.get(indexer)
@@ -78,8 +102,7 @@ async def doginals_inscription(args: dict[str, Any], context: dict[str, Any] | N
         import urllib.request
         import urllib.error
 
-        headers = {"User-Agent": "ThinkBoxAI-Research/0.2", "Accept": "application/json"}
-        req = urllib.request.Request(url, headers=headers)
+        req = urllib.request.Request(url, headers={"User-Agent": "ThinkBoxAI-Research/0.2", "Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=20) as resp:
             content_type = resp.headers.get("Content-Type", "")
             body = resp.read()
@@ -90,13 +113,7 @@ async def doginals_inscription(args: dict[str, Any], context: dict[str, Any] | N
         else:
             data = {"raw": text[:5000], "content_type": content_type}
 
-        return {
-            "success": True,
-            "inscription_id": inscription_id,
-            "indexer": indexer,
-            "data": data,
-            "source_url": url,
-        }
+        return {"success": True, "inscription_id": inscription_id, "indexer": indexer, "data": data, "source_url": url}
     except urllib.error.HTTPError as e:
         return {"success": False, "error": f"HTTP {e.code}: {e.reason}", "inscription_id": inscription_id, "indexer": indexer, "source_url": url}
     except Exception as e:
@@ -111,7 +128,7 @@ async def doginals_inscription(args: dict[str, Any], context: dict[str, Any] | N
 )
 async def compare_inscription(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
     inscription_id = args.get("inscription_id", "")
-    indexers = args.get("indexers", ["ordinalsdotcom", "wonky", "doginals_org"])
+    indexers = args.get("indexers", ["doginals_org", "dogechain"])
     if not inscription_id:
         return {"success": False, "error": "Missing 'inscription_id'"}
 
@@ -188,7 +205,7 @@ async def parse_drc20(args: dict[str, Any], context: dict[str, Any] | None = Non
 
 @tool(
     name="load_fixture",
-    description="Load a JSON fixture from data/fixtures/. Used to get canonical test data for the proof run.",
+    description="Load a JSON fixture from data/fixtures/. Used to get canonical test data.",
     permission="read_only",
     input_schema={"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
 )
