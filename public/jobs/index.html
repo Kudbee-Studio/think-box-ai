@@ -37,12 +37,16 @@
         <p>Every Think Job that has been run, queued, or blocked</p>
       </div>
 
-      <div class="jobs-filters" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-8);">
+      <div class="jobs-filters" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-8); flex-wrap: wrap;">
         <button class="btn btn-secondary active" onclick="filterJobs('all')">All</button>
         <button class="btn btn-ghost" onclick="filterJobs('done')">Done</button>
         <button class="btn btn-ghost" onclick="filterJobs('blocked')">Blocked</button>
         <button class="btn btn-ghost" onclick="filterJobs('researcher')">Researcher</button>
         <button class="btn btn-ghost" onclick="filterJobs('runner')">Runner</button>
+      </div>
+
+      <div style="margin-bottom: var(--space-6);">
+        <input type="text" id="job-search" placeholder="Search jobs..." class="search-input">
       </div>
 
       <div class="jobs-grid" id="jobs-grid"></div>

@@ -16,8 +16,24 @@ function filterJobs(filter) {
   else if (filter === 'researcher') filtered = JOBS.filter(j => j.hat === 'researcher');
   else if (filter === 'runner') filtered = JOBS.filter(j => j.hat === 'runner');
 
+  renderJobs(filtered);
+}
+
+function renderJobs(jobs) {
   const grid = document.getElementById("jobs-grid");
-  grid.innerHTML = filtered.map(job => `
+  if (!grid) return;
+
+  if (jobs.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div class="empty-state-icon">◎</div>
+        <p>No jobs match this filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = jobs.map(job => `
     <div class="card job-card">
       <div class="job-card-header">
         <div>
@@ -38,8 +54,28 @@ function filterJobs(filter) {
   `).join("");
 }
 
+function searchJobs(query) {
+  if (!query) {
+    renderJobs(JOBS);
+    return;
+  }
+  const q = query.toLowerCase();
+  const filtered = JOBS.filter(j =>
+    j.title.toLowerCase().includes(q) ||
+    j.intent.toLowerCase().includes(q) ||
+    j.id.toLowerCase().includes(q)
+  );
+  renderJobs(filtered);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("jobs-grid")) {
-    filterJobs('all');
+    renderJobs(JOBS);
+  }
+
+  // Search functionality
+  const searchInput = document.getElementById("job-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => searchJobs(e.target.value));
   }
 });
