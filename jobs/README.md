@@ -43,3 +43,7 @@ Then they move to `queue` → `active` → `done`.
 - `failed` — proof failed
 - `unproven` — APIs insufficient
 - `blocked` — needs human/GPU
+
+## Receipts
+
+Each job has a `cost` field: `box_minutes`, `gpu_minutes`, `http_calls`. Receipts stay empty (zeros) until we meter actual usage.

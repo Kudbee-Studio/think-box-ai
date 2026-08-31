@@ -12,15 +12,9 @@
   "plan": [
     "Wait for job_gpu_find_models to complete",
     "SSH BatchMode to 87.58.150.62",
-<<<<<<< HEAD
-    "ft serve --host 0.0.0.0 --port 1919 --model <20b_path>",
-    "Verify health: curl 127.0.0.1:1919/v1/models",
-    "Wire Think Box openai_compat to http://87.58.150.62:1919/v1"
-=======
     "ft serve --host 127.0.0.1 --port 1919 --model <20b_path>",
     "Verify health: curl 127.0.0.1:1919/v1/models",
     "Wire Think Box openai_compat to http://127.0.0.1:1919/v1 via SSH tunnel"
->>>>>>> session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
   ],
   "capabilities": {
     "tools": ["shell_exec", "http_get"],
@@ -32,14 +26,9 @@
   "artifacts": [],
   "evaluation": {
     "verdict": "blocked",
-<<<<<<< HEAD
-    "reason": "Depends on job_gpu_find_models. Needs Kudbee START + SSH key.",
-    "confidence": 0.0
-  }
-=======
-    "reason": "Depends on job_gpu_find_models. Needs Kudbee START + SSH key + firewall :22 from laptop IP. Serve on 127.0.0.1:1919 via SSH tunnel. Firewall default is drop-all.",
+    "reason": "Depends on job_gpu_find_models. Needs Kudbee START + SSH key + firewall :22 from laptop IP. Serve on 127.0.0.1:1919 via SSH tunnel.",
     "confidence": 0.0
   },
-  "notes": "Firewall default is drop-all. Serve binds loopback only. Access via SSH tunnel: ssh -N -L 1919:127.0.0.1:1919 -i <key> USER@87.58.150.62"
->>>>>>> session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
+  "notes": "Firewall default is drop-all. Serve binds loopback only.",
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
 }

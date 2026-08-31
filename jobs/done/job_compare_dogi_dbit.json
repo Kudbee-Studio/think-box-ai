@@ -37,5 +37,10 @@
     "verdict": "unproven",
     "reason": "",
     "confidence": 0.0
+  },
+  "cost": {
+    "box_minutes": 0,
+    "gpu_minutes": 0,
+    "http_calls": 0
   }
 }
