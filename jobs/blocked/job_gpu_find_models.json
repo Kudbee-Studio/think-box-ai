@@ -5,8 +5,12 @@
   "inputs": {
     "gpu_uuid": "00d832ec-8565-447b-86ac-74bf9bd41e57",
     "floating_ip": "87.58.150.62",
+<<<<<<< HEAD
     "search_paths": ["/mnt", "/data", "/models", "/home"],
     "model_patterns": ["*gguf", "config.json", "*20b*", "*120b*"]
+=======
+    "search_paths": ["/mnt", "/data", "/models", "/home"]
+>>>>>>> session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
   },
   "plan": [
     "Poll GET until GPU state=started",
@@ -26,7 +30,11 @@
   "artifacts": [],
   "evaluation": {
     "verdict": "blocked",
+<<<<<<< HEAD
     "reason": "Needs Kudbee to start GPU and provide SSH key.",
+=======
+    "reason": "Needs Kudbee to start GPU, add firewall :22 from laptop IP, and provide SSH key.",
+>>>>>>> session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
     "confidence": 0.0
   }
 }

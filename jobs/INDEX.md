@@ -1,6 +1,10 @@
 # Think Job index
 
+<<<<<<< HEAD
 Generated: 2026-08-31T18:36:17.845782+00:00
+=======
+Generated: 2026-08-31T19:14:45.282851+00:00
+>>>>>>> session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
 GPU: stopped
 
 | id | hat | state | verdict | artifact |
