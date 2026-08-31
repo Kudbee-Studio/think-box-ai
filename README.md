@@ -1,85 +1,90 @@
-# Think Box AI — Think Token
+# Think Box AI — Think Job Control Plane
 
-**Think Token** is the native utility token powering the Think Box AI ecosystem. This repository contains the project source code, smart-contract interfaces, SDK, and documentation.
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
+**Think Box AI** turns human intent into verified outcomes by running narrow Think Jobs on replaceable machines, then keeping the proof.
 
 ---
 
-## Overview
-
-Think Box AI is an AI-driven platform that uses **Think Token (THNK)** as its core utility token.  
-Token utilities include:
-
-- 🔐 **Access** — unlock advanced AI inference endpoints
-- 💡 **Governance** — vote on platform proposals
-- 🎁 **Rewards** — earn tokens by contributing prompts, datasets, and feedback
-- 🔄 **Payments** — pay for API usage and premium features
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Python ≥ 3.10
-- [pip](https://pip.pypa.io/en/stable/)
-
-### Installation
+## Quick Start
 
 ```bash
-# Clone the repository
+# Clone
 git clone https://github.com/Kudbee-Studio/think-box-ai.git
 cd think-box-ai
+git checkout session/agent_79e656bf-clean
 
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# CLI
+python3 -m think_box_ai.cli --help
+python3 -m think_box_ai.cli job list
+python3 -m think_box_ai.cli doctor
 
-# Install dependencies
-pip install -e ".[dev]"
+# Run tests (no pytest needed)
+python3 scripts/run_tests.py
+
+# Validate jobs
+python3 scripts/check_jobs.py
+
+# Backend
+python3 -m uvicorn backend.main:app --port 8000
 ```
 
-### Running the project
+## What It Does
 
-```bash
-python -m think_box_ai
+1. **Think Jobs** — Units of work: intent → plan → execution → artifacts → verdict
+2. **Researcher Hat** — HTTP, fixtures, findings (runs on any box)
+3. **Local Indexing** — SQLite + FTS5 for sessions and project memory
+4. **Public Packets** — Human-readable proof files for each job
+
+## CLI Commands
+
+```
+thinkbox job list/show/submit/queue/diff/run/cancel/retry
+thinkbox findings list/show/preview/export
+thinkbox config show/set/profile
+thinkbox memory search/show/list/remember/forget/context
+thinkbox box status/health
+thinkbox doctor / init / watch
 ```
 
----
+## Job Schema
+
+```json
+{
+  "id": "job_name_001",
+  "intent": "What this job proves",
+  "hat": "researcher",
+  "inputs": {},
+  "plan": ["step 1", "step 2"],
+  "capabilities": {"tools": [...], "needs_gpu": false},
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {"verdict": "unproven"},
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
+}
+```
+
+## Verdicts
+
+| Verdict | Meaning |
+|---------|---------|
+| succeeded | Proof complete |
+| failed | Proof failed |
+| unproven | APIs insufficient |
+| blocked | Needs human/GPU |
 
 ## Project Structure
 
 ```
 think-box-ai/
-├── think_box_ai/          # Main Python package
-│   ├── __init__.py
-│   ├── token.py           # Think Token core logic
-│   └── cli.py             # Command-line interface
-├── tests/                 # Unit and integration tests
-│   └── test_token.py
-├── pyproject.toml         # Package metadata & build config
-├── .gitignore
-├── CONTRIBUTING.md
-└── README.md
+  think_box_ai/          # CLI + commands + UI + utils
+  core/                  # Runtime, tools, providers, indexing, governance
+  backend/               # FastAPI server
+  jobs/                  # Queue, templates, completed, blocked
+  data/                  # Findings, fixtures, raw, thinkbox.db
+  scripts/               # Test runner, worker, health check
+  public/                # Public-facing job pages
+  docs/                  # Architecture, API, indexing, handoff
 ```
-
----
-
-## Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
----
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT
