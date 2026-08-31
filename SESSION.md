@@ -2,13 +2,13 @@
 
 **Session ID:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
-**Phase:** Production Hardening
+**Phase:** Production Hardening + Indexing
 **Created:** 2026-08-31
 **Status:** In progress
 
 ## Last Commit
 
-`90ccc20` — "feat: public packets 0003-0004 + verdict registry"
+`4a65980` — "docs: STATUS updated with indexing"
 
 ## Push Status
 
@@ -37,6 +37,16 @@ Clean branch pushed. No secrets in history.
 - Contributing guide
 - Public packets (job-0001 through job-0004)
 - Verdict registry
+
+### Phase 4: Indexing System
+- SQLite + FTS5 database (data/thinkbox.db)
+- Sessions + messages tables with triggers
+- Project memory (durable facts, environment, corrections)
+- Full-text search engine (BM25 ranking)
+- Hybrid search foundation (ready for vector addition)
+- CLI: thinkbox memory search/show/list/remember/forget/context
+- Project-scoped isolation via SHA-256 hash
+- 41 tests (2 provider errors expected)
 
 ## Job Table (7 jobs)
 
