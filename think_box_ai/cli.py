@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from think_box_ai import __version__
-from think_box_ai.commands import box, config, findings, job
+from think_box_ai.commands import box, config, findings, job, watch
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -84,6 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--host", default="0.0.0.0")
     serve_parser.add_argument("--port", type=int, default=8000)
     serve_parser.set_defaults(func=lambda a: print("Use: python3 -m uvicorn backend.main:app"))
+
+    # watch
+    watch_parser = subparsers.add_parser("watch", help="Live job monitoring")
+    watch_parser.add_argument("--interval", type=int, default=5, help="Refresh interval")
+    watch_parser.set_defaults(func=lambda a: watch.watch(a.interval))
 
     return parser
 
