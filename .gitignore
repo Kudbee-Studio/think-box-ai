@@ -42,3 +42,4 @@ data/thinkbox.sqlite-*
 
 # Keep fixtures
 !data/fixtures/
+.ssh/
