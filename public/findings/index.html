@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Findings — Think Box AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../#features">Features</a></li>
+        <li><a href="../#jobs">Jobs</a></li>
+        <li><a href="../#verdicts">Verdicts</a></li>
+        <li><a href="../jobs/">Browse</a></li>
+        <li><a href="../findings/">Findings</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-12));">
+    <div class="container">
+      <div class="section-header">
+        <h1>Findings</h1>
+        <p>Research artifacts from completed Think Jobs</p>
+      </div>
+
+      <div class="findings-search" style="margin-bottom: var(--space-8);">
+        <input type="text" id="findings-search" placeholder="Search findings..."
+          style="width: 100%; padding: var(--space-4); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); font-family: var(--font-sans); font-size: var(--text-base);">
+      </div>
+
+      <div class="findings-grid" id="findings-grid">
+        <div class="card">
+          <h3>DOGI Indexer Split</h3>
+          <p class="text-muted">Verified the Doginals indexer-split case for DOGI against live public APIs.</p>
+          <a href="../data/findings/dogi_indexer_split.md" class="btn btn-secondary" style="margin-top: var(--space-4);">Read Finding</a>
+        </div>
+        <div class="card">
+          <h3>DOGI vs DBIT Compare</h3>
+          <p class="text-muted">Compared DOGI (claimed 21M) and DBIT (claimed 2.1T) as separate tickers.</p>
+          <a href="../data/findings/job_compare_dogi_dbit.md" class="btn btn-secondary" style="margin-top: var(--space-4);">Read Finding</a>
+        </div>
+        <div class="card">
+          <h3>Wallet DDCkpBDN</h3>
+          <p class="text-muted">Scan public wallet DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8 for known Doginals assets.</p>
+          <a href="../data/findings/wallet_DDCkpBDN.md" class="btn btn-secondary" style="margin-top: var(--space-4);">Read Finding</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Turn intent into proof.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../jobs/">Jobs</a>
+          <a href="../HOW_TO_QUEUE.md">How to Queue</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobs — Think Box AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../#features">Features</a></li>
+        <li><a href="../#jobs">Jobs</a></li>
+        <li><a href="../#verdicts">Verdicts</a></li>
+        <li><a href="../jobs/">Browse</a></li>
+        <li><a href="../findings/">Findings</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-12));">
+    <div class="container">
+      <div class="section-header">
+        <h1>All Jobs</h1>
+        <p>Every Think Job that has been run, queued, or blocked</p>
+      </div>
+
+      <div class="jobs-filters" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-8);">
+        <button class="btn btn-secondary active" onclick="filterJobs('all')">All</button>
+        <button class="btn btn-ghost" onclick="filterJobs('done')">Done</button>
+        <button class="btn btn-ghost" onclick="filterJobs('blocked')">Blocked</button>
+        <button class="btn btn-ghost" onclick="filterJobs('researcher')">Researcher</button>
+        <button class="btn btn-ghost" onclick="filterJobs('runner')">Runner</button>
+      </div>
+
+      <div class="jobs-grid" id="jobs-grid"></div>
+    </div>
+  </section>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Turn intent into proof.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../findings/">Findings</a>
+          <a href="../HOW_TO_QUEUE.md">How to Queue</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/jobs.js"></script>
+</body>
+</html>
