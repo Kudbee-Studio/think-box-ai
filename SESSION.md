@@ -7,7 +7,7 @@
 
 ## Last Commit
 
-`8932f62` — "feat: Think Job schema + DOGI job + runner"
+`3e544b6` — "feat: queue worker + check_jobs test runner"
 
 ## Push Status
 
@@ -21,18 +21,22 @@ Clean branch `session/agent_79e656bf-clean` pushed successfully. No secrets.
 - FreeToken integration analysis
 - Groq removed from all docs/code (secret leak)
 - MISSION.md + ROADMAP.md + AGENTS.md added from Kudbee
+- Think Job system built (schema, queue, worker, templates, catalog)
+- Public page at public/index.html
+
+## Job Table
+
+| ID | Hat | Verdict |
+|----|-----|---------|
+| job_dogi_split_001 | researcher | unproven |
+| job_compare_dogi_dbit | researcher | unproven |
+| job_wallet_scan_001 | researcher | blocked |
+| job_gpu_find_models | runner | blocked |
+| job_gpu_serve_20b | runner | blocked |
 
 ## Next Owner
 
 Kudbee on laptop. GPU start + SSH key required for model serving.
-
-## Next Laptop Checklist
-
-1. Start GPU from UpCloud panel (UUID ...e57)
-2. SSH to 87.58.150.62 with real key
-3. nvidia-smi, find 20B/120B on data disks
-4. Serve 20B via FreeToken, wire Think Box
-5. Run DOGI proof, shut down
 
 ## Blocked
 

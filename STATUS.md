@@ -13,22 +13,19 @@ file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write
 | ID | Hat | Verdict | Location |
 |----|-----|---------|----------|
 | job_dogi_split_001 | researcher | unproven | jobs/done/ |
+| job_compare_dogi_dbit | researcher | unproven | jobs/done/ |
 | job_wallet_scan_001 | researcher | blocked | jobs/blocked/ |
 | job_gpu_find_models | runner | blocked | jobs/blocked/ |
 | job_gpu_serve_20b | runner | blocked | jobs/blocked/ |
 
 ### Wallet Verdicts (DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8)
-| Asset | Verdict |
-|-------|---------|
-| dogi 21m ticker | blocked |
-| dbit | blocked |
-| dcex | blocked |
-| dogx | blocked |
-| Doge Runestone | blocked |
-| DogeBuds | blocked |
-| Dogemaps | blocked |
+All 7 assets (dogi 21m, dbit, dcex, dogx, Doge Runestone, DogeBuds, Dogemaps): **blocked** — wallet endpoints not public.
 
-Reason: api.doginals.org wallet endpoints not public.
+## Test Results
+
+**Runner:** `scripts/check_jobs.py` (no pytest needed)
+**Result:** 89 pass, 0 fail
+**Coverage:** schema, templates, all job files, worker logic
 
 ## Source Reachability
 
@@ -52,16 +49,13 @@ Reason: api.doginals.org wallet endpoints not public.
 | SSH key | unknown until laptop |
 | Models | 20B + 120B on attached disks |
 
-## Tests
-
-**Status:** Test file added (`tests/unit/test_jobs.py`). Cannot run — pytest not installed (no pip).
-**Coverage:** schema loads, template validates, runner blocked when GPU stopped, all verdicts valid.
-
 ## Public Page
 
-Path: `public/index.html`
-How-to: `public/HOW_TO_QUEUE.md`
+`public/index.html` — JOB #0001 + catalog + verdict legend + templates
+`public/HOW_TO_QUEUE.md` — how to schedule a job
 
-GitHub Pages guess: enable Pages on `session/agent_79e656bf-clean` branch, `/public` folder (or `/docs`).
-URL would be: `https://kudbee-studio.github.io/think-box-ai/`
-Cannot change repo settings from here — Kudbee must enable in Settings → Pages.
+## Provider Order
+
+1. Ollama (local)
+2. FreeToken on GPU (87.58.150.62:1919 when started)
+3. OpenAI-compatible

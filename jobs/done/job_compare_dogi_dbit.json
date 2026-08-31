@@ -7,7 +7,12 @@
     "ticker_b": "dbit",
     "claimed_supply_a": "21000000",
     "claimed_supply_b": "2100000000000000",
-    "note": "DBIT is a separate ticker, not the 2.1B DOGI deploy."
+    "note": "DBIT is a separate ticker, not the 2.1B DOGI deploy.",
+    "inscription_ids": [
+      "15f3b73df7e5c072becb1d84191843ba080734805addfccb650929719080f62ei0",
+      "0bd32d69ca2221f3fc34d99aa14bccc2af10eedc7514770ae842ab9a72468743",
+      "ee688262677b00d973d0aa18e40863e8ba984e4237ac6ef46dd53a5b0d380092"
+    ]
   },
   "plan": [
     "Check indexer health",
