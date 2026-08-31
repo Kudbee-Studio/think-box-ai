@@ -1,0 +1,68 @@
+{
+  "$schema": "https://think-box.ai/schemas/job/v1",
+  "title": "Think Job",
+  "description": "Unit of work: intent → plan → execution → artifacts → verdict",
+  "type": "object",
+  "required": ["id", "intent", "hat", "inputs", "plan", "capabilities", "execution", "artifacts", "evaluation"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^job_[a-z0-9_]+$" },
+    "intent": { "type": "string", "description": "What this job is trying to prove or disprove" },
+    "hat": { "type": "string", "enum": ["researcher", "runner", "director", "camera", "jury"] },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "txid": { "type": "string" },
+        "inscription_id": { "type": "string" },
+        "wallet": { "type": "string" },
+        "fixture": { "type": "string" }
+      }
+    },
+    "plan": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ordered steps the agent will take"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "needs_gpu": { "type": "boolean" },
+        "needs_llm": { "type": "boolean" }
+      }
+    },
+    "execution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": { "type": "integer" },
+          "tool": { "type": "string" },
+          "args": { "type": "object" },
+          "result": { "type": "object" },
+          "status": { "type": "string", "enum": ["ok", "error", "blocked"] }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "kind": { "type": "string", "enum": ["finding", "raw", "fixture", "report"] },
+          "source_url": { "type": "string" }
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "required": ["verdict"],
+      "properties": {
+        "verdict": { "type": "string", "enum": ["succeeded", "failed", "unproven", "blocked"] },
+        "reason": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}
