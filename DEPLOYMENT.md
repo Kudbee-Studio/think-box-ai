@@ -54,14 +54,18 @@ box = Box.create(
 ```
 The host proxy will then allow TLS connections to `api.inception.ai`.
 
-## Inception API (Mercury 2)
+## Provider Status (as of 2026-08-31)
 
-- Endpoint: `https://api.inception.ai/v1`
-- Key: `sk_63c907f6e5c65a4fd03d1bafcd81e895`
-- Model: `mercury-2`
-- ~1,000,000 tokens available
-- OpenAI-compatible format
-- Supports tool/function calling
+| Provider | From Box | From Cloud | Notes |
+|----------|----------|------------|-------|
+| Ollama (local) | ❌ Not installed | ❌ Not installed | Install locally |
+| Inception (Mercury 2) | ❌ TLS SNI rejected | ❌ TLS 525 | Their CDN issue |
+| OpenAI | ✅ Reachable | ✅ Reachable | Needs valid key |
+| Groq | ✅ Reachable | ✅ Reachable | Needs valid key |
+| Together | ✅ Reachable | ✅ Reachable | Needs valid key |
+
+**Bottom line**: Install Ollama locally, or use OpenAI/Groq/Together with a valid key.
+Do NOT use Inception from cloud/box environments — their CDN rejects SNI from AWS IPs.
 
 ## Tools Available (17 total)
 
