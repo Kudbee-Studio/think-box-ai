@@ -1,0 +1,41 @@
+{
+  "id": "job_compare_dogi_dbit",
+  "intent": "Compare DOGI (claimed 21M) and DBIT (claimed 2.1T) as separate tickers across public indexers.",
+  "hat": "researcher",
+  "inputs": {
+    "ticker_a": "dogi",
+    "ticker_b": "dbit",
+    "claimed_supply_a": "21000000",
+    "claimed_supply_b": "2100000000000000",
+    "note": "DBIT is a separate ticker, not the 2.1B DOGI deploy."
+  },
+  "plan": [
+    "Check indexer health",
+    "Fetch each ticker from available indexers",
+    "Compare responses: which sources show A, which show B, which show both or neither",
+    "Write finding to data/findings/compare_<a>_<b>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": [
+      "indexer_health",
+      "http_get",
+      "doginals_inscription",
+      "compare_inscription",
+      "fs_write",
+      "memory_put"
+    ],
+    "sources": [
+      "api.doginals.org"
+    ],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  }
+}

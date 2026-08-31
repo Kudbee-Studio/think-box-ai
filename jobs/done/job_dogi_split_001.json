@@ -1,0 +1,54 @@
+{
+  "id": "job_dogi_split_001",
+  "intent": "Verify the Doginals indexer-split case for DOGI (21M vs 2.1M deploys) against live public APIs.",
+  "hat": "researcher",
+  "inputs": {
+    "fixture": "data/fixtures/dogi_canonical.json",
+    "inscription_ids": [
+      "15f3b73df7e5c072becb1d84191843ba080734805addfccb650929719080f62ei0",
+      "0bd32d69ca2221f3fc34d99aa14bccc2af10eedc7514770ae842ab9a72468743",
+      "ee688262677b00d973d0aa18e40863e8ba984e4237ac6ef46dd53a5b0d380092"
+    ]
+  },
+  "plan": [
+    "Load DOGI canonical fixture",
+    "Check indexer health (doginals_org, dogechain, wonky, ordinalswallet, unisat)",
+    "For each inscription id, run compare_inscription across available indexers",
+    "Parse any DRC-20 JSON found",
+    "Write data/findings/dogi_indexer_split.md",
+    "Store finding in SQLite"
+  ],
+  "capabilities": {
+    "tools": [
+      "load_fixture",
+      "indexer_health",
+      "compare_inscription",
+      "parse_drc20",
+      "doge_tx",
+      "doginals_inscription",
+      "fs_read",
+      "fs_write",
+      "memory_put",
+      "memory_get",
+      "memory_search"
+    ],
+    "sources": [
+      "api.doginals.org",
+      "dogechain.info"
+    ],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [
+    {
+      "path": "data/findings/dogi_indexer_split.md",
+      "kind": "finding"
+    }
+  ],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "Public APIs cannot see both DOGI deploys. dogechain CF 403, wonky-ord DNS dead, doginals.org inscription endpoints 404.",
+    "confidence": 0.1
+  }
+}
