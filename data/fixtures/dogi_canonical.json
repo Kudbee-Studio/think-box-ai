@@ -1,0 +1,25 @@
+{
+  "description": "Canonical DOGI (Doginals) indexer-split test case. The original 21M DOGI deploy and the later 2.1B DOGI deploy are treated differently by different indexers — this is the thesis we are proving.",
+  "token": "DOGI",
+  "original_deploy": {
+    "txid": "0xEXAMPLE_ORIGINAL_DEPLOY_TXID_64_CHARS_HEX_00000000000000",
+    "inscription_id": "EXAMPLE_ORIGINAL_INSCRIPTION_ID",
+    "supply": "21000000",
+    "note": "Original 21M DOGI deploy. Some indexers recognize this as the canonical deploy."
+  },
+  "later_deploy": {
+    "txid": "0xEXAMPLE_LATER_DEPLOY_TXID_64_CHARS_HEX_000000000000000000",
+    "inscription_id": "EXAMPLE_LATER_INSCRIPTION_ID",
+    "supply": "2100000000",
+    "note": "Later 2.1B DOGI deploy. Some indexers recognize this instead of the original."
+  },
+  "known_inscription_ids": [
+    "EXAMPLE_INSCRIPTION_ID_1",
+    "EXAMPLE_INSCRIPTION_ID_2"
+  ],
+  "indexers_to_test": [
+    "doginals_org",
+    "dogechain"
+  ],
+  "expected_behavior": "Different indexers may report different 'canonical' deploys for DOGI. The proof is showing that compare_inscription returns different results across indexers for the same inscription_id."
+}

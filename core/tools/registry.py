@@ -1,7 +1,9 @@
-"""Tool registry and decorator for THINK BOX AI."""
+"""Tool registry with execution and XML serialization."""
 
 from __future__ import annotations
 
+import json
+import xml.etree.ElementTree as ET
 from typing import Any, Callable
 
 
@@ -58,11 +60,43 @@ class ToolRegistry:
     def get(self, name: str) -> ToolDefinition | None:
         return self._tools.get(name)
 
+    def has(self, name: str) -> bool:
+        return name in self._tools
+
     def list_tools(self) -> list[ToolDefinition]:
         return list(self._tools.values())
 
     def list_by_permission(self, permission: str) -> list[ToolDefinition]:
         return [t for t in self._tools.values() if t.permission == permission]
+
+    async def execute(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        tool = self._tools.get(name)
+        if tool is None:
+            return {"success": False, "error": f"Tool '{name}' not found"}
+        if tool.handler is None:
+            return {"success": False, "error": f"Tool '{name}' has no handler"}
+        try:
+            result = await tool.handler(args, context={})
+            return result if isinstance(result, dict) else {"success": True, "output": result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def to_xml(self) -> str:
+        lines = []
+        for tool in self._tools.values():
+            lines.append(f'<tool name="{tool.name}">')
+            lines.append(f"  <description>{tool.description}</description>")
+            if tool.input_schema:
+                props = tool.input_schema.get("properties", {})
+                req = tool.input_schema.get("required", [])
+                lines.append("  <args>")
+                for arg_name, arg_schema in props.items():
+                    required = " (required)" if arg_name in req else ""
+                    arg_type = arg_schema.get("type", "any")
+                    lines.append(f'    <arg name="{arg_name}" type="{arg_type}"/>{required}')
+                lines.append("  </args>")
+            lines.append("</tool>")
+        return "\n".join(lines)
 
     def validate_input(self, tool_name: str, args: dict[str, Any]) -> bool:
         tool = self._tools.get(tool_name)

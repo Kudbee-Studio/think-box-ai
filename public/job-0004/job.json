@@ -1,0 +1,59 @@
+{
+  "id": "job_wallet_scan_001",
+  "intent": "Scan public wallet DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8 for known Doginals assets and provide per-asset verdicts.",
+  "hat": "researcher",
+  "inputs": {
+    "wallet": "DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8",
+    "expected_assets": [
+      "dogi 21m ticker",
+      "dbit",
+      "dcex",
+      "dogx",
+      "Doge Runestone",
+      "DogeBuds",
+      "Dogemaps"
+    ]
+  },
+  "plan": [
+    "Check indexer health",
+    "Query api.doginals.org for wallet holdings",
+    "Match holdings against expected asset list",
+    "Assign per-asset verdict",
+    "Write data/findings/wallet_DDCkpBDN.md",
+    "Store finding in SQLite"
+  ],
+  "capabilities": {
+    "tools": [
+      "indexer_health",
+      "http_get",
+      "doginals_inscription",
+      "fs_read",
+      "fs_write",
+      "memory_put",
+      "memory_get",
+      "memory_search"
+    ],
+    "sources": [
+      "api.doginals.org"
+    ],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [
+    {
+      "path": "data/findings/wallet_DDCkpBDN.md",
+      "kind": "finding"
+    }
+  ],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "Pending execution \u2014 public API wallet endpoints may not be exposed.",
+    "confidence": 0.0
+  },
+  "cost": {
+    "box_minutes": 0,
+    "gpu_minutes": 0,
+    "http_calls": 0
+  }
+}

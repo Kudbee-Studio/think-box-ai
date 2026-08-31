@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Think Box AI — Turn Intent Into Verified Proof</title>
+  <meta name="description" content="Think Box AI runs narrow research jobs against live public APIs, persists findings to immutable proof files, and delivers honest verdicts. Researcher hat for indexer consensus.">
+  <meta name="keywords" content="AI research, indexer consensus, Doginals, DRC-20, on-chain proof, verification, Think Box">
+  <meta name="author" content="Think Box AI">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Think Box AI — Turn Intent Into Verified Proof">
+  <meta property="og:description" content="Research jobs that deliver honest verdicts. No overclaiming. No marketing spin.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thinkbox.ai">
+  <meta property="og:image" content="https://thinkbox.ai/assets/og-image.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Think Box AI — Turn Intent Into Verified Proof">
+  <meta name="twitter:description" content="Research jobs that deliver honest verdicts.">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://thinkbox.ai">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Think Box AI",
+    "description": "Turn human intent into verified outcomes with narrow research jobs",
+    "url": "https://thinkbox.ai",
+    "applicationCategory": "ResearchApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/design-system.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/animations.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <!-- Navigation -->
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#jobs">Jobs</a></li>
+        <li><a href="#verdicts">Verdicts</a></li>
+        <li><a href="jobs/">Browse</a></li>
+        <li><a href="findings/">Findings</a></li>
+      </ul>
+      <div>
+        <a href="#jobs" class="btn btn-primary">View Jobs</a>
+      </div>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="#features" onclick="toggleMobileMenu()">Features</a></li>
+      <li><a href="#jobs" onclick="toggleMobileMenu()">Jobs</a></li>
+      <li><a href="#verdicts" onclick="toggleMobileMenu()">Verdicts</a></li>
+      <li><a href="jobs/" onclick="toggleMobileMenu()">Browse</a></li>
+      <li><a href="findings/" onclick="toggleMobileMenu()">Findings</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+  <!-- Hero -->
+  <section class="hero grid-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge badge-researcher">Researcher Hat</span>
+          <span class="text-muted" style="margin-left: 12px;">Indexer consensus research</span>
+        </div>
+        <h1 class="hero-title">
+          Turn an opportunity<br>into a <span class="gradient-text">proven outcome</span>
+        </h1>
+        <p class="hero-subtitle">
+          Think Box AI runs narrow research jobs against live public APIs,<br>
+          persists findings to an immutable proof file, and delivers a verdict.
+        </p>
+        <div class="hero-cta">
+          <a href="#jobs" class="btn btn-primary btn-lg">See Live Jobs</a>
+          <a href="HOW_TO_QUEUE.md" class="btn btn-secondary btn-lg">How to Queue</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat">
+            <div class="stat-value">7</div>
+            <div class="stat-label">Jobs Run</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">3</div>
+            <div class="stat-label">Sources Tested</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">100%</div>
+            <div class="stat-label">Honest Verdicts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="section">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2>How It Works</h2>
+        <p>Intent → Hat → Box → Tools → Artifacts → Verdict</p>
+      </div>
+      <div class="features-grid stagger-children">
+        <div class="card">
+          <div class="feature-icon">◎</div>
+          <h3>Intent</h3>
+          <p>What claim are you testing? Define the research question clearly.</p>
+        </div>
+        <div class="card">
+          <div class="feature-icon">◈</div>
+          <h3>Researcher</h3>
+          <p>Query live public indexers, compare responses, record disagreement.</p>
+        </div>
+        <div class="card">
+          <div class="feature-icon">▣</div>
+          <h3>Proof File</h3>
+          <p>Every job produces a human-readable finding with raw evidence.</p>
+        </div>
+        <div class="card">
+          <div class="feature-icon">◉</div>
+          <h3>Verdict</h3>
+          <p>Succeeded, failed, unproven, or blocked — never overstated.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Jobs -->
+  <section id="jobs" class="section-sm" style="background: var(--color-bg-elevated);">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2>Live Jobs</h2>
+        <p>Real research jobs running against public APIs</p>
+      </div>
+      <div class="jobs-grid stagger-children" id="jobs-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Verdicts -->
+  <section id="verdicts" class="section">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2>Verdict Registry</h2>
+        <p>Transparent outcomes for every job</p>
+      </div>
+      <div class="verdicts-grid stagger-children" id="verdicts-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="background: var(--color-bg-elevated);">
+    <div class="container">
+      <div class="cta-box reveal">
+        <h2>Ready to prove something?</h2>
+        <p>Drop a Think Job JSON in the queue. The researcher runs on any box.</p>
+        <a href="HOW_TO_QUEUE.md" class="btn btn-primary btn-lg">Queue a Job</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <div>
+          <div class="nav-logo" style="margin-bottom: var(--space-4);">
+            <div class="nav-logo-icon">TB</div>
+            <span>Think Box</span>
+          </div>
+          <p class="text-muted">Turn intent into proof.</p>
+        </div>
+        <div class="footer-links">
+          <a href="jobs/">Jobs</a>
+          <a href="findings/">Findings</a>
+          <a href="HOW_TO_QUEUE.md">How to Queue</a>
+          <a href="verdicts.html">Verdicts</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  </main>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
