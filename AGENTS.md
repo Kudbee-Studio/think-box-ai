@@ -56,6 +56,16 @@ Dead/blocked: wonky-ord DNS, dogechain CF 403 from box, Inception TLS 112.
 - `data/infra_upcloud.ini` — uuid, IPs, state, model paths, key path
 - `data/findings/` — L4 artifacts
 - `PUSH.md` — only if push fails
+- `data/thinkbox.db` — local indexing database (SQLite + FTS5)
+
+## Indexing rules
+
+- Project memory is scoped by `project_hash` (SHA-256 of repo path)
+- Sessions auto-sync to FTS5 via triggers
+- Memory `source` field: auto | explicit | correction
+- Corrections take precedence over auto memory
+- Use `thinkbox memory search` for recall
+- Use `thinkbox memory context` for startup injection
 
 ## Done means
 
