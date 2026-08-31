@@ -2,13 +2,13 @@
 
 **Session ID:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
-**Phase:** Production Hardening + Indexing
+**Phase:** Production Hardening + Indexing + Gap Closure
 **Created:** 2026-08-31
 **Status:** In progress
 
 ## Last Commit
 
-`4a65980` — "docs: STATUS updated with indexing"
+`2ffc7b3` — "docs: STATUS updated with new CLI commands"
 
 ## Push Status
 
@@ -47,6 +47,19 @@ Clean branch pushed. No secrets in history.
 - CLI: thinkbox memory search/show/list/remember/forget/context
 - Project-scoped isolation via SHA-256 hash
 - 41 tests (2 provider errors expected)
+
+### Phase 5: Gap Closure
+- Auto-capture hooks (session close → indexing)
+- Doctor command (system diagnostics)
+- Init command (project initialization)
+- Job cancel/retry commands
+- Findings export (JSON)
+- Public page completeness (all 7 jobs + templates)
+- Error handling with "did you mean" suggestions
+- Structured logging throughout
+- Comprehensive health check
+- README overhaul + quickstart guide
+- 41+ tests passing
 
 ## Job Table (7 jobs)
 
