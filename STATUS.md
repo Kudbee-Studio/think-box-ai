@@ -2,30 +2,32 @@
 
 **Session:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
-**Last Commit:** dacca97
-**GPU State:** stopped (Kudbee shut down on purpose)
+**Last Commit:** 6175f8b
+**Box:** wanted-tuna-71803 (idle)
 
-## What Works
+## Tools: 18 registered & verified this session
 
-### Tools (18 registered)
-| # | Tool | Status |
-|---|------|--------|
-| 1-5 | file_read/write, shell_exec, http_request, memory_query | ✅ |
-| 6-8 | fs_read/write/list | ✅ |
-| 9 | http_get | ✅ |
-| 10-12 | memory_put/get/search | ✅ |
-| 13 | indexer_health | ✅ |
-| 14-17 | doge_tx, doginals_inscription, compare_inscription, parse_drc20 | ✅ |
-| 18 | load_fixture | ✅ |
+file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write, fs_list, http_get, memory_put, memory_get, memory_search, indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
 
-### Backend
-- /health returns OK
-- /run, /stream, /ws endpoints implemented
+## DOGI Proof
 
-## DOGI Proof Result
+**Status:** Honest proof completed.
+**Finding:** `data/findings/dogi_indexer_split.md`
 
-**Status:** Partial — tools work, inscription data inaccessible via public APIs.
-Finding: `data/findings/dogi_indexer_split.md`
+### Source Results
+| Source | HTTP | Notes |
+|--------|------|-------|
+| api.doginals.org | 200 | Health only; inscription endpoints 404 |
+| dogechain.info | 403 | Cloudflare anti-bot |
+| wonky-ord.dogeord.io | — | DNS dead |
+| ordinalswallet.com | — | Timeout |
+| api.inception.ai | ❌ | TLS SNI reject (banned) |
+
+**Conclusion:** Indexer-split thesis unprovable via public APIs.
+
+## Researcher Hat
+
+Contract: `data/findings/RESEARCHER_HAT.md`
 
 ## UpCloud GPU
 
@@ -35,9 +37,8 @@ Finding: `data/findings/dogi_indexer_split.md`
 | Hostname | gpu-ubuntu-20cpu-256gb-fi-hel2 |
 | Floating IP | 87.58.150.62 |
 | State | stopped |
+| SSH key | unknown until laptop |
 | Models | 20B + 120B on attached disks |
-
-**Next:** Kudbee will start from panel, SSH with real key, find model paths, serve 20B.
 
 ## Provider Order
 
