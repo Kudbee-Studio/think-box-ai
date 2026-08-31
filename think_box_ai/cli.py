@@ -76,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
     findings_preview.add_argument("name", help="Finding name or partial match")
     findings_preview.set_defaults(func=lambda a: findings.preview_finding(a.name))
 
+    findings_export = findings_sub.add_parser("export", help="Export findings as JSON")
+    findings_export.add_argument("--output", "-o", help="Output file path")
+    findings_export.set_defaults(func=lambda a: findings.export_findings(a.output))
+
     # config
     config_parser = subparsers.add_parser("config", help="Configuration")
     config_sub = config_parser.add_subparsers(dest="config_command")

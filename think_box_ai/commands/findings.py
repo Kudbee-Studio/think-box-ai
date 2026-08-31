@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
 from pathlib import Path
 
 from ..ui.colors import bold, dim
@@ -53,3 +55,25 @@ def preview_finding(name: str) -> None:
             print(f"  {line}")
         if len(lines) > 20:
             print(dim(f"  ... ({len(lines) - 20} more lines)"))
+
+
+def export_findings(output_path: str | None = None) -> None:
+    """Export all findings as JSON."""
+    if not FINDINGS_DIR.exists():
+        print("No findings found.")
+        return
+
+    findings = []
+    for f in sorted(FINDINGS_DIR.glob("*.md")):
+        findings.append({
+            "name": f.name,
+            "path": str(f),
+            "size": f.stat().st_size,
+            "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+        })
+
+    if output_path:
+        Path(output_path).write_text(json.dumps(findings, indent=2))
+        print(f"Exported {len(findings)} findings to {output_path}")
+    else:
+        print(json.dumps(findings, indent=2))
