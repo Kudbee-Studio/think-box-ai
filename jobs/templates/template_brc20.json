@@ -1,0 +1,33 @@
+{
+  "id": "job_brc20_001",
+  "intent": "Compare BRC-20 ticker deployments across public indexers and record agreement or disagreement.",
+  "hat": "researcher",
+  "inputs": {
+    "ticker_a": "",
+    "ticker_b": "",
+    "claimed_supply_a": "",
+    "claimed_supply_b": "",
+    "chain": "bitcoin"
+  },
+  "plan": [
+    "Check indexer health",
+    "Fetch each ticker from available indexers",
+    "Compare responses across sources",
+    "Write finding to data/findings/brc20_<a>_<b>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": ["indexer_health", "http_get", "compare_inscription", "fs_write", "memory_put"],
+    "sources": ["api.doginals.org"],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  },
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
+}

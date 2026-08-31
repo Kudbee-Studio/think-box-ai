@@ -1,0 +1,31 @@
+{
+  "id": "job_wallet_provenance_001",
+  "intent": "Trace the provenance of a wallet's inscriptions back to original deploy transactions.",
+  "hat": "researcher",
+  "inputs": {
+    "wallet": "",
+    "inscription_ids": []
+  },
+  "plan": [
+    "Check indexer health",
+    "Fetch wallet holdings",
+    "For each inscription, trace back to deploy txid",
+    "Record chain of custody",
+    "Write finding to data/findings/provenance_<address>.md",
+    "Store in SQLite"
+  ],
+  "capabilities": {
+    "tools": ["indexer_health", "http_get", "doge_tx", "doginals_inscription", "compare_inscription", "fs_write", "memory_put"],
+    "sources": ["api.doginals.org"],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "unproven",
+    "reason": "",
+    "confidence": 0.0
+  },
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
+}

@@ -1,0 +1,33 @@
+{
+  "id": "job_director_wallet_report_001",
+  "intent": "Orchestrate a full wallet provenance report by chaining researcher jobs.",
+  "hat": "director",
+  "inputs": {
+    "wallet": "DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8",
+    "child_jobs": [
+      "job_wallet_scan_001",
+      "job_wallet_provenance_001"
+    ]
+  },
+  "plan": [
+    "Launch wallet scan job",
+    "Wait for completion",
+    "Launch provenance tracing for each asset",
+    "Aggregate verdicts into final report",
+    "Write to data/findings/report_<address>.md"
+  ],
+  "capabilities": {
+    "tools": ["memory_get", "memory_search", "fs_write"],
+    "sources": [],
+    "needs_gpu": false,
+    "needs_llm": false
+  },
+  "execution": [],
+  "artifacts": [],
+  "evaluation": {
+    "verdict": "blocked",
+    "reason": "Director hat not yet implemented. Child jobs must complete first.",
+    "confidence": 0.0
+  },
+  "cost": {"box_minutes": 0, "gpu_minutes": 0, "http_calls": 0}
+}
