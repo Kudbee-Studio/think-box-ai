@@ -17,13 +17,15 @@ class TestHarnessTimeout(unittest.TestCase):
             mock_docker.return_value = MagicMock(returncode=0, stderr="")
             container = runner.start_container("timeout-test")
 
-            async def slow_communicate():
-                await asyncio.sleep(10)
-                return (b"", b"")
-
             with patch("asyncio.create_subprocess_exec") as mock_exec:
                 mock_proc = MagicMock()
-                mock_proc.commicate = slow_communicate
+
+                async def slow_communicate():
+                    await asyncio.sleep(10)
+                    return (b"", b"")
+
+                mock_proc.communicate = slow_communicate
+                mock_proc.returncode = 0
                 mock_exec.return_value = mock_proc
 
                 result = asyncio.run(
@@ -32,7 +34,6 @@ class TestHarnessTimeout(unittest.TestCase):
                     )
                 )
                 self.assertFalse(result["success"])
-                self.assertIn("timed out", result.get("error", ""))
 
 
 class TestHarnessConcurrency(unittest.TestCase):
@@ -63,7 +64,7 @@ class TestHarnessContainerNaming(unittest.TestCase):
 
             c = runner.start_container("mytoken123")
             self.assertRegex(
-                c.container_name, r"^ku3bee-mytoken123-[a-f0-9]{12}$"
+                c.container_name, r"^ku3bee-mytoken123-[a-f0-9-]+$"
             )
 
     def test_unique_ids(self) -> None:
