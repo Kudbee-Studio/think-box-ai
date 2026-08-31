@@ -35,8 +35,21 @@ Global: --json --plain --quiet --verbose --dry-run --no-color
 ## Test Results
 
 **Runner:** `scripts/run_tests.py` (unittest, no pytest needed)
-**Result:** 30 tests, 2 errors (provider tests hit real API — expected)
+**Result:** 41 tests, 2 errors (provider tests hit real API — expected)
 **Job Validation:** `scripts/check_jobs.py` — all pass
+
+## Local Indexing
+
+SQLite + FTS5 at `data/thinkbox.db`.
+
+```
+thinkbox memory search/show/list/remember/forget/context
+```
+
+- Project-scoped isolation via SHA-256 hash
+- Auto-sync via FTS5 triggers
+- BM25 ranking
+- Sessions + messages + project memory
 
 ## Backend API v0.3
 
