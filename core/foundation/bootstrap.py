@@ -69,12 +69,12 @@ class RuntimeContext:
         )
 
 
-def _ensure_directories(config: ThinkBoxConfig) -> None:
+def _ensure_directories(config: ThinkBoxConfig, project_root: Path) -> None:
     Path(config.data_dir).mkdir(parents=True, exist_ok=True)
     Path(config.memory_db_path).parent.mkdir(parents=True, exist_ok=True)
-    (Path(config.project_root) / "data" / "raw").mkdir(parents=True, exist_ok=True)
-    (Path(config.project_root) / "data" / "findings").mkdir(parents=True, exist_ok=True)
-    (Path(config.project_root) / "data" / "fixtures").mkdir(parents=True, exist_ok=True)
+    (project_root / "data" / "raw").mkdir(parents=True, exist_ok=True)
+    (project_root / "data" / "findings").mkdir(parents=True, exist_ok=True)
+    (project_root / "data" / "fixtures").mkdir(parents=True, exist_ok=True)
 
 
 def _create_provider(config: ThinkBoxConfig) -> ModelProvider | None:
@@ -150,7 +150,7 @@ def bootstrap(
         },
     })
 
-    _ensure_directories(config)
+    _ensure_directories(config, project_root)
 
     db_path = project_root / config.memory_db_path
     store = MemoryStore(db_path)
