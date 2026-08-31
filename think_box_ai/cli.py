@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from think_box_ai import __version__
-from think_box_ai.commands import box, config, findings, job, memory, watch
+from think_box_ai.commands import box, config, doctor, findings, job, memory, watch
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,6 +53,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     job_run = job_sub.add_parser("run", help="Run queue worker")
     job_run.set_defaults(func=lambda a: print("Worker: python3 scripts/run_job.py"))
+
+    job_cancel = job_sub.add_parser("cancel", help="Cancel a queued job")
+    job_cancel.add_argument("job_id", help="Job ID")
+    job_cancel.set_defaults(func=lambda a: job.cancel_job(a.job_id))
+
+    job_retry = job_sub.add_parser("retry", help="Retry a blocked/failed job")
+    job_retry.add_argument("job_id", help="Job ID")
+    job_retry.set_defaults(func=lambda a: job.retry_job(a.job_id))
 
     # findings
     findings_parser = subparsers.add_parser("findings", help="Findings browser")
@@ -128,6 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     mem_context = memory_sub.add_parser("context", help="Get project startup context")
     mem_context.set_defaults(func=lambda a: memory.memory_context())
+
+    # doctor
+    doctor_parser = subparsers.add_parser("doctor", help="System diagnostics")
+    doctor_parser.set_defaults(func=lambda a: doctor.doctor())
+
+    # init
+    init_parser = subparsers.add_parser("init", help="Initialize project")
+    init_parser.set_defaults(func=lambda a: doctor.init_project())
 
     return parser
 

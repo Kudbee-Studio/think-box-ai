@@ -209,3 +209,39 @@ def diff_jobs(id1: str, id2: str) -> None:
     print(f"  Hat: {job1['hat']} vs {job2['hat']}")
     print(f"  State: {state1} vs {state2}")
     print(f"  Verdict: {format_verdict(job1.get('evaluation',{}).get('verdict','—'))} vs {format_verdict(job2.get('evaluation',{}).get('verdict','—'))}")
+
+
+def cancel_job(job_id: str) -> None:
+    """Remove a job from queue."""
+    queue_path = JOBS_DIR / "queue" / f"{job_id}.json"
+    if not queue_path.exists():
+        print(f"Job not in queue: {job_id}")
+        return
+
+    # Move to blocked
+    blocked_path = JOBS_DIR / "blocked" / f"{job_id}.json"
+    import shutil
+    shutil.move(str(queue_path), str(blocked_path))
+    print(f"Cancelled: {job_id} (moved to blocked)")
+
+
+def retry_job(job_id: str) -> None:
+    """Retry a blocked or failed job."""
+    for state in ["blocked", "done"]:
+        src = JOBS_DIR / state / f"{job_id}.json"
+        if src.exists():
+            # Reset execution
+            job = json.loads(src.read_text())
+            job["execution"] = []
+            job["artifacts"] = []
+            job["evaluation"]["verdict"] = "unproven"
+
+            # Move to queue
+            dst = JOBS_DIR / "queue" / f"{job_id}.json"
+            import shutil
+            shutil.move(str(src), str(dst))
+            dst.write_text(json.dumps(job, indent=2, default=str))
+            print(f"Retrying: {job_id} (moved to queue)")
+            return
+
+    print(f"Job not found in blocked/done: {job_id}")
