@@ -19,13 +19,33 @@
     "Store finding in SQLite"
   ],
   "capabilities": {
-    "tools": ["load_fixture", "indexer_health", "compare_inscription", "parse_drc20", "doge_tx", "doginals_inscription", "fs_read", "fs_write", "memory_put", "memory_get", "memory_search"],
-    "sources": ["api.doginals.org", "dogechain.info"],
+    "tools": [
+      "load_fixture",
+      "indexer_health",
+      "compare_inscription",
+      "parse_drc20",
+      "doge_tx",
+      "doginals_inscription",
+      "fs_read",
+      "fs_write",
+      "memory_put",
+      "memory_get",
+      "memory_search"
+    ],
+    "sources": [
+      "api.doginals.org",
+      "dogechain.info"
+    ],
     "needs_gpu": false,
     "needs_llm": false
   },
   "execution": [],
-  "artifacts": [],
+  "artifacts": [
+    {
+      "path": "data/findings/dogi_indexer_split.md",
+      "kind": "finding"
+    }
+  ],
   "evaluation": {
     "verdict": "unproven",
     "reason": "Public APIs cannot see both DOGI deploys. dogechain CF 403, wonky-ord DNS dead, doginals.org inscription endpoints 404.",

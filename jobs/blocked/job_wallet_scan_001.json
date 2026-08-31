@@ -23,16 +23,32 @@
     "Store finding in SQLite"
   ],
   "capabilities": {
-    "tools": ["indexer_health", "http_get", "doginals_inscription", "fs_read", "fs_write", "memory_put", "memory_get", "memory_search"],
-    "sources": ["api.doginals.org"],
+    "tools": [
+      "indexer_health",
+      "http_get",
+      "doginals_inscription",
+      "fs_read",
+      "fs_write",
+      "memory_put",
+      "memory_get",
+      "memory_search"
+    ],
+    "sources": [
+      "api.doginals.org"
+    ],
     "needs_gpu": false,
     "needs_llm": false
   },
   "execution": [],
-  "artifacts": [],
+  "artifacts": [
+    {
+      "path": "data/findings/wallet_DDCkpBDN.md",
+      "kind": "finding"
+    }
+  ],
   "evaluation": {
     "verdict": "unproven",
-    "reason": "Pending execution — public API wallet endpoints may not be exposed.",
+    "reason": "Pending execution \u2014 public API wallet endpoints may not be exposed.",
     "confidence": 0.0
   }
 }
