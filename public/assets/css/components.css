@@ -1257,6 +1257,32 @@ textarea.form-input {
 .meme-change.negative { color: var(--color-danger); }
 .meme-form { padding: var(--space-8); max-width: 700px; margin: 0 auto; }
 
+/* Trading Agents */
+.agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.agent-card { padding: var(--space-6); }
+.agent-card-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.agent-card-name { font-weight: var(--font-semibold); }
+.agent-card-strategy { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.agent-card-stats { display: flex; gap: var(--space-4); margin-bottom: var(--space-4); }
+.agent-card-stats .agent-stat { flex: 1; text-align: center; }
+.agent-card-stats .agent-stat-value { display: block; font-weight: var(--font-semibold); color: var(--color-success); }
+.agent-card-stats .agent-stat-label { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+.agent-card-actions { display: flex; gap: var(--space-2); }
+
+.strategy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.strategy-card { padding: var(--space-6); cursor: pointer; transition: all var(--transition-normal); }
+.strategy-card:hover { border-color: var(--color-accent); transform: translateY(-2px); }
+.strategy-icon { font-size: var(--text-2xl); margin-bottom: var(--space-3); }
+.strategy-stats { display: flex; gap: var(--space-4); margin-top: var(--space-4); font-size: var(--text-sm); color: var(--color-text-secondary); }
+
+@media (max-width: 1024px) {
+  .portfolio-overview { grid-template-columns: 1fr 1fr; }
+  .performance-stats { grid-template-columns: 1fr 1fr; }
+  .meme-grid { grid-template-columns: 1fr; }
+  .agent-grid { grid-template-columns: 1fr; }
+  .strategy-grid { grid-template-columns: 1fr 1fr; }
+}
+
 @media (max-width: 1024px) {
   .portfolio-overview { grid-template-columns: 1fr 1fr; }
   .performance-stats { grid-template-columns: 1fr 1fr; }
