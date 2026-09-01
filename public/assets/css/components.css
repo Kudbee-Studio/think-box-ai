@@ -1208,3 +1208,57 @@ textarea.form-input {
 @media (max-width: 1024px) {
   .checks-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* Portfolio */
+.portfolio-overview { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap: var(--space-4); }
+.portfolio-total { background: linear-gradient(135deg, var(--color-bg-card) 0%, rgba(99, 102, 241, 0.1) 100%); border-color: var(--color-accent); }
+.portfolio-label { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+.portfolio-value { font-size: var(--text-3xl); font-weight: var(--font-bold); margin-bottom: var(--space-1); }
+.portfolio-change { font-size: var(--text-sm); font-weight: var(--font-medium); }
+.portfolio-change.positive { color: var(--color-success); }
+.portfolio-change.negative { color: var(--color-danger); }
+.portfolio-stat { padding: var(--space-4); text-align: center; }
+.stat-label { font-size: var(--text-xs); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+.stat-value { font-weight: var(--font-semibold); }
+.stat-value.positive { color: var(--color-success); }
+
+.allocation-grid { display: flex; flex-direction: column; gap: var(--space-3); }
+.allocation-card { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-6); }
+.allocation-icon { font-size: var(--text-xl); }
+.allocation-info { min-width: 100px; }
+.allocation-name { font-weight: var(--font-medium); }
+.allocation-percent { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.allocation-bar { flex: 1; height: 8px; background: var(--color-bg-subtle); border-radius: var(--radius-full); overflow: hidden; }
+.allocation-bar-fill { height: 100%; border-radius: var(--radius-full); }
+
+.performance-card { padding: var(--space-8); }
+.performance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6); }
+.performance-periods { display: flex; gap: var(--space-2); }
+.period-btn { padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); background: var(--color-bg-subtle); border: 1px solid var(--color-border); color: var(--color-text-secondary); cursor: pointer; font-size: var(--text-sm); }
+.period-btn.active { background: var(--color-accent-subtle); color: var(--color-accent); border-color: var(--color-accent); }
+.performance-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-6); }
+.perf-stat { text-align: center; }
+.perf-label { display: block; font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+.perf-value { font-size: var(--text-xl); font-weight: var(--font-bold); }
+.perf-value.positive { color: var(--color-success); }
+.perf-value.negative { color: var(--color-danger); }
+
+/* Meme Factory */
+.meme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.meme-card { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6); }
+.meme-icon { font-size: var(--text-3xl); }
+.meme-info { flex: 1; }
+.meme-name { font-weight: var(--font-semibold); }
+.meme-symbol { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.meme-stats { text-align: right; }
+.meme-market-cap { display: block; font-weight: var(--font-semibold); }
+.meme-change { font-size: var(--text-sm); }
+.meme-change.positive { color: var(--color-success); }
+.meme-change.negative { color: var(--color-danger); }
+.meme-form { padding: var(--space-8); max-width: 700px; margin: 0 auto; }
+
+@media (max-width: 1024px) {
+  .portfolio-overview { grid-template-columns: 1fr 1fr; }
+  .performance-stats { grid-template-columns: 1fr 1fr; }
+  .meme-grid { grid-template-columns: 1fr; }
+}
