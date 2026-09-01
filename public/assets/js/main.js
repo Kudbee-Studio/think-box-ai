@@ -1,143 +1,206 @@
 /**
- * Think Box AI — Main JavaScript
- * Renders real job data into the landing page
+ * Think Box AI — Frontend JavaScript
+ * Wallet, tokens, NFTs, trading, agents, UI components
  */
 
-const JOBS = [
-  {
-    id: "job_dogi_split_001",
-    title: "DOGI Indexer Split",
-    intent: "Verify the Doginals indexer-split case for DOGI (21M vs 2.1B deploys) against live public APIs.",
-    hat: "researcher",
-    verdict: "unproven",
-    sources: 3,
-    calls: 6,
-  },
-  {
-    id: "job_compare_dogi_dbit",
-    title: "DOGI vs DBIT Compare",
-    intent: "Compare DOGI (claimed 21M) and DBIT (claimed 2.1T) as separate tickers across public indexers.",
-    hat: "researcher",
-    verdict: "unproven",
-    sources: 3,
-    calls: 6,
-  },
-  {
-    id: "job_inscription_001",
-    title: "Inscription Lookup",
-    intent: "Look up a single inscription across available indexers and record what each returns.",
-    hat: "researcher",
-    verdict: "unproven",
-    sources: 3,
-    calls: 3,
-  },
-  {
-    id: "job_wallet_scan_001",
-    title: "Wallet Scan DDCkpBDN",
-    intent: "Scan public wallet DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8 for known Doginals assets.",
-    hat: "researcher",
-    verdict: "blocked",
-    sources: 0,
-    calls: 0,
-  },
-  {
-    id: "job_gpu_find_models",
-    title: "Find GPU Models",
-    intent: "When GPU is started, find 20B and 120B model weights on data disks.",
-    hat: "runner",
-    verdict: "blocked",
-    sources: 0,
-    calls: 0,
-  },
-  {
-    id: "job_gpu_serve_20b",
-    title: "Serve 20B Model",
-    intent: "Serve the 20B model on the GPU via FreeToken and wire Think Box openai_compat to it.",
-    hat: "runner",
-    verdict: "blocked",
-    sources: 0,
-    calls: 0,
-  },
-  {
-    id: "job_director_wallet_report_001",
-    title: "Director Wallet Report",
-    intent: "Orchestrate a full wallet provenance report by chaining researcher jobs.",
-    hat: "director",
-    verdict: "blocked",
-    sources: 0,
-    calls: 0,
-  },
-];
+document.addEventListener('DOMContentLoaded', () => {
+  initScrollReveal();
+  initMobileMenu();
+  initKeyboardShortcuts();
+  initWalletState();
+  initTokenForm();
+});
 
-const VERDICTS = {
-  succeeded: { label: "Succeeded", count: 0, desc: "Proof complete" },
-  failed: { label: "Failed", count: 0, desc: "Proof failed" },
-  unproven: { label: "Unproven", count: 3, desc: "APIs insufficient" },
-  blocked: { label: "Blocked", count: 4, desc: "Needs human/GPU" },
-};
-
-function renderJobs() {
-  const grid = document.getElementById("jobs-grid");
-  if (!grid) return;
-
-  grid.innerHTML = JOBS.map(job => `
-    <div class="card job-card">
-      <div class="job-card-header">
-        <div>
-          <div class="job-card-title">${job.title}</div>
-          <div class="job-card-id mono">${job.id}</div>
-        </div>
-        <span class="badge badge-${job.verdict}">${job.verdict.toUpperCase()}</span>
-      </div>
-      <p class="job-card-intent">${job.intent}</p>
-      <div class="job-card-footer">
-        <span class="badge badge-${job.hat}">${job.hat}</span>
-        <div class="job-card-meta">
-          <span>${job.sources} sources</span>
-          <span>${job.calls} calls</span>
-        </div>
-      </div>
-    </div>
-  `).join("");
-}
-
-function renderVerdicts() {
-  const grid = document.getElementById("verdicts-grid");
-  if (!grid) return;
-
-  grid.innerHTML = Object.entries(VERDICTS).map(([key, v]) => `
-    <div class="verdict-item">
-      <div>
-        <div class="verdict-item-name">${v.label}</div>
-        <div class="text-muted" style="font-size: var(--text-xs);">${v.desc}</div>
-      </div>
-      <span class="badge badge-${key}">${v.count}</span>
-    </div>
-  `).join("");
-}
-
+/* Scroll Reveal */
 function initScrollReveal() {
+  const elements = document.querySelectorAll('.reveal, .stagger-children');
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        entry.target.classList.add("visible");
+        entry.target.classList.add('revealed');
+        if (entry.target.classList.contains('stagger-children')) {
+          entry.target.querySelectorAll(':scope > *').forEach((child, i) => {
+            setTimeout(() => child.classList.add('revealed'), i * 100);
+          });
+        }
       }
     });
   }, { threshold: 0.1 });
-
-  document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+  elements.forEach(el => observer.observe(el));
 }
 
-// Mobile menu toggle
+/* Mobile Menu */
 function toggleMobileMenu() {
-  const menu = document.getElementById("mobileMenu");
-  if (menu) {
-    menu.classList.toggle("active");
+  const menu = document.getElementById('mobileMenu');
+  menu?.classList.toggle('active');
+}
+
+/* Keyboard Shortcuts */
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openCommandPalette();
+    }
+    if (e.key === 'Escape') {
+      closeWalletModal();
+      closeCommandPalette();
+    }
+  });
+}
+
+/* Wallet State */
+let walletConnected = false;
+let walletAddress = '';
+
+function initWalletState() {
+  const saved = localStorage.getItem('thinkbox_wallet');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      walletConnected = true;
+      walletAddress = data.address;
+      updateWalletUI();
+    } catch (e) {}
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  renderJobs();
-  renderVerdicts();
-  initScrollReveal();
-});
+function toggleWalletConnect() {
+  const modal = document.getElementById('walletModal');
+  modal?.classList.toggle('active');
+}
+
+function closeWalletModal(e) {
+  if (!e || e.target === document.getElementById('walletModal')) {
+    document.getElementById('walletModal')?.classList.remove('active');
+  }
+}
+
+function connectWallet(wallet) {
+  showToast(`Connecting to ${wallet}...`, 'info');
+  setTimeout(() => {
+    const mockAddress = '0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    walletConnected = true;
+    walletAddress = mockAddress;
+    localStorage.setItem('thinkbox_wallet', JSON.stringify({ address: mockAddress, wallet }));
+    updateWalletUI();
+    toggleWalletConnect();
+    showToast(`${wallet} connected!`, 'success');
+    if (typeof refreshBalance === 'function') refreshBalance();
+  }, 1500);
+}
+
+function updateWalletUI() {
+  const btn = document.getElementById('walletConnectBtn');
+  if (btn && walletConnected) {
+    btn.textContent = walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4);
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+  }
+}
+
+function refreshBalance() {
+  const balanceEl = document.getElementById('totalBalance');
+  if (balanceEl) {
+    balanceEl.innerHTML = '<span class="skeleton" style="width:120px;height:36px;display:inline-block;"></span>';
+    setTimeout(() => {
+      const sol = (Math.random() * 100 + 10).toFixed(2);
+      balanceEl.innerHTML = `◎ ${sol} SOL`;
+    }, 1000);
+  }
+  const priceEl = document.getElementById('solPrice');
+  if (priceEl) priceEl.textContent = '$' + (Math.floor(Math.random() * 50) + 80) + '.00';
+}
+
+/* Token Form */
+function initTokenForm() {
+  const form = document.getElementById('tokenForm');
+  if (!form) return;
+  const inputs = form.querySelectorAll('input, textarea, select');
+  inputs.forEach(input => {
+    input.addEventListener('input', updateTokenPreview);
+  });
+}
+
+function updateTokenPreview() {
+  const name = document.getElementById('tokenName')?.value || 'Token Name';
+  const symbol = document.getElementById('tokenSymbol')?.value || 'SYM';
+  const supply = document.getElementById('tokenSupply')?.value || '--';
+  const decimals = document.getElementById('tokenDecimals')?.value || '9';
+
+  const previewName = document.getElementById('previewName');
+  const previewSymbol = document.getElementById('previewSymbol');
+  const previewIcon = document.getElementById('previewIcon');
+  const previewSupply = document.getElementById('previewSupply');
+  const previewDecimals = document.getElementById('previewDecimals');
+
+  if (previewName) previewName.textContent = name;
+  if (previewSymbol) previewSymbol.textContent = symbol.toUpperCase();
+  if (previewIcon) previewIcon.textContent = symbol.slice(0, 2).toUpperCase() || '?';
+  if (previewSupply) previewSupply.textContent = supply !== '--' ? Number(supply).toLocaleString() : '--';
+  if (previewDecimals) previewDecimals.textContent = decimals;
+}
+
+function handleTokenCreate(e) {
+  e.preventDefault();
+  const name = document.getElementById('tokenName')?.value;
+  if (!name) { showToast('Enter a token name', 'error'); return; }
+  showToast('Token creation coming soon on devnet!', 'info');
+}
+
+/* Swap */
+function updateSwapQuote() {
+  const amount = parseFloat(document.getElementById('swapAmount')?.value) || 0;
+  const rate = 100 + Math.random() * 50;
+  const output = (amount / rate).toFixed(6);
+  const outputEl = document.getElementById('swapOutput');
+  const rateEl = document.getElementById('swapRate');
+  if (outputEl) outputEl.value = output;
+  if (rateEl) rateEl.textContent = `1 SOL ≈ ${rate.toFixed(2)} USDC`;
+}
+
+function swapDirection() {
+  const fromBtn = document.getElementById('fromTokenSelect');
+  const toBtn = document.getElementById('toTokenSelect');
+  if (fromBtn && toBtn) {
+    const tmp = fromBtn.textContent;
+    fromBtn.textContent = toBtn.textContent;
+    toBtn.textContent = tmp;
+  }
+  updateSwapQuote();
+}
+
+function executeSwap() {
+  if (!walletConnected) { toggleWalletConnect(); return; }
+  showToast('Swap execution coming soon!', 'info');
+}
+
+/* Toast */
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-message">${message}</span><span class="toast-close" onclick="this.parentElement.remove()">×</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+/* Command Palette */
+function openCommandPalette() {
+  const palette = document.getElementById('commandPalette');
+  palette?.classList.add('active');
+  const input = document.getElementById('commandInput');
+  if (input) setTimeout(() => input.focus(), 100);
+}
+
+function closeCommandPalette(e) {
+  if (!e || e.target === document.getElementById('commandPalette')) {
+    document.getElementById('commandPalette')?.classList.remove('active');
+  }
+}
+
+function navigateTo(path) {
+  closeCommandPalette();
+  window.location.href = path;
+}
