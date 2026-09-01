@@ -29,6 +29,8 @@ def _get_db() -> sqlite3.Connection:
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_outcome ON audit_log(outcome)")
     conn.commit()
     return conn
 

@@ -33,6 +33,10 @@ ctx: RuntimeContext | None = None
 sessions: dict[str, dict[str, Any]] = {}
 
 
+from backend.api.v1.router import api_v1_router
+app.include_router(api_v1_router)
+
+
 @app.on_event("startup")
 async def startup() -> None:
     global ctx
