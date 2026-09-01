@@ -1,4 +1,7 @@
-"""HTTP tool for THINK BOX AI — GET only, rate-limited, saves raw responses."""
+"""HTTP tool for THINK BOX AI — GET only, rate-limited, saves raw responses.
+
+Uses asyncio.to_thread to avoid blocking the event loop.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _RAW_DIR = _REPO_ROOT / "data" / "raw"
 
 _rate_limits: dict[str, float] = {}
-_MIN_INTERVAL = 0.4  # 400ms between requests to same host
+_MIN_INTERVAL = 0.4
 _TIMEOUT = 20
 _USER_AGENT = "ThinkBoxAI-Research/0.2 (+https://github.com/Kudbee-Studio/think-box-ai)"
 
@@ -35,6 +38,49 @@ def _safe_filename(url: str) -> str:
     return h
 
 
+def _do_http_get(url: str, save: bool) -> dict[str, Any]:
+    import urllib.request
+    import urllib.error
+
+    parsed = urlparse(url)
+    host = parsed.netloc
+
+    req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json, text/plain, */*"})
+    with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+        status = resp.status
+        content_type = resp.headers.get("Content-Type", "")
+        body = resp.read()
+
+    saved_path = None
+    if save:
+        host_dir = _RAW_DIR / host.replace(":", "_")
+        host_dir.mkdir(parents=True, exist_ok=True)
+        is_json = "json" in content_type or url.endswith(".json")
+        ext = "json" if is_json else "txt"
+        fname = f"{_safe_filename(url)}.{ext}"
+        saved_path = str(host_dir.relative_to(_REPO_ROOT) / fname)
+        (host_dir / fname).write_bytes(body)
+
+    text = body.decode("utf-8", errors="replace")
+    try:
+        parsed_json = json.loads(text) if is_json else None
+    except json.JSONDecodeError:
+        parsed_json = None
+
+    excerpt = text[:2000] if len(text) > 2000 else text
+
+    return {
+        "success": True,
+        "status": status,
+        "url": url,
+        "content_type": content_type,
+        "saved_path": saved_path,
+        "excerpt": excerpt,
+        "json": parsed_json,
+        "size": len(body),
+    }
+
+
 @tool(
     name="http_get",
     description="HTTP GET with rate limiting. Saves JSON responses to data/raw/. Returns status, excerpt, and saved path.",
@@ -42,6 +88,8 @@ def _safe_filename(url: str) -> str:
     input_schema={"type": "object", "properties": {"url": {"type": "string"}, "save": {"type": "boolean"}}, "required": ["url"]},
 )
 async def http_get(args: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    import urllib.error
+
     url = args.get("url", "")
     save = args.get("save", True)
     if not url:
@@ -55,43 +103,7 @@ async def http_get(args: dict[str, Any], context: dict[str, Any] | None = None) 
     await _rate_limit(host)
 
     try:
-        import urllib.request
-        import urllib.error
-
-        req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json, text/plain, */*"})
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-            status = resp.status
-            content_type = resp.headers.get("Content-Type", "")
-            body = resp.read()
-
-        saved_path = None
-        if save:
-            host_dir = _RAW_DIR / host.replace(":", "_")
-            host_dir.mkdir(parents=True, exist_ok=True)
-            is_json = "json" in content_type or url.endswith(".json")
-            ext = "json" if is_json else "txt"
-            fname = f"{_safe_filename(url)}.{ext}"
-            saved_path = str(host_dir.relative_to(_REPO_ROOT) / fname)
-            (host_dir / fname).write_bytes(body)
-
-        text = body.decode("utf-8", errors="replace")
-        try:
-            parsed_json = json.loads(text) if is_json else None
-        except json.JSONDecodeError:
-            parsed_json = None
-
-        excerpt = text[:2000] if len(text) > 2000 else text
-
-        return {
-            "success": True,
-            "status": status,
-            "url": url,
-            "content_type": content_type,
-            "saved_path": saved_path,
-            "excerpt": excerpt,
-            "json": parsed_json,
-            "size": len(body),
-        }
+        return await asyncio.to_thread(_do_http_get, url, save)
     except urllib.error.HTTPError as e:
         return {"success": False, "error": f"HTTP {e.code}: {e.reason}", "url": url}
     except urllib.error.URLError as e:
