@@ -260,6 +260,87 @@ def create_parser() -> argparse.ArgumentParser:
     inception_sub.add_parser("models", help="List available models")
     inception_sub.add_parser("usage", help="Show usage stats")
 
+    # ==========================================
+    # 27. SOLANA WALLET COMMANDS
+    # ==========================================
+    wallet_p = subparsers.add_parser("wallet", help="Solana wallet operations")
+    wallet_sub = wallet_p.add_subparsers(dest="wallet_command")
+
+    wallet_create = wallet_sub.add_parser("create", help="Create new keypair")
+    wallet_create.add_argument("--output", help="Output file path")
+
+    wallet_balance = wallet_sub.add_parser("balance", help="Check SOL balance")
+    wallet_balance.add_argument("--address", help="Wallet address")
+
+    wallet_airdrop = wallet_sub.add_parser("airdrop", help="Request SOL airdrop (devnet)")
+    wallet_airdrop.add_argument("--amount", type=float, default=1.0)
+    wallet_airdrop.add_argument("--address", help="Recipient address")
+
+    wallet_transfer = wallet_sub.add_parser("transfer", help="Send SOL")
+    wallet_transfer.add_argument("to", help="Recipient address")
+    wallet_transfer.add_argument("amount", type=float, help="Amount in SOL")
+
+    wallet_sub.add_parser("address", help="Show configured wallet address")
+
+    wallet_p.add_argument("--network", default="devnet", choices=["mainnet", "devnet", "localnet"])
+
+    # ==========================================
+    # 28. SOLANA SWAP COMMANDS
+    # ==========================================
+    swap_p = subparsers.add_parser("swap", help="Jupiter token swaps")
+    swap_sub = swap_p.add_subparsers(dest="swap_command")
+
+    swap_quote = swap_sub.add_parser("quote", help="Get swap quote")
+    swap_quote.add_argument("input_mint", help="Input token mint")
+    swap_quote.add_argument("output_mint", help="Output token mint")
+    swap_quote.add_argument("amount", type=int, help="Amount in smallest units")
+    swap_quote.add_argument("--slippage", type=int, default=50, help="Slippage in bps")
+
+    swap_sub.add_parser("tokens", help="List tradeable tokens")
+
+    # ==========================================
+    # 29. SOLANA STAKING COMMANDS
+    # ==========================================
+    stake_p = subparsers.add_parser("stake", help="Staking vault operations")
+    stake_sub = stake_p.add_subparsers(dest="stake_command")
+
+    stake_deposit = stake_sub.add_parser("deposit", help="Stake tokens")
+    stake_deposit.add_argument("mint", help="Token mint address")
+    stake_deposit.add_argument("amount", type=int, help="Amount to stake")
+    stake_deposit.add_argument("--lock-days", type=int, default=30)
+    stake_deposit.add_argument("--nft-boost", type=float, default=1.0)
+
+    stake_unstake = stake_sub.add_parser("unstake", help="Unstake tokens")
+    stake_unstake.add_argument("mint", help="Token mint address")
+    stake_unstake.add_argument("amount", type=int)
+
+    stake_rewards = stake_sub.add_parser("rewards", help="Claim staking rewards")
+    stake_rewards.add_argument("mint", help="Token mint address")
+
+    # ==========================================
+    # 30. SOLANA SCANNER COMMANDS
+    # ==========================================
+    scan_p = subparsers.add_parser("scan", help="Token safety scanner")
+    scan_p.add_argument("mint", help="Token mint address to scan")
+
+    # ==========================================
+    # 31. BONDING CURVE COMMANDS
+    # ==========================================
+    bonding_p = subparsers.add_parser("bonding", help="Bonding curve calculations")
+    bonding_sub = bonding_p.add_subparsers(dest="bonding_command")
+
+    bonding_price = bonding_sub.add_parser("price", help="Get current price")
+    bonding_price.add_argument("supply", type=int, help="Current token supply")
+
+    bonding_cost = bonding_sub.add_parser("cost", help="Calculate buy cost")
+    bonding_cost.add_argument("supply", type=int)
+    bonding_cost.add_argument("amount", type=int, help="Tokens to buy")
+
+    bonding_mc = bonding_sub.add_parser("market-cap", help="Get market cap")
+    bonding_mc.add_argument("supply", type=int)
+
+    bonding_p.add_argument("--curve-type", default="linear", choices=["linear", "exponential"])
+
     return parser
 
 
@@ -317,6 +398,16 @@ def dispatch_command(args: argparse.Namespace) -> None:
         _handle_cursor(args)
     elif cmd == "inception":
         _handle_inception(args)
+    elif cmd == "wallet":
+        _handle_solana_wallet(args)
+    elif cmd == "swap":
+        _handle_swap(args)
+    elif cmd == "stake":
+        _handle_stake(args)
+    elif cmd == "scan":
+        _handle_scan(args)
+    elif cmd == "bonding":
+        _handle_bonding(args)
     else:
         print(f"Unknown command: {cmd}")
 
@@ -433,6 +524,36 @@ def _handle_inception(args: argparse.Namespace) -> None:
     from .commands.inception import handle_inception_command
 
     handle_inception_command(args)
+
+
+def _handle_solana_wallet(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_wallet_command
+
+    handle_wallet_command(args)
+
+
+def _handle_swap(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_swap_command
+
+    handle_swap_command(args)
+
+
+def _handle_stake(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_stake_command
+
+    handle_stake_command(args)
+
+
+def _handle_scan(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_scan_command
+
+    handle_scan_command(args)
+
+
+def _handle_bonding(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_bonding_command
+
+    handle_bonding_command(args)
 
 
 if __name__ == "__main__":
