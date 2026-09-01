@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscribe — Think Box AI</title>
+  <meta name="description" content="Inscribe Doginals with confidence. Small processing fee. Full provenance tracking. Risk scoring included.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../inscribe/" style="color: var(--color-text-accent);">Inscribe</a></li>
+        <li><a href="../wallet/">Wallet</a></li>
+      </ul>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect</button>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../inscribe/" onclick="toggleMobileMenu()">Inscribe</a></li>
+      <li><a href="../wallet/" onclick="toggleMobileMenu()">Wallet</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Inscribe with <span class="gradient-text">Confidence</span></h1>
+          <p>Small processing fee. Full provenance. Risk scoring included.</p>
+        </div>
+
+        <!-- Why Different -->
+        <div class="card card-elevated" style="margin-bottom: var(--space-8);">
+          <h3 style="margin-bottom: var(--space-4);">Why Inscribe With Us?</h3>
+          <div class="features-grid" style="margin-top: var(--space-4);">
+            <div>
+              <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">🛡️</div>
+              <h4>Provenance Tracking</h4>
+              <p>Every inscription gets a full history — where it's been, what exchanges touched it, any shady activity.</p>
+            </div>
+            <div>
+              <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">📊</div>
+              <h4>Risk Scoring</h4>
+              <p>Like meme coin vetting. We flag suspicious inscriptions before you buy. Peace of mind built in.</p>
+            </div>
+            <div>
+              <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">💰</div>
+              <h4>Low Fees</h4>
+              <p>Only 2% processing fee. Cheaper than DoggyMarket. No hidden costs.</p>
+            </div>
+            <div>
+              <div style="font-size: var(--text-2xl); margin-bottom: var(--space-2);">⚡</div>
+              <h4>Bulk Minting</h4>
+              <p>Inscribe up to 100 items in one batch. Save time and fees.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mint Form -->
+        <div class="card" style="max-width: 700px; margin: 0 auto var(--space-8);">
+          <h3 style="margin-bottom: var(--space-6);">Create Inscription</h3>
+
+          <div class="mint-tabs" style="display: flex; gap: var(--space-2); margin-bottom: var(--space-6);">
+            <button class="btn btn-secondary active" onclick="switchMintTab('file')">File</button>
+            <button class="btn btn-ghost" onclick="switchMintTab('text')">Text</button>
+            <button class="btn btn-ghost" onclick="switchMintTab('bulk')">Bulk</button>
+          </div>
+
+          <!-- File Mint -->
+          <div id="mintFile">
+            <label style="display: block; margin-bottom: var(--space-2); font-weight: var(--font-medium);">Upload File</label>
+            <div class="upload-zone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-lg); padding: var(--space-12); text-align: center; margin-bottom: var(--space-6); cursor: pointer; transition: border-color var(--transition-fast);">
+              <div style="font-size: var(--text-4xl); margin-bottom: var(--space-3);">📁</div>
+              <p style="color: var(--color-text-secondary);">Drop file here or click to browse</p>
+              <p class="text-muted" style="font-size: var(--text-sm);">Supports JPG, PNG, GIF, SVG, TXT, HTML (max 1MB)</p>
+            </div>
+          </div>
+
+          <!-- Text Mint -->
+          <div id="mintText" style="display: none;">
+            <label style="display: block; margin-bottom: var(--space-2); font-weight: var(--font-medium);">Content Type</label>
+            <select class="search-input" style="margin-bottom: var(--space-4);">
+              <option>text/plain;charset=utf-8</option>
+              <option>text/html;charset=utf-8</option>
+              <option>application/json</option>
+              <option>image/svg+xml</option>
+            </select>
+            <label style="display: block; margin-bottom: var(--space-2); font-weight: var(--font-medium);">Text Content</label>
+            <textarea class="search-input" rows="4" placeholder="Woof!" style="margin-bottom: var(--space-6); resize: vertical;"></textarea>
+          </div>
+
+          <!-- Bulk Mint -->
+          <div id="mintBulk" style="display: none;">
+            <label style="display: block; margin-bottom: var(--space-2); font-weight: var(--font-medium);">Upload Multiple Files</label>
+            <div class="upload-zone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-lg); padding: var(--space-12); text-align: center; margin-bottom: var(--space-6); cursor: pointer;">
+              <div style="font-size: var(--text-4xl); margin-bottom: var(--space-3);">📦</div>
+              <p style="color: var(--color-text-secondary);">Drop multiple files or a ZIP</p>
+              <p class="text-muted" style="font-size: var(--text-sm);">Up to 100 files per batch</p>
+            </div>
+          </div>
+
+          <!-- Fee Calculator -->
+          <div style="background: var(--color-bg); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6);">
+            <h4 style="margin-bottom: var(--space-4);">Fee Breakdown</h4>
+            <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+              <span class="text-muted">Network fee (DOGE)</span>
+              <span>◎ 1.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+              <span class="text-muted">Processing fee (2%)</span>
+              <span>◎ 0.02</span>
+            </div>
+            <div class="divider"></div>
+            <div style="display: flex; justify-content: space-between; font-weight: var(--font-semibold);">
+              <span>Total per inscription</span>
+              <span>◎ 1.02</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-lg" style="width: 100%;">Inscribe Now</button>
+        </div>
+
+        <!-- Recent Inscriptions -->
+        <h3 style="margin-bottom: var(--space-6);">Recent Inscriptions</h3>
+        <div class="collections-grid">
+          <div class="card text-center">
+            <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🐕</div>
+            <p style="font-weight: var(--font-medium);">Doginal #8100</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">2m ago</p>
+          </div>
+          <div class="card text-center">
+            <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🗺️</div>
+            <p style="font-weight: var(--font-medium);">DogeMap #1247</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">5m ago</p>
+          </div>
+          <div class="card text-center">
+            <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🌿</div>
+            <p style="font-weight: var(--font-medium);">DogeBud #892</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">8m ago</p>
+          </div>
+          <div class="card text-center">
+            <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">💎</div>
+            <p style="font-weight: var(--font-medium);">DCEx #2341</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">12m ago</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Inscribe with confidence.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../wallet/">Wallet</a>
+          <a href="../security/">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    function switchMintTab(tab) {
+      document.querySelectorAll('.mint-tabs .btn').forEach(b => {
+        b.classList.toggle('btn-secondary', b.textContent.toLowerCase() === tab);
+        b.classList.toggle('btn-ghost', b.textContent.toLowerCase() !== tab);
+      });
+      document.getElementById('mintFile').style.display = tab === 'file' ? 'block' : 'none';
+      document.getElementById('mintText').style.display = tab === 'text' ? 'block' : 'none';
+      document.getElementById('mintBulk').style.display = tab === 'bulk' ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>

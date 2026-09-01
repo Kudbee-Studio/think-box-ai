@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallet — Think Box AI</title>
+  <meta name="description" content="View your Doginals wallet with provenance history, risk scoring, and confidence ratings.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../inscribe/">Inscribe</a></li>
+        <li><a href="../wallet/" style="color: var(--color-text-accent);">Wallet</a></li>
+      </ul>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect</button>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../inscribe/" onclick="toggleMobileMenu()">Inscribe</a></li>
+      <li><a href="../wallet/" onclick="toggleMobileMenu()">Wallet</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Provenance <span class="gradient-text">Wallet</span></h1>
+          <p>Every inscription's full history. Risk scores. Peace of mind.</p>
+        </div>
+
+        <!-- Wallet Overview -->
+        <div class="card card-elevated" style="margin-bottom: var(--space-8);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+            <div>
+              <p class="text-muted" style="font-size: var(--text-sm);">Connected Wallet</p>
+              <p class="mono" style="font-size: var(--text-lg);">DDCkpBDN5hkbYJyUqeyVmCV9s8mEoxGFc8</p>
+            </div>
+            <div style="display: flex; gap: var(--space-6);">
+              <div class="stat">
+                <div class="stat-value">24</div>
+                <div class="stat-label">Inscriptions</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">3</div>
+                <div class="stat-label">DRC-20 Tokens</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" style="color: var(--color-success);">A+</div>
+                <div class="stat-label">Avg Score</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Scoring Legend -->
+        <div class="card" style="margin-bottom: var(--space-8);">
+          <h3 style="margin-bottom: var(--space-4);">Confidence Scoring</h3>
+          <p style="margin-bottom: var(--space-4);">Like meme coin vetting. We analyze every inscription for shady history.</p>
+          <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+            <span class="badge badge-success">A+ Verified Safe</span>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">B Low Risk</span>
+            <span class="badge badge-unproven">C Needs Review</span>
+            <span class="badge badge-blocked">F High Risk</span>
+          </div>
+        </div>
+
+        <!-- Holdings -->
+        <h3 style="margin-bottom: var(--space-6);">Your Inscriptions</h3>
+        <div class="holdings-grid" id="holdingsGrid"></div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Know your inscriptions.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../inscribe/">Inscribe</a>
+          <a href="../security/">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    const HOLDINGS = [
+      { id: "8100", name: "Doginal Mini Doges #8100", collection: "minidoges", score: "A+", scoreClass: "success", history: [{ event: "Minted", time: "2024-03-15", address: "DDC...Fc8" }, { event: "Listed on DoggyMarket", time: "2024-04-02", address: "D8vF...kP9n" }, { event: "Sold", time: "2024-04-10", address: "D7xR...mL2q" }], flags: [] },
+      { id: "3446", name: "Doginal Dog #3446", collection: "doginaldogs", score: "A+", scoreClass: "success", history: [{ event: "Minted", time: "2024-02-20", address: "DSV1...DPn" }, { event: "Transferred", time: "2024-03-01", address: "DDC...Fc8" }], flags: [] },
+      { id: "1247", name: "DogeMap #1247", collection: "dogemaps", score: "B", scoreClass: "", history: [{ event: "Minted", time: "2024-01-10", address: "DAa3...nP7k" }, { event: "Sold on Ordifind", time: "2024-02-15", address: "D5mK...jR8s" }, { event: "Sold on DoggyMarket", time: "2024-03-20", address: "DDC...Fc8" }], flags: ["Multiple rapid flips"] },
+      { id: "2341", name: "DCEx #2341", collection: "dcex", score: "C", scoreClass: "unproven", history: [{ event: "Minted", time: "2024-04-01", address: "D8vF...kP9n" }, { event: "Transferred to unknown", time: "2024-04-03", address: "D9xY...zQ2w" }, { event: "Returned", time: "2024-04-05", address: "DDC...Fc8" }], flags: ["Unknown intermediary", "Short holding period"] },
+      { id: "892", name: "DogeBud #892", collection: "dogebuds", score: "A+", scoreClass: "success", history: [{ event: "Minted", time: "2024-03-25", address: "DDC...Fc8" }], flags: [] },
+      { id: "5421", name: "Doge Runestone #5421", collection: "runestone", score: "F", scoreClass: "blocked", history: [{ event: "Minted", time: "2024-04-10", address: "D3fG...hJ9k" }, { event: "Flagged by indexer", time: "2024-04-11", address: "D3fG...hJ9k" }, { event: "Sold", time: "2024-04-12", address: "DDC...Fc8" }], flags: ["Counterfeit inscription", "Fake collection", "Reported by community"] },
+    ];
+
+    function renderHoldings() {
+      const grid = document.getElementById("holdingsGrid");
+      if (!grid) return;
+
+      grid.innerHTML = HOLDINGS.map(h => `
+        <div class="card holding-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4);">
+            <div>
+              <h4>${h.name}</h4>
+              <p class="text-muted" style="font-size: var(--text-sm); text-transform: uppercase;">${h.collection}</p>
+            </div>
+            <span class="badge badge-${h.scoreClass}">${h.score}</span>
+          </div>
+          ${h.flags.length > 0 ? `
+            <div style="background: var(--color-danger-subtle); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4);">
+              <p style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--color-danger); margin-bottom: var(--space-1);">⚠️ Flags</p>
+              ${h.flags.map(f => `<p style="font-size: var(--text-xs); color: var(--color-danger);">• ${f}</p>`).join("")}
+            </div>
+          ` : ""}
+          <div class="provenance-history">
+            <p style="font-size: var(--text-xs); font-weight: var(--font-semibold); color: var(--color-text-tertiary); margin-bottom: var(--space-2);">PROVENANCE</p>
+            ${h.history.map(ev => `
+              <div style="display: flex; gap: var(--space-3); margin-bottom: var(--space-2); font-size: var(--text-sm);">
+                <span style="color: var(--color-text-tertiary); min-width: 100px;">${ev.time}</span>
+                <span style="flex: 1;">${ev.event}</span>
+                <span class="mono text-muted">${ev.address}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    document.addEventListener("DOMContentLoaded", renderHoldings);
+  </script>
+</body>
+</html>
