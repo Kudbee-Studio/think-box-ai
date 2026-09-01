@@ -2,6 +2,7 @@
 
 Parses incoming root workspace goals into a Directed Acyclic Graph (DAG)
 of micro-tasks with context limits and dependency metadata.
+Integrates with the Token Whip Protocol for dynamic token management.
 """
 
 from __future__ import annotations
@@ -10,8 +11,9 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from thinkbox.whip import TokenWhipProtocol, estimate_tokens, STANDARD_TOKEN_ALLOWANCE
 
-MAX_TASK_TOKENS = 500
+
 TOKEN_CHAR_RATIO = 4
 
 
@@ -60,11 +62,12 @@ class TaskGraph:
 
 
 class TaskDecomposer:
-    def __init__(self, max_tokens: int = MAX_TASK_TOKENS):
+    def __init__(self, max_tokens: int = STANDARD_TOKEN_ALLOWANCE, whip_protocol: TokenWhipProtocol | None = None):
         self.max_tokens = max_tokens
+        self.whip = whip_protocol or TokenWhipProtocol()
 
     def estimate_tokens(self, text: str) -> int:
-        return len(text) // TOKEN_CHAR_RATIO + 1
+        return estimate_tokens(text)
 
     def decompose(self, goal: str) -> TaskGraph:
         task_id = f"task_{uuid.uuid4().hex[:8]}"
