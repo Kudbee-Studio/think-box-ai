@@ -7,7 +7,7 @@
 ## Immediate Actions (Kudbee must do)
 
 1. **Go to** GitHub → Settings → Developer settings → Personal access tokens
-2. **Delete** the exposed token: `[REDACTED]`
+2. **Delete** the exposed token (see issue #4 for the token value)
 3. **Generate** a new token with minimal permissions (repo read-only)
 4. **Update** the Upstash Box MCP server config with new token
 5. **Verify** no other repos or services use the same token
