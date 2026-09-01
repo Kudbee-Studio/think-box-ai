@@ -31,6 +31,8 @@ RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("THINKBOX_RATE_LIMIT", "100"))
 MAX_REQUEST_BODY_SIZE = 1_048_576
 WS_MAX_MESSAGE_SIZE = 1_048_576
 
+DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Any) -> Response:

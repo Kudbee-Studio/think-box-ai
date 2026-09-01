@@ -24,7 +24,6 @@ BLOCKED_PATTERNS = [
     ">", ">>", "<", "<<",
     "rm -rf /", "rm -fr /", "chmod 777",
     "/etc/passwd", "/etc/shadow",
-    "curl", "wget",
 ]
 
 MAX_TIMEOUT = 60

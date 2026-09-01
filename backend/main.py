@@ -73,6 +73,10 @@ async def audit_v1(limit: int = 100) -> dict[str, Any]:
 app.include_router(api_v1)
 
 
+from backend.api.v1.router import api_v1_router
+app.include_router(api_v1_router)
+
+
 @app.on_event("startup")
 async def startup() -> None:
     global ctx
