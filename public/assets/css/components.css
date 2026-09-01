@@ -1299,6 +1299,35 @@ textarea.form-input {
 .player { flex: 1; font-family: var(--font-mono); }
 .score { font-weight: var(--font-semibold); color: var(--color-accent); }
 
+/* Bridge */
+.bridge-interface { max-width: 560px; margin: 0 auto; }
+.bridge-card { padding: var(--space-8); }
+.bridge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6); }
+.bridge-badge { font-size: var(--text-xs); padding: var(--space-1) var(--space-3); background: var(--color-accent-subtle); color: var(--color-accent); border-radius: var(--radius-full); }
+.bridge-from, .bridge-to { background: var(--color-bg-subtle); border-radius: var(--radius-lg); padding: var(--space-4); }
+.bridge-label { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+.bridge-chain { font-family: var(--font-mono); font-size: var(--text-xs); }
+.bridge-input-row { display: flex; gap: var(--space-3); }
+.bridge-input { flex: 1; background: transparent; border: none; font-size: var(--text-2xl); font-weight: var(--font-semibold); color: var(--color-text-primary); outline: none; min-width: 0; }
+.bridge-input::placeholder { color: var(--color-text-tertiary); }
+.bridge-token-select { padding: var(--space-2) var(--space-3); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); font-weight: var(--font-semibold); cursor: pointer; white-space: nowrap; }
+.bridge-arrow { text-align: center; padding: var(--space-2); font-size: var(--text-xl); color: var(--color-text-secondary); }
+.bridge-details { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border-subtle); }
+.bridge-detail-row { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: var(--space-1) 0; }
+.bridge-detail-row span:first-child { color: var(--color-text-secondary); }
+
+.chains-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-4); }
+.chain-card { padding: var(--space-4); text-align: center; }
+.chain-icon { font-size: var(--text-2xl); margin-bottom: var(--space-2); }
+.chain-name { font-weight: var(--font-medium); font-size: var(--text-sm); }
+.chain-status { font-size: var(--text-xs); margin-top: var(--space-1); }
+.chain-status.active { color: var(--color-success); }
+.chain-status:not(.active) { color: var(--color-text-tertiary); }
+
+@media (max-width: 1024px) {
+  .chains-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media (max-width: 1024px) {
   .challenges-grid { grid-template-columns: 1fr; }
 }
