@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection — Think Box AI</title>
+  <meta name="description" content="View Doginals collection details, inscriptions, and trading activity.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/" style="color: var(--color-text-accent);">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../inscribe/">Inscribe</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div style="margin-bottom: var(--space-6);">
+          <a href="../collections/" class="btn btn-ghost">← Back to Collections</a>
+        </div>
+
+        <div id="collectionDetail">
+          <!-- Populated by JS -->
+        </div>
+
+        <h2 style="margin: var(--space-12) 0 var(--space-6);">Inscriptions</h2>
+        <div class="collections-grid" id="inscriptionGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Collection Detail</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../tokens/">DRC-20</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/toast.js"></script>
+  <script>
+    // Get collection slug from URL
+    const pathParts = window.location.pathname.split('/');
+    const slug = pathParts[pathParts.length - 1] || 'doginaldogs';
+
+    function renderCollection() {
+      const collection = LOCAL_DATA.collections.find(c => c.slug === slug) || LOCAL_DATA.collections[0];
+      const detail = document.getElementById("collectionDetail");
+
+      detail.innerHTML = `
+        <div class="card card-elevated">
+          <div style="display: flex; gap: var(--space-6); flex-wrap: wrap;">
+            <div style="width: 120px; height: 120px; background: linear-gradient(135deg, var(--color-bg), var(--color-bg-card-hover)); border-radius: var(--radius-xl); display: flex; align-items: center; justify-content: center; font-size: 4rem;">
+              🐕
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <h1>${collection.name}</h1>
+              <p style="color: var(--color-text-secondary); margin-top: var(--space-2);">${collection.description}</p>
+              <div style="display: flex; gap: var(--space-6); margin-top: var(--space-4); flex-wrap: wrap;">
+                <div>
+                  <p class="text-muted" style="font-size: var(--text-xs);">Floor</p>
+                  <p style="font-weight: var(--font-semibold); font-size: var(--text-lg);">◎ ${collection.floor}</p>
+                </div>
+                <div>
+                  <p class="text-muted" style="font-size: var(--text-xs);">24h Volume</p>
+                  <p style="font-weight: var(--font-semibold); font-size: var(--text-lg);">${collection.volume24h.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p class="text-muted" style="font-size: var(--text-xs);">Listed</p>
+                  <p style="font-weight: var(--font-semibold); font-size: var(--text-lg);">${collection.listed.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p class="text-muted" style="font-size: var(--text-xs);">Supply</p>
+                  <p style="font-weight: var(--font-semibold); font-size: var(--text-lg);">${collection.supply.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p class="text-muted" style="font-size: var(--text-xs);">Owners</p>
+                  <p style="font-weight: var(--font-semibold); font-size: var(--text-lg);">${collection.owners.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render inscription grid
+      const grid = document.getElementById("inscriptionGrid");
+      const inscriptions = Array.from({ length: 12 }, (_, i) => ({
+        id: collection.slug + '_' + (i + 1),
+        num: Math.floor(Math.random() * 10000),
+        price: (collection.floor * (0.9 + Math.random() * 0.3)).toFixed(1),
+      }));
+
+      grid.innerHTML = inscriptions.map(insc => `
+        <div class="card text-center">
+          <div style="width: 100%; aspect-ratio: 1; background: var(--color-bg); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: var(--text-4xl); margin-bottom: var(--space-3);">
+            🐕
+          </div>
+          <p style="font-weight: var(--font-semibold);">#${insc.num}</p>
+          <p class="text-muted" style="font-size: var(--text-sm);">◎ ${insc.price}</p>
+          <button class="btn btn-secondary" style="margin-top: var(--space-3); width: 100%;" onclick="showToast('Purchase coming soon!', 'info')">Buy</button>
+        </div>
+      `).join("");
+    }
+
+    document.addEventListener("DOMContentLoaded", renderCollection);
+  </script>
+</body>
+</html>

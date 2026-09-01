@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search — Think Box AI</title>
+  <meta name="description" content="Search Doginals collections, DRC-20 tokens, and inscriptions.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../security/">Security</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Search</h1>
+          <p>Find collections, tokens, and inscriptions</p>
+        </div>
+
+        <div style="max-width: 600px; margin: 0 auto var(--space-12);">
+          <input type="text" id="globalSearch" placeholder="Search collections, tokens, inscriptions..." class="search-input" oninput="globalSearch(this.value)" autofocus>
+        </div>
+
+        <div id="searchResults"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Search</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../tokens/">DRC-20</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/main.js"></script>
+  <script>
+    const ALL_DATA = {
+      collections: LOCAL_DATA.collections.map(c => ({ ...c, type: 'collection' })),
+      tokens: LOCAL_DATA.tokens.map(t => ({ ...t, type: 'token' })),
+    };
+
+    function globalSearch(query) {
+      const results = document.getElementById("searchResults");
+      if (!query || query.length < 2) {
+        results.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Type at least 2 characters to search</p></div>';
+        return;
+      }
+
+      const q = query.toLowerCase();
+      const matched = [
+        ...ALL_DATA.collections.filter(c => c.name.toLowerCase().includes(q) || c.slug.includes(q)),
+        ...ALL_DATA.tokens.filter(t => t.name.toLowerCase().includes(q) || t.ticker.toLowerCase().includes(q)),
+      ];
+
+      if (matched.length === 0) {
+        results.innerHTML = '<div class="empty-state"><div class="empty-state-icon">😕</div><p>No results found for "' + query + '"</p></div>';
+        return;
+      }
+
+      results.innerHTML = `
+        <p class="text-muted" style="margin-bottom: var(--space-4);">${matched.length} results for "${query}"</p>
+        <div class="collections-grid">
+          ${matched.map(item => {
+            if (item.type === 'collection') {
+              return `
+                <a href="../collections/${item.slug}/" class="card collection-card" style="text-decoration: none; color: inherit;">
+                  <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🐕</div>
+                  <h4>${item.name}</h4>
+                  <p class="text-muted" style="font-size: var(--text-sm);">Floor: ◎ ${item.floor}</p>
+                </a>
+              `;
+            } else {
+              return `
+                <a href="../tokens/#${item.ticker}" class="card" style="text-decoration: none; color: inherit;">
+                  <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🪙</div>
+                  <h4>${item.name}</h4>
+                  <p class="text-muted" style="font-size: var(--text-sm);">$${item.price.toFixed(4)}</p>
+                </a>
+              `;
+            }
+          }).join("")}
+        </div>
+      `;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => globalSearch(''));
+  </script>
+</body>
+</html>
