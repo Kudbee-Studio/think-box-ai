@@ -348,6 +348,10 @@ All project knowledge is indexed across these files:
 | GAME_PLAN_*.md | Phase plans | New phase |
 | docs/AGENT_HANDOFF.md | Next owner guide | Before stopping |
 | BEST_PRACTICES.md | Operational rules | When rules change |
+| thinkbox_memory.db | Agent memory store (SQLite) | Every significant event |
+| SEO_STRATEGY.md | SEO targets + tactics | When strategy changes |
+| PHASE8_PLAN.md | Enterprise build plan | When plan changes |
+| FULL_REPORT.md | Box/memory/issues report | When new data available |
 
 ### 15.3 Next Agent Handoff
 
