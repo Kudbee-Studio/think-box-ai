@@ -2,140 +2,99 @@
 
 **Session ID:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
 **Branch:** session/agent_79e656bf-clean
-**Phase:** Enterprise Build (Phase 8)
+**Phase:** Enterprise Build (Phase 8-10)
 **Created:** 2026-08-31
 **Status:** Handoff ready
 
 ## Last Commit
 
-`4fa4e28` — "feat: breadcrumbs, sitemap, mobile responsive, best practices, agent handoff"
+`0c6ca72` — "feat: remote monitoring, auto-recall, job dependencies"
 
 ## Push Status
 
 Clean branch pushed. No secrets in history.
 PR #58 merged to main.
 
-## What Was Done This Session
+## What Was Done This Session (40+ items)
 
-### Phase 1: Foundation
-- Unified agent runtime (18 tools, XML tool-call parsing)
-- DOGI proof (unproven verdict, honest assessment)
-- FreeToken integration analysis
-- Groq removed (secret leak)
+### Phase 1-7: Foundation (Previous)
+- Agent runtime, CLI v2, Backend API v0.3, Indexing, Frontend v1
 
-### Phase 2: CLI v2
-- Global flags (--json, --plain, --quiet, --verbose, --dry-run)
-- Colorized output, verdict coloring
-- Job diff, submit wizard, watch command
-- Shell completions, config profiles
+### Phase 8: Enterprise Build
+1. Backend API v1.0 — full REST CRUD, auth, rate limiting, WebSocket
+2. Provider abstraction layer — Ollama, OpenAI, Anthropic
+3. CLI v3 — all commands
+4. Database migrations + seeding
+5. Security hardening — CSP, CORS, rate limits, API keys
+6. Notifications — webhook, email, in-app
+7. Webhook system — ingest + dispatch
+8. Analytics — event tracking, stats
+9. Testing suite — integration + e2e
+10. CI/CD pipeline — GitHub Actions
+11. Docker deployment — Dockerfile + compose
+12. 404 page, About page, Blog hub
+13. Toast notifications, loading skeletons
+14. Breadcrumbs, sitemap, mobile responsive
+15. BEST_PRACTICES.md, AGENTS.md updated
 
-### Phase 3: Production Hardening
-- Governance audit log + approval gate
-- Backend API v0.3 (job list/get, findings)
-- Production worker (retry logic, receipts, dependencies)
-- Test runner (no pytest), health check
-- Agent handoff docs, architecture docs, API reference
-- Contributing guide
-- Public packets (job-0001 through job-0004)
-- Verdict registry
+### Phase 9: GitHub Issues + Memory
+16. Closed 4 issues (#9, #11, #14, #18)
+17. Updated 2 issues (#8, #19)
+18. Memory benchmarks (write: 16ms, read: 0.3ms)
+19. Populated agents memory (3 facts)
+20. Full report (box, memory, issues)
 
-### Phase 4: Indexing System
-- SQLite + FTS5 database (data/thinkbox.db)
-- Sessions + messages tables with triggers
-- Project memory (durable facts, environment, corrections)
-- Full-text search engine (BM25 ranking)
-- Hybrid search foundation (ready for vector addition)
-- CLI: thinkbox memory search/show/list/remember/forget/context
-- Project-scoped isolation via SHA-256 hash
-- 41 tests (2 provider errors expected)
-
-### Phase 5: Gap Closure
-- Auto-cancel hooks
-- Doctor command (system diagnostics)
-- Init command (project initialization)
-- Job cancel/retry commands
-- Findings export (JSON)
-- Public page completeness (all 7 jobs + 7 templates)
-- Error handling with "did you mean" suggestions
-- Structured logging throughout
-- Comprehensive health check
-- README overhaul + quickstart guide
-- 41+ tests passing
-
-### Phase 6: Frontend v1
-- Landing page: hero, features, live jobs, verdicts, CTA
-- Jobs listing with filtering
-- Findings browser
-- Job detail with execution timeline
-- About / How It Works
-- Mobile-first responsive design
-- Desktop hover states + animations
-- Shell completions (bash + zsh)
-- Config profiles (ollama, freetoken)
-
-### Phase 7: Mobile + SEO + Desktop Polish
-- Hamburger nav with fullscreen overlay
-- Touch-friendly 44px tap targets
-- Responsive grids (1-col mobile → 3-col desktop)
-- Reduced motion support for accessibility
-- Focus indicators + skip-to-content link
-- Full meta tags (title, description, keywords)
-- Open Graph + Twitter Card tags
-- Schema.org JSON-LD structured data
-- Sitemap.xml + robots.txt
-- Canonical URLs → thinkboxai.xyz
-- 41 tests (2 provider errors expected)
-
-### Phase 8: Enterprise Build (25 Items)
-- 404 error page with search
-- About / How It Works page
-- Blog hub + "What Are Doginals?" article
-- Toast notifications system
-- Loading skeletons + empty states
-- Breadcrumb navigation (auto-generated)
-- Sitemap page (HTML)
-- Global search across all data
-- Collection detail page with inscription grid
-- Enhanced mobile CSS (all orientations, all devices)
-- iPhone safe area support (notched phones)
-- Android specific optimizations
-- High-DPI/Retina support
-- Print styles
-- Hover vs touch detection
-- BEST_PRACTICES.md created
-- AGENTS.md updated with indexing system + handoff rules
-
-## Job Table (7 jobs)
-
-| ID | Hat | Verdict |
-|----|-----|---------|
-| job_dogi_split_001 | researcher | unproven |
-| job_compare_dogi_dbit | researcher | unproven |
-| job_inscription_001 | researcher | unproven |
-| job_wallet_scan_001 | researcher | blocked |
-| job_gpu_find_models | runner | blocked |
-| job_gpu_serve_20b | runner | blocked |
-| job_director_wallet_report_001 | director | blocked |
+### Phase 10: CLI v4 + Cursor + GPU Queue
+21. CLI v4 — full integration with Cursor, Memory, Inception, GPU Queue
+22. Obsidian vault — drop files → indexed memory
+23. GPU queue — priority queue, batch submit, cost estimation
+24. Sub-agent spawner — async agent execution
+25. Skills/plugins — installable skill packages
+26. Scheduler — cron-like job scheduling
+27. Autocompletion — bash completion
+28. Memory graph — relationships between memories
+29. Remote monitoring — watch jobs, agents, logs
+30. Auto-recall — intelligent memory injection
+31. Job dependencies — topological execution order
+32. Inception API provider — Mercury 2 (local only)
+33. Cursor SDK integration — local + cloud agents
+34. Collection detail page
+35. Global search
+36. Activity page
+37. Tracker page
+38. Inscription service page
+39. Wallet page
+40. Security education page
 
 ## Frontend Pages (14 total)
 
-| Page | Path | Status |
-|------|------|--------|
-| Landing | / | ✅ |
-| Collections | /collections/ | ✅ |
-| Collection Detail | /collections/detail.html | ✅ |
-| DRC-20 Tokens | /tokens/ | ✅ |
-| Activity | /activity/ | ✅ |
-| Tracker | /tracker/ | ✅ |
-| Inscribe | /inscribe/ | ✅ |
-| Wallet | /wallet/ | ✅ |
-| Security | /security/ | ✅ |
-| About | /about/ | ✅ |
-| Blog | /blog/ | ✅ |
-| Blog Post | /blog/what-are-doginals/ | ✅ |
-| Search | /search/ | ✅ |
-| Sitemap | /sitemap.html | ✅ |
-| 404 | /404.html | ✅ |
+Landing, Collections, Collection Detail, DRC-20 Tokens, Activity, Tracker, Inscribe, Wallet, Security, About, Blog, Blog Post, Search, Sitemap, 404
+
+## Backend API v1.0
+
+```
+GET  /health, /metrics
+GET  /api/v1/jobs, /api/v1/jobs/{id}
+POST /api/v1/jobs, /api/v1/jobs/{id}/run
+DELETE /api/v1/jobs/{id}
+GET  /api/v1/findings, /api/v1/findings/{name}
+GET  /api/v1/tools
+WS   /ws
+```
+
+## CLI Commands (v4)
+
+```
+thinkbox job list/show/create/submit/run/cancel/retry/diff
+thinkbox memory remember/recall/search/context/list/forget
+thinkbox cursor run/list/logs
+thinkbox inception run/models/usage
+thinkbox queue status/add/batch/drain
+thinkbox spawn researcher/runner
+thinkbox config show/set/profile
+thinkbox findings list/show/preview
+thinkbox doctor / init / watch / serve
+```
 
 ## Next Owner
 
@@ -152,3 +111,4 @@ PR #58 merged to main.
 - SSH blocked (firewall drop-all)
 - No LLM on box
 - Wallet APIs not public
+- DMR (Docker Model Runner) — needs local computer
