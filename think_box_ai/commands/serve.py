@@ -6,7 +6,7 @@ import os
 import sys
 
 
-def serve(host: str = "0.0.0.0", port: int = 8000) -> None:
+def serve(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None:
     """Start the FastAPI backend."""
     try:
         import uvicorn
@@ -15,4 +15,9 @@ def serve(host: str = "0.0.0.0", port: int = 8000) -> None:
         sys.exit(1)
 
     os.environ.setdefault("THINKBOX_DEFAULT_PROVIDER", "ollama")
-    uvicorn.run("backend.main:app", host=host, port=port, reload=False)
+    uvicorn.run(
+        "backend.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )

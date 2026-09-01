@@ -1,119 +1,142 @@
-"""Memory and search commands for Think Box CLI."""
+"""Memory commands handler."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from ..utils.output import is_json_mode, output_json
 
-from ..ui.colors import colorize, bold, dim, green, yellow
-from ..ui.table import render_table, render_key_value
-from ..utils.output import output_json, is_json_mode
-
-from core.indexing.database import init_db, project_hash
+from core.indexing.database import init_db
 from core.indexing.search import SearchEngine
-from core.indexing.memory import ProjectMemory, SessionStore
+from core.indexing.memory import ProjectMemory
 
 
-def memory_search(query: str, project: str | None = None, limit: int = 10) -> None:
+def handle_memory_command(args) -> None:
+    sub = args.memory_command
+
+    if sub == "remember":
+        _memory_remember(args)
+    elif sub == "recall":
+        _memory_recall(args)
+    elif sub == "search":
+        _memory_search(args)
+    elif sub == "context":
+        _memory_context(args)
+    elif sub == "list":
+        _memory_list(args)
+    elif sub == "forget":
+        _memory_forget(args)
+    else:
+        print("Usage: thinkbox memory {remember|recall|search|context|list|forget}")
+
+
+def _memory_remember(args) -> None:
     init_db()
-    engine = SearchEngine()
-    msg_results = engine.search_messages(query, project=project, limit=limit)
-    mem_results = engine.search_memory(query, project=project, limit=limit)
+    from pathlib import Path
+    project = str(Path.cwd())
+    pm = ProjectMemory(project)
+    pm.remember(args.key, args.value, source="explicit")
 
     if is_json_mode():
-        output_json({
-            "messages": [{"id": r.id, "session_id": r.session_id, "snippet": r.snippet, "rank": r.rank} for r in msg_results],
-            "memory": [{"key": r.key, "value": r.value, "source": r.source} for r in mem_results],
-        })
+        output_json({"status": "remembered", "key": args.key})
         return
 
-    print(bold(f'\nSearch: "{query}"'))
-    print(dim("  " + "─" * 40))
-    if msg_results:
-        print(f"\n  {bold('Messages')} ({len(msg_results)}):")
-        for r in msg_results:
-            print(f"    [{r.role}] {r.snippet[:100]}...")
-    if mem_results:
-        print(f"\n  {bold('Memory')} ({len(mem_results)}):")
-        for r in mem_results:
+    from ..ui.colors import green
+    print(green(f"  Remembered: {args.key}"))
+
+
+def _memory_recall(args) -> None:
+    init_db()
+    from pathlib import Path
+    project = str(Path.cwd())
+    pm = ProjectMemory(project)
+    result = pm.get(args.key)
+
+    if is_json_mode():
+        output_json({"key": args.key, "value": result})
+        return
+
+    from ..ui.colors import bold, dim
+    if result:
+        print(bold(f"\n  {args.key}:"))
+        print(f"  {result}")
+    else:
+        print(dim(f"  Not found: {args.key}"))
+
+
+def _memory_search(args) -> None:
+    init_db()
+    engine = SearchEngine()
+    results = engine.search_memory(args.query, limit=args.limit)
+
+    if is_json_mode():
+        output_json([{"key": r.key, "value": r.value, "source": r.source} for r in results])
+        return
+
+    from ..ui.colors import bold, dim
+    print(bold(f'\n  Search: "{args.query}"'))
+    if results:
+        for r in results:
             print(f"    {r.key}: {r.value[:100]}")
-    if not msg_results and not mem_results:
+    else:
         print(dim("  No results found."))
 
 
-def memory_show(session_id: str) -> None:
+def _memory_context(args) -> None:
     init_db()
     engine = SearchEngine()
-    messages = engine.read_session(session_id)
-    if is_json_mode():
-        output_json(messages)
-        return
-    if not messages:
-        print(f"Session not found: {session_id}")
-        return
-    print(bold(f"\nSession: {session_id}"))
-    print(dim(f"  {len(messages)} messages\n"))
-    for msg in messages:
-        role_color = green if msg["role"] == "user" else yellow
-        print(f"  {role_color(msg['role'].upper())}: {msg['content'][:200]}")
-        if msg.get("tool_name"):
-            print(f"    [Tool: {msg['tool_name']}]")
-        print()
-
-
-def memory_list(project: str | None = None) -> None:
-    init_db()
-    if not project:
-        project = str(Path.cwd())
-    pm = ProjectMemory(project)
-    memories = pm.list_all()
-    if is_json_mode():
-        output_json(memories)
-        return
-    if not memories:
-        print("No memory found for this project.")
-        return
-    print(bold("\nProject Memory:"))
-    for m in memories:
-        print(f"  {m['key']}: {m['value'][:100]} ({m['source']})")
-
-
-def memory_remember(key: str, value: str, project: str | None = None, source: str = "explicit") -> None:
-    init_db()
-    if not project:
-        project = str(Path.cwd())
-    pm = ProjectMemory(project)
-    pm.remember(key, value, source=source)
-    print(f"Remembered: {key}")
-
-
-def memory_forget(key: str, project: str | None = None) -> None:
-    init_db()
-    if not project:
-        project = str(Path.cwd())
-    pm = ProjectMemory(project)
-    if pm.forget(key):
-        print(f"Forgot: {key}")
-    else:
-        print(f"Not found: {key}")
-
-
-def memory_context(project: str | None = None) -> None:
-    init_db()
-    engine = SearchEngine()
-    if not project:
-        project = str(Path.cwd())
+    from pathlib import Path
+    project = str(Path.cwd())
     context = engine.get_project_context(project)
+
     if is_json_mode():
         output_json(context)
         return
-    print(bold("\nProject Context:"))
-    print(dim(f"  Hash: {context['project_hash']}"))
-    if context["recent_sessions"]:
+
+    from ..ui.colors import bold, dim
+    print(bold("\n  Project Context:"))
+    print(dim(f"    Hash: {context['project_hash']}"))
+    if context.get("recent_sessions"):
         print(f"\n  {bold('Recent Sessions:')}")
-        for s in context["recent_sessions"]:
+        for s in context["recent_sessions"][:args.limit]:
             print(f"    {s['title']} ({s['updated_at']})")
-    if context["memory"]:
-        print(f"\n  {bold('Memory:')}")
-        for m in context["memory"]:
-            print(f"    {m['key']}: {m['value'][:80]}")
+
+
+def _memory_list(args) -> None:
+    init_db()
+    from pathlib import Path
+    project = str(Path.cwd())
+    pm = ProjectMemory(project)
+    memories = pm.list_all()
+
+    if args.category:
+        memories = [m for m in memories if m.get("category") == args.category]
+
+    if is_json_mode():
+        output_json(memories)
+        return
+
+    from ..ui.colors import bold, dim
+    if not memories:
+        print(dim("  No memories found."))
+        return
+
+    print(bold(f"\n  Memories ({len(memories)}):"))
+    for m in memories:
+        print(f"    {m['key']}: {m['value'][:80]} ({m.get('source', 'unknown')})")
+
+
+def _memory_forget(args) -> None:
+    init_db()
+    from pathlib import Path
+    project = str(Path.cwd())
+    pm = ProjectMemory(project)
+    result = pm.forget(args.key)
+
+    if is_json_mode():
+        output_json({"status": "forgotten" if result else "not_found", "key": args.key})
+        return
+
+    from ..ui.colors import green, yellow
+    if result:
+        print(green(f"  Forgot: {args.key}"))
+    else:
+        print(yellow(f"  Not found: {args.key}"))

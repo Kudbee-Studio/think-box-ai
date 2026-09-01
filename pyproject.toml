@@ -23,6 +23,7 @@ test = [
 
 [project.scripts]
 think-box-ai = "think_box_ai.cli:main"
+thinkbox = "think_box_ai.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
