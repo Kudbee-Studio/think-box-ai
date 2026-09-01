@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
 from thinkbox.model_client import ModelConfig
+from thinkbox.session import create_session, get_current_session, sync_session, clear_session
 from backend.security import get_api_keys, validate_ws_token
 
 
@@ -31,6 +32,7 @@ class RunRequest(BaseModel):
 
 class RunResponse(BaseModel):
     engine_id: str
+    session_id: str
     status: str
     summary: dict[str, Any]
 
@@ -54,6 +56,7 @@ async def run_goal(request: RunRequest) -> RunResponse:
 
     return RunResponse(
         engine_id=engine.engine_id,
+        session_id="",
         status="started",
         summary={"goal": request.goal[:100]},
     )
