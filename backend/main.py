@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
 from core.foundation.bootstrap import bootstrap, RuntimeContext
@@ -36,6 +36,41 @@ sessions: dict[str, dict[str, Any]] = {}
 shutdown_event = asyncio.Event()
 MAX_SESSIONS = 1000
 REQUEST_TIMEOUT = 30
+
+api_v1 = APIRouter(prefix="/api/v1")
+
+
+@api_v1.get("/health")
+async def health_v1() -> dict[str, Any]:
+    return await health()
+
+
+@api_v1.get("/models")
+async def models_v1() -> dict[str, Any]:
+    return await get_models()
+
+
+@api_v1.get("/tools")
+async def tools_v1() -> dict[str, Any]:
+    return await get_tools()
+
+
+@api_v1.post("/run")
+async def run_v1(request: dict[str, Any]) -> dict[str, Any]:
+    return await run_goal(request)
+
+
+@api_v1.get("/stream")
+async def stream_v1(goal: str, model: str = "ollama") -> StreamingResponse:
+    return await stream_goal(goal, model)
+
+
+@api_v1.get("/audit")
+async def audit_v1(limit: int = 100) -> dict[str, Any]:
+    return await get_audit_log(limit)
+
+
+app.include_router(api_v1)
 
 
 @app.on_event("startup")
