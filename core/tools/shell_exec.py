@@ -16,7 +16,7 @@ from core.tools.registry import ToolDefinition, tool
 ALLOWED_COMMANDS = {
     "ls", "cat", "head", "tail", "grep", "find", "wc", "sort", "uniq",
     "echo", "pwd", "date", "whoami", "env", "python3", "pip", "pytest",
-    "git", "curl", "wget", "jq", "jq", "npm", "node", "solana", "anchor",
+    "git", "jq", "npm", "node", "solana", "anchor",
 }
 
 BLOCKED_PATTERNS = [
