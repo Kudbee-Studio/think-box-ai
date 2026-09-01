@@ -14,15 +14,14 @@
 
 ## Verification Steps
 
+After rotating, verify no secrets remain:
+
 ```bash
-# Check if token appears in any commits
-git log --all -p | grep "ghp_" && echo "FOUND" || echo "CLEAN"
+# Check for any leaked secrets in git history
+git log --all -p | grep -i "token\|secret\|key" && echo "REVIEW NEEDED" || echo "CLEAN"
 
-# Check if token appears in any files
-grep -r "ghp_" --include="*.md" --include="*.json" --include="*.py" . 2>/dev/null
-
-# Check environment
-echo "UPSTASH_BOX_API_KEY=$UPSTASH_BOX_API_KEY"
+# Scan working tree
+grep -r "ghp_\|sk-\|gsk_" --include="*.md" --include="*.json" --include="*.py" . 2>/dev/null
 ```
 
 ## Prevention
