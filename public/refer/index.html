@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Referral Program — Think Box AI</title>
+  <meta name="description" content="Earn 10% of trading fees from users you refer. Passive income with on-chain tracking.">
+  <meta property="og:title" content="Referral Program — Think Box AI">
+  <link rel="canonical" href="https://thinkbox.ai/refer/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li class="nav-dropdown"><a href="#product">Product <span class="nav-caret">▾</span></a>
+          <div class="nav-dropdown-menu"><a href="../wallet/">Wallet</a><a href="../tokens/">Tokens</a><a href="../nfts/">NFTs</a><a href="../trade/">Trade</a></div>
+        </li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/#jobs">Jobs</a></li>
+        <li class="nav-dropdown"><a href="#resources">Resources <span class="nav-caret">▾</span></a>
+          <div class="nav-dropdown-menu"><a href="../agents/">AI Agents</a><a href="../analytics/">Analytics</a><a href="../docs/">Docs</a></div>
+        </li>
+      </ul>
+      <div class="nav-actions"><button class="btn btn-ghost" onclick="openCommandPalette()">⌘K</button><button class="btn btn-primary" onclick="toggleWalletConnect()">Connect</button></div>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+  <div class="nav-mobile-menu" id="mobileMenu"><ul><li><a href="../wallet/">Wallet</a></li><li><a href="#refer">Referrals</a></li><li><a href="../trade/">Trade</a></li><li><a href="../agents/">Agents</a></li><li><a href="../docs/">Docs</a></li></ul></div>
+
+  <main id="main">
+    <section class="hero grid-bg"><div class="orb orb-1"></div><div class="orb orb-2"></div>
+      <div class="container"><div class="hero-content">
+        <div class="hero-badge"><span class="badge badge-agents">Referral Program</span><span class="text-muted" style="margin-left:12px;">Earn passive income</span></div>
+        <h1 class="hero-title">Invite friends,<br><span class="gradient-text">earn forever</span></h1>
+        <p class="hero-subtitle">Earn 10% of trading fees from every user you refer.<br>Passive income with transparent on-chain tracking.</p>
+      </div></div>
+    </section>
+
+    <section class="section" style="background: var(--color-bg-elevated);"><div class="container">
+      <div class="referral-stats stagger-children">
+        <div class="card ref-stat-card"><div class="ref-stat-value">0</div><div class="ref-stat-label">Referrals</div></div>
+        <div class="card ref-stat-card"><div class="ref-stat-value">◎ 0.00</div><div class="ref-stat-label">Total Earned</div></div>
+        <div class="card ref-stat-card"><div class="ref-stat-value">◎ 0.00</div><div class="ref-stat-label">Pending</div></div>
+        <div class="card ref-stat-card"><div class="ref-stat-value">10%</div><div class="ref-stat-label">Fee Share</div></div>
+      </div>
+    </div></section>
+
+    <section class="section"><div class="container">
+      <div class="card referral-link-card">
+        <h3>Your Referral Link</h3>
+        <p class="text-muted" style="margin-bottom: var(--space-4);">Share this link to earn 10% of trading fees</p>
+        <div class="referral-link-row"><input type="text" class="referral-link-input" id="referralLink" value="https://thinkbox.ai/ref/0x7a3f...e2d1" readonly><button class="btn btn-primary" onclick="copyReferralLink()">Copy</button></div>
+      </div>
+    </div></section>
+
+    <section class="section" style="background: var(--color-bg-elevated);"><div class="container">
+      <div class="section-header reveal"><h2>How It Works</h2></div>
+      <div class="how-grid stagger-children">
+        <div class="card how-card"><div class="how-step">1</div><h3>Share</h3><p>Share your unique referral link with friends</p></div>
+        <div class="card how-card"><div class="how-step">2</div><h3>They Trade</h3><p>Your referral trades tokens on Think Box</p></div>
+        <div class="card how-card"><div class="how-step">3</div><h3>You Earn</h3><p>You receive 10% of their trading fees forever</p></div>
+      </div>
+    </div></section>
+
+    <footer class="footer"><div class="container"><div class="footer-grid">
+      <div class="footer-brand"><div class="nav-logo" style="margin-bottom:var(--space-4);"><div class="nav-logo-icon">TB</div><span>Think Box</span></div><p class="text-muted">Turn intent into proof.</p><div class="footer-social"><a href="https://twitter.com/thinkboxai">𝕏</a><a href="https://discord.gg/thinkbox">D</a><a href="https://github.com/Kudbee-Studio">GH</a></div></div>
+      <div class="footer-col"><h4>Product</h4><a href="../wallet/">Wallet</a><a href="../tokens/">Tokens</a><a href="../nfts/">NFTs</a><a href="../trade/">Trade</a></div>
+      <div class="footer-col"><h4>Intelligence</h4><a href="../agents/">AI Agents</a><a href="../analytics/">Analytics</a><a href="/#jobs">Jobs</a><a href="../findings/">Findings</a></div>
+      <div class="footer-col"><h4>Resources</h4><a href="../docs/">Docs</a><a href="https://github.com/Kudbee-Studio/think-box-ai">GitHub</a><a href="https://discord.gg/thinkbox">Discord</a><a href="/sitemap.xml">Sitemap</a></div>
+    </div><div class="footer-bottom"><p class="text-muted">&copy; 2026 Think Box AI.</p></div></div></footer>
+  </main>
+  <div class="modal-overlay" id="walletModal" onclick="closeWalletModal(event)"><div class="modal"><div class="modal-header"><h3>Connect Wallet</h3><button class="modal-close" onclick="toggleWalletConnect()">&times;</button></div><div class="modal-body"><p class="text-muted">Coming soon.</p></div></div></div>
+  <div class="toast-container" id="toastContainer"></div>
+  <div class="modal-overlay" id="commandPalette" onclick="closeCommandPalette(event)"><div class="command-palette"><div class="command-input-wrapper"><span class="command-icon">⌘</span><input type="text" class="command-input" placeholder="Search..."></div></div></div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
