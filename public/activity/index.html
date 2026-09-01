@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity — Think Box AI</title>
+  <meta name="description" content="Real-time Doginals sales, listings, and transfers. Track market activity as it happens.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/" style="color: var(--color-text-accent);">Activity</a></li>
+        <li><a href="../tracker/">Tracker</a></li>
+      </ul>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect</button>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../tracker/" onclick="toggleMobileMenu()">Tracker</a></li>
+      <li><a href="../wallet/" onclick="toggleMobileMenu()">Wallet</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Live Activity</h1>
+          <p>Real-time sales, listings, and transfers</p>
+        </div>
+
+        <!-- Live Indicator -->
+        <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-6);">
+          <div style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; animation: pulseGlow 2s infinite;"></div>
+          <span style="font-weight: var(--font-medium);">Live</span>
+          <span class="text-muted">— Tracking 6 collections</span>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-chips" style="margin-bottom: var(--space-6);">
+          <button class="filter-chip active" onclick="filterActivity('all')">All</button>
+          <button class="filter-chip" onclick="filterActivity('sale')">Sales</button>
+          <button class="filter-chip" onclick="filterActivity('list')">Listings</button>
+          <button class="filter-chip" onclick="filterActivity('transfer')">Transfers</button>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="activity-feed" id="activityFeed"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Real-time Market Activity</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../tracker/">Tracker</a>
+          <a href="../wallet/">Wallet</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/main.js"></script>
+  <script>
+    let activityData = [...LOCAL_DATA.activity];
+
+    function renderActivity(filter = 'all') {
+      const feed = document.getElementById("activityFeed");
+      const filtered = filter === 'all' ? activityData : activityData.filter(a => a.type === filter);
+
+      if (filtered.length === 0) {
+        feed.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No activity found.</p></div>';
+        return;
+      }
+
+      feed.innerHTML = filtered.map(a => `
+        <div class="activity-item">
+          <div class="activity-icon ${a.type}">${a.type === 'sale' ? '💰' : a.type === 'list' ? '📋' : '↗️'}</div>
+          <div style="flex: 1;">
+            <span style="font-weight: var(--font-medium);">${a.inscription}</span>
+            <span class="text-muted"> — ${a.type}</span>
+            ${a.buyer ? `<div class="text-muted" style="font-size: var(--text-xs);">Buyer: <span class="mono">${a.buyer}</span></div>` : ''}
+          </div>
+          <div style="text-align: right;">
+            ${a.price > 0 ? `<span style="font-weight: var(--font-semibold);">◎ ${a.price}</span>` : '<span class="text-muted">—</span>'}
+            <div class="text-muted" style="font-size: var(--text-xs);">${a.time}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function filterActivity(type) {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      renderActivity(type);
+    }
+
+    // Simulate live updates
+    function simulateLiveUpdate() {
+      const types = ['sale', 'list', 'transfer'];
+      const collections = ['minidoges', 'doginaldogs', 'dogemaps', 'dogebuds', 'dcex', 'runestone'];
+      const prices = [390, 450, 13.9, 26, 45, 19, 89, 120, 350];
+
+      const newEvent = {
+        type: types[Math.floor(Math.random() * types.length)],
+        collection: collections[Math.floor(Math.random() * collections.length)],
+        inscription: `#${Math.floor(Math.random() * 10000)}`,
+        price: prices[Math.floor(Math.random() * prices.length)],
+        time: 'Just now',
+        buyer: 'D' + Math.random().toString(36).substring(2, 6) + '...' + Math.random().toString(36).substring(2, 6),
+      };
+
+      activityData.unshift(newEvent);
+      if (activityData.length > 50) activityData.pop();
+      renderActivity('all');
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderActivity();
+      // Simulate live updates every 10 seconds
+      setInterval(simulateLiveUpdate, 10000);
+    });
+  </script>
+</body>
+</html>

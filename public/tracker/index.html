@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracker — Think Box AI</title>
+  <meta name="description" content="Track Doginals sales in real-time. Set alerts for price drops, new listings, and suspicious activity.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../tracker/" style="color: var(--color-text-accent);">Tracker</a></li>
+      </ul>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect</button>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../wallet/" onclick="toggleMobileMenu()">Wallet</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Sales <span class="gradient-text">Tracker</span></h1>
+          <p>Real-time event monitoring with webhook alerts</p>
+        </div>
+
+        <!-- Tracker Status -->
+        <div class="card card-elevated" style="margin-bottom: var(--space-8);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+            <div>
+              <h3>Event Stream</h3>
+              <p class="text-muted">Connected to Doginals indexer — receiving live events</p>
+            </div>
+            <div style="display: flex; gap: var(--space-3); align-items: center;">
+              <div style="width: 8px; height: 8px; background: var(--color-success); border-radius: 50%;"></div>
+              <span style="font-weight: var(--font-medium); color: var(--color-success);">Connected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Configuration -->
+        <h2 style="margin-bottom: var(--space-6);">Active Alerts</h2>
+        <div class="features-grid" style="margin-bottom: var(--space-8);">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+              <h4>Floor Price Drop</h4>
+              <span class="badge badge-blocked">Active</span>
+            </div>
+            <p class="text-muted">Alert when any collection floor drops >10%</p>
+            <p class="mono" style="font-size: var(--text-sm); margin-top: var(--space-2);">Trigger: floor_change < -10%</p>
+          </div>
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+              <h4>Large Sale</h4>
+              <span class="badge badge-blocked">Active</span>
+            </div>
+            <p class="text-muted">Alert when sale > ◎ 1000</p>
+            <p class="mono" style="font-size: var(--text-sm); margin-top: var(--space-2);">Trigger: sale_price > 1000</p>
+          </div>
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+              <h4>Shady Activity</h4>
+              <span class="badge badge-blocked">Active</span>
+            </div>
+            <p class="text-muted">Flag suspicious wallet patterns</p>
+            <p class="mono" style="font-size: var(--text-sm); margin-top: var(--space-2);">Trigger: risk_score = F</p>
+          </div>
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+              <h4>New Listing</h4>
+              <span class="badge badge-unproven">Paused</span>
+            </div>
+            <p class="text-muted">Alert on new listings in watched collections</p>
+            <p class="mono" style="font-size: var(--text-sm); margin-top: var(--space-2);">Trigger: list_event</p>
+          </div>
+        </div>
+
+        <!-- Webhook Configuration -->
+        <h2 style="margin-bottom: var(--space-6);">Webhook Endpoints</h2>
+        <div class="card" style="margin-bottom: var(--space-8);">
+          <p style="margin-bottom: var(--space-4);">Send events to your server in real-time. Configure endpoints below:</p>
+          <div class="code-block">
+<pre>{
+  "url": "https://your-server.com/webhook",
+  "events": ["sale", "list", "transfer", "risk_flag"],
+  "secret": "whsec_your_secret_key",
+  "active": true
+}</pre>
+          </div>
+          <div style="margin-top: var(--space-4);">
+            <button class="btn btn-secondary">Add Endpoint</button>
+            <button class="btn btn-ghost" style="margin-left: var(--space-2);">Test Ping</button>
+          </div>
+        </div>
+
+        <!-- Recent Events Log -->
+        <h2 style="margin-bottom: var(--space-6);">Event Log</h2>
+        <div class="card">
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: var(--text-sm);">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--color-border); text-align: left;">
+                  <th style="padding: var(--space-3); color: var(--color-text-tertiary);">Time</th>
+                  <th style="padding: var(--space-3); color: var(--color-text-tertiary);">Event</th>
+                  <th style="padding: var(--space-3); color: var(--color-text-tertiary);">Collection</th>
+                  <th style="padding: var(--space-3); color: var(--color-text-tertiary);">Details</th>
+                  <th style="padding: var(--space-3); color: var(--color-text-tertiary);">Status</th>
+                </tr>
+              </thead>
+              <tbody id="eventLog"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Real-time Event Tracking</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../activity/">Activity</a>
+          <a href="../security/">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/main.js"></script>
+  <script>
+    const EVENTS = [
+      { time: '2m ago', event: 'sale', collection: 'minidoges', details: '◎ 390 — Doginal Mini Doges #8100', status: 'confirmed' },
+      { time: '5m ago', event: 'sale', collection: 'doginaldogs', details: '◎ 450 — Doginal Dog #3446', status: 'confirmed' },
+      { time: '8m ago', event: 'list', collection: 'minidoges', details: '◎ 399 — Doginal Mini Doges #7532', status: 'pending' },
+      { time: '12m ago', event: 'sale', collection: 'dogemaps', details: '◎ 13.9 — DogeMap #1247', status: 'confirmed' },
+      { time: '15m ago', event: 'risk_flag', collection: 'unknown', details: 'Suspicious wallet D9xY...zQ2w flagged', status: 'alert' },
+      { time: '22m ago', event: 'sale', collection: 'dcex', details: '◎ 45 — DCEx #2341', status: 'confirmed' },
+      { time: '28m ago', event: 'transfer', collection: 'doginaldogs', details: 'Doginal Dog #1203 transferred', status: 'confirmed' },
+      { time: '35m ago', event: 'sale', collection: 'runestone', details: '◎ 19 — Doge Runestone #5421', status: 'confirmed' },
+    ];
+
+    function renderEventLog() {
+      const tbody = document.getElementById("eventLog");
+      tbody.innerHTML = EVENTS.map(e => `
+        <tr style="border-bottom: 1px solid var(--color-border-subtle);">
+          <td style="padding: var(--space-3); color: var(--color-text-tertiary);">${e.time}</td>
+          <td style="padding: var(--space-3);">
+            <span class="badge ${e.event === 'sale' ? 'badge-success' : e.event === 'risk_flag' ? 'badge-blocked' : 'badge-unproven'}">${e.event}</span>
+          </td>
+          <td style="padding: var(--space-3);">${e.collection}</td>
+          <td style="padding: var(--space-3);">${e.details}</td>
+          <td style="padding: var(--space-3);">
+            <span style="color: ${e.status === 'confirmed' ? 'var(--color-success)' : e.status === 'alert' ? 'var(--color-danger)' : 'var(--color-warning)'};">● ${e.status}</span>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    document.addEventListener("DOMContentLoaded", renderEventLog);
+  </script>
+</body>
+</html>

@@ -1,6 +1,10 @@
 User-agent: *
 Allow: /
-Disallow: /data/raw/
-Disallow: /jobs/active/
+Disallow: /api/
+Disallow: /admin/
 
-Sitemap: https://thinkbox.ai/sitemap.xml
+# Sitemap
+Sitemap: https://thinkboxai.xyz/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1

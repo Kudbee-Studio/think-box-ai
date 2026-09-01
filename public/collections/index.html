@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collections — Think Box AI</title>
+  <meta name="description" content="Browse Doginals collections. Floor prices, volume, market cap, and verified status.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/" style="color: var(--color-text-accent);">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../inscribe/">Inscribe</a></li>
+      </ul>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect</button>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../inscribe/" onclick="toggleMobileMenu()">Inscribe</a></li>
+      <li><a href="../wallet/" onclick="toggleMobileMenu()">Wallet</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Collections</h1>
+          <p>Discover verified Doginals collections</p>
+        </div>
+
+        <!-- Filters -->
+        <div style="display: flex; gap: var(--space-4); margin-bottom: var(--space-8); flex-wrap: wrap; align-items: center;">
+          <input type="text" id="collectionSearch" placeholder="Search collections..." class="search-input" style="flex: 1; min-width: 200px;" oninput="filterCollections()">
+          <select class="search-input" style="width: auto;" onchange="sortCollections(this.value)">
+            <option value="volume">Sort: Volume</option>
+            <option value="floor">Sort: Floor Price</option>
+            <option value="supply">Sort: Supply</option>
+            <option value="name">Sort: Name</option>
+          </select>
+        </div>
+
+        <!-- Stats Bar -->
+        <div style="display: flex; gap: var(--space-6); margin-bottom: var(--space-8); flex-wrap: wrap;">
+          <div class="stat">
+            <div class="stat-value">6</div>
+            <div class="stat-label">Collections</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">◎ 453</div>
+            <div class="stat-label">Total Floor</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">50K+</div>
+            <div class="stat-label">Total Items</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">42K+</div>
+            <div class="stat-label">Owners</div>
+          </div>
+        </div>
+
+        <!-- Collections Grid -->
+        <div class="collections-grid" id="collectionsGrid"></div>
+
+        <!-- Pagination -->
+        <div id="pagination" style="display: flex; justify-content: center; gap: var(--space-2); margin-top: var(--space-8);"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Verified Collections</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../tokens/">DRC-20</a>
+          <a href="../wallet/">Wallet</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/main.js"></script>
+  <script>
+    const ITEMS_PER_PAGE = 12;
+    let currentPage = 1;
+    let filteredData = [...LOCAL_DATA.collections];
+
+    function renderCollections() {
+      const grid = document.getElementById("collectionsGrid");
+      const start = (currentPage - 1) * ITEMS_PER_PAGE;
+      const page = filteredData.slice(start, start + ITEMS_PER_PAGE);
+
+      if (page.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-icon">🔍</div><p>No collections found.</p></div>';
+        return;
+      }
+
+      grid.innerHTML = page.map(c => `
+        <a href="../collections/${c.slug}/" class="card collection-card" style="text-decoration: none; color: inherit;">
+          <div class="collection-icon" style="width: 100%; aspect-ratio: 1; background: linear-gradient(135deg, var(--color-bg), var(--color-bg-card-hover)); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: var(--text-5xl); margin-bottom: var(--space-4);">
+            🐕
+          </div>
+          <h4 style="margin-bottom: var(--space-2);">${c.name}</h4>
+          <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-3);">${c.description.substring(0, 60)}...</p>
+          <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
+            <span class="text-muted">Floor</span>
+            <span style="font-weight: var(--font-semibold);">◎ ${c.floor}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); margin-top: var(--space-1);">
+            <span class="text-muted">24h Vol</span>
+            <span>${c.volume24h.toLocaleString()}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); margin-top: var(--space-1);">
+            <span class="text-muted">Listed</span>
+            <span>${c.listed.toLocaleString()}</span>
+          </div>
+        </a>
+      `).join("");
+
+      renderPagination();
+    }
+
+    function renderPagination() {
+      const total = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+      const pag = document.getElementById("pagination");
+      let html = '';
+      for (let i = 1; i <= total; i++) {
+        html += `<button class="btn ${i === currentPage ? 'btn-primary' : 'btn-ghost'}" onclick="goPage(${i})">${i}</button>`;
+      }
+      pag.innerHTML = html;
+    }
+
+    function goPage(p) { currentPage = p; renderCollections(); window.scrollTo(0, 0); }
+
+    function filterCollections() {
+      const q = document.getElementById("collectionSearch").value.toLowerCase();
+      filteredData = LOCAL_DATA.collections.filter(c => c.name.toLowerCase().includes(q) || c.slug.includes(q));
+      currentPage = 1;
+      renderCollections();
+    }
+
+    function sortCollections(by) {
+      filteredData.sort((a, b) => {
+        if (by === 'name') return a.name.localeCompare(b.name);
+        return b[by] - a[by];
+      });
+      renderCollections();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => renderCollections());
+  </script>
+</body>
+</html>
