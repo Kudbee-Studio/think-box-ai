@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Canvas — Think Box AI</title>
+  <meta name="description" content="Visual workflow builder for Think Jobs. Drag, drop, and connect agents.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+  <style>
+    .canvas-grid { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-6); min-height: 60vh; }
+    .node-palette { background: var(--color-bg-card); border-radius: var(--radius-lg); padding: var(--space-4); }
+    .node-item { padding: var(--space-3); margin-bottom: var(--space-2); background: var(--color-bg); border-radius: var(--radius-md); cursor: grab; text-align: center; font-size: var(--text-sm); transition: all var(--transition-fast); }
+    .node-item:hover { background: var(--color-accent-subtle); }
+    .canvas-area { background: var(--color-bg-card); border-radius: var(--radius-lg); border: 2px dashed var(--color-border); position: relative; min-height: 400px; overflow: hidden; }
+    .canvas-node { position: absolute; padding: var(--space-3) var(--space-5); background: var(--color-bg-elevated); border: 1px solid var(--color-accent); border-radius: var(--radius-md); cursor: move; font-size: var(--text-sm); font-weight: var(--font-medium); white-space: nowrap; }
+    .canvas-node.connected { border-color: var(--color-success); }
+    @media (max-width: 768px) { .canvas-grid { grid-template-columns: 1fr; } .node-palette { display: flex; gap: var(--space-2); overflow-x: auto; } .node-item { min-width: 100px; margin-bottom: 0; } }
+  </style>
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../canvas/" style="color: var(--color-text-accent);">Canvas</a></li>
+        <li><a href="../security/">Security</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../security/" onclick="toggleMobileMenu()">Security</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Workflow <span class="gradient-text">Canvas</span></h1>
+          <p>Drag agents onto the canvas to build workflows</p>
+        </div>
+
+        <div class="canvas-grid">
+          <div class="node-palette">
+            <h4 style="margin-bottom: var(--space-3);">Agents</h4>
+            <div class="node-item" draggable="true" data-type="director">🎯 Director</div>
+            <div class="node-item" draggable="true" data-type="researcher">🔍 Researcher</div>
+            <div class="node-item" draggable="true" data-type="runner">⚡ Runner</div>
+            <div class="node-item" draggable="true" data-type="camera">📷 Camera</div>
+            <div class="node-item" draggable="true" data-type="jury">⚖️ Jury</div>
+            <h4 style="margin: var(--space-4) 0 var(--space-3);">Actions</h4>
+            <div class="node-item" draggable="true" data-type="http">🌐 HTTP Fetch</div>
+            <div class="node-item" draggable="true" data-type="parse">📋 Parse</div>
+            <div class="node-item" draggable="true" data-type="validate">✓ Validate</div>
+            <div class="node-item" draggable="true" data-type="save">💾 Save</div>
+          </div>
+          <div class="canvas-area" id="canvas">
+            <p style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--color-text-tertiary);">Drag agents here to build your workflow</p>
+          </div>
+        </div>
+
+        <div style="margin-top: var(--space-6); display: flex; gap: var(--space-3); justify-content: center;">
+          <button class="btn btn-primary" onclick="runWorkflow()">▶ Run Workflow</button>
+          <button class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
+          <button class="btn btn-ghost" onclick="saveWorkflow()">Save</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Visual Workflow Builder</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../docs/MULTI_AGENT_ARCHITECTURE.md">Docs</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const nodes = [];
+
+    document.querySelectorAll('.node-item').forEach(item => {
+      item.addEventListener('dragstart', e => e.dataTransfer.setData('type', e.target.dataset.type));
+    });
+
+    canvas.addEventListener('dragover', e => e.preventDefault());
+    canvas.addEventListener('drop', e => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData('type');
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - 50;
+      const y = e.clientY - rect.top - 20;
+      const el = document.createElement('div');
+      el.className = 'canvas-node';
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.textContent = type;
+      el.draggable = true;
+      el.addEventListener('dragstart', e => e.stopPropagation());
+      canvas.appendChild(el);
+      nodes.push({ type, x, y, el });
+    });
+
+    function runWorkflow() { showToast('Workflow execution coming soon!', 'info'); }
+    function clearCanvas() { nodes.forEach(n => n.el.remove()); nodes.length = 0; }
+    function saveWorkflow() { showToast('Workflow saved!', 'success'); }
+  </script>
+</body>
+</html>
