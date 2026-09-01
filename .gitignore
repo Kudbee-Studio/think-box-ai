@@ -39,7 +39,25 @@ data/raw/
 data/findings/
 data/thinkbox.sqlite
 data/thinkbox.sqlite-*
+data/audit.db
+data/*.ini
+data/infra_*.ini
+data/jobs/*.json
+data/gpu_queue.jsonl
+data/queue.jsonl
 
 # Keep fixtures
 !data/fixtures/
+
+# Security
 .ssh/
+*.key
+*.pem
+*.secret
+data/*.db
+backend/instance/
+
+# Secrets
+.env
+.env.local
+.env.production

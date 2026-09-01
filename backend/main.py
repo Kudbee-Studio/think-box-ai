@@ -1,6 +1,6 @@
 """THINK BOX AI — Unified Backend (FastAPI + WebSocket + SSE).
 
-Uses the core runtime for agent execution, tool management, and memory.
+Production-grade security with authentication, rate limiting, CORS, and input validation.
 """
 
 from __future__ import annotations
@@ -13,25 +13,21 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 
 from core.foundation.bootstrap import bootstrap, RuntimeContext
 from core.foundation.logging import get_logger
 from core.runtime.loop import AgentLoop
 
+from backend.security import setup_security
+from backend.validation import validate_goal, validate_iterations
+from backend.audit_storage import record_audit
+
 logger = get_logger(__name__)
 
-app = FastAPI(title="THINK BOX AI", version="0.4.0")
+app = FastAPI(title="THINK BOX AI", version="0.5.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+setup_security(app)
 
 ctx: RuntimeContext | None = None
 sessions: dict[str, dict[str, Any]] = {}
@@ -49,6 +45,9 @@ async def startup() -> None:
         "provider": ctx.provider.__class__.__name__ if ctx.provider else None,
         "tools": len(ctx.tool_registry.list_tools()) if ctx.tool_registry else 0,
     })
+    record_audit("system_startup", "system", "success", {
+        "provider": ctx.provider.__class__.__name__ if ctx.provider else None,
+    })
 
 
 @app.get("/health")
@@ -56,7 +55,7 @@ async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "think-box-ai",
-        "version": "0.2.0",
+        "version": "0.5.0",
         "provider": ctx.provider.__class__.__name__ if ctx.provider else None,
         "tools": len(ctx.tool_registry.list_tools()) if ctx.tool_registry else 0,
         "sessions": len(sessions),
@@ -81,21 +80,40 @@ async def run_goal(request: dict[str, Any]) -> dict[str, Any]:
         return {"success": False, "error": "No provider configured"}
 
     goal = request.get("goal", "")
-    if not goal:
-        return {"success": False, "error": "Missing 'goal'"}
+    valid, result = validate_goal(goal)
+    if not valid:
+        return {"success": False, "error": result}
+    goal = result
+
+    max_iterations = validate_iterations(request.get("max_iterations", 20))
+
+    record_audit("run_goal", "api", "started", {"goal": goal[:100]})
 
     loop = AgentLoop(
         provider=ctx.provider,
         tool_registry=ctx.tool_registry,
-        max_iterations=request.get("max_iterations", 20),
+        max_iterations=max_iterations,
     )
 
     result = await loop.run(goal)
+
+    record_audit("run_goal", "api", "completed", {
+        "goal": goal[:100],
+        "success": result.get("success", False),
+    })
+
     return result
 
 
 @app.get("/stream")
 async def stream_goal(goal: str, model: str = "ollama") -> StreamingResponse:
+    valid, result = validate_goal(goal)
+    if not valid:
+        async def error_stream():
+            yield f"data: {json.dumps({'error': result})}\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+    goal = result
+
     async def event_generator():
         if not ctx or not ctx.provider:
             yield f"data: {json.dumps({'error': 'No provider configured'})}\n\n"
@@ -108,13 +126,11 @@ async def stream_goal(goal: str, model: str = "ollama") -> StreamingResponse:
 
         yield f"data: {json.dumps({'type': 'start', 'goal': goal})}\n\n"
 
-        messages = [
-            {"role": "system", "content": loop.system_prompt},
-            {"role": "user", "content": f"Goal: {goal}"},
-        ]
-
         try:
-            async for token in ctx.provider.stream(messages):
+            async for token in ctx.provider.stream([
+                {"role": "system", "content": loop.system_prompt},
+                {"role": "user", "content": f"Goal: {goal}"},
+            ]):
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as e:
@@ -136,6 +152,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         "status": "idle",
     }
 
+    record_audit("ws_connect", session_id, "connected")
+
     await ws.send_json({
         "type": "init",
         "data": {
@@ -152,12 +170,20 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
             if msg_type == "run_goal":
                 goal = msg.get("goal", "")
-                if not goal or not ctx or not ctx.provider:
-                    await ws.send_json({"type": "error", "data": "Missing goal or provider"})
+                valid, result = validate_goal(goal)
+                if not valid:
+                    await ws.send_json({"type": "error", "data": result})
+                    continue
+                goal = result
+
+                if not ctx or not ctx.provider:
+                    await ws.send_json({"type": "error", "data": "No provider configured"})
                     continue
 
                 sessions[session_id]["status"] = "running"
                 await ws.send_json({"type": "status", "data": {"status": "running"}})
+
+                record_audit("ws_run_goal", session_id, "started", {"goal": goal[:100]})
 
                 loop = AgentLoop(
                     provider=ctx.provider,
@@ -170,16 +196,28 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 sessions[session_id]["status"] = "idle"
                 await ws.send_json({"type": "status", "data": {"status": "idle"}})
 
+                record_audit("ws_run_goal", session_id, "completed", {
+                    "goal": goal[:100],
+                    "success": result.get("success", False),
+                })
+
             elif msg_type == "stop":
                 sessions[session_id]["status"] = "idle"
                 await ws.send_json({"type": "status", "data": {"status": "idle"}})
 
     except WebSocketDisconnect:
-        pass
+        record_audit("ws_disconnect", session_id, "disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
+        record_audit("ws_error", session_id, "error", {"error": str(e)})
     finally:
         sessions.pop(session_id, None)
+
+
+@app.get("/audit")
+async def get_audit_log(limit: int = 100) -> dict[str, Any]:
+    from backend.audit_storage import list_audits
+    return {"entries": list_audits(limit=limit), "count": len(list_audits(limit=limit))}
 
 
 if __name__ == "__main__":

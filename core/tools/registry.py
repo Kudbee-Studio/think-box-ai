@@ -1,10 +1,13 @@
-"""Tool registry with execution and XML serialization."""
+"""Tool registry with execution, XML serialization, and security enforcement."""
 
 from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
 from typing import Any, Callable
+
+from backend.audit_storage import record_audit
+from backend.validation import validate_tool_args
 
 
 class ToolDefinition:
@@ -40,9 +43,10 @@ class ToolDefinition:
 
 
 class ToolRegistry:
-    def __init__(self, audit_log: Any = None) -> None:
+    def __init__(self, audit_log: Any = None, approval_policy: str = "auto_approve_read") -> None:
         self._tools: dict[str, ToolDefinition] = {}
         self._audit_log = audit_log
+        self._approval_policy = approval_policy
 
     def register(self, tool: ToolDefinition) -> None:
         if tool.name in self._tools:
@@ -69,16 +73,37 @@ class ToolRegistry:
     def list_by_permission(self, permission: str) -> list[ToolDefinition]:
         return [t for t in self._tools.values() if t.permission == permission]
 
+    def _check_approval(self, tool: ToolDefinition) -> bool:
+        if not tool.requires_approval:
+            return True
+        if self._approval_policy == "auto_approve_all":
+            return True
+        if self._approval_policy == "auto_approve_read" and tool.permission == "read_only":
+            return True
+        return False
+
     async def execute(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         tool = self._tools.get(name)
         if tool is None:
             return {"success": False, "error": f"Tool '{name}' not found"}
         if tool.handler is None:
             return {"success": False, "error": f"Tool '{name}' has no handler"}
+
+        valid, validated_args_or_error = validate_tool_args(args)
+        if not valid:
+            return {"success": False, "error": validated_args_or_error}
+        args = validated_args_or_error
+
+        if not self._check_approval(tool):
+            record_audit("tool_denied", "system", "denied", {"tool": name, "permission": tool.permission})
+            return {"success": False, "error": f"Tool '{name}' requires approval (permission: {tool.permission})"}
+
         try:
             result = await tool.handler(args, context={})
+            record_audit("tool_execute", "system", "success", {"tool": name})
             return result if isinstance(result, dict) else {"success": True, "output": result}
         except Exception as e:
+            record_audit("tool_execute", "system", "error", {"tool": name, "error": str(e)})
             return {"success": False, "error": str(e)}
 
     def to_xml(self) -> str:

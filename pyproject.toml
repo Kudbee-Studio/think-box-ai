@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "think-box-ai"
-version = "0.1.0"
-description = "Think Box AI — Think Token (THNK) utility and SDK"
+version = "0.5.0"
+description = "Think Box AI — Agent Execution Environment"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "aiohttp>=3.9.0",
+    "websockets>=12.0",
+    "python-multipart>=0.0.6",
+]
 
 [project.optional-dependencies]
 dev = [

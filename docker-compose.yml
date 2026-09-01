@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - THINKBOX_DEFAULT_PROVIDER=ollama
+      - THINKBOX_DEFAULT_MODEL=llama3.1:8b
+      - THINKBOX_API_KEY=${THINKBOX_API_KEY:-changeme-production-key}
+      - THINKBOX_RATE_LIMIT=100
+      - THINKBOX_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: python:3.11-slim
+    working_dir: /app
+    command: python3 -m http.server 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./public:/app/public:ro
+    depends_on:
+      - api
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - local-llm
+
+volumes:
+  ollama_data:

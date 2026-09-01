@@ -26,13 +26,10 @@ from core.memory.session import SessionMemoryAdapter
 from core.memory.store import MemoryStore
 from core.memory.task import TaskMemoryAdapter
 from core.providers.base import ModelProvider, ProviderRegistry
-from core.tools import file_read, file_write, http_request, memory_query, shell_exec
-from core.tools.registry import ToolRegistry
-
-from core.tools.fs import fs_read, fs_write, fs_list
-from core.tools.http import http_get
-from core.tools.memory import memory_put, memory_get, memory_search, init_memory_db
+from core.tools import fs_read, fs_write, fs_list, http_get, memory_put, memory_get, memory_search, memory_query, shell_exec
+from core.tools.memory import init_memory_db
 from core.tools.doginals import indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
+from core.tools.registry import ToolRegistry
 
 import core.providers.ollama
 import core.providers.openai_compat
@@ -110,8 +107,7 @@ def _create_provider(config: ThinkBoxConfig) -> ModelProvider | None:
 def _create_tool_registry(audit_log: AuditLog, project_root: Path) -> ToolRegistry:
     registry = ToolRegistry(audit_log)
 
-    builtin_tools = [file_read, file_write, shell_exec, http_request, memory_query,
-                     fs_read, fs_write, fs_list, http_get,
+    builtin_tools = [fs_read, fs_write, fs_list, http_get, shell_exec, memory_query,
                      memory_put, memory_get, memory_search,
                      indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture]
     for t in builtin_tools:

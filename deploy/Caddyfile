@@ -1,0 +1,26 @@
+{
+    auto_https off
+}
+
+api.thinkboxai.xyz {
+    reverse_proxy localhost:8000
+
+    @ws path /ws
+    header @ws {
+        Connection "upgrade"
+        Upgrade "http_upgrade"
+    }
+
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    request_body {
+        max_size 1MB
+    }
+}
