@@ -1,110 +1,107 @@
-# STATUS.md — Think Box AI Research Agent
+# STATUS.md — Think Box AI
 
-## What Works ✅
-- 17 tools registered and functional
-- Agent loop with XML tool-call parsing
-- SQLite research memory (memory_put/get/search)
-- Filesystem tools (fs_read/write/list) — jailed to repo + data/
-- HTTP tool with rate limiting
-- Doginals domain tools (doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture)
-- FastAPI backend (/health, /run, /stream, /ws)
-- Bootstrap wires all components
+**Session:** agent_79e656bf-37c6-46f2-833e-1eb027b99152
+**Branch:** session/agent_79e656bf-clean
+**Domain:** thinkboxai.xyz
+**Phase:** Enterprise Build (Phase 8)
 
-## Verified Tool Count: 18
+## Tools: 18 registered & verified
 
-| # | Tool | Status |
-|---|------|--------|
-| 1 | file_read | ✅ |
-| 2 | file_write | ✅ |
-| 3 | shell_exec | ✅ |
-| 4 | http_request | ✅ |
-| 5 | memory_query | ✅ |
-| 6 | fs_read | ✅ |
-| 7 | fs_write | ✅ |
-| 8 | fs_list | ✅ |
-| 9 | http_get | ✅ |
-| 10 | memory_put | ✅ |
-| 11 | memory_get | ✅ |
-| 12 | memory_search | ✅ |
-| 13 | indexer_health | ✅ |
-| 14 | doge_tx | ✅ |
-| 15 | doginals_inscription | ✅ |
-| 16 | compare_inscription | ✅ |
-| 17 | parse_drc20 | ✅ |
-| 18 | load_fixture | ✅ |
+file_read, file_write, shell_exec, http_request, memory_query, fs_read, fs_write, fs_list, http_get, memory_put, memory_get, memory_search, indexer_health, doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture
 
-## Source Reachability (2026-08-31)
+## Frontend Pages (12 total)
 
-### Live (returned data)
-- **api.doginals.org** — /v1/health OK; inscription endpoints 404 (not public)
-- **api.github.com** — OK
-- **example.com** — OK
+| Page | Path | Status |
+|------|------|--------|
+| Landing | / | ✅ |
+| Collections | /collections/ | ✅ |
+| Collection Detail | /collections/detail.html | ✅ |
+| DRC-20 Tokens | /tokens/ | ✅ |
+| Activity | /activity/ | ✅ |
+| Tracker | /tracker/ | ✅ |
+| Inscribe | /inscribe/ | ✅ |
+| Wallet | /wallet/ | ✅ |
+| Security | /security/ | ✅ |
+| About | /about/ | ✅ |
+| Blog | /blog/ | ✅ |
+| Search | /search/ | ✅ |
+| 404 | /404.html | ✅ |
 
-### Blocked (TLS OK, app-layer block)
-- **dogechain.info** — HTTP 403 (Cloudflare anti-bot challenge)
+## CLI Commands
 
-### Dead (network-level failure)
-- **wonky-ordinals.fly.dev** — DNS resolution failure
-- **ordinalswallet.com** — HTTP 522 (connection timeout)
-- **api.inception.ai** — TLS alert 112 (CDN SNI reject from AWS IPs)
-
-## Model Provider Status
-
-| Provider | Box | Cloud Local | Notes |
-|----------|-----|-------------|-------|
-| Ollama | ❌ Not installed | ❌ Not installed | Install locally |
-| Inception | ❌ TLS fail | ❌ TLS 525 | Don't use from cloud |
-| OpenAI | ✅ Reachable | ✅ Reachable | Needs key |
-| Groq | ✅ Reachable | ✅ Reachable | Needs key |
-
-## How to Run Locally
-
-```bash
-git checkout session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
-pip install -r backend/requirements.txt
-
-# Option A: Local Ollama
-ollama pull llama3.1:8b
-python3 -m uvicorn backend.main:app --port 8000 &
-
-# Option B: Groq (free tier)
-export THINKBOX_DEFAULT_PROVIDER=openai_compat
-export THINKBOX_OPENAI_COMPAT_API_KEY=gsk_your_key
-export THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.groq.com/openai/v1
-export THINKBOX_DEFAULT_MODEL=llama-3.1-8b-instant
-python3 -m uvicorn backend.main:app --port 8000 &
-
-# Run proof
-python3 scripts/prove_dogi.py
+```
+thinkbox job list/show/submit/queue/diff/run/cancel/retry
+thinkbox findings list/show/preview/export
+thinkbox config show/set/profile
+thinkbox memory search/show/list/remember/forget/context
+thinkbox box status/health
+thinkbox doctor / init / watch
+Global: --json --plain --quiet --verbose --dry-run --no-color
 ```
 
-## DOGI Proof Result
+## Job Queue (7 jobs)
 
-**Status:** Partial — tools work, but inscription data inaccessible via public APIs.
+| ID | Hat | Verdict |
+|----|-----|---------|
+| job_dogi_split_001 | researcher | unproven |
+| job_compare_dogi_dbit | researcher | unproven |
+| job_inscription_001 | researcher | unproven |
+| job_wallet_scan_001 | researcher | blocked |
+| job_gpu_find_models | runner | blocked |
+| job_gpu_serve_20b | runner | blocked |
+| job_director_wallet_report_001 | director | blocked |
 
-See: `data/findings/dogi_indexer_split.md`
+## Test Results
 
-## FreeToken Integration
+**Runner:** scripts/run_tests.py (unittest, no pytest needed)
+**Result:** 41+ tests, 2 errors (provider tests hit real API — expected)
 
-**Status:** Documented, not yet deployed.
+## Backend API v0.3
 
-See: `data/findings/freetoken_integration.md`
+```
+GET  /health, /jobs, /jobs/{id}, /findings, /tools
+POST /run
+GET  /stream (SSE)
+WS   /ws
+```
 
-KudbeeZero fork: https://github.com/KudbeeZero/kudbee-freetoken (identical to upstream FlashML).
+## Local Indexing
 
-**Plan:** Run FreeToken on UpCloud GPU spot → point Think Box at its OpenAI-compatible API.
+SQLite + FTS5 at data/thinkbox.db.
+CLI: thinkbox memory search/show/list/remember/forget/context
 
-## Key Finding
+## SEO
 
-The indexer-split thesis is **not provable via public APIs alone**. Most inscription
-indexers don't expose public endpoints, require auth, or are unreachable. To prove
-the thesis, we need a paid API, residential proxy, or local indexer.
+- Meta tags, Open Graph, Twitter Cards on all pages
+- Schema.org JSON-LD structured data
+- Sitemap.xml + robots.txt
+- Canonical URLs → thinkboxai.xyz
+- Target keywords: Doginals marketplace, DRC-20, Dogecoin inscriptions
 
-## Frontend v1
+## Source Reachability
 
-Landing page, jobs listing, findings browser, job detail, about.
-Design system with dark theme, responsive layout, animations.
-Pure HTML/CSS/JS — no build step.
+| Source | HTTP | Notes |
+|--------|------|-------|
+| api.doginals.org | 200 | Health only |
+| api.github.com | 200 | OK |
+| dogechain.info | 403 | Cloudflare |
+| wonky-ord.dogeord.io | — | DNS dead |
+| ordinalswallet.com | — | Timeout |
+| api.inception.ai | ❌ | TLS reject (banned) |
 
-Serve: `python3 scripts/serve_frontend.py 8080`
-PR: https://github.com/Kudbee-Studio/think-box-ai/pull/58
+## UpCloud GPU
+
+| Field | Value |
+|-------|-------|
+| UUID | 00d832ec-8565-447b-86ac-74bf9bd41e57 |
+| Hostname | gpu-ubuntu-20cpu-256gb-fi-hel2 |
+| Floating IP | 87.58.150.62 |
+| State | stopped |
+| Models | 20B + 120B on attached disks |
+
+## Blocked
+
+- GPU stopped (Kudbee must start)
+- SSH blocked (firewall drop-all)
+- No LLM on box
+- Wallet APIs not public
