@@ -79,12 +79,12 @@ class TaskDecomposer:
         return TaskGraph(root_id=task_id, tasks={task_id: root})
 
     def decompose_with_subtasks(self, goal: str, subtasks: list[str]) -> TaskGraph:
-        root_id = f"task_{uuid.uuid4().hex()[8:]}"
+        root_id = f"task_{uuid.uuid4().hex[:8]}"
         root = TaskNode(id=root_id, description=goal[:100], dependencies=[])
         tasks = {root_id: root}
 
         for i, desc in enumerate(subtasks):
-            task_id = f"task_{uuid.uuid4().hex()[8:]}"
+            task_id = f"task_{uuid.uuid4().hex[:8]}"
             node = TaskNode(
                 id=task_id,
                 description=desc[:self.max_tokens * TOKEN_CHAR_RATIO],
