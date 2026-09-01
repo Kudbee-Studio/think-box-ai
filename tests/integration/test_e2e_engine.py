@@ -17,7 +17,9 @@ if "fastapi" not in sys.modules:
     sys.modules["starlette"] = MagicMock()
     sys.modules["starlette.middleware"] = MagicMock()
     sys.modules["starlette.middleware.base"] = MagicMock()
-    sys.modules["pydantic"] = MagicMock()
+    pydantic_mock = MagicMock()
+    pydantic_mock.BaseModel = type("BaseModel", (), {"__init_subclass__": lambda **kw: None, "__annotations__": {}})
+    sys.modules["pydantic"] = pydantic_mock
 
 
 class TestE2EEnginePipeline(unittest.TestCase):
@@ -113,6 +115,10 @@ class TestAPIv1Router(unittest.TestCase):
     """Test the API v1 router endpoints."""
 
     def test_router_imports(self):
+        import sys
+        from unittest.mock import MagicMock
+        sys.modules["fastapi"] = MagicMock()
+        sys.modules["pydantic"] = MagicMock()
         from backend.api.v1.router import api_v1_router
         self.assertIsNotNone(api_v1_router)
 
