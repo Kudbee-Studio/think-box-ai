@@ -1275,6 +1275,34 @@ textarea.form-input {
 .strategy-icon { font-size: var(--text-2xl); margin-bottom: var(--space-3); }
 .strategy-stats { display: flex; gap: var(--space-4); margin-top: var(--space-4); font-size: var(--text-sm); color: var(--color-text-secondary); }
 
+/* NFT Trait Game */
+.challenges-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.challenge-card { padding: var(--space-6); }
+.challenge-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+.challenge-title { font-weight: var(--font-semibold); }
+.challenge-reward { padding: var(--space-1) var(--space-3); background: var(--color-accent-subtle); color: var(--color-accent); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--font-semibold); }
+.challenge-progress { margin-bottom: var(--space-4); }
+.challenge-bar { height: 8px; background: var(--color-bg-subtle); border-radius: var(--radius-full); overflow: hidden; margin-bottom: var(--space-2); }
+.challenge-bar-fill { height: 100%; background: linear-gradient(90deg, var(--color-accent), #a78bfa); border-radius: var(--radius-full); }
+.challenge-count { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.challenge-traits { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.trait { padding: var(--space-1) var(--space-3); border-radius: var(--radius-md); font-size: var(--text-xs); }
+.trait.owned { background: var(--color-success-subtle); color: var(--color-success); }
+.trait:not(.owned) { background: var(--color-bg-subtle); color: var(--color-text-tertiary); }
+
+.leaderboard-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.leaderboard-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-6); }
+.rank { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: var(--font-bold); background: var(--color-bg-subtle); }
+.rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4a); color: #000; }
+.rank-2 { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #000; }
+.rank-3 { background: linear-gradient(135deg, #cd7f32, #daa520); color: #000; }
+.player { flex: 1; font-family: var(--font-mono); }
+.score { font-weight: var(--font-semibold); color: var(--color-accent); }
+
+@media (max-width: 1024px) {
+  .challenges-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1024px) {
   .portfolio-overview { grid-template-columns: 1fr 1fr; }
   .performance-stats { grid-template-columns: 1fr 1fr; }
