@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .model_client import AsyncModelClient, ModelConfig
+from .session import get_current_session
 
 
 @dataclass
@@ -26,6 +27,7 @@ class ExecutionResult:
     tokens_used: int
     speculative: bool = False
     attempts: int = 1
+    session_id: str = ""
 
 
 @dataclass
@@ -33,6 +35,7 @@ class SpeculativeResult:
     parent_task_id: str
     attempts: list[ExecutionResult] = field(default_factory=list)
     winner: ExecutionResult | None = None
+    session_id: str = ""
 
 
 class AsyncWorkerPool:

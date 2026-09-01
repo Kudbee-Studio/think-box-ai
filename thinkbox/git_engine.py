@@ -92,10 +92,12 @@ class GitEngine:
         tokens_used: int,
         exit_code: int,
         summary: str = "",
+        session_id: str = "",
     ) -> str:
         timestamp = datetime.now(timezone.utc).isoformat()
         message = (
             f"feat(thinkbox): task {task_id[:12]} complete\n\n"
+            f"Session: {session_id}\n"
             f"Execution time: {execution_time_ms:.1f}ms\n"
             f"Tokens used: {tokens_used}\n"
             f"Exit code: {exit_code}\n"
@@ -117,6 +119,7 @@ class GitEngine:
         exit_code: int = 0,
         summary: str = "",
         files: list[str] | None = None,
+        session_id: str = "",
     ) -> CommitReceipt | None:
         if not self.has_changes():
             return None
@@ -135,6 +138,7 @@ class GitEngine:
             tokens_used=tokens_used,
             exit_code=exit_code,
             summary=summary,
+            session_id=session_id,
         )
 
         env = os.environ.copy()
