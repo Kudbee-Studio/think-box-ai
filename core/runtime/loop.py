@@ -69,6 +69,8 @@ class AgentLoop:
 
     async def run(self, goal: str) -> dict[str, Any]:
         run_id = str(uuid.uuid8())[:12] if hasattr(uuid, "uuid8") else str(uuid.uuid4())[:12]
+        from core.observability import Trace, SpanType, SpanStatus
+        trace = Trace(goal=goal, metadata={"run_id": run_id})
         messages: list[Message] = [
             Message(role="system", content=self.system_prompt),
             Message(role="user", content=f"Goal: {goal}"),
@@ -83,9 +85,26 @@ class AgentLoop:
             iterations += 1
             logger.info(f"Agent iteration {iterations}", extra={"run_id": run_id})
 
-            response = await self.provider.complete(messages)
-            output = response.content or ""
-            final_output = output
+            model_span = trace.start_span(
+                name=f"model_call:{iterations}",
+                span_type=SpanType.MODEL_CALL,
+                input_data={"messages": len(messages)},
+            )
+            try:
+                response = await self.provider.complete(messages)
+                output = response.content or ""
+                final_output = output
+                trace.end_span(
+                    model_span,
+                    output={"content": output[:500]},
+                    tokens_input=getattr(response, 'tokens_input', 0),
+                    tokens_output=getattr(response, 'tokens_output', 0),
+                    cost_usd=getattr(response, 'cost_usd', 0.0),
+                )
+            except Exception as e:
+                trace.end_span(model_span, error=str(e), status=SpanStatus.ERROR)
+                trace.finish(status="error")
+                return {"success": False, "error": str(e), "trace_id": trace.trace_id}
 
             if self.memory:
                 self.memory.append_message("assistant", output)
@@ -102,12 +121,24 @@ class AgentLoop:
                 tools_used.append(tool_name)
                 logger.info(f"Executing tool: {tool_name}", extra={"run_id": run_id})
 
+                tool_span = trace.start_span(
+                    name=f"tool:{tool_name}",
+                    span_type=SpanType.TOOL_CALL,
+                    input_data={"tool": tool_name, "args": tool_args},
+                )
+
                 if self.tool_registry and self.tool_registry.has(tool_name):
                     result = await self.tool_registry.execute(tool_name, tool_args)
+                    trace.end_span(
+                        tool_span,
+                        output=result,
+                        status=SpanStatus.OK if result.get("success") else SpanStatus.ERROR,
+                    )
                     if result.get("success") and result.get("saved_path"):
                         artifacts.append(result["saved_path"])
                 else:
                     result = {"error": f"Tool '{tool_name}' not found"}
+                    trace.end_span(tool_span, output=result, status=SpanStatus.ERROR)
 
                 results.append({"tool": tool_name, "result": result})
 
@@ -119,6 +150,7 @@ class AgentLoop:
 
         result = {
             "run_id": run_id,
+            "trace_id": trace.trace_id,
             "status": "success",
             "iterations": iterations,
             "output": final_output,
@@ -137,4 +169,6 @@ class AgentLoop:
             except Exception:
                 pass
 
+        trace.finish(status="success")
+        result.update(trace.get_summary())
         return result

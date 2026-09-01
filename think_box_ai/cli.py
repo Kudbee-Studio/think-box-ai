@@ -260,6 +260,110 @@ def create_parser() -> argparse.ArgumentParser:
     inception_sub.add_parser("models", help="List available models")
     inception_sub.add_parser("usage", help="Show usage stats")
 
+    # ==========================================
+    # 21. TRACE COMMANDS
+    # ==========================================
+    trace_p = subparsers.add_parser("trace", help="Observability traces")
+    trace_sub = trace_p.add_subparsers(dest="trace_command")
+
+    trace_list = trace_sub.add_parser("list", help="List traces")
+    trace_list.add_argument("--limit", type=int, default=50)
+    trace_list.add_argument("--status", choices=["running", "success", "error"])
+
+    trace_show = trace_sub.add_parser("show", help="Show trace details")
+    trace_show.add_argument("trace_id")
+
+    trace_sub.add_parser("metrics", help="Show aggregate metrics")
+
+    # ==========================================
+    # 22. SESSION COMMANDS
+    # ==========================================
+    session_p = subparsers.add_parser("session", help="Session management")
+    session_sub = session_p.add_subparsers(dest="session_command")
+
+    session_list = session_sub.add_parser("list", help="List sessions")
+    session_list.add_argument("--limit", type=int, default=20)
+    session_list.add_argument("--status", choices=["active", "archived"])
+
+    session_show = session_sub.add_parser("show", help="Show session details")
+    session_show.add_argument("session_id")
+
+    session_search = session_sub.add_parser("search", help="Search sessions")
+    session_search.add_argument("query")
+    session_search.add_argument("--limit", type=int, default=20)
+
+    session_create = session_sub.add_parser("create", help="Create session")
+    session_create.add_argument("--title", default="")
+
+    session_delete = session_sub.add_parser("delete", help="Delete session")
+    session_delete.add_argument("session_id")
+
+    # ==========================================
+    # 23. EVAL COMMANDS
+    # ==========================================
+    eval_p = subparsers.add_parser("eval", help="Evaluation suite")
+    eval_sub = eval_p.add_subparsers(dest="eval_command")
+
+    eval_list = eval_sub.add_parser("list", help="List eval cases")
+    eval_list.add_argument("--tag", help="Filter by tag")
+
+    eval_add = eval_sub.add_parser("add", help="Add eval case")
+    eval_add.add_argument("name")
+    eval_add.add_argument("goal")
+    eval_add.add_argument("--expected", help="Expected output")
+    eval_add.add_argument("--tools", help="Expected tools (comma-separated)")
+    eval_add.add_argument("--tag", help="Tags (comma-separated)")
+
+    eval_results = eval_sub.add_parser("results", help="Show eval results")
+    eval_results.add_argument("--case-id", help="Filter by case")
+    eval_results.add_argument("--limit", type=int, default=50)
+
+    eval_sub.add_parser("summary", help="Show eval summary")
+
+    # ==========================================
+    # 24. COST COMMANDS
+    # ==========================================
+    cost_p = subparsers.add_parser("cost", help="Cost tracking")
+    cost_sub = cost_p.add_subparsers(dest="cost_command")
+
+    cost_estimate = cost_sub.add_parser("estimate", help="Estimate cost")
+    cost_estimate.add_argument("--model", default="gpt-4o-mini")
+    cost_estimate.add_argument("--text", help="Text to estimate")
+    cost_estimate.add_argument("--tokens-input", type=int, default=0)
+    cost_estimate.add_argument("--tokens-output", type=int, default=0)
+
+    cost_sub.add_parser("models", help="Show model pricing")
+
+    cost_budget = cost_sub.add_parser("budget", help="Budget manager")
+    cost_budget.add_argument("--max-cost", type=float, default=10.0)
+
+    # ==========================================
+    # 25. APPROVAL COMMANDS
+    # ==========================================
+    approval_p = subparsers.add_parser("approval", help="Human-in-the-loop")
+    approval_sub = approval_p.add_subparsers(dest="approval_command")
+
+    approval_sub.add_parser("pending", help="List pending approvals")
+
+    approval_approve = approval_sub.add_parser("approve", help="Approve request")
+    approval_approve.add_argument("approval_id")
+
+    approval_deny = approval_sub.add_parser("deny", help="Deny request")
+    approval_deny.add_argument("approval_id")
+
+    # ==========================================
+    # 26. SKILL COMMANDS
+    # ==========================================
+    skill_p = subparsers.add_parser("skill", help="Plugin/skill management")
+    skill_sub = skill_p.add_subparsers(dest="skill_command")
+
+    skill_sub.add_parser("list", help="List installed skills")
+
+    skill_info = skill_sub.add_parser("info", help="Show skill details")
+    skill_info.add_argument("name")
+
+    skill_sub.add_parser("install", help="Install skill from registry")
+
     return parser
 
 
@@ -317,6 +421,18 @@ def dispatch_command(args: argparse.Namespace) -> None:
         _handle_cursor(args)
     elif cmd == "inception":
         _handle_inception(args)
+    elif cmd == "trace":
+        _handle_trace(args)
+    elif cmd == "session":
+        _handle_session(args)
+    elif cmd == "eval":
+        _handle_eval(args)
+    elif cmd == "cost":
+        _handle_cost(args)
+    elif cmd == "approval":
+        _handle_approval(args)
+    elif cmd == "skill":
+        _handle_skill(args)
     else:
         print(f"Unknown command: {cmd}")
 
@@ -433,6 +549,42 @@ def _handle_inception(args: argparse.Namespace) -> None:
     from .commands.inception import handle_inception_command
 
     handle_inception_command(args)
+
+
+def _handle_trace(args: argparse.Namespace) -> None:
+    from .commands.traces import handle_trace_command
+
+    handle_trace_command(args)
+
+
+def _handle_session(args: argparse.Namespace) -> None:
+    from .commands.sessions import handle_session_command
+
+    handle_session_command(args)
+
+
+def _handle_eval(args: argparse.Namespace) -> None:
+    from .commands.eval import handle_eval_command
+
+    handle_eval_command(args)
+
+
+def _handle_cost(args: argparse.Namespace) -> None:
+    from .commands.cost import handle_cost_command
+
+    handle_cost_command(args)
+
+
+def _handle_approval(args: argparse.Namespace) -> None:
+    from .commands.approvals import handle_approval_command
+
+    handle_approval_command(args)
+
+
+def _handle_skill(args: argparse.Namespace) -> None:
+    from .commands.skills import handle_skill_command
+
+    handle_skill_command(args)
 
 
 if __name__ == "__main__":
