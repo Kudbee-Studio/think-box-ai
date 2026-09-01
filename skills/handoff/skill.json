@@ -1,0 +1,14 @@
+{
+  "name": "handoff",
+  "version": "1.0.0",
+  "description": "Agent handoff skill — bootstrap new agents with full project context, current state, and next actions.",
+  "author": "Think Box AI",
+  "commands": {
+    "status": "Show current project state",
+    "bootstrap": "Full bootstrap for new agent",
+    "queue": "Show GPU queue status",
+    "memory": "Show memory system status",
+    "verify": "Run verification checks"
+  },
+  "entry_point": "skills/handoff/handoff.py"
+}

@@ -60,6 +60,13 @@ class SkillRegistry:
         indexer.register_command("health", self._cmd_indexer_health)
         self.skills["indexer"] = indexer
 
+        # Handoff skill
+        handoff = Skill("handoff", "Agent handoff bootstrap")
+        handoff.register_command("bootstrap", self._cmd_handoff_bootstrap)
+        handoff.register_command("status", self._cmd_handoff_status)
+        handoff.register_command("verify", self._cmd_handoff_verify)
+        self.skills["handoff"] = handoff
+
     def _cmd_doginals_search(self, query: str):
         return f"Searching Doginals for: {query}"
 
@@ -77,6 +84,21 @@ class SkillRegistry:
 
     def _cmd_indexer_health(self):
         return "Checking indexer health"
+
+    def _cmd_handoff_bootstrap(self):
+        import subprocess
+        result = subprocess.run(["python3", "skills/handoff/handoff.py", "bootstrap"], capture_output=True, text=True)
+        return result.stdout
+
+    def _cmd_handoff_status(self):
+        import subprocess
+        result = subprocess.run(["python3", "skills/handoff/handoff.py", "status"], capture_output=True, text=True)
+        return result.stdout
+
+    def _cmd_handoff_verify(self):
+        import subprocess
+        result = subprocess.run(["python3", "skills/handoff/handoff.py", "verify"], capture_output=True, text=True)
+        return result.stdout
 
     def install(self, name: str, source: str | Path):
         """Install a skill from a directory or git repo."""
