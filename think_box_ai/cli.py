@@ -261,108 +261,85 @@ def create_parser() -> argparse.ArgumentParser:
     inception_sub.add_parser("usage", help="Show usage stats")
 
     # ==========================================
-    # 21. TRACE COMMANDS
+    # 27. SOLANA WALLET COMMANDS
     # ==========================================
-    trace_p = subparsers.add_parser("trace", help="Observability traces")
-    trace_sub = trace_p.add_subparsers(dest="trace_command")
+    wallet_p = subparsers.add_parser("wallet", help="Solana wallet operations")
+    wallet_sub = wallet_p.add_subparsers(dest="wallet_command")
 
-    trace_list = trace_sub.add_parser("list", help="List traces")
-    trace_list.add_argument("--limit", type=int, default=50)
-    trace_list.add_argument("--status", choices=["running", "success", "error"])
+    wallet_create = wallet_sub.add_parser("create", help="Create new keypair")
+    wallet_create.add_argument("--output", help="Output file path")
 
-    trace_show = trace_sub.add_parser("show", help="Show trace details")
-    trace_show.add_argument("trace_id")
+    wallet_balance = wallet_sub.add_parser("balance", help="Check SOL balance")
+    wallet_balance.add_argument("--address", help="Wallet address")
 
-    trace_sub.add_parser("metrics", help="Show aggregate metrics")
+    wallet_airdrop = wallet_sub.add_parser("airdrop", help="Request SOL airdrop (devnet)")
+    wallet_airdrop.add_argument("--amount", type=float, default=1.0)
+    wallet_airdrop.add_argument("--address", help="Recipient address")
 
-    # ==========================================
-    # 22. SESSION COMMANDS
-    # ==========================================
-    session_p = subparsers.add_parser("session", help="Session management")
-    session_sub = session_p.add_subparsers(dest="session_command")
+    wallet_transfer = wallet_sub.add_parser("transfer", help="Send SOL")
+    wallet_transfer.add_argument("to", help="Recipient address")
+    wallet_transfer.add_argument("amount", type=float, help="Amount in SOL")
 
-    session_list = session_sub.add_parser("list", help="List sessions")
-    session_list.add_argument("--limit", type=int, default=20)
-    session_list.add_argument("--status", choices=["active", "archived"])
+    wallet_sub.add_parser("address", help="Show configured wallet address")
 
-    session_show = session_sub.add_parser("show", help="Show session details")
-    session_show.add_argument("session_id")
-
-    session_search = session_sub.add_parser("search", help="Search sessions")
-    session_search.add_argument("query")
-    session_search.add_argument("--limit", type=int, default=20)
-
-    session_create = session_sub.add_parser("create", help="Create session")
-    session_create.add_argument("--title", default="")
-
-    session_delete = session_sub.add_parser("delete", help="Delete session")
-    session_delete.add_argument("session_id")
+    wallet_p.add_argument("--network", default="devnet", choices=["mainnet", "devnet", "localnet"])
 
     # ==========================================
-    # 23. EVAL COMMANDS
+    # 28. SOLANA SWAP COMMANDS
     # ==========================================
-    eval_p = subparsers.add_parser("eval", help="Evaluation suite")
-    eval_sub = eval_p.add_subparsers(dest="eval_command")
+    swap_p = subparsers.add_parser("swap", help="Jupiter token swaps")
+    swap_sub = swap_p.add_subparsers(dest="swap_command")
 
-    eval_list = eval_sub.add_parser("list", help="List eval cases")
-    eval_list.add_argument("--tag", help="Filter by tag")
+    swap_quote = swap_sub.add_parser("quote", help="Get swap quote")
+    swap_quote.add_argument("input_mint", help="Input token mint")
+    swap_quote.add_argument("output_mint", help="Output token mint")
+    swap_quote.add_argument("amount", type=int, help="Amount in smallest units")
+    swap_quote.add_argument("--slippage", type=int, default=50, help="Slippage in bps")
 
-    eval_add = eval_sub.add_parser("add", help="Add eval case")
-    eval_add.add_argument("name")
-    eval_add.add_argument("goal")
-    eval_add.add_argument("--expected", help="Expected output")
-    eval_add.add_argument("--tools", help="Expected tools (comma-separated)")
-    eval_add.add_argument("--tag", help="Tags (comma-separated)")
-
-    eval_results = eval_sub.add_parser("results", help="Show eval results")
-    eval_results.add_argument("--case-id", help="Filter by case")
-    eval_results.add_argument("--limit", type=int, default=50)
-
-    eval_sub.add_parser("summary", help="Show eval summary")
+    swap_sub.add_parser("tokens", help="List tradeable tokens")
 
     # ==========================================
-    # 24. COST COMMANDS
+    # 29. SOLANA STAKING COMMANDS
     # ==========================================
-    cost_p = subparsers.add_parser("cost", help="Cost tracking")
-    cost_sub = cost_p.add_subparsers(dest="cost_command")
+    stake_p = subparsers.add_parser("stake", help="Staking vault operations")
+    stake_sub = stake_p.add_subparsers(dest="stake_command")
 
-    cost_estimate = cost_sub.add_parser("estimate", help="Estimate cost")
-    cost_estimate.add_argument("--model", default="gpt-4o-mini")
-    cost_estimate.add_argument("--text", help="Text to estimate")
-    cost_estimate.add_argument("--tokens-input", type=int, default=0)
-    cost_estimate.add_argument("--tokens-output", type=int, default=0)
+    stake_deposit = stake_sub.add_parser("deposit", help="Stake tokens")
+    stake_deposit.add_argument("mint", help="Token mint address")
+    stake_deposit.add_argument("amount", type=int, help="Amount to stake")
+    stake_deposit.add_argument("--lock-days", type=int, default=30)
+    stake_deposit.add_argument("--nft-boost", type=float, default=1.0)
 
-    cost_sub.add_parser("models", help="Show model pricing")
+    stake_unstake = stake_sub.add_parser("unstake", help="Unstake tokens")
+    stake_unstake.add_argument("mint", help="Token mint address")
+    stake_unstake.add_argument("amount", type=int)
 
-    cost_budget = cost_sub.add_parser("budget", help="Budget manager")
-    cost_budget.add_argument("--max-cost", type=float, default=10.0)
-
-    # ==========================================
-    # 25. APPROVAL COMMANDS
-    # ==========================================
-    approval_p = subparsers.add_parser("approval", help="Human-in-the-loop")
-    approval_sub = approval_p.add_subparsers(dest="approval_command")
-
-    approval_sub.add_parser("pending", help="List pending approvals")
-
-    approval_approve = approval_sub.add_parser("approve", help="Approve request")
-    approval_approve.add_argument("approval_id")
-
-    approval_deny = approval_sub.add_parser("deny", help="Deny request")
-    approval_deny.add_argument("approval_id")
+    stake_rewards = stake_sub.add_parser("rewards", help="Claim staking rewards")
+    stake_rewards.add_argument("mint", help="Token mint address")
 
     # ==========================================
-    # 26. SKILL COMMANDS
+    # 30. SOLANA SCANNER COMMANDS
     # ==========================================
-    skill_p = subparsers.add_parser("skill", help="Plugin/skill management")
-    skill_sub = skill_p.add_subparsers(dest="skill_command")
+    scan_p = subparsers.add_parser("scan", help="Token safety scanner")
+    scan_p.add_argument("mint", help="Token mint address to scan")
 
-    skill_sub.add_parser("list", help="List installed skills")
+    # ==========================================
+    # 31. BONDING CURVE COMMANDS
+    # ==========================================
+    bonding_p = subparsers.add_parser("bonding", help="Bonding curve calculations")
+    bonding_sub = bonding_p.add_subparsers(dest="bonding_command")
 
-    skill_info = skill_sub.add_parser("info", help="Show skill details")
-    skill_info.add_argument("name")
+    bonding_price = bonding_sub.add_parser("price", help="Get current price")
+    bonding_price.add_argument("supply", type=int, help="Current token supply")
 
-    skill_sub.add_parser("install", help="Install skill from registry")
+    bonding_cost = bonding_sub.add_parser("cost", help="Calculate buy cost")
+    bonding_cost.add_argument("supply", type=int)
+    bonding_cost.add_argument("amount", type=int, help="Tokens to buy")
+
+    bonding_mc = bonding_sub.add_parser("market-cap", help="Get market cap")
+    bonding_mc.add_argument("supply", type=int)
+
+    bonding_p.add_argument("--curve-type", default="linear", choices=["linear", "exponential"])
 
     return parser
 
@@ -421,18 +398,16 @@ def dispatch_command(args: argparse.Namespace) -> None:
         _handle_cursor(args)
     elif cmd == "inception":
         _handle_inception(args)
-    elif cmd == "trace":
-        _handle_trace(args)
-    elif cmd == "session":
-        _handle_session(args)
-    elif cmd == "eval":
-        _handle_eval(args)
-    elif cmd == "cost":
-        _handle_cost(args)
-    elif cmd == "approval":
-        _handle_approval(args)
-    elif cmd == "skill":
-        _handle_skill(args)
+    elif cmd == "wallet":
+        _handle_solana_wallet(args)
+    elif cmd == "swap":
+        _handle_swap(args)
+    elif cmd == "stake":
+        _handle_stake(args)
+    elif cmd == "scan":
+        _handle_scan(args)
+    elif cmd == "bonding":
+        _handle_bonding(args)
     else:
         print(f"Unknown command: {cmd}")
 
@@ -551,40 +526,34 @@ def _handle_inception(args: argparse.Namespace) -> None:
     handle_inception_command(args)
 
 
-def _handle_trace(args: argparse.Namespace) -> None:
-    from .commands.traces import handle_trace_command
+def _handle_solana_wallet(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_wallet_command
 
-    handle_trace_command(args)
-
-
-def _handle_session(args: argparse.Namespace) -> None:
-    from .commands.sessions import handle_session_command
-
-    handle_session_command(args)
+    handle_wallet_command(args)
 
 
-def _handle_eval(args: argparse.Namespace) -> None:
-    from .commands.eval import handle_eval_command
+def _handle_swap(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_swap_command
 
-    handle_eval_command(args)
-
-
-def _handle_cost(args: argparse.Namespace) -> None:
-    from .commands.cost import handle_cost_command
-
-    handle_cost_command(args)
+    handle_swap_command(args)
 
 
-def _handle_approval(args: argparse.Namespace) -> None:
-    from .commands.approvals import handle_approval_command
+def _handle_stake(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_stake_command
 
-    handle_approval_command(args)
+    handle_stake_command(args)
 
 
-def _handle_skill(args: argparse.Namespace) -> None:
-    from .commands.skills import handle_skill_command
+def _handle_scan(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_scan_command
 
-    handle_skill_command(args)
+    handle_scan_command(args)
+
+
+def _handle_bonding(args: argparse.Namespace) -> None:
+    from .commands.solana import handle_bonding_command
+
+    handle_bonding_command(args)
 
 
 if __name__ == "__main__":
