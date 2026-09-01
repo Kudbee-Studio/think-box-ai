@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Page Not Found | Think Box AI</title>
+  <meta name="description" content="The page you're looking for doesn't exist. Explore Doginals marketplace instead.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../inscribe/">Inscribe</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+      <div class="container text-center">
+        <div style="font-size: 8rem; margin-bottom: var(--space-4);">🐾</div>
+        <h1 style="font-size: var(--text-5xl); margin-bottom: var(--space-4);">404</h1>
+        <p style="font-size: var(--text-xl); color: var(--color-text-secondary); margin-bottom: var(--space-8);">This page went walkies.</p>
+        <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+          <a href="../" class="btn btn-primary btn-lg">Go Home</a>
+          <a href="../collections/" class="btn btn-secondary btn-lg">Browse Collections</a>
+        </div>
+        <div style="margin-top: var(--space-12); padding: var(--space-6); background: var(--color-bg-card); border-radius: var(--radius-xl); max-width: 500px; margin-left: auto; margin-right: auto;">
+          <p class="text-muted">Looking for something specific?</p>
+          <input type="text" id="lostSearch" placeholder="Search..." class="search-input" style="margin-top: var(--space-3);" onkeypress="if(event.key==='Enter')searchLost()">
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — 404</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../tokens/">DRC-20</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script>
+    function searchLost() {
+      const q = document.getElementById('lostSearch').value;
+      if (q) window.location.href = '../collections/?q=' + encodeURIComponent(q);
+    }
+  </script>
+</body>
+</html>

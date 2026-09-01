@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog — Think Box AI</title>
+  <meta name="description" content="Learn about Doginals, DRC-20 tokens, crypto security, and inscription technology. Guides, analysis, and educational content.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://thinkboxai.xyz/blog/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../security/">Security</a></li>
+        <li><a href="../blog/" style="color: var(--color-text-accent);">Blog</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../security/" onclick="toggleMobileMenu()">Security</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Blog & Guides</h1>
+          <p>Learn about Doginals, security, and inscription technology</p>
+        </div>
+
+        <div class="features-grid">
+          <article class="card">
+            <span class="badge badge-researcher">Guide</span>
+            <h3 style="margin-top: var(--space-3);">What Are Doginals?</h3>
+            <p>The complete guide to Dogecoin inscriptions. How they work, why they matter, and how to get started.</p>
+            <a href="../blog/what-are-doginals/" class="btn btn-ghost" style="margin-top: var(--space-4);">Read More →</a>
+          </article>
+          <article class="card">
+            <span class="badge badge-researcher">Security</span>
+            <h3 style="margin-top: var(--space-3);">How to Spot a Wallet Drainer</h3>
+            <p>7 red flags every crypto user should know. Protect your wallet from drain attacks.</p>
+            <a href="../security/" class="btn btn-ghost" style="margin-top: var(--space-4);">Read More →</a>
+          </article>
+          <article class="card">
+            <span class="badge badge-researcher">Analysis</span>
+            <h3 style="margin-top: var(--space-3);">DRC-20 vs BRC-20</h3>
+            <p>Comparing token standards on Dogecoin vs Bitcoin. Which is better and why.</p>
+            <a href="../blog/drc20-vs-brc20/" class="btn btn-ghost" style="margin-top: var(--space-4);">Read More →</a>
+          </article>
+          <article class="card">
+            <span class="badge badge-researcher">Guide</span>
+            <h3 style="margin-top: var(--space-3);">How to Inscribe on Dogecoin</h3>
+            <p>Step-by-step guide to creating your first inscription. Tools, fees, and best practices.</p>
+            <a href="../inscribe/" class="btn btn-ghost" style="margin-top: var(--space-4);">Read More →</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Learn. Trade. Stay Safe.</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../security/">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

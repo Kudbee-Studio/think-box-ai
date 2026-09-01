@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How It Works — Think Box AI</title>
+  <meta name="description" content="Learn how Think Box AI works. Doginals marketplace, provenance tracking, risk scoring, and inscription service.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://thinkboxai.xyz/about/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,66 +14,147 @@
   <link rel="stylesheet" href="../assets/css/components.css">
   <link rel="stylesheet" href="../assets/css/animations.css">
   <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
 </head>
 <body>
 
-  <nav class="nav">
+  <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="container nav-inner">
       <a href="/" class="nav-logo">
         <div class="nav-logo-icon">TB</div>
         <span>Think Box</span>
       </a>
       <ul class="nav-links">
-        <li><a href="../#features">Features</a></li>
-        <li><a href="../#jobs">Jobs</a></li>
-        <li><a href="../#verdicts">Verdicts</a></li>
-        <li><a href="../jobs/">Browse</a></li>
-        <li><a href="../findings/">Findings</a></li>
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../security/">Security</a></li>
       </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
     </div>
   </nav>
 
-  <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-12));">
-    <div class="container">
-      <div class="section-header">
-        <h1>How Think Box Works</h1>
-        <p>Intent → Hat → Box → Tools → Artifacts → Verdict</p>
-      </div>
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../security/" onclick="toggleMobileMenu()">Security</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
 
-      <div class="card" style="margin-bottom: var(--space-8);">
-        <h2 style="margin-bottom: var(--space-4);">The North-Star Loop</h2>
-        <p>Think Box AI runs narrow research jobs against live public APIs, persists findings to an immutable proof file, and delivers a verdict. Every step is transparent and auditable.</p>
-      </div>
+  <main id="main">
 
-      <div class="features-grid">
-        <div class="card">
-          <h3>Intent</h3>
-          <p>Define the research question. What claim are you testing? What sources will you query?</p>
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>How Think Box <span class="gradient-text">Works</span></h1>
+          <p>Intent → Hat → Box → Tools → Artifacts → Verdict</p>
         </div>
-        <div class="card">
-          <h3>Researcher Hat</h3>
-          <p>The first hat. Queries live public indexers, compares responses, records disagreement.</p>
+
+        <!-- Architecture Diagram -->
+        <div class="card card-elevated" style="margin-bottom: var(--space-12); text-align: center;">
+          <h2 style="margin-bottom: var(--space-6);">The North-Star Loop</h2>
+          <div style="display: flex; justify-content: center; align-items: center; gap: var(--space-4); flex-wrap: wrap;">
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">💡</div>
+              <p style="font-weight: var(--font-semibold);">Intent</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Define the goal</p>
+            </div>
+            <span style="font-size: var(--text-2xl);">→</span>
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🎩</div>
+              <p style="font-weight: var(--font-semibold);">Hat</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Pick a role</p>
+            </div>
+            <span style="font-size: var(--text-2xl);">→</span>
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">📦</div>
+              <p style="font-weight: var(--font-semibold);">Box</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Run on a provider</p>
+            </div>
+            <span style="font-size: var(--text-2xl);">→</span>
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">🔧</div>
+              <p style="font-weight: var(--font-semibold);">Tools</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Execute work</p>
+            </div>
+            <span style="font-size: var(--text-2xl);">→</span>
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">📄</div>
+              <p style="font-weight: var(--font-semibold);">Artifacts</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Save proof</p>
+            </div>
+            <span style="font-size: var(--text-2xl);">→</span>
+            <div class="card" style="min-width: 120px;">
+              <div style="font-size: var(--text-3xl); margin-bottom: var(--space-2);">⚖️</div>
+              <p style="font-weight: var(--font-semibold);">Verdict</p>
+              <p class="text-muted" style="font-size: var(--text-xs);">Get outcome</p>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <h3>Proof File</h3>
-          <p>Every job produces a human-readable finding with raw evidence. No marketing spin.</p>
+
+        <!-- Features -->
+        <h2 style="margin-bottom: var(--space-6);">Core Features</h2>
+        <div class="features-grid" style="margin-bottom: var(--space-12);">
+          <div class="card">
+            <h3>Collections Browser</h3>
+            <p>Browse all Doginals collections with floor prices, volume, and listing counts. Sort and filter to find opportunities.</p>
+          </div>
+          <div class="card">
+            <h3>DRC-20 Token Market</h3>
+            <p>Track token prices, market cap, and trading volume. Real-time data with 24h change indicators.</p>
+          </div>
+          <div class="card">
+            <h3>Provenance Tracking</h3>
+            <p>Every inscription has a full history. See where it's been, what exchanges touched it, and any flags.</p>
+          </div>
+          <div class="card">
+            <h3>Risk Scoring</h3>
+            <p>A+ to F confidence ratings. Like meme coin vetting. Know if an inscription is safe before you buy.</p>
+          </div>
+          <div class="card">
+            <h3>Inscription Service</h3>
+            <p>Inscribe directly with us. Low 2% fee. Bulk minting support. Full provenance tracking included.</p>
+          </div>
+          <div class="card">
+            <h3>Security Education</h3>
+            <p>Learn how wallet drainers work. Protect yourself and your community from crypto scams.</p>
+          </div>
         </div>
-        <div class="card">
-          <h3>Verdict</h3>
-          <p>Succeeded, failed, unproven, or blocked. Never overstated. Never hidden.</p>
+
+        <!-- Verdict System -->
+        <h2 style="margin-bottom: var(--space-6);">Verdict System</h2>
+        <div class="card" style="margin-bottom: var(--space-12);">
+          <p style="margin-bottom: var(--space-4);">Every Think Job produces a verdict. No marketing spin. No overclaiming.</p>
+          <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px; padding: var(--space-4); background: var(--color-success-subtle); border-radius: var(--radius-md);">
+              <span class="badge badge-success">succeeded</span>
+              <p style="margin-top: var(--space-2);">Proof complete. Claim verified.</p>
+            </div>
+            <div style="flex: 1; min-width: 200px; padding: var(--space-4); background: var(--color-warning-subtle); border-radius: var(--radius-md);">
+              <span class="badge badge-unproven">unproven</span>
+              <p style="margin-top: var(--space-2);">APIs insufficient. Can't verify or deny.</p>
+            </div>
+            <div style="flex: 1; min-width: 200px; padding: var(--space-4); background: var(--color-danger-subtle); border-radius: var(--radius-md);">
+              <span class="badge badge-blocked">blocked</span>
+              <p style="margin-top: var(--space-2);">Needs human action or GPU.</p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+  </main>
 
   <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
     <div class="container">
       <div class="footer-inner">
-        <p class="text-muted">Think Box AI — Turn intent into proof.</p>
+        <p class="text-muted">Think Box AI — Know your inscriptions.</p>
         <div class="footer-links">
           <a href="../">Home</a>
-          <a href="../jobs/">Jobs</a>
-          <a href="../findings/">Findings</a>
+          <a href="../collections/">Collections</a>
+          <a href="../security/">Security</a>
         </div>
       </div>
     </div>
