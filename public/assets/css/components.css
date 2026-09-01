@@ -1350,6 +1350,25 @@ textarea.form-input {
 .yield-stat-label { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
 .yield-stat-value { font-size: var(--text-2xl); font-weight: var(--font-bold); }
 
+/* Referral */
+.referral-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+.ref-stat-card { padding: var(--space-6); text-align: center; }
+.ref-stat-value { font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-1); }
+.ref-stat-label { font-size: var(--text-sm); color: var(--color-text-secondary); }
+
+.referral-link-card { padding: var(--space-8); max-width: 600px; margin: 0 auto; }
+.referral-link-row { display: flex; gap: var(--space-3); }
+.referral-link-input { flex: 1; padding: var(--space-3) var(--space-4); background: var(--color-bg-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); font-family: var(--font-mono); font-size: var(--text-sm); }
+
+.how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.how-card { padding: var(--space-6); text-align: center; }
+.how-step { width: 40px; height: 40px; border-radius: 50%; background: var(--color-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: var(--font-bold); margin: 0 auto var(--space-4); }
+
+@media (max-width: 1024px) {
+  .referral-stats { grid-template-columns: 1fr 1fr; }
+  .how-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1024px) {
   .defi-grid { grid-template-columns: 1fr 1fr; }
   .predictions-grid { grid-template-columns: 1fr; }
