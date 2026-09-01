@@ -401,3 +401,18 @@ CREATE TABLE memory_entries (
 | Repos | think-box-ai (clean branch), inception_lightning-v1 |
 
 **Note:** Box was cloned with wrong repo (inception_lightning-v1). think-box-ai was pulled separately.
+
+### 15.6 Built-in Skills
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| handoff | `python3 skills/handoff/handoff.py bootstrap` | Full agent bootstrap |
+| handoff | `python3 skills/handoff/handoff.py status` | Quick status |
+| handoff | `python3 skills/handoff/handoff.py verify` | Run verification checks |
+| handoff | `python3 skills/handoff/handoff.py queue` | GPU queue status |
+| handoff | `python3 skills/handoff/handoff.py memory` | Memory system status |
+| doginals | `thinkbox skill doginals search/verify` | Doginals research |
+| security | `thinkbox skill security audit/scan` | Security analysis |
+| indexer | `thinkbox skill indexer compare/health` | Indexer comparison |
+
+**Next agent:** Run `python3 skills/handoff/handoff.py bootstrap` first.
