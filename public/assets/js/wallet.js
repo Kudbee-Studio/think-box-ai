@@ -1,7 +1,3 @@
-/**
- * Think Box AI — Wallet Page JavaScript
- */
-
 document.addEventListener('DOMContentLoaded', () => {
   initWalletPage();
 });

@@ -1,6 +1,7 @@
 """THINK BOX AI — Unified Backend (FastAPI + WebSocket + SSE).
 
-Production-grade security with authentication, rate limiting, CORS, and input validation.
+Production-grade security with authentication, rate limiting, CORS,
+input validation, request timeouts, and graceful shutdown.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -19,7 +21,7 @@ from core.foundation.bootstrap import bootstrap, RuntimeContext
 from core.foundation.logging import get_logger
 from core.runtime.loop import AgentLoop
 
-from backend.security import setup_security
+from backend.security import setup_security, validate_ws_token, get_api_keys
 from backend.validation import validate_goal, validate_iterations
 from backend.audit_storage import record_audit
 
@@ -31,6 +33,9 @@ setup_security(app)
 
 ctx: RuntimeContext | None = None
 sessions: dict[str, dict[str, Any]] = {}
+shutdown_event = asyncio.Event()
+MAX_SESSIONS = 1000
+REQUEST_TIMEOUT = 30
 
 
 @app.on_event("startup")
@@ -48,6 +53,21 @@ async def startup() -> None:
     record_audit("system_startup", "system", "success", {
         "provider": ctx.provider.__class__.__name__ if ctx.provider else None,
     })
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    logger.info("Shutting down Think Box AI...")
+    shutdown_event.set()
+
+    active_sessions = list(sessions.keys())
+    for session_id in active_sessions:
+        sessions.pop(session_id, None)
+
+    record_audit("system_shutdown", "system", "success", {
+        "sessions_closed": len(active_sessions),
+    })
+    logger.info("Shutdown complete")
 
 
 @app.get("/health")
@@ -95,7 +115,11 @@ async def run_goal(request: dict[str, Any]) -> dict[str, Any]:
         max_iterations=max_iterations,
     )
 
-    result = await loop.run(goal)
+    try:
+        result = await asyncio.wait_for(loop.run(goal), timeout=REQUEST_TIMEOUT)
+    except asyncio.TimeoutError:
+        record_audit("run_goal", "api", "timeout", {"goal": goal[:100]})
+        return {"success": False, "error": f"Request timed out after {REQUEST_TIMEOUT}s"}
 
     record_audit("run_goal", "api", "completed", {
         "goal": goal[:100],
@@ -144,6 +168,18 @@ async def stream_goal(goal: str, model: str = "ollama") -> StreamingResponse:
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
+    valid_keys = get_api_keys()
+    query_params = dict(ws.query_params)
+    headers_key = ws.headers.get("x-api-key", "")
+
+    if not validate_ws_token(query_params, {headers_key: headers_key} if headers_key else {}, valid_keys):
+        await ws.close(code=4001, reason="Unauthorized")
+        return
+
+    if len(sessions) >= MAX_SESSIONS:
+        await ws.close(code=4002, reason="Server at capacity")
+        return
+
     await ws.accept()
     session_id = str(uuid.uuid4())
     sessions[session_id] = {
@@ -163,9 +199,18 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     })
 
     try:
-        while True:
+        while not shutdown_event.is_set():
             raw = await ws.receive_text()
-            msg = json.loads(raw)
+            if len(raw) > 1_048_576:
+                await ws.send_json({"type": "error", "data": "Message too large"})
+                continue
+
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await ws.send_json({"type": "error", "data": "Invalid JSON"})
+                continue
+
             msg_type = msg.get("type")
 
             if msg_type == "run_goal":
@@ -190,7 +235,12 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     tool_registry=ctx.tool_registry,
                 )
 
-                result = await loop.run(goal)
+                try:
+                    result = await asyncio.wait_for(loop.run(goal), timeout=REQUEST_TIMEOUT)
+                except asyncio.TimeoutError:
+                    await ws.send_json({"type": "error", "data": f"Timeout after {REQUEST_TIMEOUT}s"})
+                    sessions[session_id]["status"] = "idle"
+                    continue
 
                 await ws.send_json({"type": "result", "data": result})
                 sessions[session_id]["status"] = "idle"
@@ -217,7 +267,9 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 @app.get("/audit")
 async def get_audit_log(limit: int = 100) -> dict[str, Any]:
     from backend.audit_storage import list_audits
-    return {"entries": list_audits(limit=limit), "count": len(list_audits(limit=limit))}
+    safe_limit = min(max(limit, 1), 1000)
+    entries = list_audits(limit=safe_limit)
+    return {"entries": entries, "count": len(entries)}
 
 
 if __name__ == "__main__":

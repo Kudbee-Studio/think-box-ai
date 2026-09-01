@@ -1,10 +1,15 @@
-"""Security middleware for Think Box AI backend."""
+"""Security middleware for Think Box AI backend.
+
+Production-grade security with strict authentication, rate limiting,
+CORS enforcement, and WebSocket authentication.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import hmac
 import os
+import sys
 import time
 from collections import defaultdict
 from typing import Any
@@ -12,6 +17,8 @@ from typing import Any
 from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
+DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
 
 ALLOWED_ORIGINS = os.environ.get(
     "THINKBOX_ALLOWED_ORIGINS",
@@ -22,6 +29,7 @@ API_KEY_HEADER = "X-API-Key"
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("THINKBOX_RATE_LIMIT", "100"))
 MAX_REQUEST_BODY_SIZE = 1_048_576
+WS_MAX_MESSAGE_SIZE = 1_048_576
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -62,7 +70,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if self._is_exempt(request.url.path):
             return await call_next(request)
 
-        if self._api_keys and not self._validate_key(request):
+        if not self._validate_key(request):
             return Response(
                 content='{"error": "Unauthorized", "message": "Valid API key required"}',
                 status_code=401,
@@ -138,8 +146,38 @@ def get_api_keys() -> set[str]:
     keys_env = os.environ.get("THINKBOX_API_KEYS", "")
     if not keys_env:
         default_key = os.environ.get("THINKBOX_API_KEY", "")
-        return {default_key} if default_key else set()
-    return set(k.strip() for k in keys_env.split(",") if k.strip())
+        if default_key and default_key not in DEFAULT_API_KEYS:
+            return {default_key}
+        return set()
+    keys = set(k.strip() for k in keys_env.split(",") if k.strip())
+    return {k for k in keys if k not in DEFAULT_API_KEYS}
+
+
+def validate_api_keys_or_exit() -> set[str]:
+    keys = get_api_keys()
+    if not keys:
+        print(
+            "FATAL: THINKBOX_API_KEY or THINKBOX_API_KEYS environment variable must be set.\n"
+            "Generate a secure key: python3 -c \"import secrets; print('tb_' + secrets.token_urlsafe(32))\"\n"
+            "Set it with: export THINKBOX_API_KEY=your_key_here",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return keys
+
+
+def validate_ws_token(query_params: dict[str, str], headers: dict[str, str], valid_keys: set[str]) -> bool:
+    token = headers.get(API_KEY_HEADER, "")
+    if not token:
+        token = query_params.get("token", "")
+    if not token:
+        token = query_params.get("api_key", "")
+    if not token:
+        return False
+    for valid_key in valid_keys:
+        if hmac.compare_digest(token, valid_key):
+            return True
+    return False
 
 
 def setup_cors(app: Any) -> None:
@@ -154,7 +192,7 @@ def setup_cors(app: Any) -> None:
 
 
 def setup_security(app: Any) -> None:
-    api_keys = get_api_keys()
+    api_keys = validate_api_keys_or_exit()
     setup_cors(app)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(AuthenticationMiddleware, api_keys=api_keys)
