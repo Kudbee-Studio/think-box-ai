@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What Are Doginals? The Complete Guide — Think Box AI</title>
+  <meta name="description" content="Learn everything about Doginals — Dogecoin inscriptions. How they work, how to buy, and why they matter. The complete guide.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://thinkboxai.xyz/blog/what-are-doginals/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/design-system.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
+  <link rel="stylesheet" href="../../assets/css/animations.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <link rel="stylesheet" href="../../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../../collections/">Collections</a></li>
+        <li><a href="../../tokens/">DRC-20</a></li>
+        <li><a href="../../security/">Security</a></li>
+        <li><a href="../../blog/">Blog</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../../security/" onclick="toggleMobileMenu()">Security</a></li>
+      <li><a href="../../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <article class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container" style="max-width: 700px;">
+        <div style="margin-bottom: var(--space-6);">
+          <a href="../../blog/" class="btn btn-ghost">← Back to Blog</a>
+        </div>
+
+        <h1>What Are Doginals? The Complete Guide</h1>
+        <p class="text-muted" style="margin-top: var(--space-2);">Published: 2026-09-01 | Reading time: 5 min</p>
+
+        <div class="divider"></div>
+
+        <h2>Introduction</h2>
+        <p>Doginals are digital inscriptions on the Dogecoin blockchain. Think of them like NFTs, but better — the data is baked directly onto the blockchain, not stored on third-party servers. This makes them truly permanent and censorship-resistant.</p>
+
+        <h2>How Doginals Work</h2>
+        <p>Each Doginal is created by inscribing data (images, text, or any file) onto a Dogecoin transaction. The inscription follows a specific protocol:</p>
+        <div class="code-block">
+<pre>"ord"
+OP_1
+"text/plain; charset=utf8"
+OP_0
+"Woof!"</pre>
+        </div>
+        <p>This data lives on the Dogecoin blockchain forever. No IPFS, no Arweave, no third-party hosting. Just pure on-chain data.</p>
+
+        <h2>Why Doginals Matter</h2>
+        <ul>
+          <li><strong>True ownership</strong> — Your inscription is on-chain, not on someone else's server</li>
+          <li><strong>Censorship-resistant</strong> — No one can take it down or alter it</li>
+          <li><strong>Permanent</strong> — As long as Dogecoin exists, your inscription exists</li>
+          <li><strong>Self-custody</strong> — Hold it in your own wallet, no middlemen</li>
+        </ul>
+
+        <h2>How to Buy Doginals</h2>
+        <ol>
+          <li>Get a Doginals-compatible wallet (Woof Wallet, Unisat)</li>
+          <li>Fund it with DOGE</li>
+          <li>Browse collections on Think Box AI</li>
+          <li>Click Buy and confirm the transaction</li>
+        </ol>
+
+        <h2>Popular Collections</h2>
+        <p>The most popular Doginal collections include Doginal Dogs (10,000 pixel dogs), Doge Maps (virtual real estate), and DRC-20 tokens (fungible tokens on Dogecoin).</p>
+
+        <h2>DRC-20 Tokens</h2>
+        <p>DRC-20 is a token standard for Dogecoin. Unlike inscriptions (which are unique), DRC-20 tokens are fungible — like ERC-20 on Ethereum. Popular DRC-20 tokens include DOGI, DBIT, and DHUB.</p>
+
+        <h2>Security Tips</h2>
+        <p>Always verify the inscription ID before buying. Check the provenance history. And never share your seed phrase with anyone.</p>
+
+        <div class="divider"></div>
+
+        <div style="text-align: center;">
+          <a href="../../collections/" class="btn btn-primary">Explore Collections</a>
+        </div>
+      </div>
+    </article>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Learn. Trade. Stay Safe.</p>
+        <div class="footer-links">
+          <a href="../../">Home</a>
+          <a href="../../collections/">Collections</a>
+          <a href="../../security/">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../../assets/js/main.js"></script>
+</body>
+</html>

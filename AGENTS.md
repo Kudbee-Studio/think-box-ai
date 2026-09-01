@@ -314,4 +314,50 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
-</content>
+---
+
+## 15. Operational Best Practices
+
+Read `BEST_PRACTICES.md` before starting work. Key rules:
+
+1. **Branch:** Always work on your session branch. Never commit to main.
+2. **Security:** Never commit secrets. Scan before push.
+3. **Docs:** Update STATUS.md, MEMORY.md, SESSION.md after every change.
+4. **Handoff:** Leave the next agent better informed than you found them.
+
+### 15.1 First Things to Read
+
+When starting a new session, read in this order:
+1. `MISSION.md` — what we are
+2. `STATUS.md` — current state
+3. `MEMORY.md` — durable facts
+4. `SESSION.md` — last commit, next owner
+5. `WORK_QUEUE.md` — what's pending
+6. `BEST_PRACTICES.md` — how to operate
+
+### 15.2 Indexing System
+
+All project knowledge is indexed across these files:
+
+| File | Purpose | Update When |
+|------|---------|-------------|
+| STATUS.md | Tools, jobs, verdicts, blocked | After every change |
+| MEMORY.md | Durable facts, infrastructure | New facts discovered |
+| SESSION.md | Session ID, commit, phase | Every session |
+| WORK_QUEUE.md | Active/in-progress/backlog | After every item |
+| GAME_PLAN_*.md | Phase plans | New phase |
+| docs/AGENT_HANDOFF.md | Next owner guide | Before stopping |
+| BEST_PRACTICES.md | Operational rules | When rules change |
+
+### 15.3 Next Agent Handoff
+
+Before stopping, ensure:
+- All changes committed and pushed
+- All index files updated
+- WORK_QUEUE.md reflects current state
+- SESSION.md has last commit hash
+- No secrets in git history
+- Tests pass
+- Next owner knows exactly where to pick up
+
+**Your goal:** Prepare the next agent to be even better off and better informed than you were.

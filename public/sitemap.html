@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sitemap — Think Box AI</title>
+  <meta name="description" content="Complete sitemap of Think Box AI. Find any page on our site.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/pages.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+</head>
+<body>
+
+  <nav class="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">TB</div>
+        <span>Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../collections/">Collections</a></li>
+        <li><a href="../tokens/">DRC-20</a></li>
+        <li><a href="../activity/">Activity</a></li>
+        <li><a href="../security/">Security</a></li>
+      </ul>
+      <button class="nav-toggle" aria-label="Toggle menu" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <div class="nav-mobile-menu" id="mobileMenu">
+    <ul>
+      <li><a href="../collections/" onclick="toggleMobileMenu()">Collections</a></li>
+      <li><a href="../tokens/" onclick="toggleMobileMenu()">DRC-20</a></li>
+      <li><a href="../activity/" onclick="toggleMobileMenu()">Activity</a></li>
+      <li><a href="../" onclick="toggleMobileMenu()">Home</a></li>
+    </ul>
+  </div>
+
+  <main id="main">
+
+    <section class="section-sm" style="padding-top: calc(var(--nav-height) + var(--space-8));">
+      <div class="container">
+        <div class="section-header">
+          <h1>Sitemap</h1>
+          <p>Complete list of all pages on Think Box AI</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="card">
+            <h3>Marketplace</h3>
+            <ul style="list-style: none; margin-top: var(--space-3);">
+              <li style="margin-bottom: var(--space-2);"><a href="../">Home</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../collections/">Collections</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../tokens/">DRC-20 Tokens</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../activity/">Activity</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../search/">Search</a></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Tools</h3>
+            <ul style="list-style: none; margin-top: var(--space-3);">
+              <li style="margin-bottom: var(--space-2);"><a href="../inscribe/">Inscribe</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../wallet/">Wallet</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../tracker/">Tracker</a></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Learn</h3>
+            <ul style="list-style: none; margin-top: var(--space-3);">
+              <li style="margin-bottom: var(--space-2);"><a href="../security/">Security Education</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../about/">How It Works</a></li>
+              <li style="margin-bottom: var(--space-2);"><a href="../blog/">Blog</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="section-sm" style="border-top: 1px solid var(--color-border-subtle);">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="text-muted">Think Box AI — Sitemap</p>
+        <div class="footer-links">
+          <a href="../">Home</a>
+          <a href="../collections/">Collections</a>
+          <a href="../sitemap.html">Sitemap</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
