@@ -364,4 +364,40 @@ Before stopping, ensure:
 - Tests pass
 - Next owner knows exactly where to pick up
 
-**Your goal:** Prepare the next agent to be even better off and better informed than you were.
+### 15.4 Agents Memory System
+
+The box `wanted-tuna-71803` has a SQLite memory database at `/workspace/home/thinkbox_memory.db`.
+
+**Schema:**
+```sql
+CREATE TABLE memory_entries (
+    key TEXT PRIMARY KEY,
+    layer TEXT NOT NULL,        -- session / task / organizational / verified
+    entry_type TEXT NOT NULL,   -- tool_result / decision / correction / fact
+    value TEXT NOT NULL,
+    agent_id TEXT DEFAULT '',
+    task_id TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    metadata TEXT DEFAULT '{}',
+    confidence REAL DEFAULT 1.0
+);
+```
+
+**Usage:** Store durable project facts, decisions, corrections. Search by key or layer.
+
+**Benchmark results (100 entries):**
+- Write: 16ms
+- Read by key: 0.3ms
+
+### 15.5 Upstash Box Findings
+
+| Resource | Value |
+|----------|-------|
+| Box ID | wanted-tuna-71803 |
+| Status | idle |
+| Memory DB | thinkbox_memory.db (populated with 3+ entries) |
+| MCP | GitHub (with token), chrome-devtools |
+| Skills | vercel-react-best-practices, skill-creator |
+| Repos | think-box-ai (clean branch), inception_lightning-v1 |
+
+**Note:** Box was cloned with wrong repo (inception_lightning-v1). think-box-ai was pulled separately.
