@@ -1364,6 +1364,24 @@ textarea.form-input {
 .how-card { padding: var(--space-6); text-align: center; }
 .how-step { width: 40px; height: 40px; border-radius: 50%; background: var(--color-accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: var(--font-bold); margin: 0 auto var(--space-4); }
 
+/* Liquidity Pools */
+.pools-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.pool-position { padding: var(--space-6); }
+.pool-pair { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.pair-token { font-weight: var(--font-semibold); }
+.pair-separator { color: var(--color-text-tertiary); }
+.pair-dex { margin-left: auto; padding: var(--space-1) var(--space-3); background: var(--color-accent-subtle); color: var(--color-accent); border-radius: var(--radius-full); font-size: var(--text-xs); }
+.pool-position-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+.pool-stat { text-align: center; }
+.pool-stat-label { display: block; font-size: var(--text-xs); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+.pool-stat-value { font-weight: var(--font-semibold); }
+.pool-stat-value.positive { color: var(--color-success); }
+.pool-create-form { padding: var(--space-8); max-width: 700px; margin: 0 auto; }
+
+@media (max-width: 1024px) {
+  .pool-position-stats { grid-template-columns: 1fr 1fr; }
+}
+
 @media (max-width: 1024px) {
   .referral-stats { grid-template-columns: 1fr 1fr; }
   .how-grid { grid-template-columns: 1fr; }
