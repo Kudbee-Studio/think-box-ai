@@ -68,6 +68,17 @@ Layers are **strictly ordered**. A layer may only depend on layers beneath it.
 └─────────────────────────────────────────────────────┘
 ```
 
+### Phase 9 Additions (Layer 4)
+
+Phase 9 adds the following modules to `thinkbox/`:
+
+- `coalition.py` — Multi-agent coordination protocols (CRDT memory, task market, governance voting)
+- `consensus.py` — Cross-model consensus and confidence scoring (voting, Bayesian scoring, disagreement resolution)
+- `economy.py` — Agent token economy (contribution mining, staking, slash conditions, treasury governance)
+- `intelligence.py` — Knowledge graph, self-healing, reputation, federated learning, post-quantum security
+- `benchmark.py` — High-throughput concurrency scaling sweeps (16–512 workers), system metrics, markdown reports
+- `session.py` — Session tracking with Upstash Vector sync
+
 **Dependency rule:** Layer N may only import from layers 0 through N-1.
 Violating this rule is an architectural error.
 
