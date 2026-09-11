@@ -146,6 +146,8 @@ class MultiModelVoting:
 
 class DisagreementResolver:
     def __init__(self, consensus_threshold: float = 0.6) -> None:
+        if not 0 <= consensus_threshold <= 1:
+            raise ValueError("consensus_threshold must be between 0 and 1")
         self._threshold = consensus_threshold
 
     def resolve(self, consensus_result: ConsensusResult) -> tuple[str, str]:

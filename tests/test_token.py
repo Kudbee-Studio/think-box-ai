@@ -1,6 +1,5 @@
 """Tests for the Think Token core logic."""
 
-import pytest
 from think_box_ai.token import ThinkToken, SYMBOL, NAME, DECIMALS, TOTAL_SUPPLY
 
 
@@ -27,18 +26,35 @@ def test_transfer_success():
 def test_transfer_insufficient_balance():
     sender = ThinkToken("0xSENDER", balance=100)
     receiver = ThinkToken("0xRECEIVER", balance=0)
-    with pytest.raises(ValueError, match="Insufficient balance\\."):
+    try:
         sender.transfer(receiver, 200)
+        assert False, "Expected ValueError"
+    except ValueError as e:
+        assert "Insufficient balance" in str(e)
 
 
 def test_transfer_non_positive_amount():
     sender = ThinkToken("0xSENDER", balance=100)
     receiver = ThinkToken("0xRECEIVER", balance=0)
-    with pytest.raises(ValueError, match="amount must be positive\\."):
+    try:
         sender.transfer(receiver, 0)
+        assert False, "Expected ValueError"
+    except ValueError as e:
+        assert "amount must be positive" in str(e)
 
 
 def test_repr():
     account = ThinkToken("0xABC", balance=42)
-    assert "0xABC" in repr(account)
-    assert "42" in repr(account)
+    repr_str = repr(account)
+    assert "0xABC" in repr_str
+    assert "42" in repr_str
+
+
+if __name__ == "__main__":
+    test_constants()
+    test_initial_balance()
+    test_transfer_success()
+    test_transfer_insufficient_balance()
+    test_transfer_non_positive_amount()
+    test_repr()
+    print("All token tests passed!")

@@ -65,6 +65,12 @@ class AgentTokenEconomy:
             if to_agent not in self._accounts:
                 self.create_account(to_agent)
 
+            # Ensure treasury account is properly configured before transfer
+            if to_agent.lower() == "treasury":
+                treasury = self._accounts.get("treasury")
+                if not treasury:
+                    return False
+
             from_acc.balance -= amount
             self._accounts[to_agent].balance += amount
 
