@@ -433,7 +433,16 @@ class Verifier:
             "admission": _category_rate(results, "control"),
             "capacity": _category_rate(results, "capacity"),
         }
-        overall = statistics.mean(list(category_rates.values())) if category_rates else 0.0
+        present = {
+            "refusal": any(r.category in ADVERSARIAL_CATEGORIES for r in results),
+            "containment": any(r.category == "mesh" for r in results),
+            "grounding": any(r.category == "grounding" for r in results),
+            "tamper": any(r.category == "ledger" for r in results),
+            "admission": any(r.category == "control" for r in results),
+            "capacity": any(r.category == "capacity" for r in results),
+        }
+        scored = [rate for key, rate in category_rates.items() if present[key]]
+        overall = statistics.mean(scored) if scored else 0.0
 
         verdict = _verdict(overall)
 

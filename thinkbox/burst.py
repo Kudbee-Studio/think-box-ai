@@ -25,6 +25,7 @@ from typing import Any, Callable
 from thinkbox.admission import AdmissionGate
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.identity import IdentityLedger
+from thinkbox.ledger import ActionLedger
 from thinkbox.reasoning import NormalizedCompletion, ReasoningNormalizer, capture_completion
 from thinkbox.thinktrace import ThinkTrace, ThinkTraceCapture
 
@@ -101,6 +102,8 @@ class BurstReport:
     duration_seconds: float = 0.0
     budget: dict[str, Any] = field(default_factory=dict)
     output_path: str = ""
+    ledger_entries: int = 0
+    ledger_valid: bool = False
     started_at: str = ""
     ended_at: str = ""
 
@@ -201,12 +204,14 @@ class BurstRunner:
         model_fn: Callable[[str, str | None], NormalizedCompletion] | None = None,
         gate: AdmissionGate | None = None,
         token_value: str = "",
+        ledger: ActionLedger | None = None,
         now_fn: Callable[[], float] = time.monotonic,
     ) -> None:
         self.config = config or BurstConfig()
         self._model = model_fn or synthetic_model
         self._gate = gate
         self._token_value = token_value
+        self._ledger = ledger
         self._now = now_fn
         self._traces = ThinkTraceCapture()
 
@@ -265,7 +270,14 @@ class BurstRunner:
                     evidence_refs=[card.split(":", 1)[0]] if card else None,
                     tags=["mesh" if card else "disruptor"],
                 )
-                records.append(self._record(burst_id, pair_id, variant, question, trace, token_id))
+                records.append(self._record(burst_id, pair_id, variant, question, trace, token_id, card))
+                self._append_ledger(
+                    allowed=True,
+                    reason="admitted",
+                    action=f"burst_call:{variant}",
+                    token_id=token_id,
+                    metadata={"burst_id": burst_id, "pair_id": pair_id, "model": self.config.model},
+                )
                 if trace.grounded:
                     report.grounded_count += 1
                 else:
@@ -285,14 +297,39 @@ class BurstRunner:
         report.ended_at = datetime.now(timezone.utc).isoformat()
         report.duration_seconds = round(self._now() - start, 4)
         report.output_path = self._write_jsonl(burst_id, records)
+        if self._ledger is not None:
+            report.ledger_entries = len(self._ledger.entries(limit=1_000_000))
+            report.ledger_valid = self._ledger.verify()
         return report
 
     def _admit(self) -> tuple[bool, str, str]:
         if self._gate is None:
-            return True, "offline_mode", "offline"
+            token_id = self._token_value[:24] if self._token_value else "offline"
+            self._append_ledger(allowed=True, reason="offline_mode", action="burst_admission", token_id=token_id)
+            return True, "offline_mode", token_id
         decision = self._gate.authorize(self._token_value, self.config.agent_id, self.config.capability)
         token_id = self._token_value[:24] if self._token_value else "none"
+        self._append_ledger(
+            allowed=decision.allowed,
+            reason=decision.reason,
+            action="burst_admission",
+            token_id=token_id,
+        )
         return decision.allowed, decision.reason, token_id
+
+    def _append_ledger(self, allowed: bool, reason: str, action: str, token_id: str, metadata: dict[str, Any] | None = None) -> None:
+        if self._ledger is None:
+            return
+        payload = {"governance_token_id": token_id}
+        payload.update(metadata or {})
+        self._ledger.append(
+            agent_id=self.config.agent_id,
+            capability=self.config.capability,
+            action=action,
+            allowed=allowed,
+            reason=reason,
+            metadata=payload,
+        )
 
     def _record(
         self,
@@ -302,6 +339,7 @@ class BurstRunner:
         question: str,
         trace: ThinkTrace,
         token_id: str,
+        evidence_text: str | None,
     ) -> dict[str, Any]:
         record = dict(trace.__dict__)
         record.update(
@@ -312,6 +350,7 @@ class BurstRunner:
                 "question": question,
                 "model": self.config.model,
                 "governance_token_id": token_id,
+                "evidence_text": evidence_text or "",
             }
         )
         return record
@@ -354,9 +393,10 @@ def main(argv: list[str] | None = None) -> int:
             model_fn=LiveVLLMClient(config).complete,
             gate=gate,
             token_value=token.token_value,
+            ledger=ActionLedger(":memory:"),
         )
     else:
-        runner = BurstRunner(config=config)
+        runner = BurstRunner(config=config, ledger=ActionLedger(":memory:"))
     report = runner.run()
     print(report.to_markdown())
     return 0 if report.admitted else 1

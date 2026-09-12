@@ -89,6 +89,9 @@ from .burst import (
     LiveVLLMClient,
     synthetic_model,
 )
+from .grounding import GroundingScorer, GroundingScore
+from .factcards import FactCard, FactCardRegistry
+from .harvest import HarvestReplay, HarvestReport, HarvestMetrics
 from .verifier import (
     Verifier,
     EvalHarness,
@@ -199,6 +202,13 @@ __all__ = [
     "BurstRunner",
     "LiveVLLMClient",
     "synthetic_model",
+    "GroundingScorer",
+    "GroundingScore",
+    "FactCard",
+    "FactCardRegistry",
+    "HarvestReplay",
+    "HarvestReport",
+    "HarvestMetrics",
     "Verifier",
     "EvalHarness",
     "VerificationMetrics",
