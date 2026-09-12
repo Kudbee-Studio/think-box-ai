@@ -289,6 +289,18 @@ commits.
 | Phase 2 | Add pattern extraction, local models, benchmarks | — |
 | Phase 3 | Multi-agent, UI, organizational memory scaling | — |
 | Phase 9 | Zero-to-one innovations (55 features) | No Phase 2+ features |
+| Phase 12 | KUDBEE control fabric | Governance admission, durable workspaces, occupancy mesh |
+
+### Phase 12 — KUDBEE Control Fabric Rules
+
+- Every side effect must pass `AdmissionGate` with a valid governance token.
+- No token means draft/simulate only, never execute.
+- Every admission or denial is appended to `ActionLedger`; the chain must
+  verify (`ledger.verify()`).
+- Think Boxes are the portable unit of work; handoffs must preserve integrity.
+- A compromised mesh cell is expelled and never inherits peer capabilities.
+- Do not bypass `GovernedEngine` to call the base engine's side effects
+  directly in agent code.
 
 ### Phase 9 Modules
 
