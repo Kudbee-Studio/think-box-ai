@@ -132,3 +132,24 @@ Pure HTML/CSS/JS — no build step.
 
 Serve: `python3 scripts/serve_frontend.py 8080`
 PR: https://github.com/Kudbee-Studio/think-box-ai/pull/58
+
+## Phase 12 — KUDBEE Control Fabric
+
+**Status:** Complete (25 commits, branch `feat/phase12-kudbee-control-fabric`)
+
+New modules in `thinkbox/`:
+- `identity.py` — IdentityLedger, capability scopes, policy version
+- `governance_token.py` — token issuance, verification, revocation
+- `admission.py` — fail-closed AdmissionGate
+- `workspace.py` — Think Box registry + SQLite store
+- `handoff.py` — cross-substrate handoff with integrity hashing
+- `occupancy.py` — OccupancyMonitor, MeshCellManager (horizontal isolation)
+- `capacity.py` — elastic CapacityController
+- `ledger.py` — append-only tamper-evident ActionLedger
+- `thinktrace.py` — ThinkTraceCapture (grounded vs ungrounded)
+- `governed.py` — admission-gated GovernedEngine
+
+New tests: identity, token, admission, workspace, workspace store, handoff,
+occupancy, mesh, capacity, ledger, thinktrace, governed + control-fabric E2E.
+
+Test count: **266 tests passing**.
