@@ -7,10 +7,13 @@ model session. It survives agent failure and compute migration.
 
 from __future__ import annotations
 
+import json
+import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -98,3 +101,66 @@ class WorkspaceRegistry:
     def list(self) -> list[dict[str, Any]]:
         with self._lock:
             return [b.snapshot() for b in self._boxes.values()]
+
+
+class WorkspaceStore:
+    """SQLite persistence for Think Box snapshots (system of record)."""
+
+    def __init__(self, db_path: str | Path = ":memory:") -> None:
+        self._path = str(db_path)
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(self._path, check_same_thread=False)
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workspaces (
+                box_id TEXT PRIMARY KEY,
+                owner_id TEXT NOT NULL,
+                snapshot TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.commit()
+
+    def save(self, box: ThinkBox) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO workspaces (box_id, owner_id, snapshot, updated_at) VALUES (?, ?, ?, ?)",
+                (box.box_id, box.owner_id, json.dumps(box.snapshot()), box.updated_at),
+            )
+            self._conn.commit()
+
+    def load(self, box_id: str) -> ThinkBox | None:
+        with self._lock:
+            row = self._conn.execute("SELECT snapshot FROM workspaces WHERE box_id = ?", (box_id,)).fetchone()
+        if not row:
+            return None
+        data = json.loads(row[0])
+        return ThinkBox(
+            box_id=data["box_id"],
+            owner_id=data["owner_id"],
+            capabilities=frozenset(data["capabilities"]),
+            policy_version=data["policy_version"],
+            state=data["state"],
+            memory_refs=data["memory_refs"],
+            artifacts=data["artifacts"],
+            substrate=data["substrate"],
+            created_at=data["created_at"],
+            updated_at=data["updated_at"],
+            version=data["version"],
+        )
+
+    def load_by_owner(self, owner_id: str) -> list[ThinkBox]:
+        with self._lock:
+            rows = self._conn.execute("SELECT snapshot FROM workspaces WHERE owner_id = ?", (owner_id,)).fetchall()
+        return [self.load(json.loads(r[0])["box_id"]) for r in rows]
+
+    def delete(self, box_id: str) -> bool:
+        with self._lock:
+            cursor = self._conn.execute("DELETE FROM workspaces WHERE box_id = ?", (box_id,))
+            self._conn.commit()
+            return cursor.rowcount > 0
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
