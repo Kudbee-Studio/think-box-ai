@@ -112,6 +112,21 @@ python3 -m thinkbox.burst --live --pairs 24 --minutes 12 --budget 5.00
 
 See `docs/think-burst-protocol.md`.
 
+### Harvest & Replay
+
+Re-score burst jsonl offline at any time — groundedness, evidence coverage,
+and bind-failure via a deterministic grounding scorer. Burst calls are
+appended to the tamper-evident `ActionLedger`.
+
+```python
+from thinkbox.harvest import HarvestReplay
+
+report = HarvestReplay().replay_dir("data/evals/burst")
+print(report.metrics.groundedness_score, report.metrics.bind_failure_rate)
+```
+
+See `docs/harvest-replay.md`.
+
 ---
 
 ## Getting Started
@@ -210,7 +225,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **325 tests** (all passing)
+Current test count: **348 tests** (all passing)
 
 ---
 

@@ -188,3 +188,19 @@ and hard-stops on calls/spend/time. Refuses to start without a valid token.
 Docs: `docs/think-burst-protocol.md`. Offline demo: `examples/think_burst_demo.py`.
 
 Test count: **325 tests passing**.
+
+## Harvest & Replay
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules:
+- `thinkbox/grounding.py` — `GroundingScorer` (deterministic evidence/numeric/reasoning scoring)
+- `thinkbox/factcards.py` — `FactCardRegistry` (least-used-first coverage scheduling)
+- `thinkbox/harvest.py` — `HarvestReplay`, `HarvestReport` (score jsonl offline; optional Verifier bridge)
+
+`BurstRunner` now writes `evidence_text` and appends every admitted call to
+the append-only `ActionLedger` (`ledger_valid` hash-chain check).
+
+Offline: `data/evals/burst/*.jsonl`, `data/evals/harvest_report.{md,json}`.
+
+Test count: **348 tests passing**.
