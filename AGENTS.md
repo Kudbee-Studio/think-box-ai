@@ -344,3 +344,11 @@ These rules are enforced by:
 Violations are bugs. Fix them before merging.
 
 </content>
+## Think-v2 (KUDBEE gpt-oss-20b) — Operational Note
+
+Served model id: `openai/gpt-oss-20b` (NOT bare `gpt-oss-20b`).
+Endpoint: `http://127.0.0.1:8001` (loopback only — never expose :8000/:8001 publicly).
+Auth: `Authorization: Bearer EMPTY`.
+SSM: `AWS_PAGER="" aws ssm start-session --target i-0685561c90845986d --region us-east-1`.
+Use HTTP/1.0 if curl hangs: `curl -sS --http1.0 -m 20 ...`.
+Capture `delta.reasoning` / `reasoning` fields when present — do not drop them.
