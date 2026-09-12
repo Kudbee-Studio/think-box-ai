@@ -72,5 +72,6 @@ class ThinkBoxHandoff:
         import hashlib
         import json
 
-        body = json.dumps(payload, sort_keys=True, default=str).encode()
+        stable = {k: payload[k] for k in ("owner_id", "capabilities", "policy_version", "state", "memory_refs", "artifacts") if k in payload}
+        body = json.dumps(stable, sort_keys=True, default=str).encode()
         return hashlib.sha256(body).hexdigest()[:16]
