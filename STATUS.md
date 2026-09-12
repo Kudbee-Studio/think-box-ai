@@ -153,3 +153,22 @@ New tests: identity, token, admission, workspace, workspace store, handoff,
 occupancy, mesh, capacity, ledger, thinktrace, governed + control-fabric E2E.
 
 Test count: **266 tests passing**.
+
+## Disruptor + Verifier Evaluation Harness
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules in `thinkbox/`:
+- `disruptor.py` — `DisruptorPass`, `DisruptorSuite` (adversarial pass framework)
+- `verifier.py` — `Verifier`, `EvalHarness`, `VerificationReport`
+
+Standard suite: 12 passes covering token forgery/expiry/revocation/mismatch,
+capability escalation, cell hopping (blast radius), grounding detection,
+contrast pairs, elastic capacity contraction, ledger tamper evidence, and
+Think Box handoff integrity.
+
+Measured result (live fabric): **12/12 passes, overall 1.0, verdict STRONG**.
+
+See `docs/disruptor-evaluation.md`.
+
+Test count: **294 tests passing**.
