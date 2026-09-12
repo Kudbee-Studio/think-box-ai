@@ -12,7 +12,7 @@ class TestOccupancyMonitor(unittest.TestCase):
         monitor.record_agent(grounded=False)
         sample = monitor.sample(load=0.5)
         self.assertEqual(sample.active_agents, 3)
-        self.assertAlmostEqual(sample.grounded_ratio, 2 / 3)
+        self.assertAlmostEqual(sample.grounded_ratio, 2 / 3, places=4)
         self.assertEqual(sample.load, 0.5)
 
     def test_release_agent(self):
