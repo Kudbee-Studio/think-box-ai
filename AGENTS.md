@@ -327,6 +327,10 @@ Reach think-v2 20B via CloudShell SSM → localhost:8001 Bearer EMPTY; never
 key-hunt; never public bind. Cloud Bot owns AWS GPU ops; KILO waits for
 models-OK handoff comments.
 
+Served model id (vLLM): **`openai/gpt-oss-20b`**. Chat requests must use this
+full id — `gpt-oss-20b` alone returns 404. Prefer HTTP/1.0; capture
+`delta.reasoning` when present.
+
 ---
 
 ## 11. When in Doubt
