@@ -81,6 +81,14 @@ from .reasoning import (
     NormalizedCompletion,
     capture_completion,
 )
+from .burst import (
+    BurstConfig,
+    BurstBudget,
+    BurstReport,
+    BurstRunner,
+    LiveVLLMClient,
+    synthetic_model,
+)
 from .verifier import (
     Verifier,
     EvalHarness,
@@ -185,6 +193,12 @@ __all__ = [
     "ReasoningChunk",
     "NormalizedCompletion",
     "capture_completion",
+    "BurstConfig",
+    "BurstBudget",
+    "BurstReport",
+    "BurstRunner",
+    "LiveVLLMClient",
+    "synthetic_model",
     "Verifier",
     "EvalHarness",
     "VerificationMetrics",
