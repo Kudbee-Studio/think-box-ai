@@ -1,11 +1,11 @@
-# RESEARCH.md — Doginals Indexer-Split Thesis
+  # RESEARCH.md — Doginals Indexer-Split Thesis
 
 ## The Thesis
 
 Different Doginals/DRC-20 indexers disagree on which deployment transaction is
 "canonical" for a given token. Specifically for DOGI:
 
-- The **original 21M DOGI deploy** is recognized by some indexers as the canonical token.
+- The **original 21M DOGI deploy** is recognized by some indexers as the canonical token.You
 - A **later 2.1B DOGI deploy** is recognized by other indexers as canonical.
 - This creates a split where different marketplaces/wallets show different
   supplies, holders, and transaction histories for the "same" token ticker.

@@ -1,4 +1,8 @@
-"""Security middleware for Think Box AI backend."""
+"""Security middleware for Think Box AI backend.
+
+Production-grade security with strict authentication, rate limiting,
+CORS enforcement, and WebSocket authentication.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,8 @@ from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
+DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
+
 ALLOWED_ORIGINS = os.environ.get(
     "THINKBOX_ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:8080,http://localhost:5173",
@@ -23,6 +29,7 @@ API_KEY_HEADER = "X-API-Key"
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("THINKBOX_RATE_LIMIT", "100"))
 MAX_REQUEST_BODY_SIZE = 1_048_576
+WS_MAX_MESSAGE_SIZE = 1_048_576
 
 DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
 
@@ -65,7 +72,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if self._is_exempt(request.url.path):
             return await call_next(request)
 
-        if self._api_keys and not self._validate_key(request):
+        if not self._validate_key(request):
             return Response(
                 content='{"error": "Unauthorized", "message": "Valid API key required"}',
                 status_code=401,
@@ -187,7 +194,7 @@ def setup_cors(app: Any) -> None:
 
 
 def setup_security(app: Any) -> None:
-    api_keys = get_api_keys()
+    api_keys = validate_api_keys_or_exit()
     setup_cors(app)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(AuthenticationMiddleware, api_keys=api_keys)

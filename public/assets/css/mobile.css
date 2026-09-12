@@ -1,221 +1,113 @@
-/* Think Box AI — Mobile-First Styles */
+/* Think Box AI — Mobile Responsive Styles */
 
-/* Mobile Navigation */
-.nav-toggle {
-  display: none;
-  background: none;
-  border: none;
-  color: var(--color-text-primary);
-  font-size: var(--text-2xl);
-  cursor: pointer;
-  padding: var(--space-2);
-  line-height: 1;
-}
-
-.nav-mobile-menu {
-  display: none;
-  position: fixed;
-  top: var(--nav-height);
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(10, 15, 26, 0.98);
-  backdrop-filter: blur(20px);
-  z-index: 99;
-  padding: var(--space-6);
-}
-
-.nav-mobile-menu.active {
-  display: block;
-}
-
-.nav-mobile-menu ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.nav-mobile-menu a {
-  display: block;
-  padding: var(--space-4);
-  font-size: var(--text-lg);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
-}
-
-.nav-mobile-menu a:hover {
-  background: var(--color-bg-card);
-}
-
-/* Mobile First: Base styles for small screens */
 @media (max-width: 768px) {
-  .nav-links {
-    display: none;
+  .nav-links { display: none; }
+  .nav-actions { display: none; }
+  .nav-toggle { display: block; }
+
+  .nav-mobile-menu {
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--color-bg);
+    z-index: 99;
+    padding: var(--space-6);
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
   }
 
-  .nav-toggle {
+  .nav-mobile-menu.active {
+    transform: translateX(0);
+  }
+
+  .nav-mobile-menu ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .nav-mobile-menu li {
+    margin-bottom: var(--space-2);
+  }
+
+  .nav-mobile-menu a {
     display: block;
+    padding: var(--space-4);
+    font-size: var(--text-lg);
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast);
   }
 
-  /* Hero mobile */
-  .hero {
-    min-height: auto;
-    padding: calc(var(--nav-height) + var(--space-8)) 0 var(--space-12);
+  .nav-mobile-menu a:hover {
+    background: var(--color-bg-card);
   }
 
-  .hero-title {
-    font-size: var(--text-3xl);
-  }
+  .hero-title { font-size: var(--text-3xl); }
+  .hero-subtitle { font-size: var(--text-base); }
+  .hero-cta { flex-direction: column; }
+  .hero-stats { flex-wrap: wrap; gap: var(--space-6); }
 
-  .hero-subtitle {
-    font-size: var(--text-base);
-  }
+  .features-grid { grid-template-columns: 1fr; }
+  .jobs-grid { grid-template-columns: 1fr; }
+  .verdicts-grid { grid-template-columns: 1fr; }
 
-  .hero-cta {
-    flex-direction: column;
-    width: 100%;
-  }
+  .cta-box { padding: var(--space-8); }
 
-  .hero-cta .btn {
-    width: 100%;
-  }
+  .footer-inner { flex-direction: column; gap: var(--space-8); }
+  .footer-links { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+}
 
-  .hero-stats {
-    flex-direction: column;
-    gap: var(--space-4);
-    align-items: center;
-  }
-
-  .stat-value {
-    font-size: var(--text-2xl);
-  }
-
-  /* Features mobile */
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Jobs mobile */
-  .jobs-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Cards mobile */
-  .card {
-    padding: var(--space-5);
-  }
-
-  /* Section mobile */
-  .section {
-    padding: var(--space-16) 0;
-  }
-
-  .section-header {
-    margin-bottom: var(--space-10);
-  }
-
-  /* Footer mobile */
-  .footer-inner {
-    flex-direction: column;
-    gap: var(--space-6);
-    text-align: center;
-  }
-
-  .footer-links {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  /* Touch-friendly tap targets */
-  .btn {
-    min-height: 44px;
-  }
-
-  .badge {
-    padding: var(--space-2) var(--space-3);
-  }
-
-  /* Verdicts mobile */
-  .verdicts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Timeline mobile */
-  .timeline {
-    padding-left: var(--space-6);
-  }
-
-  .timeline-item::before {
-    left: calc(-1 * var(--space-6) + 4px);
-  }
+@media (min-width: 769px) {
+  .nav-toggle { display: none; }
+  .nav-mobile-menu { display: none; }
 }
 
 /* Tablet */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .features-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .jobs-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+@media (max-width: 1024px) and (min-width: 769px) {
+  .features-grid { grid-template-columns: 1fr 1fr; }
+  .jobs-grid { grid-template-columns: 1fr 1fr; }
 }
 
-/* Desktop enhancements */
-@media (min-width: 1025px) {
-  .hero-title {
-    font-size: var(--text-5xl);
-  }
-
-  .features-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .jobs-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .verdicts-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+/* Skip Link (Accessibility) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-accent);
+  color: white;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  z-index: 9999;
+  font-weight: var(--font-semibold);
 }
 
-/* Reduced motion */
+.skip-link:focus {
+  top: var(--space-4);
+}
+
+/* Focus States (Accessibility) */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
-  .reveal {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Focus indicators for accessibility */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-/* Skip to content link */
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: var(--space-4);
-  padding: var(--space-3) var(--space-6);
-  background: var(--color-accent);
-  color: white;
-  border-radius: var(--radius-md);
-  z-index: 200;
-  font-weight: var(--font-semibold);
-}
-
-.skip-link:focus {
-  top: var(--space-4);
+  html { scroll-behavior: auto; }
 }
