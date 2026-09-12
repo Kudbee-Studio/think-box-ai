@@ -22,7 +22,7 @@ class TestDisruptorEvaluationE2E(unittest.TestCase):
         report = harness.run()
         metrics = report.metrics
 
-        self.assertGreaterEqual(metrics.passes_total, 10)
+        self.assertGreaterEqual(metrics.passes_total, 15)
         self.assertGreaterEqual(metrics.pass_rate, 0.9)
         self.assertGreaterEqual(metrics.refusal_rate, 0.9)
         self.assertGreaterEqual(metrics.containment_rate, 1.0)
@@ -30,6 +30,19 @@ class TestDisruptorEvaluationE2E(unittest.TestCase):
         self.assertGreaterEqual(metrics.tamper_detection, 1.0)
         self.assertGreaterEqual(metrics.admission_recall, 1.0)
         self.assertIn(metrics.verdict, {"STRONG", "PASS"})
+
+    def test_expanded_passes_present(self):
+        harness = EvalHarness()
+        report = harness.run()
+        names = {row["name"] for row in report.per_pass}
+        for expected in (
+            "cross_tenant_isolation",
+            "reasoning_grounding",
+            "replay_after_revocation",
+            "cell_hopping",
+            "ledger_tamper_detected",
+        ):
+            self.assertIn(expected, names)
 
     def test_report_persists_json_and_markdown(self):
         with tempfile.TemporaryDirectory() as tmp:

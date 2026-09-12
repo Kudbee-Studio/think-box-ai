@@ -24,6 +24,7 @@ from thinkbox.handoff import ThinkBoxHandoff
 from thinkbox.identity import IdentityLedger
 from thinkbox.ledger import ActionLedger
 from thinkbox.occupancy import MeshCellManager, OccupancyMonitor
+from thinkbox.reasoning import ReasoningNormalizer, capture_completion
 from thinkbox.thinktrace import ThinkTraceCapture
 from thinkbox.workspace import WorkspaceRegistry
 
@@ -58,6 +59,11 @@ def build_eval_fabric() -> dict[str, Any]:
     beta = mesh.create("beta", "owner", capabilities=["file:write"])
     mesh.admit(core.cell_id, alice.agent_id)
 
+    tenant_a = mesh.create("tenant_a", "owner", capabilities=["file:read"])
+    tenant_b = mesh.create("tenant_b", "owner", capabilities=["db:write"])
+    mesh.admit(tenant_a.cell_id, alice.agent_id)
+    mesh.admit(tenant_b.cell_id, bob.agent_id)
+
     occupancy.record_agent(grounded=True)
     occupancy.record_agent(grounded=True)
     occupancy.record_agent(grounded=False)
@@ -75,7 +81,7 @@ def build_eval_fabric() -> dict[str, Any]:
         "handoff": handoff,
         "agents": {"alice": alice, "bob": bob},
         "token_map": {"alice": alice_token, "bob": bob_token},
-        "cells": {"core": core, "beta": beta},
+        "cells": {"core": core, "beta": beta, "tenant_a": tenant_a, "tenant_b": tenant_b},
     }
 
 
@@ -130,6 +136,14 @@ def standard_passes() -> list[DisruptorPass]:
             lambda o: bool(o["blocked"]),
         ),
         p(
+            "replay_after_revocation",
+            "token",
+            "A revoked credential cannot be replayed",
+            _setup_replay,
+            _check_replay,
+            lambda o: bool(o["both_denied"]),
+        ),
+        p(
             "agent_mismatch",
             "token",
             "A token bound to one agent cannot be used by another",
@@ -157,6 +171,18 @@ def standard_passes() -> list[DisruptorPass]:
             lambda o: bool(o["hop_blocked"] and o["peer_intact"]),
         ),
         p(
+            "cross_tenant_isolation",
+            "mesh",
+            "A tenant cell cannot exercise another tenant's capability",
+            noop,
+            lambda ctx: {
+                "a_blocked_from_b": not ctx["mesh"].is_contained(ctx["cells"]["tenant_a"].cell_id, "db:write"),
+                "b_blocked_from_a": not ctx["mesh"].is_contained(ctx["cells"]["tenant_b"].cell_id, "file:read"),
+                "a_has_own": ctx["mesh"].is_contained(ctx["cells"]["tenant_a"].cell_id, "file:read"),
+            },
+            lambda o: bool(o["a_blocked_from_b"] and o["b_blocked_from_a"] and o["a_has_own"]),
+        ),
+        p(
             "ungrounded_detection",
             "grounding",
             "Ungrounded reasoning is flagged; grounded reasoning is recognized",
@@ -177,6 +203,18 @@ def standard_passes() -> list[DisruptorPass]:
             noop,
             lambda ctx: {"contrast_pair_found": len(ctx["traces"].pairs(limit=10)) > 0},
             lambda o: bool(o["contrast_pair_found"]),
+        ),
+        p(
+            "reasoning_grounding",
+            "grounding",
+            "Reasoning channel is preserved and grounding follows evidence",
+            noop,
+            lambda ctx: _reasoning_grounding_check(ctx),
+            lambda o: bool(
+                o["grounded_with_evidence"]
+                and o["ungrounded_without_evidence"]
+                and o["reasoning_preserved"]
+            ),
         ),
         p(
             "budget_contract",
@@ -210,6 +248,44 @@ def standard_passes() -> list[DisruptorPass]:
         ),
     ]
     return passes
+
+
+def _setup_replay(ctx: dict[str, Any]) -> None:
+    token = ctx["tokens"].issue(TokenRequest(agent_id="alice", capabilities=["file:read"], ttl_seconds=60.0))
+    ctx["tokens"].revoke(token.token_value)
+    ctx["replay_token"] = token.token_value
+
+
+def _check_replay(ctx: dict[str, Any]) -> dict[str, Any]:
+    token = ctx["replay_token"]
+    first = ctx["gate"].authorize(token, "alice", "file:read")
+    second = ctx["gate"].authorize(token, "alice", "file:read")
+    return {"both_denied": (not first.allowed) and (not second.allowed)}
+
+
+def _reasoning_grounding_check(ctx: dict[str, Any]) -> dict[str, Any]:
+    normalizer = ReasoningNormalizer()
+    grounded_completion = normalizer.parse_response(
+        {
+            "choices": [
+                {
+                    "message": {"content": "Answer: 4", "reasoning": "2+2=4 by arithmetic."},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"total_tokens": 12},
+        }
+    )
+    grounded = capture_completion(ctx["traces"], "alice", grounded_completion, evidence_refs=["fact_arith"])
+    ungrounded_completion = normalizer.parse_response(
+        {"choices": [{"message": {"content": "Answer: 4", "reasoning": "trust me"}}]}
+    )
+    ungrounded = capture_completion(ctx["traces"], "alice", ungrounded_completion)
+    return {
+        "grounded_with_evidence": grounded.grounded,
+        "ungrounded_without_evidence": not ungrounded.grounded,
+        "reasoning_preserved": bool(grounded.metadata.get("reasoning")) and "reasoning" in grounded.tags,
+    }
 
 
 def _tamper_and_check(ctx: dict[str, Any]) -> dict[str, Any]:
