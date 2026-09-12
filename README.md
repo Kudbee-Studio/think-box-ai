@@ -96,7 +96,8 @@ report = EvalHarness().run()
 print(report.metrics.verdict, report.metrics.overall_score)
 ```
 
-Modules: `disruptor` (pass framework), `verifier` (metrics, reports, harness).
+Modules: `disruptor` (pass framework), `verifier` (metrics, reports, harness),
+`reasoning` (preserves the `openai/gpt-oss-20b` reasoning channel).
 
 ---
 
@@ -196,7 +197,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **294 tests** (all passing)
+Current test count: **314 tests** (all passing)
 
 ---
 
