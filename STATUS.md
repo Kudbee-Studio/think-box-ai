@@ -172,3 +172,19 @@ Measured result (live fabric): **12/12 passes, overall 1.0, verdict STRONG**.
 See `docs/disruptor-evaluation.md`.
 
 Test count: **294 tests passing**.
+
+## THINK Burst Protocol
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules:
+- `thinkbox/burst.py` — `BurstRunner`, `BurstBudget` (elastic-cash stub), `LiveVLLMClient`
+- `thinkbox/reasoning.py` — `ReasoningNormalizer`, `capture_completion`
+
+Burst runner produces grounded vs disruptor contrast pairs, captures the
+`openai/gpt-oss-20b` reasoning channel, records the governance token id,
+and hard-stops on calls/spend/time. Refuses to start without a valid token.
+
+Docs: `docs/think-burst-protocol.md`. Offline demo: `examples/think_burst_demo.py`.
+
+Test count: **325 tests passing**.

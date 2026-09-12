@@ -99,6 +99,19 @@ print(report.metrics.verdict, report.metrics.overall_score)
 Modules: `disruptor` (pass framework), `verifier` (metrics, reports, harness),
 `reasoning` (preserves the `openai/gpt-oss-20b` reasoning channel).
 
+### THINK burst protocol
+
+Short bounded GPU windows on `openai/gpt-oss-20b` become high-signal
+contrast pairs (grounded vs disruptor twin), captured to jsonl with
+reasoning, scored, and capped by an elastic-cash ceiling.
+
+```bash
+python3 examples/think_burst_demo.py                 # offline, no GPU
+python3 -m thinkbox.burst --live --pairs 24 --minutes 12 --budget 5.00
+```
+
+See `docs/think-burst-protocol.md`.
+
 ---
 
 ## Getting Started
@@ -197,7 +210,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **314 tests** (all passing)
+Current test count: **325 tests** (all passing)
 
 ---
 
