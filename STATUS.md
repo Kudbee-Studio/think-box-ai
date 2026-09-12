@@ -153,3 +153,54 @@ New tests: identity, token, admission, workspace, workspace store, handoff,
 occupancy, mesh, capacity, ledger, thinktrace, governed + control-fabric E2E.
 
 Test count: **266 tests passing**.
+
+## Disruptor + Verifier Evaluation Harness
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules in `thinkbox/`:
+- `disruptor.py` — `DisruptorPass`, `DisruptorSuite` (adversarial pass framework)
+- `verifier.py` — `Verifier`, `EvalHarness`, `VerificationReport`
+
+Standard suite: 12 passes covering token forgery/expiry/revocation/mismatch,
+capability escalation, cell hopping (blast radius), grounding detection,
+contrast pairs, elastic capacity contraction, ledger tamper evidence, and
+Think Box handoff integrity.
+
+Measured result (live fabric): **12/12 passes, overall 1.0, verdict STRONG**.
+
+See `docs/disruptor-evaluation.md`.
+
+Test count: **294 tests passing**.
+
+## THINK Burst Protocol
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules:
+- `thinkbox/burst.py` — `BurstRunner`, `BurstBudget` (elastic-cash stub), `LiveVLLMClient`
+- `thinkbox/reasoning.py` — `ReasoningNormalizer`, `capture_completion`
+
+Burst runner produces grounded vs disruptor contrast pairs, captures the
+`openai/gpt-oss-20b` reasoning channel, records the governance token id,
+and hard-stops on calls/spend/time. Refuses to start without a valid token.
+
+Docs: `docs/think-burst-protocol.md`. Offline demo: `examples/think_burst_demo.py`.
+
+Test count: **325 tests passing**.
+
+## Harvest & Replay
+
+**Status:** Complete (branch `feat/disruptor-evaluation`)
+
+New modules:
+- `thinkbox/grounding.py` — `GroundingScorer` (deterministic evidence/numeric/reasoning scoring)
+- `thinkbox/factcards.py` — `FactCardRegistry` (least-used-first coverage scheduling)
+- `thinkbox/harvest.py` — `HarvestReplay`, `HarvestReport` (score jsonl offline; optional Verifier bridge)
+
+`BurstRunner` now writes `evidence_text` and appends every admitted call to
+the append-only `ActionLedger` (`ledger_valid` hash-chain check).
+
+Offline: `data/evals/burst/*.jsonl`, `data/evals/harvest_report.{md,json}`.
+
+Test count: **348 tests passing**.

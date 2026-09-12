@@ -74,6 +74,32 @@ from .substrate import (
     IsolationProbe,
     ThinkBoxVectorSync,
 )
+from .disruptor import DisruptorPass, DisruptorResult, DisruptorSuite
+from .reasoning import (
+    ReasoningNormalizer,
+    ReasoningChunk,
+    NormalizedCompletion,
+    capture_completion,
+)
+from .burst import (
+    BurstConfig,
+    BurstBudget,
+    BurstReport,
+    BurstRunner,
+    LiveVLLMClient,
+    synthetic_model,
+)
+from .grounding import GroundingScorer, GroundingScore
+from .factcards import FactCard, FactCardRegistry
+from .harvest import HarvestReplay, HarvestReport, HarvestMetrics
+from .verifier import (
+    Verifier,
+    EvalHarness,
+    VerificationMetrics,
+    VerificationReport,
+    build_eval_fabric,
+    standard_passes,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -163,4 +189,30 @@ __all__ = [
     "SubstrateReport",
     "IsolationProbe",
     "ThinkBoxVectorSync",
+    "DisruptorPass",
+    "DisruptorResult",
+    "DisruptorSuite",
+    "ReasoningNormalizer",
+    "ReasoningChunk",
+    "NormalizedCompletion",
+    "capture_completion",
+    "BurstConfig",
+    "BurstBudget",
+    "BurstReport",
+    "BurstRunner",
+    "LiveVLLMClient",
+    "synthetic_model",
+    "GroundingScorer",
+    "GroundingScore",
+    "FactCard",
+    "FactCardRegistry",
+    "HarvestReplay",
+    "HarvestReport",
+    "HarvestMetrics",
+    "Verifier",
+    "EvalHarness",
+    "VerificationMetrics",
+    "VerificationReport",
+    "build_eval_fabric",
+    "standard_passes",
 ]

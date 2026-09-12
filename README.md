@@ -84,6 +84,49 @@ python3 examples/control_fabric_demo.py
 Modules: `identity`, `governance_token`, `admission`, `workspace`, `handoff`,
 `occupancy`, `capacity`, `ledger`, `thinktrace`, `governed`.
 
+### Disruptor + Verifier evaluation
+
+Automated adversarial evaluation of the fabric — *measured refusal and
+containment under disruptor load* (see `docs/disruptor-evaluation.md`).
+
+```python
+from thinkbox.verifier import EvalHarness
+
+report = EvalHarness().run()
+print(report.metrics.verdict, report.metrics.overall_score)
+```
+
+Modules: `disruptor` (pass framework), `verifier` (metrics, reports, harness),
+`reasoning` (preserves the `openai/gpt-oss-20b` reasoning channel).
+
+### THINK burst protocol
+
+Short bounded GPU windows on `openai/gpt-oss-20b` become high-signal
+contrast pairs (grounded vs disruptor twin), captured to jsonl with
+reasoning, scored, and capped by an elastic-cash ceiling.
+
+```bash
+python3 examples/think_burst_demo.py                 # offline, no GPU
+python3 -m thinkbox.burst --live --pairs 24 --minutes 12 --budget 5.00
+```
+
+See `docs/think-burst-protocol.md`.
+
+### Harvest & Replay
+
+Re-score burst jsonl offline at any time — groundedness, evidence coverage,
+and bind-failure via a deterministic grounding scorer. Burst calls are
+appended to the tamper-evident `ActionLedger`.
+
+```python
+from thinkbox.harvest import HarvestReplay
+
+report = HarvestReplay().replay_dir("data/evals/burst")
+print(report.metrics.groundedness_score, report.metrics.bind_failure_rate)
+```
+
+See `docs/harvest-replay.md`.
+
 ---
 
 ## Getting Started
@@ -182,7 +225,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **275 tests** (all passing)
+Current test count: **348 tests** (all passing)
 
 ---
 

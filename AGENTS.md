@@ -343,4 +343,23 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
-</content>
+## Think-v2 (KUDBEE gpt-oss-20b) — Operational Note
+
+Served model id: `openai/gpt-oss-20b` (NOT bare `gpt-oss-20b`).
+Endpoint: `http://127.0.0.1:8001` (loopback only — never expose :8000/:8001 publicly).
+Auth: `Authorization: Bearer EMPTY`.
+SSM: `AWS_PAGER="" aws ssm start-session --target i-0685561c90845986d --region us-east-1`.
+Use HTTP/1.0 if curl hangs: `curl -sS --http1.0 -m 20 ...`.
+Capture `delta.reasoning` / `reasoning` fields when present — do not drop them.
+
+## THINK Burst Protocol — Operational Note
+
+Short bounded bursts on `openai/gpt-oss-20b` maximize THINK-token quality per
+GPU-dollar. Never leave the A10G idle.
+
+- Runner: `python3 -m thinkbox.burst --live --pairs N --minutes M --max-calls C --budget X`
+  (refuses to start without a governance token; hard-stops on calls/spend/time).
+- Offline demo/tests: `python3 examples/think_burst_demo.py`, `python3 -m unittest tests.unit.test_burst`.
+- Founder starts and **stops** (never terminates) think-v2; Cloud Bot / CloudShell
+  holds SSM access. KILO does not hold the key and never binds :8000/:8001 publicly.
+- Full checklist: `docs/think-burst-protocol.md`.
