@@ -321,6 +321,12 @@ covering valid input, invalid input, and edge cases.
 Do not implement Phase 2+ features in Phase 1. Do not implement Phase 1
 features before the foundation is solid.
 
+### Cloud Bot / KILO — gpt-oss-20b
+
+Reach think-v2 20B via CloudShell SSM → localhost:8001 Bearer EMPTY; never
+key-hunt; never public bind. Cloud Bot owns AWS GPU ops; KILO waits for
+models-OK handoff comments.
+
 ---
 
 ## 11. When in Doubt
