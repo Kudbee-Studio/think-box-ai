@@ -69,6 +69,20 @@ Phase 9 adds new subsystems:
 | 7 | Complete | Dynamic Token Whip Protocol |
 | 8 | Complete | Session tracking with Upstash Vector sync |
 | 9 | **Complete** | Coalition, consensus, economy, intelligence (55 innovations) |
+| 12 | **Complete** | KUDBEE control fabric: identity, governance tokens, Think Boxes, occupancy mesh, ledger, think traces |
+
+## KUDBEE Control Fabric
+
+Governance admission + portable workspaces + occupancy-based security, as a
+single fabric above any model session (see the KUDBEE white paper and
+`docs/kudbee-control-fabric.md`).
+
+```bash
+python3 examples/control_fabric_demo.py
+```
+
+Modules: `identity`, `governance_token`, `admission`, `workspace`, `handoff`,
+`occupancy`, `capacity`, `ledger`, `thinktrace`, `governed`.
 
 ---
 
