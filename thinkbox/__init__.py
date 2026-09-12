@@ -75,6 +75,12 @@ from .substrate import (
     ThinkBoxVectorSync,
 )
 from .disruptor import DisruptorPass, DisruptorResult, DisruptorSuite
+from .reasoning import (
+    ReasoningNormalizer,
+    ReasoningChunk,
+    NormalizedCompletion,
+    capture_completion,
+)
 from .verifier import (
     Verifier,
     EvalHarness,
@@ -175,6 +181,10 @@ __all__ = [
     "DisruptorPass",
     "DisruptorResult",
     "DisruptorSuite",
+    "ReasoningNormalizer",
+    "ReasoningChunk",
+    "NormalizedCompletion",
+    "capture_completion",
     "Verifier",
     "EvalHarness",
     "VerificationMetrics",
