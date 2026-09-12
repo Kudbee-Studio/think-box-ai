@@ -42,7 +42,7 @@ class GovernanceToken:
 @dataclass
 class TokenRequest:
     agent_id: str
-    capabilities: list[str]
+    capabilities: list[str] = field(default_factory=list)
     policy_version: str = "0"
     ttl_seconds: float = 3600.0
     attestation: dict[str, Any] = field(default_factory=dict)
