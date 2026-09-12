@@ -7,6 +7,27 @@ from .autoscaler import DynamicAutoscaler, ScalerConfig, SystemMetrics
 from .pruner import ContextPruner, PruneResult
 from .git_engine import GitEngine, GitConfig, CommitReceipt
 from .engine import ThinkBoxEngine, EngineConfig, TaskState, TaskEvent
+from .legendary import (
+    CausalReasoningEngine,
+    CausalLink,
+    TemporalMemory,
+    MemorySnapshot,
+    AgentEvolution,
+    Genome,
+    QuantumSuperposition,
+    SuperposedPath,
+    MetaCognition,
+    ThoughtTrace,
+    StigmergicSwarm,
+    PheromoneTrail,
+    ZeroKnowledgeProof,
+    AffectiveComputing,
+    EmotionalState,
+    InterventionEngine,
+    Hypothesis,
+    InfiniteContext,
+    CompressedChunk,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -29,4 +50,23 @@ __all__ = [
     "EngineConfig",
     "TaskState",
     "TaskEvent",
+    "CausalReasoningEngine",
+    "CausalLink",
+    "TemporalMemory",
+    "MemorySnapshot",
+    "AgentEvolution",
+    "Genome",
+    "QuantumSuperposition",
+    "SuperposedPath",
+    "MetaCognition",
+    "ThoughtTrace",
+    "StigmergicSwarm",
+    "PheromoneTrail",
+    "ZeroKnowledgeProof",
+    "AffectiveComputing",
+    "EmotionalState",
+    "InterventionEngine",
+    "Hypothesis",
+    "InfiniteContext",
+    "CompressedChunk",
 ]
