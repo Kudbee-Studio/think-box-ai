@@ -85,3 +85,78 @@ class OccupancyMonitor:
                 "grounded_ratio": round(self._grounded / self._total, 4) if self._total else 0.0,
                 "samples": len(self._samples),
             }
+
+
+@dataclass
+class MeshCell:
+    cell_id: str
+    name: str
+    owner_id: str
+    capabilities: frozenset[str] = frozenset()
+    compromised: bool = False
+    created_at: str = ""
+    members: list[str] = field(default_factory=list)
+
+
+class MeshCellManager:
+    """Horizontal occupancy mesh: peer cells that share governance.
+
+    A compromised cell must not freely inherit peer capabilities. Each cell
+    isolates its own capability scope and member set.
+    """
+
+    def __init__(self) -> None:
+        self._cells: dict[str, MeshCell] = {}
+        self._lock = threading.Lock()
+
+    def create(
+        self,
+        name: str,
+        owner_id: str,
+        capabilities: list[str] | None = None,
+    ) -> MeshCell:
+        cell = MeshCell(
+            cell_id=f"cell_{uuid.uuid4().hex[:12]}",
+            name=name,
+            owner_id=owner_id,
+            capabilities=frozenset(capabilities or []),
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+        with self._lock:
+            self._cells[cell.cell_id] = cell
+        return cell
+
+    def admit(self, cell_id: str, member_id: str) -> bool:
+        with self._lock:
+            cell = self._cells.get(cell_id)
+            if not cell or cell.compromised:
+                return False
+            if member_id not in cell.members:
+                cell.members.append(member_id)
+            return True
+
+    def expel_all(self, cell_id: str) -> bool:
+        with self._lock:
+            cell = self._cells.get(cell_id)
+            if not cell:
+                return False
+            cell.compromised = True
+            cell.members.clear()
+            return True
+
+    def members_in(self, cell_id: str) -> list[str]:
+        with self._lock:
+            cell = self._cells.get(cell_id)
+            return list(cell.members) if cell else []
+
+    def is_contained(self, cell_id: str, capability: str) -> bool:
+        """True if the capability is scoped to the cell's own mesh."""
+        with self._lock:
+            cell = self._cells.get(cell_id)
+            if not cell or cell.compromised:
+                return False
+            return capability in cell.capabilities
+
+    def cell_count(self) -> int:
+        with self._lock:
+            return len(self._cells)
