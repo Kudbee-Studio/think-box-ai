@@ -182,7 +182,27 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **137 tests** (all passing)
+Current test count: **275 tests** (all passing)
+
+---
+
+## TypeScript 7 (apps/web)
+
+The web runtime is TypeScript, checked with the **TypeScript 7 native compiler**
+(`tsgo`, ~10x faster than the JS compiler on large codebases).
+
+```bash
+cd apps/web
+npm install
+npm run typecheck      # tsgo --noEmit  (TypeScript 7 native)
+npm run typecheck:tsc  # tsc  --noEmit  (classic, for comparison)
+npm start              # runs server.ts via Node 22 type stripping
+```
+
+- `strict` mode enabled; `noEmit` typecheck.
+- Sources: `server.ts`, `services/plugins.ts`, shared types in `types.ts`.
+- Node ≥ 22.6 runs the `.ts` files directly via `--experimental-strip-types`
+  (no build step required).
 
 ---
 
