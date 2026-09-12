@@ -9,6 +9,7 @@ from thinkbox.admission import AdmissionGate
 from thinkbox.burst import BurstBudget, BurstConfig, BurstRunner
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.identity import IdentityLedger
+from thinkbox.ledger import ActionLedger
 
 
 def _config(tmp: str, **kwargs) -> BurstConfig:
@@ -99,6 +100,23 @@ class TestBurstRunnerOffline(unittest.TestCase):
             md = BurstRunner(config=_config(tmp)).run().to_markdown()
             self.assertIn("# THINK Burst Report", md)
             self.assertIn("Groundedness score", md)
+
+    def test_ledger_records_admission_and_calls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = ActionLedger(":memory:")
+            report = BurstRunner(config=_config(tmp, max_pairs=2), ledger=ledger).run()
+            self.assertTrue(report.ledger_valid)
+            self.assertEqual(report.ledger_entries, report.calls_used + 1)
+            self.assertTrue(ledger.verify())
+
+    def test_evidence_text_recorded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = BurstRunner(config=_config(tmp, max_pairs=1)).run()
+            records = _read_records(report.output_path)
+            grounded = next(r for r in records if r["variant"] == "grounded")
+            ungrounded = next(r for r in records if r["variant"] == "ungrounded")
+            self.assertIn("fact", grounded["evidence_text"])
+            self.assertEqual(ungrounded["evidence_text"], "")
 
 
 class TestBurstAdmission(unittest.TestCase):
