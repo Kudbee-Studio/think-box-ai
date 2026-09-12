@@ -343,7 +343,6 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
-</content>
 ## Think-v2 (KUDBEE gpt-oss-20b) — Operational Note
 
 Served model id: `openai/gpt-oss-20b` (NOT bare `gpt-oss-20b`).
