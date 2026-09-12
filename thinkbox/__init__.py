@@ -74,6 +74,15 @@ from .substrate import (
     IsolationProbe,
     ThinkBoxVectorSync,
 )
+from .disruptor import DisruptorPass, DisruptorResult, DisruptorSuite
+from .verifier import (
+    Verifier,
+    EvalHarness,
+    VerificationMetrics,
+    VerificationReport,
+    build_eval_fabric,
+    standard_passes,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -163,4 +172,13 @@ __all__ = [
     "SubstrateReport",
     "IsolationProbe",
     "ThinkBoxVectorSync",
+    "DisruptorPass",
+    "DisruptorResult",
+    "DisruptorSuite",
+    "Verifier",
+    "EvalHarness",
+    "VerificationMetrics",
+    "VerificationReport",
+    "build_eval_fabric",
+    "standard_passes",
 ]
