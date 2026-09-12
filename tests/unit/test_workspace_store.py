@@ -48,10 +48,12 @@ class TestWorkspaceStore(unittest.TestCase):
 
     def test_restore_preserves_version(self):
         registry = WorkspaceRegistry()
-        box = registry.create(owner_id="a1", substrate="container", version=7)
+        box = registry.create(owner_id="a1", substrate="container")
+        registry.touch(box.box_id)
+        self.assertEqual(box.version, 2)
         self.store.save(box)
         loaded = self.store.load(box.box_id)
-        self.assertEqual(loaded.version, 7)
+        self.assertEqual(loaded.version, 2)
         self.assertEqual(loaded.substrate, "container")
 
 
