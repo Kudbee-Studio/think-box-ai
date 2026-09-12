@@ -124,6 +124,8 @@ def bootstrap(
     with_provider: bool = True,
     with_tools: bool = True,
 ) -> RuntimeContext:
+    original_cwd = os.getcwd()
+
     if project_root is None:
         project_root = Path.cwd()
     else:
@@ -170,7 +172,7 @@ def bootstrap(
     tool_registry = _create_tool_registry(audit_log, project_root) if with_tools else None
 
     logger.info("THINK BOX AI bootstrap complete")
-    return RuntimeContext(
+    ctx = RuntimeContext(
         config=config,
         store=store,
         session_memory=session_memory,
@@ -180,10 +182,14 @@ def bootstrap(
         approval_gate=approval_gate,
         project_root=project_root,
     )
+    ctx._original_cwd = original_cwd
+    return ctx
 
 
 def shutdown(ctx: RuntimeContext) -> None:
     logger.info("THINK BOX AI shutting down")
     ctx.session_memory.flush()
     ctx.store.close()
+    if ctx._original_cwd is not None:
+        os.chdir(ctx._original_cwd)
     logger.info("THINK BOX AI shutdown complete")

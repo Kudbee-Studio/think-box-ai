@@ -288,6 +288,35 @@ commits.
 | Phase 1 | Prove architecture with single agent, single provider, 5 tools | No multi-agent, no benchmarks, no UI |
 | Phase 2 | Add pattern extraction, local models, benchmarks | — |
 | Phase 3 | Multi-agent, UI, organizational memory scaling | — |
+| Phase 9 | Zero-to-one innovations (55 features) | No Phase 2+ features |
+| Phase 12 | KUDBEE control fabric | Governance admission, durable workspaces, occupancy mesh |
+
+### Phase 12 — KUDBEE Control Fabric Rules
+
+- Every side effect must pass `AdmissionGate` with a valid governance token.
+- No token means draft/simulate only, never execute.
+- Every admission or denial is appended to `ActionLedger`; the chain must
+  verify (`ledger.verify()`).
+- Think Boxes are the portable unit of work; handoffs must preserve integrity.
+- A compromised mesh cell is expelled and never inherits peer capabilities.
+- Do not bypass `GovernedEngine` to call the base engine's side effects
+  directly in agent code.
+
+### Phase 9 Modules
+
+Phase 9 adds the following modules to `thinkbox/`:
+- `coalition.py` — CRDT shared memory, task bidding market, pub/sub bus, capability registry, governance voting
+- `consensus.py` — Multi-model voting, Bayesian confidence scoring, disagreement resolution, model ranking, audit trail
+- `economy.py` — Token economy, contribution mining, staking mechanism, slash conditions, treasury governance
+- `intelligence.py` — Knowledge graph, self-healing, reputation, federated learning, post-quantum security
+- `benchmark.py` — High-throughput concurrency scaling sweeps (16–512 workers), system metrics, markdown report generation
+- `session.py` — Session tracking with Upstash Vector sync
+
+### Phase 9 Testing
+
+Phase 9 innovations are tested in `tests/unit/test_session_tracker.py` (27 tests)
+covering all Phase 9 modules. Each innovation must have at least one unit test
+covering valid input, invalid input, and edge cases.
 
 Do not implement Phase 2+ features in Phase 1. Do not implement Phase 1
 features before the foundation is solid.

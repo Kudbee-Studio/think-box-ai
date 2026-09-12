@@ -1,4 +1,11 @@
-"""ThinkBox AI — Core execution engine package."""
+"""ThinkBox AI — Core execution engine package.
+
+Sub-packages:
+  - legendary/: zero-to-one cognitive innovations (Phase 12 prefix)
+  - production/: availability, reliability, observability
+  - autonomous/: self-tuning, canary, chaos, migration
+  - control fabric: identity, tokens, admission, workspaces, mesh, ledger
+"""
 
 from .decomposer import TaskDecomposer, TaskNode, TaskGraph
 from .model_client import AsyncModelClient, ModelConfig
@@ -7,6 +14,66 @@ from .autoscaler import DynamicAutoscaler, ScalerConfig, SystemMetrics
 from .pruner import ContextPruner, PruneResult
 from .git_engine import GitEngine, GitConfig, CommitReceipt
 from .engine import ThinkBoxEngine, EngineConfig, TaskState, TaskEvent
+from .legendary import (
+    CausalReasoningEngine,
+    CausalLink,
+    TemporalMemory,
+    MemorySnapshot,
+    AgentEvolution,
+    Genome,
+    QuantumSuperposition,
+    SuperposedPath,
+    MetaCognition,
+    ThoughtTrace,
+    StigmergicSwarm,
+    PheromoneTrail,
+    ZeroKnowledgeProof,
+    AffectiveComputing,
+    EmotionalState,
+    InterventionEngine,
+    Hypothesis,
+    InfiniteContext,
+    CompressedChunk,
+)
+from .production import (
+    HealthCheckSystem,
+    HealthStatus,
+    MetricsCollector,
+    GracefulShutdown,
+    ConfigValidation,
+    ValidatedConfig,
+    ErrorRecovery,
+    CircuitBreaker,
+    RequestDeduplication,
+    Tracing,
+    Span,
+    RateLimiter,
+    TokenBucket,
+    SlidingWindow,
+    LoadBalancer,
+    Backend,
+    AlertManager,
+    AlertSeverity,
+    Alert,
+)
+from .identity import IdentityLedger, AgentIdentity
+from .governance_token import GovernanceTokenService, GovernanceToken, TokenRequest
+from .admission import AdmissionGate, AdmissionDecision
+from .workspace import WorkspaceRegistry, WorkspaceStore, ThinkBox
+from .handoff import ThinkBoxHandoff, HandoffRecord
+from .occupancy import OccupancyMonitor, MeshCellManager, MeshCell
+from .capacity import CapacityController, CapacityDecision
+from .ledger import ActionLedger, LedgerEntry
+from .thinktrace import ThinkTraceCapture, ThinkTrace
+from .governed import GovernedEngine, GovernedEngineConfig
+from .substrate import (
+    detect_substrate,
+    bind_think_box,
+    SubstrateProbe,
+    SubstrateReport,
+    IsolationProbe,
+    ThinkBoxVectorSync,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -29,4 +96,71 @@ __all__ = [
     "EngineConfig",
     "TaskState",
     "TaskEvent",
+    "CausalReasoningEngine",
+    "CausalLink",
+    "TemporalMemory",
+    "MemorySnapshot",
+    "AgentEvolution",
+    "Genome",
+    "QuantumSuperposition",
+    "SuperposedPath",
+    "MetaCognition",
+    "ThoughtTrace",
+    "StigmergicSwarm",
+    "PheromoneTrail",
+    "ZeroKnowledgeProof",
+    "AffectiveComputing",
+    "EmotionalState",
+    "InterventionEngine",
+    "Hypothesis",
+    "InfiniteContext",
+    "CompressedChunk",
+    "HealthCheckSystem",
+    "HealthStatus",
+    "MetricsCollector",
+    "GracefulShutdown",
+    "ConfigValidation",
+    "ValidatedConfig",
+    "ErrorRecovery",
+    "CircuitBreaker",
+    "RequestDeduplication",
+    "Tracing",
+    "Span",
+    "RateLimiter",
+    "TokenBucket",
+    "SlidingWindow",
+    "LoadBalancer",
+    "Backend",
+    "AlertManager",
+    "AlertSeverity",
+    "Alert",
+    "IdentityLedger",
+    "AgentIdentity",
+    "GovernanceTokenService",
+    "GovernanceToken",
+    "TokenRequest",
+    "AdmissionGate",
+    "AdmissionDecision",
+    "WorkspaceRegistry",
+    "WorkspaceStore",
+    "ThinkBox",
+    "ThinkBoxHandoff",
+    "HandoffRecord",
+    "OccupancyMonitor",
+    "MeshCellManager",
+    "MeshCell",
+    "CapacityController",
+    "CapacityDecision",
+    "ActionLedger",
+    "LedgerEntry",
+    "ThinkTraceCapture",
+    "ThinkTrace",
+    "GovernedEngine",
+    "GovernedEngineConfig",
+    "detect_substrate",
+    "bind_think_box",
+    "SubstrateProbe",
+    "SubstrateReport",
+    "IsolationProbe",
+    "ThinkBoxVectorSync",
 ]

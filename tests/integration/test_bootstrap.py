@@ -79,18 +79,21 @@ class TestToolRegistrationIntegration(unittest.TestCase):
             if hasattr(t, "_tool_definition"):
                 registry.register(t._tool_definition)
 
-        # Create a temp file and read it
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("hello world")
-            tmp_path = f.name
+        # Create a temp file within the repo's data directory and read it
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        data_dir = repo_root / "data" / "test_tmp"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = data_dir / "test_read.txt"
+        tmp_file.write_text("hello world")
 
         try:
-            tool_def = registry.get("file_read")
+            tool_def = registry.get("fs_read")
             self.assertIsNotNone(tool_def)
-            result = asyncio.run(tool_def.handler({"path": tmp_path}))
+            result = asyncio.run(tool_def.handler({"path": str(tmp_file.relative_to(repo_root))}))
             self.assertEqual(result["content"], "hello world")
         finally:
-            Path(tmp_path).unlink()
+            tmp_file.unlink(missing_ok=True)
+            data_dir.rmdir()
 
     def test_register_all_builtin_tools(self) -> None:
         mock_store = MagicMock()

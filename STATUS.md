@@ -1,14 +1,38 @@
-# STATUS.md — Think Box AI Research Agent
+## Phase 9 — Zero-to-One Innovations
 
-## What Works ✅
-- 17 tools registered and functional
-- Agent loop with XML tool-call parsing
-- SQLite research memory (memory_put/get/search)
-- Filesystem tools (fs_read/write/list) — jailed to repo + data/
-- HTTP tool with rate limiting
-- Doginals domain tools (doge_tx, doginals_inscription, compare_inscription, parse_drc20, load_fixture)
-- FastAPI backend (/health, /run, /stream, /ws)
-- Bootstrap wires all components
+**Status:** Complete (55 innovations across 13 categories)
+
+### Phase 9 Modules
+
+| Module | Category | Features |
+|--------|----------|----------|
+| `thinkbox/session.py` | Foundation | SessionContext, generate_session_id, create/get/clear_session, UpstashVectorSync |
+| `thinkbox/coalition.py` | COAL (1–5) | CRDT shared memory, task bidding market, pub/sub bus, capability registry, governance voting |
+| `thinkbox/consensus.py` | CONS (11–15) | Multi-model voting, Bayesian confidence scoring, disagreement resolution, model ranking, audit trail |
+| `thinkbox/economy.py` | ECON (16–20) | Token economy, contribution mining, staking mechanism, slash conditions, treasury governance |
+| `thinkbox/intelligence.py` | INTEL (36–40, 51–55) | Knowledge graph, self-healing, reputation, federated learning, post-quantum security |
+| `thinkbox/benchmark.py` | BENCH (26–30) | Concurrency scaling sweeps (16–512 workers), system metrics, markdown report generation |
+
+### Phase 9 Bug Fixes
+
+| Bug | File | Fix |
+|-----|------|-----|
+| Missing treasury account | `thinkbox/economy.py` | Added treasury existence check in `AgentTokenEconomy.transfer()` |
+| `_threshold` attribute | `thinkbox/consensus.py` | Added validation in `DisagreementResolver.__init__` |
+
+### Test Count
+
+**137 tests** (Phase 1/2 security, Phase 5 features, integration tests, Phase 9 session tracker)
+
+## How to Run Tests
+
+```bash
+python3 -m unittest discover tests/
+python3 -m unittest tests.unit.test_session_tracker
+python3 -m unittest tests.unit.test_phase1_2_security
+python3 -m unittest tests.unit.test_whip_protocol
+python3 -m unittest tests.integration.test_e2e_engine
+```
 
 ## Verified Tool Count: 18
 
@@ -108,3 +132,24 @@ Pure HTML/CSS/JS — no build step.
 
 Serve: `python3 scripts/serve_frontend.py 8080`
 PR: https://github.com/Kudbee-Studio/think-box-ai/pull/58
+
+## Phase 12 — KUDBEE Control Fabric
+
+**Status:** Complete (25 commits, branch `feat/phase12-kudbee-control-fabric`)
+
+New modules in `thinkbox/`:
+- `identity.py` — IdentityLedger, capability scopes, policy version
+- `governance_token.py` — token issuance, verification, revocation
+- `admission.py` — fail-closed AdmissionGate
+- `workspace.py` — Think Box registry + SQLite store
+- `handoff.py` — cross-substrate handoff with integrity hashing
+- `occupancy.py` — OccupancyMonitor, MeshCellManager (horizontal isolation)
+- `capacity.py` — elastic CapacityController
+- `ledger.py` — append-only tamper-evident ActionLedger
+- `thinktrace.py` — ThinkTraceCapture (grounded vs ungrounded)
+- `governed.py` — admission-gated GovernedEngine
+
+New tests: identity, token, admission, workspace, workspace store, handoff,
+occupancy, mesh, capacity, ledger, thinktrace, governed + control-fabric E2E.
+
+Test count: **266 tests passing**.

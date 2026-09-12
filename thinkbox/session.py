@@ -104,7 +104,7 @@ def clear_session() -> None:
 
 class UpstashVectorSync:
     def __init__(self) -> None:
-        self._url = os.environ.get("UPSTASH_VECTOR_REST_URL", "")
+        self._url = os.environ.get("UPSTASH_VECTOR_REST_URL", "").rstrip("/")
         self._token = os.environ.get("UPSTASH_VECTOR_REST_TOKEN", "")
         self._enabled = bool(self._url and self._token)
 
@@ -162,14 +162,22 @@ class UpstashVectorSync:
         try:
             import urllib.request
 
-            url = f"{self._url}/get/{session_id}"
+            url = f"{self._url}/fetch"
+            data = json.dumps({"ids": [session_id], "includeMetadata": True}).encode()
             req = urllib.request.Request(
                 url,
-                headers={"Authorization": f"Bearer {self._token}"},
+                data=data,
+                headers={
+                    "Authorization": f"Bearer {self._token}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
             )
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(None, lambda: urllib.request.urlopen(req, timeout=10))
-            return json.loads(response.read())
+            body = json.loads(response.read())
+            results = body.get("result", [])
+            return results[0] if results else None
         except Exception:
             return None
 

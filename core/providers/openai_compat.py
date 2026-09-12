@@ -54,8 +54,13 @@ class OpenAICompatProvider:
                         usage=data.get("usage", {}),
                     )
             except urllib.error.HTTPError as e:
-                from core.foundation.errors import ProviderError
-                raise ProviderError(f"OpenAI-compatible HTTP {e.code}: {e.read().decode()}") from e
+                from core.foundation.errors import ProviderError, ProviderRateLimitError, ProviderUnavailableError
+                body = e.read().decode() if hasattr(e, "read") else ""
+                if e.code == 429:
+                    raise ProviderRateLimitError(f"OpenAI-compatible HTTP {e.code}: {body}") from e
+                if e.code == 401:
+                    raise ProviderUnavailableError(f"OpenAI-compatible HTTP {e.code}: {body}") from e
+                raise ProviderError(f"OpenAI-compatible HTTP {e.code}: {body}") from e
 
         return await asyncio.to_thread(_fetch)
 
