@@ -66,6 +66,14 @@ from .capacity import CapacityController, CapacityDecision
 from .ledger import ActionLedger, LedgerEntry
 from .thinktrace import ThinkTraceCapture, ThinkTrace
 from .governed import GovernedEngine, GovernedEngineConfig
+from .substrate import (
+    detect_substrate,
+    bind_think_box,
+    SubstrateProbe,
+    SubstrateReport,
+    IsolationProbe,
+    ThinkBoxVectorSync,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -149,4 +157,10 @@ __all__ = [
     "ThinkTrace",
     "GovernedEngine",
     "GovernedEngineConfig",
+    "detect_substrate",
+    "bind_think_box",
+    "SubstrateProbe",
+    "SubstrateReport",
+    "IsolationProbe",
+    "ThinkBoxVectorSync",
 ]
