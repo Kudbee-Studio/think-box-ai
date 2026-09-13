@@ -372,19 +372,28 @@ class KUDBEEOrchestrator:
         return artifact_path
 
     async def _create_rest_endpoint(self, task: ExperimentTask) -> str:
-        """Create the actual REST endpoint artifact."""
+        """Create the actual REST endpoint artifact from templates."""
+        import shutil
         artifact_dir = Path("experiments") / task.task_id
         artifact_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate the vulnerable implementation (with trap)
-        code = self._generate_endpoint_code(task)
+        # Determine which template set to use
+        if "user" in task.task_id.lower():
+            vulnerable_template = Path("experiments/templates/vulnerable_users_endpoint.py")
+            fixed_template = Path("experiments/templates/fixed_users_endpoint.py")
+            test_template = Path("experiments/templates/test_users_endpoint.py")
+        else:
+            vulnerable_template = Path("experiments/templates/vulnerable_items_endpoint.py")
+            fixed_template = Path("experiments/templates/fixed_items_endpoint.py")
+            test_template = Path("experiments/templates/test_items_endpoint.py")
 
+        # Start with vulnerable version
         artifact_path = artifact_dir / "endpoint.py"
-        artifact_path.write_text(code)
+        shutil.copy(vulnerable_template, artifact_path)
 
         # Also create test file
         test_path = artifact_dir / "test_endpoint.py"
-        test_path.write_text(self._generate_test_code(task))
+        shutil.copy(test_template, test_path)
 
         return str(artifact_path)
 
@@ -713,38 +722,19 @@ class TestEndpoint:
     async def _repair_vulnerabilities(
         self, vulnerabilities: list, executions: list, artifact: str, task: ExperimentTask
     ) -> list[BoxExecution]:
-        """Repairer: fix the vulnerabilities found by converting string interpolation to parameterized queries."""
+        """Repairer: fix the vulnerabilities by replacing with fixed template."""
         repair_execs = []
         artifact_path = Path(artifact)
-        code = artifact_path.read_text()
         
-        # Generic fix: replace f-string SQL interpolation with parameterized query
-        # Pattern: query = f"SELECT ... LIKE '%{request.query}%'" \n cursor.execute(query)
-        # Replace with: query = "SELECT ... LIKE ?" \n cursor.execute(query, (f"%{request.query}%",))
-        import re
+        # Determine which fixed template to use
+        if "user" in task.task_id.lower():
+            fixed_template = Path("experiments/templates/fixed_users_endpoint.py")
+        else:
+            fixed_template = Path("experiments/templates/fixed_items_endpoint.py")
         
-        # Find and replace the vulnerable f-string SQL pattern
-        # Match: query = f"SELECT ... LIKE '%{request.query}%'" followed by cursor.execute(query)
-        # Replace with parameterized version
-        def fix_match(match):
-            full_match = match.group(0)
-            sql_fstring = match.group(1)  # The f"..." part
-            # Convert f-string to parameterized query: replace %{request.query}% with ?
-            param_sql = re.sub(r'%\{request\.query\}%', '?', sql_fstring)
-            # Remove the f prefix
-            param_sql = param_sql.replace('f"', '"').replace("f'", "'")
-            # Return the fixed query assignment + parameterized execute
-            return f'{param_sql}\n    cursor.execute(query, (f"%{{request.query}}%",))'
-        
-        # Pattern: query = f"..."\n    cursor.execute(query)
-        vulnerable_pattern = r'(query\s*=\s*f"[^"]*LIKE\s+\'%\{request\.query\}%\'[^"]*")\s*\n\s*cursor\.execute\(query\)'
-        fixed_code = re.sub(vulnerable_pattern, fix_match, code)
-        
-        # Also handle single-quoted f-strings
-        alt_pattern = r"(query\s*=\s*f'[^']*LIKE\s+\'%\{request\.query\}%\'[^']*')\s*\n\s*cursor\.execute\(query\)"
-        fixed_code = re.sub(alt_pattern, fix_match, fixed_code)
-        
-        artifact_path.write_text(fixed_code)
+        # Copy fixed template over vulnerable code
+        import shutil
+        shutil.copy(fixed_template, artifact_path)
         
         repair_exec = BoxExecution(
             box_id=f"repair_{uuid.uuid4().hex[:8]}",
@@ -783,12 +773,15 @@ class TestEndpoint:
             return {"passed": False, "passed_count": 0, "total": 0, "details": "No test file"}
         
         try:
+            # Use the same python executable that's running this script
+            python_exe = sys.executable
             result = subprocess.run(
-                [sys.executable, "-m", "pytest", str(test_file), "-v", "--tb=short"],
+                [python_exe, "-m", "pytest", str(test_file), "-v", "--tb=short"],
                 capture_output=True,
                 text=True,
                 timeout=60,
                 cwd=artifact_dir,
+                env={**os.environ, "PYTHONPATH": str(Path.cwd())},
             )
             passed = result.returncode == 0
             output = result.stdout + result.stderr
