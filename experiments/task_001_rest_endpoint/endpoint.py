@@ -1,6 +1,5 @@
 """
-REST Endpoint with deliberate security trap for KUDBEE experiment.
-Trap: SQL injection via unsanitized user input in search endpoint.
+REST Endpoint - FIXED version with parameterized queries.
 """
 
 from fastapi import FastAPI, HTTPException
@@ -63,15 +62,14 @@ def get_item(item_id: int):
 @app.post("/search")
 def search_items(request: SearchRequest):
     """
-    VULNERABLE ENDPOINT: Direct string interpolation allows SQL injection.
-    Trap: User query directly concatenated into SQL string.
+    FIXED ENDPOINT: Parameterized query prevents SQL injection.
     """
     conn = sqlite3.connect("items.db")
     cursor = conn.cursor()
     
-    # TRAP: SQL Injection vulnerability - unsanitized input
-    query = f"SELECT id, name, description, price, quantity FROM items WHERE name LIKE '%{request.query}%'"
-    cursor.execute(query)
+    # FIXED: Parameterized query with LIKE placeholder
+    query = "SELECT id, name, description, price, quantity FROM items WHERE name LIKE ?"
+    cursor.execute(query, (f"%{request.query}%",))
     rows = cursor.fetchall()
     conn.close()
     

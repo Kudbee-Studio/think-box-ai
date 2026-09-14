@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sqlite3
 import time
 import uuid
@@ -775,14 +776,27 @@ class TestEndpoint:
         try:
             # Use the same python executable that's running this script
             python_exe = sys.executable
+            # When cwd=artifact_dir, test file path should be relative (just filename)
+            test_file_rel = test_file.name
+            cmd = [python_exe, "-m", "pytest", test_file_rel, "-v", "--tb=short"]
+            print(f"    [SUBPROCESS DEBUG] cmd: {' '.join(cmd)}")
+            print(f"    [SUBPROCESS DEBUG] cwd: {artifact_dir}")
+            print(f"    [SUBPROCESS DEBUG] python_exe: {python_exe}")
+            print(f"    [SUBPROCESS DEBUG] PYTHONPATH: {str(Path.cwd())}")
+            print(f"    [SUBPROCESS DEBUG] sys.executable: {sys.executable}")
+            
             result = subprocess.run(
-                [python_exe, "-m", "pytest", str(test_file), "-v", "--tb=short"],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=60,
                 cwd=artifact_dir,
                 env={**os.environ, "PYTHONPATH": str(Path.cwd())},
             )
+            print(f"    [SUBPROCESS DEBUG] returncode: {result.returncode}")
+            print(f"    [SUBPROCESS DEBUG] stdout: {result.stdout[-1000:]}")
+            print(f"    [SUBPROCESS DEBUG] stderr: {result.stderr[-500:]}")
+            
             passed = result.returncode == 0
             output = result.stdout + result.stderr
             passed_count = output.count("PASSED")
@@ -797,6 +811,7 @@ class TestEndpoint:
         except subprocess.TimeoutExpired:
             return {"passed": False, "passed_count": 0, "total": 0, "details": "Test timeout"}
         except Exception as e:
+            print(f"    [SUBPROCESS DEBUG] Exception: {e}")
             return {"passed": False, "passed_count": 0, "total": 0, "details": str(e)}
 
     def _mint_token(self, proof: dict, task: ExperimentTask) -> dict[str, Any]:
