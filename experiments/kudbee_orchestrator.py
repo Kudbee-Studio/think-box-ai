@@ -4,6 +4,9 @@ Implements the full 13-stage loop:
 Intent → Decompose → Burst → Execute → Evidence → Jury → Challenge → Retry → Proof → Token → Harvest → Commons → Repeat
 
 With baseline/transfer comparison for measuring organizational learning.
+
+ADDITION: Interrupt/Resume validation - jobs survive connection interruption
+and resume from the last durable checkpoint.
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import pickle
 import sqlite3
 import time
 import uuid
@@ -18,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from thinkbox.decomposer import TaskDecomposer, TaskGraph, TaskNode
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
@@ -71,6 +75,41 @@ class ExperimentTask:
     requirements: dict[str, Any]
     trap: dict[str, Any] | None = None
     expected_artifact: str = ""
+
+
+@dataclass
+class JobCheckpoint:
+    """Durable checkpoint for interrupt/resume."""
+    job_id: str
+    task_id: str
+    stage: str  # INTENT, DECOMPOSE, BURST, EXECUTE, EVIDENCE, JURY, CHALLENGE, RETRY, PROOF, TOKEN, HARVEST, COMMONS, REPLAY
+    timestamp: str
+    state: dict[str, Any]  # Full serializable state
+    completed_stages: list[str]
+    artifact_path: str = ""
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "job_id": self.job_id,
+            "task_id": self.task_id,
+            "stage": self.stage,
+            "timestamp": self.timestamp,
+            "state": self.state,
+            "completed_stages": self.completed_stages,
+            "artifact_path": self.artifact_path,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "JobCheckpoint":
+        return cls(
+            job_id=data["job_id"],
+            task_id=data["task_id"],
+            stage=data["stage"],
+            timestamp=data["timestamp"],
+            state=data["state"],
+            completed_stages=data["completed_stages"],
+            artifact_path=data.get("artifact_path", ""),
+        )
 
 
 @dataclass

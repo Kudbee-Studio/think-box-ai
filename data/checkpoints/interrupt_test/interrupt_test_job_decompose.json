@@ -1,0 +1,55 @@
+{
+  "job_id": "interrupt_test_job",
+  "task_id": "interrupt_test_task",
+  "stage": "DECOMPOSE",
+  "timestamp": "2026-09-15T17:55:27.168935+00:00",
+  "state": {
+    "task_id": "interrupt_test_task",
+    "task": "ExperimentTask(task_id='interrupt_test_task', description='Create a REST endpoint with SQL injection trap', requirements={'endpoint': 'POST /items', 'validation': 'Pydantic model', 'storage': 'SQLite'}, trap={'type': 'sql_injection', 'location': 'search endpoint', 'description': 'Direct string interpolation'}, expected_artifact='')",
+    "plan": [
+      {
+        "task_id": "task_ea3874de",
+        "role": "builder",
+        "description": "Create a REST endpoint with SQL injection trap. Requirements: {\"endpoint\": \"POST /items\", \"validatio",
+        "dependencies": []
+      },
+      {
+        "task_id": "task_d1b4deea",
+        "role": "researcher",
+        "description": "Research: analyze requirements and identify best practices",
+        "dependencies": [
+          "task_ea3874de"
+        ]
+      },
+      {
+        "task_id": "task_033c7d84",
+        "role": "builder",
+        "description": "Build: implement the REST endpoint with validation and storage",
+        "dependencies": [
+          "task_ea3874de"
+        ]
+      },
+      {
+        "task_id": "task_cc406e72",
+        "role": "critic",
+        "description": "Critique: security review for vulnerabilities",
+        "dependencies": [
+          "task_ea3874de"
+        ]
+      },
+      {
+        "task_id": "task_16d797e1",
+        "role": "tester",
+        "description": "Test: write and run tests against the implementation",
+        "dependencies": [
+          "task_ea3874de"
+        ]
+      }
+    ]
+  },
+  "completed_stages": [
+    "INTENT",
+    "DECOMPOSE"
+  ],
+  "artifact_path": ""
+}
