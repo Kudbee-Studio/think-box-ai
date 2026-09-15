@@ -70,6 +70,20 @@ Phase 9 adds new subsystems:
 | 8 | Complete | Session tracking with Upstash Vector sync |
 | 9 | **Complete** | Coalition, consensus, economy, intelligence (55 innovations) |
 | 12 | **Complete** | KUDBEE control fabric: identity, governance tokens, Think Boxes, occupancy mesh, ledger, think traces |
+| — | **Verified** | THINKBOXMD-RESEARCH end-to-end research workflow (live model, swarm, proof) — `docs/THINKBOXMD_REPORT.md` |
+
+### Honest capability notes
+
+- **Live model provider:** Inception **Mercury 2** works from the cloud sandbox
+  (`api.inceptionlabs.ai/v1`). OpenAI-compatible and Ollama providers exist;
+  Anthropic is **not implemented**. Both existing providers raise
+  `NotImplementedError` for `embed()`.
+- **Simulated, not settled:** the token economy (`thinkbox/economy.py`) moves
+  integers in a dict — no chain, no settlement. "Minting" is conceptual.
+- **Not built:** MCP client/server, Upstash Redis client, Upstash Box execution
+  client (metadata only), `benchmarks/` evidence, `tests/e2e/` tests, `mayor`.
+- **Known defect:** Upstash Vector writes fail against the dense index
+  (`data/findings/thinkboxmd_upstash_vector_defect.md`).
 
 ## KUDBEE Control Fabric
 
@@ -83,6 +97,22 @@ python3 examples/control_fabric_demo.py
 
 Modules: `identity`, `governance_token`, `admission`, `workspace`, `handoff`,
 `occupancy`, `capacity`, `ledger`, `thinktrace`, `governed`.
+
+### THINKBOXMD-RESEARCH — end-to-end research test
+
+`experiments/thinkboxmd_research.py` runs a **real** research workflow with live
+model calls through the control fabric: Think Box creation, a five-worker swarm
+(`PHARMA`, `TOX`, `VALIDATOR`, `SAFETY`, `SYNTH`), tiered findings
+(`EVIDENCE` / `INFERENCE` / `HYPOTHESIS` / `UNVERIFIED`), reconciliation, an
+injected-failure recovery test, persistent memory, and a hash-chain proof.
+
+```bash
+python3 experiments/thinkboxmd_research.py     # stdlib only; needs INCEPTION_API_KEY
+```
+
+Latest run: 9 PASS / 2 PARTIAL / 0 FAIL. Report: `docs/THINKBOXMD_REPORT.md`.
+
+**Research/infrastructure test only — not clinical advice. Synthetic scenarios only.**
 
 ---
 
@@ -160,7 +190,12 @@ think-box-ai/
 │   ├── unit/                  # Unit tests (no I/O, no network)
 │   ├── integration/           # Integration tests
 │   └── e2e/                   # End-to-end tests
+├── experiments/               # End-to-end proof experiments
+│   ├── kudbee_orchestrator.py # Autonomous proof-of-work loop + interrupt/resume
+│   ├── thinkboxmd_research.py # THINKBOXMD-RESEARCH research workflow test
+│   └── test_interrupt_resume.py
 ├── docs/                      # Architecture and project documentation
+│   └── THINKBOXMD_REPORT.md   # Latest end-to-end research report
 ├── AGENTS.md                  # Development rules
 ├── STATUS.md                  # Phase progress tracker
 ├── PHASE9_INDEX.md            # Phase 9 innovations index

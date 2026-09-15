@@ -481,3 +481,53 @@ tests/                   # Tests (KEEP)
 ---
 
 **Next action:** Start Stage 1 — build `backend/main.py` with FastAPI + WebSocket, wire to existing frontend.
+
+---
+
+## MILESTONE — THINKBOXMD-RESEARCH (2026-09-15)
+
+**Goal:** prove KUDBEE can run a real end-to-end research workflow on existing
+infrastructure with a live model, an auditable proof, and honest failure handling.
+
+### Verified this milestone
+
+- [x] **Live provider.** Inception **Mercury 2** (`api.inceptionlabs.ai/v1`) works
+      from the cloud sandbox. Earlier "TLS-blocked" status was wrong-host.
+- [x] **Think Box + governance + ledger.** Box created, persisted to SQLite,
+      admitted through the gate, recorded in a SHA-256 hash chain that verifies.
+- [x] **Five-worker swarm.** PHARMA / TOX / VALIDATOR / SAFETY / SYNTH, each a
+      **live** model call (not simulated).
+- [x] **Tiered findings.** `EVIDENCE` / `INFERENCE` / `HYPOTHESIS` / `UNVERIFIED`.
+- [x] **Failure recovery.** Injected provider failure → detected → preserved in
+      ledger → recovered on a healthy endpoint.
+- [x] **Proof artifacts.** Machine JSON + human Markdown + proof hash.
+
+### Verified, honestly-limited (PARTIAL)
+
+- [~] **MEMORY.** Local SQLite Commons works. **Upstash Vector writes are broken**
+      against the dense index (`HTTP 422`); no embedding provider exists.
+- [~] **THINK INTEGRATION.** Token economy is integer simulation, not settlement.
+
+### Not built (blocking production-grade THINKBOXMD)
+
+- [ ] **Distributed execution substrate** — worker process isolation + scheduler.
+      *This is the single largest missing capability.*
+- [ ] **Credentialed work queue** (Upstash Redis) so work survives a dropped connection.
+- [ ] **Upstash Box execution client** (currently metadata-only; preview not found).
+- [ ] **UpCloud access** — API token rejected (401); SSH key absent. Needs a fresh
+      token/key from the panel.
+- [ ] **MCP tool bridge** — none configured.
+- [ ] **Embedding provider** — required to repair Vector memory.
+- [ ] **`tests/e2e/`** — still empty.
+
+### Next larger improvement (ordered)
+
+1. **Embedding provider** → repair Vector memory (unblocks distributed Commons).
+2. **Worker process isolation + Redis work queue** → durable, resumable swarm.
+3. **UpCloud worker** → put the credentialed 16-CPU machine behind the queue.
+4. **MCP bridge** → real evidence retrieval (FDA/PubMed-style sources).
+
+**Next action:** implement an embedding provider and fix
+`thinkbox/session.py::UpstashVectorSync.upsert()` (see
+`data/findings/thinkboxmd_upstash_vector_defect.md`).
+

@@ -45,6 +45,8 @@ data/infra_*.ini
 data/jobs/*.json
 data/gpu_queue.jsonl
 data/queue.jsonl
+# THINKBOXMD proof: keep JSON/MD reports, ignore regenerable DB state
+data/thinkboxmd/db/
 
 # Keep fixtures
 !data/fixtures/

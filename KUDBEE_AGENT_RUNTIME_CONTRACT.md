@@ -92,22 +92,26 @@ All environment variables currently available to the agent. **No secret values a
 
 ## 4. External Service Roles
 
-| Service | Role | Configuration | Status |
-|---------|------|---------------|--------|
-| **Upstash Redis** | State/cache/queue for distributed coordination, session state, task queues | `UPSTASH_API_KEY`, `UPSTASH_VECTOR_REST_URL`, `UPSTASH_VECTOR_REST_TOKEN` | Configured |
-| **Upstash Box** | Remote worker sandbox for code execution, isolated environment | `UPSTASH_BOX_API_KEY`, `UPSTASH_BOX_SSH_KEY`, `UPSTASH_PUBLIC_BOX_URL` | Configured (TLS proxy limits HTTPS) |
-| **Upstash Vector** | Vector database for session metadata sync, organizational memory embeddings | `UPSTASH_VECTOR_REST_URL`, `UPSTASH_VECTOR_REST_TOKEN` | Configured |
-| **UpCloud** | Infrastructure hosting for dedicated server (`kudbee-host-v1`) | `UPCLOUD_SERVER_HOSTNAME`, `UPCLOUD_SERVER_IP`, `UPCLOUD_SSH_KEY_PATH` | Configured |
-| **OpenAI-compatible APIs** | Model inference (OpenAI, Groq, Together, vLLM, Ollama) | `THINKBOX_OPENAI_COMPAT_API_KEY`, `THINKBOX_OPENAI_COMPAT_BASE_URL` | Configurable |
-| **Anthropic Messages API** | Alternative model provider | Not explicitly configured (protocol supported) | Available |
-| **Inception API** | Mercury 2 model (local only — blocked from cloud/box) | `INCEPTION_API_KEY` | Configured but **unusable from cloud** |
-| **Cursor SDK** | IDE integration for code generation | `CURSOR_API_KEY`, `UPCLOUD_API_KEY` | Configured |
+**Verified 2026-09-15** by non-destructive probes from the cloud sandbox
+(see `docs/THINKBOXMD_REPORT.md` §6). "Configured" previously meant "env var
+present"; it did **not** mean "usable". Corrected below.
 
-### Upstash Box TLS Proxy Limitation
-The Upstash Box sandbox has a **transparent TLS proxy** that blocks outbound HTTPS to hosts not in its whitelist. HTTP works, HTTPS does not.
-- **Can reach:** GitHub API, HTTP endpoints
-- **Cannot reach:** Inception API, most HTTPS APIs
-- **Workaround:** Run backend locally for HTTPS-dependent providers; use box for code dev, git, non-HTTPS tools
+| Service | Role | Configuration | Verified status (2026-09-15) |
+|---------|------|---------------|------------------------------|
+| **Upstash Redis** | State/cache/queue | (no dedicated env) | ❌ **Not used** — no Redis client in repo, no client configured |
+| **Upstash Box** | Remote worker sandbox | `UPSTASH_BOX_API_KEY`, `UPSTASH_BOX_SSH_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ⚠️ Host reachable (`wanted-tuna-71803-...box.upstash.com`), but preview returns `preview not found`; no live service |
+| **Upstash Vector** | Session/org memory embeddings | `UPSTASH_VECTOR_REST_URL`, `UPSTASH_VECTOR_REST_TOKEN` | ⚠️ Reachable, **writes rejected**: `HTTP 422 "This index requires dense vectors"` — client sends no vector; no embedding provider exists |
+| **UpCloud** | Dedicated server `kudbee-host-v1` | `UPCLOUD_SERVER_HOSTNAME`, `UPCLOUD_SERVER_IP`, `UPCLOUD_SSH_KEY_PATH` | ❌ **No access** — API token returns 401; SSH key file absent; IP behind Cloudflare (1003) |
+| **OpenAI-compatible APIs** | Model inference | `THINKBOX_OPENAI_COMPAT_API_KEY`, `THINKBOX_OPENAI_COMPAT_BASE_URL` | ✅ Implemented (`core/providers/openai_compat.py`); needs a key |
+| **Anthropic Messages API** | Alternative model provider | — | ❌ **Not implemented** — no provider file exists (docs-only) |
+| **Inception API (Mercury 2)** | Model inference | `INCEPTION_API_KEY` | ✅ **WORKING** at `https://api.inceptionlabs.ai/v1`, model `mercury-2` — live calls verified. (Earlier "unusable from cloud" was the wrong host, `api.inception.ai`.) |
+| **Cursor SDK** | IDE integration | `CURSOR_API_KEY` | Env present; not wired into runtime |
+
+### Upstash Box network note (corrected)
+Observed from the sandbox: **HTTPS works** (returns an application-level 404
+`preview not found` via Cloudflare); plain **HTTP to the box times out**.
+The prior claim that "HTTP works, HTTPS does not" was not reproducible.
+The actionable blocker is that **no box preview is currently live**, not TLS.
 
 ---
 

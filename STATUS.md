@@ -77,11 +77,54 @@ python3 -m unittest tests.integration.test_e2e_engine
 | Provider | Box | Cloud Local | Notes |
 |----------|-----|-------------|-------|
 | Ollama | ❌ Not installed | ❌ Not installed | Install locally |
-| Inception | ❌ TLS fail | ❌ TLS 525 | Don't use from cloud |
+| Inception (Mercury 2) | ✅ **Working** | ✅ **Working** | `https://api.inceptionlabs.ai/v1`, model `mercury-2`. Verified 2026-09-15: live completion, ~0.4–5 s. Reasoning model — give it ≥3500 `max_tokens` or reasoning tokens consume the budget and `content` comes back `null`. |
 | OpenAI | ✅ Reachable | ✅ Reachable | Needs key |
 | Groq | ✅ Reachable | ✅ Reachable | Needs key |
 
+**Correction (2026-09-15):** earlier status listed Inception as TLS-blocked
+(`api.inception.ai`, 525). The working host is **`api.inceptionlabs.ai`** and it
+answers normally from the cloud sandbox. `think_box_ai/commands/inception.py`
+still only *simulates* calls and does not use this endpoint.
+
+---
+
+## THINKBOXMD-RESEARCH — End-to-End Research Test (2026-09-15)
+
+**Verdict:** 9 PASS / 2 PARTIAL / 0 FAIL.
+
+Ran a real research workflow (`experiments/thinkboxmd_research.py`) with live
+Mercury 2 model calls through the existing control fabric: Think Box creation,
+five-worker swarm (PHARMA/TOX/VALIDATOR/SAFETY/SYNTH), tiered findings
+(EVIDENCE/INFERENCE/HYPOTHESIS/UNVERIFIED), reconciliation, injected-failure
+recovery, persistent memory, and hash-chain proof.
+
+- Proof hash: `0723be5ea848a96fa85ad61c7ecf225139dff8efc6d527797fcb1f998c0bd6f5`
+- Ledger: 12 entries, chain valid; traces: 9 grounded / 1 ungrounded
+- PARTIAL layers: MEMORY (Upstash Vector broken), THINK INTEGRATION (token economy is simulated integers)
+
+Full report: `docs/THINKBOXMD_REPORT.md`.
+
+---
+
+## Access Inventory (2026-09-15)
+
+| Service | Env present | Status |
+|---------|-------------|--------|
+| Inception Mercury 2 | `INCEPTION_API_KEY` | ✅ live and used |
+| Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes rejected (dense index needs a vector) |
+| Upstash Box | `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ❌ host reachable, preview `not found` |
+| UpCloud `kudbee-host-v1` (212.147.250.183) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401 invalid; no SSH key; IP behind Cloudflare 1003 |
+| Redis | — | ❌ no client, no env |
+| MCP | — | ❌ none configured |
+
+**Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
+to a dense index and swallows the error. See
+`data/findings/thinkboxmd_upstash_vector_defect.md`.
+
+---
+
 ## How to Run Locally
+
 
 ```bash
 git checkout session/agent_79e656bf-37c6-46f2-833e-1eb027b99152
