@@ -1,0 +1,8 @@
+{
+  "gate_id": "gate-999f8799",
+  "job_id": "cnc-b3bde9f1",
+  "status": "APPROVED",
+  "approver_id": "operator",
+  "reason": "Demo approved",
+  "timestamp": "2026-09-16T22:21:32.132617+00:00"
+}
