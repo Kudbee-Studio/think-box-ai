@@ -187,3 +187,28 @@ class HarvestReplay:
             metrics=metrics,
             pairs_detail=detail,
         )
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="THINK harvest replay")
+    parser.add_argument("--dir", default="data/evals/burst", help="directory with burst jsonl files")
+    parser.add_argument("--verify", action="store_true", help="run verifier on pairs")
+    args = parser.parse_args(argv)
+
+    replay = HarvestReplay()
+    report = replay.replay_dir(args.dir)
+    print(report.to_markdown())
+
+    if args.verify:
+        report_verify = replay.analyze(replay.load(args.dir), sources=[str(args.dir)], verify=True)
+        print("\n--- With Verifier ---")
+        print(report_verify.to_markdown())
+
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

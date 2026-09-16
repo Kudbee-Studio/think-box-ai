@@ -281,6 +281,34 @@ npm start              # runs server.ts via Node 22 type stripping
 
 ---
 
+## Demo in 10
+
+Run the full burst→harvest→scores loop in under 10 minutes. No GPU, no public bind, no AWS.
+
+```bash
+bash scripts/demo_in_10.sh
+```
+
+What it does:
+1. Starts mock vLLM on `127.0.0.1:8001` (deterministic responses, no API key needed)
+2. Runs `python3 -m thinkbox.burst --live --pairs 2 --minutes 1 --max-calls 8 --budget 1.0 --out data/evals/burst-smoke`
+3. Harvests and replays the burst output: `python3 -m thinkbox.harvest --dir data/evals/burst-smoke`
+4. Prints groundedness / bind-failure / reasoning coverage
+
+### What you'll see
+
+| Metric | Meaning |
+|--------|---------|
+| **Contrast pairs** | Grounded vs ungrounded twins per question |
+| **Reasoning coverage** | % of records with captured reasoning channel |
+| **Groundedness score** | How often grounded answers are correctly scored grounded |
+| **Bind-failure rate** | How often ungrounded answers are correctly rejected |
+| **Budget spent** | Elastic-cash ceiling per burst (default $1.00) |
+
+The mock server and burst/harvest modules are shared infrastructure — see `thinkbox/mock_vllm.py`, `thinkbox/burst.py`, `thinkbox/harvest.py`. Do not duplicate.
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and

@@ -45,6 +45,8 @@ data/infra_*.ini
 data/jobs/*.json
 data/gpu_queue.jsonl
 data/queue.jsonl
+# Burst demo output (runtime data, regenerable)
+data/evals/burst-smoke/think_burst_*.jsonl
 # THINKBOXMD proof: keep JSON/MD reports, ignore regenerable DB state
 data/thinkboxmd/db/
 # live swarm event stream (regenerable, high-churn)
