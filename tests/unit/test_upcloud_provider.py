@@ -1,8 +1,9 @@
 """Unit tests for UpCloud ExecutionProvider.
 
 All tests are deterministic and mocked — no real API calls are made.
-Live smoke tests are in tests/integration/test_upcloud_live.py and
-only run when UPCLOUD_API_KEY is actually set.
+Credential source precedence: UPCLOUD_API_MAIN first, UPCLOUD_API_KEY fallback.
+No real credential values are embedded in any test.
+Live smoke tests are in tests/integration/test_upcloud_live.py.
 """
 
 from __future__ import annotations
@@ -27,15 +28,42 @@ class TestUpCloudProviderInit(unittest.TestCase):
         self.assertEqual(provider.provider_name, "upcloud")
         self.assertEqual(provider.auth_status, "untested")
 
-    def test_init_without_api_key(self) -> None:
-        with patch.dict(os.environ, {"UPCLOUD_API_KEY": ""}, clear=True):
+    def test_init_without_any_credential(self) -> None:
+        with patch.dict(
+            os.environ, {"UPCLOUD_API_MAIN": "", "UPCLOUD_API_KEY": ""}, clear=True
+        ):
             provider = UpCloudExecutionProvider()
             self.assertEqual(provider.provider_name, "upcloud")
+            self.assertEqual(provider.credential_source, "none")
+            self.assertEqual(provider._api_key, "")
 
-    def test_init_from_env(self) -> None:
-        with patch.dict(os.environ, {"UPCLOUD_API_KEY": "env-key"}, clear=True):
+    def test_init_prefers_main(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"UPCLOUD_API_MAIN": "main-key", "UPCLOUD_API_KEY": "fallback-key"},
+            clear=True,
+        ):
+            provider = UpCloudExecutionProvider({"api_key": "config-key"})
+            self.assertEqual(provider._api_key, "main-key")
+            self.assertEqual(provider.credential_source, "UPCLOUD_API_MAIN")
+
+    def test_init_fallback_to_key(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"UPCLOUD_API_MAIN": "", "UPCLOUD_API_KEY": "fallback-key"},
+            clear=True,
+        ):
             provider = UpCloudExecutionProvider()
-            self.assertEqual(provider.provider_name, "upcloud")
+            self.assertEqual(provider._api_key, "fallback-key")
+            self.assertEqual(provider.credential_source, "UPCLOUD_API_KEY")
+
+    def test_init_config_when_no_env(self) -> None:
+        with patch.dict(
+            os.environ, {"UPCLOUD_API_MAIN": "", "UPCLOUD_API_KEY": ""}, clear=True
+        ):
+            provider = UpCloudExecutionProvider({"api_key": "config-key"})
+            self.assertEqual(provider._api_key, "config-key")
+            self.assertEqual(provider.credential_source, "config")
 
     def test_provider_name(self) -> None:
         provider = UpCloudExecutionProvider()
@@ -62,11 +90,13 @@ class TestUpCloudProviderInit(unittest.TestCase):
 
 class TestUpCloudProviderAuth(unittest.TestCase):
     def test_check_auth_no_key(self) -> None:
-        with patch.dict(os.environ, {"UPCLOUD_API_KEY": ""}, clear=True):
+        with patch.dict(
+            os.environ, {"UPCLOUD_API_MAIN": "", "UPCLOUD_API_KEY": ""}, clear=True
+        ):
             provider = UpCloudExecutionProvider()
             result = provider.check_auth()
         self.assertEqual(result.status, CapabilityStatus.DENIED)
-        self.assertIn("No UPCLOUD_API_KEY", result.detail)
+        self.assertIn("No UPCLOUD_API_MAIN", result.detail)
 
     def test_check_auth_invalid_token(self) -> None:
         provider = UpCloudExecutionProvider({"api_key": "bad-token"})
@@ -86,6 +116,8 @@ class TestUpCloudProviderAuth(unittest.TestCase):
             result = provider.check_auth()
         self.assertEqual(result.status, CapabilityStatus.VERIFIED)
         self.assertEqual(provider.auth_status, "authenticated")
+        self.assertIn(provider.credential_source, result.detail)
+        self.assertNotIn("good-token", result.detail)
 
     def test_check_auth_unreachable(self) -> None:
         provider = UpCloudExecutionProvider({"api_key": "token"})
@@ -108,7 +140,11 @@ class TestUpCloudProviderAuth(unittest.TestCase):
         log_capture = logging.getLogger()
         for handler in log_capture.handlers:
             if hasattr(handler, "stream") and handler.stream:
-                content = handler.stream.getvalue() if hasattr(handler.stream, "getvalue") else ""
+                content = (
+                    handler.stream.getvalue()
+                    if hasattr(handler.stream, "getvalue")
+                    else ""
+                )
                 self.assertNotIn("super-secret-token", content)
 
 

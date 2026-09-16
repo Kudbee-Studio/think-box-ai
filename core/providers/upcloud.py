@@ -3,8 +3,9 @@
 Implements ExecutionProvider for UpCloud infrastructure using the
 UpCloud REST API. Uses only stdlib (urllib) — no external dependencies.
 
-Authentication: reads `UPCLOUD_API_KEY` from environment (never logged,
-never stored, never serialized).
+Authentication: reads `UPCLOUD_API_MAIN` from environment first,
+optionally falling back to `UPCLOUD_API_KEY` for backwards compatibility.
+Neither value is ever logged, stored, or serialized.
 
 All capability checks are honest: VERIFIED means the API call succeeded,
 DENIED means the API returned an auth/permission error, NOT_TESTED means
@@ -43,16 +44,33 @@ class UpCloudExecutionProvider(ExecutionProvider):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         config = config or {}
         super().__init__(config)
-        self._api_key: str = config.get(
-            "api_key", os.environ.get("UPCLOUD_API_KEY", "")
-        )
         self._auth_checked = False
         self._auth_status = "untested"
         self._capabilities: ExecutionProviderCapabilities | None = None
+        self._credential_source: str = "none"
+        env_main = os.environ.get("UPCLOUD_API_MAIN", "")
+        env_key = os.environ.get("UPCLOUD_API_KEY", "")
+        config_key = config.get("api_key", "")
+        if env_main:
+            self._api_key = env_main
+            self._credential_source = "UPCLOUD_API_MAIN"
+        elif env_key:
+            self._api_key = env_key
+            self._credential_source = "UPCLOUD_API_KEY"
+        elif config_key:
+            self._api_key = config_key
+            self._credential_source = "config"
+        else:
+            self._api_key = ""
+            self._credential_source = "none"
 
     @property
     def provider_name(self) -> str:
         return "upcloud"
+
+    @property
+    def credential_source(self) -> str:
+        return self._credential_source
 
     def _auth_header(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self._api_key}"}
@@ -93,7 +111,7 @@ class UpCloudExecutionProvider(ExecutionProvider):
             return CapabilityCheck(
                 capability="authentication",
                 status=CapabilityStatus.DENIED,
-                detail="No UPCLOUD_API_KEY configured",
+                detail="No UPCLOUD_API_MAIN configured (checked UPCLOUD_API_MAIN then UPCLOUD_API_KEY)",
             )
         try:
             status, _ = self._request("GET", "/account")
@@ -102,21 +120,21 @@ class UpCloudExecutionProvider(ExecutionProvider):
                 return CapabilityCheck(
                     capability="authentication",
                     status=CapabilityStatus.VERIFIED,
-                    detail="Authentication successful",
+                    detail=f"Authenticated via {self._credential_source}",
                 )
             elif status == 401:
                 self._auth_status = "denied"
                 return CapabilityCheck(
                     capability="authentication",
                     status=CapabilityStatus.DENIED,
-                    detail="HTTP 401 — invalid or expired API token",
+                    detail=f"HTTP 401 — invalid or expired API token ({self._credential_source})",
                 )
             elif status == 403:
                 self._auth_status = "forbidden"
                 return CapabilityCheck(
                     capability="authentication",
                     status=CapabilityStatus.REQUIRES_ADMIN_APPROVAL,
-                    detail=f"HTTP 403 — access forbidden, admin approval required",
+                    detail=f"HTTP 403 — access forbidden ({self._credential_source})",
                 )
             else:
                 self._auth_status = f"http_{status}"

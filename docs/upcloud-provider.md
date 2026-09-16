@@ -12,7 +12,8 @@
 | Check | Result |
 |-------|--------|
 | `upctl` installed | ❌ NOT FOUND |
-| `UPCLOUD_API_KEY` env var | ❌ NOT SET |
+| `UPCLOUD_API_MAIN` env var | ❌ NOT SET (checked first) |
+| `UPCLOUD_API_KEY` env var | ❌ NOT SET (fallback) |
 | UpCloud API reachable | ✅ (HTTP response received) |
 | UpCloud API auth | ❌ HTTP 401 (as documented in STATUS.md) |
 
@@ -59,8 +60,8 @@ All tests were read-only probes with timeout limits.
 ### 3.1 No Credential Exposure
 
 - No UpCloud tokens in source code, tests, documentation, or artifacts
-- `.env.example` contains placeholder only (`UPCLOUD_API_KEY=`)
-- Provider reads `UPCLOUD_API_KEY` from environment at runtime only
+- `.env.example` contains placeholders only (`UPCLOUD_API_MAIN=` and `UPCLOUD_API_KEY=`)
+- Provider reads `UPCLOUD_API_MAIN` (primary) then `UPCLOUD_API_KEY` (fallback) from environment at runtime only
 - Evidence records never contain credential material
 - Credential grep across entire repo: **0 matches for actual secret values**
 
@@ -144,8 +145,9 @@ Operations classified as destructive or billable require explicit
    equivalent.
 
 2. **No credentials in this environment**: All capabilities are
-   classified as DENIED until a valid `UPCLOUD_API_KEY` is provided.
-   Live smoke tests are skipped in this case.
+    classified as DENIED until a valid `UPCLOUD_API_MAIN` token is provided
+    (or `UPCLOUD_API_KEY` as legacy fallback).
+    Live smoke tests are skipped in this case.
 
 3. **No upcloud-python-sdk**: Uses stdlib `urllib` only (Phase 0
    constraint: no external dependencies without documented trigger).
@@ -163,7 +165,8 @@ Operations classified as destructive or billable require explicit
 ## 7. Next Steps
 
 1. **Valid API Token**: Mint a fresh UpCloud API token with limited
-   scope and set `UPCLOUD_API_KEY` env var → re-run live smoke tests
+    scope and set `UPCLOUD_API_MAIN` env var → re-run live smoke tests
+    (or `UPCLOUD_API_KEY` as legacy fallback)
 2. **Install upctl**: `pip install upcloud-cli` (optional convenience)
 3. **Expand capabilities**: Add subscription, billing, and firewall
    operations when validated

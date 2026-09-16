@@ -34,9 +34,10 @@ and an `UpCloudExecutionProvider` implementation in `core/providers/upcloud.py`.
    - `NOT_TESTED` — capability was not exercised (auth blocked test)
    - `REQUIRES_ADMIN_APPROVAL` — HTTP 403, needs manual escalation
 
-3. **No secrets in code/tests/docs**: API keys come from `UPCLOUD_API_KEY`
-   env var. No token values appear in source, tests, or documentation.
-   Evidence records never contain credential material.
+3. **No secrets in code/tests/docs**: API keys come from `UPCLOUD_API_MAIN`
+    env var (primary) with `UPCLOUD_API_KEY` as backwards-compatible fallback.
+    No token values appear in source, tests, or documentation.
+    Evidence records never contain credential material.
 
 4. **Dry-run plan mode**: `plan()` generates an execution plan without
    performing actions. Destructive/billable operations require explicit
@@ -47,6 +48,8 @@ and an `UpCloudExecutionProvider` implementation in `core/providers/upcloud.py`.
    and verification. No secrets recorded.
 
 6. **REST API over CLI**: Uses UpCloud REST API directly via `urllib`
+    (stdlib), not `upctl` CLI (not installed).
+    Authenticates via `UPCLOUD_API_MAIN` (primary) → `UPCLOUD_API_KEY` (fallback).
    (stdlib) instead of `upctl` (not installed, not in requirements).
    This keeps the provider dependency-free and controllable.
 

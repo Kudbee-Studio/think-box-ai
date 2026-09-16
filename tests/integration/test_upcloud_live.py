@@ -1,7 +1,8 @@
 """Live smoke tests for UpCloud ExecutionProvider.
 
-These tests make real API calls and ONLY run when UPCLOUD_API_KEY
-is configured in the environment. They are skipped otherwise.
+These tests make real API calls and ONLY run when UPCLOUD_API_MAIN
+(or UPCLOUD_API_KEY as fallback) is configured in the environment.
+They are skipped otherwise.
 
 Never fake live success — skipped tests report as SKIPPED, not PASSED.
 """
@@ -20,17 +21,25 @@ class TestUpCloudLiveSmoke(unittest.TestCase):
     """Live tests — skipped when no credentials are available."""
 
     def setUp(self) -> None:
-        self.api_key = os.environ.get("UPCLOUD_API_KEY", "")
+        self.api_key = os.environ.get("UPCLOUD_API_MAIN") or os.environ.get(
+            "UPCLOUD_API_KEY", ""
+        )
         if not self.api_key:
-            self.skipTest("UPCLOUD_API_KEY not set")
+            self.skipTest(
+                "UPCLOUD_API_MAIN not set (checked UPCLOUD_API_MAIN then UPCLOUD_API_KEY)"
+            )
 
     def test_live_auth_check(self) -> None:
         provider = UpCloudExecutionProvider({"api_key": self.api_key})
         result = provider.check_auth()
-        # We do NOT assume success — we record what actually happened.
         self.assertIn(
             result.status,
             [CapabilityStatus.VERIFIED, CapabilityStatus.DENIED],
+        )
+        credential_source = provider.credential_source
+        self.assertIn(
+            credential_source,
+            ["UPCLOUD_API_MAIN", "UPCLOUD_API_KEY"],
         )
 
     def test_live_discover_capabilities(self) -> None:
@@ -50,7 +59,6 @@ class TestUpCloudLiveSmoke(unittest.TestCase):
         result = provider.execute(
             "smoke-list", "list_servers", approve=True
         )
-        # Honest result — may succeed or fail based on actual permissions
         self.assertIn(result.success, [True, False])
 
     def test_live_plan(self) -> None:
