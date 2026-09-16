@@ -504,6 +504,46 @@ SSM: `AWS_PAGER="" aws ssm start-session --target i-0685561c90845986d --region u
 Use HTTP/1.0 if curl hangs: `curl -sS --http1.0 -m 20 ...`.
 Capture `delta.reasoning` / `reasoning` fields when present — do not drop them.
 
+## CNC Manufacturing Intelligence Platform
+
+The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligence system.
+
+### Module Structure
+
+- `thinkbox/cnc/job.py` — CNCJob, Material, Tool, MachineProfile, Operation, ValidationResult, InspectionResult, ApprovalRecord, ExecutionRecord
+- `thinkbox/cnc/memory.py` — ManufacturingMemory, KnowledgeEntry (persistent knowledge across jobs)
+- `thinkbox/cnc/proof.py` — ProofPackage, ProofStore (evidence packages for every decision)
+- `thinkbox/cnc/adapter.py` — CADInterface, MachineControllerInterface, InspectionSystemInterface, SimulatorInterface, ShopDatabaseInterface, CNCAdapterRegistry
+- `thinkbox/cnc/safety.py` — ApprovalGate, SafetyGate, SafetyGateStore (human approval before execution)
+- `thinkbox/cnc/tenant.py` — Tenant, TenantPermission, TenantBoundary, TenantStore (multi-tenant isolation)
+- `thinkbox/cnc/dashboard.py` — ROIStats, ROIDashboard (measurable business value)
+- `thinkbox/cnc/demo.py` — DemoMode, DemoResult (deterministic end-to-end demonstration)
+- `thinkbox/cnc/engine.py` — CNCManufacturingEngine (wires all subsystems)
+- `thinkbox/cnc/__init__.py` — All exports
+
+### Key Design Principles
+
+1. **No autonomous execution** — Human approval required before production
+2. **Evidence labeling** — All data labeled as "simulated", "inferred", "verified", or "physically_measured"
+3. **Tenant isolation** — Customer knowledge remains isolated
+4. **Replayable** — Every job is persistent and replayable via ReplayDriver
+5. **Self-improving** — SelfImprovementLoop compares outcomes and improves future plans
+6. **No new dependencies** — Reuses existing Think Box infrastructure
+
+### Testing
+
+- `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
+- Run: `python3 -m unittest tests.unit.test_cnc -v`
+- Full suite: `python3 -m unittest discover tests/` (477 tests, 1 skip)
+
+### ADR
+
+- `docs/decisions/001-cnc-manufacturing.md` — ADR for CNC manufacturing platform
+
+### ROI Report
+
+- `docs/cnc-roi-report.md` — Enterprise ROI and evidence report
+
 ## THINK Burst Protocol — Operational Note
 
 Short bounded bursts on `openai/gpt-oss-20b` maximize THINK-token quality per
