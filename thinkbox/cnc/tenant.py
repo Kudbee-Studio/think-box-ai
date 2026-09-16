@@ -93,7 +93,7 @@ class TenantStore:
                 continue
 
     def _save(self, tenant: Tenant) -> None:
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        self.storage_path.mkdir(parents=True, exist_ok=True)
         f = self.storage_path / f"{tenant.tenant_id}.json"
         f.write_text(json.dumps(tenant.model_dump(), indent=2))
 

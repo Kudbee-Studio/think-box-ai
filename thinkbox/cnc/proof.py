@@ -59,7 +59,7 @@ class ProofStore:
         return proof
 
     def _save(self, proof: ProofPackage) -> None:
-        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        self.storage_path.mkdir(parents=True, exist_ok=True)
         f = self.storage_path / f"{proof.proof_id}.json"
         f.write_text(json.dumps(proof.model_dump(), indent=2))
 
