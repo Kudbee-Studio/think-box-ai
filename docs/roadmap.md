@@ -566,3 +566,41 @@ not a claim we make; "after N runs the validated index moved by X" is.
 - [ ] Reputation-weighted worker sampling in the next wave
 - [ ] Implement `docs/DASHBOARD_BUILDOUT.md` Phase 1–4 (harden middleware, optional auth)
 
+---
+
+## MILESTONE — COMMAND CENTER v2 + AGENT WORK TEMPLATES (2026-09-16)
+
+**Goal:** make the instrumentation observable across ten surfaces, and make the
+*way agents do work* a versioned, testable artifact instead of a prompt.
+
+### Agent work templates (new primitive)
+
+- [x] `docs/agent-templates/README.md` — template registry and usage
+- [x] `docs/agent-templates/_contract.template.yaml` — reusable machine contract
+- [x] `docs/agent-templates/dashboard-evolution/AGENT_CONTRACT.md` — branch naming, baseline, tests, verification, evidence, failure semantics, security, review, merge
+- [x] `scripts/agent_work.py` — executable protocol (`list`/`check`/`verify`/`report`) with in-process dashboard E2E
+- [x] `tests/unit/test_agent_work.py` — 9 tests incl. registry↔YAML drift guard
+- [x] Template branch `agent-template/dashboard-evolution` (persistent; not merged to main)
+- [x] Feature branch `agent/dashboard-command-center/kilo-20260916`
+
+### Command Center v2 (ten surfaces)
+
+- [x] Swarm Command · Causal Trace · Proof Explorer · Learning · Arena Replay
+- [x] Memory Evolution · Worker Reputation · Cost × Intelligence · Genome/Replay · Mission Control
+- [x] Arena probes run as a real wave and persist outcomes
+- [x] `big_swarm.py --replay <session_id>` genome replay + comparison
+- [x] Mission Control separates core readiness from external blockers; ledger probe is read-only
+
+### Evidence
+
+- 339 tests OK · instrumentation 11/11 · dashboard E2E 16/16 routes
+- Replay: 0.7078 → 0.7375, config match
+- Core readiness 0.91 vs external readiness 0.10
+
+### Next
+
+- [ ] Retest-driven self-improvement: apply the proposal and rerun automatically
+- [ ] `tests/e2e/` coverage for the runtime loop (template lists this as degraded)
+- [ ] Real embedding provider → unblock Vector memory → distributed Commons
+- [ ] Add `agent-template/experiment` and `agent-template/backend` templates
+

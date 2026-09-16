@@ -154,6 +154,34 @@ Verified 2026-09-15: `11/11` instrumentation checks pass; learning curve
 observed `0.6405 → 0.7318 (+0.0913)` across two sessions; ledger and proof
 chains verify. Connect-it-up plan: `docs/DASHBOARD_BUILDOUT.md`.
 
+### THINK BOX Command Center v2
+
+The ten instruments above, made observable across ten surfaces in one stdlib
+process: Swarm Command, Causal Trace, Proof Explorer, Learning, Arena Replay,
+Memory Evolution, Worker Reputation, Cost × Intelligence, Genome/Replay, and
+Mission Control.
+
+```bash
+python3 experiments/swarm_dashboard.py --port 8787
+cloudflared tunnel --url http://127.0.0.1:8787
+```
+
+Details, traceability rules and honest limitations: `docs/COMMAND_CENTER.md`.
+
+### Agent work templates
+
+The procedure for a class of agent work is versioned, not prompted. A template
+branch carries the contract; a feature branch is one execution of it.
+
+```bash
+python3 scripts/agent_work.py list
+python3 scripts/agent_work.py check  --template dashboard-evolution
+python3 scripts/agent_work.py verify --template dashboard-evolution
+```
+
+See `docs/agent-templates/README.md`. Templates are long-lived remote branches
+(`agent-template/*`) and are not merged into `main`.
+
 ---
 
 ## Getting Started

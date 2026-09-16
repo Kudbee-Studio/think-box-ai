@@ -140,6 +140,33 @@ complete in ~15 s.
 
 ---
 
+## THINK BOX Command Center v2 (2026-09-16)
+
+**Verdict:** 339 tests OK · instrumentation 11/11 · dashboard E2E 16/16 routes.
+
+Evolved the instrumentation dashboard into a ten-surface command center without a
+rewrite: same single stdlib process, same read-only SQLite sources, same
+"files over servers" rule.
+
+New surfaces: Swarm Command (/api/live), Causal Trace (/api/trace), Proof
+Explorer (/api/proofs), Learning (/api/learning), Arena Replay (/api/arena),
+Memory Evolution (/api/memory), Worker Reputation (/api/reputation),
+Cost × Intelligence (/api/efficiency), Genome/Replay (/api/genome,/api/replay),
+Mission Control (/api/mission). All v1 routes preserved with unchanged payloads.
+
+- Arena probes now run as a real wave and persist outcomes (4 trap types)
+- Genome replay works end-to-end: `big_swarm.py --replay <session_id>`
+  (observed 0.7078 → 0.7375, config match)
+- Mission Control separates **core readiness (0.91)** from **external blockers**
+  (Box, UpCloud, Redis, MCP, Vector) so an external outage is never reported as
+  the system being down
+- Ledger verification in Mission Control is read-only (`mode=ro`), replaying the
+  chain with the same hash function
+
+Docs: `docs/COMMAND_CENTER.md`. Protocol: `docs/agent-templates/`.
+
+---
+
 ## Access Inventory (2026-09-15)
 
 | Service | Env present | Status |

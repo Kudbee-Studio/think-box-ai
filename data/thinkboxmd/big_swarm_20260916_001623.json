@@ -1,0 +1,1033 @@
+{
+  "run_id": "big_swarm_20260916_001623",
+  "session_id": "swarm_sess_20260916_001617_33147b",
+  "model": "mercury-2",
+  "synthetic_only": true,
+  "not_clinical": true,
+  "concurrency": 16,
+  "primary_workers": 24,
+  "validator_workers": 8,
+  "wave1_seconds": 2.22,
+  "wave2_seconds": 1.39,
+  "arena_seconds": 2.04,
+  "replay_of": "",
+  "reconciliation": {
+    "session_id": "swarm_sess_20260916_001617_33147b",
+    "total_calls": 32,
+    "ok": 32,
+    "failed": 0,
+    "primary_calls": 24,
+    "validator_calls": 8,
+    "tier_distribution": {
+      "EVIDENCE": 1,
+      "INFERENCE": 3,
+      "HYPOTHESIS": 1,
+      "UNVERIFIED": 19,
+      "ERROR": 0
+    },
+    "disagreements": 4,
+    "tier_inflation_by_validator": 1,
+    "elapsed_s": 5.69,
+    "effective_rps": 5.62,
+    "p50_latency_s": 1.019,
+    "max_latency_s": 1.587,
+    "ledger_entries": 296,
+    "ledger_valid": true,
+    "traces": 40,
+    "traces_grounded": 40,
+    "memory_entries": 295,
+    "total_tokens": 12260,
+    "reasoning_tokens": 8130,
+    "strength": {
+      "index": 0.7288,
+      "components": {
+        "reliability": 1.0,
+        "grounding": 1.0,
+        "evidence_quality": 0.2479,
+        "challenge_resolution": 0.25,
+        "validator_calibration": 0.875,
+        "reproducibility": 0.9167
+      },
+      "signals": {
+        "challenge_activity": 0.5,
+        "tier_inflation_rate": 0.125
+      },
+      "learning_delta": -0.0087,
+      "tier_distribution": {
+        "EVIDENCE": 1,
+        "INFERENCE": 3,
+        "HYPOTHESIS": 1,
+        "UNVERIFIED": 19,
+        "ERROR": 0
+      }
+    },
+    "disagreement_sample": [
+      {
+        "claim_id": "CLM-0010",
+        "primary": "UNVERIFIED",
+        "validator": "HYPOTHESIS"
+      },
+      {
+        "claim_id": "CLM-0003",
+        "primary": "INFERENCE",
+        "validator": "UNVERIFIED"
+      },
+      {
+        "claim_id": "CLM-0008",
+        "primary": "UNVERIFIED",
+        "validator": "HYPOTHESIS"
+      },
+      {
+        "claim_id": "CLM-0013",
+        "primary": "UNVERIFIED",
+        "validator": "HYPOTHESIS"
+      }
+    ]
+  },
+  "workers": [
+    {
+      "role": "PRIMARY",
+      "slot": 13,
+      "worker": "SWARM-PRIMARY-0013",
+      "box": "box_99f25f1180ee",
+      "capability": "research:primary",
+      "claim_id": "CLM-0013",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.818,
+      "total_tokens": 283,
+      "reasoning_tokens": 144,
+      "trace_id": "trace_da898fa973aa",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 2,
+      "worker": "SWARM-PRIMARY-0002",
+      "box": "box_dad7c07794fe",
+      "capability": "research:primary",
+      "claim_id": "CLM-0002",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.019,
+      "total_tokens": 300,
+      "reasoning_tokens": 164,
+      "trace_id": "trace_66c8697866d1",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 10,
+      "worker": "SWARM-PRIMARY-0010",
+      "box": "box_7cb031a16adf",
+      "capability": "research:primary",
+      "claim_id": "CLM-0010",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.945,
+      "total_tokens": 313,
+      "reasoning_tokens": 173,
+      "trace_id": "trace_6f1648f72f30",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 14,
+      "worker": "SWARM-PRIMARY-0014",
+      "box": "box_ab775db6c3ff",
+      "capability": "research:primary",
+      "claim_id": "CLM-0014",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.85,
+      "total_tokens": 285,
+      "reasoning_tokens": 150,
+      "trace_id": "trace_a3a6fcf7d15c",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 1,
+      "worker": "SWARM-PRIMARY-0001",
+      "box": "box_5ed67d8a8888",
+      "capability": "research:primary",
+      "claim_id": "CLM-0001",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.076,
+      "total_tokens": 297,
+      "reasoning_tokens": 164,
+      "trace_id": "trace_296429620606",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 8,
+      "worker": "SWARM-PRIMARY-0008",
+      "box": "box_0288878cbf48",
+      "capability": "research:primary",
+      "claim_id": "CLM-0008",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.029,
+      "total_tokens": 359,
+      "reasoning_tokens": 220,
+      "trace_id": "trace_95caebb2c27c",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 3,
+      "worker": "SWARM-PRIMARY-0003",
+      "box": "box_3ea80dcf3efa",
+      "capability": "research:primary",
+      "claim_id": "CLM-0003",
+      "tier": "INFERENCE",
+      "ok": true,
+      "latency_s": 1.145,
+      "total_tokens": 353,
+      "reasoning_tokens": 218,
+      "trace_id": "trace_2dce43f7a198",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 6,
+      "worker": "SWARM-PRIMARY-0006",
+      "box": "box_4bca813dc9e6",
+      "capability": "research:primary",
+      "claim_id": "CLM-0006",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.148,
+      "total_tokens": 376,
+      "reasoning_tokens": 239,
+      "trace_id": "trace_5058779caeaf",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 15,
+      "worker": "SWARM-PRIMARY-0015",
+      "box": "box_07ac3cd9a130",
+      "capability": "research:primary",
+      "claim_id": "CLM-0015",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.973,
+      "total_tokens": 400,
+      "reasoning_tokens": 257,
+      "trace_id": "trace_b17f23153df6",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 12,
+      "worker": "SWARM-PRIMARY-0012",
+      "box": "box_1b54a2cf1423",
+      "capability": "research:primary",
+      "claim_id": "CLM-0012",
+      "tier": "HYPOTHESIS",
+      "ok": true,
+      "latency_s": 1.069,
+      "total_tokens": 355,
+      "reasoning_tokens": 221,
+      "trace_id": "trace_9bda83434289",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 9,
+      "worker": "SWARM-PRIMARY-0009",
+      "box": "box_0d2b9a4a0dc9",
+      "capability": "research:primary",
+      "claim_id": "CLM-0009",
+      "tier": "INFERENCE",
+      "ok": true,
+      "latency_s": 1.194,
+      "total_tokens": 425,
+      "reasoning_tokens": 284,
+      "trace_id": "trace_25b5a59d6a6a",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 7,
+      "worker": "SWARM-PRIMARY-0007",
+      "box": "box_7e3b6246a1fc",
+      "capability": "research:primary",
+      "claim_id": "CLM-0007",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.329,
+      "total_tokens": 290,
+      "reasoning_tokens": 150,
+      "trace_id": "trace_d1836d748152",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 4,
+      "worker": "SWARM-PRIMARY-0004",
+      "box": "box_4749efa6418e",
+      "capability": "research:primary",
+      "claim_id": "CLM-0004",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.415,
+      "total_tokens": 507,
+      "reasoning_tokens": 373,
+      "trace_id": "trace_5f7a251c8a83",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 5,
+      "worker": "SWARM-PRIMARY-0005",
+      "box": "box_f16845f42cd1",
+      "capability": "research:primary",
+      "claim_id": "CLM-0005",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.432,
+      "total_tokens": 491,
+      "reasoning_tokens": 355,
+      "trace_id": "trace_1ee317059c58",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 11,
+      "worker": "SWARM-PRIMARY-0011",
+      "box": "box_cebfb7bc7d83",
+      "capability": "research:primary",
+      "claim_id": "CLM-0011",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.358,
+      "total_tokens": 417,
+      "reasoning_tokens": 283,
+      "trace_id": "trace_077718f2f469",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 0,
+      "worker": "SWARM-PRIMARY-0000",
+      "box": "box_2f1763e84033",
+      "capability": "research:primary",
+      "claim_id": "CLM-0000",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.587,
+      "total_tokens": 506,
+      "reasoning_tokens": 368,
+      "trace_id": "trace_c3b0a8126bdf",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 20,
+      "worker": "SWARM-PRIMARY-0020",
+      "box": "box_3653389fd223",
+      "capability": "research:primary",
+      "claim_id": "CLM-0020",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.579,
+      "total_tokens": 261,
+      "reasoning_tokens": 125,
+      "trace_id": "trace_d33b9ae024ef",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 17,
+      "worker": "SWARM-PRIMARY-0017",
+      "box": "box_250e22594ae6",
+      "capability": "research:primary",
+      "claim_id": "CLM-0017",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.668,
+      "total_tokens": 396,
+      "reasoning_tokens": 256,
+      "trace_id": "trace_3ec2c19243db",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 18,
+      "worker": "SWARM-PRIMARY-0018",
+      "box": "box_3c2bb84e5c35",
+      "capability": "research:primary",
+      "claim_id": "CLM-0018",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.744,
+      "total_tokens": 320,
+      "reasoning_tokens": 187,
+      "trace_id": "trace_29814a372d8b",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 23,
+      "worker": "SWARM-PRIMARY-0023",
+      "box": "box_90f7e42f472c",
+      "capability": "research:primary",
+      "claim_id": "CLM-0023",
+      "tier": "EVIDENCE",
+      "ok": true,
+      "latency_s": 0.587,
+      "total_tokens": 321,
+      "reasoning_tokens": 184,
+      "trace_id": "trace_79c351aa0e41",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 16,
+      "worker": "SWARM-PRIMARY-0016",
+      "box": "box_79b427892d81",
+      "capability": "research:primary",
+      "claim_id": "CLM-0016",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.877,
+      "total_tokens": 361,
+      "reasoning_tokens": 228,
+      "trace_id": "trace_3e9975a0f681",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 21,
+      "worker": "SWARM-PRIMARY-0021",
+      "box": "box_3b2d8ac8299e",
+      "capability": "research:primary",
+      "claim_id": "CLM-0021",
+      "tier": "INFERENCE",
+      "ok": true,
+      "latency_s": 0.77,
+      "total_tokens": 386,
+      "reasoning_tokens": 250,
+      "trace_id": "trace_c02d654ac1c3",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 22,
+      "worker": "SWARM-PRIMARY-0022",
+      "box": "box_674dce7b9e48",
+      "capability": "research:primary",
+      "claim_id": "CLM-0022",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.811,
+      "total_tokens": 361,
+      "reasoning_tokens": 228,
+      "trace_id": "trace_12fefc4a5752",
+      "error": ""
+    },
+    {
+      "role": "PRIMARY",
+      "slot": 19,
+      "worker": "SWARM-PRIMARY-0019",
+      "box": "box_5f0d35645226",
+      "capability": "research:primary",
+      "claim_id": "CLM-0019",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.129,
+      "total_tokens": 535,
+      "reasoning_tokens": 399,
+      "trace_id": "trace_77b8fec5781b",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10002,
+      "worker": "SWARM-VALIDATOR-10002",
+      "box": "box_d53bf08a90c6",
+      "capability": "research:validator",
+      "claim_id": "CLM-0010",
+      "tier": "HYPOTHESIS",
+      "ok": true,
+      "latency_s": 0.752,
+      "total_tokens": 288,
+      "reasoning_tokens": 183,
+      "trace_id": "trace_65740d5cf816",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10006,
+      "worker": "SWARM-VALIDATOR-10006",
+      "box": "box_af38e0706b62",
+      "capability": "research:validator",
+      "claim_id": "CLM-0003",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.836,
+      "total_tokens": 296,
+      "reasoning_tokens": 191,
+      "trace_id": "trace_920e5f1db7c9",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10004,
+      "worker": "SWARM-VALIDATOR-10004",
+      "box": "box_1a833ec3dd71",
+      "capability": "research:validator",
+      "claim_id": "CLM-0001",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 0.864,
+      "total_tokens": 314,
+      "reasoning_tokens": 207,
+      "trace_id": "trace_afa0da2d0bf7",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10005,
+      "worker": "SWARM-VALIDATOR-10005",
+      "box": "box_e9f382974851",
+      "capability": "research:validator",
+      "claim_id": "CLM-0008",
+      "tier": "HYPOTHESIS",
+      "ok": true,
+      "latency_s": 0.877,
+      "total_tokens": 313,
+      "reasoning_tokens": 205,
+      "trace_id": "trace_9fbd994383fd",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10001,
+      "worker": "SWARM-VALIDATOR-10001",
+      "box": "box_63ca60b568a4",
+      "capability": "research:validator",
+      "claim_id": "CLM-0002",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.01,
+      "total_tokens": 421,
+      "reasoning_tokens": 312,
+      "trace_id": "trace_c9bf2cbb4119",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10000,
+      "worker": "SWARM-VALIDATOR-10000",
+      "box": "box_889e488287ed",
+      "capability": "research:validator",
+      "claim_id": "CLM-0013",
+      "tier": "HYPOTHESIS",
+      "ok": true,
+      "latency_s": 1.15,
+      "total_tokens": 526,
+      "reasoning_tokens": 419,
+      "trace_id": "trace_4bfdcf6727e3",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10007,
+      "worker": "SWARM-VALIDATOR-10007",
+      "box": "box_bea92d9ca640",
+      "capability": "research:validator",
+      "claim_id": "CLM-0006",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.235,
+      "total_tokens": 630,
+      "reasoning_tokens": 527,
+      "trace_id": "trace_ce26f6a3cb63",
+      "error": ""
+    },
+    {
+      "role": "VALIDATOR",
+      "slot": 10003,
+      "worker": "SWARM-VALIDATOR-10003",
+      "box": "box_728dd0befa6f",
+      "capability": "research:validator",
+      "claim_id": "CLM-0014",
+      "tier": "UNVERIFIED",
+      "ok": true,
+      "latency_s": 1.341,
+      "total_tokens": 574,
+      "reasoning_tokens": 466,
+      "trace_id": "trace_c69ccac856d1",
+      "error": ""
+    }
+  ],
+  "proof_hash": "d5b99d395f971b3354433336f5ed3a073b4b9fe54c7c99365f4b5c5d7d40ada9",
+  "metrics_totals": {
+    "calls": 40,
+    "total_tokens": 15534,
+    "prompt_tokens": 5086,
+    "completion_tokens": 10448,
+    "reasoning_tokens": 10250,
+    "avg_latency_s": 0.986,
+    "challenges": 8,
+    "challenged": 4,
+    "validator_downgrades": 1
+  },
+  "strength_trend": {
+    "kind": "big_swarm",
+    "runs": [
+      {
+        "session_id": "swarm_sess_20260916_001617_33147b",
+        "ended_at": "2026-09-16T00:16:23.454718+00:00",
+        "strength_score": 0.7288,
+        "workers_total": 32,
+        "workers_ok": 32,
+        "effective_rps": 5.62,
+        "ledger_valid": 1,
+        "grounded_ratio": 1.0,
+        "evidence_ratio": 0.2479,
+        "challenge_rate": 0.5,
+        "error_rate": 0.0,
+        "tier_inflation_rate": 0.125,
+        "tier_distribution": "{\"EVIDENCE\": 1, \"INFERENCE\": 3, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 19, \"ERROR\": 0}",
+        "learning_delta": -0.0087
+      },
+      {
+        "session_id": "swarm_sess_20260916_001242_b4b806",
+        "ended_at": "2026-09-16T00:12:48.177433+00:00",
+        "strength_score": 0.7375,
+        "workers_total": 22,
+        "workers_ok": 22,
+        "effective_rps": 3.82,
+        "ledger_valid": 1,
+        "grounded_ratio": 1.0,
+        "evidence_ratio": 0.2344,
+        "challenge_rate": 0.5,
+        "error_rate": 0.0,
+        "tier_inflation_rate": 0.1667,
+        "tier_distribution": "{\"EVIDENCE\": 0, \"INFERENCE\": 3, \"HYPOTHESIS\": 0, \"UNVERIFIED\": 13, \"ERROR\": 0}",
+        "learning_delta": 0.0297
+      },
+      {
+        "session_id": "swarm_sess_20260916_001225_2062e3",
+        "ended_at": "2026-09-16T00:12:31.968065+00:00",
+        "strength_score": 0.7078,
+        "workers_total": 22,
+        "workers_ok": 22,
+        "effective_rps": 3.49,
+        "ledger_valid": 1,
+        "grounded_ratio": 1.0,
+        "evidence_ratio": 0.2156,
+        "challenge_rate": 0.6667,
+        "error_rate": 0.0,
+        "tier_inflation_rate": 0.0,
+        "tier_distribution": "{\"EVIDENCE\": 0, \"INFERENCE\": 2, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 13, \"ERROR\": 0}",
+        "learning_delta": -0.0197
+      },
+      {
+        "session_id": "swarm_sess_20260915_235836_fe93c6",
+        "ended_at": "2026-09-15T23:58:41.776913+00:00",
+        "strength_score": 0.7275,
+        "workers_total": 32,
+        "workers_ok": 32,
+        "effective_rps": 6.24,
+        "ledger_valid": 1,
+        "grounded_ratio": 1.0,
+        "evidence_ratio": 0.2479,
+        "challenge_rate": 0.625,
+        "error_rate": 0.0,
+        "tier_inflation_rate": 0.125,
+        "tier_distribution": "{\"EVIDENCE\": 1, \"INFERENCE\": 3, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 19, \"ERROR\": 0}",
+        "learning_delta": -0.0043
+      },
+      {
+        "session_id": "swarm_sess_20260915_235734_2a523d",
+        "ended_at": "2026-09-15T23:57:41.726892+00:00",
+        "strength_score": 0.7318,
+        "workers_total": 104,
+        "workers_ok": 103,
+        "effective_rps": 15.19,
+        "ledger_valid": 1,
+        "grounded_ratio": 0.9904,
+        "evidence_ratio": 0.2462,
+        "challenge_rate": 0.5417,
+        "error_rate": 0.0096,
+        "tier_inflation_rate": 0.125,
+        "tier_distribution": "{\"EVIDENCE\": 4, \"INFERENCE\": 9, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 65, \"ERROR\": 1}",
+        "learning_delta": 0.0913
+      },
+      {
+        "session_id": "swarm_sess_20260915_235645_0e98c8",
+        "ended_at": "2026-09-15T23:56:51.861075+00:00",
+        "strength_score": 0.6405,
+        "workers_total": 60,
+        "workers_ok": 60,
+        "effective_rps": 10.06,
+        "ledger_valid": 1,
+        "grounded_ratio": 1.0,
+        "evidence_ratio": 0.2531,
+        "challenge_rate": 0.4167,
+        "error_rate": 0.0,
+        "tier_inflation_rate": 0.0,
+        "tier_distribution": "{\"EVIDENCE\": 3, \"INFERENCE\": 5, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 39, \"ERROR\": 0}",
+        "learning_delta": null
+      }
+    ],
+    "latest": {
+      "session_id": "swarm_sess_20260916_001617_33147b",
+      "ended_at": "2026-09-16T00:16:23.454718+00:00",
+      "strength_score": 0.7288,
+      "workers_total": 32,
+      "workers_ok": 32,
+      "effective_rps": 5.62,
+      "ledger_valid": 1,
+      "grounded_ratio": 1.0,
+      "evidence_ratio": 0.2479,
+      "challenge_rate": 0.5,
+      "error_rate": 0.0,
+      "tier_inflation_rate": 0.125,
+      "tier_distribution": "{\"EVIDENCE\": 1, \"INFERENCE\": 3, \"HYPOTHESIS\": 1, \"UNVERIFIED\": 19, \"ERROR\": 0}",
+      "learning_delta": -0.0087
+    },
+    "delta_vs_previous": -0.0087,
+    "points": [
+      {
+        "session_id": "swarm_sess_20260915_235645_0e98c8",
+        "ended_at": "2026-09-15T23:56:51.861075+00:00",
+        "index": 0.6405
+      },
+      {
+        "session_id": "swarm_sess_20260915_235734_2a523d",
+        "ended_at": "2026-09-15T23:57:41.726892+00:00",
+        "index": 0.7318
+      },
+      {
+        "session_id": "swarm_sess_20260915_235836_fe93c6",
+        "ended_at": "2026-09-15T23:58:41.776913+00:00",
+        "index": 0.7275
+      },
+      {
+        "session_id": "swarm_sess_20260916_001225_2062e3",
+        "ended_at": "2026-09-16T00:12:31.968065+00:00",
+        "index": 0.7078
+      },
+      {
+        "session_id": "swarm_sess_20260916_001242_b4b806",
+        "ended_at": "2026-09-16T00:12:48.177433+00:00",
+        "index": 0.7375
+      },
+      {
+        "session_id": "swarm_sess_20260916_001617_33147b",
+        "ended_at": "2026-09-16T00:16:23.454718+00:00",
+        "index": 0.7288
+      }
+    ]
+  },
+  "proof_chain": {
+    "chain_id": "pc_swarm_sess_20260916_001617_33147b_CLM-0013",
+    "node_count": 7,
+    "chain_hash": "a6675f67e763fa1061c6f75535ba85b814537b7b7562ed42e68569793c4986ce",
+    "verified": true,
+    "explain": {
+      "chain_id": "pc_swarm_sess_20260916_001617_33147b_CLM-0013",
+      "claim": "Synthetic claim 13: a peer-reviewed review reports an interaction signal between agent Agent-F and agent Agent-E.",
+      "decision": "UNVERIFIED",
+      "verified": true,
+      "chain_hash": "a6675f67e763fa1061c6f75535ba85b814537b7b7562ed42e68569793c4986ce",
+      "counts": {
+        "claim": 1,
+        "evidence": 2,
+        "worker": 1,
+        "challenge": 1,
+        "validator": 1,
+        "decision": 1
+      },
+      "evidence": [
+        {
+          "ref": "claim:CLM-0013"
+        },
+        {
+          "trace": "trace_da898fa973aa"
+        }
+      ],
+      "workers": [
+        {
+          "box": "box_99f25f1180ee",
+          "tier": "UNVERIFIED",
+          "tokens": 283,
+          "worker": "SWARM-PRIMARY-0013"
+        }
+      ],
+      "challenges": [
+        {
+          "tier": "HYPOTHESIS",
+          "validator": "SWARM-VALIDATOR-10000"
+        }
+      ],
+      "validators": [
+        {
+          "tier": "HYPOTHESIS",
+          "validator": "SWARM-VALIDATOR-10000"
+        }
+      ]
+    }
+  },
+  "genome": {
+    "genome_id": "gen_swarm_sess_20260916_001617_33147b",
+    "genome_hash": "ef84f2ef7134a0ceea1807baa04f8b8ec85cfabe0edf65fae3162433f9ab1567",
+    "gene": {
+      "run_id": "big_swarm_20260916_001623",
+      "model": "mercury-2",
+      "primary_workers": 24,
+      "validator_workers": 8,
+      "concurrency": 16,
+      "prompt_version": "v2-instrumented",
+      "arena_enabled": true,
+      "probes": [
+        "PROBE-HALL-00",
+        "PROBE-TIER-00",
+        "PROBE-CONT-00",
+        "PROBE-COMP-00"
+      ],
+      "tier_order": [
+        "EVIDENCE",
+        "INFERENCE",
+        "HYPOTHESIS",
+        "UNVERIFIED"
+      ],
+      "claims": [
+        "CLM-0013",
+        "CLM-0002",
+        "CLM-0010",
+        "CLM-0014",
+        "CLM-0001",
+        "CLM-0008",
+        "CLM-0003",
+        "CLM-0006",
+        "CLM-0015",
+        "CLM-0012",
+        "CLM-0009",
+        "CLM-0007",
+        "CLM-0004",
+        "CLM-0005",
+        "CLM-0011",
+        "CLM-0000",
+        "CLM-0020",
+        "CLM-0017",
+        "CLM-0018",
+        "CLM-0023",
+        "CLM-0016",
+        "CLM-0021",
+        "CLM-0022",
+        "CLM-0019"
+      ]
+    },
+    "verified": true
+  },
+  "arena": {
+    "by_trap_type": {
+      "hallucination_trap": {
+        "n": 1,
+        "detected": 1,
+        "challenged": 0,
+        "recovered": 0,
+        "detection_rate": 1.0,
+        "challenge_rate": 0.0,
+        "recovery_rate": 0.0
+      },
+      "tier_inflation_bait": {
+        "n": 1,
+        "detected": 1,
+        "challenged": 0,
+        "recovered": 0,
+        "detection_rate": 1.0,
+        "challenge_rate": 0.0,
+        "recovery_rate": 0.0
+      },
+      "contradiction": {
+        "n": 1,
+        "detected": 1,
+        "challenged": 0,
+        "recovered": 0,
+        "detection_rate": 1.0,
+        "challenge_rate": 0.0,
+        "recovery_rate": 0.0
+      },
+      "competing_answers": {
+        "n": 1,
+        "detected": 1,
+        "challenged": 0,
+        "recovered": 0,
+        "detection_rate": 1.0,
+        "challenge_rate": 0.0,
+        "recovery_rate": 0.0
+      }
+    },
+    "overall": {
+      "probes": 4,
+      "detection_rate": 1.0,
+      "challenge_rate": 0.0,
+      "recovery_rate": 0.0
+    },
+    "outcomes": [
+      {
+        "probe_id": "PROBE-HALL-00",
+        "trap_type": "hallucination_trap",
+        "worker_id": "ARENA-PROBE-HALL-00",
+        "tier": "UNVERIFIED",
+        "detected": true,
+        "validator_tier": "UNVERIFIED",
+        "challenged": false,
+        "recovered": false
+      },
+      {
+        "probe_id": "PROBE-TIER-00",
+        "trap_type": "tier_inflation_bait",
+        "worker_id": "ARENA-PROBE-TIER-00",
+        "tier": "UNVERIFIED",
+        "detected": true,
+        "validator_tier": "UNVERIFIED",
+        "challenged": false,
+        "recovered": false
+      },
+      {
+        "probe_id": "PROBE-CONT-00",
+        "trap_type": "contradiction",
+        "worker_id": "ARENA-PROBE-CONT-00",
+        "tier": "UNVERIFIED",
+        "detected": true,
+        "validator_tier": "UNVERIFIED",
+        "challenged": false,
+        "recovered": false
+      },
+      {
+        "probe_id": "PROBE-COMP-00",
+        "trap_type": "competing_answers",
+        "worker_id": "ARENA-PROBE-COMP-00",
+        "tier": "UNVERIFIED",
+        "detected": true,
+        "validator_tier": "UNVERIFIED",
+        "challenged": false,
+        "recovered": false
+      }
+    ]
+  },
+  "instruments": {
+    "flight_recorder_records": 40,
+    "memory_evolution": {
+      "by_state": {
+        "contradicted": 25,
+        "promoted": 9,
+        "supported": 50
+      },
+      "by_event": {
+        "contradicted": 79,
+        "corrected": 13,
+        "created": 84,
+        "promoted": 53,
+        "reinforced": 132
+      },
+      "reinforced": 132,
+      "contradicted": 79,
+      "corrected": 7,
+      "proven_useful": 0,
+      "total_memories": 84
+    },
+    "reputation": {
+      "workers": 112,
+      "avg_reputation": 0.4745,
+      "best_reputation": 0.7,
+      "total_calls": 296,
+      "total_errors": 1
+    },
+    "reputation_leaderboard": [
+      {
+        "worker_id": "SWARM-PRIMARY-0055",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 1,
+        "errors": 0,
+        "reputation": 0.7
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0059",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 1,
+        "errors": 0,
+        "reputation": 0.7
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0061",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 1,
+        "errors": 0,
+        "reputation": 0.7
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0019",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 4,
+        "errors": 0,
+        "reputation": 0.5895
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0041",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 2,
+        "errors": 0,
+        "reputation": 0.5895
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0023",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 4,
+        "errors": 0,
+        "reputation": 0.5425
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0007",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 6,
+        "errors": 0,
+        "reputation": 0.515833
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0005",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 6,
+        "errors": 0,
+        "reputation": 0.515833
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0033",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 2,
+        "errors": 0,
+        "reputation": 0.515
+      },
+      {
+        "worker_id": "SWARM-PRIMARY-0009",
+        "role": "PRIMARY",
+        "runs": 0,
+        "calls": 6,
+        "errors": 0,
+        "reputation": 0.513
+      }
+    ],
+    "genome_verified": true,
+    "proof_chain_verified": true
+  }
+}
