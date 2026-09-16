@@ -1,3 +1,5 @@
+**Agent policy:** standing rules for all agents live in [`AGENTS.md`](AGENTS.md) (mission, PR policy, lanes, think-v2, Demo-in-10).
+
 ## Phase 9 — Zero-to-One Innovations
 
 **Status:** Complete (55 innovations across 13 categories)
