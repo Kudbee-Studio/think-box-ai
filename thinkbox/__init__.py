@@ -14,6 +14,7 @@ from .autoscaler import DynamicAutoscaler, ScalerConfig, SystemMetrics
 from .pruner import ContextPruner, PruneResult
 from .git_engine import GitEngine, GitConfig, CommitReceipt
 from .engine import ThinkBoxEngine, EngineConfig, TaskState, TaskEvent
+from .replay import ReplayError, ReplayResult, ReplayDriver
 from .legendary import (
     CausalReasoningEngine,
     CausalLink,
@@ -128,6 +129,9 @@ __all__ = [
     "EngineConfig",
     "TaskState",
     "TaskEvent",
+    "ReplayError",
+    "ReplayResult",
+    "ReplayDriver",
     "CausalReasoningEngine",
     "CausalLink",
     "TemporalMemory",

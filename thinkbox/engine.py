@@ -184,3 +184,22 @@ class ThinkBoxEngine:
         The callback receives the run summary dict and must not raise.
         """
         self._post_run_callback = callback
+
+    def wire_improvement_runner(
+        self,
+        runner: Any,
+        baseline_components: dict[str, float] | None = None,
+    ) -> None:
+        """Wire SelfImprovementLoop into execute_goal().
+
+        After each successful goal execution, evaluates the run summary,
+        asks the runner to propose and retest an improvement for the
+        weakest TSSI component, and records the verdict.
+        """
+        components = baseline_components or {}
+
+        def _on_complete(summary: dict[str, Any]) -> None:
+            baseline_index = runner.evaluate(summary)
+            runner.run_cycle("", baseline_index, components)
+
+        self.on_run_complete(_on_complete)
