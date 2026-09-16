@@ -554,4 +554,48 @@ GPU-dollar. Never leave the A10G idle.
 - Offline demo/tests: `python3 examples/think_burst_demo.py`, `python3 -m unittest tests.unit.test_burst`.
 - Founder starts and **stops** (never terminates) think-v2; Cloud Bot / CloudShell
   holds SSM access. KILO does not hold the key and never binds :8000/:8001 publicly.
-- Full checklist: `docs/think-burst-protocol.md`.
+- Full checklist: `docs/think-burst-protocol.md
+
+## Dashboard Control Plane — Permanent Agent Completion Contract
+
+The dashboard (`backend/main.py`, `thinkbox/dashboard_state.py`) is the
+living control plane for Think Box AI. Every agent task, phase, capability,
+infrastructure change, Think Job, CNC job, provider change, test milestone,
+or execution event MUST update canonical dashboard state in real-time.
+
+### Mandatory Rules
+
+1. **Every event updates dashboard state.** Use `get_dashboard_state().emit()`
+   or `broadcast_event()` from `thinkbox.dashboard_state`.
+2. **WebSocket `/dashboard/ws`** broadcasts all state changes to connected
+   clients in real-time.
+3. **SSE `/dashboard/stream`** provides a persistent event stream.
+4. **Every Think Job** creates a `ThinkJobEntry` in dashboard state.
+5. **Every CNC job** creates a `CNCJobEntry` in dashboard state.
+6. **Every infrastructure change** creates an `InfrastructureEntry`.
+7. **Every provider change** creates a `ProviderEntry`.
+8. **Every test run** creates a `TestMilestoneEntry`.
+9. **UpCloud investigation** must call `investigate_upcloud()` and update
+   dashboard state with the trace results.
+10. **Evidence labels** on all data: "simulated", "inferred", "verified", or
+    "physically_measured". Never claim physical validation without proof.
+
+### Dashboard State Model
+
+- `DashboardCategory`: THINK_BOXES, THINK_JOBS, CNC, INFRASTRUCTURE,
+  AGENT_ACTIVITY, PROVIDERS, TESTS, EXECUTION
+- `DashboardEvent`: TASK_STARTED, TASK_COMPLETED, JOB_CREATED, etc.
+- `DashboardEventEntry`: event_id, category, event_type, timestamp, data,
+  source, evidence_label
+- `ThinkBoxEntry`, `ThinkJobEntry`, `CNCJobEntry`, `InfrastructureEntry`,
+  `ProviderEntry`, `TestMilestoneEntry`
+
+### Testing Requirements
+
+- Dashboard state updates must be tested
+- CNC lifecycle must appear in dashboard
+- Replay status must update dashboard
+- Self-improvement status must update dashboard
+- Provider state must update dashboard
+- UpCloud unverified state must be reflected
+`.

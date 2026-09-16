@@ -28,6 +28,14 @@ from thinkbox.cnc import (
     ROIDashboard,
 )
 from thinkbox.cnc.job import CNCJob as CNCJobClass
+from thinkbox.dashboard_state import (
+    get_dashboard_state, DashboardCategory, DashboardEvent,
+    ThinkBoxEntry, ThinkJobEntry, CNCJobEntry,
+    InfrastructureEntry, ProviderEntry, TestMilestoneEntry,
+)
+from thinkbox.upcloud import (
+    UpCloudConfig, UpCloudExecutionPath, investigate_upcloud,
+)
 from thinkbox.replay import ReplayDriver
 
 
@@ -352,3 +360,137 @@ class TestReplayCNC(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDashboardState(unittest.TestCase):
+    """Tests for dashboard state model."""
+
+    def setUp(self) -> None:
+        self.state = get_dashboard_state()
+        self.state.think_boxes = {}
+        self.state.think_jobs = {}
+        self.state.cnc_jobs = {}
+        self.state.infrastructure = {}
+        self.state.providers = {}
+        self.state.test_milestones = {}
+        self.state.events = []
+
+    def test_upsert_think_box(self) -> None:
+        box = ThinkBoxEntry(box_id="box-1", name="TestBox", substrate="local")
+        self.state.upsert_think_box(box)
+        self.assertIn("box-1", self.state.think_boxes)
+        self.assertEqual(self.state.think_boxes["box-1"].name, "TestBox")
+
+    def test_upsert_think_job(self) -> None:
+        job = ThinkJobEntry(job_id="job-1", goal="test goal")
+        self.state.upsert_think_job(job)
+        self.assertIn("job-1", self.state.think_jobs)
+        self.assertEqual(self.state.think_jobs["job-1"].goal, "test goal")
+
+    def test_upsert_cnc_job(self) -> None:
+        cnc = CNCJobEntry(job_id="cnc-1", part_name="Bracket")
+        self.state.upsert_cnc_job(cnc)
+        self.assertIn("cnc-1", self.state.cnc_jobs)
+        self.assertEqual(self.state.cnc_jobs["cnc-1"].part_name, "Bracket")
+
+    def test_upsert_infrastructure(self) -> None:
+        infra = InfrastructureEntry(component="upcloud_test", type="upcloud", status="ok", verified=True)
+        self.state.upsert_infrastructure("upcloud_test", infra)
+        self.assertIn("upcloud_test", self.state.infrastructure)
+        self.assertTrue(self.state.infrastructure["upcloud_test"].verified)
+
+    def test_upsert_provider(self) -> None:
+        prov = ProviderEntry(name="UpCloud", status="unverified")
+        self.state.upsert_provider(prov)
+        self.assertIn("UpCloud", self.state.providers)
+        self.assertEqual(self.state.providers["UpCloud"].status, "unverified")
+
+    def test_upsert_test_milestone(self) -> None:
+        milestone = TestMilestoneEntry(test_name="test_dashboard", status="pass")
+        self.state.upsert_test_milestone(milestone)
+        self.assertIn("test_dashboard", self.state.test_milestones)
+
+    def test_get_state_returns_dict(self) -> None:
+        state_dict = self.state.get_state()
+        self.assertIn("think_boxes", state_dict)
+        self.assertIn("think_jobs", state_dict)
+        self.assertIn("cnc_jobs", state_dict)
+        self.assertIn("infrastructure", state_dict)
+        self.assertIn("providers", state_dict)
+        self.assertIn("events", state_dict)
+        self.assertIn("summary", state_dict)
+
+    def test_emit_creates_event(self) -> None:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        try:
+            entry = loop.run_until_complete(
+                self.state.emit(DashboardCategory.CNC, DashboardEvent.JOB_CREATED,
+                                {"job_id": "cnc-1"}, "test")
+            )
+            self.assertIsNotNone(entry)
+            self.assertEqual(entry.category, DashboardCategory.CNC)
+            self.assertEqual(entry.event_type, DashboardEvent.JOB_CREATED)
+            self.assertEqual(len(self.state.events), 1)
+        finally:
+            loop.close()
+
+    def test_model_dump_methods(self) -> None:
+        box = ThinkBoxEntry(box_id="b1", name="Test")
+        job = ThinkJobEntry(job_id="j1", goal="g1")
+        cnc = CNCJobEntry(job_id="c1", part_name="p1")
+        infra = InfrastructureEntry(component="i1", type="t1")
+        prov = ProviderEntry(name="p1")
+        milestone = TestMilestoneEntry(test_name="m1")
+        self.assertIsInstance(box.model_dump(), dict)
+        self.assertIsInstance(job.model_dump(), dict)
+        self.assertIsInstance(cnc.model_dump(), dict)
+        self.assertIsInstance(infra.model_dump(), dict)
+        self.assertIsInstance(prov.model_dump(), dict)
+        self.assertIsInstance(milestone.model_dump(), dict)
+
+
+class TestUpCloudInvestigation(unittest.TestCase):
+    """Tests for UpCloud execution path investigation."""
+
+    def test_upcloud_config_defaults(self) -> None:
+        config = UpCloudConfig()
+        self.assertEqual(config.server_hostname, "kudbee-host-v1")
+        self.assertEqual(config.server_ip, "212.147.250.183")
+        self.assertEqual(config.ssh_user, "root")
+
+    def test_upcloud_config_from_env(self) -> None:
+        config = UpCloudConfig()
+        self.assertIsNotNone(config.api_token)
+
+    def test_upcloud_trace_result_model_dump(self) -> None:
+        from thinkbox.upcloud import UpCloudTraceResult
+        result = UpCloudTraceResult(step="test", status="success", details={})
+        d = result.model_dump()
+        self.assertEqual(d["step"], "test")
+        self.assertEqual(d["status"], "success")
+
+    def test_upcloud_execution_path_init(self) -> None:
+        from thinkbox.upcloud import UpCloudExecutionPath
+        config = UpCloudConfig()
+        path = UpCloudExecutionPath(config)
+        self.assertIsNotNone(path)
+        self.assertEqual(len(path.trace), 0)
+
+    def test_investigate_upcloud_is_coroutine(self) -> None:
+        import asyncio
+        from thinkbox.upcloud import investigate_upcloud
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(investigate_upcloud())
+            self.assertIsInstance(result, dict)
+            self.assertIn("trace", result)
+            self.assertIn("summary", result)
+        finally:
+            loop.close()
+
+    def test_upcloud_trace_result_model_dump_with_error(self) -> None:
+        from thinkbox.upcloud import UpCloudTraceResult
+        result = UpCloudTraceResult(step="test", status="failed", details={}, error="test error")
+        d = result.model_dump()
+        self.assertEqual(d["error"], "test error")

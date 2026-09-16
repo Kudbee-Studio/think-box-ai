@@ -24,6 +24,7 @@ from core.runtime.loop import AgentLoop
 from backend.security import setup_security, validate_ws_token, get_api_keys
 from backend.validation import validate_goal, validate_iterations
 from backend.audit_storage import record_audit
+from thinkbox.dashboard_state import get_dashboard_state, DashboardState, DashboardCategory, DashboardEvent, ThinkBoxEntry, ThinkJobEntry, CNCJobEntry, InfrastructureEntry, ProviderEntry, TestMilestoneEntry
 
 logger = get_logger(__name__)
 
@@ -36,6 +37,10 @@ sessions: dict[str, dict[str, Any]] = {}
 shutdown_event = asyncio.Event()
 MAX_SESSIONS = 1000
 REQUEST_TIMEOUT = 30
+
+_dashboard_state = get_dashboard_state()
+_active_ws_clients: list[WebSocket] = []
+_active_sse_clients: list[asyncio.Queue] = []
 
 api_v1 = APIRouter(prefix="/api/v1")
 
@@ -309,6 +314,171 @@ async def get_audit_log(limit: int = 100) -> dict[str, Any]:
     safe_limit = min(max(limit, 1), 1000)
     entries = list_audits(limit=safe_limit)
     return {"entries": entries, "count": len(entries)}
+
+
+@app.get("/dashboard/state")
+async def get_dashboard_state() -> dict[str, Any]:
+    return _dashboard_state.get_state()
+
+
+@app.websocket("/dashboard/ws")
+async def dashboard_websocket(ws: WebSocket) -> None:
+    valid_keys = get_api_keys()
+    query_params = dict(ws.query_params)
+    headers_key = ws.headers.get("x-api-key", "")
+
+    if not validate_ws_token(query_params, {headers_key: headers_key} if headers_key else {}, valid_keys):
+        await ws.close(code=4001, reason="Unauthorized")
+        return
+
+    await ws.accept()
+    _active_ws_clients.append(ws)
+
+    try:
+        await ws.send_json({"type": "dashboard_init", "data": _dashboard_state.get_state()})
+        while not shutdown_event.is_set():
+            raw = await ws.receive_text()
+            if len(raw) > 1_048_576:
+                await ws.send_json({"type": "error", "data": "Message too large"})
+                continue
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await ws.send_json({"type": "error", "data": "Invalid JSON"})
+                continue
+
+            msg_type = msg.get("type")
+            if msg_type == "ping":
+                await ws.send_json({"type": "pong"})
+            elif msg_type == "get_state":
+                await ws.send_json({"type": "state", "data": _dashboard_state.get_state()})
+            elif msg_type == "think_box":
+                box_data = msg.get("data", {})
+                box = ThinkBoxEntry(
+                    box_id=box_data.get("box_id", str(uuid.uuid4())),
+                    name=box_data.get("name", "Unknown"),
+                    substrate=box_data.get("substrate", "local"),
+                    status=box_data.get("status", "idle"),
+                    metadata=box_data.get("metadata", {}),
+                )
+                _dashboard_state.upsert_think_box(box)
+                await _broadcast_dashboard({"type": "think_box_updated", "data": box.model_dump()})
+            elif msg_type == "think_job":
+                job_data = msg.get("data", {})
+                job = ThinkJobEntry(
+                    job_id=job_data.get("job_id", str(uuid.uuid4())),
+                    goal=job_data.get("goal", ""),
+                    status=job_data.get("status", "pending"),
+                    engine_id=job_data.get("engine_id", ""),
+                    phase=job_data.get("phase", ""),
+                    progress=job_data.get("progress", 0.0),
+                    tasks_total=job_data.get("tasks_total", 0),
+                    tasks_completed=job_data.get("tasks_completed", 0),
+                    result=job_data.get("result", {}),
+                )
+                _dashboard_state.upsert_think_job(job)
+                await _broadcast_dashboard({"type": "think_job_updated", "data": job.model_dump()})
+            elif msg_type == "cnc_job":
+                cnc_data = msg.get("data", {})
+                cnc_job = CNCJobEntry(
+                    job_id=cnc_data.get("job_id", str(uuid.uuid4())),
+                    part_name=cnc_data.get("part_name", ""),
+                    part_number=cnc_data.get("part_number", ""),
+                    material=cnc_data.get("material", ""),
+                    machine=cnc_data.get("machine", ""),
+                    status=cnc_data.get("status", "created"),
+                    operations=cnc_data.get("operations", []),
+                    customer_id=cnc_data.get("customer_id", "default"),
+                    priority=cnc_data.get("priority", "normal"),
+                    safety_approved=cnc_data.get("safety_approved", False),
+                )
+                _dashboard_state.upsert_cnc_job(cnc_job)
+                await _broadcast_dashboard({"type": "cnc_job_updated", "data": cnc_job.model_dump()})
+            elif msg_type == "infrastructure":
+                infra_data = msg.get("data", {})
+                infra = InfrastructureEntry(
+                    component=infra_data.get("component", "unknown"),
+                    type=infra_data.get("type", "unknown"),
+                    status=infra_data.get("status", "unknown"),
+                    substrate=infra_data.get("substrate", "local"),
+                    verified=infra_data.get("verified", False),
+                    details=infra_data.get("details", {}),
+                )
+                _dashboard_state.upsert_infrastructure(infra.component, infra)
+                await _broadcast_dashboard({"type": "infrastructure_updated", "data": infra.model_dump()})
+            elif msg_type == "provider":
+                prov_data = msg.get("data", {})
+                prov = ProviderEntry(
+                    name=prov_data.get("name", "unknown"),
+                    model=prov_data.get("model", ""),
+                    status=prov_data.get("status", "unknown"),
+                    endpoint=prov_data.get("endpoint", ""),
+                    latency_ms=prov_data.get("latency_ms", 0.0),
+                    rps=prov_data.get("rps", 0.0),
+                    verified=prov_data.get("verified", False),
+                    details=prov_data.get("details", {}),
+                )
+                _dashboard_state.upsert_provider(prov)
+                await _broadcast_dashboard({"type": "provider_updated", "data": prov.model_dump()})
+            elif msg_type == "test_milestone":
+                test_data = msg.get("data", {})
+                milestone = TestMilestoneEntry(
+                    test_name=test_data.get("test_name", "unknown"),
+                    module=test_data.get("module", ""),
+                    status=test_data.get("status", "pending"),
+                    count=test_data.get("count", 0),
+                    passed=test_data.get("passed", 0),
+                    failed=test_data.get("failed", 0),
+                    skipped=test_data.get("skipped", 0),
+                    duration_ms=test_data.get("duration_ms", 0.0),
+                )
+                _dashboard_state.upsert_test_milestone(milestone)
+                await _broadcast_dashboard({"type": "test_milestone_updated", "data": milestone.model_dump()})
+    except WebSocketDisconnect:
+        _active_ws_clients.remove(ws)
+    except Exception as e:
+        logger.error(f"Dashboard WebSocket error: {e}")
+    finally:
+        if ws in _active_ws_clients:
+            _active_ws_clients.remove(ws)
+
+
+async def _broadcast_dashboard(data: dict[str, Any]) -> None:
+    disconnected: list[WebSocket] = []
+    for client in _active_ws_clients:
+        try:
+            await client.send_json(data)
+        except Exception:
+            disconnected.append(client)
+    for client in disconnected:
+        _active_ws_clients.remove(client)
+
+
+async def dashboard_sse_stream() -> AsyncGenerator[str, None]:
+    queue: asyncio.Queue[DashboardEventEntry] = asyncio.Queue()
+    await _dashboard_state.register_subscriber(queue)
+    try:
+        while True:
+            event = await queue.get()
+            yield f"data: {json.dumps(event.model_dump())}\n\n"
+    except asyncio.CancelledError:
+        _dashboard_state._subscribers.remove(queue)
+        raise
+
+
+@app.get("/dashboard/stream")
+async def dashboard_stream() -> StreamingResponse:
+    return StreamingResponse(
+        dashboard_sse_stream(),
+        media_type="text/event-stream",
+    )
+
+
+async def broadcast_event(category: DashboardCategory, event_type: DashboardEvent,
+                           data: dict[str, Any], source: str = "",
+                           evidence_label: str = "simulated") -> None:
+    entry = await _dashboard_state.emit(category, event_type, data, source, evidence_label)
+    await _broadcast_dashboard({"type": "event", "data": entry.model_dump()})
 
 
 if __name__ == "__main__":

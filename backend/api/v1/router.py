@@ -19,12 +19,18 @@ from thinkbox.session import create_session, get_current_session, sync_session, 
 from backend.security import get_api_keys, validate_ws_token
 
 from thinkbox.cnc import CNCManufacturingEngine, DemoMode, ROIDashboard, SafetyGateStore, TenantStore, ProofStore
+from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent, ThinkBoxEntry, ThinkJobEntry, CNCJobEntry, InfrastructureEntry, ProviderEntry, TestMilestoneEntry
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
 active_engines: dict[str, ThinkBoxEngine] = {}
 active_cnc_engines: dict[str, CNCManufacturingEngine] = {}
+_dashboard_state = get_dashboard_state()
+
+
+async def _emit_dashboard(category: DashboardCategory, event_type: DashboardEvent, data: dict[str, Any], source: str = "") -> None:
+    await _dashboard_state.emit(category, event_type, data, source)
 
 
 class RunRequest(BaseModel):
@@ -56,7 +62,16 @@ async def run_goal(request: RunRequest) -> RunResponse:
     engine = ThinkBoxEngine(engine_config)
     active_engines[engine.engine_id] = engine
 
-    asyncio.create_task(engine.execute_goal(request.goal))
+    job_entry = ThinkJobEntry(
+        job_id=engine.engine_id, goal=request.goal,
+        status="running", engine_id=engine.engine_id,
+        phase="started", tasks_total=0, tasks_completed=0,
+    )
+    _dashboard_state.upsert_think_job(job_entry)
+    await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
+                               job_entry.model_dump(), "api_v1")
+
+    asyncio.create_task(_execute_and_track(engine, request.goal, job_entry))
 
     return RunResponse(
         engine_id=engine.engine_id,
@@ -66,12 +81,40 @@ async def run_goal(request: RunRequest) -> RunResponse:
     )
 
 
+async def _execute_and_track(engine: ThinkBoxEngine, goal: str, job_entry: ThinkJobEntry) -> None:
+    try:
+        result = await engine.execute_goal(goal)
+        job_entry.status = "completed"
+        job_entry.progress = 1.0
+        job_entry.tasks_total = result.get("total_tasks", 0)
+        job_entry.tasks_completed = result.get("completed", 0)
+        job_entry.result = result
+        _dashboard_state.upsert_think_job(job_entry)
+        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_COMPLETED,
+                               job_entry.model_dump(), "engine")
+    except Exception as e:
+        job_entry.status = "failed"
+        job_entry.result = {"error": str(e)}
+        _dashboard_state.upsert_think_job(job_entry)
+        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_FAILED,
+                               job_entry.model_dump(), "engine")
+
+
 @api_v1_router.get("/engine/{engine_id}")
 async def get_engine_status(engine_id: str) -> dict[str, Any]:
     engine = active_engines.get(engine_id)
     if not engine:
         raise HTTPException(status_code=404, detail="Engine not found")
-    return engine.get_stats()
+    stats = engine.get_stats()
+    tb_entry = ThinkBoxEntry(
+        box_id=engine_id, name=f"Engine {engine_id[:8]}",
+        substrate="local", status="running",
+        metadata=stats,
+    )
+    _dashboard_state.upsert_think_box(tb_entry)
+    await _emit_dashboard(DashboardCategory.THINK_BOXES, DashboardEvent.TASK_COMPLETED,
+                             tb_entry.model_dump(), "engine_api")
+    return stats
 
 
 class CNCJobCreateRequest(BaseModel):
@@ -99,6 +142,14 @@ async def create_cnc_job(request: CNCJobCreateRequest) -> CNCJobResponse:
     tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
     operation = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000, feed_rate_mm_min=200, depth_of_cut_mm=2.0, passes=1, description="Roughing pass")
     job = CNCJob(job_id=f"cnc-{uuid.uuid4().hex[:8]}", part_name=request.part_name, part_number=request.part_number, material=material, machine=machine, operations=[operation], customer_id=request.customer_id, priority=request.priority)
+    cnc_entry = CNCJobEntry(
+        job_id=job.job_id, part_name=job.part_name, part_number=job.part_number,
+        material=job.material.name, machine=job.machine.name, status="created",
+        operations=[op.model_dump() if hasattr(op, 'model_dump') else {} for op in job.operations],
+        customer_id=job.customer_id, priority=job.priority,
+    )
+    _dashboard_state.upsert_cnc_job(cnc_entry)
+    await _emit_dashboard(DashboardCategory.CNC, DashboardEvent.JOB_CREATED, cnc_entry.model_dump(), "api_v1")
     return CNCJobResponse(job_id=job.job_id, status="created", part_name=job.part_name)
 
 
@@ -106,6 +157,15 @@ async def create_cnc_job(request: CNCJobCreateRequest) -> CNCJobResponse:
 async def run_cnc_demo() -> dict[str, Any]:
     demo = DemoMode()
     result = demo.run()
+    cnc_entry = CNCJobEntry(
+        job_id=result.job.job_id, part_name=result.job.part_name,
+        part_number=result.job.part_number, material=result.job.material.name,
+        machine=result.job.machine.name, status="completed",
+        operations=[], customer_id="default", priority="normal",
+        safety_approved=True,
+    )
+    _dashboard_state.upsert_cnc_job(cnc_entry)
+    await _emit_dashboard(DashboardCategory.CNC, DashboardEvent.JOB_COMPLETED, cnc_entry.model_dump(), "demo")
     return {"job_id": result.job.job_id, "status": result.status, "roi_total": result.roi_stats.total_savings_avoided, "evidence_labels": result.evidence_labels}
 
 
@@ -113,13 +173,19 @@ async def run_cnc_demo() -> dict[str, Any]:
 async def get_cnc_dashboard() -> dict[str, Any]:
     dashboard = ROIDashboard()
     stats = dashboard.compute_stats()
-    return stats.model_dump()
+    full_state = _dashboard_state.get_state()
+    full_state["cnc_roi"] = stats.model_dump()
+    return full_state
 
 
 @api_v1_router.post("/cnc/safety/approve")
 async def approve_cnc_job(job_id: str, reason: str = "") -> dict[str, Any]:
     store = SafetyGateStore()
     approval = store.approve(job_id=job_id, approver_id="operator", reason=reason or "Approved")
+    if job_id in _dashboard_state.cnc_jobs:
+        _dashboard_state.cnc_jobs[job_id].safety_approved = True
+        await _emit_dashboard(DashboardCategory.CNC, DashboardEvent.JOB_COMPLETED,
+                               _dashboard_state.cnc_jobs[job_id].model_dump(), "safety")
     return {"job_id": job_id, "approved": True, "approver": approval.approver_id}
 
 
@@ -158,6 +224,7 @@ async def websocket_telemetry(websocket: WebSocket) -> None:
             data = {
                 "type": "system_status",
                 "active_engines": len(active_engines),
+                "dashboard_state": _dashboard_state.get_state(),
                 "engines": {
                     eid: e.get_stats()
                     for eid, e in active_engines.items()

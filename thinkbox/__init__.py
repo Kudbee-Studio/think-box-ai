@@ -107,6 +107,13 @@ from .substrate import (
     IsolationProbe,
     ThinkBoxVectorSync,
 )
+from .upcloud import (
+    UpCloudConfig,
+    UpCloudCapability,
+    UpCloudTraceResult,
+    UpCloudExecutionPath,
+    investigate_upcloud,
+)
 from .cnc import (
     CNCJob,
     CNCManufacturingEngine,
@@ -227,6 +234,11 @@ __all__ = [
     "SubstrateReport",
     "IsolationProbe",
     "ThinkBoxVectorSync",
+    "UpCloudConfig",
+    "UpCloudCapability",
+    "UpCloudTraceResult",
+    "UpCloudExecutionPath",
+    "investigate_upcloud",
     "DisruptorPass",
     "DisruptorResult",
     "DisruptorSuite",
