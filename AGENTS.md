@@ -257,6 +257,16 @@ commits.
 - PRs target `main`. Do not push directly to `main`.
 - Keep the branch up to date with `main` before opening a PR.
 
+### 7.1 PRs Required (Standing Rule)
+
+For every meaningful change: commit on a feature branch → open/update a GitHub PR → paste the PR URL in your summary.
+
+Do not stop at "committed to branch." Do not merge. Founder reviews on Graphite/GitHub.
+
+Batch only when founder says so; default = one PR per checkpoint.
+
+If a branch already exists without a PR (e.g. kilo/amused-voxel-h11 gcode work), open the PR now and return the URL.
+
 ---
 
 ## 8. Code Review
