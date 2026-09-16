@@ -16,6 +16,7 @@ def main():
 
     print(f"Think Box AI frontend running at:")
     print(f"  http://localhost:{port}/")
+    print(f"  http://localhost:{port}/dashboard/")
     print(f"  http://localhost:{port}/jobs/")
     print(f"  http://localhost:{port}/findings/")
     print(f"  http://localhost:{port}/about/")

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KUDBEE Control Dashboard — Think Box AI</title>
+  <meta name="description" content="KUDBEE control fabric overview: governance admission, THINK harvest→reuse→improve, and demo burst smoke workflow.">
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <link rel="stylesheet" href="../assets/css/animations.css">
+  <link rel="stylesheet" href="../assets/css/mobile.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+</head>
+<body class="kudbee-dashboard">
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <div class="demo-banner" role="status" aria-live="polite">
+    <div class="container demo-banner-inner">
+      <span class="demo-banner-dot" aria-hidden="true"></span>
+      <span id="demo-banner-text">Loading demo data…</span>
+    </div>
+  </div>
+
+  <nav class="nav" role="navigation" aria-label="Dashboard navigation">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon pulse-logo" aria-hidden="true">🐝</div>
+        <span>KUDBEE · Think Box</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#demo">Demo in 10</a></li>
+        <li><a href="#think">THINK</a></li>
+        <li><a href="../jobs/">Jobs</a></li>
+        <li><a href="../findings/">Findings</a></li>
+        <li><a href="../docs/">Docs</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="/" class="btn btn-ghost btn-sm">Landing</a>
+        <a href="https://github.com/Kudbee-Studio/think-box-ai" class="btn btn-secondary btn-sm" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <!-- Hero / Overview -->
+    <section id="overview" class="dash-hero grid-bg">
+      <div class="orb orb-1"></div>
+      <div class="container dash-hero-inner">
+        <div class="dash-hero-eyebrow">
+          <span class="badge badge-kudbee">Control Fabric</span>
+          <span class="text-muted">Phase 12 · KUDBEE thesis</span>
+        </div>
+        <h1 class="dash-hero-title">
+          Governed agent work —<br>
+          <span class="gradient-text">not bigger context windows</span>
+        </h1>
+        <p class="dash-hero-oneliner">
+          <strong>Control fabric · governance admission · THINK harvest→reuse→improve.</strong>
+          Side effects pass <code style="font-family:var(--font-mono);font-size:0.95em;color:#a5b4fc;">AdmissionGate</code>
+          with a valid token; traces capture grounded vs ungrounded contrast pairs for offline reuse.
+        </p>
+        <div class="dash-thesis-chips">
+          <span class="thesis-chip">AdmissionGate</span>
+          <span class="thesis-chip">ActionLedger</span>
+          <span class="thesis-chip">ThinkTraceCapture</span>
+          <span class="thesis-chip">GovernedEngine</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Governance strip -->
+    <section class="gov-strip" aria-label="Governance admission status">
+      <div class="container gov-strip-inner">
+        <div class="gov-counters">
+          <div class="gov-counter">
+            <span class="gov-counter-value admitted" id="gov-admitted">—</span>
+            <span class="gov-counter-label">Admitted</span>
+          </div>
+          <div class="gov-counter">
+            <span class="gov-counter-value denied" id="gov-denied">—</span>
+            <span class="gov-counter-label">Denied</span>
+          </div>
+        </div>
+        <div class="gov-message">
+          <div class="gov-message-title">Fail-closed · no token → draft only</div>
+          <div class="gov-message-body">
+            Last: <span id="gov-last-decision">—</span> — <span id="gov-last-reason">—</span>
+          </div>
+        </div>
+        <span class="gov-chip gov-chip-ok" id="gov-ledger-verified">Ledger pending</span>
+      </div>
+    </section>
+
+    <div class="dash-panels">
+      <div class="container">
+        <div class="dash-grid">
+          <!-- Demo in 10 -->
+          <section id="demo" class="card" aria-labelledby="demo-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="demo-title">Demo in 10 minutes</h2>
+                <p>Local smoke: mock vLLM + burst <code>--live</code> — no Vercel inference.</p>
+              </div>
+              <span class="demo-tag">demo workflow</span>
+            </div>
+
+            <div class="panel-step">
+              <span class="panel-step-num">1</span>
+              <div class="panel-step-body">
+                <div class="panel-step-title">Start mock vLLM (terminal A)</div>
+                <div class="code-block">
+                  <code>PYTHONPATH=. python3 -m thinkbox.mock_vllm</code>
+                  <button class="btn btn-ghost btn-sm" type="button" data-copy="PYTHONPATH=. python3 -m thinkbox.mock_vllm" aria-label="Copy command">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-step">
+              <span class="panel-step-num">2</span>
+              <div class="panel-step-body">
+                <div class="panel-step-title">Run burst smoke (terminal B)</div>
+                <div class="code-block">
+                  <code>PYTHONPATH=. python3 -m thinkbox.burst --live --pairs 8 --minutes 10 --out data/evals/burst-smoke</code>
+                  <button class="btn btn-ghost btn-sm" type="button" data-copy="PYTHONPATH=. python3 -m thinkbox.burst --live --pairs 8 --minutes 10 --out data/evals/burst-smoke" aria-label="Copy command">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-step">
+              <span class="panel-step-num">3</span>
+              <div class="panel-step-body">
+                <div class="panel-step-title">Serve this dashboard (terminal C)</div>
+                <div class="code-block">
+                  <code>python3 scripts/serve_frontend.py 8080</code>
+                  <button class="btn btn-ghost btn-sm" type="button" data-copy="python3 scripts/serve_frontend.py 8080" aria-label="Copy command">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="metrics-row" aria-label="Demo evaluation placeholders">
+              <div class="metric-card">
+                <div class="metric-label">Groundedness</div>
+                <div class="metric-value" id="metric-groundedness">—</div>
+                <div class="metric-note">demo placeholder</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Bind failure</div>
+                <div class="metric-value" id="metric-bind-failure">—</div>
+                <div class="metric-note">demo placeholder</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Reasoning coverage</div>
+                <div class="metric-value" id="metric-reasoning">—</div>
+                <div class="metric-note">demo placeholder</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Last burst summary -->
+          <section class="card" aria-labelledby="burst-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="burst-title">Last burst summary</h2>
+                <p>From burst-smoke fixture — not a live feed.</p>
+              </div>
+              <span class="demo-tag">demo data</span>
+            </div>
+            <dl class="burst-summary">
+              <div class="burst-row">
+                <dt>Burst ID</dt>
+                <dd id="burst-id">—</dd>
+              </div>
+              <div class="burst-row">
+                <dt>Pairs</dt>
+                <dd id="burst-pairs">—</dd>
+              </div>
+              <div class="burst-row">
+                <dt>Traces</dt>
+                <dd id="burst-traces">—</dd>
+              </div>
+              <div class="burst-row">
+                <dt>Model</dt>
+                <dd id="burst-model">—</dd>
+              </div>
+              <div class="burst-row">
+                <dt>Output</dt>
+                <dd id="burst-output">—</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+
+        <!-- THINK / contrast pairs -->
+        <section id="think" class="dash-grid-full" aria-labelledby="think-title">
+          <div class="panel-header">
+            <div>
+              <h2 id="think-title">THINK traces · contrast pairs</h2>
+              <p>Same answer, different bind — grounded carries evidence; ungrounded does not.</p>
+            </div>
+            <span class="demo-tag">demo data</span>
+          </div>
+          <div class="contrast-grid" id="contrast-pairs">
+            <article class="card">
+              <p class="text-muted">Loading contrast pairs…</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Ops honesty -->
+    <footer class="ops-footer" aria-label="Operational status">
+      <div class="container">
+        <div class="ops-chips">
+          <div class="ops-chip">
+            <span class="ops-chip-icon" aria-hidden="true">⏻</span>
+            <span class="ops-chip-text" id="ops-gpu">GPU stop-when-idle policy</span>
+          </div>
+          <div class="ops-chip">
+            <span class="ops-chip-icon" aria-hidden="true">▣</span>
+            <span class="ops-chip-text" id="ops-cpu">UpCloud CPU worker note</span>
+          </div>
+          <div class="ops-chip">
+            <span class="ops-chip-icon" aria-hidden="true">⌂</span>
+            <span class="ops-chip-text" id="ops-inference">Local inference only</span>
+          </div>
+        </div>
+        <p class="ops-footer-note">
+          No secrets displayed. Metrics on this page are mock/demo unless wired to a live runtime API.
+          Founder review surface — not production telemetry.
+        </p>
+      </div>
+    </footer>
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/dashboard.js"></script>
+</body>
+</html>

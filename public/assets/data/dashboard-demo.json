@@ -1,0 +1,62 @@
+{
+  "_demo": true,
+  "_label": "Demo data — derived from data/evals/burst-smoke fixtures, not live production metrics",
+  "burst": {
+    "burst_id": "burst_b093e2d72e5c",
+    "pairs_completed": 2,
+    "traces_captured": 4,
+    "groundedness_pct": 50.0,
+    "bind_failure_pct": 0.0,
+    "reasoning_coverage_pct": 100.0,
+    "duration_seconds": 0.4,
+    "model": "openai/gpt-oss-20b",
+    "output_path": "data/evals/burst-smoke/think_burst_burst_b093e2d72e5c.jsonl"
+  },
+  "governance": {
+    "admitted": 4,
+    "denied": 2,
+    "fail_closed": true,
+    "last_decision": "denied",
+    "last_reason": "No governance token — side effect blocked at AdmissionGate",
+    "ledger_verified": true
+  },
+  "contrast_pairs": [
+    {
+      "pair_id": "pair_e5b777acc7",
+      "question": "What is 2+2?",
+      "grounded": {
+        "answer": "4",
+        "evidence_refs": ["fact_arith"],
+        "evidence_text": "fact_arith: 2+2=4",
+        "confidence": 1.0
+      },
+      "ungrounded": {
+        "answer": "4",
+        "evidence_refs": [],
+        "evidence_text": "",
+        "confidence": 0.0
+      }
+    },
+    {
+      "pair_id": "pair_feadcf75fd",
+      "question": "What is the capital of France?",
+      "grounded": {
+        "answer": "Paris",
+        "evidence_refs": ["fact_geo"],
+        "evidence_text": "fact_geo: Paris is the capital of France",
+        "confidence": 1.0
+      },
+      "ungrounded": {
+        "answer": "Paris",
+        "evidence_refs": [],
+        "evidence_text": "",
+        "confidence": 0.0
+      }
+    }
+  ],
+  "ops": {
+    "gpu_policy": "stop-when-idle — GPU window opens only for burst --live runs",
+    "cpu_worker": "UpCloud CPU worker available for queue drain; no secrets in UI",
+    "inference": "Local mock_vllm on 127.0.0.1:8001 — not Vercel-hosted inference"
+  }
+}
