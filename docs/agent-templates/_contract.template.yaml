@@ -1,0 +1,98 @@
+# Agent work-template contract (reusable skeleton).
+#
+# Copy this into a new template branch as:
+#   docs/agent-templates/<domain>/contract.yaml
+# Then implement the commands it names, and point scripts/agent_work.py at it.
+#
+# The template branch is NOT merged into main. It persists as a reusable
+# operational starting point for future agents.
+
+template: dashboard-evolution            # template id
+domain: dashboard                        # one of: dashboard|backend|provider|security|research|experiment|integration
+branch_prefix: agent/dashboard-evolution
+accepted_prefixes:
+  - agent/dashboard-evolution/
+  - agent/dashboard-command-center/
+branch_pattern: '^agent/[a-z0-9-]+/[a-z0-9-]+-\d{8}$'
+
+# Must pass BEFORE work starts. Record the numbers in the PR.
+baseline:
+  - cmd: python3 -m unittest discover tests/
+    expect: exit_zero
+  - cmd: python3 experiments/verify_instrumentation.py
+    expect: exit_zero
+
+# The proof. All must be green before merge.
+verification:
+  - cmd: python3 -m unittest discover tests/
+    expect: exit_zero
+  - cmd: python3 experiments/verify_instrumentation.py --live
+    expect: exit_zero
+  - cmd: python3 scripts/agent_work.py verify --template dashboard-evolution
+    expect: exit_zero
+
+# End-to-end exercise of the surface being changed.
+e2e:
+  - name: dashboard_routes_ok
+    description: every documented route returns 2xx and parseable JSON/HTML
+    routes:
+      - /healthz
+      - /api/live
+      - /api/strength
+      - /api/instruments
+      - /api/proof
+      - /api/sessions
+
+# Every claimed capability must point at one of these.
+evidence:
+  requires_one_of:
+    - test_name
+    - artifact_path
+    - telemetry_source      # sqlite table+column
+    - synthetic_fixture     # must be labelled synthetic: true
+  forbidden:
+    - ui_only_value
+    - metric_without_reader
+    - unlabelled_fabrication
+
+failure_semantics:
+  no_fake_green: true
+  signals_are_not_failures: true
+  distinguish_environment_from_software: true
+  unproven_stays_unproven: true
+
+security:
+  bind_default: 127.0.0.1
+  sqlite_read_only_for_ui: true
+  never_log_secrets: true
+  required_headers:
+    - Content-Security-Policy
+    - X-Frame-Options
+    - X-Content-Type-Options
+    - Referrer-Policy
+
+review:
+  self_review_required: true
+  independent_review_required: true
+  check_for:
+    - regressions
+    - security
+    - fake_metrics
+    - dead_code
+    - accidental_architecture_change
+
+merge:
+  requires: [baseline_green, tests_added, verification_green, e2e_exercised, reviews_complete, docs_updated]
+  report_fields:
+    - pr_number_url
+    - merge_commit
+    - final_main_sha
+    - commits
+    - test_counts
+    - verification_results
+    - dashboard_e2e_result
+    - capabilities_implemented
+    - known_limitations
+    - verification_commands
+    - live_dashboard_url
+    - next_larger_improvement
