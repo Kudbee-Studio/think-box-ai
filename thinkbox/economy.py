@@ -63,7 +63,9 @@ class AgentTokenEconomy:
                 return False
 
             if to_agent not in self._accounts:
-                self.create_account(to_agent)
+                # create inline: create_account() re-acquires this non-reentrant
+                # lock and would deadlock here.
+                self._accounts[to_agent] = TokenAccount(agent_id=to_agent, balance=0)
 
             # Ensure treasury account is properly configured before transfer
             if to_agent.lower() == "treasury":

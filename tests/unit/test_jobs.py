@@ -49,3 +49,10 @@ def test_all_jobs_have_valid_verdict():
             job = load_json(job_file)
             verdict = job.get("evaluation", {}).get("verdict")
             assert verdict in valid_verdicts, f"{job_file}: invalid verdict {verdict}"
+
+
+def test_schema_path_is_defined_and_exists():
+    assert hasattr(sys.modules[__name__], "SCHEMA_PATH"), "SCHEMA_PATH must be defined"
+    schema_path = Path(SCHEMA_PATH)
+    assert schema_path.exists(), f"Schema path does not exist: {schema_path}"
+    assert schema_path.is_file(), f"Schema path is not a file: {schema_path}"
