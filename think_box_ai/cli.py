@@ -8,6 +8,7 @@ import sys
 from think_box_ai import __version__
 
 from .commands.serve import serve
+from .commands.cnc import register_cnc
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -324,7 +325,12 @@ def create_parser() -> argparse.ArgumentParser:
     scan_p.add_argument("mint", help="Token mint address to scan")
 
     # ==========================================
-    # 31. BONDING CURVE COMMANDS
+    # 31. CNC COMMANDS
+    # ==========================================
+    register_cnc(subparsers)
+
+    # ==========================================
+    # 32. BONDING CURVE COMMANDS
     # ==========================================
     bonding_p = subparsers.add_parser("bonding", help="Bonding curve calculations")
     bonding_sub = bonding_p.add_subparsers(dest="bonding_command")
@@ -408,6 +414,8 @@ def dispatch_command(args: argparse.Namespace) -> None:
         _handle_scan(args)
     elif cmd == "bonding":
         _handle_bonding(args)
+    elif cmd == "cnc":
+        _handle_cnc(args)
     else:
         print(f"Unknown command: {cmd}")
 
@@ -554,6 +562,11 @@ def _handle_bonding(args: argparse.Namespace) -> None:
     from .commands.solana import handle_bonding_command
 
     handle_bonding_command(args)
+
+
+def _handle_cnc(args: argparse.Namespace) -> None:
+    from .commands.cnc import _handle_cnc as _cnc
+    _cnc(args)
 
 
 if __name__ == "__main__":
