@@ -7,13 +7,18 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import hashlib
 import os
 import secrets
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator
+
+from thinkbox.embedder import (
+    DeterministicEmbedder,
+    Embedder,
+    EmbeddingError,
+)
 
 SESSION_CONTEXT_VAR: contextvars.ContextVar["SessionContext | None"] = contextvars.ContextVar(
     "thinkbox_session_context", default=None
@@ -103,10 +108,11 @@ def clear_session() -> None:
 
 
 class UpstashVectorSync:
-    def __init__(self) -> None:
+    def __init__(self, embedder: Embedder | None = None) -> None:
         self._url = os.environ.get("UPSTASH_VECTOR_REST_URL", "").rstrip("/")
         self._token = os.environ.get("UPSTASH_VECTOR_REST_TOKEN", "")
         self._enabled = bool(self._url and self._token)
+        self._embedder = embedder or self._default_embedder()
 
     @property
     def enabled(self) -> bool:
@@ -116,12 +122,38 @@ class UpstashVectorSync:
     def url(self) -> str:
         return self._url
 
+    @staticmethod
+    def _default_embedder() -> Embedder | None:
+        if os.environ.get("THINKBOX_OPENAI_COMPAT_API_KEY") and os.environ.get("THINKBOX_OPENAI_COMPAT_BASE_URL"):
+            from thinkbox.embedder import OpenAICompatEmbedder
+            return OpenAICompatEmbedder()
+        return None
+
     async def upsert(self, session: SessionContext, status: str = "RUNNING") -> bool:
         if not self._enabled:
             return False
 
+        vectors = None
+        if self._embedder is not None:
+            try:
+                text = json.dumps(session.to_dict(), sort_keys=True)
+                vectors = self._embedder.embed([text])
+            except EmbeddingError as exc:
+                raise EmbeddingError(
+                    message=f"Embedder failed for session {session.session_id}: {exc}"
+                ) from exc
+
+        if vectors is None:
+            raise EmbeddingError(
+                message="No embedder available — set THINKBOX_OPENAI_COMPAT_API_KEY "
+                "and THINKBOX_OPENAI_COMPAT_BASE_URL to enable Upstash Vector upserts, "
+                "or pass an Embedder instance explicitly. "
+                "DeterministicEmbedder is for unit tests only."
+            )
+
         payload = {
             "id": session.session_id,
+            "vector": vectors[0],
             "metadata": {
                 "session_id": session.session_id,
                 "box_url": os.environ.get("UPSTASH_PUBLIC_BOX_URL", ""),
@@ -135,8 +167,8 @@ class UpstashVectorSync:
         }
 
         try:
-            import urllib.request
             import urllib.error
+            import urllib.request
 
             url = f"{self._url}/upsert"
             data = json.dumps(payload).encode()
@@ -152,8 +184,15 @@ class UpstashVectorSync:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: urllib.request.urlopen(req, timeout=10))
             return True
-        except Exception:
-            return False
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode() if hasattr(exc, "read") else ""
+            raise EmbeddingError(
+                message=f"Upstash Vector upsert HTTP {exc.code}: {body}"
+            ) from exc
+        except OSError as exc:
+            raise EmbeddingError(
+                message=f"Upstash Vector upsert failed: {exc}"
+            ) from exc
 
     async def query(self, session_id: str) -> dict[str, Any] | None:
         if not self._enabled:

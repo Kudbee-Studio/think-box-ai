@@ -92,6 +92,12 @@ from .verifier import (
     build_eval_fabric,
     standard_passes,
 )
+from .embedder import (
+    DeterministicEmbedder,
+    Embedder,
+    EmbeddingError,
+    OpenAICompatEmbedder,
+)
 from .substrate import (
     detect_substrate,
     bind_think_box,
@@ -183,6 +189,10 @@ __all__ = [
     "ThinkTrace",
     "GovernedEngine",
     "GovernedEngineConfig",
+        "DeterministicEmbedder",
+    "Embedder",
+    "EmbeddingError",
+    "OpenAICompatEmbedder",
     "detect_substrate",
     "bind_think_box",
     "SubstrateProbe",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import unittest
@@ -227,6 +228,247 @@ class TestIntelligence(unittest.TestCase):
         proof = ZeroKnowledgeProofs.create_proof("secret", "challenge")
         self.assertIn("commitment", proof)
         self.assertTrue(ZeroKnowledgeProofs.verify_proof(proof, "challenge"))
+
+
+class TestEmbedder(unittest.TestCase):
+    def test_openai_compat_embed_happy_path(self):
+        from thinkbox.embedder import OpenAICompatEmbedder
+        embedder = OpenAICompatEmbedder(
+            api_key="test-key",
+            base_url="https://api.inceptionlabs.ai/v1",
+        )
+        embedding = [0.5] * 1536
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "data": [{"embedding": embedding, "index": 0}]
+        }).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = False
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            vectors = embedder.embed(["hello world"])
+            self.assertEqual(len(vectors), 1)
+            self.assertEqual(len(vectors[0]), 1536)
+            self.assertTrue(all(isinstance(v, float) for v in vectors[0]))
+
+    def test_openai_compat_embed_no_api_key(self):
+        from thinkbox.embedder import OpenAICompatEmbedder, EmbeddingError
+        embedder = OpenAICompatEmbedder(api_key="", base_url="https://example.com")
+        with self.assertRaises(EmbeddingError):
+            embedder.embed(["hello"])
+
+    def test_openai_compat_embed_empty_texts(self):
+        from thinkbox.embedder import OpenAICompatEmbedder
+        embedder = OpenAICompatEmbedder(api_key="test-key", base_url="https://example.com")
+        result = embedder.embed([])
+        self.assertEqual(result, [])
+
+    def test_deterministic_embedder_stable(self):
+        from thinkbox.embedder import DeterministicEmbedder
+        embedder = DeterministicEmbedder()
+        v1 = embedder.embed(["test text"])
+        v2 = embedder.embed(["test text"])
+        self.assertEqual(v1, v2)
+        self.assertEqual(len(v1[0]), 1536)
+
+    def test_deterministic_embedder_multiple(self):
+        from thinkbox.embedder import DeterministicEmbedder
+        embedder = DeterministicEmbedder()
+        vectors = embedder.embed(["a", "b"])
+        self.assertEqual(len(vectors), 2)
+        self.assertNotEqual(vectors[0], vectors[1])
+
+    def test_deterministic_embedder_empty(self):
+        from thinkbox.embedder import DeterministicEmbedder
+        embedder = DeterministicEmbedder()
+        result = embedder.embed([])
+        self.assertEqual(result, [])
+
+    def test_embedding_error_str(self):
+        from thinkbox.embedder import EmbeddingError
+        err = EmbeddingError(message="test failure")
+        self.assertIn("test failure", str(err))
+
+
+class TestUpstashVectorSyncEmbedder(unittest.TestCase):
+    def test_upsert_raises_when_no_embedder(self):
+        from thinkbox.session import UpstashVectorSync, EmbeddingError, SessionContext
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+            "THINKBOX_OPENAI_COMPAT_API_KEY": "",
+            "THINKBOX_OPENAI_COMPAT_BASE_URL": "",
+        }, clear=True):
+            sync = UpstashVectorSync()
+            session = SessionContext(
+                session_id="test_sess_1",
+                environment="local",
+                model_backend="Ollama",
+                actor="test",
+            )
+            import asyncio
+            with self.assertRaises(EmbeddingError) as cm:
+                asyncio.run(
+                    sync.upsert(session)
+                )
+            self.assertIn("No embedder available", str(cm.exception))
+
+    def test_upsert_raises_when_embedder_fails(self):
+        from thinkbox.session import UpstashVectorSync, EmbeddingError, SessionContext
+        from thinkbox.embedder import Embedder
+
+        class FailingEmbedder(Embedder):
+            @property
+            def dimension(self) -> int:
+                return 1536
+            def embed(self, texts):
+                raise EmbeddingError(message="embedder down")
+
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+        }, clear=True):
+            sync = UpstashVectorSync(embedder=FailingEmbedder())
+            session = SessionContext(
+                session_id="test_sess_2",
+                environment="local",
+                model_backend="Ollama",
+                actor="test",
+            )
+            import asyncio
+            with self.assertRaises(EmbeddingError) as cm:
+                asyncio.run(
+                    sync.upsert(session)
+                )
+            self.assertIn("Embedder failed", str(cm.exception))
+
+    def test_upsert_sends_vector_in_payload(self):
+        from thinkbox.session import UpstashVectorSync, SessionContext
+        from thinkbox.embedder import DeterministicEmbedder
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b'{"result":"Success"}'
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = False
+
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+        }, clear=True):
+            sync = UpstashVectorSync(embedder=DeterministicEmbedder())
+            session = SessionContext(
+                session_id="test_sess_3",
+                environment="local",
+                model_backend="Ollama",
+                actor="test",
+            )
+            with patch("urllib.request.urlopen", return_value=mock_resp) as m:
+                import asyncio
+                result = asyncio.run(
+                    sync.upsert(session)
+                )
+                self.assertTrue(result)
+                payload = json.loads(m.call_args.args[0].data)
+                self.assertIn("vector", payload)
+                self.assertIsInstance(payload["vector"], list)
+                self.assertEqual(len(payload["vector"]), 1536)
+                self.assertIn("id", payload)
+                self.assertEqual(payload["id"], "test_sess_3")
+                self.assertIn("metadata", payload)
+                self.assertEqual(payload["metadata"]["session_id"], "test_sess_3")
+
+    def test_upsert_payload_shape_matches_dense_index(self):
+        from thinkbox.session import UpstashVectorSync, SessionContext
+        from thinkbox.embedder import DeterministicEmbedder
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b'{"result":"Success"}'
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = False
+
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+        }, clear=True):
+            sync = UpstashVectorSync(embedder=DeterministicEmbedder())
+            session = SessionContext(
+                session_id="test_sess_4",
+                environment="test",
+                model_backend="Ollama",
+                actor="user",
+                metadata={"key": "value"},
+            )
+            with patch("urllib.request.urlopen", return_value=mock_resp) as m:
+                import asyncio
+                asyncio.run(
+                    sync.upsert(session)
+                )
+                payload = json.loads(m.call_args.args[0].data)
+                self.assertIn("vector", payload)
+                self.assertEqual(len(payload["vector"]), 1536)
+                self.assertIn("id", payload)
+                self.assertIn("metadata", payload)
+                self.assertIn("execution_status", payload["metadata"])
+                self.assertEqual(payload["metadata"]["execution_status"], "RUNNING")
+                self.assertEqual(payload["metadata"]["key"], "value")
+
+    def test_upsert_raises_on_http_error(self):
+        from thinkbox.session import UpstashVectorSync, EmbeddingError, SessionContext
+        from thinkbox.embedder import DeterministicEmbedder
+
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+        }, clear=True):
+            sync = UpstashVectorSync(embedder=DeterministicEmbedder())
+            session = SessionContext(
+                session_id="test_sess_5",
+                environment="local",
+                model_backend="Ollama",
+                actor="test",
+            )
+            import urllib.error
+            with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError(
+                "http://vec.upstash.io/upsert", 422, "Bad", {}, None
+            )):
+                import asyncio
+                with self.assertRaises(EmbeddingError) as cm:
+                    asyncio.run(
+                        sync.upsert(session)
+                    )
+                self.assertIn("422", str(cm.exception))
+
+    def test_default_embedder_none_when_env_missing(self):
+        from thinkbox.session import UpstashVectorSync
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+            "THINKBOX_OPENAI_COMPAT_API_KEY": "",
+            "THINKBOX_OPENAI_COMPAT_BASE_URL": "",
+        }, clear=True):
+            sync = UpstashVectorSync()
+            self.assertIsNone(sync._embedder)
+
+    def test_default_embedder_created_when_env_present(self):
+        from thinkbox.session import UpstashVectorSync
+        with patch.dict(os.environ, {
+            "UPSTASH_VECTOR_REST_URL": "https://vec.upstash.io/",
+            "UPSTASH_VECTOR_REST_TOKEN": "t",
+            "THINKBOX_OPENAI_COMPAT_API_KEY": "sk-test",
+            "THINKBOX_OPENAI_COMPAT_BASE_URL": "https://api.inceptionlabs.ai/v1",
+        }, clear=True):
+            sync = UpstashVectorSync()
+            self.assertIsNotNone(sync._embedder)
+
+    def test_upsert_disabled_without_env(self):
+        from thinkbox.session import UpstashVectorSync, SessionContext
+        import asyncio
+        with patch.dict(os.environ, {}, clear=True):
+            sync = UpstashVectorSync()
+            self.assertFalse(sync.enabled)
+            result = asyncio.run(
+                sync.upsert(SessionContext("id", "local", "Ollama", "a"))
+            )
+            self.assertFalse(result)
 
 
 if __name__ == "__main__":
