@@ -15,11 +15,12 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
+- [x] 4-state classification assigned per AGENTS.md §14.7 for all work items
 - [x] Tests executed and passing (449 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
-- [x] Git state clean (working tree clean, 3 commits on kilo/leafy-dragon-4ck)
-- [x] PR/commit referenced (PR #68, commits a2335e2 + c7792b7)
+- [x] Git state clean (working tree clean, 4 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68, commits 32d82ef → 59f7eee)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
@@ -32,10 +33,31 @@ Before declaring completion, every agent MUST verify:
 |---|---|
 | **Active objective** | UpCloud ExecutionProvider — credential precedence, continuous audit, permanence protocol |
 | **Latest completed work** | Continuity protocol (commit `c7792b7`) — PR #68 open awaiting founder review |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, 33 unit tests, credential precedence logic, permanent agent protocol |
+| **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 awaiting review |
 | **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable; PR review pending |
-| **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to VERIFIED → wire into runtime |
+| **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to TEST VERIFIED/LIVE VERIFIED → wire into runtime |
+
+---
+
+## 4-STATE WORK CLASSIFICATION (MANDATORY)
+
+All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never sufficient** — every item must state which of the four states applies.
+
+### UpCloud ExecutionProvider — Current State
+
+| Work Item | State | Evidence | Blocked By |
+|-----------|-------|----------|------------|
+| UpCloud provider implementation | CODE COMPLETE ✅ | Committed `32d82ef` + `a2335e2` | — |
+| Security handling | TEST VERIFIED ✅ | 11 security findings PASS, 0 credential leaks | — |
+| Unit tests | TEST VERIFIED ✅ | 33/33 pass, credential precedence verified | — |
+| Dry-run mode | TEST VERIFIED ✅ | Mocked execution tested, plan() dry_run | — |
+| Provider abstraction | TEST VERIFIED ✅ | Base class + registry tested | — |
+| Live UpCloud authentication | NOT VERIFIED ⚠️ | All API probes HTTP 401 | No `UPCLOUD_API_MAIN` |
+| Real UpCloud execution | NOT VERIFIED ⚠️ | Cannot execute without auth | Live auth NOT VERIFIED |
+| Autonomous provisioning | BLOCKED ⚠️ | Depends on live verification | Live auth NOT VERIFIED |
+| PR #68 review | OPEN — human review required ⚠️ | PR open, awaiting founder review | Founder availability |
+| PRODUCTION READY | NOT REACHED ⚠️ | Requires all four states | Missing LIVE VERIFIED + review |
 
 ---
 
@@ -48,9 +70,9 @@ Before declaring completion, every agent MUST verify:
 | **Date** | 2026-09-16 |
 | **Agent/task** | Permanent agent governance protocol |
 | **PR/commit** | `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68 |
-| **Result** | CONTINUITY.md created, AGENTS.md §14 added |
+| **Result** | CONTINUITY.md created, AGENTS.md §14 added with 4-state classification mandate |
 | **Tests/evidence** | 449 tests pass, no credential leaks, docstring coverage verified |
-| **Status** | COMPLETE (PR #68 open, awaiting founder review) |
+| **State** | CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR #68 open, awaiting founder review) |
 
 ### 2026-09-16 — UpCloud ExecutionProvider Phase 2: Credential Precedence
 
@@ -61,7 +83,7 @@ Before declaring completion, every agent MUST verify:
 | **PR/commit** | `a2335e2` on `kilo/leafy-dragon-4ck` |
 | **Result** | `UPCLOUD_API_MAIN` primary, `UPCLOUD_API_KEY` fallback, config override |
 | **Tests/evidence** | 33 unit tests pass, 6 credential precedence scenarios verified programmatically |
-| **Status** | COMPLETE |
+| **State** | CODE COMPLETE ✅ / TEST VERIFIED ✅ |
 
 ### 2026-09-16 — UpCloud ExecutionProvider Phase 1: Abstraction + Provider
 
@@ -72,7 +94,7 @@ Before declaring completion, every agent MUST verify:
 | **PR/commit** | `32d82ef` on `kilo/leafy-dragon-4ck` |
 | **Result** | ExecutionProvider base class, UpCloudExecutionProvider, evidence records, dry-run plan mode |
 | **Tests/evidence** | 31 unit tests pass, live API audit (all 401), credential scan clean |
-| **Status** | COMPLETE (superseded by Phase 2) |
+| **State** | CODE COMPLETE ✅ / TEST VERIFIED ✅ (superseded by Phase 2) |
 
 ### Pre-2026-09-16 — Prior work (see STATUS.md for full history)
 
@@ -117,14 +139,15 @@ Before declaring completion, every agent MUST verify:
 
 | # | Item | Owner/Agent | State | Next Action | Blocking Dependency |
 |---|---|---|---|---|---|
-| 1 | UpCloud live capability verification | Any agent | BLOCKED | Set `UPCLOUD_API_MAIN` env var, run `tests/integration/test_upcloud_live.py` | Valid API token from UpCloud panel |
-| 2 | UpCloud autonomous provisioning | Any agent | BLOCKED | Complete live verification (item 1), then wire into runtime | Live capabilities VERIFIED |
-| 3 | PR #68 review | Founder | OPEN | Review and merge `kilo/leafy-dragon-4ck` into main | Founder approval |
+| 1 | UpCloud live capability verification | Any agent | CODE COMPLETE / LIVE VERIFIED NOT REACHED | Set `UPCLOUD_API_MAIN` env var, run `tests/integration/test_upcloud_live.py` | Valid API token from UpCloud panel |
+| 2 | UpCloud autonomous provisioning | Any agent | BLOCKED | Complete live verification (item 1), then wire into runtime | Live capabilities LIVE VERIFIED |
+| 3 | PR #68 review | Founder | OPEN — human review required | Review and merge `kilo/leafy-dragon-4ck` into main | Founder approval |
 
 ## CLOSED LOOPS
 
 ### UpCloud ExecutionProvider Phase 1
 - **Implementation**: `core/providers/execution.py`, `core/providers/upcloud.py`
+- **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
 - **Verification**: 31/31 unit tests pass, live API audit (all DENIED/401), credential scan clean
 - **Evidence**: `tests/unit/test_upcloud_provider.py`, `tests/integration/test_upcloud_live.py`, `docs/upcloud-provider.md`
 - **PR/Commit**: `32d82ef` on `kilo/leafy-dragon-4ck`
@@ -132,17 +155,19 @@ Before declaring completion, every agent MUST verify:
 
 ### Permanent Continuity Protocol
 - **Implementation**: `docs/CONTINUITY.md`, `AGENTS.md` §14
-- **Verification**: 449 tests pass, no credential leaks, docstring coverage verified, all required CONTINUITY.md sections present
+- **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
+- **Verification**: 449 tests pass, no credential leaks, docstring coverage verified, all required CONTINUITY.md sections present, 4-state classification mandated
 - **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), `tests/integration/test_upcloud_live.py` (5 skipped), credential precedence verification
 - **PR/Commit**: `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68
-- **Closure**: COMPLETE (PR open for review, code committed and pushed)
+- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR open for review, code committed and pushed)
 
 ### UpCloud ExecutionProvider Phase 2: Credential Precedence
 - **Implementation**: Updated `core/providers/upcloud.py` credential resolution
+- **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
 - **Verification**: 33/33 unit tests pass, 6 credential precedence scenarios verified, credential scan clean
 - **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), credential precedence verification script
 - **PR/Commit**: `a2335e2` on `kilo/leafy-dragon-4ck`
-- **Closure**: Code committed, pushed, tests passing — COMPLETE
+- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅ — code committed, pushed, tests passing
 
 ### Full Test Suite
 - **Implementation**: N/A (regression)
@@ -168,7 +193,8 @@ Before declaring completion, every agent MUST verify:
 | **Live API Reachable** | YES (HTTP 401) |
 | **Read Capabilities** | ALL DENIED (no credentials) |
 | **Mutation Capabilities** | NOT TESTED (requires approval + credentials) |
-| **Verification Status** | CREDENTIALS NEEDED |
+| **UpCloud Provider State** | CODE COMPLETE ✅ / LIVE VERIFIED NOT REACHED ⚠️ |
+| **Verification Status** | CREDENTIALS NEEDED — cannot upgrade to TEST VERIFIED/LIVE VERIFIED |
 
 ### Other Infrastructure
 
@@ -270,7 +296,8 @@ No parked branches identified.
 7. **NEVER** leave "in progress" work without a next action
 8. **NEVER** create duplicate rediscovery work when an existing record documents state
 9. **NEVER** claim something is verified unless evidence exists
-10. **NEVER** silently discard a discovery, failed experiment, architectural decision, security finding, or important limitation
+10. **NEVER** use "COMPLETE" alone to mean verified — always pair with 4-state classification (see AGENTS.md §14.7)
+11. **NEVER** silently discard a discovery, failed experiment, architectural decision, security finding, or important limitation
 
 ### Agent Session Checklist
 

@@ -154,17 +154,17 @@ complete in ~15 s.
 
 ### UpCloud Provider Implementation (2026-09-16)
 
-| Capability | Status |
-|------------|--------|
-| ExecutionProvider abstraction | ✅ Implemented (`core/providers/execution.py`) |
-| UpCloud ExecutionProvider | ✅ Implemented (`core/providers/upcloud.py`) |
-| upctl CLI | ❌ Not installed; provider uses REST API directly |
-| Capability audit | ✅ All 16 capabilities classified (all DENIED due to 401) |
-| Mocked unit tests | ✅ 31/31 pass |
-| Live smoke tests | ✅ 5 tests (skipped: no credentials) |
-| Credential exposure scan | ✅ No tokens found in source/tests/docs |
-| Evidence record system | ✅ Auditable, no secrets recorded |
-| Dry-run plan mode | ✅ Implemented with approval gates |
+| Capability | State | Status |
+|------------|-------|--------|
+| ExecutionProvider abstraction | CODE COMPLETE ✅ | Implemented (`core/providers/execution.py`) |
+| UpCloud ExecutionProvider | CODE COMPLETE ✅ | Implemented (`core/providers/upcloud.py`) |
+| upctl CLI | — | Not installed; provider uses REST API directly |
+| Capability audit | — | All 16 capabilities classified (all DENIED due to 401) |
+| Mocked unit tests | TEST VERIFIED ✅ | 33/33 pass |
+| Live smoke tests | NOT VERIFIED ⚠️ | 5 tests (skipped: no credentials) |
+| Credential exposure scan | TEST VERIFIED ✅ | No tokens found in source/tests/docs |
+| Evidence record system | TEST VERIFIED ✅ | Auditable, no secrets recorded |
+| Dry-run plan mode | TEST VERIFIED ✅ | Implemented with approval gates |
 
 ---
 
@@ -176,7 +176,21 @@ All 16 capabilities return HTTP 401 from UpCloud REST API. Classification:
 - **REQUIRES_ADMIN_APPROVAL**: None (no 403 responses observed)
 - **VERIFIED**: None (no successful API calls)
 
-**To upgrade capabilities**: Set `UPCLOUD_API_MAIN` env var with valid token and re-run live smoke tests.
+### 4-State Classification
+
+| Work Item | State | Evidence |
+|-----------|-------|----------|
+| UpCloud provider implementation | CODE COMPLETE ✅ | Committed on `kilo/leafy-dragon-4ck` |
+| Security handling | TEST VERIFIED ✅ | 11 security findings PASS, 0 credential leaks |
+| Unit tests | TEST VERIFIED ✅ | 33/33 pass |
+| Dry-run | TEST VERIFIED ✅ | Mocked execution tested |
+| Provider abstraction | TEST VERIFIED ✅ | Base class + registry tested |
+| Live UpCloud authentication | NOT VERIFIED ⚠️ | All endpoints HTTP 401, no credentials |
+| Real UpCloud execution | NOT VERIFIED ⚠️ | Blocked by missing credentials |
+| Autonomous provisioning | BLOCKED ⚠️ | Depends on live verification |
+| PRODUCTION READY | NOT REACHED ⚠️ | Requires LIVE VERIFIED + human review |
+
+**To upgrade states:** Set `UPCLOUD_API_MAIN` env var with valid token → run live smoke tests → capabilities can be TEST VERIFIED/LIVE VERIFIED → wire into runtime → PRODUCTION READY
 
 **Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
 to a dense index and swallows the error. See

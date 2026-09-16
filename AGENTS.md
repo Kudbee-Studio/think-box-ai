@@ -507,7 +507,8 @@ After completing work, update both with findings, decisions, and status.
 1. **READ** `STATUS.md` and `docs/CONTINUITY.md`
 2. **IDENTIFY** active work, blockers, completed work, next improvement
 3. **CLASSIFY** work as ACTIVE / BLOCKED / PARKED / COMPLETE
-4. **RUN** existing tests to establish baseline
+4. **VERIFY** current 4-state classification for all work items (see §14.7)
+5. **RUN** existing tests to establish baseline
 
 ### 14.2 Agent Exit Checklist
 
@@ -515,6 +516,7 @@ Before declaring completion, MUST verify:
 
 - [ ] Existing continuity state read
 - [ ] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
+- [ ] 4-state classification assigned per §14.7 for all work items
 - [ ] Tests executed and passing
 - [ ] Evidence recorded in CONTINUITY.md
 - [ ] Documentation updated
@@ -529,6 +531,7 @@ Before declaring completion, MUST verify:
 - **NEVER** leave "in progress" work without a next action
 - **NEVER** create duplicate rediscovery work when CONTINUITY.md documents state
 - **NEVER** claim verification without evidence
+- **NEVER** use "COMPLETE" alone to mean verified — always pair with 4-state classification (see §14.7)
 - **NEVER** silently discard discoveries, failed experiments, security findings, or limitations
 - **NEVER** print, log, store, or commit credentials or secrets
 
@@ -556,6 +559,38 @@ If intentionally open: document WHY and what event closes it.
 5. **GitHub PRs** provide review history
 
 **The repository is the memory. No agent may assume the next agent knows what it knows.**
+
+### 14.7 Work State Classification (MANDATORY)
+
+Every agent MUST classify work using these four distinct states. **"Complete" alone is never sufficient.**
+
+| State | Meaning | Evidence Required |
+|-------|---------|-------------------|
+| **CODE COMPLETE** | Code is written, committed, and pushed | Git commit exists on branch |
+| **TEST VERIFIED** | Unit/integration tests pass in CI or locally | Test output showing pass count |
+| **LIVE VERIFIED** | Successfully authenticated against real external service | Evidence from live API call or service interaction |
+| **PRODUCTION READY** | Safe to deploy or use in production | All three above + human review approval |
+
+**Rules:**
+
+1. **CODE COMPLETE** is the default state for any committed code
+2. **TEST VERIFIED** requires running tests and reporting results — never assume
+3. **LIVE VERIFIED** requires actual authenticated interaction with the external service — mocked tests do NOT count
+4. **PRODUCTION READY** requires human review approval for any code change
+5. **An agent MUST NOT skip states.** Code that is CODE COMPLETE but not TEST VERIFIED is not ready for PR review
+6. **An agent MUST NOT claim "complete" without stating which of the four states applies**
+7. **When credentials are missing, live-dependent work stays CODE COMPLETE only** — never infer LIVE VERIFIED from mocked tests
+
+**Example — UpCloud ExecutionProvider (2026-09-16):**
+- UpCloud provider: CODE COMPLETE ✅
+- Security handling: TEST VERIFIED ✅ (no credential leaks, audit passed)
+- Unit tests: TEST VERIFIED ✅ (33/33 pass)
+- Dry-run mode: TEST VERIFIED ✅ (mocked execution tested)
+- Provider abstraction: TEST VERIFIED ✅ (base class + registry tested)
+- Live UpCloud authentication: NOT VERIFIED ⚠️ (no credentials, API returns 401)
+- Real UpCloud execution: NOT VERIFIED ⚠️ (blocked by missing credentials)
+- Autonomous provisioning: BLOCKED ⚠️ (depends on live verification)
+- PR #68: OPEN — human review required ⚠️ (PRODUCTION READY blocked by review)
 
 ---
 
