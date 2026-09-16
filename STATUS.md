@@ -176,7 +176,7 @@ All 16 capabilities return HTTP 401 from UpCloud REST API. Classification:
 - **REQUIRES_ADMIN_APPROVAL**: None (no 403 responses observed)
 - **VERIFIED**: None (no successful API calls)
 
-**To upgrade capabilities**: Set `UPCLOUD_API_KEY` env var with valid token and re-run live smoke tests.
+**To upgrade capabilities**: Set `UPCLOUD_API_MAIN` env var with valid token and re-run live smoke tests.
 
 **Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
 to a dense index and swallows the error. See

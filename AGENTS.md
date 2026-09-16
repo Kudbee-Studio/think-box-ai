@@ -495,6 +495,70 @@ Known failures to track:
 
 ---
 
+## 14. Continuity Protocol (MANDATORY)
+
+Every agent entering this repository MUST follow this protocol.
+The canonical continuity artifact is `docs/CONTINUITY.md`.
+Before making any change, read `STATUS.md` and `docs/CONTINUITY.md`.
+After completing work, update both with findings, decisions, and status.
+
+### 14.1 Agent Entry Checklist
+
+1. **READ** `STATUS.md` and `docs/CONTINUITY.md`
+2. **IDENTIFY** active work, blockers, completed work, next improvement
+3. **CLASSIFY** work as ACTIVE / BLOCKED / PARKED / COMPLETE
+4. **RUN** existing tests to establish baseline
+
+### 14.2 Agent Exit Checklist
+
+Before declaring completion, MUST verify:
+
+- [ ] Existing continuity state read
+- [ ] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
+- [ ] Tests executed and passing
+- [ ] Evidence recorded in CONTINUITY.md
+- [ ] Documentation updated
+- [ ] Git state clean or intentionally documented
+- [ ] PR/commit referenced
+- [ ] No stale open loop created
+- [ ] Next larger improvement documented
+- [ ] Security/credential check completed when applicable
+
+### 14.3 Stale-Work Prevention
+
+- **NEVER** leave "in progress" work without a next action
+- **NEVER** create duplicate rediscovery work when CONTINUITY.md documents state
+- **NEVER** claim verification without evidence
+- **NEVER** silently discard discoveries, failed experiments, security findings, or limitations
+- **NEVER** print, log, store, or commit credentials or secrets
+
+### 14.4 GitHub Discipline
+
+For meaningful work: **IMPLEMENT → TEST → DOCUMENT → PR/ISSUE → VERIFY → CLOSE**
+
+When complete: close the PR/issue immediately unless intentionally long-lived.
+If intentionally open: document WHY and what event closes it.
+
+### 14.5 Continuity Artifacts
+
+| Artifact | Location | Purpose |
+|---|---|---|
+| CONTINUITY.md | `docs/CONTINUITY.md` | Canonical agent state (CURRENT STATE, RECENT CHANGES, DECISIONS, OPEN/CLOSED LOOPS, INFRASTRUCTURE, SECURITY) |
+| STATUS.md | `STATUS.md` | Project state summary |
+| Decisions | `docs/decisions/NNN-*.md` | Architectural decision records |
+
+### 14.6 How Future Agents Discover This
+
+1. **AGENTS.md §14** mandates this protocol
+2. **docs/CONTINUITY.md** provides canonical state
+3. **STATUS.md** provides current project summary
+4. **Git log** provides commit history
+5. **GitHub PRs** provide review history
+
+**The repository is the memory. No agent may assume the next agent knows what it knows.**
+
+---
+
 ## Think-v2 (KUDBEE gpt-oss-20b) — Operational Note
 
 Served model id: `openai/gpt-oss-20b` (NOT bare `gpt-oss-20b`).
