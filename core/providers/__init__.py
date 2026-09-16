@@ -1,4 +1,4 @@
-"""Provider layer — model provider protocol and implementations."""
+"""Provider layer — model provider protocol and infrastructure provider protocol."""
 
 from __future__ import annotations
 
@@ -9,7 +9,18 @@ from core.providers.base import (
     ProviderCapabilities,
     ProviderRegistry,
 )
+from core.providers.execution import (
+    CapabilityCheck,
+    CapabilityStatus,
+    EvidenceRecord,
+    ExecutionPlan,
+    ExecutionProvider,
+    ExecutionProviderCapabilities,
+    ExecutionResult,
+    ProviderExecutionRegistry,
+)
 from core.providers.openai_compat import OpenAICompatProvider
+from core.providers.upcloud import UpCloudExecutionProvider
 
 __all__ = [
     "CompletionResponse",
@@ -18,4 +29,13 @@ __all__ = [
     "OpenAICompatProvider",
     "ProviderCapabilities",
     "ProviderRegistry",
+    "CapabilityCheck",
+    "CapabilityStatus",
+    "EvidenceRecord",
+    "ExecutionPlan",
+    "ExecutionProvider",
+    "ExecutionProviderCapabilities",
+    "ExecutionResult",
+    "ProviderExecutionRegistry",
+    "UpCloudExecutionProvider",
 ]

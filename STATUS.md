@@ -140,7 +140,7 @@ complete in ~15 s.
 
 ---
 
-## Access Inventory (2026-09-15)
+## Access Inventory (2026-09-16)
 
 | Service | Env present | Status |
 |---------|-------------|--------|
@@ -148,8 +148,35 @@ complete in ~15 s.
 | Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes require embedder env |
 | Upstash Box | `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ❌ host reachable, preview `not found` |
 | UpCloud `kudbee-host-v1` (212.147.250.183) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401 invalid; no SSH key; IP behind Cloudflare 1003 |
+| UpCloud REST API | `UPCLOUD_API_KEY` (env) | ❌ HTTP 401 all endpoints (2026-09-16 audit) |
 | Redis | — | ❌ no client, no env |
 | MCP | — | ❌ none configured |
+
+### UpCloud Provider Implementation (2026-09-16)
+
+| Capability | Status |
+|------------|--------|
+| ExecutionProvider abstraction | ✅ Implemented (`core/providers/execution.py`) |
+| UpCloud ExecutionProvider | ✅ Implemented (`core/providers/upcloud.py`) |
+| upctl CLI | ❌ Not installed; provider uses REST API directly |
+| Capability audit | ✅ All 16 capabilities classified (all DENIED due to 401) |
+| Mocked unit tests | ✅ 31/31 pass |
+| Live smoke tests | ✅ 5 tests (skipped: no credentials) |
+| Credential exposure scan | ✅ No tokens found in source/tests/docs |
+| Evidence record system | ✅ Auditable, no secrets recorded |
+| Dry-run plan mode | ✅ Implemented with approval gates |
+
+---
+
+## UpCloud Provider: Verified Capabilities (2026-09-16 Audit)
+
+All 16 capabilities return HTTP 401 from UpCloud REST API. Classification:
+- **DENIED**: All capabilities (authentication failure)
+- **NOT_TESTED**: None (auth blocks all capability tests)
+- **REQUIRES_ADMIN_APPROVAL**: None (no 403 responses observed)
+- **VERIFIED**: None (no successful API calls)
+
+**To upgrade capabilities**: Set `UPCLOUD_API_KEY` env var with valid token and re-run live smoke tests.
 
 **Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
 to a dense index and swallows the error. See
