@@ -291,7 +291,7 @@ def _handle_cnc_safety(args) -> None:
         else:
             print(bold(f"\n  Safety Gates ({len(gates)})"))
             for g in gates:
-                print(f"  {cyan(g.gate_id[:12])}  {g.status.value}  {g.job_id}")
+                print(f"  {cyan(g.gate_id[:12])}  {g.status}  {g.job_id}")
 
     elif safety_sub == "check":
         jobs = _load_jobs()
