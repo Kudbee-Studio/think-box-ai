@@ -51,6 +51,141 @@ EVENTS = OUT / "swarm_events.jsonl"
 TIERS = ["EVIDENCE", "INFERENCE", "HYPOTHESIS", "UNVERIFIED"]
 
 
+# -- CNC/G-code API ------------------------------------------------------
+
+def api_cnc_machines() -> list[dict[str, Any]]:
+    """Return list of configured CNC machines."""
+    return _q(DB / "cnc.db",
+              "SELECT machine_id, controller_type, profile_name, status, last_job_at, created_at "
+              "FROM machines ORDER BY created_at DESC")
+
+
+def api_cnc_machine(machine_id: str) -> dict[str, Any]:
+    """Return detailed machine profile."""
+    machine = _q(DB / "cnc.db",
+                 "SELECT * FROM machines WHERE machine_id=?",
+                 (machine_id,))
+    if not machine:
+        return {"error": "machine not found"}
+    m = machine[0]
+    
+    # Get recent jobs
+    jobs = _q(DB / "cnc.db",
+              "SELECT job_id, gcode_file, status, started_at, completed_at, duration_s, "
+              "material, tool_id, result FROM jobs WHERE machine_id=? ORDER BY started_at DESC LIMIT 20",
+              (machine_id,))
+    
+    # Get tooling
+    tools = _q(DB / "cnc.db",
+               "SELECT tool_id, tool_type, diameter_mm, flutes, material, wear_mm, status, last_inspected_at "
+               "FROM tools WHERE machine_id=? ORDER BY tool_id",
+               (machine_id,))
+    
+    # Get work offsets
+    offsets = _q(DB / "cnc.db",
+                 "SELECT offset_id, name, x_mm, y_mm, z_mm, a_deg, b_deg, c_deg, active "
+                 "FROM work_offsets WHERE machine_id=? ORDER BY offset_id",
+                 (machine_id,))
+    
+    return {**m, "jobs": jobs, "tools": tools, "work_offsets": offsets}
+
+
+def api_cnc_gcode(job_id: str) -> dict[str, Any]:
+    """Return G-code content with validation results."""
+    job = _q(DB / "cnc.db",
+             "SELECT job_id, machine_id, gcode_file, status, validation_result, simulation_result, "
+             "created_at FROM jobs WHERE job_id=?",
+             (job_id,))
+    if not job:
+        return {"error": "job not found"}
+    j = job[0]
+    
+    # Read G-code file
+    gcode_path = Path(j["gcode_file"]) if j["gcode_file"] else None
+    gcode_content = ""
+    if gcode_path and gcode_path.exists():
+        try:
+            gcode_content = gcode_path.read_text()
+        except OSError:
+            gcode_content = "(error reading file)"
+    
+    return {**j, "gcode_content": gcode_content}
+
+
+def api_cnc_validate_gcode(gcode: str, machine_id: str) -> dict[str, Any]:
+    """Validate G-code against machine profile."""
+    # Get machine limits
+    machine = _q(DB / "cnc.db",
+                 "SELECT max_feed_mm_min, max_spindle_rpm, travel_x_mm, travel_y_mm, travel_z_mm "
+                 "FROM machines WHERE machine_id=?",
+                 (machine_id,))
+    if not machine:
+        return {"valid": False, "errors": ["Machine not found"]}
+    
+    m = machine[0]
+    errors = []
+    warnings = []
+    
+    lines = gcode.splitlines()
+    for i, line in enumerate(lines, 1):
+        line_upper = line.strip().upper()
+        
+        # Check for feed rates exceeding machine limits
+        if 'F' in line_upper and not line_upper.startswith('('):
+            try:
+                f_val = float(line_upper.split('F')[1].split()[0])
+                if f_val > (m["max_feed_mm_min"] or 999999):
+                    warnings.append(f"Line {i}: Feed rate {f_val} exceeds machine max {m['max_feed_mm_min']}")
+            except (ValueError, IndexError):
+                pass
+        
+        # Check for spindle speed exceeding limits
+        if 'S' in line_upper and 'M3' in line_upper:
+            try:
+                s_val = float(line_upper.split('S')[1].split()[0])
+                if s_val > (m["max_spindle_rpm"] or 999999):
+                    errors.append(f"Line {i}: Spindle speed {s_val} exceeds machine max {m['max_spindle_rpm']}")
+            except (ValueError, IndexError):
+                pass
+        
+        # Check for coordinate overflow
+        for axis in ['X', 'Y', 'Z']:
+            if axis in line_upper:
+                try:
+                    coord = float(line_upper.split(axis)[1].split()[0])
+                    max_travel = m[f"travel_{axis.lower()}_mm"]
+                    if max_travel and abs(coord) > max_travel:
+                        errors.append(f"Line {i}: {axis} coordinate {coord} exceeds travel {max_travel}")
+                except (ValueError, IndexError):
+                    pass
+    
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+        "line_count": len(lines)
+    }
+
+
+def api_cnc_simulate(job_id: str) -> dict[str, Any]:
+    """Run G-code simulation (placeholder - would integrate with actual simulator)."""
+    job = _q(DB / "cnc.db",
+             "SELECT job_id, gcode_file, machine_id FROM jobs WHERE job_id=?",
+             (job_id,))
+    if not job:
+        return {"error": "job not found"}
+    
+    # This would integrate with a real simulator like CNCjs, G-code Simulator, etc.
+    return {
+        "job_id": job_id,
+        "status": "simulated",
+        "estimated_time_s": 0,
+        "toolpath_bounds": {"x": [0, 0], "y": [0, 0], "z": [0, 0]},
+        "collisions": [],
+        "note": "Simulation backend not yet implemented - integrate with CNCjs, G-code Simulator, or similar"
+    }
+
+
 # ---------------------------------------------------------------------------
 # Readers
 # ---------------------------------------------------------------------------
@@ -575,7 +710,7 @@ svg{width:100%;height:auto;display:block}
 <script>
 const TABS=[["command","Command"],["trace","Trace"],["proof","Proof"],["learning","Learning"],
 ["arena","Arena"],["memory","Memory"],["workers","Workers"],["cost","Cost×Intel"],
-["replay","Replay"],["mission","Mission"]];
+["replay","Replay"],["mission","Mission"],["cnc","CNC"]];
 const TIERS=["EVIDENCE","INFERENCE","HYPOTHESIS","UNVERIFIED"];
 const COLOR={EVIDENCE:"#3ddc84",INFERENCE:"#4aa3ff",HYPOTHESIS:"#f5a623",UNVERIFIED:"#9c6b6b"};
 const $=s=>document.querySelector(s);
@@ -611,6 +746,7 @@ async function render(){
   if(tab==="cost") return renderCost(m);
   if(tab==="replay") return renderReplay(m);
   if(tab==="mission") return renderMission(m);
+  if(tab==="cnc") return renderCNC(m);
 }
 
 async function renderCommand(m){
@@ -841,6 +977,120 @@ async function renderMission(m){
     :`<div class="empty">nothing requires a human right now</div>`);
 }
 
+async function renderCNC(m){
+  const machines=await get("/api/cnc/machines");
+  if(machines.__err) return m.innerHTML=errBox(machines);
+  
+  const rows=(machines||[]).map(mc=>`<tr>
+    <td class="mono">${esc(mc.machine_id)}</td><td>${esc(mc.controller_type)}</td>
+    <td>${esc(mc.profile_name)}</td><td><span class="tag ${mc.status==='ready'?'ok':mc.status==='busy'?'amber':'err'}">${esc(mc.status)}</span></td>
+    <td class="mono">${esc((mc.last_job_at||"").slice(0,19).replace("T"," "))}</td>
+    <td><button onclick="loadMachine('${esc(mc.machine_id)}')" class="pill" style="padding:4px 8px;font-size:10px">Open</button></td>
+  </tr>`).join("");
+  
+  m.innerHTML=card("CNC Machines","configured machine profiles · controller types · persistent state",
+    `<div class="kpis">${kpi(machines?.length||0,"machines")}${kpi(machines?.filter(m=>m.status==="ready").length||0,"ready","good")}${kpi(machines?.filter(m=>m.status==="busy").length||0,"busy","amber")}</div>`
+    +(rows?`<table><tr><th>Machine ID</th><th>Controller</th><th>Profile</th><th>Status</th><th>Last Job</th><th></th></tr>${rows}</table>`
+    :`<div class="empty">no machines configured — add to cnc.db</div>`)
+    +`<div id="cnc-detail" style="margin-top:16px"></div>`);
+}
+
+window.loadMachine = async function(machine_id){
+  const detail=$("#cnc-detail");
+  detail.innerHTML=`<div class="empty">loading machine ${esc(machine_id)}…</div>`;
+  const m=await get(`/api/cnc/machine/${machine_id}`);
+  if(m.__err) return detail.innerHTML=errBox(m);
+  
+  const jobRows=(m.jobs||[]).map(j=>`<tr>
+    <td class="mono">${esc(j.job_id)}</td><td>${esc((j.gcode_file||"").split("/").pop())}</td>
+    <td><span class="tag ${j.status==='completed'?'ok':j.status==='running'?'amber':j.status==='failed'?'err':''}">${esc(j.status)}</span></td>
+    <td class="mono">${esc((j.started_at||"").slice(0,19).replace("T"," "))}</td>
+    <td>${esc(j.material||"")}</td><td>${esc(j.tool_id||"")}</td>
+    <td>${j.duration_s?Number(j.duration_s).toFixed(1)+"s":"—"}</td>
+    <td><button onclick="loadGcode('${esc(j.job_id)}')" class="pill" style="padding:2px 6px;font-size:10px">View</button></td>
+  </tr>`).join("");
+  
+  const toolRows=(m.tools||[]).map(t=>`<tr>
+    <td>${esc(t.tool_id)}</td><td>${esc(t.tool_type)}</td><td>${t.diameter_mm?Number(t.diameter_mm).toFixed(2):"?"}</td>
+    <td>${t.flutes||"?"}</td><td>${esc(t.material||"")}</td>
+    <td>${t.wear_mm?Number(t.wear_mm).toFixed(3):"?"}</td><td>${esc(t.status||"")}</td>
+    <td class="mono">${esc((t.last_inspected_at||"").slice(0,10))}</td>
+  </tr>`).join("");
+  
+  const offsetRows=(m.work_offsets||[]).map(o=>`<tr>
+    <td>${esc(o.offset_id)}</td><td>${esc(o.name)}</td>
+    <td>${o.x_mm?Number(o.x_mm).toFixed(3):"0"}</td><td>${o.y_mm?Number(o.y_mm).toFixed(3):"0"}</td>
+    <td>${o.z_mm?Number(o.z_mm).toFixed(3):"0"}</td>
+    <td>${o.a_deg?Number(o.a_deg).toFixed(2):"0"}</td><td>${o.b_deg?Number(o.b_deg).toFixed(2):"0"}</td>
+    <td>${o.c_deg?Number(o.c_deg).toFixed(2):"0"}</td>
+    <td>${o.active?'<span class="tag ok">active</span>':''}</td>
+  </tr>`).join("");
+  
+  detail.innerHTML=card(`Machine: ${esc(m.machine_id)}`,`${esc(m.controller_type)} · ${esc(m.profile_name)}`,
+    `<div class="kpis">${kpi(m.jobs?.length||0,"jobs")}${kpi(m.tools?.length||0,"tools")}${kpi(m.work_offsets?.length||0,"offsets")}</div>`
+    +card("Jobs",`recent jobs on ${esc(m.machine_id)}`,
+      jobRows?`<table><tr><th>Job ID</th><th>G-code File</th><th>Status</th><th>Started</th><th>Material</th><th>Tool</th><th>Duration</th><th></th></tr>${jobRows}</table>`
+      :`<div class="empty">no jobs yet</div>`)
+    +card("Tooling","persistent tool library with wear tracking",
+      toolRows?`<table><tr><th>Tool ID</th><th>Type</th><th>Ø mm</th><th>Flutes</th><th>Material</th><th>Wear mm</th><th>Status</th><th>Inspected</th></tr>${toolRows}</table>`
+      :`<div class="empty">no tools configured</div>`)
+    +card("Work Offsets","G54-G59 persistent coordinate systems",
+      offsetRows?`<table><tr><th>ID</th><th>Name</th><th>X</th><th>Y</th><th>Z</th><th>A</th><th>B</th><th>C</th><th>Active</th></tr>${offsetRows}</table>`
+      :`<div class="empty">no work offsets configured</div>`)
+    +card("Validate G-code","paste G-code to validate against this machine's limits",
+      `<textarea id="gcode-input" placeholder="Paste G-code here..." style="width:100%;height:150px;font-family:monospace;font-size:11px;background:#0a0c0e;border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--fg)"></textarea>
+      <div style="margin-top:8px"><button onclick="validateGcode('${esc(machine_id)}')" class="pill" style="padding:6px 12px">Validate</button></div>
+      <div id="validation-result" style="margin-top:8px"></div>`));
+}
+
+window.loadGcode = async function(job_id){
+  const d=await get(`/api/cnc/gcode/${job_id}`);
+  if(d.__err) return alert("Error: "+d.__err);
+  const content=d.gcode_content||"(empty)";
+  const val=d.validation_result?JSON.parse(d.validation_result):null;
+  const sim=d.simulation_result?JSON.parse(d.simulation_result):null;
+  
+  // Open in new window/tab for better viewing
+  const win=window.open("","G-code Viewer","width=900,height=700");
+  win.document.write(`<!doctype html><html><head><title>G-code: ${esc(job_id)}</title>
+  <style>body{font-family:monospace;padding:20px;background:#0a0c0e;color:#e9eef4}
+  pre{background:#101216;padding:15px;border-radius:8px;overflow:auto}
+  .err{color:#ff5c5c}.warn{color:#f5a623}.ok{color:#3ddc84}
+  .panel{margin-bottom:20px;padding:15px;background:#101216;border-radius:8px;border:1px solid #22282e}
+  </style></head><body>
+  <h2>G-code: ${esc(job_id)}</h2>
+  <div class="panel"><strong>Status:</strong> ${esc(d.status)} | <strong>Machine:</strong> ${esc(d.machine_id)} | <strong>File:</strong> ${esc(d.gcode_file||"")}</div>
+  <div class="panel"><strong>Validation:</strong> ${val?`<span class="${val.valid?'ok':'err'}">${val.valid?"VALID":"INVALID"}</span>`:"not run"}
+    ${val&&val.errors.length?`<br><strong>Errors:</strong><ul>${val.errors.map(e=>`<li class="err">${esc(e)}</li>`).join("")}</ul>`:""}
+    ${val&&val.warnings.length?`<br><strong>Warnings:</strong><ul>${val.warnings.map(w=>`<li class="warn">${esc(w)}</li>`).join("")}</ul>`:""}
+    ${val?`<br><strong>Lines:</strong> ${val.line_count}`:""}</div>
+  <div class="panel"><strong>Simulation:</strong> ${sim?sim.status:"not run"} ${sim?`<br>Est. time: ${sim.estimated_time_s}s`:""}</div>
+  <pre>${esc(content)}</pre></body></html>`);
+}
+
+window.validateGcode = async function(machine_id){
+  const textarea=document.getElementById("gcode-input");
+  const gcode=textarea.value;
+  if(!gcode.trim()) return alert("Paste G-code first");
+  
+  const res=await fetch("/api/cnc/validate",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({gcode,machine_id})
+  });
+  const d=await res.json();
+  if(d.__err) return document.getElementById("validation-result").innerHTML=`<div class="empty">Error: ${esc(d.__err)}</div>`;
+  
+  const el=document.getElementById("validation-result");
+  if(d.valid){
+    el.innerHTML=`<div class="kpis">${kpi("VALID","validation","good")}${kpi(d.line_count,"lines")}${kpi(d.warnings?.length||0,"warnings","amber")}</div>`
+    +(d.warnings?.length?`<div class="hint"><strong>Warnings:</strong><ul>${d.warnings.map(w=>`<li class="tag amber">${esc(w)}</li>`).join("")}</ul></div>`:"");
+  }else{
+    el.innerHTML=`<div class="kpis">${kpi("INVALID","validation","bad")}${kpi(d.line_count,"lines")}${kpi(d.errors?.length||0,"errors","bad")}</div>`
+    +`<div class="hint"><strong>Errors:</strong><ul>${d.errors.map(e=>`<li class="tag err">${esc(e)}</li>`).join("")}</ul></div>`
+    +(d.warnings?.length?`<div class="hint"><strong>Warnings:</strong><ul>${d.warnings.map(w=>`<li class="tag amber">${esc(w)}</li>`).join("")}</ul></div>`:"");
+  }
+}
+
 async function tick(){
   const d=await get("/api/instruments");
   if(!d.__err) $("#foot-hash").textContent=(d.proof_hash||"—").slice(0,24);
@@ -933,6 +1183,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(api_replay())
             elif path == "/api/mission":
                 self._json(api_mission())
+            # CNC/G-code routes
+            elif path == "/api/cnc/machines":
+                self._json(api_cnc_machines())
+            elif path.startswith("/api/cnc/machine/"):
+                machine_id = path.split("/api/cnc/machine/")[1]
+                self._json(api_cnc_machine(machine_id))
+            elif path.startswith("/api/cnc/gcode/"):
+                job_id = path.split("/api/cnc/gcode/")[1]
+                self._json(api_cnc_gcode(job_id))
+            elif path == "/api/cnc/validate":
+                # POST only - handle in do_POST
+                self._json({"error": "use POST"}, 405)
+            elif path.startswith("/api/cnc/simulate/"):
+                job_id = path.split("/api/cnc/simulate/")[1]
+                self._json(api_cnc_simulate(job_id))
             else:
                 self._json({"error": "not found", "path": path}, 404)
         except Exception as e:  # never leak a stack trace to the client
@@ -940,6 +1205,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, *args: Any) -> None:
         return
+
+    def do_POST(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path
+        
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+        
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._json({"error": "invalid JSON"}, 400)
+            return
+        
+        try:
+            if path == "/api/cnc/validate":
+                gcode = data.get("gcode", "")
+                machine_id = data.get("machine_id", "")
+                if not gcode or not machine_id:
+                    self._json({"error": "gcode and machine_id required"}, 400)
+                    return
+                self._json(api_cnc_validate_gcode(gcode, machine_id))
+            else:
+                self._json({"error": "not found", "path": path}, 404)
+        except Exception as e:
+            self._json({"error": type(e).__name__, "detail": str(e)[:200]}, 500)
 
 
 def main() -> int:
