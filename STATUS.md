@@ -145,7 +145,7 @@ complete in ~15 s.
 | Service | Env present | Status |
 |---------|-------------|--------|
 | Inception Mercury 2 | `INCEPTION_API_KEY` | ✅ live and used |
-| Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes rejected (dense index needs a vector) |
+| Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes require embedder env |
 | Upstash Box | `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ❌ host reachable, preview `not found` |
 | UpCloud `kudbee-host-v1` (212.147.250.183) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401 invalid; no SSH key; IP behind Cloudflare 1003 |
 | Redis | — | ❌ no client, no env |
@@ -154,6 +154,23 @@ complete in ~15 s.
 **Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
 to a dense index and swallows the error. See
 `data/findings/thinkboxmd_upstash_vector_defect.md`.
+
+### Upstash Vector Fix (require embedder env)
+
+`UpstashVectorSync.upsert()` now requires a working embedder. To enable:
+
+```bash
+export THINKBOX_OPENAI_COMPAT_API_KEY=sk-your-key       # same key as completion
+export THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.inceptionlabs.ai/v1
+export THINKBOX_EMBED_MODEL=mercury-2                    # optional, defaults to THINKBOX_DEFAULT_MODEL
+```
+
+Post to `{base_url}/embeddings` (OpenAI-compatible endpoint).
+If the provider has no `/embeddings` route, set `THINKBOX_OPENAI_COMPAT_API_KEY` to empty
+and pass a `DeterministicEmbedder` instance in tests only — never in production.
+
+`DeterministicEmbedder` (hash-based, 1536-dim, stable) is available in `thinkbox/embedder.py`
+strictly for unit tests.
 
 ---
 

@@ -68,4 +68,39 @@ class OpenAICompatProvider:
         raise NotImplementedError("Streaming not implemented for OpenAICompatProvider")
 
     async def embed(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
-        raise NotImplementedError("Embedding not supported by OpenAICompatProvider")
+        import json
+        import urllib.error
+        import urllib.request
+
+        if not self._api_key:
+            raise NotImplementedError("No API key configured for embeddings")
+        if not texts:
+            return []
+
+        payload = {
+            "model": self._model,
+            "input": texts,
+        }
+
+        def _fetch() -> list[list[float]]:
+            req = urllib.request.Request(
+                f"{self._base_url}/embeddings",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self._api_key}",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    body = json.loads(resp.read().decode("utf-8"))
+                    results = body.get("data", [])
+                    return [item["embedding"] for item in results]
+            except urllib.error.HTTPError as e:
+                body = e.read().decode() if hasattr(e, "read") else ""
+                raise NotImplementedError(
+                    f"Embedding not supported by provider (HTTP {e.code}): {body}"
+                ) from e
+
+        return await asyncio.to_thread(_fetch)
