@@ -366,6 +366,14 @@ class MetricsStore:
             )
             self._conn.commit()
 
+    def session(self, session_id: str) -> dict[str, Any] | None:
+        """One session row (used by replay comparison)."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM sessions WHERE session_id=?", (session_id,)
+            ).fetchone()
+        return dict(row) if row else None
+
     def previous_run(self, kind: str = "big_swarm") -> dict[str, Any] | None:
         """Most recent completed session of a kind (for reproducibility + delta)."""
         with self._lock:

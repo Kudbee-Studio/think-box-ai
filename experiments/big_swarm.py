@@ -123,13 +123,15 @@ class Compartment:
 
 
 class BigSwarm:
-    def __init__(self, primary: int, validators: int, concurrency: int, arena: bool = False) -> None:
+    def __init__(self, primary: int, validators: int, concurrency: int, arena: bool = False,
+                 replay_of: str = "") -> None:
         OUT.mkdir(parents=True, exist_ok=True)
         DB.mkdir(parents=True, exist_ok=True)
         self.primary_n = primary
         self.validator_n = validators
         self.concurrency = concurrency
         self.arena_on = arena
+        self.replay_of = replay_of
         self.bus = EventBus(EVENTS)
 
         self.registry = WorkspaceRegistry()
@@ -371,9 +373,70 @@ class BigSwarm:
         wave2 = time.monotonic() - t0
         self.bus.emit(event="wave_done", wave="validator", seconds=round(wave2, 2), calls=len(sample))
 
+        # Wave 3: adversarial Challenge Arena (real traps, persisted outcomes)
+        arena_seconds = 0.0
+        if self.arena_probes:
+            t0 = time.monotonic()
+            self._run_arena_wave(primary_system)
+            arena_seconds = time.monotonic() - t0
+            self.bus.emit(event="wave_done", wave="arena", seconds=round(arena_seconds, 2),
+                          calls=len(self.arena_probes) * 2)
+
         recon = self.reconcile()
-        proof = self.write_proof(recon, wave1, wave2)
+        proof = self.write_proof(recon, wave1, wave2, arena_seconds)
         return proof
+
+    def _run_arena_wave(self, base_system: str) -> None:
+        """Fire each adversarial probe at a worker, then a validator, and persist both."""
+        arena_system = base_system + self.arena.system_prompt_suffix
+
+        def fire_probe(i: int, probe) -> tuple[Any, str, str]:
+            comp = self.fire(i, "ARENA", "research:arena",
+                             {"claim_id": probe.probe_id, "text": probe.claim},
+                             arena_system,
+                             f"Adversarial probe:\n{probe.claim}\n"
+                             f"Reply with one token: EVIDENCE INFERENCE HYPOTHESIS UNVERIFIED")
+            return comp, probe.probe_id, probe.trap_type
+
+        primary_tiers: dict[str, str] = {}
+        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+            futs = [pool.submit(fire_probe, 20000 + i, p) for i, p in enumerate(self.arena_probes)]
+            for f in as_completed(futs):
+                comp, probe_id, _ = f.result()
+                primary_tiers[probe_id] = comp.tier or "UNVERIFIED"
+
+        # validator pass over the same probes
+        def validate_probe(i: int, probe) -> tuple[str, str]:
+            comp = self.fire(30000 + i, "ARENA-VALIDATOR", "research:arena-validator",
+                             {"claim_id": probe.probe_id, "text": probe.claim},
+                             "You are an adversarial validator. Give your independent, "
+                             "MORE SKEPTICAL tier as one token from: "
+                             "EVIDENCE INFERENCE HYPOTHESIS UNVERIFIED. No other text.",
+                             f"Probe:\n{probe.claim}\nPrimary tier: "
+                             f"{primary_tiers.get(probe.probe_id, 'UNVERIFIED')}\n"
+                             f"Reply with one token.")
+            return probe.probe_id, comp.tier or "UNVERIFIED"
+
+        validator_tiers: dict[str, str] = {}
+        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+            futs = [pool.submit(validate_probe, i, p) for i, p in enumerate(self.arena_probes)]
+            for f in as_completed(futs):
+                pid, tier = f.result()
+                validator_tiers[pid] = tier
+
+        # score + persist
+        for probe in self.arena_probes:
+            ptier = primary_tiers.get(probe.probe_id, "UNVERIFIED")
+            vtier = validator_tiers.get(probe.probe_id, "")
+            outcome = self.arena.score(probe, f"ARENA-{probe.probe_id}", ptier, vtier)
+            self.flight.record_arena_outcome(
+                session_id=self.session_id, probe_id=probe.probe_id, trap_type=probe.trap_type,
+                worker_id=outcome.worker_id, tier=ptier, validator_tier=vtier,
+                detected=outcome.detected, challenged=outcome.challenged, recovered=outcome.recovered,
+            )
+            self.reputation.observe_trap(outcome.worker_id, outcome.detected)
+        self.bus.emit(event="arena_done", probes=len(self.arena_probes),
+                      detection_rate=self.arena.report()["overall"]["detection_rate"])
 
     # -- reconcile ---------------------------------------------------------
 
@@ -450,7 +513,8 @@ class BigSwarm:
 
     # -- proof -------------------------------------------------------------
 
-    def write_proof(self, recon: dict[str, Any], wave1: float, wave2: float) -> dict[str, Any]:
+    def write_proof(self, recon: dict[str, Any], wave1: float, wave2: float,
+                    arena_seconds: float = 0.0) -> dict[str, Any]:
         payload = {
             "run_id": f"big_swarm_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
             "session_id": self.session_id,
@@ -462,6 +526,8 @@ class BigSwarm:
             "validator_workers": self.validator_n,
             "wave1_seconds": round(wave1, 2),
             "wave2_seconds": round(wave2, 2),
+            "arena_seconds": round(arena_seconds, 2),
+            "replay_of": self.replay_of,
             "reconciliation": recon,
             "workers": [
                 {
@@ -570,11 +636,50 @@ def main() -> int:
     ap.add_argument("--validators", type=int, default=32)
     ap.add_argument("--concurrency", type=int, default=32)
     ap.add_argument("--arena", action="store_true", help="enable adversarial Challenge Arena probes")
+    ap.add_argument("--replay", default="", help="reproduce a recorded session from its genome")
     args = ap.parse_args()
 
     if not os.environ.get("INCEPTION_API_KEY"):
         print("INCEPTION_API_KEY missing")
         return 2
+
+    # -- replay: reproduce a recorded run from its genome -------------------
+    if args.replay:
+        fr = FlightRecorder(DB / "flight_recorder.db")
+        genome = fr.load_genome(args.replay)
+        if not genome or not fr.verify_genome(args.replay):
+            print(f"REPLAY FAILED: no verified genome for session {args.replay}")
+            return 2
+        gene = genome["gene"]
+        primary = int(gene.get("primary_workers", args.primary))
+        validators = int(gene.get("validator_workers", args.validators))
+        concurrency = int(gene.get("concurrency", args.concurrency))
+        arena = bool(gene.get("arena_enabled", args.arena))
+        print(f"REPLAY of {args.replay}  genome={genome['genome_hash'][:16]}…  "
+              f"config: {primary}p/{validators}v @ conc {concurrency}, arena={arena}")
+
+        source = MetricsStore(DB / "metrics.db").session(args.replay) or {}
+        swarm = BigSwarm(primary, validators, concurrency, arena=arena, replay_of=args.replay)
+        proof = swarm.run()
+        replay_index = proof["payload"]["reconciliation"]["strength"]["index"]
+        source_index = source.get("strength_score")
+        # config match: the genome we replayed matches the config we just ran
+        config_match = (
+            gene.get("primary_workers") == primary
+            and gene.get("validator_workers") == validators
+            and gene.get("concurrency") == concurrency
+        )
+        fr.record_replay(
+            source_session_id=args.replay, replay_session_id=swarm.session_id,
+            genome_hash=genome["genome_hash"], source_index=source_index,
+            replay_index=replay_index, config_match=config_match,
+            notes=f"prompt_version={gene.get('prompt_version', '')}",
+        )
+        print(f"  source index : {source_index if source_index is not None else '—'}")
+        print(f"  replay index : {replay_index}")
+        print(f"  config match : {config_match}")
+        print(f"  proof        : {proof['path']}")
+        return 0
 
     swarm = BigSwarm(args.primary, args.validators, args.concurrency, arena=args.arena)
     t0 = time.monotonic()

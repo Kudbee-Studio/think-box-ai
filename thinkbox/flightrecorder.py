@@ -163,6 +163,37 @@ class FlightRecorder:
                     genome_hash TEXT NOT NULL,
                     created_at TEXT
                 );
+                CREATE INDEX IF NOT EXISTS idx_gen_session ON genomes(session_id);
+
+                CREATE TABLE IF NOT EXISTS arena_outcomes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    probe_id TEXT NOT NULL,
+                    trap_type TEXT NOT NULL,
+                    worker_id TEXT,
+                    tier TEXT,
+                    validator_tier TEXT,
+                    detected INTEGER DEFAULT 0,
+                    challenged INTEGER DEFAULT 0,
+                    recovered INTEGER DEFAULT 0,
+                    created_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_ao_session ON arena_outcomes(session_id);
+                CREATE INDEX IF NOT EXISTS idx_ao_trap ON arena_outcomes(trap_type);
+
+                CREATE TABLE IF NOT EXISTS replays (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_session_id TEXT NOT NULL,
+                    replay_session_id TEXT NOT NULL,
+                    genome_hash TEXT,
+                    source_index REAL,
+                    replay_index REAL,
+                    index_delta REAL,
+                    config_match INTEGER,
+                    notes TEXT,
+                    created_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_rp_source ON replays(source_session_id);
                 """
             )
             self._conn.commit()
@@ -343,3 +374,137 @@ class FlightRecorder:
         if not loaded:
             return False
         return canonical_hash(loaded["gene"]) == loaded["genome_hash"]
+
+    # -- arena outcomes -----------------------------------------------------
+
+    def record_arena_outcome(
+        self,
+        session_id: str,
+        probe_id: str,
+        trap_type: str,
+        worker_id: str,
+        tier: str,
+        validator_tier: str,
+        detected: bool,
+        challenged: bool,
+        recovered: bool,
+    ) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO arena_outcomes (session_id, probe_id, trap_type, worker_id, tier, "
+                "validator_tier, detected, challenged, recovered, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    session_id, probe_id, trap_type, worker_id, tier, validator_tier,
+                    1 if detected else 0, 1 if challenged else 0, 1 if recovered else 0, _utc(),
+                ),
+            )
+            self._conn.commit()
+
+    def arena_report(self, session_id: str | None = None) -> dict[str, Any]:
+        """Detection / challenge / recovery rates, optionally scoped to one session."""
+        where, params = ("WHERE session_id = ?", (session_id,)) if session_id else ("", ())
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT trap_type, detected, challenged, recovered FROM arena_outcomes {where}",
+                params,
+            ).fetchall()
+        by_type: dict[str, dict[str, int]] = {}
+        for r in rows:
+            b = by_type.setdefault(r["trap_type"], {"n": 0, "detected": 0, "challenged": 0, "recovered": 0})
+            b["n"] += 1
+            b["detected"] += r["detected"]
+            b["challenged"] += r["challenged"]
+            b["recovered"] += r["recovered"]
+
+        def rate(b: dict[str, int], k: str) -> float:
+            return round(b[k] / b["n"], 4) if b["n"] else 0.0
+
+        summary = {
+            t: {**b, "detection_rate": rate(b, "detected"),
+                "challenge_rate": rate(b, "challenged"),
+                "recovery_rate": rate(b, "recovered")}
+            for t, b in by_type.items()
+        }
+        n = len(rows)
+        return {
+            "session_id": session_id or "all",
+            "probes": n,
+            "by_trap_type": summary,
+            "overall": {
+                "probes": n,
+                "detection_rate": round(sum(r["detected"] for r in rows) / n, 4) if n else 0.0,
+                "challenge_rate": round(sum(r["challenged"] for r in rows) / n, 4) if n else 0.0,
+                "recovery_rate": round(sum(r["recovered"] for r in rows) / n, 4) if n else 0.0,
+            },
+        }
+
+    # -- explorer queries ---------------------------------------------------
+
+    def list_chains(self, session_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock:
+            if session_id:
+                rows = self._conn.execute(
+                    "SELECT chain_id, session_id, claim_id, claim, decision, node_count, "
+                    "chain_hash, created_at FROM proof_chains WHERE session_id=? "
+                    "ORDER BY created_at DESC LIMIT ?", (session_id, limit)).fetchall()
+            else:
+                rows = self._conn.execute(
+                    "SELECT chain_id, session_id, claim_id, claim, decision, node_count, "
+                    "chain_hash, created_at FROM proof_chains ORDER BY created_at DESC LIMIT ?",
+                    (limit,)).fetchall()
+        out = [dict(r) for r in rows]
+        for c in out:
+            c["verified"] = self.verify_proof_chain(c["chain_id"])
+        return out
+
+    def verify_all_chains(self) -> dict[str, int]:
+        with self._lock:
+            rows = self._conn.execute("SELECT chain_id FROM proof_chains").fetchall()
+        total = len(rows)
+        ok = sum(1 for r in rows if self.verify_proof_chain(r["chain_id"]))
+        return {"total": total, "valid": ok, "invalid": total - ok}
+
+    def list_genomes(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT genome_id, session_id, gene, genome_hash, created_at FROM genomes "
+                "ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["gene"] = json.loads(d["gene"])
+            except (json.JSONDecodeError, TypeError):
+                d["gene"] = {}
+            d["verified"] = canonical_hash(d["gene"]) == d["genome_hash"]
+            out.append(d)
+        return out
+
+    def record_replay(
+        self,
+        source_session_id: str,
+        replay_session_id: str,
+        genome_hash: str,
+        source_index: float | None,
+        replay_index: float | None,
+        config_match: bool,
+        notes: str = "",
+    ) -> None:
+        delta = None
+        if source_index is not None and replay_index is not None:
+            delta = round(replay_index - source_index, 6)
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO replays (source_session_id, replay_session_id, genome_hash, source_index, "
+                "replay_index, index_delta, config_match, notes, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (source_session_id, replay_session_id, genome_hash, source_index, replay_index,
+                 delta, 1 if config_match else 0, notes, _utc()),
+            )
+            self._conn.commit()
+
+    def list_replays(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM replays ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
