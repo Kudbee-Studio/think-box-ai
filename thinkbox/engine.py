@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Callable
 
 from thinkbox.decomposer import TaskDecomposer, TaskGraph, TaskNode
 from thinkbox.pruner import ContextPruner
@@ -58,6 +58,7 @@ class ThinkBoxEngine:
         self._events: list[TaskEvent] = []
         self._event_queue: asyncio.Queue[TaskEvent] = asyncio.Queue()
         self._running = False
+        self._post_run_callback: Callable[[dict[str, Any]], None] | None = None
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -152,6 +153,11 @@ class ThinkBoxEngine:
         }
 
         self.emit("root", TaskState.SUCCESS, "Goal execution complete", **summary)
+        if self._post_run_callback is not None:
+            try:
+                self._post_run_callback(summary)
+            except Exception:
+                pass
         self._running = False
         return summary
 
@@ -170,3 +176,11 @@ class ThinkBoxEngine:
                 },
             },
         }
+
+    def on_run_complete(self, callback: Callable[[dict[str, Any]], None]) -> None:
+        """Register a callback invoked after each successful goal execution.
+
+        Used to wire SelfImprovementLoop and other post-run evaluations.
+        The callback receives the run summary dict and must not raise.
+        """
+        self._post_run_callback = callback
