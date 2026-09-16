@@ -39,7 +39,7 @@ def test_runner_job_blocked_when_gpu_stopped():
 
 
 def test_all_jobs_have_valid_verdict():
-    schema = load_json(SCHEMA_DIR)
+    schema = load_json(SCHEMA_PATH)
     valid_verdicts = ["succeeded", "failed", "unproven", "blocked"]
     for state in ["done", "blocked", "queue", "templates"]:
         state_dir = JOBS_DIR / state
