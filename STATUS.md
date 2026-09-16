@@ -106,6 +106,40 @@ Full report: `docs/THINKBOXMD_REPORT.md`.
 
 ---
 
+## Swarm Instrumentation Layer (2026-09-15)
+
+**Verdict:** 11/11 checks pass (`python3 experiments/verify_instrumentation.py --live`).
+
+Ten instruments added on SQLite (free, zero-config, always available):
+flight recorder, challenge arena, TSSI + learning curve, memory evolution,
+proof-carrying decisions, worker reputation, A/B experiments, self-improvement
+loop, cost/intelligence efficiency, swarm genome/replay.
+
+- Learning curve observed: **0.6405 → 0.7318 (+0.0913)** across two sessions
+- Proof chain + genome both **verify**; tampering is detected
+- Dashboard (mobile-first, stdlib, no build step) reads all of it read-only
+- Found and fixed a real deadlock in `thinkbox/economy.py::transfer()`
+  (`create_account()` called while holding a non-reentrant lock)
+
+Modules: `thinkbox/{metrics,flightrecorder,arena,memory_evolution,reputation,experiments}.py`
+Entrypoints: `experiments/{big_swarm,swarm_dashboard,verify_instrumentation,probe_mercury_throughput}.py`
+Plan: `docs/DASHBOARD_BUILDOUT.md`
+
+### Measured Mercury 2 throughput (single client, cloud sandbox)
+
+| Concurrency | rps | p50 | errors |
+|---|---|---|---|
+| 1 | 2.67 | 0.36 s | 0 |
+| 4 | 8.98 | 0.39 s | 0 |
+| 16 | 17.21 | 0.81 s | 0 |
+| 32 | 24.02 | 1.13 s | 0 |
+| 64 | 23.67 | 2.01 s | 0 |
+
+Ceiling ≈ **24 rps** from one client (client-bound, not server). 320 workers
+complete in ~15 s.
+
+---
+
 ## Access Inventory (2026-09-15)
 
 | Service | Env present | Status |

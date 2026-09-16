@@ -47,6 +47,8 @@ data/gpu_queue.jsonl
 data/queue.jsonl
 # THINKBOXMD proof: keep JSON/MD reports, ignore regenerable DB state
 data/thinkboxmd/db/
+# live swarm event stream (regenerable, high-churn)
+data/thinkboxmd/swarm_events.jsonl
 
 # Keep fixtures
 !data/fixtures/

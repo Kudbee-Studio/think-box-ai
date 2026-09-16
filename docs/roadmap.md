@@ -531,3 +531,38 @@ infrastructure with a live model, an auditable proof, and honest failure handlin
 `thinkbox/session.py::UpstashVectorSync.upsert()` (see
 `data/findings/thinkboxmd_upstash_vector_defect.md`).
 
+---
+
+## MILESTONE — SWARM INSTRUMENTATION (2026-09-15)
+
+**Goal:** turn a swarm run into a measurable experiment. "Our AI got smarter" is
+not a claim we make; "after N runs the validated index moved by X" is.
+
+### Shipped
+
+- [x] `thinkbox/flightrecorder.py` — permanent per-worker records + proof chains + genomes
+- [x] `thinkbox/arena.py` — adversarial traps with detection/challenge/recovery rates
+- [x] `thinkbox/metrics.py` — THINK Swarm Strength Index + session store + learning curve
+- [x] `thinkbox/memory_evolution.py` — memory lifecycle (created→…→promoted/decayed)
+- [x] `thinkbox/reputation.py` — worker reputation from demonstrated performance
+- [x] `thinkbox/experiments.py` — A/B variants, self-improvement loop, cost/insight
+- [x] `experiments/big_swarm.py` — the harness that drives all ten
+- [x] `experiments/swarm_dashboard.py` — mobile-first, stdlib, DB-backed view
+- [x] `experiments/verify_instrumentation.py` — 10 checks + `--live` end-to-end
+- [x] `tests/unit/test_swarm_instrumentation.py` — 22 unit tests
+
+### Evidence
+
+- 11/11 instrumentation checks pass (10 offline + 1 live)
+- Full suite: **301 tests OK**
+- Learning curve: `0.6405 → 0.7318 (+0.0913)`
+- Mercury 2 ceiling measured: **~24 rps** single client, 0 errors to conc 64
+
+### Next
+
+- [ ] Wire `SelfImprovementLoop` into the swarm run so the retest happens automatically
+- [ ] Persist arena outcomes per session (currently reported in the proof payload)
+- [ ] Add a `--replay <session_id>` path that reloads a genome and re-runs identically
+- [ ] Reputation-weighted worker sampling in the next wave
+- [ ] Implement `docs/DASHBOARD_BUILDOUT.md` Phase 1–4 (harden middleware, optional auth)
+

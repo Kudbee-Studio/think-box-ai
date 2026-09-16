@@ -114,6 +114,46 @@ Latest run: 9 PASS / 2 PARTIAL / 0 FAIL. Report: `docs/THINKBOXMD_REPORT.md`.
 
 **Research/infrastructure test only — not clinical advice. Synthetic scenarios only.**
 
+### Swarm Instrumentation — experimental layer for collective AI behaviour
+
+Ten instruments, all on SQLite (stdlib, free, zero-config, always available),
+turning a swarm run into a measurable experiment rather than a spectacle:
+
+| # | Instrument | Module |
+|---|-----------|--------|
+| 1 | **Flight Recorder** — permanent per-worker record | `thinkbox/flightrecorder.py` |
+| 2 | **Challenge Arena** — adversarial traps + detection/recovery rates | `thinkbox/arena.py` |
+| 3 | **Strength Index + learning curve** | `thinkbox/metrics.py` |
+| 4 | **Memory Evolution** — created/reinforced/contradicted/corrected/promoted/decayed | `thinkbox/memory_evolution.py` |
+| 5 | **Proof-Carrying Decisions** — verifiable claim→…→proof chain | `thinkbox/flightrecorder.py` |
+| 6 | **Worker Reputation** — from demonstrated validation accuracy | `thinkbox/reputation.py` |
+| 7 | **A/B Experiments** — configs as the experimental variable | `thinkbox/experiments.py` |
+| 8 | **Self-Improvement Loop** — weakest component → change → retest → accept/reject | `thinkbox/experiments.py` |
+| 9 | **Cost / Intelligence Efficiency** — cost per validated insight | `thinkbox/experiments.py` |
+| 10 | **Swarm Genome / Replay** — configuration hash for exact reproduction | `thinkbox/flightrecorder.py` |
+
+**THINK Swarm Strength Index (TSSI)** is a weighted mean of six measured ratios
+(reliability, grounding, evidence quality, challenge resolution, validator
+calibration, reproducibility). Challenge activity and tier inflation are
+**reported as signals, never penalised** — disagreeing is the adversarial layer
+doing its job.
+
+```bash
+# run a swarm with the instrumented path
+python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena
+
+# verify all ten instruments (add --live for a real end-to-end swarm)
+python3 experiments/verify_instrumentation.py --live
+
+# view it (mobile-first, stdlib server, no build step)
+python3 experiments/swarm_dashboard.py --port 8787
+cloudflared tunnel --url http://127.0.0.1:8787
+```
+
+Verified 2026-09-15: `11/11` instrumentation checks pass; learning curve
+observed `0.6405 → 0.7318 (+0.0913)` across two sessions; ledger and proof
+chains verify. Connect-it-up plan: `docs/DASHBOARD_BUILDOUT.md`.
+
 ---
 
 ## Getting Started
