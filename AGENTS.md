@@ -353,6 +353,148 @@ These rules are enforced by:
 
 Violations are bugs. Fix them before merging.
 
+---
+
+## 13. Workflows
+
+Step-by-step procedures for common agent tasks. Every agent should know these by heart.
+
+---
+
+### 13.1 Session Start
+
+Every new agent session must:
+
+1. **Read AGENTS.md** (this file)
+2. **Read STATUS.md** — current project state
+3. **Read docs/PREP.md** — handoff & readiness brief
+4. **Check git state** — branch, working tree, last commits
+5. **Run tests** — `python3 -m unittest discover tests/`
+6. **Report** — current branch, test count, blockers
+
+---
+
+### 13.2 RPO Assessment
+
+Full project status check (see skill: `rpo-assess`):
+
+1. Check git state
+2. Run test suite
+3. Check infrastructure status (Inception, Upstash, UpCloud, OpenAI)
+4. Read known defects from STATUS.md and PREP.md
+5. Produce prioritized output:
+   - **P0** — Immediate blockers (infrastructure, credentials)
+   - **P1** — Test gaps, missing capabilities
+   - **P2** — Optimization, polish
+   - **P3** — Enhancement
+
+---
+
+### 13.3 Code Change → PR
+
+Full workflow (see skill: `pr-workflow`):
+
+1. Sync to main: `git checkout main && git pull`
+2. Branch: `git checkout -b feat/descriptive-name`
+3. Make changes following AGENTS.md coding rules
+4. Run tests — all must pass
+5. Commit with conventional message: `type(scope): description`
+6. Push and create ONE PR targeting main
+7. **STOP** — wait for founder review. Do not create another PR.
+8. After approval: merge with `--no-ff`, push main, stop.
+
+---
+
+### 13.4 Upstash Vector Debug
+
+Debug Upstash Vector write failures (see skill: `upstash-vector-fix`):
+
+1. Read `data/findings/thinkboxmd_upstash_vector_defect.md`
+2. Check index type: must be DENSE with matching dimension
+3. Verify embedder: `OpenAICompatEmbedder` (production) or `DeterministicEmbedder` (test-only)
+4. Verify upsert payload includes `vector` field (1536 floats)
+5. Fix fail-closed: raise `EmbeddingError`, never silent `False`
+6. Test: `python3 -m unittest tests.unit.test_session_tracker.TestUpstashVectorSyncEmbedder -v`
+
+---
+
+### 13.5 UpCloud Setup
+
+Set up UpCloud infrastructure (see skill: `upcloud-setup`):
+
+1. Create API token in UpCloud panel → `THINKBOX_UPCLOUD_API_TOKEN`
+2. Upload SSH public key → place private key at `UPCLOUD_SSH_KEY_PATH`
+3. Handle Cloudflare block → direct IP, SSH tunnel, or Floating IP
+4. (Recommended) Purchase Floating IP → stable dashboard endpoint
+5. Verify: `detect_substrate()` returns `upcloud-gpu`
+
+---
+
+### 13.6 THINK Burst Execution
+
+Run burst evaluations (see skill: `burst-execute`):
+
+1. Verify governance token available (required to start)
+2. Offline: `python3 examples/think_burst_demo.py`
+3. Live: `python3 -m thinkbox.burst --live --pairs N --minutes M --max-calls C --budget X`
+4. Capture reasoning fields — never drop `delta.reasoning` / `reasoning`
+5. Hard stops enforced — do not bypass limits
+6. Never expose :8000/:8001 publicly
+
+---
+
+### 13.7 Swarm Instrumentation
+
+Run swarm experiments (see skill: `swarm-instrument`):
+
+1. Verify instrumentation: `python3 experiments/verify_instrumentation.py --live` (expect 11/11)
+2. Run swarm: `python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena`
+3. Dashboard: `python3 experiments/swarm_dashboard.py --port 8787`
+4. Check metrics: TSSI, learning curve, Mercury 2 throughput
+5. Self-ImprovementLoop: exists but NOT auto-wired into runs (TODO)
+
+---
+
+### 13.8 Test-Driven Development
+
+Every change follows this pattern:
+
+1. **Write failing test first** — valid input, invalid input, edge case
+2. **Implement code** — make test pass
+3. **Refactor** — clean up, preserve all test passes
+4. **Verify** — full suite: `python3 -m unittest discover tests/`
+
+Minimum test counts by module:
+
+| Module | Minimum Tests |
+|--------|---------------|
+| `thinkbox/session.py` | 9 (embedder + upsert) |
+| `thinkbox/substrate.py` | 9 |
+| `core/providers/` | Per-provider |
+| All public functions | At least 1 each |
+| All error paths | At least 1 each |
+
+---
+
+### 13.9 Failure Recovery
+
+When something fails:
+
+1. **Do not hide it** — document in STATUS.md or findings
+2. **Classify the failure** — infrastructure, code, environment, external dependency
+3. **Determine scope** — does this block other work?
+4. **Fix or work around** — choose honestly
+5. **Record** — update docs, findings, STATUS.md
+6. **Test the fix** — prove it works
+
+Known failures to track:
+- Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
+- UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
+- `tests/e2e/` empty — TODO
+- Solana CLI not installed — environment issue
+
+---
+
 ## Think-v2 (KUDBEE gpt-oss-20b) — Operational Note
 
 Served model id: `openai/gpt-oss-20b` (NOT bare `gpt-oss-20b`).
