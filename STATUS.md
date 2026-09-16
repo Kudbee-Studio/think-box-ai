@@ -147,10 +147,27 @@ complete in ~15 s.
 | Inception Mercury 2 | `INCEPTION_API_KEY` | ✅ live and used |
 | Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes require embedder env |
 | Upstash Box | `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ❌ host reachable, preview `not found` |
-| UpCloud `kudbee-host-v1` (212.147.250.183) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401 invalid; no SSH key; IP behind Cloudflare 1003 |
+| UpCloud GPU server `gpu-ubuntu-20cpu-256gb-fi-hel2` (87.58.148.168) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401; no SSH key; server STOPPED; SSH from sandbox BLOCKED |
 | UpCloud REST API | `UPCLOUD_API_KEY` (env) | ❌ HTTP 401 all endpoints (2026-09-16 audit) |
 | Redis | — | ❌ no client, no env |
 | MCP | — | ❌ none configured |
+
+### UpCloud GPU Server Connection Path (Recovered 2026-09-16)
+
+**September 15 mechanism:** SSH key authentication (NOT API token)
+
+| Layer | Mechanism | Details |
+|-------|-----------|---------|
+| Authentication | SSH key `~/.ssh/kilo-upcloud` | ed25519, committed `5f6a5c7`, removed `09830a6` for security |
+| Network | Direct SSH | `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` (or Floating IP `87.58.150.62`) |
+| Server | `gpu-ubuntu-20cpu-256gb-fi-hel2` | UUID `00d832ec`, zone `fi-hel2`, GPU-SPOT-20xCPU-256GB-3xL40S |
+| Workspace | `/opt/kudbee/repo` | Ubuntu 24.04 + NVIDIA/CUDA |
+| Services | Nginx:80, Worker:8765, Gov:8081, Ollama:11434 | Dashboard at http://87.58.148.168 |
+| Tunnel | Cloudflare Tunnel → `api.thinkboxai.xyz` | `deploy/setup_tunnel.sh` |
+| Models | Ollama gpt-oss:20b, gpt-oss:120b | Per `docs/guides/server-setup.md` |
+| Power | `human_only` | Requires human authorization to start |
+
+**Path recovery status:** CODE COMPLETE ✅ (path identified from git history, docs, infra config) / LIVE VERIFIED NOT REACHED ⚠️ (SSH times out, keys absent, server stopped)
 
 ### UpCloud Provider Implementation (2026-09-16)
 
@@ -188,9 +205,10 @@ All 16 capabilities return HTTP 401 from UpCloud REST API. Classification:
 | Live UpCloud authentication | NOT VERIFIED ⚠️ | All endpoints HTTP 401, no credentials |
 | Real UpCloud execution | NOT VERIFIED ⚠️ | Blocked by missing credentials |
 | Autonomous provisioning | BLOCKED ⚠️ | Depends on live verification |
+| Server connection path recovery | CODE COMPLETE ✅ / LIVE VERIFIED NOT REACHED ⚠️ | Path traced from git history, docs, infra config; cannot verify live |
 | PRODUCTION READY | NOT REACHED ⚠️ | Requires LIVE VERIFIED + human review |
 
-**To upgrade states:** Set `UPCLOUD_API_MAIN` env var with valid token → run live smoke tests → capabilities can be TEST VERIFIED/LIVE VERIFIED → wire into runtime → PRODUCTION READY
+**To upgrade states:** Set `UPCLOUD_API_MAIN` env var with valid token → run live smoke tests → capabilities can be TEST VERIFIED/LIVE VERIFIED → wire into runtime → PRODUCTION READY. Separately: place SSH key at `~/.ssh/kilo-upcloud` → `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` → start server from UpCloud panel → verify services → upgrade server connection to LIVE VERIFIED
 
 **Known defect:** `thinkbox/session.py::UpstashVectorSync.upsert()` cannot write
 to a dense index and swallows the error. See

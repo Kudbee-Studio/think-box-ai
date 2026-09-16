@@ -35,8 +35,65 @@ Before declaring completion, every agent MUST verify:
 | **Latest completed work** | Continuity protocol (commit `c7792b7`) — PR #68 open awaiting founder review |
 | **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 awaiting review |
-| **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable; PR review pending |
+| **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable; PR #68 awaiting review; server STOPPED; SSH keys absent from environment |
 | **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to TEST VERIFIED/LIVE VERIFIED → wire into runtime |
+
+---
+
+## SERVER CONNECTION PATH RECOVERY (2026-09-16)
+
+The September 15 server connection was traced from git history, docs, and infra config. It was **SSH-based**, not API-based. The current agent CANNOT reuse this path because: (a) SSH key files are absent from the filesystem, (b) server is unreachable from sandbox (port 22 times out), (c) server is in STOPPED state per infra config.
+
+### September 15 Connection Mechanism
+
+| Layer | Mechanism | Evidence |
+|-------|-----------|----------|
+| **KILO** | Agent process in cloud sandbox (this environment) | Session `agent_7ba0f2b9` |
+| **Authentication** | SSH key `~/.ssh/kilo-upcloud` (ed25519, committed in `5f6a5c7`, removed in `09830a6`) | Git history, `.gitignore` |
+| **Network** | Direct SSH to public NIC `87.58.148.168` (or Floating IP `87.58.150.62`) | `docs/guides/server-setup.md` (commit `0752566`), `data/infra_upcloud.ini` (commit `9097194`) |
+| **Server** | `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec`), zone `fi-hel2` | `data/infra_upcloud.ini` |
+| **Plan** | GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs) | `data/infra_upcloud.ini` |
+| **Remote workspace** | `/opt/kudbee/repo` on Ubuntu 24.04 + NVIDIA/CUDA | `docs/guides/server-setup.md` |
+| **Services** | Nginx:80 (dashboard+API), Worker Monitor:8765, Governance:8081, Ollama:11434 | `docs/guides/server-setup.md` |
+| **Tunnel** | Cloudflare Tunnel → `api.thinkboxai.xyz` | `deploy/setup_tunnel.sh` (commit `c2613ab`) |
+| **Models** | Ollama: gpt-oss:20b, gpt-oss:120b | `docs/guides/server-setup.md` |
+| **Think Box** | Connected to model runtime on server | `jobs/INDEX.md` (GPU: stopped, jobs blocked) |
+
+### Why Think Box Is Not Using It
+
+1. **Server STOPPED** — `data/infra_upcloud.ini` records `state_expected = stopped`, `power = human_only` (requires human authorization to start)
+2. **SSH keys absent** — `~/.ssh/kilo-upcloud` was committed (`5f6a5c7`) then removed for security (`09830a6`); file does not exist in this environment
+3. **Network unreachable** — SSH to `87.58.148.168` and `87.58.150.62` both time out from this sandbox; ping fails; `docs/THINKBOXMD_REPORT.md` confirms "SSH port is filtered from this sandbox"
+4. **API token invalid** — `THINKBOX_UPCLOUD_API_TOKEN` returns HTTP 401; `UPCLOUD_API_MAIN` not set
+5. **Cloudflare block** — `212.147.250.183` (old host `kudbee-host-v1`) behind Cloudflare 1003
+
+### Permanent Known-Good Server Access Path
+
+```
+KILO agent → SSH key at ~/.ssh/kilo-upcloud → root@87.58.148.168
+  → /opt/kudbee/repo → services running → Ollama (gpt-oss:20b, gpt-oss:120b)
+  → Think Box runtime
+```
+
+**To restore (requires HUMAN action):**
+1. Place valid SSH private key at `~/.ssh/kilo-upcloud` (regenerate from UpCloud panel if needed)
+2. `chmod 600 ~/.ssh/kilo-upcloud`
+3. Verify: `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168`
+4. Or via Floating IP: `ssh -i ~/.ssh/kilo-upcloud root@87.58.150.62`
+5. Or via Cloudflare Tunnel: access `api.thinkboxai.xyz` (if tunnel is running)
+6. Start server from UpCloud panel if stopped
+
+### Recovery Verification
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Connection path identified | CODE COMPLETE ✅ | Traced from git history, docs, infra config |
+| Path still works | NOT VERIFIED ⚠️ | SSH times out, no keys, server stopped |
+| Server reachable | NOT VERIFIED ⚠️ | Port 22 timeout, ping fail |
+| Key available | NOT VERIFIED ⚠️ | File absent from environment |
+| GPU discovered | NOT VERIFIED ⚠️ | 3x L40S per infra config (not probed live) |
+| Runtime/model discovered | NOT VERIFIED ⚠️ | Ollama gpt-oss:20b/120b per docs (not probed live) |
+| Dashboard state | NOT VERIFIED ⚠️ | http://87.58.148.168 (not probed live) |
 
 ---
 
@@ -184,16 +241,29 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 
 | Field | Value |
 |---|---|
-| **API Endpoint** | https://api.upcloud.com/v1 |
-| **Primary Credential** | `UPCLOUD_API_MAIN` env var |
-| **Fallback Credential** | `UPCLOUD_API_KEY` env var (legacy) |
-| **Credential detected** | **NO** (neither env var set in this environment) |
+| **Current server** | `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec-8565-447b-86ac-74bf9bd41e57`) |
+| **Current server IP** | `87.58.148.168` (public_nic) / `87.58.150.62` (floating_ip) |
+| **Previous server** | `kudbee-host-v1` at `212.147.250.183` (Cloudflare 1003 blocked) |
+| **Plan** | GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs) |
+| **Zone** | fi-hel2 (Finland Helsinki) |
+| **Template** | Ubuntu 24.04 + NVIDIA/CUDA |
+| **SSH user** | `root` |
+| **SSH key path** | `~/.ssh/kilo-upcloud` (ed25519, committed `5f6a5c7`, removed `09830a6`) |
+| **SSH command** | `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` |
+| **Dashboard** | http://87.58.148.168 |
+| **Cloudflare Tunnel** | `api.thinkboxai.xyz` (via `deploy/setup_tunnel.sh`) |
+| **Server state** | STOPPED (requires human authorization — `power = human_only`) |
+| **Primary credential** | `THINKBOX_UPCLOUD_API_TOKEN` (returns 401) |
+| **Credential detected** | **NO** (neither `UPCLOUD_API_MAIN` nor `THINKBOX_UPCLOUD_API_TOKEN` set) |
+| **SSH key available** | **NO** (file absent from all locations) |
 | **CLI Tool** | upctl — NOT installed |
-| **Provider Implementation** | REST API via `urllib` (stdlib) |
+| **Provider Implementation** | REST API via `urllib` (stdlib) — `core/providers/upcloud.py` |
 | **Live API Reachable** | YES (HTTP 401) |
 | **Read Capabilities** | ALL DENIED (no credentials) |
 | **Mutation Capabilities** | NOT TESTED (requires approval + credentials) |
+| **SSH from sandbox** | **BLOCKED** (port 22 timeout, ping fail, firewall filtered per THINKBOXMD_REPORT.md) |
 | **UpCloud Provider State** | CODE COMPLETE ✅ / LIVE VERIFIED NOT REACHED ⚠️ |
+| **Server Connection Recovery** | CODE COMPLETE ✅ / LIVE VERIFIED NOT REACHED ⚠️ |
 | **Verification Status** | CREDENTIALS NEEDED — cannot upgrade to TEST VERIFIED/LIVE VERIFIED |
 
 ### Other Infrastructure

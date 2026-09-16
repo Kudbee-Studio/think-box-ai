@@ -428,6 +428,33 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 4. (Recommended) Purchase Floating IP → stable dashboard endpoint
 5. Verify: `detect_substrate()` returns `upcloud-gpu`
 
+#### 13.5.1 Known-Good Server Access Path (RECOVERED 2026-09-16)
+
+The September 15 server connection was SSH-based. This path was traced from git history, docs, and infra config. Permanent reference for future agents:
+
+**Server:** `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec-8565-447b-86ac-74bf9bd41e57`)
+**IP:** `87.58.148.168` (public_nic) / `87.58.150.62` (floating IP)
+**Zone:** fi-hel2 | **Plan:** GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs)
+**SSH command:** `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168`
+**Dashboard:** http://87.58.148.168
+**Models on server:** Ollama gpt-oss:20b, gpt-oss:120b
+**Tunnel:** Cloudflare Tunnel → `api.thinkboxai.xyz` (via `deploy/setup_tunnel.sh`)
+**Power:** `human_only` — requires human authorization to start server
+
+**Permanent connection path:**
+```
+KILO → ~/.ssh/kilo-upcloud → root@87.58.148.168 → /opt/kudbee/repo → services → Ollama → Think Box
+```
+
+**Current status:** Connection path identified (CODE COMPLETE ✅) — live verification BLOCKED (no SSH key in environment, server STOPPED, port 22 unreachable from sandbox)
+
+**To restore (HUMAN action required):**
+1. Place valid SSH private key at `~/.ssh/kilo-upcloud` (regenerate from UpCloud panel if needed)
+2. `chmod 600 ~/.ssh/kilo-upcloud`
+3. `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` (or `root@87.58.150.62`)
+4. Start server from UpCloud panel if stopped
+5. Verify: `curl http://87.58.148.168` (dashboard), `ssh ... nvidia-smi` (GPU)
+
 ---
 
 ### 13.6 THINK Burst Execution
@@ -583,6 +610,7 @@ Every agent MUST classify work using these four distinct states. **"Complete" al
 
 **Example — UpCloud ExecutionProvider (2026-09-16):**
 - UpCloud provider: CODE COMPLETE ✅
+- Server connection recovery: CODE COMPLETE ✅ (path identified, live verification blocked)
 - Security handling: TEST VERIFIED ✅ (no credential leaks, audit passed)
 - Unit tests: TEST VERIFIED ✅ (33/33 pass)
 - Dry-run mode: TEST VERIFIED ✅ (mocked execution tested)
