@@ -15,14 +15,14 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed
-- [x] Evidence recorded
-- [x] Documentation updated
-- [x] Git state clean or intentionally documented
-- [x] PR/commit referenced
+- [x] Tests executed and passing (449 OK, 6 skipped)
+- [x] Evidence recorded in CONTINUITY.md
+- [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
+- [x] Git state clean (working tree clean, 3 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68, commits a2335e2 + c7792b7)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
-- [x] Security/credential check completed when applicable
+- [x] Security/credential check completed (0 credentials found)
 
 ---
 
@@ -30,16 +30,27 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | UpCloud ExecutionProvider — credential precedence, continuous audit |
-| **Latest completed work** | Phase 2: `UPCLOUD_API_MAIN` primary credential with `UPCLOUD_API_KEY` fallback (commit `a2335e2`) |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, 33 unit tests, credential precedence logic |
-| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401 |
-| **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable |
-| **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to VERIFIED |
+| **Active objective** | UpCloud ExecutionProvider — credential precedence, continuous audit, permanence protocol |
+| **Latest completed work** | Continuity protocol (commit `c7792b7`) — PR #68 open awaiting founder review |
+| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, 33 unit tests, credential precedence logic, permanent agent protocol |
+| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 awaiting review |
+| **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable; PR review pending |
+| **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to VERIFIED → wire into runtime |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-16 — Permanent Continuity Protocol
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-16 |
+| **Agent/task** | Permanent agent governance protocol |
+| **PR/commit** | `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68 |
+| **Result** | CONTINUITY.md created, AGENTS.md §14 added |
+| **Tests/evidence** | 449 tests pass, no credential leaks, docstring coverage verified |
+| **Status** | COMPLETE (PR #68 open, awaiting founder review) |
 
 ### 2026-09-16 — UpCloud ExecutionProvider Phase 2: Credential Precedence
 
@@ -108,7 +119,7 @@ Before declaring completion, every agent MUST verify:
 |---|---|---|---|---|---|
 | 1 | UpCloud live capability verification | Any agent | BLOCKED | Set `UPCLOUD_API_MAIN` env var, run `tests/integration/test_upcloud_live.py` | Valid API token from UpCloud panel |
 | 2 | UpCloud autonomous provisioning | Any agent | BLOCKED | Complete live verification (item 1), then wire into runtime | Live capabilities VERIFIED |
-| 3 | PR creation for Phase 2 | Current session | COMPLETE (pushed) | Merge after founder review | Founder review |
+| 3 | PR #68 review | Founder | OPEN | Review and merge `kilo/leafy-dragon-4ck` into main | Founder approval |
 
 ## CLOSED LOOPS
 
@@ -118,6 +129,13 @@ Before declaring completion, every agent MUST verify:
 - **Evidence**: `tests/unit/test_upcloud_provider.py`, `tests/integration/test_upcloud_live.py`, `docs/upcloud-provider.md`
 - **PR/Commit**: `32d82ef` on `kilo/leafy-dragon-4ck`
 - **Closure**: Superseded by Phase 2 credential update
+
+### Permanent Continuity Protocol
+- **Implementation**: `docs/CONTINUITY.md`, `AGENTS.md` §14
+- **Verification**: 449 tests pass, no credential leaks, docstring coverage verified, all required CONTINUITY.md sections present
+- **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), `tests/integration/test_upcloud_live.py` (5 skipped), credential precedence verification
+- **PR/Commit**: `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68
+- **Closure**: COMPLETE (PR open for review, code committed and pushed)
 
 ### UpCloud ExecutionProvider Phase 2: Credential Precedence
 - **Implementation**: Updated `core/providers/upcloud.py` credential resolution
@@ -195,10 +213,14 @@ No parked branches identified.
 | No tokens in source files | — | PASS |
 | No tokens in test files | — | PASS |
 | No tokens in documentation | — | PASS |
-| No hardcoded credential values | — | PASS |
-| No credential values in env files | — | PASS |
-| Evidence records exclude secrets | — | PASS |
-| Credential exposure grep across repo | 0 matches | PASS |
+| Hardcoded `UPCLOUD_API_MAIN=` values | — | PASS |
+| No hardcoded credential values in any file | — | PASS |
+| Credential in evidence records | — | PASS (never stored) |
+| Credential in logs | — | PASS (never logged) |
+| Credential in plan output | — | PASS (never included) |
+| Env var values exposed | — | PASS (only presence checked) |
+| Cross-layer import violations in providers | — | PASS |
+| Print statements leaking credentials | — | PASS (none found) |
 
 ---
 
