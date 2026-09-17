@@ -290,6 +290,65 @@ def _pipeline() -> dict[str, Any]:
         }
         for m in mem
     ]
+    arena_block = {
+        "status": "NOT_RUN",
+        "population_target": 0,
+        "instance_count": 0,
+        "live_budget": 0,
+        "live_calls": 0,
+        "replay_count": 0,
+        "baseline": 0,
+        "learned": 0,
+        "retrieval_count": 0,
+        "provenance_complete": 0,
+        "verified": 0,
+        "failed": 0,
+        "errors": 0,
+        "retries": 0,
+        "latency_min": None,
+        "latency_max": None,
+        "tokens_min": None,
+        "tokens_max": None,
+        "replay_reproducible": 0,
+        "proof_artifact": "",
+        "proof_sha256": "",
+        "classification": "INCONCLUSIVE",
+        "classification_reason": "arena has not run",
+        "control_experiment_id": "",
+        "transitions": [],
+    }
+    try:
+        from thinkbox.pop_arena import ArenaRun
+        run = ArenaRun()
+        st8 = run.state()
+        arena_block["status"] = st8.get("state", "NOT_RUN")
+        arena_block["control_experiment_id"] = st8.get("control_experiment_id", "")
+        arena_block["transitions"] = st8.get("transitions", [])
+        cfg = st8.get("config") or {}
+        arena_block["population_target"] = cfg.get("population", 0)
+        arena_block["live_budget"] = cfg.get("live_budget", 0)
+        arena_block["instance_count"] = st8.get("instance_count", 0)
+        if arena_block["status"] in ("RUNNING", "COMPLETE", "BLOCKED", "FAILED"):
+            agg = run.aggregate().to_dict()
+            for k in (
+                "live", "replay", "baseline", "learned", "verified", "failed",
+                "errors", "retries", "retrieval_count", "provenance_complete",
+                "artifacts_valid", "proofs_complete", "replay_reproducible",
+                "latency_min", "latency_max", "tokens_min", "tokens_max",
+                "classification", "classification_reason",
+            ):
+                arena_block[k if k != "live" else "live_calls"] = agg.get(k)
+            arena_block["replay_count"] = agg.get("replay", 0)
+            for r in _q(
+                exp_db,
+                "SELECT path, hash FROM artifacts WHERE artifact_type='arena_proof' "
+                "ORDER BY id DESC LIMIT 1",
+            ):
+                arena_block["proof_artifact"] = r["path"]
+                arena_block["proof_sha256"] = r["hash"]
+    except Exception:
+        pass
+    state["arena"] = arena_block
     return {
         "substrate": latest_box or "unknown",
         "jobs": jobs,
@@ -316,15 +375,15 @@ def _pipeline() -> dict[str, Any]:
             {"experiment_id": r["experiment_id"], "data": r["data"]} for r in retrievals
         ],
         "memory": memory_keys,
+        "arena": arena_block,
         "verification_state": state,
         "blockers": [
             "SSH-to-UpCloud unsupported (historical key not authorized; removed from roadmap)",
             "record_outcome leaves experiment status pending (pre-existing behavior)",
         ],
         "next_larger_improvement": (
-            "Use the proven learning loop to run a controlled multi-job Experiment Arena "
-            "that measures whether persistent knowledge produces repeatable improvement "
-            "across multiple task instances"
+            "Execute the bounded live-call budget of the CONFIGURED Arena "
+            "and record the final classification from live evidence"
         ),
     }
 
@@ -500,6 +559,12 @@ svg{width:100%;height:auto;display:block}
       <h2>Challenge Arena</h2>
       <div class="hint">adversarial probes: fabricated citations, loaded framing, forced certainty</div>
       <div id="arena-body" class="empty">no arena run in the latest proof</div>
+    </div>
+    <div class="card">
+      <h2>Population Arena — 300-instance control surface</h2>
+      <div class="hint">NOT_RUN → CONFIGURED → RUNNING → COMPLETE / BLOCKED / FAILED · live budget bounded · replay never shown as model execution</div>
+      <div class="kpis" id="pop-kpis"></div>
+      <div id="pop-body" class="empty">loading…</div>
     </div>
   </section>
 
@@ -697,6 +762,25 @@ async function tickInstrumentsReal(){  let d; try{d=await (await fetch('/api/ins
        <span class="n">detect ${(v.detection_rate*100).toFixed(0)}% · challenge ${(v.challenge_rate*100).toFixed(0)}% · recover ${(v.recovery_rate*100).toFixed(0)}%</span></div>
        <div class="track"><div class="fill" style="width:${Math.max(2,v.detection_rate*100)}%"></div></div></div>`).join('');
   } else { $('#arena-body').className='empty'; $('#arena-body').textContent='no arena run in the latest proof'; }
+  // population arena (control surface — rebuilt from storage every tick)
+  try{
+    const p=await (await fetch('/api/pipeline',{cache:'no-store'})).json();
+    const pa=p.arena||{};
+    $('#pop-kpis').innerHTML=
+      kpi(pa.status||'NOT_RUN','state',(pa.status==='COMPLETE')?'good':((pa.status==='RUNNING')?'amber':''))+
+      kpi((pa.instance_count||0)+'/'+(pa.population_target||0),'instances')+
+      kpi((pa.live_calls||0)+'/'+(pa.live_budget||0),'live calls')+
+      kpi(pa.verified||0,'verified','good')+
+      kpi(pa.retrieval_count||0,'retrievals');
+    $('#pop-body').className='';
+    $('#pop-body').innerHTML=
+      `<div class="hint">baseline ${pa.baseline||0} · learned ${pa.learned||0} · replay ${pa.replay_count||0} · `+
+      `provenance ${pa.provenance_complete||0} · errors ${pa.errors||0} · retries ${pa.retries||0} · `+
+      `latency [${pa.latency_min??'—'}, ${pa.latency_max??'—'}] · tokens [${pa.tokens_min??'—'}, ${pa.tokens_max??'—'}] · `+
+      `replay reproducible ${pa.replay_reproducible||0}</div>`+
+      `<div style="margin-top:8px">classification: <b>${pa.classification||'INCONCLUSIVE'}</b> — ${(pa.classification_reason||'').slice(0,220)}</div>`+
+      (pa.proof_sha256?`<div class="mono" style="font-size:10.5px;margin-top:6px">proof ${(pa.proof_artifact||'').split('/').pop()} · ${pa.proof_sha256.slice(0,16)}…</div>`:'<div class="hint">no arena proof yet — configure the Arena to begin</div>');
+  }catch(e){}
   // memory
   const ms=d.memory_by_state||{}, me=d.memory_by_event||{};
   $('#memory-kpis').innerHTML=

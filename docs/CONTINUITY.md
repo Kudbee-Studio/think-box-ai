@@ -33,18 +33,32 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | KUDBEE dashboard + Chronicle sync: existing dashboard exposes the real learning pipeline, rebuilds from storage, lands on MAIN |
-| **Latest completed work** | Pipeline dashboard (`/api/pipeline` + Pipeline tab) rebuilt entirely from SQLite; Chronicle/STATUS/CONTINUITY synced; 614 tests passing |
-| **Current verified capabilities** | 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 3 memory keys / ledger verified; 3 Mercury-2 jobs VALID; lesson `learn:exact-json:directive` + 2 retrieval events; NO_MEASURABLE_IMPROVEMENT (reuse proven); 614 tests passing |
-| **Current blockers** | SSH-to-UpCloud unsupported (removed from roadmap). `record_outcome` leaves experiment status pending (pre-existing). |
-| **Known risks** | Dashboard `_pipeline()` hardcodes test-count display (610/6) — update when suite grows; in-memory `DashboardState` singleton still exists for WS/SSE but pipeline view never reads it |
-| **Next larger improvement** | Use the proven learning loop to run a controlled multi-job Experiment Arena that measures whether persistent knowledge produces repeatable improvement across multiple task instances |
-| **PR status** | kilo/fair-wind-03a at e38956c (+ uncommitted: pop_arena.py, swarm_dashboard.py, test_swarm_instrumentation.py, docs); main at 48fed0f |
-| **Test count** | **614 tests passing (6 skipped)** |
+| **Active objective** | KUDBEE Experiment Arena control surface: 300-instance population integrated into current experiment/dashboard architecture |
+| **Latest completed work** | Arena COMPLETE: 300 persisted (12 live Mercury-2 + 288 replay), classification NO_MEASURABLE_IMPROVEMENT (honest ceiling), dashboard + Chronicle live — 622 tests passing |
+| **Current verified capabilities** | pop_arena.py canonical (decision recorded); ArenaRun NOT_RUN→CONFIGURED→RUNNING→COMPLETE persisted; 12/12 live VALID (6 baseline + 6 learned, 1/variant/arm, retrieval 6/6); replay 288/288; ledger verified; 622 tests passing |
+| **Current blockers** | None for Arena. `record_outcome` status stays pending (pre-existing). Live budget spent (12/12) — further live calls need a new budget decision. |
+| **Known risks** | Ceiling effect (1.0 everywhere) — transfer unmeasurable on this family; token/latency deltas NOT claimed as learning. Prior hardcode `610/6` test display now reads live counts. |
+| **Next larger improvement** | Design a harder task family that defeats the ceiling (baseline < 1.0) so the Arena can measure real transfer; then run a second Arena with a fresh live budget |
+| **PR status** | main at ff44056; Arena work on main working tree, uncommitted |
+| **Test count** | **622 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Experiment Arena Control Surface (300 instances, COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Integrate the 300-instance Arena into the CURRENT experiment/dashboard architecture (no parallel system). HEAD `ff44056`, branch `main`. No SSH, no UpCloud compute, no GPU, no fake improvement, no invented scores, no secrets. |
+| **Architecture decision** | `thinkbox/pop_arena.py` IS canonical for the population layer. Existing `ExperimentManager` owns single-job persistence, `ChallengeArena` owns adversarial probes — neither owns a 300-instance population with live-budget separation and transfer classification. pop_arena delegates all writes to ExperimentManager/MemoryStore/ActionLedger; zero duplication (one defensive dedupe fix in `aggregate()` after finding double-outcome JOIN fanout). |
+| **Arena run** | Control `tb_exp_20260917175431_3c4cf0e1`, session `tb_sess_20260917175440_f13c`: NOT_RUN→CONFIGURED→RUNNING→COMPLETE, all transitions + Chronicle lessons persisted. Population 300/300 (150 baseline + 150 learned). Live budget 12/12 spent: 6 baseline + 6 learned REAL Mercury-2 calls (1/variant/arm), 12/12 VALID, retrieval 6/6 with provenance. Replay 288/288 VALID (deterministic local emission, never shown as model calls). Honesty repairs recorded: 12 false-live flags corrected (telemetry 0.0s/0tok proof), 12 placeholder rows superseded, 12 double outcomes deduped, 1 orphaned call re-run. |
+| **Metrics** | verified 300/300, errors 0, retries 0, latency live 0.6–51.5s vs replay 0.0s, tokens live 101–299 vs replay 0. No single score invented. Classification: NO_MEASURABLE_IMPROVEMENT (ceiling 1.0 everywhere — valid, not failure). |
+| **Dashboard** | `/api/pipeline` arena block + Population Arena card (state, 300/300, 12/12 live, baseline/learned, provenance, outcomes, latency/tokens, replay state, proof file+hash, classification, blockers, next step). Restart-proof (fresh handles + HTTP). |
+| **Chronicle** | arena_configured/started/completed events + lesson rows on control experiment; CONTINUITY/STATUS/AGENTS updated once. Proof `data/thinkboxmd/artifacts/arena_proof_20260917.json` SHA256 `82a29a84…60a0e2c`, secrets-clean. |
+| **Tests** | `TestPopulationArena` +8 (300 ids, separation, replay validity, ceiling classification, lifecycle, aggregate rebuild, secrets). Full suite 622 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (622) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (15 live calls total) / ARENA_VERIFIED (COMPLETE, ceiling honest) / PRODUCTION not claimed |
 
 ### 2026-09-17 — KUDBEE Dashboard + Chronicle Sync (pipeline view on existing dashboard)
 

@@ -1,0 +1,28 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "expected": 11,
+  "latency_s": 23.039,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 11
+  },
+  "provider": "openai_compat",
+  "response_chars": 30,
+  "response_sha256": "a9aa2d0d93cc26fe543c7c3a9c53d4002a7ca982aa435a5f67762bcf73c8ff3b",
+  "strategy": "learned",
+  "task_id": "arena_t1_001",
+  "usage": {
+    "completion_tokens": 256,
+    "completion_tokens_details": {
+      "reasoning_tokens": 247
+    },
+    "prompt_tokens": 43,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 299
+  },
+  "valid": true,
+  "variant": "fenced"
+}

@@ -596,8 +596,14 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 
 ### KUDBEE Dashboard — Pipeline View (2026-09-17)
 
-- **Existing dashboard only** (`experiments/swarm_dashboard.py`): `_pipeline()` read-only reader + `/api/pipeline` endpoint + Pipeline HTML tab. Shows jobs/sessions/substrate/provider/model, CODE/TEST/LIVE/MODEL/ARENA state, verification, artifact/proof hashes, lesson + memory provenance, retrieval events, outcomes, restart/replay status, tests 614/6, blockers, next improvement.
+- **Existing dashboard only** (`experiments/swarm_dashboard.py`): `_pipeline()` read-only reader + `/api/pipeline` endpoint + Pipeline HTML tab + Population Arena card (state, 300/300, 12/12 live, provenance, metrics, proof, classification). Shows jobs/sessions/substrate/provider/model, CODE/TEST/LIVE/MODEL/ARENA state, verification, artifact/proof hashes, lesson + memory provenance, retrieval events, outcomes, restart/replay status, tests 622/6, blockers, next improvement.
 - **Rebuild proof:** pipeline reads SQLite on every request — verified after singleton reset and over live HTTP (200). No singleton-only state. Chronicle = CONTINUITY + STATUS + AGENTS + `data/thinkboxmd/artifacts/*.json` (no separate Chronicle files exist in repo).
+
+### Experiment Arena Control Surface (2026-09-17) — COMPLETE
+
+- **Decision:** `thinkbox/pop_arena.py` canonical for the population layer (jobs→ExperimentManager, probes→ChallengeArena, population+budget+classification→pop_arena; one defensive dedupe fix in `aggregate()`).
+- **Run:** control `tb_exp_20260917175431_3c4cf0e1` NOT_RUN→CONFIGURED→RUNNING→COMPLETE; 300/300 persisted (150 baseline + 150 learned); live 12/12 Mercury-2 VALID (6+6, retrieval 6/6); replay 288/288; honesty repairs recorded (false-live flags, placeholders, double outcomes, orphan re-run).
+- **Classification:** NO_MEASURABLE_IMPROVEMENT (ceiling 1.0; valid). Proof `arena_proof_20260917.json` SHA256 `82a29a84…60a0e2c`. Suite 622 OK (6 skipped).
 
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 

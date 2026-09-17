@@ -375,5 +375,98 @@ class TestPipelineDashboard(unittest.TestCase):
         self.assertNotIn("ucat_", raw)
 
 
+class TestPopulationArena(unittest.TestCase):
+    """300-instance Arena control surface: deterministic, no live calls."""
+
+    def test_population_is_300_with_stable_ids(self) -> None:
+        from thinkbox.pop_arena import build_population, POPULATION_SIZE
+        tasks = build_population()
+        self.assertEqual(len(tasks), POPULATION_SIZE)
+        self.assertEqual(len({t.task_id for t in tasks}), POPULATION_SIZE)
+        self.assertEqual(build_population()[0].task_id, tasks[0].task_id)
+
+    def test_baseline_learned_separation(self) -> None:
+        from thinkbox.pop_arena import build_population
+        tasks = build_population()
+        base = [t for t in tasks if t.strategy == "baseline"]
+        learned = [t for t in tasks if t.strategy == "learned"]
+        self.assertEqual(len(base), 150)
+        self.assertEqual(len(learned), 150)
+
+    def test_live_replay_separation(self) -> None:
+        from thinkbox.pop_arena import build_population
+        tasks = build_population()
+        live = [t for t in tasks if t.origin == "live"]
+        replay = [t for t in tasks if t.origin == "replay"]
+        self.assertEqual(len(live), 12)
+        self.assertEqual(len(replay), 288)
+
+    def test_replay_emission_verifies(self) -> None:
+        from thinkbox.pop_arena import (
+            build_population, deterministic_emission, extract_json, verify_property,
+        )
+        for t in build_population():
+            self.assertTrue(verify_property(extract_json(deterministic_emission(t.variant, t.expected)), t.expected))
+
+    def test_ceiling_effect_classification(self) -> None:
+        from thinkbox.pop_arena import classify_arena
+        cls, _ = classify_arena(150, 150, 150, 150, 6, 6)
+        self.assertEqual(cls, "NO_MEASURABLE_IMPROVEMENT")
+        cls2, _ = classify_arena(3, 6, 6, 6, 6, 6)
+        self.assertEqual(cls2, "IMPROVED")
+        cls3, _ = classify_arena(0, 0, 0, 0, 0, 0)
+        self.assertEqual(cls3, "INCONCLUSIVE")
+
+    def test_arena_lifecycle_transitions(self) -> None:
+        import shutil
+        import tempfile
+        from thinkbox.pop_arena import ArenaConfig, ArenaRun
+        tmp = tempfile.mktemp(suffix=".db")
+        art = tempfile.mkdtemp()
+        try:
+            run = ArenaRun(ArenaConfig(), db_path=tmp, artifacts_dir=art)
+            self.assertEqual(run.state()["state"], "NOT_RUN")
+            eid = run.configure(agent_id="test")
+            self.assertEqual(run.state()["state"], "CONFIGURED")
+            run.transition(eid, "arena_started", {"live_budget": 12})
+            self.assertEqual(run.state()["state"], "RUNNING")
+            run.transition(eid, "arena_completed", {"classification": "INCONCLUSIVE"})
+            self.assertEqual(run.state()["state"], "COMPLETE")
+        finally:
+            import os
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            shutil.rmtree(art, ignore_errors=True)
+
+    def test_arena_aggregate_rebuilds_from_storage(self) -> None:
+        import shutil
+        import tempfile
+        from thinkbox.experiment import ExperimentManager
+        from thinkbox.pop_arena import ArenaConfig, ArenaRun, build_population
+        tmp = tempfile.mktemp(suffix=".db")
+        art = tempfile.mkdtemp()
+        try:
+            run = ArenaRun(ArenaConfig(), db_path=tmp, artifacts_dir=art)
+            run.configure(agent_id="test")
+            mgr = ExperimentManager(db_path=tmp, artifacts_dir=art)
+            mgr.create_session(agent_id="test")
+            for t in build_population()[:6]:
+                e = mgr.create_experiment(intent="arena-inst", hypothesis="h", parameters={}, agent_id="test", execution_mode="upstash-box")
+                run.record_instance(t, e.experiment_id, True, latency_s=0.1, tokens=10, artifact_sha256="abc")
+            agg = run.aggregate()
+            self.assertEqual(agg.total, 6)
+            self.assertEqual(agg.verified, 6)
+        finally:
+            import os
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            shutil.rmtree(art, ignore_errors=True)
+
+    def test_arena_proof_secrets_clean(self) -> None:
+        from thinkbox.pop_arena import secrets_clean
+        self.assertTrue(secrets_clean({"classification": "NO_MEASURABLE_IMPROVEMENT", "live": 12}))
+        self.assertFalse(secrets_clean({"api_key": "x" * 25}))
+
+
 if __name__ == "__main__":
     unittest.main()

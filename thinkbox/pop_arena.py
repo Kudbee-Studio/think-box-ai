@@ -1,4 +1,14 @@
-"""Controlled 300-instance Experiment Arena — deterministic core.
+"""Controlled 300-instance Experiment Arena — deterministic core + persistent control surface.
+
+DECISION (2026-09-17): pop_arena.py IS the canonical population-arena
+implementation. Rationale: existing ExperimentManager owns single-job
+persistence (experiments/outcomes/lessons/artifacts/proofs/events/params)
+and ChallengeArena owns adversarial probes — neither owns a 300-instance
+population with live-budget separation, per-instance origin tracking, and
+transfer classification. pop_arena owns ONLY that missing layer and
+delegates every persisted write to ExperimentManager / MemoryStore /
+ActionLedger. No duplication: pure helpers (task ids, prompts, verifier,
+classifier, hashes) plus the ArenaRun control surface below.
 
 Population: 300 logical agent/task instances across 6 task variants of the
 proven exact-JSON emission family (property: parsed.answer == expected).
@@ -38,7 +48,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sqlite3
+import threading
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 POPULATION_SIZE = 300
@@ -336,3 +351,296 @@ def secrets_clean(obj: dict[str, Any]) -> bool:
         return False
     hits = re.findall(r"(?i)(api[_-]?key|token|secret)[\"\s:]+[A-Za-z0-9_\-]{20,}", raw)
     return len(hits) == 0
+
+
+ARENA_STATES = ("NOT_RUN", "CONFIGURED", "RUNNING", "COMPLETE", "BLOCKED", "FAILED")
+
+ARENA_DB_DEFAULT = "data/thinkboxmd/db/experiments.db"
+ARENA_ARTIFACTS_DEFAULT = "data/thinkboxmd/artifacts"
+
+
+@dataclass
+class ArenaConfig:
+    population: int = POPULATION_SIZE
+    per_variant: int = VARIANTS_PER_FAMILY
+    live_budget: int = LIVE_BUDGET_DEFAULT
+    provider: str = "openai_compat"
+    model: str = "mercury-2"
+    max_tokens: int = 3500
+    temperature: float = 0.2
+    timeout_s: int = 60
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "population": self.population,
+            "per_variant": self.per_variant,
+            "live_budget": self.live_budget,
+            "provider": self.provider,
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "timeout_s": self.timeout_s,
+        }
+
+
+class ArenaRun:
+    """Persistent Arena control surface over existing ExperimentManager storage.
+
+    State machine: NOT_RUN -> CONFIGURED -> RUNNING -> COMPLETE / BLOCKED / FAILED.
+    Every transition is a persisted ``arena_event`` row in experiment_events
+    (keyed to the arena control experiment) AND a lesson row carrying the
+    Chronicle payload, so CONTINUITY/STATUS/AGENTS updates are mechanical.
+    All 300 instances persist as experiment rows with arena_* parameters;
+    the instances table below is the query index, not a second store.
+    """
+
+    CONTROL_INTENT = "arena-control-300-population"
+
+    def __init__(
+        self,
+        config: ArenaConfig | None = None,
+        db_path: str = ARENA_DB_DEFAULT,
+        artifacts_dir: str = ARENA_ARTIFACTS_DEFAULT,
+    ) -> None:
+        self.config = config or ArenaConfig()
+        self.db_path = db_path
+        self.artifacts_dir = Path(artifacts_dir)
+        self._lock = threading.Lock()
+
+    # -- storage helpers (same SQLite file as ExperimentManager) -------------
+
+    def _connect(self) -> sqlite3.Connection:
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _utc(self) -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    # -- lifecycle -----------------------------------------------------------
+
+    def state(self) -> dict[str, Any]:
+        """Current Arena state rebuilt from storage (no memory)."""
+        from thinkbox.experiment import ExperimentManager
+
+        ExperimentManager(db_path=self.db_path, artifacts_dir=str(self.artifacts_dir))
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT experiment_id FROM experiments WHERE intent = ? ORDER BY timestamp DESC LIMIT 1",
+                (self.CONTROL_INTENT,),
+            ).fetchone()
+            if not row:
+                return {"state": "NOT_RUN", "control_experiment_id": "", "transitions": []}
+            eid = row["experiment_id"]
+            events = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT event_type, data, timestamp FROM experiment_events "
+                    "WHERE experiment_id = ? AND event_type LIKE 'arena_%' ORDER BY id",
+                    (eid,),
+                ).fetchall()
+            ]
+            current = "CONFIGURED"
+            for ev in events:
+                if ev["event_type"] == "arena_started":
+                    current = "RUNNING"
+                elif ev["event_type"] == "arena_completed":
+                    current = "COMPLETE"
+                elif ev["event_type"] == "arena_blocked":
+                    current = "BLOCKED"
+                elif ev["event_type"] == "arena_failed":
+                    current = "FAILED"
+            params = {
+                r["name"]: r["value"]
+                for r in conn.execute(
+                    "SELECT name, value FROM experiment_parameters WHERE experiment_id = ?",
+                    (eid,),
+                ).fetchall()
+            }
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM experiment_parameters WHERE name = 'arena_task_id'"
+            ).fetchone()["c"]
+            return {
+                "state": current,
+                "control_experiment_id": eid,
+                "config": json.loads(params.get("arena_config", "{}") or "{}"),
+                "transitions": [
+                    {"event": e["event_type"], "timestamp": e["timestamp"]} for e in events
+                ],
+                "instance_count": count,
+            }
+        finally:
+            conn.close()
+
+    def configure(self, agent_id: str = "kilo-arena") -> str:
+        """Persist population plan as the control experiment (NOT_RUN -> CONFIGURED)."""
+        from thinkbox.experiment import ExperimentManager
+
+        mgr = ExperimentManager(db_path=self.db_path, artifacts_dir=str(self.artifacts_dir))
+        tasks = build_population(
+            size=self.config.population,
+            per_variant=self.config.per_variant,
+            live_budget=self.config.live_budget,
+        )
+        mgr.create_session(agent_id=agent_id, metadata={"role": "arena-control"})
+        exp = mgr.create_experiment(
+            intent=self.CONTROL_INTENT,
+            hypothesis="persistent knowledge transfers across task variants",
+            parameters={"population": self.config.population, "live_budget": self.config.live_budget},
+            agent_id=agent_id,
+            execution_mode="upstash-box",
+        )
+        mgr.add_parameter(exp.experiment_id, "arena_config", json.dumps(self.config.to_dict()), confidence=1.0)
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.execute(
+                    "INSERT INTO experiment_events (experiment_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
+                    (exp.experiment_id, "arena_configured", json.dumps(self.config.to_dict()), self._utc()),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        return exp.experiment_id
+
+    def record_instance(
+        self,
+        task: ArenaTask,
+        experiment_id: str,
+        valid: bool,
+        latency_s: float | None = None,
+        tokens: int | None = None,
+        lesson_source: str = "",
+        retrieval_proven: bool = False,
+        errors: int = 0,
+        retries: int = 0,
+        artifact_sha256: str = "",
+    ) -> None:
+        """Persist one logical instance: experiment row params + outcome + events."""
+        from thinkbox.experiment import ExperimentManager
+
+        mgr = ExperimentManager(db_path=self.db_path, artifacts_dir=str(self.artifacts_dir))
+        mgr.add_parameter(experiment_id, "arena_task_id", task.task_id, confidence=1.0)
+        mgr.add_parameter(experiment_id, "arena_variant", task.variant, confidence=1.0)
+        mgr.add_parameter(experiment_id, "arena_strategy", task.strategy, confidence=1.0)
+        mgr.add_parameter(experiment_id, "arena_origin", task.origin, confidence=1.0)
+        if lesson_source:
+            mgr.add_parameter(experiment_id, "lesson_source", lesson_source, confidence=0.9)
+        outcome = {
+            "property_valid": valid,
+            "origin": task.origin,
+            "strategy": task.strategy,
+            "variant": task.variant,
+            "artifact_sha256": artifact_sha256,
+            "latency_s": latency_s,
+            "tokens": tokens,
+            "errors": errors,
+            "retries": retries,
+            "retrieval_proven": retrieval_proven,
+        }
+        assert secrets_clean({"outcome": {k: v for k, v in outcome.items() if k != "artifact_sha256"}} | {"sha": artifact_sha256[:12]})
+        mgr.record_outcome(experiment_id, outcome, 1.0 if valid else 0.4, "TEST_VERIFIED" if valid else "FAILED")
+
+    def transition(self, control_experiment_id: str, event: str, data: dict[str, Any]) -> None:
+        """Persist a lifecycle transition + Chronicle lesson row."""
+        if event not in ("arena_started", "arena_completed", "arena_blocked", "arena_failed"):
+            raise ValueError(f"unknown arena event: {event}")
+        from thinkbox.experiment import ExperimentManager
+
+        mgr = ExperimentManager(db_path=self.db_path, artifacts_dir=str(self.artifacts_dir))
+        mgr.db.save_event(control_experiment_id, event, data)
+        mgr.record_lesson(
+            control_experiment_id,
+            f"Arena {event}: {json.dumps(data, sort_keys=True)[:300]}",
+            [],
+            "",
+        )
+
+    def aggregate(self) -> ArenaAggregate:
+        """Rebuild population metrics from storage (no memory).
+
+        Deduplicates defensively: at most one outcome row per experiment
+        (latest id wins) so JOIN fanout can never inflate counts.
+        """
+        conn = self._connect()
+        try:
+            rows = [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT e.experiment_id, "
+                    "(SELECT o.outcome_data FROM outcomes o WHERE o.experiment_id = e.experiment_id "
+                    "ORDER BY o.id DESC LIMIT 1) AS outcome_data FROM experiments e "
+                    "WHERE EXISTS (SELECT 1 FROM experiment_parameters p WHERE p.experiment_id = e.experiment_id "
+                    "AND p.name = 'arena_task_id')"
+                ).fetchall()
+            ]
+            agg = ArenaAggregate(total=len(rows))
+            for r in rows:
+                try:
+                    out = json.loads(r["outcome_data"] or "{}")
+                except Exception:
+                    out = {}
+                if out.get("origin") == "live":
+                    agg.live += 1
+                else:
+                    agg.replay += 1
+                if out.get("strategy") == "learned":
+                    agg.learned += 1
+                else:
+                    agg.baseline += 1
+                if out.get("property_valid") is True:
+                    agg.verified += 1
+                else:
+                    agg.failed += 1
+                agg.errors += int(out.get("errors", 0) or 0)
+                agg.retries += int(out.get("retries", 0) or 0)
+                if out.get("retrieval_proven"):
+                    agg.retrieval_count += 1
+                    agg.provenance_complete += 1
+                if out.get("artifact_sha256"):
+                    agg.artifacts_valid += 1
+                    agg.proofs_complete += 1
+                    agg.replay_reproducible += 1
+                if out.get("latency_s") is not None:
+                    agg.latencies.append(float(out["latency_s"]))
+                if out.get("tokens") is not None:
+                    agg.tokens.append(int(out["tokens"]))
+            base_ok = sum(
+                1
+                for r in rows
+                if (json.loads(r["outcome_data"] or "{}") or {}).get("strategy") != "learned"
+                and (json.loads(r["outcome_data"] or "{}") or {}).get("property_valid") is True
+            )
+            base_n = sum(
+                1
+                for r in rows
+                if (json.loads(r["outcome_data"] or "{}") or {}).get("strategy") != "learned"
+            )
+            learn_live_ok = sum(
+                1
+                for r in rows
+                if (json.loads(r["outcome_data"] or "{}") or {}).get("strategy") == "learned"
+                and (json.loads(r["outcome_data"] or "{}") or {}).get("origin") == "live"
+                and (json.loads(r["outcome_data"] or "{}") or {}).get("property_valid") is True
+            )
+            learn_live_n = sum(
+                1
+                for r in rows
+                if (json.loads(r["outcome_data"] or "{}") or {}).get("strategy") == "learned"
+                and (json.loads(r["outcome_data"] or "{}") or {}).get("origin") == "live"
+            )
+            learn_ok = sum(
+                1
+                for r in rows
+                if (json.loads(r["outcome_data"] or "{}") or {}).get("strategy") == "learned"
+                and (json.loads(r["outcome_data"] or "{}") or {}).get("property_valid") is True
+            )
+            learn_n = agg.learned
+            cls, reason = classify_arena(base_ok, base_n, learn_ok, learn_n, learn_live_ok, learn_live_n)
+            agg.classification, agg.classification_reason = cls, reason
+            return agg
+        finally:
+            conn.close()

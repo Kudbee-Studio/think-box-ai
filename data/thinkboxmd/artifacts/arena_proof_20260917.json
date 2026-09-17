@@ -1,0 +1,77 @@
+{
+  "aggregate": {
+    "artifacts_valid": 300,
+    "baseline": 150,
+    "classification": "NO_MEASURABLE_IMPROVEMENT",
+    "classification_reason": "ceiling effect: baseline already 1.0 and live learned 1.0; reuse may be proven but success cannot improve",
+    "errors": 0,
+    "failed": 0,
+    "latency_max": 51.502,
+    "latency_min": 0.0,
+    "learned": 150,
+    "live": 12,
+    "proofs_complete": 300,
+    "provenance_complete": 6,
+    "replay": 288,
+    "replay_reproducible": 300,
+    "retries": 0,
+    "retrieval_count": 6,
+    "tokens_max": 299,
+    "tokens_min": 0,
+    "total": 300,
+    "verified": 300
+  },
+  "baseline": 150,
+  "branch": "main",
+  "checkout_sha": "ff4405632783249df5106f3b6d1337f06c7f956a",
+  "classification": "NO_MEASURABLE_IMPROVEMENT",
+  "classification_reason": "ceiling effect: baseline already 1.0 and live learned 1.0; reuse may be proven but success cannot improve",
+  "config": {
+    "live_budget": 12,
+    "max_tokens": 3500,
+    "model": "mercury-2",
+    "per_variant": 50,
+    "population": 300,
+    "provider": "openai_compat",
+    "temperature": 0.2,
+    "timeout_s": 60
+  },
+  "control_experiment_id": "tb_exp_20260917175431_3c4cf0e1",
+  "errors": 0,
+  "failed": 0,
+  "four_state": "ARENA_VERIFIED (control surface + 300 persisted + 12 live + replay; ceiling classification honest)",
+  "latency_s": {
+    "max": 51.502,
+    "min": 0.0
+  },
+  "learned": 150,
+  "live_arms": "6 baseline (1/variant) + 6 learned (1/variant), all Mercury-2 via openai_compat",
+  "live_calls": 12,
+  "no_claims": [
+    "no model intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "population": 300,
+  "provenance_complete": 6,
+  "replay_count": 288,
+  "retries": 0,
+  "retrieval_count": 6,
+  "timestamp": "2026-09-17T18:03:35.888960+00:00",
+  "tokens": {
+    "max": 299,
+    "min": 0
+  },
+  "transitions": [
+    {
+      "event": "arena_configured",
+      "timestamp": "2026-09-17T17:54:31.226037+00:00"
+    },
+    {
+      "event": "arena_started",
+      "timestamp": "2026-09-17T17:54:49.273206+00:00"
+    }
+  ],
+  "verified": 300
+}

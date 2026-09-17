@@ -60,8 +60,18 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests (rebuild-from-storage, singleton-reset recovery, learning provenance, no-secrets)
-- Full suite: **614 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 8 tests
+- Full suite: **622 tests, 6 skipped**
+
+### Experiment Arena Control Surface (2026-09-17) — COMPLETE
+
+- **Decision:** `thinkbox/pop_arena.py` canonical for the population layer (ExperimentManager owns jobs, ChallengeArena owns probes; pop_arena owns population + budget + classification, delegating all writes; one defensive dedupe fix)
+- **State:** NOT_RUN→CONFIGURED→RUNNING→COMPLETE, control `tb_exp_20260917175431_3c4cf0e1`, all transitions + Chronicle lessons persisted
+- **Population:** 300/300 (150 baseline + 150 learned); live 12/12 REAL Mercury-2 (6+6, 1/variant/arm, 12/12 VALID, retrieval 6/6); replay 288/288 (deterministic, never model calls)
+- **Honesty repairs:** 12 false-live flags corrected, 11+1 placeholders superseded, 12 double outcomes deduped, 1 orphaned call re-run — all recorded
+- **Metrics:** verified 300/300, errors/retries 0, latency live 0.6–51.5s, tokens live 101–299; no invented score. Classification: NO_MEASURABLE_IMPROVEMENT (ceiling 1.0)
+- **Dashboard:** `/api/pipeline` arena block + Population Arena card, restart-proof
+- **Evidence:** `data/thinkboxmd/artifacts/arena_proof_20260917.json` (SHA256 `82a29a84…60a0e2c`, secrets-clean); FourState ARENA_VERIFIED
 
 ### KUDBEE Dashboard — Learning Pipeline View (2026-09-17)
 
