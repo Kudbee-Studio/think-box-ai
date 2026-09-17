@@ -33,13 +33,14 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | UpCloud ExecutionProvider — credential precedence, continuous audit, permanence protocol |
-| **Latest completed work** | Main merge (commit `9f12e1d`) — all work merged into main |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, 560 tests passing |
+| **Active objective** | Persistent Experiment + Learning Dashboard — zero-server execution |
+| **Latest completed work** | Experiment system merged (commit `f1ba3f6`) — 605 tests passing |
+| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system, 605 tests passing |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential; server 212.147.250.183 port 22 TIMEOUT (Case C) |
 | **Known risks** | UpCloud API unreachable with current credentials; server IP may be reassigned; SSH key not persisted to disk |
 | **Next larger improvement** | Obtain valid `UPCLOUD_API_MAIN` from UpCloud panel → verify server reachability → restore SSH key → run live smoke tests |
-| **PR status** | PR #68, #67, #65, #32, #28 all CLOSED (superseded by main merge) |
+| **PR status** | All PRs closed; main merged; experiment system committed |
+| **Test count** | **605 tests passing (6 skipped)** |
 
 ---
 

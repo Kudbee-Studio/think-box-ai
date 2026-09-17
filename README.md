@@ -138,21 +138,29 @@ calibration, reproducibility). Challenge activity and tier inflation are
 **reported as signals, never penalised** — disagreeing is the adversarial layer
 doing its job.
 
+### Experiment + Learning Dashboard
+
+Persistent, zero-server experiment tracking with SQLite persistence and
+parameter provenance. Every agent run becomes a tracked experiment with
+durable session ID, inputs, execution evidence, outputs, tests, outcome,
+and learned parameters.
+
+**Learning loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test →
+Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment.
+
+**Four-state classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY.
+
+**Key features**:
+- SQLite persistence (stdlib, zero-dollar)
+- Parameter provenance with source, confidence, classification
+- Parent/child session relationships
+- Restart/recovery from SQLite
+- Dashboard aggregation from persisted data
+- Zero-server execution (no Docker, SSH, cloud required)
+
 ```bash
-# run a swarm with the instrumented path
-python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena
-
-# verify all ten instruments (add --live for a real end-to-end swarm)
-python3 experiments/verify_instrumentation.py --live
-
-# view it (mobile-first, stdlib server, no build step)
-python3 experiments/swarm_dashboard.py --port 8787
-cloudflared tunnel --url http://127.0.0.1:8787
+python3 -m unittest tests.unit.test_experiment -v
 ```
-
-Verified 2026-09-15: `11/11` instrumentation checks pass; learning curve
-observed `0.6405 → 0.7318 (+0.0913)` across two sessions; ledger and proof
-chains verify. Connect-it-up plan: `docs/DASHBOARD_BUILDOUT.md`.
 
 ---
 

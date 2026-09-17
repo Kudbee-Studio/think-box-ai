@@ -114,6 +114,18 @@ from .upcloud import (
     UpCloudExecutionPath,
     investigate_upcloud,
 )
+from .experiment import (
+    ExperimentRecord,
+    ExperimentManager,
+    ExperimentDB,
+    AgentSessionRecord,
+    ParameterProvenance,
+    ParameterClassification,
+    ExperimentStatus,
+    FourState,
+    ProvenanceSource,
+    get_experiment_manager,
+)
 from .cnc import (
     CNCJob,
     CNCManufacturingEngine,
@@ -288,4 +300,14 @@ __all__ = [
     "SimulatorInterface",
     "ShopDatabaseInterface",
     "CNCAdapterRegistry",
+    "ExperimentRecord",
+    "ExperimentManager",
+    "ExperimentDB",
+    "AgentSessionRecord",
+    "ParameterProvenance",
+    "ParameterClassification",
+    "ExperimentStatus",
+    "FourState",
+    "ProvenanceSource",
+    "get_experiment_manager",
 ]

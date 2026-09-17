@@ -29,6 +29,41 @@
 - `tests/unit/test_cnc.py` — 43 tests
 - Full suite: 477 tests, 1 skip
 
+## Experiment + Learning Dashboard
+
+**Status:** Complete
+
+### Module Structure
+
+- `thinkbox/experiment.py` — `ExperimentRecord`, `ExperimentManager`, `ExperimentDB`, `AgentSessionRecord`, `ParameterProvenance`, `ParameterClassification`, `ExperimentStatus`, `FourState`, `ProvenanceSource`, `get_experiment_manager`
+- `tests/unit/test_experiment.py` — 45 tests covering all experiment features
+
+### Key Features
+
+- **Persistent Experiment Records**: Every agent run becomes a tracked experiment with durable session ID, inputs, execution evidence, outputs, tests, outcome, and learned parameters
+- **SQLite Persistence**: Zero-dollar, stdlib-only persistence layer with migrations for `experiments`, `experiment_parameters`, `experiment_events`, `artifacts`, `proof_records`, `outcomes`, `lessons`, `agent_sessions`
+- **Parameter Provenance**: Every parameter carries `value`, `unit`, `source`, `confidence`, `classification` (OBSERVED/ESTIMATED/SIMULATED), `session_id`, `timestamp`
+- **Learning Loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test → Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment
+- **Four-State Classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY
+- **Session Continuity**: Parent/child session relationships, start/end state, last completed action, blockers, next larger improvement
+- **Zero-Server Execution**: Complete lifecycle works without Docker, Kubernetes, SSH, cloud server, or external database
+- **Dashboard Aggregation**: Dashboard data generated from persisted SQLite data, not manually maintained status text
+- **Restart/Recovery**: Full recovery from SQLite after restart
+- **Corrupted/Missing Artifact Handling**: Graceful handling of missing or corrupted artifacts
+
+### Backend Integration
+
+- `backend/api/v1/router.py` — Experiment endpoints: POST /experiment, GET /experiment/{id}, POST /experiment/{id}/parameter, POST /experiment/{id}/outcome, GET /experiment/dashboard, POST /experiment/zero-server, GET /experiment/restart
+
+### Tests
+
+- `tests/unit/test_experiment.py` — 45 tests
+- Full suite: **605 tests, 6 skipped**
+
+### CLI Integration
+
+- `think_box_ai/cli.py` — Experiment subcommand registered
+
 ## Phase 9 — Zero-to-One Innovations
 
 **Status:** Complete (55 innovations across 13 categories)
