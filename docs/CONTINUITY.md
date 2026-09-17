@@ -256,7 +256,7 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 | **Primary credential** | `THINKBOX_UPCLOUD_API_TOKEN` (returns 401) |
 | **Credential detected** | **NO** (neither `UPCLOUD_API_MAIN` nor `THINKBOX_UPCLOUD_API_TOKEN` set) |
 | **SSH key available** | **NO** (file absent from all locations) |
-| **CLI Tool** | upctl — NOT installed |
+| **CLI Tool** | upctl — NOT AVAILABLE (PyPI `upctl` v0.1.0 is a project stack detector, NOT UpCloud infrastructure CLI; package uninstalled). No Go runtime to build official binary. Resolution requires HUMAN action. |
 | **Provider Implementation** | REST API via `urllib` (stdlib) — `core/providers/upcloud.py` |
 | **Live API Reachable** | YES (HTTP 401) |
 | **Read Capabilities** | ALL DENIED (no credentials) |
