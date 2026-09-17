@@ -6,14 +6,14 @@
 
 > ## ADDENDUM — 2026-09-17 (supersedes the numbers above; 09-15 body preserved below)
 >
-> **Main:** `1fcdbd7` (+ DAG work on branch), **649 tests OK** (6 skipped).
+> **Branch:** `kilo/cherry-circuit-zdv`, **664 tests OK** (6 skipped).
 > Canonical state lives in `docs/CONTINUITY.md` / `STATUS.md` / `AGENTS.md` §Chronicle.
 >
-> - **Verified execution chain now spans the full DAG lifecycle:** `ThinkBoxEngine.execute_goal` task nodes route through `GovernedEngine.execute_verified_task` → `VerifiedRetrySession.run_async` via an injected runner (`set_verified_task_runner`); `GovernedEngine.execute_verified_goal` aggregates DAG totals (first-try / recovered / failures / retries / budget-exhausted / verification-rate). Live-proven on a 4-task DAG with real Mercury-2 (5 calls, 3 first-try + 1 natural recovery, 0 failed); proof `data/thinkboxmd/artifacts/dagpath_proof_20260917.json` SHA256 `5d254c1d…52dac97e`.
-> - **Access inventory update:** Upstash Box is now the primary execution substrate (usable, see `box_primary_proof_20260917.json`); UpCloud `kudbeev3` is LIVE_VERIFIED via API as control-plane ONLY (no SSH, no compute — removed from roadmap). Inception Mercury 2 usable. Upstash Vector writes fixed in PR #67 (fail-closed `EmbeddingError`).
+> - **Verified execution chain now spans the full DAG lifecycle AND concurrent multi-goal budgets:** `ThinkBoxEngine.execute_goal` task nodes route through `GovernedEngine.execute_verified_task` → `VerifiedRetrySession.run_async` via an injected runner; `GovernedEngine.execute_verified_goal` aggregates DAG totals; new `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner`) runs multiple goals concurrently, each on its own fresh `GovernedEngine` (avoiding the shared `_verified_task_runner` race) with independent per-goal budgets or a shared global budget (atomic synchronous `_spend_call`). Live-proven on 2 concurrent goals (1 single-task + 1 fan-in DAG) with 4 real Mercury-2 calls; cross-goal accounting exact (global 4 = 1+3). Proof `data/thinkboxmd/artifacts/concurrent_goals_live_proof_20260917.json` SHA256 `0d740895…489a`.
+> - **Access inventory update:** Upstash Box is now the primary execution substrate (usable); UpCloud `kudbeev3` is LIVE_VERIFIED via API as control-plane ONLY (no SSH, no compute — removed from roadmap). Inception Mercury 2 usable. Upstash Vector writes fixed (fail-closed `EmbeddingError`).
 > - **Pipeline dbs are reconstructable:** a workspace re-materialization wiped the gitignored SQLite dbs; `experiments/recover_pipeline_db.py` rebuilds experiments.db + memory.db from git-tracked artifacts (ledger hash chain NOT reconstructable — documented).
-> - **Test gate:** `python3 -m unittest discover tests/` → 649 OK (6 skipped). Defects #2/#3/#5 from §3 below still open; defect #1 (Upstash Vector) FIXED (PR #67); defect #4 partially (Box is now the execution substrate).
-> - **Next larger improvement:** multi-goal concurrent budgets + deeper DAGs with cross-goal budget accounting and per-layer retry-rate telemetry.
+> - **Test gate:** `python3 -m unittest discover tests/` → 664 OK (6 skipped). Defects #2/#3/#5 from §3 below still open; defect #1 (Upstash Vector) FIXED; defect #4 partially (Box is now the execution substrate).
+> - **Next larger improvement:** N>2 goals with cross-goal budget contention policy (fair-share vs priority) + a concurrency stress test — accounting-first, not speed-first.
 
 This is the "pick it up cold" document. Everything below is verified or
 explicitly marked as not-verified.

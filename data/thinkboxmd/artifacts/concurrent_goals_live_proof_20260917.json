@@ -1,0 +1,158 @@
+{
+  "cross_goal_summary": {
+    "global_budget_remaining": null,
+    "global_calls_spent": 4,
+    "global_retries_fired": 0,
+    "per_goal_budget_isolation": true,
+    "shared_session_calls_spent": null,
+    "shared_session_used": false,
+    "total_goals": 2
+  },
+  "goal_results": {
+    "concurrent-goal-a: compute/add_small": {
+      "goal_experiment_id": "tb_exp_20260917214736_d5ce7d2d",
+      "session_id": "tb_sess_20260917214736_dd31",
+      "task_experiment_ids": {
+        "dagtask_20260917214736_00_af8d6c": "tb_exp_20260917214736_12152e63"
+      },
+      "verified": {
+        "budget_exhausted": 0,
+        "failures": 0,
+        "first_try_successes": 1,
+        "per_task": {
+          "dagtask_20260917214736_00_af8d6c": {
+            "attempts": 1,
+            "converted": false,
+            "execution_status": "FIRST_TRY_SUCCESS",
+            "experiment_id": "tb_exp_20260917214736_12152e63",
+            "final_taxonomy": "valid",
+            "latency_s": 1.023,
+            "retries_used": 0,
+            "taxonomy": "valid",
+            "valid": true
+          }
+        },
+        "recovered_successes": 0,
+        "retries": 0,
+        "tasks": 1,
+        "unverified": 0,
+        "verification_rate": 1.0
+      }
+    },
+    "concurrent-goal-b: fan-in DAG compute->multifield": {
+      "goal_experiment_id": "tb_exp_20260917214736_073fa841",
+      "session_id": "tb_sess_20260917214736_9a37",
+      "task_experiment_ids": {
+        "dagtask_20260917214736_00_26e357": "tb_exp_20260917214736_d1d81848",
+        "dagtask_20260917214736_01_7fb7ea": "tb_exp_20260917214736_9d62fa0b",
+        "dagtask_20260917214736_02_0b7710": "tb_exp_20260917214736_421e4a8b"
+      },
+      "verified": {
+        "budget_exhausted": 0,
+        "failures": 0,
+        "first_try_successes": 3,
+        "per_task": {
+          "dagtask_20260917214736_00_26e357": {
+            "attempts": 1,
+            "converted": false,
+            "execution_status": "FIRST_TRY_SUCCESS",
+            "experiment_id": "tb_exp_20260917214736_d1d81848",
+            "final_taxonomy": "valid",
+            "latency_s": 0.872,
+            "retries_used": 0,
+            "taxonomy": "valid",
+            "valid": true
+          },
+          "dagtask_20260917214736_01_7fb7ea": {
+            "attempts": 1,
+            "converted": false,
+            "execution_status": "FIRST_TRY_SUCCESS",
+            "experiment_id": "tb_exp_20260917214736_9d62fa0b",
+            "final_taxonomy": "valid",
+            "latency_s": 0.911,
+            "retries_used": 0,
+            "taxonomy": "valid",
+            "valid": true
+          },
+          "dagtask_20260917214736_02_0b7710": {
+            "attempts": 1,
+            "converted": false,
+            "execution_status": "FIRST_TRY_SUCCESS",
+            "experiment_id": "tb_exp_20260917214736_421e4a8b",
+            "final_taxonomy": "valid",
+            "latency_s": 0.518,
+            "retries_used": 0,
+            "taxonomy": "valid",
+            "valid": true
+          }
+        },
+        "recovered_successes": 0,
+        "retries": 0,
+        "tasks": 3,
+        "unverified": 0,
+        "verification_rate": 1.0
+      }
+    }
+  },
+  "layer_telemetry_aggregate": [
+    {
+      "budget_exhausted": 0,
+      "failures": 0,
+      "first_try_successes": 3,
+      "layer_index": 0,
+      "recovered_successes": 0,
+      "retries": 0,
+      "tasks": 3,
+      "verification_rate": 1.0
+    },
+    {
+      "budget_exhausted": 0,
+      "failures": 0,
+      "first_try_successes": 1,
+      "layer_index": 1,
+      "recovered_successes": 0,
+      "retries": 0,
+      "tasks": 1,
+      "verification_rate": 1.0
+    }
+  ],
+  "live_calls_observed": 4,
+  "model": "mercury-2",
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no concurrency-for-performance claim (accounting correctness proven, not speed)",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "per_goal_accounting": {
+    "concurrent-goal-a: compute/add_small": {
+      "budget_exhausted": 0,
+      "budget_remaining": 1,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 1,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 1.0
+    },
+    "concurrent-goal-b: fan-in DAG compute->multifield": {
+      "budget_exhausted": 0,
+      "budget_remaining": 1,
+      "calls_spent": 3,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 3,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 3,
+      "verification_rate": 1.0
+    }
+  },
+  "phase": "concurrent-goals-live",
+  "proof_sha256": "0d7408957c4a07074b4f1fa711029edcc299bd8177bc9494c32c9b864531489a",
+  "provider": "openai_compat",
+  "timestamp": "2026-09-17T21:47:37.826066+00:00"
+}

@@ -15,17 +15,15 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (649 OK, 6 skipped)
+- [x] Tests executed and passing (664 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
-- [x] PR/commit referenced (PR #68 closed, PR #67 closed, PR #65 closed, PR #32 closed, PR #28 closed)
+- [x] PR/commit referenced (see PR status in CURRENT STATE)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
-- [x] Main branch merged with all work (commit 9f12e1d)
-- [x] Safety gate JSON files removed from git (added to .gitignore)
-- [x] UpCloud investigation Phase 1-6 COMPLETE (Case C confirmed)
+- [x] Multi-goal concurrent budgets + deeper DAG telemetry COMPLETE (2-goal fan-in DAG, 4 live Mercury-2 calls)
 
 ---
 
@@ -33,18 +31,34 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | DAG-level verified execution: `ThinkBoxEngine.execute_goal` task lifecycle routed through the canonical `GovernedEngine.execute_verified_task` primitive (Arena = benchmark consumer; engine owns per-task + per-DAG verified execution) |
-| **Latest completed work** | DAG-level verified execution COMPLETE: `GovernedEngine.execute_verified_goal` live-proven on a 4-task DAG (2 layers) with 5 real Mercury-2 calls — 3 first-try + 1 natural recovery (distractor-compliance → valid), 0 failures, 0 budget-exhausted, ledger + proof verified, restart/dashboard rebuild proven. Also RECOVERED the pipeline SQLite dbs from git-tracked artifacts after a workspace re-materialization wiped the gitignored dbs. |
-| **Current verified capabilities** | DAG-level verified execution (engine hook → governed primitive → `VerifiedRetrySession.run_async`); per-task + parent-DAG telemetry (first-try/recovered/failures/retries/budget/verification-rate); dashboard DAG card rebuilt from storage; `+9` deterministic DAG tests; 649 tests passing |
-| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs are reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain is NOT reconstructable — documented limitation). |
-| **Known risks** | Recovery evidence still small-n (4 conversions lifetime across v3/default-path/engine-path/dag-path); 1 retry max per task bounds cost. Gitignored dbs are ephemeral — artifact recovery restores experiments/outcomes/proofs/memory but not the ledger chain. |
-| **Next larger improvement** | Scale DAG verified execution to multi-goal concurrent budgets + deeper DAGs (fan-in/fan-out), with cross-goal budget accounting and dashboard-visible per-layer retry rates |
-| **PR status** | main at 1fcdbd7; DAG-verified work + db-recovery on main working tree, to be committed |
-| **Test count** | **649 tests passing (6 skipped)** |
+| **Active objective** | Multi-goal concurrent budgets + deeper DAG telemetry: multiple simultaneous ThinkBox goals with independent per-goal budgets and optional shared/global budget, strict cross-goal accounting, per-layer DAG telemetry, fan-out/fan-in support, restart-safe persistence |
+| **Latest completed work** | Multi-goal concurrent execution COMPLETE: `ConcurrentGoalsRunner` runs each goal on its own fresh `GovernedEngine` (avoiding the shared `_verified_task_runner` race); independent per-goal `VerifiedRetrySession` budgets or a shared global session (atomic synchronous `_spend_call`); `execute_goal` emits per-layer telemetry; dashboard `concurrent` block rebuilt from storage. Live-proven on 2 concurrent goals (1 single-task + 1 fan-in DAG) with 4 real Mercury-2 calls — all first-try, cross-goal accounting exact (global 4 = 1+3). |
+| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence (scope="concurrent" control record + file ledger + proof artifacts); dashboard concurrent block |
+| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
+| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution in the shared-session path is cross-checked against the session total (authoritative), not independently authoritative per goal. |
+| **Next larger improvement** | Scale to N>2 goals with cross-goal budget contention policy (fair-share vs priority), persist per-goal retry-rate telemetry by layer, and add a concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — still accounting-first, not speed-first |
+| **PR status** | branch `kilo/cherry-circuit-zdv`; to be pushed + PR opened for founder review |
+| **Test count** | **664 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Build the next evolution of verified execution: MULTI-GOAL CONCURRENT BUDGETS + DEEPER DAG TELEMETRY. Branch `kilo/cherry-circuit-zdv`. No SSH, no UpCloud compute, no GPU, no invented credentials, no second scheduler/retry/memory/proof/dashboard, no manufactured failures. |
+| **Architecture decision (concurrency model)** | `ThinkBoxEngine.execute_goal` reads the injected verified runner from a mutable instance attribute (`_verified_task_runner`), so two concurrent goals sharing one base engine would race and route tasks to the wrong runner. Therefore each concurrent goal gets its OWN fresh `GovernedEngine` (own base `ThinkBoxEngine`, own in-memory ledger, own event stream). The ONLY shared object is the optional global `VerifiedRetrySession`, whose counter mutations (`_spend_call`, `retries_fired`, `conversions`) are synchronous — no `await` between read-modify-write — so asyncio's cooperative single-thread scheduling serializes them correctly. This is what makes shared-budget accounting mathematically correct, NOT merely concurrent. |
+| **Integration point** | New `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner`, `ConcurrentGoalSpec`, `ConcurrentGoalsConfig`, `ConcurrentGoalsResult`, `aggregate_layer_telemetry`). Reuses `GovernedEngine.execute_verified_goal` (now accepts an external `session=` for shared budget), `VerifiedRetrySession`, `VerifiedRetryConfig`, `BudgetExhausted`. `ThinkBoxEngine.execute_goal` now emits `summary["layers_telemetry"]` (per-layer tasks/first-try/recovered/failures/budget/retries/rate + fan-in dependencies). Dashboard `_pipeline()` gained a `concurrent` block (extended DAG view — no new dashboard). |
+| **Budget model** | Independent goals (default): each goal gets its own `VerifiedRetrySession` (strict per-goal isolation). Shared/global (independent_goals=False): one shared `VerifiedRetrySession` enforces a global cap; `_spend_call` raises `BudgetExhausted` honestly. Cross-goal accounting: per-goal calls counted by wrapping each goal's `complete_async` (exact under shared budget); per-goal retries from each goal's `verified["retries"]`; global = deterministic sum, cross-checked against the shared session's `calls_spent`. |
+| **Live proof (fresh instances)** | 2 concurrent goals via REAL Mercury-2 / Inception path (`experiments/concurrent_goals_live.py`): goal A `compute/add_small` (1 task, budget 2) + goal B fan-in DAG `[compute/mul_small, compute/sub_neg] → multifield/double` (3 tasks, budget 4). 4 live calls (hard guard 8): all FIRST_TRY_SUCCESS, 0 retries, 0 failures, 0 budget-exhausted, verification_rate 1.0. Cross-goal accounting exact: global 4 = 1 + 3; per-goal remaining 1 each. Layer telemetry: layer 0 = 3 tasks (fan-out), layer 1 = 1 task (fan-in). No manufactured failures. Memory `learn:concurrent:multi-goal-budgets`. |
+| **Restart / dashboard** | Concurrent control record (`scope="concurrent"`) persisted via `ExperimentManager` with per-goal accounting + layer telemetry + goal_results JSON; fresh `ExperimentDB` handle + `_pipeline()` reconstruct the run from SQLite alone (1 run, 2 goals, 4 calls, 0 retries). File ledger (6 entries: 2 `execute_verified_goal` + 4 `verified_task:*`) `verify()` True. |
+| **Integrity** | Proof `data/thinkboxmd/artifacts/concurrent_goals_live_proof_20260917.json` SHA256 `0d740895…489a` (recomputed-match); runner persist proof `concurrent_proof_tb_exp_20260917214737_b61798e2.json`. Secrets scan clean (0 credentials). |
+| **Tests** | `+15` deterministic (`tests/unit/test_concurrent_goals.py`): independent-budget isolation, shared-budget exhaustion (honest), cross-goal accounting (global == sum, no double count), shared-session atomicity (budget 3 → exactly 3 spent + 1 blocked), retry accounting per-goal+global, fan-out/fan-in layer telemetry + deterministic aggregation, restart/persist reconstructable, dashboard concurrent-block exposure, no-secrets. Suite 664 OK (6 skipped). |
+| **Fix (found during audit)** | `_persist_verified_goal` wrote proof to a fixed per-day filename `dagpath_proof_{date}.json`, so concurrent goals (and any two DAG goals same-day) clobbered each other and the historical DAG proof. Fixed to `dagpath_proof_{goal_experiment_id}.json`; runner `persist` proof likewise unique per run. Historical clobbered artifacts restored from git. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (664) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (4 live concurrent calls) / CONCURRENT_VERIFIED (2-goal fan-in DAG proven) / PRODUCTION not claimed |
 
 ### 2026-09-17 — DAG-Level Verified Execution (4-task live DAG, COMPLETE)
 

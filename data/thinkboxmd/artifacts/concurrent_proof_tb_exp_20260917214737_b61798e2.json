@@ -1,0 +1,73 @@
+{
+  "cross_goal_summary": {
+    "global_budget_remaining": null,
+    "global_calls_spent": 4,
+    "global_retries_fired": 0,
+    "per_goal_budget_isolation": true,
+    "shared_session_calls_spent": null,
+    "shared_session_used": false,
+    "total_goals": 2
+  },
+  "layer_telemetry": [
+    {
+      "budget_exhausted": 0,
+      "failures": 0,
+      "first_try_successes": 3,
+      "layer_index": 0,
+      "recovered_successes": 0,
+      "retries": 0,
+      "tasks": 3,
+      "verification_rate": 1.0
+    },
+    {
+      "budget_exhausted": 0,
+      "failures": 0,
+      "first_try_successes": 1,
+      "layer_index": 1,
+      "recovered_successes": 0,
+      "retries": 0,
+      "tasks": 1,
+      "verification_rate": 1.0
+    }
+  ],
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no SSH"
+  ],
+  "per_goal_accounting": {
+    "concurrent-goal-a: compute/add_small": {
+      "budget_exhausted": 0,
+      "budget_remaining": 1,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 1,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 1.0
+    },
+    "concurrent-goal-b: fan-in DAG compute->multifield": {
+      "budget_exhausted": 0,
+      "budget_remaining": 1,
+      "calls_spent": 3,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 3,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 3,
+      "verification_rate": 1.0
+    }
+  },
+  "phase": "concurrent-goals",
+  "proof_paths": [
+    "data/thinkboxmd/artifacts/dagpath_proof_20260917.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_20260917.json"
+  ],
+  "proof_sha256": "516221a371c8538e89e9266fa6caa8c3d7e88facddad832c0e192c517d3d6c19",
+  "run_experiment_id": "tb_exp_20260917214737_b61798e2",
+  "session_id": "tb_sess_20260917214737_a16d",
+  "timestamp": "2026-09-17T21:47:37.806850+00:00"
+}

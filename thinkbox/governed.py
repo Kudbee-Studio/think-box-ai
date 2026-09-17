@@ -229,6 +229,7 @@ class GovernedEngine:
         capability: str = "goal:execute",
         max_calls: int = 0,
         max_retries: int | None = None,
+        session: Any = None,
         manager: Any = None,
         emit_dashboard: bool = False,
     ) -> dict[str, Any]:
@@ -267,7 +268,8 @@ class GovernedEngine:
         cfg_kwargs: dict[str, Any] = {"max_calls": max_calls}
         if max_retries is not None:
             cfg_kwargs["max_retries"] = max_retries
-        session = VerifiedRetrySession(VerifiedRetryConfig(**cfg_kwargs))
+        if session is None:
+            session = VerifiedRetrySession(VerifiedRetryConfig(**cfg_kwargs))
 
         nodes: list[TaskNode] = []
         for i, st in enumerate(subtasks):
@@ -562,7 +564,7 @@ class GovernedEngine:
         proof_bytes = _json.dumps(proof, indent=2, sort_keys=True).encode()
         proof_hash = hashlib.sha256(proof_bytes).hexdigest()
         proof["proof_sha256"] = proof_hash
-        proof_path = artifacts_dir / f"dagpath_proof_{_dt.now(timezone.utc).strftime('%Y%m%d')}.json"
+        proof_path = artifacts_dir / f"dagpath_proof_{goal_experiment_id}.json"
         proof_path.write_text(_json.dumps(proof, indent=2, sort_keys=True))
         manager.db.save_artifact(goal_experiment_id, f"art_dagproof_{proof_hash[:8]}", "dag_proof",
                                  str(proof_path), proof_hash, {"tasks": len(nodes)})

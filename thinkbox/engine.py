@@ -201,6 +201,42 @@ class ThinkBoxEngine:
         }
 
         verified_results = {tid: r for tid, r in results.items() if _is_verified(r)}
+
+        # Per-layer telemetry for deeper DAG analysis (fan-out/fan-in)
+        layers_telemetry: list[dict[str, Any]] = []
+        if verified_results:
+            for layer_idx, layer in enumerate(layers):
+                layer_task_ids = [tid for tid in layer if tid in verified_results]
+                if not layer_task_ids:
+                    layer_task_ids = [tid for tid in layer if tid in results]
+                layer_counts = {"FIRST_TRY_SUCCESS": 0, "RECOVERED_SUCCESS": 0,
+                                "FAILED_AFTER_RETRY": 0, "BUDGET_EXHAUSTED": 0,
+                                "UNVERIFIED": 0, "retries": 0}
+                for tid in layer_task_ids:
+                    r = verified_results.get(tid) or results.get(tid)
+                    if isinstance(r, dict) and "execution_status" in r:
+                        status = r.get("execution_status", "")
+                        if status in layer_counts:
+                            layer_counts[status] += 1
+                        layer_counts["retries"] += int(r.get("retries_used") or 0)
+                layer_total = len(layer_task_ids)
+                layer_ok = layer_counts["FIRST_TRY_SUCCESS"] + layer_counts["RECOVERED_SUCCESS"]
+                layers_telemetry.append({
+                    "layer_index": layer_idx,
+                    "tasks": layer_total,
+                    "first_try_successes": layer_counts["FIRST_TRY_SUCCESS"],
+                    "recovered_successes": layer_counts["RECOVERED_SUCCESS"],
+                    "failures": layer_counts["FAILED_AFTER_RETRY"],
+                    "budget_exhausted": layer_counts["BUDGET_EXHAUSTED"],
+                    "retries": layer_counts["retries"],
+                    "verification_rate": round(layer_ok / layer_total, 4) if layer_total else 0.0,
+                    "task_ids": layer_task_ids,
+                    "fan_in_dependencies": [
+                        node.dependencies for node in [graph.tasks[tid] for tid in layer_task_ids if tid in graph.tasks]
+                    ],
+                })
+            summary["layers_telemetry"] = layers_telemetry
+
         if verified_results:
             counts = {s: 0 for s in (
                 "FIRST_TRY_SUCCESS", "RECOVERED_SUCCESS", "FAILED_AFTER_RETRY",
