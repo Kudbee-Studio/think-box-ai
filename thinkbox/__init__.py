@@ -14,6 +14,7 @@ from .autoscaler import DynamicAutoscaler, ScalerConfig, SystemMetrics
 from .pruner import ContextPruner, PruneResult
 from .git_engine import GitEngine, GitConfig, CommitReceipt
 from .engine import ThinkBoxEngine, EngineConfig, TaskState, TaskEvent
+from .replay import ReplayError, ReplayResult, ReplayDriver
 from .legendary import (
     CausalReasoningEngine,
     CausalLink,
@@ -106,6 +107,37 @@ from .substrate import (
     IsolationProbe,
     ThinkBoxVectorSync,
 )
+from .upcloud import (
+    UpCloudConfig,
+    UpCloudCapability,
+    UpCloudTraceResult,
+    UpCloudExecutionPath,
+    investigate_upcloud,
+)
+from .cnc import (
+    CNCJob,
+    CNCManufacturingEngine,
+    DemoMode,
+    DemoResult,
+    ROIStats,
+    ROIDashboard,
+    ManufacturingMemory,
+    KnowledgeEntry,
+    ProofPackage,
+    ProofStore,
+    SafetyGate,
+    SafetyGateStore,
+    ApprovalGate,
+    Tenant,
+    TenantStore,
+    TenantBoundary,
+    CADInterface,
+    MachineControllerInterface,
+    InspectionSystemInterface,
+    SimulatorInterface,
+    ShopDatabaseInterface,
+    CNCAdapterRegistry,
+)
 
 __all__ = [
     "TaskDecomposer",
@@ -128,6 +160,9 @@ __all__ = [
     "EngineConfig",
     "TaskState",
     "TaskEvent",
+    "ReplayError",
+    "ReplayResult",
+    "ReplayDriver",
     "CausalReasoningEngine",
     "CausalLink",
     "TemporalMemory",
@@ -199,6 +234,11 @@ __all__ = [
     "SubstrateReport",
     "IsolationProbe",
     "ThinkBoxVectorSync",
+    "UpCloudConfig",
+    "UpCloudCapability",
+    "UpCloudTraceResult",
+    "UpCloudExecutionPath",
+    "investigate_upcloud",
     "DisruptorPass",
     "DisruptorResult",
     "DisruptorSuite",
@@ -225,4 +265,27 @@ __all__ = [
     "VerificationReport",
     "build_eval_fabric",
     "standard_passes",
+    # CNC manufacturing
+    "CNCJob",
+    "CNCManufacturingEngine",
+    "DemoMode",
+    "DemoResult",
+    "ROIStats",
+    "ROIDashboard",
+    "ManufacturingMemory",
+    "KnowledgeEntry",
+    "ProofPackage",
+    "ProofStore",
+    "SafetyGate",
+    "SafetyGateStore",
+    "ApprovalGate",
+    "Tenant",
+    "TenantStore",
+    "TenantBoundary",
+    "CADInterface",
+    "MachineControllerInterface",
+    "InspectionSystemInterface",
+    "SimulatorInterface",
+    "ShopDatabaseInterface",
+    "CNCAdapterRegistry",
 ]

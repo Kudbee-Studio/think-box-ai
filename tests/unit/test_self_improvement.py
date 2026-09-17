@@ -336,5 +336,126 @@ class TestEndToEndCycle(unittest.TestCase):
         self.assertEqual(len(rows), 1)
 
 
+class TestEngineWiring(unittest.TestCase):
+    def test_wired_runner_fires_on_success(self) -> None:
+        from thinkbox.engine import ThinkBoxEngine, EngineConfig, TaskState
+        from thinkbox.experiments import ImprovementRunner, ExperimentStore
+        from thinkbox.swarm import ExecutionResult
+
+        store = ExperimentStore(":memory:")
+        pool = MagicMock()
+        pool.max_workers = 32
+        runner = ImprovementRunner(store, pool)
+
+        engine = ThinkBoxEngine(EngineConfig(speculative=False))
+        engine.wire_improvement_runner(runner, {"reliability": 0.7})
+
+        with patch.object(engine.swarm, "execute_task") as mock_exec:
+            mock_exec.return_value = ExecutionResult(
+                task_id="task_1", success=True, exit_code=0,
+                output="done", execution_time_ms=100.0, tokens_used=50,
+            )
+            summary = asyncio.run(engine.execute_goal("test goal"))
+
+        self.assertEqual(len(runner.history), 1)
+        record = runner.history[0]
+        self.assertIn("experiment_id", record)
+        self.assertIn("weakness", record)
+        self.assertIn("accepted", record)
+        self.assertEqual(record["baseline_index"], 1.0)
+
+    def test_wired_runner_improvement_path(self) -> None:
+        from thinkbox.engine import ThinkBoxEngine, EngineConfig
+        from thinkbox.experiments import ImprovementRunner, ExperimentStore
+        from thinkbox.swarm import ExecutionResult
+
+        store = ExperimentStore(":memory:")
+        pool = MagicMock()
+        pool.max_workers = 32
+        runner = ImprovementRunner(store, pool)
+
+        engine = ThinkBoxEngine(EngineConfig(speculative=False))
+        engine.wire_improvement_runner(
+            runner, {"reliability": 0.7, "grounding": 0.7, "evidence_quality": 0.7}
+        )
+
+        with patch.object(engine.swarm, "execute_task") as mock_exec:
+            mock_exec.return_value = ExecutionResult(
+                task_id="task_1", success=True, exit_code=0,
+                output="done", execution_time_ms=100.0, tokens_used=50,
+            )
+            asyncio.run(engine.execute_goal("test goal"))
+
+        self.assertEqual(len(runner.history), 1)
+        record = runner.history[0]
+        self.assertTrue(record["applied"])
+        self.assertIsNotNone(record["retest_index"])
+        if record["delta"] is not None and record["delta"] > 0:
+            self.assertTrue(record["accepted"])
+        elif record["delta"] is not None and record["delta"] <= 0:
+            self.assertFalse(record["accepted"])
+
+    def test_wired_runner_rejection_path(self) -> None:
+        from thinkbox.engine import ThinkBoxEngine, EngineConfig
+        from thinkbox.experiments import ImprovementRunner, ExperimentStore
+        from thinkbox.swarm import ExecutionResult
+
+        store = ExperimentStore(":memory:")
+        pool = MagicMock()
+        pool.max_workers = 16
+        runner = ImprovementRunner(store, pool)
+
+        engine = ThinkBoxEngine(EngineConfig(speculative=False))
+        engine.wire_improvement_runner(
+            runner, {"reliability": 0.5, "grounding": 0.9, "evidence_quality": 0.9}
+        )
+
+        with patch.object(engine.swarm, "execute_task") as mock_exec:
+            mock_exec.return_value = ExecutionResult(
+                task_id="task_1", success=True, exit_code=0,
+                output="done", execution_time_ms=100.0, tokens_used=50,
+            )
+            asyncio.run(engine.execute_goal("test goal"))
+
+        self.assertEqual(len(runner.history), 1)
+        record = runner.history[0]
+        self.assertTrue(record["applied"])
+        self.assertIsNotNone(record["retest_index"])
+        self.assertEqual(record["baseline_index"], 1.0)
+        self.assertIn(record["weakness"], ("reliability", "grounding", "evidence_quality"))
+
+    def test_wired_runner_database_record(self) -> None:
+        from thinkbox.engine import ThinkBoxEngine, EngineConfig
+        from thinkbox.experiments import ImprovementRunner, ExperimentStore
+        from thinkbox.swarm import ExecutionResult
+
+        store = ExperimentStore(":memory:")
+        pool = MagicMock()
+        pool.max_workers = 32
+        runner = ImprovementRunner(store, pool)
+
+        engine = ThinkBoxEngine(EngineConfig(speculative=False))
+        engine.wire_improvement_runner(runner, {"reliability": 0.7})
+
+        with patch.object(engine.swarm, "execute_task") as mock_exec:
+            mock_exec.return_value = ExecutionResult(
+                task_id="task_1", success=True, exit_code=0,
+                output="done", execution_time_ms=100.0, tokens_used=50,
+            )
+            asyncio.run(engine.execute_goal("test goal"))
+
+        record = runner.history[0]
+        rows = store._conn.execute(
+            "SELECT * FROM improvements WHERE experiment_id=?",
+            (record["experiment_id"],)
+        ).fetchall()
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["experiment_id"], record["experiment_id"])
+        self.assertEqual(row["baseline_index"], 1.0)
+        self.assertIsNotNone(row["weakness"])
+        self.assertIsNotNone(row["proposed_change"])
+
+
 if __name__ == "__main__":
     unittest.main()

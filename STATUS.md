@@ -1,3 +1,34 @@
+## CNC Manufacturing Intelligence Platform
+
+**Status:** Complete
+
+### Module Structure
+
+- `thinkbox/cnc/job.py` — CNCJob, Material, Tool, MachineProfile, Operation, ValidationResult, InspectionResult, ApprovalRecord, ExecutionRecord
+- `thinkbox/cnc/memory.py` — ManufacturingMemory, KnowledgeEntry
+- `thinkbox/cnc/proof.py` — ProofPackage, ProofStore
+- `thinkbox/cnc/adapter.py` — CADInterface, MachineControllerInterface, InspectionSystemInterface, SimulatorInterface, ShopDatabaseInterface, CNCAdapterRegistry
+- `thinkbox/cnc/safety.py` — SafetyGate, ApprovalGate, SafetyGateStore
+- `thinkbox/cnc/tenant.py` — Tenant, TenantPermission, TenantBoundary, TenantStore
+- `thinkbox/cnc/dashboard.py` — ROIStats, ROIDashboard
+- `thinkbox/cnc/demo.py` — DemoMode, DemoResult
+- `thinkbox/cnc/engine.py` — CNCManufacturingEngine
+- `thinkbox/cnc/__init__.py` — All exports
+
+### CLI Integration
+
+- `think_box_ai/commands/cnc.py` — CNC CLI commands (job, demo, memory, proof, safety, tenant, replay, dashboard, engine)
+- `think_box_ai/cli.py` — CNC subcommand registered
+
+### Backend Integration
+
+- `backend/api/v1/router.py` — CNC endpoints (POST /cnc/job, POST /cnc/demo, GET /cnc/dashboard, POST /cnc/safety/approve, GET /cnc/tenant)
+
+### Tests
+
+- `tests/unit/test_cnc.py` — 43 tests
+- Full suite: 477 tests, 1 skip
+
 ## Phase 9 — Zero-to-One Innovations
 
 **Status:** Complete (55 innovations across 13 categories)

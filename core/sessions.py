@@ -93,7 +93,7 @@ class SessionManager:
         with DB_LOCK:
             conn = _get_db()
             row = conn.execute(
-                "SELECT session_id, title, status, created_at, updated_at, message_count, total_tokens FROM sessions WHERE session_id=?",
+                "SELECT session_id, title, status, created_at, updated_at, message_count, total_tokens, metadata FROM sessions WHERE session_id=?",
                 (session_id,),
             ).fetchone()
             if not row:
@@ -112,6 +112,7 @@ class SessionManager:
             "updated_at": row[4],
             "message_count": row[5],
             "total_tokens": row[6],
+            "metadata": json.loads(row[7]) if row[7] else {},
             "messages": [
                 {
                     "role": m[0],
