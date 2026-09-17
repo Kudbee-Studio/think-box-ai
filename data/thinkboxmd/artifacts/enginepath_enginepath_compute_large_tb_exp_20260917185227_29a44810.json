@@ -1,0 +1,26 @@
+{
+  "attempts": 1,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "calls_used": 1,
+  "converted": false,
+  "execution_status": "FIRST_TRY_SUCCESS",
+  "family": "compute",
+  "final_taxonomy": "valid",
+  "model": "mercury-2",
+  "origin": "live",
+  "provider": "openai_compat",
+  "task_id": "enginepath_compute_large",
+  "taxonomy": "valid",
+  "trace": {
+    "attempts": 1,
+    "converted": false,
+    "final_taxonomy": "valid",
+    "final_valid": true,
+    "first_taxonomy": "valid",
+    "retried": false,
+    "task_id": "enginepath_compute_large"
+  },
+  "valid": true,
+  "variant": "large",
+  "via": "GovernedEngine.execute_verified_task"
+}

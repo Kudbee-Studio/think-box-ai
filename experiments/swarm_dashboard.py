@@ -253,6 +253,7 @@ def _pipeline() -> dict[str, Any]:
                 "model": (params_by_exp.get(eid) or {}).get("model", ""),
                 "substrate": (params_by_exp.get(eid) or {}).get("substrate", ""),
                 "lesson_source": (params_by_exp.get(eid) or {}).get("lesson_source", ""),
+                "execution_status": (params_by_exp.get(eid) or {}).get("execution_status", ""),
                 "outcome_four_state": (outcomes.get(eid) or {}).get("four_state", ""),
                 "verification": out.get("property_valid"),
                 "artifact_sha256": out.get("artifact_sha256", ""),
@@ -726,9 +727,10 @@ async function tickPipeline(){
     kpi(t.ledger_verified?'VALID':'—','ledger',t.ledger_verified?'good':'');
   const jobs=(d.jobs||[]).slice().reverse();
   $('#pipe-jobs').className='';
-  $('#pipe-jobs').innerHTML=jobs.length?`<table><tr><th>Job</th><th>Session</th><th>Model</th><th>Verify</th><th>Artifact</th><th>Lesson src</th></tr>`+
+  $('#pipe-jobs').innerHTML=jobs.length?`<table><tr><th>Job</th><th>Session</th><th>Model</th><th>Verify</th><th>Exec status</th><th>Artifact</th><th>Lesson src</th></tr>`+
     jobs.map(j=>`<tr><td class="mono">${j.job_id||''}</td><td class="mono">${j.session_id||''}</td>`+
       `<td>${j.model||'—'}</td><td>${j.verification===true?'<b style="color:#3ddc84">VALID</b>':(j.verification===false?'<b style="color:#ff5c5c">INVALID</b>':'—')}</td>`+
+      `<td>${j.execution_status||'—'}</td>`+
       `<td class="mono">${(j.artifact_sha256||'').slice(0,12)}</td><td class="mono">${j.lesson_source||'—'}</td></tr>`).join('')+`</table>`+
     `<div class="hint" style="margin-top:8px">substrate: ${d.substrate||'—'} · code ✓ · tests ${(vs.test||{}).passed||0}/${((vs.test||{}).passed||0)+((vs.test||{}).skipped||0)} · live: ${((vs.live||{}).upcloud_api||'')} (kudbeev3 ${(vs.live||{}).kudbeev3_state||''}) · model: ${(vs.model||{}).status||''} (${(vs.model||{}).model||''}) · arena: ${((vs.arena||{}).status||'')}</div>`
     :'<div class="empty">no experiments yet</div>';

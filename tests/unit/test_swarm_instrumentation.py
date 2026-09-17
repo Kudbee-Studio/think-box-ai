@@ -588,6 +588,109 @@ class TestPopulationArena(unittest.TestCase):
         self.assertEqual(r.trace.first_taxonomy, "parse-fail")
         self.assertTrue(r.trace.retried and not r.converted)
 
+    def test_run_async_matches_run_contract(self) -> None:
+        import asyncio
+        from thinkbox.pop_arena import VerifiedRetrySession
+        async def go():
+            s = VerifiedRetrySession()
+            async def complete(p):
+                complete.n += 1
+                return '{"result": 1}' if complete.n == 1 else '{"answer": 1}'
+            complete.n = 0
+            def verify(t):
+                import json as _j
+                d = _j.loads(t)
+                return (("answer" in d), ("valid" if "answer" in d else "distractor-compliance"))
+            r = await s.run_async("t", "base", complete, verify, lambda tax: "fix key")
+            self.assertTrue(r.valid and r.converted and r.attempts == 2)
+            self.assertEqual(r.trace.first_taxonomy, "distractor-compliance")
+        asyncio.run(go())
+
+    def test_run_async_budget_exhausted(self) -> None:
+        import asyncio
+        from thinkbox.pop_arena import (
+            BudgetExhausted, VerifiedRetryConfig, VerifiedRetrySession,
+        )
+        async def go():
+            s = VerifiedRetrySession(VerifiedRetryConfig(max_retries=1, max_calls=1))
+            async def complete(p):
+                return '{"result": 1}'
+            with self.assertRaises(BudgetExhausted):
+                await s.run_async("t", "p", complete,
+                                  lambda t: (False, "distractor-compliance"),
+                                  lambda tax: "again")
+        asyncio.run(go())
+
+    def test_engine_wrapper_first_try_success(self) -> None:
+        import asyncio
+        from thinkbox.engine import ThinkBoxEngine
+        from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+        async def go():
+            eng = GovernedEngine(GovernedEngineConfig(engine=ThinkBoxEngine()))
+            async def complete(p):
+                return '{"answer": 5}'
+            out = await eng.execute_verified_task(
+                "t1", "prompt",
+                lambda t: (True, "valid"), lambda tax: "again", complete,
+                agent_id="test", experiment_id="exp1",
+            )
+            self.assertEqual(out["execution_status"], "FIRST_TRY_SUCCESS")
+            self.assertTrue(out["valid"] and out["attempts"] == 1)
+            self.assertTrue(eng.ledger.verify())
+        asyncio.run(go())
+
+    def test_engine_wrapper_recovered_and_failed(self) -> None:
+        import asyncio
+        import json as _j
+        from thinkbox.engine import ThinkBoxEngine
+        from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+        async def go():
+            eng = GovernedEngine(GovernedEngineConfig(engine=ThinkBoxEngine()))
+            n = {"c": 0}
+            async def complete(p):
+                n["c"] += 1
+                return '{"result": 1}' if n["c"] == 1 else '{"answer": 1}'
+            def verify(t):
+                d = _j.loads(t)
+                return (("answer" in d), ("valid" if "answer" in d else "distractor-compliance"))
+            out = await eng.execute_verified_task(
+                "t2", "prompt", verify, lambda tax: "fix", complete,
+                agent_id="test", experiment_id="exp2",
+            )
+            self.assertEqual(out["execution_status"], "RECOVERED_SUCCESS")
+            self.assertEqual(out["taxonomy"], "distractor-compliance")
+            async def bad(p):
+                return '{"x": 1}'
+            out2 = await eng.execute_verified_task(
+                "t3", "prompt", lambda t: (False, "arithmetic"),
+                lambda tax: "again", bad, agent_id="test", experiment_id="exp3",
+            )
+            self.assertEqual(out2["execution_status"], "FAILED_AFTER_RETRY")
+        asyncio.run(go())
+
+    def test_engine_wrapper_budget_exhausted_and_unverified(self) -> None:
+        import asyncio
+        from thinkbox.engine import ThinkBoxEngine
+        from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+        from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession
+        async def go():
+            eng = GovernedEngine(GovernedEngineConfig(engine=ThinkBoxEngine()))
+            sess = VerifiedRetrySession(VerifiedRetryConfig(max_retries=1, max_calls=1))
+            async def complete(p):
+                return '{"result": 1}'
+            out = await eng.execute_verified_task(
+                "t4", "prompt", lambda t: (False, "distractor-compliance"),
+                lambda tax: "again", complete, session=sess,
+                agent_id="test", experiment_id="exp4",
+            )
+            self.assertEqual(out["execution_status"], "BUDGET_EXHAUSTED")
+            out2 = await eng.execute_verified_task(
+                "t5", "prompt", None, lambda tax: "again", complete,
+                agent_id="test", experiment_id="exp5",
+            )
+            self.assertEqual(out2["execution_status"], "UNVERIFIED")
+        asyncio.run(go())
+
 
 if __name__ == "__main__":
     unittest.main()

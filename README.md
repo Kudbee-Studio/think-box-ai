@@ -144,6 +144,13 @@ doing its job.
 - **UpCloud = infrastructure / control-plane ONLY** (read-only REST). No UpCloud machine execution, no GPU execution, no SSH — removed from the roadmap.
 - Proof: `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` (Box job + restart + identical replay verified; model execution verified 2026-09-17, see `model_job_proof_20260917.json`; first learning loop verified, see `learn_loop_proof_20260917.json` — reuse proven, NO_MEASURABLE_IMPROVEMENT).
 
+### Verified execution in the engine (2026-09-17)
+
+- **Primitive:** `VerifiedRetrySession` + `run_async` in `thinkbox/pop_arena.py` (bounded retries for retryable taxonomies, per-call traces, session call budget).
+- **Integration point:** `GovernedEngine.execute_verified_task` — thin async wrapper (no duplicated logic); `ThinkBoxEngine.execute_goal` untouched; Arena stays benchmark consumer.
+- **Telemetry:** per-job `execution_status` (`FIRST_TRY_SUCCESS` / `RECOVERED_SUCCESS` / `FAILED_AFTER_RETRY` / `BUDGET_EXHAUSTED` / `UNVERIFIED`) persisted as an experiment parameter and shown as the Exec status column in the Pipeline dashboard.
+- **Live proof:** 6 fresh engine-path jobs via Mercury-2/Box (5 first-try + 1 recovered, 7 calls, 0 failed); proof `data/thinkboxmd/artifacts/enginepath_proof_20260917.json`. Infrastructure milestone — NOT model intelligence improvement.
+
 ### Experiment + Learning Dashboard
 
 Persistent, zero-server experiment tracking with SQLite persistence and
@@ -271,7 +278,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **275 tests** (all passing)
+Current test count: **640 tests** (all passing, 6 skipped)
 
 ---
 

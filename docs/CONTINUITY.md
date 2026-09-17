@@ -33,18 +33,31 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Default-path generalization: VerifiedRetrySession as the standard verified execution path for all Think Jobs |
-| **Latest completed work** | Default-path proof COMPLETE: 8 live jobs across compute/distractor/multifield via VerifiedRetrySession (budget 16, spent 9); 8/8 valid with 1 wrongkey conversion; IMPROVED mechanism at scale — 635 tests passing |
-| **Current verified capabilities** | VerifiedRetrySession (bounded retries + session call budget + per-call traces) + 5 deterministic tests; live proof with memory + dashboard; 635 tests passing |
+| **Active objective** | Engine promotion: VerifiedRetrySession as the standard GovernedEngine per-task verified execution primitive (Arena = benchmark consumer) |
+| **Latest completed work** | Engine promotion COMPLETE: `GovernedEngine.execute_verified_task` live-proven on 6 fresh instances (5 first-try + 1 recovery); restart/replay/dashboard verified — 640 tests passing |
+| **Current verified capabilities** | Engine-owned verified execution (`run_async` + wrapper, `+5` deterministic tests); Exec-status telemetry in dashboard; 640 tests passing |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). |
-| **Known risks** | Conversion evidence still small-n (2 total across v3 + default-path); budget caps prevent runaway spend (proven: 9/16 spent, BudgetExhausted tested). |
-| **Next larger improvement** | Promote VerifiedRetrySession into ThinkBoxEngine.execute_goal as the standard per-task wrapper with dashboard-visible retry telemetry |
-| **PR status** | main at d691fa6; default-path work on main working tree, uncommitted |
-| **Test count** | **635 tests passing (6 skipped)** |
+| **Known risks** | Recovery evidence small-n (3 conversions lifetime across v3/default-path/engine-path); 1 retry max per task bounds cost. |
+| **Next larger improvement** | Extend engine wrapper telemetry to full ThinkBoxEngine.execute_goal task layers (per-task verified execution at DAG scale) with dashboard-visible retry rates |
+| **PR status** | main at 10a1129; engine-promotion work on main working tree, uncommitted |
+| **Test count** | **640 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Engine Promotion: Verified Execution in GovernedEngine (6 fresh live jobs, COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Promote VerifiedRetrySession into the engine as the standard per-task verified primitive; Arena stays benchmark consumer. HEAD `10a1129`, branch `main`. No SSH, no UpCloud compute, no GPU, no mocks, no unbounded calls. |
+| **Integration point** | `GovernedEngine.execute_verified_task` — thin async wrapper delegating to new `VerifiedRetrySession.run_async` (sync `run` untouched; no logic duplicated). `ThinkBoxEngine.execute_goal` untouched. Decision: engine owns per-task verified execution; pop_arena owns retry primitives + population benchmark. |
+| **Compatibility** | verify=None → UNVERIFIED single attempt; arithmetic/inconsistency never auto-retry; BudgetExhausted fails honestly; first taxonomy preserved in trace; per-attempt ledger metadata (session/job/experiment ids, taxonomy, attempt, latency, tokens, outcome). |
+| **Live proof (fresh instances)** | 6 engine-path jobs via Mercury-2/Box: 5 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (`enginepath_distractor_wrongkey`: distractor-compliance → valid, 2 attempts); 7 calls, 0 failed; memory `learn:enginepath:verified-wrapper`; dashboard Exec status column; restart reload 6/6 + replay 6/6. |
+| **Tests** | `+5` deterministic (run_async parity, async budget, wrapper first-try/recovered/failed, wrapper budget+unverified). Proof `enginepath_proof_20260917.json` SHA256 `118de71b…8dc419b6`. Suite 640 OK (6 skipped). |
+| **Decision (Chronicle)** | engine owns per-task verified execution; pop_arena owns retry primitives + population benchmark; milestone — the same primitive operates outside Arena on fresh jobs. NOT model intelligence improvement. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (640) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (79 live calls total) / ENGINE_PROMOTED (verified wrapper live-proven) / PRODUCTION not claimed |
 
 ### 2026-09-17 — Default-Path Generalization (VerifiedRetrySession, 8 live jobs, IMPROVED)
 

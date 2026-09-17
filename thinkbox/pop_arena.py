@@ -745,7 +745,11 @@ class VerifiedRetrySession:
         verify,
         reprompt,
     ) -> VerifiedCallResult:
-        """Execute one verified call with bounded retries. Deterministic."""
+        """Execute one verified call with bounded retries. Deterministic.
+
+        Sync entry point. For async callers (engine path, live runners) use
+        run_async with an async complete coroutine — identical contract.
+        """
         first_taxonomy_holder: list[str] = []
         self._spend_call()
         first = complete(prompt)
@@ -776,6 +780,89 @@ class VerifiedRetrySession:
             retries_used += 1
             self.retries_fired += 1
             second = complete(prompt + " " + reprompt(taxonomy))
+            valid2, taxonomy2 = verify(second)
+            if valid2:
+                self.conversions += 1
+                return VerifiedCallResult(
+                    valid=True,
+                    taxonomy=taxonomy2,
+                    attempts=1 + retries_used,
+                    retries_used=retries_used,
+                    converted=True,
+                    trace=RetryTrace(
+                        task_id=task_id,
+                        first_taxonomy=first_taxonomy_holder[0],
+                        retried=True,
+                        final_valid=True,
+                        final_taxonomy=taxonomy2,
+                        attempts=1 + retries_used,
+                        converted=True,
+                    ),
+                    calls_spent=self.calls_spent,
+                )
+            taxonomy = taxonomy2
+        return VerifiedCallResult(
+            valid=False,
+            taxonomy=taxonomy,
+            attempts=1 + retries_used,
+            retries_used=retries_used,
+            converted=False,
+            trace=RetryTrace(
+                task_id=task_id,
+                first_taxonomy=first_taxonomy_holder[0],
+                retried=True,
+                final_valid=False,
+                final_taxonomy=taxonomy,
+                attempts=1 + retries_used,
+                converted=False,
+            ),
+            calls_spent=self.calls_spent,
+        )
+
+    async def run_async(
+        self,
+        task_id: str,
+        prompt: str,
+        complete_async,
+        verify,
+        reprompt,
+    ) -> VerifiedCallResult:
+        """Async twin of run() for the engine path. Identical contract.
+
+        complete_async(prompt) is awaited per attempt; budget is spent per
+        attempt exactly as in run(). No logic duplicated: same gate, same
+        trace shape, same counters.
+        """
+        first_taxonomy_holder: list[str] = []
+        self._spend_call()
+        first = await complete_async(prompt)
+        valid, taxonomy = verify(first)
+        first_taxonomy_holder.append(taxonomy)
+        retries_used = 0
+        if valid or taxonomy not in self.config.retryable:
+            trace = RetryTrace(
+                task_id=task_id,
+                first_taxonomy=taxonomy,
+                retried=False,
+                final_valid=valid,
+                final_taxonomy=taxonomy,
+                attempts=1,
+                converted=False,
+            )
+            return VerifiedCallResult(
+                valid=valid,
+                taxonomy=taxonomy,
+                attempts=1,
+                retries_used=0,
+                converted=False,
+                trace=trace,
+                calls_spent=self.calls_spent,
+            )
+        while retries_used < self.config.max_retries and taxonomy in self.config.retryable:
+            self._spend_call()
+            retries_used += 1
+            self.retries_fired += 1
+            second = await complete_async(prompt + " " + reprompt(taxonomy))
             valid2, taxonomy2 = verify(second)
             if valid2:
                 self.conversions += 1

@@ -557,8 +557,8 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 **Case C: The historical IP is no longer the current server.**
 The server 212.147.250.183 is either no longer provisioned, has been reassigned, or has security group rules that block port 22 entirely. The historical IP is confirmed from git history but is not reachable.
 
-#### Phase 6 — Permanence
-- Status: CODE COMPLETE (investigation), TEST VERIFIED (605 tests), NOT LIVE VERIFIED
+#### Phase 6 — Permanence (historical; test counts below are point-in-time)
+- Status: CODE COMPLETE (investigation), TEST VERIFIED (605 tests at that time), NOT LIVE VERIFIED
 - Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
 
 ### Current Status (2026-09-17) — SUPERSEDED by Live Host Verification below; kept for history
@@ -622,6 +622,14 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Mechanism:** `VerifiedRetrySession` + `VerifiedRetryConfig`/`VerifiedCallResult`/`BudgetExhausted` in `thinkbox/pop_arena.py` (sync-pure, bounded retries, per-call traces, session budget); `+5` deterministic tests.
 - **Live proof:** 8 jobs across compute/distractor(6)/multifield (budget 16, spent 9): 8/8 valid, 1 retry → 1 conversion. Memory `learn:defaultpath:retry-session` + dashboard. Proof `defaultpath_proof_20260917.json` SHA256 `5a0e0c16…94cfa3c74`. Suite 635 OK (6 skipped).
 
+### Engine Promotion: Verified Execution in GovernedEngine (2026-09-17) — COMPLETE
+
+- **Integration point:** `GovernedEngine.execute_verified_task` — thin async wrapper delegating to `VerifiedRetrySession.run_async` (added alongside sync `run`; no logic duplicated). `ThinkBoxEngine.execute_goal` untouched; Arena stays benchmark consumer.
+- **Compatibility:** verify=None → UNVERIFIED single attempt; arithmetic/inconsistency never auto-retry; BudgetExhausted fails honestly; first taxonomy preserved in trace; per-attempt ledger metadata (session/job/experiment ids, taxonomy, attempt, latency, tokens, outcome).
+- **Live proof (fresh instances):** 6 engine-path jobs via Mercury-2/Box: 5 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (`enginepath_distractor_wrongkey`: distractor-compliance → valid, 2 attempts); 7 calls, 0 failed; memory `learn:enginepath:verified-wrapper`; dashboard Exec status column; restart reload 6/6 + replay 6/6.
+- **Tests:** `+5` deterministic (run_async parity, async budget, wrapper first-try/recovered/failed, wrapper budget+unverified). Proof `enginepath_proof_20260917.json` SHA256 `118de71b…8dc419b6`. Suite 640 OK (6 skipped).
+- **Decision (Chronicle):** engine owns per-task verified execution; pop_arena owns retry primitives + population benchmark; milestone — the same primitive operates outside Arena on fresh jobs. NOT model intelligence improvement.
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:
@@ -630,20 +638,19 @@ The connection path used:
 3. Server 212.147.250.183 (kudbee-host-v1)
 4. The key was committed in git commit 5f6a5c7 but removed from working tree by 09830a6
 
-### Recovery Actions Taken
+### Recovery Actions Taken (historical; test counts below are point-in-time)
 - SSH key recovered from git history (commit 5f6a5c7) — exists in workspace as `kilo-upcloud-recovered` but NOT at `~/.ssh/kilo-upcloud`
 - UpCloud provider files restored from git history (commit 32d82ef)
 - CONTINUITY.md restored from git history (commit 59f7eee)
 - Dashboard state updated with actual infrastructure findings
-- All 605 tests passing
 
 ### Required Human Action (EXACT) — historical SSH direction SUPERSEDED (kept for record; do not act)
 
 SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
 
-### PR Status (2026-09-17)
+### PR Status (2026-09-17) (historical; current work commits directly to main, see Chronicle)
 - **All PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
-- **Main merged**: commit `9f12e1d` contains all work
+- **Historical merge**: commit `9f12e1d` contained all work at that time
 - **Branch status**: `kilo/adept-marsh-qiq` merged into main, `kilo/leafy-dragon-4ck` superseded
 - **No stale PRs remain**
 
@@ -677,7 +684,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (477 tests, 1 skip)
+- Full suite: `python3 -m unittest discover tests/` (640 tests, 6 skipped; canonical count — see Chronicle)
 
 ### ADR
 

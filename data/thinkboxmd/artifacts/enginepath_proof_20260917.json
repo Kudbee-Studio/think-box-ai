@@ -1,0 +1,30 @@
+{
+  "branch": "main",
+  "checkout_sha": "10a11290e9d5e2591c17458527427810684bb2ef",
+  "classification": "IMPROVED (reusable verified execution operates outside Arena on fresh instances)",
+  "four_state": "ENGINE_PROMOTED (verified wrapper live-proven)",
+  "integration_point": "GovernedEngine.execute_verified_task (thin async wrapper; delegates to VerifiedRetrySession.run_async; no logic duplicated)",
+  "jobs": {
+    "calls": 7,
+    "failed": 0,
+    "first_try": 5,
+    "recovered": 1,
+    "recovery": {
+      "attempts": 2,
+      "final": "valid",
+      "first": "distractor-compliance",
+      "task": "enginepath_distractor_wrongkey"
+    },
+    "total": 6
+  },
+  "no_claims": [
+    "no model intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "phase": "engine-promotion",
+  "scope": "infrastructure milestone (primitive works outside Arena); NOT model intelligence improvement",
+  "telemetry": "execution_status in FIRST_TRY_SUCCESS/RECOVERED_SUCCESS persisted per job as experiment parameter; dashboard jobs table shows Exec status column",
+  "timestamp": "2026-09-17T18:53:36.829794+00:00"
+}

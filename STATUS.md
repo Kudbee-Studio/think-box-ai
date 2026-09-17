@@ -27,7 +27,7 @@
 ### Tests
 
 - `tests/unit/test_cnc.py` — 43 tests
-- Full suite: 477 tests, 1 skip
+- Full suite: 640 tests, 6 skipped (canonical count; §Experiment section below)
 
 ## Experiment + Learning Dashboard
 
@@ -60,8 +60,16 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 21 tests (v1 + v2 families/taxonomy + v3 retry + default-path session)
-- Full suite: **635 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper)
+- Full suite: **640 tests, 6 skipped**
+
+### Engine Promotion: Verified Execution in GovernedEngine (2026-09-17) — COMPLETE
+
+- **Integration point:** `GovernedEngine.execute_verified_task` — thin async wrapper delegating to `VerifiedRetrySession.run_async` (no logic duplicated); `ThinkBoxEngine.execute_goal` untouched; Arena stays benchmark consumer
+- **Compatibility:** verify=None → legacy single attempt with status UNVERIFIED; arithmetic/inconsistency never auto-retry; BudgetExhausted fails honestly; first-failure taxonomy preserved in trace
+- **Live proof (fresh instances):** 6 engine-path jobs (compute×2, distractor×3, multifield×1) via Mercury-2/Box: 5 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (`enginepath_distractor_wrongkey`: distractor-compliance → valid, 2 attempts); 7 calls, 0 failed; ledger verified; memory `learn:enginepath:verified-wrapper`
+- **Telemetry:** execution_status persisted per job as experiment parameter; dashboard jobs table shows Exec status column; restart reload 6/6 telemetry + replay 6/6
+- **Evidence:** `data/thinkboxmd/artifacts/enginepath_proof_20260917.json` (SHA256 `118de71b…8dc419b6`, 7 files secrets-clean); FourState ENGINE_PROMOTED
 
 ### Default-Path Generalization (2026-09-17) — COMPLETE (IMPROVED mechanism at scale)
 

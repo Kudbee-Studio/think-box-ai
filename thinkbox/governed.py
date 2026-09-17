@@ -7,6 +7,7 @@ the ledger and surfaced as FAILED events instead of executing.
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,6 +18,14 @@ from thinkbox.engine import ThinkBoxEngine, TaskState
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.identity import IdentityLedger
 from thinkbox.ledger import ActionLedger
+
+EXECUTION_STATUSES = (
+    "FIRST_TRY_SUCCESS",
+    "RECOVERED_SUCCESS",
+    "FAILED_AFTER_RETRY",
+    "BUDGET_EXHAUSTED",
+    "UNVERIFIED",
+)
 
 
 @dataclass
@@ -72,3 +81,141 @@ class GovernedEngine:
     @property
     def gate(self) -> AdmissionGate:
         return self._gate
+
+    async def execute_verified_task(
+        self,
+        task_id: str,
+        prompt: str,
+        verify,
+        reprompt,
+        complete_async,
+        session=None,
+        agent_id: str = "",
+        experiment_id: str = "",
+        latency_s: float = 0.0,
+        tokens: int = 0,
+    ) -> dict[str, Any]:
+        """Standard verified-execution wrapper around VerifiedRetrySession.
+
+        Smallest safe integration point: every verified Think Job task runs
+        here instead of calling the provider directly. Reuses
+        VerifiedRetrySession/VerifiedCallResult/BudgetExhausted/RetryTrace
+        without duplicating their logic. Behavior without verification is
+        untouched — callers that pass verify=None get the legacy single
+        attempt with status UNVERIFIED.
+
+        Every attempt records session/job/experiment ids, taxonomy, attempt
+        number, latency, usage and outcome into the ledger metadata, and the
+        returned dict carries execution_status in
+        FIRST_TRY_SUCCESS / RECOVERED_SUCCESS / FAILED_AFTER_RETRY /
+        BUDGET_EXHAUSTED / UNVERIFIED for dashboard telemetry.
+        """
+        from thinkbox.pop_arena import BudgetExhausted, VerifiedRetrySession
+
+        t0 = time.monotonic()
+        if session is None:
+            session = VerifiedRetrySession()
+        if verify is None:
+            text = await complete_async(prompt)
+            status = "UNVERIFIED"
+            self._ledger.append(
+                agent_id=agent_id or task_id,
+                capability="model:complete",
+                action=f"verified_task:{task_id}",
+                allowed=True,
+                reason=status,
+                metadata={
+                    "session_id": "",
+                    "job_id": task_id,
+                    "experiment_id": experiment_id,
+                    "taxonomy": "",
+                    "attempt": 1,
+                    "latency_s": round(time.monotonic() - t0, 3),
+                    "tokens": tokens,
+                    "outcome": status,
+                },
+            )
+            return {
+                "task_id": task_id,
+                "execution_status": status,
+                "valid": True,
+                "taxonomy": "",
+                "attempts": 1,
+                "retries_used": 0,
+                "converted": False,
+                "latency_s": round(time.monotonic() - t0, 3),
+                "tokens": tokens,
+            }
+        try:
+            result = await session.run_async(task_id, prompt, complete_async, verify, reprompt)
+        except BudgetExhausted:
+            self._ledger.append(
+                agent_id=agent_id or task_id,
+                capability="model:complete",
+                action=f"verified_task:{task_id}",
+                allowed=False,
+                reason="BUDGET_EXHAUSTED",
+                metadata={
+                    "session_id": "",
+                    "job_id": task_id,
+                    "experiment_id": experiment_id,
+                    "taxonomy": "",
+                    "attempt": session.calls_spent + 1,
+                    "latency_s": round(time.monotonic() - t0, 3),
+                    "tokens": tokens,
+                    "outcome": "BUDGET_EXHAUSTED",
+                },
+            )
+            return {
+                "task_id": task_id,
+                "execution_status": "BUDGET_EXHAUSTED",
+                "valid": False,
+                "taxonomy": "",
+                "attempts": result_attempts(session),
+                "retries_used": session.retries_fired,
+                "converted": False,
+                "latency_s": round(time.monotonic() - t0, 3),
+                "tokens": tokens,
+            }
+        if result.valid and result.attempts == 1:
+            status = "FIRST_TRY_SUCCESS"
+        elif result.valid:
+            status = "RECOVERED_SUCCESS"
+        else:
+            status = "FAILED_AFTER_RETRY"
+        self._ledger.append(
+            agent_id=agent_id or task_id,
+            capability="model:complete",
+            action=f"verified_task:{task_id}",
+            allowed=result.valid,
+            reason=status,
+            metadata={
+                "session_id": "",
+                "job_id": task_id,
+                "experiment_id": experiment_id,
+                "taxonomy": result.trace.first_taxonomy,
+                "final_taxonomy": result.trace.final_taxonomy,
+                "attempt": result.attempts,
+                "latency_s": latency_s or round(time.monotonic() - t0, 3),
+                "tokens": tokens,
+                "outcome": status,
+            },
+        )
+        return {
+            "task_id": task_id,
+            "execution_status": status,
+            "valid": result.valid,
+            "taxonomy": result.trace.first_taxonomy,
+            "final_taxonomy": result.trace.final_taxonomy,
+            "attempts": result.attempts,
+            "retries_used": result.retries_used,
+            "converted": result.converted,
+            "latency_s": latency_s or round(time.monotonic() - t0, 3),
+            "tokens": tokens,
+            "trace": result.trace.to_dict(),
+        }
+
+
+def result_attempts(session) -> int:
+    """Attempts so far on a session (calls spent; 0 when budget blocked first call)."""
+    return session.calls_spent
