@@ -1,0 +1,75 @@
+{
+  "agent_session": "tb_sess_20260917165841_9912",
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "box_id": "box_950e971d6d1b",
+  "box_traversal": "request issued from in-Box process via existing OpenAICompatProvider.complete -> urllib POST {base_url}/chat/completions; response validated, persisted, and replayed in-Box; no SSH, no UpCloud compute, no GPU",
+  "branch": "kilo/fair-wind-03a",
+  "checkout_sha": "9d08ac33a31b8bdb1d187899bea11776457135e4",
+  "config_resolution": "existing MercuryClient contract (experiments/thinkboxmd_research.py: INCEPTION_BASE_URL + INCEPTION_MODEL + INCEPTION_API_KEY) composed with registered openai_compat provider; no invented values; standard THINKBOX_OPENAI_COMPAT_* contract stays absent by design (no env changes made)",
+  "four_state": "MODEL_EXECUTION_VERIFIED (single bounded live call; no intelligence claim)",
+  "job_id": "tb_exp_20260917165842_4b92d477",
+  "key_source": "INCEPTION_API_KEY (presence only; value never stored)",
+  "model": "mercury-2",
+  "no_claims": [
+    "no GPU execution",
+    "no UpCloud machine execution",
+    "no SSH",
+    "no intelligence improvement"
+  ],
+  "provider": "openai_compat",
+  "replay": {
+    "mode": "property-based (byte-identical response NOT required)",
+    "property_satisfied": true
+  },
+  "request": {
+    "calls": 1,
+    "max_tokens": 3500,
+    "system_prompt_chars": 107,
+    "temperature": 0.2,
+    "timeout_s": 60,
+    "user_prompt_chars": 22
+  },
+  "response": {
+    "chars": 14,
+    "latency_s": 0.774,
+    "parsed": {
+      "answer": 42
+    },
+    "response_sha256": "f85ee2859e7757b5bcf33d720ead3c508e04e0d997845cfab9bf5aebe6569086",
+    "usage": {
+      "cached_tokens": 4,
+      "completion_tokens": 77,
+      "prompt_tokens": 36,
+      "reasoning_tokens": 70,
+      "total_tokens": 113
+    }
+  },
+  "response_artifact": "data/thinkboxmd/artifacts/model_job_tb_exp_20260917165842_4b92d477.json",
+  "response_artifact_sha256": "e41e8f9e1c16cc6038041c83aa6591fc7b77ff7f9667b789d2119b948fcaf8f6",
+  "restart": {
+    "box_found": true,
+    "experiment_found": true,
+    "hash_match": true,
+    "ledger_verified": true,
+    "memory_found": true,
+    "session_found": true,
+    "substrate_stable": true
+  },
+  "safety": {
+    "bounded": true,
+    "failure_path": "honest FAILED outcome if property invalid",
+    "no_api_keys": true,
+    "no_auth_headers": true,
+    "no_bearer": true,
+    "no_env_dump": true,
+    "no_secret_patterns": true
+  },
+  "session_id": "tb_sess_20260917165841_b7bdb508",
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+  "timestamp": "2026-09-17T16:59:22.368534+00:00",
+  "validation": {
+    "method": "extract_json balanced-brace parse",
+    "passed": true,
+    "property": "parsed.answer == 42"
+  }
+}

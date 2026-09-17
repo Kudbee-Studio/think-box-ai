@@ -1,0 +1,36 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "box_id": "box_950e971d6d1b",
+  "experiment_id": "tb_exp_20260917165842_4b92d477",
+  "host": "cloudchamber",
+  "latency_s": 0.774,
+  "max_tokens": 3500,
+  "model": "mercury-2",
+  "parsed": {
+    "answer": 42
+  },
+  "property": {
+    "expected": 42,
+    "key": "answer",
+    "valid": true
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "f85ee2859e7757b5bcf33d720ead3c508e04e0d997845cfab9bf5aebe6569086",
+  "session_id": "tb_sess_20260917165841_9912",
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+  "system_prompt": "You are a deterministic test responder. Reply with ONLY this exact JSON object and nothing else: {\"answer\": 42}",
+  "temperature": 0.2,
+  "usage": {
+    "completion_tokens": 77,
+    "completion_tokens_details": {
+      "reasoning_tokens": 70
+    },
+    "prompt_tokens": 36,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 113
+  },
+  "user_prompt": "Emit the JSON object now."
+}

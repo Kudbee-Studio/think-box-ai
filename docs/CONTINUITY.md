@@ -33,18 +33,32 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Upstash Box as PRIMARY Think Box execution substrate (UpCloud = control-plane only) |
-| **Latest completed work** | Box-primary Think Job executed in live Box runtime + restart/replay verified + UpCloud reclassified — 606 tests passing |
-| **Current verified capabilities** | Substrate contract (Box wins), in-Box deterministic job (artifact + Vector snapshot + ledger + memory + outcome + dashboard), fresh-process recovery + identical replay, 606 tests passing |
-| **Current blockers** | Model execution NOT YET VERIFIED (INCEPTION key present but THINKBOX_OPENAI_COMPAT_* wiring absent); Box has no remote-exec API (preview 404, Box SSH password-only) — execution claim is in-Box compute, not remote dispatch |
-| **Known risks** | `record_outcome` does not transition experiment status (stays pending; pre-existing, untouched); UpCloud SSH direction removed from roadmap (no adapter will be built) |
-| **Next larger improvement** | Connect the verified Upstash Box execution substrate to the existing model-provider path and prove a real model-backed Think Job, only if the configured environment supports it |
-| **PR status** | kilo/fair-wind-03a at 76b576a + Box-primary work uncommitted |
-| **Test count** | **606 tests passing (6 skipped)** |
+| **Active objective** | Real model-backed Think Job on Upstash Box substrate (Mercury-2 via existing provider path) |
+| **Latest completed work** | Live model-backed Think Job verified end-to-end (Box → provider → response → validation → artifact → proof → memory → replay → dashboard) — 609 tests passing |
+| **Current verified capabilities** | Model path (openai_compat → api.inceptionlabs.ai/v1 → mercury-2 via existing MercuryClient contract), single bounded live call with property validation, fresh-process recovery + property replay, no-secret safety, 609 tests passing |
+| **Current blockers** | None for model execution. `record_outcome` status stays pending (pre-existing, untouched). Standard THINKBOX_OPENAI_COMPAT_* contract intentionally unconfigured (no env changes). |
+| **Known risks** | Single live call proves the path, not model quality; no intelligence-improvement claim. Mercury-2 reasoning tokens consume budget — max_tokens 3500 floor respected. |
+| **Next larger improvement** | Build the first end-to-end Think Job that combines model reasoning + verifier + persistent learning + proof |
+| **PR status** | kilo/fair-wind-03a at 9d08ac3 + model-job work uncommitted |
+| **Test count** | **609 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Real Model-Backed Think Job (Mercury-2 via Box substrate)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Prove Think Box → Upstash Box → Model Provider → Response → Validation → Artifact → Proof → Memory → Replay → Dashboard. HEAD `9d08ac3`, branch `kilo/fair-wind-03a`. No SSH, no UpCloud compute, no GPU, no mocks, no invented config. |
+| **Phase 1 path** | Supported model providers: `openai_compat` + `ollama` (registry-verified). Live contract found in-repo: `experiments/thinkboxmd_research.py::MercuryClient` = `OpenAICompatProvider{api_key: INCEPTION_API_KEY (presence only), model: mercury-2, base_url: https://api.inceptionlabs.ai/v1}`. `think_box_ai/commands/inception.py` is simulate-only (not used). `thinkbox/model_client.py` has no auth path (not used). |
+| **Phase 2 contract** | Legitimate existing configuration: INCEPTION_API_KEY SET + documented endpoint/model constants + proven provider composition (THINKBOXMD 9 PASS live, 2026-09-15). No values invented, no env changes. Standard `THINKBOX_OPENAI_COMPAT_*` contract stays absent by design — verdict is CONFIGURED via the Inception contract, not MODEL_NOT_CONFIGURED. |
+| **Phase 3 live call** | ONE bounded call (temp 0.2, max_tokens 3500, 60s timeout): prompt demands exactly `{"answer": 42}`. Response 14 chars, parsed `{"answer": 42}`, property VALID. Usage 36/77/113 tokens (70 reasoning, 4 cached), latency 0.774s. Session `tb_sess_20260917165841_b7bdb508`, box `box_950e971d6d1b` (Vector persisted), job `tb_exp_20260917165842_4b92d477`, artifact `model_job_<id>.json` SHA256 `e41e8f9e…caf8f6`, ledger verify True, memory + proof + outcome TEST_VERIFIED + lesson + dashboard JOB_COMPLETED + provider verified. No intelligence claim. |
+| **Phase 4 replay** | Fresh handles: experiment/session/box/artifact/proof/memory/outcome reload OK; canonical hash match; property re-validated True (byte-identical response NOT required — recorded explicitly). |
+| **Phase 5 safety** | Artifact scanned: no API keys, no Authorization/Bearer, no env dump, no secret patterns; base_url + model recorded (safe); single bounded call; failure path = honest FAILED outcome. No new provider built — existing path reused. |
+| **Tests/evidence** | `tests/unit/test_providers.py` +3 (endpoint shape, chat/completions targeting with URL/body assertions, no-secrets contract) — all mocked, deterministic. Proof `data/thinkboxmd/artifacts/model_job_proof_20260917.json` SHA256 `a4171cdc…356c12`. Full suite 609 OK (6 skipped). |
+| **FourState** | MODEL_EXECUTION_VERIFIED (single bounded live call; path proven, quality unclaimed) |
 
 ### 2026-09-17 — Upstash Box as Primary Execution Substrate
 
@@ -55,7 +69,7 @@ Before declaring completion, every agent MUST verify:
 | **Phase 1 contract** | Traced `detect_substrate()` / `bind_think_box` / `WorkspaceRegistry+Store` / `SubstrateProbe` / env handling. Precedence proven live: `UPSTASH_PUBLIC_BOX_URL` (Box host) > `THINKBOX_UPCLOUD_API_TOKEN` (legacy label) > `CI` > `local`. Live selection: `wanted-tuna-71803-3000.preview.box.upstash.com`. No secrets printed (presence/length only). |
 | **Phase 2 Box job** | Deterministic job through the REAL Box substrate (this process IS the Box compute: Firecracker kernel `6.18.36-cloudflare-firecracker`, Box host env; no remote-exec API exists — Box preview 404 on all paths, Box SSH password-only, no CLI/SDK — so claim is in-Box execution, honestly bounded). Session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted=True), job `tb_exp_20260917164615_32b3ee9c`, artifact `box_job_<id>.json` SHA256 `8bac2b52…57662550`, validation PASS, ledger verify True, memory record, outcome TEST_VERIFIED, dashboard JOB_COMPLETED. |
 | **Phase 3 restart** | Fresh handles: experiment/session/box/artifact/proof/memory/outcome all reload; canonical hash matches; ledger verifies; replay `sorted([5,3,4,1,2])` identical `[1,2,3,4,5]`; substrate stable across processes. Note: `record_outcome` leaves status `pending` (pre-existing behavior, untouched). |
-| **Phase 4 model** | `OpenAICompatProvider` implemented (chat/completions, embedding=False). `INCEPTION_API_KEY` present but `THINKBOX_OPENAI_COMPAT_*` + provider/model wiring absent → no paid call made. Verdict: BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED. |
+| **Phase 4 model (Box-primary run)** | `OpenAICompatProvider` implemented (chat/completions, embedding=False). At that time `THINKBOX_OPENAI_COMPAT_*` wiring absent → no call made. SUPERSEDED same-day: existing Inception contract (`INCEPTION_API_KEY` + MercuryClient constants) proven legitimate → live call VERIFIED (see "Real Model-Backed Think Job" above). |
 | **Phase 5 reclassify** | `thinkbox/upcloud.py`: control-plane-only docstring, no stale host defaults (explicit values required), `api_url` 1.6→1.3, provider model/endpoint labels fixed. `tests/unit/test_cnc.py`: defaults + explicit-server tests. Historical docs/artifacts kept (superseded, not deleted). No competing substrate built. No SSH used. |
 | **Evidence** | `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Full suite 606 OK (6 skipped). |
 | **FourState** | TEST_VERIFIED (job+restart+replay) with LIVE_VERIFIED substrate selection + Vector write; NOT production; no UpCloud/GPU/SSH/model claims |

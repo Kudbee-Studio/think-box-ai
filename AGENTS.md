@@ -590,7 +590,7 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Upstash Box = current execution substrate.** Precedence: `UPSTASH_PUBLIC_BOX_URL` > `THINKBOX_UPCLOUD_API_TOKEN` (legacy label) > `CI` > `local`. Live: `wanted-tuna-71803-3000.preview.box.upstash.com`. URL always from env — never hard-coded.
 - **SSH-to-UpCloud = unsupported / not required.** Removed from roadmap (was: "register an authorized key then retry host proof" — superseded). `thinkbox/upcloud.py` defaults fixed (no stale host, `api_url` 1.3); history preserved in prior sections.
 - **Box job proof:** session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted), job `tb_exp_20260917164615_32b3ee9c`, artifact SHA256 `8bac2b52…57662550`, restart + identical replay verified, dashboard JOB_COMPLETED. Executed in-Box (Firecracker runtime, Box env); no remote-exec API exists (preview 404, Box SSH password-only) — claim bounded honestly.
-- **Model:** BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED (`INCEPTION_API_KEY` present, `THINKBOX_OPENAI_COMPAT_*` wiring absent, no paid call).
+- **Model:** BOX EXECUTION VERIFIED; MODEL EXECUTION VERIFIED 2026-09-17 (single bounded Mercury-2 call via existing openai_compat path: `{"answer": 42}` property VALID, 0.774s; job `tb_exp_20260917165842_4b92d477`; proof `model_job_proof_20260917.json`).
 - **Evidence:** `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Suite 606 OK (6 skipped).
 
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)

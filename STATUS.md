@@ -59,14 +59,24 @@
 
 - `tests/unit/test_experiment.py` — 45 tests
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
-- Full suite: **606 tests, 6 skipped**
+- `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
+- Full suite: **609 tests, 6 skipped**
+
+### Real Model-Backed Think Job (2026-09-17)
+
+- **Path (existing, no new architecture):** `openai_compat` provider + `MercuryClient` contract (`api.inceptionlabs.ai/v1`, `mercury-2`, key from `INCEPTION_API_KEY` presence only)
+- **Live call (ONE, bounded):** temp 0.2, max_tokens 3500, 60s timeout; response 14 chars → parsed `{"answer": 42}` → property VALID; 36/77/113 tokens, 0.774s latency
+- **Job:** session `tb_sess_20260917165841_b7bdb508`, box `box_950e971d6d1b` (Vector persisted), job `tb_exp_20260917165842_4b92d477`, artifact SHA256 `e41e8f9e…caf8f6`, ledger verified, memory + proof + outcome TEST_VERIFIED + dashboard; executed from in-Box runtime via existing provider POST `{base}/chat/completions` — no SSH, no UpCloud compute, no GPU
+- **Replay:** fresh-process reload + property re-validation True (byte-identical response explicitly NOT required)
+- **Safety:** no keys/headers/env in artifacts; single call; honest FAILED path on invalid property
+- **Evidence:** `data/thinkboxmd/artifacts/model_job_proof_20260917.json` (SHA256 `a4171cdc…356c12`); FourState MODEL_EXECUTION_VERIFIED (path proven, no intelligence claim)
 
 ### Upstash Box as Primary Execution Substrate (2026-09-17)
 
 - **Contract (LIVE_VERIFIED):** precedence `UPSTASH_PUBLIC_BOX_URL` > `THINKBOX_UPCLOUD_API_TOKEN` > `CI` > `local`; live selection `wanted-tuna-71803-3000.preview.box.upstash.com`
 - **Box job (TEST_VERIFIED):** session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted), job `tb_exp_20260917164615_32b3ee9c`, artifact SHA256 `8bac2b52…57662550`, validation PASS, ledger verified, memory + outcome + dashboard recorded; executed in-Box (Firecracker runtime, Box env) — no remote-exec API exists so no remote-dispatch claim
 - **Restart/replay (TEST_VERIFIED):** fresh-process reload of box/session/job/artifact/hash/proof/memory/outcome all verified; replay identical `[1,2,3,4,5]`; dashboard reconstructed
-- **Model readiness:** BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED (`INCEPTION_API_KEY` present, `THINKBOX_OPENAI_COMPAT_*` wiring absent, no paid call made)
+- **Model readiness:** BOX EXECUTION VERIFIED; MODEL EXECUTION VERIFIED 2026-09-17 (single bounded Mercury-2 call via existing openai_compat path: `{"answer": 42}` property VALID, 0.774s; job `tb_exp_20260917165842_4b92d477`; proof `model_job_proof_20260917.json`)
 - **Classification:** UpCloud = infrastructure/control-plane ONLY; Upstash Box = current execution substrate; SSH-to-UpCloud = unsupported/not required (`thinkbox/upcloud.py` defaults fixed, history preserved)
 - **Evidence:** `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` (SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`)
 
