@@ -322,15 +322,12 @@ class TestConcurrentGoalsRestartPersistence(unittest.TestCase):
         per_goal = _json.loads(params["per_goal_accounting"])
         self.assertIn("goal-a", per_goal)
         self.assertIn("goal-b", per_goal)
-        # Note: current implementation has a double-execution bug under shared session
-        # where each task executes twice, so global_calls_spent=4 (2 goals × 2).
-        # Per-goal accounting from _counted_complete shows 1 each (sum=2) because
-        # the wrapper counts unique goal calls, not session calls. The session's
-        # calls_spent=4 is authoritative for budget enforcement. This discrepancy
-        # is a known bug to fix in follow-up. The accounting structure is correct.
-        self.assertEqual(int(params["global_calls_spent"]), 4)
-        # Cross-check: session total (4) == 2 × per-goal counted (2) due to bug
-        self.assertEqual(int(params["global_calls_spent"]), 2 * sum(a["calls_spent"] for a in per_goal.values()))
+        # Fixed: global_calls_spent now correctly = 2 (1 per goal)
+        self.assertEqual(int(params["global_calls_spent"]), 2)
+        self.assertEqual(
+            int(params["global_calls_spent"]),
+            sum(a["calls_spent"] for a in per_goal.values()),
+        )
 
     def test_no_secrets_in_result(self):
         import json
