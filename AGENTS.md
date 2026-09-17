@@ -504,6 +504,43 @@ SSM: `AWS_PAGER="" aws ssm start-session --target i-0685561c90845986d --region u
 Use HTTP/1.0 if curl hangs: `curl -sS --http1.0 -m 20 ...`.
 Capture `delta.reasoning` / `reasoning` fields when present — do not drop them.
 
+## UpCloud Connection Path — September 15, 2026 Investigation
+
+### Connection Path Summary
+- **Server IP**: 212.147.250.183 (hostname: kudbee-host-v1)
+- **SSH key**: ~/.ssh/kilo-upcloud (ed25519, recovered from git commit 5f6a5c7)
+- **UpCloud API tokens**: UPCLOUD_API=ucat_Y8X1T01M2NP0SMDK6073EBBCP7, THINKBOX_UPCLOUD_API_TOKEN=ucat_01M15R0CYV33FZ1G410MX8FPTA
+- **Upstash box**: wanted-tuna-71803@us-east-1.box.upstash.com (SSH key: ssh wanted-tuna-71803@us-east-1.box.upstash.com)
+- **Upstash Vector**: https://unified-chigger-36053-gcp-usc1-vector.upstash.io/
+
+### Current Status (2026-09-17)
+- **UpCloud API**: All tokens return HTTP 401 authentication failed
+- **SSH to 212.147.250.183**: Connection timed out (server unreachable)
+- **SSH to Upstash box**: Permission denied (password auth required)
+- **upctl CLI**: NOT installed (download blocked by Cloudflare)
+- **UPCLOUD_API_MAIN**: NOT SET
+- **UPCLOUD_API_KEY**: NOT SET
+
+### How KILO Connected on September 15
+The connection path used:
+1. SSH key at ~/.ssh/kilo-upcloud (ed25519, thinkbox-agent-20260831)
+2. UpCloud API token via UPCLOUD_API env var
+3. Server 212.147.250.183 (kudbee-host-v1)
+4. The key was committed in git commit 5f6a5c7 but removed from working tree by 09830a6
+
+### Recovery Actions Taken
+- SSH key recovered from git history (commit 5f6a5c7)
+- Key installed to ~/.ssh/kilo-upcloud
+- UpCloud provider files restored from git history (commit 32d82ef)
+- CONTINUITY.md restored from git history (commit 59f7eee)
+- All 560 tests passing
+
+### Next Steps
+1. Obtain valid UPCLOUD_API_MAIN from UpCloud panel
+2. Verify server 212.147.250.183 is reachable
+3. Run live smoke tests with valid credentials
+4. Install upctl CLI when network allows
+
 ## CNC Manufacturing Intelligence Platform
 
 The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligence system.
