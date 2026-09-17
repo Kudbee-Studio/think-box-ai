@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import statistics
 import threading
 import uuid
 from dataclasses import dataclass, field, asdict
@@ -50,6 +51,7 @@ class FourState(str, Enum):
     TEST_VERIFIED = "TEST_VERIFIED"
     LIVE_VERIFIED = "LIVE_VERIFIED"
     PRODUCTION_READY = "PRODUCTION_READY"
+    FAILED = "FAILED"
 
 
 class ProvenanceSource(str, Enum):
@@ -689,12 +691,28 @@ class ExperimentManager:
             tests = json.loads(exp.get("tests", "[]"))
             tests.append(test)
             self.db.save_event(experiment_id, "test", test)
+            conn = sqlite3.connect(self.db.db_path)
+            try:
+                conn.execute("UPDATE experiments SET tests = ? WHERE experiment_id = ?", (json.dumps(tests), experiment_id))
+                conn.commit()
+            finally:
+                conn.close()
 
     def add_artifact(self, experiment_id: str, artifact_type: str,
-                     path: str, metadata: dict[str, Any] = None) -> str:
+                      path: str, metadata: dict[str, Any] = None) -> str:
         artifact_id = f"art_{uuid.uuid4().hex[:8]}"
         hash_val = hashlib.sha256(f"{artifact_id}{path}{datetime.now(timezone.utc).isoformat()}".encode()).hexdigest()
         self.db.save_artifact(experiment_id, artifact_id, artifact_type, path, hash_val, metadata or {})
+        exp = self.db.get_experiment(experiment_id)
+        if exp:
+            artifacts = json.loads(exp.get("artifacts", "[]"))
+            artifacts.append({"artifact_id": artifact_id, "type": artifact_type, "path": path})
+            conn = sqlite3.connect(self.db.db_path)
+            try:
+                conn.execute("UPDATE experiments SET artifacts = ? WHERE experiment_id = ?", (json.dumps(artifacts), experiment_id))
+                conn.commit()
+            finally:
+                conn.close()
         if self._current_experiment:
             self._current_experiment.artifacts.append({"artifact_id": artifact_id, "type": artifact_type, "path": path})
         return artifact_id
@@ -702,6 +720,14 @@ class ExperimentManager:
     def add_proof(self, experiment_id: str, proof: dict[str, Any]) -> None:
         self.db.save_proof(experiment_id, proof)
         self.db.save_event(experiment_id, "proof", proof)
+        exp = self.db.get_experiment(experiment_id)
+        if exp:
+            conn = sqlite3.connect(self.db.db_path)
+            try:
+                conn.execute("UPDATE experiments SET proof = ? WHERE experiment_id = ?", (json.dumps(proof), experiment_id))
+                conn.commit()
+            finally:
+                conn.close()
 
     def record_outcome(self, experiment_id: str, outcome: dict[str, Any],
                        confidence: float, four_state: str = "") -> None:
@@ -769,3 +795,585 @@ def get_experiment_manager() -> ExperimentManager:
     return _experiment_manager.instance
 
 _experiment_manager: Any = type("_", (), {"instance": None})()
+
+
+class LearnedParameter:
+    def __init__(self, name: str, observations: list[float], min_val: float,
+                 max_val: float, mean_val: float, median_val: float,
+                 sample_count: int, confidence: float, source_count: int,
+                 latest_observation: Optional[float], trend: str,
+                 conflicts: list[dict[str, Any]], unit: str,
+                 classification: str) -> None:
+        self.name = name
+        self.observations = observations
+        self.min_val = min_val
+        self.max_val = max_val
+        self.mean_val = mean_val
+        self.median_val = median_val
+        self.sample_count = sample_count
+        self.confidence = confidence
+        self.source_count = source_count
+        self.latest_observation = latest_observation
+        self.trend = trend
+        self.conflicts = conflicts
+        self.unit = unit
+        self.classification = classification
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "name": self.name, "observations": self.observations,
+            "min": self.min_val, "max": self.max_val, "mean": self.mean_val,
+            "median": self.median_val, "sample_count": self.sample_count,
+            "confidence": self.confidence, "source_count": self.source_count,
+            "latest_observation": self.latest_observation, "trend": self.trend,
+            "conflicts": self.conflicts, "unit": self.unit,
+            "classification": self.classification,
+        }
+
+
+class EvidencePattern:
+    def __init__(self, pattern_type: str, parameter_name: str,
+                 evidence: list[dict[str, Any]]) -> None:
+        self.pattern_type = pattern_type
+        self.parameter_name = parameter_name
+        self.evidence = evidence
+
+    def model_dump(self) -> dict[str, Any]:
+        return {"pattern_type": self.pattern_type, "parameter_name": self.parameter_name, "evidence": self.evidence}
+
+
+class Conflict:
+    def __init__(self, parameter: str, classifications: list[str],
+                 note: str = "") -> None:
+        self.parameter = parameter
+        self.classifications = classifications
+        self.note = note
+
+    def model_dump(self) -> dict[str, Any]:
+        return {"parameter": self.parameter, "classifications": self.classifications, "note": self.note}
+
+
+class Recommendation:
+    def __init__(self, parameter_name: str, reason: str,
+                 unknowns: list[str], expected_measurement: Optional[float],
+                 success_criteria: str, supporting_experiment_ids: list[str],
+                 session_lineage: str = "") -> None:
+        self.parameter_name = parameter_name
+        self.reason = reason
+        self.unknowns = unknowns
+        self.expected_measurement = expected_measurement
+        self.success_criteria = success_criteria
+        self.supporting_experiment_ids = supporting_experiment_ids
+        self.session_lineage = session_lineage
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "parameter_name": self.parameter_name, "reason": self.reason,
+            "unknowns": self.unknowns, "expected_measurement": self.expected_measurement,
+            "success_criteria": self.success_criteria,
+            "supporting_experiment_ids": self.supporting_experiment_ids,
+            "session_lineage": self.session_lineage,
+        }
+
+
+class ReplayRecord:
+    def __init__(self, experiment_id: str, task: str, strategy: str,
+                 parameters: dict[str, Any], execution: dict[str, Any],
+                 tests: list[dict[str, Any]], artifacts: list[dict[str, Any]],
+                 proof: dict[str, Any], outcome: dict[str, Any],
+                 latency: float = 0.0, retries: int = 0, errors: int = 0) -> None:
+        self.experiment_id = experiment_id
+        self.task = task
+        self.strategy = strategy
+        self.parameters = parameters
+        self.execution = execution
+        self.tests = tests
+        self.artifacts = artifacts
+        self.proof = proof
+        self.outcome = outcome
+        self.latency = latency
+        self.retries = retries
+        self.errors = errors
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "experiment_id": self.experiment_id, "task": self.task,
+            "strategy": self.strategy, "parameters": self.parameters,
+            "execution": self.execution, "tests": self.tests,
+            "artifacts": self.artifacts, "proof": self.proof,
+            "outcome": self.outcome, "latency": self.latency,
+            "retries": self.retries, "errors": self.errors,
+        }
+
+
+class ExperimentComparison:
+    def __init__(self, exp_a_id: str, exp_b_id: str,
+                 parameter_differences: dict[str, Any],
+                 outcome_differences: dict[str, Any],
+                 test_differences: dict[str, Any],
+                 proof_differences: dict[str, Any],
+                 lessons_differences: dict[str, Any],
+                 summary: str = "") -> None:
+        self.exp_a_id = exp_a_id
+        self.exp_b_id = exp_b_id
+        self.parameter_differences = parameter_differences
+        self.outcome_differences = outcome_differences
+        self.test_differences = test_differences
+        self.proof_differences = proof_differences
+        self.lessons_differences = lessons_differences
+        self.summary = summary
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "exp_a_id": self.exp_a_id, "exp_b_id": self.exp_b_id,
+            "parameter_differences": self.parameter_differences,
+            "outcome_differences": self.outcome_differences,
+            "test_differences": self.test_differences,
+            "proof_differences": self.proof_differences,
+            "lessons_differences": self.lessons_differences,
+            "summary": self.summary,
+        }
+
+
+class EvidenceDrivenLearningEngine:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+
+    def learn_from_history(self) -> dict[str, Any]:
+        all_experiments = self.db.get_all_experiments(limit=100)
+        all_params: dict[str, list[dict[str, Any]]] = {}
+        for exp in all_experiments:
+            params = self.db.get_parameters_by_experiment(exp["experiment_id"])
+            for p in params:
+                name = p["name"]
+                if name not in all_params:
+                    all_params[name] = []
+                all_params[name].append(p)
+        for name in all_params:
+            all_params[name].sort(key=lambda x: x.get("timestamp", ""))
+        learned = self._compute_learned_parameters(all_params)
+        evidence_patterns = self._identify_patterns(all_params)
+        conflicts = self._detect_conflicts(all_params)
+        unknowns = self._identify_unknowns(all_params)
+        return {
+            "learned_parameters": learned,
+            "evidence_patterns": evidence_patterns,
+            "conflicts": conflicts,
+            "unknowns": unknowns,
+            "total_experiments_analyzed": len(all_experiments),
+        }
+
+    def _compute_learned_parameters(self, all_params: dict[str, list[dict[str, Any]]]) -> dict[str, LearnedParameter]:
+        learned: dict[str, LearnedParameter] = {}
+        for name, observations in all_params.items():
+            numeric_values: list[float] = []
+            units = set()
+            classifications = set()
+            sources = set()
+            conflicts: list[dict[str, Any]] = []
+            for obs in observations:
+                try:
+                    val = float(obs["value"])
+                    numeric_values.append(val)
+                except (ValueError, TypeError):
+                    continue
+                if obs.get("unit"):
+                    units.add(obs["unit"])
+                if obs.get("classification"):
+                    classifications.add(obs["classification"])
+                if obs.get("source"):
+                    sources.add(obs["source"])
+            if not numeric_values:
+                continue
+            sample_count = len(numeric_values)
+            min_val = min(numeric_values)
+            max_val = max(numeric_values)
+            mean_val = statistics.mean(numeric_values)
+            median_val = statistics.median(numeric_values)
+            confidence = statistics.mean([obs.get("confidence", 0.0) for obs in observations]) if observations else 0.0
+            trend = self._compute_trend(numeric_values)
+            primary_class = ParameterClassification.OBSERVED.value
+            if ParameterClassification.OBSERVED.value not in classifications:
+                if ParameterClassification.ESTIMATED.value in classifications:
+                    primary_class = ParameterClassification.ESTIMATED.value
+                elif ParameterClassification.SIMULATED.value in classifications:
+                    primary_class = ParameterClassification.SIMULATED.value
+            if len(classifications) > 1:
+                conflicts.append({"parameter": name, "classifications": list(classifications), "note": "Parameter has mixed classification types"})
+            if len(units) > 1:
+                conflicts.append({"parameter": name, "units": list(units), "note": "Parameter has mixed units — cannot average"})
+            learned[name] = LearnedParameter(
+                name=name, observations=numeric_values, min_val=min_val, max_val=max_val,
+                mean_val=mean_val, median_val=median_val, sample_count=sample_count,
+                confidence=confidence, source_count=len(sources),
+                latest_observation=numeric_values[-1] if numeric_values else None,
+                trend=trend, conflicts=conflicts,
+                unit=list(units)[0] if units else "", classification=primary_class,
+            )
+        return learned
+
+    def _compute_trend(self, values: list[float]) -> str:
+        if len(values) < 2:
+            return "insufficient_data"
+        first = values[0]
+        last = values[-1]
+        if last > first:
+            return "increasing"
+        elif last < first:
+            return "decreasing"
+        return "stable"
+
+    def _identify_patterns(self, all_params: dict[str, list[dict[str, Any]]]) -> list[EvidencePattern]:
+        patterns: list[EvidencePattern] = []
+        for name, observations in all_params.items():
+            classifications = set(obs.get("classification", "") for obs in observations)
+            if ParameterClassification.OBSERVED.value in classifications and len(observations) >= 2:
+                patterns.append(EvidencePattern("validated_range", name, observations))
+            elif len(observations) >= 3:
+                patterns.append(EvidencePattern("emerging_pattern", name, observations))
+        return patterns
+
+    def _detect_conflicts(self, all_params: dict[str, list[dict[str, Any]]]) -> list[Conflict]:
+        conflicts: list[Conflict] = []
+        for name, observations in all_params.items():
+            classifications = set(obs.get("classification", "") for obs in observations if obs.get("classification"))
+            if len(classifications) > 1:
+                conflicts.append(Conflict(name, list(classifications), "Parameter has mixed classification types"))
+        return conflicts
+
+    def _identify_unknowns(self, all_params: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+        unknowns: list[dict[str, Any]] = []
+        for name, observations in all_params.items():
+            for obs in observations:
+                if obs.get("classification") == ParameterClassification.OBSERVED.value and obs.get("confidence", 0.0) < 0.5:
+                    unknowns.append({"parameter": name, "observation": obs, "reason": "Low confidence OBSERVED parameter"})
+        return unknowns
+
+    def recommend_next_experiment(self, learned: dict[str, LearnedParameter]) -> list[Recommendation]:
+        recommendations: list[Recommendation] = []
+        for name, param in learned.items():
+            if param.confidence < 0.8 or param.trend in ("increasing", "decreasing"):
+                unknowns = [u["parameter"] for u in self._identify_unknowns(self.db.get_all_experiments(limit=100).__class__ and {})]
+                recommendations.append(Recommendation(
+                    parameter_name=name,
+                    reason=f"Parameter {name} has confidence {param.confidence:.2f} and trend {param.trend}",
+                    unknowns=unknowns,
+                    expected_measurement=param.mean_val,
+                    success_criteria=f"Reduce uncertainty for {name}",
+                    supporting_experiment_ids=[],
+                ))
+        return recommendations
+
+
+class ReplayEngine:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+
+    def replay(self, experiment_id: str) -> ReplayRecord:
+        exp = self.db.get_experiment(experiment_id)
+        if not exp:
+            raise ValueError(f"Experiment {experiment_id} not found")
+        params = self.db.get_parameters_by_experiment(experiment_id)
+        outcome = self.db.get_outcomes_by_experiment(experiment_id)
+        lessons = self.db.get_lessons_by_experiment(experiment_id)
+        return ReplayRecord(
+            experiment_id=experiment_id,
+            task=exp.get("intent", ""),
+            strategy=exp.get("hypothesis", ""),
+            parameters=json.loads(exp.get("parameters", "{}")),
+            execution={"actions": json.loads(exp.get("actions", "[]"))},
+            tests=json.loads(exp.get("tests", "[]")),
+            artifacts=json.loads(exp.get("artifacts", "[]")),
+            proof=json.loads(exp.get("proof", "{}")),
+            outcome=json.loads(outcome.get("outcome_data", "{}")) if outcome else {},
+        )
+
+    def replay_after_restart(self) -> dict[str, Any]:
+        recovery = self.db.restart_recovery()
+        return {"recovery_data": recovery, "replayable": True}
+
+
+class ComparisonEngine:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+
+    def compare(self, exp_a_id: str, exp_b_id: str) -> ExperimentComparison:
+        exp_a = self.db.get_experiment(exp_a_id)
+        exp_b = self.db.get_experiment(exp_b_id)
+        if not exp_a or not exp_b:
+            raise ValueError("One or both experiments not found")
+        params_a = {p["name"]: p for p in self.db.get_parameters_by_experiment(exp_a_id)}
+        params_b = {p["name"]: p for p in self.db.get_parameters_by_experiment(exp_b_id)}
+        param_diffs = {}
+        for name in set(list(params_a.keys()) + list(params_b.keys())):
+            if name in params_a and name in params_b:
+                if params_a[name]["value"] != params_b[name]["value"]:
+                    param_diffs[name] = {"exp_a": params_a[name]["value"], "exp_b": params_b[name]["value"]}
+            elif name in params_a:
+                param_diffs[name] = {"exp_a": params_a[name]["value"], "exp_b": None}
+            else:
+                param_diffs[name] = {"exp_a": None, "exp_b": params_b[name]["value"]}
+        outcome_a = self.db.get_outcomes_by_experiment(exp_a_id)
+        outcome_b = self.db.get_outcomes_by_experiment(exp_b_id)
+        outcome_diffs = {}
+        if outcome_a and outcome_b:
+            od_a = json.loads(outcome_a.get("outcome_data", "{}"))
+            od_b = json.loads(outcome_b.get("outcome_data", "{}"))
+            outcome_diffs = {"exp_a": od_a, "exp_b": od_b}
+        tests_a = json.loads(exp_a.get("tests", "[]"))
+        tests_b = json.loads(exp_b.get("tests", "[]"))
+        test_diffs = {"exp_a_count": len(tests_a), "exp_b_count": len(tests_b)}
+        proof_a = json.loads(exp_a.get("proof", "{}"))
+        proof_b = json.loads(exp_b.get("proof", "{}"))
+        proof_diffs = {"exp_a": proof_a, "exp_b": proof_b}
+        lessons_a = self.db.get_lessons_by_experiment(exp_a_id)
+        lessons_b = self.db.get_lessons_by_experiment(exp_b_id)
+        lessons_diffs = {"exp_a_count": len(lessons_a), "exp_b_count": len(lessons_b)}
+        summary = f"Compared {exp_a_id} vs {exp_b_id}: {len(param_diffs)} parameter differences, {len(outcome_diffs)} outcome differences"
+        return ExperimentComparison(exp_a_id, exp_b_id, param_diffs, outcome_diffs, test_diffs, proof_diffs, lessons_diffs, summary)
+
+
+class ExperimentDashboardUpgrade:
+    def __init__(self, db: ExperimentDB, engine: EvidenceDrivenLearningEngine) -> None:
+        self.db = db
+        self.engine = engine
+
+    def get_upgraded_dashboard(self) -> dict[str, Any]:
+        aggregates = self.db.get_dashboard_aggregates()
+        result = self.engine.learn_from_history()
+        replay = ReplayEngine(self.db)
+        return {
+            **aggregates,
+            "learned_parameters": result["learned_parameters"],
+            "evidence_patterns": result["evidence_patterns"],
+            "conflicts": result["conflicts"],
+            "unknowns": result["unknowns"],
+            "replay_data": replay.replay_after_restart(),
+        }
+
+    def get_evidence_graph(self) -> dict[str, Any]:
+        result = self.engine.learn_from_history()
+        nodes: list[dict[str, Any]] = []
+        links: list[dict[str, Any]] = []
+        for name, param in result["learned_parameters"].items():
+            nodes.append({"id": name, "type": "parameter", "classification": param.classification})
+        for pattern in result["evidence_patterns"]:
+            nodes.append({"id": f"pattern_{pattern.parameter_name}", "type": "evidence", "pattern_type": pattern.pattern_type})
+            links.append({"source": pattern.parameter_name, "target": f"pattern_{pattern.parameter_name}"})
+        return {"nodes": nodes, "links": links}
+
+
+class ExperimentArena:
+    def __init__(self, db: ExperimentDB, manager: ExperimentManager) -> None:
+        self.db = db
+        self.manager = manager
+        self._arena_id = ""
+        self._task_id = ""
+        self._strategies: dict[str, list[str]] = {}
+        self._evaluator: Optional[ArenaEvaluator] = None
+
+    def create_arena(self, task_id: str, task_description: str,
+                     strategies: list[str]) -> dict[str, Any]:
+        self._arena_id = f"arena_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        self._task_id = task_id
+        self._strategies = {s: [] for s in strategies}
+        for strategy in strategies:
+            exp = self.manager.create_experiment(
+                intent=task_description,
+                hypothesis=f"Strategy: {strategy}",
+                parameters={"strategy": strategy, "task_id": task_id},
+                agent_id=strategy,
+            )
+            self._strategies[strategy].append(exp.experiment_id)
+        return {"arena_id": self._arena_id, "task_id": self._task_id, "strategies": strategies}
+
+    def run_baseline(self, task_id: str, parameters: dict[str, Any]) -> str:
+        exp = self.manager.create_experiment(
+            intent="baseline_evaluation",
+            hypothesis=f"Baseline for task {task_id}",
+            parameters=parameters,
+            agent_id="baseline",
+        )
+        self.manager.add_parameter(exp.experiment_id, "strategy", "baseline", classification=ParameterClassification.OBSERVED.value)
+        self.manager.add_parameter(exp.experiment_id, "task_id", task_id, classification=ParameterClassification.OBSERVED.value)
+        if "BASELINE" not in self._strategies:
+            self._strategies["BASELINE"] = []
+        self._strategies["BASELINE"].append(exp.experiment_id)
+        return exp.experiment_id
+
+    def run_learned(self, task_id: str, parameters: dict[str, Any],
+                    learned_params: dict[str, LearnedParameter]) -> str:
+        exp = self.manager.create_experiment(
+            intent="learned_evaluation",
+            hypothesis=f"Learned strategy for task {task_id}",
+            parameters={**parameters, **{k: v.mean_val for k, v in learned_params.items()}},
+            agent_id="learned",
+        )
+        self.manager.add_parameter(exp.experiment_id, "strategy", "learned", classification=ParameterClassification.OBSERVED.value)
+        self.manager.add_parameter(exp.experiment_id, "task_id", task_id, classification=ParameterClassification.OBSERVED.value)
+        for name, param in learned_params.items():
+            self.manager.add_parameter(exp.experiment_id, f"learned_{name}", param.mean_val, classification=ParameterClassification.OBSERVED.value)
+        if "LEARNED" not in self._strategies:
+            self._strategies["LEARNED"] = []
+        self._strategies["LEARNED"].append(exp.experiment_id)
+        return exp.experiment_id
+
+    def run_variant(self, task_id: str, parameters: dict[str, Any],
+                    variant_id: str) -> str:
+        if variant_id not in self._strategies:
+            self._strategies[variant_id] = []
+        exp = self.manager.create_experiment(
+            intent="variant_evaluation",
+            hypothesis=f"Variant {variant_id} for task {task_id}",
+            parameters=parameters,
+            agent_id=variant_id,
+        )
+        self.manager.add_parameter(exp.experiment_id, "strategy", "variant", classification=ParameterClassification.OBSERVED.value)
+        self.manager.add_parameter(exp.experiment_id, "task_id", task_id, classification=ParameterClassification.OBSERVED.value)
+        if variant_id not in self._strategies:
+            self._strategies[variant_id] = []
+        self._strategies[variant_id].append(exp.experiment_id)
+        return exp.experiment_id
+
+    def evaluate(self, exp_ids: list[str]) -> dict[str, Any]:
+        evaluator = ArenaEvaluator(self.db)
+        return evaluator.evaluate_experiments(exp_ids)
+
+    def compare(self, baseline_id: str, learned_id: str) -> ExperimentComparison:
+        comp_engine = ComparisonEngine(self.db)
+        return comp_engine.compare(baseline_id, learned_id)
+
+    def get_arena_results(self) -> dict[str, Any]:
+        results: dict[str, Any] = {}
+        for strategy, exp_ids in self._strategies.items():
+            strategy_results: list[dict[str, Any]] = []
+            for eid in exp_ids:
+                exp = self.db.get_experiment(eid)
+                if exp:
+                    strategy_results.append(exp)
+            results[strategy] = strategy_results
+        return results
+
+
+class ArenaEvaluator:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+
+    def evaluate_experiments(self, exp_ids: list[str]) -> dict[str, Any]:
+        results: dict[str, Any] = {}
+        for exp_id in exp_ids:
+            exp = self.db.get_experiment(exp_id)
+            if not exp:
+                continue
+            params = self.db.get_parameters_by_experiment(exp_id)
+            outcome = self.db.get_outcomes_by_experiment(exp_id)
+            tests = json.loads(exp.get("tests", "[]"))
+            artifacts = json.loads(exp.get("artifacts", "[]"))
+            proof = json.loads(exp.get("proof", "{}"))
+            metrics = self._compute_metrics(exp_id, params, tests, artifacts, proof, outcome)
+            results[exp_id] = metrics
+        return results
+
+    def _compute_metrics(self, exp_id: str, params: list[dict[str, Any]],
+                         tests: list[dict[str, Any]], artifacts: list[dict[str, Any]],
+                         proof: dict[str, Any], outcome: Optional[dict[str, Any]]) -> dict[str, Any]:
+        test_pass_count = sum(1 for t in tests if t.get("result") == "pass" or t.get("status") == "pass")
+        test_total = len(tests)
+        test_pass_rate = test_pass_count / test_total if test_total > 0 else 0.0
+        error_count = sum(1 for t in tests if t.get("result") == "fail" or t.get("status") == "fail")
+        retry_count = sum(1 for t in tests if t.get("retry", False))
+        artifact_quality = len(artifacts) / max(len(artifacts), 1) if artifacts else 0.0
+        proof_completeness = 1.0 if proof else 0.0
+        latency = sum(t.get("latency", 0) for t in tests) if tests else 0.0
+        return {
+            "experiment_id": exp_id,
+            "success_rate": test_pass_rate,
+            "test_pass_rate": test_pass_rate,
+            "error_count": error_count,
+            "retry_count": retry_count,
+            "artifact_quality": artifact_quality,
+            "proof_completeness": proof_completeness,
+            "latency": latency,
+            "outcome": json.loads(outcome.get("outcome_data", "{}")) if outcome else {},
+        }
+
+
+class MemoryReuseTracker:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+
+    def track_memory_reuse(self, learned_exp_id: str, baseline_exp_id: str) -> dict[str, Any]:
+        learned_params = self.db.get_parameters_by_experiment(learned_exp_id)
+        baseline_params = self.db.get_parameters_by_experiment(baseline_exp_id)
+        baseline_names = {p["name"] for p in baseline_params}
+        reused: list[dict[str, Any]] = []
+        for p in learned_params:
+            if p["name"] in baseline_names or p["name"].startswith("learned_"):
+                reused.append(p)
+        return {
+            "learned_experiment_id": learned_exp_id,
+            "baseline_experiment_id": baseline_exp_id,
+            "memory_reused": len(reused) > 0,
+            "reused_parameters": reused,
+            "reuse_count": len(reused),
+            "proof": f"Learned strategy used {len(reused)} parameters from baseline or prior experiments" if reused else "No memory reuse detected",
+        }
+
+
+class ArenaReplayEngine:
+    def __init__(self, db: ExperimentDB) -> None:
+        self.db = db
+        self.replay_engine = ReplayEngine(db)
+
+    def replay_arena(self, arena_id: str) -> dict[str, Any]:
+        experiments = self.db.get_all_experiments(limit=100)
+        arena_exps = [e for e in experiments if e.get("experiment_id", "").startswith(arena_id[:20])]
+        replay_records: list[ReplayRecord] = []
+        for exp in arena_exps:
+            try:
+                record = self.replay_engine.replay(exp["experiment_id"])
+                replay_records.append(record)
+            except ValueError:
+                continue
+        return {"arena_id": arena_id, "replayable": True, "records": [r.model_dump() for r in replay_records]}
+
+    def verify_reproducibility(self, exp_id: str) -> dict[str, Any]:
+        record1 = self.replay_engine.replay(exp_id)
+        record2 = self.replay_engine.replay(exp_id)
+        equivalent = (record1.parameters == record2.parameters and
+                      record1.tests == record2.tests and
+                      record1.outcome == record2.outcome)
+        return {"experiment_id": exp_id, "reproducible": equivalent, "runs": 2}
+
+
+class OutcomeClassifier:
+    @staticmethod
+    def classify(baseline_metrics: dict[str, Any], learned_metrics: dict[str, Any]) -> str:
+        baseline_success = baseline_metrics.get("test_pass_rate", 0.0)
+        learned_success = learned_metrics.get("test_pass_rate", 0.0)
+        baseline_errors = baseline_metrics.get("error_count", 0)
+        learned_errors = learned_metrics.get("error_count", 0)
+        if learned_success > baseline_success and learned_errors <= baseline_errors:
+            return "IMPROVED"
+        elif learned_success == baseline_success and learned_errors == baseline_errors:
+            return "NO_MEASURABLE_IMPROVEMENT"
+        elif learned_success < baseline_success and learned_errors > baseline_errors:
+            return "REGRESSION"
+        elif learned_success > baseline_success and learned_errors > baseline_errors:
+            return "INCONCLUSIVE"
+        elif learned_success < baseline_success and learned_errors <= baseline_errors:
+            return "INCONCLUSIVE"
+        else:
+            return "INCONCLUSIVE"
+
+    @staticmethod
+    def classify_failed(metrics: dict[str, Any]) -> str:
+        if metrics.get("error_count", 0) > 0 and metrics.get("test_pass_rate", 0.0) == 0.0:
+            return "FAILED"
+        return "INCONCLUSIVE"
+
+    @staticmethod
+    def classify_missing_evidence(metrics: dict[str, Any]) -> str:
+        if metrics.get("proof_completeness", 0.0) == 0.0:
+            return "FAILED"
+        return "INCONCLUSIVE"

@@ -499,7 +499,7 @@ class TestZeroServerExecution(unittest.TestCase):
     def test_four_state_classification(self):
         for state in FourState:
             session = self.manager.create_session(agent_id="test", metadata={"four_state": state.value})
-            self.assertIn(state.value, [FourState.CODE_COMPLETE.value, FourState.TEST_VERIFIED.value, FourState.LIVE_VERIFIED.value, FourState.PRODUCTION_READY.value])
+            self.assertIn(state.value, [FourState.CODE_COMPLETE.value, FourState.TEST_VERIFIED.value, FourState.LIVE_VERIFIED.value, FourState.PRODUCTION_READY.value, FourState.FAILED.value])
 
 
 def _connect(path: str) -> sqlite3.Connection:

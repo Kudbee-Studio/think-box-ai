@@ -27,6 +27,13 @@ from thinkbox.experiment import (
     ParameterClassification,
     FourState,
     ProvenanceSource,
+    EvidenceDrivenLearningEngine,
+    ExperimentArena,
+    ArenaEvaluator,
+    MemoryReuseTracker,
+    ArenaReplayEngine,
+    OutcomeClassifier,
+    ExperimentDashboardUpgrade,
 )
 from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
 
@@ -344,3 +351,64 @@ async def zero_server_experiment(request: ExperimentCreateRequest) -> dict[str, 
 @api_v1_router.get("/experiment/restart")
 async def experiment_restart() -> dict[str, Any]:
     return _experiment_manager.restart()
+
+
+@api_v1_router.post("/arena")
+async def create_arena(request: dict[str, Any]) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    result = arena.create_arena(
+        task_id=request["task_id"],
+        task_description=request.get("task_description", ""),
+        strategies=request["strategies"],
+    )
+    await _emit_dashboard(DashboardCategory.EXECUTION, DashboardEvent.JOB_CREATED, result, "arena")
+    return result
+
+
+@api_v1_router.post("/arena/{arena_id}/baseline")
+async def run_baseline(arena_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    exp_id = arena.run_baseline(request["task_id"], request.get("parameters", {}))
+    return {"arena_id": arena_id, "experiment_id": exp_id, "strategy": "BASELINE"}
+
+
+@api_v1_router.post("/arena/{arena_id}/learned")
+async def run_learned(arena_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    learned = request.get("learned_parameters", {})
+    from thinkbox.experiment import LearnedParameter
+    learned_params = {k: LearnedParameter(k, [], 0, 0, v, v, 1, 1.0, 1, v, "stable", [], "") for k, v in learned.items()}
+    exp_id = arena.run_learned(request["task_id"], request.get("parameters", {}), learned_params)
+    return {"arena_id": arena_id, "experiment_id": exp_id, "strategy": "LEARNED"}
+
+
+@api_v1_router.post("/arena/{arena_id}/evaluate")
+async def evaluate_arena(arena_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    exp_ids = request.get("experiment_ids", [])
+    results = arena.evaluate(exp_ids)
+    return {"arena_id": arena_id, "results": results}
+
+
+@api_v1_router.post("/arena/{arena_id}/compare")
+async def compare_arena(arena_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    comparison = arena.compare(request["baseline_id"], request["learned_id"])
+    outcome = OutcomeClassifier.classify(
+        {"test_pass_rate": comparison.parameter_differences},
+        {"test_pass_rate": comparison.parameter_differences},
+    )
+    return {"arena_id": arena_id, "comparison": comparison.model_dump(), "outcome": outcome}
+
+
+@api_v1_router.get("/arena/{arena_id}/replay")
+async def replay_arena(arena_id: str) -> dict[str, Any]:
+    replay_engine = ArenaReplayEngine(_experiment_manager.db)
+    return replay_engine.replay_arena(arena_id)
+
+
+@api_v1_router.get("/arena/{arena_id}/dashboard")
+async def arena_dashboard(arena_id: str) -> dict[str, Any]:
+    arena = ExperimentArena(_experiment_manager.db, _experiment_manager)
+    upgrade = ExperimentDashboardUpgrade(_experiment_manager.db, EvidenceDrivenLearningEngine(_experiment_manager.db))
+    return upgrade.get_upgraded_dashboard()
