@@ -428,7 +428,23 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 4. (Recommended) Purchase Floating IP → stable dashboard endpoint
 5. Verify: `detect_substrate()` returns `upcloud-gpu`
 
-#### 13.5.1 Known-Good Server Access Path (RECOVERED 2026-09-16)
+#### 13.5.1 CLI Installation Status (2026-09-16)
+
+| CLI | Status | Details |
+|-----|--------|---------|
+| KILO CLI | ✅ INSTALLED | `/usr/local/bin/kilo` v7.6.2 (npm `@kilocode/cli@7.6.2`), node v22.23.2, npm 10.9.8 |
+| UpCloud CLI (`upctl`) | ❌ NOT AVAILABLE | PyPI `upctl` v0.1.0 is a project stack detector, NOT the UpCloud infrastructure CLI. Package `upcloud-cli` does not exist on PyPI. No Go installed to build from source. No GitHub API access to check for official binary. Wrong package was installed then uninstalled. |
+| Think Box CLI (`thinkbox`) | ✅ INSTALLED | `thinkbox` entry point from pyproject.toml, `python3 -m think_box_ai` works, 23 subcommands |
+| pip | ✅ INSTALLED | pip 26.2.1 via `get-pip.py` (was missing), Python 3.10.12 |
+
+**UpCloud CLI block:**
+- PyPI package `upctl` v0.1.0 is unrelated (project stack detector) — installed and uninstalled
+- `upcloud-cli` does not exist on PyPI
+- No Go runtime to build Go-based CLI
+- GitHub API rate-limited during investigation
+- **Resolution requires HUMAN action**: obtain official UpCloud CLI binary from UpCloud panel or UpCloud documentation
+
+#### 13.5.2 Known-Good Server Access Path (RECOVERED 2026-09-16)
 
 The September 15 server connection was SSH-based. This path was traced from git history, docs, and infra config. Permanent reference for future agents:
 
@@ -611,6 +627,7 @@ Every agent MUST classify work using these four distinct states. **"Complete" al
 **Example — UpCloud ExecutionProvider (2026-09-16):**
 - UpCloud provider: CODE COMPLETE ✅
 - Server connection recovery: CODE COMPLETE ✅ (path identified, live verification blocked)
+- CLI installations: KILO ✅ INSTALLED, UpCloud CLI ❌ NOT AVAILABLE (PyPI upctl is wrong package, uninstalled), Think Box ✅ INSTALLED, pip ✅ INSTALLED (was missing)
 - Security handling: TEST VERIFIED ✅ (no credential leaks, audit passed)
 - Unit tests: TEST VERIFIED ✅ (33/33 pass)
 - Dry-run mode: TEST VERIFIED ✅ (mocked execution tested)
