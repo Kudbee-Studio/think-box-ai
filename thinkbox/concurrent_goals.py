@@ -210,42 +210,6 @@ class ConcurrentGoalsRunner:
                 max_retries=cfg.max_retries_global,
             ))
 
-        calls_by_goal: dict[str, int] = {}
-
-        async def _run_one(spec: ConcurrentGoalSpec) -> dict[str, Any]:
-            goal_key = spec.goal
-
-            async def _counted_complete(prompt: str) -> Any:
-                calls_by_goal[goal_key] = calls_by_goal.get(goal_key, 0) + 1
-                return await complete_async(prompt)
-
-            eng = self._fresh_governed(ledger_path=ledger_path)
-            if not cfg.independent_goals:
-                session_for_goal = global_session
-            else:
-                session_for_goal = VerifiedRetrySession(spec.budget_config) if spec.budget_config else VerifiedRetrySession()
-
-            result = await eng.execute_verified_goal(
-                goal=spec.goal,
-                subtasks=spec.subtasks,
-                complete_async=_counted_complete,
-                agent_id=agent_id,
-                session=session_for_goal,
-                manager=manager,
-                emit_dashboard=emit_dashboard,
-            )
-            result["_goal_calls"] = calls_by_goal.get(goal_key, 0)
-            result["_shared_session"] = global_session is not None
-            return result
-
-        results_list = await asyncio.gather(*[_run_one(s) for s in specs], return_exceptions=True)
-
-        goal_results: dict[str, dict[str, Any]] = {}
-        per_goal_accounting: dict[str, dict[str, Any]] = {}
-        proof_paths: list[str] = []
-        global_calls = 0
-        global_retries = 0
-
         # Apply budget contention policy for shared budget mode
         goal_budget_limits: dict[str, int] = {}
         if not cfg.independent_goals and global_session is not None and cfg.max_calls_global > 0:
@@ -275,11 +239,24 @@ class ConcurrentGoalsRunner:
         async def _run_one(spec: ConcurrentGoalSpec) -> dict[str, Any]:
             goal_key = spec.goal
 
+            # Check per-goal budget limit BEFORE running the goal
+            if goal_key in goal_budget_limits:
+                if goal_budget_limits[goal_key] <= 0:
+                    return {
+                        "failed": True,
+                        "valid": False,
+                        "execution_status": "BUDGET_EXHAUSTED",
+                        "error_type": "BudgetExhausted",
+                        "context": f"Goal {goal_key} budget limit exhausted (limit: 0)",
+                        "calls_spent": 0,
+                        "retries_used": 0,
+                    }
+
             async def _counted_complete(prompt: str) -> Any:
                 calls_by_goal[goal_key] = calls_by_goal.get(goal_key, 0) + 1
                 goal_budget_consumed[goal_key] = goal_budget_consumed.get(goal_key, 0) + 1
                 
-                # Check budget limit per goal
+                # Check budget limit per goal (defense in depth)
                 if goal_key in goal_budget_limits:
                     if goal_budget_consumed[goal_key] > goal_budget_limits[goal_key]:
                         raise BudgetExhausted(
