@@ -19,7 +19,16 @@ from thinkbox.session import create_session, get_current_session, sync_session, 
 from backend.security import get_api_keys, validate_ws_token
 
 from thinkbox.cnc import CNCManufacturingEngine, DemoMode, ROIDashboard, SafetyGateStore, TenantStore, ProofStore
-from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent, ThinkBoxEntry, ThinkJobEntry, CNCJobEntry, InfrastructureEntry, ProviderEntry, TestMilestoneEntry
+from thinkbox.experiment import (
+    ExperimentManager,
+    ExperimentRecord,
+    AgentSessionRecord,
+    ParameterProvenance,
+    ParameterClassification,
+    FourState,
+    ProvenanceSource,
+)
+from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -236,3 +245,102 @@ async def websocket_telemetry(websocket: WebSocket) -> None:
         pass
     except Exception:
         pass
+
+
+_experiment_manager = ExperimentManager()
+
+
+class ExperimentCreateRequest(BaseModel):
+    intent: str
+    hypothesis: str
+    parameters: dict[str, Any] = {}
+    agent_id: str = "default"
+    execution_mode: str = "local"
+
+
+class ExperimentResponse(BaseModel):
+    experiment_id: str
+    session_id: str
+    status: str
+    intent: str
+
+
+@api_v1_router.post("/experiment", response_model=ExperimentResponse)
+async def create_experiment(request: ExperimentCreateRequest) -> ExperimentResponse:
+    session = _experiment_manager.create_session(agent_id=request.agent_id)
+    exp = _experiment_manager.create_experiment(
+        intent=request.intent,
+        hypothesis=request.hypothesis,
+        parameters=request.parameters,
+        parent_session_id=session.parent_session_id,
+        agent_id=request.agent_id,
+        execution_mode=request.execution_mode,
+    )
+    await _emit_dashboard(DashboardCategory.EXECUTION, DashboardEvent.JOB_CREATED,
+                                exp.model_dump(), "experiment_api")
+    return ExperimentResponse(
+        experiment_id=exp.experiment_id,
+        session_id=exp.session_id,
+        status=exp.status,
+        intent=exp.intent,
+    )
+
+
+@api_v1_router.get("/experiment/{experiment_id}")
+async def get_experiment(experiment_id: str) -> dict[str, Any]:
+    exp = _experiment_manager.db.get_experiment(experiment_id)
+    if not exp:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    params = _experiment_manager.db.get_parameters_by_experiment(experiment_id)
+    outcome = _experiment_manager.db.get_outcomes_by_experiment(experiment_id)
+    lessons = _experiment_manager.db.get_lessons_by_experiment(experiment_id)
+    return {"experiment": exp, "parameters": params, "outcome": outcome, "lessons": lessons}
+
+
+@api_v1_router.post("/experiment/{experiment_id}/parameter")
+async def add_parameter(experiment_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    param = _experiment_manager.add_parameter(
+        experiment_id,
+        request["name"],
+        request["value"],
+        unit=request.get("unit", ""),
+        source=request.get("source", ProvenanceSource.MEASURED.value),
+        confidence=request.get("confidence", 0.0),
+        classification=request.get("classification", ParameterClassification.OBSERVED.value),
+    )
+    return param.model_dump()
+
+
+@api_v1_router.post("/experiment/{experiment_id}/outcome")
+async def record_outcome(experiment_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    _experiment_manager.record_outcome(
+        experiment_id,
+        request["outcome"],
+        request.get("confidence", 0.0),
+        four_state=request.get("four_state", ""),
+    )
+    return {"status": "outcome_recorded"}
+
+
+@api_v1_router.get("/experiment/dashboard")
+async def experiment_dashboard() -> dict[str, Any]:
+    return _experiment_manager.get_dashboard_data()
+
+
+@api_v1_router.post("/experiment/zero-server")
+async def zero_server_experiment(request: ExperimentCreateRequest) -> dict[str, Any]:
+    result = _experiment_manager.run_zero_server_experiment(
+        intent=request.intent,
+        hypothesis=request.hypothesis,
+        parameters=request.parameters,
+        agent_id=request.agent_id,
+    )
+    await _emit_dashboard(DashboardCategory.EXECUTION, DashboardEvent.JOB_COMPLETED,
+                                result, "zero_server")
+    return result
+
+
+@api_v1_router.get("/experiment/restart")
+async def experiment_restart() -> dict[str, Any]:
+    return _experiment_manager.restart()
