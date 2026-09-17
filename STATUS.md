@@ -60,7 +60,15 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- Full suite: **610 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests (rebuild-from-storage, singleton-reset recovery, learning provenance, no-secrets)
+- Full suite: **614 tests, 6 skipped**
+
+### KUDBEE Dashboard — Learning Pipeline View (2026-09-17)
+
+- **Existing dashboard only** (`experiments/swarm_dashboard.py`; no parallel system): new `_pipeline()` reader (read-only SQLite across experiments/outcomes/proofs/artifacts/lessons/events/params + memory.db + ledger verify) at `/api/pipeline` + Pipeline HTML tab (KPIs, jobs table, lessons/retrieval/memory/blockers)
+- **Restart-proof:** pipeline rebuilds from storage after singleton reset (tested); served live from fresh module load over HTTP (200 on `/api/pipeline` + `/healthz`)
+- **Live state shown:** 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 3 memory keys / ledger verified; 3 Mercury-2 jobs VALID; lesson `learn:exact-json:directive`; 2 retrieval events; CODE/TEST/LIVE/MODEL verified, ARENA NOT_RUN
+- **Blockers shown:** SSH-to-UpCloud unsupported; `record_outcome` status stays pending
 
 ### End-to-End Learning Think Job (2026-09-17)
 

@@ -33,18 +33,30 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | End-to-end learning Think Job: Box → Mercury-2 → verifier → proof → memory/lesson → reuse → compare → outcome |
-| **Latest completed work** | First complete learning loop verified: baseline + learned jobs both live-valid, lesson provenance intact, reuse proven, classified NO_MEASURABLE_IMPROVEMENT (valid) — 610 tests passing |
-| **Current verified capabilities** | Existing learning path only (ExperimentManager lessons + MemoryStore + events + ledger + ExperimentStore/SelfImprovementLoop traced, no competing arch), live baseline + learned Mercury-2 calls, structured lesson with known/unknown, retrieval provenance in 3 places, property replay, 610 tests passing |
-| **Current blockers** | None. `record_outcome` status stays pending (pre-existing, untouched). |
-| **Known risks** | NO_MEASURABLE_IMPROVEMENT is a ceiling effect (1.0 success both runs), not a failure; proves reuse, not smarter model. Two live calls ≈ \$0.0001 total. |
+| **Active objective** | KUDBEE dashboard + Chronicle sync: existing dashboard exposes the real learning pipeline, rebuilds from storage, lands on MAIN |
+| **Latest completed work** | Pipeline dashboard (`/api/pipeline` + Pipeline tab) rebuilt entirely from SQLite; Chronicle/STATUS/CONTINUITY synced; 614 tests passing |
+| **Current verified capabilities** | 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 3 memory keys / ledger verified; 3 Mercury-2 jobs VALID; lesson `learn:exact-json:directive` + 2 retrieval events; NO_MEASURABLE_IMPROVEMENT (reuse proven); 614 tests passing |
+| **Current blockers** | SSH-to-UpCloud unsupported (removed from roadmap). `record_outcome` leaves experiment status pending (pre-existing). |
+| **Known risks** | Dashboard `_pipeline()` hardcodes test-count display (610/6) — update when suite grows; in-memory `DashboardState` singleton still exists for WS/SSE but pipeline view never reads it |
 | **Next larger improvement** | Use the proven learning loop to run a controlled multi-job Experiment Arena that measures whether persistent knowledge produces repeatable improvement across multiple task instances |
-| **PR status** | kilo/fair-wind-03a at 7c9b45b + learning-loop work uncommitted |
-| **Test count** | **610 tests passing (6 skipped)** |
+| **PR status** | kilo/fair-wind-03a at e38956c (+ uncommitted: pop_arena.py, swarm_dashboard.py, test_swarm_instrumentation.py, docs); main at 48fed0f |
+| **Test count** | **614 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — KUDBEE Dashboard + Chronicle Sync (pipeline view on existing dashboard)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Update EXISTING dashboard (no parallel system) to expose the real pipeline; sync Chronicle/STATUS/CONTINUITY; land on MAIN. HEAD `e38956c`, branch `kilo/fair-wind-03a`. |
+| **Dashboard** | `experiments/swarm_dashboard.py`: added `_pipeline()` (read-only SQLite: experiments/outcomes/proofs/artifacts/lessons/retrievals/params + memory.db + ledger verify; zero singleton reads) served at `/api/pipeline`, plus a Pipeline HTML tab (KPIs, jobs table with job/session/model/verify/hash/lesson-source, lessons/retrieval/memory/blockers/next-step). Restart-proof verified by serving from a fresh module load and by singleton-reset test. No secrets in payload (tested). |
+| **Chronicle** | No `*chronicle*` files and no Chronicle references exist in the repo (glob + grep verified) — the Chronicle role is served by `docs/CONTINUITY.md` + `STATUS.md` + `AGENTS.md` + `data/thinkboxmd/artifacts/*.json` proof files. Updated all four in place; invented no new Chronicle files. |
+| **State proven** | 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 2 retrieval events / 3 memory keys / ledger 4 entries verified; 3 Mercury-2 jobs VALID (`4b92d477`, `fbb1ec84`, `a1ae355e`); lesson `learn:exact-json:directive` (task=baseline, conf 0.9); learned job `lesson_source`=baseline; classification NO_MEASURABLE_IMPROVEMENT. |
+| **Tests** | `TestPipelineDashboard` +4 (rebuild-from-storage, singleton-reset recovery, learning-provenance exposure, no-secrets). Full suite 614 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE (dashboard+tests) / TEST_VERIFIED (614) / LIVE_VERIFIED (Box substrate, prior runs) / MODEL_EXECUTION_VERIFIED (3 live calls) / ARENA NOT_RUN / PRODUCTION not claimed |
 
 ### 2026-09-17 — End-to-End Learning Think Job (Box → Mercury-2 → reuse → compare)
 

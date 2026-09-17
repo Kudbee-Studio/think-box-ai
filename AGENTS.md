@@ -594,6 +594,11 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Learning loop:** FIRST LOOP VERIFIED 2026-09-17 (baseline `tb_exp_20260917170533_fbb1ec84` answer=7 VALID → lesson `learn:exact-json:directive` → learned `tb_exp_20260917170605_a1ae355e` answer=9 VALID with 3-place retrieval provenance; NO_MEASURABLE_IMPROVEMENT — reuse proven, model NOT smarter; proof `learn_loop_proof_20260917.json`).
 - **Evidence:** `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Suite 606 OK (6 skipped).
 
+### KUDBEE Dashboard — Pipeline View (2026-09-17)
+
+- **Existing dashboard only** (`experiments/swarm_dashboard.py`): `_pipeline()` read-only reader + `/api/pipeline` endpoint + Pipeline HTML tab. Shows jobs/sessions/substrate/provider/model, CODE/TEST/LIVE/MODEL/ARENA state, verification, artifact/proof hashes, lesson + memory provenance, retrieval events, outcomes, restart/replay status, tests 614/6, blockers, next improvement.
+- **Rebuild proof:** pipeline reads SQLite on every request — verified after singleton reset and over live HTTP (200). No singleton-only state. Chronicle = CONTINUITY + STATUS + AGENTS + `data/thinkboxmd/artifacts/*.json` (no separate Chronicle files exist in repo).
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:

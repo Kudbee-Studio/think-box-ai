@@ -311,5 +311,69 @@ class TestEconomyRegression(unittest.TestCase):
         self.assertEqual(economy.get_balance("brand_new"), 10)
 
 
+class TestPipelineDashboard(unittest.TestCase):
+    """Pipeline tab: rebuilt entirely from persistent storage, no singletons."""
+
+    @staticmethod
+    def _load_dashboard():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "swarm_dashboard", "experiments/swarm_dashboard.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_pipeline_endpoint_rebuilds_from_storage(self) -> None:
+        dash = self._load_dashboard()
+        pipe = dash._pipeline()
+        self.assertIn("jobs", pipe)
+        self.assertIn("totals", pipe)
+        self.assertIn("lessons", pipe)
+        self.assertIn("retrievals", pipe)
+        self.assertIn("memory", pipe)
+        self.assertIn("verification_state", pipe)
+        self.assertIn("blockers", pipe)
+        self.assertIn("next_larger_improvement", pipe)
+        self.assertGreaterEqual(pipe["totals"]["experiments"], 1)
+        self.assertGreaterEqual(pipe["totals"]["outcomes"], 1)
+
+    def test_pipeline_recovers_after_singleton_reset(self) -> None:
+        from thinkbox.dashboard_state import get_dashboard_state
+        st = get_dashboard_state()
+        saved_jobs = dict(st.think_jobs)
+        saved_events = list(st.events)
+        try:
+            st.think_jobs.clear()
+            st.events.clear()
+            self.assertEqual(len(get_dashboard_state().get_state()["think_jobs"]), 0)
+            pipe = self._load_dashboard()._pipeline()
+            self.assertGreaterEqual(pipe["totals"]["experiments"], 1)
+            job_ids = {j["job_id"] for j in pipe["jobs"]}
+            self.assertTrue(any(j.startswith("tb_exp_") for j in job_ids))
+        finally:
+            st.think_jobs.update(saved_jobs)
+            st.events.extend(saved_events)
+
+    def test_pipeline_exposes_learning_provenance(self) -> None:
+        pipe = self._load_dashboard()._pipeline()
+        jobs_by_id = {j["job_id"]: j for j in pipe["jobs"]}
+        self.assertIn("tb_exp_20260917170533_fbb1ec84", jobs_by_id)
+        self.assertIn("tb_exp_20260917170605_a1ae355e", jobs_by_id)
+        learned = jobs_by_id["tb_exp_20260917170605_a1ae355e"]
+        self.assertEqual(learned["lesson_source"], "tb_exp_20260917170533_fbb1ec84")
+        mem_keys = {m["key"] for m in pipe["memory"]}
+        self.assertIn("learn:exact-json:directive", mem_keys)
+        model_jobs = pipe["verification_state"]["model"]["verified_jobs"]
+        self.assertIn("tb_exp_20260917170605_a1ae355e", model_jobs)
+
+    def test_pipeline_contains_no_secrets(self) -> None:
+        import json
+        import re
+        raw = json.dumps(self._load_dashboard()._pipeline())
+        self.assertEqual(re.findall(r"(?i)(api[_-]?key|bearer|authorization)", raw), [])
+        self.assertNotIn("ucat_", raw)
+
+
 if __name__ == "__main__":
     unittest.main()
