@@ -392,6 +392,49 @@ def _pipeline() -> dict[str, Any]:
             ) if dag_goals and sum(g["tasks"] for g in dag_goals) else 0.0
         ),
     }
+
+    # Concurrent multi-goal runs (scope="concurrent") rebuilt from storage.
+    concurrent_runs = []
+    for eid, pmap in params_by_exp.items():
+        if pmap.get("scope") != "concurrent":
+            continue
+        try:
+            import json as _json2
+            per_goal = _json2.loads(pmap.get("per_goal_accounting", "{}") or "{}")
+            layer_tel = _json2.loads(pmap.get("layer_telemetry", "[]") or "[]")
+        except Exception:
+            per_goal = {}
+            layer_tel = []
+        concurrent_runs.append({
+            "run_experiment_id": eid,
+            "total_goals": int(pmap.get("total_goals", 0) or 0),
+            "global_calls_spent": int(pmap.get("global_calls_spent", 0) or 0),
+            "global_retries_fired": int(pmap.get("global_retries_fired", 0) or 0),
+            "global_budget_remaining": pmap.get("global_budget_remaining", ""),
+            "shared_session_used": pmap.get("shared_session_used", "") == "True",
+            "per_goal_budget_isolation": pmap.get("per_goal_budget_isolation", "") == "True",
+            "per_goal_accounting": per_goal,
+            "layer_telemetry": layer_tel,
+            "goal_results": pmap.get("goal_results", "{}"),
+        })
+    concurrent_block = {
+        "runs": concurrent_runs,
+        "active_goals": sum(r["total_goals"] for r in concurrent_runs),
+        "global_calls_spent": sum(r["global_calls_spent"] for r in concurrent_runs),
+        "global_retries_fired": sum(r["global_retries_fired"] for r in concurrent_runs),
+        "recovered_tasks": sum(
+            sum(g.get("recovered_successes", 0) for g in r["per_goal_accounting"].values())
+            for r in concurrent_runs
+        ),
+        "failed_tasks": sum(
+            sum(g.get("failures", 0) for g in r["per_goal_accounting"].values())
+            for r in concurrent_runs
+        ),
+        "budget_exhausted_tasks": sum(
+            sum(g.get("budget_exhausted", 0) for g in r["per_goal_accounting"].values())
+            for r in concurrent_runs
+        ),
+    }
     return {
         "substrate": latest_box or "unknown",
         "jobs": jobs,
@@ -420,6 +463,7 @@ def _pipeline() -> dict[str, Any]:
         "memory": memory_keys,
         "arena": arena_block,
         "dag": dag_block,
+        "concurrent": concurrent_block,
         "verification_state": state,
         "blockers": [
             "SSH-to-UpCloud unsupported (historical key not authorized; removed from roadmap)",
@@ -580,6 +624,12 @@ svg{width:100%;height:auto;display:block}
       <div class="hint">ThinkBoxEngine.execute_goal task lifecycle through the governed verified primitive · tasks / first-try / recovered / failures / retries / budget / verification rate · rebuilt from SQLite</div>
       <div class="kpis" id="dag-kpis"></div>
       <div id="dag-body" class="empty">loading…</div>
+    </div>
+    <div class="card">
+      <h2>Concurrent goals · multi-budget execution</h2>
+      <div class="hint">multiple simultaneous ThinkBox goals · independent per-goal budgets or shared global budget · strict cross-goal accounting · per-layer DAG telemetry · rebuilt from SQLite</div>
+      <div class="kpis" id="concurrent-kpis"></div>
+      <div id="concurrent-body" class="empty">loading…</div>
     </div>
     <div class="card">
       <h2>Lessons · retrieval · memory · blockers</h2>
@@ -803,6 +853,34 @@ async function tickPipeline(){
     (g.task_rows&&g.task_rows.length?`<table style="margin-top:6px"><tr><th>Task exp</th><th>Family</th><th>Variant</th><th>Exec status</th></tr>`+
       g.task_rows.map(r=>`<tr><td class="mono">${r.experiment_id}</td><td>${r.family||'—'}</td><td>${r.variant||'—'}</td><td>${r.execution_status||'—'}</td></tr>`).join('')+`</table>`:'')+
     `</div>`).join(''):'<div class="empty">no verified DAG goals yet</div>';
+  const cc=d.concurrent||{};
+  $('#concurrent-kpis').innerHTML=
+    kpi(cc.active_goals||0,'active goals')+
+    kpi(cc.global_calls_spent||0,'calls consumed','good')+
+    kpi(cc.global_retries_fired||0,'retries')+
+    kpi(cc.recovered_tasks||0,'recovered tasks','good')+
+    kpi(cc.failed_tasks||0,'failures',(cc.failed_tasks||0)>0?'bad':'')+
+    kpi(cc.budget_exhausted_tasks||0,'budget exhausted',(cc.budget_exhausted_tasks||0)>0?'bad':'');
+  const cruns=(cc.runs||[]).slice().reverse();
+  $('#concurrent-body').className='';
+  $('#concurrent-body').innerHTML=cruns.length?cruns.map(r=>{
+    const perGoal=Object.entries(r.per_goal_accounting||{}).map(([g,a])=>
+      `<span class="tag">${g}</span>`+
+      `<span class="tag">calls ${a.calls_spent||0}</span>`+
+      `<span class="tag">retries ${a.retries_fired||0}</span>`+
+      `<span class="tag">rec ${a.recovered_successes||0}</span>`+
+      `<span class="tag">fail ${a.failures||0}</span>`).join(' ');
+    const layers=(r.layer_telemetry||[]).map(l=>
+      `<span class="tag">L${l.layer_index}: ${l.tasks}t/${l.first_try_successes+l.recovered_successes}ok/${l.retries}r</span>`).join('');
+    return `<div style="margin-bottom:12px"><span class="mono" style="font-size:11px">${r.run_experiment_id}</span> `+
+      `<span class="tag">${r.total_goals} goals</span>`+
+      `<span class="tag">${r.shared_session_used?'shared':'independent'} budget</span>`+
+      `<span class="tag">calls ${r.global_calls_spent}</span>`+
+      `<span class="tag">retries ${r.global_retries_fired}</span>`+
+      `<div style="margin:6px 0">${perGoal}</div>`+
+      `<div style="margin:4px 0">${layers||''}</div>`+
+    `</div>`;
+  }).join(''):'<div class="empty">no concurrent-goals runs yet</div>';
   const ls=d.lessons||[], rt=d.retrievals||[], mem=d.memory||[];
   $('#pipe-learn').className='';
   $('#pipe-learn').innerHTML=

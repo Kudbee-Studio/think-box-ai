@@ -1,0 +1,31 @@
+{
+  "dependencies": [],
+  "description": "Compute 6 \u00d7 7. Reply with ONLY this exact JSON object and nothing else: {\"answer\": <result>}",
+  "experiment_id": "tb_exp_20260917214736_d1d81848",
+  "family": "compute",
+  "goal_experiment_id": "tb_exp_20260917214736_073fa841",
+  "session_id": "tb_sess_20260917214736_9a37",
+  "task_id": "dagtask_20260917214736_00_26e357",
+  "telemetry": {
+    "attempts": 1,
+    "converted": false,
+    "execution_status": "FIRST_TRY_SUCCESS",
+    "final_taxonomy": "valid",
+    "latency_s": 0.872,
+    "property_valid": true,
+    "retries_used": 0,
+    "taxonomy": "valid",
+    "tokens": 97,
+    "trace": {
+      "attempts": 1,
+      "converted": false,
+      "final_taxonomy": "valid",
+      "final_valid": true,
+      "first_taxonomy": "valid",
+      "retried": false,
+      "task_id": "dagtask_20260917214736_00_26e357"
+    }
+  },
+  "timestamp": "2026-09-17T21:47:37.752805+00:00",
+  "variant": "mul_small"
+}

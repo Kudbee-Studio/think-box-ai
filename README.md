@@ -158,6 +158,13 @@ doing its job.
 - **Aggregation:** `summary["verified"]` carries DAG totals — tasks, first-try successes, recovered successes, failures, retries, budget exhaustion, verification rate — with per-task taxonomy provenance (first failure preserved on recovery). Parent outcomes hide neither failures nor recoveries.
 - **Live proof:** one four-task DAG (2 layers) via real Mercury-2 — 5 calls (budget 10): 3 first-try + 1 natural recovery (distractor-compliance → valid, 2 attempts), 0 failures, ledger + proof verified; proof `data/thinkboxmd/artifacts/dagpath_proof_20260917.json`. Dashboard exposes a DAG verified-execution card rebuilt from SQLite. Orchestration milestone — NOT model intelligence improvement.
 
+### Multi-goal concurrent budgets + deeper DAG telemetry (2026-09-17)
+
+- **Concurrency model:** each concurrent goal runs on its OWN fresh `GovernedEngine` (own base engine) to avoid the shared `_verified_task_runner` race; the only shared object is an optional global `VerifiedRetrySession` whose synchronous `_spend_call` makes shared-budget accounting mathematically correct under asyncio.
+- **Budgets:** independent per-goal `VerifiedRetrySession` budgets (default) or a shared/global budget enforcing a strict cap; honest `BudgetExhausted`; cross-goal accounting (per-goal calls/retries, global = deterministic sum).
+- **Telemetry:** `ThinkBoxEngine.execute_goal` emits per-layer telemetry (`summary["layers_telemetry"]`) for fan-out/fan-in DAGs; dashboard `_pipeline()` gained a `concurrent` block.
+- **Live proof:** 2 concurrent goals via real Mercury-2 (1 single-task + 1 fan-in DAG) — 4 calls, all first-try, cross-goal accounting exact (global 4 = 1+3); proof `data/thinkboxmd/artifacts/concurrent_goals_live_proof_20260917.json`. Accounting-correctness milestone — NOT a performance or model-intelligence claim.
+
 ### Experiment + Learning Dashboard
 
 Persistent, zero-server experiment tracking with SQLite persistence and
@@ -285,7 +292,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **649 tests** (all passing, 6 skipped)
+Current test count: **664 tests** (all passing, 6 skipped)
 
 ---
 

@@ -61,7 +61,19 @@
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
 - `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests + `TestDagVerifiedExecution` 9 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper + DAG-level verified execution)
-- Full suite: **649 tests, 6 skipped**
+- `tests/unit/test_concurrent_goals.py` — 15 tests (concurrent execution, budget isolation, shared-budget exhaustion, cross-goal accounting, retry accounting, fan-out/fan-in telemetry, restart/persist, dashboard block, no-secrets)
+- Full suite: **664 tests, 6 skipped**
+
+### Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (2026-09-17) — COMPLETE (live 4 calls)
+
+- **Architecture decision (concurrency model):** `ThinkBoxEngine.execute_goal` reads the injected verified runner from a mutable instance attribute (`_verified_task_runner`), so concurrent goals sharing one base engine would race. Each concurrent goal therefore gets its OWN fresh `GovernedEngine` (own base `ThinkBoxEngine`, own in-memory ledger, own event stream). The ONLY shared object is the optional global `VerifiedRetrySession`, whose counter mutations (`_spend_call`, `retries_fired`, `conversions`) are synchronous (no `await` between read-modify-write), so asyncio serializes them correctly — this makes shared-budget accounting mathematically correct, NOT merely concurrent.
+- **Integration point:** new `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner`, `ConcurrentGoalSpec`, `ConcurrentGoalsConfig`, `ConcurrentGoalsResult`, `aggregate_layer_telemetry`); reuses `GovernedEngine.execute_verified_goal` (now accepts `session=`), `VerifiedRetrySession`, `VerifiedRetryConfig`, `BudgetExhausted`. `ThinkBoxEngine.execute_goal` emits `summary["layers_telemetry"]`; dashboard `_pipeline()` gained a `concurrent` block (extended DAG view, no new dashboard).
+- **Budget model:** independent goals (default) = per-goal `VerifiedRetrySession` (strict isolation); shared/global = one shared session enforcing a global cap via atomic `_spend_call` (honest `BudgetExhausted`). Cross-goal accounting: per-goal calls counted by wrapping each goal's `complete_async`; per-goal retries from `verified["retries"]`; global = deterministic sum cross-checked against the shared session's `calls_spent`.
+- **Live proof (fresh instances):** 2 concurrent goals via REAL Mercury-2 (`experiments/concurrent_goals_live.py`): goal A `compute/add_small` (1 task) + goal B fan-in DAG `[compute/mul_small, compute/sub_neg] → multifield/double` (3 tasks). 4 live calls (hard guard 8): all FIRST_TRY_SUCCESS, 0 retries, 0 failures, 0 budget-exhausted. Cross-goal accounting exact: global 4 = 1+3; per-goal remaining 1 each. Layer telemetry: layer 0 = 3 tasks (fan-out), layer 1 = 1 task (fan-in). Memory `learn:concurrent:multi-goal-budgets`.
+- **Restart / dashboard:** `scope="concurrent"` control record persisted via `ExperimentManager` (per-goal accounting + layer telemetry + goal_results JSON); fresh `ExperimentDB` + `_pipeline()` reconstruct the run from SQLite alone. File ledger (6 entries) `verify()` True.
+- **Fix (found during audit):** `_persist_verified_goal` wrote proof to fixed per-day filename `dagpath_proof_{date}.json` → concurrent goals clobbered each other + the historical DAG proof. Fixed to `dagpath_proof_{goal_experiment_id}.json`; runner `persist` proof unique per run; historical clobbered artifacts restored from git.
+- **Integrity:** proof `data/thinkboxmd/artifacts/concurrent_goals_live_proof_20260917.json` SHA256 `0d740895…489a`; runner proof `concurrent_proof_tb_exp_20260917214737_b61798e2.json`; secrets scan clean.
+- **Evidence:** FourState CONCURRENT_VERIFIED (CODE_COMPLETE / TEST_VERIFIED 664 / LIVE_VERIFIED substrate / MODEL_EXECUTION_VERIFIED 4 live calls; PRODUCTION not claimed)
 
 ### DAG-Level Verified Execution (2026-09-17) — COMPLETE
 
