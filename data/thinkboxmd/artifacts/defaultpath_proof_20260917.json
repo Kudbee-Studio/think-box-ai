@@ -1,0 +1,32 @@
+{
+  "branch": "main",
+  "checkout_sha": "d691fa642ac682eb42f0c1987ba57b343c5ee4ac",
+  "classification": "IMPROVED (mechanism generalizes: 8/8 valid with 1 conversion at Arena scale across families)",
+  "four_state": "ARENA_VERIFIED (default-path proof)",
+  "jobs": {
+    "conversion": {
+      "attempts": 2,
+      "final": "valid",
+      "first": "distractor-compliance",
+      "task": "defaultpath_distractor_wrongkey"
+    },
+    "conversions": 1,
+    "retries_fired": 1,
+    "total": 8,
+    "valid": 8
+  },
+  "mechanism": "VerifiedRetrySession (max_retries=1, retryable taxonomies, session max_calls=16) driving 8 live jobs across compute/distractor/multifield",
+  "no_claims": [
+    "no model intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "phase": "default-path-generalization",
+  "scope": "orchestration-level; NOT model intelligence",
+  "session_budget": {
+    "max_calls": 16,
+    "spent": 9
+  },
+  "timestamp": "2026-09-17T18:40:36.758055+00:00"
+}

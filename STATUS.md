@@ -60,8 +60,15 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 16 tests (v1 + v2 families/taxonomy + v3 retry mechanism)
-- Full suite: **630 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 21 tests (v1 + v2 families/taxonomy + v3 retry + default-path session)
+- Full suite: **635 tests, 6 skipped**
+
+### Default-Path Generalization (2026-09-17) — COMPLETE (IMPROVED mechanism at scale)
+
+- **Mechanism:** `VerifiedRetrySession` + config/result/budget in `thinkbox/pop_arena.py` (sync-pure, injected complete/verify/reprompt; bounded retries; per-call traces; session call budget with `BudgetExhausted`)
+- **Live proof:** 8 jobs across compute/distractor(6)/multifield (budget 16, spent 9): 8/8 valid, 1 retry → 1 conversion (distractor-compliance → valid, 2 attempts); memory + dashboard recorded
+- **Classification:** IMPROVED — orchestration level, NOT model intelligence; small-n honestly bounded
+- **Evidence:** `data/thinkboxmd/artifacts/defaultpath_proof_20260917.json` (SHA256 `5a0e0c16…94cfa3c74`, 9 files secrets-clean); FourState ARENA_VERIFIED
 
 ### Arena v3 Verifier-Side Retry (2026-09-17) — COMPLETE (IMPROVED at mechanism level)
 

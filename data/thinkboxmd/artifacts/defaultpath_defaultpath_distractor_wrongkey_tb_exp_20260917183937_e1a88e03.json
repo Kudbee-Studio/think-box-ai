@@ -1,0 +1,25 @@
+{
+  "attempts": 2,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "calls_spent": 4,
+  "converted": true,
+  "family": "distractor",
+  "model": "mercury-2",
+  "origin": "live",
+  "provider": "openai_compat",
+  "retries_used": 1,
+  "task_id": "defaultpath_distractor_wrongkey",
+  "taxonomy": "valid",
+  "trace": {
+    "attempts": 2,
+    "converted": true,
+    "final_taxonomy": "valid",
+    "final_valid": true,
+    "first_taxonomy": "distractor-compliance",
+    "retried": true,
+    "task_id": "defaultpath_distractor_wrongkey"
+  },
+  "valid": true,
+  "variant": "wrongkey",
+  "via": "VerifiedRetrySession"
+}

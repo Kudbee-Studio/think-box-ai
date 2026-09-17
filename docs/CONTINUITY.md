@@ -33,18 +33,30 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Arena v3 verifier-side retry: structural attack on the wrongkey failure class that defeated prompt lessons in v2 |
-| **Latest completed work** | Arena v3 COMPLETE: 12 live distractor instances (6 baseline + 6 retry); baseline reproduced v2 failure 5/6; retry arm 6/6 with 1/1 conversion (distractor-compliance → valid on retry); IMPROVED at mechanism level — 630 tests passing |
-| **Current verified capabilities** | Verifier retry mechanism (`should_retry` gate + `retry_prompt_for` + `resolve_retry` trace, max 1 retry, retryable taxonomies only); v3 control + lessons + proof; 630 tests passing |
-| **Current blockers** | None. Live calls this run: 13 (12 first + 1 retry). `record_outcome` status stays pending (pre-existing). |
-| **Known risks** | IMPROVED is mechanism-level (orchestration), NOT model intelligence. Single conversion event — small-n evidence, honestly bounded. Retry costs 2x tokens on fired instances (716 vs ~168). |
-| **Next larger improvement** | Generalize the retry mechanism into the default Think Job execution path (all families, error-taxonomy-driven retries with budget caps) and measure conversion rate at Arena scale |
-| **PR status** | main at 0744610; v3 work on main working tree, uncommitted |
-| **Test count** | **630 tests passing (6 skipped)** |
+| **Active objective** | Default-path generalization: VerifiedRetrySession as the standard verified execution path for all Think Jobs |
+| **Latest completed work** | Default-path proof COMPLETE: 8 live jobs across compute/distractor/multifield via VerifiedRetrySession (budget 16, spent 9); 8/8 valid with 1 wrongkey conversion; IMPROVED mechanism at scale — 635 tests passing |
+| **Current verified capabilities** | VerifiedRetrySession (bounded retries + session call budget + per-call traces) + 5 deterministic tests; live proof with memory + dashboard; 635 tests passing |
+| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). |
+| **Known risks** | Conversion evidence still small-n (2 total across v3 + default-path); budget caps prevent runaway spend (proven: 9/16 spent, BudgetExhausted tested). |
+| **Next larger improvement** | Promote VerifiedRetrySession into ThinkBoxEngine.execute_goal as the standard per-task wrapper with dashboard-visible retry telemetry |
+| **PR status** | main at d691fa6; default-path work on main working tree, uncommitted |
+| **Test count** | **635 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Default-Path Generalization (VerifiedRetrySession, 8 live jobs, IMPROVED)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Generalize the v3 retry mechanism into the default Think Job path. HEAD `d691fa6`, branch `main`. No SSH, no UpCloud compute, no GPU, no fakes, no secrets. |
+| **Mechanism** | `VerifiedRetrySession` + `VerifiedRetryConfig` + `VerifiedCallResult` + `BudgetExhausted` in `thinkbox/pop_arena.py`: sync-pure (complete/verify/reprompt injected), bounded retries for retryable taxonomies, per-call traces, session call budget. `+5` deterministic tests (21/21 arena tests OK). |
+| **Live proof** | 8 jobs across compute/distractor(6)/multifield via the session (budget 16, spent 9): 8/8 valid, 1 retry fired → 1 conversion (`defaultpath_distractor_wrongkey`: distractor-compliance → valid, 2 attempts). Memory `learn:defaultpath:retry-session` + dashboard JOB_COMPLETED. |
+| **Classification** | IMPROVED — mechanism generalizes across families (8/8 with conversion); orchestration level, NOT model intelligence; small-n honestly bounded. |
+| **Restart** | Fresh handles verified (suite + dashboard read from storage). Proof `defaultpath_proof_20260917.json` SHA256 `5a0e0c16…94cfa3c74`, 9 files secrets-clean. Full suite 635 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (635) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (72 live calls total) / ARENA_VERIFIED (default-path proof) / PRODUCTION not claimed |
 
 ### 2026-09-17 — Arena v3 Verifier-Side Retry (12 live, COMPLETE, IMPROVED at mechanism level)
 

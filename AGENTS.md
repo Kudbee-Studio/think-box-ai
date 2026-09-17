@@ -617,6 +617,11 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Run:** control `tb_exp_20260917182126_3cf9f861`; 12 live distractor (6 baseline + 6 retry-arm).
 - **Result:** baseline 5/6 (v2 failure reproduced); retry arm 6/6 with 1/1 conversion (distractor-compliance → `{"answer": 37}`, 2 attempts). Classification IMPROVED — orchestration level, NOT model intelligence. Proof `arena3_proof_20260917.json` SHA256 `b1aadd34…09ceaca8`. Suite 630 OK (6 skipped).
 
+### Default-Path Generalization (2026-09-17) — COMPLETE (IMPROVED at scale)
+
+- **Mechanism:** `VerifiedRetrySession` + `VerifiedRetryConfig`/`VerifiedCallResult`/`BudgetExhausted` in `thinkbox/pop_arena.py` (sync-pure, bounded retries, per-call traces, session budget); `+5` deterministic tests.
+- **Live proof:** 8 jobs across compute/distractor(6)/multifield (budget 16, spent 9): 8/8 valid, 1 retry → 1 conversion. Memory `learn:defaultpath:retry-session` + dashboard. Proof `defaultpath_proof_20260917.json` SHA256 `5a0e0c16…94cfa3c74`. Suite 635 OK (6 skipped).
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:

@@ -652,6 +652,170 @@ class ArenaConfig:
         }
 
 
+# --- Default-path generalization: VerifiedRetrySession ------------------------
+# Arena v3 proved the retry mechanism converts distractor-compliance
+# failures at the orchestration level. This generalizes it into the DEFAULT
+# Think Job execution path: every verified model call runs through
+# VerifiedRetrySession, which (1) verifies the first response with the
+# caller-supplied verifier, (2) fires at most max_retries bounded retries
+# for retryable taxonomies only, (3) records a per-call trace, and (4)
+# enforces a session-level call budget so retries can never cause
+# unbounded spend. Pure orchestration around the existing provider path;
+# no model, provider, or substrate changes.
+#
+# Retryable taxonomy set is caller-configurable; the v2/v3 taxonomy
+# vocabulary (parse-fail / wrong-key / distractor-compliance /
+# arithmetic / inconsistency / valid) is the default contract.
+
+
+@dataclass
+class VerifiedRetryConfig:
+    max_retries: int = V3_MAX_RETRIES
+    retryable: tuple[str, ...] = RETRYABLE_TAXONOMIES
+    max_calls: int = 0  # 0 = unbounded; >0 enforces session call budget
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "max_retries": self.max_retries,
+            "retryable": list(self.retryable),
+            "max_calls": self.max_calls,
+        }
+
+
+@dataclass
+class VerifiedCallResult:
+    valid: bool
+    taxonomy: str
+    attempts: int
+    retries_used: int
+    converted: bool
+    trace: RetryTrace
+    calls_spent: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "valid": self.valid,
+            "taxonomy": self.taxonomy,
+            "attempts": self.attempts,
+            "retries_used": self.retries_used,
+            "converted": self.converted,
+            "trace": self.trace.to_dict(),
+            "calls_spent": self.calls_spent,
+        }
+
+
+class BudgetExhausted(Exception):
+    """Raised when a VerifiedRetrySession call budget is exhausted."""
+
+
+class VerifiedRetrySession:
+    """Default-path verified execution with bounded retries + call budget.
+
+    The caller supplies three pure functions so this class never touches
+    the network and stays fully deterministic under test:
+      complete(prompt) -> response text (exactly one model call)
+      verify(response) -> (valid, taxonomy)
+      reprompt(taxonomy) -> follow-up prompt naming the observed failure
+    """
+
+    def __init__(self, config: VerifiedRetryConfig | None = None) -> None:
+        self.config = config or VerifiedRetryConfig()
+        self.calls_spent = 0
+        self.retries_fired = 0
+        self.conversions = 0
+
+    @property
+    def budget_remaining(self) -> int | None:
+        if self.config.max_calls <= 0:
+            return None
+        return max(0, self.config.max_calls - self.calls_spent)
+
+    def _spend_call(self) -> None:
+        if self.config.max_calls > 0 and self.calls_spent >= self.config.max_calls:
+            raise BudgetExhausted(
+                f"session call budget exhausted ({self.config.max_calls})"
+            )
+        self.calls_spent += 1
+
+    def run(
+        self,
+        task_id: str,
+        prompt: str,
+        complete,
+        verify,
+        reprompt,
+    ) -> VerifiedCallResult:
+        """Execute one verified call with bounded retries. Deterministic."""
+        first_taxonomy_holder: list[str] = []
+        self._spend_call()
+        first = complete(prompt)
+        valid, taxonomy = verify(first)
+        first_taxonomy_holder.append(taxonomy)
+        retries_used = 0
+        if valid or taxonomy not in self.config.retryable:
+            trace = RetryTrace(
+                task_id=task_id,
+                first_taxonomy=taxonomy,
+                retried=False,
+                final_valid=valid,
+                final_taxonomy=taxonomy,
+                attempts=1,
+                converted=False,
+            )
+            return VerifiedCallResult(
+                valid=valid,
+                taxonomy=taxonomy,
+                attempts=1,
+                retries_used=0,
+                converted=False,
+                trace=trace,
+                calls_spent=self.calls_spent,
+            )
+        while retries_used < self.config.max_retries and taxonomy in self.config.retryable:
+            self._spend_call()
+            retries_used += 1
+            self.retries_fired += 1
+            second = complete(prompt + " " + reprompt(taxonomy))
+            valid2, taxonomy2 = verify(second)
+            if valid2:
+                self.conversions += 1
+                return VerifiedCallResult(
+                    valid=True,
+                    taxonomy=taxonomy2,
+                    attempts=1 + retries_used,
+                    retries_used=retries_used,
+                    converted=True,
+                    trace=RetryTrace(
+                        task_id=task_id,
+                        first_taxonomy=first_taxonomy_holder[0],
+                        retried=True,
+                        final_valid=True,
+                        final_taxonomy=taxonomy2,
+                        attempts=1 + retries_used,
+                        converted=True,
+                    ),
+                    calls_spent=self.calls_spent,
+                )
+            taxonomy = taxonomy2
+        return VerifiedCallResult(
+            valid=False,
+            taxonomy=taxonomy,
+            attempts=1 + retries_used,
+            retries_used=retries_used,
+            converted=False,
+            trace=RetryTrace(
+                task_id=task_id,
+                first_taxonomy=first_taxonomy_holder[0],
+                retried=True,
+                final_valid=False,
+                final_taxonomy=taxonomy,
+                attempts=1 + retries_used,
+                converted=False,
+            ),
+            calls_spent=self.calls_spent,
+        )
+
+
 class ArenaRun:
     """Persistent Arena control surface over existing ExperimentManager storage.
 

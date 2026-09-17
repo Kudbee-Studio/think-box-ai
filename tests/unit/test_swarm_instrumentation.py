@@ -539,6 +539,55 @@ class TestPopulationArena(unittest.TestCase):
         r = resolve_retry("t", "wrong-key", False, True, "valid", 0)
         self.assertTrue(secrets_clean(r.to_dict()))
 
+    def test_default_path_first_try_valid_no_retry(self) -> None:
+        from thinkbox.pop_arena import VerifiedRetrySession
+        calls = []
+        s = VerifiedRetrySession()
+        r = s.run("t", "p", lambda p: (calls.append(p), '{"answer": 1}')[1],
+                  lambda t: (True, "valid"), lambda tax: "again")
+        self.assertTrue(r.valid and r.attempts == 1 and not r.converted)
+        self.assertEqual(len(calls), 1)
+
+    def test_default_path_converts_retryable(self) -> None:
+        from thinkbox.pop_arena import VerifiedRetrySession
+        seen = []
+        def complete(p):
+            seen.append(p)
+            return '{"result": 1}' if len(seen) == 1 else '{"answer": 1}'
+        def verify(t):
+            import json as _j
+            d = _j.loads(t)
+            return (("answer" in d), ("valid" if "answer" in d else "distractor-compliance"))
+        s = VerifiedRetrySession()
+        r = s.run("t", "base", complete, verify, lambda tax: "fix key")
+        self.assertTrue(r.valid and r.converted and r.attempts == 2)
+        self.assertEqual(s.conversions, 1)
+
+    def test_default_path_no_retry_for_arithmetic(self) -> None:
+        from thinkbox.pop_arena import VerifiedRetrySession
+        calls = []
+        s = VerifiedRetrySession()
+        r = s.run("t", "p", lambda p: (calls.append(p), "x")[1],
+                  lambda t: (False, "arithmetic"), lambda tax: "again")
+        self.assertFalse(r.valid or r.trace.retried)
+        self.assertEqual(len(calls), 1)
+
+    def test_default_path_budget_cap(self) -> None:
+        from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
+        s = VerifiedRetrySession(VerifiedRetryConfig(max_retries=1, max_calls=1))
+        with self.assertRaises(BudgetExhausted):
+            s.run("t", "p", lambda p: '{"result": 1}',
+                  lambda t: (False, "distractor-compliance"), lambda tax: "again")
+        self.assertEqual(s.calls_spent, 1)
+
+    def test_default_path_first_taxonomy_preserved_after_retry(self) -> None:
+        from thinkbox.pop_arena import VerifiedRetrySession
+        s = VerifiedRetrySession()
+        r = s.run("t", "p", lambda p: '{"x": 1}',
+                  lambda t: (False, "parse-fail"), lambda tax: "again")
+        self.assertEqual(r.trace.first_taxonomy, "parse-fail")
+        self.assertTrue(r.trace.retried and not r.converted)
+
 
 if __name__ == "__main__":
     unittest.main()
