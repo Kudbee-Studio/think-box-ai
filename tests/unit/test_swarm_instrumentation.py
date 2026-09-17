@@ -508,6 +508,37 @@ class TestPopulationArena(unittest.TestCase):
                 if fam == "compute":
                     self.assertNotIn(str(spec["expected"]), prompt)
 
+    def test_v3_retry_gate(self) -> None:
+        from thinkbox.pop_arena import should_retry, V3_MAX_RETRIES
+        self.assertEqual(V3_MAX_RETRIES, 1)
+        for tax in ("wrong-key", "distractor-compliance", "parse-fail"):
+            self.assertTrue(should_retry(tax, 0))
+            self.assertFalse(should_retry(tax, 1))
+        for tax in ("arithmetic", "inconsistency", "valid"):
+            self.assertFalse(should_retry(tax, 0))
+
+    def test_v3_retry_prompt_names_failure_no_answer(self) -> None:
+        from thinkbox.pop_arena import retry_prompt_for, V2_DISTRACTOR_TARGETS
+        p = retry_prompt_for("distractor", "distractor-compliance", {"expected": 37})
+        self.assertIn("answer", p)
+        self.assertNotIn("37", p)
+
+    def test_v3_resolve_conversion(self) -> None:
+        from thinkbox.pop_arena import resolve_retry
+        r = resolve_retry("t", "distractor-compliance", False, True, "valid", 0)
+        self.assertTrue(r.retried and r.converted and r.attempts == 2)
+        r2 = resolve_retry("t", "distractor-compliance", False, False, "distractor-compliance", 0)
+        self.assertTrue(r2.retried and not r2.converted)
+        r3 = resolve_retry("t", "arithmetic", False, True, "valid", 0)
+        self.assertFalse(r3.retried and r3.converted)
+        r4 = resolve_retry("t", "valid", True, None, None, 0)
+        self.assertFalse(r4.retried)
+
+    def test_v3_trace_serializes_secrets_clean(self) -> None:
+        from thinkbox.pop_arena import resolve_retry, secrets_clean
+        r = resolve_retry("t", "wrong-key", False, True, "valid", 0)
+        self.assertTrue(secrets_clean(r.to_dict()))
+
 
 if __name__ == "__main__":
     unittest.main()

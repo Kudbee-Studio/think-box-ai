@@ -1,0 +1,30 @@
+{
+  "arm": "retry",
+  "attempts": 1,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 3.205,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 43
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "01044f6c741c91e65eb50ea9b8d6b7a2b4319fe324328c67e9a02aae10be9e4c",
+  "retries_used": 0,
+  "retry_trace": {
+    "attempts": 1,
+    "converted": false,
+    "final_taxonomy": "valid",
+    "final_valid": true,
+    "first_taxonomy": "valid",
+    "retried": false,
+    "task_id": "arena3_distractor_order_retry"
+  },
+  "task_id": "arena3_distractor_order_retry",
+  "taxonomy": "valid",
+  "tokens": 176,
+  "valid": true,
+  "variant": "order"
+}

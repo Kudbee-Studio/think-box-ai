@@ -1,0 +1,46 @@
+{
+  "arena": "v3-verifier-retry",
+  "baseline_arm": {
+    "failures": [
+      {
+        "attempts": 1,
+        "parsed": {
+          "result": 37
+        },
+        "task": "arena3_distractor_wrongkey_baseline",
+        "taxonomy": "distractor-compliance"
+      }
+    ],
+    "total": 6,
+    "valid": 5
+  },
+  "branch": "main",
+  "checkout_sha": "07446107d67de56f9cbb1aa83758ed3ea3837049",
+  "classification": "IMPROVED",
+  "classification_reason": "retry mechanism converted the exact failure class (distractor-compliance wrongkey) that defeated prompt-guard lessons in v2 both arms; baseline reproduced the v2 failure (5/6), retry arm 6/6 final-valid with 1/1 conversion on the retryable instance",
+  "control_experiment_id": "tb_exp_20260917182126_3cf9f861",
+  "four_state": "ARENA_VERIFIED (v3 COMPLETE)",
+  "mechanism": "verifier-side retry: max 1 retry, retryable taxonomies (wrong-key/distractor-compliance/parse-fail) only; retry prompt names observed failure, leaks no answer",
+  "no_claims": [
+    "no model intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "retry_arm": {
+    "conversion": {
+      "attempts": 2,
+      "final": "valid",
+      "first_taxonomy": "distractor-compliance",
+      "latency_s": 2.83,
+      "task": "arena3_distractor_wrongkey_retry",
+      "tokens": 716
+    },
+    "conversions": 1,
+    "final_valid": 6,
+    "retries_fired": 1,
+    "total": 6
+  },
+  "scope": "mechanism-level improvement (verifier+retry orchestration), NOT model intelligence improvement",
+  "timestamp": "2026-09-17T18:22:42.897528+00:00"
+}

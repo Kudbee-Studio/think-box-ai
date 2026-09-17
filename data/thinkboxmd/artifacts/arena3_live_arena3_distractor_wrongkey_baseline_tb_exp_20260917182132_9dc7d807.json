@@ -1,0 +1,22 @@
+{
+  "arm": "baseline",
+  "attempts": 1,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 12.433,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "result": 37
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "0837fac10fd53cc852a398da5a805198e7db7b3ef37aa9c98797db815b2fa898",
+  "retries_used": 0,
+  "retry_trace": null,
+  "task_id": "arena3_distractor_wrongkey_baseline",
+  "taxonomy": "distractor-compliance",
+  "tokens": 152,
+  "valid": false,
+  "variant": "wrongkey"
+}

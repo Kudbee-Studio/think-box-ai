@@ -60,8 +60,17 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 12 tests (v1 + v2 families/taxonomy)
-- Full suite: **626 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 16 tests (v1 + v2 families/taxonomy + v3 retry mechanism)
+- Full suite: **630 tests, 6 skipped**
+
+### Arena v3 Verifier-Side Retry (2026-09-17) — COMPLETE (IMPROVED at mechanism level)
+
+- **Mechanism:** `should_retry` gate (retryable taxonomies only, max 1) + `retry_prompt_for` (names failure, no answer leak) + `resolve_retry` trace — in `thinkbox/pop_arena.py`, deterministically tested
+- **Run:** control `tb_exp_20260917182126_3cf9f861`; 12 live distractor (6 baseline + 6 retry-arm) via existing Mercury-2 path
+- **Result:** baseline 5/6 (reproduced `{"result": 37}`); retry arm 6/6 final-valid with 1/1 conversion (distractor-compliance → valid, 2 attempts, 716 tokens)
+- **Classification:** IMPROVED — mechanism level only (orchestration, NOT model intelligence); small-n, honestly bounded
+- **Restart:** fresh handles reload control + lesson + ledger verified
+- **Evidence:** `data/thinkboxmd/artifacts/arena3_proof_20260917.json` (SHA256 `b1aadd34…09ceaca8`, 13 files secrets-clean); FourState ARENA_VERIFIED
 
 ### Arena v2 Transfer-Under-Difficulty (2026-09-17) — COMPLETE (honest negative transfer)
 

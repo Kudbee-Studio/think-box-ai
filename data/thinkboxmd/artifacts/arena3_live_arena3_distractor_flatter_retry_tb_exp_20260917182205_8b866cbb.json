@@ -1,0 +1,30 @@
+{
+  "arm": "retry",
+  "attempts": 1,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 0.619,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 41
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "3bfabeb0dc57a1d54c9cf43b943f9132bc4235b54ecb918adc7ebdfe131ab527",
+  "retries_used": 0,
+  "retry_trace": {
+    "attempts": 1,
+    "converted": false,
+    "final_taxonomy": "valid",
+    "final_valid": true,
+    "first_taxonomy": "valid",
+    "retried": false,
+    "task_id": "arena3_distractor_flatter_retry"
+  },
+  "task_id": "arena3_distractor_flatter_retry",
+  "taxonomy": "valid",
+  "tokens": 216,
+  "valid": true,
+  "variant": "flatter"
+}

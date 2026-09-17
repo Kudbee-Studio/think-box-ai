@@ -33,18 +33,30 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Arena v2 transfer-under-difficulty: 300 instances across compute/distractor/multifield families, 36 live calls, failure-driven lesson |
-| **Latest completed work** | Arena v2 COMPLETE: 300/300 persisted (36 live + 264 replay); baseline 17/18 vs learned 17/18; identical wrongkey failure both arms — lesson retrieved 18/18 but fix INEFFECTIVE; NO_MEASURABLE_IMPROVEMENT (honest negative transfer) — 626 tests passing |
-| **Current verified capabilities** | v2 families (compute/distractor/multifield) with taxonomy verifier (6 classes); pre-registered hypothesis + Wilson-CI threshold; batched resume-safe live runner; failure-driven lesson `learn:arena2:failures`; fresh-handle restart proof; 626 tests passing |
-| **Current blockers** | None. Live budgets spent (v1 12/12, v2 36/36). `record_outcome` status stays pending (pre-existing). |
-| **Known risks** | Ceiling broken (0.944) but transfer still zero — the wrongkey distractor defeats both arms identically; prompt-guard lessons do not transfer to key-swap compliance. Replay strategy split 138/126 (trim artifact; live arms decide classification). |
-| **Next larger improvement** | Attack the wrongkey failure directly: test structural defenses (response-schema validation + retry-on-wrong-key loop) as a verifier-side mechanism, then run Arena v3 measuring whether verifier retries convert distractor-compliance failures to valid |
-| **PR status** | main at 2030494; v2 work on main working tree, uncommitted |
-| **Test count** | **626 tests passing (6 skipped)** |
+| **Active objective** | Arena v3 verifier-side retry: structural attack on the wrongkey failure class that defeated prompt lessons in v2 |
+| **Latest completed work** | Arena v3 COMPLETE: 12 live distractor instances (6 baseline + 6 retry); baseline reproduced v2 failure 5/6; retry arm 6/6 with 1/1 conversion (distractor-compliance → valid on retry); IMPROVED at mechanism level — 630 tests passing |
+| **Current verified capabilities** | Verifier retry mechanism (`should_retry` gate + `retry_prompt_for` + `resolve_retry` trace, max 1 retry, retryable taxonomies only); v3 control + lessons + proof; 630 tests passing |
+| **Current blockers** | None. Live calls this run: 13 (12 first + 1 retry). `record_outcome` status stays pending (pre-existing). |
+| **Known risks** | IMPROVED is mechanism-level (orchestration), NOT model intelligence. Single conversion event — small-n evidence, honestly bounded. Retry costs 2x tokens on fired instances (716 vs ~168). |
+| **Next larger improvement** | Generalize the retry mechanism into the default Think Job execution path (all families, error-taxonomy-driven retries with budget caps) and measure conversion rate at Arena scale |
+| **PR status** | main at 0744610; v3 work on main working tree, uncommitted |
+| **Test count** | **630 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Arena v3 Verifier-Side Retry (12 live, COMPLETE, IMPROVED at mechanism level)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Structural attack on the v2 wrongkey failure: verifier retry loop (max 1, retryable taxonomies only). HEAD `0744610`, branch `main`. No SSH, no UpCloud compute, no GPU, no fakes, no secrets. |
+| **Mechanism** | `should_retry` gate + `retry_prompt_for` (names observed failure, leaks no answer) + `resolve_retry` trace — all in `thinkbox/pop_arena.py`, all deterministically tested (`+4` tests, 16/16 arena tests OK). |
+| **Run** | Control `tb_exp_20260917182126_3cf9f861`, 12 live distractor instances (6 baseline single-attempt + 6 retry-arm), Mercury-2 via existing path. Baseline reproduced v2: 5/6 (`{"result": 37}` again). Retry arm: 6/6 final-valid; the one retryable instance (`wrongkey_retry`: first `distractor-compliance`) converted to `{"answer": 37}` on retry (2 attempts, 716 tokens, 2.83s). |
+| **Classification** | IMPROVED — scoped explicitly to mechanism level (orchestration converts the failure class prompt lessons could not). NOT model intelligence. Small-n (1 conversion), honestly bounded. |
+| **Restart** | Fresh handles: v3 control COMPLETE, lesson + ledger verified. Proof `arena3_proof_20260917.json` SHA256 `b1aadd34…09ceaca8`, 13 files secrets-clean. Full suite 630 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (630) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (64 live calls total) / ARENA_VERIFIED (v3 COMPLETE, IMPROVED mechanism) / PRODUCTION not claimed |
 
 ### 2026-09-17 — Arena v2 Transfer-Under-Difficulty (300 instances, COMPLETE, honest negative transfer)
 

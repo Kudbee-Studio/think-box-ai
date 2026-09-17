@@ -611,6 +611,12 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Run:** control `tb_exp_20260917181211_b78ceb62` (hypothesis + Wilson threshold pre-registered); 300/300 (264 replay + 36 live Mercury-2: 18 baseline + 18 learned, retrieval 18/18).
 - **Result:** 17/18 vs 17/18 (delta 0.0, CIs overlap, threshold NOT met); identical wrongkey `{"result": 37}` failure both arms — lesson retrieved but INEFFECTIVE. Classification NO_MEASURABLE_IMPROVEMENT. Proof `arena2_proof_20260917.json` SHA256 `413e05ad…65cea9c9`. Suite 626 OK (6 skipped).
 
+### Arena v3 Verifier-Side Retry (2026-09-17) — COMPLETE (IMPROVED at mechanism level)
+
+- **Mechanism:** `should_retry` + `retry_prompt_for` + `resolve_retry` in `thinkbox/pop_arena.py` (max 1 retry, retryable taxonomies only; names failure, leaks no answer); `+4` deterministic tests.
+- **Run:** control `tb_exp_20260917182126_3cf9f861`; 12 live distractor (6 baseline + 6 retry-arm).
+- **Result:** baseline 5/6 (v2 failure reproduced); retry arm 6/6 with 1/1 conversion (distractor-compliance → `{"answer": 37}`, 2 attempts). Classification IMPROVED — orchestration level, NOT model intelligence. Proof `arena3_proof_20260917.json` SHA256 `b1aadd34…09ceaca8`. Suite 630 OK (6 skipped).
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:

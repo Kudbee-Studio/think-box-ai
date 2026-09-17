@@ -239,6 +239,108 @@ def deterministic_emission_v2(family: str, variant: str, spec: dict[str, Any]) -
     raise ValueError(f"unknown v2 family: {family}")
 
 
+# --- Arena v3: verifier-side retry mechanism --------------------------------
+# v2 proved prompt-guard lessons do NOT transfer to key-swap compliance
+# (identical wrongkey failure both arms). v3 attacks the same failure
+# STRUCTURALLY: a bounded verifier-side retry loop. After a model response
+# fails schema validation, the mechanism re-prompts ONCE with the observed
+# failure named (e.g. "you emitted key result; the key must be answer"),
+# then re-validates. Conversion = first-attempt taxonomy in a retryable
+# class AND final validity True. Nothing about the model changes; the
+# mechanism is pure orchestration around the existing provider path.
+#
+# Retry budget: max 1 retry per instance (2 calls max). Retry fires ONLY for
+# retryable taxonomies (wrong-key, distractor-compliance, parse-fail).
+# arithmetic/inconsistency are model errors a re-prompt cannot fix
+# deterministically, so they are recorded as-is (no retry spent).
+
+RETRYABLE_TAXONOMIES = ("wrong-key", "distractor-compliance", "parse-fail")
+
+V3_MAX_RETRIES = 1
+
+
+def retry_prompt_for(family: str, taxonomy: str, spec: dict[str, Any]) -> str:
+    """Second-attempt prompt naming the observed failure (no answer leaked)."""
+    if taxonomy == "distractor-compliance":
+        return (
+            "Your previous response used the wrong JSON key. "
+            'The key must be "answer", never "result". '
+            "Reply with ONLY the exact JSON object and nothing else."
+        )
+    if taxonomy == "wrong-key":
+        return (
+            "Your previous response was missing the required key. "
+            'The JSON object must contain the key "answer". '
+            "Reply with ONLY the exact JSON object and nothing else."
+        )
+    if taxonomy == "parse-fail":
+        return (
+            "Your previous response was not parseable JSON. "
+            "Reply with ONLY a single JSON object and nothing else."
+        )
+    raise ValueError(f"non-retryable taxonomy: {taxonomy}")
+
+
+@dataclass
+class RetryTrace:
+    """Per-instance retry record: attempt taxonomies + conversion outcome."""
+
+    task_id: str
+    first_taxonomy: str
+    retried: bool
+    final_valid: bool
+    final_taxonomy: str
+    attempts: int = 1
+    converted: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "first_taxonomy": self.first_taxonomy,
+            "retried": self.retried,
+            "attempts": self.attempts,
+            "final_valid": self.final_valid,
+            "final_taxonomy": self.final_taxonomy,
+            "converted": self.converted,
+        }
+
+
+def should_retry(taxonomy: str, retries_used: int) -> bool:
+    """Retry gate: retryable taxonomy AND budget remaining."""
+    return taxonomy in RETRYABLE_TAXONOMIES and retries_used < V3_MAX_RETRIES
+
+
+def resolve_retry(
+    task_id: str,
+    first_taxonomy: str,
+    first_valid: bool,
+    second_valid: bool | None,
+    second_taxonomy: str | None,
+    retries_used: int,
+) -> RetryTrace:
+    """Pure conversion resolver (deterministic, no I/O) shared by runner + tests."""
+    if first_valid or not should_retry(first_taxonomy, retries_used):
+        return RetryTrace(
+            task_id=task_id,
+            first_taxonomy=first_taxonomy,
+            retried=False,
+            final_valid=first_valid,
+            final_taxonomy=first_taxonomy,
+            attempts=1,
+            converted=False,
+        )
+    final_ok = bool(second_valid)
+    return RetryTrace(
+        task_id=task_id,
+        first_taxonomy=first_taxonomy,
+        retried=True,
+        final_valid=final_ok,
+        final_taxonomy=second_taxonomy or first_taxonomy,
+        attempts=2,
+        converted=final_ok,
+    )
+
+
 def task_id_for(variant: str, index: int) -> str:
     """Stable task id: arena_t{variant}_{index:03d} (variant = 0..5)."""
     v = VARIANT_NAMES.index(variant) if variant in VARIANT_NAMES else 0

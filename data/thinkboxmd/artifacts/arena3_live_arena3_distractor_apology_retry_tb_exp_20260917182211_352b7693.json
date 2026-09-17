@@ -1,0 +1,30 @@
+{
+  "arm": "retry",
+  "attempts": 1,
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 3.841,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 53
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "a9d7356d0d5cf9b972312676d1f2ac83b07447c04573c5fe85a17de5075dcc24",
+  "retries_used": 0,
+  "retry_trace": {
+    "attempts": 1,
+    "converted": false,
+    "final_taxonomy": "valid",
+    "final_valid": true,
+    "first_taxonomy": "valid",
+    "retried": false,
+    "task_id": "arena3_distractor_apology_retry"
+  },
+  "task_id": "arena3_distractor_apology_retry",
+  "taxonomy": "valid",
+  "tokens": 230,
+  "valid": true,
+  "variant": "apology"
+}
