@@ -58,7 +58,17 @@
 ### Tests
 
 - `tests/unit/test_experiment.py` — 45 tests
-- Full suite: **605 tests, 6 skipped**
+- `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
+- Full suite: **606 tests, 6 skipped**
+
+### Upstash Box as Primary Execution Substrate (2026-09-17)
+
+- **Contract (LIVE_VERIFIED):** precedence `UPSTASH_PUBLIC_BOX_URL` > `THINKBOX_UPCLOUD_API_TOKEN` > `CI` > `local`; live selection `wanted-tuna-71803-3000.preview.box.upstash.com`
+- **Box job (TEST_VERIFIED):** session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted), job `tb_exp_20260917164615_32b3ee9c`, artifact SHA256 `8bac2b52…57662550`, validation PASS, ledger verified, memory + outcome + dashboard recorded; executed in-Box (Firecracker runtime, Box env) — no remote-exec API exists so no remote-dispatch claim
+- **Restart/replay (TEST_VERIFIED):** fresh-process reload of box/session/job/artifact/hash/proof/memory/outcome all verified; replay identical `[1,2,3,4,5]`; dashboard reconstructed
+- **Model readiness:** BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED (`INCEPTION_API_KEY` present, `THINKBOX_OPENAI_COMPAT_*` wiring absent, no paid call made)
+- **Classification:** UpCloud = infrastructure/control-plane ONLY; Upstash Box = current execution substrate; SSH-to-UpCloud = unsupported/not required (`thinkbox/upcloud.py` defaults fixed, history preserved)
+- **Evidence:** `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` (SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`)
 
 ### Live UpCloud Host Verification (2026-09-17)
 

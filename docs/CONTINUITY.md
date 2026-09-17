@@ -33,18 +33,32 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | UpCloud runtime state diagnostic (kudbeev3) — establish exact runtime boundary |
-| **Latest completed work** | Runtime state diagnostic — server IS running (API state=started, port 22 open on .169), SSH auth still blocked; substrate is Upstash Box — 605 tests passing |
-| **Current verified capabilities** | UpCloud control-plane read-only (LIVE), server runtime state (started), port-22 network state, substrate determination (Upstash Box), 605 tests passing |
-| **Current blockers** | SSH auth: no authorized key on kudbeev3 (recovered historical key rejected); no UpCloud server execution path wired (provider is control-plane REST only) |
-| **Known risks** | User reported server "may not be running" — API contradicts this: kudbeev3 state=started with port 22 open on primary IP; .93 unreachable (secondary IP, normal) |
-| **Next larger improvement** | Obtain explicit approval before starting/verifying the UpCloud server — server is ALREADY running per API, so next step is SSH key registration then live host verification |
-| **PR status** | kilo/fair-wind-03a at beee146 (1 ahead of origin/main 48fed0f) + diagnostic artifact uncommitted |
-| **Test count** | **605 tests passing (6 skipped)** |
+| **Active objective** | Upstash Box as PRIMARY Think Box execution substrate (UpCloud = control-plane only) |
+| **Latest completed work** | Box-primary Think Job executed in live Box runtime + restart/replay verified + UpCloud reclassified — 606 tests passing |
+| **Current verified capabilities** | Substrate contract (Box wins), in-Box deterministic job (artifact + Vector snapshot + ledger + memory + outcome + dashboard), fresh-process recovery + identical replay, 606 tests passing |
+| **Current blockers** | Model execution NOT YET VERIFIED (INCEPTION key present but THINKBOX_OPENAI_COMPAT_* wiring absent); Box has no remote-exec API (preview 404, Box SSH password-only) — execution claim is in-Box compute, not remote dispatch |
+| **Known risks** | `record_outcome` does not transition experiment status (stays pending; pre-existing, untouched); UpCloud SSH direction removed from roadmap (no adapter will be built) |
+| **Next larger improvement** | Connect the verified Upstash Box execution substrate to the existing model-provider path and prove a real model-backed Think Job, only if the configured environment supports it |
+| **PR status** | kilo/fair-wind-03a at 76b576a + Box-primary work uncommitted |
+| **Test count** | **606 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Upstash Box as Primary Execution Substrate
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Make Upstash Box the primary substrate; UpCloud = control-plane only; SSH direction removed from roadmap. HEAD `76b576a`, branch `kilo/fair-wind-03a`. |
+| **Phase 1 contract** | Traced `detect_substrate()` / `bind_think_box` / `WorkspaceRegistry+Store` / `SubstrateProbe` / env handling. Precedence proven live: `UPSTASH_PUBLIC_BOX_URL` (Box host) > `THINKBOX_UPCLOUD_API_TOKEN` (legacy label) > `CI` > `local`. Live selection: `wanted-tuna-71803-3000.preview.box.upstash.com`. No secrets printed (presence/length only). |
+| **Phase 2 Box job** | Deterministic job through the REAL Box substrate (this process IS the Box compute: Firecracker kernel `6.18.36-cloudflare-firecracker`, Box host env; no remote-exec API exists — Box preview 404 on all paths, Box SSH password-only, no CLI/SDK — so claim is in-Box execution, honestly bounded). Session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted=True), job `tb_exp_20260917164615_32b3ee9c`, artifact `box_job_<id>.json` SHA256 `8bac2b52…57662550`, validation PASS, ledger verify True, memory record, outcome TEST_VERIFIED, dashboard JOB_COMPLETED. |
+| **Phase 3 restart** | Fresh handles: experiment/session/box/artifact/proof/memory/outcome all reload; canonical hash matches; ledger verifies; replay `sorted([5,3,4,1,2])` identical `[1,2,3,4,5]`; substrate stable across processes. Note: `record_outcome` leaves status `pending` (pre-existing behavior, untouched). |
+| **Phase 4 model** | `OpenAICompatProvider` implemented (chat/completions, embedding=False). `INCEPTION_API_KEY` present but `THINKBOX_OPENAI_COMPAT_*` + provider/model wiring absent → no paid call made. Verdict: BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED. |
+| **Phase 5 reclassify** | `thinkbox/upcloud.py`: control-plane-only docstring, no stale host defaults (explicit values required), `api_url` 1.6→1.3, provider model/endpoint labels fixed. `tests/unit/test_cnc.py`: defaults + explicit-server tests. Historical docs/artifacts kept (superseded, not deleted). No competing substrate built. No SSH used. |
+| **Evidence** | `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Full suite 606 OK (6 skipped). |
+| **FourState** | TEST_VERIFIED (job+restart+replay) with LIVE_VERIFIED substrate selection + Vector write; NOT production; no UpCloud/GPU/SSH/model claims |
 
 ### 2026-09-17 — UpCloud Runtime State Diagnostic (kudbeev3)
 

@@ -584,7 +584,14 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Reconciliation:** same-machine NOT_PROVEN (auth blocker). GPU absence inferred from CPU-only plan, unmeasured via shell.
 - **Substrate:** run substrate is Upstash Box. Smallest wiring point: `core/providers/upcloud.py` read-only execute → `UpCloudConfig` (API-sourced UUID/IP) → `thinkbox/substrate.py:bind_think_box` live-server branch (not built).
 - **Evidence:** session `tb_sess_20260917162855_705f`, experiment `tb_exp_20260917162855_5eb93b1c`, artifact `data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json` SHA256 `400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d`. Suite 605 OK (6 skipped). FourState: TEST_VERIFIED + LIVE_VERIFIED API inventory; SSH proof FAILED (blocker).
-- **Exact next action:** register an authorized key for kudbeev3 via panel/API key management (never paste a private key into chat), then retry read-only host proof.
+### Upstash Box as Primary Execution Substrate — 2026-09-17 (ARCHITECTURE DECISION)
+
+- **UpCloud = infrastructure / control-plane ONLY** (read-only REST at `https://api.upcloud.com/1.3`; `kudbeev3` running per API). **No UpCloud machine execution claimed. No GPU execution claimed. No SSH used, no SSH adapter will be built.**
+- **Upstash Box = current execution substrate.** Precedence: `UPSTASH_PUBLIC_BOX_URL` > `THINKBOX_UPCLOUD_API_TOKEN` (legacy label) > `CI` > `local`. Live: `wanted-tuna-71803-3000.preview.box.upstash.com`. URL always from env — never hard-coded.
+- **SSH-to-UpCloud = unsupported / not required.** Removed from roadmap (was: "register an authorized key then retry host proof" — superseded). `thinkbox/upcloud.py` defaults fixed (no stale host, `api_url` 1.3); history preserved in prior sections.
+- **Box job proof:** session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted), job `tb_exp_20260917164615_32b3ee9c`, artifact SHA256 `8bac2b52…57662550`, restart + identical replay verified, dashboard JOB_COMPLETED. Executed in-Box (Firecracker runtime, Box env); no remote-exec API exists (preview 404, Box SSH password-only) — claim bounded honestly.
+- **Model:** BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED (`INCEPTION_API_KEY` present, `THINKBOX_OPENAI_COMPAT_*` wiring absent, no paid call).
+- **Evidence:** `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Suite 606 OK (6 skipped).
 
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
@@ -601,16 +608,9 @@ The connection path used:
 - Dashboard state updated with actual infrastructure findings
 - All 605 tests passing
 
-### Required Human Action (EXACT)
-1. **Log into UpCloud panel** (https://upcloud.com) → server **kudbeev3** (`0046a589-81a2-4c0b-aacd-8e6f678c7c41`, NOT the historical kudbee-host-v1/212.147.250.183)
-2. **Register an authorized SSH key for kudbeev3** via panel/API key management (never paste a private key into chat)
-3. **Confirm which public IP is primary** (209.50.56.169 serves SSH banner; 209.50.53.93 timed out from cloud sandbox)
-4. **Verify**: `ssh -i <authorized-key> root@209.50.56.169` (BatchMode, read-only commands only)
+### Required Human Action (EXACT) — historical SSH direction SUPERSEDED (kept for record; do not act)
 
-### Next Steps
-1. Authorized key registered for kudbeev3 → retry read-only host proof (hostname/OS/CPU/RAM/GPU)
-2. Wire live kudbeev3 into substrate path (read-only execute → UpCloudConfig → bind_think_box branch)
-3. GPU execution-path validation WITHOUT provisioning (kudbeev3 is CPU-only; GPU plans exist in catalog)
+SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
 
 ### PR Status (2026-09-17)
 - **All PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
