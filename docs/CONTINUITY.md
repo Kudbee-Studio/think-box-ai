@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-17
 
 ---
 
@@ -19,8 +19,8 @@ Before declaring completion, every agent MUST verify:
 - [x] Tests executed and passing (449 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
-- [x] Git state clean (working tree clean, 9 commits on kilo/leafy-dragon-4ck)
-- [x] PR/commit referenced (PR #68, commits 32d82ef → f132934)
+- [x] Git state clean (working tree clean, 10 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68 CLOSED without merge, commits 32d82ef → d961ba9)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
@@ -31,12 +31,12 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | UpCloud ExecutionProvider — credential precedence, continuous audit, permanence protocol |
-| **Latest completed work** | Continuity protocol (commit `c7792b7`) — PR #68 open awaiting founder review |
-| **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
-| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 awaiting review |
-| **Known risks** | UpCloud API unreachable with current credentials; upctl CLI not installed; live capabilities unverifiable; PR #68 awaiting review; server STOPPED; SSH keys absent from environment |
-| **Next larger improvement** | Set valid `UPCLOUD_API_MAIN` env var → run live smoke tests → verify capabilities upgrade to TEST VERIFIED/LIVE VERIFIED → wire into runtime |
+| **Active objective** | Close continuity loop — document repo state, audit PRs/branches |
+| **Latest completed work** | UpCloud ExecutionProvider + credential precedence (commits `32d82ef` → `d961ba9`) on `kilo/leafy-dragon-4ck` |
+| **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider with credential precedence (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
+| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 CLOSED without merge — work remains on `kilo/leafy-dragon-4ck` only; main has older UpCloud provider without credential precedence |
+| **Known risks** | UpCloud API unreachable with current credentials; PR #68 closed unmerged; main's UpCloud provider lacks credential precedence; server STOPPED; SSH keys absent |
+| **Next larger improvement** | Merge credential precedence update into main or reopen PR #68; set valid `UPCLOUD_API_MAIN` env var → run live smoke tests |
 
 ---
 
@@ -117,7 +117,7 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 | Live UpCloud authentication | NOT VERIFIED ⚠️ | All API probes HTTP 401 | No `UPCLOUD_API_MAIN` |
 | Real UpCloud execution | NOT VERIFIED ⚠️ | Cannot execute without auth | Live auth NOT VERIFIED |
 | Autonomous provisioning | BLOCKED ⚠️ | Depends on live verification | Live auth NOT VERIFIED |
-| PR #68 review | OPEN — human review required ⚠️ | PR open, awaiting founder review | Founder availability |
+| PR #68 review | CLOSED — not merged ⚠️ | PR closed without merge; work on kilo/leafy-dragon-4ck only | Founder decision: merge or discard |
 | PRODUCTION READY | NOT REACHED ⚠️ | Requires all four states | Missing LIVE VERIFIED + review |
 
 ---
@@ -130,10 +130,10 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 |---|---|
 | **Date** | 2026-09-16 |
 | **Agent/task** | Permanent agent governance protocol |
-| **PR/commit** | `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68 |
+| **PR/commit** | `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68 (CLOSED without merge) |
 | **Result** | CONTINUITY.md created, AGENTS.md §14 added with 4-state classification mandate |
 | **Tests/evidence** | 449 tests pass, no credential leaks, docstring coverage verified |
-| **State** | CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR #68 open, awaiting founder review) |
+| **State** | CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR closed without merge; content remains on branch) |
 
 ### 2026-09-16 — UpCloud ExecutionProvider Phase 2: Credential Precedence
 
@@ -202,25 +202,26 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 |---|---|---|---|---|---|
 | 1 | UpCloud live capability verification | Any agent | CODE COMPLETE / LIVE VERIFIED NOT REACHED | Set `UPCLOUD_API_MAIN` env var, run `tests/integration/test_upcloud_live.py` | Valid API token from UpCloud panel |
 | 2 | UpCloud autonomous provisioning | Any agent | BLOCKED | Complete live verification (item 1), then wire into runtime | Live capabilities LIVE VERIFIED |
-| 3 | PR #68 review | Founder | OPEN — human review required | Review and merge `kilo/leafy-dragon-4ck` into main | Founder approval |
+| 3 | Merge credential precedence into main | Any agent | ACTIVE | Merge `a2335e2` (or reopen PR #68) into origin/main | Developer/Founder decision |
+| 4 | UpCloud provider on main lacks credential precedence | Any agent | ACTIVE | Main's `core/providers/upcloud.py` uses only `UPCLOUD_API_KEY` — needs update from kilo/leafy-dragon-4ck | Item 3 |
 
 ## CLOSED LOOPS
 
 ### UpCloud ExecutionProvider Phase 1
 - **Implementation**: `core/providers/execution.py`, `core/providers/upcloud.py`
 - **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
-- **Verification**: 31/31 unit tests pass, live API audit (all DENIED/401), credential scan clean
+- **Verification**: 33/33 unit tests pass, live API audit (all DENIED/401), credential scan clean
 - **Evidence**: `tests/unit/test_upcloud_provider.py`, `tests/integration/test_upcloud_live.py`, `docs/upcloud-provider.md`
 - **PR/Commit**: `32d82ef` on `kilo/leafy-dragon-4ck`
-- **Closure**: Superseded by Phase 2 credential update
+- **Closure**: Superseded by Phase 2 credential update; code NOT merged into main
 
 ### Permanent Continuity Protocol
 - **Implementation**: `docs/CONTINUITY.md`, `AGENTS.md` §14
 - **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
 - **Verification**: 449 tests pass, no credential leaks, docstring coverage verified, all required CONTINUITY.md sections present, 4-state classification mandated
 - **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), `tests/integration/test_upcloud_live.py` (5 skipped), credential precedence verification
-- **PR/Commit**: `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68
-- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR open for review, code committed and pushed)
+- **PR/Commit**: `c7792b7` on `kilo/leafy-dragon-4ck`, PR #68 (CLOSED without merge; content on branch)
+- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅ (PR closed without merge; protocol content remains on kilo/leafy-dragon-4ck)
 
 ### UpCloud ExecutionProvider Phase 2: Credential Precedence
 - **Implementation**: Updated `core/providers/upcloud.py` credential resolution
@@ -228,7 +229,13 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 - **Verification**: 33/33 unit tests pass, 6 credential precedence scenarios verified, credential scan clean
 - **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), credential precedence verification script
 - **PR/Commit**: `a2335e2` on `kilo/leafy-dragon-4ck`
-- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅ — code committed, pushed, tests passing
+- **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅; NOT on main; main's version lacks credential precedence
+
+### health_check() Attempt (REVERTED)
+- **Attempt**: Added `health_check()` method to `core/providers/execution.py`
+- **State**: REVERTED — never committed
+- **Reason**: System reminder redirected to PR/documentation audit; no code change made
+- **Evidence**: `git checkout -- core/providers/execution.py`; working tree clean
 
 ### Full Test Suite
 - **Implementation**: N/A (regression)
@@ -285,14 +292,22 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 
 ### Active Branches
 
-| Branch | Ahead of Origin | Status |
-|---|---|---|
-| `kilo/leafy-dragon-4ck` | 1 commit | ACTIVE — UpCloud work |
-| `main` | 0 | Current baseline |
+| Branch | Ahead of Origin | Status | Notes |
+|---|---|---|---|
+| `kilo/leafy-dragon-4ck` | 10 commits | ACTIVE | UpCloud provider + credential precedence; PR #68 CLOSED without merge; work NOT on main; main has older UpCloud provider |
 
-### Parked/Inactive Branches
+### Stale/Parked Branches (require review before cleanup)
 
-No parked branches identified.
+| Branch | Origin SHA | Local? | Merged to main? | Content | Recommendation |
+|---|---|---|---|---|---|
+| `session/agent_79e656bf-clean` | b99c58c | NO | NO | SESSION.md update only (15+/-2 lines) | LOW RISK — trivial doc change; safe to close after verifying content on main |
+| `session/agent_79e656bf-37c6-46f2-833e-1eb027b99152` | ccd4ac9 | NO | NO | AGENTS.md update only (16+/-1 lines) | LOW RISK — trivial doc change; safe to close after verifying content on main |
+
+### Other Observed Branches (not audited — exist on origin)
+
+`session/agent_370e6239-*`, `session/agent_53455b5f-*`, `session/agent_5475066e-*`, `session/agent_7af7e70e-*`, `session/agent_926d99f0-*`, `session/agent_d8a04fb5-*`, plus numerous `convoy/*`, `cursor/*`, `kilo/*` branches. Not audited — requires separate investigation if needed.
+
+No parked branches identified beyond the two session branches above.
 
 ---
 
@@ -326,12 +341,25 @@ No parked branches identified.
 
 ## GITHUB DISCIPLINE
 
-### Active PRs
+### PR Audit (2026-09-17)
 
-| PR | Title | State | Notes |
-|---|---|---|---|
-| #67 | fix(upstash): embedder + vector upsert fail closed | MERGED | PR #67 |
-| PR for `kilo/leafy-dragon-4ck` | feat/providers: UpCloud execution provider + credential update | AWAITING REVIEW | 2 commits ahead of origin |
+All 5 audited PRs are CLOSED. None merged via GitHub.
+
+| PR | Title | Author | Head Branch | State | Merged | Notes |
+|---|---|---|---|---|---|---|
+| #68 | chore(continuity): permanent agent protocol + CONTINUITY.md | app/kilo-code-bot | kilo/leafy-dragon-4ck (f132934) | CLOSED | NO | Head was 2 commits behind current HEAD (d961ba9); 2 more commits added after PR closed; continuity protocol content remains on branch |
+| #67 | fix(upstash): embedder + vector upsert fail closed | app/kilo-code-bot | convoy/compute-fabric-foundation-secrets-abstra/74f72471/head | CLOSED | NO | mergeStateStatus=DIRTY; mergeCommit=null |
+| #65 | docs(agents): AGENTS.md as single source of truth | Kudbee | cursor/agents-md-update-4de1 | CLOSED | NO | mergeCommit=null |
+| #32 | fix(roadmap): correct Stage 0 accuracy issues | app/kilo-code-bot | convoy/10-improvements-roadmap-update/fb526512/gt/maple/3cf40fcd | CLOSED | NO | mergeStateStatus=DIRTY; 19+ days old; work may be superseded by convoy roadmap merge (PR #31) |
+| #28 | fix(providers): rewrite OllamaProvider | app/kilo-code-bot | gt/maple/813b602a | CLOSED | NO | mergeStateStatus=DIRTY; work superseded by origin/gt/maple/813b602a which is already merged into main |
+
+### PR Decision Log
+
+- **#68**: CLOSED without merge. Continuity protocol content exists on `kilo/leafy-dragon-4ck`. Credential precedence update (`a2335e2`) NOT on main. Recommend: merge credential precedence update into main or reopen.
+- **#67**: CLOSED without merge. Upstash embedder fail-closed work. Check if content exists in `feat/upstash-vector-embedder` (merged into main).
+- **#65**: CLOSED without merge. AGENTS.md documentation update. Content may be subsumed by subsequent AGENTS.md edits.
+- **#32**: CLOSED without merge (DIRTY). Roadmap accuracy fix. May be superseded by PR #31 (convoy roadmap merge into main). Verify before reopening.
+- **#28**: CLOSED without merge (DIRTY). OllamaProvider rewrite. Check if content exists in `origin/gt/maple/813b602a` (which IS merged into main via the convoy post-review-feedback integration).
 
 ### PR Description Template (for meaningful work)
 

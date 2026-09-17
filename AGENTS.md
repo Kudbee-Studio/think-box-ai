@@ -671,7 +671,7 @@ Every agent MUST classify work using these four distinct states. **"Complete" al
 6. **An agent MUST NOT claim "complete" without stating which of the four states applies**
 7. **When credentials are missing, live-dependent work stays CODE COMPLETE only** — never infer LIVE VERIFIED from mocked tests
 
-**Example — UpCloud ExecutionProvider (2026-09-16):**
+**Example — UpCloud ExecutionProvider (2026-09-17):**
 - UpCloud provider: CODE COMPLETE ✅
 - Server connection recovery: CODE COMPLETE ✅ (path identified, live verification blocked)
 - CLI installations: KILO ✅ INSTALLED, UpCloud CLI ❌ NOT AVAILABLE (PyPI upctl is wrong package, uninstalled), Think Box ✅ INSTALLED, pip ✅ INSTALLED (was missing)
@@ -682,7 +682,7 @@ Every agent MUST classify work using these four distinct states. **"Complete" al
 - Live UpCloud authentication: NOT VERIFIED ⚠️ (no credentials, API returns 401)
 - Real UpCloud execution: NOT VERIFIED ⚠️ (blocked by missing credentials)
 - Autonomous provisioning: BLOCKED ⚠️ (depends on live verification)
-- PR #68: OPEN — human review required ⚠️ (PRODUCTION READY blocked by review)
+- PR #68: CLOSED — not merged ⚠️ (closed without merge; work on kilo/leafy-dragon-4ck only; main lacks credential precedence)
 
 ---
 
