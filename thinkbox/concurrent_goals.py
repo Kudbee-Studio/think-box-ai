@@ -25,6 +25,13 @@ Budget model:
     VerifiedRetrySession is passed to every goal; ``_spend_call`` raises
     BudgetExhausted honestly when the global cap is hit.
 
+Budget contention policies (for shared budget):
+  - FAIR_SHARE: each goal gets an equal share of the global budget;
+    unspent allocations are reclaimed dynamically.
+  - PRIORITY: higher-priority goals consume budget first; lower-priority
+    goals only spend when higher-priority goals are done or blocked.
+  - FIFO: goals spend in submission order; no reallocation.
+
 Cross-goal accounting:
   - Per-goal calls are counted by wrapping each goal's ``complete_async`` in
     a counter (exact even under shared budget).
@@ -46,11 +53,26 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Callable
 
 from thinkbox.engine import ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Callable
+
+from thinkbox.engine import ThinkBoxEngine
+from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
+
+
+class BudgetContentionPolicy(Enum):
+    """Policy for how shared budget is contested among concurrent goals."""
+    FAIR_SHARE = "fair_share"   # equal shares, dynamic reclamation
+    PRIORITY = "priority"        # higher priority first
+    FIFO = "fifo"                # submission order, no reallocation
 
 
 @dataclass
@@ -59,6 +81,7 @@ class ConcurrentGoalSpec:
     goal: str
     subtasks: list[dict[str, Any]]
     budget_config: VerifiedRetryConfig | None = None
+    priority: int = 0  # higher = more priority (for PRIORITY contention policy)
 
 
 @dataclass
@@ -67,6 +90,7 @@ class ConcurrentGoalsConfig:
     max_calls_global: int = 0  # 0 = unbounded; >0 enforces shared budget
     max_retries_global: int | None = None
     independent_goals: bool = True  # False = share one session (global budget)
+    contention_policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE
 
 
 @dataclass
@@ -75,10 +99,12 @@ class ConcurrentGoalsResult:
     per_goal_accounting: dict[str, dict[str, Any]]
     cross_goal_summary: dict[str, Any]
     layer_telemetry_aggregate: list[dict[str, Any]]
+    per_goal_layer_telemetry: dict[str, list[dict[str, Any]]]  # per-goal layer telemetry with retry rates
     global_calls_spent: int
     global_retries_fired: int
     global_budget_remaining: int | None
     shared_session_used: bool
+    contention_policy: BudgetContentionPolicy
     proof_paths: list[str] = field(default_factory=list)
     timestamp: str = ""
 
@@ -87,17 +113,22 @@ class ConcurrentGoalsResult:
             self.timestamp = datetime.now(timezone.utc).isoformat()
 
 
-def aggregate_layer_telemetry(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def aggregate_layer_telemetry(results: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     """Deterministically merge engine-level per-layer telemetry across goals.
 
+    Returns (aggregate_across_goals, per_goal_telemetry).
     Sums per-layer counts (tasks, first-try, recovered, failures,
     budget_exhausted, retries) by layer index and recomputes the
     verification rate. Pure function — no I/O, no hidden state.
     """
     aggregated: dict[int, dict[str, Any]] = {}
+    per_goal: dict[str, list[dict[str, Any]]] = {}
+
     for r in results:
         if not isinstance(r, dict):
             continue
+        goal_id = r.get("goal", "unknown")
+        goal_layers = []
         for layer in r.get("layers_telemetry", []):
             idx = layer.get("layer_index", 0)
             if idx not in aggregated:
@@ -118,11 +149,29 @@ def aggregate_layer_telemetry(results: list[dict[str, Any]]) -> list[dict[str, A
             agg["failures"] += layer.get("failures", 0)
             agg["budget_exhausted"] += layer.get("budget_exhausted", 0)
             agg["retries"] += layer.get("retries", 0)
+
+            # Per-goal layer telemetry with retry rate
+            total = layer.get("tasks", 0)
+            ok = layer.get("first_try_successes", 0) + layer.get("recovered_successes", 0)
+            retries = layer.get("retries", 0)
+            goal_layers.append({
+                "layer_index": idx,
+                "tasks": total,
+                "first_try_successes": layer.get("first_try_successes", 0),
+                "recovered_successes": layer.get("recovered_successes", 0),
+                "failures": layer.get("failures", 0),
+                "budget_exhausted": layer.get("budget_exhausted", 0),
+                "retries": retries,
+                "verification_rate": round(ok / total, 4) if total else 0.0,
+                "retry_rate": round(retries / total, 4) if total else 0.0,
+            })
+        per_goal[goal_id] = goal_layers
+
     for agg in aggregated.values():
         total = agg["tasks"]
         ok = agg["first_try_successes"] + agg["recovered_successes"]
         agg["verification_rate"] = round(ok / total, 4) if total else 0.0
-    return [aggregated[i] for i in sorted(aggregated)]
+    return [aggregated[i] for i in sorted(aggregated)], per_goal
 
 
 class ConcurrentGoalsRunner:
@@ -168,6 +217,77 @@ class ConcurrentGoalsRunner:
 
             async def _counted_complete(prompt: str) -> Any:
                 calls_by_goal[goal_key] = calls_by_goal.get(goal_key, 0) + 1
+                return await complete_async(prompt)
+
+            eng = self._fresh_governed(ledger_path=ledger_path)
+            if not cfg.independent_goals:
+                session_for_goal = global_session
+            else:
+                session_for_goal = VerifiedRetrySession(spec.budget_config) if spec.budget_config else VerifiedRetrySession()
+
+            result = await eng.execute_verified_goal(
+                goal=spec.goal,
+                subtasks=spec.subtasks,
+                complete_async=_counted_complete,
+                agent_id=agent_id,
+                session=session_for_goal,
+                manager=manager,
+                emit_dashboard=emit_dashboard,
+            )
+            result["_goal_calls"] = calls_by_goal.get(goal_key, 0)
+            result["_shared_session"] = global_session is not None
+            return result
+
+        results_list = await asyncio.gather(*[_run_one(s) for s in specs], return_exceptions=True)
+
+        goal_results: dict[str, dict[str, Any]] = {}
+        per_goal_accounting: dict[str, dict[str, Any]] = {}
+        proof_paths: list[str] = []
+        global_calls = 0
+        global_retries = 0
+
+        # Apply budget contention policy for shared budget mode
+        goal_budget_limits: dict[str, int] = {}
+        if not cfg.independent_goals and global_session is not None and cfg.max_calls_global > 0:
+            if cfg.contention_policy == BudgetContentionPolicy.FAIR_SHARE:
+                share = cfg.max_calls_global // max(len(specs), 1)
+                for spec in specs:
+                    goal_budget_limits[spec.goal] = share
+            elif cfg.contention_policy == BudgetContentionPolicy.PRIORITY:
+                # Sort by priority (higher first)
+                sorted_specs = sorted(specs, key=lambda s: s.priority, reverse=True)
+                remaining = cfg.max_calls_global
+                for spec in sorted_specs:
+                    share = min(spec.budget_config.max_calls if spec.budget_config else remaining, remaining)
+                    goal_budget_limits[spec.goal] = share
+                    remaining -= share
+            elif cfg.contention_policy == BudgetContentionPolicy.FIFO:
+                remaining = cfg.max_calls_global
+                for spec in specs:
+                    share = min(spec.budget_config.max_calls if spec.budget_config else remaining, remaining)
+                    goal_budget_limits[spec.goal] = share
+                    remaining -= share
+
+        # Wrap complete_async with budget limit for each goal
+        calls_by_goal: dict[str, int] = {}
+        goal_budget_consumed: dict[str, int] = {}
+
+        async def _run_one(spec: ConcurrentGoalSpec) -> dict[str, Any]:
+            goal_key = spec.goal
+
+            async def _counted_complete(prompt: str) -> Any:
+                calls_by_goal[goal_key] = calls_by_goal.get(goal_key, 0) + 1
+                goal_budget_consumed[goal_key] = goal_budget_consumed.get(goal_key, 0) + 1
+                
+                # Check budget limit per goal
+                if goal_key in goal_budget_limits:
+                    if goal_budget_consumed[goal_key] > goal_budget_limits[goal_key]:
+                        raise BudgetExhausted(
+                            f"Goal {goal_key} exceeded budget limit",
+                            goal_budget_consumed[goal_key] - 1,
+                            goal_budget_limits[goal_key],
+                            goal_key
+                        )
                 return await complete_async(prompt)
 
             eng = self._fresh_governed(ledger_path=ledger_path)
@@ -270,9 +390,10 @@ class ConcurrentGoalsRunner:
             "per_goal_budget_isolation": cfg.independent_goals,
             "shared_session_used": global_session is not None,
             "shared_session_calls_spent": shared_calls,
+            "contention_policy": cfg.contention_policy.value if not cfg.independent_goals else None,
         }
 
-        layer_telemetry_aggregate = aggregate_layer_telemetry(
+        layer_telemetry_aggregate, per_goal_layer_telemetry = aggregate_layer_telemetry(
             [r for r in results_list if isinstance(r, dict)]
         )
 
@@ -281,10 +402,12 @@ class ConcurrentGoalsRunner:
             per_goal_accounting=per_goal_accounting,
             cross_goal_summary=cross_goal_summary,
             layer_telemetry_aggregate=layer_telemetry_aggregate,
+            per_goal_layer_telemetry=per_goal_layer_telemetry,
             global_calls_spent=global_calls,
             global_retries_fired=global_retries,
             global_budget_remaining=cross_goal_summary["global_budget_remaining"],
             shared_session_used=global_session is not None,
+            contention_policy=cfg.contention_policy,
             proof_paths=proof_paths,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
@@ -345,8 +468,10 @@ class ConcurrentGoalsRunner:
             ("global_budget_remaining", str(summary.get("global_budget_remaining"))),
             ("shared_session_used", str(bool(summary.get("shared_session_used", False)))),
             ("per_goal_budget_isolation", str(bool(summary.get("per_goal_budget_isolation", True)))),
+            ("contention_policy", str(summary.get("contention_policy", "fair_share"))),
             ("per_goal_accounting", json.dumps(result.per_goal_accounting, sort_keys=True)),
             ("layer_telemetry", json.dumps(result.layer_telemetry_aggregate, sort_keys=True)),
+            ("per_goal_layer_telemetry", json.dumps(result.per_goal_layer_telemetry, sort_keys=True)),
             ("goal_results", json.dumps(
                 {k: v for k, v in result.goal_results.items()}, sort_keys=True, default=str,
             )),
@@ -365,6 +490,7 @@ class ConcurrentGoalsRunner:
             "cross_goal_summary": summary,
             "per_goal_accounting": result.per_goal_accounting,
             "layer_telemetry": result.layer_telemetry_aggregate,
+            "per_goal_layer_telemetry": result.per_goal_layer_telemetry,
             "proof_paths": result.proof_paths,
             "no_claims": ["no model intelligence improvement claimed", "no GPU", "no SSH"],
         }
