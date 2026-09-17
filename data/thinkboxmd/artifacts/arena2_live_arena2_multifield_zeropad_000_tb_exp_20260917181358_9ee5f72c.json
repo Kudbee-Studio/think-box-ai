@@ -1,0 +1,31 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "multifield",
+  "latency_s": 0.743,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 40,
+    "double": 80,
+    "parity": "even"
+  },
+  "provider": "openai_compat",
+  "response_chars": 46,
+  "response_sha256": "bbd42f5769bb113ab2253d9712a69d35280bef2c72a52f743c69f0dc76e57472",
+  "strategy": "baseline",
+  "task_id": "arena2_multifield_zeropad_000",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 168,
+    "completion_tokens_details": {
+      "reasoning_tokens": 150
+    },
+    "prompt_tokens": 51,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 219
+  },
+  "valid": true,
+  "variant": "zeropad"
+}

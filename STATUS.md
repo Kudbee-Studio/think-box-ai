@@ -60,8 +60,18 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 8 tests
-- Full suite: **622 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 12 tests (v1 + v2 families/taxonomy)
+- Full suite: **626 tests, 6 skipped**
+
+### Arena v2 Transfer-Under-Difficulty (2026-09-17) — COMPLETE (honest negative transfer)
+
+- **Families:** compute (6 variants) + distractor (6) + multifield (6); `verify_v2` taxonomy (parse-fail/wrong-key/arithmetic/distractor-compliance/inconsistency/valid); replay emissions verify by construction
+- **Control:** `tb_exp_20260917181211_b78ceb62` with pre-registered hypothesis + Wilson-CI threshold (delta > 0.15, non-overlapping CI)
+- **Population:** 300/300 (264 replay + 36 live: 18 baseline + 18 learned REAL Mercury-2)
+- **Results:** baseline 17/18 (CI [0.742, 0.99]) vs learned 17/18 (same CI); identical `{"result": 37}` wrongkey failure both arms — lesson `learn:arena2:failures` retrieved 18/18 but fix INEFFECTIVE
+- **Classification:** NO_MEASURABLE_IMPROVEMENT (delta 0.0, threshold NOT met; ceiling broken at 0.944 but no transfer)
+- **Restart:** fresh handles reload control + 300 rows + lesson + ledger verified
+- **Evidence:** `data/thinkboxmd/artifacts/arena2_proof_20260917.json` (SHA256 `413e05ad…65cea9c9`, 37 files secrets-clean); FourState ARENA_VERIFIED
 
 ### Experiment Arena Control Surface (2026-09-17) — COMPLETE
 

@@ -1,0 +1,29 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "compute",
+  "latency_s": 0.438,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 45
+  },
+  "provider": "openai_compat",
+  "response_chars": 13,
+  "response_sha256": "c2941179f2a0312d47f693e27979003366a2de9f2ae422217ebd50a12c583c84",
+  "strategy": "baseline",
+  "task_id": "arena2_compute_add_carry_000",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 75,
+    "completion_tokens_details": {
+      "reasoning_tokens": 68
+    },
+    "prompt_tokens": 37,
+    "prompt_tokens_details": {
+      "cached_tokens": 3
+    },
+    "total_tokens": 112
+  },
+  "valid": true,
+  "variant": "add_carry"
+}

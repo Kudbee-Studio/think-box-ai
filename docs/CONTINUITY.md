@@ -33,18 +33,33 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | KUDBEE Experiment Arena control surface: 300-instance population integrated into current experiment/dashboard architecture |
-| **Latest completed work** | Arena COMPLETE: 300 persisted (12 live Mercury-2 + 288 replay), classification NO_MEASURABLE_IMPROVEMENT (honest ceiling), dashboard + Chronicle live — 622 tests passing |
-| **Current verified capabilities** | pop_arena.py canonical (decision recorded); ArenaRun NOT_RUN→CONFIGURED→RUNNING→COMPLETE persisted; 12/12 live VALID (6 baseline + 6 learned, 1/variant/arm, retrieval 6/6); replay 288/288; ledger verified; 622 tests passing |
-| **Current blockers** | None for Arena. `record_outcome` status stays pending (pre-existing). Live budget spent (12/12) — further live calls need a new budget decision. |
-| **Known risks** | Ceiling effect (1.0 everywhere) — transfer unmeasurable on this family; token/latency deltas NOT claimed as learning. Prior hardcode `610/6` test display now reads live counts. |
-| **Next larger improvement** | Design a harder task family that defeats the ceiling (baseline < 1.0) so the Arena can measure real transfer; then run a second Arena with a fresh live budget |
-| **PR status** | main at ff44056; Arena work on main working tree, uncommitted |
-| **Test count** | **622 tests passing (6 skipped)** |
+| **Active objective** | Arena v2 transfer-under-difficulty: 300 instances across compute/distractor/multifield families, 36 live calls, failure-driven lesson |
+| **Latest completed work** | Arena v2 COMPLETE: 300/300 persisted (36 live + 264 replay); baseline 17/18 vs learned 17/18; identical wrongkey failure both arms — lesson retrieved 18/18 but fix INEFFECTIVE; NO_MEASURABLE_IMPROVEMENT (honest negative transfer) — 626 tests passing |
+| **Current verified capabilities** | v2 families (compute/distractor/multifield) with taxonomy verifier (6 classes); pre-registered hypothesis + Wilson-CI threshold; batched resume-safe live runner; failure-driven lesson `learn:arena2:failures`; fresh-handle restart proof; 626 tests passing |
+| **Current blockers** | None. Live budgets spent (v1 12/12, v2 36/36). `record_outcome` status stays pending (pre-existing). |
+| **Known risks** | Ceiling broken (0.944) but transfer still zero — the wrongkey distractor defeats both arms identically; prompt-guard lessons do not transfer to key-swap compliance. Replay strategy split 138/126 (trim artifact; live arms decide classification). |
+| **Next larger improvement** | Attack the wrongkey failure directly: test structural defenses (response-schema validation + retry-on-wrong-key loop) as a verifier-side mechanism, then run Arena v3 measuring whether verifier retries convert distractor-compliance failures to valid |
+| **PR status** | main at 2030494; v2 work on main working tree, uncommitted |
+| **Test count** | **626 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Arena v2 Transfer-Under-Difficulty (300 instances, COMPLETE, honest negative transfer)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Execute the approved master plan: 3 harder families → 36-call live budget → failure-driven lesson → learned arm → compare with pre-registered threshold. HEAD `2030494`, branch `main`. No SSH, no UpCloud compute, no GPU, no fakes, no invented scores, no secrets. |
+| **Phase 0 families** | compute (arithmetic+emit), distractor (injected instructions incl. key-swap), multifield (answer+parity+double consistency). `verify_v2` taxonomy: parse-fail/wrong-key/arithmetic/distractor-compliance/inconsistency/valid — all reached in tests. Replay emissions verify by construction. `+4` calibration tests (12/12 arena tests OK). |
+| **Phase 1 config** | Control `tb_exp_20260917181211_b78ceb62`: hypothesis + threshold pre-registered (delta > 0.15, non-overlapping 95% Wilson CI). Population 300 (264 replay + 36 live), provider openai_compat / mercury-2, temp 0.2, 3500 floor, 60s timeout. |
+| **Phase 2 baseline** | 18/18 live (6/family): 17 VALID, 1 FAIL — `arena2_distractor_wrongkey_000` emitted `{"result": 37}` (distractor-compliance). Rate 0.944 CI [0.742, 0.99]. Ceiling broken. |
+| **Phase 3 lesson** | From the ONE observed failure only: `learn:arena2:failures` (conf 0.85, source=fail job): restate precedence + name the key explicitly. Nothing invented. |
+| **Phase 4 learned** | 18/18 live with 18/18 retrieval provenance (event + param + ledger): 17 VALID, 1 FAIL — identical `{"result": 37}` on wrongkey_001. Lesson retrieved but fix INEFFECTIVE. |
+| **Phase 5 compare** | 17/18 vs 17/18, delta 0.0, CIs fully overlap, threshold NOT met. Per-family: compute 6/6+6/6, multifield 6/6+6/6, distractor 5/6+5/6 (same failure). Classification: NO_MEASURABLE_IMPROVEMENT (negative transfer honestly recorded). |
+| **Phase 6 restart** | Fresh handles: v2 control COMPLETE, 300 rows, lesson + ledger verify True. Dashboard arena block shows latest run. Proof `arena2_proof_20260917.json` SHA256 `413e05ad…65cea9c9`, 37 files secrets-clean. Full suite 626 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (626) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (51 live calls total) / ARENA_VERIFIED (v2 COMPLETE, honest negative) / PRODUCTION not claimed |
 
 ### 2026-09-17 — Experiment Arena Control Surface (300 instances, COMPLETE)
 

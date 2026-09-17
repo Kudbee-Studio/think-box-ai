@@ -1,0 +1,29 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 0.767,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 41
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "3bfabeb0dc57a1d54c9cf43b943f9132bc4235b54ecb918adc7ebdfe131ab527",
+  "strategy": "learned",
+  "task_id": "arena2_distractor_flatter_001",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 151,
+    "completion_tokens_details": {
+      "reasoning_tokens": 143
+    },
+    "prompt_tokens": 59,
+    "prompt_tokens_details": {
+      "cached_tokens": 3
+    },
+    "total_tokens": 210
+  },
+  "valid": true,
+  "variant": "flatter"
+}

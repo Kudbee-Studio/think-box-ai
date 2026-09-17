@@ -1,0 +1,31 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "multifield",
+  "latency_s": 1.64,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 99,
+    "double": 198,
+    "parity": "odd"
+  },
+  "provider": "openai_compat",
+  "response_chars": 46,
+  "response_sha256": "bd5b717d3b3b3d0d177bea25e3f6981250a34e403117fcdf64083aa7d3a92086",
+  "strategy": "baseline",
+  "task_id": "arena2_multifield_combo_000",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 149,
+    "completion_tokens_details": {
+      "reasoning_tokens": 131
+    },
+    "prompt_tokens": 52,
+    "prompt_tokens_details": {
+      "cached_tokens": 3
+    },
+    "total_tokens": 201
+  },
+  "valid": true,
+  "variant": "combo"
+}

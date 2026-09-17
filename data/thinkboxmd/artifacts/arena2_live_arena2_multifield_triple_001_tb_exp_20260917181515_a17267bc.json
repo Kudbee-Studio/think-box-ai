@@ -1,0 +1,31 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "multifield",
+  "latency_s": 1.768,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 33,
+    "double": 66,
+    "parity": "odd"
+  },
+  "provider": "openai_compat",
+  "response_chars": 45,
+  "response_sha256": "0134785e417587c81b968582c56c073727e2f2f7af61d485221bc8172506b4c6",
+  "strategy": "learned",
+  "task_id": "arena2_multifield_triple_001",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 181,
+    "completion_tokens_details": {
+      "reasoning_tokens": 163
+    },
+    "prompt_tokens": 51,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 232
+  },
+  "valid": true,
+  "variant": "triple"
+}

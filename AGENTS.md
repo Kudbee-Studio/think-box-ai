@@ -605,6 +605,12 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Run:** control `tb_exp_20260917175431_3c4cf0e1` NOT_RUN→CONFIGURED→RUNNING→COMPLETE; 300/300 persisted (150 baseline + 150 learned); live 12/12 Mercury-2 VALID (6+6, retrieval 6/6); replay 288/288; honesty repairs recorded (false-live flags, placeholders, double outcomes, orphan re-run).
 - **Classification:** NO_MEASURABLE_IMPROVEMENT (ceiling 1.0; valid). Proof `arena_proof_20260917.json` SHA256 `82a29a84…60a0e2c`. Suite 622 OK (6 skipped).
 
+### Arena v2 Transfer-Under-Difficulty (2026-09-17) — COMPLETE (honest negative transfer)
+
+- **Families:** compute/distractor/multifield in `thinkbox/pop_arena.py` (`verify_v2` 6-class taxonomy, replay emissions verify); `+4` calibration tests.
+- **Run:** control `tb_exp_20260917181211_b78ceb62` (hypothesis + Wilson threshold pre-registered); 300/300 (264 replay + 36 live Mercury-2: 18 baseline + 18 learned, retrieval 18/18).
+- **Result:** 17/18 vs 17/18 (delta 0.0, CIs overlap, threshold NOT met); identical wrongkey `{"result": 37}` failure both arms — lesson retrieved but INEFFECTIVE. Classification NO_MEASURABLE_IMPROVEMENT. Proof `arena2_proof_20260917.json` SHA256 `413e05ad…65cea9c9`. Suite 626 OK (6 skipped).
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:

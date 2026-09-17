@@ -467,6 +467,47 @@ class TestPopulationArena(unittest.TestCase):
         self.assertTrue(secrets_clean({"classification": "NO_MEASURABLE_IMPROVEMENT", "live": 12}))
         self.assertFalse(secrets_clean({"api_key": "x" * 25}))
 
+    def test_v2_task_ids_stable_and_namespaced(self) -> None:
+        from thinkbox.pop_arena import task_id_for_v2, FAMILY_V2, V2_VARIANTS
+        ids = set()
+        for fam in FAMILY_V2:
+            for var in V2_VARIANTS[fam]:
+                tid = task_id_for_v2(fam, var, 0)
+                self.assertTrue(tid.startswith("arena2_"))
+                self.assertEqual(tid, task_id_for_v2(fam, var, 0))
+                ids.add(tid)
+        self.assertEqual(len(ids), 18)
+
+    def test_v2_replay_emission_verifies(self) -> None:
+        from thinkbox.pop_arena import (
+            system_prompt_for_v2, verify_v2, deterministic_emission_v2,
+            extract_json, FAMILY_V2, V2_VARIANTS,
+        )
+        for fam in FAMILY_V2:
+            for var in V2_VARIANTS[fam]:
+                _, spec = system_prompt_for_v2(fam, var)
+                ok, tax = verify_v2(fam, extract_json(deterministic_emission_v2(fam, var, spec)), spec)
+                self.assertTrue(ok, f"{fam}/{var}")
+                self.assertEqual(tax, "valid")
+
+    def test_v2_taxonomy_reachable(self) -> None:
+        from thinkbox.pop_arena import verify_v2
+        self.assertEqual(verify_v2("compute", {"answer": 999}, {"expected": 13})[1], "arithmetic")
+        self.assertEqual(verify_v2("compute", {"result": 13}, {"expected": 13})[1], "wrong-key")
+        self.assertEqual(verify_v2("compute", "no json here", {"expected": 13})[1], "parse-fail")
+        self.assertEqual(verify_v2("distractor", {"result": 37}, {"expected": 37})[1], "distractor-compliance")
+        self.assertEqual(
+            verify_v2("multifield", {"answer": 8, "parity": "odd", "double": 16},
+                      {"expected": 8, "parity": "even", "double": 16})[1], "inconsistency")
+
+    def test_v2_no_answer_leak_beyond_demand(self) -> None:
+        from thinkbox.pop_arena import system_prompt_for_v2, FAMILY_V2, V2_VARIANTS
+        for fam in FAMILY_V2:
+            for var in V2_VARIANTS[fam]:
+                prompt, spec = system_prompt_for_v2(fam, var)
+                if fam == "compute":
+                    self.assertNotIn(str(spec["expected"]), prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

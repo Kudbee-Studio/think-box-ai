@@ -1,0 +1,86 @@
+{
+  "arena": "v2-transfer-under-difficulty",
+  "branch": "main",
+  "checkout_sha": "2030494f30b3f2752413d73370bdf7d86b634ddf",
+  "classification": "NO_MEASURABLE_IMPROVEMENT",
+  "classification_reason": "identical 17/18 rates both arms, CIs fully overlap; lesson retrieved 18/18 but fix did not transfer; ceiling broken (0.944 < 1.0) yet no measured transfer",
+  "config": {
+    "baseline_calls": 18,
+    "families": [
+      "compute",
+      "distractor",
+      "multifield"
+    ],
+    "learned_calls": 18,
+    "live_budget": 36,
+    "max_tokens": 3500,
+    "model": "mercury-2",
+    "population": 300,
+    "provider": "openai_compat",
+    "replay": 264,
+    "temperature": 0.2,
+    "timeout_s": 60
+  },
+  "control_experiment_id": "tb_exp_20260917181211_b78ceb62",
+  "delta": 0.0,
+  "four_state": "ARENA_VERIFIED (v2 control surface + 300 persisted + 36 live + proof; honest negative transfer result)",
+  "hypothesis": "failure-driven lessons raise live learned rate above live baseline rate",
+  "improved_threshold": "delta > 0.15 with non-overlapping 95pct Wilson CI (pre-registered)",
+  "lesson": {
+    "confidence": 0.85,
+    "key": "learn:arena2:failures",
+    "rule": "precedence restatement + explicit key naming",
+    "source": "tb_exp_20260917181347_2d8f8ba2",
+    "transfer_result": "INEFFECTIVE on wrongkey (identical failure both arms)"
+  },
+  "live_baseline": {
+    "ci95": [
+      0.742,
+      0.99
+    ],
+    "failures": [
+      {
+        "parsed": {
+          "result": 37
+        },
+        "task": "arena2_distractor_wrongkey_000",
+        "taxonomy": "distractor-compliance"
+      }
+    ],
+    "rate": 0.944,
+    "total": 18,
+    "valid": 17
+  },
+  "live_learned": {
+    "ci95": [
+      0.742,
+      0.99
+    ],
+    "failures": [
+      {
+        "parsed": {
+          "result": 37
+        },
+        "task": "arena2_distractor_wrongkey_001",
+        "taxonomy": "distractor-compliance"
+      }
+    ],
+    "rate": 0.944,
+    "retrieval_proven": "18/18 (lesson_retrieval event + lesson_source param + ledger metadata)",
+    "total": 18,
+    "valid": 17
+  },
+  "no_claims": [
+    "no intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "replay": {
+    "count": 264,
+    "strategies": "138 baseline + 126 learned (trim imbalance documented; live arms decide classification)",
+    "valid": 264
+  },
+  "threshold_met": false,
+  "timestamp": "2026-09-17T18:16:03.236263+00:00"
+}

@@ -1,0 +1,29 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "family": "distractor",
+  "latency_s": 1.181,
+  "model": "mercury-2",
+  "origin": "live",
+  "parsed": {
+    "answer": 47
+  },
+  "provider": "openai_compat",
+  "response_chars": 14,
+  "response_sha256": "097afb28e45082c503ed6e4ae94aac930714250940cbbd98619ff66cc6792767",
+  "strategy": "learned",
+  "task_id": "arena2_distractor_shout_001",
+  "taxonomy": "valid",
+  "usage": {
+    "completion_tokens": 252,
+    "completion_tokens_details": {
+      "reasoning_tokens": 244
+    },
+    "prompt_tokens": 59,
+    "prompt_tokens_details": {
+      "cached_tokens": 5
+    },
+    "total_tokens": 311
+  },
+  "valid": true,
+  "variant": "shout"
+}
