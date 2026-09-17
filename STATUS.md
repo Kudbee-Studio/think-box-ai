@@ -60,8 +60,19 @@
 - `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper)
-- Full suite: **640 tests, 6 skipped**
+- `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests + `TestDagVerifiedExecution` 9 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper + DAG-level verified execution)
+- Full suite: **649 tests, 6 skipped**
+
+### DAG-Level Verified Execution (2026-09-17) — COMPLETE
+
+- **Boot anomaly (recovered):** workspace re-materialization wiped the gitignored dbs (`data/thinkboxmd/db/experiments.db`, `ledger.db`; `memory.db` absent) → 3 pipeline tests failed (0 experiments). Git-tracked artifacts (93) survived. Classified ENVIRONMENT data loss (not code regression). Rebuilt experiments.db + memory.db from artifacts via `experiments/recover_pipeline_db.py` — every restored row provenance-marked (`agent_id=recovery-20260917`, `source=recovered-from-artifacts`); only artifact-attested fields; ledger hash chain NOT reconstructable (left empty, documented limitation). Recovery → 640 OK.
+- **FIRST TRACE:** `execute_goal` → `TaskDecomposer.decompose` → `TaskGraph` → `get_execution_order()` layers → per-node `_execute_task` → swarm. Smallest integration point = per-node branch in `_execute_task`.
+- **Integration point:** (1) `ThinkBoxEngine.set_verified_task_runner(runner)` — dependency injection, engine never imports governance/retry code; (2) `execute_goal(goal, graph=None)` — nodes with `metadata["verification"]` route through the runner, all others keep the legacy swarm path; (3) `GovernedEngine.execute_verified_goal` — builds graph, assigns stable task/session/experiment ids per task, injects a runner delegating to canonical `execute_verified_task` (shared bounded `VerifiedRetrySession` across the DAG), aggregates child outcomes into `summary["verified"]`, persists via existing ExperimentManager/ledger/proof. NOT a second execution wrapper.
+- **Compatibility:** verify=None / no runner → legacy path untouched (asserted); retry only retryable taxonomies; arithmetic/inconsistency never auto-retry; BudgetExhausted honest terminal; recovered task retains first-failure taxonomy + trace; parent aggregation hides neither failures nor recoveries.
+- **Live proof (fresh instances):** 1 four-task DAG (compute/add_carry, distractor/wrongkey, multifield/double → layer 2 distractor/apology) via REAL Mercury-2 / Inception path; session `tb_sess_20260917201625_18e6`, goal `tb_exp_20260917201625_000f7c27`. 5 live calls (budget 10, remaining 5): 3 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (distractor/wrongkey naturally failed distractor-compliance → valid, 2 attempts, converted). 0 failures, 0 budget-exhausted, verification_rate 1.0. No manufactured failures, no inflated sample. Memory `learn:dagpath:verified-goal`.
+- **Restart / dashboard:** fresh process reconstructed goal + 4 tasks + params + outcomes from SQLite; recovered task kept original taxonomy→final→trace. `_pipeline()` rebuilt DAG totals from storage (tasks 4 / first-try 3 / recovered 1 / failures 0 / retries 1 / rate 1.0); HTTP `/api/pipeline` served the dag block; HTML DAG card present.
+- **Integrity:** ledger `verify()` True (admission + per-task + DAG_COMPLETE entries carry session/experiment ids); proof `dagpath_proof_20260917.json` SHA256 `5d254c1d…52dac97e` recomputed-match; 4 task-artifact SHA256 match; no secrets in pipeline/ledger/proof/artifacts.
+- **Evidence:** `data/thinkboxmd/artifacts/dagpath_proof_20260917.json` + 4 `dagpath_*_tb_exp_*.json`; FourState DAG_VERIFIED (CODE_COMPLETE / TEST_VERIFIED 649 / LIVE_VERIFIED / MODEL_EXECUTION_VERIFIED; PRODUCTION not claimed)
 
 ### Engine Promotion: Verified Execution in GovernedEngine (2026-09-17) — COMPLETE
 

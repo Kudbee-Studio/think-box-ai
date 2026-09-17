@@ -1,0 +1,94 @@
+{
+  "dag": {
+    "budget_config": {
+      "max_calls": 10,
+      "max_retries": 1,
+      "retryable": [
+        "wrong-key",
+        "distractor-compliance",
+        "parse-fail"
+      ]
+    },
+    "budget_exhausted": 0,
+    "calls_spent": 5,
+    "failures": 0,
+    "first_try_successes": 3,
+    "layers": "see dependencies per task",
+    "recovered_successes": 1,
+    "retries": 1,
+    "tasks": 4,
+    "verification_rate": 1.0
+  },
+  "goal": "dag-live: verified DAG execution proof (fresh instances, bounded budget)",
+  "goal_experiment_id": "tb_exp_20260917201625_000f7c27",
+  "integration_point": "ThinkBoxEngine.execute_goal._execute_task -> GovernedEngine.execute_verified_task -> VerifiedRetrySession.run_async",
+  "ledger_entries": "one per task via execute_verified_task + one goal-level entry",
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "phase": "dag-verified-execution",
+  "proof_sha256": "5d254c1d624334b2e7454cf7ead3240f75b3718e8ccce885d158e07852dac97e",
+  "session_id": "tb_sess_20260917201625_18e6",
+  "tasks": [
+    {
+      "artifact": "data/thinkboxmd/artifacts/dagpath_compute_add_carry_tb_exp_20260917201625_b1e8d464.json",
+      "artifact_sha256": "17c26f027c7ad4faccb7c6978af3f858dad4b640efeb0a4bb9b6f41556007dc7",
+      "attempts": 1,
+      "converted": false,
+      "execution_status": "FIRST_TRY_SUCCESS",
+      "experiment_id": "tb_exp_20260917201625_b1e8d464",
+      "final_taxonomy": "valid",
+      "latency_s": 0.425,
+      "retries_used": 0,
+      "task_id": "dagtask_20260917201625_00_784e8e",
+      "taxonomy": "valid",
+      "tokens": 114
+    },
+    {
+      "artifact": "data/thinkboxmd/artifacts/dagpath_distractor_wrongkey_tb_exp_20260917201625_5cca0361.json",
+      "artifact_sha256": "b2cb689a7e0ecbb47aee5355cffb1330f29da7ef41db7fe95d36810bd172d998",
+      "attempts": 2,
+      "converted": true,
+      "execution_status": "RECOVERED_SUCCESS",
+      "experiment_id": "tb_exp_20260917201625_5cca0361",
+      "final_taxonomy": "valid",
+      "latency_s": 2.346,
+      "retries_used": 1,
+      "task_id": "dagtask_20260917201625_01_46b9e4",
+      "taxonomy": "distractor-compliance",
+      "tokens": 714
+    },
+    {
+      "artifact": "data/thinkboxmd/artifacts/dagpath_multifield_double_tb_exp_20260917201625_23ba3ec7.json",
+      "artifact_sha256": "ef4c436d12354d122d64eb426969b2c0955f93e2f0c58f810f31a1679940a26e",
+      "attempts": 1,
+      "converted": false,
+      "execution_status": "FIRST_TRY_SUCCESS",
+      "experiment_id": "tb_exp_20260917201625_23ba3ec7",
+      "final_taxonomy": "valid",
+      "latency_s": 1.389,
+      "retries_used": 0,
+      "task_id": "dagtask_20260917201625_02_557a6a",
+      "taxonomy": "valid",
+      "tokens": 294
+    },
+    {
+      "artifact": "data/thinkboxmd/artifacts/dagpath_distractor_apology_tb_exp_20260917201625_7a668018.json",
+      "artifact_sha256": "20cbe95ead81a86c1575f4cd5f91f96fb9821971aa29f4aa11b072b326d1d6b8",
+      "attempts": 1,
+      "converted": false,
+      "execution_status": "FIRST_TRY_SUCCESS",
+      "experiment_id": "tb_exp_20260917201625_7a668018",
+      "final_taxonomy": "valid",
+      "latency_s": 0.698,
+      "retries_used": 0,
+      "task_id": "dagtask_20260917201625_03_c39e78",
+      "taxonomy": "valid",
+      "tokens": 279
+    }
+  ],
+  "timestamp": "2026-09-17T20:16:28.753521+00:00"
+}

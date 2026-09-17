@@ -1,0 +1,31 @@
+{
+  "dependencies": [],
+  "description": "For the number 21, reply with ONLY this exact JSON object and nothing else: {\"answer\": <n>, \"parity\": \"<even|odd>\", \"double\": <2n>}",
+  "experiment_id": "tb_exp_20260917201625_23ba3ec7",
+  "family": "multifield",
+  "goal_experiment_id": "tb_exp_20260917201625_000f7c27",
+  "session_id": "tb_sess_20260917201625_18e6",
+  "task_id": "dagtask_20260917201625_02_557a6a",
+  "telemetry": {
+    "attempts": 1,
+    "converted": false,
+    "execution_status": "FIRST_TRY_SUCCESS",
+    "final_taxonomy": "valid",
+    "latency_s": 1.389,
+    "property_valid": true,
+    "retries_used": 0,
+    "taxonomy": "valid",
+    "tokens": 294,
+    "trace": {
+      "attempts": 1,
+      "converted": false,
+      "final_taxonomy": "valid",
+      "final_valid": true,
+      "first_taxonomy": "valid",
+      "retried": false,
+      "task_id": "dagtask_20260917201625_02_557a6a"
+    }
+  },
+  "timestamp": "2026-09-17T20:16:28.753521+00:00",
+  "variant": "double"
+}

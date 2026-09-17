@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (560 OK, 6 skipped)
+- [x] Tests executed and passing (649 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -33,18 +33,34 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Engine promotion: VerifiedRetrySession as the standard GovernedEngine per-task verified execution primitive (Arena = benchmark consumer) |
-| **Latest completed work** | Engine promotion COMPLETE: `GovernedEngine.execute_verified_task` live-proven on 6 fresh instances (5 first-try + 1 recovery); restart/replay/dashboard verified — 640 tests passing |
-| **Current verified capabilities** | Engine-owned verified execution (`run_async` + wrapper, `+5` deterministic tests); Exec-status telemetry in dashboard; 640 tests passing |
-| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). |
-| **Known risks** | Recovery evidence small-n (3 conversions lifetime across v3/default-path/engine-path); 1 retry max per task bounds cost. |
-| **Next larger improvement** | Extend engine wrapper telemetry to full ThinkBoxEngine.execute_goal task layers (per-task verified execution at DAG scale) with dashboard-visible retry rates |
-| **PR status** | main at 10a1129; engine-promotion work on main working tree, uncommitted |
-| **Test count** | **640 tests passing (6 skipped)** |
+| **Active objective** | DAG-level verified execution: `ThinkBoxEngine.execute_goal` task lifecycle routed through the canonical `GovernedEngine.execute_verified_task` primitive (Arena = benchmark consumer; engine owns per-task + per-DAG verified execution) |
+| **Latest completed work** | DAG-level verified execution COMPLETE: `GovernedEngine.execute_verified_goal` live-proven on a 4-task DAG (2 layers) with 5 real Mercury-2 calls — 3 first-try + 1 natural recovery (distractor-compliance → valid), 0 failures, 0 budget-exhausted, ledger + proof verified, restart/dashboard rebuild proven. Also RECOVERED the pipeline SQLite dbs from git-tracked artifacts after a workspace re-materialization wiped the gitignored dbs. |
+| **Current verified capabilities** | DAG-level verified execution (engine hook → governed primitive → `VerifiedRetrySession.run_async`); per-task + parent-DAG telemetry (first-try/recovered/failures/retries/budget/verification-rate); dashboard DAG card rebuilt from storage; `+9` deterministic DAG tests; 649 tests passing |
+| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs are reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain is NOT reconstructable — documented limitation). |
+| **Known risks** | Recovery evidence still small-n (4 conversions lifetime across v3/default-path/engine-path/dag-path); 1 retry max per task bounds cost. Gitignored dbs are ephemeral — artifact recovery restores experiments/outcomes/proofs/memory but not the ledger chain. |
+| **Next larger improvement** | Scale DAG verified execution to multi-goal concurrent budgets + deeper DAGs (fan-in/fan-out), with cross-goal budget accounting and dashboard-visible per-layer retry rates |
+| **PR status** | main at 1fcdbd7; DAG-verified work + db-recovery on main working tree, to be committed |
+| **Test count** | **649 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — DAG-Level Verified Execution (4-task live DAG, COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Extend the proven `GovernedEngine.execute_verified_task` telemetry into the REAL `ThinkBoxEngine.execute_goal` task/DAG lifecycle. HEAD `1fcdbd7`, branch `main`. No new execution wrapper, no duplicated `VerifiedRetrySession`. No SSH, no UpCloud compute, no GPU, no mocks for live calls, no unbounded calls, no secrets. |
+| **Boot anomaly (recovered)** | Workspace re-materialization wiped the gitignored dbs (`data/thinkboxmd/db/experiments.db`, `ledger.db`; `memory.db` absent) → 3 pipeline tests failed (0 experiments). Git-tracked artifacts (93 files) survived intact. Diagnosed as ENVIRONMENT data loss, not code regression. Rebuilt experiments.db + memory.db from artifacts via new `experiments/recover_pipeline_db.py` (every restored row provenance-marked `agent_id=recovery-20260917`, `source=recovered-from-artifacts`; only artifact-attested fields restored; ledger hash chain NOT reconstructable — left empty, documented). Recovery suite: 640 OK before DAG work. |
+| **FIRST TRACE** | `execute_goal` decomposes goal → `TaskGraph` (`TaskDecomposer.decompose`) → layers via `get_execution_order()` → per-node `_execute_task` → swarm call. Smallest integration point = the per-node branch in `_execute_task`. |
+| **Integration point** | (1) `ThinkBoxEngine.set_verified_task_runner(runner)` — dependency injection; engine never imports governance/retry code. (2) `execute_goal(goal, graph=None)` accepts a prebuilt `TaskGraph`; nodes with `metadata["verification"]` route through the injected runner, all others keep the legacy swarm path (byte-identical). (3) `GovernedEngine.execute_verified_goal` builds the graph, assigns each task a stable task/session/experiment id, injects a runner delegating to the canonical `execute_verified_task` (shared bounded `VerifiedRetrySession` across the whole DAG), aggregates child outcomes into `summary["verified"]`, and persists via existing ExperimentManager/ledger/proof. NOT a second wrapper. |
+| **Compatibility** | verify=None / no runner → legacy path untouched (verified by `test_dag_first_try_events_and_legacy_untouched`: `execute_goal` without runner returns no `verified` block). Retry only retryable taxonomies; arithmetic/inconsistency never auto-retry; `BudgetExhausted` honest terminal; recovered task retains `taxonomy`=first failure + trace; parent aggregation hides nothing (failures + recoveries both surface). |
+| **Live proof (fresh instances)** | 1 four-task DAG (compute/add_carry, distractor/wrongkey, multifield/double → layer 2 distractor/apology) via real Mercury-2 / Inception path, session `tb_sess_20260917201625_18e6`, goal `tb_exp_20260917201625_000f7c27`. 5 live calls (budget 10, remaining 5): 3 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (`distractor/wrongkey` naturally failed distractor-compliance → valid, 2 attempts, converted). 0 failures, 0 budget-exhausted, verification_rate 1.0. No manufactured failures, no inflated sample. Memory `learn:dagpath:verified-goal`. |
+| **Restart / dashboard** | Fresh process reconstructed goal + 4 tasks + params + outcomes from SQLite; recovered task kept original taxonomy→final→trace. Dashboard `_pipeline()` rebuilt DAG totals from storage (tasks_total 4, first-try 3, recovered 1, failures 0, retries 1, rate 1.0); HTTP `/api/pipeline` served the dag block; HTML DAG card present. |
+| **Integrity** | Ledger `verify()` True (admission + per-task + DAG_COMPLETE entries with session/experiment ids). Proof `dagpath_proof_20260917.json` SHA256 `5d254c1d…52dac97e` recomputed-match; all 4 task-artifact SHA256 match. No secrets in pipeline/ledger/proof/artifacts. |
+| **Tests** | `+9` deterministic DAG tests (`TestDagVerifiedExecution`): multi-task DAG, first-try + legacy-untouched, recovered-provenance, non-retryable-no-retry, budget-exhausted-honest, parent-aggregation-hides-nothing, persist/restart/dashboard-rebuild, proof/ledger integrity, no-secrets. Suite 649 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (649) / LIVE_VERIFIED (substrate) / MODEL_EXECUTION_VERIFIED (5 live DAG calls) / DAG_VERIFIED (execute_goal lifecycle proven end-to-end) / PRODUCTION not claimed |
 
 ### 2026-09-17 — Engine Promotion: Verified Execution in GovernedEngine (6 fresh live jobs, COMPLETE)
 

@@ -59,6 +59,18 @@ class ThinkBoxEngine:
         self._event_queue: asyncio.Queue[TaskEvent] = asyncio.Queue()
         self._running = False
         self._post_run_callback: Callable[[dict[str, Any]], None] | None = None
+        self._verified_task_runner: Callable[..., Any] | None = None
+
+    def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
+        """Inject the governed verified-execution runner (dependency injection).
+
+        runner(task_id, prompt, verification, context) is awaited for every
+        task node whose metadata carries a "verification" spec. The engine
+        never imports governance or retry code; GovernedEngine supplies the
+        runner delegating to its canonical execute_verified_task primitive.
+        With no runner injected (default), behavior is identical to legacy.
+        """
+        self._verified_task_runner = runner
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -86,28 +98,59 @@ class ThinkBoxEngine:
             except asyncio.TimeoutError:
                 continue
 
-    async def execute_goal(self, goal: str) -> dict[str, Any]:
+    async def execute_goal(self, goal: str, graph: TaskGraph | None = None) -> dict[str, Any]:
         self._running = True
         start_time = time.monotonic()
+        goal_run_id = f"goal_{uuid.uuid4().hex[:8]}"
 
-        self.emit("root", TaskState.RUNNING, f"Starting goal: {goal[:100]}")
+        self.emit("root", TaskState.RUNNING, f"Starting goal: {goal[:100]}", goal_run_id=goal_run_id)
 
-        graph = self.decomposer.decompose(goal)
-        self.emit("root", TaskState.RUNNING, f"Decomposed into {len(graph.tasks)} tasks")
+        if graph is None:
+            graph = self.decomposer.decompose(goal)
+        self.emit("root", TaskState.RUNNING, f"Decomposed into {len(graph.tasks)} tasks", goal_run_id=goal_run_id)
 
         results: dict[str, Any] = {}
         layers = graph.get_execution_order()
 
         for layer in layers:
             layer_tasks = [graph.tasks[tid] for tid in layer]
-            self.emit("root", TaskState.RUNNING, f"Executing layer with {len(layer_tasks)} tasks")
+            self.emit("root", TaskState.RUNNING, f"Executing layer with {len(layer_tasks)} tasks", goal_run_id=goal_run_id)
 
             async def _execute_task(node: TaskNode) -> tuple[str, Any]:
-                self.emit(node.id, TaskState.RUNNING, f"Task: {node.description[:80]}")
+                self.emit(node.id, TaskState.RUNNING, f"Task: {node.description[:80]}", goal_run_id=goal_run_id)
 
                 pruned = self.pruner.prune_to_budget(node.description)
 
                 await self.autoscaler.wait_if_paused()
+
+                verification = node.metadata.get("verification")
+                if verification is not None and self._verified_task_runner is not None:
+                    context = {
+                        "goal_run_id": goal_run_id,
+                        "goal": goal,
+                        "dependencies": list(node.dependencies),
+                        "experiment_id": node.metadata.get("experiment_id", ""),
+                        "session_id": node.metadata.get("session_id", ""),
+                    }
+                    verified = await self._verified_task_runner(node.id, pruned, verification, context)
+                    status = verified.get("execution_status", "")
+                    ok = bool(verified.get("valid"))
+                    self.emit(
+                        node.id,
+                        TaskState.SUCCESS if ok else TaskState.FAILED,
+                        status,
+                        goal_run_id=goal_run_id,
+                        execution_status=status,
+                        attempts=verified.get("attempts"),
+                        retries_used=verified.get("retries_used"),
+                        taxonomy=verified.get("taxonomy", ""),
+                        final_taxonomy=verified.get("final_taxonomy", ""),
+                        converted=verified.get("converted"),
+                        latency_s=verified.get("latency_s"),
+                        experiment_id=context["experiment_id"],
+                        session_id=context["session_id"],
+                    )
+                    return node.id, verified
 
                 if self.config.speculative:
                     result = await self.swarm.execute_with_speculation(node.id, pruned)
@@ -137,13 +180,18 @@ class ThinkBoxEngine:
 
         elapsed = (time.monotonic() - start_time) * 1000
 
+        def _is_verified(r: Any) -> bool:
+            return isinstance(r, dict) and "execution_status" in r
+
         successful = sum(
             1 for r in results.values()
-            if isinstance(r, ExecutionResult) and r.success
+            if (isinstance(r, ExecutionResult) and r.success)
+            or (_is_verified(r) and r.get("valid"))
         )
 
         summary = {
             "engine_id": self.engine_id,
+            "goal_run_id": goal_run_id,
             "total_tasks": len(graph.tasks),
             "completed": len(results),
             "successful": successful,
@@ -151,6 +199,45 @@ class ThinkBoxEngine:
             "total_time_ms": round(elapsed, 2),
             "events": len(self._events),
         }
+
+        verified_results = {tid: r for tid, r in results.items() if _is_verified(r)}
+        if verified_results:
+            counts = {s: 0 for s in (
+                "FIRST_TRY_SUCCESS", "RECOVERED_SUCCESS", "FAILED_AFTER_RETRY",
+                "BUDGET_EXHAUSTED", "UNVERIFIED",
+            )}
+            per_task: dict[str, Any] = {}
+            retries = 0
+            for tid, r in verified_results.items():
+                status = r.get("execution_status", "")
+                if status in counts:
+                    counts[status] += 1
+                retries += int(r.get("retries_used") or 0)
+                per_task[tid] = {
+                    "execution_status": status,
+                    "valid": bool(r.get("valid")),
+                    "taxonomy": r.get("taxonomy", ""),
+                    "final_taxonomy": r.get("final_taxonomy", ""),
+                    "attempts": r.get("attempts"),
+                    "retries_used": r.get("retries_used"),
+                    "converted": r.get("converted"),
+                    "latency_s": r.get("latency_s"),
+                    "experiment_id": (graph.tasks[tid].metadata.get("experiment_id", "")
+                                      if tid in graph.tasks else ""),
+                }
+            n = len(verified_results)
+            verified_ok = counts["FIRST_TRY_SUCCESS"] + counts["RECOVERED_SUCCESS"]
+            summary["verified"] = {
+                "tasks": n,
+                "first_try_successes": counts["FIRST_TRY_SUCCESS"],
+                "recovered_successes": counts["RECOVERED_SUCCESS"],
+                "failures": counts["FAILED_AFTER_RETRY"],
+                "budget_exhausted": counts["BUDGET_EXHAUSTED"],
+                "unverified": counts["UNVERIFIED"],
+                "retries": retries,
+                "verification_rate": round(verified_ok / n, 4) if n else 0.0,
+                "per_task": per_task,
+            }
 
         self.emit("root", TaskState.SUCCESS, "Goal execution complete", **summary)
         if self._post_run_callback is not None:

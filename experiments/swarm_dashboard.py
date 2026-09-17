@@ -350,6 +350,48 @@ def _pipeline() -> dict[str, Any]:
     except Exception:
         pass
     state["arena"] = arena_block
+    dag_tasks_by_goal: dict[str, list[dict[str, Any]]] = {}
+    for eid, pmap in params_by_exp.items():
+        if pmap.get("scope") == "dag_task":
+            dag_tasks_by_goal.setdefault(pmap.get("dag_goal_experiment", ""), []).append({
+                "experiment_id": eid,
+                "task_id": pmap.get("task_id", ""),
+                "family": pmap.get("family", ""),
+                "variant": pmap.get("variant", ""),
+                "execution_status": pmap.get("execution_status", ""),
+            })
+    dag_goals = []
+    for eid, pmap in params_by_exp.items():
+        if pmap.get("scope") != "dag":
+            continue
+        tasks = dag_tasks_by_goal.get(eid, [])
+        dag_goals.append({
+            "goal_experiment_id": eid,
+            "tasks": int(pmap.get("dag_tasks", len(tasks)) or 0),
+            "first_try_successes": int(pmap.get("first_try_successes", 0) or 0),
+            "recovered_successes": int(pmap.get("recovered_successes", 0) or 0),
+            "failures": int(pmap.get("failures", 0) or 0),
+            "budget_exhausted": int(pmap.get("budget_exhausted", 0) or 0),
+            "retries": int(pmap.get("retries", 0) or 0),
+            "verification_rate": float(pmap.get("verification_rate", 0.0) or 0.0),
+            "calls_spent": int(pmap.get("calls_spent", 0) or 0),
+            "task_rows": tasks,
+        })
+    dag_block = {
+        "goals": dag_goals,
+        "tasks_total": sum(g["tasks"] for g in dag_goals),
+        "first_try_successes": sum(g["first_try_successes"] for g in dag_goals),
+        "recovered_successes": sum(g["recovered_successes"] for g in dag_goals),
+        "failures": sum(g["failures"] for g in dag_goals),
+        "budget_exhausted": sum(g["budget_exhausted"] for g in dag_goals),
+        "retries": sum(g["retries"] for g in dag_goals),
+        "verification_rate": (
+            round(
+                sum(g["first_try_successes"] + g["recovered_successes"] for g in dag_goals)
+                / sum(g["tasks"] for g in dag_goals), 4,
+            ) if dag_goals and sum(g["tasks"] for g in dag_goals) else 0.0
+        ),
+    }
     return {
         "substrate": latest_box or "unknown",
         "jobs": jobs,
@@ -377,6 +419,7 @@ def _pipeline() -> dict[str, Any]:
         ],
         "memory": memory_keys,
         "arena": arena_block,
+        "dag": dag_block,
         "verification_state": state,
         "blockers": [
             "SSH-to-UpCloud unsupported (historical key not authorized; removed from roadmap)",
@@ -531,6 +574,12 @@ svg{width:100%;height:auto;display:block}
       <h2>Jobs</h2>
       <div class="hint">latest session/job IDs · substrate/provider/model · verification · hashes · provenance</div>
       <div id="pipe-jobs" class="empty">loading…</div>
+    </div>
+    <div class="card">
+      <h2>DAG verified execution</h2>
+      <div class="hint">ThinkBoxEngine.execute_goal task lifecycle through the governed verified primitive · tasks / first-try / recovered / failures / retries / budget / verification rate · rebuilt from SQLite</div>
+      <div class="kpis" id="dag-kpis"></div>
+      <div id="dag-body" class="empty">loading…</div>
     </div>
     <div class="card">
       <h2>Lessons · retrieval · memory · blockers</h2>
@@ -734,6 +783,26 @@ async function tickPipeline(){
       `<td class="mono">${(j.artifact_sha256||'').slice(0,12)}</td><td class="mono">${j.lesson_source||'—'}</td></tr>`).join('')+`</table>`+
     `<div class="hint" style="margin-top:8px">substrate: ${d.substrate||'—'} · code ✓ · tests ${(vs.test||{}).passed||0}/${((vs.test||{}).passed||0)+((vs.test||{}).skipped||0)} · live: ${((vs.live||{}).upcloud_api||'')} (kudbeev3 ${(vs.live||{}).kudbeev3_state||''}) · model: ${(vs.model||{}).status||''} (${(vs.model||{}).model||''}) · arena: ${((vs.arena||{}).status||'')}</div>`
     :'<div class="empty">no experiments yet</div>';
+  const dag=d.dag||{};
+  $('#dag-kpis').innerHTML=
+    kpi(dag.tasks_total||0,'dag tasks')+
+    kpi(dag.first_try_successes||0,'first-try','good')+
+    kpi(dag.recovered_successes||0,'recovered','good')+
+    kpi(dag.failures||0,'failures',(dag.failures||0)>0?'bad':'')+
+    kpi(dag.budget_exhausted||0,'budget exhausted',(dag.budget_exhausted||0)>0?'bad':'')+
+    kpi(dag.retries||0,'retries')+
+    kpi(((dag.verification_rate||0)*100).toFixed(0)+'%','verification rate','good');
+  const dgoals=(dag.goals||[]).slice().reverse();
+  $('#dag-body').className='';
+  $('#dag-body').innerHTML=dgoals.length?dgoals.map(g=>
+    `<div style="margin-bottom:10px"><span class="mono" style="font-size:11px">${g.goal_experiment_id}</span> `+
+    `<span class="tag">${g.tasks} tasks</span><span class="tag">${g.first_try_successes} first-try</span>`+
+    `<span class="tag">${g.recovered_successes} recovered</span><span class="tag">${g.failures} failed</span>`+
+    `<span class="tag">${g.budget_exhausted} budget</span><span class="tag">${g.retries} retries</span>`+
+    `<span class="tag">${g.calls_spent} calls</span>`+
+    (g.task_rows&&g.task_rows.length?`<table style="margin-top:6px"><tr><th>Task exp</th><th>Family</th><th>Variant</th><th>Exec status</th></tr>`+
+      g.task_rows.map(r=>`<tr><td class="mono">${r.experiment_id}</td><td>${r.family||'—'}</td><td>${r.variant||'—'}</td><td>${r.execution_status||'—'}</td></tr>`).join('')+`</table>`:'')+
+    `</div>`).join(''):'<div class="empty">no verified DAG goals yet</div>';
   const ls=d.lessons||[], rt=d.retrievals||[], mem=d.memory||[];
   $('#pipe-learn').className='';
   $('#pipe-learn').innerHTML=

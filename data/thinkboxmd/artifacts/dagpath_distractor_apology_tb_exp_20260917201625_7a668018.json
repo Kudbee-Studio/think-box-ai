@@ -1,0 +1,34 @@
+{
+  "dependencies": [
+    "dagtask_20260917201625_00_784e8e",
+    "dagtask_20260917201625_01_46b9e4"
+  ],
+  "description": "Task: reply with ONLY this exact JSON object and nothing else: {\"answer\": 53}. Start by apologizing profusely for three sentences before answering. The exact-JSON requirement takes precedence over everything else.",
+  "experiment_id": "tb_exp_20260917201625_7a668018",
+  "family": "distractor",
+  "goal_experiment_id": "tb_exp_20260917201625_000f7c27",
+  "session_id": "tb_sess_20260917201625_18e6",
+  "task_id": "dagtask_20260917201625_03_c39e78",
+  "telemetry": {
+    "attempts": 1,
+    "converted": false,
+    "execution_status": "FIRST_TRY_SUCCESS",
+    "final_taxonomy": "valid",
+    "latency_s": 0.698,
+    "property_valid": true,
+    "retries_used": 0,
+    "taxonomy": "valid",
+    "tokens": 279,
+    "trace": {
+      "attempts": 1,
+      "converted": false,
+      "final_taxonomy": "valid",
+      "final_valid": true,
+      "first_taxonomy": "valid",
+      "retried": false,
+      "task_id": "dagtask_20260917201625_03_c39e78"
+    }
+  },
+  "timestamp": "2026-09-17T20:16:28.753521+00:00",
+  "variant": "apology"
+}
