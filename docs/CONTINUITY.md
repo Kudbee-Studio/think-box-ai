@@ -207,7 +207,7 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 | Dry-run mode | TEST VERIFIED ✅ | Mocked execution tested, plan() dry_run | — |
 | Provider abstraction | TEST VERIFIED ✅ | Base class + registry tested | — |
 | API endpoint discovery | CODE COMPLETE ✅ | 2026-09-17: endpoints confirmed, Cloudflare blocks Bearer | — |
-| SSH access test | CODE COMPLETE ✅ | 2026-09-17: 209.50.56.169:22 reachable, auth fails (no key) | No private key locally |
+| SSH access test | CODE COMPLETE ✅ | 2026-09-17: 209.50.56.169:22 reachable, auth fails — Termius key mismatch | No matching Termius private key locally |
 | Live UpCloud authentication | NOT VERIFIED ⚠️ | Cloudflare blocks `Authorization: Bearer` (404 HTML) at api.upcloud.com edge; SSH auth fails (no private key) | Sandbox Cloudflare WAF + no SSH key |
 | Real UpCloud execution | NOT VERIFIED ⚠️ | Cannot execute through sandbox | Live auth NOT VERIFIED |
 | Autonomous provisioning | BLOCKED ⚠️ | Depends on live verification | Live auth NOT VERIFIED |
@@ -258,9 +258,10 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 | **Date** | 2026-09-17 |
 | **Agent/task** | SSH access test to UpCloud server using Termius keypair |
 | **PR/commit** | N/A — diagnostic/read-only |
-| **Result** | Active server identified: `209-50-56-169.us-chi1.upcloud.host` (209.50.56.169, us-chi1 datacenter). Port 22 OPEN, SSH handshake OK (ED25519 host key), auth FAILED: Permission denied (publickey). No matching private key found locally. Old server at 87.58.150.62 (fi-hel2) has port 22 CLOSED. |
-| **Tests/evidence** | TCP port scan (3 IPs, 12 ports), DNS resolution, SSH handshake with BatchMode, ssh-keyscan host key verification, private key search across all accessible filesystem paths |
-| **State** | CODE COMPLETE ✅ — network and host key verified; failure is at PRIVATE KEY MISSING layer |
+| **Result** | Active server identified: `209-50-56-169.us-chi1.upcloud.host` (209.50.56.169, us-chi1 datacenter). Port 22 OPEN, SSH handshake OK (ED25519 host key), auth FAILED: Permission denied (publickey). No matching private key found locally. Key found at `agent_c4ba2bc7-*/kilo-upcloud-recovered` has DIFFERENT fingerprint (`SHA256:makvGnTY...`) than Termius identity (`SHA256:/rPIiS2C...`). Old server at 87.58.150.62 (fi-hel2) has port 22 CLOSED. |
+| **Tests/evidence** | TCP port scan (3 IPs, 12 ports), DNS resolution, SSH handshake with BatchMode, ssh-keyscan host key verification, key fingerprint comparison (4 candidates tested), private key search across all accessible filesystem paths |
+| **State** | CODE COMPLETE ✅ — network and host key verified; failure at PRIVATE KEY MISSING layer; Termius keypair not on this machine |
+| **HANDOFF** | PRIVATE KEY HANDOFF REQUIRED — Termius ed25519 private key must be transferred to this machine (e.g., `~/.ssh/kilo-upcloud`, chmod 600) |
 
 ### 2026-09-17 — UpCloud API Endpoint Discovery
 
