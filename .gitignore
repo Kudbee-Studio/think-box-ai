@@ -49,6 +49,9 @@ data/queue.jsonl
 data/evals/burst-smoke/think_burst_*.jsonl
 # THINKBOXMD proof: keep JSON/MD reports, ignore regenerable DB state
 data/thinkboxmd/db/
+# Burst experiment output (runtime data, regenerable)
+data/evals/burst/think_burst_*.jsonl
+data/evals/experiment.db
 # live swarm event stream (regenerable, high-churn)
 data/thinkboxmd/swarm_events.jsonl
 
