@@ -68,6 +68,14 @@
 - **Substrate:** current run substrate is Upstash Box; smallest wiring point is `core/providers/upcloud.py` read-only execute → `UpCloudConfig` (API-sourced IP/UUID) → `substrate.bind_think_box` live-server branch (not built)
 - **Evidence:** experiment `tb_exp_20260917162855_5eb93b1c`, artifact `data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json` (SHA256 `400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d`); FourState TEST_VERIFIED with LIVE_VERIFIED API inventory, SSH proof FAILED (blocker)
 
+### UpCloud Runtime State Diagnostic (2026-09-17)
+
+- **Server IS running:** API `/1.3/server/<uuid>` → state `started`, host 8388362883, boot_order=disk, firewall off; user report of stopped server contradicted by live API + open port 22 on 209.50.56.169 (209.50.53.93 secondary IP times out — normal)
+- **Separate statuses:** API reachable ✅ / server running ✅ / port 22 (.169) ✅ / port 22 (.93) ❌ / SSH key available ❌ / SSH auth successful ❌
+- **Substrate boundary:** execution substrate = Upstash Box preview; UpCloud control plane = reachable (GET-only); UpCloud server execution path = NOT WIRED (provider is control-plane REST only; stale defaults; no SSH adapter; no bind_think_box live branch); UpCloud GPU execution path = NOT PRESENT (CPU-only server, 68 GPU plans in catalog unassigned)
+- **Evidence:** experiment `tb_exp_20260917164001_073516d8`, artifact `data/thinkboxmd/artifacts/upcloud_runtime_state_20260917.json` (SHA256 `e333faa4d1886d102d808ec3fffc4a1deef3a6af9eb02ee95226c1d10d711ff8`); zero mutation; FourState LIVE_VERIFIED for control-plane state only, machine NOT reached
+- **Blocker:** no authorized SSH key on kudbeev3 (single BatchMode attempt denied publickey)
+
 ### CLI Integration
 
 - `think_box_ai/cli.py` — Experiment subcommand registered

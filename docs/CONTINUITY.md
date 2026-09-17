@@ -33,18 +33,32 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Live UpCloud host verification (kudbeev3) — SSH reachability + API/machine reconciliation |
-| **Latest completed work** | Live host verification — API LIVE_VERIFIED, SSH auth blocked (historical key not authorized) — 605 tests passing |
-| **Current verified capabilities** | UpCloud API read-only (account kudbee, server kudbeev3 enumerated), SSH network facts (primary IP banner OK, secondary timeout), keypair consistency, substrate probe, 605 tests passing |
-| **Current blockers** | SSH auth to kudbeev3: historical recovered key NOT authorized (Permission denied publickey); configured UPCLOUD_SSH_KEY_PATH file absent; no authorized key on file for kudbeev3 |
-| **Known risks** | UpCloudConfig defaults point at stale kudbee-host-v1/212.147.250.183 (Case C); no SSH adapter class in codebase; machine-level facts unverified without shell |
-| **Next larger improvement** | Fix the SSH/substrate integration blocker: register an authorized key for kudbeev3 via panel/API key management, then retry read-only host proof (hostname/OS/CPU/RAM/GPU) |
-| **PR status** | Branch kilo/fair-wind-03a at 48fed0f, in sync with origin/main; no prior 5e8a7b7 commit exists in this repo history (directive starting evidence refers to state not present here — recorded honestly); proof artifact written, commit pending founder review |
+| **Active objective** | UpCloud runtime state diagnostic (kudbeev3) — establish exact runtime boundary |
+| **Latest completed work** | Runtime state diagnostic — server IS running (API state=started, port 22 open on .169), SSH auth still blocked; substrate is Upstash Box — 605 tests passing |
+| **Current verified capabilities** | UpCloud control-plane read-only (LIVE), server runtime state (started), port-22 network state, substrate determination (Upstash Box), 605 tests passing |
+| **Current blockers** | SSH auth: no authorized key on kudbeev3 (recovered historical key rejected); no UpCloud server execution path wired (provider is control-plane REST only) |
+| **Known risks** | User reported server "may not be running" — API contradicts this: kudbeev3 state=started with port 22 open on primary IP; .93 unreachable (secondary IP, normal) |
+| **Next larger improvement** | Obtain explicit approval before starting/verifying the UpCloud server — server is ALREADY running per API, so next step is SSH key registration then live host verification |
+| **PR status** | kilo/fair-wind-03a at beee146 (1 ahead of origin/main 48fed0f) + diagnostic artifact uncommitted |
 | **Test count** | **605 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — UpCloud Runtime State Diagnostic (kudbeev3)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Runtime-state-only diagnostic (no SSH troubleshooting, no mutation). HEAD `beee146`, branch `kilo/fair-wind-03a`, tree clean except new artifact. |
+| **Phase 1 API state** | `/1.3/account` 200 (`kudbee`); `/1.3/server` 200 (1 server); `/1.3/server/<uuid>` 200: `kudbeev3` state=**started**, zone us-chi1, plan CLOUDNATIVE-16xCPU-48GB (16 cores, 49152MB, host 8388362883, boot_order=disk, firewall off), IPs 209.50.56.169 + 209.50.53.93 (public) + 10.3.14.89 (utility), storage ubuntu-16cpu-48gb-us-chi1 50GB virtio, tags []. GPU: none assigned; catalog has 68 GPU plans (L4/L40S/H100/B200/RTXPRO6000); current plan verified in catalog (182 plans total). **Server IS running.** |
+| **Phase 2 SSH correlation** | Server running → port 22 tested: .169 OPEN (connect_ex=0), .93 TIMEOUT (connect_ex=11). Single BatchMode auth attempt on .169: Permission denied (publickey). Separate statuses: API reachable ✅ / server running ✅ / port22 .169 ✅ / port22 .93 ❌ / SSH key available ❌ / SSH auth successful ❌. |
+| **Phase 3 substrate** | CURRENT EXECUTION SUBSTRATE = Upstash Box preview (`wanted-tuna-71803-3000.preview.box.upstash.com`; `detect_substrate()` precedence proven: UPSTASH_PUBLIC_BOX_URL wins even though THINKBOX_UPCLOUD_API_TOKEN is set). UPCLOUD API CONTROL PLANE = REACHABLE (read-only). UPCLOUD SERVER EXECUTION PATH = NOT WIRED (`UpCloudExecutionProvider.execute` is REST control-plane only; `UpCloudConfig` defaults stale 212.147.250.183; no SSH adapter; `bind_think_box` has no live-server branch). UPCLOUD GPU EXECUTION PATH = NOT PRESENT (CPU-only server; no GPU code path). |
+| **No mutation** | Zero start/stop/reboot/resize/provision/delete/SSH-key-registration/package/service changes. GET-only API, one TCP probe per IP, one BatchMode SSH attempt. |
+| **Evidence** | Experiment `tb_exp_20260917164001_073516d8` (session `tb_sess_20260917164001_fbb2`), artifact `data/thinkboxmd/artifacts/upcloud_runtime_state_20260917.json` SHA256 `e333faa4d1886d102d808ec3fffc4a1deef3a6af9eb02ee95226c1d10d711ff8`. Targeted 85 OK; full suite 605 OK (6 skipped). FourState: LIVE_VERIFIED (control-plane runtime state); machine execution NOT reached → no LIVE_VERIFIED for machine. |
+| **Exact blocker** | No authorized SSH key on kudbeev3 — recovered historical key rejected (publickey). Server itself is running; user report of "not running" contradicted by live API. |
+| **Status** | COMPLETE (diagnostic); SSH host access remains BLOCKED pending key registration |
 
 ### 2026-09-17 — Live UpCloud Host Verification (kudbeev3)
 
