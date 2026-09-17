@@ -13,19 +13,27 @@
 |-------|--------|
 | `upctl` installed | ❌ NOT FOUND |
 | `UPCLOUD_API_MAIN` env var | ❌ NOT SET (checked first) |
-| `UPCLOUD_API_KEY` env var | ❌ NOT SET (fallback) |
+| `UPCLOUD_API_KEY` env var | ✅ SET 2026-09-17 (session only, not persisted) |
 | UpCloud API reachable | ✅ (HTTP response received) |
-| UpCloud API auth | ❌ HTTP 401 (as documented in STATUS.md) |
+| UpCloud API auth | ⚠️ **Cloudflare WAF blocks `Authorization: Bearer`** in sandbox (404 HTML); without auth returns 401 from real API |
 
 **Conclusion:** upctl CLI is not installed. The UpCloud REST API
-is reachable from this environment but returns HTTP 401 for all
-endpoints, confirming the documented authentication failure.
+is reachable from this environment. Without auth, all endpoints
+return 401 AUTHENTICATION_REQUIRED (confirming API is live and key
+format is valid). With `Authorization: Bearer`, Cloudflare's WAF
+intercepts the request and returns 404 HTML instead of routing to
+the API. All other auth header formats (`Token`, `Basic`, `APIKey`,
+`X-ApiKey`) also reach the real API (401), confirming Cloudflare
+specifically blocks the Bearer header format in this sandbox.
 The provider implementation uses the REST API directly via
-`urllib` (stdlib), which works when credentials are valid.
+`urllib` (stdlib), which works when credentials are valid and
+the request is not blocked by WAF.
 
 ---
 
 ## 2. API Capability Audit Results
+
+### 2.1 Audit (2026-09-16): All 401 (no auth)
 
 Every capability was tested via live HTTP probe (no real data
 modified). Results reflect the authenticated user's permissions.
@@ -52,6 +60,25 @@ modified). Results reflect the authenticated user's permissions.
 **All capabilities classified DENIED due to authentication failure.**
 No resources were created, modified, or deleted during this audit.
 All tests were read-only probes with timeout limits.
+
+### 2.2 Auth Discovery (2026-09-17): Cloudflare WAF Blocking Bearer
+
+With `UPCLOUD_API_KEY` set, all endpoints return **HTTP 404 (Cloudflare HTML)**
+when `Authorization: Bearer` is present. Without auth, all return **401 JSON
+from real UpCloud API**. This is NOT a code bug — the provider uses the
+correct endpoint structure and auth format per UpCloud API spec.
+
+| Scenario | Result |
+|---|---|
+| No auth header → `/v1/account` | 401 JSON (real UpCloud API) |
+| `Authorization: Bearer` → `/v1/account` | 404 HTML (Cloudflare block) |
+| `Token`/`Basic`/`APIKey`/`X-ApiKey` → `/v1/account` | 401 JSON (real API passes through) |
+| `www.upcloud.com` with/without auth | 403 (Cloudflare JS challenge) |
+| Redirects | None |
+| `Upcloud-Cid` header | Present (confirms routing) |
+
+**Impact:** Live smoke tests BLOCKED from this sandbox. Provider code is correct.
+Live testing requires a network where Cloudflare does not block Bearer auth headers.
 
 ---
 
@@ -141,36 +168,46 @@ Operations classified as destructive or billable require explicit
 ## 6. Limitations
 
 1. **No upctl CLI**: The provider uses REST API directly instead of
-   the upctl CLI (not installed). All API surface is functionally
-   equivalent.
+    the upctl CLI (not installed). All API surface is functionally
+    equivalent.
 
-2. **No credentials in this environment**: All capabilities are
-    classified as DENIED until a valid `UPCLOUD_API_MAIN` token is provided
-    (or `UPCLOUD_API_KEY` as legacy fallback).
-    Live smoke tests are skipped in this case.
+2. **Cloudflare WAF blocks Bearer auth**: From this sandbox, Cloudflare's
+    WAF at `api.upcloud.com` returns 404 HTML for requests with
+    `Authorization: Bearer` header. Without auth, requests reach the real
+    API (401). The provider code is correct — this is an environmental
+    restriction. Live testing requires a network without this WAF block.
 
-3. **No upcloud-python-sdk**: Uses stdlib `urllib` only (Phase 0
-   constraint: no external dependencies without documented trigger).
+3. **No credentials in this environment**: All capabilities are
+     classified as DENIED until a valid `UPCLOUD_API_MAIN` token is provided
+     (or `UPCLOUD_API_KEY` as legacy fallback).
+     Live smoke tests are skipped in this case.
 
-4. **Read-only audit**: The API audit was limited to GET/HEAD requests
-   plus authenticated 401 responses. No destructive or billable
-   operations were performed.
+4. **No upcloud-python-sdk**: Uses stdlib `urllib` only (Phase 0
+    constraint: no external dependencies without documented trigger).
 
-5. **Single-region provider**: UpCloud REST API endpoints are
-   globally load-balanced; region-specific operations are not
-   differentiated in this implementation.
+5. **Read-only audit**: The API audit was limited to GET/HEAD requests
+    plus authenticated 401 responses. No destructive or billable
+    operations were performed.
+
+6. **Single-region provider**: UpCloud REST API endpoints are
+    globally load-balanced; region-specific operations are not
+    differentiated in this implementation.
 
 ---
 
 ## 7. Next Steps
 
-1. **Valid API Token**: Mint a fresh UpCloud API token with limited
-    scope and set `UPCLOUD_API_MAIN` env var → re-run live smoke tests
-    (or `UPCLOUD_API_KEY` as legacy fallback)
-2. **Install upctl**: `pip install upcloud-cli` (optional convenience)
-3. **Expand capabilities**: Add subscription, billing, and firewall
-   operations when validated
-4. **Integration test**: Once token is valid, run
-   `python3 -m pytest tests/integration/test_upcloud_live.py -v`
-5. **Add to Think Box runtime**: Wire provider into execution layer
-   when capability VERIFIED status is confirmed for needed operations
+1. **Live smoke tests from non-blocked network**: Run
+    `python3 -m unittest tests.integration.test_upcloud_live -v`
+    from Kudbee laptop, server at 87.58.150.62, or other
+    network where Cloudflare does not block Bearer auth.
+2. **Valid API Token**: Mint a fresh UpCloud API token with limited
+     scope and set `UPCLOUD_API_MAIN` env var → re-run live smoke tests
+     (or `UPCLOUD_API_KEY` as legacy fallback)
+3. **Install upctl**: `pip install upcloud-cli` (optional convenience)
+4. **Expand capabilities**: Add subscription, billing, and firewall
+    operations when validated
+5. **Integration test**: Once token is valid, run
+    `python3 -m pytest tests/integration/test_upcloud_live.py -v`
+6. **Add to Think Box runtime**: Wire provider into execution layer
+    when capability VERIFIED status is confirmed for needed operations

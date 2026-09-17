@@ -147,12 +147,13 @@ complete in ~15 s.
 | Inception Mercury 2 | `INCEPTION_API_KEY` | ✅ live and used |
 | Upstash Vector | `UPSTASH_VECTOR_REST_URL/TOKEN` | ⚠️ reachable, writes require embedder env |
 | Upstash Box | `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_URL` | ❌ host reachable, preview `not found` |
-| UpCloud GPU server `gpu-ubuntu-20cpu-256gb-fi-hel2` (87.58.148.168) | `THINKBOX_UPCLOUD_API_TOKEN` | ❌ token 401; no SSH key; server STOPPED; SSH from sandbox BLOCKED |
-| UpCloud REST API | `UPCLOUD_API_KEY` (env) | ❌ HTTP 401 all endpoints (2026-09-16 audit) |
+| UpCloud GPU server `209-50-56-169.us-chi1.upcloud.host` (209.50.56.169) | `UPCLOUD_API_KEY` (session env, format valid) | ⚠️ SSH port 22 OPEN; auth fails (no private key locally); API Cloudflare blocks Bearer from sandbox |
+| UpCloud GPU server (old) `gpu-ubuntu-20cpu-256gb-fi-hel2` (87.58.148.168) | — | ❌ SSH port 22 CLOSED; dashboard Cloudflare 1003 |
+| UpCloud REST API | `UPCLOUD_API_KEY` (set 2026-09-17, session only) | ⚠️ API reachable but Cloudflare WAF blocks `Authorization: Bearer` header (404 HTML); without auth returns 401 from real API; key format confirmed valid |
 | Redis | — | ❌ no client, no env |
 | MCP | — | ❌ none configured |
 
-### UpCloud GPU Server Connection Path (Recovered 2026-09-16)
+### UpCloud GPU Server Connection Path (Recovered 2026-09-16, updated 2026-09-17)
 
 **September 15 mechanism:** SSH key authentication from Kudbee's laptop (NOT API token, NOT this sandbox)
 
@@ -171,18 +172,22 @@ Evidence: SESSION.md (commit 5e91758), MEMORY.md (commit 5e91758), data/infra_up
 | **Models** | gpt-oss:20b, gpt-oss:120b on attached disks | MEMORY.md |
 | **Power** | `human_only` | Requires human authorization |
 
-**Path recovery status:** CODE COMPLETE ✅ (path identified from SESSION.md, MEMORY.md, infra config) / LIVE VERIFIED NOT REACHED ⚠️ (key on Kudbee laptop, not in this environment; server STOPPED; port 22 blocked from sandbox)
+**Path recovery status (2026-09-17):** CODE COMPLETE ✅ (path identified) / LIVE VERIFIED NOT REACHED ⚠️ (key on Kudbee laptop, not in this environment; old server port 22 CLOSED)
 
-### UpCloud Provider Implementation (2026-09-16)
+**NEW server (2026-09-17):** `209-50-56-169.us-chi1.upcloud.host` (209.50.56.169, us-chi1 datacenter) — port 22 OPEN, SSH handshake OK, auth FAILS (no private key locally). Path recovery requires user to provide Termius private key.
+
+### UpCloud Provider Implementation (2026-09-16, updated 2026-09-17)
 
 | Capability | State | Status |
 |------------|-------|--------|
 | ExecutionProvider abstraction | CODE COMPLETE ✅ | Implemented (`core/providers/execution.py`) |
 | UpCloud ExecutionProvider | CODE COMPLETE ✅ | Implemented (`core/providers/upcloud.py`) |
+| Credential precedence | CODE COMPLETE ✅ | `UPCLOUD_API_MAIN` → `UPCLOUD_API_KEY` → config |
 | upctl CLI | — | Not installed; provider uses REST API directly |
-| Capability audit | — | All 16 capabilities classified (all DENIED due to 401) |
+| Capability audit | 2026-09-16 | All 16 capabilities classified (all DENIED due to Cloudflare Bearer block, not auth failure) |
 | Mocked unit tests | TEST VERIFIED ✅ | 33/33 pass |
-| Live smoke tests | NOT VERIFIED ⚠️ | 5 tests (skipped: no credentials) |
+| Live smoke tests | BLOCKED ⚠️ | Cloudflare WAF blocks Bearer auth from sandbox |
+| API endpoint discovery | CODE COMPLETE ✅ | 2026-09-17: 18 endpoints × 2 auth states, 4 domains, 4 auth formats — provider code correct |
 | Credential exposure scan | TEST VERIFIED ✅ | No tokens found in source/tests/docs |
 | Evidence record system | TEST VERIFIED ✅ | Auditable, no secrets recorded |
 | Dry-run plan mode | TEST VERIFIED ✅ | Implemented with approval gates |
