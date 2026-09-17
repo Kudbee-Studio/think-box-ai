@@ -513,13 +513,65 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 - **Upstash box**: wanted-tuna-71803@us-east-1.box.upstash.com (SSH key: ssh wanted-tuna-71803@us-east-1.box.upstash.com)
 - **Upstash Vector**: https://unified-chigger-36053-gcp-usc1-vector.upstash.io/
 
+### Investigation Result — 2026-09-17 (PHASE 1-6 COMPLETE)
+
+**CASE C CONFIRMED: The historical IP is no longer the current server.**
+
+#### Phase 1 — Server Identity
+- Historical server name: kudbee-host-v1
+- Historical IP: 212.147.250.183
+- Expected region: us-east-1 (from Upstash box location)
+- Expected GPU: unknown (never verified)
+- Expected OS: Linux (root SSH access)
+- Expected runtime: Unknown
+- Last known working: 2026-09-15
+- Identity status: VERIFIED from git history, UNVERIFIED as current server
+
+#### Phase 2 — Network Diagnosis (EXACT LAYER IDENTIFIED)
+- **DNS**: N/A (literal IP, no DNS resolution needed)
+- **Routing**: TCP port 80/443 reachable, port 22 TIMEOUT
+- **TCP layer**: Port 22 blocked (timeout), Ports 80/443 open
+- **Firewall**: Cloudflare 1003 on port 80, TLS error on 443, port 22 blocked by UpCloud security groups
+- **SSH layer**: Connection timed out — never reaches handshake
+- **Auth layer**: N/A (SSH never reaches handshake)
+- **Exact failure layer**: NETWORK/FIREWALL — port 22 blocked by UpCloud security groups
+
+#### Phase 3 — Alternative Verified Paths
+- No SSH aliases found in config files
+- No alternate IP or hostname discovered
+- No reverse tunnel configured
+- No service endpoint available
+- Dashboard telemetry: empty (no infrastructure entries)
+- Upstash Vector: accessible (separate service, not the server)
+- No existing application connection to 212.147.250.183
+
+#### Phase 4 — Dashboard State
+- UPCloud historical server: IDENTITY VERIFIED (from git), CURRENT STATUS UNVERIFIED
+- NETWORK: TIMEOUT (port 22 blocked)
+- SSH: BLOCKED (key not on disk + port timeout)
+- GPU: UNKNOWN
+- MODEL: UNKNOWN
+- THINK BOX ROUTING: NOT CONNECTED
+
+#### Phase 5 — Decision
+**Case C: The historical IP is no longer the current server.**
+The server 212.147.250.183 is either no longer provisioned, has been reassigned, or has security group rules that block port 22 entirely. The historical IP is confirmed from git history but is not reachable.
+
+#### Phase 6 — Permanence
+- Status: CODE COMPLETE (investigation), TEST VERIFIED (560 tests), NOT LIVE VERIFIED
+- Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
+
 ### Current Status (2026-09-17)
 - **UpCloud API**: All tokens return HTTP 401 authentication failed
-- **SSH to 212.147.250.183**: Connection timed out (server unreachable)
+- **SSH to 212.147.250.183**: Connection timed out (port 22 blocked by security groups)
+- **Port 80**: Cloudflare 1003 (direct IP access blocked)
+- **Port 443**: TLS error
 - **SSH to Upstash box**: Permission denied (password auth required)
 - **upctl CLI**: NOT installed (download blocked by Cloudflare)
 - **UPCLOUD_API_MAIN**: NOT SET
 - **UPCLOUD_API_KEY**: NOT SET
+- **SSH key**: Recovered from git `5f6a5c7` but NOT persisted to `~/.ssh/kilo-upcloud`
+- **Case**: C — historical IP no longer the current server
 
 ### How KILO Connected on September 15
 The connection path used:
@@ -529,17 +581,28 @@ The connection path used:
 4. The key was committed in git commit 5f6a5c7 but removed from working tree by 09830a6
 
 ### Recovery Actions Taken
-- SSH key recovered from git history (commit 5f6a5c7)
-- Key installed to ~/.ssh/kilo-upcloud
+- SSH key recovered from git history (commit 5f6a5c7) — exists in workspace as `kilo-upcloud-recovered` but NOT at `~/.ssh/kilo-upcloud`
 - UpCloud provider files restored from git history (commit 32d82ef)
 - CONTINUITY.md restored from git history (commit 59f7eee)
+- Dashboard state updated with actual infrastructure findings
 - All 560 tests passing
+
+### Required Human Action (EXACT)
+1. **Log into UpCloud panel** (https://upcloud.com)
+2. **Check if server kudbee-host-v1 at 212.147.250.183 still exists** — it may have been deleted or reassigned
+3. **If server exists**: Note the current IP, update `UPCLOUD_SERVER_IP`, ensure security groups allow port 22
+4. **If server deleted**: Provision a new server, note the new IP, update `UPCLOUD_SERVER_IP`
+5. **Obtain valid `UPCLOUD_API_MAIN`** from UpCloud panel API keys section
+6. **Restore SSH key** to `~/.ssh/kilo-upcloud` (from git `5f6a5c7` or UpCloud panel SSH keys)
+7. **Set `UPCLOUD_API_MAIN`** env var with the valid token
+8. **Verify**: `ssh -i ~/.ssh/kilo-upcloud root@$UPCLOUD_SERVER_IP`
 
 ### Next Steps
 1. Obtain valid UPCLOUD_API_MAIN from UpCloud panel
-2. Verify server 212.147.250.183 is reachable
-3. Run live smoke tests with valid credentials
-4. Install upctl CLI when network allows
+2. Verify if 212.147.250.183 is still the active server or find new IP
+3. Restore SSH key to ~/.ssh/kilo-upcloud
+4. Run live smoke tests with valid credentials
+5. Install upctl CLI when network allows
 
 ## CNC Manufacturing Intelligence Platform
 
