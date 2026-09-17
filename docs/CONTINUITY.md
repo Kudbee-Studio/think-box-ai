@@ -42,57 +42,61 @@ Before declaring completion, every agent MUST verify:
 
 ## SERVER CONNECTION PATH RECOVERY (2026-09-16)
 
-The September 15 server connection was traced from git history, docs, and infra config. It was **SSH-based**, not API-based. The current agent CANNOT reuse this path because: (a) SSH key files are absent from the filesystem, (b) server is unreachable from sandbox (port 22 times out), (c) server is in STOPPED state per infra config.
+The September 15 server connection was traced from git history, docs, and infra config. It was **SSH-based**, not API-based. The current agent CANNOT reuse this path because: (a) SSH key was on Kudbee's laptop (not in repo), (b) server is unreachable from sandbox (port 22 times out), (c) server is in STOPPED state per infra config.
 
 ### September 15 Connection Mechanism
 
+Evidence sources: SESSION.md (commit 5e91758), MEMORY.md (commit 5e91758), data/infra_upcloud.ini (commit 9097194), docs/guides/server-setup.md (commit 0752566).
+
 | Layer | Mechanism | Evidence |
 |-------|-----------|----------|
-| **KILO** | Agent process in cloud sandbox (this environment) | Session `agent_7ba0f2b9` |
-| **Authentication** | SSH key `~/.ssh/kilo-upcloud` (ed25519, committed in `5f6a5c7`, removed in `09830a6`) | Git history, `.gitignore` |
-| **Network** | Direct SSH to public NIC `87.58.148.168` (or Floating IP `87.58.150.62`) | `docs/guides/server-setup.md` (commit `0752566`), `data/infra_upcloud.ini` (commit `9097194`) |
-| **Server** | `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec`), zone `fi-hel2` | `data/infra_upcloud.ini` |
-| **Plan** | GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs) | `data/infra_upcloud.ini` |
-| **Remote workspace** | `/opt/kudbee/repo` on Ubuntu 24.04 + NVIDIA/CUDA | `docs/guides/server-setup.md` |
-| **Services** | Nginx:80 (dashboard+API), Worker Monitor:8765, Governance:8081, Ollama:11434 | `docs/guides/server-setup.md` |
-| **Tunnel** | Cloudflare Tunnel → `api.thinkboxai.xyz` | `deploy/setup_tunnel.sh` (commit `c2613ab`) |
-| **Models** | Ollama: gpt-oss:20b, gpt-oss:120b | `docs/guides/server-setup.md` |
-| **Think Box** | Connected to model runtime on server | `jobs/INDEX.md` (GPU: stopped, jobs blocked) |
+| **Origin** | Kudbee's laptop (NOT this cloud sandbox) | SESSION.md checklist |
+| **Authentication** | SSH key on Kudbee's laptop (path unknown — explicitly NOT `~/.ssh/kilo-upcloud` per MEMORY.md) | MEMORY.md: "SSH key: unknown until laptop" |
+| **Network** | SSH to floating IP `87.58.150.62` | SESSION.md checklist item 2 |
+| **Server** | `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec`), zone `fi-hel2` | data/infra_upcloud.ini |
+| **Plan** | GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs) | data/infra_upcloud.ini |
+| **Remote workspace** | `/opt/kudbee/repo` on Ubuntu 24.04 + NVIDIA/CUDA | docs/guides/server-setup.md |
+| **Services** | Nginx:80 (dashboard), Ollama:11434, model runtime:1919 | docs/guides/server-setup.md |
+| **Model runtime** | `ft serve --host 0.0.0.0 --port 1919 --model <path>` | SESSION.md checklist item 6 |
+| **Think Box** | openai_compat → `http://87.58.150.62:1919/v1` | SESSION.md checklist item 7 |
+| **Models** | gpt-oss:20b, gpt-oss:120b on attached data disks | MEMORY.md |
 
 ### Why Think Box Is Not Using It
 
 1. **Server STOPPED** — `data/infra_upcloud.ini` records `state_expected = stopped`, `power = human_only` (requires human authorization to start)
-2. **SSH keys absent** — `~/.ssh/kilo-upcloud` was committed (`5f6a5c7`) then removed for security (`09830a6`); file does not exist in this environment
-3. **Network unreachable** — SSH to `87.58.148.168` and `87.58.150.62` both time out from this sandbox; ping fails; `docs/THINKBOXMD_REPORT.md` confirms "SSH port is filtered from this sandbox"
+2. **SSH key absent** — Was on Kudbee's laptop (per MEMORY.md: "not ~/.ssh/kilo-upcloud", "path unknown until laptop"), never in this environment
+3. **Network unreachable** — SSH to `87.58.148.168` and `87.58.150.62` both time out from this sandbox; ping fails; THINKBOXMD_REPORT.md confirms "SSH port is filtered from this sandbox"
 4. **API token invalid** — `THINKBOX_UPCLOUD_API_TOKEN` returns HTTP 401; `UPCLOUD_API_MAIN` not set
 5. **Cloudflare block** — `212.147.250.183` (old host `kudbee-host-v1`) behind Cloudflare 1003
 
 ### Permanent Known-Good Server Access Path
 
 ```
-KILO agent → SSH key at ~/.ssh/kilo-upcloud → root@87.58.148.168
+Kudbee laptop → SSH key (path: unknown, on laptop) → root@87.58.150.62
   → /opt/kudbee/repo → services running → Ollama (gpt-oss:20b, gpt-oss:120b)
-  → Think Box runtime
+  → model runtime :1919 → Think Box (openai_compat → http://87.58.150.62:1919/v1)
 ```
 
 **To restore (requires HUMAN action):**
-1. Place valid SSH private key at `~/.ssh/kilo-upcloud` (regenerate from UpCloud panel if needed)
-2. `chmod 600 ~/.ssh/kilo-upcloud`
-3. Verify: `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168`
-4. Or via Floating IP: `ssh -i ~/.ssh/kilo-upcloud root@87.58.150.62`
-5. Or via Cloudflare Tunnel: access `api.thinkboxai.xyz` (if tunnel is running)
-6. Start server from UpCloud panel if stopped
+1. Start server from UpCloud panel (Kudbee authorization — `power = human_only`)
+2. Retrieve SSH private key from Kudbee's laptop (NOT available in this environment, NOT `~/.ssh/kilo-upcloud`)
+3. Place key on the machine running Think Box
+4. `chmod 600 <KEY_PATH>`
+5. `ssh -i <KEY_PATH> root@87.58.150.62` (floating IP, not Cloudflare-blocked)
+6. Verify: `nvidia-smi` (GPU), `curl http://87.58.148.168` (dashboard)
+7. Configure Think Box: `THINKBOX_DEFAULT_PROVIDER=openai_compat`, `THINKBOX_OPENAI_COMPAT_BASE_URL=http://87.58.150.62:1919/v1`
 
 ### Recovery Verification
 
 | Check | Result | Details |
 |-------|--------|---------|
-| Connection path identified | CODE COMPLETE ✅ | Traced from git history, docs, infra config |
-| Path still works | NOT VERIFIED ⚠️ | SSH times out, no keys, server stopped |
+| Connection path identified | CODE COMPLETE ✅ | Traced from SESSION.md, MEMORY.md, infra config |
+| Path still works | NOT VERIFIED ⚠️ | SSH timeouts from sandbox, no key, server stopped |
+| Origin accessible | NOT VERIFIED ⚠️ | Was Kudbee laptop, not this sandbox |
 | Server reachable | NOT VERIFIED ⚠️ | Port 22 timeout, ping fail |
-| Key available | NOT VERIFIED ⚠️ | File absent from environment |
-| GPU discovered | NOT VERIFIED ⚠️ | 3x L40S per infra config (not probed live) |
-| Runtime/model discovered | NOT VERIFIED ⚠️ | Ollama gpt-oss:20b/120b per docs (not probed live) |
+| Key available | NOT VERIFIED ⚠️ | On Kudbee laptop, not in this environment |
+| GPU discovered | NOT VERIFIED ⚠️ | 3x L40S per config (not probed live) |
+| Runtime/model discovered | NOT VERIFIED ⚠️ | gpt-oss:20b/120b per docs (not probed live) |
 | Dashboard state | NOT VERIFIED ⚠️ | http://87.58.148.168 (not probed live) |
 
 ---

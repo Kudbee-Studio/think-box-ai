@@ -444,32 +444,79 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 - GitHub API rate-limited during investigation
 - **Resolution requires HUMAN action**: obtain official UpCloud CLI binary from UpCloud panel or UpCloud documentation
 
-#### 13.5.2 Known-Good Server Access Path (RECOVERED 2026-09-16)
+#### 13.5.2 KNOWN-GOOD SERVER ACCESS PATH
 
-The September 15 server connection was SSH-based. This path was traced from git history, docs, and infra config. Permanent reference for future agents:
+**Evidence-based reconstruction from SESSION.md (commit 5e91758), MEMORY.md (same commit), and data/infra_upcloud.ini (commit 9097194).**
 
-**Server:** `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec-8565-447b-86ac-74bf9bd41e57`)
-**IP:** `87.58.148.168` (public_nic) / `87.58.150.62` (floating IP)
-**Zone:** fi-hel2 | **Plan:** GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs)
-**SSH command:** `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168`
-**Dashboard:** http://87.58.148.168
-**Models on server:** Ollama gpt-oss:20b, gpt-oss:120b
-**Tunnel:** Cloudflare Tunnel → `api.thinkboxai.xyz` (via `deploy/setup_tunnel.sh`)
-**Power:** `human_only` — requires human authorization to start server
+**September 15 connection mechanism:**
+- **Origin**: Kudbee's laptop (NOT this cloud sandbox)
+- **Authentication**: SSH key stored on Kudbee's laptop (path unknown — explicitly NOT `~/.ssh/kilo-upcloud` per MEMORY.md: "SSH key: unknown until laptop")
+- **Network**: SSH to floating IP `87.58.150.62` (per SESSION.md checklist item 2)
+- **Server**: `gpu-ubuntu-20cpu-256gb-fi-hel2` (UUID `00d832ec-8565-447b-86ac-74bf9bd41e57`)
+- **Remote workspace**: `/opt/kudbee/repo` (per docs/guides/server-setup.md)
+- **Model runtime**: `ft serve --host 0.0.0.0 --port 1919 --model <path>` (per SESSION.md checklist item 6)
+- **Think Box connection**: openai_compat provider → `http://87.58.150.62:1919/v1` (per SESSION.md checklist item 7)
+- **Models**: gpt-oss:20b and gpt-oss:120b GGUF files on attached data disks (per MEMORY.md)
+- **Server services**: Nginx:80 (dashboard), Ollama:11434, model runtime:1919
 
-**Permanent connection path:**
+**Evidence:**
+| Artifact | Source | Key Finding |
+|----------|--------|-------------|
+| SESSION.md | commit `5e91758` | "SSH to 87.58.150.62 with real key (path unknown until laptop)", "Wire Think Box: openai_compat → http://87.58.150.62:1919/v1" |
+| MEMORY.md | commit `5e91758` | "SSH key: unknown until laptop (not ~/.ssh/kilo-upcloud)", "Provider Order: FreeToken on GPU (87.58.150.62:1919)" |
+| data/infra_upcloud.ini | commit `9097194` | Server identity, IPs, GPU plan, services |
+| docs/guides/server-setup.md | commit `0752566` | Server setup procedures, service ports |
+| deploy/setup_tunnel.sh | commit `c2613ab` | Cloudflare Tunnel for API endpoint |
+| .gitignore | commit `09830a6` | `.ssh/` ignored — keys never committed |
+| thinkboxmd data | commit `e4556ac` | Research ran via INCEPTION, not UpCloud — UpCloud was separate |
+
+**Server identification:**
+| Field | Value |
+|-------|-------|
+| Hostname | `gpu-ubuntu-20cpu-256gb-fi-hel2` |
+| UUID | `00d832ec-8565-447b-86ac-74bf9bd41e57` |
+| Public NIC | `87.58.148.168` |
+| Floating IP | `87.58.150.62` |
+| Zone | fi-hel2 |
+| Plan | GPU-SPOT-20xCPU-256GB-3xL40S (3x L40S GPUs) |
+| Template | Ubuntu 24.04 + NVIDIA/CUDA |
+| SSH user | `root` |
+| SSH key | On Kudbee's laptop (NOT in repo, path unknown) |
+| Dashboard | http://87.58.148.168 |
+| Power | `human_only` — requires human authorization |
+
+**Verification command (from laptop with SSH key):**
+```bash
+ssh -i <KEY_PATH> root@87.58.150.62
+# Then on server:
+nvidia-smi                    # GPU hardware confirmed
+curl http://localhost:8787     # Dashboard accessible
+ss -tlnp | grep 1919          # Model runtime listening
 ```
-KILO → ~/.ssh/kilo-upcloud → root@87.58.148.168 → /opt/kudbee/repo → services → Ollama → Think Box
-```
 
-**Current status:** Connection path identified (CODE COMPLETE ✅) — live verification BLOCKED (no SSH key in environment, server STOPPED, port 22 unreachable from sandbox)
+**What successful connection proves:**
+1. Server is running (started from UpCloud panel)
+2. SSH key is valid and authorized on server
+3. GPU hardware is accessible (nvidia-smi works)
+4. Model runtime is serving on port 1919
+5. Think Box can connect via openai_compat → http://87.58.150.62:1919/v1
 
-**To restore (HUMAN action required):**
-1. Place valid SSH private key at `~/.ssh/kilo-upcloud` (regenerate from UpCloud panel if needed)
-2. `chmod 600 ~/.ssh/kilo-upcloud`
-3. `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` (or `root@87.58.150.62`)
-4. Start server from UpCloud panel if stopped
-5. Verify: `curl http://87.58.148.168` (dashboard), `ssh ... nvidia-smi` (GPU)
+**Recovery procedure (HUMAN action required):**
+1. Start server from UpCloud panel (Kudbee authorization — `power = human_only`)
+2. Retrieve SSH private key from Kudbee's laptop (NOT available in this environment)
+3. Place key on the machine running Think Box at any path (e.g., `~/.ssh/kilo-upcloud`)
+4. `chmod 600 <KEY_PATH>`
+5. `ssh -i <KEY_PATH> root@87.58.150.62` (floating IP, not Cloudflare-blocked)
+6. Verify: `nvidia-smi`, `curl http://87.58.148.168`
+7. Configure Think Box: `THINKBOX_DEFAULT_PROVIDER=openai_compat`, `THINKBOX_OPENAI_COMPAT_BASE_URL=http://87.58.150.62:1919/v1`
+
+**Failure conditions:**
+- Server STOPPED (requires UpCloud panel start — human authorization)
+- SSH key absent (was on Kudbee's laptop, not in repo, explicitly NOT `~/.ssh/kilo-upcloud`)
+- Port 22 blocked from cloud sandbox (confirmed by THINKBOXMD_REPORT.md: "SSH port is filtered from this sandbox")
+- Floating IP `87.58.150.62` also unreachable from this sandbox (verified: connection timeout)
+- No `UPCLOUD_API_MAIN` or `THINKBOX_UPCLOUD_API_TOKEN` configured in this environment
+- Think Box currently routes to local/openai_compat (api.openai.com), NOT to UpCloud server
 
 ---
 

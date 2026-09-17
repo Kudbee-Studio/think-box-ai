@@ -154,20 +154,24 @@ complete in ~15 s.
 
 ### UpCloud GPU Server Connection Path (Recovered 2026-09-16)
 
-**September 15 mechanism:** SSH key authentication (NOT API token)
+**September 15 mechanism:** SSH key authentication from Kudbee's laptop (NOT API token, NOT this sandbox)
+
+Evidence: SESSION.md (commit 5e91758), MEMORY.md (commit 5e91758), data/infra_upcloud.ini (commit 9097194).
 
 | Layer | Mechanism | Details |
 |-------|-----------|---------|
-| Authentication | SSH key `~/.ssh/kilo-upcloud` | ed25519, committed `5f6a5c7`, removed `09830a6` for security |
-| Network | Direct SSH | `ssh -i ~/.ssh/kilo-upcloud root@87.58.148.168` (or Floating IP `87.58.150.62`) |
-| Server | `gpu-ubuntu-20cpu-256gb-fi-hel2` | UUID `00d832ec`, zone `fi-hel2`, GPU-SPOT-20xCPU-256GB-3xL40S |
-| Workspace | `/opt/kudbee/repo` | Ubuntu 24.04 + NVIDIA/CUDA |
-| Services | Nginx:80, Worker:8765, Gov:8081, Ollama:11434 | Dashboard at http://87.58.148.168 |
-| Tunnel | Cloudflare Tunnel → `api.thinkboxai.xyz` | `deploy/setup_tunnel.sh` |
-| Models | Ollama gpt-oss:20b, gpt-oss:120b | Per `docs/guides/server-setup.md` |
-| Power | `human_only` | Requires human authorization to start |
+| **Origin** | Kudbee's laptop (NOT this cloud sandbox) | SESSION.md checklist |
+| **Authentication** | SSH key on Kudbee's laptop (path unknown — NOT `~/.ssh/kilo-upcloud` per MEMORY.md: "SSH key: unknown until laptop") | MEMORY.md |
+| **Network** | SSH to floating IP `87.58.150.62` | SESSION.md checklist item 2 |
+| **Server** | `gpu-ubuntu-20cpu-256gb-fi-hel2` | UUID `00d832ec`, zone `fi-hel2`, GPU-SPOT-20xCPU-256GB-3xL40S |
+| **Workspace** | `/opt/kudbee/repo` | Ubuntu 24.04 + NVIDIA/CUDA |
+| **Model runtime** | `ft serve --host 0.0.0.0 --port 1919 --model <path>` | SESSION.md checklist item 6 |
+| **Think Box** | openai_compat → `http://87.58.150.62:1919/v1` | SESSION.md checklist item 7 |
+| **Services** | Nginx:80, Ollama:11434, runtime:1919 | Dashboard at http://87.58.148.168 |
+| **Models** | gpt-oss:20b, gpt-oss:120b on attached disks | MEMORY.md |
+| **Power** | `human_only` | Requires human authorization |
 
-**Path recovery status:** CODE COMPLETE ✅ (path identified from git history, docs, infra config) / LIVE VERIFIED NOT REACHED ⚠️ (SSH times out, keys absent, server stopped)
+**Path recovery status:** CODE COMPLETE ✅ (path identified from SESSION.md, MEMORY.md, infra config) / LIVE VERIFIED NOT REACHED ⚠️ (key on Kudbee laptop, not in this environment; server STOPPED; port 22 blocked from sandbox)
 
 ### UpCloud Provider Implementation (2026-09-16)
 
