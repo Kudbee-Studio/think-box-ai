@@ -19,8 +19,8 @@ Before declaring completion, every agent MUST verify:
 - [x] Tests executed and passing (449 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
-- [x] Git state clean (working tree clean, 4 commits on kilo/leafy-dragon-4ck)
-- [x] PR/commit referenced (PR #68, commits 32d82ef → 59f7eee)
+- [x] Git state clean (working tree clean, 9 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68, commits 32d82ef → f132934)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
