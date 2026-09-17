@@ -19,8 +19,8 @@ Before declaring completion, every agent MUST verify:
 - [x] Tests executed and passing (449 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
-- [x] Git state clean (working tree clean, 10 commits on kilo/leafy-dragon-4ck)
-- [x] PR/commit referenced (PR #68 CLOSED without merge, commits 32d82ef → d961ba9)
+- [x] Git state clean (working tree clean, 11 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68 CLOSED without merge, commits 32d82ef → c35ea5b)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
@@ -31,12 +31,12 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Close continuity loop — document repo state, audit PRs/branches |
-| **Latest completed work** | UpCloud ExecutionProvider + credential precedence (commits `32d82ef` → `d961ba9`) on `kilo/leafy-dragon-4ck` |
+| **Active objective** | Close continuity loop — integrate credential precedence into main |
+| **Latest completed work** | UpCloud ExecutionProvider + credential precedence + continuity audit (commits `32d82ef` → `c35ea5b`) on `kilo/leafy-dragon-4ck` |
 | **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider with credential precedence (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
-| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 CLOSED without merge — work remains on `kilo/leafy-dragon-4ck` only; main has older UpCloud provider without credential precedence |
+| **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 CLOSED without merge — credential precedence exists only on `kilo/leafy-dragon-4ck`; main has older UpCloud provider without credential precedence |
 | **Known risks** | UpCloud API unreachable with current credentials; PR #68 closed unmerged; main's UpCloud provider lacks credential precedence; server STOPPED; SSH keys absent |
-| **Next larger improvement** | Merge credential precedence update into main or reopen PR #68; set valid `UPCLOUD_API_MAIN` env var → run live smoke tests |
+| **Next larger improvement** | Cherry-pick `a2335e2` onto main (4 code files apply cleanly, 2 doc files need trivial resolution) → set valid `UPCLOUD_API_MAIN` env var → run live smoke tests |
 
 ---
 
@@ -202,7 +202,7 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 |---|---|---|---|---|---|
 | 1 | UpCloud live capability verification | Any agent | CODE COMPLETE / LIVE VERIFIED NOT REACHED | Set `UPCLOUD_API_MAIN` env var, run `tests/integration/test_upcloud_live.py` | Valid API token from UpCloud panel |
 | 2 | UpCloud autonomous provisioning | Any agent | BLOCKED | Complete live verification (item 1), then wire into runtime | Live capabilities LIVE VERIFIED |
-| 3 | Merge credential precedence into main | Any agent | ACTIVE | Merge `a2335e2` (or reopen PR #68) into origin/main | Developer/Founder decision |
+| 3 | Merge credential precedence into main | Any agent | ACTIVE | Cherry-pick `a2335e2` onto origin/main (4 code files apply cleanly, 2 doc files need trivial `git add`) | Developer/Founder decision |
 | 4 | UpCloud provider on main lacks credential precedence | Any agent | ACTIVE | Main's `core/providers/upcloud.py` uses only `UPCLOUD_API_KEY` — needs update from kilo/leafy-dragon-4ck | Item 3 |
 
 ## CLOSED LOOPS
@@ -228,7 +228,7 @@ All work items are classified per AGENTS.md §14.7. **"COMPLETE" alone is never 
 - **State**: CODE COMPLETE ✅ / TEST VERIFIED ✅
 - **Verification**: 33/33 unit tests pass, 6 credential precedence scenarios verified, credential scan clean
 - **Evidence**: `tests/unit/test_upcloud_provider.py` (33 tests), credential precedence verification script
-- **PR/Commit**: `a2335e2` on `kilo/leafy-dragon-4ck`
+- **PR/Commit**: `a2335e2` on `kilo/leafy-dragon-4ck` (HEAD is now `c35ea5b`)
 - **Closure**: CODE COMPLETE ✅ / TEST VERIFIED ✅; NOT on main; main's version lacks credential precedence
 
 ### health_check() Attempt (REVERTED)
