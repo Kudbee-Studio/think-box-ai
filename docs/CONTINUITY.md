@@ -33,18 +33,30 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Persistent Experiment + Learning Dashboard — zero-server execution |
-| **Latest completed work** | Experiment system merged (commit `f1ba3f6`) — 605 tests passing |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system, 605 tests passing |
+| **Active objective** | Experiment Arena — Controlled Learning Benchmark |
+| **Latest completed work** | Arena and Learning Engine committed (commit `f99c8b2`) — 649 tests passing |
+| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system with EvidenceDrivenLearningEngine, ReplayEngine, ComparisonEngine, ExperimentDashboardUpgrade, ExperimentArena, ArenaEvaluator, MemoryReuseTracker, ArenaReplayEngine, OutcomeClassifier, 649 tests passing |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential; server 212.147.250.183 port 22 TIMEOUT (Case C) |
 | **Known risks** | UpCloud API unreachable with current credentials; server IP may be reassigned; SSH key not persisted to disk |
 | **Next larger improvement** | Obtain valid `UPCLOUD_API_MAIN` from UpCloud panel → verify server reachability → restore SSH key → run live smoke tests |
-| **PR status** | All PRs closed; main merged; experiment system committed |
-| **Test count** | **605 tests passing (6 skipped)** |
+| **PR status** | All PRs closed; main merged; arena and learning engine committed on kilo/adept-marsh-qiq |
+| **Test count** | **649 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Experiment Arena — Controlled Learning Benchmark
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Build Experiment Arena proving whether persistent learning produces measurable improvement |
+| **PR/commit** | `f99c8b2` on `kilo/adept-marsh-qiq` |
+| **Result** | Added `ExperimentArena`, `ArenaEvaluator`, `MemoryReuseTracker`, `ArenaReplayEngine`, `OutcomeClassifier` to `thinkbox/experiment.py`. Added `EvidenceDrivenLearningEngine`, `ReplayEngine`, `ComparisonEngine`, `ExperimentDashboardUpgrade`, `LearnedParameter`, `EvidencePattern`, `Conflict`, `Recommendation`, `ReplayRecord`, `ExperimentComparison`. Added 44 tests in `tests/unit/test_learning.py`. Added arena endpoints to backend router. Fixed `add_test/add_artifact/add_proof` to persist to SQLite. Fixed `FourState.FAILED`. |
+| **Features** | Arena creation with BASELINE/LEARNED/VARIANT strategies. Deterministic metrics: success_rate, test_pass_rate, error_count, retry_count, artifact_quality, proof_completeness, latency. Memory reuse tracking with proof linkage. Replay from SQLite after restart. Outcome classification: IMPROVED/NO_MEASURABLE_IMPROVEMENT/REGRESSION/INCONCLUSIVE/FAILED. Evidence graph for dashboard. |
+| **Tests/evidence** | 649 tests pass (6 skipped) |
+| **Status** | COMPLETE |
 
 ### 2026-09-17 — Main Merge and PR Cleanup
 

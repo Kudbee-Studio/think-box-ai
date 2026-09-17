@@ -558,7 +558,7 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 The server 212.147.250.183 is either no longer provisioned, has been reassigned, or has security group rules that block port 22 entirely. The historical IP is confirmed from git history but is not reachable.
 
 #### Phase 6 — Permanence
-- Status: CODE COMPLETE (investigation), TEST VERIFIED (605 tests), NOT LIVE VERIFIED
+- Status: CODE COMPLETE (investigation), TEST VERIFIED (649 tests), NOT LIVE VERIFIED
 - Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
 
 ### Current Status (2026-09-17)
@@ -585,7 +585,7 @@ The connection path used:
 - UpCloud provider files restored from git history (commit 32d82ef)
 - CONTINUITY.md restored from git history (commit 59f7eee)
 - Dashboard state updated with actual infrastructure findings
-- All 605 tests passing
+- All 649 tests passing
 
 ### Required Human Action (EXACT)
 1. **Log into UpCloud panel** (https://upcloud.com)
@@ -640,7 +640,25 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (477 tests, 1 skip)
+- Full suite: `python3 -m unittest discover tests/` (649 tests, 6 skipped)
+
+### Experiment Arena — Controlled Learning Benchmark
+
+The `thinkbox/experiment.py` module includes the Experiment Arena system for proving whether persistent learning produces measurable improvement:
+
+- `ExperimentArena` — Creates controlled benchmarks with BASELINE/LEARNED/VARIANT strategies. `create_arena()` creates arena with task and strategies. `run_baseline()` runs no learned info. `run_learned()` uses persisted knowledge. `run_variant()` runs parameter variations. `evaluate()` computes deterministic metrics. `compare()` compares experiments.
+- `ArenaEvaluator` — Computes deterministic metrics: success_rate, test_pass_rate, error_count, retry_count, artifact_quality, proof_completeness, latency.
+- `MemoryReuseTracker` — Proves which learned parameters were consumed by the LEARNED strategy, linked to source experiment IDs.
+- `ArenaReplayEngine` — Replays entire arena from SQLite after restart. `verify_reproducibility()` confirms repeated deterministic replay produces equivalent results.
+- `OutcomeClassifier` — Classifies results as IMPROVED, NO_MEASURABLE_IMPROVEMENT, REGRESSION, INCONCLUSIVE, or FAILED based on evidence.
+- `EvidenceDrivenLearningEngine` — `learn_from_history()` returns learned_parameters, evidence_patterns, conflicts, unknowns. `recommend_next_experiment()` generates recommendations.
+- `ReplayEngine` — `replay()` reconstructs full experiment lifecycle from SQLite.
+- `ComparisonEngine` — `compare()` compares two experiments across parameters, outcomes, tests, proof, lessons.
+- `ExperimentDashboardUpgrade` — `get_upgraded_dashboard()` adds learning insights. `get_evidence_graph()` returns nodes/links graph.
+
+- `tests/unit/test_learning.py` — 44 tests covering all learning engine and arena features
+- Run: `python3 -m unittest tests.unit.test_learning -v`
+- Full suite: `python3 -m unittest discover tests/` (649 tests, 6 skipped)
 
 ### ADR
 

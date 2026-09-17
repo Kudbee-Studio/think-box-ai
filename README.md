@@ -138,17 +138,33 @@ calibration, reproducibility). Challenge activity and tier inflation are
 **reported as signals, never penalised** — disagreeing is the adversarial layer
 doing its job.
 
-### Experiment + Learning Dashboard
+### Experiment Arena — Controlled Learning Benchmark
 
-Persistent, zero-server experiment tracking with SQLite persistence and
-parameter provenance. Every agent run becomes a tracked experiment with
-durable session ID, inputs, execution evidence, outputs, tests, outcome,
-and learned parameters.
+Deterministic experiment arena that proves whether persistent learning produces measurable improvement.
 
-**Learning loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test →
-Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment.
+Given one deterministic task, creates controlled experiments:
+- **BASELINE** — no learned information
+- **LEARNED** — uses persisted knowledge from prior experiments
+- **VARIANT** — optional parameter/configuration variation
 
-**Four-state classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY.
+All strategies receive the SAME task and evaluation contract.
+
+**Arena features**:
+- `ExperimentArena.create_arena()` — creates controlled benchmark
+- `ArenaEvaluator.evaluate_experiments()` — computes deterministic metrics: success_rate, test_pass_rate, error_count, retry_count, artifact_quality, proof_completeness, latency
+- `MemoryReuseTracker.track_memory_reuse()` — proves which learned parameters were consumed, linked to source experiment IDs
+- `ArenaReplayEngine.replay_arena()` — replays entire arena from SQLite after restart
+- `OutcomeClassifier.classify()` — classifies results as IMPROVED, NO_MEASURABLE_IMPROVEMENT, REGRESSION, INCONCLUSIVE, FAILED
+- `EvidenceDrivenLearningEngine.learn_from_history()` — returns learned_parameters, evidence_patterns, conflicts, unknowns
+- `ReplayEngine.replay()` — reconstructs full experiment lifecycle from SQLite
+- `ComparisonEngine.compare()` — compares two experiments across parameters, outcomes, tests, proof, lessons
+- `ExperimentDashboardUpgrade.get_upgraded_dashboard()` — adds learning insights to dashboard
+
+**Evidence-based outcomes**: Never claim learning reuse unless persisted memory was actually consumed. All values come from persisted SQLite records.
+
+**Learning loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test → Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment.
+
+**Four-state classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED.
 
 **Key features**:
 - SQLite persistence (stdlib, zero-dollar)
@@ -157,9 +173,12 @@ Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experim
 - Restart/recovery from SQLite
 - Dashboard aggregation from persisted data
 - Zero-server execution (no Docker, SSH, cloud required)
+- Evidence-driven learning with memory provenance
+- Deterministic arena comparison with outcome classification
 
 ```bash
-python3 -m unittest tests.unit.test_experiment -v
+python3 -m unittest tests.unit.test_learning -v
+python3 -m unittest discover tests/
 ```
 
 ---

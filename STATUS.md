@@ -35,8 +35,9 @@
 
 ### Module Structure
 
-- `thinkbox/experiment.py` — `ExperimentRecord`, `ExperimentManager`, `ExperimentDB`, `AgentSessionRecord`, `ParameterProvenance`, `ParameterClassification`, `ExperimentStatus`, `FourState`, `ProvenanceSource`, `get_experiment_manager`
-- `tests/unit/test_experiment.py` — 45 tests covering all experiment features
+- `thinkbox/experiment.py` — `ExperimentRecord`, `ExperimentManager`, `ExperimentDB`, `AgentSessionRecord`, `ParameterProvenance`, `ParameterClassification`, `ExperimentStatus`, `FourState` (CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED), `ProvenanceSource`, `EvidenceDrivenLearningEngine`, `ReplayEngine`, `ComparisonEngine`, `ExperimentDashboardUpgrade`, `ExperimentArena`, `ArenaEvaluator`, `MemoryReuseTracker`, `ArenaReplayEngine`, `OutcomeClassifier`, `LearnedParameter`, `EvidencePattern`, `Conflict`, `Recommendation`, `ReplayRecord`, `ExperimentComparison`, `get_experiment_manager`
+- `tests/unit/test_experiment.py` — 46 tests covering all experiment features
+- `tests/unit/test_learning.py` — 44 tests covering learning engine and arena
 
 ### Key Features
 
@@ -44,7 +45,12 @@
 - **SQLite Persistence**: Zero-dollar, stdlib-only persistence layer with migrations for `experiments`, `experiment_parameters`, `experiment_events`, `artifacts`, `proof_records`, `outcomes`, `lessons`, `agent_sessions`
 - **Parameter Provenance**: Every parameter carries `value`, `unit`, `source`, `confidence`, `classification` (OBSERVED/ESTIMATED/SIMULATED), `session_id`, `timestamp`
 - **Learning Loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test → Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment
-- **Four-State Classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY
+- **Four-State Classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED
+- **Evidence-Driven Learning**: `EvidenceDrivenLearningEngine.learn_from_history()` returns learned_parameters, evidence_patterns, conflicts, unknowns. `recommend_next_experiment()` generates recommendations with supporting_experiment_ids, reason, unknowns, expected_measurement, success_criteria, session lineage
+- **Replay Engine**: `ReplayEngine.replay()` reconstructs full experiment lifecycle from SQLite. `replay_after_restart()` returns recovery data
+- **Comparison Engine**: `ComparisonEngine.compare()` compares two experiments across parameters, outcomes, tests, proof, lessons
+- **Experiment Arena**: `ExperimentArena.create_arena()` creates controlled benchmark with BASELINE/LEARNED/VARIANT strategies. `ArenaEvaluator.evaluate_experiments()` computes deterministic metrics (success_rate, test_pass_rate, error_count, retry_count, artifact_quality, proof_completeness, latency). `MemoryReuseTracker.track_memory_reuse()` proves which learned parameters were consumed. `ArenaReplayEngine.replay_arena()` replays entire arena from SQLite. `OutcomeClassifier.classify()` classifies results as IMPROVED/NO_MEASURABLE_IMPROVEMENT/REGRESSION/INCONCLUSIVE/FAILED
+- **Dashboard Upgrade**: `ExperimentDashboardUpgrade.get_upgraded_dashboard()` adds learning insights to dashboard. `get_evidence_graph()` returns nodes/links graph
 - **Session Continuity**: Parent/child session relationships, start/end state, last completed action, blockers, next larger improvement
 - **Zero-Server Execution**: Complete lifecycle works without Docker, Kubernetes, SSH, cloud server, or external database
 - **Dashboard Aggregation**: Dashboard data generated from persisted SQLite data, not manually maintained status text
@@ -53,12 +59,13 @@
 
 ### Backend Integration
 
-- `backend/api/v1/router.py` — Experiment endpoints: POST /experiment, GET /experiment/{id}, POST /experiment/{id}/parameter, POST /experiment/{id}/outcome, GET /experiment/dashboard, POST /experiment/zero-server, GET /experiment/restart
+- `backend/api/v1/router.py` — Experiment endpoints: POST /experiment, GET /experiment/{id}, POST /experiment/{id}/parameter, POST /experiment/{id}/outcome, GET /experiment/dashboard, POST /experiment/zero-server, GET /experiment/restart. Arena endpoints: POST /arena, POST /arena/{id}/baseline, POST /arena/{id}/learned, POST /arena/{id}/evaluate, POST /arena/{id}/compare, GET /arena/{id}/replay, GET /arena/{id}/dashboard
 
 ### Tests
 
-- `tests/unit/test_experiment.py` — 45 tests
-- Full suite: **605 tests, 6 skipped**
+- `tests/unit/test_experiment.py` — 46 tests
+- `tests/unit/test_learning.py` — 44 tests
+- Full suite: **649 tests, 6 skipped**
 
 ### CLI Integration
 
