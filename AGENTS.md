@@ -604,6 +604,12 @@ The connection path used:
 4. Run live smoke tests with valid credentials
 5. Install upctl CLI when network allows
 
+### PR Status (2026-09-17)
+- **All PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
+- **Main merged**: commit `9f12e1d` contains all work
+- **Branch status**: `kilo/adept-marsh-qiq` merged into main, `kilo/leafy-dragon-4ck` superseded
+- **No stale PRs remain**
+
 ## CNC Manufacturing Intelligence Platform
 
 The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligence system.
