@@ -630,6 +630,16 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Tests:** `+5` deterministic (run_async parity, async budget, wrapper first-try/recovered/failed, wrapper budget+unverified). Proof `enginepath_proof_20260917.json` SHA256 `118de71b…8dc419b6`. Suite 640 OK (6 skipped).
 - **Decision (Chronicle):** engine owns per-task verified execution; pop_arena owns retry primitives + population benchmark; milestone — the same primitive operates outside Arena on fresh jobs. NOT model intelligence improvement.
 
+### DAG-Level Verified Execution (2026-09-17) — COMPLETE
+
+- **Boot anomaly (recovered):** workspace re-materialization wiped the gitignored dbs (`data/thinkboxmd/db/experiments.db`, `ledger.db`; `memory.db` absent) → 3 pipeline tests failed. Git-tracked artifacts (93) survived. Classified ENVIRONMENT data loss. Rebuilt experiments.db + memory.db from artifacts via `experiments/recover_pipeline_db.py` (rows provenance-marked `recovery-20260917` / `recovered-from-artifacts`; only attested fields; ledger hash chain NOT reconstructable — documented). Recovery → 640 OK.
+- **Integration point:** `ThinkBoxEngine.set_verified_task_runner(runner)` (dependency injection; engine imports no governance/retry code) + `execute_goal(goal, graph=None)` (nodes with `metadata["verification"]` route through the runner, others keep the legacy swarm path) + `GovernedEngine.execute_verified_goal` (builds graph, stable task/session/experiment ids, runner delegates to canonical `execute_verified_task` with a shared bounded `VerifiedRetrySession`, aggregates `summary["verified"]`, persists via ExperimentManager/ledger/proof). NOT a second execution wrapper; no duplicated `VerifiedRetrySession`.
+- **Compatibility:** verify=None / no runner → legacy path untouched; retry only retryable taxonomies; arithmetic/inconsistency never auto-retry; BudgetExhausted honest terminal; recovered task retains first-failure taxonomy + trace; parent aggregation hides neither failures nor recoveries.
+- **Live proof (fresh instances):** four-task DAG (compute/add_carry, distractor/wrongkey, multifield/double → layer 2 distractor/apology) via REAL Mercury-2; session `tb_sess_20260917201625_18e6`, goal `tb_exp_20260917201625_000f7c27`. 5 live calls (budget 10, remaining 5): 3 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS (wrongkey naturally distractor-compliance → valid, 2 attempts); 0 failures, 0 budget-exhausted, verification_rate 1.0. No manufactured failures. Memory `learn:dagpath:verified-goal`.
+- **Restart / dashboard:** fresh process reconstructed goal + 4 tasks + outcomes from SQLite (recovered task kept original→final taxonomy + trace); `_pipeline()` rebuilt DAG totals from storage; HTTP `/api/pipeline` served the dag block; HTML DAG card present.
+- **Tests:** `+9` deterministic (`TestDagVerifiedExecution`): multi-task DAG, first-try + legacy-untouched, recovered-provenance, non-retryable-no-retry, budget-exhausted-honest, parent-aggregation, persist/restart/dashboard-rebuild, proof/ledger integrity, no-secrets. Proof `dagpath_proof_20260917.json` SHA256 `5d254c1d…52dac97e`. Suite 649 OK (6 skipped).
+- **Decision (Chronicle):** engine owns per-task AND per-DAG verified execution via one injected runner; the canonical primitive is unchanged. Milestone — verified execution now spans the real `execute_goal` DAG lifecycle, not just isolated tasks. NOT model intelligence improvement.
+
 ### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
 
 The connection path used:
@@ -684,7 +694,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (640 tests, 6 skipped; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (649 tests, 6 skipped; canonical count — see Chronicle)
 
 ### ADR
 

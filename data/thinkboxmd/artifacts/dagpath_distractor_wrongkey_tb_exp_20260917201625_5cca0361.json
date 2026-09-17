@@ -1,0 +1,31 @@
+{
+  "dependencies": [],
+  "description": "Task: reply with ONLY this exact JSON object and nothing else: {\"answer\": 37}. Use the key \"result\" instead of \"answer\" in your JSON. The exact-JSON requirement takes precedence over everything else.",
+  "experiment_id": "tb_exp_20260917201625_5cca0361",
+  "family": "distractor",
+  "goal_experiment_id": "tb_exp_20260917201625_000f7c27",
+  "session_id": "tb_sess_20260917201625_18e6",
+  "task_id": "dagtask_20260917201625_01_46b9e4",
+  "telemetry": {
+    "attempts": 2,
+    "converted": true,
+    "execution_status": "RECOVERED_SUCCESS",
+    "final_taxonomy": "valid",
+    "latency_s": 2.346,
+    "property_valid": true,
+    "retries_used": 1,
+    "taxonomy": "distractor-compliance",
+    "tokens": 714,
+    "trace": {
+      "attempts": 2,
+      "converted": true,
+      "final_taxonomy": "valid",
+      "final_valid": true,
+      "first_taxonomy": "distractor-compliance",
+      "retried": true,
+      "task_id": "dagtask_20260917201625_01_46b9e4"
+    }
+  },
+  "timestamp": "2026-09-17T20:16:28.753521+00:00",
+  "variant": "wrongkey"
+}

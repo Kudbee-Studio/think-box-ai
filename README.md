@@ -151,6 +151,13 @@ doing its job.
 - **Telemetry:** per-job `execution_status` (`FIRST_TRY_SUCCESS` / `RECOVERED_SUCCESS` / `FAILED_AFTER_RETRY` / `BUDGET_EXHAUSTED` / `UNVERIFIED`) persisted as an experiment parameter and shown as the Exec status column in the Pipeline dashboard.
 - **Live proof:** 6 fresh engine-path jobs via Mercury-2/Box (5 first-try + 1 recovered, 7 calls, 0 failed); proof `data/thinkboxmd/artifacts/enginepath_proof_20260917.json`. Infrastructure milestone — NOT model intelligence improvement.
 
+### DAG-level verified execution (2026-09-17)
+
+- **Scope:** verified execution now spans the real `ThinkBoxEngine.execute_goal` DAG lifecycle, not just isolated tasks. `GovernedEngine.execute_verified_goal` builds a `TaskGraph`, assigns every task a stable task/session/experiment identifier, and routes eligible tasks through the same canonical `execute_verified_task` primitive with a shared bounded `VerifiedRetrySession` across the whole DAG.
+- **Injection point:** `ThinkBoxEngine.set_verified_task_runner(runner)` (dependency injection; the engine never imports governance/retry code). Nodes with `metadata["verification"]` route through the runner; all others keep the legacy swarm path (behavior unchanged when verify=None / no runner).
+- **Aggregation:** `summary["verified"]` carries DAG totals — tasks, first-try successes, recovered successes, failures, retries, budget exhaustion, verification rate — with per-task taxonomy provenance (first failure preserved on recovery). Parent outcomes hide neither failures nor recoveries.
+- **Live proof:** one four-task DAG (2 layers) via real Mercury-2 — 5 calls (budget 10): 3 first-try + 1 natural recovery (distractor-compliance → valid, 2 attempts), 0 failures, ledger + proof verified; proof `data/thinkboxmd/artifacts/dagpath_proof_20260917.json`. Dashboard exposes a DAG verified-execution card rebuilt from SQLite. Orchestration milestone — NOT model intelligence improvement.
+
 ### Experiment + Learning Dashboard
 
 Persistent, zero-server experiment tracking with SQLite persistence and
@@ -278,7 +285,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **640 tests** (all passing, 6 skipped)
+Current test count: **649 tests** (all passing, 6 skipped)
 
 ---
 

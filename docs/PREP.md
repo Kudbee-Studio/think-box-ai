@@ -4,6 +4,17 @@
 **Repo:** `Kudbee-Studio/think-box-ai`
 **Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
 
+> ## ADDENDUM — 2026-09-17 (supersedes the numbers above; 09-15 body preserved below)
+>
+> **Main:** `1fcdbd7` (+ DAG work on branch), **649 tests OK** (6 skipped).
+> Canonical state lives in `docs/CONTINUITY.md` / `STATUS.md` / `AGENTS.md` §Chronicle.
+>
+> - **Verified execution chain now spans the full DAG lifecycle:** `ThinkBoxEngine.execute_goal` task nodes route through `GovernedEngine.execute_verified_task` → `VerifiedRetrySession.run_async` via an injected runner (`set_verified_task_runner`); `GovernedEngine.execute_verified_goal` aggregates DAG totals (first-try / recovered / failures / retries / budget-exhausted / verification-rate). Live-proven on a 4-task DAG with real Mercury-2 (5 calls, 3 first-try + 1 natural recovery, 0 failed); proof `data/thinkboxmd/artifacts/dagpath_proof_20260917.json` SHA256 `5d254c1d…52dac97e`.
+> - **Access inventory update:** Upstash Box is now the primary execution substrate (usable, see `box_primary_proof_20260917.json`); UpCloud `kudbeev3` is LIVE_VERIFIED via API as control-plane ONLY (no SSH, no compute — removed from roadmap). Inception Mercury 2 usable. Upstash Vector writes fixed in PR #67 (fail-closed `EmbeddingError`).
+> - **Pipeline dbs are reconstructable:** a workspace re-materialization wiped the gitignored SQLite dbs; `experiments/recover_pipeline_db.py` rebuilds experiments.db + memory.db from git-tracked artifacts (ledger hash chain NOT reconstructable — documented).
+> - **Test gate:** `python3 -m unittest discover tests/` → 649 OK (6 skipped). Defects #2/#3/#5 from §3 below still open; defect #1 (Upstash Vector) FIXED (PR #67); defect #4 partially (Box is now the execution substrate).
+> - **Next larger improvement:** multi-goal concurrent budgets + deeper DAGs with cross-goal budget accounting and per-layer retry-rate telemetry.
+
 This is the "pick it up cold" document. Everything below is verified or
 explicitly marked as not-verified.
 

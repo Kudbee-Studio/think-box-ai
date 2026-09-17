@@ -692,5 +692,328 @@ class TestPopulationArena(unittest.TestCase):
         asyncio.run(go())
 
 
+class TestDagVerifiedExecution(unittest.TestCase):
+    """DAG-level verified execution: ThinkBoxEngine.execute_goal task lifecycle
+    routed through the canonical GovernedEngine.execute_verified_task primitive.
+    Deterministic scripted completions (unit-level provider mocks per AGENTS §3.5)."""
+
+    @staticmethod
+    def _sub(family: str, variant: str, depends_on: list[int] | None = None) -> dict:
+        from thinkbox.pop_arena import system_prompt_for_v2
+        prompt, spec = system_prompt_for_v2(family, variant)
+        return {"description": prompt, "family": family, "variant": variant,
+                "spec": spec, "depends_on": depends_on or []}
+
+    @staticmethod
+    def _governed(ledger_path: str = ":memory:"):
+        from thinkbox.engine import ThinkBoxEngine
+        from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+        return GovernedEngine(GovernedEngineConfig(engine=ThinkBoxEngine(), ledger_path=ledger_path))
+
+    @staticmethod
+    def _router(subtasks: list[dict], behaviors: dict[int, str]):
+        """complete_async keyed by exact subtask prompt prefix; per-prompt call counts."""
+        from thinkbox.pop_arena import deterministic_emission_v2
+        calls: dict[str, int] = {}
+        async def complete(prompt: str):
+            for i, st in enumerate(subtasks):
+                if prompt.startswith(st["description"]):
+                    break
+            else:
+                raise AssertionError("unrouted prompt")
+            key = st["description"]
+            calls[key] = calls.get(key, 0) + 1
+            n = calls[key]
+            fam, var, spec = st["family"], st["variant"], st["spec"]
+            behavior = behaviors.get(i, "valid")
+            valid = deterministic_emission_v2(fam, var, spec)
+            wrongkey = '{"result": %s}' % spec["expected"]
+            if behavior == "valid":
+                return valid
+            if behavior == "wrongkey_then_valid":
+                return wrongkey if n == 1 else valid
+            if behavior == "wrongkey_always":
+                return wrongkey
+            if behavior == "arithmetic_always":
+                return '{"answer": %s}' % (spec["expected"] + 1)
+            if behavior == "valid_with_usage":
+                return valid, {"total_tokens": 42}
+            raise AssertionError(behavior)
+        return complete, calls
+
+    def _run(self, coro):
+        import asyncio
+        return asyncio.run(coro)
+
+    def test_dag_multi_task_first_try(self) -> None:
+        subtasks = [self._sub("compute", "add_small"),
+                    self._sub("distractor", "prose"),
+                    self._sub("multifield", "double", depends_on=[0, 1])]
+        complete, _ = self._router(subtasks, {})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("dag goal", subtasks, complete))
+        v = summary["verified"]
+        self.assertEqual(v["tasks"], 3)
+        self.assertEqual(v["first_try_successes"], 3)
+        self.assertEqual(v["recovered_successes"], 0)
+        self.assertEqual(v["failures"], 0)
+        self.assertEqual(v["budget_exhausted"], 0)
+        self.assertEqual(v["retries"], 0)
+        self.assertEqual(v["verification_rate"], 1.0)
+        self.assertEqual(summary["failed"], 0)
+        self.assertEqual(summary["successful"], 3)
+        ids = summary["task_experiment_ids"]
+        self.assertEqual(len(set(ids.values())), 3)
+        self.assertTrue(all(e.startswith("tb_exp_") for e in ids.values()))
+        self.assertTrue(summary["session_id"].startswith("tb_sess_"))
+        self.assertTrue(summary["goal_experiment_id"].startswith("tb_exp_"))
+        for pt in v["per_task"].values():
+            self.assertEqual(pt["execution_status"], "FIRST_TRY_SUCCESS")
+            self.assertEqual(pt["attempts"], 1)
+            self.assertEqual(pt["retries_used"], 0)
+            self.assertEqual(pt["taxonomy"], "valid")
+
+    def test_dag_first_try_events_and_legacy_untouched(self) -> None:
+        from thinkbox.engine import ThinkBoxEngine, TaskState
+        subtasks = [self._sub("compute", "add_small")]
+        complete, _ = self._router(subtasks, {})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("single", subtasks, complete))
+        tid = list(summary["task_experiment_ids"])[0]
+        events = [e for e in eng._base.events if e.task_id == tid]
+        self.assertTrue(any(e.state == TaskState.RUNNING for e in events))
+        succ = [e for e in events if e.state == TaskState.SUCCESS]
+        self.assertEqual(succ[-1].metadata.get("execution_status"), "FIRST_TRY_SUCCESS")
+        self.assertEqual(succ[-1].metadata.get("experiment_id"), summary["task_experiment_ids"][tid])
+        self.assertEqual(succ[-1].metadata.get("session_id"), summary["session_id"])
+        base = ThinkBoxEngine()
+        legacy = self._run(base.execute_goal("plain goal"))
+        self.assertNotIn("verified", legacy)
+        self.assertIn("goal_run_id", legacy)
+
+    def test_dag_recovered_task_preserves_failure_provenance(self) -> None:
+        subtasks = [self._sub("distractor", "wrongkey")]
+        complete, calls = self._router(subtasks, {0: "wrongkey_then_valid"})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("recover", subtasks, complete))
+        v = summary["verified"]
+        self.assertEqual(v["recovered_successes"], 1)
+        self.assertEqual(v["first_try_successes"], 0)
+        self.assertEqual(v["failures"], 0)
+        self.assertEqual(v["retries"], 1)
+        pt = list(v["per_task"].values())[0]
+        self.assertEqual(pt["execution_status"], "RECOVERED_SUCCESS")
+        self.assertEqual(pt["taxonomy"], "distractor-compliance")
+        self.assertEqual(pt["final_taxonomy"], "valid")
+        self.assertTrue(pt["converted"])
+        self.assertEqual(pt["attempts"], 2)
+        self.assertEqual(summary["successful"], 1)
+        self.assertEqual(summary["failed"], 0)
+        self.assertEqual(max(calls.values()), 2)
+
+    def test_dag_non_retryable_failure_no_retry_spent(self) -> None:
+        subtasks = [self._sub("compute", "add_small")]
+        complete, calls = self._router(subtasks, {0: "arithmetic_always"})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("arith", subtasks, complete))
+        v = summary["verified"]
+        pt = list(v["per_task"].values())[0]
+        self.assertEqual(pt["execution_status"], "FAILED_AFTER_RETRY")
+        self.assertEqual(pt["taxonomy"], "arithmetic")
+        self.assertEqual(pt["final_taxonomy"], "arithmetic")
+        self.assertEqual(pt["attempts"], 1)
+        self.assertEqual(pt["retries_used"], 0)
+        self.assertEqual(v["retries"], 0)
+        self.assertEqual(summary["failed"], 1)
+        self.assertEqual(max(calls.values()), 1)
+
+    def test_dag_budget_exhausted_is_honest_terminal(self) -> None:
+        subtasks = [self._sub("distractor", "wrongkey"),
+                    self._sub("distractor", "apology", depends_on=[0])]
+        complete, _ = self._router(subtasks, {0: "wrongkey_always", 1: "valid"})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("budget", subtasks, complete, max_calls=2))
+        v = summary["verified"]
+        statuses = sorted(pt["execution_status"] for pt in v["per_task"].values())
+        self.assertEqual(statuses, ["BUDGET_EXHAUSTED", "FAILED_AFTER_RETRY"])
+        self.assertEqual(v["budget_exhausted"], 1)
+        self.assertEqual(v["failures"], 1)
+        self.assertEqual(summary["calls_spent"], 2)
+        self.assertEqual(summary["budget_remaining"], 0)
+        self.assertEqual(summary["failed"], 2)
+        self.assertTrue(eng.ledger.verify())
+
+    def test_dag_parent_aggregation_hides_nothing(self) -> None:
+        import json as _j
+        subtasks = [self._sub("compute", "add_small"),
+                    self._sub("distractor", "wrongkey"),
+                    self._sub("compute", "mul_small", depends_on=[0])]
+        complete, _ = self._router(subtasks, {1: "wrongkey_then_valid", 2: "arithmetic_always"})
+        eng = self._governed()
+        summary = self._run(eng.execute_verified_goal("agg", subtasks, complete))
+        v = summary["verified"]
+        self.assertEqual(v["tasks"], 3)
+        self.assertEqual(v["first_try_successes"], 1)
+        self.assertEqual(v["recovered_successes"], 1)
+        self.assertEqual(v["failures"], 1)
+        self.assertEqual(v["verification_rate"], round(2 / 3, 4))
+        self.assertEqual(summary["successful"], 2)
+        self.assertEqual(summary["failed"], 1)
+        goal_entries = [e for e in eng.ledger.entries() if e["action"] == "execute_verified_goal"]
+        self.assertEqual(len(goal_entries), 1)
+        import sqlite3
+        rows = eng.ledger._conn.execute(
+            "SELECT metadata FROM ledger WHERE action='execute_verified_goal'").fetchall()
+        meta = _j.loads(rows[0][0])
+        self.assertEqual(meta["tasks"], 3)
+        self.assertEqual(meta["first_try_successes"], 1)
+        self.assertEqual(meta["recovered_successes"], 1)
+        self.assertEqual(meta["failures"], 1)
+        self.assertEqual(meta["retries"], 1)
+        self.assertTrue(eng.ledger.verify())
+
+    def test_dag_persist_restart_reload_and_dashboard(self) -> None:
+        import tempfile
+        from pathlib import Path
+        from thinkbox.experiment import ExperimentManager
+        tmp = tempfile.mkdtemp()
+        db = str(Path(tmp) / "exp.db")
+        art = Path(tmp) / "artifacts"
+        subtasks = [self._sub("compute", "add_small"),
+                    self._sub("distractor", "wrongkey", depends_on=[0])]
+        complete, _ = self._router(subtasks, {1: "wrongkey_then_valid"})
+        eng = self._governed()
+        mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
+        summary = self._run(eng.execute_verified_goal(
+            "persist", subtasks, complete, manager=mgr))
+        goal_exp = summary["goal_experiment_id"]
+        task_exps = list(summary["task_experiment_ids"].values())
+
+        fresh = ExperimentManager(db_path=db, artifacts_dir=str(art))
+        goal_row = fresh.db.get_experiment(goal_exp)
+        self.assertIsNotNone(goal_row)
+        self.assertEqual(goal_row["status"], "completed")
+        for exp_id in task_exps:
+            row = fresh.db.get_experiment(exp_id)
+            self.assertIsNotNone(row)
+        import sqlite3
+        conn = sqlite3.connect(db)
+        params = {(r[0], r[1]): r[2] for r in conn.execute(
+            "SELECT experiment_id, name, value FROM experiment_parameters")}
+        self.assertEqual(params[(goal_exp, "scope")], "dag")
+        self.assertEqual(params[(goal_exp, "dag_tasks")], "2")
+        self.assertEqual(params[(goal_exp, "recovered_successes")], "1")
+        statuses = sorted(params[(e, "execution_status")] for e in task_exps)
+        self.assertEqual(statuses, ["FIRST_TRY_SUCCESS", "RECOVERED_SUCCESS"])
+        outcomes = {r[0]: r[1] for r in conn.execute(
+            "SELECT experiment_id, outcome_data FROM outcomes")}
+        import json as _j
+        recovered = [e for e in task_exps if params[(e, "execution_status")] == "RECOVERED_SUCCESS"][0]
+        out = _j.loads(outcomes[recovered])
+        self.assertEqual(out["taxonomy"], "distractor-compliance")
+        self.assertEqual(out["final_taxonomy"], "valid")
+        self.assertTrue(out["converted"])
+        conn.close()
+
+        dash = TestPipelineDashboard._load_dashboard()
+        saved_db = dash.DB
+        try:
+            dash.DB = Path(tmp) / "dbdir"
+            dash.DB.mkdir(exist_ok=True)
+            import shutil
+            shutil.copy(db, dash.DB / "experiments.db")
+            pipe = dash._pipeline()
+            dag = pipe["dag"]
+            self.assertEqual(dag["tasks_total"], 2)
+            self.assertEqual(dag["first_try_successes"], 1)
+            self.assertEqual(dag["recovered_successes"], 1)
+            self.assertEqual(dag["verification_rate"], 1.0)
+            self.assertEqual(len(dag["goals"]), 1)
+            self.assertEqual(dag["goals"][0]["goal_experiment_id"], goal_exp)
+        finally:
+            dash.DB = saved_db
+
+    def test_dag_proof_and_ledger_integrity(self) -> None:
+        import hashlib
+        import json as _j
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        from thinkbox.experiment import ExperimentManager
+        tmp = tempfile.mkdtemp()
+        ledger_path = str(Path(tmp) / "ledger.db")
+        db = str(Path(tmp) / "exp.db")
+        art = Path(tmp) / "artifacts"
+        subtasks = [self._sub("compute", "add_carry"),
+                    self._sub("distractor", "wrongkey", depends_on=[0])]
+        complete, _ = self._router(subtasks, {0: "valid_with_usage", 1: "wrongkey_then_valid"})
+        eng = self._governed(ledger_path=ledger_path)
+        mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
+        summary = self._run(eng.execute_verified_goal(
+            "proof", subtasks, complete, manager=mgr, agent_id="dag-test"))
+        proof_path = Path(summary["proof_artifact"])
+        self.assertTrue(proof_path.exists())
+        proof = _j.loads(proof_path.read_text())
+        claimed = proof.pop("proof_sha256")
+        self.assertEqual(claimed, summary["proof_sha256"])
+        recomputed = hashlib.sha256(
+            _j.dumps(proof, indent=2, sort_keys=True).encode()).hexdigest()
+        self.assertEqual(recomputed, claimed)
+        self.assertEqual(proof["dag"]["tasks"], 2)
+        self.assertEqual(len(proof["tasks"]), 2)
+        for t in proof["tasks"]:
+            art_hash = hashlib.sha256(Path(t["artifact"]).read_bytes()).hexdigest()
+            self.assertEqual(art_hash, t["artifact_sha256"])
+
+        from thinkbox.ledger import ActionLedger
+        led = ActionLedger(ledger_path)
+        self.assertTrue(led.verify())
+        conn = sqlite3.connect(ledger_path)
+        rows = conn.execute("SELECT action, metadata FROM ledger").fetchall()
+        conn.close()
+        task_actions = [r for r in rows if r[0].startswith("verified_task:")]
+        goal_actions = [r for r in rows if r[0] == "execute_verified_goal"]
+        self.assertEqual(len(task_actions), 2)
+        self.assertEqual(len(goal_actions), 1)
+        exp_ids = set(summary["task_experiment_ids"].values())
+        tokens_seen = []
+        for action, meta_json in task_actions:
+            meta = _j.loads(meta_json)
+            self.assertIn(meta["experiment_id"], exp_ids)
+            self.assertEqual(meta["session_id"], summary["session_id"])
+            self.assertIn(meta["outcome"], (
+                "FIRST_TRY_SUCCESS", "RECOVERED_SUCCESS", "FAILED_AFTER_RETRY", "BUDGET_EXHAUSTED"))
+            tokens_seen.append(meta["tokens"])
+        self.assertIn(42, tokens_seen)
+        led.close()
+
+    def test_dag_telemetry_contains_no_secrets(self) -> None:
+        import json as _j
+        import re
+        import tempfile
+        from pathlib import Path
+        from thinkbox.experiment import ExperimentManager
+        tmp = tempfile.mkdtemp()
+        db = str(Path(tmp) / "exp.db")
+        art = Path(tmp) / "artifacts"
+        subtasks = [self._sub("distractor", "wrongkey")]
+        complete, _ = self._router(subtasks, {0: "wrongkey_then_valid"})
+        eng = self._governed(ledger_path=str(Path(tmp) / "ledger.db"))
+        mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
+        summary = self._run(eng.execute_verified_goal(
+            "secrets", subtasks, complete, manager=mgr))
+        blob = _j.dumps(summary)
+        for p in Path(art).glob("*.json"):
+            blob += p.read_text()
+        import sqlite3
+        conn = sqlite3.connect(str(Path(tmp) / "ledger.db"))
+        for (meta,) in conn.execute("SELECT metadata FROM ledger"):
+            blob += meta
+        conn.close()
+        self.assertEqual(re.findall(r"(?i)(api[_-]?key|bearer|authorization|ucat_|sk-[A-Za-z0-9])", blob), [])
+        from thinkbox.pop_arena import secrets_clean
+        self.assertTrue(secrets_clean(summary))
+
+
 if __name__ == "__main__":
     unittest.main()
