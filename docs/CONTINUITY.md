@@ -34,17 +34,30 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Experiment Arena — Controlled Learning Benchmark |
-| **Latest completed work** | Arena and Learning Engine committed (commit `f99c8b2`) — 649 tests passing |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system with EvidenceDrivenLearningEngine, ReplayEngine, ComparisonEngine, ExperimentDashboardUpgrade, ExperimentArena, ArenaEvaluator, MemoryReuseTracker, ArenaReplayEngine, OutcomeClassifier, 649 tests passing |
+| **Latest completed work** | Canonical shared primitives committed (commit `0e616bc`) — 685 tests passing |
+| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system with EvidenceDrivenLearningEngine, ReplayEngine, ComparisonEngine, ExperimentDashboardUpgrade, ExperimentArena, ArenaEvaluator, MemoryReuseTracker, ArenaReplayEngine, OutcomeClassifier, 685 tests passing |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential; server 212.147.250.183 port 22 TIMEOUT (Case C) |
 | **Known risks** | UpCloud API unreachable with current credentials; server IP may be reassigned; SSH key not persisted to disk |
 | **Next larger improvement** | Obtain valid `UPCLOUD_API_MAIN` from UpCloud panel → verify server reachability → restore SSH key → run live smoke tests |
-| **PR status** | All PRs closed; main merged; arena and learning engine committed on kilo/adept-marsh-qiq |
-| **Test count** | **649 tests passing (6 skipped)** |
+| **PR status** | All PRs closed; main merged; canonical primitives committed on kilo/adept-marsh-qiq |
+| **Test count** | **685 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Canonical Shared Primitives
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Canonicalize shared primitives and verify architecture integrity |
+| **PR/commit** | `0e616bc` on `kilo/adept-marsh-qiq` |
+| **Result** | Added `OutcomeClassification` and `ExperimentOutcome` enums to `thinkbox/experiment.py`. Updated `OutcomeClassifier` to return `OutcomeClassification` enum instead of string literals. Added 36 regression tests for canonical FourState, OutcomeClassification, ExperimentOutcome, CNC compatibility, Experiment compatibility, Arena compatibility, Learning compatibility, Replay compatibility, API serialization, SQLite persistence/reload, FAILED classification, state transitions, invalid state handling. Verified FourState has no duplicate in CNC. |
+| **Findings** | Only ONE FourState definition exists in `thinkbox/experiment.py`. No duplicate in `thinkbox/cnc/job.py`. `TaskState` in `engine.py` is a separate enum for task execution, correctly distinct from FourState. `ParameterClassification`, `ExperimentStatus`, `ProvenanceSource` each have single definitions. `OutcomeClassifier` string literals consolidated into `OutcomeClassification` enum. |
+| **Canonical Location** | `thinkbox/experiment.py` — FourState, OutcomeClassification, ExperimentOutcome, ParameterClassification, ExperimentStatus, ProvenanceSource |
+| **Tests/evidence** | 685 tests pass (6 skipped) |
+| **Status** | COMPLETE |
 
 ### 2026-09-17 — Experiment Arena — Controlled Learning Benchmark
 
@@ -55,7 +68,7 @@ Before declaring completion, every agent MUST verify:
 | **PR/commit** | `f99c8b2` on `kilo/adept-marsh-qiq` |
 | **Result** | Added `ExperimentArena`, `ArenaEvaluator`, `MemoryReuseTracker`, `ArenaReplayEngine`, `OutcomeClassifier` to `thinkbox/experiment.py`. Added `EvidenceDrivenLearningEngine`, `ReplayEngine`, `ComparisonEngine`, `ExperimentDashboardUpgrade`, `LearnedParameter`, `EvidencePattern`, `Conflict`, `Recommendation`, `ReplayRecord`, `ExperimentComparison`. Added 44 tests in `tests/unit/test_learning.py`. Added arena endpoints to backend router. Fixed `add_test/add_artifact/add_proof` to persist to SQLite. Fixed `FourState.FAILED`. |
 | **Features** | Arena creation with BASELINE/LEARNED/VARIANT strategies. Deterministic metrics: success_rate, test_pass_rate, error_count, retry_count, artifact_quality, proof_completeness, latency. Memory reuse tracking with proof linkage. Replay from SQLite after restart. Outcome classification: IMPROVED/NO_MEASURABLE_IMPROVEMENT/REGRESSION/INCONCLUSIVE/FAILED. Evidence graph for dashboard. |
-| **Tests/evidence** | 649 tests pass (6 skipped) |
+| **Tests/evidence** | 685 tests pass (6 skipped) |
 | **Status** | COMPLETE |
 
 ### 2026-09-17 — Main Merge and PR Cleanup

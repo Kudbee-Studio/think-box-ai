@@ -178,7 +178,7 @@ All strategies receive the SAME task and evaluation contract.
 
 ```bash
 python3 -m unittest tests.unit.test_learning -v
-python3 -m unittest discover tests/
+python3 -m unittest discover tests/  # 685 tests, 6 skipped
 ```
 
 ---

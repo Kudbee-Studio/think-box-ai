@@ -35,9 +35,9 @@
 
 ### Module Structure
 
-- `thinkbox/experiment.py` — `ExperimentRecord`, `ExperimentManager`, `ExperimentDB`, `AgentSessionRecord`, `ParameterProvenance`, `ParameterClassification`, `ExperimentStatus`, `FourState` (CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED), `ProvenanceSource`, `EvidenceDrivenLearningEngine`, `ReplayEngine`, `ComparisonEngine`, `ExperimentDashboardUpgrade`, `ExperimentArena`, `ArenaEvaluator`, `MemoryReuseTracker`, `ArenaReplayEngine`, `OutcomeClassifier`, `LearnedParameter`, `EvidencePattern`, `Conflict`, `Recommendation`, `ReplayRecord`, `ExperimentComparison`, `get_experiment_manager`
+- `thinkbox/experiment.py` — `ExperimentRecord`, `ExperimentManager`, `ExperimentDB`, `AgentSessionRecord`, `ParameterProvenance`, `ParameterClassification`, `ExperimentStatus`, `FourState` (CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED), `ProvenanceSource`, `OutcomeClassification`, `ExperimentOutcome`, `EvidenceDrivenLearningEngine`, `ReplayEngine`, `ComparisonEngine`, `ExperimentDashboardUpgrade`, `ExperimentArena`, `ArenaEvaluator`, `MemoryReuseTracker`, `ArenaReplayEngine`, `OutcomeClassifier`, `LearnedParameter`, `EvidencePattern`, `Conflict`, `Recommendation`, `ReplayRecord`, `ExperimentComparison`, `get_experiment_manager`
 - `tests/unit/test_experiment.py` — 46 tests covering all experiment features
-- `tests/unit/test_learning.py` — 44 tests covering learning engine and arena
+- `tests/unit/test_learning.py` — 80 tests covering canonical primitives, learning engine, arena, and regression tests
 
 ### Key Features
 
@@ -65,7 +65,7 @@
 
 - `tests/unit/test_experiment.py` — 46 tests
 - `tests/unit/test_learning.py` — 44 tests
-- Full suite: **649 tests, 6 skipped**
+- Full suite: **685 tests, 6 skipped**
 
 ### CLI Integration
 

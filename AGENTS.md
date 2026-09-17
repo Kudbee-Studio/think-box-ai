@@ -558,7 +558,7 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 The server 212.147.250.183 is either no longer provisioned, has been reassigned, or has security group rules that block port 22 entirely. The historical IP is confirmed from git history but is not reachable.
 
 #### Phase 6 — Permanence
-- Status: CODE COMPLETE (investigation), TEST VERIFIED (649 tests), NOT LIVE VERIFIED
+- Status: CODE COMPLETE (investigation), TEST VERIFIED (685 tests), NOT LIVE VERIFIED
 - Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
 
 ### Current Status (2026-09-17)
@@ -585,7 +585,7 @@ The connection path used:
 - UpCloud provider files restored from git history (commit 32d82ef)
 - CONTINUITY.md restored from git history (commit 59f7eee)
 - Dashboard state updated with actual infrastructure findings
-- All 649 tests passing
+- All 685 tests passing
 
 ### Required Human Action (EXACT)
 1. **Log into UpCloud panel** (https://upcloud.com)
@@ -640,7 +640,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (649 tests, 6 skipped)
+- Full suite: `python3 -m unittest discover tests/` (685 tests, 6 skipped)
 
 ### Experiment Arena — Controlled Learning Benchmark
 
@@ -658,7 +658,31 @@ The `thinkbox/experiment.py` module includes the Experiment Arena system for pro
 
 - `tests/unit/test_learning.py` — 44 tests covering all learning engine and arena features
 - Run: `python3 -m unittest tests.unit.test_learning -v`
-- Full suite: `python3 -m unittest discover tests/` (649 tests, 6 skipped)
+- Full suite: `python3 -m unittest discover tests/` (685 tests, 6 skipped)
+
+### Canonical Shared Primitives
+
+All shared state primitives are defined in `thinkbox/experiment.py`:
+
+- `FourState` — Experiment lifecycle states: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY, FAILED. Canonical location for all experiment state tracking.
+- `OutcomeClassification` — Evidence-based outcome classifications: IMPROVED, NO_MEASURABLE_IMPROVEMENT, REGRESSION, INCONCLUSIVE, FAILED. Used by `OutcomeClassifier`.
+- `ExperimentOutcome` — Experiment result states: SUCCESS, PARTIAL, FAILURE, INCOMPLETE.
+- `ParameterClassification` — Parameter provenance: OBSERVED, ESTIMATED, SIMULATED.
+- `ExperimentStatus` — Experiment lifecycle: PENDING, RUNNING, COMPLETED, FAILED, BLOCKED.
+- `ProvenanceSource` — Data source: MEASURED, ESTIMATED, SIMULATED, INFERRED.
+
+**Migration rules:**
+- `FourState` is the ONLY canonical state enum for experiments. CNC uses separate `ApprovalStatus` and `TenantPlan` enums.
+- `TaskState` in `engine.py` is separate for task execution, correctly distinct from `FourState`.
+- `OutcomeClassifier` returns `OutcomeClassification` enum, not string literals.
+- All persisted SQLite records use string values for compatibility.
+
+**Duplicate analysis:**
+- `thinkbox/arena.py` = adversarial probes (KEEP DISTINCT)
+- `thinkbox/experiments.py` = swarm experiments (KEEP DISTINCT)
+- `thinkbox/replay.py` = swarm genome replay (KEEP DISTINCT)
+- `FourState` has NO duplicate in `thinkbox/cnc/job.py` (verified)
+- `TaskState` in `engine.py` is correctly separate from `FourState` (KEEP DISTINCT)
 
 ### ADR
 
