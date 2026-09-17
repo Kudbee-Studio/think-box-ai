@@ -142,7 +142,7 @@ doing its job.
 
 - **Upstash Box = primary execution substrate** — selected from env (`UPSTASH_PUBLIC_BOX_URL` first; never hard-coded). Think Jobs execute in-Box with SQLite persistence, Vector snapshots, ledger proof, and dashboard events.
 - **UpCloud = infrastructure / control-plane ONLY** (read-only REST). No UpCloud machine execution, no GPU execution, no SSH — removed from the roadmap.
-- Proof: `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` (Box job + restart + identical replay verified; model execution not yet verified).
+- Proof: `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` (Box job + restart + identical replay verified; model execution verified 2026-09-17, see `model_job_proof_20260917.json`; first learning loop verified, see `learn_loop_proof_20260917.json` — reuse proven, NO_MEASURABLE_IMPROVEMENT).
 
 ### Experiment + Learning Dashboard
 

@@ -501,6 +501,36 @@ class TestZeroServerExecution(unittest.TestCase):
             session = self.manager.create_session(agent_id="test", metadata={"four_state": state.value})
             self.assertIn(state.value, [FourState.CODE_COMPLETE.value, FourState.TEST_VERIFIED.value, FourState.LIVE_VERIFIED.value, FourState.PRODUCTION_READY.value])
 
+    def test_learning_loop_provenance(self):
+        base = self.manager.create_experiment(
+            intent="baseline", hypothesis="h",
+            parameters={"family": "exact-json"}, agent_id="test_agent",
+        )
+        self.manager.record_lesson(
+            base.experiment_id, "directive lesson",
+            parameter_updates=[{"name": "system_prompt_directive", "value": "ONLY-JSON"}],
+            next_experiment="",
+        )
+        lessons = self.manager.db.get_lessons_by_experiment(base.experiment_id)
+        self.assertGreaterEqual(len(lessons), 1)
+        learned = self.manager.create_experiment(
+            intent="learned", hypothesis="h2",
+            parameters={"family": "exact-json", "lesson_source": base.experiment_id},
+            agent_id="test_agent",
+        )
+        self.manager.db.save_event(
+            learned.experiment_id, "lesson_retrieval",
+            {"source_experiment_id": base.experiment_id, "retrieved_by": learned.experiment_id},
+        )
+        stored = self.manager.db.get_experiment(learned.experiment_id)
+        import json as _json
+        params = _json.loads(stored["parameters"])
+        self.assertEqual(params["family"], "exact-json")
+        self.assertEqual(params["lesson_source"], base.experiment_id)
+        fresh = ExperimentDB(db_path=self.tmp_db)
+        self.assertGreaterEqual(len(fresh.get_lessons_by_experiment(base.experiment_id)), 1)
+        self.assertIsNotNone(fresh.get_experiment(learned.experiment_id))
+
 
 def _connect(path: str) -> sqlite3.Connection:
     return sqlite3.connect(path)

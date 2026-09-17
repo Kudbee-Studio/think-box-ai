@@ -33,18 +33,33 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Real model-backed Think Job on Upstash Box substrate (Mercury-2 via existing provider path) |
-| **Latest completed work** | Live model-backed Think Job verified end-to-end (Box → provider → response → validation → artifact → proof → memory → replay → dashboard) — 609 tests passing |
-| **Current verified capabilities** | Model path (openai_compat → api.inceptionlabs.ai/v1 → mercury-2 via existing MercuryClient contract), single bounded live call with property validation, fresh-process recovery + property replay, no-secret safety, 609 tests passing |
-| **Current blockers** | None for model execution. `record_outcome` status stays pending (pre-existing, untouched). Standard THINKBOX_OPENAI_COMPAT_* contract intentionally unconfigured (no env changes). |
-| **Known risks** | Single live call proves the path, not model quality; no intelligence-improvement claim. Mercury-2 reasoning tokens consume budget — max_tokens 3500 floor respected. |
-| **Next larger improvement** | Build the first end-to-end Think Job that combines model reasoning + verifier + persistent learning + proof |
-| **PR status** | kilo/fair-wind-03a at 9d08ac3 + model-job work uncommitted |
-| **Test count** | **609 tests passing (6 skipped)** |
+| **Active objective** | End-to-end learning Think Job: Box → Mercury-2 → verifier → proof → memory/lesson → reuse → compare → outcome |
+| **Latest completed work** | First complete learning loop verified: baseline + learned jobs both live-valid, lesson provenance intact, reuse proven, classified NO_MEASURABLE_IMPROVEMENT (valid) — 610 tests passing |
+| **Current verified capabilities** | Existing learning path only (ExperimentManager lessons + MemoryStore + events + ledger + ExperimentStore/SelfImprovementLoop traced, no competing arch), live baseline + learned Mercury-2 calls, structured lesson with known/unknown, retrieval provenance in 3 places, property replay, 610 tests passing |
+| **Current blockers** | None. `record_outcome` status stays pending (pre-existing, untouched). |
+| **Known risks** | NO_MEASURABLE_IMPROVEMENT is a ceiling effect (1.0 success both runs), not a failure; proves reuse, not smarter model. Two live calls ≈ \$0.0001 total. |
+| **Next larger improvement** | Use the proven learning loop to run a controlled multi-job Experiment Arena that measures whether persistent knowledge produces repeatable improvement across multiple task instances |
+| **PR status** | kilo/fair-wind-03a at 7c9b45b + learning-loop work uncommitted |
+| **Test count** | **610 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — End-to-End Learning Think Job (Box → Mercury-2 → reuse → compare)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Prove first complete learning loop with measurable persisted-knowledge reuse. HEAD `7c9b45b`, branch `kilo/fair-wind-03a`. No SSH, no UpCloud compute, no GPU, no model mocks, no invented credentials. |
+| **Phase 1 path** | Existing systems only: ExperimentManager (lessons/events) + MemoryStore (provenance task_id) + ActionLedger + ExperimentStore/SelfImprovementLoop (A/B + propose/retest/record) — traced, reused, no competing architecture. No EvidenceDrivenLearningEngine/OutcomeClassifier classes exist in repo (directive names not present — recorded; vocabulary IMPROVED/etc. used as plain classification). |
+| **Phase 2 baseline** | Job `tb_exp_20260917170533_fbb1ec84` (session `tb_sess_20260917170533_4d11`): exact-JSON family, expected answer=7, strategy no-lesson. Live Mercury-2: VALID True, 0.39s, 98 tokens, cost \$0.0000585. Artifact SHA `6cc76885…18ddbd0f5`, proof + outcome TEST_VERIFIED. |
+| **Phase 3 learning** | Lesson row (id 5) + memory key `learn:exact-json:directive` (conf 0.9, task provenance = baseline): known = directive+low-temp+token-floor works; unknown = transfer + smaller floor. |
+| **Phase 4 learned** | Fresh handles; retrieved memory key (provenance logged); job `tb_exp_20260917170605_a1ae355e` (session `tb_sess_20260917170605_9e60`): same family, expected answer=9, strategy lesson-reuse. Retrieval provenance in 3 places: lesson_retrieval event + lesson_source param + ledger metadata. Live Mercury-2: VALID True, 0.433s, 91 tokens, cost \$0.0000533. Artifact SHA `814b63e0…def455c150f2`. |
+| **Phase 5 compare** | verification True/True; retries 0/0; memory reuse proven; proof full/full; latency 0.39/0.433; tokens 98/91; cost down \$0.000005. No overall score invented. Classification: NO_MEASURABLE_IMPROVEMENT (ceiling effect at 1.0 — valid result, reuse proven, model NOT claimed smarter). |
+| **Phase 6 restart** | Fresh process: both experiments + lessons + memory + artifacts + ledger all reload; provenance intact; hashes match; property replay True/True. |
+| **Tests/evidence** | `test_learning_loop_provenance` (deterministic, mocked-free of live calls: lesson→retrieval→reload round-trip). Proof `learn_loop_proof_20260917.json` SHA256 `e05be996…22ffb7f90`, secrets-clean. Full suite 610 OK (6 skipped). |
+| **FourState** | MODEL_EXECUTION_VERIFIED (two live calls) + learning loop TEST_VERIFIED |
 
 ### 2026-09-17 — Real Model-Backed Think Job (Mercury-2 via Box substrate)
 

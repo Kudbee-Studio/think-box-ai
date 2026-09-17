@@ -57,10 +57,20 @@
 
 ### Tests
 
-- `tests/unit/test_experiment.py` — 45 tests
+- `tests/unit/test_experiment.py` — 46 tests (incl. learning-loop provenance round-trip)
 - `tests/unit/test_cnc.py` — 44 tests (UpCloud control-plane config: no stale defaults, explicit-server)
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
-- Full suite: **609 tests, 6 skipped**
+- Full suite: **610 tests, 6 skipped**
+
+### End-to-End Learning Think Job (2026-09-17)
+
+- **Path (existing only):** ExperimentManager lessons/events + MemoryStore provenance + ActionLedger + ExperimentStore/SelfImprovementLoop; no competing architecture; no EvidenceDrivenLearningEngine/OutcomeClassifier classes in repo (vocabulary used as plain classification)
+- **Baseline:** job `tb_exp_20260917170533_fbb1ec84` — exact-JSON answer=7, live Mercury-2 VALID, 0.39s, 98 tokens, artifact `6cc76885…bd0f5`
+- **Lesson:** row id 5 + memory `learn:exact-json:directive` (conf 0.9, task=baseline; known/unknown recorded)
+- **Learned:** job `tb_exp_20260917170605_a1ae355e` — same family answer=9, lesson retrieved (event + param + ledger provenance), live Mercury-2 VALID, 0.433s, 91 tokens, artifact `814b63e0…150f2`
+- **Compare:** True/True, 0 retries, reuse proven, latency 0.39/0.433, tokens 98/91 — no invented score. Classification: NO_MEASURABLE_IMPROVEMENT (ceiling at 1.0; valid, model NOT smarter)
+- **Restart/replay:** both experiments + lessons + memory + hashes + ledger reload OK; property replay True/True
+- **Evidence:** `data/thinkboxmd/artifacts/learn_loop_proof_20260917.json` (SHA256 `e05be996…22ffb7f90`, secrets-clean); FourState MODEL_EXECUTION_VERIFIED + TEST_VERIFIED
 
 ### Real Model-Backed Think Job (2026-09-17)
 

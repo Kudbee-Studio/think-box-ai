@@ -1,0 +1,83 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "baseline_job": {
+    "artifact": "data/thinkboxmd/artifacts/learn_baseline_tb_exp_20260917170533_fbb1ec84.json",
+    "artifact_sha256": "6cc768851def3d1838d1693c6946182e221f5dfdbb607f4492bf21618ddbd0f5",
+    "cost_usd": 5.85e-05,
+    "expected": 7,
+    "job_id": "tb_exp_20260917170533_fbb1ec84",
+    "latency_s": 0.39,
+    "session": "tb_sess_20260917170533_4d11",
+    "tokens": 98,
+    "valid": true
+  },
+  "branch": "kilo/fair-wind-03a",
+  "checkout_sha": "7c9b45b0eb5038db4eecd98e41e9ddd53f9ff257",
+  "classification": "NO_MEASURABLE_IMPROVEMENT",
+  "classification_reason": "both valid first try; reuse proven but success rate cannot improve on 1.0; valid result, not a failure",
+  "comparison": {
+    "cost_usd": "5.85e-05 vs 5.325e-05",
+    "latency_s": "0.39 vs 0.433",
+    "learning_reuse": "event+param+ledger provenance",
+    "memory_reuse": "retrieved from baseline",
+    "overall_score": "NONE (not invented)",
+    "proof_completeness": "full vs full",
+    "retries": "0 vs 0",
+    "tokens": "98 vs 91",
+    "verification_success": "True vs True"
+  },
+  "four_state": "MODEL_EXECUTION_VERIFIED (two live calls); learning loop TEST_VERIFIED",
+  "learned_job": {
+    "artifact": "data/thinkboxmd/artifacts/learn_learned_tb_exp_20260917170605_a1ae355e.json",
+    "artifact_sha256": "814b63e08cc7da1228e96d9fc4a5606cade9b9df6e60ee7da1c9def455c150f2",
+    "cost_usd": 5.325e-05,
+    "expected": 9,
+    "job_id": "tb_exp_20260917170605_a1ae355e",
+    "latency_s": 0.433,
+    "session": "tb_sess_20260917170605_9e60",
+    "tokens": 91,
+    "valid": true
+  },
+  "lesson": {
+    "confidence": 0.9,
+    "known": "directive+low-temp+token-floor works",
+    "memory_key": "learn:exact-json:directive",
+    "memory_task_provenance": "tb_exp_20260917170533_fbb1ec84",
+    "row_provenance": "lessons.source_experiment=baseline",
+    "unknown": "transfer to other keys/values; smaller token floor"
+  },
+  "model": "mercury-2",
+  "no_claims": [
+    "no model intelligence improvement",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "provider": "openai_compat",
+  "replay": {
+    "mode": "property-based (byte-identical NOT required)",
+    "properties": "True/True"
+  },
+  "restart": {
+    "experiments_found": true,
+    "hashes_match": true,
+    "ledger_verified": true,
+    "lessons_found": true,
+    "memory_found": true,
+    "provenance_intact": true
+  },
+  "retrieval_event": {
+    "key": "learn:exact-json:directive",
+    "recorded_in": [
+      "experiment events",
+      "lesson_source param",
+      "ledger metadata"
+    ],
+    "retrieved_by": "tb_exp_20260917170605_a1ae355e",
+    "source_experiment_id": "tb_exp_20260917170533_fbb1ec84",
+    "type": "lesson_retrieval"
+  },
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+  "task_family": "exact-json emission; property parsed.answer == expected",
+  "timestamp": "2026-09-17T17:07:09.246720+00:00"
+}
