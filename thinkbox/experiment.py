@@ -61,6 +61,21 @@ class ProvenanceSource(str, Enum):
     INFERRED = "inferred"
 
 
+class OutcomeClassification(str, Enum):
+    IMPROVED = "IMPROVED"
+    NO_MEASURABLE_IMPROVEMENT = "NO_MEASURABLE_IMPROVEMENT"
+    REGRESSION = "REGRESSION"
+    INCONCLUSIVE = "INCONCLUSIVE"
+    FAILED = "FAILED"
+
+
+class ExperimentOutcome(str, Enum):
+    SUCCESS = "success"
+    PARTIAL = "partial"
+    FAILURE = "failure"
+    INCOMPLETE = "incomplete"
+
+
 @dataclass
 class ParameterProvenance:
     name: str
@@ -1348,32 +1363,32 @@ class ArenaReplayEngine:
 
 class OutcomeClassifier:
     @staticmethod
-    def classify(baseline_metrics: dict[str, Any], learned_metrics: dict[str, Any]) -> str:
+    def classify(baseline_metrics: dict[str, Any], learned_metrics: dict[str, Any]) -> OutcomeClassification:
         baseline_success = baseline_metrics.get("test_pass_rate", 0.0)
         learned_success = learned_metrics.get("test_pass_rate", 0.0)
         baseline_errors = baseline_metrics.get("error_count", 0)
         learned_errors = learned_metrics.get("error_count", 0)
         if learned_success > baseline_success and learned_errors <= baseline_errors:
-            return "IMPROVED"
+            return OutcomeClassification.IMPROVED
         elif learned_success == baseline_success and learned_errors == baseline_errors:
-            return "NO_MEASURABLE_IMPROVEMENT"
+            return OutcomeClassification.NO_MEASURABLE_IMPROVEMENT
         elif learned_success < baseline_success and learned_errors > baseline_errors:
-            return "REGRESSION"
+            return OutcomeClassification.REGRESSION
         elif learned_success > baseline_success and learned_errors > baseline_errors:
-            return "INCONCLUSIVE"
+            return OutcomeClassification.INCONCLUSIVE
         elif learned_success < baseline_success and learned_errors <= baseline_errors:
-            return "INCONCLUSIVE"
+            return OutcomeClassification.INCONCLUSIVE
         else:
-            return "INCONCLUSIVE"
+            return OutcomeClassification.INCONCLUSIVE
 
     @staticmethod
-    def classify_failed(metrics: dict[str, Any]) -> str:
+    def classify_failed(metrics: dict[str, Any]) -> OutcomeClassification:
         if metrics.get("error_count", 0) > 0 and metrics.get("test_pass_rate", 0.0) == 0.0:
-            return "FAILED"
-        return "INCONCLUSIVE"
+            return OutcomeClassification.FAILED
+        return OutcomeClassification.INCONCLUSIVE
 
     @staticmethod
-    def classify_missing_evidence(metrics: dict[str, Any]) -> str:
+    def classify_missing_evidence(metrics: dict[str, Any]) -> OutcomeClassification:
         if metrics.get("proof_completeness", 0.0) == 0.0:
-            return "FAILED"
-        return "INCONCLUSIVE"
+            return OutcomeClassification.FAILED
+        return OutcomeClassification.INCONCLUSIVE

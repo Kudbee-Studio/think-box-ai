@@ -124,6 +124,8 @@ from .experiment import (
     ExperimentStatus,
     FourState,
     ProvenanceSource,
+    OutcomeClassification,
+    ExperimentOutcome,
     get_experiment_manager,
     EvidenceDrivenLearningEngine,
     ReplayEngine,
@@ -340,4 +342,6 @@ __all__ = [
     "Recommendation",
     "ReplayRecord",
     "ExperimentComparison",
+    "OutcomeClassification",
+    "ExperimentOutcome",
 ]

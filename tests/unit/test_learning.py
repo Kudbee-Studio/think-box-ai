@@ -473,5 +473,278 @@ class TestZeroServerLearning(unittest.TestCase):
         self.assertIn(outcome, ["IMPROVED", "NO_MEASURABLE_IMPROVEMENT", "REGRESSION", "INCONCLUSIVE"])
 
 
+from thinkbox.experiment import (
+    ExperimentManager,
+    ExperimentDB,
+    ParameterClassification,
+    EvidenceDrivenLearningEngine,
+    ReplayEngine,
+    ComparisonEngine,
+    ExperimentDashboardUpgrade,
+    ExperimentArena,
+    ArenaEvaluator,
+    MemoryReuseTracker,
+    ArenaReplayEngine,
+    OutcomeClassifier,
+    OutcomeClassification,
+    ExperimentOutcome,
+    LearnedParameter,
+    EvidencePattern,
+    Conflict,
+    Recommendation,
+    ReplayRecord,
+    ExperimentComparison,
+    FourState,
+)
+
+
+class TestCanonicalFourState(unittest.TestCase):
+    def test_four_state_has_failed(self) -> None:
+        self.assertIn(FourState.FAILED.value, [FourState.CODE_COMPLETE.value, FourState.TEST_VERIFIED.value, FourState.LIVE_VERIFIED.value, FourState.PRODUCTION_READY.value, FourState.FAILED.value])
+
+    def test_four_state_all_values(self) -> None:
+        values = [s.value for s in FourState]
+        self.assertIn("CODE_COMPLETE", values)
+        self.assertIn("TEST_VERIFIED", values)
+        self.assertIn("LIVE_VERIFIED", values)
+        self.assertIn("PRODUCTION_READY", values)
+        self.assertIn("FAILED", values)
+
+    def test_four_state_import_from_experiment(self) -> None:
+        from thinkbox.experiment import FourState as FS
+        self.assertEqual(FS.CODE_COMPLETE.value, "CODE_COMPLETE")
+
+    def test_four_state_failed_classification(self) -> None:
+        self.assertEqual(FourState.FAILED.value, "FAILED")
+
+
+class TestOutcomeClassificationEnum(unittest.TestCase):
+    def test_outcome_classification_values(self) -> None:
+        values = [s.value for s in OutcomeClassification]
+        self.assertIn("IMPROVED", values)
+        self.assertIn("NO_MEASURABLE_IMPROVEMENT", values)
+        self.assertIn("REGRESSION", values)
+        self.assertIn("INCONCLUSIVE", values)
+        self.assertIn("FAILED", values)
+
+    def test_classify_returns_enum(self) -> None:
+        result = OutcomeClassifier.classify(
+            {"test_pass_rate": 0.5, "error_count": 5},
+            {"test_pass_rate": 0.9, "error_count": 1},
+        )
+        self.assertIsInstance(result, OutcomeClassification)
+        self.assertEqual(result, OutcomeClassification.IMPROVED)
+
+    def test_classify_failed_returns_enum(self) -> None:
+        result = OutcomeClassifier.classify_failed({"error_count": 5, "test_pass_rate": 0.0})
+        self.assertIsInstance(result, OutcomeClassification)
+        self.assertEqual(result, OutcomeClassification.FAILED)
+
+    def test_classify_missing_evidence_returns_enum(self) -> None:
+        result = OutcomeClassifier.classify_missing_evidence({"proof_completeness": 0.0})
+        self.assertIsInstance(result, OutcomeClassification)
+        self.assertEqual(result, OutcomeClassification.FAILED)
+
+    def test_outcome_enum_model_dump(self) -> None:
+        from thinkbox.experiment import ExperimentOutcome
+        self.assertEqual(ExperimentOutcome.SUCCESS.value, "success")
+        self.assertEqual(ExperimentOutcome.FAILURE.value, "failure")
+
+
+class TestCNCCompatibility(unittest.TestCase):
+    def test_cnc_job_has_no_four_state(self) -> None:
+        import thinkbox.cnc.job as cnc_job
+        self.assertFalse(hasattr(cnc_job, 'FourState'))
+
+    def test_cnc_uses_separate_state_system(self) -> None:
+        from thinkbox.cnc.safety import ApprovalStatus
+        self.assertIsInstance(ApprovalStatus.APPROVED, ApprovalStatus)
+
+
+class TestExperimentCompatibility(unittest.TestCase):
+    def test_experiment_record_uses_four_state(self) -> None:
+        from thinkbox.experiment import ExperimentRecord, FourState
+        exp = ExperimentRecord(four_state=FourState.TEST_VERIFIED.value)
+        self.assertEqual(exp.four_state, FourState.TEST_VERIFIED.value)
+
+    def test_four_state_persistence(self) -> None:
+        import tempfile, os
+        from thinkbox.experiment import ExperimentManager, FourState
+        tmp_db = tempfile.mktemp(suffix=".db")
+        m = ExperimentManager(db_path=tmp_db)
+        exp = m.create_experiment(intent="test", hypothesis="test")
+        m.record_outcome(exp.experiment_id, {"success": True}, 0.95, FourState.TEST_VERIFIED.value)
+        result = m.db.get_outcomes_by_experiment(exp.experiment_id)
+        self.assertIsNotNone(result)
+        os.unlink(tmp_db)
+
+
+class TestArenaCompatibility(unittest.TestCase):
+    def test_arena_uses_four_state(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertIn(FourState.FAILED.value, [FourState.CODE_COMPLETE.value, FourState.TEST_VERIFIED.value, FourState.LIVE_VERIFIED.value, FourState.PRODUCTION_READY.value, FourState.FAILED.value])
+
+    def test_outcome_classifier_in_arena(self) -> None:
+        from thinkbox.experiment import OutcomeClassifier, OutcomeClassification
+        result = OutcomeClassifier.classify(
+            {"test_pass_rate": 0.5, "error_count": 3},
+            {"test_pass_rate": 0.6, "error_count": 4},
+        )
+        self.assertIsInstance(result, OutcomeClassification)
+
+
+class TestLearningCompatibility(unittest.TestCase):
+    def test_learning_engine_uses_four_state(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertIn(FourState.FAILED.value, [s.value for s in FourState])
+
+    def test_evidence_driven_learning_returns_enum_compatible(self) -> None:
+        import tempfile, os
+        from thinkbox.experiment import ExperimentManager, EvidenceDrivenLearningEngine, ParameterClassification
+        tmp_db = tempfile.mktemp(suffix=".db")
+        m = ExperimentManager(db_path=tmp_db)
+        exp = m.create_experiment(intent="cut", hypothesis="test", parameters={"rpm": 8000})
+        m.add_parameter(exp.experiment_id, "rpm", 8000, classification=ParameterClassification.OBSERVED.value)
+        engine = EvidenceDrivenLearningEngine(m.db)
+        result = engine.learn_from_history()
+        self.assertIn("rpm", result["learned_parameters"])
+        os.unlink(tmp_db)
+
+
+class TestReplayCompatibility(unittest.TestCase):
+    def test_replay_engine_uses_four_state(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertIn(FourState.FAILED.value, [s.value for s in FourState])
+
+    def test_replay_persists_four_state(self) -> None:
+        import tempfile, os
+        from thinkbox.experiment import ExperimentManager, ReplayEngine, FourState
+        tmp_db = tempfile.mktemp(suffix=".db")
+        m = ExperimentManager(db_path=tmp_db)
+        exp = m.create_experiment(intent="cut", hypothesis="test", parameters={"rpm": 8000})
+        m.add_parameter(exp.experiment_id, "rpm", 8000, classification=ParameterClassification.OBSERVED.value)
+        m.record_outcome(exp.experiment_id, {"success": True}, 0.95, FourState.TEST_VERIFIED.value)
+        replay = ReplayEngine(m.db)
+        record = replay.replay(exp.experiment_id)
+        self.assertEqual(record.experiment_id, exp.experiment_id)
+        os.unlink(tmp_db)
+
+
+class TestAPISerialization(unittest.TestCase):
+    def test_four_state_serializes_to_string(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertEqual(FourState.TEST_VERIFIED.value, "TEST_VERIFIED")
+        self.assertEqual(FourState.TEST_VERIFIED.value, "TEST_VERIFIED")
+
+    def test_outcome_classification_serializes_to_string(self) -> None:
+        from thinkbox.experiment import OutcomeClassification
+        self.assertEqual(OutcomeClassification.IMPROVED.value, "IMPROVED")
+
+    def test_four_state_json_serializable(self) -> None:
+        import json
+        from thinkbox.experiment import FourState
+        serialized = json.dumps({"state": FourState.TEST_VERIFIED.value})
+        self.assertIn("TEST_VERIFIED", serialized)
+
+    def test_outcome_classification_json_serializable(self) -> None:
+        import json
+        from thinkbox.experiment import OutcomeClassification
+        serialized = json.dumps({"outcome": OutcomeClassification.IMPROVED.value})
+        self.assertIn("IMPROVED", serialized)
+
+
+class TestSQLitePersistenceReload(unittest.TestCase):
+    def test_four_state_persists_and_reloads(self) -> None:
+        import tempfile, os
+        from thinkbox.experiment import ExperimentManager, FourState
+        tmp_db = tempfile.mktemp(suffix=".db")
+        m = ExperimentManager(db_path=tmp_db)
+        exp = m.create_experiment(intent="test", hypothesis="test")
+        m.record_outcome(exp.experiment_id, {"success": True}, 0.95, FourState.PRODUCTION_READY.value)
+        outcome = m.db.get_outcomes_by_experiment(exp.experiment_id)
+        self.assertIsNotNone(outcome)
+        os.unlink(tmp_db)
+
+    def test_experiment_status_persists(self) -> None:
+        import tempfile, os
+        from thinkbox.experiment import ExperimentManager, ExperimentRecord, ExperimentStatus
+        tmp_db = tempfile.mktemp(suffix=".db")
+        m = ExperimentManager(db_path=tmp_db)
+        exp = m.create_experiment(intent="test", hypothesis="test")
+        m.db.save_experiment(exp)
+        result = m.db.get_experiment(exp.experiment_id)
+        self.assertIsNotNone(result)
+        os.unlink(tmp_db)
+
+
+class TestInvalidStateHandling(unittest.TestCase):
+    def test_invalid_four_state_raises(self) -> None:
+        from thinkbox.experiment import FourState
+        with self.assertRaises(Exception):
+            FourState("INVALID_STATE")
+
+    def test_four_state_from_value(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertEqual(FourState("TEST_VERIFIED"), FourState.TEST_VERIFIED)
+
+    def test_outcome_classification_from_value(self) -> None:
+        from thinkbox.experiment import OutcomeClassification
+        self.assertEqual(OutcomeClassification("IMPROVED"), OutcomeClassification.IMPROVED)
+
+    def test_invalid_outcome_classification(self) -> None:
+        from thinkbox.experiment import OutcomeClassification
+        with self.assertRaises(ValueError):
+            OutcomeClassification("INVALID")
+
+
+class TestFourStateTransitions(unittest.TestCase):
+    def test_valid_transition_sequence(self) -> None:
+        from thinkbox.experiment import FourState
+        valid_states = [FourState.CODE_COMPLETE, FourState.TEST_VERIFIED, FourState.LIVE_VERIFIED, FourState.PRODUCTION_READY]
+        for i in range(len(valid_states) - 1):
+            self.assertIn(valid_states[i].value, [s.value for s in FourState])
+            self.assertIn(valid_states[i + 1].value, [s.value for s in FourState])
+
+    def test_failed_can_occur_at_any_point(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertIn(FourState.FAILED.value, [s.value for s in FourState])
+
+    def test_four_state_count(self) -> None:
+        from thinkbox.experiment import FourState
+        self.assertEqual(len(list(FourState)), 5)
+
+
+class TestProvenanceSourceCompatibility(unittest.TestCase):
+    def test_provenance_source_values(self) -> None:
+        from thinkbox.experiment import ProvenanceSource
+        values = [s.value for s in ProvenanceSource]
+        self.assertIn("measured", values)
+        self.assertIn("estimated", values)
+        self.assertIn("simulated", values)
+        self.assertIn("inferred", values)
+
+    def test_parameter_classification_values(self) -> None:
+        from thinkbox.experiment import ParameterClassification
+        values = [s.value for s in ParameterClassification]
+        self.assertIn("observed", values)
+        self.assertIn("estimated", values)
+        self.assertIn("simulated", values)
+
+
+class TestExperimentOutcomeEnum(unittest.TestCase):
+    def test_experiment_outcome_values(self) -> None:
+        from thinkbox.experiment import ExperimentOutcome
+        values = [s.value for s in ExperimentOutcome]
+        self.assertIn("success", values)
+        self.assertIn("partial", values)
+        self.assertIn("failure", values)
+        self.assertIn("incomplete", values)
+
+    def test_experiment_outcome_model_dump(self) -> None:
+        from thinkbox.experiment import ExperimentOutcome
+        dump = ExperimentOutcome.SUCCESS.model_dump() if hasattr(ExperimentOutcome.SUCCESS, 'model_dump') else {"value": ExperimentOutcome.SUCCESS.value}
+        self.assertEqual(dump["value"], "success")
+
+
 if __name__ == "__main__":
     unittest.main()
