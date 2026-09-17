@@ -561,7 +561,10 @@ The server 212.147.250.183 is either no longer provisioned, has been reassigned,
 - Status: CODE COMPLETE (investigation), TEST VERIFIED (605 tests), NOT LIVE VERIFIED
 - Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
 
-### Current Status (2026-09-17)
+### Current Status (2026-09-17) — SUPERSEDED by Live Host Verification below; kept for history
+
+The block below describes the pre-verification state (stale server/IP/credentials).
+Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (next section).
 - **UpCloud API**: All tokens return HTTP 401 authentication failed
 - **SSH to 212.147.250.183**: Connection timed out (port 22 blocked by security groups)
 - **Port 80**: Cloudflare 1003 (direct IP access blocked)
@@ -573,7 +576,18 @@ The server 212.147.250.183 is either no longer provisioned, has been reassigned,
 - **SSH key**: Recovered from git `5f6a5c7` but NOT persisted to `~/.ssh/kilo-upcloud`
 - **Case**: C — historical IP no longer the current server
 
-### How KILO Connected on September 15
+### Live UpCloud Host Verification — 2026-09-17
+
+- **Starting evidence check:** directive cited SHA 5e8a7b7 / 693 tests / prior live-proof artifact. Repo reality: HEAD `48fed0f` (= origin/main), 605 tests, no 5e8a7b7 object, no prior artifact on disk. In sync with origin/main; no stale-code risk. Recorded honestly.
+- **API (LIVE_VERIFIED, read-only):** Bearer auth on `https://api.upcloud.com/1.3` → account 200 (`kudbee`); server 200 (`kudbeev3`, `0046a589-81a2-4c0b-aacd-8e6f678c7c41`, CLOUDNATIVE-16xCPU-48GB, us-chi1, started, 16 cores, 49152MB, 209.50.56.169 + 209.50.53.93, 50GB virtio, firewall off). `/v1`→404, `/1.6`→400.
+- **SSH (BLOCKED at auth):** `~/.ssh/kilo-upcloud` file absent; historical recovered keypair consistent (ed25519 thinkbox-agent-20260831) but NOT authorized on kudbeev3 (Permission denied publickey). Port 22: .169 OPEN (OpenSSH_10.2p1 Ubuntu-2ubuntu3.6 banner), .93 TIMEOUT. No shell; machine facts unverified; nothing mutated.
+- **Reconciliation:** same-machine NOT_PROVEN (auth blocker). GPU absence inferred from CPU-only plan, unmeasured via shell.
+- **Substrate:** run substrate is Upstash Box. Smallest wiring point: `core/providers/upcloud.py` read-only execute → `UpCloudConfig` (API-sourced UUID/IP) → `thinkbox/substrate.py:bind_think_box` live-server branch (not built).
+- **Evidence:** session `tb_sess_20260917162855_705f`, experiment `tb_exp_20260917162855_5eb93b1c`, artifact `data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json` SHA256 `400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d`. Suite 605 OK (6 skipped). FourState: TEST_VERIFIED + LIVE_VERIFIED API inventory; SSH proof FAILED (blocker).
+- **Exact next action:** register an authorized key for kudbeev3 via panel/API key management (never paste a private key into chat), then retry read-only host proof.
+
+### Historical Connection Path — September 15 (superseded by live kudbeev3 above)
+
 The connection path used:
 1. SSH key at ~/.ssh/kilo-upcloud (ed25519, thinkbox-agent-20260831)
 2. UpCloud API token via UPCLOUD_API env var
@@ -588,21 +602,15 @@ The connection path used:
 - All 605 tests passing
 
 ### Required Human Action (EXACT)
-1. **Log into UpCloud panel** (https://upcloud.com)
-2. **Check if server kudbee-host-v1 at 212.147.250.183 still exists** — it may have been deleted or reassigned
-3. **If server exists**: Note the current IP, update `UPCLOUD_SERVER_IP`, ensure security groups allow port 22
-4. **If server deleted**: Provision a new server, note the new IP, update `UPCLOUD_SERVER_IP`
-5. **Obtain valid `UPCLOUD_API_MAIN`** from UpCloud panel API keys section
-6. **Restore SSH key** to `~/.ssh/kilo-upcloud` (from git `5f6a5c7` or UpCloud panel SSH keys)
-7. **Set `UPCLOUD_API_MAIN`** env var with the valid token
-8. **Verify**: `ssh -i ~/.ssh/kilo-upcloud root@$UPCLOUD_SERVER_IP`
+1. **Log into UpCloud panel** (https://upcloud.com) → server **kudbeev3** (`0046a589-81a2-4c0b-aacd-8e6f678c7c41`, NOT the historical kudbee-host-v1/212.147.250.183)
+2. **Register an authorized SSH key for kudbeev3** via panel/API key management (never paste a private key into chat)
+3. **Confirm which public IP is primary** (209.50.56.169 serves SSH banner; 209.50.53.93 timed out from cloud sandbox)
+4. **Verify**: `ssh -i <authorized-key> root@209.50.56.169` (BatchMode, read-only commands only)
 
 ### Next Steps
-1. Obtain valid UPCLOUD_API_MAIN from UpCloud panel
-2. Verify if 212.147.250.183 is still the active server or find new IP
-3. Restore SSH key to ~/.ssh/kilo-upcloud
-4. Run live smoke tests with valid credentials
-5. Install upctl CLI when network allows
+1. Authorized key registered for kudbeev3 → retry read-only host proof (hostname/OS/CPU/RAM/GPU)
+2. Wire live kudbeev3 into substrate path (read-only execute → UpCloudConfig → bind_think_box branch)
+3. GPU execution-path validation WITHOUT provisioning (kudbeev3 is CPU-only; GPU plans exist in catalog)
 
 ### PR Status (2026-09-17)
 - **All PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)

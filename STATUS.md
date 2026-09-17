@@ -60,6 +60,14 @@
 - `tests/unit/test_experiment.py` — 45 tests
 - Full suite: **605 tests, 6 skipped**
 
+### Live UpCloud Host Verification (2026-09-17)
+
+- **API (LIVE_VERIFIED, read-only):** account `kudbee` (200); server `kudbeev3` (`0046a589-81a2-4c0b-aacd-8e6f678c7c41`, CLOUDNATIVE-16xCPU-48GB, us-chi1, started, 16 cores, 49152MB, 209.50.56.169 + 209.50.53.93, 50GB virtio, firewall off) via `https://api.upcloud.com/1.3` Bearer auth (`/v1`→404, `/1.6`→400)
+- **SSH (BLOCKED at auth layer):** port 22 open on .169 (banner OpenSSH_10.2p1 Ubuntu-2ubuntu3.6), timeout on .93; historical recovered keypair consistent but NOT authorized (Permission denied publickey); configured key path file absent; no SSH adapter class in codebase; UpCloudConfig defaults stale (kudbee-host-v1/212.147.250.183)
+- **Reconciliation:** same-machine NOT_PROVEN (no shell); GPU absence inferred from CPU-only plan, unmeasured
+- **Substrate:** current run substrate is Upstash Box; smallest wiring point is `core/providers/upcloud.py` read-only execute → `UpCloudConfig` (API-sourced IP/UUID) → `substrate.bind_think_box` live-server branch (not built)
+- **Evidence:** experiment `tb_exp_20260917162855_5eb93b1c`, artifact `data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json` (SHA256 `400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d`); FourState TEST_VERIFIED with LIVE_VERIFIED API inventory, SSH proof FAILED (blocker)
+
 ### CLI Integration
 
 - `think_box_ai/cli.py` — Experiment subcommand registered

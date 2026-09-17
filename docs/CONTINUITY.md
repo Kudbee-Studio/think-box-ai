@@ -33,18 +33,33 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Persistent Experiment + Learning Dashboard — zero-server execution |
-| **Latest completed work** | Experiment system merged (commit `f1ba3f6`) — 605 tests passing |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system, 605 tests passing |
-| **Current blockers** | No `UPCLOUD_API_MAIN` credential; server 212.147.250.183 port 22 TIMEOUT (Case C) |
-| **Known risks** | UpCloud API unreachable with current credentials; server IP may be reassigned; SSH key not persisted to disk |
-| **Next larger improvement** | Obtain valid `UPCLOUD_API_MAIN` from UpCloud panel → verify server reachability → restore SSH key → run live smoke tests |
-| **PR status** | All PRs closed; main merged; experiment system committed |
+| **Active objective** | Live UpCloud host verification (kudbeev3) — SSH reachability + API/machine reconciliation |
+| **Latest completed work** | Live host verification — API LIVE_VERIFIED, SSH auth blocked (historical key not authorized) — 605 tests passing |
+| **Current verified capabilities** | UpCloud API read-only (account kudbee, server kudbeev3 enumerated), SSH network facts (primary IP banner OK, secondary timeout), keypair consistency, substrate probe, 605 tests passing |
+| **Current blockers** | SSH auth to kudbeev3: historical recovered key NOT authorized (Permission denied publickey); configured UPCLOUD_SSH_KEY_PATH file absent; no authorized key on file for kudbeev3 |
+| **Known risks** | UpCloudConfig defaults point at stale kudbee-host-v1/212.147.250.183 (Case C); no SSH adapter class in codebase; machine-level facts unverified without shell |
+| **Next larger improvement** | Fix the SSH/substrate integration blocker: register an authorized key for kudbeev3 via panel/API key management, then retry read-only host proof (hostname/OS/CPU/RAM/GPU) |
+| **PR status** | Branch kilo/fair-wind-03a at 48fed0f, in sync with origin/main; no prior 5e8a7b7 commit exists in this repo history (directive starting evidence refers to state not present here — recorded honestly); proof artifact written, commit pending founder review |
 | **Test count** | **605 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — Live UpCloud Host Verification (kudbeev3)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Live host verification: SSH discovery → read-only host proof → API/machine reconciliation → substrate review → evidence |
+| **Starting evidence check** | Directive cited SHA 5e8a7b7 / 693 tests / prior live proof artifact. Repo reality: HEAD 48fed0f, 605 tests, no 5e8a7b7 object in history, no prior artifact on disk. origin/main also 48fed0f. Recorded as divergence, not silently adopted. In-sync with origin/main; no stale-code risk. |
+| **Phase 1 SSH discovery** | UPCLOUD_SSH_KEY_PATH configured (presence only) but file absent; UPCLOUD_SSH_USER + HOSTNAME + IP configured. Recovered keypair consistent (derived pub matches file pub, ed25519 thinkbox-agent-20260831) but is the HISTORICAL key. UpCloudConfig defaults stale (kudbee-host-v1/212.147.250.183); live IPs require explicit passing. Port 22: 209.50.56.169 OPEN (banner OpenSSH_10.2p1 Ubuntu-2ubuntu3.6), 209.50.53.93 TIMEOUT. No SSH adapter class exists; only UpCloudExecutionPath.step4 subprocess ssh. |
+| **Phase 2 host proof** | SSH auth FAILED: Permission denied (publickey) — server offered only publickey, rejected historical key. No shell obtained. No packages installed, nothing mutated. Machine facts (hostname/OS/CPU/RAM/GPU/processes/repo): all UNVERIFIED. |
+| **Phase 3 reconciliation** | API says: kudbeev3 / 209.50.56.169 + 209.50.53.93 / 16 cores / 49152MB / CPU-only plan. Machine says: banner-only on .169 (Ubuntu OpenSSH), .93 unreachable, everything else UNVERIFIED. Verdict: NOT_PROVEN same-machine (auth blocker). GPU: no shell evidence; CPU-only plan implies absence but unmeasured. |
+| **Phase 4 substrate** | Current substrate is Upstash Box (detect_substrate reads UPSTASH_PUBLIC_BOX_URL; THINKBOX_UPCLOUD_API_TOKEN never consulted for live server). SubstrateProbe read-only OK. Smallest integration point: core/providers/upcloud.py execute(list_servers/get_server read-only) → UpCloudConfig(server_uuid/IP from API, key path) → substrate.bind_think_box live-server branch. Not built (directive: review only). |
+| **Evidence** | Experiment tb_exp_20260917162855_5eb93b1c (session tb_sess_20260917162855_705f), artifact data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json SHA256 400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d. API contract: Bearer on /1.3 (200); /1.6 → 400; /v1 → 404. Targeted tests 40 OK; full suite 605 OK (6 skipped). Dashboard updated (job + kudbeev3 infra + provider + milestone). |
+| **FourState** | TEST_VERIFIED (code+tests) with LIVE_VERIFIED API inventory; SSH host proof FAILED (blocker) |
+| **Status** | BLOCKED on SSH authorization — key registration required via panel/API |
 
 ### 2026-09-17 — Main Merge and PR Cleanup
 
