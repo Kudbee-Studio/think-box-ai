@@ -1,7 +1,9 @@
 """UpCloud infrastructure investigation and execution path.
 
-Traces the full path from Think Job → scheduler → ExecutionProvider →
-UpCloud capability discovery → authentication → resource selection → execution.
+UpCloud is an INFRASTRUCTURE / CONTROL-PLANE provider (read-only REST).
+It is NOT the Think Box execution substrate. The live execution substrate
+is the Upstash Box selected by thinkbox/substrate.py::detect_substrate().
+SSH-to-UpCloud execution is unsupported and not required.
 
 The UPCLOUD_API_MAIN env var is NOT available to runtime; UpCloud is marked
 UNVERIFIED. This module investigates why and provides the trace.
@@ -26,12 +28,20 @@ from thinkbox.dashboard_state import (
 
 @dataclass
 class UpCloudConfig:
+    """Control-plane config only. NOT an execution substrate.
+
+    server_hostname/server_ip have no verified defaults: pass live values
+    explicitly (e.g. from the UpCloud API server inventory). Historical
+    defaults (kudbee-host-v1 / 212.147.250.183) are superseded — see
+    data/thinkboxmd/artifacts/upcloud_runtime_state_20260917.json.
+    SSH-to-UpCloud execution is unsupported; see thinkbox/substrate.py.
+    """
     api_token: str = ""
     ssh_key_path: str = ""
     ssh_user: str = "root"
-    server_hostname: str = "kudbee-host-v1"
-    server_ip: str = "212.147.250.183"
-    api_url: str = "https://api.upcloud.com/1.6"
+    server_hostname: str = ""
+    server_ip: str = ""
+    api_url: str = "https://api.upcloud.com/1.3"
 
     def __post_init__(self) -> None:
         if not self.api_token:
@@ -41,9 +51,9 @@ class UpCloudConfig:
         if not self.ssh_user:
             self.ssh_user = os.environ.get("UPCLOUD_SSH_USER", "root")
         if not self.server_hostname:
-            self.server_hostname = os.environ.get("UPCLOUD_SERVER_HOSTNAME", "kudbee-host-v1")
+            self.server_hostname = os.environ.get("UPCLOUD_SERVER_HOSTNAME", "")
         if not self.server_ip:
-            self.server_ip = os.environ.get("UPCLOUD_SERVER_IP", "212.147.250.183")
+            self.server_ip = os.environ.get("UPCLOUD_SERVER_IP", "")
 
 
 @dataclass
@@ -147,7 +157,7 @@ class UpCloudExecutionPath:
         return self.trace[-1]
 
     async def step3_verify_gpu(self) -> UpCloudTraceResult:
-        """Step 3: Verify GPU availability on kudbee-host-v1."""
+        """Step 3: Verify GPU availability on the explicitly configured server (control-plane inventory only)."""
         self._add_trace("verify_gpu", "started")
         try:
             token = self.config.api_token
@@ -176,7 +186,12 @@ class UpCloudExecutionPath:
         return self.trace[-1]
 
     async def step4_check_ssh_access(self) -> UpCloudTraceResult:
-        """Step 4: Check SSH access to the server."""
+        """Step 4: Check SSH access to the server.
+
+        UNSUPPORTED direction: SSH-to-UpCloud is not part of the Think Box
+        execution roadmap (Upstash Box is the substrate). Kept for
+        diagnostic reporting only.
+        """
         self._add_trace("check_ssh", "started")
         ssh_key = self.config.ssh_key_path
         if not ssh_key or not os.path.exists(ssh_key.replace("~", os.path.expanduser("~"))):
@@ -257,9 +272,9 @@ async def investigate_upcloud() -> dict[str, Any]:
 
     provider = ProviderEntry(
         name="UpCloud",
-        model="kudbee-host-v1",
+        model="control-plane",
         status="unverified" if summary["any_blocked"] else "verified",
-        endpoint=f"https://{path.config.server_ip}",
+        endpoint="https://api.upcloud.com/1.3",
         verified=not summary["any_blocked"],
         details=summary,
     )

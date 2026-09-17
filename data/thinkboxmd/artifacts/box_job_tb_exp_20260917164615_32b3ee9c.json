@@ -1,0 +1,22 @@
+{
+  "box_id": "box_62f30c9d3adc",
+  "experiment_id": "tb_exp_20260917164615_32b3ee9c",
+  "host": "cloudchamber",
+  "input": [
+    5,
+    3,
+    4,
+    1,
+    2
+  ],
+  "output": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "seed": 7,
+  "session_id": "tb_sess_20260917164615_246e",
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com"
+}

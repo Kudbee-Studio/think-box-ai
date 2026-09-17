@@ -1,0 +1,79 @@
+{
+  "account_user": "kudbee",
+  "api_auth_http": 200,
+  "api_endpoint": "https://api.upcloud.com/1.3",
+  "blocker": "No authorized SSH key on kudbeev3; recovered historical key rejected (publickey). Server itself IS running.",
+  "boot_order": "disk",
+  "branch": "kilo/fair-wind-03a",
+  "checkout_sha": "beee14606025497fac302572dc09ed08e50d1005",
+  "cpu_cores": "16",
+  "current_execution_substrate": "wanted-tuna-71803-3000.preview.box.upstash.com (Upstash Box preview)",
+  "firewall": "off",
+  "four_state": "LIVE_VERIFIED (control-plane runtime state) / FAILED (host execution \u2014 SSH auth) \u2014 machine NOT reached, so no LIVE_VERIFIED claim for machine execution",
+  "gpu_note": "plan CLOUDNATIVE-16xCPU-48GB is CPU-only (cloud_native family, storage_size 0); GPU plans exist in catalog (L4/L40S/H100/B200/RTXPRO6000) but not assigned to this server",
+  "gpu_on_server": false,
+  "host_id": "8388362883",
+  "ip_assignments": [
+    {
+      "address": "209.50.56.169",
+      "family": "IPv4",
+      "type": "public"
+    },
+    {
+      "address": "209.50.53.93",
+      "family": "IPv4",
+      "type": "public"
+    },
+    {
+      "address": "10.3.14.89",
+      "family": "IPv4",
+      "type": "utility"
+    }
+  ],
+  "mem_mb": "49152",
+  "mutation_performed": false,
+  "plan": "CLOUDNATIVE-16xCPU-48GB",
+  "plan_count_catalog": 182,
+  "separate_statuses": {
+    "api_reachable": true,
+    "port_22_reachable_primary": true,
+    "port_22_reachable_secondary": false,
+    "server_running": true,
+    "ssh_authentication_successful": false,
+    "ssh_key_available": false
+  },
+  "server_exists": true,
+  "server_hostname": "kudbeev3",
+  "server_power_state": "STARTED (API state=started; UpCloud API has no separate power-state field)",
+  "server_state": "started",
+  "server_uuid": "0046a589-81a2-4c0b-aacd-8e6f678c7c41",
+  "ssh_auth_result": "DENIED (Permission denied publickey; single BatchMode attempt)",
+  "ssh_key_available": {
+    "authorized_on_server": false,
+    "configured_path_file_exists": false,
+    "recovered_keypair_consistent": true
+  },
+  "storage": [
+    {
+      "address": "virtio:0",
+      "size_gb": 50,
+      "title": "ubuntu-16cpu-48gb-us-chi1",
+      "type": "disk"
+    }
+  ],
+  "tcp_port_22_primary": {
+    "connect_ex": 0,
+    "ip": "209.50.56.169",
+    "result": "OPEN"
+  },
+  "tcp_port_22_secondary": {
+    "connect_ex": 11,
+    "ip": "209.50.53.93",
+    "result": "TIMEOUT"
+  },
+  "timestamp": "2026-09-17T16:39:38.009969+00:00",
+  "upcloud_control_plane": "REACHABLE (read-only GETs verified, HTTP 200)",
+  "upcloud_gpu_execution_path": "NOT PRESENT \u2014 server is CPU-only; GPU plans exist but none assigned; no GPU execution code path",
+  "upcloud_server_execution_path": "NOT WIRED \u2014 provider execute() is REST control-plane only; UpCloudConfig defaults stale (212.147.250.183); no SSH adapter; substrate.bind_think_box has no live-server branch",
+  "zone": "us-chi1"
+}

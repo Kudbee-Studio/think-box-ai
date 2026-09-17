@@ -454,10 +454,17 @@ class TestUpCloudInvestigation(unittest.TestCase):
     """Tests for UpCloud execution path investigation."""
 
     def test_upcloud_config_defaults(self) -> None:
-        config = UpCloudConfig()
-        self.assertEqual(config.server_hostname, "kudbee-host-v1")
-        self.assertEqual(config.server_ip, "212.147.250.183")
-        self.assertEqual(config.ssh_user, "root")
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"UPCLOUD_SERVER_HOSTNAME": "", "UPCLOUD_SERVER_IP": ""}, clear=False):
+            config = UpCloudConfig(server_hostname="", server_ip="")
+            self.assertEqual(config.ssh_user, "root")
+            self.assertEqual(config.api_url, "https://api.upcloud.com/1.3")
+
+    def test_upcloud_config_explicit_server(self) -> None:
+        config = UpCloudConfig(server_hostname="kudbeev3", server_ip="209.50.56.169")
+        self.assertEqual(config.server_hostname, "kudbeev3")
+        self.assertEqual(config.server_ip, "209.50.56.169")
 
     def test_upcloud_config_from_env(self) -> None:
         config = UpCloudConfig()

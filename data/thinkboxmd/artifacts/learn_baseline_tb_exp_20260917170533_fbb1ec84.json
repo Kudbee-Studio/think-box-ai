@@ -1,0 +1,35 @@
+{
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "box_id": "box_91dfbe3f77d0",
+  "cost_usd": 5.85e-05,
+  "experiment_id": "tb_exp_20260917170533_fbb1ec84",
+  "host": "cloudchamber",
+  "latency_s": 0.39,
+  "model": "mercury-2",
+  "parsed": {
+    "answer": 7
+  },
+  "property": {
+    "expected": 7,
+    "key": "answer",
+    "valid": true
+  },
+  "provider": "openai_compat",
+  "response_chars": 13,
+  "response_sha256": "15c326b7d99584351a5f4ba331a55737fb8bbbf8738da87d25c069faba3c6d3b",
+  "session_id": "tb_sess_20260917170533_4d11",
+  "strategy": "no-lesson",
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+  "system_prompt": "Reply with ONLY this exact JSON object and nothing else: {\"answer\": 7}",
+  "usage": {
+    "completion_tokens": 68,
+    "completion_tokens_details": {
+      "reasoning_tokens": 59
+    },
+    "prompt_tokens": 30,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 98
+  }
+}

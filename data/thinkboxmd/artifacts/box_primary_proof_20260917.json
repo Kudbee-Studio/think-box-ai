@@ -1,0 +1,66 @@
+{
+  "box_job": {
+    "agent_session": "tb_sess_20260917164615_246e",
+    "artifact": "data/thinkboxmd/artifacts/box_job_tb_exp_20260917164615_32b3ee9c.json",
+    "artifact_sha256": "8bac2b520ec703163ca7480b52b040eb16612e8078f32889f930816a57662550",
+    "box_id": "box_62f30c9d3adc",
+    "job_id": "tb_exp_20260917164615_32b3ee9c",
+    "ledger_verified": true,
+    "outcome_four_state": "TEST_VERIFIED",
+    "session_id": "tb_sess_20260917164614_26d2aca3",
+    "task": "sorted([5,3,4,1,2]) -> [1,2,3,4,5]",
+    "validation": "deterministic asserts PASS (sort + artifact content)",
+    "vector_persisted": true
+  },
+  "box_reachability": {
+    "box_ssh": "Permission denied (password) \u2014 no key-based Box shell from here",
+    "execution_claim": "Job executed IN the Box compute (this process IS the Box runtime: Firecracker kernel, Box host env). No remote-exec API exists (no CLI/SDK, no exec endpoint). Claim is in-Box execution, NOT remote dispatch.",
+    "public_url_get": "HTTP 404 preview not found (all paths; no live preview service)"
+  },
+  "branch": "kilo/fair-wind-03a",
+  "checkout_sha": "76b576a0046401d0e833211a55aad4c6552d4a7d",
+  "classification": {
+    "ssh_to_upcloud": "unsupported / not required (no adapter; removed from roadmap)",
+    "upcloud": "infrastructure/control-plane ONLY (read-only REST; kudbeev3 running; no execution claim)",
+    "upstash_box": "current execution substrate (env-selected; job executed in-Box)"
+  },
+  "code_changes": [
+    "thinkbox/upcloud.py: control-plane-only docstring + no stale host defaults + api_url 1.6->1.3 + provider model/endpoint labels",
+    "tests/unit/test_cnc.py: defaults/explicit-server tests"
+  ],
+  "four_state": "TEST_VERIFIED (Box job + restart + replay proven in live Box runtime); LIVE_VERIFIED for substrate selection + Vector snapshot write; model execution NOT verified",
+  "model_readiness": {
+    "inception_key_present": true,
+    "openai_compat_provider": "implemented (chat/completions via urllib; embedding=False)",
+    "openai_compat_wiring_present": false,
+    "verdict": "BOX EXECUTION VERIFIED; MODEL EXECUTION NOT YET VERIFIED (no paid call made; wiring THINKBOX_OPENAI_COMPAT_* -> Inception base URL + model not configured)"
+  },
+  "no_claims": [
+    "no UpCloud machine execution",
+    "no GPU execution",
+    "no SSH",
+    "no model call"
+  ],
+  "restart_recovery": {
+    "box_found": true,
+    "experiment_found": true,
+    "hash_match": true,
+    "ledger_verified": true,
+    "memory_found": true,
+    "note": "experiment status stays pending (record_outcome does not transition status; pre-existing behavior, not changed here)",
+    "replay_identical": true,
+    "session_found": true,
+    "substrate_stable": true
+  },
+  "substrate_contract": {
+    "live_selection": "wanted-tuna-71803-3000.preview.box.upstash.com",
+    "precedence": [
+      "UPSTASH_PUBLIC_BOX_URL (Box host)",
+      "THINKBOX_UPCLOUD_API_TOKEN (legacy label)",
+      "CI",
+      "local"
+    ],
+    "proof": "Box URL wins over UpCloud token + CI (4-case matrix verified in-process)"
+  },
+  "timestamp": "2026-09-17T16:48:54.798575+00:00"
+}

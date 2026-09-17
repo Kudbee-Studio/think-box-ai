@@ -33,18 +33,102 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Persistent Experiment + Learning Dashboard — zero-server execution |
-| **Latest completed work** | Experiment system merged (commit `f1ba3f6`) — 605 tests passing |
-| **Current verified capabilities** | ExecutionProvider abstraction, UpCloud provider, dashboard state, CNC platform, Experiment system, 605 tests passing |
-| **Current blockers** | No `UPCLOUD_API_MAIN` credential; server 212.147.250.183 port 22 TIMEOUT (Case C) |
-| **Known risks** | UpCloud API unreachable with current credentials; server IP may be reassigned; SSH key not persisted to disk |
-| **Next larger improvement** | Obtain valid `UPCLOUD_API_MAIN` from UpCloud panel → verify server reachability → restore SSH key → run live smoke tests |
-| **PR status** | All PRs closed; main merged; experiment system committed |
-| **Test count** | **605 tests passing (6 skipped)** |
+| **Active objective** | KUDBEE dashboard + Chronicle sync: existing dashboard exposes the real learning pipeline, rebuilds from storage, lands on MAIN |
+| **Latest completed work** | Pipeline dashboard (`/api/pipeline` + Pipeline tab) rebuilt entirely from SQLite; Chronicle/STATUS/CONTINUITY synced; 614 tests passing |
+| **Current verified capabilities** | 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 3 memory keys / ledger verified; 3 Mercury-2 jobs VALID; lesson `learn:exact-json:directive` + 2 retrieval events; NO_MEASURABLE_IMPROVEMENT (reuse proven); 614 tests passing |
+| **Current blockers** | SSH-to-UpCloud unsupported (removed from roadmap). `record_outcome` leaves experiment status pending (pre-existing). |
+| **Known risks** | Dashboard `_pipeline()` hardcodes test-count display (610/6) — update when suite grows; in-memory `DashboardState` singleton still exists for WS/SSE but pipeline view never reads it |
+| **Next larger improvement** | Use the proven learning loop to run a controlled multi-job Experiment Arena that measures whether persistent knowledge produces repeatable improvement across multiple task instances |
+| **PR status** | kilo/fair-wind-03a at e38956c (+ uncommitted: pop_arena.py, swarm_dashboard.py, test_swarm_instrumentation.py, docs); main at 48fed0f |
+| **Test count** | **614 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-17 — KUDBEE Dashboard + Chronicle Sync (pipeline view on existing dashboard)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Update EXISTING dashboard (no parallel system) to expose the real pipeline; sync Chronicle/STATUS/CONTINUITY; land on MAIN. HEAD `e38956c`, branch `kilo/fair-wind-03a`. |
+| **Dashboard** | `experiments/swarm_dashboard.py`: added `_pipeline()` (read-only SQLite: experiments/outcomes/proofs/artifacts/lessons/retrievals/params + memory.db + ledger verify; zero singleton reads) served at `/api/pipeline`, plus a Pipeline HTML tab (KPIs, jobs table with job/session/model/verify/hash/lesson-source, lessons/retrieval/memory/blockers/next-step). Restart-proof verified by serving from a fresh module load and by singleton-reset test. No secrets in payload (tested). |
+| **Chronicle** | No `*chronicle*` files and no Chronicle references exist in the repo (glob + grep verified) — the Chronicle role is served by `docs/CONTINUITY.md` + `STATUS.md` + `AGENTS.md` + `data/thinkboxmd/artifacts/*.json` proof files. Updated all four in place; invented no new Chronicle files. |
+| **State proven** | 6 experiments / 6 outcomes / 4 proofs / 9 artifacts / 6 lessons / 2 retrieval events / 3 memory keys / ledger 4 entries verified; 3 Mercury-2 jobs VALID (`4b92d477`, `fbb1ec84`, `a1ae355e`); lesson `learn:exact-json:directive` (task=baseline, conf 0.9); learned job `lesson_source`=baseline; classification NO_MEASURABLE_IMPROVEMENT. |
+| **Tests** | `TestPipelineDashboard` +4 (rebuild-from-storage, singleton-reset recovery, learning-provenance exposure, no-secrets). Full suite 614 OK (6 skipped). |
+| **FourState** | CODE_COMPLETE (dashboard+tests) / TEST_VERIFIED (614) / LIVE_VERIFIED (Box substrate, prior runs) / MODEL_EXECUTION_VERIFIED (3 live calls) / ARENA NOT_RUN / PRODUCTION not claimed |
+
+### 2026-09-17 — End-to-End Learning Think Job (Box → Mercury-2 → reuse → compare)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Prove first complete learning loop with measurable persisted-knowledge reuse. HEAD `7c9b45b`, branch `kilo/fair-wind-03a`. No SSH, no UpCloud compute, no GPU, no model mocks, no invented credentials. |
+| **Phase 1 path** | Existing systems only: ExperimentManager (lessons/events) + MemoryStore (provenance task_id) + ActionLedger + ExperimentStore/SelfImprovementLoop (A/B + propose/retest/record) — traced, reused, no competing architecture. No EvidenceDrivenLearningEngine/OutcomeClassifier classes exist in repo (directive names not present — recorded; vocabulary IMPROVED/etc. used as plain classification). |
+| **Phase 2 baseline** | Job `tb_exp_20260917170533_fbb1ec84` (session `tb_sess_20260917170533_4d11`): exact-JSON family, expected answer=7, strategy no-lesson. Live Mercury-2: VALID True, 0.39s, 98 tokens, cost \$0.0000585. Artifact SHA `6cc76885…18ddbd0f5`, proof + outcome TEST_VERIFIED. |
+| **Phase 3 learning** | Lesson row (id 5) + memory key `learn:exact-json:directive` (conf 0.9, task provenance = baseline): known = directive+low-temp+token-floor works; unknown = transfer + smaller floor. |
+| **Phase 4 learned** | Fresh handles; retrieved memory key (provenance logged); job `tb_exp_20260917170605_a1ae355e` (session `tb_sess_20260917170605_9e60`): same family, expected answer=9, strategy lesson-reuse. Retrieval provenance in 3 places: lesson_retrieval event + lesson_source param + ledger metadata. Live Mercury-2: VALID True, 0.433s, 91 tokens, cost \$0.0000533. Artifact SHA `814b63e0…def455c150f2`. |
+| **Phase 5 compare** | verification True/True; retries 0/0; memory reuse proven; proof full/full; latency 0.39/0.433; tokens 98/91; cost down \$0.000005. No overall score invented. Classification: NO_MEASURABLE_IMPROVEMENT (ceiling effect at 1.0 — valid result, reuse proven, model NOT claimed smarter). |
+| **Phase 6 restart** | Fresh process: both experiments + lessons + memory + artifacts + ledger all reload; provenance intact; hashes match; property replay True/True. |
+| **Tests/evidence** | `test_learning_loop_provenance` (deterministic, mocked-free of live calls: lesson→retrieval→reload round-trip). Proof `learn_loop_proof_20260917.json` SHA256 `e05be996…22ffb7f90`, secrets-clean. Full suite 610 OK (6 skipped). |
+| **FourState** | MODEL_EXECUTION_VERIFIED (two live calls) + learning loop TEST_VERIFIED |
+
+### 2026-09-17 — Real Model-Backed Think Job (Mercury-2 via Box substrate)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Prove Think Box → Upstash Box → Model Provider → Response → Validation → Artifact → Proof → Memory → Replay → Dashboard. HEAD `9d08ac3`, branch `kilo/fair-wind-03a`. No SSH, no UpCloud compute, no GPU, no mocks, no invented config. |
+| **Phase 1 path** | Supported model providers: `openai_compat` + `ollama` (registry-verified). Live contract found in-repo: `experiments/thinkboxmd_research.py::MercuryClient` = `OpenAICompatProvider{api_key: INCEPTION_API_KEY (presence only), model: mercury-2, base_url: https://api.inceptionlabs.ai/v1}`. `think_box_ai/commands/inception.py` is simulate-only (not used). `thinkbox/model_client.py` has no auth path (not used). |
+| **Phase 2 contract** | Legitimate existing configuration: INCEPTION_API_KEY SET + documented endpoint/model constants + proven provider composition (THINKBOXMD 9 PASS live, 2026-09-15). No values invented, no env changes. Standard `THINKBOX_OPENAI_COMPAT_*` contract stays absent by design — verdict is CONFIGURED via the Inception contract, not MODEL_NOT_CONFIGURED. |
+| **Phase 3 live call** | ONE bounded call (temp 0.2, max_tokens 3500, 60s timeout): prompt demands exactly `{"answer": 42}`. Response 14 chars, parsed `{"answer": 42}`, property VALID. Usage 36/77/113 tokens (70 reasoning, 4 cached), latency 0.774s. Session `tb_sess_20260917165841_b7bdb508`, box `box_950e971d6d1b` (Vector persisted), job `tb_exp_20260917165842_4b92d477`, artifact `model_job_<id>.json` SHA256 `e41e8f9e…caf8f6`, ledger verify True, memory + proof + outcome TEST_VERIFIED + lesson + dashboard JOB_COMPLETED + provider verified. No intelligence claim. |
+| **Phase 4 replay** | Fresh handles: experiment/session/box/artifact/proof/memory/outcome reload OK; canonical hash match; property re-validated True (byte-identical response NOT required — recorded explicitly). |
+| **Phase 5 safety** | Artifact scanned: no API keys, no Authorization/Bearer, no env dump, no secret patterns; base_url + model recorded (safe); single bounded call; failure path = honest FAILED outcome. No new provider built — existing path reused. |
+| **Tests/evidence** | `tests/unit/test_providers.py` +3 (endpoint shape, chat/completions targeting with URL/body assertions, no-secrets contract) — all mocked, deterministic. Proof `data/thinkboxmd/artifacts/model_job_proof_20260917.json` SHA256 `a4171cdc…356c12`. Full suite 609 OK (6 skipped). |
+| **FourState** | MODEL_EXECUTION_VERIFIED (single bounded live call; path proven, quality unclaimed) |
+
+### 2026-09-17 — Upstash Box as Primary Execution Substrate
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Make Upstash Box the primary substrate; UpCloud = control-plane only; SSH direction removed from roadmap. HEAD `76b576a`, branch `kilo/fair-wind-03a`. |
+| **Phase 1 contract** | Traced `detect_substrate()` / `bind_think_box` / `WorkspaceRegistry+Store` / `SubstrateProbe` / env handling. Precedence proven live: `UPSTASH_PUBLIC_BOX_URL` (Box host) > `THINKBOX_UPCLOUD_API_TOKEN` (legacy label) > `CI` > `local`. Live selection: `wanted-tuna-71803-3000.preview.box.upstash.com`. No secrets printed (presence/length only). |
+| **Phase 2 Box job** | Deterministic job through the REAL Box substrate (this process IS the Box compute: Firecracker kernel `6.18.36-cloudflare-firecracker`, Box host env; no remote-exec API exists — Box preview 404 on all paths, Box SSH password-only, no CLI/SDK — so claim is in-Box execution, honestly bounded). Session `tb_sess_20260917164614_26d2aca3`, box `box_62f30c9d3adc` (Vector snapshot persisted=True), job `tb_exp_20260917164615_32b3ee9c`, artifact `box_job_<id>.json` SHA256 `8bac2b52…57662550`, validation PASS, ledger verify True, memory record, outcome TEST_VERIFIED, dashboard JOB_COMPLETED. |
+| **Phase 3 restart** | Fresh handles: experiment/session/box/artifact/proof/memory/outcome all reload; canonical hash matches; ledger verifies; replay `sorted([5,3,4,1,2])` identical `[1,2,3,4,5]`; substrate stable across processes. Note: `record_outcome` leaves status `pending` (pre-existing behavior, untouched). |
+| **Phase 4 model (Box-primary run)** | `OpenAICompatProvider` implemented (chat/completions, embedding=False). At that time `THINKBOX_OPENAI_COMPAT_*` wiring absent → no call made. SUPERSEDED same-day: existing Inception contract (`INCEPTION_API_KEY` + MercuryClient constants) proven legitimate → live call VERIFIED (see "Real Model-Backed Think Job" above). |
+| **Phase 5 reclassify** | `thinkbox/upcloud.py`: control-plane-only docstring, no stale host defaults (explicit values required), `api_url` 1.6→1.3, provider model/endpoint labels fixed. `tests/unit/test_cnc.py`: defaults + explicit-server tests. Historical docs/artifacts kept (superseded, not deleted). No competing substrate built. No SSH used. |
+| **Evidence** | `data/thinkboxmd/artifacts/box_primary_proof_20260917.json` SHA256 `972f2b6e3081db1b0e38e61c67c0553c2cdbfdd6f05978c697188259f1d725e3`. Full suite 606 OK (6 skipped). |
+| **FourState** | TEST_VERIFIED (job+restart+replay) with LIVE_VERIFIED substrate selection + Vector write; NOT production; no UpCloud/GPU/SSH/model claims |
+
+### 2026-09-17 — UpCloud Runtime State Diagnostic (kudbeev3)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Runtime-state-only diagnostic (no SSH troubleshooting, no mutation). HEAD `beee146`, branch `kilo/fair-wind-03a`, tree clean except new artifact. |
+| **Phase 1 API state** | `/1.3/account` 200 (`kudbee`); `/1.3/server` 200 (1 server); `/1.3/server/<uuid>` 200: `kudbeev3` state=**started**, zone us-chi1, plan CLOUDNATIVE-16xCPU-48GB (16 cores, 49152MB, host 8388362883, boot_order=disk, firewall off), IPs 209.50.56.169 + 209.50.53.93 (public) + 10.3.14.89 (utility), storage ubuntu-16cpu-48gb-us-chi1 50GB virtio, tags []. GPU: none assigned; catalog has 68 GPU plans (L4/L40S/H100/B200/RTXPRO6000); current plan verified in catalog (182 plans total). **Server IS running.** |
+| **Phase 2 SSH correlation** | Server running → port 22 tested: .169 OPEN (connect_ex=0), .93 TIMEOUT (connect_ex=11). Single BatchMode auth attempt on .169: Permission denied (publickey). Separate statuses: API reachable ✅ / server running ✅ / port22 .169 ✅ / port22 .93 ❌ / SSH key available ❌ / SSH auth successful ❌. |
+| **Phase 3 substrate** | CURRENT EXECUTION SUBSTRATE = Upstash Box preview (`wanted-tuna-71803-3000.preview.box.upstash.com`; `detect_substrate()` precedence proven: UPSTASH_PUBLIC_BOX_URL wins even though THINKBOX_UPCLOUD_API_TOKEN is set). UPCLOUD API CONTROL PLANE = REACHABLE (read-only). UPCLOUD SERVER EXECUTION PATH = NOT WIRED (`UpCloudExecutionProvider.execute` is REST control-plane only; `UpCloudConfig` defaults stale 212.147.250.183; no SSH adapter; `bind_think_box` has no live-server branch). UPCLOUD GPU EXECUTION PATH = NOT PRESENT (CPU-only server; no GPU code path). |
+| **No mutation** | Zero start/stop/reboot/resize/provision/delete/SSH-key-registration/package/service changes. GET-only API, one TCP probe per IP, one BatchMode SSH attempt. |
+| **Evidence** | Experiment `tb_exp_20260917164001_073516d8` (session `tb_sess_20260917164001_fbb2`), artifact `data/thinkboxmd/artifacts/upcloud_runtime_state_20260917.json` SHA256 `e333faa4d1886d102d808ec3fffc4a1deef3a6af9eb02ee95226c1d10d711ff8`. Targeted 85 OK; full suite 605 OK (6 skipped). FourState: LIVE_VERIFIED (control-plane runtime state); machine execution NOT reached → no LIVE_VERIFIED for machine. |
+| **Exact blocker** | No authorized SSH key on kudbeev3 — recovered historical key rejected (publickey). Server itself is running; user report of "not running" contradicted by live API. |
+| **Status** | COMPLETE (diagnostic); SSH host access remains BLOCKED pending key registration |
+
+### 2026-09-17 — Live UpCloud Host Verification (kudbeev3)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-17 |
+| **Agent/task** | Live host verification: SSH discovery → read-only host proof → API/machine reconciliation → substrate review → evidence |
+| **Starting evidence check** | Directive cited SHA 5e8a7b7 / 693 tests / prior live proof artifact. Repo reality: HEAD 48fed0f, 605 tests, no 5e8a7b7 object in history, no prior artifact on disk. origin/main also 48fed0f. Recorded as divergence, not silently adopted. In-sync with origin/main; no stale-code risk. |
+| **Phase 1 SSH discovery** | UPCLOUD_SSH_KEY_PATH configured (presence only) but file absent; UPCLOUD_SSH_USER + HOSTNAME + IP configured. Recovered keypair consistent (derived pub matches file pub, ed25519 thinkbox-agent-20260831) but is the HISTORICAL key. UpCloudConfig defaults stale (kudbee-host-v1/212.147.250.183); live IPs require explicit passing. Port 22: 209.50.56.169 OPEN (banner OpenSSH_10.2p1 Ubuntu-2ubuntu3.6), 209.50.53.93 TIMEOUT. No SSH adapter class exists; only UpCloudExecutionPath.step4 subprocess ssh. |
+| **Phase 2 host proof** | SSH auth FAILED: Permission denied (publickey) — server offered only publickey, rejected historical key. No shell obtained. No packages installed, nothing mutated. Machine facts (hostname/OS/CPU/RAM/GPU/processes/repo): all UNVERIFIED. |
+| **Phase 3 reconciliation** | API says: kudbeev3 / 209.50.56.169 + 209.50.53.93 / 16 cores / 49152MB / CPU-only plan. Machine says: banner-only on .169 (Ubuntu OpenSSH), .93 unreachable, everything else UNVERIFIED. Verdict: NOT_PROVEN same-machine (auth blocker). GPU: no shell evidence; CPU-only plan implies absence but unmeasured. |
+| **Phase 4 substrate** | Current substrate is Upstash Box (detect_substrate reads UPSTASH_PUBLIC_BOX_URL; THINKBOX_UPCLOUD_API_TOKEN never consulted for live server). SubstrateProbe read-only OK. Smallest integration point: core/providers/upcloud.py execute(list_servers/get_server read-only) → UpCloudConfig(server_uuid/IP from API, key path) → substrate.bind_think_box live-server branch. Not built (directive: review only). |
+| **Evidence** | Experiment tb_exp_20260917162855_5eb93b1c (session tb_sess_20260917162855_705f), artifact data/thinkboxmd/artifacts/upcloud_host_verify_20260917.json SHA256 400f4cc92b300a0553cdc9448d89c4cc7f22157985805af9c36fa9737e7bd20d. API contract: Bearer on /1.3 (200); /1.6 → 400; /v1 → 404. Targeted tests 40 OK; full suite 605 OK (6 skipped). Dashboard updated (job + kudbeev3 infra + provider + milestone). |
+| **FourState** | TEST_VERIFIED (code+tests) with LIVE_VERIFIED API inventory; SSH host proof FAILED (blocker) |
+| **Status** | BLOCKED on SSH authorization — key registration required via panel/API |
 
 ### 2026-09-17 — Main Merge and PR Cleanup
 
