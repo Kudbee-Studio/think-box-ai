@@ -558,7 +558,7 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 The server 212.147.250.183 is either no longer provisioned, has been reassigned, or has security group rules that block port 22 entirely. The historical IP is confirmed from git history but is not reachable.
 
 #### Phase 6 — Permanence
-- Status: CODE COMPLETE (investigation), TEST VERIFIED (560 tests), NOT LIVE VERIFIED
+- Status: CODE COMPLETE (investigation), TEST VERIFIED (605 tests), NOT LIVE VERIFIED
 - Only mark LIVE VERIFIED when actual infrastructure has been reached and verified
 
 ### Current Status (2026-09-17)
@@ -585,7 +585,7 @@ The connection path used:
 - UpCloud provider files restored from git history (commit 32d82ef)
 - CONTINUITY.md restored from git history (commit 59f7eee)
 - Dashboard state updated with actual infrastructure findings
-- All 560 tests passing
+- All 605 tests passing
 
 ### Required Human Action (EXACT)
 1. **Log into UpCloud panel** (https://upcloud.com)
