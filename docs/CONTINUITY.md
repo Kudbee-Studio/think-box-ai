@@ -19,8 +19,8 @@ Before declaring completion, every agent MUST verify:
 - [x] Tests executed and passing (449 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
-- [x] Git state clean (working tree clean, 11 commits on kilo/leafy-dragon-4ck)
-- [x] PR/commit referenced (PR #68 CLOSED without merge, commits 32d82ef → c35ea5b)
+- [x] Git state clean (working tree clean, 12 commits on kilo/leafy-dragon-4ck)
+- [x] PR/commit referenced (PR #68 CLOSED without merge, commits 32d82ef → 8ea6552)
 - [x] No stale open loop created
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
@@ -32,7 +32,7 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Close continuity loop — integrate credential precedence into main |
-| **Latest completed work** | UpCloud ExecutionProvider + credential precedence + continuity audit (commits `32d82ef` → `c35ea5b`) on `kilo/leafy-dragon-4ck` |
+| **Latest completed work** | UpCloud ExecutionProvider + credential precedence + continuity audit (commits `32d82ef` → `8ea6552`) on `kilo/leafy-dragon-4ck` |
 | **Current verified capabilities** | ExecutionProvider abstraction (CODE COMPLETE ✅), UpCloud provider with credential precedence (CODE COMPLETE ✅), 33 unit tests (TEST VERIFIED ✅), credential precedence logic (TEST VERIFIED ✅), permanent agent protocol (CODE COMPLETE ✅ / TEST VERIFIED ✅) |
 | **Current blockers** | No `UPCLOUD_API_MAIN` credential in environment; all API probes return 401; PR #68 CLOSED without merge — credential precedence exists only on `kilo/leafy-dragon-4ck`; main has older UpCloud provider without credential precedence |
 | **Known risks** | UpCloud API unreachable with current credentials; PR #68 closed unmerged; main's UpCloud provider lacks credential precedence; server STOPPED; SSH keys absent |
