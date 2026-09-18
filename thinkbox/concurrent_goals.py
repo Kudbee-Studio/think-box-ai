@@ -51,6 +51,7 @@ from typing import Any, Callable
 from thinkbox.engine import ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
+from collections import deque
 
 
 @dataclass
