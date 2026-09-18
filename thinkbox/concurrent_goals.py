@@ -421,6 +421,18 @@ class StressTestConfig:
     max_duration_seconds: float = 60.0
     target_qps: float | None = None  # None = unlimited
 
+    def __post_init__(self) -> None:
+        if self.num_goals <= 0:
+            raise ValueError("num_goals must be positive")
+        if self.max_calls_global < 0:
+            raise ValueError("max_calls_global must be non-negative")
+        if self.max_retries_global is not None and self.max_retries_global < 0:
+            raise ValueError("max_retries_global must be non-negative")
+        if self.max_duration_seconds <= 0:
+            raise ValueError("max_duration_seconds must be positive")
+        if self.target_qps is not None and self.target_qps <= 0:
+            raise ValueError("target_qps must be positive if set")
+
 
 @dataclass
 class StressTestResult:
