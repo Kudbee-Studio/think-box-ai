@@ -615,6 +615,9 @@ class StressTestRunner:
         from thinkbox.concurrent_goals import persist_stress_test
         return persist_stress_test(manager, result)
 
+    def __str__(self) -> str:
+        return f"StressTestRunner(goals={self._total_goals}, completed={self._completed_goals})"
+
 
 # =============================================================================
 # Dynamic Budget Reallocation
