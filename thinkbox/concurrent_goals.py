@@ -1591,3 +1591,227 @@ class StressReportEnhancer:
 
     def get_reports(self) -> list[dict[str, Any]]:
         return self._reports
+
+
+class AdaptiveRetryBackoff:
+    """Feature 33: Adaptive exponential backoff with jitter for retries.
+
+    Instead of fixed-interval retries, uses exponential backoff
+    with configurable jitter to reduce contention pressure on
+    retry storms. Deterministic: jitter is derived from input
+    hash, not random.
+    """
+
+    def __init__(
+        self,
+        base_delay_s: float = 1.0,
+        max_delay_s: float = 60.0,
+        multiplier: float = 2.0,
+        jitter_enabled: bool = True,
+    ) -> None:
+        self.base_delay_s = base_delay_s
+        self.max_delay_s = max_delay_s
+        self.multiplier = multiplier
+        self.jitter_enabled = jitter_enabled
+        self._history: list[dict[str, Any]] = []
+
+    def compute_delay(self, attempt: int, seed: str = "") -> dict[str, Any]:
+        if attempt <= 0:
+            return {"delay_s": 0.0, "attempt": 0, "exponential": 0.0}
+        exponential = self.base_delay_s * (self.multiplier ** (attempt - 1))
+        capped = min(exponential, self.max_delay_s)
+        jitter = 0.0
+        if self.jitter_enabled and seed:
+            h = hashlib.sha256(seed.encode()).hexdigest()
+            jitter = (int(h[:8], 16) % 1000) / 1000.0 * capped * 0.5
+        delay = capped - jitter if self.jitter_enabled else capped
+        self._history.append({
+            "attempt": attempt,
+            "exponential": round(exponential, 4),
+            "capped": round(capped, 4),
+            "jitter": round(jitter, 4),
+            "delay": round(delay, 4),
+        })
+        return {
+            "delay_s": round(delay, 4),
+            "attempt": attempt,
+            "exponential": round(exponential, 4),
+            "capped": round(capped, 4),
+            "jitter": round(jitter, 4),
+        }
+
+    def get_schedule(self, max_attempts: int = 5, seed: str = "") -> list[dict[str, Any]]:
+        return [self.compute_delay(i, seed=f"{seed}_{i}") for i in range(1, max_attempts + 1)]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "base_delay_s": self.base_delay_s,
+            "max_delay_s": self.max_delay_s,
+            "multiplier": self.multiplier,
+            "jitter_enabled": self.jitter_enabled,
+            "history": self._history[-10:],
+        }
+
+
+class GoalResourceProfiler:
+    """Feature 34: Goal resource consumption profiling.
+
+    Profiles resource consumption estimates (CPU weight, memory
+    estimate, I/O intensity) per goal for capacity-aware
+    scheduling decisions.
+    """
+
+    def __init__(self) -> None:
+        self._profiles: dict[str, dict[str, Any]] = {}
+
+    def profile_goal(
+        self,
+        goal_id: str,
+        cpu_weight: float = 1.0,
+        memory_mb: int = 128,
+        io_intensity: str = "low",
+        network_calls: int = 0,
+    ) -> dict[str, Any]:
+        profile = {
+            "goal_id": goal_id,
+            "cpu_weight": cpu_weight,
+            "memory_mb": memory_mb,
+            "io_intensity": io_intensity,
+            "network_calls": network_calls,
+            "total_weight": cpu_weight + (network_calls * 0.5),
+            "profiled_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._profiles[goal_id] = profile
+        return profile
+
+    def get_profile(self, goal_id: str) -> dict[str, Any] | None:
+        return self._profiles.get(goal_id)
+
+    def get_total_resource_demand(self) -> dict[str, Any]:
+        total_cpu = sum(p["cpu_weight"] for p in self._profiles.values())
+        total_mem = sum(p["memory_mb"] for p in self._profiles.values())
+        total_network = sum(p["network_calls"] for p in self._profiles.values())
+        return {
+            "total_cpu_weight": round(total_cpu, 4),
+            "total_memory_mb": total_mem,
+            "total_network_calls": total_network,
+            "goals_profiled": len(self._profiles),
+        }
+
+    def can_fit(self, goal_id: str, available_cpu: float, available_mem_mb: int) -> dict[str, Any]:
+        profile = self._profiles.get(goal_id)
+        if profile is None:
+            return {"goal_id": goal_id, "can_fit": False, "reason": "no_profile"}
+        cpu_ok = profile["cpu_weight"] <= available_cpu
+        mem_ok = profile["memory_mb"] <= available_mem_mb
+        return {
+            "goal_id": goal_id,
+            "can_fit": cpu_ok and mem_ok,
+            "cpu_ok": cpu_ok,
+            "mem_ok": mem_ok,
+            "required_cpu": profile["cpu_weight"],
+            "required_mem_mb": profile["memory_mb"],
+            "available_cpu": available_cpu,
+            "available_mem_mb": available_mem_mb,
+        }
+
+    def get_all_profiles(self) -> dict[str, dict[str, Any]]:
+        return dict(self._profiles)
+
+
+class ErrorClassificationEngine:
+    """Feature 35: Error classification with recovery suggestions.
+
+    Categorizes errors into retryable, non-retryable, and critical
+    with recovery suggestions. Integrates with the existing
+    VerifiedRetrySession retry logic by providing taxonomy data.
+    """
+
+    RETRYABLE = "retryable"
+    NON_RETRYABLE = "non_retryable"
+    CRITICAL = "critical"
+
+    def __init__(self) -> None:
+        self._classified: list[dict[str, Any]] = []
+
+    def classify(
+        self,
+        error: Exception,
+        goal_id: str = "",
+        attempt: int = 1,
+    ) -> dict[str, Any]:
+        error_type = type(error).__name__
+        error_msg = str(error).lower()
+
+        retryable_keywords = (
+            "timeout", "connection", "retry", "temporarily",
+            "unavailable", "overloaded", "busy", "rate limit",
+        )
+        critical_keywords = (
+            "authentication", "permission", "authorization", "not found",
+            "invalid", "corrupt", "integrity", "syntax",
+        )
+
+        category = self.RETRYABLE
+        recovery = "wait_and_retry"
+
+        for kw in critical_keywords:
+            if kw in error_msg:
+                category = self.CRITICAL
+                recovery = "abort_and_alert"
+                break
+        if category == self.RETRYABLE:
+            for kw in retryable_keywords:
+                if kw in error_msg:
+                    category = self.RETRYABLE
+                    recovery = "backoff_and_retry"
+                    break
+            else:
+                if attempt >= 3:
+                    category = self.NON_RETRYABLE
+                    recovery = "manual_review"
+                else:
+                    category = self.RETRYABLE
+                    recovery = "backoff_and_retry"
+
+        result = {
+            "error_type": error_type,
+            "error_message": str(error),
+            "goal_id": goal_id,
+            "attempt": attempt,
+            "category": category,
+            "recovery": recovery,
+            "retryable": category == self.RETRYABLE,
+            "classified_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._classified.append(result)
+        return result
+
+    def get_classified(self) -> list[dict[str, Any]]:
+        return list(self._classified)
+
+    def get_summary(self) -> dict[str, Any]:
+        total = len(self._classified)
+        retryable = sum(1 for c in self._classified if c["category"] == self.RETRYABLE)
+        non_retryable = sum(1 for c in self._classified if c["category"] == self.NON_RETRYABLE)
+        critical = sum(1 for c in self._classified if c["category"] == self.CRITICAL)
+        return {
+            "total": total,
+            "retryable": retryable,
+            "non_retryable": non_retryable,
+            "critical": critical,
+            "retry_rate": round(retryable / max(total, 1), 4),
+            "categories": {
+                self.RETRYABLE: retryable,
+                self.NON_RETRYABLE: non_retryable,
+                self.CRITICAL: critical,
+            },
+        }
+
+    def should_retry(self, error: Exception, attempt: int, max_retries: int = 3) -> bool:
+        result = self.classify(error, attempt=attempt)
+        if result["category"] == self.CRITICAL:
+            return False
+        if attempt >= max_retries:
+            return False
+        return True

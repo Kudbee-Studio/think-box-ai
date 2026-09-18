@@ -74,6 +74,19 @@ Before declaring completion, every agent MUST verify:
 | **Bug fix** | Fixed `StressTestRunner.run_stress_test` line 1127: was using `config.goal_factory` (None when unset) instead of `goal_factory` variable (falls back to `_default_goal_factory`). |
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (787) / LIVE_VERIFIED (stress test) / PRODUCTION not claimed |
 
+### 2026-09-18 — Governed Scheduler 10 Additional Features (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Agent/task** | Add 10 features extending governed concurrency architecture on branch `kilo/epic-coil-ao1`. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked completions). |
+| **Features** | GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics, CapacityPredictor, WorkStealingQueue, SLAComplianceTracker, CheckpointManager, AdaptiveRetryBackoff, GoalResourceProfiler, ErrorClassificationEngine |
+| **Architecture** | Features 26-32 in `thinkbox/scheduler.py` (extend scheduler capabilities). Features 33-35 in `thinkbox/concurrent_goals.py` (extend retry logic, resource profiling, error intelligence). Extends PR #76 architecture — no parallel systems. |
+| **Tests** | `tests/unit/test_scheduler.py` — 149 tests (+40). `tests/unit/test_concurrent_goals.py` — 40 tests (+26). Full suite 853 tests, 3 pre-existing failures unchanged, 6 skipped. |
+| **Live validation** | All 10 features imported and exercised: timeout enforcement, DAG resolution (topological sort + cycle detection + critical path), throughput/latency/cost metrics, congestion prediction, work stealing, SLA compliance, checkpoint save/restore, exponential backoff, resource profiling, error classification. |
+| **Bug fix** | Fixed `ErrorClassificationEngine.should_retry` test — PermissionError with non-critical message correctly classified as retryable. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (853) / LIVE_VERIFIED (all 10 features) / PRODUCTION not claimed |
+
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
 

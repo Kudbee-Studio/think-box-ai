@@ -42,6 +42,13 @@ from thinkbox.scheduler import (
     PersistentSchedulerState,
     FailureDomainIsolator,
     SchedulerDashboardExtension,
+    GoalTimeoutEnforcer,
+    GoalDependencyResolver,
+    SchedulerPerformanceAnalytics,
+    CapacityPredictor,
+    WorkStealingQueue,
+    SLAComplianceTracker,
+    CheckpointManager,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -50,6 +57,9 @@ from thinkbox.concurrent_goals import (
     BudgetContentionPolicy,
     GoalPriority,
     GoalLifecycleState,
+    AdaptiveRetryBackoff,
+    GoalResourceProfiler,
+    ErrorClassificationEngine,
 )
 from thinkbox.pop_arena import BudgetExhausted
 
@@ -999,6 +1009,364 @@ class TestStressReportEnhancer(unittest.TestCase):
         enhancer.generate_report(result)
         enhancer.generate_report(result)
         self.assertEqual(len(enhancer.get_reports()), 2)
+
+
+class TestGoalTimeoutEnforcer(unittest.TestCase):
+    """Feature 26: Goal timeout enforcement."""
+
+    def test_register_and_check(self) -> None:
+        enforcer = GoalTimeoutEnforcer(default_timeout_s=10.0)
+        enforcer.register("goal-1", timeout_s=5.0)
+        result = enforcer.check("goal-1")
+        self.assertFalse(result["timed_out"])
+        self.assertIn("elapsed", result)
+
+    def test_not_registered(self) -> None:
+        enforcer = GoalTimeoutEnforcer()
+        result = enforcer.check("unknown")
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(result["reason"], "not_registered")
+
+    def test_is_timed_out(self) -> None:
+        enforcer = GoalTimeoutEnforcer(default_timeout_s=0.001)
+        enforcer.register("goal-1", timeout_s=0.001)
+        time.sleep(0.01)
+        self.assertTrue(enforcer.is_timed_out("goal-1"))
+
+    def test_get_timed_out(self) -> None:
+        enforcer = GoalTimeoutEnforcer(default_timeout_s=0.001)
+        enforcer.register("goal-1", timeout_s=0.001)
+        time.sleep(0.01)
+        enforcer.check("goal-1")
+        timed = enforcer.get_timed_out()
+        self.assertEqual(len(timed), 1)
+        self.assertEqual(timed[0]["goal_id"], "goal-1")
+        self.assertGreater(timed[0]["elapsed"], timed[0]["limit"])
+
+    def test_get_stats(self) -> None:
+        enforcer = GoalTimeoutEnforcer()
+        enforcer.register("g1", timeout_s=10.0)
+        stats = enforcer.get_stats()
+        self.assertEqual(stats["registered"], 1)
+        self.assertEqual(stats["timed_out"], 0)
+        self.assertEqual(stats["active"], 1)
+
+
+class TestGoalDependencyResolver(unittest.TestCase):
+    """Feature 27: Goal dependency resolution."""
+
+    def test_topological_sort(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b", "c"])
+        resolver.add_goal("b")
+        resolver.add_goal("c")
+        result = resolver.topological_sort()
+        self.assertIsNotNone(result)
+        self.assertIn(result.index("b"), [0])
+        self.assertIn(result.index("c"), [0, 1])
+        self.assertGreater(result.index("a"), result.index("b"))
+        self.assertGreater(result.index("a"), result.index("c"))
+
+    def test_cycle_detection(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b"])
+        resolver.add_goal("b", ["a"])
+        self.assertTrue(resolver.has_cycles())
+        self.assertIsNone(resolver.topological_sort())
+
+    def test_no_cycles(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b"])
+        resolver.add_goal("b")
+        self.assertFalse(resolver.has_cycles())
+        self.assertIsNotNone(resolver.topological_sort())
+
+    def test_parallel_schedule(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b", "c"])
+        resolver.add_goal("b")
+        resolver.add_goal("c")
+        levels = resolver.parallel_schedule()
+        self.assertEqual(len(levels), 2)
+        self.assertIn("b", levels[0])
+        self.assertIn("c", levels[0])
+        self.assertIn("a", levels[1])
+
+    def test_critical_path(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b"])
+        resolver.add_goal("b", ["c"])
+        resolver.add_goal("c")
+        path, length = resolver.critical_path()
+        self.assertEqual(path, ["c", "b", "a"])
+        self.assertEqual(length, 3)
+        resolver = GoalDependencyResolver()
+        self.assertEqual(resolver.topological_sort(), [])
+        self.assertFalse(resolver.has_cycles())
+        self.assertEqual(resolver.parallel_schedule(), [])
+        self.assertEqual(resolver.critical_path(), ([], 0))
+
+    def test_get_stats(self) -> None:
+        resolver = GoalDependencyResolver()
+        resolver.add_goal("a", ["b"])
+        resolver.add_goal("b")
+        stats = resolver.get_stats()
+        self.assertEqual(stats["goals"], 2)
+        self.assertFalse(stats["has_cycles"])
+
+    def test_empty(self) -> None:
+        resolver = GoalDependencyResolver()
+        self.assertEqual(resolver.topological_sort(), [])
+        self.assertFalse(resolver.has_cycles())
+        self.assertEqual(resolver.parallel_schedule(), [])
+        self.assertEqual(resolver.critical_path(), ([], 0))
+
+
+class TestSchedulerPerformanceAnalytics(unittest.TestCase):
+    """Feature 28: Scheduler performance analytics."""
+
+    def test_record_and_throughput(self) -> None:
+        analytics = SchedulerPerformanceAnalytics()
+        analytics.record_completion("g1", 1.0, 5)
+        analytics.record_completion("g2", 2.0, 3)
+        tp = analytics.get_throughput()
+        self.assertEqual(tp["total_completed"], 2)
+        self.assertEqual(tp["recent_completions"], 2)
+
+    def test_latency_percentiles(self) -> None:
+        analytics = SchedulerPerformanceAnalytics()
+        analytics.record_completion("g1", 1.0, 1)
+        analytics.record_completion("g2", 2.0, 1)
+        analytics.record_completion("g3", 3.0, 1)
+        pct = analytics.get_latency_percentiles()
+        self.assertEqual(pct["p50"], 2.0)
+        self.assertEqual(pct["samples"], 3)
+        self.assertGreater(pct["p95"], 2.0)
+
+    def test_cost_efficiency(self) -> None:
+        analytics = SchedulerPerformanceAnalytics()
+        analytics.record_completion("g1", 1.0, 5)
+        analytics.record_completion("g2", 2.0, 3)
+        cost = analytics.get_cost_efficiency()
+        self.assertEqual(cost["total_calls"], 8)
+        self.assertEqual(cost["total_goals"], 2)
+        self.assertEqual(cost["avg_calls_per_goal"], 4.0)
+
+    def test_summary(self) -> None:
+        analytics = SchedulerPerformanceAnalytics()
+        analytics.record_completion("g1", 1.0, 2)
+        summary = analytics.get_summary()
+        self.assertIn("throughput", summary)
+        self.assertIn("latency_percentiles", summary)
+        self.assertIn("cost_efficiency", summary)
+        self.assertEqual(summary["total_completions"], 1)
+
+    def test_empty(self) -> None:
+        analytics = SchedulerPerformanceAnalytics()
+        self.assertEqual(analytics.get_throughput()["total_completed"], 0)
+        pct = analytics.get_latency_percentiles()
+        self.assertEqual(pct["p50"], 0.0)
+        cost = analytics.get_cost_efficiency()
+        self.assertEqual(cost["calls_per_goal"], 0.0)
+
+
+class TestCapacityPredictor(unittest.TestCase):
+    """Feature 29: Capacity prediction."""
+
+    def test_record_and_predict_congestion(self) -> None:
+        predictor = CapacityPredictor()
+        predictor.record_capacity(5, 10, 100)
+        predictor.record_capacity(8, 15, 200)
+        result = predictor.predict_congestion()
+        self.assertIn(result["congestion_risk"], ["low", "medium", "high"])
+
+    def test_predict_optimal_concurrency(self) -> None:
+        predictor = CapacityPredictor()
+        predictor.record_capacity(5, 10, 100)
+        predictor.record_capacity(8, 15, 200)
+        result = predictor.predict_optimal_concurrency()
+        self.assertGreaterEqual(result["recommended_concurrency"], 1)
+        self.assertIn(result["confidence"], ["low", "medium", "high"])
+
+    def test_get_trend(self) -> None:
+        predictor = CapacityPredictor()
+        predictor.record_capacity(10, 20, 100)
+        predictor.record_capacity(8, 15, 200)
+        trend = predictor.get_trend()
+        self.assertIn(trend["queue_trend"], ["improving", "worsening", "stable"])
+
+    def test_insufficient_data(self) -> None:
+        predictor = CapacityPredictor()
+        result = predictor.predict_congestion()
+        self.assertEqual(result["congestion_risk"], "unknown")
+        result2 = predictor.predict_optimal_concurrency()
+        self.assertEqual(result2["confidence"], "low")
+        trend = predictor.get_trend()
+        self.assertEqual(trend["queue_trend"], "insufficient_data")
+
+    def test_improving_trend(self) -> None:
+        predictor = CapacityPredictor()
+        predictor.record_capacity(10, 20, 100)
+        predictor.record_capacity(5, 10, 200)
+        trend = predictor.get_trend()
+        self.assertEqual(trend["queue_trend"], "improving")
+
+
+class TestWorkStealingQueue(unittest.TestCase):
+    """Feature 30: Dynamic work stealing."""
+
+    def test_enqueue_dequeue(self) -> None:
+        wsq = WorkStealingQueue()
+        wsq.enqueue("g1", "task1")
+        wsq.enqueue("g1", "task2")
+        self.assertEqual(wsq.dequeue("g1"), "task1")
+        self.assertEqual(wsq.dequeue("g1"), "task2")
+        self.assertIsNone(wsq.dequeue("g1"))
+
+    def test_steal(self) -> None:
+        wsq = WorkStealingQueue(imbalance_threshold=1.5)
+        wsq.enqueue("donor", "t1")
+        wsq.enqueue("donor", "t2")
+        wsq.enqueue("recipient", "t3")
+        result = wsq.steal("donor", "recipient")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["donor"], "donor")
+        self.assertEqual(result["recipient"], "recipient")
+        self.assertEqual(wsq.get_load("donor"), 1)
+        self.assertEqual(wsq.get_load("recipient"), 2)
+
+    def test_no_steal_when_balanced(self) -> None:
+        wsq = WorkStealingQueue(imbalance_threshold=2.0)
+        wsq.enqueue("g1", "t1")
+        wsq.enqueue("g2", "t2")
+        result = wsq.steal("g1", "g2")
+        self.assertIsNone(result)
+
+    def test_rebalance(self) -> None:
+        wsq = WorkStealingQueue(imbalance_threshold=1.5)
+        for i in range(5):
+            wsq.enqueue("g1", f"t{i}")
+        wsq.enqueue("g2", "t5")
+        steals = wsq.rebalance()
+        self.assertTrue(wsq.get_balanced())
+
+    def test_steal_same_goal(self) -> None:
+        wsq = WorkStealingQueue()
+        wsq.enqueue("g1", "t1")
+        result = wsq.steal("g1", "g1")
+        self.assertIsNone(result)
+
+    def test_get_stats(self) -> None:
+        wsq = WorkStealingQueue()
+        wsq.enqueue("g1", "t1")
+        wsq.enqueue("g2", "t2")
+        stats = wsq.get_stats()
+        self.assertEqual(stats["total_items"], 2)
+        self.assertEqual(stats["goals"], 2)
+
+
+class TestSLAComplianceTracker(unittest.TestCase):
+    """Feature 31: SLA compliance tracking."""
+
+    def test_set_and_check_compliant(self) -> None:
+        tracker = SLAComplianceTracker()
+        tracker.set_sla("g1", max_completion_s=10.0, min_success_rate=0.9)
+        tracker.record_result("g1", 5.0, True)
+        result = tracker.check_compliance("g1")
+        self.assertTrue(result["compliant"])
+        self.assertTrue(result["time_ok"])
+        self.assertTrue(result["rate_ok"])
+
+    def test_non_compliant(self) -> None:
+        tracker = SLAComplianceTracker()
+        tracker.set_sla("g1", max_completion_s=2.0, min_success_rate=0.95)
+        tracker.record_result("g1", 5.0, True)
+        result = tracker.check_compliance("g1")
+        self.assertFalse(result["compliant"])
+        self.assertFalse(result["time_ok"])
+
+    def test_low_success_rate(self) -> None:
+        tracker = SLAComplianceTracker()
+        tracker.set_sla("g1", max_completion_s=10.0, min_success_rate=0.95)
+        tracker.record_result("g1", 1.0, True)
+        tracker.record_result("g1", 2.0, False)
+        result = tracker.check_compliance("g1")
+        self.assertFalse(result["compliant"])
+        self.assertFalse(result["rate_ok"])
+
+    def test_no_sla(self) -> None:
+        tracker = SLAComplianceTracker()
+        result = tracker.check_compliance("unknown")
+        self.assertFalse(result["compliant"])
+        self.assertEqual(result["reason"], "no_sla")
+
+    def test_no_results(self) -> None:
+        tracker = SLAComplianceTracker()
+        tracker.set_sla("g1", max_completion_s=10.0)
+        result = tracker.check_compliance("g1")
+        self.assertFalse(result["compliant"])
+        self.assertEqual(result["reason"], "no_results")
+
+    def test_get_compliance_report(self) -> None:
+        tracker = SLAComplianceTracker()
+        tracker.set_sla("g1", max_completion_s=10.0, min_success_rate=0.9)
+        tracker.record_result("g1", 5.0, True)
+        report = tracker.get_compliance_report()
+        self.assertEqual(report["total_goals"], 1)
+        self.assertEqual(report["compliant"], 1)
+        self.assertEqual(report["compliance_rate"], 1.0)
+
+
+class TestCheckpointManager(unittest.TestCase):
+    """Feature 32: Checkpoint management."""
+
+    def test_save_and_restore(self) -> None:
+        cm = CheckpointManager()
+        checkpoint = cm.save("g1", {"step": 1, "data": "abc"})
+        self.assertIn("checkpoint_id", checkpoint)
+        restored = cm.restore(checkpoint["checkpoint_id"])
+        self.assertIsNotNone(restored)
+        self.assertEqual(restored["goal_id"], "g1")
+        self.assertEqual(restored["state"], {"step": 1, "data": "abc"})
+
+    def test_restore_nonexistent(self) -> None:
+        cm = CheckpointManager()
+        result = cm.restore("nonexistent")
+        self.assertIsNone(result)
+
+    def test_list_checkpoints(self) -> None:
+        cm = CheckpointManager()
+        cm.save("g1", {"step": 1})
+        cm.save("g1", {"step": 2})
+        cm.save("g2", {"step": 1})
+        all_cps = cm.list_checkpoints()
+        self.assertEqual(len(all_cps), 3)
+        g1_cps = cm.list_checkpoints("g1")
+        self.assertEqual(len(g1_cps), 2)
+        g2_cps = cm.list_checkpoints("g2")
+        self.assertEqual(len(g2_cps), 1)
+
+    def test_delete(self) -> None:
+        cm = CheckpointManager()
+        cp = cm.save("g1", {"step": 1})
+        self.assertTrue(cm.delete(cp["checkpoint_id"]))
+        self.assertIsNone(cm.restore(cp["checkpoint_id"]))
+        self.assertFalse(cm.delete("nonexistent"))
+
+    def test_max_checkpoints(self) -> None:
+        cm = CheckpointManager(max_checkpoints=3)
+        for i in range(5):
+            cm.save("g1", {"step": i})
+        cps = cm.list_checkpoints("g1")
+        self.assertEqual(len(cps), 3)
+
+    def test_get_stats(self) -> None:
+        cm = CheckpointManager()
+        cm.save("g1", {"step": 1})
+        cm.save("g2", {"step": 1})
+        stats = cm.get_stats()
+        self.assertEqual(stats["total_checkpoints"], 2)
+        self.assertEqual(stats["goals_with_checkpoints"], 2)
 
 
 if __name__ == "__main__":

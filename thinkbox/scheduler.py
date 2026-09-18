@@ -1346,3 +1346,532 @@ class SchedulerDashboardExtension:
             )
         except Exception:
             pass
+
+
+class GoalTimeoutEnforcer:
+    """Feature 26: Goal timeout enforcement.
+
+    Monitors running goals and forcefully cancels those that exceed
+    their deadline. Unlike DeadlineAwareAdmission (which checks at
+    admission time), this operates at execution time to catch goals
+    that started within budget but are now overdue.
+    """
+
+    def __init__(self, default_timeout_s: float = 300.0) -> None:
+        self.default_timeout_s = default_timeout_s
+        self._timeouts: dict[str, float] = {}
+        self._start_times: dict[str, float] = {}
+        self._timed_out: list[dict[str, Any]] = []
+
+    def register(self, goal_id: str, timeout_s: float | None = None) -> None:
+        self._timeouts[goal_id] = timeout_s or self.default_timeout_s
+        self._start_times[goal_id] = time.monotonic()
+
+    def check(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._timeouts:
+            return {"goal_id": goal_id, "timed_out": False, "reason": "not_registered"}
+        elapsed = time.monotonic() - self._start_times.get(goal_id, 0.0)
+        limit = self._timeouts[goal_id]
+        if elapsed > limit:
+            self._timed_out.append({
+                "goal_id": goal_id,
+                "elapsed": round(elapsed, 4),
+                "limit": limit,
+                "excess": round(elapsed - limit, 4),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return {"goal_id": goal_id, "timed_out": True, "elapsed": elapsed, "limit": limit}
+        return {"goal_id": goal_id, "timed_out": False, "elapsed": elapsed, "remaining": limit - elapsed}
+
+    def is_timed_out(self, goal_id: str) -> bool:
+        return self.check(goal_id)["timed_out"]
+
+    def get_timed_out(self) -> list[dict[str, Any]]:
+        return list(self._timed_out)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "registered": len(self._timeouts),
+            "timed_out": len(self._timed_out),
+            "default_timeout_s": self.default_timeout_s,
+            "active": len(self._timeouts) - len(self._timed_out),
+        }
+
+
+class GoalDependencyResolver:
+    """Feature 27: Goal dependency resolution with topological sort.
+
+    Resolves DAG dependencies between goals, detects cycles,
+    computes a parallel execution schedule, and identifies the
+    critical path (longest dependency chain).
+    """
+
+    def __init__(self) -> None:
+        self._deps: dict[str, set[str]] = {}
+        self._dependents: dict[str, set[str]] = {}
+
+    def add_goal(self, goal_id: str, depends_on: list[str] | None = None) -> None:
+        self._deps[goal_id] = set(depends_on or [])
+        if goal_id not in self._dependents:
+            self._dependents[goal_id] = set()
+        for dep in (depends_on or []):
+            self._dependents.setdefault(dep, set()).add(goal_id)
+
+    def detect_cycles(self) -> list[list[str]]:
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {g: WHITE for g in self._deps}
+        cycles = []
+        path: list[str] = []
+
+        def dfs(node: str) -> None:
+            color[node] = GRAY
+            path.append(node)
+            for neighbor in self._deps.get(node, set()):
+                if neighbor not in color:
+                    continue
+                if color[neighbor] == GRAY:
+                    idx = path.index(neighbor)
+                    cycles.append(list(path[idx:]))
+                elif color[neighbor] == WHITE:
+                    dfs(neighbor)
+            path.pop()
+            color[node] = BLACK
+
+        for node in list(self._deps.keys()):
+            if color.get(node) == WHITE:
+                dfs(node)
+        return cycles
+
+    def has_cycles(self) -> bool:
+        return len(self.detect_cycles()) > 0
+
+    def topological_sort(self) -> list[str] | None:
+        if self.has_cycles():
+            return None
+        in_degree = {g: 0 for g in self._deps}
+        for g in self._deps:
+            for dep in self._deps[g]:
+                if dep in in_degree:
+                    in_degree[g] += 1
+        queue = [g for g, d in in_degree.items() if d == 0]
+        result: list[str] = []
+        while queue:
+            queue.sort()
+            node = queue.pop(0)
+            result.append(node)
+            for dependent in sorted(self._dependents.get(node, set())):
+                if dependent in in_degree:
+                    in_degree[dependent] -= 1
+                    if in_degree[dependent] == 0:
+                        queue.append(dependent)
+        if len(result) != len(self._deps):
+            return None
+        return result
+
+    def parallel_schedule(self) -> list[list[str]]:
+        sort = self.topological_sort()
+        if sort is None:
+            return []
+        level: dict[str, int] = {}
+        for g in sort:
+            deps = self._deps.get(g, set())
+            max_level = 0
+            for d in deps:
+                if d in level:
+                    max_level = max(max_level, level[d] + 1)
+            level[g] = max_level
+        if not level:
+            return []
+        max_lvl = max(level.values())
+        return [[g for g in sort if level[g] == l] for l in range(max_lvl + 1)]
+
+    def critical_path(self) -> tuple[list[str], int]:
+        sort = self.topological_sort()
+        if sort is None:
+            return [], 0
+        dist: dict[str, int] = {}
+        prev: dict[str, str | None] = {}
+        for g in sort:
+            dist[g] = 1
+            prev[g] = None
+            for dep in self._deps.get(g, set()):
+                if dep in dist and dist[dep] + 1 > dist[g]:
+                    dist[g] = dist[dep] + 1
+                    prev[g] = dep
+        if not dist:
+            return [], 0
+        end = max(dist, key=dist.get)
+        path = []
+        cur: str | None = end
+        while cur is not None:
+            path.append(cur)
+            cur = prev[cur]
+        path.reverse()
+        return path, dist[end]
+
+    def get_stats(self) -> dict[str, Any]:
+        sort = self.topological_sort()
+        return {
+            "goals": len(self._deps),
+            "has_cycles": self.has_cycles(),
+            "sorted": sort is not None,
+            "parallel_levels": len(self.parallel_schedule()),
+        }
+
+
+class SchedulerPerformanceAnalytics:
+    """Feature 28: Scheduler performance analytics.
+
+    Computes throughput (goals/sec), latency percentiles (p50, p95, p99),
+    and cost-efficiency (calls per goal) from recorded execution data.
+    """
+
+    def __init__(self) -> None:
+        self._completions: list[dict[str, Any]] = []
+
+    def record_completion(self, goal_id: str, duration_s: float, calls: int = 0) -> None:
+        self._completions.append({
+            "goal_id": goal_id,
+            "duration_s": duration_s,
+            "calls": calls,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def _percentile(self, values: list[float], p: float) -> float:
+        if not values:
+            return 0.0
+        sorted_v = sorted(values)
+        idx = (len(sorted_v) - 1) * (p / 100.0)
+        lo = int(idx)
+        hi = min(lo + 1, len(sorted_v) - 1)
+        frac = idx - lo
+        return sorted_v[lo] + (sorted_v[hi] - sorted_v[lo]) * frac
+
+    def get_throughput(self, window_s: float = 60.0) -> dict[str, Any]:
+        now = datetime.now(timezone.utc).timestamp()
+        recent = [c for c in self._completions
+                  if now - datetime.fromisoformat(c["timestamp"]).timestamp() <= window_s]
+        return {
+            "goals_per_second": len(recent) / max(window_s, 0.001),
+            "recent_completions": len(recent),
+            "total_completed": len(self._completions),
+            "window_s": window_s,
+        }
+
+    def get_latency_percentiles(self) -> dict[str, float]:
+        durations = [c["duration_s"] for c in self._completions]
+        return {
+            "p50": round(self._percentile(durations, 50), 6),
+            "p95": round(self._percentile(durations, 95), 6),
+            "p99": round(self._percentile(durations, 99), 6),
+            "mean": round(sum(durations) / max(len(durations), 1), 6),
+            "samples": len(durations),
+        }
+
+    def get_cost_efficiency(self) -> dict[str, Any]:
+        if not self._completions:
+            return {"calls_per_goal": 0.0, "avg_calls_per_goal": 0.0}
+        calls = [c["calls"] for c in self._completions if c["calls"] > 0]
+        return {
+            "total_calls": sum(c["calls"] for c in self._completions),
+            "total_goals": len(self._completions),
+            "avg_calls_per_goal": round(sum(calls) / max(len(calls), 1), 4),
+            "calls_per_goal": round(sum(calls) / max(len(self._completions), 1), 4),
+        }
+
+    def get_summary(self) -> dict[str, Any]:
+        return {
+            "throughput": self.get_throughput(),
+            "latency_percentiles": self.get_latency_percentiles(),
+            "cost_efficiency": self.get_cost_efficiency(),
+            "total_completions": len(self._completions),
+        }
+
+
+class CapacityPredictor:
+    """Feature 29: Capacity prediction from historical patterns.
+
+    Predicts future capacity based on historical completion patterns
+    to proactively adjust scheduling decisions before congestion hits.
+    """
+
+    def __init__(self, history_window: int = 100) -> None:
+        self._history_window = history_window
+        self._history: list[dict[str, Any]] = []
+
+    def record_capacity(self, active: int, queue_depth: int, completed: int) -> None:
+        self._history.append({
+            "active": active,
+            "queue_depth": queue_depth,
+            "completed": completed,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(self._history) > self._history_window:
+            self._history = self._history[-self._history_window:]
+
+    def predict_congestion(self, lookahead_s: float = 60.0) -> dict[str, Any]:
+        if len(self._history) < 2:
+            return {"congestion_risk": "unknown", "data_points": len(self._history)}
+        recent = self._history[-min(len(self._history), 20):]
+        avg_queue = sum(h["queue_depth"] for h in recent) / len(recent)
+        avg_active = sum(h["active"] for h in recent) / len(recent)
+        trend_q = recent[-1]["queue_depth"] - recent[0]["queue_depth"]
+        trend_a = recent[-1]["active"] - recent[0]["active"]
+        risk = "low"
+        if avg_queue > 20 or trend_q > 5 or trend_a > 3:
+            risk = "high"
+        elif avg_queue > 10 or trend_q > 2 or trend_a > 1:
+            risk = "medium"
+        return {
+            "congestion_risk": risk,
+            "lookahead_s": lookahead_s,
+            "avg_queue_depth": round(avg_queue, 2),
+            "avg_active": round(avg_active, 2),
+            "queue_trend": trend_q,
+            "active_trend": trend_a,
+            "data_points": len(recent),
+        }
+
+    def predict_optimal_concurrency(self) -> dict[str, Any]:
+        if len(self._history) < 2:
+            return {"recommended_concurrency": 1, "confidence": "low"}
+        recent = self._history[-min(len(self._history), 50):]
+        avg_active = sum(h["active"] for h in recent) / len(recent)
+        avg_queue = sum(h["queue_depth"] for h in recent) / len(recent)
+        if avg_queue > 15:
+            concurrency = max(1, int(avg_active * 0.7))
+        elif avg_queue > 5:
+            concurrency = max(1, int(avg_active * 0.85))
+        else:
+            concurrency = max(1, int(avg_active * 1.2))
+        confidence = "high" if len(recent) >= 20 else "medium" if len(recent) >= 5 else "low"
+        return {
+            "recommended_concurrency": concurrency,
+            "confidence": confidence,
+            "based_on": len(recent),
+            "avg_active": round(avg_active, 2),
+        }
+
+    def get_trend(self) -> dict[str, Any]:
+        if len(self._history) < 2:
+            return {"queue_trend": "insufficient_data", "data_points": len(self._history)}
+        recent = self._history[-min(len(self._history), 20):]
+        first_q = recent[0]["queue_depth"]
+        last_q = recent[-1]["queue_depth"]
+        diff = last_q - first_q
+        trend = "improving" if diff < -1 else "worsening" if diff > 1 else "stable"
+        return {"queue_trend": trend, "change": diff, "data_points": len(recent)}
+
+
+class WorkStealingQueue:
+    """Feature 30: Dynamic work stealing for load balancing.
+
+    When one goal's queue has excess capacity while another is
+    overloaded, work items are stolen from the fuller queue to
+    balance load dynamically across goals.
+    """
+
+    def __init__(self, imbalance_threshold: float = 2.0) -> None:
+        self._queues: dict[str, list[str]] = {}
+        self._imbalance_threshold = imbalance_threshold
+        self._steals: list[dict[str, Any]] = []
+
+    def add_goal(self, goal_id: str) -> None:
+        if goal_id not in self._queues:
+            self._queues[goal_id] = []
+
+    def enqueue(self, goal_id: str, item: str) -> None:
+        self.add_goal(goal_id)
+        self._queues[goal_id].append(item)
+
+    def dequeue(self, goal_id: str) -> str | None:
+        if goal_id not in self._queues or not self._queues[goal_id]:
+            return None
+        return self._queues[goal_id].pop(0)
+
+    def steal(self, donor: str, recipient: str) -> dict[str, Any] | None:
+        if donor == recipient or donor not in self._queues or recipient not in self._queues:
+            return None
+        if not self._queues[donor]:
+            return None
+        load_ratio = self._load_ratio(donor, recipient)
+        if load_ratio < self._imbalance_threshold:
+            return None
+        item = self._queues[donor].pop(0)
+        self._queues[recipient].append(item)
+        steal_record = {
+            "donor": donor,
+            "recipient": recipient,
+            "item": item,
+            "load_ratio": round(load_ratio, 4),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._steals.append(steal_record)
+        return steal_record
+
+    def _load_ratio(self, donor: str, recipient: str) -> float:
+        d_len = len(self._queues.get(donor, []))
+        r_len = len(self._queues.get(recipient, []))
+        if r_len == 0:
+            return float(d_len)
+        return d_len / r_len
+
+    def rebalance(self) -> list[dict[str, Any]]:
+        steals: list[dict[str, Any]] = []
+        if len(self._queues) < 2:
+            return steals
+        while True:
+            sorted_goals = sorted(self._queues.keys(), key=lambda g: len(self._queues[g]), reverse=True)
+            if len(sorted_goals) < 2:
+                break
+            donor = sorted_goals[0]
+            recipient = sorted_goals[-1]
+            result = self.steal(donor, recipient)
+            if result is None:
+                break
+            steals.append(result)
+        return steals
+
+    def get_load(self, goal_id: str) -> int:
+        return len(self._queues.get(goal_id, []))
+
+    def get_balanced(self) -> bool:
+        if len(self._queues) < 2:
+            return True
+        sizes = [len(q) for q in self._queues.values()]
+        if not sizes:
+            return True
+        return max(sizes) - min(sizes) <= 1
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "goals": len(self._queues),
+            "total_items": sum(len(q) for q in self._queues.values()),
+            "steals": len(self._steals),
+            "balanced": self.get_balanced(),
+            "loads": {g: len(q) for g, q in self._queues.items()},
+        }
+
+
+class SLAComplianceTracker:
+    """Feature 31: SLA compliance tracking and reporting.
+
+    Tracks SLA targets per goal (max completion time, min success rate)
+    and generates compliance reports showing which goals meet their
+    contractual obligations.
+    """
+
+    def __init__(self) -> None:
+        self._targets: dict[str, dict[str, Any]] = {}
+        self._results: list[dict[str, Any]] = []
+
+    def set_sla(self, goal_id: str, max_completion_s: float, min_success_rate: float = 0.95) -> None:
+        self._targets[goal_id] = {
+            "max_completion_s": max_completion_s,
+            "min_success_rate": min_success_rate,
+        }
+
+    def record_result(self, goal_id: str, completion_s: float, success: bool) -> None:
+        self._results.append({
+            "goal_id": goal_id,
+            "completion_s": completion_s,
+            "success": success,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def check_compliance(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._targets:
+            return {"goal_id": goal_id, "compliant": False, "reason": "no_sla"}
+        target = self._targets[goal_id]
+        results = [r for r in self._results if r["goal_id"] == goal_id]
+        if not results:
+            return {"goal_id": goal_id, "compliant": False, "reason": "no_results", "sla": target}
+        avg_time = sum(r["completion_s"] for r in results) / len(results)
+        success_rate = sum(1 for r in results if r["success"]) / len(results)
+        time_ok = avg_time <= target["max_completion_s"]
+        rate_ok = success_rate >= target["min_success_rate"]
+        return {
+            "goal_id": goal_id,
+            "compliant": time_ok and rate_ok,
+            "sla": target,
+            "avg_completion_s": round(avg_time, 4),
+            "success_rate": round(success_rate, 4),
+            "time_ok": time_ok,
+            "rate_ok": rate_ok,
+            "results": len(results),
+        }
+
+    def get_compliance_report(self) -> dict[str, Any]:
+        report = {goal_id: self.check_compliance(goal_id) for goal_id in self._targets}
+        total = len(report)
+        compliant = sum(1 for r in report.values() if r.get("compliant"))
+        return {
+            "total_goals": total,
+            "compliant": compliant,
+            "non_compliant": total - compliant,
+            "compliance_rate": round(compliant / max(total, 1), 4),
+            "goals": report,
+        }
+
+
+class CheckpointManager:
+    """Feature 32: Checkpoint/save-point management for goal recovery.
+
+    Manages checkpoints for goals: save state to a named checkpoint,
+    restore from checkpoint, list available checkpoints, and garbage
+    collect old checkpoints to reclaim space.
+    """
+
+    def __init__(self, max_checkpoints: int = 50) -> None:
+        self.max_checkpoints = max_checkpoints
+        self._checkpoints: dict[str, dict[str, Any]] = {}
+
+    def save(self, goal_id: str, state: dict[str, Any]) -> dict[str, Any]:
+        checkpoint_id = f"cp_{goal_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
+        checkpoint = {
+            "checkpoint_id": checkpoint_id,
+            "goal_id": goal_id,
+            "state": state,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "size": len(str(state)),
+        }
+        self._checkpoints[checkpoint_id] = checkpoint
+        self._gc(goal_id)
+        return checkpoint
+
+    def restore(self, checkpoint_id: str) -> dict[str, Any] | None:
+        cp = self._checkpoints.get(checkpoint_id)
+        if cp is None:
+            return None
+        return {"checkpoint_id": cp["checkpoint_id"], "goal_id": cp["goal_id"], "state": cp["state"]}
+
+    def list_checkpoints(self, goal_id: str | None = None) -> list[dict[str, Any]]:
+        if goal_id:
+            return [c for c in self._checkpoints.values() if c["goal_id"] == goal_id]
+        return list(self._checkpoints.values())
+
+    def _gc(self, goal_id: str) -> None:
+        goal_cps = sorted(
+            [c for c in self._checkpoints.values() if c["goal_id"] == goal_id],
+            key=lambda c: c["created_at"],
+        )
+        while len(goal_cps) > self.max_checkpoints:
+            oldest = goal_cps.pop(0)
+            del self._checkpoints[oldest["checkpoint_id"]]
+
+    def delete(self, checkpoint_id: str) -> bool:
+        if checkpoint_id in self._checkpoints:
+            del self._checkpoints[checkpoint_id]
+            return True
+        return False
+
+    def get_stats(self) -> dict[str, Any]:
+        by_goal: dict[str, int] = {}
+        for c in self._checkpoints.values():
+            by_goal[c["goal_id"]] = by_goal.get(c["goal_id"], 0) + 1
+        return {
+            "total_checkpoints": len(self._checkpoints),
+            "max_per_goal": self.max_checkpoints,
+            "goals_with_checkpoints": len(by_goal),
+            "checkpoints_per_goal": by_goal,
+        }

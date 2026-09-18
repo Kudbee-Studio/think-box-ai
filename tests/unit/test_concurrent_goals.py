@@ -17,6 +17,7 @@ import unittest
 from thinkbox.concurrent_goals import (
     ConcurrentGoalSpec, ConcurrentGoalsConfig, ConcurrentGoalsRunner,
     ConcurrentGoalsResult, aggregate_layer_telemetry, BudgetContentionPolicy,
+    AdaptiveRetryBackoff, GoalResourceProfiler, ErrorClassificationEngine,
 )
 from thinkbox.pop_arena import (
     VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted,
@@ -393,3 +394,215 @@ class TestConcurrentGoalsDashboard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAdaptiveRetryBackoff(unittest.TestCase):
+    """Feature 33: Adaptive exponential backoff."""
+
+    def test_compute_delay_first(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=60.0)
+        delay = arb.compute_delay(1, seed="test")
+        self.assertEqual(delay["attempt"], 1)
+        self.assertAlmostEqual(delay["exponential"], 1.0)
+        self.assertGreaterEqual(delay["delay_s"], 0.0)
+        self.assertLessEqual(delay["delay_s"], 60.0)
+
+    def test_compute_delay_exponential(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=60.0)
+        d1 = arb.compute_delay(1, seed="test")
+        d2 = arb.compute_delay(2, seed="test")
+        d3 = arb.compute_delay(3, seed="test")
+        self.assertAlmostEqual(d2["exponential"], 2.0)
+        self.assertAlmostEqual(d3["exponential"], 4.0)
+        self.assertGreater(d2["delay_s"], d1["delay_s"])
+        self.assertGreater(d3["delay_s"], d2["delay_s"])
+
+    def test_compute_delay_capped(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=10.0, max_delay_s=20.0)
+        delay = arb.compute_delay(5, seed="test")
+        self.assertLessEqual(delay["capped"], 20.0)
+
+    def test_get_schedule(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=10.0)
+        schedule = arb.get_schedule(3, seed="test")
+        self.assertEqual(len(schedule), 3)
+        for i, s in enumerate(schedule):
+            self.assertEqual(s["attempt"], i + 1)
+
+    def test_jitter_deterministic(self) -> None:
+        arb1 = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=10.0)
+        arb2 = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=10.0)
+        d1 = arb1.compute_delay(3, seed="same_seed")
+        d2 = arb2.compute_delay(3, seed="same_seed")
+        self.assertEqual(d1["delay_s"], d2["delay_s"])
+
+    def test_different_seeds(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=1.0, max_delay_s=10.0)
+        d1 = arb.compute_delay(3, seed="seed_a")
+        d2 = arb.compute_delay(3, seed="seed_b")
+        self.assertNotEqual(d1["delay_s"], d2["delay_s"])
+
+    def test_no_jitter(self) -> None:
+        arb = AdaptiveRetryBackoff(base_delay_s=2.0, max_delay_s=10.0, jitter_enabled=False)
+        delay = arb.compute_delay(1, seed="test")
+        self.assertEqual(delay["delay_s"], 2.0)
+
+    def test_get_stats(self) -> None:
+        arb = AdaptiveRetryBackoff()
+        arb.compute_delay(1, seed="test")
+        stats = arb.get_stats()
+        self.assertEqual(stats["base_delay_s"], 1.0)
+        self.assertEqual(stats["jitter_enabled"], True)
+
+
+class TestGoalResourceProfiler(unittest.TestCase):
+    """Feature 34: Goal resource profiling."""
+
+    def test_profile_goal(self) -> None:
+        grp = GoalResourceProfiler()
+        prof = grp.profile_goal("g1", cpu_weight=2.0, memory_mb=256,
+                                io_intensity="high", network_calls=3)
+        self.assertEqual(prof["goal_id"], "g1")
+        self.assertEqual(prof["cpu_weight"], 2.0)
+        self.assertEqual(prof["memory_mb"], 256)
+        self.assertEqual(prof["io_intensity"], "high")
+        self.assertEqual(prof["network_calls"], 3)
+        self.assertEqual(prof["total_weight"], 3.5)
+
+    def test_default_profile(self) -> None:
+        grp = GoalResourceProfiler()
+        prof = grp.profile_goal("g1")
+        self.assertEqual(prof["cpu_weight"], 1.0)
+        self.assertEqual(prof["memory_mb"], 128)
+        self.assertEqual(prof["io_intensity"], "low")
+        self.assertEqual(prof["network_calls"], 0)
+        self.assertEqual(prof["total_weight"], 1.0)
+
+    def test_get_profile(self) -> None:
+        grp = GoalResourceProfiler()
+        grp.profile_goal("g1", cpu_weight=2.0)
+        self.assertIsNotNone(grp.get_profile("g1"))
+        self.assertIsNone(grp.get_profile("unknown"))
+
+    def test_get_total_resource_demand(self) -> None:
+        grp = GoalResourceProfiler()
+        grp.profile_goal("g1", cpu_weight=2.0, memory_mb=256)
+        grp.profile_goal("g2", cpu_weight=3.0, memory_mb=512)
+        demand = grp.get_total_resource_demand()
+        self.assertEqual(demand["total_cpu_weight"], 5.0)
+        self.assertEqual(demand["total_memory_mb"], 768)
+        self.assertEqual(demand["goals_profiled"], 2)
+
+    def test_can_fit(self) -> None:
+        grp = GoalResourceProfiler()
+        grp.profile_goal("g1", cpu_weight=2.0, memory_mb=256)
+        fits = grp.can_fit("g1", 4.0, 512)
+        self.assertTrue(fits["can_fit"])
+        self.assertTrue(fits["cpu_ok"])
+        self.assertTrue(fits["mem_ok"])
+
+    def test_cannot_fit(self) -> None:
+        grp = GoalResourceProfiler()
+        grp.profile_goal("g1", cpu_weight=2.0, memory_mb=256)
+        fits = grp.can_fit("g1", 1.0, 128)
+        self.assertFalse(fits["can_fit"])
+        self.assertFalse(fits["cpu_ok"])
+        self.assertFalse(fits["mem_ok"])
+
+    def test_no_profile(self) -> None:
+        grp = GoalResourceProfiler()
+        result = grp.can_fit("unknown", 4.0, 512)
+        self.assertFalse(result["can_fit"])
+        self.assertEqual(result["reason"], "no_profile")
+
+    def test_get_all_profiles(self) -> None:
+        grp = GoalResourceProfiler()
+        grp.profile_goal("g1")
+        grp.profile_goal("g2")
+        profiles = grp.get_all_profiles()
+        self.assertEqual(len(profiles), 2)
+        self.assertIn("g1", profiles)
+        self.assertIn("g2", profiles)
+
+
+class TestErrorClassificationEngine(unittest.TestCase):
+    """Feature 35: Error classification with recovery suggestions."""
+
+    def test_retryable_timeout(self) -> None:
+        ece = ErrorClassificationEngine()
+        result = ece.classify(TimeoutError("connection timeout"), "g1")
+        self.assertEqual(result["category"], "retryable")
+        self.assertTrue(result["retryable"])
+        self.assertEqual(result["recovery"], "backoff_and_retry")
+
+    def test_critical_auth(self) -> None:
+        ece = ErrorClassificationEngine()
+        result = ece.classify(PermissionError("authentication denied"), "g1")
+        self.assertEqual(result["category"], "critical")
+        self.assertFalse(result["retryable"])
+        self.assertEqual(result["recovery"], "abort_and_alert")
+
+    def test_non_retryable_after_attempts(self) -> None:
+        ece = ErrorClassificationEngine()
+        for i in range(1, 4):
+            result = ece.classify(ValueError("unknown error"), "g1", attempt=i)
+            if i < 3:
+                self.assertEqual(result["category"], "retryable")
+            else:
+                self.assertEqual(result["category"], "non_retryable")
+                self.assertEqual(result["recovery"], "manual_review")
+
+    def test_critical_keywords(self) -> None:
+        ece = ErrorClassificationEngine()
+        for msg in ["permission denied", "authorization failed",
+                     "not found", "invalid request", "corrupt data",
+                     "syntax error"]:
+            result = ece.classify(ValueError(msg), "g1", attempt=1)
+            self.assertEqual(result["category"], "critical",
+                             f"Failed for: {msg}")
+
+    def test_retryable_keywords(self) -> None:
+        ece = ErrorClassificationEngine()
+        for msg in ["timeout", "connection refused", "temporarily unavailable",
+                     "overloaded", "rate limit"]:
+            result = ece.classify(ValueError(msg), "g1", attempt=1)
+            self.assertEqual(result["category"], "retryable",
+                             f"Failed for: {msg}")
+
+    def test_should_retry(self) -> None:
+        ece = ErrorClassificationEngine()
+        self.assertTrue(ece.should_retry(TimeoutError("t"), 1))
+        self.assertTrue(ece.should_retry(TimeoutError("t"), 2))
+        self.assertFalse(ece.should_retry(PermissionError("permission denied"), 1))
+        self.assertFalse(ece.should_retry(TimeoutError("t"), 5))
+
+    def test_should_retry_default_max(self) -> None:
+        ece = ErrorClassificationEngine()
+        self.assertTrue(ece.should_retry(ValueError("e"), 1))
+        self.assertFalse(ece.should_retry(ValueError("e"), 4))
+
+    def test_get_summary(self) -> None:
+        ece = ErrorClassificationEngine()
+        ece.classify(TimeoutError("t"), "g1")
+        ece.classify(ValueError("v"), "g1", attempt=5)
+        ece.classify(PermissionError("permission denied"), "g1")
+        summary = ece.get_summary()
+        self.assertEqual(summary["total"], 3)
+        self.assertEqual(summary["categories"]["retryable"], 1)
+        self.assertEqual(summary["categories"]["critical"], 1)
+        self.assertEqual(summary["categories"]["non_retryable"], 1)
+        self.assertAlmostEqual(summary["retry_rate"], 1/3, places=4)
+
+    def test_get_classified(self) -> None:
+        ece = ErrorClassificationEngine()
+        ece.classify(TimeoutError("t"), "g1")
+        classified = ece.get_classified()
+        self.assertEqual(len(classified), 1)
+        self.assertEqual(classified[0]["error_type"], "TimeoutError")
+
+    def test_classify_has_required_fields(self) -> None:
+        ece = ErrorClassificationEngine()
+        result = ece.classify(ValueError("e"), "g1", attempt=2)
+        for field in ["error_type", "error_message", "goal_id", "attempt",
+                       "category", "recovery", "retryable", "classified_at"]:
+            self.assertIn(field, result)
