@@ -605,6 +605,17 @@ class StressTestRunner:
         if self._sampling_task and not self._sampling_task.done():
             self._sampling_task.cancel()
 
+    def get_summary(self) -> dict[str, Any]:
+        """Get a summary of the stress test runner state."""
+        return {
+            "total_goals": self._total_goals,
+            "completed_goals": self._completed_goals,
+            "active_goals": len([t for t in self._active_goals.values() if not t.done()]),
+            "concurrency_samples": len(self._concurrency_samples),
+            "peak_concurrency": max(self._concurrency_samples) if self._concurrency_samples else 0,
+            "has_active_sampling": self._sampling_task is not None and not self._sampling_task.done(),
+        }
+
     def compare_results(self, result1: StressTestResult, result2: StressTestResult) -> dict[str, Any]:
         """Compare two stress test results and return a comparison summary."""
         return {
