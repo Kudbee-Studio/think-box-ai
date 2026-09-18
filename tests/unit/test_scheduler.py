@@ -59,6 +59,16 @@ from thinkbox.scheduler import (
     GoalProgressTracker,
     ConfigurableRetryPolicy,
     SubtaskFailureAggregator,
+    CriticalPathHighlight,
+    PriorityAging,
+    DeadlineMode,
+    JobGroupFanInGate,
+    TenantFairShare,
+    RetryBudgetWithJitter,
+    IdempotencyStore,
+    QueuePauseResume,
+    SLABreachEmitter,
+    SchedulerPolicyPackV2,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -1916,3 +1926,524 @@ class TestSubtaskFailureAggregator(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+# =============================================================================
+# Tests for PR #80 - 10 governed scheduler features
+# =============================================================================
+
+
+class TestCriticalPathHighlight(unittest.TestCase):
+    """Feature 1 (PR80): DAG critical-path highlight."""
+
+    def test_compute(self) -> None:
+        ch = CriticalPathHighlight()
+        ch._resolver.add_goal("a", ["b"])
+        ch._resolver.add_goal("b", ["c"])
+        ch._resolver.add_goal("c")
+        result = ch.compute()
+        self.assertEqual(result["critical_path"], ["c", "b", "a"])
+        self.assertEqual(result["critical_path_length"], 3)
+        self.assertIn("a", result["highlighted_nodes"])
+        self.assertIn("b", result["highlighted_nodes"])
+        self.assertIn("c", result["highlighted_nodes"])
+
+    def test_is_critical(self) -> None:
+        ch = CriticalPathHighlight()
+        ch._resolver.add_goal("a", ["b"])
+        ch._resolver.add_goal("b")
+        ch.compute()
+        self.assertTrue(ch.is_critical("a"))
+        self.assertFalse(ch.is_critical("nonexistent"))
+
+    def test_is_critical_edge(self) -> None:
+        ch = CriticalPathHighlight()
+        ch._resolver.add_goal("a", ["b"])
+        ch._resolver.add_goal("b")
+        ch.compute()
+        self.assertTrue(ch.is_critical_edge("b", "a"))
+        self.assertFalse(ch.is_critical_edge("a", "b"))
+
+    def test_get_highlighted_viz(self) -> None:
+        ch = CriticalPathHighlight()
+        ch._resolver.add_goal("a", ["b"])
+        ch._resolver.add_goal("b")
+        viz = ch.get_highlighted_viz()
+        self.assertIn("nodes", viz)
+        self.assertIn("edges", viz)
+        critical_nodes = [n for n in viz["nodes"] if n["critical"]]
+        self.assertGreater(len(critical_nodes), 0)
+
+    def test_empty_dag(self) -> None:
+        ch = CriticalPathHighlight()
+        result = ch.compute()
+        self.assertEqual(result["critical_path"], [])
+        self.assertEqual(result["critical_path_length"], 0)
+
+    def test_get_stats(self) -> None:
+        ch = CriticalPathHighlight()
+        ch._resolver.add_goal("a", ["b"])
+        ch._resolver.add_goal("b")
+        ch.compute()
+        stats = ch.get_stats()
+        self.assertEqual(stats["critical_path_length"], 2)
+        self.assertEqual(stats["critical_nodes"], 2)
+
+
+class TestPriorityAging(unittest.TestCase):
+    """Feature 2 (PR80): Priority aging."""
+
+    def test_no_aging_when_fresh(self) -> None:
+        pa = PriorityAging(aging_threshold_s=100.0)
+        pa.register("g1", priority=0)
+        result = pa.apply_aging("g1")
+        self.assertFalse(result["aged"])
+
+    def test_aging_after_threshold(self) -> None:
+        pa = PriorityAging(aging_threshold_s=0.001, boost_amount=5, max_boosts=3)
+        pa.register("g1", priority=0)
+        time.sleep(0.01)
+        result = pa.apply_aging("g1")
+        self.assertTrue(result["aged"])
+        self.assertEqual(result["old_priority"], 0)
+        self.assertEqual(result["new_priority"], 5)
+
+    def test_max_boosts_enforced(self) -> None:
+        pa = PriorityAging(aging_threshold_s=0.001, boost_amount=5, max_boosts=2)
+        pa.register("g1", priority=0)
+        pa._boost_counts["g1"] = 2
+        pa._enqueued_at["g1"] = 0
+        result = pa.apply_aging("g1")
+        self.assertFalse(result["aged"])
+
+    def test_get_priority(self) -> None:
+        pa = PriorityAging(boost_amount=10)
+        pa.register("g1", priority=5)
+        self.assertEqual(pa.get_priority("g1"), 5)
+
+    def test_reset(self) -> None:
+        pa = PriorityAging(aging_threshold_s=0.001, boost_amount=5)
+        pa.register("g1", priority=0)
+        time.sleep(0.01)
+        pa.apply_aging("g1")
+        pa.reset("g1")
+        self.assertEqual(pa.get_priority("g1"), 0)
+
+    def test_get_stats(self) -> None:
+        pa = PriorityAging()
+        pa.register("g1")
+        pa.register("g2")
+        stats = pa.get_stats()
+        self.assertEqual(stats["registered"], 2)
+
+
+class TestDeadlineMode(unittest.TestCase):
+    """Feature 3 (PR80): Soft/hard deadline modes."""
+
+    def test_soft_deadline_not_breached(self) -> None:
+        dm = DeadlineMode(default_mode=DeadlineMode.SOFT)
+        dm.set_deadline("g1", deadline_s=100.0, mode=DeadlineMode.SOFT)
+        dm.register_start("g1", start_time=time.monotonic() - 50.0)
+        result = dm.check("g1")
+        self.assertFalse(result["breached"])
+
+    def test_soft_deadline_breached(self) -> None:
+        dm = DeadlineMode(default_mode=DeadlineMode.SOFT)
+        dm.set_deadline("g1", deadline_s=1.0, mode=DeadlineMode.SOFT)
+        dm.register_start("g1", start_time=time.monotonic() - 5.0)
+        result = dm.check("g1")
+        self.assertTrue(result["breached"])
+        self.assertEqual(result["action"], "deprioritize")
+
+    def test_hard_deadline_breached(self) -> None:
+        dm = DeadlineMode(default_mode=DeadlineMode.HARD)
+        dm.set_deadline("g1", deadline_s=1.0, mode=DeadlineMode.HARD)
+        dm.register_start("g1", start_time=time.monotonic() - 5.0)
+        result = dm.check("g1")
+        self.assertTrue(result["breached"])
+        self.assertEqual(result["action"], "cancel")
+
+    def test_no_deadline_set(self) -> None:
+        dm = DeadlineMode()
+        result = dm.check("unknown")
+        self.assertFalse(result["breached"])
+        self.assertEqual(result["reason"], "no_deadline_set")
+
+    def test_get_stats(self) -> None:
+        dm = DeadlineMode()
+        dm.set_deadline("g1", 10.0, mode=DeadlineMode.SOFT)
+        dm.register_start("g1", start_time=time.monotonic() - 5.0)
+        dm.check("g1")
+        stats = dm.get_stats()
+        self.assertEqual(stats["tracked_goals"], 1)
+
+
+class TestJobGroupFanInGate(unittest.TestCase):
+    """Feature 4 (PR80): Job groups with fan-in gate."""
+
+    def test_all_succeed_all_must_succeed(self) -> None:
+        gate = JobGroupFanInGate(fail_policy=JobGroupFanInGate.ALL_MUST_SUCCEED)
+        gate.create_group("g1", ["a", "b", "c"])
+        gate.record_member_result("g1", "a", "success")
+        gate.record_member_result("g1", "b", "success")
+        gate.record_member_result("g1", "c", "success")
+        result = gate.check_gate("g1")
+        self.assertTrue(result["complete"])
+        self.assertTrue(result["success"])
+        self.assertEqual(result["succeeded"], 3)
+
+    def test_partial_completion_waiting(self) -> None:
+        gate = JobGroupFanInGate()
+        gate.create_group("g1", ["a", "b"])
+        gate.record_member_result("g1", "a", "success")
+        result = gate.check_gate("g1")
+        self.assertFalse(result["complete"])
+        self.assertEqual(result["members_pending"], 1)
+
+    def test_fail_policy_all_fail(self) -> None:
+        gate = JobGroupFanInGate(fail_policy=JobGroupFanInGate.ALL_FAIL)
+        gate.create_group("g1", ["a", "b"])
+        gate.record_member_result("g1", "a", "success")
+        gate.record_member_result("g1", "b", "failed")
+        result = gate.check_gate("g1")
+        self.assertFalse(result["success"])
+        self.assertEqual(result["result"], "failed")
+
+    def test_fail_policy_majority_fail(self) -> None:
+        gate = JobGroupFanInGate(fail_policy=JobGroupFanInGate.MAJORITY_FAIL)
+        gate.create_group("g1", ["a", "b", "c"])
+        gate.record_member_result("g1", "a", "success")
+        gate.record_member_result("g1", "b", "failed")
+        gate.record_member_result("g1", "c", "success")
+        result = gate.check_gate("g1")
+        self.assertTrue(result["success"])
+
+    def test_get_group_status(self) -> None:
+        gate = JobGroupFanInGate()
+        gate.create_group("g1", ["a", "b"])
+        status = gate.get_group_status("g1")
+        self.assertEqual(status["total"], 2)
+
+    def test_get_stats(self) -> None:
+        gate = JobGroupFanInGate()
+        gate.create_group("g1", ["a", "b"])
+        gate.create_group("g2", ["c"])
+        stats = gate.get_stats()
+        self.assertEqual(stats["groups"], 2)
+
+
+class TestTenantFairShare(unittest.TestCase):
+    """Feature 5 (PR80): Per-tenant fair-share weights."""
+
+    def test_next_tenant(self) -> None:
+        tfs = TenantFairShare()
+        tfs.set_weight("tenant_a", 2.0)
+        tfs.set_weight("tenant_b", 1.0)
+        order = []
+        for _ in range(3):
+            order.append(tfs.next_tenant())
+        self.assertEqual(order[0], "tenant_a")
+        self.assertEqual(order[1], "tenant_a")
+        self.assertEqual(order[2], "tenant_b")
+
+    def test_get_weight(self) -> None:
+        tfs = TenantFairShare()
+        tfs.set_weight("t1", 5.0)
+        self.assertEqual(tfs.get_weight("t1"), 5.0)
+        self.assertEqual(tfs.get_weight("unknown"), 1.0)
+
+    def test_get_share(self) -> None:
+        tfs = TenantFairShare()
+        tfs.set_weight("t1", 3.0)
+        tfs.set_weight("t2", 1.0)
+        share1 = tfs.get_share("t1")
+        share2 = tfs.get_share("t2")
+        self.assertAlmostEqual(share1, 0.75, places=4)
+        self.assertAlmostEqual(share2, 0.25, places=4)
+
+    def test_empty(self) -> None:
+        tfs = TenantFairShare()
+        self.assertIsNone(tfs.next_tenant())
+
+    def test_get_stats(self) -> None:
+        tfs = TenantFairShare()
+        tfs.set_weight("t1", 1.0)
+        tfs.set_weight("t2", 2.0)
+        stats = tfs.get_stats()
+        self.assertEqual(stats["tenants"], 2)
+        self.assertEqual(stats["total_weight"], 3.0)
+
+
+class TestRetryBudgetWithJitter(unittest.TestCase):
+    """Feature 6 (PR80): Retry budget + jitter."""
+
+    def test_allocate(self) -> None:
+        rb = RetryBudgetWithJitter(max_retries=3)
+        budget = rb.allocate("g1")
+        self.assertEqual(budget.max_retries, 3)
+
+    def test_calculate_delay_exponential(self) -> None:
+        rb = RetryBudgetWithJitter(base_delay_s=1.0)
+        d1 = rb.calculate_delay("g1", 1, "seed")
+        d2 = rb.calculate_delay("g1", 2, "seed")
+        d3 = rb.calculate_delay("g1", 3, "seed")
+        self.assertAlmostEqual(d1["base_delay_s"], 1.0)
+        self.assertAlmostEqual(d2["base_delay_s"], 2.0)
+        self.assertAlmostEqual(d3["base_delay_s"], 4.0)
+        self.assertGreater(d1["jitter"], 0)
+        self.assertLessEqual(d1["jitter"], d1["base_delay_s"] * 0.5)
+
+    def test_can_retry(self) -> None:
+        rb = RetryBudgetWithJitter(max_retries=2)
+        rb.allocate("g1")
+        self.assertTrue(rb.can_retry("g1")[0])
+        rb.consume_retry("g1")
+        self.assertTrue(rb.can_retry("g1")[0])
+        rb.consume_retry("g1")
+        self.assertFalse(rb.can_retry("g1")[0])
+
+    def test_consume_retry_updates_ledger(self) -> None:
+        rb = RetryBudgetWithJitter(max_retries=3)
+        rb.allocate("g1")
+        rb.consume_retry("g1")
+        ledger = rb.get_ledger()
+        self.assertEqual(len(ledger), 1)
+        self.assertEqual(ledger[0]["goal_id"], "g1")
+
+    def test_get_budget(self) -> None:
+        rb = RetryBudgetWithJitter(max_retries=5)
+        rb.allocate("g1")
+        rb.consume_retry("g1")
+        budget = rb.get_budget("g1")
+        self.assertEqual(budget["allocated"], 5)
+        self.assertEqual(budget["consumed"], 1)
+        self.assertEqual(budget["remaining"], 4)
+
+    def test_get_stats(self) -> None:
+        rb = RetryBudgetWithJitter(max_retries=3)
+        rb.allocate("g1")
+        rb.allocate("g2")
+        rb.consume_retry("g1")
+        stats = rb.get_stats()
+        self.assertEqual(stats["goals"], 2)
+        self.assertEqual(stats["total_consumed"], 1)
+
+
+class TestIdempotencyStore(unittest.TestCase):
+    """Feature 7 (PR80): Idempotency keys."""
+
+    def test_enqueue_new(self) -> None:
+        store = IdempotencyStore()
+        result = store.enqueue("key1", "job-1")
+        self.assertTrue(result["enqueued"])
+        self.assertEqual(result["job_id"], "job-1")
+
+    def test_duplicate_key_rejected(self) -> None:
+        store = IdempotencyStore()
+        store.enqueue("key1", "job-1")
+        result = store.enqueue("key1", "job-2")
+        self.assertFalse(result["enqueued"])
+        self.assertEqual(result["existing_job_id"], "job-1")
+        self.assertEqual(result["reason"], "duplicate_idempotency_key")
+
+    def test_get(self) -> None:
+        store = IdempotencyStore()
+        store.enqueue("key1", "job-1")
+        result = store.get("key1")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["job_id"], "job-1")
+
+    def test_exists(self) -> None:
+        store = IdempotencyStore()
+        store.enqueue("key1", "job-1")
+        self.assertTrue(store.exists("key1"))
+        self.assertFalse(store.exists("unknown"))
+
+    def test_remove(self) -> None:
+        store = IdempotencyStore()
+        store.enqueue("key1", "job-1")
+        self.assertTrue(store.remove("key1"))
+        self.assertFalse(store.exists("key1"))
+
+    def test_get_stats(self) -> None:
+        store = IdempotencyStore()
+        store.enqueue("key1", "job-1")
+        store.enqueue("key2", "job-2")
+        store.enqueue("key1", "job-dup")
+        stats = store.get_stats()
+        self.assertEqual(stats["total_keys"], 2)
+        self.assertEqual(stats["duplicates_rejected"], 1)
+
+
+class TestQueuePauseResume(unittest.TestCase):
+    """Feature 8 (PR80): Pause/resume queue."""
+
+    def test_pause(self) -> None:
+        qr = QueuePauseResume()
+        result = qr.pause("operator")
+        self.assertTrue(qr.is_paused)
+        self.assertEqual(result["action"], "pause")
+
+    def test_resume(self) -> None:
+        qr = QueuePauseResume()
+        qr.pause("operator")
+        result = qr.resume()
+        self.assertFalse(qr.is_paused)
+        self.assertEqual(result["action"], "resume")
+
+    def test_should_admit_paused(self) -> None:
+        qr = QueuePauseResume()
+        qr.pause("operator")
+        allowed, reason = qr.should_admit()
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "queue_paused")
+
+    def test_should_admit_resumed(self) -> None:
+        qr = QueuePauseResume()
+        allowed, reason = qr.should_admit()
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "admission_allowed")
+
+    def test_record_drained(self) -> None:
+        qr = QueuePauseResume()
+        qr.pause("operator")
+        qr.record_drained("g1")
+        info = qr.get_pause_info()
+        self.assertIn("g1", info["drained"])
+
+    def test_get_stats(self) -> None:
+        qr = QueuePauseResume()
+        qr.pause("op")
+        qr.resume()
+        qr.pause("op2")
+        qr.resume()
+        stats = qr.get_stats()
+        self.assertEqual(stats["pause_count"], 2)
+        self.assertEqual(stats["resume_count"], 2)
+
+
+class TestSLABreachEmitter(unittest.TestCase):
+    """Feature 9 (PR80): SLA breach events."""
+
+    def test_latency_breach(self) -> None:
+        emitter = SLABreachEmitter()
+        emitter.set_sla("g1", latency_s=5.0)
+        breach = emitter.check_latency("g1", 10.0)
+        self.assertIsNotNone(breach)
+        self.assertEqual(breach["breach_type"], "latency")
+        self.assertEqual(breach["severity"], "warning")
+
+    def test_latency_ok(self) -> None:
+        emitter = SLABreachEmitter()
+        emitter.set_sla("g1", latency_s=10.0)
+        breach = emitter.check_latency("g1", 5.0)
+        self.assertIsNone(breach)
+
+    def test_deadline_breach(self) -> None:
+        emitter = SLABreachEmitter()
+        emitter.set_sla("g1", deadline_s=5.0)
+        breach = emitter.check_deadline("g1", 10.0)
+        self.assertIsNotNone(breach)
+        self.assertEqual(breach["breach_type"], "deadline")
+        self.assertEqual(breach["severity"], "critical")
+
+    def test_no_sla_set(self) -> None:
+        emitter = SLABreachEmitter()
+        breach = emitter.check_latency("unknown", 10.0)
+        self.assertIsNone(breach)
+        breach2 = emitter.check_deadline("unknown", 10.0)
+        self.assertIsNone(breach2)
+
+    def test_get_breaches_for_goal(self) -> None:
+        emitter = SLABreachEmitter()
+        emitter.set_sla("g1", latency_s=5.0)
+        emitter.check_latency("g1", 10.0)
+        emitter.set_sla("g2", latency_s=5.0)
+        emitter.check_latency("g2", 10.0)
+        breaches = emitter.get_breaches_for_goal("g1")
+        self.assertEqual(len(breaches), 1)
+        self.assertEqual(breaches[0]["goal_id"], "g1")
+
+    def test_get_stats(self) -> None:
+        emitter = SLABreachEmitter()
+        emitter.set_sla("g1", latency_s=5.0)
+        emitter.check_latency("g1", 10.0)
+        emitter.set_sla("g2", deadline_s=5.0)
+        emitter.check_deadline("g2", 10.0)
+        stats = emitter.get_stats()
+        self.assertEqual(stats["total_breaches"], 2)
+        self.assertEqual(stats["latency_breaches"], 1)
+        self.assertEqual(stats["deadline_breaches"], 1)
+
+
+class TestSchedulerPolicyPackV2(unittest.TestCase):
+    """Feature 10 (PR80): Scheduler policy pack v2."""
+
+    def test_load_from_dict(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        policy = {
+            "version": "v2",
+            "priority": {"default": 50},
+            "deadlines": {"default_s": 300},
+            "retry": {"max_retries": 3},
+        }
+        result = pack.load_from_dict("policy1", policy)
+        self.assertTrue(result["loaded"])
+        self.assertEqual(result["version"], "v2")
+
+    def test_load_from_json(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        json_str = '{"version": "v2", "priority": {"default": 50}}'
+        result = pack.load_from_json("policy1", json_str)
+        self.assertTrue(result["loaded"])
+
+    def test_get_policy_sections(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        policy = {
+            "version": "v2",
+            "priority": {"default": 50},
+            "deadlines": {"default_s": 300},
+            "fair_share": {"strategy": "weighted"},
+            "retry": {"max_retries": 3},
+        }
+        pack.load_from_dict("policy1", policy)
+        self.assertEqual(pack.get_priority_policy("policy1"), {"default": 50})
+        self.assertEqual(pack.get_deadline_policy("policy1"), {"default_s": 300})
+        self.assertEqual(pack.get_fair_share_policy("policy1"), {"strategy": "weighted"})
+        self.assertEqual(pack.get_retry_policy("policy1"), {"max_retries": 3})
+
+    def test_validate_valid(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        policy = {"version": "v2", "priority": {"default": 50}}
+        pack.load_from_dict("policy1", policy)
+        result = pack.validate("policy1")
+        self.assertTrue(result["valid"])
+
+    def test_validate_missing_fields(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        policy = {"priority": {"default": 50}}
+        pack.load_from_dict("policy1", policy)
+        result = pack.validate("policy1")
+        self.assertFalse(result["valid"])
+        self.assertIn("version", result["missing"])
+
+    def test_validate_not_found(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        result = pack.validate("nonexistent")
+        self.assertFalse(result["valid"])
+
+    def test_list_policies(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        pack.load_from_dict("p1", {"version": "v2", "priority": {}})
+        pack.load_from_dict("p2", {"version": "v2", "priority": {}})
+        policies = pack.list_policies()
+        self.assertEqual(len(policies), 2)
+        self.assertIn("p1", policies)
+
+    def test_get_stats(self) -> None:
+        pack = SchedulerPolicyPackV2()
+        pack.load_from_dict("p1", {"version": "v2", "priority": {}})
+        stats = pack.get_stats()
+        self.assertEqual(stats["version"], "v2")
+        self.assertEqual(stats["total_policies"], 1)
