@@ -433,6 +433,29 @@ class StressTestConfig:
         if self.target_qps is not None and self.target_qps <= 0:
             raise ValueError("target_qps must be positive if set")
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize configuration to dictionary."""
+        return {
+            "num_goals": self.num_goals,
+            "max_calls_global": self.max_calls_global,
+            "max_retries_global": self.max_retries_global,
+            "contention_policy": self.contention_policy.value,
+            "max_duration_seconds": self.max_duration_seconds,
+            "target_qps": self.target_qps,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "StressTestConfig":
+        """Deserialize configuration from dictionary."""
+        return cls(
+            num_goals=data.get("num_goals", 10),
+            max_calls_global=data.get("max_calls_global", 50),
+            max_retries_global=data.get("max_retries_global", 1),
+            contention_policy=BudgetContentionPolicy(data.get("contention_policy", "fair_share")),
+            max_duration_seconds=data.get("max_duration_seconds", 60.0),
+            target_qps=data.get("target_qps"),
+        )
+
 
 @dataclass
 class StressTestResult:
@@ -454,6 +477,44 @@ failed_goals: int = 0
     def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize result to dictionary."""
+        return {
+            "config": self.config.to_dict(),
+            "total_calls": self.total_calls,
+            "total_retries": self.total_retries,
+            "total_budget_exhausted": self.total_budget_exhausted,
+            "goal_results": self.goal_results,
+            "per_goal_calls": self.per_goal_calls,
+            "per_goal_retries": self.per_goal_retries,
+            "fairness_index": self.fairness_index,
+            "duration_seconds": self.duration_seconds,
+            "peak_concurrency": self.peak_concurrency,
+            "completed_goals": self.completed_goals,
+            "failed_goals": self.failed_goals,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "StressTestResult":
+        """Deserialize result from dictionary."""
+        config = StressTestConfig.from_dict(data["config"])
+        return cls(
+            config=config,
+            total_calls=data.get("total_calls", 0),
+            total_retries=data.get("total_retries", 0),
+            total_budget_exhausted=data.get("total_budget_exhausted", 0),
+            goal_results=data.get("goal_results", {}),
+            per_goal_calls=data.get("per_goal_calls", {}),
+            per_goal_retries=data.get("per_goal_retries", {}),
+            fairness_index=data.get("fairness_index", 0.0),
+            duration_seconds=data.get("duration_seconds", 0.0),
+            peak_concurrency=data.get("peak_concurrency", 0),
+            completed_goals=data.get("completed_goals", 0),
+            failed_goals=data.get("failed_goals", 0),
+            timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+        )
 
 
 class StressTestRunner:
