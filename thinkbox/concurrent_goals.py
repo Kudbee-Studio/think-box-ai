@@ -476,6 +476,11 @@ class StressTestRunner:
             except asyncio.CancelledError:
                 pass
 
+    def cancel(self) -> None:
+        """Cancel any running stress test."""
+        if self._sampling_task and not self._sampling_task.done():
+            self._sampling_task.cancel()
+
     def _default_goal_factory(self, index: int) -> ConcurrentGoalSpec:
         """Default factory creating simple compute goals."""
         from thinkbox.pop_arena import system_prompt_for_v2, VerifiedRetryConfig
