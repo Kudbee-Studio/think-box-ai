@@ -463,6 +463,18 @@ class StressTestRunner:
         self.concurrent_runner = concurrent_runner or ConcurrentGoalsRunner()
         self._active_goals: dict[str, asyncio.Task] = {}
         self._concurrency_samples: list[int] = []
+        self._sampling_task: asyncio.Task | None = None
+
+    async def __aenter__(self) -> "StressTestRunner":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._sampling_task and not self._sampling_task.done():
+            self._sampling_task.cancel()
+            try:
+                await self._sampling_task
+            except asyncio.CancelledError:
+                pass
 
     def _default_goal_factory(self, index: int) -> ConcurrentGoalSpec:
         """Default factory creating simple compute goals."""
