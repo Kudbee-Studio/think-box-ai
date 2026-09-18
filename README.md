@@ -292,7 +292,7 @@ python3 -m unittest tests.unit.test_whip_protocol
 python3 -m unittest tests.integration.test_e2e_engine
 ```
 
-Current test count: **664 tests** (all passing, 6 skipped)
+Current test count: **1275 tests** (6 skipped, 3 pre-existing swarm instrumentation failures)
 
 ---
 
