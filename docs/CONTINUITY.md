@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (663 OK, 6 skipped)
+- [x] Tests executed and passing (853 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -25,6 +25,7 @@ Before declaring completion, every agent MUST verify:
 - [x] Security/credential check completed (0 credentials found)
 - [x] Multi-goal concurrent budgets + deeper DAG telemetry COMPLETE (2-goal fan-in DAG, 4 live Mercury-2 calls)
 - [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
+- [x] 10 new scheduler features (timeout, deps, analytics, prediction, stealing, SLA, checkpoints, backoff, profiling, error classification) COMPLETE
 
 ---
 
@@ -32,14 +33,14 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement for shared-session concurrent execution |
-| **Latest completed work** | Budget contention policies + per-goal limit enforcement COMPLETE: Goals with budget limit ≤ 0 are now skipped before execution (early BUDGET_EXHAUSTED); FAIR_SHARE/PRIORITY/FIFO policies verified; per-goal limit check happens BEFORE goal execution. Fixed PRIORITY policy allocation (high-priority gets budget, lower skipped). Test suite 663 OK. |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence (scope="concurrent" control record + file ledger + proof artifacts); dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement |
+| **Active objective** | 10 new governed scheduler features extending PR #76 architecture |
+| **Latest completed work** | 10 features COMPLETE: GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics, CapacityPredictor, WorkStealingQueue, SLAComplianceTracker, CheckpointManager, AdaptiveRetryBackoff, GoalResourceProfiler, ErrorClassificationEngine. Branch `kilo/epic-coil-ao1`. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked completions). Test suite 853 OK (6 skipped). |
+| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
-| **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; persist per-goal retry-rate telemetry by layer; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #73 (feat/phase13-concurrent-scale) awaiting founder review; PR #72 merged (double-execution bug fix); PR #71 merged (concurrent contention); PR #70 merged (DAG verified execution) |
-| **Test count** | **663 tests passing (6 skipped)** |
+| **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
+| **PR status** | PR #77 (feat/scheduler-10-features) open; PR #76 merged (25 scheduler features) |
+| **Test count** | **853 tests passing (6 skipped)** |
 
 ---
 
