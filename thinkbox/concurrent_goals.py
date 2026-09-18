@@ -512,8 +512,49 @@ failed_goals: int = 0
             duration_seconds=data.get("duration_seconds", 0.0),
             peak_concurrency=data.get("peak_concurrency", 0),
             completed_goals=data.get("completed_goals", 0),
+            @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "StressTestResult":
+        """Deserialize result from dictionary."""
+        config = StressTestConfig.from_dict(data["config"])
+        return cls(
+            config=config,
+            total_calls=data.get("total_calls", 0),
+            total_retries=data.get("total_retries", 0),
+            total_budget_exhausted=data.get("total_budget_exhausted", 0),
+            goal_results=data.get("goal_results", {}),
+            per_goal_calls=data.get("per_goal_calls", {}),
+            per_goal_retries=data.get("per_goal_retries", {}),
+            fairness_index=data.get("fairness_index", 0.0),
+            duration_seconds=data.get("duration_seconds", 0.0),
+            peak_concurrency=data.get("peak_concurrency", 0),
+            completed_goals=data.get("completed_goals", 0),
             failed_goals=data.get("failed_goals", 0),
             timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+        )
+
+    def is_better_than(self, other: "StressTestResult") -> bool:
+        """Compare this result with another based on fairness and calls efficiency.
+        
+        Higher fairness and fewer calls per goal is better.
+        """
+        if not isinstance(other, StressTestResult):
+            return NotImplemented
+        # Higher fairness is better
+        if self.fairness_index != other.fairness_index:
+            return self.fairness_index > other.fairness_index
+        # Fewer calls per goal is better
+        my_avg_calls = self.total_calls / max(self.config.num_goals, 1)
+        other_avg_calls = other.total_calls / max(other.config.num_goals, 1)
+        return my_avg_calls < other_avg_calls
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StressTestResult):
+            return NotImplemented
+        return (
+            self.config == other.config and
+            self.total_calls == other.total_calls and
+            self.total_retries == other.total_retries and
+            self.fairness_index == other.fairness_index
         )
 
 
