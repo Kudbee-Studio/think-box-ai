@@ -459,11 +459,18 @@ failed_goals: int = 0
 class StressTestRunner:
     """Runs concurrency stress tests using the ConcurrentGoalsRunner."""
 
-    def __init__(self, concurrent_runner: ConcurrentGoalsRunner | None = None) -> None:
+    def __init__(
+        self,
+        concurrent_runner: ConcurrentGoalsRunner | None = None,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self.concurrent_runner = concurrent_runner or ConcurrentGoalsRunner()
         self._active_goals: dict[str, asyncio.Task] = {}
         self._concurrency_samples: list[int] = []
         self._sampling_task: asyncio.Task | None = None
+        self._progress_callback = progress_callback
+        self._completed_goals: int = 0
+        self._total_goals: int = 0
 
     async def __aenter__(self) -> "StressTestRunner":
         return self
