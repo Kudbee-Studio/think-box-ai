@@ -605,6 +605,17 @@ class StressTestRunner:
         if self._sampling_task and not self._sampling_task.done():
             self._sampling_task.cancel()
 
+    def compare_results(self, result1: StressTestResult, result2: StressTestResult) -> dict[str, Any]:
+        """Compare two stress test results and return a comparison summary."""
+        return {
+            "fairness_difference": round(result1.fairness_index - result2.fairness_index, 4),
+            "calls_difference": result1.total_calls - result2.total_calls,
+            "retries_difference": result1.total_retries - result2.total_retries,
+            "fairness_winner": "result1" if result1.fairness_index > result2.fairness_index else "result2",
+            "efficiency_winner": "result1" if result1.total_calls < result2.total_calls else "result2",
+            "result1_better": result1.is_better_than(result2),
+        }
+
     def _default_goal_factory(self, index: int) -> ConcurrentGoalSpec:
         """Default factory creating simple compute goals."""
         from thinkbox.pop_arena import system_prompt_for_v2, VerifiedRetryConfig
