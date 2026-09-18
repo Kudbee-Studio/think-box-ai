@@ -1,0 +1,31 @@
+{
+  "duration_seconds": 0.155,
+  "fairness_index": 1.0,
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no SSH"
+  ],
+  "peak_concurrency": 0,
+  "per_goal_calls": {
+    "stress-goal-0": 1,
+    "stress-goal-1": 1,
+    "stress-goal-2": 1,
+    "stress-goal-3": 1,
+    "stress-goal-4": 1
+  },
+  "per_goal_retries": {
+    "stress-goal-0": 0,
+    "stress-goal-1": 0,
+    "stress-goal-2": 0,
+    "stress-goal-3": 0,
+    "stress-goal-4": 0
+  },
+  "phase": "stress-test",
+  "proof_sha256": "f8896c00865b051a84f92e2779b3b1233242ee45adf488ddf4d88cd7cfab0ca5",
+  "run_experiment_id": "tb_exp_20260918030222_745e2f97",
+  "session_id": "tb_sess_20260918030222_5b60",
+  "timestamp": "2026-09-18T03:02:22.815516+00:00",
+  "total_calls": 5,
+  "total_retries": 0
+}

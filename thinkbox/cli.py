@@ -157,15 +157,6 @@ def cmd_stress_test(args: argparse.Namespace) -> None:
             print(f"Results saved to {args.output}")
 
     asyncio.run(run())
-    sessions = list_sessions(limit=args.limit)
-    if not sessions:
-        print("No sessions found.")
-        return
-
-    print(f"{'Session ID':<40} {'Count':<8} {'Started':<25} {'Last Active':<25}")
-    print("-" * 100)
-    for s in sessions:
-        print(f"{s['session_id']:<40} {s['audit_count']:<8} {s['started']:<25} {s['last_active']:<25}")
 
 
 def cmd_session_inspect(args: argparse.Namespace) -> None:
