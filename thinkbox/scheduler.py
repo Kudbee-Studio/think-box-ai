@@ -4659,3 +4659,763 @@ class ChaosInjection:
             "delaying_faults": delaying,
             "faults": total_faults,
         }
+
+
+
+# =============================================================================
+# PR #83 Features - 10 major governed scheduler features
+# =============================================================================
+
+
+class WeightedFairQueue:
+    """Feature 1 (PR83): Weighted fair-queueing across queues.
+
+    Maintains multiple named queues with weights. Jobs dispatched
+    proportionally via deficit round robin, preventing one hot
+    queue from starving others.
+    """
+
+    def __init__(self, queue_weights: dict[str, int] | None = None) -> None:
+        self._weights: dict[str, int] = queue_weights or {}
+        self._queues: dict[str, list[str]] = {q: [] for q in self._weights}
+        self._deficits: dict[str, int] = {q: 0 for q in self._weights}
+        self._total_weight = sum(self._weights.values()) or 1
+        self._dispatch_count: int = 0
+        self._job_to_queue: dict[str, str] = {}
+        self._audit_events: list[dict[str, Any]] = []
+
+    def add_queue(self, name: str, weight: int) -> None:
+        if not name:
+            raise ValueError("queue name must not be empty")
+        if weight < 1:
+            raise ValueError("weight must be >= 1")
+        self._weights[name] = weight
+        if name not in self._queues:
+            self._queues[name] = []
+        if name not in self._deficits:
+            self._deficits[name] = 0
+        self._total_weight = sum(self._weights.values()) or 1
+
+    def enqueue(self, queue_name: str, job_id: str) -> bool:
+        if queue_name not in self._queues:
+            raise ValueError(f"unknown queue: {queue_name}")
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if job_id in self._job_to_queue:
+            return False
+        self._queues[queue_name].append(job_id)
+        self._job_to_queue[job_id] = queue_name
+        return True
+
+    def dequeue(self) -> str | None:
+        self._dispatch_count += 1
+        eligible = [q for q in self._queues if self._queues[q]]
+        if not eligible:
+            return None
+        for q in eligible:
+            self._deficits[q] += self._weights[q]
+        winner = max(eligible, key=lambda q: self._deficits[q])
+        job_id = self._queues[winner].pop(0)
+        self._deficits[winner] -= self._total_weight
+        self._job_to_queue.pop(job_id, None)
+        event = {
+            "event_type": "dispatch",
+            "queue": winner,
+            "job_id": job_id,
+            "dispatch_number": self._dispatch_count,
+            "deficits": dict(self._deficits),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._audit_events.append(event)
+        return job_id
+
+    def peek(self) -> str | None:
+        for q in self._queues:
+            if self._queues[q]:
+                return self._queues[q][0]
+        return None
+
+    def remove(self, job_id: str) -> bool:
+        queue_name = self._job_to_queue.get(job_id)
+        if queue_name is None:
+            return False
+        if job_id in self._queues[queue_name]:
+            self._queues[queue_name].remove(job_id)
+        self._job_to_queue.pop(job_id, None)
+        return True
+
+    def queue_depth(self, queue_name: str) -> int:
+        if queue_name not in self._queues:
+            raise ValueError(f"unknown queue: {queue_name}")
+        return len(self._queues[queue_name])
+
+    def total_queued(self) -> int:
+        return sum(len(jobs) for jobs in self._queues.values())
+
+    def get_state(self) -> dict[str, Any]:
+        return {
+            "queues": {q: list(jobs) for q, jobs in self._queues.items()},
+            "weights": dict(self._weights),
+            "deficits": dict(self._deficits),
+            "total_weight": self._total_weight,
+            "dispatches": self._dispatch_count,
+        }
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "queue_count": len(self._queues),
+            "total_queued": self.total_queued(),
+            "dispatch_count": self._dispatch_count,
+        }
+
+    def get_audit_events(self) -> list[dict[str, Any]]:
+        return list(self._audit_events)
+
+
+class JobLease:
+    """Feature 2 (PR83): Job lease / visibility timeout.
+
+    Workers lease jobs with a TTL. Expired leases are reclaimed.
+    Fail-closed on double-ack via LeaseExpiredError.
+    """
+
+    class LeaseExpiredError(Exception):
+        pass
+
+    def __init__(self, default_ttl_s: float = 300.0) -> None:
+        self.default_ttl_s = default_ttl_s
+        self._leases: dict[str, dict[str, Any]] = {}
+        self._completed: set[str] = set()
+        self._reclaimed: list[dict[str, Any]] = []
+
+    def lease(self, job_id: str, ttl_s: float | None = None,
+              worker_id: str = "default") -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        ttl = ttl_s if ttl_s is not None else self.default_ttl_s
+        lease_id = f"lease_{job_id}_{worker_id}"
+        expires_at = time.monotonic() + ttl
+        lease = {
+            "job_id": job_id,
+            "lease_id": lease_id,
+            "worker_id": worker_id,
+            "ttl_s": ttl,
+            "expires_at": expires_at,
+            "leased_at": time.monotonic(),
+            "status": "leased",
+        }
+        self._leases[job_id] = lease
+        return dict(lease)
+
+    def check_expired(self, job_id: str) -> dict[str, Any] | None:
+        lease = self._leases.get(job_id)
+        if lease is None:
+            return None
+        if time.monotonic() >= lease["expires_at"] and lease["status"] == "leased":
+            lease["status"] = "expired"
+            event = {
+                "event_type": "lease_expired",
+                "job_id": job_id,
+                "lease_id": lease["lease_id"],
+                "worker_id": lease["worker_id"],
+                "ttl_s": lease["ttl_s"],
+                "reclaimed_at": time.monotonic(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._reclaimed.append(event)
+            return event
+        return None
+
+    def ack(self, job_id: str, lease_id: str) -> dict[str, Any]:
+        lease = self._leases.get(job_id)
+        if lease is None:
+            raise KeyError(f"job not leased: {job_id}")
+        if lease["status"] != "leased":
+            raise self.LeaseExpiredError(
+                "lease already " + lease["status"] + ": " + job_id
+            )
+        if lease["lease_id"] != lease_id:
+            raise self.LeaseExpiredError(f"lease_id mismatch for {job_id}")
+        lease["status"] = "acked"
+        self._completed.add(job_id)
+        return {"job_id": job_id, "status": "acked", "lease_id": lease_id}
+
+    def get_lease(self, job_id: str) -> dict[str, Any] | None:
+        lease = self._leases.get(job_id)
+        if lease is None:
+            return None
+        return dict(lease)
+
+    def get_stats(self) -> dict[str, Any]:
+        active = sum(1 for l in self._leases.values() if l["status"] == "leased")
+        expired = sum(1 for l in self._leases.values() if l["status"] == "expired")
+        acked = sum(1 for l in self._leases.values() if l["status"] == "acked")
+        return {
+            "total": len(self._leases),
+            "active": active,
+            "expired": expired,
+            "acked": acked,
+            "reclaimed_count": len(self._reclaimed),
+        }
+
+    def get_reclaimed(self) -> list[dict[str, Any]]:
+        return list(self._reclaimed)
+
+
+class DedupedDelayedEnqueue:
+    """Feature 3 (PR83): Deduped delayed enqueue.
+
+    Schedules jobs at a future time with a deduplication key.
+    Duplicate dedupe keys are rejected (no duplicate fire).
+    """
+
+    def __init__(self) -> None:
+        self._pending: dict[str, dict[str, Any]] = {}
+        self._fired: list[dict[str, Any]] = []
+        self._dedup_hits: int = 0
+
+    def enqueue(self, dedupe_key: str, job_id: str,
+                schedule_at: float, payload: dict[str, Any] | None = None) -> bool:
+        if not dedupe_key:
+            raise ValueError("dedupe_key must not be empty")
+        if dedupe_key in self._pending:
+            self._dedup_hits += 1
+            return False
+        entry = {
+            "dedupe_key": dedupe_key,
+            "job_id": job_id,
+            "schedule_at": schedule_at,
+            "payload": payload or {},
+            "enqueued_at": time.monotonic(),
+            "status": "pending",
+        }
+        self._pending[dedupe_key] = entry
+        return True
+
+    def due(self, now: float | None = None) -> list[dict[str, Any]]:
+        if now is None:
+            now = time.monotonic()
+        fired = []
+        to_remove = []
+        for key, entry in self._pending.items():
+            if entry["status"] == "pending" and entry["schedule_at"] <= now:
+                entry["status"] = "fired"
+                event = {
+                    "event_type": "delayed_fire",
+                    "dedupe_key": key,
+                    "job_id": entry["job_id"],
+                    "payload": entry["payload"],
+                    "fired_at": now,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._fired.append(event)
+                fired.append(event)
+                to_remove.append(key)
+        for key in to_remove:
+            del self._pending[key]
+        return fired
+
+    def cancel(self, dedupe_key: str) -> bool:
+        entry = self._pending.get(dedupe_key)
+        if entry and entry["status"] == "pending":
+            entry["status"] = "cancelled"
+            del self._pending[dedupe_key]
+            return True
+        return False
+
+    def get_pending(self) -> list[dict[str, Any]]:
+        return [dict(e) for e in self._pending.values() if e["status"] == "pending"]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "pending": len([e for e in self._pending.values() if e["status"] == "pending"]),
+            "fired": len(self._fired),
+            "dedup_hits": self._dedup_hits,
+        }
+
+
+class CircuitBreaker:
+    """Feature 4 (PR83): Circuit breaker per downstream.
+
+    Tracks failures per target. Closed -> Open -> HalfOpen -> Closed.
+    Sheds traffic when Open. HalfOpen allows probe request.
+    """
+
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+    def __init__(self, failure_threshold: int = 5,
+                 recovery_timeout_s: float = 30.0) -> None:
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout_s = recovery_timeout_s
+        self._states: dict[str, str] = {}
+        self._failure_counts: dict[str, int] = {}
+        self._last_failure: dict[str, float] = {}
+        self._audit_log: list[dict[str, Any]] = []
+
+    def _ensure(self, target: str) -> None:
+        if target not in self._states:
+            self._states[target] = self.CLOSED
+            self._failure_counts[target] = 0
+            self._last_failure[target] = 0.0
+
+    def record_success(self, target: str) -> dict[str, Any]:
+        self._ensure(target)
+        if self._states[target] == self.HALF_OPEN:
+            self._states[target] = self.CLOSED
+            self._failure_counts[target] = 0
+            event = {
+                "event_type": "circuit_close",
+                "target": target,
+                "state": self.CLOSED,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._audit_log.append(event)
+        return {"target": target, "state": self._states[target]}
+
+    def record_failure(self, target: str) -> dict[str, Any]:
+        self._ensure(target)
+        self._failure_counts[target] += 1
+        self._last_failure[target] = time.monotonic()
+        if self._failure_counts[target] >= self.failure_threshold:
+            self._states[target] = self.OPEN
+            event = {
+                "event_type": "circuit_open",
+                "target": target,
+                "state": self.OPEN,
+                "failure_count": self._failure_counts[target],
+                "threshold": self.failure_threshold,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._audit_log.append(event)
+        return {"target": target, "state": self._states[target],
+                "failure_count": self._failure_counts[target]}
+
+    def is_open(self, target: str) -> bool:
+        self._ensure(target)
+        if self._states[target] == self.OPEN:
+            elapsed = time.monotonic() - self._last_failure.get(target, 0)
+            if elapsed >= self.recovery_timeout_s:
+                self._states[target] = self.HALF_OPEN
+                event = {
+                    "event_type": "circuit_half_open",
+                    "target": target,
+                    "state": self.HALF_OPEN,
+                    "recovered_after_s": round(elapsed, 4),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._audit_log.append(event)
+        return self._states[target] == self.OPEN
+
+    def admit(self, target: str) -> bool:
+        return not self.is_open(target)
+
+    def get_state(self, target: str) -> str:
+        self._ensure(target)
+        return self._states[target]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "targets": len(self._states),
+            "states": dict(self._states),
+            "failure_counts": dict(self._failure_counts),
+        }
+
+    def get_audit_log(self) -> list[dict[str, Any]]:
+        return list(self._audit_log)
+
+
+class AdmissionLottery:
+    """Feature 5 (PR83): Admission lottery under saturation.
+
+    At capacity, jobs are admitted probabilistically.
+    Emits audit events for every decision.
+    """
+
+    def __init__(self, admission_cap: int = 10,
+                 lottery_chance: float = 0.3) -> None:
+        self.admission_cap = admission_cap
+        self.lottery_chance = lottery_chance
+        self._admitted: list[str] = []
+        self._rejected: list[str] = []
+        self._lottery_wins: list[str] = []
+        self._audit_events: list[dict[str, Any]] = []
+
+    def admit(self, job_id: str, current_load: int,
+              deterministic: bool = False) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if current_load < self.admission_cap:
+            result = {
+                "job_id": job_id, "admitted": True, "reason": "under_cap",
+                "current_load": current_load, "cap": self.admission_cap,
+                "lottery": None,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._admitted.append(job_id)
+            self._audit_events.append(result)
+            return result
+        if deterministic:
+            result = {
+                "job_id": job_id, "admitted": False, "reason": "at_cap_deterministic",
+                "current_load": current_load, "cap": self.admission_cap,
+                "lottery": "rejected",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._rejected.append(job_id)
+            self._audit_events.append(result)
+            return result
+        import random
+        lottery_won = random.random() < self.lottery_chance
+        if lottery_won:
+            result = {
+                "job_id": job_id, "admitted": True, "reason": "lottery_won",
+                "current_load": current_load, "cap": self.admission_cap,
+                "lottery": "won", "lottery_chance": self.lottery_chance,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._lottery_wins.append(job_id)
+            self._admitted.append(job_id)
+        else:
+            result = {
+                "job_id": job_id, "admitted": False, "reason": "lottery_lost",
+                "current_load": current_load, "cap": self.admission_cap,
+                "lottery": "lost", "lottery_chance": self.lottery_chance,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._rejected.append(job_id)
+        self._audit_events.append(result)
+        return result
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "admitted": len(self._admitted),
+            "rejected": len(self._rejected),
+            "lottery_wins": len(self._lottery_wins),
+            "cap": self.admission_cap,
+            "lottery_chance": self.lottery_chance,
+        }
+
+    def get_audit_events(self) -> list[dict[str, Any]]:
+        return list(self._audit_events)
+
+
+class PlacementConstraints:
+    """Feature 6 (PR83): Placement constraints.
+
+    Jobs specify require/avoid labels (zone, gpu, tenant).
+    Scheduler refuses placement if constraints are
+    unsatisfiable.
+    """
+
+    def __init__(self, node_labels: dict[str, dict[str, str]] | None = None) -> None:
+        self._node_labels: dict[str, dict[str, str]] = node_labels or {}
+        self._rejected: list[dict[str, Any]] = []
+
+    def register_node(self, node_id: str, labels: dict[str, str]) -> None:
+        self._node_labels[node_id] = dict(labels)
+
+    def evaluate(self, job_id: str,
+                  require: dict[str, str] | None = None,
+                  avoid: dict[str, str] | None = None) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        req = require or {}
+        avd = avoid or {}
+        suitable = []
+        for node_id, labels in self._node_labels.items():
+            matches_require = all(labels.get(k) == v for k, v in req.items())
+            matches_avoid = all(labels.get(k) != v for k, v in avd.items())
+            if matches_require and matches_avoid:
+                suitable.append(node_id)
+        result = {
+            "job_id": job_id,
+            "require": req,
+            "avoid": avd,
+            "suitable_nodes": suitable,
+            "admitted": len(suitable) > 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if not suitable:
+            event = {
+                "event_type": "placement_rejected",
+                "job_id": job_id,
+                "reason": "no_suitable_node",
+                "require": req,
+                "avoid": avd,
+                "available_nodes": list(self._node_labels.keys()),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._rejected.append(event)
+            result["rejection"] = event
+        return result
+
+    def get_rejected(self) -> list[dict[str, Any]]:
+        return list(self._rejected)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "nodes": len(self._node_labels),
+            "rejected": len(self._rejected),
+        }
+
+
+class ProgressiveDrain:
+    """Feature 7 (PR83): Progressive drain / quiesce.
+
+    Stops new admits while finishing in-flight jobs.
+    Provides status API to check drain progress.
+    """
+
+    def __init__(self) -> None:
+        self._draining: bool = False
+        self._quiesced: bool = False
+        self._in_flight: list[str] = []
+        self._completed_draining: list[str] = []
+        self._status_log: list[dict[str, Any]] = []
+
+    def start_drain(self) -> dict[str, Any]:
+        self._draining = True
+        event = {
+            "event_type": "drain_started",
+            "draining": True,
+            "in_flight_count": len(self._in_flight),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._status_log.append(event)
+        return event
+
+    def quiesce(self) -> dict[str, Any]:
+        self._quiesced = True
+        self._draining = True
+        event = {
+            "event_type": "quiesce",
+            "quiesced": True,
+            "draining": True,
+            "in_flight_count": len(self._in_flight),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._status_log.append(event)
+        return event
+
+    def admit(self, job_id: str) -> dict[str, Any]:
+        if self._draining:
+            result = {
+                "job_id": job_id, "admitted": False,
+                "reason": "draining" if not self._quiesced else "quiesced",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            return result
+        self._in_flight.append(job_id)
+        result = {
+            "job_id": job_id, "admitted": True,
+            "in_flight_count": len(self._in_flight),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        return result
+
+    def complete(self, job_id: str) -> dict[str, Any]:
+        if job_id in self._in_flight:
+            self._in_flight.remove(job_id)
+            self._completed_draining.append(job_id)
+        event = {
+            "event_type": "drain_complete",
+            "job_id": job_id,
+            "in_flight_remaining": len(self._in_flight),
+            "all_done": len(self._in_flight) == 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._status_log.append(event)
+        return event
+
+    def get_status(self) -> dict[str, Any]:
+        return {
+            "draining": self._draining,
+            "quiesced": self._quiesced,
+            "in_flight": list(self._in_flight),
+            "in_flight_count": len(self._in_flight),
+            "completed_draining": list(self._completed_draining),
+        }
+
+    def get_status_log(self) -> list[dict[str, Any]]:
+        return list(self._status_log)
+
+
+class ReplayFromLedger:
+    """Feature 8 (PR83): Replay from ledger.
+
+    Rehydrates queue state from ledger events.
+    Idempotent: replaying same events produces same state.
+    """
+
+    def __init__(self) -> None:
+        self._events: list[dict[str, Any]] = []
+        self._replay_count: int = 0
+        self._replayed_states: list[dict[str, Any]] = []
+
+    def append_event(self, event: dict[str, Any]) -> None:
+        if "event_type" not in event:
+            raise ValueError("event must have event_type")
+        self._events.append(event)
+
+    def replay(self, from_index: int = 0) -> dict[str, Any]:
+        state: dict[str, Any] = {
+            "jobs": {},
+            "completed": [],
+            "shed": [],
+            "deferred": [],
+            "event_count": 0,
+        }
+        for i, event in enumerate(self._events):
+            if i < from_index:
+                continue
+            etype = event.get("event_type", "")
+            job_id = event.get("job_id", "")
+            if etype == "admit":
+                state["jobs"][job_id] = "active"
+            elif etype == "complete":
+                state["jobs"].pop(job_id, None)
+                state["completed"].append(job_id)
+            elif etype == "shed":
+                state["shed"].append(job_id)
+            elif etype == "defer":
+                state["deferred"].append(job_id)
+            state["event_count"] += 1
+        self._replay_count += 1
+        result = {
+            "replay_number": self._replay_count,
+            "state": dict(state),
+            "events_replayed": max(0, len(self._events) - from_index),
+            "total_events": len(self._events),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._replayed_states.append(result)
+        return result
+
+    def get_replay_count(self) -> int:
+        return self._replay_count
+
+    def get_replayed_states(self) -> list[dict[str, Any]]:
+        return list(self._replayed_states)
+
+
+class MultiPriorityAging:
+    """Feature 9 (PR83): Multi-priority aging bands.
+
+    Separate aging curves per priority band. Reuses
+    PriorityAging primitives internally.
+    """
+
+    def __init__(self, bands: dict[str, float] | None = None) -> None:
+        self._bands = bands or {"high": 30.0, "medium": 60.0, "low": 120.0}
+        self._agers: dict[str, Any] = {}
+        self._aging_threshold_s = 60.0
+        self._boost_amount = 5
+        self._max_boosts = 3
+        self._events: list[dict[str, Any]] = []
+
+    def _get_ager(self, priority: str) -> PriorityAging:
+        if priority not in self._agers:
+            threshold = self._bands.get(priority, self._aging_threshold_s)
+            self._agers[priority] = PriorityAging(
+                aging_threshold_s=threshold,
+                boost_amount=self._boost_amount,
+                max_boosts=self._max_boosts,
+            )
+        return self._agers[priority]
+
+    def register(self, job_id: str, priority_band: str = "medium") -> None:
+        ager = self._get_ager(priority_band)
+        ager.register(job_id, priority=0)
+
+    def apply_aging(self, job_id: str, priority_band: str = "medium") -> dict[str, Any]:
+        ager = self._get_ager(priority_band)
+        result = ager.apply_aging(job_id)
+        result["priority_band"] = priority_band
+        if result.get("aged"):
+            self._events.append(result)
+        return result
+
+    def get_aged_jobs(self) -> list[dict[str, Any]]:
+        all_aged = []
+        for band, ager in self._agers.items():
+            for entry in ager._aged:
+                entry_copy = dict(entry)
+                entry_copy["priority_band"] = band
+                all_aged.append(entry_copy)
+        return all_aged
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "bands": list(self._bands.keys()),
+            "band_thresholds": dict(self._bands),
+            "total_aged": len(self._events),
+        }
+
+
+class SchedulerCanary:
+    """Feature 10 (PR83): Scheduler canaries.
+
+    Synthetic probe jobs at intervals. Emit health
+    events and SLABreachEmitter events on failure.
+    """
+
+    def __init__(self, interval_s: float = 60.0,
+                 sla_latency_s: float = 5.0) -> None:
+        self.interval_s = interval_s
+        self.sla_latency_s = sla_latency_s
+        self._probes: list[dict[str, Any]] = []
+        self._failures: list[dict[str, Any]] = []
+        self._last_probe: float = 0.0
+        self._probe_id: int = 0
+        self._breaches: list[dict[str, Any]] = []
+
+    def run_probe(self, latency_s: float, success: bool) -> dict[str, Any]:
+        self._probe_id += 1
+        self._last_probe = time.monotonic()
+        probe = {
+            "probe_id": self._probe_id,
+            "latency_s": latency_s,
+            "success": success,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._probes.append(probe)
+        if not success or latency_s > self.sla_latency_s:
+            breach = {
+                "event_type": "canary_breach",
+                "probe_id": self._probe_id,
+                "latency_s": latency_s,
+                "sla_latency_s": self.sla_latency_s,
+                "breach_type": "latency" if latency_s > self.sla_latency_s else "failure",
+                "success": success,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._breaches.append(breach)
+            self._failures.append(probe)
+        return probe
+
+    def get_health(self) -> dict[str, Any]:
+        if not self._probes:
+            return {"healthy": True, "probes": 0}
+        failures = len(self._failures)
+        total = len(self._probes)
+        return {
+            "healthy": failures == 0,
+            "probes": total,
+            "failures": failures,
+            "success_rate": (total - failures) / total,
+            "last_probe_at": self._probes[-1].get("timestamp"),
+        }
+
+    def get_breaches(self) -> list[dict[str, Any]]:
+        return list(self._breaches)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_probes": len(self._probes),
+            "failures": len(self._failures),
+            "breaches": len(self._breaches),
+            "interval_s": self.interval_s,
+            "sla_latency_s": self.sla_latency_s,
+        }
