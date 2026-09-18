@@ -385,6 +385,26 @@ class ConcurrentGoalsRunner:
         return {"run_experiment_id": run_exp_id, "proof_sha256": proof_hash,
                 "proof_artifact": str(proof_path)}
 
+    async def run_stress_test(
+        self,
+        config: "StressTestConfig",
+        complete_async: Callable[[str], Any],
+        manager: Any = None,
+        ledger_path: str = ":memory:",
+    ) -> "StressTestResult":
+        """Run a concurrency stress test using this runner.
+        
+        Creates a StressTestRunner internally and delegates to it.
+        """
+        from thinkbox.concurrent_goals import StressTestRunner
+        stress_runner = StressTestRunner(concurrent_runner=self)
+        return await stress_runner.run_stress_test(
+            config=config,
+            complete_async=complete_async,
+            manager=manager,
+            ledger_path=ledger_path,
+        )
+
 
 # =============================================================================
 # Concurrency Stress Testing Framework
