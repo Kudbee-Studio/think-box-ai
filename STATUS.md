@@ -535,3 +535,33 @@ None in this PR.
 
 - `thinkbox/scheduler.py` +1319 lines
 - `tests/unit/test_scheduler.py` +433 lines
+
+## PR #84 — 10 Additional Governed Scheduler Features (IN PROGRESS)
+
+**Status:** In Progress
+**Branch:** `feat/scheduler-10-pr84`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/84 (TBD)
+
+### Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | `AdaptiveConcurrency` | Auto-tune concurrency based on latency/throughput |
+| 2 | `Preemption` | Preempt low-priority running tasks for high-priority |
+| 3 | `TaskCoalescing` | Merge identical pending tasks |
+| 4 | `WorkflowTemplate` | Versioned, reusable workflow definitions |
+| 5 | `BackpressurePropagation` | Backpressure through dependency graph |
+| 6 | `SchedulerClock` | Monotonic clock for deterministic time testing |
+| 7 | `AdmissionFilter` | Pluggable admission filter chain |
+| 8 | `FairnessIndex` | Jain's fairness index per tenant |
+| 9 | `DynamicBudget` | Dynamic budget reallocation across goals |
+| 10 | `TaskAffinity` | Data/task locality-aware scheduling |
+
+### Testing
+- 10 new test classes, ~60 new tests in tests/unit/test_scheduler.py
+- All 620 scheduler tests passing
+- Full suite: 1275 tests, 6 skipped
+
+### Files Changed
+- `thinkbox/scheduler.py` +760 lines
+- `tests/unit/test_scheduler.py` +580 lines

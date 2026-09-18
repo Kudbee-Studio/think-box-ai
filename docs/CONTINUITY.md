@@ -16,6 +16,7 @@ Before declaring completion, every agent MUST verify:
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
 - [x] Tests executed and passing (571 scheduler OK, 1275 full suite, 6 skipped)
+- [x] PR #83 merged, PR #84 in progress
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -34,13 +35,13 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | PR #83: 10 additional governed scheduler features |
-| **Latest completed work** | PR #83 COMPLETE: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary. Branch `feat/scheduler-10-pr83`. All tests deterministic (mocked clock). Scheduler tests 571 OK. |
+| **Active objective** | PR #84: 10 additional governed scheduler features (IN PROGRESS) |
+| **Latest completed work** | PR #83 COMPLETE (merged): 10 features. PR #84 IN PROGRESS: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity. |
 | **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
 | **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #82 merged (10 features), PR #83 open (10 features) |
+| **PR status** | PR #83 merged, PR #84 IN PROGRESS (10 features) |
 | **Test count** | **571 scheduler OK, 1275 full suite, 6 skipped** |
 
 ---
@@ -113,6 +114,16 @@ Before declaring completion, every agent MUST verify:
 | **Bug fixes** | None in this PR. |
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (571 scheduler) / PRODUCTION not claimed |
 
+
+### 2026-09-18 — PR #84 IN PROGRESS: 10 Additional Scheduler Features
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Status** | IN PROGRESS |
+| **Agent/task** | Add 10 features extending governed scheduler. Branch `feat/scheduler-10-pr84`. |
+| **Features** | AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity |
+| **Tests** | 10 new classes (~60 tests). 620 total scheduler tests, all passing. |
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
 

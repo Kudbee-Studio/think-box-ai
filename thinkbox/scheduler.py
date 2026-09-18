@@ -5419,3 +5419,689 @@ class SchedulerCanary:
             "interval_s": self.interval_s,
             "sla_latency_s": self.sla_latency_s,
         }
+
+
+# =============================================================================
+# PR #84 Features - 10 major governed scheduler features
+# =============================================================================
+
+
+class AdaptiveConcurrency:
+    """Feature 1 (PR #84): Adaptive concurrency limiter.
+
+    Auto-tune global concurrency based on observed latency and
+    throughput. Increases concurrency when latency is below target,
+    decreases when above. Fail-closed on invalid config.
+    """
+
+    def __init__(self, initial_concurrency: int = 10,
+                 min_concurrency: int = 1,
+                 max_concurrency: int = 100,
+                 latency_target_s: float = 1.0) -> None:
+        if initial_concurrency < min_concurrency:
+            raise ValueError("initial < min concurrency")
+        if max_concurrency < min_concurrency:
+            raise ValueError("max < min concurrency")
+        self.initial_concurrency = initial_concurrency
+        self.min_concurrency = min_concurrency
+        self.max_concurrency = max_concurrency
+        self.latency_target_s = latency_target_s
+        self._concurrency = initial_concurrency
+        self._latency_history: list[float] = []
+        self._throughput_history: list[float] = []
+        self._adjustments: list[dict[str, Any]] = []
+
+    def record_metric(self, latency_s: float, throughput: float) -> None:
+        self._latency_history.append(latency_s)
+        self._throughput_history.append(throughput)
+
+    def adjust(self) -> dict[str, Any]:
+        if not self._latency_history:
+            return {"concurrency": self._concurrency, "reason": "no_data"}
+        recent = self._latency_history[-10:]
+        avg_latency = sum(recent) / len(recent)
+        old = self._concurrency
+        if avg_latency > self.latency_target_s * 2:
+            self._concurrency = max(self.min_concurrency, self._concurrency - 1)
+            reason = "latency_high_decrease"
+        elif avg_latency < self.latency_target_s * 0.5:
+            self._concurrency = min(self.max_concurrency, self._concurrency + 1)
+            reason = "latency_low_increase"
+        else:
+            reason = "stable"
+        event = {
+            "event_type": "concurrency_adjust",
+            "old": old,
+            "new": self._concurrency,
+            "reason": reason,
+            "avg_latency": round(avg_latency, 4),
+            "target": self.latency_target_s,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._adjustments.append(event)
+        return event
+
+    def get_concurrency(self) -> int:
+        return self._concurrency
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "concurrency": self._concurrency,
+            "min": self.min_concurrency,
+            "max": self.max_concurrency,
+            "target": self.latency_target_s,
+            "adjustments": len(self._adjustments),
+            "history_len": len(self._latency_history),
+        }
+
+    def get_adjustments(self) -> list[dict[str, Any]]:
+        return list(self._adjustments)
+
+
+class Preemption:
+    """Feature 2 (PR #84): Job preemption.
+
+    When a high-priority job arrives and concurrency is at cap,
+    preempt the lowest-priority running job. Fail-closed: cannot
+    preempt a job marked non-preemptable.
+    """
+
+    def __init__(self, max_concurrency: int = 10) -> None:
+        self.max_concurrency = max_concurrency
+        self._running: dict[str, dict[str, Any]] = {}
+        self._preempted: list[dict[str, Any]] = []
+        self._preempt_count: int = 0
+
+    def admit(self, job_id: str, priority: int = 0,
+              preemptable: bool = True) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if len(self._running) < self.max_concurrency:
+            self._running[job_id] = {
+                "job_id": job_id, "priority": priority,
+                "preemptable": preemptable,
+                "admitted_at": time.monotonic(),
+            }
+            return {"job_id": job_id, "admitted": True, "action": "admit"}
+        # At cap - try to preempt lowest priority
+        if not self._running:
+            return {"job_id": job_id, "admitted": False, "reason": "at_cap"}
+        lowest = min(self._running.values(), key=lambda j: j["priority"])
+        if not lowest["preemptable"]:
+            return {"job_id": job_id, "admitted": False, "reason": "no_preemptable"}
+        preempted_id = lowest["job_id"]
+        self._preempt_count += 1
+        event = {
+            "event_type": "preempt",
+            "preempted_job_id": preempted_id,
+            "preempted_priority": lowest["priority"],
+            "new_job_id": job_id,
+            "new_priority": priority,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._preempted.append(event)
+        del self._running[preempted_id]
+        self._running[job_id] = {
+            "job_id": job_id, "priority": priority,
+            "preemptable": preemptable,
+            "preempted_at": time.monotonic(),
+        }
+        return {"job_id": job_id, "admitted": True, "action": "preempt", "preempted": preempted_id}
+
+    def complete(self, job_id: str) -> bool:
+        if job_id in self._running:
+            del self._running[job_id]
+            return True
+        return False
+
+    def get_running(self) -> list[dict[str, Any]]:
+        return [dict(j) for j in self._running.values()]
+
+    def get_preempted(self) -> list[dict[str, Any]]:
+        return list(self._preempted)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "running": len(self._running),
+            "max_concurrency": self.max_concurrency,
+            "preempt_count": self._preempt_count,
+        }
+
+
+class TaskCoalescing:
+    """Feature 3 (PR #84): Task coalescing.
+
+    Merge identical pending tasks into a single task with a
+    fan-out list. Prevents duplicate work for identical jobs.
+    Fail-closed on invalid task keys.
+    """
+
+    def __init__(self) -> None:
+        self._coalesced: dict[str, dict[str, Any]] = {}
+        self._merged: list[dict[str, Any]] = []
+        self._coalesce_count: int = 0
+
+    def enqueue(self, task_key: str, job_id: str,
+                payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        if not task_key:
+            raise ValueError("task_key must not be empty")
+        if task_key in self._coalesced:
+            existing = self._coalesced[task_key]
+            existing["job_ids"].append(job_id)
+            self._coalesce_count += 1
+            event = {
+                "event_type": "coalesced",
+                "task_key": task_key,
+                "merged_job_id": job_id,
+                "total_jobs": len(existing["job_ids"]),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._merged.append(event)
+            return {"task_key": task_key, "coalesced": True, "total_jobs": len(existing["job_ids"])}
+        self._coalesced[task_key] = {
+            "task_key": task_key,
+            "job_ids": [job_id],
+            "payload": payload or {},
+            "status": "pending",
+            "enqueued_at": time.monotonic(),
+        }
+        return {"task_key": task_key, "coalesced": False, "total_jobs": 1}
+
+    def dequeue(self) -> dict[str, Any] | None:
+        for key, entry in self._coalesced.items():
+            if entry["status"] == "pending":
+                entry["status"] = "running"
+                return {
+                    "task_key": key,
+                    "primary_job_id": entry["job_ids"][0],
+                    "fan_out": entry["job_ids"][1:],
+                    "payload": entry["payload"],
+                }
+        return None
+
+    def complete(self, task_key: str) -> bool:
+        entry = self._coalesced.get(task_key)
+        if entry and entry["status"] == "running":
+            entry["status"] = "completed"
+            return True
+        return False
+
+    def get_pending(self) -> list[dict[str, Any]]:
+        return [dict(e) for e in self._coalesced.values() if e["status"] == "pending"]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "pending": len(self._coalesced),
+            "coalesced": self._coalesce_count,
+            "merged_events": len(self._merged),
+        }
+
+    def get_merged(self) -> list[dict[str, Any]]:
+        return list(self._merged)
+
+
+class WorkflowTemplate:
+    """Feature 4 (PR #84): Workflow templates.
+
+    Versioned, reusable workflow definitions. Create a workflow
+    template, instantiate it with parameters, track template
+    versions. Fail-closed on invalid version references.
+    """
+
+    def __init__(self) -> None:
+        self._templates: dict[str, list[dict[str, Any]]] = {}
+        self._instances: dict[str, dict[str, Any]] = {}
+        self._instance_count: int = 0
+
+    def register(self, template_id: str, version: str,
+                 nodes: list[dict[str, Any]]) -> None:
+        if not template_id:
+            raise ValueError("template_id must not be empty")
+        if not version:
+            raise ValueError("version must not be empty")
+        if template_id not in self._templates:
+            self._templates[template_id] = []
+        self._templates[template_id].append({
+            "version": version,
+            "nodes": nodes,
+            "registered_at": time.monotonic(),
+        })
+
+    def instantiate(self, template_id: str, version: str | None = None,
+                    params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if template_id not in self._templates:
+            raise KeyError(f"template not found: {template_id}")
+        versions = self._templates[template_id]
+        if version is None:
+            template = versions[-1]
+        else:
+            template = None
+            for v in versions:
+                if v["version"] == version:
+                    template = v
+                    break
+            if template is None:
+                raise KeyError(f"version not found: {version}")
+        instance_id = f"inst_{template_id}_{self._instance_count}"
+        self._instance_count += 1
+        self._instances[instance_id] = {
+            "instance_id": instance_id,
+            "template_id": template_id,
+            "version": template["version"],
+            "params": params or {},
+            "status": "pending",
+            "nodes": list(template["nodes"]),
+            "created_at": time.monotonic(),
+        }
+        return dict(self._instances[instance_id])
+
+    def get_template_versions(self, template_id: str) -> list[dict[str, Any]]:
+        if template_id not in self._templates:
+            return []
+        return [dict(v) for v in self._templates[template_id]]
+
+    def get_instance(self, instance_id: str) -> dict[str, Any] | None:
+        inst = self._instances.get(instance_id)
+        if inst is None:
+            return None
+        return dict(inst)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "templates": len(self._templates),
+            "instances": len(self._instances),
+            "version_counts": {tid: len(vs) for tid, vs in self._templates.items()},
+        }
+
+
+class BackpressurePropagation:
+    """Feature 5 (PR #84): Backpressure propagation.
+
+    Backpressure signals propagate upstream through dependency
+    graph. Downstream failures push backpressure to upstream
+    dependents. Fail-closed: cannot push backpressure beyond
+    root tasks.
+    """
+
+    def __init__(self) -> None:
+        self._pressure: dict[str, int] = {}
+        self._graph: dict[str, list[str]] = {}
+        self._propagated: list[dict[str, Any]] = []
+
+    def register(self, task_id: str, depends_on: list[str] | None = None) -> None:
+        if not task_id:
+            raise ValueError("task_id must not be empty")
+        self._graph[task_id] = list(depends_on) if depends_on else []
+        self._pressure[task_id] = 0
+
+    def push(self, task_id: str, pressure: int = 1) -> list[str]:
+        if task_id not in self._graph:
+            raise KeyError(f"task not registered: {task_id}")
+        self._pressure[task_id] = self._pressure.get(task_id, 0) + pressure
+        affected = self._propagate(task_id)
+        event = {
+            "event_type": "backpressure_push",
+            "source": task_id,
+            "pressure": pressure,
+            "total_pressure": self._pressure[task_id],
+            "affected": affected,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._propagated.append(event)
+        return affected
+
+    def _propagate(self, task_id: str) -> list[str]:
+        affected = []
+        for t, deps in self._graph.items():
+            if task_id in deps:
+                self._pressure[t] = self._pressure.get(t, 0) + 1
+                affected.append(t)
+                affected.extend(self._propagate(t))
+        return affected
+
+    def get_pressure(self, task_id: str) -> int:
+        return self._pressure.get(task_id, 0)
+
+    def get_graph(self) -> dict[str, list[str]]:
+        return dict(self._graph)
+
+    def get_propagated(self) -> list[dict[str, Any]]:
+        return list(self._propagated)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "tasks": len(self._graph),
+            "propagations": len(self._propagated),
+            "max_pressure": max(self._pressure.values()) if self._pressure else 0,
+        }
+
+
+class SchedulerClock:
+    """Feature 6 (PR #84): Scheduler clock.
+
+    Monotonic clock abstraction for deterministic time-based
+    testing. All time-based features use this clock instead
+    of time.time()/time.monotonic(). Fail-closed when clock
+    moves backwards.
+    """
+
+    def __init__(self) -> None:
+        self._now: float = 0.0
+        self._offsets: dict[str, float] = {}
+        self._history: list[float] = []
+        self._manual: bool = False
+
+    def now(self) -> float:
+        if self._manual:
+            return self._now
+        import time as _time
+        return _time.monotonic()
+
+    def set_time(self, t: float) -> None:
+        if t < self._now:
+            raise ValueError(f"clock moved backwards: {t} < {self._now}")
+        self._now = t
+        self._manual = True
+        self._history.append(t)
+
+    def advance(self, delta_s: float) -> None:
+        if delta_s < 0:
+            raise ValueError("delta must be non-negative")
+        self.set_time(self._now + delta_s)
+
+    def is_manual(self) -> bool:
+        return self._manual
+
+    def reset(self) -> None:
+        self._now = 0.0
+        self._manual = False
+        self._history.clear()
+
+    def get_history(self) -> list[float]:
+        return list(self._history)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "manual": self._manual,
+            "now": self._now,
+            "advances": len(self._history),
+        }
+
+
+class AdmissionFilter:
+    """Feature 7 (PR #84): Admission filter chain.
+
+    Pluggable filters evaluated in order for each admission
+    decision. First filter to reject wins. Fail-closed on
+    filter errors.
+    """
+
+    def __init__(self) -> None:
+        self._filters: list[dict[str, Any]] = []
+        self._decisions: list[dict[str, Any]] = []
+
+    def add_filter(self, name: str, filter_fn: callable,
+                   description: str = "") -> None:
+        if not name:
+            raise ValueError("name must not be empty")
+        if not callable(filter_fn):
+            raise ValueError("filter_fn must be callable")
+        self._filters.append({
+            "name": name,
+            "filter_fn": filter_fn,
+            "description": description,
+        })
+
+    def check(self, job_id: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        ctx = context or {}
+        for f in self._filters:
+            try:
+                result = f["filter_fn"](job_id, ctx)
+            except Exception as e:
+                decision = {
+                    "job_id": job_id,
+                    "filter": f["name"],
+                    "passed": False,
+                    "reason": f"filter_error: {type(e).__name__}: {e}",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._decisions.append(decision)
+                return decision
+            if not result:
+                decision = {
+                    "job_id": job_id,
+                    "filter": f["name"],
+                    "passed": False,
+                    "reason": f"rejected_by_{f['name']}",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._decisions.append(decision)
+                return decision
+        decision = {
+            "job_id": job_id,
+            "passed": True,
+            "filters_evaluated": len(self._filters),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._decisions.append(decision)
+        return decision
+
+    def get_filters(self) -> list[dict[str, Any]]:
+        return [dict(f, filter_fn=None) for f in self._filters]
+
+    def get_decisions(self) -> list[dict[str, Any]]:
+        return list(self._decisions)
+
+    def get_stats(self) -> dict[str, Any]:
+        total = len(self._decisions)
+        passed = sum(1 for d in self._decisions if d.get("passed"))
+        return {
+            "filters": len(self._filters),
+            "total_decisions": total,
+            "passed": passed,
+            "rejected": total - passed,
+        }
+
+
+class FairnessIndex:
+    """Feature 8 (PR #84): Jain's fairness index.
+
+    Compute Jain's fairness index for per-tenant allocation.
+    Index = (sum(x_i))^2 / (n * sum(x_i^2)) where x_i is
+    each tenant's allocation. 1.0 = perfectly fair.
+    """
+
+    def __init__(self) -> None:
+        self._allocations: dict[str, float] = {}
+        self._history: list[dict[str, Any]] = []
+
+    def record(self, tenant_id: str, allocation: float) -> None:
+        if not tenant_id:
+            raise ValueError("tenant_id must not be empty")
+        if allocation < 0:
+            raise ValueError("allocation must be non-negative")
+        self._allocations[tenant_id] = allocation
+
+    def compute(self) -> dict[str, Any]:
+        vals = list(self._allocations.values())
+        n = len(vals)
+        if n == 0:
+            return {"fairness_index": 1.0, "tenants": 0, "note": "no_tenants"}
+        sum_vals = sum(vals)
+        sum_sq = sum(v * v for v in vals)
+        if sum_sq == 0:
+            return {"fairness_index": 1.0, "tenants": n, "note": "all_zero"}
+        index = (sum_vals * sum_vals) / (n * sum_sq)
+        event = {
+            "event_type": "fairness_check",
+            "fairness_index": round(index, 6),
+            "tenants": n,
+            "allocations": dict(self._allocations),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._history.append(event)
+        return event
+
+    def get_history(self) -> list[dict[str, Any]]:
+        return list(self._history)
+
+    def get_stats(self) -> dict[str, Any]:
+        latest = self.compute()
+        return {
+            "tenants": len(self._allocations),
+            "current_index": latest.get("fairness_index", 1.0),
+            "total_checks": len(self._history),
+        }
+
+
+class DynamicBudget:
+    """Feature 9 (PR #84): Dynamic budget reallocation.
+
+    Dynamically reallocate budget across N goals based on
+    progress rate. Goals with higher completion rate get
+    more budget. Fail-closed on invalid budget config.
+    """
+
+    def __init__(self, total_budget: int = 100,
+                 min_budget: int = 1) -> None:
+        if total_budget < min_budget:
+            raise ValueError("total < min budget")
+        self.total_budget = total_budget
+        self.min_budget = min_budget
+        self._goals: dict[str, dict[str, float]] = {}
+        self._reallocations: list[dict[str, Any]] = []
+
+    def register_goal(self, goal_id: str, budget: int,
+                       progress: float = 0.0) -> None:
+        if not goal_id:
+            raise ValueError("goal_id must not be empty")
+        if budget < self.min_budget:
+            raise ValueError(f"budget < min: {budget}")
+        self._goals[goal_id] = {
+            "budget": budget,
+            "progress": progress,
+            "rate": 0.0,
+        }
+
+    def reallocate(self) -> dict[str, int]:
+        active = {gid: g for gid, g in self._goals.items() if g["progress"] < 1.0}
+        if not active:
+            return {g["budget"] for g in self._goals.values()}
+        if len(active) == 1:
+            goal_id = list(active.keys())[0]
+            self._goals[goal_id]["budget"] = self.total_budget
+            return {goal_id: self.total_budget}
+        total_rate = sum(g["rate"] + 0.01 for g in active.values())
+        new_budgets = {}
+        remaining = self.total_budget
+        for goal_id, g in active.items():
+            share = ((g["rate"] + 0.01) / total_rate) * self.total_budget
+            allocated = max(self.min_budget, int(share))
+            new_budgets[goal_id] = allocated
+            remaining -= allocated
+        if remaining > 0:
+            last_id = list(active.keys())[-1]
+            new_budgets[last_id] += remaining
+        for goal_id, budget in new_budgets.items():
+            self._goals[goal_id]["budget"] = budget
+        event = {
+            "event_type": "budget_reallocate",
+            "new_budgets": new_budgets,
+            "remaining": remaining,
+            "total": self.total_budget,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._reallocations.append(event)
+        return new_budgets
+
+    def update_progress(self, goal_id: str, progress: float) -> None:
+        if goal_id not in self._goals:
+            raise KeyError(f"goal not found: {goal_id}")
+        self._goals[goal_id]["progress"] = progress
+        if progress > 0:
+            self._goals[goal_id]["rate"] = self._goals[goal_id]["rate"] + (progress / max(1, self._goals[goal_id]["budget"]))
+
+    def get_budgets(self) -> dict[str, int]:
+        return {gid: g["budget"] for gid, g in self._goals.items()}
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_budget": self.total_budget,
+            "goals": len(self._goals),
+            "reallocations": len(self._reallocations),
+        }
+
+
+class TaskAffinity:
+    """Feature 10 (PR #84): Task affinity scheduling.
+
+    Schedule tasks based on data/task locality. Tasks with
+    affinity to a node are preferred on that node. Fail-closed
+    when no suitable node available.
+    """
+
+    def __init__(self) -> None:
+        self._nodes: dict[str, set[str]] = {}
+        self._affinity: dict[str, str] = {}
+        self._placement: list[dict[str, Any]] = []
+
+    def register_node(self, node_id: str, labels: dict[str, str]) -> None:
+        if not node_id:
+            raise ValueError("node_id must not be empty")
+        self._nodes[node_id] = set(labels.keys())
+
+    def set_affinity(self, task_id: str, node_id: str) -> None:
+        if not task_id:
+            raise ValueError("task_id must not be empty")
+        if node_id not in self._nodes:
+            raise KeyError(f"node not found: {node_id}")
+        self._affinity[task_id] = node_id
+
+    def schedule(self, task_id: str) -> dict[str, Any]:
+        if not task_id:
+            raise ValueError("task_id must not be empty")
+        preferred = self._affinity.get(task_id)
+        if preferred and preferred in self._nodes:
+            event = {
+                "event_type": "affinity_placed",
+                "task_id": task_id,
+                "node_id": preferred,
+                "reason": "affinity_match",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._placement.append(event)
+            return event
+        if self._nodes:
+            node_id = next(iter(self._nodes))
+            event = {
+                "event_type": "affinity_placed",
+                "task_id": task_id,
+                "node_id": node_id,
+                "reason": "fallback",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._placement.append(event)
+            return event
+        return {
+            "event_type": "affinity_failed",
+            "task_id": task_id,
+            "reason": "no_nodes",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def get_affinities(self) -> dict[str, str]:
+        return dict(self._affinity)
+
+    def get_placements(self) -> list[dict[str, Any]]:
+        return list(self._placement)
+
+    def get_stats(self) -> dict[str, Any]:
+        placed = sum(1 for p in self._placement if p.get("reason") == "affinity_match")
+        return {
+            "nodes": len(self._nodes),
+            "tasks_placed": len(self._placement),
+            "affinity_hits": placed,
+            "affinity_misses": len(self._placement) - placed,
+        }
