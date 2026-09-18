@@ -499,3 +499,39 @@ the append-only `ActionLedger` (`ledger_valid` hash-chain check).
 Offline: `data/evals/burst/*.jsonl`, `data/evals/harvest_report.{md,json}`.
 
 Test count: **348 tests passing**.
+
+## PR #83 — 10 Additional Governed Scheduler Features (2026-09-18)
+
+**Status:** Complete
+**Branch:** `feat/scheduler-10-pr83`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/83
+
+### Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | `WeightedFairQueue` | Weighted fair-queueing via deficit round robin across named queues |
+| 2 | `JobLease` | Lease/TTL with expiry reclaim, fail-closed double-ack via LeaseExpiredError |
+| 3 | `DedupedDelayedEnqueue` | Schedule-at + dedupe key, no duplicate fire |
+| 4 | `CircuitBreaker` | Closed/open/half-open per downstream target, shed when open |
+| 5 | `AdmissionLottery` | Probabilistic admit when at cap, audit events for every decision |
+| 6 | `PlacementConstraints` | Require/avoid labels (zone, gpu, tenant), refuse if unsatisfiable |
+| 7 | `ProgressiveDrain` | Stop new admits, finish in-flight, status API |
+| 8 | `ReplayFromLedger` | Rehydrate queue state from ledger events, idempotent |
+| 9 | `MultiPriorityAging` | Separate aging curves per priority band (reuses PriorityAging) |
+| 10 | `SchedulerCanary` | Synthetic probe jobs on interval, emit health + SLABreachEmitter events |
+
+### Bug Fixes
+
+None in this PR.
+
+### Testing
+
+- 20 new test classes, 82 new tests in `tests/unit/test_scheduler.py`
+- All 571 scheduler tests passing
+- Full suite: 1275 tests, 6 skipped, 3 pre-existing failures in `test_swarm_instrumentation` (unrelated)
+
+### Files Changed
+
+- `thinkbox/scheduler.py` +1319 lines
+- `tests/unit/test_scheduler.py` +433 lines

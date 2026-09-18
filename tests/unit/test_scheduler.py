@@ -85,6 +85,16 @@ from thinkbox.scheduler import (
     CostAccounting,
     PolicyHotReload,
     ChaosInjection,
+    WeightedFairQueue,
+    JobLease,
+    DedupedDelayedEnqueue,
+    CircuitBreaker,
+    AdmissionLottery,
+    PlacementConstraints,
+    ProgressiveDrain,
+    ReplayFromLedger,
+    MultiPriorityAging,
+    SchedulerCanary,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -4132,3 +4142,552 @@ class TestChaosInjection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# =============================================================================
+# PR #83 Tests - 10 major governed scheduler features
+# =============================================================================
+
+
+class TestWeightedFairQueue(unittest.TestCase):
+    """Feature 1 (PR83): Weighted fair-queueing."""
+
+    def test_default_weights(self) -> None:
+        wfq = WeightedFairQueue({"a": 2, "b": 1})
+        self.assertEqual(wfq.total_queued(), 0)
+        self.assertEqual(wfq.get_stats()["queue_count"], 2)
+
+    def test_enqueue_dequeue(self) -> None:
+        wfq = WeightedFairQueue({"q1": 1, "q2": 1})
+        self.assertTrue(wfq.enqueue("q1", "job1"))
+        self.assertTrue(wfq.enqueue("q2", "job2"))
+        result = wfq.dequeue()
+        self.assertIn(result, ["job1", "job2"])
+
+    def test_enqueue_duplicate_job(self) -> None:
+        wfq = WeightedFairQueue({"q1": 1})
+        self.assertTrue(wfq.enqueue("q1", "job1"))
+        self.assertFalse(wfq.enqueue("q1", "job1"))
+
+    def test_dequeue_empty(self) -> None:
+        wfq = WeightedFairQueue({"q1": 1})
+        self.assertIsNone(wfq.dequeue())
+
+    def test_remove_job(self) -> None:
+        wfq = WeightedFairQueue({"q1": 1})
+        wfq.enqueue("q1", "job1")
+        self.assertTrue(wfq.remove("job1"))
+        self.assertFalse(wfq.remove("job1"))
+
+    def test_add_queue(self) -> None:
+        wfq = WeightedFairQueue()
+        wfq.add_queue("q1", 3)
+        self.assertEqual(wfq.get_stats()["queue_count"], 1)
+
+    def test_add_queue_invalid(self) -> None:
+        wfq = WeightedFairQueue()
+        with self.assertRaises(ValueError):
+            wfq.add_queue("", 1)
+        with self.assertRaises(ValueError):
+            wfq.add_queue("q", 0)
+
+    def test_get_state(self) -> None:
+        wfq = WeightedFairQueue({"a": 1})
+        wfq.enqueue("a", "j1")
+        state = wfq.get_state()
+        self.assertIn("a", state["queues"])
+        self.assertIn("j1", state["queues"]["a"])
+
+    def test_peek(self) -> None:
+        wfq = WeightedFairQueue({"q": 1})
+        wfq.enqueue("q", "job1")
+        self.assertEqual(wfq.peek(), "job1")
+        self.assertIsNone(WeightedFairQueue({"q": 1}).peek())
+
+    def test_queue_depth(self) -> None:
+        wfq = WeightedFairQueue({"q": 1})
+        wfq.enqueue("q", "j1")
+        wfq.enqueue("q", "j2")
+        self.assertEqual(wfq.queue_depth("q"), 2)
+
+    def test_get_audit_events(self) -> None:
+        wfq = WeightedFairQueue({"q": 1})
+        wfq.enqueue("q", "j1")
+        wfq.dequeue()
+        events = wfq.get_audit_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event_type"], "dispatch")
+
+
+class TestJobLease(unittest.TestCase):
+    """Feature 2 (PR83): Job lease / visibility timeout."""
+
+    def test_lease_basic(self) -> None:
+        jl = JobLease(default_ttl_s=10.0)
+        result = jl.lease("job1", ttl_s=5.0, worker_id="w1")
+        self.assertEqual(result["job_id"], "job1")
+        self.assertEqual(result["status"], "leased")
+        self.assertEqual(result["worker_id"], "w1")
+
+    def test_lease_default_ttl(self) -> None:
+        jl = JobLease(default_ttl_s=100.0)
+        result = jl.lease("job1")
+        self.assertEqual(result["ttl_s"], 100.0)
+
+    def test_lease_empty_job(self) -> None:
+        jl = JobLease()
+        with self.assertRaises(ValueError):
+            jl.lease("")
+
+    def test_ack(self) -> None:
+        jl = JobLease(default_ttl_s=10.0)
+        jl.lease("job1", ttl_s=10.0, worker_id="w1")
+        result = jl.ack("job1", "lease_job1_w1")
+        self.assertEqual(result["status"], "acked")
+
+    def test_ack_lease_expired(self) -> None:
+        jl = JobLease(default_ttl_s=0.001)
+        jl.lease("job1", ttl_s=0.001, worker_id="w1")
+        time.sleep(0.01)
+        jl.check_expired("job1")
+        with self.assertRaises(JobLease.LeaseExpiredError):
+            jl.ack("job1", "lease_job1_w1")
+
+    def test_ack_wrong_lease_id(self) -> None:
+        jl = JobLease()
+        jl.lease("job1", ttl_s=10.0)
+        with self.assertRaises(JobLease.LeaseExpiredError):
+            jl.ack("job1", "wrong_lease_id")
+
+    def test_ack_unknown_job(self) -> None:
+        jl = JobLease()
+        with self.assertRaises(KeyError):
+            jl.ack("unknown", "lease_id")
+
+    def test_get_lease(self) -> None:
+        jl = JobLease()
+        jl.lease("job1", ttl_s=5.0)
+        lease = jl.get_lease("job1")
+        self.assertIsNotNone(lease)
+        self.assertEqual(lease["status"], "leased")
+
+    def test_get_lease_none(self) -> None:
+        jl = JobLease()
+        self.assertIsNone(jl.get_lease("unknown"))
+
+    def test_check_expired(self) -> None:
+        jl = JobLease(default_ttl_s=0.001)
+        jl.lease("job1", ttl_s=0.001, worker_id="w1")
+        time.sleep(0.01)
+        event = jl.check_expired("job1")
+        self.assertIsNotNone(event)
+        self.assertEqual(event["event_type"], "lease_expired")
+
+    def test_check_expired_not_expired(self) -> None:
+        jl = JobLease(default_ttl_s=10.0)
+        jl.lease("job1", ttl_s=10.0)
+        event = jl.check_expired("job1")
+        self.assertIsNone(event)
+
+    def test_get_stats(self) -> None:
+        jl = JobLease(default_ttl_s=10.0)
+        jl.lease("job1")
+        jl.ack("job1", "lease_job1_default")
+        stats = jl.get_stats()
+        self.assertEqual(stats["total"], 1)
+        self.assertEqual(stats["acked"], 1)
+
+    def test_get_reclaimed(self) -> None:
+        jl = JobLease(default_ttl_s=0.001)
+        jl.lease("job1", ttl_s=0.001)
+        time.sleep(0.01)
+        jl.check_expired("job1")
+        reclaimed = jl.get_reclaimed()
+        self.assertEqual(len(reclaimed), 1)
+
+
+class TestDedupedDelayedEnqueue(unittest.TestCase):
+    """Feature 3 (PR83): Deduped delayed enqueue."""
+
+    def test_enqueue_basic(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        self.assertTrue(dd.enqueue("key1", "job1", now + 10.0))
+        self.assertEqual(len(dd.get_pending()), 1)
+
+    def test_enqueue_empty_key(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        with self.assertRaises(ValueError):
+            dd.enqueue("", "job1", time.monotonic() + 10.0)
+
+    def test_enqueue_duplicate_dedupe_key(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        self.assertTrue(dd.enqueue("key1", "job1", now + 10.0))
+        self.assertFalse(dd.enqueue("key1", "job2", now + 10.0))
+        self.assertEqual(dd.get_stats()["dedup_hits"], 1)
+
+    def test_due_fires(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        dd.enqueue("key1", "job1", now - 1.0)
+        fired = dd.due(now)
+        self.assertEqual(len(fired), 1)
+        self.assertEqual(fired[0]["job_id"], "job1")
+        self.assertEqual(dd.get_stats()["fired"], 1)
+
+    def test_due_nothing_due(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        dd.enqueue("key1", "job1", now + 100.0)
+        fired = dd.due(now)
+        self.assertEqual(len(fired), 0)
+
+    def test_cancel(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        dd.enqueue("key1", "job1", now + 10.0)
+        self.assertTrue(dd.cancel("key1"))
+        self.assertEqual(len(dd.get_pending()), 0)
+
+    def test_cancel_nonexistent(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        self.assertFalse(dd.cancel("nonexistent"))
+
+    def test_get_pending(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        dd.enqueue("k1", "j1", now + 10.0)
+        pending = dd.get_pending()
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["job_id"], "j1")
+
+    def test_get_stats(self) -> None:
+        dd = DedupedDelayedEnqueue()
+        now = time.monotonic()
+        dd.enqueue("k1", "j1", now + 10.0)
+        dd.enqueue("k2", "j2", now + 10.0)
+        dd.due(now + 20.0)
+        self.assertEqual(dd.get_stats()["pending"], 0)
+        self.assertEqual(dd.get_stats()["fired"], 2)
+
+
+class TestCircuitBreaker(unittest.TestCase):
+    """Feature 4 (PR83): Circuit breaker per downstream."""
+
+    def test_default_closed(self) -> None:
+        cb = CircuitBreaker(failure_threshold=3, recovery_timeout_s=10.0)
+        self.assertEqual(cb.get_state("target1"), "closed")
+        self.assertTrue(cb.admit("target1"))
+
+    def test_record_success(self) -> None:
+        cb = CircuitBreaker()
+        result = cb.record_success("target1")
+        self.assertEqual(result["state"], "closed")
+
+    def test_open_after_failures(self) -> None:
+        cb = CircuitBreaker(failure_threshold=3, recovery_timeout_s=10.0)
+        cb.record_failure("target1")
+        cb.record_failure("target1")
+        self.assertEqual(cb.get_state("target1"), "closed")
+        cb.record_failure("target1")
+        self.assertEqual(cb.get_state("target1"), "open")
+        self.assertFalse(cb.admit("target1"))
+
+    def test_is_open(self) -> None:
+        cb = CircuitBreaker(failure_threshold=2, recovery_timeout_s=10.0)
+        cb.record_failure("t1")
+        cb.record_failure("t1")
+        self.assertTrue(cb.is_open("t1"))
+
+    def test_admit_when_open(self) -> None:
+        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_s=10.0)
+        cb.record_failure("t1")
+        self.assertFalse(cb.admit("t1"))
+
+    def test_get_stats(self) -> None:
+        cb = CircuitBreaker()
+        cb.record_failure("t1")
+        cb.record_success("t2")
+        stats = cb.get_stats()
+        self.assertEqual(stats["targets"], 2)
+
+    def test_get_audit_log(self) -> None:
+        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_s=10.0)
+        cb.record_failure("t1")
+        log = cb.get_audit_log()
+        self.assertEqual(len(log), 1)
+        self.assertEqual(log[0]["event_type"], "circuit_open")
+
+
+class TestAdmissionLottery(unittest.TestCase):
+    """Feature 5 (PR83): Admission lottery under saturation."""
+
+    def test_under_cap_admits(self) -> None:
+        al = AdmissionLottery(admission_cap=10, lottery_chance=0.5)
+        result = al.admit("job1", current_load=5)
+        self.assertTrue(result["admitted"])
+        self.assertEqual(result["reason"], "under_cap")
+
+    def test_at_cap_deterministic_rejected(self) -> None:
+        al = AdmissionLottery(admission_cap=2, lottery_chance=0.5)
+        al.admit("job1", current_load=1)
+        al.admit("job2", current_load=2)
+        result = al.admit("job3", current_load=2, deterministic=True)
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["reason"], "at_cap_deterministic")
+
+    def test_admit_empty_job(self) -> None:
+        al = AdmissionLottery()
+        with self.assertRaises(ValueError):
+            al.admit("", current_load=0)
+
+    def test_get_stats(self) -> None:
+        al = AdmissionLottery(admission_cap=1, lottery_chance=0.5)
+        al.admit("job1", current_load=0)
+        al.admit("job2", current_load=1, deterministic=True)
+        stats = al.get_stats()
+        self.assertEqual(stats["admitted"], 1)
+        self.assertEqual(stats["rejected"], 1)
+
+    def test_get_audit_events(self) -> None:
+        al = AdmissionLottery(admission_cap=1)
+        al.admit("job1", current_load=0)
+        al.admit("job2", current_load=1, deterministic=True)
+        events = al.get_audit_events()
+        self.assertEqual(len(events), 2)
+
+
+class TestPlacementConstraints(unittest.TestCase):
+    """Feature 6 (PR83): Placement constraints."""
+
+    def test_requires_match(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("node1", {"zone": "us-east", "gpu": "v100"})
+        result = pc.evaluate("job1", require={"zone": "us-east"})
+        self.assertTrue(result["admitted"])
+        self.assertIn("node1", result["suitable_nodes"])
+
+    def test_require_no_match(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("node1", {"zone": "us-east"})
+        result = pc.evaluate("job1", require={"zone": "eu-west"})
+        self.assertFalse(result["admitted"])
+        self.assertIn("rejection", result)
+
+    def test_avoid_match(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("node1", {"zone": "us-east"})
+        result = pc.evaluate("job1", avoid={"zone": "us-east"})
+        self.assertFalse(result["admitted"])
+
+    def test_both_require_and_avoid(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("node1", {"zone": "us-east", "gpu": "v100"})
+        pc.register_node("node2", {"zone": "us-east", "gpu": "a100"})
+        result = pc.evaluate("job1", require={"zone": "us-east"}, avoid={"gpu": "a100"})
+        self.assertTrue(result["admitted"])
+        self.assertIn("node1", result["suitable_nodes"])
+        self.assertNotIn("node2", result["suitable_nodes"])
+
+    def test_empty_constraints(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("node1", {"zone": "us-east"})
+        result = pc.evaluate("job1")
+        self.assertTrue(result["admitted"])
+
+    def test_get_stats(self) -> None:
+        pc = PlacementConstraints()
+        pc.register_node("n1", {"zone": "a"})
+        pc.register_node("n2", {"zone": "b"})
+        self.assertEqual(pc.get_stats()["nodes"], 2)
+
+
+class TestProgressiveDrain(unittest.TestCase):
+    """Feature 7 (PR83): Progressive drain / quiesce."""
+
+    def test_admit_normal(self) -> None:
+        pd = ProgressiveDrain()
+        result = pd.admit("job1")
+        self.assertTrue(result["admitted"])
+
+    def test_start_drain_blocks(self) -> None:
+        pd = ProgressiveDrain()
+        pd.start_drain()
+        result = pd.admit("job1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["reason"], "draining")
+
+    def test_quiesce_blocks(self) -> None:
+        pd = ProgressiveDrain()
+        pd.quiesce()
+        result = pd.admit("job1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["reason"], "quiesced")
+
+    def test_complete_reduces_in_flight(self) -> None:
+        pd = ProgressiveDrain()
+        pd.admit("job1")
+        pd.admit("job2")
+        pd.complete("job1")
+        status = pd.get_status()
+        self.assertEqual(status["in_flight_count"], 1)
+        self.assertIn("job1", status["completed_draining"])
+
+    def test_get_status(self) -> None:
+        pd = ProgressiveDrain()
+        pd.start_drain()
+        status = pd.get_status()
+        self.assertTrue(status["draining"])
+        self.assertFalse(status["quiesced"])
+
+    def test_complete_unknown_job(self) -> None:
+        pd = ProgressiveDrain()
+        # Should not raise
+        pd.complete("unknown")
+
+
+class TestReplayFromLedger(unittest.TestCase):
+    """Feature 8 (PR83): Replay from ledger."""
+
+    def test_replay_admit_complete(self) -> None:
+        rl = ReplayFromLedger()
+        rl.append_event({"event_type": "admit", "job_id": "j1"})
+        rl.append_event({"event_type": "complete", "job_id": "j1"})
+        result = rl.replay()
+        self.assertEqual(result["events_replayed"], 2)
+        self.assertNotIn("j1", result["state"]["jobs"])
+        self.assertIn("j1", result["state"]["completed"])
+
+    def test_replay_idempotent(self) -> None:
+        rl = ReplayFromLedger()
+        rl.append_event({"event_type": "admit", "job_id": "j1"})
+        result1 = rl.replay()
+        result2 = rl.replay()
+        self.assertEqual(result1["state"], result2["state"])
+        self.assertEqual(rl.get_replay_count(), 2)
+
+    def test_replay_from_index(self) -> None:
+        rl = ReplayFromLedger()
+        rl.append_event({"event_type": "admit", "job_id": "j1"})
+        rl.append_event({"event_type": "complete", "job_id": "j1"})
+        result = rl.replay(from_index=1)
+        self.assertEqual(result["events_replayed"], 1)
+        self.assertNotIn("j1", result["state"]["jobs"])
+        self.assertIn("j1", result["state"]["completed"])
+
+    def test_empty_replay(self) -> None:
+        rl = ReplayFromLedger()
+        result = rl.replay()
+        self.assertEqual(result["events_replayed"], 0)
+        self.assertEqual(result["state"]["event_count"], 0)
+
+    def test_shed_events(self) -> None:
+        rl = ReplayFromLedger()
+        rl.append_event({"event_type": "admit", "job_id": "j1"})
+        rl.append_event({"event_type": "shed", "job_id": "j2"})
+        result = rl.replay()
+        self.assertIn("j2", result["state"]["shed"])
+
+    def test_append_event_missing_type(self) -> None:
+        rl = ReplayFromLedger()
+        with self.assertRaises(ValueError):
+            rl.append_event({"job_id": "j1"})
+
+
+class TestMultiPriorityAging(unittest.TestCase):
+    """Feature 9 (PR83): Multi-priority aging bands."""
+
+    def test_default_bands(self) -> None:
+        mpa = MultiPriorityAging()
+        stats = mpa.get_stats()
+        self.assertIn("high", stats["bands"])
+        self.assertIn("medium", stats["bands"])
+        self.assertIn("low", stats["bands"])
+
+    def test_register(self) -> None:
+        mpa = MultiPriorityAging()
+        mpa.register("job1", priority_band="high")
+        result = mpa.apply_aging("job1", priority_band="high")
+        self.assertEqual(result["priority_band"], "high")
+
+    def test_not_registered(self) -> None:
+        mpa = MultiPriorityAging()
+        result = mpa.apply_aging("unknown", priority_band="high")
+        self.assertEqual(result["aged"], False)
+
+    def test_custom_bands(self) -> None:
+        mpa = MultiPriorityAging(bands={"fast": 5.0, "slow": 300.0})
+        stats = mpa.get_stats()
+        self.assertEqual(stats["band_thresholds"]["fast"], 5.0)
+
+    def test_get_aged_jobs(self) -> None:
+        mpa = MultiPriorityAging()
+        mpa.register("job1", priority_band="high")
+        mpa.register("job2", priority_band="low")
+        # Aging won't fire without waiting, but get_aged_jobs should return empty
+        aged = mpa.get_aged_jobs()
+        self.assertEqual(len(aged), 0)
+
+    def test_get_stats(self) -> None:
+        mpa = MultiPriorityAging()
+        stats = mpa.get_stats()
+        self.assertEqual(stats["total_aged"], 0)
+        self.assertEqual(len(stats["bands"]), 3)
+
+
+class TestSchedulerCanary(unittest.TestCase):
+    """Feature 10 (PR83): Scheduler canaries."""
+
+    def test_probe_success(self) -> None:
+        sc = SchedulerCanary(interval_s=60.0, sla_latency_s=5.0)
+        probe = sc.run_probe(latency_s=1.0, success=True)
+        self.assertEqual(probe["success"], True)
+        self.assertEqual(probe["latency_s"], 1.0)
+
+    def test_probe_failure(self) -> None:
+        sc = SchedulerCanary()
+        probe = sc.run_probe(latency_s=0.5, success=False)
+        self.assertEqual(probe["success"], False)
+        self.assertEqual(len(sc.get_breaches()), 1)
+
+    def test_probe_sla_breach(self) -> None:
+        sc = SchedulerCanary(sla_latency_s=2.0)
+        sc.run_probe(latency_s=5.0, success=True)
+        breaches = sc.get_breaches()
+        self.assertEqual(len(breaches), 1)
+        self.assertEqual(breaches[0]["breach_type"], "latency")
+
+    def test_health_all_ok(self) -> None:
+        sc = SchedulerCanary()
+        sc.run_probe(latency_s=1.0, success=True)
+        health = sc.get_health()
+        self.assertTrue(health["healthy"])
+
+    def test_health_failures(self) -> None:
+        sc = SchedulerCanary()
+        sc.run_probe(latency_s=1.0, success=True)
+        sc.run_probe(latency_s=1.0, success=False)
+        health = sc.get_health()
+        self.assertFalse(health["healthy"])
+        self.assertEqual(health["failures"], 1)
+        self.assertAlmostEqual(health["success_rate"], 0.5)
+
+    def test_health_no_probes(self) -> None:
+        sc = SchedulerCanary()
+        health = sc.get_health()
+        self.assertTrue(health["healthy"])
+        self.assertEqual(health["probes"], 0)
+
+    def test_get_stats(self) -> None:
+        sc = SchedulerCanary(interval_s=30.0, sla_latency_s=5.0)
+        sc.run_probe(latency_s=1.0, success=True)
+        stats = sc.get_stats()
+        self.assertEqual(stats["total_probes"], 1)
+        self.assertEqual(stats["interval_s"], 30.0)
+
+    def test_multiple_probes(self) -> None:
+        sc = SchedulerCanary()
+        for i in range(5):
+            sc.run_probe(latency_s=float(i) * 0.5, success=True)
+        self.assertEqual(sc.get_stats()["total_probes"], 5)

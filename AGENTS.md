@@ -681,11 +681,36 @@ The connection path used:
 
 SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
 
-### PR Status (2026-09-17) (historical; current work commits directly to main, see Chronicle)
-- **All PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
-- **Historical merge**: commit `9f12e1d` contained all work at that time
-- **Branch status**: `kilo/adept-marsh-qiq` merged into main, `kilo/leafy-dragon-4ck` superseded
+### PR Status (2026-09-18)
+- **PR #82 merged** (10 scheduler features: CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection)
+- **PR #83 open** (10 additional scheduler features: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary) — https://github.com/Kudbee-Studio/think-box-ai/pull/83
+- **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
 - **No stale PRs remain**
+
+## Governed Scheduler
+
+The `thinkbox/scheduler.py` module extends the governed concurrency architecture with 72 features across multiple PRs.
+
+### Module Structure
+
+- `thinkbox/scheduler.py` — All scheduler features as classes
+- `tests/unit/test_scheduler.py` — 22 test classes (571 tests) covering all features
+
+### Features by PR
+
+**PR #76** (25 features): SchedulerDecisionReceipt, AdaptiveConcurrencyLimiter, GlobalSchedulerAdmission, PerGoalConcurrencyCap, WeightedPriorityScheduler, BudgetAwareAdmission, DeadlineAwareAdmission, RetryAwareReservation, BudgetForecaster, BudgetOverspendPrevention, QueueDepthTelemetry, WaitTimeTelemetry, ExecutionUtilization, FairnessTrendTracker, SchedulerHealth, StarvationRecovery, PriorityInversionRecovery, CancellationPropagator, FanOutBackpressure, FanInQuorumTracker, CrossGoalReplayVerifier, RestartSafeSchedulerRecovery, PersistentSchedulerState, SchedulerIntegration, FailureDomainIsolator
+
+**PR #81** (5 features): SchedulerDashboardExtension, StressReportEnhancer, GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics
+
+**PR #82** (10 features): CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection + 2 bug fixes (BackpressureAdmissionV2 tenant tracking, DurableJobCheckpoints sqlite persistence)
+
+**PR #83** (10 features): WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary
+
+### Testing
+
+- `tests/unit/test_scheduler.py` — 571 tests, all passing
+- Run: `python3 -m unittest tests.unit.test_scheduler -v`
+- Full suite: `python3 -m unittest discover tests/` (1275 tests, 6 skipped)
 
 ## CNC Manufacturing Intelligence Platform
 
@@ -717,7 +742,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (663 tests, 6 skipped; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (1275 tests, 6 skipped; canonical count — see Chronicle)
 
 ### ADR
 

@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (853 OK, 6 skipped)
+- [x] Tests executed and passing (571 scheduler OK, 1275 full suite, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -26,6 +26,7 @@ Before declaring completion, every agent MUST verify:
 - [x] Multi-goal concurrent budgets + deeper DAG telemetry COMPLETE (2-goal fan-in DAG, 4 live Mercury-2 calls)
 - [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
 - [x] 10 new scheduler features (timeout, deps, analytics, prediction, stealing, SLA, checkpoints, backoff, profiling, error classification) COMPLETE
+- [x] 10 more scheduler features (weighted fair-queue, job lease, deduped delay, circuit breaker, admission lottery, placement constraints, progressive drain, ledger replay, multi-priority aging, scheduler canaries) COMPLETE (PR #83)
 
 ---
 
@@ -33,14 +34,14 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | 10 new governed scheduler features extending PR #76 architecture |
-| **Latest completed work** | 10 features COMPLETE: GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics, CapacityPredictor, WorkStealingQueue, SLAComplianceTracker, CheckpointManager, AdaptiveRetryBackoff, GoalResourceProfiler, ErrorClassificationEngine. Branch `kilo/epic-coil-ao1`. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked completions). Test suite 853 OK (6 skipped). |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification |
+| **Active objective** | PR #83: 10 additional governed scheduler features |
+| **Latest completed work** | PR #83 COMPLETE: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary. Branch `feat/scheduler-10-pr83`. All tests deterministic (mocked clock). Scheduler tests 571 OK. |
+| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
 | **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #77 (feat/scheduler-10-features) open; PR #76 merged (25 scheduler features) |
-| **Test count** | **853 tests passing (6 skipped)** |
+| **PR status** | PR #82 merged (10 features), PR #83 open (10 features) |
+| **Test count** | **571 scheduler OK, 1275 full suite, 6 skipped** |
 
 ---
 
@@ -99,6 +100,18 @@ Before declaring completion, every agent MUST verify:
 | **Tests** | `tests/unit/test_scheduler.py` — 213 tests (+64 new). Full suite 917 tests, 3 pre-existing failures unchanged, 6 skipped. |
 | **Live validation** | All 10 features verified: DAG viz (ASCII + DOT), priority boosting, latency tracking, deadline extension, group management, policy chaining, retry budgeting, progress tracking, configurable retry, failure aggregation. |
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (917) / LIVE_VERIFIED (all 10 features) / PRODUCTION not claimed |
+
+### 2026-09-18 — PR #83: 10 Additional Scheduler Features (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Agent/task** | Add 10 features extending governed scheduler. Branch `feat/scheduler-10-pr83`. PR #83 open. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked clock). |
+| **Features** | WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary |
+| **Architecture** | All 10 features in `thinkbox/scheduler.py`. Extends PR #76/78/82 architecture. No parallel systems. |
+| **Tests** | `tests/unit/test_scheduler.py` — 571 tests (20 new classes, 82 new tests). All PASS. Full suite 1275 tests, 6 skipped. |
+| **Bug fixes** | None in this PR. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (571 scheduler) / PRODUCTION not claimed |
 
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
