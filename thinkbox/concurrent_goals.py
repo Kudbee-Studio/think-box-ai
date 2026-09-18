@@ -456,6 +456,18 @@ class StressTestConfig:
             target_qps=data.get("target_qps"),
         )
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StressTestConfig):
+            return NotImplemented
+        return (
+            self.num_goals == other.num_goals and
+            self.max_calls_global == other.max_calls_global and
+            self.max_retries_global == other.max_retries_global and
+            self.contention_policy == other.contention_policy and
+            self.max_duration_seconds == other.max_duration_seconds and
+            self.target_qps == other.target_qps
+        )
+
 
 @dataclass
 class StressTestResult:
