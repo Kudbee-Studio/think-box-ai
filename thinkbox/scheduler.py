@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 import sqlite3
 import time
@@ -18,18 +17,11 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from thinkbox.concurrent_goals import (
-    BudgetContentionPolicy,
-    ConcurrentGoalSpec,
-    ConcurrentGoalsConfig,
-    ConcurrentGoalsResult,
-    GoalLifecycleState,
     GoalPriority,
-    BudgetReservation,
     RetryBudget,
-    aggregate_layer_telemetry,
 )
 from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
 
