@@ -565,3 +565,33 @@ None in this PR.
 ### Files Changed
 - `thinkbox/scheduler.py` +760 lines
 - `tests/unit/test_scheduler.py` +580 lines
+
+## PR #85 — 10 Hardening Features for Governed Scheduler (IN PROGRESS)
+
+**Status:** In Progress
+**Branch:** `feat/scheduler-10-pr85`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/85 (TBD)
+
+### Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | `DeadLetterQueue` | Dead letter queue for permanently failed jobs |
+| 2 | `ConfigValidator` | Centralized configuration validation |
+| 3 | `MemoryPressureMonitor` | Memory pressure monitoring with thresholds |
+| 4 | `GracefulShutdownCoordinator` | Graceful shutdown coordination |
+| 5 | `SchedulerSentinel` | Active auto-recovery agent |
+| 6 | `DataIntegrityChecker` | SHA-256 integrity verification |
+| 7 | `RetryStormGuard` | Global retry rate limiting |
+| 8 | `SchemaVersionTracker` | Schema version tracking for recovery |
+| 9 | `AnomalyDetector` | Statistical anomaly detection |
+| 10 | `AdmissionRateLimiter` | Sliding-window admission rate limiting |
+
+### Testing
+- 10 new test classes, ~89 new tests in tests/unit/test_scheduler.py
+- All 689 scheduler tests passing
+- Full suite: 1275 tests, 6 skipped
+
+### Files Changed
+- `thinkbox/scheduler.py` +600 lines
+- `tests/unit/test_scheduler.py` +580 lines

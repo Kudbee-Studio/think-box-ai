@@ -15,10 +15,11 @@ import re
 import sqlite3
 import time
 import uuid
+import collections
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from thinkbox.concurrent_goals import (
     GoalPriority,
@@ -6104,4 +6105,630 @@ class TaskAffinity:
             "tasks_placed": len(self._placement),
             "affinity_hits": placed,
             "affinity_misses": len(self._placement) - placed,
+        }
+
+
+# =============================================================================
+# PR #85 Features - 10 major hardening improvements
+# =============================================================================
+
+
+class DeadLetterQueue:
+    """Feature 1 (PR #85): Dead letter queue for permanently failed jobs.
+
+    Captures permanently failed jobs for operator inspection,
+    manual recovery, and audit trail. Differs from worker-specific
+    DLQ by being goal-level.
+    """
+
+    def __init__(self, max_size: int = 1000) -> None:
+        if max_size < 1:
+            raise ValueError("max_size must be >= 1")
+        self.max_size = max_size
+        self._dead: collections.OrderedDict[str, dict[str, Any]] = collections.OrderedDict()
+        self._total_enqueued: int = 0
+
+    def enqueue(self, job_id: str, goal_id: str, error: str,
+                reason: str, retry_count: int = 0) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if not goal_id:
+            raise ValueError("goal_id must not be empty")
+        if not reason:
+            raise ValueError("reason must not be empty")
+        if job_id in self._dead:
+            return self._dead[job_id]
+        if len(self._dead) >= self.max_size:
+            self._dead.popitem(last=False)
+        entry = {
+            "job_id": job_id,
+            "goal_id": goal_id,
+            "error": error,
+            "reason": reason,
+            "retry_count": retry_count,
+            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "status": "dead",
+        }
+        self._dead[job_id] = entry
+        self._total_enqueued += 1
+        return entry
+
+    def acknowledge(self, job_id: str) -> bool:
+        if job_id in self._dead:
+            del self._dead[job_id]
+            return True
+        return False
+
+    def requeue(self, job_id: str, reason: str = "manual_requeue") -> bool:
+        entry = self._dead.get(job_id)
+        if entry is None:
+            return False
+        entry["status"] = "requeued"
+        entry["requeue_reason"] = reason
+        entry["requeued_at"] = datetime.now(timezone.utc).isoformat()
+        return True
+
+    def discard(self, job_id: str) -> bool:
+        if job_id in self._dead:
+            del self._dead[job_id]
+            return True
+        return False
+
+    def get_dead(self) -> list[dict[str, Any]]:
+        return list(self._dead.values())
+
+    def get_by_reason(self, reason: str) -> list[dict[str, Any]]:
+        return [e for e in self._dead.values() if e.get("reason") == reason]
+
+    def get_size(self) -> int:
+        return len(self._dead)
+
+    def is_empty(self) -> bool:
+        return len(self._dead) == 0
+
+    def clear(self) -> int:
+        count = len(self._dead)
+        self._dead.clear()
+        return count
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "size": len(self._dead),
+            "max_size": self.max_size,
+            "total_enqueued": self._total_enqueued,
+            "by_reason": self._count_by_reason(),
+        }
+
+    def _count_by_reason(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for e in self._dead.values():
+            r = e.get("reason", "unknown")
+            counts[r] = counts.get(r, 0) + 1
+        return counts
+
+
+class ConfigValidator:
+    """Feature 2 (PR #85): Centralized config validator.
+
+    Validates scheduler configuration at startup. Catches cross-feature
+    conflicts, type mismatches, and range violations in one pass.
+    """
+
+    def __init__(self) -> None:
+        self._schemas: dict[str, dict[str, Any]] = {}
+        self._errors: list[dict[str, Any]] = []
+        self._warnings: list[dict[str, Any]] = []
+
+    def register_schema(self, name: str, required_fields: list[str],
+                         field_types: dict[str, type],
+                         ranges: dict[str, tuple[float, float] | None] = None) -> None:
+        if not name:
+            raise ValueError("name must not be empty")
+        self._schemas[name] = {
+            "required_fields": required_fields,
+            "field_types": field_types,
+            "ranges": ranges or {},
+        }
+
+    def validate(self, config: dict[str, Any]) -> tuple[bool, list[str], list[dict[str, Any]]]:
+        if not isinstance(config, dict):
+            return False, ["config must be dict"], [{"error": "config_not_dict"}]
+        all_errors: list[str] = []
+        all_errors_detail: list[dict[str, Any]] = []
+        for name, schema in self._schemas.items():
+            ok, errors, details = self._validate_schema(name, config, schema)
+            all_errors.extend(errors)
+            all_errors_detail.extend(details)
+        is_valid = len(all_errors) == 0
+        return is_valid, all_errors, all_errors_detail
+
+    def _validate_schema(self, name: str, config: dict[str, Any],
+                          schema: dict[str, Any]) -> tuple[bool, list[str], list[dict[str, Any]]]:
+        errors: list[str] = []
+        details: list[dict[str, Any]] = []
+        for field in schema["required_fields"]:
+            if field not in config:
+                errors.append(f"{name}: missing required field '{field}'")
+                details.append({"feature": name, "field": field, "error": "missing"})
+        for field, expected_type in schema["field_types"].items():
+            if field in config and not isinstance(config[field], expected_type):
+                errors.append(f"{name}: field '{field}' expected {expected_type.__name__}, got {type(config[field]).__name__}")
+                details.append({"feature": name, "field": field, "error": "type_mismatch"})
+        for field, (lo, hi) in schema["ranges"].items():
+            if field in config and isinstance(config[field], (int, float)):
+                val = config[field]
+                if (lo is not None and val < lo) or (hi is not None and val > hi):
+                    errors.append(f"{name}: field '{field}' value {val} out of range [{lo}, {hi}]")
+                    details.append({"feature": name, "field": field, "error": "out_of_range"})
+        return len(errors) == 0, errors, details
+
+    def validate_feature_config(self, feature_name: str, config: dict[str, Any]) -> tuple[bool, list[str]]:
+        schema = self._schemas.get(feature_name)
+        if schema is None:
+            return False, [f"unknown feature: {feature_name}"]
+        ok, errors, _ = self._validate_schema(feature_name, config, schema)
+        return ok, errors
+
+    def get_errors(self) -> list[dict[str, Any]]:
+        return list(self._errors)
+
+    def get_warnings(self) -> list[dict[str, Any]]:
+        return list(self._warnings)
+
+    def clear(self) -> None:
+        self._schemas.clear()
+        self._errors.clear()
+        self._warnings.clear()
+
+    def is_valid(self) -> bool:
+        return len(self._errors) == 0
+
+
+class MemoryPressureMonitor:
+    """Feature 3 (PR #85): Memory pressure monitor.
+
+    Monitors in-memory data structures for unbounded growth. Alerts
+    at warning/critical thresholds. Prevents OOM via early warning.
+    """
+
+    def __init__(self, warning_threshold: int = 10000,
+                 critical_threshold: int = 50000) -> None:
+        if warning_threshold < 0 or critical_threshold < 0:
+            raise ValueError("thresholds must be non-negative")
+        if warning_threshold >= critical_threshold:
+            raise ValueError("warning must be < critical")
+        self.warning_threshold = warning_threshold
+        self.critical_threshold = critical_threshold
+        self._trackers: dict[str, Callable[[], int]] = {}
+        self._max_expected: dict[str, int] = {}
+        self._violations: list[dict[str, Any]] = []
+
+    def register_tracker(self, name: str, current_size_fn: Callable[[], int],
+                          max_expected: int) -> None:
+        if not name:
+            raise ValueError("name must not be empty")
+        self._trackers[name] = current_size_fn
+        self._max_expected[name] = max_expected
+
+    def check(self) -> dict[str, Any]:
+        results: dict[str, dict[str, Any]] = {}
+        violations: list[dict[str, Any]] = []
+        for name, fn in self._trackers.items():
+            try:
+                size = max(0, fn())
+            except Exception:
+                size = 0
+            status = "healthy"
+            if size >= self.critical_threshold:
+                status = "critical"
+            elif size >= self.warning_threshold:
+                status = "degraded"
+            results[name] = {"size": size, "max_expected": self._max_expected[name], "status": status}
+            if status != "healthy":
+                event = {
+                    "event_type": "memory_pressure",
+                    "tracker": name,
+                    "size": size,
+                    "threshold": self.warning_threshold if status == "degraded" else self.critical_threshold,
+                    "status": status,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                violations.append(event)
+        self._violations = violations
+        return {"trackers": results, "violations": len(violations), "overall": "critical" if any(v["status"] == "critical" for v in violations) else "degraded" if violations else "healthy"}
+
+    def get_pressure(self, name: str) -> dict[str, Any]:
+        if name not in self._trackers:
+            return {"error": f"tracker not found: {name}"}
+        size = max(0, self._trackers[name]())
+        status = "healthy"
+        if size >= self.critical_threshold:
+            status = "critical"
+        elif size >= self.warning_threshold:
+            status = "degraded"
+        return {"name": name, "size": size, "status": status}
+
+    def get_violations(self) -> list[dict[str, Any]]:
+        return list(self._violations)
+
+    def set_thresholds(self, warning: int, critical: int) -> None:
+        if warning >= critical:
+            raise ValueError("warning must be < critical")
+        self.warning_threshold = warning
+        self.critical_threshold = critical
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "trackers": len(self._trackers),
+            "warning": self.warning_threshold,
+            "critical": self.critical_threshold,
+            "violations": len(self._violations),
+        }
+
+
+
+class GracefulShutdownCoordinator:
+    """Feature 4 (PR #85): Graceful shutdown coordinator.
+
+    Coordinates graceful shutdown by tracking active goals and
+    ensuring terminal state before stop. Has configurable grace period.
+    """
+
+    def __init__(self, grace_period_s: float = 60.0) -> None:
+        if grace_period_s < 0:
+            raise ValueError("grace_period_s must be non-negative")
+        self.grace_period_s = grace_period_s
+        self._active_goals: dict[str, float] = {}
+        self._stopping: bool = False
+        self._completed: list[str] = []
+        self._status_log: list[dict[str, Any]] = []
+
+    def start_goal(self, goal_id: str) -> None:
+        if not goal_id:
+            raise ValueError("goal_id must not be empty")
+        self._active_goals[goal_id] = time.monotonic()
+
+    def complete_goal(self, goal_id: str) -> bool:
+        if goal_id in self._active_goals:
+            del self._active_goals[goal_id]
+            self._completed.append(goal_id)
+            event = {
+                "event_type": "goal_completed",
+                "goal_id": goal_id,
+                "active_remaining": len(self._active_goals),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._status_log.append(event)
+            return True
+        return False
+
+    def initiate_shutdown(self) -> dict[str, Any]:
+        self._stopping = True
+        event = {
+            "event_type": "shutdown_initiated",
+            "active_goals": list(self._active_goals.keys()),
+            "grace_period_s": self.grace_period_s,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._status_log.append(event)
+        return event
+
+    def get_status(self) -> dict[str, Any]:
+        return {
+            "stopping": self._stopping,
+            "active_goals": list(self._active_goals.keys()),
+            "active_count": len(self._active_goals),
+            "completed": list(self._completed),
+            "grace_period_s": self.grace_period_s,
+        }
+
+    def is_ready_to_stop(self) -> bool:
+        return self._stopping and len(self._active_goals) == 0
+
+    def get_status_log(self) -> list[dict[str, Any]]:
+        return list(self._status_log)
+
+
+class SchedulerSentinel:
+    """Feature 5 (PR #85): Scheduler sentinel (active auto-recovery).
+
+    Active auto-recovery agent. Acts on SchedulerHealth indicators
+    (isolate, recover) rather than just recording them.
+    """
+
+    def __init__(self, check_interval_s: float = 30.0) -> None:
+        self.check_interval_s = check_interval_s
+        self._actions: list[dict[str, Any]] = []
+        self._last_check: float = 0.0
+        self._recovered: int = 0
+        self._isolated: int = 0
+
+    def act(self, health_status: dict[str, Any]) -> dict[str, Any]:
+        if not health_status:
+            return {"actions": [], "count": 0}
+        actions: list[str] = []
+        for goal, status in health_status.items():
+            if status == "critical":
+                actions.append(f"isolate:{goal}")
+                self._isolated += 1
+                event = {
+                    "event_type": "sentinel_isolate",
+                    "goal_id": goal,
+                    "reason": "critical_health",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._actions.append(event)
+            elif status == "degraded":
+                actions.append(f"recover:{goal}")
+                self._recovered += 1
+                event = {
+                    "event_type": "sentinel_recover",
+                    "goal_id": goal,
+                    "reason": "degraded_health",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._actions.append(event)
+        return {"actions": actions, "count": len(actions)}
+
+    def get_actions(self) -> list[dict[str, Any]]:
+        return list(self._actions)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "recovered": self._recovered,
+            "isolated": self._isolated,
+            "total_actions": len(self._actions),
+        }
+
+
+class DataIntegrityChecker:
+    """Feature 6 (PR #85): Data integrity checker.
+
+    SHA-256 hash verification of persisted state before and
+    after recovery operations. Reuses hashlib from PersistentSchedulerState.
+    """
+
+    def __init__(self) -> None:
+        self._checksums: dict[str, str] = {}
+        self._verified: list[dict[str, Any]] = []
+        self._failures: list[dict[str, Any]] = []
+
+    def compute_checksum(self, data: str) -> str:
+        return hashlib.sha256(data.encode()).hexdigest()
+
+    def verify(self, data_id: str, data: str,
+               expected_checksum: str | None = None) -> bool:
+        actual = self.compute_checksum(data)
+        if expected_checksum is not None and actual != expected_checksum:
+            event = {
+                "event_type": "integrity_failure",
+                "data_id": data_id,
+                "expected": expected_checksum,
+                "actual": actual,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._failures.append(event)
+            return False
+        self._checksums[data_id] = actual
+        event = {
+            "event_type": "integrity_verified",
+            "data_id": data_id,
+            "checksum": actual,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._verified.append(event)
+        return True
+
+    def get_verified(self) -> list[dict[str, Any]]:
+        return list(self._verified)
+
+    def get_failures(self) -> list[dict[str, Any]]:
+        return list(self._failures)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "verified": len(self._verified),
+            "failures": len(self._failures),
+            "tracked": len(self._checksums),
+        }
+
+
+class RetryStormGuard:
+    """Feature 7 (PR #85): Retry storm guard.
+
+    Global retry rate limiting across all goals. Prevents retry
+    surges from overwhelming the system.
+    """
+
+    def __init__(self, max_retries_per_second: float = 100.0) -> None:
+        if max_retries_per_second <= 0:
+            raise ValueError("rate must be positive")
+        self.max_retries_per_second = max_retries_per_second
+        self._retry_times: list[float] = []
+        self._blocked: int = 0
+        self._allowed: int = 0
+
+    def allow_retry(self) -> bool:
+        now = time.monotonic()
+        cutoff = now - 1.0
+        self._retry_times = [t for t in self._retry_times if t > cutoff]
+        if len(self._retry_times) >= self.max_retries_per_second:
+            self._blocked += 1
+            return False
+        self._retry_times.append(now)
+        self._allowed += 1
+        return True
+
+    def get_rate(self) -> float:
+        now = time.monotonic()
+        cutoff = now - 1.0
+        recent = [t for t in self._retry_times if t > cutoff]
+        return len(recent)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "allowed": self._allowed,
+            "blocked": self._blocked,
+            "current_rate": self.get_rate(),
+            "max_rate": self.max_retries_per_second,
+        }
+
+
+class SchemaVersionTracker:
+    """Feature 8 (PR #85): Schema version tracker.
+
+    Version tracking for persisted scheduler data schema.
+    Enables forward-compatible recovery across code changes.
+    """
+
+    def __init__(self, current_version: str = "1.0") -> None:
+        self.current_version = current_version
+        self._versions: list[dict[str, Any]] = []
+        self._migrations: list[dict[str, Any]] = []
+
+    def record_version(self, component: str, version: str) -> None:
+        if not component:
+            raise ValueError("component must not be empty")
+        entry = {
+            "component": component,
+            "version": version,
+            "recorded_at": time.monotonic(),
+        }
+        self._versions.append(entry)
+
+    def check_compatibility(self) -> dict[str, Any]:
+        mismatches = []
+        for v in self._versions:
+            if v["version"] != self.current_version:
+                mismatches.append(v)
+        compatible = len(mismatches) == 0
+        event = {
+            "event_type": "schema_check",
+            "compatible": compatible,
+            "current": self.current_version,
+            "mismatches": len(mismatches),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._migrations.append(event)
+        return event
+
+    def get_versions(self) -> list[dict[str, Any]]:
+        return list(self._versions)
+
+    def get_migrations(self) -> list[dict[str, Any]]:
+        return list(self._migrations)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "current_version": self.current_version,
+            "components": len(self._versions),
+            "migrations": len(self._migrations),
+        }
+
+
+class AnomalyDetector:
+    """Feature 9 (PR #85): Anomaly detector.
+
+    Statistical deviation detection on latency, failure rates,
+    and completion times using configurable sensitivity.
+    """
+
+    def __init__(self, sensitivity: float = 2.0) -> None:
+        if sensitivity <= 0:
+            raise ValueError("sensitivity must be positive")
+        self.sensitivity = sensitivity
+        self._history: dict[str, list[float]] = {}
+        self._anomalies: list[dict[str, Any]] = []
+
+    def record(self, metric_name: str, value: float) -> None:
+        if not metric_name:
+            raise ValueError("metric_name must not be empty")
+        if metric_name not in self._history:
+            self._history[metric_name] = []
+        self._history[metric_name].append(value)
+
+    def detect(self, metric_name: str) -> dict[str, Any]:
+        if metric_name not in self._history:
+            return {"metric": metric_name, "anomaly": False, "reason": "no_data"}
+        values = self._history[metric_name]
+        if len(values) < 3:
+            return {"metric": metric_name, "anomaly": False, "reason": "insufficient_data"}
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / len(values)
+        std_dev = variance ** 0.5
+        latest = values[-1]
+        if std_dev == 0:
+            return {"metric": metric_name, "anomaly": False, "mean": mean, "std_dev": 0}
+        z_score = abs(latest - mean) / std_dev
+        is_anomaly = z_score > self.sensitivity
+        event = {
+            "event_type": "anomaly_detected" if is_anomaly else "anomaly_check",
+            "metric": metric_name,
+            "value": latest,
+            "mean": round(mean, 4),
+            "std_dev": round(std_dev, 4),
+            "z_score": round(z_score, 4),
+            "sensitivity": self.sensitivity,
+            "anomaly": is_anomaly,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if is_anomaly:
+            self._anomalies.append(event)
+        return event
+
+    def get_anomalies(self) -> list[dict[str, Any]]:
+        return list(self._anomalies)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "metrics": len(self._history),
+            "anomalies": len(self._anomalies),
+            "sensitivity": self.sensitivity,
+        }
+
+
+class AdmissionRateLimiter:
+    """Feature 10 (PR #85): Admission rate limiter.
+
+    Sliding-window rate limiter for scheduling decisions.
+    Prevents CPU saturation from high-throughput admission bursts.
+    """
+
+    def __init__(self, max_admissions: int = 100, window_s: float = 1.0) -> None:
+        if max_admissions <= 0:
+            raise ValueError("max_admissions must be positive")
+        if window_s <= 0:
+            raise ValueError("window_s must be positive")
+        self.max_admissions = max_admissions
+        self.window_s = window_s
+        self._admission_times: collections.deque = collections.deque()
+        self._total_admitted: int = 0
+        self._total_blocked: int = 0
+
+    def allow_admission(self) -> bool:
+        now = time.monotonic()
+        cutoff = now - self.window_s
+        while self._admission_times and self._admission_times[0] < cutoff:
+            self._admission_times.popleft()
+        if len(self._admission_times) >= self.max_admissions:
+            self._total_blocked += 1
+            return False
+        self._admission_times.append(now)
+        self._total_admitted += 1
+        return True
+
+    def get_current_rate(self) -> int:
+        now = time.monotonic()
+        cutoff = now - self.window_s
+        while self._admission_times and self._admission_times[0] < cutoff:
+            self._admission_times.popleft()
+        return len(self._admission_times)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_admitted": self._total_admitted,
+            "total_blocked": self._total_blocked,
+            "current_rate": self.get_current_rate(),
+            "max_admissions": self.max_admissions,
+            "window_s": self.window_s,
         }
