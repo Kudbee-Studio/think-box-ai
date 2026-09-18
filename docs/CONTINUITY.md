@@ -41,8 +41,8 @@ Before declaring completion, every agent MUST verify:
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
 | **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #83 merged, PR #84 merged, PR #85 IN PROGRESS (10 features) |
-| **Test count** | **689 scheduler OK, 1275 full suite, 6 skipped** |
+| **PR status** | PR #83 merged, PR #84 merged, PR #85 merged + integrated (10 features via SchedulerHarness) |
+| **Test count** | **689 scheduler OK, 42 integration OK, 1435 full suite, 6 skipped, 3 pre-existing failures** |
 
 ---
 

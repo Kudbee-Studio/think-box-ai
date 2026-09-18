@@ -10,12 +10,13 @@
 | `CONTINUITY.md` | Document | `docs/CONTINUITY.md:1` | Canonical agent state artifact; persistent memory across sessions |
 | `docs/architecture-v1.md` | Document | `docs/architecture-v1.md:1` | Structural boundaries; 5-layer model; core concepts |
 | `docs/CONTINUITY.md` | Document | `docs/CONTINUITY.md:1` | Agent exit checklist, current state, recent changes |
-| `tests/unit/test_scheduler.py` | Test File | `tests/unit/test_scheduler.py:1` | 22 test classes, 571–620 scheduler tests |
+| `tests/unit/test_scheduler.py` | Test File | `tests/unit/test_scheduler.py:1` | 99 test classes, 689 scheduler tests |
+| `tests/unit/test_scheduler_integration.py` | Test File | `tests/unit/test_scheduler_integration.py:1` | 42 integration and chaos-gate tests |
 | `tests/unit/test_cnc.py` | Test File | `tests/unit/test_cnc.py:1` | 43 CNC module tests |
 | `tests/unit/test_concurrent_goals.py` | Test File | `tests/unit/test_concurrent_goals.py:1` | 40 tests for concurrent execution, budgets, accounting |
 | `tests/unit/test_session_tracker.py` | Test File | `tests/unit/test_session_tracker.py:1` | 27 tests for Phase 9 session tracker |
 | `tests/unit/test_experiment.py` | Test File | `tests/unit/test_experiment.py:1` | 46 experiment persistence and learning loop tests |
-| `thinkbox/scheduler.py` | Module | `thinkbox/scheduler.py:1` | Governed scheduler (92 classes, 6107 lines) |
+| `thinkbox/scheduler.py` | Module | `thinkbox/scheduler.py:1` | Governed scheduler (103 public classes, 6905 lines + SchedulerHarness) |
 | `thinkbox/engine.py` | Module | `thinkbox/engine.py:1` | ThinkBoxEngine — unified execution pipeline |
 | `thinkbox/governed.py` | Module | `thinkbox/governed.py:1` | GovernedEngine — admission-gated execution |
 | `thinkbox/concurrent_goals.py` | Module | `thinkbox/concurrent_goals.py:1` | Multi-goal concurrent budget execution |

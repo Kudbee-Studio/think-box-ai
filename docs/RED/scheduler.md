@@ -4,8 +4,9 @@
 
 | Name | Type | Location | Description |
 |------|------|----------|-------------|
-| `thinkbox/scheduler.py` | Module | `thinkbox/scheduler.py:1` | Governed scheduler — 92 classes, 6107 lines, 7 layers of features |
-| `tests/unit/test_scheduler.py` | Test Module | `tests/unit/test_scheduler.py:1` | 22 test classes, 571–620 tests (growing across PRs) |
+| `thinkbox/scheduler.py` | Module | `thinkbox/scheduler.py:1` | Governed scheduler — 103 public classes, 6905 lines, 7 layers of features + SchedulerHarness |
+| `tests/unit/test_scheduler.py` | Test Module | `tests/unit/test_scheduler.py:1` | 99 test classes, 689 tests |
+| `tests/unit/test_scheduler_integration.py` | Test Module | `tests/unit/test_scheduler_integration.py:1` | 42 integration and chaos-gate tests |
 | `SchedulerState` | Enum | `thinkbox/scheduler.py:30` | IDLE, ADMITTING, SCHEDULING, RUNNING, PAUSING, RECOVERING, STOPPED |
 | `HealthIndicator` | Enum | `thinkbox/scheduler.py:40` | HEALTHY, DEGRADED, CRITICAL, RECOVERING, BLOCKED |
 | `SchedulerDecisionType` | Enum | `thinkbox/scheduler.py:48` | ADMIT, REJECT, DEFER, CANCEL, RETRY, COMPLETE, RECOVER |
@@ -106,8 +107,9 @@
 | 2026-09-17 | PR #81 merged | 5 scheduler features: SchedulerDashboardExtension, StressReportEnhancer, GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics. Branch: `feat/scheduler-5-analytics` |
 | 2026-09-18 | PR #82 merged | 10 features: CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection + 2 bug fixes. Branch: `feat/scheduler-10-pr82` |
 | 2026-09-18 | PR #83 merged | 10 features: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary. 20 new test classes, 82 new tests. Branch: `feat/scheduler-10-pr83` |
-| 2026-09-18 | PR #84 in progress | 10 features: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity. Branch: `feat/scheduler-10-pr84` |
-| 2026-09-18 | Test milestone | 620 scheduler tests passing (571 after PR #83, +~50 from PR #84 WIP) |
+| 2026-09-18 | PR #84 merged | 10 features: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity. Branch: `feat/scheduler-10-pr84` |
+| 2026-09-18 | PR #85 merged + integrated | 10 features: DeadLetterQueue, ConfigValidator (is_valid fixed), MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter via SchedulerHarness. Branch: `feat/scheduler-10-pr85` |
+| 2026-09-18 | Test milestone | 689 scheduler + 42 integration = 731 scheduler tests; full suite 1435 (6 skipped, 3 pre-existing) |
 
 ## DECISIONS
 

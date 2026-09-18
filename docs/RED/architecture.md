@@ -47,8 +47,9 @@
 | 2026-09-17 | Architecture audit: concurrency model decided | Each concurrent goal gets OWN GovernedEngine to avoid shared `_verified_task_runner` race |
 | 2026-09-17 | Budget contention policies completed | Early budget check for limit ≤ 0 goals; defense-in-depth in `_counted_complete` |
 | 2026-09-17 | DAG-level verified execution completed | 5 live calls via Mercury-2; 3 FIRST_TRY_SUCCESS + 1 RECOVERED_SUCCESS |
-| 2026-09-18 | PR #84 in progress | AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity |
-| 2026-09-18 | Test milestone | 663+ tests passing for scheduler, 1275+ full suite |
+| 2026-09-18 | PR #84 merged | AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity |
+| 2026-09-18 | PR #85 merged + integrated | 10 hardening features via SchedulerHarness |
+| 2026-09-18 | Test milestone | 689 scheduler + 42 integration tests; 1435 full suite (6 skipped, 3 pre-existing) |
 
 ## DECISIONS
 

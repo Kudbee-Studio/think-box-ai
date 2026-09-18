@@ -6232,6 +6232,7 @@ class ConfigValidator:
 
     def validate(self, config: dict[str, Any]) -> tuple[bool, list[str], list[dict[str, Any]]]:
         if not isinstance(config, dict):
+            self._errors = [{"error": "config_not_dict"}]
             return False, ["config must be dict"], [{"error": "config_not_dict"}]
         all_errors: list[str] = []
         all_errors_detail: list[dict[str, Any]] = []
@@ -6239,6 +6240,7 @@ class ConfigValidator:
             ok, errors, details = self._validate_schema(name, config, schema)
             all_errors.extend(errors)
             all_errors_detail.extend(details)
+        self._errors = all_errors_detail
         is_valid = len(all_errors) == 0
         return is_valid, all_errors, all_errors_detail
 
@@ -6265,8 +6267,10 @@ class ConfigValidator:
     def validate_feature_config(self, feature_name: str, config: dict[str, Any]) -> tuple[bool, list[str]]:
         schema = self._schemas.get(feature_name)
         if schema is None:
+            self._errors = [{"feature": feature_name, "field": "", "error": "unknown_feature"}]
             return False, [f"unknown feature: {feature_name}"]
-        ok, errors, _ = self._validate_schema(feature_name, config, schema)
+        ok, errors, details = self._validate_schema(feature_name, config, schema)
+        self._errors = details if not ok else []
         return ok, errors
 
     def get_errors(self) -> list[dict[str, Any]]:
@@ -6731,4 +6735,171 @@ class AdmissionRateLimiter:
             "current_rate": self.get_current_rate(),
             "max_admissions": self.max_admissions,
             "window_s": self.window_s,
+        }
+
+
+class SchedulerHarness:
+    """Integrates all 10 PR #85 hardening features into a single
+    scheduler lifecycle. Coordinates admission, execution, failure
+    handling, integrity, and shutdown through one interface.
+
+    Lifecycle:
+        admit_goal -> schedule_goal -> execute_step -> handle_failure
+        -> complete_goal -> shutdown
+
+    Each method invokes the appropriate PR #85 feature in order,
+    producing inspectable receipts (decision + event).
+    """
+
+    def __init__(self, grace_period_s: float = 60.0,
+                 max_admissions: int = 100, window_s: float = 1.0,
+                 max_retries_per_second: float = 100.0,
+                 memory_warning: int = 10000,
+                 memory_critical: int = 50000,
+                 anomaly_sensitivity: float = 2.0) -> None:
+        self.admission = AdmissionRateLimiter(max_admissions, window_s)
+        self.retry_guard = RetryStormGuard(max_retries_per_second)
+        self.dlq = DeadLetterQueue()
+        self.memory = MemoryPressureMonitor(memory_warning, memory_critical)
+        self.sentinel = SchedulerSentinel()
+        self.shutdown = GracefulShutdownCoordinator(grace_period_s)
+        self.integrity = DataIntegrityChecker()
+        self.schema = SchemaVersionTracker()
+        self.anomaly = AnomalyDetector(anomaly_sensitivity)
+        self.validator = ConfigValidator()
+        self._goals: dict[str, dict[str, Any]] = {}
+        self._step_results: dict[str, Any] = {}
+        self._harness_log: list[dict[str, Any]] = []
+        self.schema.record_version("scheduler_harness", "1.0")
+
+    def admit_goal(self, goal_id: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
+        if config is None:
+            config = {}
+        allowed = self.admission.allow_admission()
+        if config:
+            valid, errors, details = self.validator.validate(config)
+        else:
+            valid = True
+            errors = []
+            details = []
+        receipt = {
+            "goal_id": goal_id,
+            "admitted": allowed and valid,
+            "rate_limited": not allowed,
+            "config_valid": valid,
+            "config_errors": errors,
+        }
+        self._harness_log.append({"event": "admit_goal", "receipt": receipt})
+        return receipt
+
+    def start_goal(self, goal_id: str, task_count: int = 0) -> dict[str, Any]:
+        if task_count > 0:
+            self.memory.register_tracker(
+                f"goal:{goal_id}", lambda: task_count, task_count
+            )
+        self.shutdown.start_goal(goal_id)
+        self._goals[goal_id] = {"status": "running", "tasks": task_count, "steps_completed": 0}
+        receipt = {"goal_id": goal_id, "started": True, "status": "running"}
+        self._harness_log.append({"event": "start_goal", "receipt": receipt})
+        return receipt
+
+    def execute_step(self, goal_id: str, step_id: str,
+                     retry_count: int = 0) -> dict[str, Any]:
+        if not self.retry_guard.allow_retry() and retry_count > 0:
+            self._harness_log.append({
+                "event": "execute_step",
+                "receipt": {"goal_id": goal_id, "step_id": step_id,
+                            "retry_blocked": True},
+            })
+            return {"goal_id": goal_id, "step_id": step_id, "retry_blocked": True}
+        self.anomaly.record(f"{goal_id}:{step_id}:latency", 0.01)
+        self._step_results[f"{goal_id}:{step_id}"] = "ok"
+        self._goals[goal_id]["steps_completed"] += 1
+        receipt = {"goal_id": goal_id, "step_id": step_id, "executed": True}
+        self._harness_log.append({"event": "execute_step", "receipt": receipt})
+        return receipt
+
+    def handle_failure(self, goal_id: str, step_id: str,
+                       error: str, retry_count: int = 0) -> dict[str, Any]:
+        retry_allowed = self.retry_guard.allow_retry() if retry_count > 0 else True
+        reason = "task_failure"
+        dlq_entry = None
+        if not retry_allowed or retry_count >= 3:
+            dlq_entry = self.dlq.enqueue(goal_id, goal_id, error, reason, retry_count)
+            self.anomaly.record(f"{goal_id}:{step_id}:failure", 1.0)
+        self._harness_log.append({
+            "event": "handle_failure",
+            "receipt": {
+                "goal_id": goal_id, "step_id": step_id, "error": error,
+                "retry_allowed": retry_allowed, "dlq_enqueued": dlq_entry is not None,
+            },
+        })
+        return {
+            "goal_id": goal_id, "step_id": step_id,
+            "retry_allowed": retry_allowed,
+            "dead_letter": dlq_entry,
+        }
+
+    def complete_goal(self, goal_id: str) -> dict[str, Any]:
+        self.shutdown.complete_goal(goal_id)
+        if goal_id in self._goals:
+            self._goals[goal_id]["status"] = "completed"
+        self.integrity.verify(f"goal:{goal_id}", json.dumps(self._goals.get(goal_id, {})))
+        receipt = {"goal_id": goal_id, "completed": True}
+        self._harness_log.append({"event": "complete_goal", "receipt": receipt})
+        return receipt
+
+    def check_memory(self) -> dict[str, Any]:
+        result = self.memory.check()
+        self.anomaly.record("memory_pressure", result["violations"])
+        self._harness_log.append({
+            "event": "check_memory", "result": {"violations": result["violations"],
+            "overall": result["overall"]},
+        })
+        return result
+
+    def sentinel_act(self, health_status: dict[str, Any]) -> dict[str, Any]:
+        return self.sentinel.act(health_status)
+
+    def check_schema(self) -> dict[str, Any]:
+        return self.schema.check_compatibility()
+
+    def detect_anomaly(self, metric_name: str) -> dict[str, Any]:
+        return self.anomaly.detect(metric_name)
+
+    def initiate_shutdown(self) -> dict[str, Any]:
+        result = self.shutdown.initiate_shutdown()
+        self._harness_log.append({"event": "shutdown_initiated", "receipt": result})
+        return result
+
+    def get_validation_result(self, config: dict[str, Any]) -> dict[str, Any]:
+        valid, errors, details = self.validator.validate(config)
+        self.validator.is_valid()
+        return {
+            "valid": valid, "errors": errors, "details": details,
+            "is_valid_method": self.validator.is_valid(),
+        }
+
+    def get_harness_log(self) -> list[dict[str, Any]]:
+        return list(self._harness_log)
+
+    def get_harness_stats(self) -> dict[str, Any]:
+        return {
+            "goals": len(self._goals),
+            "completed_goals": sum(1 for g in self._goals.values() if g["status"] == "completed"),
+            "steps_completed": sum(g["steps_completed"] for g in self._goals.values()),
+            "dlq_size": self.dlq.get_size(),
+            "admission_total": self.admission.get_stats()["total_admitted"],
+            "admission_blocked": self.admission.get_stats()["total_blocked"],
+            "retries_allowed": self.retry_guard.get_stats()["allowed"],
+            "retries_blocked": self.retry_guard.get_stats()["blocked"],
+            "integrity_verified": len(self.integrity.get_verified()),
+            "integrity_failures": len(self.integrity.get_failures()),
+            "schema_migrations": len(self.schema.get_migrations()),
+            "anomalies": len(self.anomaly.get_anomalies()),
+            "sentinel_recovered": self.sentinel.get_stats()["recovered"],
+            "sentinel_isolated": self.sentinel.get_stats()["isolated"],
+            "shutdown_active": self.shutdown.get_status()["stopping"],
+            "memory_trackers": self.memory.get_stats()["trackers"],
+            "memory_violations": self.memory.get_stats()["violations"],
         }
