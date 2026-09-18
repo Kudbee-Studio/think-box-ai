@@ -383,3 +383,41 @@ class ConcurrentGoalsRunner:
         result.proof_paths.append(str(proof_path))
         return {"run_experiment_id": run_exp_id, "proof_sha256": proof_hash,
                 "proof_artifact": str(proof_path)}
+
+
+# =============================================================================
+# Concurrency Stress Testing Framework
+# =============================================================================
+
+@dataclass
+class StressTestConfig:
+    """Configuration for a concurrency stress test."""
+    num_goals: int = 10
+    max_calls_global: int = 50
+    max_retries_global: int = 1
+    contention_policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE
+    goal_factory: Callable[[int], ConcurrentGoalSpec] | None = None
+    max_duration_seconds: float = 60.0
+    target_qps: float | None = None  # None = unlimited
+
+
+@dataclass
+class StressTestResult:
+    """Results from a concurrency stress test."""
+    config: StressTestConfig
+    total_calls: int = 0
+    total_retries: int = 0
+    total_budget_exhausted: int = 0
+    goal_results: dict[str, dict[str, Any]] = field(default_factory=dict)
+    per_goal_calls: dict[str, int] = field(default_factory=dict)
+    per_goal_retries: dict[str, int] = field(default_factory=dict)
+    fairness_index: float = 0.0  # Jain's fairness index
+    duration_seconds: float = 0.0
+    peak_concurrency: int = 0
+    completed_goals: int = 0
+    failed_goals: int = 0
+    timestamp: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
