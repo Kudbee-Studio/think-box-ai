@@ -444,18 +444,6 @@ class StressTestConfig:
             "target_qps": self.target_qps,
         }
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StressTestConfig":
-        """Deserialize configuration from dictionary."""
-        return cls(
-            num_goals=data.get("num_goals", 10),
-            max_calls_global=data.get("max_calls_global", 50),
-            max_retries_global=data.get("max_retries_global", 1),
-            contention_policy=BudgetContentionPolicy(data.get("contention_policy", "fair_share")),
-            max_duration_seconds=data.get("max_duration_seconds", 60.0),
-            target_qps=data.get("target_qps"),
-        )
-
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, StressTestConfig):
             return NotImplemented
@@ -466,6 +454,21 @@ class StressTestConfig:
             self.contention_policy == other.contention_policy and
             self.max_duration_seconds == other.max_duration_seconds and
             self.target_qps == other.target_qps
+        )
+
+    def is_more_restrictive(self, other: "StressTestConfig") -> bool:
+        """Check if this config is more restrictive than another.
+        
+        A config is more restrictive if it has fewer goals, fewer calls,
+        fewer retries, or shorter duration.
+        """
+        if not isinstance(other, StressTestConfig):
+            return NotImplemented
+        return (
+            self.num_goals <= other.num_goals and
+            self.max_calls_global <= other.max_calls_global and
+            (self.max_retries_global or 0) <= (other.max_retries_global or 0) and
+            self.max_duration_seconds <= other.max_duration_seconds
         )
 
 
