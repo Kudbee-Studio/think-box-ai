@@ -693,3 +693,96 @@ def compute_fairness_metrics(values: list[float]) -> dict[str, float]:
         "max": max(values) if values else 0,
         "mean": round(sum(values) / len(values), 4) if values else 0,
     }
+
+
+# =============================================================================
+# Stress Test Persistence
+# =============================================================================
+
+def persist_stress_test(
+    manager: Any,
+    result: StressTestResult,
+) -> dict[str, Any]:
+    """Persist a stress test result through the existing ExperimentManager."""
+    from thinkbox.experiment import (
+        AgentSessionRecord, ExperimentRecord, ParameterProvenance,
+    )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    run_exp_id = f"tb_exp_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    run_session_id = f"tb_sess_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:4]}"
+
+    manager.db.save_session(AgentSessionRecord(
+        session_id=run_session_id,
+        agent_id="stress-test-runner",
+        started_at=result.timestamp,
+        ended_at=now_iso,
+        last_completed_action="run_stress_test",
+        current_state="COMPLETE",
+        four_state="TEST_VERIFIED",
+        metadata={"kind": "stress-test", "num_goals": result.config.num_goals},
+    ))
+    manager.db.save_experiment(ExperimentRecord(
+        experiment_id=run_exp_id,
+        session_id=run_session_id,
+        agent_id="stress-test-runner",
+        timestamp=result.timestamp,
+        intent="concurrency-stress-test",
+        hypothesis=f"concurrency stress test with {result.config.num_goals} goals, {result.config.contention_policy.value} policy",
+        execution_mode="live",
+        status="completed",
+        four_state="TEST_VERIFIED",
+        confidence=1.0,
+    ))
+
+    import json
+    params: list[tuple[str, str]] = [
+        ("scope", "stress_test"),
+        ("total_goals", str(result.config.num_goals)),
+        ("max_calls_global", str(result.config.max_calls_global)),
+        ("contention_policy", result.config.contention_policy.value),
+        ("total_calls_spent", str(result.total_calls)),
+        ("total_retries", str(result.total_retries)),
+        ("total_budget_exhausted", str(result.total_budget_exhausted)),
+        ("fairness_index", str(result.fairness_index)),
+        ("duration_seconds", str(result.duration_seconds)),
+        ("peak_concurrency", str(result.peak_concurrency)),
+        ("completed_goals", str(result.completed_goals)),
+        ("failed_goals", str(result.failed_goals)),
+        ("per_goal_calls", json.dumps(result.per_goal_calls, sort_keys=True)),
+        ("per_goal_retries", json.dumps(result.per_goal_retries, sort_keys=True)),
+    ]
+    for name, value in params:
+        manager.db.save_parameter(run_exp_id, ParameterProvenance(
+            name=name, value=value, source="measured", confidence=1.0,
+            session_id=run_session_id,
+        ))
+
+    proof = {
+        "phase": "stress-test",
+        "timestamp": now_iso,
+        "run_experiment_id": run_exp_id,
+        "session_id": run_session_id,
+        "total_calls": result.total_calls,
+        "total_retries": result.total_retries,
+        "fairness_index": result.fairness_index,
+        "duration_seconds": result.duration_seconds,
+        "peak_concurrency": result.peak_concurrency,
+        "per_goal_calls": result.per_goal_calls,
+        "per_goal_retries": result.per_goal_retries,
+        "no_claims": ["no model intelligence improvement claimed", "no GPU", "no SSH"],
+    }
+    proof_bytes = json.dumps(proof, sort_keys=True, default=str).encode()
+    proof_hash = hashlib.sha256(proof_bytes).hexdigest()
+    proof["proof_sha256"] = proof_hash
+    proof_path = manager.artifacts_dir / f"stress_test_proof_{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
+    proof_path.write_text(json.dumps(proof, indent=2, sort_keys=True, default=str))
+    manager.db.save_artifact(run_exp_id, f"art_stress_{proof_hash[:8]}", "stress_test_proof",
+                             str(proof_path), proof_hash, {"goals": result.config.num_goals})
+    manager.db.save_proof(run_exp_id, {
+        "proof_id": proof_path.stem,
+        "evidence_label": "verified",
+        "hash": proof_hash,
+    })
+    return {"run_experiment_id": run_exp_id, "proof_sha256": proof_hash,
+            "proof_artifact": str(proof_path)}
