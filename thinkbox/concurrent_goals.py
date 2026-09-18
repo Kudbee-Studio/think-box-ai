@@ -557,6 +557,11 @@ class StressTestRunner:
             failed_goals=sum(1 for v in result.per_goal_accounting.values() if v.get("execution_status") != "verified"),
         )
 
+    def persist(self, manager: Any, result: StressTestResult) -> dict[str, Any]:
+        """Persist stress test results via ExperimentManager."""
+        from thinkbox.concurrent_goals import persist_stress_test
+        return persist_stress_test(manager, result)
+
 
 # =============================================================================
 # Dynamic Budget Reallocation
