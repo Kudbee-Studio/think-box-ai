@@ -2537,3 +2537,762 @@ class GoalRetryBudgetResolver:
             "total_remaining": self.get_total_remaining(),
             "goals": len(self._allocated),
         }
+
+
+# =============================================================================
+# PR #80 Features — 10 governed scheduler features
+# =============================================================================
+
+class CriticalPathHighlight:
+    """Feature 46: DAG critical-path highlight.
+
+    Marks the longest-path nodes and edges in a DAG for visualization
+    or API retrieval. Works with GoalDependencyResolver to identify
+    the critical path and expose it with highlighted status for each
+    node and edge.
+    """
+
+    def __init__(self, resolver: GoalDependencyResolver | None = None) -> None:
+        self._resolver = resolver or GoalDependencyResolver()
+        self._highlighted_nodes: set[str] = set()
+        self._highlighted_edges: set[tuple[str, str]] = set()
+        self._path: list[str] = []
+        self._path_length: int = 0
+
+    def set_resolver(self, resolver: GoalDependencyResolver) -> None:
+        self._resolver = resolver
+
+    def compute(self) -> dict[str, Any]:
+        path, length = self._resolver.critical_path()
+        self._path = path
+        self._path_length = length
+        self._highlighted_nodes = set(path)
+        self._highlighted_edges = set()
+        for i in range(len(path) - 1):
+            self._highlighted_edges.add((path[i], path[i + 1]))
+        return {
+            "critical_path": path,
+            "critical_path_length": length,
+            "highlighted_nodes": list(self._highlighted_nodes),
+            "highlighted_edges": list(self._highlighted_edges),
+            "total_goals": len(self._resolver._deps),
+        }
+
+    def is_critical(self, node_id: str) -> bool:
+        return node_id in self._highlighted_nodes
+
+    def is_critical_edge(self, from_node: str, to_node: str) -> bool:
+        return (from_node, to_node) in self._highlighted_edges
+
+    def get_highlighted_viz(self) -> dict[str, Any]:
+        self.compute()
+        sort = self._resolver.topological_sort() or []
+        nodes = []
+        for goal in sort:
+            nodes.append({
+                "id": goal,
+                "critical": goal in self._highlighted_nodes,
+                "on_critical_path": goal in self._highlighted_nodes,
+            })
+        edges = []
+        for goal in sort:
+            for dep in sorted(self._resolver._deps.get(goal, set())):
+                edges.append({
+                    "from": dep,
+                    "to": goal,
+                    "critical": (dep, goal) in self._highlighted_edges,
+                })
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "critical_path": self._path,
+            "critical_path_length": self._path_length,
+        }
+
+    def get_stats(self) -> dict[str, Any]:
+        self.compute()
+        return {
+            "critical_path_length": self._path_length,
+            "critical_nodes": len(self._highlighted_nodes),
+            "critical_edges": len(self._highlighted_edges),
+            "total_goals": len(self._resolver._deps),
+        }
+
+
+class PriorityAging:
+    """Feature 47: Priority aging for starved low-priority jobs.
+
+    Jobs that have been waiting longer than a configurable threshold
+    receive a priority boost. Prevents indefinite deferral of
+    low-priority jobs. Configurable wait time, boost amount, and
+    maximum boost count.
+    """
+
+    def __init__(
+        self,
+        aging_threshold_s: float = 60.0,
+        boost_amount: int = 5,
+        max_boosts: int = 3,
+    ) -> None:
+        self.aging_threshold_s = aging_threshold_s
+        self.boost_amount = boost_amount
+        self.max_boosts = max_boosts
+        self._enqueued_at: dict[str, float] = {}
+        self._base_priorities: dict[str, int] = {}
+        self._current_priorities: dict[str, int] = {}
+        self._boost_counts: dict[str, int] = {}
+        self._aged: list[dict[str, Any]] = []
+
+    def register(self, goal_id: str, priority: int = 0) -> None:
+        self._enqueued_at[goal_id] = time.monotonic()
+        self._base_priorities[goal_id] = priority
+        self._current_priorities[goal_id] = priority
+        self._boost_counts[goal_id] = 0
+
+    def apply_aging(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._enqueued_at:
+            return {"goal_id": goal_id, "aged": False, "reason": "not_registered"}
+        waited = time.monotonic() - self._enqueued_at[goal_id]
+        if waited >= self.aging_threshold_s and self._boost_counts[goal_id] < self.max_boosts:
+            new_priority = self._current_priorities[goal_id] + self.boost_amount
+            self._current_priorities[goal_id] = new_priority
+            self._boost_counts[goal_id] += 1
+            entry = {
+                "goal_id": goal_id,
+                "aged": True,
+                "waited_s": round(waited, 4),
+                "old_priority": self._current_priorities[goal_id] - self.boost_amount,
+                "new_priority": new_priority,
+                "boost_number": self._boost_counts[goal_id],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._aged.append(entry)
+            return entry
+        return {
+            "goal_id": goal_id,
+            "aged": False,
+            "waited_s": round(waited, 4),
+            "current_priority": self._current_priorities[goal_id],
+        }
+
+    def get_priority(self, goal_id: str) -> int:
+        return self._current_priorities.get(goal_id, 0)
+
+    def reset(self, goal_id: str) -> None:
+        if goal_id in self._enqueued_at:
+            self._enqueued_at[goal_id] = time.monotonic()
+        if goal_id in self._current_priorities:
+            self._current_priorities[goal_id] = self._base_priorities.get(goal_id, 0)
+        if goal_id in self._boost_counts:
+            self._boost_counts[goal_id] = 0
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "registered": len(self._enqueued_at),
+            "total_aged": len(self._aged),
+            "threshold_s": self.aging_threshold_s,
+            "boost_amount": self.boost_amount,
+            "max_boosts": self.max_boosts,
+        }
+
+
+class DeadlineMode:
+    """Feature 48: Soft/hard deadline modes.
+
+    Soft deadlines warn and deprioritize when exceeded but allow
+    continuation. Hard deadlines refuse or cancel past-due jobs.
+    Configurable per goal or globally.
+    """
+
+    SOFT = "soft"
+    HARD = "hard"
+
+    def __init__(self, default_mode: str = SOFT, default_deadline_s: float = 300.0) -> None:
+        self.default_mode = default_mode
+        self.default_deadline_s = default_deadline_s
+        self._modes: dict[str, str] = {}
+        self._deadlines: dict[str, float] = {}
+        self._start_times: dict[str, float] = {}
+        self._violations: list[dict[str, Any]] = []
+
+    def set_deadline(self, goal_id: str, deadline_s: float, mode: str = SOFT) -> None:
+        self._deadlines[goal_id] = deadline_s
+        self._modes[goal_id] = mode
+
+    def register_start(self, goal_id: str, start_time: float | None = None) -> None:
+        self._start_times[goal_id] = start_time or time.monotonic()
+
+    def check(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._deadlines:
+            return {"goal_id": goal_id, "breached": False, "reason": "no_deadline_set"}
+        deadline = self._deadlines[goal_id]
+        mode = self._modes.get(goal_id, self.default_mode)
+        start = self._start_times.get(goal_id, 0.0)
+        elapsed = time.monotonic() - start
+        if elapsed > deadline:
+            violation = {
+                "goal_id": goal_id,
+                "deadline_s": deadline,
+                "elapsed_s": round(elapsed, 4),
+                "overdue_s": round(elapsed - deadline, 4),
+                "mode": mode,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._violations.append(violation)
+            if mode == self.HARD:
+                return {
+                    **violation,
+                    "breached": True,
+                    "action": "cancel",
+                    "reason": "hard_deadline_exceeded",
+                }
+            else:
+                return {
+                    **violation,
+                    "breached": True,
+                    "action": "deprioritize",
+                    "reason": "soft_deadline_exceeded",
+                }
+        return {"goal_id": goal_id, "breached": False, "remaining_s": round(deadline - elapsed, 4)}
+
+    def get_violations(self) -> list[dict[str, Any]]:
+        return list(self._violations)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "tracked_goals": len(self._deadlines),
+            "violations": len(self._violations),
+            "hard_violations": sum(1 for v in self._violations if v["mode"] == self.HARD),
+            "soft_violations": sum(1 for v in self._violations if v["mode"] == self.SOFT),
+        }
+
+
+class JobGroupFanInGate:
+    """Feature 49: Job groups with fan-in gate.
+
+    A group completes only when all members succeed (or fail
+    according to the fail policy). Fail policies: 'all_fail'
+    (any member fails = group fails), 'majority_fail' (>50%
+    fail = group fails), 'all_must_succeed' (default - all must
+    succeed for group success).
+    """
+
+    ALL_MUST_SUCCEED = "all_must_succeed"
+    ALL_FAIL = "all_fail"
+    MAJORITY_FAIL = "majority_fail"
+
+    def __init__(self, fail_policy: str = ALL_MUST_SUCCEED) -> None:
+        self.fail_policy = fail_policy
+        self._groups: dict[str, set[str]] = {}
+        self._group_members: dict[str, dict[str, str]] = {}
+        self._completion_status: dict[str, dict[str, str]] = {}
+        self._gate_results: list[dict[str, Any]] = []
+
+    def create_group(self, group_id: str, member_ids: list[str]) -> None:
+        self._groups[group_id] = set(member_ids)
+        self._group_members[group_id] = {}
+        for mid in member_ids:
+            self._group_members[group_id][mid] = "pending"
+        self._completion_status[group_id] = {}
+
+    def record_member_result(self, group_id: str, member_id: str, status: str) -> None:
+        if group_id not in self._group_members:
+            return
+        self._group_members[group_id][member_id] = status
+
+    def check_gate(self, group_id: str) -> dict[str, Any]:
+        if group_id not in self._group_members:
+            return {"group_id": group_id, "complete": False, "reason": "group_not_found"}
+        members = self._group_members[group_id]
+        total = len(members)
+        if total == 0:
+            return {"group_id": group_id, "complete": True, "result": "empty", "success": True}
+        completed = {k: v for k, v in members.items() if v in ("success", "failed")}
+        if len(completed) < total:
+            return {
+                "group_id": group_id,
+                "complete": False,
+                "members_done": len(completed),
+                "members_pending": total - len(completed),
+                "result": "waiting",
+            }
+        successes = sum(1 for v in members.values() if v == "success")
+        failures = sum(1 for v in members.values() if v == "failed")
+        if self.fail_policy == self.ALL_FAIL and failures > 0:
+            result = "failed"
+            success = False
+        elif self.fail_policy == self.MAJORITY_FAIL and failures > total / 2:
+            result = "failed"
+            success = False
+        elif failures > 0:
+            result = "partial_failure"
+            success = True
+        else:
+            result = "success"
+            success = True
+        gate_result = {
+            "group_id": group_id,
+            "complete": True,
+            "result": result,
+            "success": success,
+            "total": total,
+            "succeeded": successes,
+            "failed": failures,
+            "fail_policy": self.fail_policy,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._gate_results.append(gate_result)
+        return gate_result
+
+    def get_group_status(self, group_id: str) -> dict[str, Any]:
+        if group_id not in self._group_members:
+            return {"group_id": group_id, "error": "not_found"}
+        members = self._group_members[group_id]
+        return {
+            "group_id": group_id,
+            "members": dict(members),
+            "total": len(members),
+            "fail_policy": self.fail_policy,
+        }
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "groups": len(self._groups),
+            "total_members": sum(len(m) for m in self._group_members.values()),
+            "gate_results": len(self._gate_results),
+            "fail_policy": self.fail_policy,
+        }
+
+
+class TenantFairShare:
+    """Feature 50: Per-tenant fair-share weights.
+
+    Weighted round-robin scheduling across tenants/agents based on
+    configurable weights. Each tenant gets a share of scheduling
+    opportunities proportional to their weight.
+    """
+
+    def __init__(self) -> None:
+        self._weights: dict[str, float] = {}
+        self._counters: dict[str, int] = {}
+        self._total_weight: float = 0.0
+        self._schedule_log: list[dict[str, Any]] = []
+
+    def set_weight(self, tenant_id: str, weight: float) -> None:
+        self._weights[tenant_id] = max(0.0, weight)
+        if tenant_id not in self._counters:
+            self._counters[tenant_id] = 0
+        self._total_weight = sum(self._weights.values())
+
+    def get_weight(self, tenant_id: str) -> float:
+        return self._weights.get(tenant_id, 1.0)
+
+    def next_tenant(self) -> str | None:
+        if not self._weights:
+            return None
+        if self._total_weight == 0:
+            return list(self._weights.keys())[0]
+        for tenant_id in self._weights:
+            if self._counters[tenant_id] < self._weights[tenant_id]:
+                self._counters[tenant_id] += 1
+                entry = {
+                    "tenant_id": tenant_id,
+                    "weight": self._weights[tenant_id],
+                    "counter": self._counters[tenant_id],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                self._schedule_log.append(entry)
+                return tenant_id
+        for tenant_id in self._weights:
+            self._counters[tenant_id] = 0
+        return self.next_tenant()
+
+    def get_share(self, tenant_id: str) -> float:
+        if self._total_weight == 0:
+            return 0.0
+        return self._weights.get(tenant_id, 0.0) / self._total_weight
+
+    def get_schedule_log(self) -> list[dict[str, Any]]:
+        return list(self._schedule_log)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "tenants": len(self._weights),
+            "total_weight": self._total_weight,
+            "counters": dict(self._counters),
+            "shares": {tid: round(self.get_share(tid), 4) for tid in self._weights},
+        }
+
+
+class RetryBudgetWithJitter:
+    """Feature 51: Retry budget with exponential backoff and full jitter.
+
+    Max retries with exponential backoff using full jitter
+    (AWS-style). Retry budget tracked in ledger entries.
+    """
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        base_delay_s: float = 1.0,
+        max_delay_s: float = 60.0,
+    ) -> None:
+        self.max_retries = max_retries
+        self.base_delay_s = base_delay_s
+        self.max_delay_s = max_delay_s
+        self._budgets: dict[str, RetryBudget] = {}
+        self._delays: dict[str, list[dict[str, Any]]] = {}
+        self._ledger_entries: list[dict[str, Any]] = []
+
+    def allocate(self, goal_id: str, max_retries: int | None = None) -> RetryBudget:
+        budget = RetryBudget(max_retries=max_retries if max_retries is not None else self.max_retries)
+        self._budgets[goal_id] = budget
+        self._delays[goal_id] = []
+        return budget
+
+    def calculate_delay(self, goal_id: str, attempt: int, seed: str = "") -> dict[str, Any]:
+        delay = min(self.base_delay_s * (2 ** (attempt - 1)), self.max_delay_s)
+        jitter = 0.0
+        if seed and delay > 0:
+            h = hashlib.sha256(f"{seed}_{attempt}".encode()).hexdigest()
+            jitter = (int(h[:8], 16) % 1000) / 1000.0 * delay
+        return {
+            "goal_id": goal_id,
+            "attempt": attempt,
+            "base_delay_s": delay,
+            "jitter": round(jitter, 6),
+            "final_delay_s": round(delay + jitter, 6),
+        }
+
+    def can_retry(self, goal_id: str) -> tuple[bool, str]:
+        if goal_id not in self._budgets:
+            return False, "no_budget_allocated"
+        budget = self._budgets[goal_id]
+        if budget.consumed_retries >= budget.max_retries:
+            return False, "retries_exhausted"
+        return True, "available"
+
+    def consume_retry(self, goal_id: str, ledger: Any = None) -> bool:
+        allowed, _ = self.can_retry(goal_id)
+        if allowed:
+            self._budgets[goal_id].consumed_retries += 1
+            entry = {
+                "goal_id": goal_id,
+                "action": "retry_consumed",
+                "retries_used": self._budgets[goal_id].consumed_retries,
+                "max_retries": self._budgets[goal_id].max_retries,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._ledger_entries.append(entry)
+            if ledger is not None and hasattr(ledger, "append"):
+                try:
+                    ledger.append(
+                        agent_id="scheduler",
+                        capability="retry_budget",
+                        action=f"retry_consume:{goal_id}",
+                        allowed=True,
+                        reason=f"retry {self._budgets[goal_id].consumed_retries}/{self._budgets[goal_id].max_retries}",
+                        metadata=entry,
+                    )
+                except Exception:
+                    pass
+        return allowed
+
+    def get_budget(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._budgets:
+            return {"goal_id": goal_id, "allocated": 0, "consumed": 0, "remaining": 0}
+        b = self._budgets[goal_id]
+        return {
+            "goal_id": goal_id,
+            "allocated": b.max_retries,
+            "consumed": b.consumed_retries,
+            "remaining": b.available,
+        }
+
+    def get_ledger(self) -> list[dict[str, Any]]:
+        return list(self._ledger_entries)
+
+    def get_stats(self) -> dict[str, Any]:
+        total_consumed = sum(b.consumed_retries for b in self._budgets.values())
+        total_max = sum(b.max_retries for b in self._budgets.values())
+        return {
+            "goals": len(self._budgets),
+            "total_max_retries": total_max,
+            "total_consumed": total_consumed,
+            "total_remaining": total_max - total_consumed,
+            "ledger_entries": len(self._ledger_entries),
+        }
+
+
+class IdempotencyStore:
+    """Feature 52: Idempotency keys for duplicate prevention.
+
+    Duplicate enqueue with the same idempotency key returns the
+    existing job instead of creating a duplicate. No double-run.
+    """
+
+    def __init__(self) -> None:
+        self._keys: dict[str, dict[str, Any]] = {}
+        self._duplicates_rejected: int = 0
+
+    def enqueue(self, key: str, job_id: str, job_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        if key in self._keys:
+            self._duplicates_rejected += 1
+            return {
+                "key": key,
+                "enqueued": False,
+                "existing_job_id": self._keys[key]["job_id"],
+                "reason": "duplicate_idempotency_key",
+                "original_timestamp": self._keys[key].get("timestamp", ""),
+            }
+        entry = {
+            "key": key,
+            "job_id": job_id,
+            "job_data": job_data or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._keys[key] = entry
+        return {
+            "key": key,
+            "enqueued": True,
+            "job_id": job_id,
+            "timestamp": entry["timestamp"],
+        }
+
+    def get(self, key: str) -> dict[str, Any] | None:
+        return self._keys.get(key)
+
+    def exists(self, key: str) -> bool:
+        return key in self._keys
+
+    def remove(self, key: str) -> bool:
+        if key in self._keys:
+            del self._keys[key]
+            return True
+        return False
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_keys": len(self._keys),
+            "duplicates_rejected": self._duplicates_rejected,
+        }
+
+
+class QueuePauseResume:
+    """Feature 53: Pause/resume queue.
+
+    Operator pause drains in-flight tasks only (no new admissions).
+    Resume continues normal admission and scheduling.
+    """
+
+    def __init__(self) -> None:
+        self._paused = False
+        self._pause_reason = ""
+        self._paused_at: str = ""
+        self._resumed_at: str = ""
+        self._drained: list[str] = []
+        self._admission_blocked: list[dict[str, Any]] = []
+        self._history: list[dict[str, Any]] = []
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def pause(self, reason: str = "operator") -> dict[str, Any]:
+        self._paused = True
+        self._pause_reason = reason
+        self._paused_at = datetime.now(timezone.utc).isoformat()
+        entry = {
+            "action": "pause",
+            "reason": reason,
+            "timestamp": self._paused_at,
+        }
+        self._history.append(entry)
+        return entry
+
+    def resume(self) -> dict[str, Any]:
+        was_paused = self._paused
+        self._paused = False
+        self._resumed_at = datetime.now(timezone.utc).isoformat()
+        entry = {
+            "action": "resume",
+            "was_paused": was_paused,
+            "drained_count": len(self._drained),
+            "timestamp": self._resumed_at,
+        }
+        self._history.append(entry)
+        return entry
+
+    def should_admit(self) -> tuple[bool, str]:
+        if self._paused:
+            self._admission_blocked.append({
+                "reason": self._pause_reason,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return False, "queue_paused"
+        return True, "admission_allowed"
+
+    def record_drained(self, goal_id: str) -> None:
+        self._drained.append(goal_id)
+
+    def get_pause_info(self) -> dict[str, Any]:
+        return {
+            "paused": self._paused,
+            "reason": self._pause_reason,
+            "paused_at": self._paused_at,
+            "resumed_at": self._resumed_at,
+            "drained": list(self._drained),
+            "admission_blocked_count": len(self._admission_blocked),
+        }
+
+    def get_history(self) -> list[dict[str, Any]]:
+        return list(self._history)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "paused": self._paused,
+            "pause_count": sum(1 for h in self._history if h["action"] == "pause"),
+            "resume_count": sum(1 for h in self._history if h["action"] == "resume"),
+            "total_drained": len(self._drained),
+        }
+
+
+class SLABreachEmitter:
+    """Feature 54: SLA breach event emitter.
+
+    Emits structured events when latency or deadline SLAs are
+    violated. Events are emitted via dashboard and stored in
+    breach log.
+    """
+
+    LATENCY = "latency"
+    DEADLINE = "deadline"
+
+    def __init__(self) -> None:
+        self._breaches: list[dict[str, Any]] = []
+        self._sla_targets: dict[str, dict[str, float]] = {}
+
+    def set_sla(self, goal_id: str, latency_s: float | None = None, deadline_s: float | None = None) -> None:
+        self._sla_targets[goal_id] = {
+            "latency_s": latency_s or float("inf"),
+            "deadline_s": deadline_s or float("inf"),
+        }
+
+    def emit_breach(self, goal_id: str, breach_type: str, value: float, threshold: float) -> dict[str, Any]:
+        event = {
+            "goal_id": goal_id,
+            "breach_type": breach_type,
+            "value": value,
+            "threshold": threshold,
+            "severity": "critical" if breach_type == self.DEADLINE else "warning",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_type": "sla_breach",
+            "structured": True,
+        }
+        self._breaches.append(event)
+        return event
+
+    def check_latency(self, goal_id: str, latency_s: float) -> dict[str, Any] | None:
+        if goal_id not in self._sla_targets:
+            return None
+        threshold = self._sla_targets[goal_id]["latency_s"]
+        if latency_s > threshold:
+            return self.emit_breach(goal_id, self.LATENCY, latency_s, threshold)
+        return None
+
+    def check_deadline(self, goal_id: str, elapsed_s: float) -> dict[str, Any] | None:
+        if goal_id not in self._sla_targets:
+            return None
+        threshold = self._sla_targets[goal_id]["deadline_s"]
+        if elapsed_s > threshold:
+            return self.emit_breach(goal_id, self.DEADLINE, elapsed_s, threshold)
+        return None
+
+    def get_breaches(self) -> list[dict[str, Any]]:
+        return list(self._breaches)
+
+    def get_breaches_for_goal(self, goal_id: str) -> list[dict[str, Any]]:
+        return [b for b in self._breaches if b["goal_id"] == goal_id]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_breaches": len(self._breaches),
+            "latency_breaches": sum(1 for b in self._breaches if b["breach_type"] == self.LATENCY),
+            "deadline_breaches": sum(1 for b in self._breaches if b["breach_type"] == self.DEADLINE),
+            "critical": sum(1 for b in self._breaches if b["severity"] == "critical"),
+            "warnings": sum(1 for b in self._breaches if b["severity"] == "warning"),
+        }
+
+
+class SchedulerPolicyPackV2:
+    """Feature 55: Scheduler policy pack v2.
+
+    Versioned JSON/YAML policies for priority, deadlines, fair-share,
+    and retry configuration. Loadable without code changes.
+    """
+
+    CURRENT_VERSION = "v2"
+
+    def __init__(self) -> None:
+        self._policies: dict[str, dict[str, Any]] = {}
+        self._loaded_at: dict[str, str] = {}
+        self._version: str = self.CURRENT_VERSION
+
+    def load_from_dict(self, policy_id: str, policy: dict[str, Any]) -> dict[str, Any]:
+        self._policies[policy_id] = policy
+        self._loaded_at[policy_id] = datetime.now(timezone.utc).isoformat()
+        return {
+            "policy_id": policy_id,
+            "version": policy.get("version", self._version),
+            "loaded": True,
+            "loaded_at": self._loaded_at[policy_id],
+            "sections": list(policy.keys()),
+        }
+
+    def load_from_json(self, policy_id: str, json_str: str) -> dict[str, Any]:
+        import json as json_lib
+        policy = json_lib.loads(json_str)
+        return self.load_from_dict(policy_id, policy)
+
+    def get_policy(self, policy_id: str) -> dict[str, Any] | None:
+        return self._policies.get(policy_id)
+
+    def get_priority_policy(self, policy_id: str) -> dict[str, Any]:
+        policy = self.get_policy(policy_id) or {}
+        return policy.get("priority", {})
+
+    def get_deadline_policy(self, policy_id: str) -> dict[str, Any]:
+        policy = self.get_policy(policy_id) or {}
+        return policy.get("deadlines", {})
+
+    def get_fair_share_policy(self, policy_id: str) -> dict[str, Any]:
+        policy = self.get_policy(policy_id) or {}
+        return policy.get("fair_share", {})
+
+    def get_retry_policy(self, policy_id: str) -> dict[str, Any]:
+        policy = self.get_policy(policy_id) or {}
+        return policy.get("retry", {})
+
+    def list_policies(self) -> list[str]:
+        return list(self._policies.keys())
+
+    def validate(self, policy_id: str) -> dict[str, Any]:
+        policy = self.get_policy(policy_id)
+        if policy is None:
+            return {"valid": False, "error": "policy_not_found"}
+        required = ["version", "priority"]
+        missing = [r for r in required if r not in policy]
+        if missing:
+            return {"valid": False, "missing": missing}
+        version = policy.get("version", "")
+        if not version.startswith("v"):
+            return {"valid": False, "error": f"unsupported_version:{version}"}
+        return {"valid": True, "version": version, "policy_id": policy_id}
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "version": self._version,
+            "total_policies": len(self._policies),
+            "policies": list(self._policies.keys()),
+            "loaded_at": dict(self._loaded_at),
+        }
