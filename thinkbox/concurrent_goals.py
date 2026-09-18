@@ -632,3 +632,64 @@ class BudgetReallocator:
     def get_reallocation_log(self) -> list[dict[str, Any]]:
         """Get the reallocation log."""
         return self._reallocation_log.copy()
+
+
+# =============================================================================
+# Fairness Metrics Computation
+# =============================================================================
+
+def compute_jain_fairness_index(values: list[float]) -> float:
+    """Compute Jain's fairness index for a list of values.
+    
+    Returns a value between 0 and 1, where 1 is perfectly fair.
+    """
+    if not values:
+        return 0.0
+    n = len(values)
+    sum_vals = sum(values)
+    sum_sq = sum(v * v for v in values)
+    if sum_sq == 0:
+        return 0.0
+    return (sum_vals * sum_vals) / (n * sum_sq)
+
+
+def compute_gini_coefficient(values: list[float]) -> float:
+    """Compute Gini coefficient for a list of values.
+    
+    Returns a value between 0 and 1, where 0 is perfectly equal.
+    """
+    if not values:
+        return 0.0
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    cumsum = 0.0
+    for i, val in enumerate(sorted_vals):
+        cumsum += (n - i) * val
+    mean = sum(values) / n
+    if mean == 0:
+        return 0.0
+    return (2 * cumsum) / (n * n * mean) - (n + 1) / n
+
+
+def compute_coefficient_of_variation(values: list[float]) -> float:
+    """Compute coefficient of variation (std/mean)."""
+    if not values:
+        return 0.0
+    import math
+    mean = sum(values) / len(values)
+    if mean == 0:
+        return 0.0
+    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    return math.sqrt(variance) / mean
+
+
+def compute_fairness_metrics(values: list[float]) -> dict[str, float]:
+    """Compute comprehensive fairness metrics."""
+    return {
+        "jain_fairness_index": round(compute_jain_fairness_index(values), 4),
+        "gini_coefficient": round(compute_gini_coefficient(values), 4),
+        "coefficient_of_variation": round(compute_coefficient_of_variation(values), 4),
+        "min": min(values) if values else 0,
+        "max": max(values) if values else 0,
+        "mean": round(sum(values) / len(values), 4) if values else 0,
+    }
