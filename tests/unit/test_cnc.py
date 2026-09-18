@@ -501,3 +501,149 @@ class TestUpCloudInvestigation(unittest.TestCase):
         result = UpCloudTraceResult(step="test", status="failed", details={}, error="test error")
         d = result.model_dump()
         self.assertEqual(d["error"], "test error")
+
+
+class TestCNCLifecycleIntegration(unittest.TestCase):
+    """Full lifecycle: create → validate → approve → execute → proof → dashboard."""
+
+    def test_full_cnc_lifecycle(self) -> None:
+        from thinkbox.cnc import (
+            CNCJob, CNCManufacturingEngine, DemoMode,
+            Material, MachineProfile, Operation, Tool,
+            ProofPackage, SafetyGateStore,
+        )
+        from thinkbox.cnc.job import ApprovalRecord, ExecutionRecord
+        from thinkbox.dashboard_state import get_dashboard_state, CNCJobEntry
+
+        material = Material(name="6061-T6 Aluminum", grade="6061-T6")
+        machine = MachineProfile(name="HAAS VF-2SS", control_system="Fanuc")
+        tool = Tool(name="End Mill 10mm", tool_type="end_mill", diameter_mm=10.0)
+        operation = Operation(
+            operation_id="op-1", operation_type="milling", tool=tool,
+            spindle_speed_rpm=8000, feed_rate_mm_min=200, depth_of_cut_mm=2.0,
+            description="Roughing pass",
+        )
+        job = CNCJob(
+            part_name="Aluminum Bracket", part_number="PN-001",
+            material=material, machine=machine, operations=[operation],
+            customer_id="customer-1", priority="high",
+        )
+
+        engine = CNCManufacturingEngine()
+        validation = engine.validate_job(job)
+        self.assertTrue(validation.is_valid)
+        self.assertEqual(len(validation.errors), 0)
+
+        gate = SafetyGateStore()
+        approval = gate.approve(job.job_id, "operator", "Demo approved")
+        self.assertEqual(approval.approver_id, "operator")
+        self.assertEqual(approval.status.value, "APPROVED")
+
+        execution = engine.execute_job(job)
+        self.assertEqual(execution["status"], "completed")
+        self.assertEqual(len(execution["execution_records"]), 1)
+
+        proof = engine.create_proof(job, evidence_label="simulated")
+        self.assertIsInstance(proof, ProofPackage)
+        self.assertEqual(proof.job_id, job.job_id)
+        self.assertEqual(proof.evidence_label, "simulated")
+
+        approval_record = ApprovalRecord(approver_id="operator", reason="Demo approved", approved=True)
+        job.approval_records.append(approval_record)
+        self.assertEqual(len(job.approval_records), 1)
+        exec_record = ExecutionRecord(operation_id="op-1", status="completed")
+        job.execution_records.append(exec_record)
+        self.assertEqual(len(job.execution_records), 1)
+        job.inspection_results.append({"operation_id": "op-1", "passed": True})
+        self.assertEqual(len(job.inspection_results), 1)
+
+        demo = DemoMode()
+        result = demo.run()
+        self.assertEqual(result.status, "completed")
+        self.assertGreater(result.duration_seconds, 0)
+        self.assertIn("simulated", result.evidence_labels)
+        self.assertIsNotNone(result.roi_stats)
+
+        dashboard = get_dashboard_state()
+        cnc_entry = CNCJobEntry(
+            job_id=job.job_id, part_name=job.part_name,
+            part_number=job.part_number, material="6061-T6 Aluminum",
+            machine="HAAS VF-2SS", status="completed",
+            operations=[op.model_dump() for op in job.operations],
+            safety_approved=True, evidence_label="simulated",
+        )
+        dashboard.upsert_cnc_job(cnc_entry)
+        self.assertIn(job.job_id, dashboard.cnc_jobs)
+        retrieved = dashboard.cnc_jobs[job.job_id]
+        self.assertEqual(retrieved.job_id, job.job_id)
+        self.assertEqual(retrieved.safety_approved, True)
+
+    def test_lifecycle_validation_failures(self) -> None:
+        engine = CNCManufacturingEngine()
+        from thinkbox.cnc import CNCJob
+
+        empty_job = CNCJob(part_name="")
+        result = engine.validate_job(empty_job)
+        self.assertFalse(result.is_valid)
+        self.assertGreater(len(result.errors), 0)
+
+        no_mat_job = CNCJob(part_name="Test", material=None)
+        result2 = engine.validate_job(no_mat_job)
+        self.assertFalse(result2.is_valid)
+
+    def test_lifecycle_tenant_isolation(self) -> None:
+        from thinkbox.cnc import Tenant, TenantStore, TenantBoundary
+        from thinkbox.cnc.tenant import TenantPermission
+
+        store = TenantStore()
+        tenant = store.create_tenant("Customer A", plan="enterprise")
+        self.assertEqual(tenant.name, "Customer A")
+        retrieved = store.get_tenant(tenant.tenant_id)
+        self.assertIsNotNone(retrieved)
+        self.assertEqual(retrieved.name, "Customer A")
+
+        boundary = TenantBoundary(tenant)
+        self.assertEqual(boundary.tenant.tenant_id, tenant.tenant_id)
+
+        permission = TenantPermission(tenant_id=tenant.tenant_id, resource="cnc", action="execute")
+        self.assertEqual(permission.tenant_id, tenant.tenant_id)
+
+    def test_lifecycle_proof_persistence(self) -> None:
+        import tempfile, os
+        from thinkbox.cnc import ProofStore
+        from thinkbox.cnc.job import Operation, Material, Tool
+
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = ProofStore(storage_path=tmpdir)
+            proof1 = store.create_proof("job-1", "simulated")
+            proof2 = store.create_proof("job-1", "verified")
+            self.assertEqual(len(store.list_proofs()), 2)
+            found = store.get_proof(proof1.proof_id)
+            self.assertIsNotNone(found)
+            self.assertEqual(found.evidence_label, "simulated")
+
+    def test_lifecycle_scheduler_integration(self) -> None:
+        from thinkbox.cnc import CNCManufacturingEngine, CNCJob, Material, MachineProfile, Tool, Operation
+        from thinkbox.scheduler import SchedulerHarness
+
+        engine = CNCManufacturingEngine()
+        harness = SchedulerHarness()
+
+        material = Material(name="6061-T6")
+        machine = MachineProfile(name="HAAS")
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool)
+        job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
+
+        validation = engine.validate_job(job)
+        harness.admit_goal("cnc-job-1", {"part_name": "Bracket", "validated": validation.is_valid})
+        self.assertTrue(harness.validator.is_valid())
+        harness.start_goal("cnc-job-1")
+        harness.execute_step("cnc-job-1", "validate")
+        harness.execute_step("cnc-job-1", "execute")
+        harness.complete_goal("cnc-job-1")
+        stats = harness.get_harness_stats()
+        self.assertEqual(stats["completed_goals"], 1)
