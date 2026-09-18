@@ -88,6 +88,18 @@ Before declaring completion, every agent MUST verify:
 | **Bug fix** | Fixed `ErrorClassificationEngine.should_retry` test — PermissionError with non-critical message correctly classified as retryable. |
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (853) / LIVE_VERIFIED (all 10 features) / PRODUCTION not claimed |
 
+### 2026-09-18 — Governed Scheduler 10 Additional Features Phase 2 (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Agent/task** | Add 10 more features extending governed concurrency architecture. Branch `kilo/epic-coil-ao1`. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked completions). |
+| **Features** | DAGVisualizer, GoalPriorityBoost, SchedulerLatencyTracker, DeadlineExtensionPolicy, GoalGroupManager, AdmissionPolicyChain, GoalRetryBudgetResolver, GoalProgressTracker, ConfigurableRetryPolicy, SubtaskFailureAggregator |
+| **Architecture** | All 10 features in `thinkbox/scheduler.py`. Extends PR #76 and PR #78 architecture. No parallel systems. |
+| **Tests** | `tests/unit/test_scheduler.py` — 213 tests (+64 new). Full suite 917 tests, 3 pre-existing failures unchanged, 6 skipped. |
+| **Live validation** | All 10 features verified: DAG viz (ASCII + DOT), priority boosting, latency tracking, deadline extension, group management, policy chaining, retry budgeting, progress tracking, configurable retry, failure aggregation. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (917) / LIVE_VERIFIED (all 10 features) / PRODUCTION not claimed |
+
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
 

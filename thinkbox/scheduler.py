@@ -1867,3 +1867,673 @@ class CheckpointManager:
             "goals_with_checkpoints": len(by_goal),
             "checkpoints_per_goal": by_goal,
         }
+
+
+class GoalProgressTracker:
+    """Feature 43: Track subtask completion progress within goals.
+
+    Tracks the progress of subtasks within a goal,
+    providing completion percentages, remaining work,
+    and progress trend analysis.
+    """
+
+    def __init__(self) -> None:
+        self._progress: dict[str, dict[str, Any]] = {}
+
+    def init_goal(self, goal_id: str, total_subtasks: int) -> None:
+        self._progress[goal_id] = {
+            "total": total_subtasks,
+            "completed": 0,
+            "failed": 0,
+            "pending": total_subtasks,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def complete_subtask(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._progress:
+            return {"goal_id": goal_id, "error": "not_found"}
+        p = self._progress[goal_id]
+        if p["pending"] <= 0:
+            return {"goal_id": goal_id, "error": "no_pending"}
+        p["completed"] += 1
+        p["pending"] -= 1
+        return self._get_status(goal_id)
+
+    def fail_subtask(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._progress:
+            return {"goal_id": goal_id, "error": "not_found"}
+        p = self._progress[goal_id]
+        if p["pending"] <= 0:
+            return {"goal_id": goal_id, "error": "no_pending"}
+        p["failed"] += 1
+        p["pending"] -= 1
+        return self._get_status(goal_id)
+
+    def _get_status(self, goal_id: str) -> dict[str, Any]:
+        p = self._progress[goal_id]
+        completed = p["completed"] + p["failed"]
+        pct = round((completed / max(p["total"], 1)) * 100, 2)
+        return {
+            "goal_id": goal_id,
+            "total": p["total"],
+            "completed": p["completed"],
+            "failed": p["failed"],
+            "pending": p["pending"],
+            "percentage": pct,
+            "complete": p["pending"] == 0,
+        }
+
+    def get_progress(self, goal_id: str) -> dict[str, Any]:
+        if goal_id not in self._progress:
+            return {"goal_id": goal_id, "error": "not_found"}
+        return self._get_status(goal_id)
+
+    def get_all_progress(self) -> dict[str, dict[str, Any]]:
+        return {gid: self._get_status(gid) for gid in self._progress}
+
+    def get_completion_rate(self) -> dict[str, Any]:
+        total = sum(p["total"] for p in self._progress.values())
+        completed = sum(p["completed"] for p in self._progress.values())
+        failed = sum(p["failed"] for p in self._progress.values())
+        return {
+            "total_subtasks": total,
+            "completed": completed,
+            "failed": failed,
+            "completion_rate": round(completed / max(total, 1), 4),
+            "failure_rate": round(failed / max(total, 1), 4),
+        }
+
+
+class ConfigurableRetryPolicy:
+    """Feature 44: Per-goal configurable retry strategy.
+
+    Supports multiple retry strategies: exponential, linear,
+    fixed interval, or no retry. Strategy is configurable
+    per goal at creation time.
+    """
+
+    EXPONENTIAL = "exponential"
+    LINEAR = "linear"
+    FIXED = "fixed"
+    NONE = "none"
+
+    def __init__(self) -> None:
+        self._policies: dict[str, dict[str, Any]] = {}
+
+    def configure(
+        self,
+        goal_id: str,
+        strategy: str = EXPONENTIAL,
+        base_delay_s: float = 1.0,
+        max_delay_s: float = 60.0,
+        multiplier: float = 2.0,
+        step_s: float = 5.0,
+    ) -> None:
+        self._policies[goal_id] = {
+            "strategy": strategy,
+            "base_delay_s": base_delay_s,
+            "max_delay_s": max_delay_s,
+            "multiplier": multiplier,
+            "step_s": step_s,
+        }
+
+    def get_delay(self, goal_id: str, attempt: int, seed: str = "") -> dict[str, Any]:
+        policy = self._policies.get(goal_id)
+        if policy is None:
+            return {"delay_s": 0.0, "strategy": "none"}
+        strategy = policy["strategy"]
+        base = policy["base_delay_s"]
+        if strategy == self.EXPONENTIAL:
+            delay = min(base * (policy["multiplier"] ** (attempt - 1)), policy["max_delay_s"])
+        elif strategy == self.LINEAR:
+            delay = min(base * attempt * policy["step_s"], policy["max_delay_s"])
+        elif strategy == self.FIXED:
+            delay = base
+        else:
+            delay = 0.0
+        jitter = 0.0
+        if seed and strategy != self.NONE:
+            h = hashlib.sha256(f"{seed}_{attempt}".encode()).hexdigest()
+            jitter = (int(h[:8], 16) % 1000) / 1000.0 * delay * 0.5
+        return {
+            "delay_s": round(delay - jitter if jitter else delay, 4),
+            "strategy": strategy,
+            "attempt": attempt,
+            "jitter": round(jitter, 4),
+        }
+
+    def should_retry(self, goal_id: str, attempt: int, max_retries: int = 3) -> bool:
+        policy = self._policies.get(goal_id)
+        if policy is None:
+            return attempt < max_retries
+        if policy["strategy"] == self.NONE:
+            return False
+        return attempt < max_retries
+
+    def get_policy(self, goal_id: str) -> dict[str, Any] | None:
+        return self._policies.get(goal_id)
+
+    def get_all_policies(self) -> dict[str, dict[str, Any]]:
+        return dict(self._policies)
+
+
+class SubtaskFailureAggregator:
+    """Feature 45: Aggregate subtask failures with root cause analysis.
+
+    Collects subtask failures within a goal, groups them by
+    error type, and identifies the most likely root cause
+    based on failure frequency and type.
+    """
+
+    def __init__(self) -> None:
+        self._failures: dict[str, list[dict[str, Any]]] = {}
+
+    def record_failure(self, goal_id: str, subtask_id: str, error: Exception) -> None:
+        if goal_id not in self._failures:
+            self._failures[goal_id] = []
+        self._failures[goal_id].append({
+            "subtask_id": subtask_id,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def get_failures(self, goal_id: str) -> list[dict[str, Any]]:
+        return list(self._failures.get(goal_id, []))
+
+    def get_summary(self, goal_id: str) -> dict[str, Any]:
+        failures = self._failures.get(goal_id, [])
+        if not failures:
+            return {"goal_id": goal_id, "total_failures": 0}
+        by_type: dict[str, int] = {}
+        by_msg: dict[str, int] = {}
+        for f in failures:
+            et = f["error_type"]
+            em = f["error_message"]
+            by_type[et] = by_type.get(et, 0) + 1
+            by_msg[em] = by_msg.get(em, 0) + 1
+        root_cause = max(by_msg, key=by_msg.get) if by_msg else ""
+        return {
+            "goal_id": goal_id,
+            "total_failures": len(failures),
+            "by_type": by_type,
+            "by_message": by_msg,
+            "root_cause": root_cause,
+            "unique_error_types": len(by_type),
+            "most_common": max(by_type, key=by_type.get) if by_type else "",
+        }
+
+    def clear(self, goal_id: str) -> None:
+        if goal_id in self._failures:
+            del self._failures[goal_id]
+
+
+class DAGVisualizer:
+    """Feature 36: DAG visualization for debugging and monitoring.
+
+    Generates ASCII-art visualization of goal dependency DAGs
+    with critical path highlighting and depth indicators.
+    """
+
+    def __init__(self, resolver: GoalDependencyResolver | None = None) -> None:
+        self._resolver = resolver or GoalDependencyResolver()
+
+    def set_resolver(self, resolver: GoalDependencyResolver) -> None:
+        self._resolver = resolver
+
+    def visualize_ascii(self) -> str:
+        sort = self._resolver.topological_sort()
+        if sort is None:
+            return "DAG has cycles - cannot visualize"
+        if not sort:
+            return "DAG Visualization\n========================================\n\n(empty)"
+        levels = self._resolver.parallel_schedule()
+        path, _ = self._resolver.critical_path()
+        path_set = set(path)
+
+        lines = ["DAG Visualization", "=" * 40]
+        for i, level in enumerate(levels):
+            marker = " [CRITICAL PATH]" if any(g in path_set for g in level) else ""
+            lines.append(f"Level {i}: {', '.join(sorted(level))}{marker}")
+
+        lines.append("")
+        lines.append("Dependencies:")
+        for goal in sort:
+            deps = sorted(self._resolver._deps.get(goal, set()))
+            if deps:
+                lines.append(f"  {goal} <- {', '.join(deps)}")
+
+        return "\n".join(lines)
+
+    def visualize_dot(self) -> str:
+        sort = self._resolver.topological_sort()
+        if sort is None:
+            return "digraph { error=\"cycles detected\" }"
+        path, _ = self._resolver.critical_path()
+        path_edges = set()
+        for i in range(len(path) - 1):
+            path_edges.add((path[i], path[i + 1]))
+
+        lines = ["digraph goals {"]
+        lines.append('  rankdir=LR;')
+        for goal in sort:
+            style = 'filled, bold' if goal in path else 'filled'
+            color = 'lightgreen' if goal in path else 'lightblue'
+            lines.append(f'  "{goal}" [style="{style}", fillcolor="{color}"];')
+        for goal in sort:
+            for dep in sorted(self._resolver._deps.get(goal, set())):
+                edge_style = ' bold, color=red' if (dep, goal) in path_edges else ''
+                lines.append(f'  "{dep}" -> "{goal}"[{edge_style}];')
+        lines.append("}")
+        return "\n".join(lines)
+
+    def get_depth_map(self) -> dict[str, int]:
+        sort = self._resolver.topological_sort()
+        if sort is None:
+            return {}
+        depth: dict[str, int] = {}
+        for g in sort:
+            deps = self._resolver._deps.get(g, set())
+            max_d = 0
+            for d in deps:
+                if d in depth:
+                    max_d = max(max_d, depth[d] + 1)
+            depth[g] = max_d
+        return depth
+
+    def get_width_at_level(self, level: int) -> int:
+        levels = self._resolver.parallel_schedule()
+        if level < len(levels):
+            return len(levels[level])
+        return 0
+
+    def get_stats(self) -> dict[str, Any]:
+        sort = self._resolver.topological_sort()
+        levels = self._resolver.parallel_schedule()
+        path, path_len = self._resolver.critical_path()
+        return {
+            "goals": len(sort) if sort else 0,
+            "has_cycles": self._resolver.has_cycles(),
+            "parallel_levels": len(levels),
+            "critical_path": path,
+            "critical_path_length": path_len,
+            "max_width": max((len(l) for l in levels), default=0),
+        }
+
+
+class GoalPriorityBoost:
+    """Feature 37: Dynamic priority boosting for starved goals.
+
+    Monitors goal wait times and boosts priority for goals
+    that have been waiting beyond a configurable threshold
+    to prevent indefinite deferral.
+    """
+
+    def __init__(
+        self,
+        boost_threshold_s: float = 60.0,
+        boost_amount: int = 5,
+        max_boosts: int = 3,
+    ) -> None:
+        self.boost_threshold_s = boost_threshold_s
+        self.boost_amount = boost_amount
+        self.max_boosts = max_boosts
+        self._wait_start: dict[str, float] = {}
+        self._boost_counts: dict[str, int] = {}
+        self._boosted: list[dict[str, Any]] = []
+
+    def register(self, goal_id: str) -> None:
+        self._wait_start[goal_id] = time.monotonic()
+        self._boost_counts[goal_id] = 0
+
+    def check(self, goal_id: str, current_priority: int) -> dict[str, Any]:
+        if goal_id not in self._wait_start:
+            return {"goal_id": goal_id, "boosted": False, "reason": "not_registered"}
+        waited = time.monotonic() - self._wait_start[goal_id]
+        if waited > self.boost_threshold_s and self._boost_counts[goal_id] < self.max_boosts:
+            new_priority = current_priority + self.boost_amount
+            self._boost_counts[goal_id] += 1
+            self._boosted.append({
+                "goal_id": goal_id,
+                "old_priority": current_priority,
+                "new_priority": new_priority,
+                "waited_s": round(waited, 4),
+                "boost_number": self._boost_counts[goal_id],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return {
+                "goal_id": goal_id,
+                "boosted": True,
+                "old_priority": current_priority,
+                "new_priority": new_priority,
+                "waited_s": round(waited, 4),
+            }
+        return {"goal_id": goal_id, "boosted": False, "waited_s": round(waited, 4)}
+
+    def is_max_boosted(self, goal_id: str) -> bool:
+        return self._boost_counts.get(goal_id, 0) >= self.max_boosts
+
+    def reset(self, goal_id: str) -> None:
+        if goal_id in self._wait_start:
+            self._wait_start[goal_id] = time.monotonic()
+
+    def get_boosted(self) -> list[dict[str, Any]]:
+        return list(self._boosted)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "registered": len(self._wait_start),
+            "total_boosts": len(self._boosted),
+            "max_boosts": self.max_boosts,
+            "threshold_s": self.boost_threshold_s,
+        }
+
+
+class SchedulerLatencyTracker:
+    """Feature 38: Measure decision-to-execution latency.
+
+    Tracks the time elapsed between a scheduling decision
+    being made and the goal actually starting execution.
+    High latency indicates scheduler bottlenecks.
+    """
+
+    def __init__(self) -> None:
+        self._decisions: list[dict[str, Any]] = []
+
+    def record_decision(self, goal_id: str, decision_type: str) -> None:
+        self._decisions.append({
+            "goal_id": goal_id,
+            "decision_type": decision_type,
+            "decided_at": datetime.now(timezone.utc).isoformat(),
+            "decided_ts": time.monotonic(),
+        })
+
+    def record_execution_start(self, goal_id: str) -> None:
+        now_ts = time.monotonic()
+        for d in reversed(self._decisions):
+            if d["goal_id"] == goal_id and "started_at" not in d:
+                d["started_at"] = datetime.now(timezone.utc).isoformat()
+                d["started_ts"] = now_ts
+                d["latency_s"] = round(now_ts - d["decided_ts"], 6)
+                break
+
+    def get_avg_latency(self) -> float:
+        latencies = [d["latency_s"] for d in self._decisions if "latency_s" in d]
+        if not latencies:
+            return 0.0
+        return round(sum(latencies) / len(latencies), 6)
+
+    def get_p95_latency(self) -> float:
+        latencies = sorted([d["latency_s"] for d in self._decisions if "latency_s" in d])
+        if not latencies:
+            return 0.0
+        idx = int(len(latencies) * 0.95)
+        return round(latencies[min(idx, len(latencies) - 1)], 6)
+
+    def get_decisions(self, goal_id: str | None = None) -> list[dict[str, Any]]:
+        if goal_id:
+            return [d for d in self._decisions if d["goal_id"] == goal_id and "latency_s" in d]
+        return [d for d in self._decisions if "latency_s" in d]
+
+    def get_summary(self) -> dict[str, Any]:
+        latencies = [d["latency_s"] for d in self._decisions if "latency_s" in d]
+        return {
+            "total_decisions": len(self._decisions),
+            "measured": len(latencies),
+            "avg_latency_s": self.get_avg_latency(),
+            "p95_latency_s": self.get_p95_latency(),
+            "max_latency_s": round(max(latencies), 6) if latencies else 0.0,
+            "min_latency_s": round(min(latencies), 6) if latencies else 0.0,
+        }
+
+
+class DeadlineExtensionPolicy:
+    """Feature 39: Smart deadline extension for goals near completion.
+
+    When a goal is close to its deadline but has made significant
+    progress, optionally extends the deadline to avoid unnecessary
+    cancellation of nearly-complete work.
+    """
+
+    def __init__(
+        self,
+        progress_threshold: float = 0.7,
+        extension_factor: float = 1.5,
+        max_extensions: int = 2,
+    ) -> None:
+        self.progress_threshold = progress_threshold
+        self.extension_factor = extension_factor
+        self.max_extensions = max_extensions
+        self._extensions: dict[str, int] = {}
+        self._history: list[dict[str, Any]] = []
+
+    def should_extend(
+        self,
+        goal_id: str,
+        deadline_s: float,
+        elapsed_s: float,
+        progress: float,
+    ) -> dict[str, Any]:
+        if goal_id not in self._extensions:
+            self._extensions[goal_id] = 0
+        if self._extensions[goal_id] >= self.max_extensions:
+            return {
+                "goal_id": goal_id,
+                "extend": False,
+                "reason": "max_extensions_reached",
+            }
+        if progress >= self.progress_threshold and elapsed_s > deadline_s * 0.8:
+            new_deadline = deadline_s * self.extension_factor
+            self._extensions[goal_id] += 1
+            self._history.append({
+                "goal_id": goal_id,
+                "old_deadline_s": deadline_s,
+                "new_deadline_s": new_deadline,
+                "progress": progress,
+                "extension_number": self._extensions[goal_id],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return {
+                "goal_id": goal_id,
+                "extend": True,
+                "old_deadline_s": deadline_s,
+                "new_deadline_s": new_deadline,
+                "extension_number": self._extensions[goal_id],
+            }
+        return {"goal_id": goal_id, "extend": False, "progress": progress}
+
+    def get_extensions(self, goal_id: str | None = None) -> list[dict[str, Any]]:
+        if goal_id:
+            return [h for h in self._history if h["goal_id"] == goal_id]
+        return list(self._history)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_extensions": len(self._history),
+            "goals_extended": len(set(h["goal_id"] for h in self._history)),
+            "max_extensions": self.max_extensions,
+            "threshold": self.progress_threshold,
+        }
+
+
+class GoalGroupManager:
+    """Feature 40: Group related goals for batch operations.
+
+    Groups related goals together for batch admission, cancellation,
+    or prioritization. Groups are identified by a shared group_id.
+    """
+
+    def __init__(self) -> None:
+        self._groups: dict[str, set[str]] = {}
+        self._goal_groups: dict[str, str] = {}
+
+    def create_group(self, group_id: str, goal_ids: list[str]) -> None:
+        self._groups[group_id] = set(goal_ids)
+        for gid in goal_ids:
+            self._goal_groups[gid] = group_id
+
+    def add_to_group(self, group_id: str, goal_id: str) -> None:
+        if group_id not in self._groups:
+            self._groups[group_id] = set()
+        self._groups[group_id].add(goal_id)
+        self._goal_groups[goal_id] = group_id
+
+    def get_group(self, group_id: str) -> set[str]:
+        return set(self._groups.get(group_id, set()))
+
+    def get_goal_group(self, goal_id: str) -> str | None:
+        return self._goal_groups.get(goal_id)
+
+    def get_goals_in_group(self, goal_id: str) -> set[str]:
+        group_id = self._goal_groups.get(goal_id)
+        if group_id is None:
+            return set()
+        return self.get_group(group_id)
+
+    def batch_admit(self, group_id: str, scheduler: Any) -> dict[str, Any]:
+        goals = self.get_group(group_id)
+        admitted = []
+        rejected = []
+        for goal in sorted(goals):
+            try:
+                scheduler.admit(goal)
+                admitted.append(goal)
+            except Exception:
+                rejected.append(goal)
+        return {"group_id": group_id, "admitted": admitted, "rejected": rejected}
+
+    def batch_cancel(self, group_id: str) -> list[str]:
+        goals = self.get_group(group_id)
+        return sorted(goals)
+
+    def list_groups(self) -> dict[str, list[str]]:
+        return {gid: sorted(g) for gid, g in self._groups.items()}
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "groups": len(self._groups),
+            "goals_grouped": len(self._goal_groups),
+            "avg_group_size": round(
+                sum(len(g) for g in self._groups.values()) / max(len(self._groups), 1), 2
+            ),
+        }
+
+
+class AdmissionPolicyChain:
+    """Feature 41: Chain multiple admission policies together.
+
+    Allows multiple admission policies to be evaluated in sequence.
+    A goal must pass all policies to be admitted. Records which
+    policy rejected each goal.
+    """
+
+    def __init__(self, policies: list[Any] | None = None) -> None:
+        self._policies: list[Any] = policies or []
+        self._rejections: list[dict[str, Any]] = []
+
+    def add_policy(self, policy: Any, name: str | None = None) -> None:
+        self._policies.append((policy, name or type(policy).__name__))
+
+    def admit(self, goal_id: str) -> dict[str, Any]:
+        for policy, name in self._policies:
+            result = self._evaluate_policy(policy, goal_id)
+            if not result.get("admitted", True):
+                self._rejections.append({
+                    "goal_id": goal_id,
+                    "policy": name,
+                    "reason": result.get("reason", "rejected"),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                return {
+                    "goal_id": goal_id,
+                    "admitted": False,
+                    "rejected_by": name,
+                    "reason": result.get("reason", "rejected"),
+                }
+        return {"goal_id": goal_id, "admitted": True, "policies_passed": len(self._policies)}
+
+    def _evaluate_policy(self, policy: Any, goal_id: str) -> dict[str, Any]:
+        if hasattr(policy, "admit") and callable(policy.admit):
+            try:
+                result = policy.admit(goal_id)
+                if isinstance(result, dict):
+                    return result
+                return {"admitted": True}
+            except Exception as e:
+                return {"admitted": False, "reason": str(e)}
+        return {"admitted": True}
+
+    def get_rejections(self, goal_id: str | None = None) -> list[dict[str, Any]]:
+        if goal_id:
+            return [r for r in self._rejections if r["goal_id"] == goal_id]
+        return list(self._rejections)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "policies": len(self._policies),
+            "policy_names": [n for _, n in self._policies],
+            "total_rejections": len(self._rejections),
+            "unique_rejected_goals": len(set(r["goal_id"] for r in self._rejections)),
+        }
+
+
+class GoalRetryBudgetResolver:
+    """Feature 42: Allocate retry budgets across competing goals.
+
+    When multiple goals compete for a shared retry budget,
+    this resolver distributes retries based on priority,
+    remaining budget, and retry attempts so far.
+    """
+
+    def __init__(self, total_budget: int = 100) -> None:
+        self.total_budget = total_budget
+        self._allocated: dict[str, int] = {}
+        self._used: dict[str, int] = {}
+
+    def allocate(self, goal_id: str, priority: int = 0, max_retries: int = 3) -> int:
+        if goal_id not in self._allocated:
+            self._allocated[goal_id] = 0
+            self._used[goal_id] = 0
+        remaining = self.total_budget - sum(self._allocated.values())
+        if remaining <= 0:
+            return 0
+        share = max(1, remaining // max(len(self._allocated), 1))
+        allocation = min(share, remaining, max_retries)
+        self._allocated[goal_id] = allocation
+        return allocation
+
+    def consume(self, goal_id: str, retries: int = 1) -> bool:
+        if goal_id not in self._allocated:
+            return False
+        if self._used[goal_id] + retries > self._allocated[goal_id]:
+            return False
+        self._used[goal_id] += retries
+        return True
+
+    def get_remaining(self, goal_id: str) -> int:
+        if goal_id not in self._allocated:
+            return 0
+        return self._allocated[goal_id] - self._used[goal_id]
+
+    def get_total_remaining(self) -> int:
+        total_used = sum(self._used.values())
+        return max(0, self.total_budget - total_used)
+
+    def get_budgets(self) -> dict[str, dict[str, int]]:
+        return {
+            gid: {
+                "allocated": self._allocated.get(gid, 0),
+                "used": self._used.get(gid, 0),
+                "remaining": self._allocated.get(gid, 0) - self._used.get(gid, 0),
+            }
+            for gid in self._allocated
+        }
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total_budget": self.total_budget,
+            "total_allocated": sum(self._allocated.values()),
+            "total_used": sum(self._used.values()),
+            "total_remaining": self.get_total_remaining(),
+            "goals": len(self._allocated),
+        }

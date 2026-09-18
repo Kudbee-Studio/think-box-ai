@@ -62,7 +62,7 @@
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
 - `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests + `TestDagVerifiedExecution` 9 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper + DAG-level verified execution)
 - `tests/unit/test_concurrent_goals.py` — 40 tests (concurrent execution, budget isolation, shared-budget exhaustion, cross-goal accounting, retry accounting, fan-out/fan-in telemetry, restart/persist, dashboard block, no-secrets, adaptive retry backoff, resource profiling, error classification)
-- Full suite: **853 tests, 6 skipped**
+- Full suite: **917 tests, 6 skipped**
 
 ### Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (2026-09-17) — COMPLETE (live 4 calls)
 
