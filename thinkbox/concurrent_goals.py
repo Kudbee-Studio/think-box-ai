@@ -239,11 +239,24 @@ class ConcurrentGoalsRunner:
         async def _run_one(spec: ConcurrentGoalSpec) -> dict[str, Any]:
             goal_key = spec.goal
 
+            # Check per-goal budget limit BEFORE running the goal
+            if goal_key in goal_budget_limits:
+                if goal_budget_limits[goal_key] <= 0:
+                    return {
+                        "failed": True,
+                        "valid": False,
+                        "execution_status": "BUDGET_EXHAUSTED",
+                        "error_type": "BudgetExhausted",
+                        "context": f"Goal {goal_key} budget limit exhausted (limit: 0)",
+                        "calls_spent": 0,
+                        "retries_used": 0,
+                    }
+
             async def _counted_complete(prompt: str) -> Any:
                 calls_by_goal[goal_key] = calls_by_goal.get(goal_key, 0) + 1
                 goal_budget_consumed[goal_key] = goal_budget_consumed.get(goal_key, 0) + 1
                 
-                # Check budget limit per goal
+                # Check budget limit per goal (defense in depth)
                 if goal_key in goal_budget_limits:
                     if goal_budget_consumed[goal_key] > goal_budget_limits[goal_key]:
                         raise BudgetExhausted(

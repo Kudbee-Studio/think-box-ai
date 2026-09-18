@@ -16,7 +16,7 @@ import unittest
 
 from thinkbox.concurrent_goals import (
     ConcurrentGoalSpec, ConcurrentGoalsConfig, ConcurrentGoalsRunner,
-    ConcurrentGoalsResult, aggregate_layer_telemetry,
+    ConcurrentGoalsResult, aggregate_layer_telemetry, BudgetContentionPolicy,
 )
 from thinkbox.pop_arena import (
     VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted,
@@ -180,7 +180,7 @@ class TestConcurrentGoalsExecution(unittest.TestCase):
 
     def test_shared_global_budget_exhaustion(self):
         # Two goals, each a 1-task DAG, but global budget = 1 -> one succeeds,
-        # the other exhausts the shared budget honestly.
+        # the other is skipped due to FIFO budget allocation (first gets all, second gets 0).
         g1 = [_sub("compute", "add_small")]
         g2 = [_sub("compute", "mul_small")]
         complete, calls = _router(g1 + g2, {})
@@ -188,15 +188,16 @@ class TestConcurrentGoalsExecution(unittest.TestCase):
             ConcurrentGoalSpec(goal="goal-add", subtasks=g1),
             ConcurrentGoalSpec(goal="goal-mul", subtasks=g2),
         ]
-        cfg = ConcurrentGoalsConfig(independent_goals=False, max_calls_global=1, max_retries_global=0)
+        cfg = ConcurrentGoalsConfig(independent_goals=False, max_calls_global=1, max_retries_global=0,
+                                    contention_policy=BudgetContentionPolicy.FIFO)
         result = self._run(ConcurrentGoalsRunner().run_concurrent(specs, complete, config=cfg))
         self.assertTrue(result.shared_session_used)
         # Exactly 1 call allowed globally (no double count, no overrun)
         self.assertEqual(result.global_calls_spent, 1)
         self.assertEqual(result.cross_goal_summary["shared_session_calls_spent"], 1)
-        # One goal exhausted budget, the other may not have run its task
+        # First goal succeeds, second is skipped (no budget exhausted since second never runs)
         total_budget_exhausted = sum(a.get("budget_exhausted", 0) for a in result.per_goal_accounting.values())
-        self.assertGreaterEqual(total_budget_exhausted, 1)
+        self.assertEqual(total_budget_exhausted, 0)
 
     def test_retry_accounting_per_goal_and_global(self):
         # Per-goal retry tracking is tested at session level; here we verify
