@@ -95,6 +95,16 @@ from thinkbox.scheduler import (
     ReplayFromLedger,
     MultiPriorityAging,
     SchedulerCanary,
+    AdaptiveConcurrency,
+    Preemption,
+    TaskCoalescing,
+    WorkflowTemplate,
+    BackpressurePropagation,
+    SchedulerClock,
+    AdmissionFilter,
+    FairnessIndex,
+    DynamicBudget,
+    TaskAffinity,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -4691,3 +4701,366 @@ class TestSchedulerCanary(unittest.TestCase):
         for i in range(5):
             sc.run_probe(latency_s=float(i) * 0.5, success=True)
         self.assertEqual(sc.get_stats()["total_probes"], 5)
+
+
+# =============================================================================
+# PR #84 Tests - 10 major governed scheduler features
+# =============================================================================
+
+
+class TestAdaptiveConcurrency(unittest.TestCase):
+    """Feature 1 (PR #84): Adaptive concurrency."""
+
+    def test_default_config(self) -> None:
+        ac = AdaptiveConcurrency()
+        self.assertEqual(ac.get_concurrency(), 10)
+
+    def test_invalid_config(self) -> None:
+        with self.assertRaises(ValueError):
+            AdaptiveConcurrency(initial_concurrency=1, min_concurrency=5)
+        with self.assertRaises(ValueError):
+            AdaptiveConcurrency(max_concurrency=5, min_concurrency=10)
+
+    def test_record_metric(self) -> None:
+        ac = AdaptiveConcurrency()
+        ac.record_metric(0.5, 10.0)
+        ac.record_metric(0.8, 8.0)
+        self.assertEqual(len(ac.get_adjustments()), 0)
+
+    def test_adjust_increase(self) -> None:
+        ac = AdaptiveConcurrency(latency_target_s=1.0)
+        ac.record_metric(0.2, 20.0)
+        result = ac.adjust()
+        self.assertEqual(result["new"], 11)
+        self.assertEqual(result["reason"], "latency_low_increase")
+
+    def test_adjust_decrease(self) -> None:
+        ac = AdaptiveConcurrency(latency_target_s=1.0)
+        ac.record_metric(5.0, 2.0)
+        result = ac.adjust()
+        self.assertEqual(result["new"], 9)
+        self.assertEqual(result["reason"], "latency_high_decrease")
+
+    def test_adjust_stable(self) -> None:
+        ac = AdaptiveConcurrency(latency_target_s=1.0)
+        ac.record_metric(0.9, 10.0)
+        result = ac.adjust()
+        self.assertEqual(result["reason"], "stable")
+
+    def test_get_stats(self) -> None:
+        ac = AdaptiveConcurrency()
+        stats = ac.get_stats()
+        self.assertEqual(stats["concurrency"], 10)
+        self.assertEqual(stats["adjustments"], 0)
+
+
+class TestPreemption(unittest.TestCase):
+    """Feature 2 (PR #84): Job preemption."""
+
+    def test_admit_under_cap(self) -> None:
+        p = Preemption(max_concurrency=3)
+        result = p.admit("job1", priority=5)
+        self.assertTrue(result["admitted"])
+
+    def test_preempt_low_priority(self) -> None:
+        p = Preemption(max_concurrency=2)
+        p.admit("low", priority=1)
+        p.admit("mid", priority=5)
+        result = p.admit("high", priority=10)
+        self.assertTrue(result["admitted"])
+        self.assertEqual(result["action"], "preempt")
+        self.assertEqual(result["preempted"], "low")
+
+    def test_no_preemptable(self) -> None:
+        p = Preemption(max_concurrency=1)
+        p.admit("locked", priority=1, preemptable=False)
+        result = p.admit("urgent", priority=10)
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["reason"], "no_preemptable")
+
+    def test_complete(self) -> None:
+        p = Preemption(max_concurrency=2)
+        p.admit("job1", priority=5)
+        self.assertTrue(p.complete("job1"))
+        self.assertFalse(p.complete("unknown"))
+
+    def test_get_stats(self) -> None:
+        p = Preemption(max_concurrency=2)
+        p.admit("job1", priority=5)
+        p.admit("job2", priority=3)
+        self.assertEqual(p.get_stats()["running"], 2)
+
+
+class TestTaskCoalescing(unittest.TestCase):
+    """Feature 3 (PR #84): Task coalescing."""
+
+    def test_coalesce_duplicate(self) -> None:
+        tc = TaskCoalescing()
+        r1 = tc.enqueue("key1", "job1")
+        self.assertFalse(r1["coalesced"])
+        r2 = tc.enqueue("key1", "job2")
+        self.assertTrue(r2["coalesced"])
+        self.assertEqual(r2["total_jobs"], 2)
+
+    def test_empty_key(self) -> None:
+        tc = TaskCoalescing()
+        with self.assertRaises(ValueError):
+            tc.enqueue("", "job1")
+
+    def test_dequeue(self) -> None:
+        tc = TaskCoalescing()
+        tc.enqueue("key1", "job1")
+        tc.enqueue("key1", "job2")
+        result = tc.dequeue()
+        self.assertIsNotNone(result)
+        self.assertEqual(result["task_key"], "key1")
+        self.assertEqual(result["primary_job_id"], "job1")
+        self.assertEqual(result["fan_out"], ["job2"])
+
+    def test_get_stats(self) -> None:
+        tc = TaskCoalescing()
+        tc.enqueue("k1", "j1")
+        tc.enqueue("k1", "j2")
+        tc.enqueue("k2", "j3")
+        self.assertEqual(tc.get_stats()["coalesced"], 1)
+
+
+class TestWorkflowTemplate(unittest.TestCase):
+    """Feature 4 (PR #84): Workflow templates."""
+
+    def test_register_and_instantiate(self) -> None:
+        wt = WorkflowTemplate()
+        wt.register("tpl1", "v1", [{"type": "task", "name": "a"}])
+        inst = wt.instantiate("tpl1")
+        self.assertEqual(inst["template_id"], "tpl1")
+        self.assertEqual(inst["version"], "v1")
+
+    def test_specific_version(self) -> None:
+        wt = WorkflowTemplate()
+        wt.register("tpl1", "v1", [{"name": "a"}])
+        wt.register("tpl1", "v2", [{"name": "b"}])
+        inst = wt.instantiate("tpl1", version="v1")
+        self.assertEqual(inst["version"], "v1")
+
+    def test_missing_template(self) -> None:
+        wt = WorkflowTemplate()
+        with self.assertRaises(KeyError):
+            wt.instantiate("missing")
+
+    def test_missing_version(self) -> None:
+        wt = WorkflowTemplate()
+        wt.register("tpl1", "v1", [])
+        with self.assertRaises(KeyError):
+            wt.instantiate("tpl1", version="v99")
+
+    def test_get_stats(self) -> None:
+        wt = WorkflowTemplate()
+        wt.register("tpl1", "v1", [])
+        wt.instantiate("tpl1")
+        self.assertEqual(wt.get_stats()["templates"], 1)
+
+
+class TestBackpressurePropagation(unittest.TestCase):
+    """Feature 5 (PR #84): Backpressure propagation."""
+
+    def test_register_and_push(self) -> None:
+        bp = BackpressurePropagation()
+        bp.register("downstream")
+        bp.register("upstream", depends_on=["downstream"])
+        affected = bp.push("downstream")
+        self.assertIn("upstream", affected)
+
+    def test_push_multiple(self) -> None:
+        bp = BackpressurePropagation()
+        bp.register("A")
+        bp.register("B", depends_on=["A"])
+        bp.register("C", depends_on=["B"])
+        affected = bp.push("A")
+        self.assertIn("B", affected)
+        self.assertIn("C", affected)
+
+    def test_get_pressure(self) -> None:
+        bp = BackpressurePropagation()
+        bp.register("A")
+        bp.push("A")
+        self.assertEqual(bp.get_pressure("A"), 1)
+
+    def test_get_stats(self) -> None:
+        bp = BackpressurePropagation()
+        bp.register("A")
+        bp.register("B", depends_on=["A"])
+        bp.push("A")
+        stats = bp.get_stats()
+        self.assertEqual(stats["tasks"], 2)
+
+
+class TestSchedulerClock(unittest.TestCase):
+    """Feature 6 (PR #84): Scheduler clock."""
+
+    def test_default(self) -> None:
+        sc = SchedulerClock()
+        self.assertFalse(sc.is_manual())
+
+    def test_set_time(self) -> None:
+        sc = SchedulerClock()
+        sc.set_time(100.0)
+        self.assertAlmostEqual(sc.now(), 100.0)
+        self.assertTrue(sc.is_manual())
+
+    def test_advance(self) -> None:
+        sc = SchedulerClock()
+        sc.set_time(100.0)
+        sc.advance(5.0)
+        self.assertAlmostEqual(sc.now(), 105.0)
+
+    def test_backwards_error(self) -> None:
+        sc = SchedulerClock()
+        sc.set_time(100.0)
+        with self.assertRaises(ValueError):
+            sc.set_time(50.0)
+
+    def test_reset(self) -> None:
+        sc = SchedulerClock()
+        sc.set_time(100.0)
+        sc.reset()
+        self.assertFalse(sc.is_manual())
+        self.assertGreaterEqual(sc.now(), 0.0)
+
+
+class TestAdmissionFilter(unittest.TestCase):
+    """Feature 7 (PR #84): Admission filter chain."""
+
+    def test_pass(self) -> None:
+        af = AdmissionFilter()
+        result = af.check("job1")
+        self.assertTrue(result["passed"])
+
+    def test_add_filter(self) -> None:
+        af = AdmissionFilter()
+        af.add_filter("test_filter", lambda j, c: False, "test")
+        result = af.check("job1")
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["filter"], "test_filter")
+
+    def test_empty_job(self) -> None:
+        af = AdmissionFilter()
+        with self.assertRaises(ValueError):
+            af.check("")
+
+    def test_get_stats(self) -> None:
+        af = AdmissionFilter()
+        af.check("j1")
+        af.check("j2")
+        stats = af.get_stats()
+        self.assertEqual(stats["total_decisions"], 2)
+        self.assertEqual(stats["passed"], 2)
+
+
+class TestFairnessIndex(unittest.TestCase):
+    """Feature 8 (PR #84): Jain's fairness index."""
+
+    def test_perfect_fairness(self) -> None:
+        fi = FairnessIndex()
+        fi.record("a", 10.0)
+        fi.record("b", 10.0)
+        result = fi.compute()
+        self.assertAlmostEqual(result["fairness_index"], 1.0)
+
+    def test_unfair(self) -> None:
+        fi = FairnessIndex()
+        fi.record("a", 1.0)
+        fi.record("b", 1.0)
+        fi.record("c", 1000.0)
+        result = fi.compute()
+        self.assertLess(result["fairness_index"], 0.5)
+        self.assertGreaterEqual(result["fairness_index"], 0.0)
+
+    def test_no_tenants(self) -> None:
+        fi = FairnessIndex()
+        result = fi.compute()
+        self.assertEqual(result["tenants"], 0)
+        self.assertEqual(result["fairness_index"], 1.0)
+
+    def test_empty_id(self) -> None:
+        fi = FairnessIndex()
+        with self.assertRaises(ValueError):
+            fi.record("", 5.0)
+
+    def test_negative_allocation(self) -> None:
+        fi = FairnessIndex()
+        with self.assertRaises(ValueError):
+            fi.record("a", -1.0)
+
+
+class TestDynamicBudget(unittest.TestCase):
+    """Feature 9 (PR #84): Dynamic budget reallocation."""
+
+    def test_register_and_reallocate(self) -> None:
+        db = DynamicBudget(total_budget=100)
+        db.register_goal("g1", budget=50)
+        db.register_goal("g2", budget=50)
+        budgets = db.reallocate()
+        self.assertEqual(sum(budgets.values()), 100)
+
+    def test_invalid_config(self) -> None:
+        with self.assertRaises(ValueError):
+            DynamicBudget(total_budget=5, min_budget=10)
+
+    def test_update_progress(self) -> None:
+        db = DynamicBudget(total_budget=100)
+        db.register_goal("g1", budget=50)
+        db.update_progress("g1", 0.5)
+        self.assertAlmostEqual(db._goals["g1"]["progress"], 0.5)
+
+    def test_missing_goal(self) -> None:
+        db = DynamicBudget()
+        with self.assertRaises(KeyError):
+            db.update_progress("missing", 0.5)
+
+    def test_get_stats(self) -> None:
+        db = DynamicBudget(total_budget=100)
+        db.register_goal("g1", budget=50)
+        db.register_goal("g2", budget=50)
+        stats = db.get_stats()
+        self.assertEqual(stats["total_budget"], 100)
+        self.assertEqual(stats["goals"], 2)
+
+
+class TestTaskAffinity(unittest.TestCase):
+    """Feature 10 (PR #84): Task affinity scheduling."""
+
+    def test_affinity_match(self) -> None:
+        ta = TaskAffinity()
+        ta.register_node("n1", {"zone": "us-east"})
+        ta.set_affinity("task1", "n1")
+        result = ta.schedule("task1")
+        self.assertEqual(result["node_id"], "n1")
+        self.assertEqual(result["reason"], "affinity_match")
+
+    def test_fallback(self) -> None:
+        ta = TaskAffinity()
+        ta.register_node("n1", {"zone": "us-east"})
+        result = ta.schedule("task1")
+        self.assertEqual(result["node_id"], "n1")
+        self.assertEqual(result["reason"], "fallback")
+
+    def test_no_nodes(self) -> None:
+        ta = TaskAffinity()
+        result = ta.schedule("task1")
+        self.assertEqual(result["reason"], "no_nodes")
+
+    def test_set_affinity_unknown_node(self) -> None:
+        ta = TaskAffinity()
+        with self.assertRaises(KeyError):
+            ta.set_affinity("task1", "unknown")
+
+    def test_get_stats(self) -> None:
+        ta = TaskAffinity()
+        ta.register_node("n1", {})
+        ta.register_node("n2", {})
+        ta.set_affinity("t1", "n1")
+        ta.schedule("t1")
+        ta.schedule("t2")
+        stats = ta.get_stats()
+        self.assertEqual(stats["nodes"], 2)
+        self.assertEqual(stats["tasks_placed"], 2)

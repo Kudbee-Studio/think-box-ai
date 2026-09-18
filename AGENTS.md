@@ -683,7 +683,8 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 
 ### PR Status (2026-09-18)
 - **PR #82 merged** (10 scheduler features: CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection)
-- **PR #83 open** (10 additional scheduler features: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary) — https://github.com/Kudbee-Studio/think-box-ai/pull/83
+- **PR #83 merged** (10 additional scheduler features: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary)
+- **PR #84 IN PROGRESS** (10 additional scheduler features: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity) — https://github.com/Kudbee-Studio/think-box-ai/pull/84
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
 - **No stale PRs remain**
 
@@ -706,9 +707,11 @@ The `thinkbox/scheduler.py` module extends the governed concurrency architecture
 
 **PR #83** (10 features): WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary
 
+**PR #84** (10 features, IN PROGRESS): AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity
+
 ### Testing
 
-- `tests/unit/test_scheduler.py` — 571 tests, all passing
+- `tests/unit/test_scheduler.py` — 620 tests, all passing
 - Run: `python3 -m unittest tests.unit.test_scheduler -v`
 - Full suite: `python3 -m unittest discover tests/` (1275 tests, 6 skipped)
 
