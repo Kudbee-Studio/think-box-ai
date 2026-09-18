@@ -59,6 +59,21 @@ Before declaring completion, every agent MUST verify:
 | **Fix** | Early budget check: goals with limit ≤ 0 now skipped BEFORE execution (return `BUDGET_EXHAUSTED` immediately); defense-in-depth check retained in `_counted_complete`. |
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (663) / LIVE_VERIFIED (substrate) / CONTENTION_VERIFIED (FAIR_SHARE/PRIORITY/FIFO) / PRODUCTION not claimed |
 
+### 2026-09-18 — Governed Scheduler 25 Features (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Agent/task** | Implement 25 features extending governed concurrency via unified scheduler on branch `kilo/epic-coil-ao1`. No SSH, no UpCloud compute, no GPU, no invented credentials. All tests deterministic (mocked completions). |
+| **Features** | SchedulerDecisionReceipt, AdaptiveConcurrencyLimiter, GlobalSchedulerAdmission, PerGoalConcurrencyCap, WeightedPriorityScheduler, BudgetAwareAdmission, DeadlineAwareAdmission, RetryAwareReservation, BudgetForecaster, BudgetOverspendPrevention, QueueDepthTelemetry, WaitTimeTelemetry, ExecutionUtilization, FairnessTrendTracker, SchedulerHealth, SchedulerIntegration, PersistentSchedulerState, FailureDomainIsolator, StarvationRecovery, PriorityInversionRecovery, CancellationPropagator, FanOutBackpressure, FanInQuorumTracker, CrossGoalReplayVerifier, RestartSafeSchedulerRecovery, StressReportEnhancer |
+| **Architecture** | `thinkbox/scheduler.py` — core scheduler module. Extends EXISTING architecture (ThinkBoxEngine → GovernedEngine → VerifiedRetrySession → DAG → concurrent_goals → ExperimentManager/MemoryStore/Ledger → dashboard). No parallel systems. |
+| **Extended** | `thinkbox/concurrent_goals.py` — StressReportEnhancer (generate_report, cli_output, deterministic_compare, get_reports). |
+| **Tests** | `tests/unit/test_scheduler.py` — 109 tests covering all 25 features. All PASS. Full suite 787 tests, 3 pre-existing failures unchanged, 6 skipped. |
+| **Live validation** | Stress test: 3 goals, 15 calls, fairness=1.0. Report generated, CLI output verified, deterministic comparison verified. |
+| **Dashboard** | `SchedulerDashboardExtension.emit()` wired via `thinkbox.dashboard_state` (DashboardCategory.THINK_BOXES, DashboardEvent.TASK_COMPLETED). |
+| **Bug fix** | Fixed `StressTestRunner.run_stress_test` line 1127: was using `config.goal_factory` (None when unset) instead of `goal_factory` variable (falls back to `_default_goal_factory`). |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (787) / LIVE_VERIFIED (stress test) / PRODUCTION not claimed |
+
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
 

@@ -67,9 +67,9 @@ class SchedulerDecisionReceipt:
     decision_id: str
     decision_type: SchedulerDecisionType
     goal_id: str
-    timestamp: str
-    state: SchedulerState
-    reasoning: str
+    timestamp: str = ""
+    state: SchedulerState = SchedulerState.IDLE
+    reasoning: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     ledger_hash: str = ""
 
@@ -958,7 +958,7 @@ class CancellationPropagator:
             for other, deps in self._dependencies.items():
                 if current in deps and other not in affected:
                     affected.add(other)
-                    stack.add(other)
+                    stack.append(other)
         return affected
 
     def is_cancelled(self, goal_id: str) -> bool:
@@ -1207,3 +1207,142 @@ class PersistentSchedulerState:
     def compute_reconstruction_hash(self, state: dict[str, Any]) -> str:
         s = json.dumps(state, sort_keys=True, default=str)
         return hashlib.sha256(s.encode()).hexdigest()
+
+
+class FailureDomainIsolator:
+    """Feature 18: Failure-domain isolation.
+
+    Isolates failures to prevent cascade across domains.
+    Each domain (goal, DAG, or execution context) is isolated
+    so a failure in one cannot affect others.
+    """
+
+    def __init__(self) -> None:
+        self._domains: dict[str, dict[str, Any]] = {}
+        self._failure_log: list[dict[str, Any]] = []
+        self._isolated_domains: set[str] = set()
+
+    def register_domain(self, domain_id: str, parent: str = "root") -> None:
+        self._domains[domain_id] = {
+            "parent": parent,
+            "status": "healthy",
+            "tasks": 0,
+            "failures": 0,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def record_failure(self, domain_id: str, error: Exception) -> None:
+        if domain_id not in self._domains:
+            return
+        self._domains[domain_id]["failures"] += 1
+        self._domains[domain_id]["status"] = "failed"
+        self._isolated_domains.add(domain_id)
+        self._failure_log.append({
+            "domain_id": domain_id,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "isolated": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "parent": self._domains[domain_id]["parent"],
+        })
+
+    def is_isolated(self, domain_id: str) -> bool:
+        return domain_id in self._isolated_domains
+
+    def get_domain_status(self, domain_id: str) -> dict[str, Any]:
+        return self._domains.get(domain_id, {"status": "unknown"})
+
+    def propagate_containment(self, domain_id: str) -> list[str]:
+        """Contain failure to prevent cascade to sibling/parent domains."""
+        contained = [domain_id]
+        domain = self._domains.get(domain_id, {})
+        parent = domain.get("parent", "root")
+        if parent in self._domains and parent != "root":
+            siblings = [d for d, info in self._domains.items()
+                        if info.get("parent") == parent and d != domain_id]
+            for s in siblings:
+                if s not in self._isolated_domains:
+                    self._domains[s]["status"] = "contained"
+                    contained.append(s)
+        return contained
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "domains": len(self._domains),
+            "isolated": len(self._isolated_domains),
+            "failures": len(self._failure_log),
+            "recent_failures": self._failure_log[-5:],
+        }
+
+
+class SchedulerDashboardExtension:
+    """Feature 24: Dashboard scheduler timeline + health indicators.
+
+    Provides data for the dashboard to display scheduler state,
+    queue depth, active goals, reservations, consumption,
+    utilization, fairness, starvation/inversion warnings, deadlines,
+    retries, DAG pressure, proof and replay status.
+    """
+
+    def __init__(self) -> None:
+        self._timeline: list[dict[str, Any]] = []
+        self._health: dict[str, str] = {}
+        self._metrics: dict[str, Any] = {
+            "queue_depth": 0,
+            "active_goals": 0,
+            "reservations": 0,
+            "consumption": 0,
+            "utilization": 0.0,
+            "fairness": 0.0,
+            "retries": 0,
+            "dag_pressure": 0.0,
+        }
+
+    def record_timeline_event(self, event: dict[str, Any]) -> None:
+        event["timestamp"] = datetime.now(timezone.utc).isoformat()
+        self._timeline.append(event)
+        if len(self._timeline) > 1000:
+            self._timeline = self._timeline[-1000:]
+
+    def set_health(self, component: str, status: str) -> None:
+        self._health[component] = status
+
+    def update_metric(self, key: str, value: Any) -> None:
+        if key in self._metrics:
+            self._metrics[key] = value
+
+    def get_dashboard_data(self) -> dict[str, Any]:
+        return {
+            "timeline": self._timeline[-50:],
+            "health": dict(self._health),
+            "metrics": dict(self._metrics),
+            "summary": {
+                "total_events": len(self._timeline),
+                "healthy_components": sum(1 for s in self._health.values() if s == "healthy"),
+                "unhealthy_components": sum(1 for s in self._health.values() if s != "healthy"),
+                "warnings": [k for k, v in self._health.items() if v != "healthy"],
+            },
+        }
+
+    def emit(self) -> None:
+        """Emit current scheduler state as a dashboard event."""
+        try:
+            from thinkbox.dashboard_state import (
+                get_dashboard_state, DashboardCategory, DashboardEvent,
+            )
+            data = self.get_dashboard_data()
+            get_dashboard_state().emit(
+                DashboardCategory.THINK_BOXES,
+                DashboardEvent.TASK_COMPLETED,
+                {
+                    "timeline_events": data["summary"]["total_events"],
+                    "healthy_components": data["summary"]["healthy_components"],
+                    "unhealthy_components": data["summary"]["unhealthy_components"],
+                    "warnings": data["summary"]["warnings"],
+                    "metrics": data["metrics"],
+                },
+                source="SchedulerDashboardExtension",
+                evidence_label="simulated",
+            )
+        except Exception:
+            pass

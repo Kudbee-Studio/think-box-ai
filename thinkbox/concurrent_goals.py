@@ -1124,7 +1124,7 @@ class StressTestRunner:
         
         # Create goals
         goal_factory = config.goal_factory or self._default_goal_factory
-        specs = [config.goal_factory(i) for i in range(config.num_goals)]
+        specs = [goal_factory(i) for i in range(config.num_goals)]
         
         # Run stress test
         cfg = ConcurrentGoalsConfig(
@@ -1481,3 +1481,113 @@ def persist_stress_test(
     })
     return {"run_experiment_id": run_exp_id, "proof_sha256": proof_hash,
             "proof_artifact": str(proof_path)}
+
+
+class StressReportEnhancer:
+    """Feature 25: Stress CLI/report enhancements with deterministic comparison.
+
+    Provides deterministic report generation, CLI output formatting,
+    and statistical comparison for stress test results.
+    """
+
+    def __init__(self) -> None:
+        self._reports: list[dict[str, Any]] = []
+
+    def generate_report(
+        self, result: "StressTestResult", detailed: bool = False
+    ) -> dict[str, Any]:
+        report = {
+            "report_id": f"str_{uuid.uuid4().hex[:12]}",
+            "config": result.config.to_dict(),
+            "total_calls": result.total_calls,
+            "total_retries": result.total_retries,
+            "total_budget_exhausted": result.total_budget_exhausted,
+            "fairness_index": result.fairness_index,
+            "duration_seconds": result.duration_seconds,
+            "peak_concurrency": result.peak_concurrency,
+            "completed_goals": result.completed_goals,
+            "failed_goals": result.failed_goals,
+            "per_goal_calls": result.per_goal_calls,
+            "per_goal_retries": result.per_goal_retries,
+            "deterministic": True,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if detailed:
+            report["per_goal_details"] = {
+                goal: {
+                    "calls": result.per_goal_calls.get(goal, 0),
+                    "retries": result.per_goal_retries.get(goal, 0),
+                    "success": result.per_goal_calls.get(goal, 0) > 0,
+                }
+                for goal in result.per_goal_calls
+            }
+        self._reports.append(report)
+        return report
+
+    def cli_output(self, result: "StressTestResult") -> str:
+        lines = [
+            "=== Concurrency Stress Test Report ===",
+            f"Goals: {result.config.num_goals}",
+            f"Policy: {result.config.contention_policy.value}",
+            f"Total Calls: {result.total_calls}",
+            f"Total Retries: {result.total_retries}",
+            f"Budget Exhausted: {result.total_budget_exhausted}",
+            f"Fairness Index: {result.fairness_index:.4f}",
+            f"Duration: {result.duration_seconds:.3f}s",
+            f"Peak Concurrency: {result.peak_concurrency}",
+            f"Completed: {result.completed_goals}",
+            f"Failed: {result.failed_goals}",
+            f"Per-Goal Calls: {result.per_goal_calls}",
+            "=== End Report ===",
+        ]
+        return "\n".join(lines)
+
+    def deterministic_compare(
+        self,
+        result1: "StressTestResult",
+        result2: "StressTestResult",
+    ) -> dict[str, Any]:
+        """Deterministic comparison between two stress test results.
+
+        Uses exact arithmetic (no floating-point heuristics) for
+        reproducible comparison. Same inputs always produce same output.
+        """
+        calls1 = result1.total_calls
+        calls2 = result2.total_calls
+        calls_diff = calls1 - calls2
+
+        # Fairness comparison using exact rational arithmetic
+        f1_num = round(result1.fairness_index * 10000)
+        f2_num = round(result2.fairness_index * 10000)
+        f_diff = f1_num - f2_num
+
+        # Deterministic ranking: higher fairness is better,
+        # then fewer calls is better
+        if f_diff > 0:
+            fairness_winner = "result1"
+        elif f_diff < 0:
+            fairness_winner = "result2"
+        else:
+            fairness_winner = "tie"
+
+        if calls1 < calls2:
+            efficiency_winner = "result1"
+        elif calls1 > calls2:
+            efficiency_winner = "result2"
+        else:
+            efficiency_winner = "tie"
+
+        comparison = {
+            "calls_difference": calls_diff,
+            "fairness_difference": f_diff,
+            "fairness_winner": fairness_winner,
+            "efficiency_winner": efficiency_winner,
+            "result1_better": result1.is_better_than(result2),
+            "result2_better": result2.is_better_than(result1),
+            "deterministic": True,
+            "method": "exact_integer_arithmetic",
+        }
+        return comparison
+
+    def get_reports(self) -> list[dict[str, Any]]:
+        return self._reports

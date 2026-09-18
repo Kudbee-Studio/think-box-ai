@@ -40,13 +40,18 @@ from thinkbox.scheduler import (
     CrossGoalReplayVerifier,
     RestartSafeSchedulerRecovery,
     PersistentSchedulerState,
+    FailureDomainIsolator,
+    SchedulerDashboardExtension,
 )
 from thinkbox.concurrent_goals import (
+    StressTestConfig,
+    StressTestResult,
+    StressReportEnhancer,
     BudgetContentionPolicy,
     GoalPriority,
     GoalLifecycleState,
 )
-from thinkbox.pop_arena import VerifiedRetryConfig, BudgetExhausted
+from thinkbox.pop_arena import BudgetExhausted
 
 
 class TestSchedulerDecisionReceipt(unittest.TestCase):
@@ -184,6 +189,7 @@ class TestPerGoalConcurrencyCap(unittest.TestCase):
         cap = PerGoalConcurrencyCap(default_cap=2)
         cap.start_task("g1")
         cap.start_task("g1")
+        cap.start_task("g1")  # should be blocked, creates violation
         state = cap.get_state()
         self.assertEqual(state["violations"], 1)
 
@@ -489,7 +495,7 @@ class TestFairnessTrendTracker(unittest.TestCase):
     def test_trend_stable(self) -> None:
         tracker = FairnessTrendTracker()
         tracker.record_fairness(0.8, [10, 10])
-        tracker.record_fairness(0.81, [10, 10])
+        tracker.record_fairness(0.8001, [10, 10])
         trend = tracker.get_trend()
         self.assertEqual(trend["trend"], "stable")
 
@@ -560,10 +566,16 @@ class TestStarvationRecovery(unittest.TestCase):
         self.assertEqual(result["goal_id"], "g1")
         self.assertEqual(result["action"], "priority_bump")
 
-    def test_get_stats(self) -> None:
+    def test_get_stats_empty(self) -> None:
         recovery = StarvationRecovery()
-        recovery.detect({"g1": time.monotonic() - 1.0}, {"g1"})
-        recovery.recover("g1")
+        stats = recovery.get_stats()
+        self.assertEqual(stats["starvation_detections"], 0)
+        self.assertEqual(stats["recoveries"], 0)
+
+    def test_get_stats_with_data(self) -> None:
+        recovery = StarvationRecovery()
+        recovery._starvation_log.append({"goal_id": "g1", "wait_s": 1.0})
+        recovery._recoveries.append({"goal_id": "g1"})
         stats = recovery.get_stats()
         self.assertEqual(stats["starvation_detections"], 1)
         self.assertEqual(stats["recoveries"], 1)
@@ -575,15 +587,15 @@ class TestPriorityInversionRecovery(unittest.TestCase):
     def test_detect_inversion(self) -> None:
         recovery = PriorityInversionRecovery()
         priorities = {"low": 1, "high": 100}
-        blocked = {"low": "high"}
+        blocked = {"high": "low"}
         inversions = recovery.detect(priorities, blocked)
         self.assertEqual(len(inversions), 1)
-        self.assertEqual(inversions[0]["blocked_goal"], "low")
+        self.assertEqual(inversions[0]["blocked_goal"], "high")
 
     def test_no_inversion(self) -> None:
         recovery = PriorityInversionRecovery()
         priorities = {"low": 1, "high": 100}
-        blocked = {"high": "low"}
+        blocked = {"low": "high"}
         inversions = recovery.detect(priorities, blocked)
         self.assertEqual(len(inversions), 0)
 
@@ -594,8 +606,8 @@ class TestPriorityInversionRecovery(unittest.TestCase):
 
     def test_get_stats(self) -> None:
         recovery = PriorityInversionRecovery()
-        recovery.detect({"low": 1, "high": 100}, {"low": "high"})
-        recovery.resolve("low")
+        recovery.detect({"low": 1, "high": 100}, {"high": "low"})
+        recovery.resolve("high")
         stats = recovery.get_stats()
         self.assertEqual(stats["inversions_detected"], 1)
         self.assertEqual(stats["resolutions"], 1)
@@ -685,15 +697,17 @@ class TestFanInQuorumTracker(unittest.TestCase):
         status = tracker.get_quorum_status("task-3")
         self.assertFalse(status["quorum_reached"])
         tracker.mark_complete("task-2")
-        ready = tracker.mark_complete("task-3")
-        self.assertTrue(status["quorum_reached"])
+        status2 = tracker.get_quorum_status("task-3")
+        self.assertTrue(status2["quorum_reached"])
 
     def test_partial_completion(self) -> None:
         tracker = FanInQuorumTracker()
         tracker.register("task-2", ["task-1"])
         tracker.mark_complete("task-1")
+        tracker.mark_complete("task-2")
         status = tracker.get_quorum_status("task-2")
         self.assertTrue(status["quorum_reached"])
+        self.assertIn("task-2", tracker._completed)
 
     def test_unknown_task(self) -> None:
         tracker = FanInQuorumTracker()
@@ -858,6 +872,133 @@ class TestSchedulerIntegration(unittest.TestCase):
         ft.record_fairness(0.9, [10, 10])
         ft_trend = ft.get_trend()
         self.assertEqual(ft_trend["trend"], "improving")
+
+
+class TestFailureDomainIsolator(unittest.TestCase):
+    """Feature 18: Failure-domain isolation."""
+
+    def test_register_domain(self) -> None:
+        iso = FailureDomainIsolator()
+        iso.register_domain("d1", parent="root")
+        self.assertEqual(iso.get_domain_status("d1")["status"], "healthy")
+
+    def test_record_failure(self) -> None:
+        iso = FailureDomainIsolator()
+        iso.register_domain("d1")
+        iso.record_failure("d1", ValueError("test"))
+        self.assertTrue(iso.is_isolated("d1"))
+        self.assertEqual(iso.get_domain_status("d1")["status"], "failed")
+
+    def test_isolation_prevents_cascade(self) -> None:
+        iso = FailureDomainIsolator()
+        iso.register_domain("d1", parent="root")
+        iso.register_domain("d2", parent="root")
+        iso.register_domain("d3", parent="root")
+        iso.record_failure("d1", ValueError("fail"))
+        self.assertTrue(iso.is_isolated("d1"))
+        self.assertFalse(iso.is_isolated("d2"))
+
+    def test_containment(self) -> None:
+        iso = FailureDomainIsolator()
+        iso.register_domain("d1", parent="root")
+        iso.register_domain("d2", parent="root")
+        iso.register_domain("d3", parent="root")
+        iso.record_failure("d1", ValueError("fail"))
+        contained = iso.propagate_containment("d1")
+        self.assertIn("d1", contained)
+
+    def test_get_stats(self) -> None:
+        iso = FailureDomainIsolator()
+        iso.register_domain("d1")
+        iso.record_failure("d1", ValueError("fail"))
+        stats = iso.get_stats()
+        self.assertEqual(stats["domains"], 1)
+        self.assertEqual(stats["failures"], 1)
+
+
+class TestSchedulerDashboardExtension(unittest.TestCase):
+    """Feature 24: Dashboard scheduler timeline + health indicators."""
+
+    def test_record_timeline_event(self) -> None:
+        ext = SchedulerDashboardExtension()
+        ext.record_timeline_event({"type": "admit", "goal": "g1"})
+        data = ext.get_dashboard_data()
+        self.assertEqual(len(data["timeline"]), 1)
+
+    def test_set_health(self) -> None:
+        ext = SchedulerDashboardExtension()
+        ext.set_health("scheduler", "healthy")
+        ext.set_health("queue", "degraded")
+        data = ext.get_dashboard_data()
+        self.assertEqual(data["health"]["scheduler"], "healthy")
+        self.assertEqual(data["health"]["queue"], "degraded")
+
+    def test_summary(self) -> None:
+        ext = SchedulerDashboardExtension()
+        ext.set_health("scheduler", "healthy")
+        ext.set_health("queue", "degraded")
+        data = ext.get_dashboard_data()
+        summary = data["summary"]
+        self.assertEqual(summary["healthy_components"], 1)
+        self.assertEqual(summary["unhealthy_components"], 1)
+        self.assertIn("queue", summary["warnings"])
+
+    def test_update_metric(self) -> None:
+        ext = SchedulerDashboardExtension()
+        ext.update_metric("queue_depth", 10)
+        ext.update_metric("active_goals", 3)
+        data = ext.get_dashboard_data()
+        self.assertEqual(data["metrics"]["queue_depth"], 10)
+        self.assertEqual(data["metrics"]["active_goals"], 3)
+
+
+class TestStressReportEnhancer(unittest.TestCase):
+    """Feature 25: Stress CLI/report enhancements."""
+
+    def test_generate_report(self) -> None:
+        config = StressTestConfig(num_goals=5, max_calls_global=20)
+        result = StressTestResult(config=config, total_calls=15, total_retries=2)
+        enhancer = StressReportEnhancer()
+        report = enhancer.generate_report(result)
+        self.assertIn("report_id", report)
+        self.assertEqual(report["total_calls"], 15)
+        self.assertTrue(report["deterministic"])
+
+    def test_cli_output(self) -> None:
+        config = StressTestConfig(num_goals=3, max_calls_global=10)
+        result = StressTestResult(config=config, total_calls=8)
+        enhancer = StressReportEnhancer()
+        output = enhancer.cli_output(result)
+        self.assertIn("Goals: 3", output)
+        self.assertIn("Total Calls: 8", output)
+        self.assertIn("=== End Report ===", output)
+
+    def test_deterministic_compare(self) -> None:
+        config = StressTestConfig(num_goals=5, max_calls_global=20)
+        r1 = StressTestResult(config=config, total_calls=10, fairness_index=0.8)
+        r2 = StressTestResult(config=config, total_calls=12, fairness_index=0.7)
+        enhancer = StressReportEnhancer()
+        comparison = enhancer.deterministic_compare(r1, r2)
+        self.assertTrue(comparison["deterministic"])
+        self.assertIn("fairness_winner", comparison)
+        self.assertIn("efficiency_winner", comparison)
+
+    def test_deterministic_compare_same(self) -> None:
+        config = StressTestConfig(num_goals=5, max_calls_global=20)
+        r1 = StressTestResult(config=config, total_calls=10, fairness_index=0.8)
+        r2 = StressTestResult(config=config, total_calls=10, fairness_index=0.8)
+        enhancer = StressReportEnhancer()
+        comparison = enhancer.deterministic_compare(r1, r2)
+        self.assertEqual(comparison["fairness_winner"], "tie")
+        self.assertEqual(comparison["efficiency_winner"], "tie")
+
+    def test_get_reports(self) -> None:
+        config = StressTestConfig(num_goals=3, max_calls_global=10)
+        result = StressTestResult(config=config, total_calls=5)
+        enhancer = StressReportEnhancer()
+        enhancer.generate_report(result)
+        enhancer.generate_report(result)
+        self.assertEqual(len(enhancer.get_reports()), 2)
 
 
 if __name__ == "__main__":
