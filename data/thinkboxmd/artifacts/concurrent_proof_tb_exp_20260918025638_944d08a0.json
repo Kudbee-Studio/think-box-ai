@@ -1,0 +1,91 @@
+{
+  "cross_goal_summary": {
+    "global_budget_remaining": 15,
+    "global_calls_spent": 5,
+    "global_retries_fired": 0,
+    "per_goal_budget_isolation": false,
+    "shared_session_calls_spent": 5,
+    "shared_session_used": true,
+    "total_goals": 5
+  },
+  "layer_telemetry": [],
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no SSH"
+  ],
+  "per_goal_accounting": {
+    "stress-goal-0": {
+      "budget_exhausted": 0,
+      "budget_remaining": 15,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    },
+    "stress-goal-1": {
+      "budget_exhausted": 0,
+      "budget_remaining": 15,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    },
+    "stress-goal-2": {
+      "budget_exhausted": 0,
+      "budget_remaining": 15,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    },
+    "stress-goal-3": {
+      "budget_exhausted": 0,
+      "budget_remaining": 15,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    },
+    "stress-goal-4": {
+      "budget_exhausted": 0,
+      "budget_remaining": 15,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    }
+  },
+  "phase": "concurrent-goals",
+  "proof_paths": [
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918025638_281f4088.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918025638_b991b944.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918025638_5ae7e5f5.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918025638_11ec5161.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918025638_ed66692b.json"
+  ],
+  "proof_sha256": "2793fcfdddc8295f2f7176a13b0b394eb2914773252d9d9134a9e19e436861a3",
+  "run_experiment_id": "tb_exp_20260918025638_944d08a0",
+  "session_id": "tb_sess_20260918025638_a49a",
+  "timestamp": "2026-09-18T02:56:38.839623+00:00"
+}

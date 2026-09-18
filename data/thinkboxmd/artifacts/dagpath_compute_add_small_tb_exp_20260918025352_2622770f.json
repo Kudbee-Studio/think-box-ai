@@ -1,0 +1,23 @@
+{
+  "dependencies": [],
+  "description": "Compute 4 + 9. Reply with ONLY this exact JSON object and nothing else: {\"answer\": <result>}",
+  "experiment_id": "tb_exp_20260918025352_2622770f",
+  "family": "compute",
+  "goal_experiment_id": "tb_exp_20260918025352_ce8a66ac",
+  "session_id": "tb_sess_20260918025352_f92f",
+  "task_id": "dagtask_20260918025352_00_b0edb2",
+  "telemetry": {
+    "attempts": null,
+    "converted": null,
+    "execution_status": "",
+    "final_taxonomy": "",
+    "latency_s": null,
+    "property_valid": false,
+    "retries_used": null,
+    "taxonomy": "",
+    "tokens": 0,
+    "trace": {}
+  },
+  "timestamp": "2026-09-18T02:53:52.447840+00:00",
+  "variant": "add_small"
+}

@@ -1,0 +1,52 @@
+{
+  "cross_goal_summary": {
+    "global_budget_remaining": 3,
+    "global_calls_spent": 2,
+    "global_retries_fired": 0,
+    "per_goal_budget_isolation": false,
+    "shared_session_calls_spent": 2,
+    "shared_session_used": true,
+    "total_goals": 2
+  },
+  "layer_telemetry": [],
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no SSH"
+  ],
+  "per_goal_accounting": {
+    "goal-a": {
+      "budget_exhausted": 0,
+      "budget_remaining": 3,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    },
+    "goal-b": {
+      "budget_exhausted": 0,
+      "budget_remaining": 3,
+      "calls_spent": 1,
+      "execution_status": "verified",
+      "failures": 0,
+      "first_try_successes": 0,
+      "recovered_successes": 0,
+      "retries_fired": 0,
+      "tasks": 1,
+      "verification_rate": 0.0
+    }
+  },
+  "phase": "concurrent-goals",
+  "proof_paths": [
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918024718_b7e4493b.json",
+    "data/thinkboxmd/artifacts/dagpath_proof_tb_exp_20260918024718_142c4e14.json"
+  ],
+  "proof_sha256": "80413feb513ba79f08c435a3f1dd489cf8ea006c47576a25b3bc6bd4f41b125e",
+  "run_experiment_id": "tb_exp_20260918024718_cf5b470c",
+  "session_id": "tb_sess_20260918024718_b5fd",
+  "timestamp": "2026-09-18T02:47:18.347811+00:00"
+}

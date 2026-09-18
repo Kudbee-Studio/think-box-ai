@@ -1,0 +1,52 @@
+{
+  "dag": {
+    "budget_config": {
+      "max_calls": 20,
+      "max_retries": 1,
+      "retryable": [
+        "wrong-key",
+        "distractor-compliance",
+        "parse-fail"
+      ]
+    },
+    "budget_exhausted": null,
+    "calls_spent": 5,
+    "failures": null,
+    "first_try_successes": null,
+    "layers": "see dependencies per task",
+    "recovered_successes": null,
+    "retries": null,
+    "tasks": 1,
+    "verification_rate": null
+  },
+  "goal": "stress-goal-0",
+  "goal_experiment_id": "tb_exp_20260918025243_76764504",
+  "integration_point": "ThinkBoxEngine.execute_goal._execute_task -> GovernedEngine.execute_verified_task -> VerifiedRetrySession.run_async",
+  "ledger_entries": "one per task via execute_verified_task + one goal-level entry",
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "phase": "dag-verified-execution",
+  "proof_sha256": "19f3a3480c073aa217573147ffb75e314c80302f73bf96c21004df4306a6d910",
+  "session_id": "tb_sess_20260918025243_4ae7",
+  "tasks": [
+    {
+      "artifact": "data/thinkboxmd/artifacts/dagpath_compute_add_small_tb_exp_20260918025243_2ca8482b.json",
+      "artifact_sha256": "09c6d8588bf4965d90d0700b306f3076ec0a56dfb9493b65b4428aa53b2731ed",
+      "attempts": null,
+      "converted": null,
+      "execution_status": "",
+      "experiment_id": "tb_exp_20260918025243_2ca8482b",
+      "final_taxonomy": "",
+      "latency_s": null,
+      "retries_used": null,
+      "task_id": "dagtask_20260918025243_00_2edcaa",
+      "taxonomy": "",
+      "tokens": 0
+    }
+  ],
+  "timestamp": "2026-09-18T02:52:43.742508+00:00"
+}

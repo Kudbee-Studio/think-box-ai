@@ -136,6 +136,390 @@ def aggregate_layer_telemetry(results: list[dict[str, Any]]) -> list[dict[str, A
     return [aggregated[i] for i in sorted(aggregated)]
 
 
+class GoalLifecycleState(Enum):
+    """Lifecycle states for a concurrent goal."""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+    TIMEOUT = "timeout"
+
+
+class GoalPriority(Enum):
+    """Priority levels for goals."""
+    LOW = 0
+    NORMAL = 50
+    HIGH = 100
+    CRITICAL = 200
+
+
+@dataclass
+class GoalLifecycleEvent:
+    """Event in a goal's lifecycle."""
+    goal_id: str
+    state: GoalLifecycleState
+    timestamp: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class BudgetReservation:
+    """Budget reservation for a goal."""
+    goal_id: str
+    reserved_calls: int
+    consumed_calls: int = 0
+    reserved_retries: int = 0
+    consumed_retries: int = 0
+    created_at: str = ""
+    updated_at: str = ""
+    
+    def __post_init__(self):
+        if not self.created_at:
+            self.created_at = datetime.now(timezone.utc).isoformat()
+        if not self.updated_at:
+            self.updated_at = self.created_at
+    
+    @property
+    def available_calls(self) -> int:
+        return max(0, self.reserved_calls - self.consumed_calls)
+    
+    @property
+    def available_retries(self) -> int:
+        return max(0, self.reserved_retries - self.consumed_retries)
+    
+    def consume_call(self) -> bool:
+        if self.consumed_calls < self.reserved_calls:
+            self.consumed_calls += 1
+            self.updated_at = datetime.now(timezone.utc).isoformat()
+            return True
+        return False
+    
+    def consume_retry(self) -> bool:
+        if self.consumed_retries < self.reserved_retries:
+            self.consumed_retries += 1
+            self.updated_at = datetime.now(timezone.utc).isoformat()
+            return True
+        return False
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "goal_id": self.goal_id,
+            "reserved_calls": self.reserved_calls,
+            "consumed_calls": self.consumed_calls,
+            "reserved_retries": self.reserved_retries,
+            "consumed_retries": self.consumed_retries,
+            "available_calls": self.available_calls,
+            "available_retries": self.available_retries,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+@dataclass
+class RetryBudget:
+    """Retry budget for a goal."""
+    max_retries: int
+    consumed_retries: int = 0
+    
+    @property
+    def available(self) -> int:
+        return max(0, self.max_retries - self.consumed_retries)
+    
+    def consume(self) -> bool:
+        if self.consumed_retries < self.max_retries:
+            self.consumed_retries += 1
+            return True
+        return False
+
+
+class StarvationDetector:
+    """Detects starvation in concurrent goal execution."""
+    
+    def __init__(
+        self,
+        max_wait_time: float = 30.0,
+        check_interval: float = 1.0,
+    ) -> None:
+        self.max_wait_time = max_wait_time
+        self.check_interval = check_interval
+        self._goal_start_times: dict[str, float] = {}
+        self._starvation_warnings: list[dict[str, Any]] = []
+    
+    def register_goal(self, goal_id: str) -> None:
+        self._goal_start_times[goal_id] = time.monotonic()
+    
+    def unregister_goal(self, goal_id: str) -> None:
+        self._goal_start_times.pop(goal_id, None)
+    
+    def check_starvation(self, running_goals: set[str]) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        starved = []
+        for goal_id in running_goals:
+            start_time = self._goal_start_times.get(goal_id)
+            if start_time is None:
+                continue
+            wait_time = now - start_time
+            if wait_time > self.max_wait_time:
+                starved.append({
+                    "goal_id": goal_id,
+                    "wait_time": wait_time,
+                    "max_wait_time": self.max_wait_time,
+                    "detected_at": datetime.now(timezone.utc).isoformat(),
+                })
+                self._starvation_warnings.append({
+                    "goal_id": goal_id,
+                    "wait_time": wait_time,
+                    "detected_at": datetime.now(timezone.utc).isoformat(),
+                })
+        return starved
+    
+    def get_warnings(self) -> list[dict[str, Any]]:
+        return self._starvation_warnings.copy()
+
+
+class PriorityInversionDetector:
+    """Detects priority inversion in concurrent goal execution."""
+    
+    def __init__(self) -> None:
+        self._inversion_events: list[dict[str, Any]] = []
+    
+    def check_inversion(
+        self,
+        goal_priorities: dict[str, int],
+        running_goals: set[str],
+        blocked_goals: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        inversions = []
+        for blocked_id, blocking_id in blocked_goals.items():
+            blocked_priority = goal_priorities.get(blocked_id, 0)
+            blocking_priority = goal_priorities.get(blocking_id, 0)
+            if blocked_priority > blocking_priority:
+                inversion = {
+                    "blocked_goal": blocked_id,
+                    "blocking_goal": blocking_id,
+                    "blocked_priority": blocked_priority,
+                    "blocking_priority": blocking_priority,
+                    "detected_at": datetime.now(timezone.utc).isoformat(),
+                }
+                inversions.append(inversion)
+                self._inversion_events.append(inversion)
+        return inversions
+    
+    def get_inversions(self) -> list[dict[str, Any]]:
+        return self._inversion_events.copy()
+
+
+class DeadlineManager:
+    """Manages deadlines and timeouts for concurrent goals."""
+    
+    def __init__(self) -> None:
+        self._deadlines: dict[str, float] = {}
+        self._timeout_callbacks: dict[str, Callable[[], Any]] = {}
+    
+    def set_deadline(self, goal_id: str, timeout_seconds: float) -> None:
+        deadline = time.monotonic() + timeout_seconds
+        self._deadlines[goal_id] = deadline
+    
+    def set_timeout_callback(self, goal_id: str, callback: Callable[[], Any]) -> None:
+        self._timeout_callbacks[goal_id] = callback
+    
+    def remove_deadline(self, goal_id: str) -> None:
+        self._deadlines.pop(goal_id, None)
+        self._timeout_callbacks.pop(goal_id, None)
+    
+    def check_timeouts(self) -> list[str]:
+        now = time.monotonic()
+        timed_out = []
+        for goal_id, deadline in list(self._deadlines.items()):
+            if now >= deadline:
+                timed_out.append(goal_id)
+                callback = self._timeout_callbacks.pop(goal_id, None)
+                if callback:
+                    try:
+                        callback()
+                    except Exception:
+                        pass
+                self._deadlines.pop(goal_id, None)
+        return timed_out
+    
+    def get_remaining_time(self, goal_id: str) -> float | None:
+        deadline = self._deadlines.get(goal_id)
+        if deadline is None:
+            return None
+        remaining = deadline - time.monotonic()
+        return max(0.0, remaining)
+
+
+class FailureIsolator:
+    """Isolates failures to prevent cascade."""
+    
+    def __init__(self) -> None:
+        self._failure_log: list[dict[str, Any]] = []
+        self._isolated_goals: set[str] = set()
+    
+    def record_failure(self, goal_id: str, error: Exception, context: dict[str, Any] | None = None) -> None:
+        self._failure_log.append({
+            "goal_id": goal_id,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "context": context or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        self._isolated_goals.add(goal_id)
+    
+    def is_isolated(self, goal_id: str) -> bool:
+        return goal_id in self._isolated_goals
+    
+    def get_failure_log(self) -> list[dict[str, Any]]:
+        return self._failure_log.copy()
+    
+    def clear_isolation(self, goal_id: str) -> None:
+        self._isolated_goals.discard(goal_id)
+
+
+class ProvenanceTracker:
+    """Tracks provenance across concurrent goals."""
+    
+    def __init__(self) -> None:
+        self._provenance_chain: list[dict[str, Any]] = []
+        self._goal_provenance: dict[str, list[dict[str, Any]]] = {}
+    
+    def add_event(
+        self,
+        goal_id: str,
+        event_type: str,
+        data: dict[str, Any],
+        parent_event_id: str | None = None,
+    ) -> str:
+        event_id = f"prov_{uuid.uuid4().hex[:12]}"
+        event = {
+            "event_id": event_id,
+            "goal_id": goal_id,
+            "event_type": event_type,
+            "data": data,
+            "parent_event_id": parent_event_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._provenance_chain.append(event)
+        if goal_id not in self._goal_provenance:
+            self._goal_provenance[goal_id] = []
+        self._goal_provenance[goal_id].append(event)
+        return event_id
+    
+    def get_chain(self) -> list[dict[str, Any]]:
+        return self._provenance_chain.copy()
+    
+    def get_goal_chain(self, goal_id: str) -> list[dict[str, Any]]:
+        return self._goal_provenance.get(goal_id, []).copy()
+    
+    def get_cross_goal_links(self) -> list[dict[str, Any]]:
+        links = []
+        for event in self._provenance_chain:
+            if event.get("parent_event_id"):
+                links.append({
+                    "child_event": event["event_id"],
+                    "parent_event": event["parent_event_id"],
+                    "child_goal": event["goal_id"],
+                    "event_type": event["event_type"],
+                })
+        return links
+
+
+class ExecutionReceipt:
+    """Persistent execution receipt for a goal."""
+    
+    def __init__(
+        self,
+        goal_id: str,
+        session_id: str,
+        experiment_id: str,
+        goal_spec: ConcurrentGoalSpec,
+    ) -> None:
+        self.goal_id = goal_id
+        self.session_id = session_id
+        self.experiment_id = experiment_id
+        self.goal_spec = goal_spec
+        self.lifecycle_events: list = []
+        self.budget_reservation: Any = None
+        self.retry_budget: Any = None
+        self.start_time: float = time.monotonic()
+        self.end_time: float | None = None
+        self.final_state: Any = None
+        self.error: Exception | None = None
+        self.provenance_chain: list[dict[str, Any]] = []
+        self.proof_artifacts: list[str] = []
+        self.layer_telemetry: list[dict[str, Any]] = []
+        self.metadata: dict[str, Any] = {}
+    
+    def add_lifecycle_event(self, state: Any, metadata: dict[str, Any] | None = None) -> None:
+        from thinkbox.concurrent_goals import GoalLifecycleEvent, GoalLifecycleState
+        self.lifecycle_events.append(GoalLifecycleEvent(
+            goal_id=self.goal_id,
+            state=state,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            metadata=metadata or {},
+        ))
+        if state in ("completed", "failed", "cancelled", "budget_exhausted", "timeout"):
+            self.final_state = state
+            self.end_time = time.monotonic()
+    
+    def set_budget_reservation(self, reservation: Any) -> None:
+        self.budget_reservation = reservation
+    
+    def set_retry_budget(self, retry_budget: Any) -> None:
+        self.retry_budget = retry_budget
+    
+    def add_provenance(self, event: dict[str, Any]) -> None:
+        self.provenance_chain.append(event)
+    
+    def add_proof_artifact(self, path: str) -> None:
+        self.proof_artifacts.append(path)
+    
+    def set_layer_telemetry(self, telemetry: list[dict[str, Any]]) -> None:
+        self.layer_telemetry = telemetry
+    
+    def set_error(self, error: Exception) -> None:
+        self.error = error
+    
+    def set_metadata(self, key: str, value: Any) -> None:
+        self.metadata[key] = value
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "goal_id": self.goal_id,
+            "session_id": self.session_id,
+            "experiment_id": self.experiment_id,
+            "lifecycle_events": [
+                {
+                    "goal_id": e.goal_id,
+                    "state": e.state.value,
+                    "timestamp": e.timestamp,
+                    "metadata": e.metadata,
+                }
+                for e in self.lifecycle_events
+            ],
+            "budget_reservation": self.budget_reservation.to_dict() if self.budget_reservation else None,
+            "retry_budget": {
+                "max_retries": self.retry_budget.max_retries,
+                "consumed_retries": self.retry_budget.consumed_retries,
+            } if self.retry_budget else None,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "duration": (self.end_time or time.monotonic()) - self.start_time,
+            "final_state": self.final_state.value if self.final_state else None,
+            "error": {
+                "type": type(self.error).__name__,
+                "message": str(self.error),
+            } if self.error else None,
+            "provenance_chain": self.provenance_chain,
+            "proof_artifacts": self.proof_artifacts,
+            "layer_telemetry": self.layer_telemetry,
+            "metadata": self.metadata,
+        }
+
+
 class ConcurrentGoalsRunner:
     """Run multiple verified ThinkBox goals concurrently via existing primitives.
 
@@ -145,14 +529,99 @@ class ConcurrentGoalsRunner:
     is requested.
     """
 
-    def __init__(self) -> None:
-        pass
+    def __init__(
+        self,
+        enable_deadlines: bool = True,
+        enable_starvation_detection: bool = True,
+        enable_priority_inversion_detection: bool = True,
+        enable_failure_isolation: bool = True,
+        enable_provenance_tracking: bool = True,
+        max_wait_time_seconds: float = 30.0,
+        default_deadline_seconds: float | None = None,
+    ) -> None:
+        self.enable_deadlines = enable_deadlines
+        self.enable_starvation_detection = enable_starvation_detection
+        self.enable_priority_inversion_detection = enable_priority_inversion_detection
+        self.enable_failure_isolation = enable_failure_isolation
+        self.enable_provenance_tracking = enable_provenance_tracking
+        self.max_wait_time_seconds = max_wait_time_seconds
+        self.default_deadline_seconds = default_deadline_seconds
+        
+        # Initialize subsystems
+        self._deadline_manager = DeadlineManager() if enable_deadlines else None
+        self._starvation_detector = StarvationDetector(max_wait_time_seconds) if enable_starvation_detection else None
+        self._priority_inversion_detector = PriorityInversionDetector() if enable_priority_inversion_detection else None
+        self._failure_isolator = FailureIsolator() if enable_failure_isolation else None
+        self._provenance_tracker = ProvenanceTracker() if enable_provenance_tracking else None
+        
+        # Runtime state
+        self._active_goals: dict[str, asyncio.Task] = {}
+        self._goal_priorities: dict[str, int] = {}
+        self._goal_deadlines: dict[str, float] = {}
+        self._goal_status: dict[str, str] = {}  # goal_id -> "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout"
+        self._goal_receipts: dict[str, ExecutionReceipt] = {}
+        self._replay_log: list[dict[str, Any]] = []
+        self._cancelled: bool = False
 
     @staticmethod
     def _fresh_governed(ledger_path: str = ":memory:") -> GovernedEngine:
         return GovernedEngine(GovernedEngineConfig(
             engine=ThinkBoxEngine(), ledger_path=ledger_path,
         ))
+
+    def cancel_all(self, reason: str = "cancelled") -> None:
+        """Cancel all running goals."""
+        self._cancelled = True
+        for goal_id, task in self._active_goals.items():
+            if not task.done():
+                task.cancel()
+            self._update_goal_status(spec.goal, GoalLifecycleState.CANCELLED, {"reason": reason})
+
+    def shutdown(self, graceful: bool = True, timeout: float = 30.0) -> dict[str, Any]:
+        """Graceful shutdown of all running goals."""
+        results = {
+            "cancelled": [],
+            "completed": [],
+            "timed_out": [],
+            "errors": [],
+        }
+        
+        # Cancel all running goals
+        for goal_id, task in self._active_goals.items():
+            if not task.done():
+                task.cancel()
+                self._update_goal_status(goal_id, GoalLifecycleState.CANCELLED, {"reason": "shutdown"})
+                results["cancelled"].append(goal_id)
+        
+        # Wait for completion with timeout
+        if graceful and self._active_goals:
+            start_time = time.monotonic()
+            while self._active_goals and (time.monotonic() - start_time) < timeout:
+                done = []
+                for goal_id, task in self._active_goals.items():
+                    if task.done():
+                        done.append(goal_id)
+                        results["completed"].append(goal_id)
+                for goal_id in done:
+                    del self._active_goals[goal_id]
+                if not self._active_goals:
+                    break
+                time.sleep(0.1)
+            
+            # Handle timed out
+            for goal_id in list(self._active_goals.keys()):
+                results["timed_out"].append(goal_id)
+                results["errors"].append(f"Goal {goal_id} timed out during shutdown")
+        
+        return results
+
+    def cancel_all(self, reason: str = "cancelled") -> None:
+        """Cancel all running goals."""
+        self._cancelled = True
+        for goal_id, task in self._active_goals.items():
+            if not task.done():
+                task.cancel()
+            # Note: spec not available here, would need goal_id to spec mapping
 
     async def run_concurrent(
         self,
@@ -498,6 +967,7 @@ class StressTestResult:
     completed_goals: int = 0
     failed_goals: int = 0
     timestamp: str = ""
+    proof_paths: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.timestamp:
@@ -705,7 +1175,16 @@ class StressTestRunner:
         duration = time.monotonic() - start_time
         
         # Aggregate results
-        return self._aggregate_results(config, result, duration)
+        result = self._aggregate_results(config, result, duration)
+        
+        if manager is not None:
+            try:
+                persisted = self.persist(manager, result)
+                result.proof_paths = [str(persisted.get("proof_artifact", ""))]
+            except Exception:
+                pass
+        
+        return result
     
     def _aggregate_results(
         self,
@@ -746,7 +1225,9 @@ class StressTestRunner:
     def persist(self, manager: Any, result: StressTestResult) -> dict[str, Any]:
         """Persist stress test results via ExperimentManager."""
         from thinkbox.concurrent_goals import persist_stress_test
-        return persist_stress_test(manager, result)
+        persisted = persist_stress_test(manager, result)
+        result.proof_paths = [str(persisted.get("proof_artifact", ""))]
+        return persisted
 
     def __str__(self) -> str:
         return f"StressTestRunner(goals={self._total_goals}, completed={self._completed_goals})"
@@ -942,7 +1423,7 @@ def persist_stress_test(
         agent_id="stress-test-runner",
         timestamp=result.timestamp,
         intent="concurrency-stress-test",
-        hypothesis=f"concurrency stress test with {result.config.num_goals} goals, {result.config.contention_policy.value} policy",
+        hypothesis=f"concurrency stress test with {result.config.num_goals} goals, {result.config.contention_policy.value if hasattr(result.config.contention_policy, 'value') else result.config.contention_policy} policy",
         execution_mode="live",
         status="completed",
         four_state="TEST_VERIFIED",
@@ -954,7 +1435,7 @@ def persist_stress_test(
         ("scope", "stress_test"),
         ("total_goals", str(result.config.num_goals)),
         ("max_calls_global", str(result.config.max_calls_global)),
-        ("contention_policy", result.config.contention_policy.value),
+        ("contention_policy", result.config.contention_policy.value if hasattr(result.config.contention_policy, 'value') else result.config.contention_policy),
         ("total_calls_spent", str(result.total_calls)),
         ("total_retries", str(result.total_retries)),
         ("total_budget_exhausted", str(result.total_budget_exhausted)),
