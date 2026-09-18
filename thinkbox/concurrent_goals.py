@@ -536,3 +536,99 @@ class StressTestRunner:
             completed_goals=sum(1 for v in result.per_goal_accounting.values() if v.get("execution_status") == "verified"),
             failed_goals=sum(1 for v in result.per_goal_accounting.values() if v.get("execution_status") != "verified"),
         )
+
+
+# =============================================================================
+# Dynamic Budget Reallocation
+# =============================================================================
+
+class BudgetReallocator:
+    """Dynamic budget reallocation for shared-session concurrent goals.
+    
+    Supports reallocation of unused budget from completed/failed goals
+    to active goals based on configurable policies.
+    """
+
+    def __init__(
+        self,
+        policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE,
+        min_reallocation: int = 1,
+    ) -> None:
+        self.policy = policy
+        self.min_reallocation = min_reallocation
+        self._reallocation_log: list[dict[str, Any]] = []
+
+    def reallocate(
+        self,
+        global_session: VerifiedRetrySession,
+        goal_budget_limits: dict[str, int],
+        goal_budget_consumed: dict[str, int],
+        goal_status: dict[str, str],  # goal_id -> "running" | "completed" | "failed"
+    ) -> dict[str, int]:
+        """Reallocate unused budget from completed/failed goals to running goals.
+        
+        Returns updated goal_budget_limits.
+        """
+        # Calculate available budget from completed/failed goals
+        available = 0
+        for goal_id, status in goal_status.items():
+            if status in ("completed", "failed"):
+                consumed = goal_budget_consumed.get(goal_id, 0)
+                limit = goal_budget_limits.get(goal_id, 0)
+                unused = max(0, limit - consumed)
+                if unused > 0:
+                    self._reallocation_log.append({
+                        "goal_id": goal_id,
+                        "action": "release",
+                        "amount": unused,
+                        "reason": f"goal {status}",
+                    })
+                    available += unused
+        
+        if available < self.min_reallocation:
+            return goal_budget_limits
+        
+        # Find running goals
+        running_goals = [g for g, s in goal_status.items() if s == "running"]
+        if not running_goals:
+            return goal_budget_limits
+        
+        # Reallocate based on policy
+        if self.policy == BudgetContentionPolicy.FAIR_SHARE:
+            share = available // len(running_goals)
+            for g in running_goals:
+                goal_budget_limits[g] = goal_budget_limits.get(g, 0) + share
+                self._reallocation_log.append({
+                    "goal_id": g,
+                    "action": "allocate",
+                    "amount": share,
+                    "reason": "fair_share reallocation",
+                })
+        elif self.policy == BudgetContentionPolicy.PRIORITY:
+            # Sort by priority (higher first)
+            # Note: would need priority info in goal_status or separate mapping
+            share = available // len(running_goals)
+            for g in running_goals:
+                goal_budget_limits[g] = goal_budget_limits.get(g, 0) + share
+                self._reallocation_log.append({
+                    "goal_id": g,
+                    "action": "allocate",
+                    "amount": share,
+                    "reason": "priority reallocation",
+                })
+        elif self.policy == BudgetContentionPolicy.FIFO:
+            share = available // len(running_goals)
+            for g in running_goals:
+                goal_budget_limits[g] = goal_budget_limits.get(g, 0) + share
+                self._reallocation_log.append({
+                    "goal_id": g,
+                    "action": "allocate",
+                    "amount": share,
+                    "reason": "fifo reallocation",
+                })
+        
+        return goal_budget_limits
+    
+    def get_reallocation_log(self) -> list[dict[str, Any]]:
+        """Get the reallocation log."""
+        return self._reallocation_log.copy()
