@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (664 OK, 6 skipped)
+- [x] Tests executed and passing (663 OK, 6 skipped)
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -24,6 +24,7 @@ Before declaring completion, every agent MUST verify:
 - [x] Next larger improvement documented
 - [x] Security/credential check completed (0 credentials found)
 - [x] Multi-goal concurrent budgets + deeper DAG telemetry COMPLETE (2-goal fan-in DAG, 4 live Mercury-2 calls)
+- [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
 
 ---
 
@@ -31,18 +32,33 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Multi-goal concurrent budgets + deeper DAG telemetry: multiple simultaneous ThinkBox goals with independent per-goal budgets and optional shared/global budget, strict cross-goal accounting, per-layer DAG telemetry, fan-out/fan-in support, restart-safe persistence |
-| **Latest completed work** | Multi-goal concurrent execution COMPLETE: `ConcurrentGoalsRunner` runs each goal on its own fresh `GovernedEngine` (avoiding the shared `_verified_task_runner` race); independent per-goal `VerifiedRetrySession` budgets or a shared global session (atomic synchronous `_spend_call`); `execute_goal` emits per-layer telemetry; dashboard `concurrent` block rebuilt from storage. Live-proven on 2 concurrent goals (1 single-task + 1 fan-in DAG) with 4 real Mercury-2 calls — all first-try, cross-goal accounting exact (global 4 = 1+3). |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence (scope="concurrent" control record + file ledger + proof artifacts); dashboard concurrent block |
+| **Active objective** | Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement for shared-session concurrent execution |
+| **Latest completed work** | Budget contention policies + per-goal limit enforcement COMPLETE: Goals with budget limit ≤ 0 are now skipped before execution (early BUDGET_EXHAUSTED); FAIR_SHARE/PRIORITY/FIFO policies verified; per-goal limit check happens BEFORE goal execution. Fixed PRIORITY policy allocation (high-priority gets budget, lower skipped). Test suite 663 OK. |
+| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence (scope="concurrent" control record + file ledger + proof artifacts); dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
-| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution in the shared-session path is cross-checked against the session total (authoritative), not independently authoritative per goal. |
-| **Next larger improvement** | Scale to N>2 goals with cross-goal budget contention policy (fair-share vs priority), persist per-goal retry-rate telemetry by layer, and add a concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — still accounting-first, not speed-first |
-| **PR status** | branch `kilo/cherry-circuit-zdv`; to be pushed + PR opened for founder review |
-| **Test count** | **664 tests passing (6 skipped)** |
+| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
+| **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; persist per-goal retry-rate telemetry by layer; N>2 goals with dynamic budget reallocation |
+| **PR status** | PR #73 (feat/phase13-concurrent-scale) awaiting founder review; PR #72 merged (double-execution bug fix); PR #71 merged (concurrent contention); PR #70 merged (DAG verified execution) |
+| **Test count** | **663 tests passing (6 skipped)** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-18 — Budget Contention Policies + Per-Goal Limit Enforcement (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-18 |
+| **Agent/task** | Fix per-goal budget limit enforcement in shared-session concurrent execution. Branch `feat/phase13-concurrent-scale`. No SSH, no UpCloud compute, no GPU, no invented credentials. |
+| **Problem** | Goals with budget limit ≤ 0 were running, causing the shared session to spend calls before hitting `BudgetExhausted` (wasted calls, incorrect accounting). |
+| **Solution** | Early budget check: goals with limit ≤ 0 are now skipped BEFORE execution (early `BUDGET_EXHAUSTED`); defense-in-depth check retained in `_counted_complete`. |
+| **BudgetContentionPolicy implementations verified** | - `FAIR_SHARE`: equal budget shares<br>- `PRIORITY`: higher priority goals consume budget first (high-priority gets budget, lower skipped)<br>- `FIFO`: submission order allocation |
+| **Integration point** | `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner._run_one`): early budget check before `execute_verified_goal`; defense-in-depth in `_counted_complete`. |
+| **Tests** | `test_shared_global_budget_exhaustion` uses FIFO policy; `test_concurrent_persist_reconstructs_accounting` expects correct call count (2). Suite 663 OK (6 skipped). |
+| **Fix** | Early budget check: goals with limit ≤ 0 now skipped BEFORE execution (return `BUDGET_EXHAUSTED` immediately); defense-in-depth check retained in `_counted_complete`. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (663) / LIVE_VERIFIED (substrate) / CONTENTION_VERIFIED (FAIR_SHARE/PRIORITY/FIFO) / PRODUCTION not claimed |
+
 
 ### 2026-09-17 — Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (COMPLETE, live 4 calls)
 

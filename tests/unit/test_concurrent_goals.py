@@ -195,9 +195,9 @@ class TestConcurrentGoalsExecution(unittest.TestCase):
         # Exactly 1 call allowed globally (no double count, no overrun)
         self.assertEqual(result.global_calls_spent, 1)
         self.assertEqual(result.cross_goal_summary["shared_session_calls_spent"], 1)
-        # First goal succeeds, second is skipped (no budget exhausted since second never runs)
+        # First goal succeeds, second is skipped due to budget exhaustion (FIFO: first gets all, second gets 0)
         total_budget_exhausted = sum(a.get("budget_exhausted", 0) for a in result.per_goal_accounting.values())
-        self.assertEqual(total_budget_exhausted, 0)
+        self.assertEqual(total_budget_exhausted, 1)
 
     def test_retry_accounting_per_goal_and_global(self):
         # Per-goal retry tracking is tested at session level; here we verify

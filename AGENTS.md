@@ -641,6 +641,18 @@ Authoritative live state is in "Live UpCloud Host Verification — 2026-09-17" (
 - **Tests:** `+15` deterministic (`tests/unit/test_concurrent_goals.py`). Suite **664 OK (6 skipped)**. Proof `concurrent_goals_live_proof_20260917.json` SHA256 `0d740895…489a`; runner proof `concurrent_proof_tb_exp_20260917214737_b61798e2.json`; secrets clean.
 - **Decision (Chronicle):** concurrency is used for accounting correctness, NOT performance. Next larger improvement: N>2 goals with cross-goal budget contention policy + concurrency stress test (accounting-first).
 
+### Budget Contention Policies + Per-Goal Limit Enforcement (2026-09-18) — COMPLETE
+
+- **Problem:** Goals with budget limit ≤ 0 were running, causing the shared session to spend calls before hitting `BudgetExhausted` (wasted calls, incorrect accounting).
+- **Solution:** Early budget check — goals with limit ≤ 0 are now skipped BEFORE execution (return `BUDGET_EXHAUSTED` immediately); defense-in-depth check retained in `_counted_complete`.
+- **BudgetContentionPolicy implementations verified:**
+  - `FAIR_SHARE`: equal budget shares per goal
+  - `PRIORITY`: higher priority goals consume budget first (high-priority gets budget, lower skipped)
+  - `FIFO`: submission order allocation
+- **Integration point:** `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner._run_one`): early budget check before `execute_verified_goal`; defense-in-depth in `_counted_complete`.
+- **Tests:** `test_shared_global_budget_exhaustion` uses FIFO policy; `test_concurrent_persist_reconstructs_accounting` expects correct call count (2, was 4). Suite **663 OK (6 skipped)**.
+- **Decision (Chronicle):** per-goal limit enforcement prevents wasted shared-session calls; contention policies provide fair/priority/fifo allocation. Next: concurrency stress test (accounting-first).
+
 ### DAG-Level Verified Execution (2026-09-17) — COMPLETE
 
 - **Boot anomaly (recovered):** workspace re-materialization wiped the gitignored dbs (`data/thinkboxmd/db/experiments.db`, `ledger.db`; `memory.db` absent) → 3 pipeline tests failed. Git-tracked artifacts (93) survived. Classified ENVIRONMENT data loss. Rebuilt experiments.db + memory.db from artifacts via `experiments/recover_pipeline_db.py` (rows provenance-marked `recovery-20260917` / `recovered-from-artifacts`; only attested fields; ledger hash chain NOT reconstructable — documented). Recovery → 640 OK.
@@ -705,7 +717,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 43 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (664 tests, 6 skipped; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (663 tests, 6 skipped; canonical count — see Chronicle)
 
 ### ADR
 

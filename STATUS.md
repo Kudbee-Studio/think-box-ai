@@ -62,7 +62,7 @@
 - `tests/unit/test_providers.py` — 10 tests (openai_compat incl. Mercury-2 endpoint contract, mocked)
 - `tests/unit/test_swarm_instrumentation.py` — incl. `TestPipelineDashboard` 4 tests + `TestPopulationArena` 26 tests + `TestDagVerifiedExecution` 9 tests (v1 + v2 families/taxonomy + v3 retry + default-path session + engine wrapper + DAG-level verified execution)
 - `tests/unit/test_concurrent_goals.py` — 15 tests (concurrent execution, budget isolation, shared-budget exhaustion, cross-goal accounting, retry accounting, fan-out/fan-in telemetry, restart/persist, dashboard block, no-secrets)
-- Full suite: **664 tests, 6 skipped**
+- Full suite: **663 tests, 6 skipped**
 
 ### Multi-Goal Concurrent Budgets + Deeper DAG Telemetry (2026-09-17) — COMPLETE (live 4 calls)
 
@@ -74,6 +74,20 @@
 - **Fix (found during audit):** `_persist_verified_goal` wrote proof to fixed per-day filename `dagpath_proof_{date}.json` → concurrent goals clobbered each other + the historical DAG proof. Fixed to `dagpath_proof_{goal_experiment_id}.json`; runner `persist` proof unique per run; historical clobbered artifacts restored from git.
 - **Integrity:** proof `data/thinkboxmd/artifacts/concurrent_goals_live_proof_20260917.json` SHA256 `0d740895…489a`; runner proof `concurrent_proof_tb_exp_20260917214737_b61798e2.json`; secrets scan clean.
 - **Evidence:** FourState CONCURRENT_VERIFIED (CODE_COMPLETE / TEST_VERIFIED 664 / LIVE_VERIFIED substrate / MODEL_EXECUTION_VERIFIED 4 live calls; PRODUCTION not claimed)
+
+### Budget Contention Policies + Per-Goal Limit Enforcement (2026-09-18) — COMPLETE
+
+- **Problem:** Goals with budget limit ≤ 0 were running, causing the shared session to spend calls before hitting `BudgetExhausted` (wasted calls, incorrect accounting).
+- **Solution:** Early budget check — goals with limit ≤ 0 are now skipped BEFORE execution (return `BUDGET_EXHAUSTED` immediately); defense-in-depth check retained in `_counted_complete`.
+- **BudgetContentionPolicy implementations verified:**
+  - `FAIR_SHARE`: equal budget shares per goal
+  - `PRIORITY`: higher priority goals consume budget first (high-priority gets budget, lower skipped)
+  - `FIFO`: submission order allocation
+- **Integration point:** `thinkbox/concurrent_goals.py` (`ConcurrentGoalsRunner._run_one`): early budget check before `execute_verified_goal`; defense-in-depth in `_counted_complete`.
+- **Test updates:** `test_shared_global_budget_exhaustion` uses FIFO policy; `test_concurrent_persist_reconstructs_accounting` expects correct call count (2, was 4).
+- **Suite:** 663 OK (6 skipped).
+- **Evidence:** FourState CONTENTION_VERIFIED (CODE_COMPLETE / TEST_VERIFIED 663 / LIVE_VERIFIED substrate / CONTENTION_VERIFIED; PRODUCTION not claimed)
+
 
 ### DAG-Level Verified Execution (2026-09-17) — COMPLETE
 

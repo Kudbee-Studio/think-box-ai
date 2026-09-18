@@ -435,6 +435,45 @@ def _pipeline() -> dict[str, Any]:
             for r in concurrent_runs
         ),
     }
+
+    # Stress test block
+    stress_runs = []
+    for eid, pmap in params_by_exp.items():
+        if pmap.get("scope") != "stress_test":
+            continue
+        try:
+            import json as _json2
+            per_goal_calls = _json2.loads(pmap.get("per_goal_calls", "{}") or "{}")
+            per_goal_retries = _json2.loads(pmap.get("per_goal_retries", "{}") or "{}")
+        except Exception:
+            per_goal_calls = {}
+            per_goal_retries = {}
+        stress_runs.append({
+            "run_experiment_id": eid,
+            "total_goals": int(pmap.get("total_goals", 0) or 0),
+            "max_calls_global": int(pmap.get("max_calls_global", 0) or 0),
+            "contention_policy": pmap.get("contention_policy", "fair_share"),
+            "total_calls_spent": int(pmap.get("total_calls_spent", 0) or 0),
+            "total_retries": int(pmap.get("total_retries", 0) or 0),
+            "total_budget_exhausted": int(pmap.get("total_budget_exhausted", 0) or 0),
+            "fairness_index": float(pmap.get("fairness_index", 0.0) or 0.0),
+            "duration_seconds": float(pmap.get("duration_seconds", 0.0) or 0.0),
+            "peak_concurrency": int(pmap.get("peak_concurrency", 0) or 0),
+            "completed_goals": int(pmap.get("completed_goals", 0) or 0),
+            "failed_goals": int(pmap.get("failed_goals", 0) or 0),
+            "per_goal_calls": per_goal_calls,
+            "per_goal_retries": per_goal_retries,
+        })
+    stress_block = {
+        "runs": stress_runs,
+        "total_runs": len(stress_runs),
+        "total_goals": sum(r["total_goals"] for r in stress_runs),
+        "total_calls": sum(r["total_calls_spent"] for r in stress_runs),
+        "avg_fairness": (
+            sum(r["fairness_index"] for r in stress_runs) / len(stress_runs)
+            if stress_runs else 0.0
+        ),
+    }
     return {
         "substrate": latest_box or "unknown",
         "jobs": jobs,
@@ -464,6 +503,7 @@ def _pipeline() -> dict[str, Any]:
         "arena": arena_block,
         "dag": dag_block,
         "concurrent": concurrent_block,
+        "stress": stress_block,
         "verification_state": state,
         "blockers": [
             "SSH-to-UpCloud unsupported (historical key not authorized; removed from roadmap)",
