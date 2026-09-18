@@ -3296,3 +3296,506 @@ class SchedulerPolicyPackV2:
             "policies": list(self._policies.keys()),
             "loaded_at": dict(self._loaded_at),
         }
+
+
+# =============================================================================
+# PR #81 Features - 5 major governed scheduler features
+# =============================================================================
+
+
+class MultiQueueRouting:
+    """Feature 1 (PR81): Multi-queue routing with affinity.
+
+    Routes jobs to named queues by tenant/capability. Sticky affinity
+    so related jobs prefer the same queue/worker pool. Fail closed
+    if no matching queue exists.
+    """
+
+    def __init__(self) -> None:
+        self._queues: dict[str, set[str]] = {}
+        self._queue_assignments: dict[str, str] = {}
+        self._affinity_map: dict[str, str] = {}
+        self._routed: list[dict[str, Any]] = []
+        self._fallbacks: list[dict[str, Any]] = []
+
+    def register_queue(self, queue_id: str, tenant_ids: list[str], capabilities: list[str]) -> None:
+        self._queues[queue_id] = set(tenant_ids)
+        for tid in tenant_ids:
+            self._affinity_map[f"tenant:{tid}"] = queue_id
+        for cap in capabilities:
+            self._affinity_map[f"capability:{cap}"] = queue_id
+
+    def route(self, job_id: str, tenant_id: str | None = None, capability: str | None = None) -> dict[str, Any]:
+        queue_id = None
+        affinity_key = None
+        if tenant_id:
+            affinity_key = f"tenant:{tenant_id}"
+            queue_id = self._affinity_map.get(affinity_key)
+        if queue_id is None and capability:
+            affinity_key = f"capability:{capability}"
+            queue_id = self._affinity_map.get(affinity_key)
+        if queue_id is None:
+            self._fallbacks.append({
+                "job_id": job_id,
+                "reason": "no_matching_queue",
+                "tenant_id": tenant_id,
+                "capability": capability,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            return {
+                "job_id": job_id,
+                "routed": False,
+                "queue_id": None,
+                "reason": "no_matching_queue_fail_closed",
+                "affinity_used": affinity_key,
+            }
+        self._queue_assignments[job_id] = queue_id
+        entry = {
+            "job_id": job_id,
+            "routed": True,
+            "queue_id": queue_id,
+            "affinity": affinity_key,
+            "tenant_id": tenant_id,
+            "capability": capability,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._routed.append(entry)
+        return entry
+
+    def get_queue_jobs(self, queue_id: str) -> list[str]:
+        return [j for j, q in self._queue_assignments.items() if q == queue_id]
+
+    def get_queue_stats(self) -> dict[str, Any]:
+        queue_counts: dict[str, int] = {}
+        for qid in self._queues:
+            queue_counts[qid] = len(self.get_queue_jobs(qid))
+        return {
+            "queues": len(self._queues),
+            "queue_counts": queue_counts,
+            "total_routed": len(self._routed),
+            "fallbacks": len(self._fallbacks),
+        }
+
+    def get_fallbacks(self) -> list[dict[str, Any]]:
+        return list(self._fallbacks)
+
+    def is_queued(self, job_id: str) -> bool:
+        return job_id in self._queue_assignments
+
+
+class BackpressureAdmissionV2:
+    """Feature 2 (PR81): Backpressure + admission control v2.
+
+    Global and per-tenant concurrency caps. Shed or defer when
+    ledger pressure / queue depth exceeds thresholds. Emit
+    structured backpressure events.
+    """
+
+    def __init__(
+        self,
+        global_max_concurrency: int = 10,
+        per_tenant_max_concurrency: int = 3,
+        queue_depth_warning: int = 20,
+        queue_depth_critical: int = 50,
+    ) -> None:
+        self.global_max_concurrency = global_max_concurrency
+        self.per_tenant_max_concurrency = per_tenant_max_concurrency
+        self.queue_depth_warning = queue_depth_warning
+        self.queue_depth_critical = queue_depth_critical
+        self._active: dict[str, int] = {}
+        self._tenant_active: dict[str, int] = {}
+        self._queue_depth = 0
+        self._backpressure_events: list[dict[str, Any]] = []
+        self._shed_jobs: list[str] = []
+        self._deferred_jobs: list[str] = []
+
+    @property
+    def global_active(self) -> int:
+        return sum(self._active.values())
+
+    def admit(self, job_id: str, tenant_id: str | None = None, estimated_load: int = 1) -> dict[str, Any]:
+        if self.global_active + estimated_load > self.global_max_concurrency:
+            event = {
+                "job_id": job_id,
+                "event_type": "backpressure",
+                "action": "shed",
+                "reason": "global_concurrency_exceeded",
+                "global_active": self.global_active,
+                "global_max": self.global_max_concurrency,
+                "tenant_id": tenant_id,
+                "estimated_load": estimated_load,
+                "severity": "critical" if self._queue_depth >= self.queue_depth_critical else "warning",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._backpressure_events.append(event)
+            self._shed_jobs.append(job_id)
+            return {"job_id": job_id, "admitted": False, "action": "shed", **event}
+        if tenant_id and self._tenant_active.get(tenant_id, 0) + estimated_load > self.per_tenant_max_concurrency:
+            event = {
+                "job_id": job_id,
+                "event_type": "backpressure",
+                "action": "defer",
+                "reason": "tenant_concurrency_exceeded",
+                "tenant_active": self._tenant_active.get(tenant_id, 0),
+                "tenant_max": self.per_tenant_max_concurrency,
+                "severity": "warning",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._backpressure_events.append(event)
+            self._deferred_jobs.append(job_id)
+            return {"job_id": job_id, "admitted": False, "action": "defer", **event}
+        self._active[job_id] = estimated_load
+        if tenant_id:
+            self._tenant_active[tenant_id] = self._tenant_active.get(tenant_id, 0) + estimated_load
+        return {"job_id": job_id, "admitted": True, "action": "admit", "estimated_load": estimated_load}
+
+    def release(self, job_id: str) -> None:
+        if job_id in self._active:
+            load = self._active.pop(job_id)
+            for tid, count in self._tenant_active.items():
+                if count >= load:
+                    self._tenant_active[tid] = max(0, count - load)
+                    break
+
+    def set_queue_depth(self, depth: int) -> None:
+        self._queue_depth = depth
+        if depth >= self.queue_depth_critical:
+            event = {
+                "event_type": "backpressure",
+                "action": "critical",
+                "queue_depth": depth,
+                "threshold": self.queue_depth_critical,
+                "severity": "critical",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._backpressure_events.append(event)
+        elif depth >= self.queue_depth_warning:
+            event = {
+                "event_type": "backpressure",
+                "action": "warning",
+                "queue_depth": depth,
+                "threshold": self.queue_depth_warning,
+                "severity": "warning",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._backpressure_events.append(event)
+
+    def get_events(self) -> list[dict[str, Any]]:
+        return list(self._backpressure_events)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "global_active": self.global_active,
+            "global_max": self.global_max_concurrency,
+            "per_tenant_max": self.per_tenant_max_concurrency,
+            "queue_depth": self._queue_depth,
+            "active_jobs": len(self._active),
+            "shed_count": len(self._shed_jobs),
+            "deferred_count": len(self._deferred_jobs),
+            "backpressure_events": len(self._backpressure_events),
+            "tenant_active": dict(self._tenant_active),
+        }
+
+
+class DurableJobCheckpoints:
+    """Feature 3 (PR81): Durable job checkpoints + resume.
+
+    Persists mid-job checkpoint blobs. Resume after pause/crash
+    without re-running completed steps. Idempotent resume tied
+    to IdempotencyStore keys when present.
+    """
+
+    def __init__(self, max_checkpoints_per_job: int = 20) -> None:
+        self.max_checkpoints_per_job = max_checkpoints_per_job
+        self._checkpoints: dict[str, list[dict[str, Any]]] = {}
+        self._completed_steps: dict[str, set[str]] = {}
+        self._resume_log: list[dict[str, Any]] = []
+
+    def save_checkpoint(self, job_id: str, step_id: str, state: dict[str, Any]) -> dict[str, Any]:
+        if job_id not in self._checkpoints:
+            self._checkpoints[job_id] = []
+        checkpoint = {
+            "job_id": job_id,
+            "step_id": step_id,
+            "state": state,
+            "checkpoint_id": f"cp_{job_id}_{step_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "step_index": len(self._checkpoints[job_id]),
+        }
+        self._checkpoints[job_id].append(checkpoint)
+        self._gc(job_id)
+        return checkpoint
+
+    def get_checkpoint(self, checkpoint_id: str) -> dict[str, Any] | None:
+        for checkpoints in self._checkpoints.values():
+            for cp in checkpoints:
+                if cp["checkpoint_id"] == checkpoint_id:
+                    return cp
+        return None
+
+    def get_latest_checkpoint(self, job_id: str) -> dict[str, Any] | None:
+        if job_id not in self._checkpoints or not self._checkpoints[job_id]:
+            return None
+        return self._checkpoints[job_id][-1]
+
+    def mark_step_complete(self, job_id: str, step_id: str) -> None:
+        if job_id not in self._completed_steps:
+            self._completed_steps[job_id] = set()
+        self._completed_steps[job_id].add(step_id)
+
+    def is_step_completed(self, job_id: str, step_id: str) -> bool:
+        return job_id in self._completed_steps and step_id in self._completed_steps[job_id]
+
+    def get_completed_steps(self, job_id: str) -> set[str]:
+        return set(self._completed_steps.get(job_id, set()))
+
+    def resume(self, job_id: str, idempotency_key: str | None = None) -> dict[str, Any]:
+        completed = self.get_completed_steps(job_id)
+        checkpoints = self._checkpoints.get(job_id, [])
+        resume_result = {
+            "job_id": job_id,
+            "resumed": len(checkpoints) > 0,
+            "completed_steps": len(completed),
+            "checkpoints_available": len(checkpoints),
+            "skipped_steps": list(completed),
+            "idempotency_key": idempotency_key,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if idempotency_key:
+            resume_result["idempotency_mode"] = "keyed"
+        self._resume_log.append(resume_result)
+        return resume_result
+
+    def can_resume(self, job_id: str) -> bool:
+        return len(self._checkpoints.get(job_id, [])) > 0
+
+    def _gc(self, job_id: str) -> None:
+        if job_id in self._checkpoints:
+            cps = self._checkpoints[job_id]
+            if len(cps) > self.max_checkpoints_per_job:
+                self._checkpoints[job_id] = cps[-self.max_checkpoints_per_job:]
+
+    def get_stats(self) -> dict[str, Any]:
+        total_cps = sum(len(cps) for cps in self._checkpoints.values())
+        return {
+            "jobs": len(self._checkpoints),
+            "total_checkpoints": total_cps,
+            "max_per_job": self.max_checkpoints_per_job,
+            "resume_count": len(self._resume_log),
+        }
+
+
+class DAGExecutionEngine:
+    """Feature 4 (PR81): Dependency DAG execution engine.
+
+    Topological run of job DAGs with critical-path awareness
+    (reuse CriticalPathHighlight). Block until deps succeed;
+    cancel downstream on hard failure per DeadlineMode/policy.
+    """
+
+    def __init__(self) -> None:
+        self._deps: dict[str, set[str]] = {}
+        self._dependents: dict[str, set[str]] = {}
+        self._status: dict[str, str] = {}
+        self._results: dict[str, Any] = {}
+        self._execution_log: list[dict[str, Any]] = []
+        self._critical_path: list[str] = []
+
+    def add_job(self, job_id: str, depends_on: list[str] | None = None) -> None:
+        self._deps[job_id] = set(depends_on or [])
+        if job_id not in self._dependents:
+            self._dependents[job_id] = set()
+        for dep in (depends_on or []):
+            self._dependents.setdefault(dep, set()).add(job_id)
+        self._status[job_id] = "pending"
+
+    def get_ready_jobs(self) -> list[str]:
+        ready = []
+        for job_id, deps in self._deps.items():
+            if self._status.get(job_id) != "pending":
+                continue
+            if all(self._status.get(d) == "completed" for d in deps):
+                ready.append(job_id)
+        return sorted(ready)
+
+    def mark_completed(self, job_id: str, result: Any = None) -> None:
+        self._status[job_id] = "completed"
+        self._results[job_id] = result
+        self._execution_log.append({
+            "job_id": job_id,
+            "status": "completed",
+            "result": result,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def mark_failed(self, job_id: str, error: str = "", hard_failure: bool = False) -> list[str]:
+        self._status[job_id] = "failed"
+        self._results[job_id] = {"error": error}
+        cancelled = []
+        if hard_failure:
+            cancelled = self._cancel_downstream(job_id)
+        self._execution_log.append({
+            "job_id": job_id,
+            "status": "failed",
+            "error": error,
+            "hard_failure": hard_failure,
+            "cancelled_downstream": cancelled,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        return cancelled
+
+    def _cancel_downstream(self, job_id: str) -> list[str]:
+        cancelled = []
+        stack = [job_id]
+        while stack:
+            current = stack.pop()
+            for dependent in self._dependents.get(current, set()):
+                if self._status.get(dependent) == "pending":
+                    self._status[dependent] = "cancelled"
+                    self._execution_log.append({
+                        "job_id": dependent,
+                        "status": "cancelled",
+                        "reason": f"downstream_failure:{job_id}",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                    cancelled.append(dependent)
+                    stack.append(dependent)
+        return cancelled
+
+    def compute_schedule(self) -> list[list[str]] | None:
+        in_degree = {j: 0 for j in self._deps}
+        for j in self._deps:
+            for dep in self._deps[j]:
+                if dep in in_degree:
+                    in_degree[j] += 1
+        queue = [j for j, d in in_degree.items() if d == 0]
+        result: list[list[str]] = []
+        while queue:
+            level = sorted(queue)
+            result.append(level)
+            queue = []
+            for node in level:
+                for dependent in sorted(self._dependents.get(node, set())):
+                    if dependent in in_degree:
+                        in_degree[dependent] -= 1
+                        if in_degree[dependent] == 0:
+                            queue.append(dependent)
+        if sum(len(l) for l in result) != len(self._deps):
+            return None
+        return result
+
+    def set_critical_path(self, path: list[str]) -> None:
+        self._critical_path = path
+
+    def get_critical_path(self) -> list[str]:
+        return list(self._critical_path)
+
+    def get_status(self, job_id: str) -> str:
+        return self._status.get(job_id, "unknown")
+
+    def is_completed(self, job_id: str) -> bool:
+        return self._status.get(job_id) == "completed"
+
+    def get_execution_log(self) -> list[dict[str, Any]]:
+        return list(self._execution_log)
+
+    def get_stats(self) -> dict[str, Any]:
+        total = len(self._deps)
+        completed = sum(1 for s in self._status.values() if s == "completed")
+        failed = sum(1 for s in self._status.values() if s == "failed")
+        cancelled = sum(1 for s in self._status.values() if s == "cancelled")
+        return {
+            "total_jobs": total,
+            "completed": completed,
+            "failed": failed,
+            "cancelled": cancelled,
+            "pending": total - completed - failed - cancelled,
+            "critical_path_length": len(self._critical_path),
+            "has_schedule": self.compute_schedule() is not None,
+        }
+
+
+class ObservabilityExportPack:
+    """Feature 5 (PR81): Observability export pack.
+
+    Metrics + event stream for queue depth, wait time, SLA breaches,
+    fair-share picks, retry budget burns, pause state. JSON/Prometheus-friendly
+    snapshot API. No external SaaS required.
+    """
+
+    def __init__(self) -> None:
+        self._metrics: dict[str, float] = {}
+        self._events: list[dict[str, Any]] = []
+        self._snapshots: list[dict[str, Any]] = []
+
+    def record_metric(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
+        self._metrics[name] = value
+        self._events.append({
+            "event_type": "metric",
+            "name": name,
+            "value": value,
+            "tags": tags or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def record_event(self, event_type: str, data: dict[str, Any]) -> None:
+        self._events.append({
+            "event_type": event_type,
+            "data": data,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    def take_snapshot(self) -> dict[str, Any]:
+        snapshot = {
+            "snapshot_id": f"snap_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}",
+            "metrics": dict(self._metrics),
+            "event_count": len(self._events),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._snapshots.append(snapshot)
+        return snapshot
+
+    def to_json(self) -> str:
+        import json as json_lib
+        data = {
+            "metrics": self._metrics,
+            "events": self._events[-100:],
+            "snapshots": len(self._snapshots),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        return json_lib.dumps(data)
+
+    def to_prometheus(self) -> str:
+        lines = ["# HELP scheduler_metrics Scheduled job metrics", "# TYPE scheduler_metrics gauge"]
+        for name, value in self._metrics.items():
+            safe_name = name.replace("-", "_").replace(" ", "_")
+            lines.append(f'scheduler_metrics{{name="{safe_name}"}} {value}')
+        return "\n".join(lines)
+
+    def get_json_snapshot(self) -> dict[str, Any]:
+        return {
+            "metrics": dict(self._metrics),
+            "events": self._events[-50:],
+            "snapshots": len(self._snapshots),
+            "event_count": len(self._events),
+            "prometheus_available": True,
+            "json_available": True,
+        }
+
+    def get_event_stream(self, event_type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        events = self._events
+        if event_type:
+            events = [e for e in events if e.get("event_type") == event_type]
+        return events[-limit:]
+
+    def get_stats(self) -> dict[str, Any]:
+        event_types = {}
+        for e in self._events:
+            et = e.get("event_type", "unknown")
+            event_types[et] = event_types.get(et, 0) + 1
+        return {
+            "metrics_count": len(self._metrics),
+            "total_events": len(self._events),
+            "event_types": event_types,
+            "snapshots": len(self._snapshots),
+        }

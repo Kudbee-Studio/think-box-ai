@@ -69,6 +69,11 @@ from thinkbox.scheduler import (
     QueuePauseResume,
     SLABreachEmitter,
     SchedulerPolicyPackV2,
+    MultiQueueRouting,
+    BackpressureAdmissionV2,
+    DurableJobCheckpoints,
+    DAGExecutionEngine,
+    ObservabilityExportPack,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -2447,3 +2452,284 @@ class TestSchedulerPolicyPackV2(unittest.TestCase):
         stats = pack.get_stats()
         self.assertEqual(stats["version"], "v2")
         self.assertEqual(stats["total_policies"], 1)
+
+
+
+# =============================================================================
+# Tests for PR #81 - 5 major governed scheduler features
+# =============================================================================
+
+
+class TestMultiQueueRouting(unittest.TestCase):
+    """Feature 1 (PR81): Multi-queue routing with affinity."""
+
+    def test_route_by_tenant(self) -> None:
+        mqr = MultiQueueRouting()
+        mqr.register_queue("q1", tenant_ids=["tenant_a"], capabilities=["compute"])
+        result = mqr.route("job1", tenant_id="tenant_a")
+        self.assertTrue(result["routed"])
+        self.assertEqual(result["queue_id"], "q1")
+
+    def test_route_by_capability(self) -> None:
+        mqr = MultiQueueRouting()
+        mqr.register_queue("q1", tenant_ids=["tenant_a"], capabilities=["compute"])
+        result = mqr.route("job1", capability="compute")
+        self.assertTrue(result["routed"])
+        self.assertEqual(result["queue_id"], "q1")
+
+    def test_fail_closed_no_queue(self) -> None:
+        mqr = MultiQueueRouting()
+        result = mqr.route("job1", tenant_id="unknown")
+        self.assertFalse(result["routed"])
+        self.assertEqual(result["reason"], "no_matching_queue_fail_closed")
+
+    def test_sticky_affinity(self) -> None:
+        mqr = MultiQueueRouting()
+        mqr.register_queue("q1", tenant_ids=["tenant_a"], capabilities=["compute"])
+        mqr.route("job1", tenant_id="tenant_a")
+        mqr.route("job2", tenant_id="tenant_a")
+        self.assertEqual(mqr._queue_assignments["job1"], "q1")
+        self.assertEqual(mqr._queue_assignments["job2"], "q1")
+
+    def test_get_queue_jobs(self) -> None:
+        mqr = MultiQueueRouting()
+        mqr.register_queue("q1", tenant_ids=["t1"], capabilities=["c1"])
+        mqr.route("j1", tenant_id="t1")
+        mqr.route("j2", tenant_id="t1")
+        jobs = mqr.get_queue_jobs("q1")
+        self.assertEqual(len(jobs), 2)
+
+    def test_get_stats(self) -> None:
+        mqr = MultiQueueRouting()
+        mqr.register_queue("q1", tenant_ids=["t1"], capabilities=["c1"])
+        mqr.route("j1", tenant_id="t1")
+        stats = mqr.get_queue_stats()
+        self.assertEqual(stats["queues"], 1)
+        self.assertEqual(stats["total_routed"], 1)
+
+
+class TestBackpressureAdmissionV2(unittest.TestCase):
+    """Feature 2 (PR81): Backpressure + admission control v2."""
+
+    def test_admit_within_limits(self) -> None:
+        bp = BackpressureAdmissionV2(global_max_concurrency=5)
+        result = bp.admit("job1", tenant_id="t1")
+        self.assertTrue(result["admitted"])
+        self.assertEqual(result["action"], "admit")
+
+    def test_shed_when_global_exceeded(self) -> None:
+        bp = BackpressureAdmissionV2(global_max_concurrency=2)
+        bp.admit("j1", tenant_id="t1")
+        bp.admit("j2", tenant_id="t1")
+        result = bp.admit("j3", tenant_id="t1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["action"], "shed")
+
+    def test_defer_when_tenant_exceeded(self) -> None:
+        bp = BackpressureAdmissionV2(per_tenant_max_concurrency=2)
+        bp.admit("j1", tenant_id="t1")
+        bp.admit("j2", tenant_id="t1")
+        result = bp.admit("j3", tenant_id="t1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["action"], "defer")
+
+    def test_release(self) -> None:
+        bp = BackpressureAdmissionV2(global_max_concurrency=2)
+        bp.admit("j1", tenant_id="t1")
+        bp.admit("j2", tenant_id="t2")
+        bp.release("j1")
+        result = bp.admit("j3", tenant_id="t3")
+        self.assertTrue(result["admitted"])
+
+    def test_set_queue_depth_warning(self) -> None:
+        bp = BackpressureAdmissionV2()
+        bp.set_queue_depth(25)
+        events = bp.get_events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["action"], "warning")
+
+    def test_get_stats(self) -> None:
+        bp = BackpressureAdmissionV2()
+        bp.admit("j1", tenant_id="t1")
+        stats = bp.get_stats()
+        self.assertEqual(stats["global_active"], 1)
+        self.assertIn("backpressure_events", stats)
+
+
+class TestDurableJobCheckpoints(unittest.TestCase):
+    """Feature 3 (PR81): Durable job checkpoints + resume."""
+
+    def test_save_checkpoint(self) -> None:
+        dc = DurableJobCheckpoints()
+        cp = dc.save_checkpoint("job1", "step1", {"state": "running"})
+        self.assertIn("checkpoint_id", cp)
+        self.assertEqual(cp["job_id"], "job1")
+        self.assertEqual(cp["step_id"], "step1")
+
+    def test_get_latest_checkpoint(self) -> None:
+        dc = DurableJobCheckpoints()
+        dc.save_checkpoint("job1", "step1", {})
+        dc.save_checkpoint("job1", "step2", {})
+        cp = dc.get_latest_checkpoint("job1")
+        self.assertIsNotNone(cp)
+        self.assertEqual(cp["step_id"], "step2")
+
+    def test_resume(self) -> None:
+        dc = DurableJobCheckpoints()
+        dc.save_checkpoint("job1", "step1", {})
+        dc.mark_step_complete("job1", "step1")
+        result = dc.resume("job1")
+        self.assertTrue(result["resumed"])
+        self.assertEqual(result["completed_steps"], 1)
+
+    def test_resume_with_idempotency(self) -> None:
+        dc = DurableJobCheckpoints()
+        dc.save_checkpoint("job1", "step1", {})
+        result = dc.resume("job1", idempotency_key="key1")
+        self.assertEqual(result["idempotency_key"], "key1")
+        self.assertEqual(result["idempotency_mode"], "keyed")
+
+    def test_mark_step_complete(self) -> None:
+        dc = DurableJobCheckpoints()
+        dc.mark_step_complete("job1", "step1")
+        self.assertTrue(dc.is_step_completed("job1", "step1"))
+        self.assertFalse(dc.is_step_completed("job1", "step2"))
+
+    def test_can_resume(self) -> None:
+        dc = DurableJobCheckpoints()
+        self.assertFalse(dc.can_resume("job1"))
+        dc.save_checkpoint("job1", "step1", {})
+        self.assertTrue(dc.can_resume("job1"))
+
+    def test_get_stats(self) -> None:
+        dc = DurableJobCheckpoints()
+        dc.save_checkpoint("job1", "step1", {})
+        stats = dc.get_stats()
+        self.assertEqual(stats["jobs"], 1)
+        self.assertEqual(stats["total_checkpoints"], 1)
+
+
+class TestDAGExecutionEngine(unittest.TestCase):
+    """Feature 4 (PR81): Dependency DAG execution engine."""
+
+    def test_add_job_and_ready(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.add_job("b", depends_on=["a"])
+        ready = dag.get_ready_jobs()
+        self.assertIn("a", ready)
+        self.assertNotIn("b", ready)
+
+    def test_mark_completed(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.mark_completed("a", result="ok")
+        self.assertEqual(dag.get_status("a"), "completed")
+        self.assertTrue(dag.is_completed("a"))
+
+    def test_mark_failed_cancels_downstream(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.add_job("b", depends_on=["a"])
+        dag.add_job("c", depends_on=["b"])
+        dag.mark_completed("a")
+        cancelled = dag.mark_failed("a", error="fail", hard_failure=True)
+        self.assertIn("b", cancelled)
+        self.assertIn("c", cancelled)
+        self.assertEqual(dag.get_status("b"), "cancelled")
+        self.assertEqual(dag.get_status("c"), "cancelled")
+
+    def test_soft_failure_no_cancel(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.add_job("b", depends_on=["a"])
+        cancelled = dag.mark_failed("a", error="soft")
+        self.assertEqual(len(cancelled), 0)
+        self.assertEqual(dag.get_status("b"), "pending")
+
+    def test_compute_schedule(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.add_job("b")
+        dag.add_job("c", depends_on=["a", "b"])
+        schedule = dag.compute_schedule()
+        self.assertIsNotNone(schedule)
+        self.assertEqual(len(schedule), 2)
+        self.assertIn("a", schedule[0])
+        self.assertIn("b", schedule[0])
+        self.assertIn("c", schedule[1])
+
+    def test_set_critical_path(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.set_critical_path(["a", "b", "c"])
+        self.assertEqual(dag.get_critical_path(), ["a", "b", "c"])
+
+    def test_get_stats(self) -> None:
+        dag = DAGExecutionEngine()
+        dag.add_job("a")
+        dag.add_job("b", depends_on=["a"])
+        dag.mark_completed("a")
+        stats = dag.get_stats()
+        self.assertEqual(stats["total_jobs"], 2)
+        self.assertEqual(stats["completed"], 1)
+
+
+class TestObservabilityExportPack(unittest.TestCase):
+    """Feature 5 (PR81): Observability export pack."""
+
+    def test_record_metric(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("queue_depth", 5.0)
+        self.assertEqual(oep._metrics["queue_depth"], 5.0)
+
+    def test_record_event(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_event("sla_breach", {"goal_id": "g1"})
+        events = oep.get_event_stream()
+        self.assertEqual(len(events), 1)
+
+    def test_take_snapshot(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("depth", 5.0)
+        snap = oep.take_snapshot()
+        self.assertIn("snapshot_id", snap)
+        self.assertEqual(snap["metrics"]["depth"], 5.0)
+
+    def test_to_json(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("depth", 5.0)
+        json_str = oep.to_json()
+        self.assertIn('"depth": 5.0', json_str)
+
+    def test_to_prometheus(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("queue_depth", 5.0)
+        prom = oep.to_prometheus()
+        self.assertIn("scheduler_metrics", prom)
+        self.assertIn("queue_depth", prom)
+
+    def test_get_json_snapshot(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("depth", 5.0)
+        snap = oep.get_json_snapshot()
+        self.assertTrue(snap["json_available"])
+        self.assertTrue(snap["prometheus_available"])
+        self.assertIn("metrics", snap)
+
+    def test_get_event_stream(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_event("type1", {})
+        oep.record_event("type2", {})
+        events1 = oep.get_event_stream("type1")
+        events2 = oep.get_event_stream("type2")
+        self.assertEqual(len(events1), 1)
+        self.assertEqual(len(events2), 1)
+
+    def test_get_stats(self) -> None:
+        oep = ObservabilityExportPack()
+        oep.record_metric("m1", 1.0)
+        oep.record_event("e1", {})
+        stats = oep.get_stats()
+        self.assertEqual(stats["metrics_count"], 1)
+        # record_metric creates both a metric and an event, so total_events = 2
+        self.assertEqual(stats["total_events"], 2)
