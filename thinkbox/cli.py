@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 from pathlib import Path
 
+from thinkbox.concurrent_goals import (
+    ConcurrentGoalsRunner, ConcurrentGoalSpec, ConcurrentGoalsConfig,
+    BudgetContentionPolicy, StressTestConfig, StressTestRunner,
+)
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
 from thinkbox.model_client import ModelConfig
 from thinkbox.session import (
@@ -85,7 +90,73 @@ def cmd_benchmark(args: argparse.Namespace) -> None:
     asyncio.run(run())
 
 
-def cmd_session_list(args: argparse.Namespace) -> None:
+def cmd_stress_test(args: argparse.Namespace) -> None:
+    """Run a concurrency stress test."""
+    from thinkbox.concurrent_goals import (
+        ConcurrentGoalsRunner, StressTestConfig, BudgetContentionPolicy,
+    )
+    from thinkbox.pop_arena import VerifiedRetryConfig
+
+    async def run():
+        # Default goal factory
+        from thinkbox.pop_arena import system_prompt_for_v2
+        def _sub(family: str, variant: str) -> dict:
+            prompt, spec = system_prompt_for_v2(family, variant)
+            return {"description": prompt, "family": family, "variant": variant,
+                    "spec": spec, "depends_on": []}
+        def goal_factory(i: int) -> ConcurrentGoalSpec:
+            return ConcurrentGoalSpec(
+                goal=f"stress-goal-{i}",
+                subtasks=[{"description": _sub("compute", "add_small")["description"],
+                          "family": "compute", "variant": "add_small",
+                          "spec": _sub("compute", "add_small")["spec"],
+                          "depends_on": []}],
+                budget_config=VerifiedRetryConfig(max_calls=5, max_retries=1),
+                priority=i % 10,
+            )
+
+        config = StressTestConfig(
+            num_goals=args.num_goals,
+            max_calls_global=args.max_calls,
+            max_retries_global=args.max_retries,
+            contention_policy=BudgetContentionPolicy(args.policy),
+            max_duration_seconds=args.duration,
+            goal_factory=goal_factory,
+        )
+
+        runner = ConcurrentGoalsRunner()
+        complete_async = lambda p: asyncio.sleep(0.01) or '{"answer": 42}'
+        result = await StressTestRunner(ConcurrentGoalsRunner()).run_stress_test(
+            config=config,
+            complete_async=complete_async,
+        )
+        print(f"\nStress Test Results:")
+        print(f"  Total Calls: {result.total_calls}")
+        print(f"  Total Retries: {result.total_retries}")
+        print(f"  Budget Exhausted: {result.total_budget_exhausted}")
+        print(f"  Fairness Index: {result.fairness_index}")
+        print(f"  Duration: {result.duration_seconds:.3f}s")
+        print(f"  Peak Concurrency: {result.peak_concurrency}")
+        print(f"  Completed Goals: {result.completed_goals}")
+        print(f"  Failed Goals: {result.failed_goals}")
+        print(f"  Per-Goal Calls: {result.per_goal_calls}")
+        print(f"  Per-Goal Retries: {result.per_goal_retries}")
+        if args.output:
+            Path(args.output).write_text(json.dumps({
+                "total_calls": result.total_calls,
+                "total_retries": result.total_retries,
+                "total_budget_exhausted": result.total_budget_exhausted,
+                "fairness_index": result.fairness_index,
+                "duration_seconds": result.duration_seconds,
+                "peak_concurrency": result.peak_concurrency,
+                "completed_goals": result.completed_goals,
+                "failed_goals": result.failed_goals,
+                "per_goal_calls": result.per_goal_calls,
+                "per_goal_retries": result.per_goal_retries,
+            }, indent=2))
+            print(f"Results saved to {args.output}")
+
+    asyncio.run(run())
     sessions = list_sessions(limit=args.limit)
     if not sessions:
         print("No sessions found.")
@@ -127,6 +198,15 @@ def main() -> None:
     bench_parser = subparsers.add_parser("benchmark", help="Run benchmark")
     bench_parser.add_argument("--model", default="llama3.1:8b", help="Model name")
 
+    stress_parser = subparsers.add_parser("stress", help="Run concurrency stress test")
+    stress_parser.add_argument("--num-goals", type=int, default=10, help="Number of concurrent goals")
+    stress_parser.add_argument("--max-calls", type=int, default=50, help="Global max calls budget")
+    stress_parser.add_argument("--max-retries", type=int, default=1, help="Global max retries")
+    stress_parser.add_argument("--policy", choices=["fair_share", "priority", "fifo"],
+                               default="fair_share", help="Budget contention policy")
+    stress_parser.add_argument("--duration", type=float, default=60.0, help="Max duration in seconds")
+    stress_parser.add_argument("--output", help="Output JSON file for results")
+
     session_parser = subparsers.add_parser("session", help="Session management")
     session_subparsers = session_parser.add_subparsers(dest="session_command")
 
@@ -145,6 +225,8 @@ def main() -> None:
         cmd_serve(args)
     elif args.command == "benchmark":
         cmd_benchmark(args)
+    elif args.command == "stress":
+        cmd_stress_test(args)
     elif args.command == "session":
         if args.session_command == "list":
             cmd_session_list(args)
