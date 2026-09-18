@@ -49,6 +49,16 @@ from thinkbox.scheduler import (
     WorkStealingQueue,
     SLAComplianceTracker,
     CheckpointManager,
+    DAGVisualizer,
+    GoalPriorityBoost,
+    SchedulerLatencyTracker,
+    DeadlineExtensionPolicy,
+    GoalGroupManager,
+    AdmissionPolicyChain,
+    GoalRetryBudgetResolver,
+    GoalProgressTracker,
+    ConfigurableRetryPolicy,
+    SubtaskFailureAggregator,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -1367,6 +1377,541 @@ class TestCheckpointManager(unittest.TestCase):
         stats = cm.get_stats()
         self.assertEqual(stats["total_checkpoints"], 2)
         self.assertEqual(stats["goals_with_checkpoints"], 2)
+
+
+class TestDAGVisualizer(unittest.TestCase):
+    """Feature 36: DAG visualization."""
+
+    def test_visualize_ascii(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b")
+        out = dv.visualize_ascii()
+        self.assertIn("Level 0", out)
+        self.assertIn("Level 1", out)
+        self.assertIn("b", out)
+        self.assertIn("a", out)
+
+    def test_visualize_dot(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b")
+        dot = dv.visualize_dot()
+        self.assertIn("digraph", dot)
+        self.assertIn('"a"', dot)
+        self.assertIn('"b"', dot)
+
+    def test_get_depth_map(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b")
+        dv._resolver.add_goal("c", ["a"])
+        depth = dv.get_depth_map()
+        self.assertEqual(depth["b"], 0)
+        self.assertEqual(depth["a"], 1)
+        self.assertEqual(depth["c"], 2)
+
+    def test_get_width_at_level(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b")
+        dv._resolver.add_goal("c")
+        self.assertEqual(dv.get_width_at_level(0), 2)  # b, c
+
+    def test_get_stats(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b")
+        stats = dv.get_stats()
+        self.assertEqual(stats["goals"], 2)
+        self.assertFalse(stats["has_cycles"])
+
+    def test_cycles(self) -> None:
+        dv = DAGVisualizer()
+        dv._resolver.add_goal("a", ["b"])
+        dv._resolver.add_goal("b", ["a"])
+        self.assertEqual(dv.visualize_ascii(), "DAG has cycles - cannot visualize")
+        self.assertEqual(dv.visualize_dot(), 'digraph { error="cycles detected" }')
+        self.assertEqual(dv.get_depth_map(), {})
+
+    def test_empty(self) -> None:
+        dv = DAGVisualizer()
+        self.assertIn("empty", dv.visualize_ascii())
+        self.assertEqual(dv.get_stats()["goals"], 0)
+
+
+class TestGoalPriorityBoost(unittest.TestCase):
+    """Feature 37: Dynamic priority boosting."""
+
+    def test_no_boost_when_fresh(self) -> None:
+        gp = GoalPriorityBoost(boost_threshold_s=10.0)
+        gp.register("g1")
+        result = gp.check("g1", current_priority=5)
+        self.assertFalse(result["boosted"])
+
+    def test_boost_after_threshold(self) -> None:
+        gp = GoalPriorityBoost(boost_threshold_s=0.001, boost_amount=5)
+        gp.register("g1")
+        time.sleep(0.01)
+        result = gp.check("g1", current_priority=5)
+        self.assertTrue(result["boosted"])
+        self.assertEqual(result["old_priority"], 5)
+        self.assertEqual(result["new_priority"], 10)
+
+    def test_max_boosts(self) -> None:
+        gp = GoalPriorityBoost(boost_threshold_s=0.001, boost_amount=5, max_boosts=2)
+        gp.register("g1")
+        gp._boost_counts["g1"] = 2  # simulate 2 boosts
+        gp._wait_start["g1"] = 0  # make waited
+        result = gp.check("g1", current_priority=5)
+        self.assertFalse(result["boosted"])
+        self.assertTrue(gp.is_max_boosted("g1"))
+
+    def test_reset(self) -> None:
+        gp = GoalPriorityBoost()
+        gp.register("g1")
+        gp.reset("g1")
+        result = gp.check("g1", current_priority=5)
+        self.assertFalse(result["boosted"])
+
+    def test_get_stats(self) -> None:
+        gp = GoalPriorityBoost()
+        gp.register("g1")
+        gp.register("g2")
+        stats = gp.get_stats()
+        self.assertEqual(stats["registered"], 2)
+
+
+class TestSchedulerLatencyTracker(unittest.TestCase):
+    """Feature 38: Scheduler decision latency tracking."""
+
+    def test_record_and_measure(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        slt.record_execution_start("g1")
+        result = slt.get_decisions("g1")
+        self.assertEqual(len(result), 1)
+        self.assertIn("latency_s", result[0])
+        self.assertGreaterEqual(result[0]["latency_s"], 0.0)
+
+    def test_avg_latency(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        slt.record_execution_start("g1")
+        avg = slt.get_avg_latency()
+        self.assertGreaterEqual(avg, 0.0)
+
+    def test_p95_latency(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        slt.record_execution_start("g1")
+        p95 = slt.get_p95_latency()
+        self.assertGreaterEqual(p95, 0.0)
+
+    def test_get_summary(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        slt.record_execution_start("g1")
+        summary = slt.get_summary()
+        self.assertEqual(summary["total_decisions"], 1)
+        self.assertEqual(summary["measured"], 1)
+        self.assertIn("avg_latency_s", summary)
+
+    def test_get_decisions_filter(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        slt.record_execution_start("g1")
+        slt.record_decision("g2", "admit")
+        slt.record_execution_start("g2")
+        g1_decisions = slt.get_decisions("g1")
+        self.assertEqual(len(g1_decisions), 1)
+        self.assertEqual(g1_decisions[0]["goal_id"], "g1")
+
+    def test_unmeasured(self) -> None:
+        slt = SchedulerLatencyTracker()
+        slt.record_decision("g1", "admit")
+        # no execution_start recorded
+        self.assertEqual(slt.get_avg_latency(), 0.0)
+        self.assertEqual(slt.get_summary()["measured"], 0)
+
+
+class TestDeadlineExtensionPolicy(unittest.TestCase):
+    """Feature 39: Smart deadline extension."""
+
+    def test_should_extend(self) -> None:
+        dep = DeadlineExtensionPolicy(progress_threshold=0.7)
+        result = dep.should_extend("g1", 100.0, 85.0, 0.8)
+        self.assertTrue(result["extend"])
+        self.assertAlmostEqual(result["new_deadline_s"], 150.0)
+
+    def test_should_not_extend_low_progress(self) -> None:
+        dep = DeadlineExtensionPolicy(progress_threshold=0.7)
+        result = dep.should_extend("g1", 100.0, 50.0, 0.3)
+        self.assertFalse(result["extend"])
+
+    def test_should_not_extend_under_threshold(self) -> None:
+        dep = DeadlineExtensionPolicy(progress_threshold=0.7)
+        result = dep.should_extend("g1", 100.0, 80.0, 0.6)
+        self.assertFalse(result["extend"])
+
+    def test_max_extensions(self) -> None:
+        dep = DeadlineExtensionPolicy(progress_threshold=0.7, max_extensions=2)
+        dep.should_extend("g1", 100.0, 85.0, 0.8)  # 1st
+        dep.should_extend("g1", 150.0, 130.0, 0.8)  # 2nd
+        result = dep.should_extend("g1", 225.0, 200.0, 0.8)  # would be 3rd
+        self.assertFalse(result["extend"])
+        self.assertEqual(result["reason"], "max_extensions_reached")
+
+    def test_get_extensions(self) -> None:
+        dep = DeadlineExtensionPolicy()
+        dep.should_extend("g1", 100.0, 85.0, 0.8)
+        exts = dep.get_extensions("g1")
+        self.assertEqual(len(exts), 1)
+        self.assertEqual(exts[0]["old_deadline_s"], 100.0)
+
+    def test_get_stats(self) -> None:
+        dep = DeadlineExtensionPolicy()
+        dep.should_extend("g1", 100.0, 85.0, 0.8)
+        dep.should_extend("g2", 200.0, 180.0, 0.9)
+        stats = dep.get_stats()
+        self.assertEqual(stats["total_extensions"], 2)
+        self.assertEqual(stats["goals_extended"], 2)
+
+
+class TestGoalGroupManager(unittest.TestCase):
+    """Feature 40: Goal grouping for batch operations."""
+
+    def test_create_group(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a", "b", "c"])
+        self.assertEqual(ggm.get_group("g1"), {"a", "b", "c"})
+
+    def test_add_to_group(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a"])
+        ggm.add_to_group("g1", "b")
+        self.assertEqual(ggm.get_group("g1"), {"a", "b"})
+
+    def test_get_goal_group(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a", "b"])
+        self.assertEqual(ggm.get_goal_group("a"), "g1")
+        self.assertIsNone(ggm.get_goal_group("c"))
+
+    def test_get_goals_in_group(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a", "b"])
+        ggm.add_to_group("g1", "c")
+        self.assertEqual(ggm.get_goals_in_group("a"), {"a", "b", "c"})
+
+    def test_list_groups(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a", "b"])
+        ggm.create_group("g2", ["c"])
+        groups = ggm.list_groups()
+        self.assertEqual(groups["g1"], ["a", "b"])
+        self.assertEqual(groups["g2"], ["c"])
+
+    def test_get_stats(self) -> None:
+        ggm = GoalGroupManager()
+        ggm.create_group("g1", ["a", "b"])
+        ggm.create_group("g2", ["c"])
+        stats = ggm.get_stats()
+        self.assertEqual(stats["groups"], 2)
+        self.assertEqual(stats["goals_grouped"], 3)
+
+
+class TestAdmissionPolicyChain(unittest.TestCase):
+    """Feature 41: Chained admission policies."""
+
+    def test_admit_all_pass(self) -> None:
+        apc = AdmissionPolicyChain()
+        class PassPolicy:
+            def admit(self, goal_id):
+                return {"admitted": True}
+        apc.add_policy(PassPolicy(), "pass")
+        result = apc.admit("g1")
+        self.assertTrue(result["admitted"])
+
+    def test_reject_by_policy(self) -> None:
+        apc = AdmissionPolicyChain()
+        class FailPolicy:
+            def admit(self, goal_id):
+                return {"admitted": False, "reason": "denied"}
+        apc.add_policy(FailPolicy(), "fail")
+        result = apc.admit("g1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["rejected_by"], "fail")
+        self.assertEqual(result["reason"], "denied")
+
+    def test_chain_order(self) -> None:
+        apc = AdmissionPolicyChain()
+        order = []
+        class RecordingPolicy:
+            def __init__(self, name: str, admit: bool):
+                self._name = name
+                self._admit = admit
+            def admit(self, goal_id):
+                order.append(self._name)
+                return {"admitted": self._admit}
+        apc.add_policy(RecordingPolicy("first", True), "first")
+        apc.add_policy(RecordingPolicy("second", False), "second")
+        apc.add_policy(RecordingPolicy("third", True), "third")
+        result = apc.admit("g1")
+        self.assertFalse(result["admitted"])
+        self.assertEqual(result["rejected_by"], "second")
+        self.assertEqual(order, ["first", "second"])
+
+    def test_get_rejections(self) -> None:
+        apc = AdmissionPolicyChain()
+        class FailPolicy:
+            def admit(self, goal_id):
+                return {"admitted": False, "reason": "no"}
+        apc.add_policy(FailPolicy(), "fail")
+        apc.admit("g1")
+        apc.admit("g2")
+        rej = apc.get_rejections()
+        self.assertEqual(len(rej), 2)
+        g1_rej = apc.get_rejections("g1")
+        self.assertEqual(len(g1_rej), 1)
+
+    def test_no_policies(self) -> None:
+        apc = AdmissionPolicyChain()
+        result = apc.admit("g1")
+        self.assertTrue(result["admitted"])
+        self.assertEqual(result["policies_passed"], 0)
+
+    def test_get_stats(self) -> None:
+        apc = AdmissionPolicyChain()
+        class P:
+            def admit(self, goal_id):
+                return {"admitted": True}
+        apc.add_policy(P(), "p1")
+        apc.add_policy(P(), "p2")
+        stats = apc.get_stats()
+        self.assertEqual(stats["policies"], 2)
+
+
+class TestGoalRetryBudgetResolver(unittest.TestCase):
+    """Feature 42: Retry budget allocation across goals."""
+
+    def test_allocate(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=10)
+        alloc = grb.allocate("g1", priority=1, max_retries=3)
+        self.assertGreater(alloc, 0)
+        self.assertLessEqual(alloc, 3)
+
+    def test_allocate_multiple(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=10)
+        grb.allocate("g1", max_retries=3)
+        grb.allocate("g2", max_retries=3)
+        budgets = grb.get_budgets()
+        self.assertIn("g1", budgets)
+        self.assertIn("g2", budgets)
+
+    def test_consume(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=10)
+        grb.allocate("g1", max_retries=3)
+        consumed = grb.consume("g1", 1)
+        self.assertTrue(consumed)
+        remaining = grb.get_remaining("g1")
+        self.assertEqual(remaining, 2)
+
+    def test_consume_over_budget(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=3)
+        grb.allocate("g1", max_retries=3)
+        consumed = grb.consume("g1", 4)
+        self.assertFalse(consumed)
+
+    def test_total_remaining(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=10)
+        grb.allocate("g1", max_retries=3)
+        grb.consume("g1", 1)
+        self.assertEqual(grb.get_total_remaining(), 9)
+        self.assertEqual(grb.get_remaining("g1"), 2)
+
+    def test_get_stats(self) -> None:
+        grb = GoalRetryBudgetResolver(total_budget=10)
+        grb.allocate("g1", max_retries=3)
+        stats = grb.get_stats()
+        self.assertEqual(stats["total_budget"], 10)
+        self.assertEqual(stats["goals"], 1)
+
+
+class TestGoalProgressTracker(unittest.TestCase):
+    """Feature 43: Subtask progress tracking."""
+
+    def test_init_and_complete(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 5)
+        for _ in range(3):
+            gt.complete_subtask("g1")
+        result = gt.get_progress("g1")
+        self.assertEqual(result["completed"], 3)
+        self.assertEqual(result["pending"], 2)
+        self.assertEqual(result["percentage"], 60.0)
+
+    def test_fail_subtask(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 5)
+        gt.fail_subtask("g1")
+        result = gt.get_progress("g1")
+        self.assertEqual(result["failed"], 1)
+        self.assertEqual(result["pending"], 4)
+
+    def test_complete(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 2)
+        gt.complete_subtask("g1")
+        gt.complete_subtask("g1")
+        result = gt.get_progress("g1")
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["percentage"], 100.0)
+
+    def test_unknown_goal(self) -> None:
+        gt = GoalProgressTracker()
+        result = gt.get_progress("unknown")
+        self.assertEqual(result["error"], "not_found")
+
+    def test_get_all_progress(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 5)
+        gt.init_goal("g2", 3)
+        all_p = gt.get_all_progress()
+        self.assertIn("g1", all_p)
+        self.assertIn("g2", all_p)
+
+    def test_get_completion_rate(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 10)
+        gt.init_goal("g2", 10)
+        for _ in range(5):
+            gt.complete_subtask("g1")
+        for _ in range(3):
+            gt.complete_subtask("g2")
+        rate = gt.get_completion_rate()
+        self.assertEqual(rate["total_subtasks"], 20)
+        self.assertEqual(rate["completed"], 8)
+        self.assertAlmostEqual(rate["completion_rate"], 0.4)
+
+    def test_complete_subtask_not_found(self) -> None:
+        gt = GoalProgressTracker()
+        result = gt.complete_subtask("unknown")
+        self.assertEqual(result["error"], "not_found")
+
+    def test_no_pending(self) -> None:
+        gt = GoalProgressTracker()
+        gt.init_goal("g1", 1)
+        gt.complete_subtask("g1")
+        result = gt.complete_subtask("g1")
+        self.assertEqual(result["error"], "no_pending")
+
+
+class TestConfigurableRetryPolicy(unittest.TestCase):
+    """Feature 44: Configurable retry strategy."""
+
+    def test_exponential(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="exponential", base_delay_s=1.0)
+        d1 = crp.get_delay("g1", 1, "")
+        d2 = crp.get_delay("g1", 2, "")
+        d3 = crp.get_delay("g1", 3, "")
+        self.assertAlmostEqual(d1["delay_s"], 1.0)
+        self.assertAlmostEqual(d2["delay_s"], 2.0)
+        self.assertAlmostEqual(d3["delay_s"], 4.0)
+
+    def test_linear(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="linear", base_delay_s=2.0, step_s=1.0)
+        d1 = crp.get_delay("g1", 1, "")
+        d2 = crp.get_delay("g1", 2, "")
+        self.assertAlmostEqual(d1["delay_s"], 2.0)
+        self.assertAlmostEqual(d2["delay_s"], 4.0)
+
+    def test_fixed(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="fixed", base_delay_s=5.0)
+        d1 = crp.get_delay("g1", 1, "")
+        d2 = crp.get_delay("g1", 2, "")
+        self.assertAlmostEqual(d1["delay_s"], 5.0)
+        self.assertAlmostEqual(d2["delay_s"], 5.0)
+
+    def test_none(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="none")
+        d = crp.get_delay("g1", 1, "seed")
+        self.assertEqual(d["delay_s"], 0.0)
+
+    def test_should_retry(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="exponential")
+        self.assertTrue(crp.should_retry("g1", 1, 3))
+        self.assertTrue(crp.should_retry("g1", 2, 3))
+        self.assertFalse(crp.should_retry("g1", 3, 3))
+
+    def test_none_no_retry(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="none")
+        self.assertFalse(crp.should_retry("g1", 1, 3))
+
+    def test_get_policy(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="exponential", base_delay_s=1.0)
+        policy = crp.get_policy("g1")
+        self.assertIsNotNone(policy)
+        self.assertEqual(policy["strategy"], "exponential")
+
+    def test_get_all_policies(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        crp.configure("g1", strategy="exponential")
+        crp.configure("g2", strategy="fixed")
+        all_p = crp.get_all_policies()
+        self.assertEqual(len(all_p), 2)
+
+    def test_default_policy(self) -> None:
+        crp = ConfigurableRetryPolicy()
+        d = crp.get_delay("unknown", 1, "seed")
+        self.assertEqual(d["strategy"], "none")
+
+
+class TestSubtaskFailureAggregator(unittest.TestCase):
+    """Feature 45: Subtask failure aggregation."""
+
+    def test_record_failure(self) -> None:
+        sfa = SubtaskFailureAggregator()
+        sfa.record_failure("g1", "t1", ValueError("err"))
+        failures = sfa.get_failures("g1")
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["subtask_id"], "t1")
+
+    def test_get_summary(self) -> None:
+        sfa = SubtaskFailureAggregator()
+        sfa.record_failure("g1", "t1", ValueError("err1"))
+        sfa.record_failure("g1", "t2", ValueError("err1"))
+        sfa.record_failure("g1", "t3", TypeError("err2"))
+        summary = sfa.get_summary("g1")
+        self.assertEqual(summary["total_failures"], 3)
+        self.assertEqual(summary["root_cause"], "err1")
+        self.assertEqual(summary["most_common"], "ValueError")
+        self.assertEqual(summary["unique_error_types"], 2)
+
+    def test_empty_summary(self) -> None:
+        sfa = SubtaskFailureAggregator()
+        summary = sfa.get_summary("unknown")
+        self.assertEqual(summary["total_failures"], 0)
+
+    def test_clear(self) -> None:
+        sfa = SubtaskFailureAggregator()
+        sfa.record_failure("g1", "t1", ValueError("err"))
+        sfa.clear("g1")
+        self.assertEqual(len(sfa.get_failures("g1")), 0)
+
+    def test_multiple_goals(self) -> None:
+        sfa = SubtaskFailureAggregator()
+        sfa.record_failure("g1", "t1", ValueError("err"))
+        sfa.record_failure("g2", "t2", TypeError("err"))
+        self.assertEqual(len(sfa.get_failures("g1")), 1)
+        self.assertEqual(len(sfa.get_failures("g2")), 1)
 
 
 if __name__ == "__main__":
