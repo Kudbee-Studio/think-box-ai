@@ -280,9 +280,7 @@ class TestStressTestRunnerIntegration(unittest.TestCase):
                 ),
             )
             runner = StressTestRunner()
-            result = await runner.run_stress_test(config, complete, config=ConcurrentGoalsConfig(
-                independent_goals=False, max_calls_global=10
-            ))
+            result = await runner.run_stress_test(config, complete)
             return result
 
         result = self._run(test())

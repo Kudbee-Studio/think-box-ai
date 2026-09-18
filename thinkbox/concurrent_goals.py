@@ -47,11 +47,19 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Callable
 
 from thinkbox.engine import ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.pop_arena import VerifiedRetryConfig, VerifiedRetrySession, BudgetExhausted
+
+
+class BudgetContentionPolicy(Enum):
+    """Policy for how shared budget is contested among concurrent goals."""
+    FAIR_SHARE = "fair_share"   # equal shares, dynamic reclamation
+    PRIORITY = "priority"        # higher priority first
+    FIFO = "fifo"                # submission order, no reallocation
 
 
 @dataclass
@@ -60,6 +68,7 @@ class ConcurrentGoalSpec:
     goal: str
     subtasks: list[dict[str, Any]]
     budget_config: VerifiedRetryConfig | None = None
+    priority: int = 0
 
 
 @dataclass
@@ -68,6 +77,7 @@ class ConcurrentGoalsConfig:
     max_calls_global: int = 0  # 0 = unbounded; >0 enforces shared budget
     max_retries_global: int | None = None
     independent_goals: bool = True  # False = share one session (global budget)
+    contention_policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE
 
 
 @dataclass
@@ -486,8 +496,8 @@ class StressTestResult:
     duration_seconds: float = 0.0
     peak_concurrency: int = 0
     completed_goals: int = 0
-failed_goals: int = 0
-        timestamp: str = ""
+    failed_goals: int = 0
+    timestamp: str = ""
 
     def __post_init__(self) -> None:
         if not self.timestamp:
@@ -512,22 +522,6 @@ failed_goals: int = 0
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StressTestResult":
-        """Deserialize result from dictionary."""
-        config = StressTestConfig.from_dict(data["config"])
-        return cls(
-            config=config,
-            total_calls=data.get("total_calls", 0),
-            total_retries=data.get("total_retries", 0),
-            total_budget_exhausted=data.get("total_budget_exhausted", 0),
-            goal_results=data.get("goal_results", {}),
-            per_goal_calls=data.get("per_goal_calls", {}),
-            per_goal_retries=data.get("per_goal_retries", {}),
-            fairness_index=data.get("fairness_index", 0.0),
-            duration_seconds=data.get("duration_seconds", 0.0),
-            peak_concurrency=data.get("peak_concurrency", 0),
-            completed_goals=data.get("completed_goals", 0),
-            @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "StressTestResult":
         """Deserialize result from dictionary."""
         config = StressTestConfig.from_dict(data["config"])
@@ -884,11 +878,11 @@ def compute_gini_coefficient(values: list[float]) -> float:
     n = len(sorted_vals)
     cumsum = 0.0
     for i, val in enumerate(sorted_vals):
-        cumsum += (n - i) * val
+        cumsum += (i + 1) * val  # 1-indexed
     mean = sum(values) / n
     if mean == 0:
         return 0.0
-    return (2 * cumsum) / (n * n * mean) - (n + 1) / n
+    return (2 * cumsum) / (n * sum(values)) - (n + 1) / n
 
 
 def compute_coefficient_of_variation(values: list[float]) -> float:
