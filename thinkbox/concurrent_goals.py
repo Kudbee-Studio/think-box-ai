@@ -531,6 +531,23 @@ class StressTestRunner:
             contention_policy=config.contention_policy,
         )
         
+        # Apply QPS rate limiting if specified
+        if config.target_qps is not None and config.target_qps > 0:
+            original_complete = complete_async
+            min_interval = 1.0 / config.target_qps
+            last_call = 0.0
+            
+            async def rate_limited_complete(prompt: str) -> Any:
+                nonlocal last_call
+                now = time.monotonic()
+                elapsed = now - last_call
+                if elapsed < min_interval:
+                    await asyncio.sleep(min_interval - elapsed)
+                last_call = time.monotonic()
+                return await original_complete(prompt)
+            
+            complete_async = rate_limited_complete
+        
         # Sample concurrency in background
         sample_task = asyncio.create_task(self._sample_concurrency(0.1))
         
