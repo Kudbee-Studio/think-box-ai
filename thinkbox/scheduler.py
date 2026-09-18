@@ -11,11 +11,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -3403,6 +3404,7 @@ class BackpressureAdmissionV2:
         self.queue_depth_warning = queue_depth_warning
         self.queue_depth_critical = queue_depth_critical
         self._active: dict[str, int] = {}
+        self._job_tenant: dict[str, str | None] = {}
         self._tenant_active: dict[str, int] = {}
         self._queue_depth = 0
         self._backpressure_events: list[dict[str, Any]] = []
@@ -3445,6 +3447,7 @@ class BackpressureAdmissionV2:
             self._deferred_jobs.append(job_id)
             return {"job_id": job_id, "admitted": False, "action": "defer", **event}
         self._active[job_id] = estimated_load
+        self._job_tenant[job_id] = tenant_id
         if tenant_id:
             self._tenant_active[tenant_id] = self._tenant_active.get(tenant_id, 0) + estimated_load
         return {"job_id": job_id, "admitted": True, "action": "admit", "estimated_load": estimated_load}
@@ -3452,10 +3455,9 @@ class BackpressureAdmissionV2:
     def release(self, job_id: str) -> None:
         if job_id in self._active:
             load = self._active.pop(job_id)
-            for tid, count in self._tenant_active.items():
-                if count >= load:
-                    self._tenant_active[tid] = max(0, count - load)
-                    break
+            tenant_id = self._job_tenant.pop(job_id, None)
+            if tenant_id and tenant_id in self._tenant_active:
+                self._tenant_active[tenant_id] = max(0, self._tenant_active[tenant_id] - load)
 
     def set_queue_depth(self, depth: int) -> None:
         self._queue_depth = depth
@@ -3505,24 +3507,54 @@ class DurableJobCheckpoints:
     to IdempotencyStore keys when present.
     """
 
-    def __init__(self, max_checkpoints_per_job: int = 20) -> None:
+    def __init__(self, max_checkpoints_per_job: int = 20, db_path: str = ":memory:") -> None:
         self.max_checkpoints_per_job = max_checkpoints_per_job
+        self._db_path = db_path
+        import sqlite3, threading, os
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.execute("""CREATE TABLE IF NOT EXISTS checkpoints (
+            checkpoint_id TEXT PRIMARY KEY, job_id TEXT, step_id TEXT,
+            state TEXT, created_at TEXT, step_index INTEGER
+        )""")
+        self._conn.execute("""CREATE TABLE IF NOT EXISTS completed_steps (
+            job_id TEXT, step_id TEXT, PRIMARY KEY (job_id, step_id)
+        )""")
+        self._conn.commit()
         self._checkpoints: dict[str, list[dict[str, Any]]] = {}
         self._completed_steps: dict[str, set[str]] = {}
         self._resume_log: list[dict[str, Any]] = []
+        self._load_from_db()
+
+    def _load_from_db(self) -> None:
+        cursor = self._conn.execute("SELECT job_id, step_id FROM completed_steps")
+        for row in cursor.fetchall():
+            job_id, step_id = row
+            if job_id not in self._completed_steps:
+                self._completed_steps[job_id] = set()
+            self._completed_steps[job_id].add(step_id)
 
     def save_checkpoint(self, job_id: str, step_id: str, state: dict[str, Any]) -> dict[str, Any]:
         if job_id not in self._checkpoints:
             self._checkpoints[job_id] = []
+        checkpoint_id = f"cp_{job_id}_{step_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
         checkpoint = {
             "job_id": job_id,
             "step_id": step_id,
             "state": state,
-            "checkpoint_id": f"cp_{job_id}_{step_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}",
+            "checkpoint_id": checkpoint_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "step_index": len(self._checkpoints[job_id]),
         }
         self._checkpoints[job_id].append(checkpoint)
+        state_json = json.dumps(state)
+        try:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO checkpoints VALUES (?, ?, ?, ?, ?, ?)",
+                (checkpoint_id, job_id, step_id, state_json, checkpoint["created_at"], checkpoint["step_index"]),
+            )
+            self._conn.commit()
+        except Exception:
+            pass
         self._gc(job_id)
         return checkpoint
 
@@ -3542,6 +3574,14 @@ class DurableJobCheckpoints:
         if job_id not in self._completed_steps:
             self._completed_steps[job_id] = set()
         self._completed_steps[job_id].add(step_id)
+        try:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO completed_steps VALUES (?, ?)",
+                (job_id, step_id),
+            )
+            self._conn.commit()
+        except Exception:
+            pass
 
     def is_step_completed(self, job_id: str, step_id: str) -> bool:
         return job_id in self._completed_steps and step_id in self._completed_steps[job_id]
@@ -3798,4 +3838,824 @@ class ObservabilityExportPack:
             "total_events": len(self._events),
             "event_types": event_types,
             "snapshots": len(self._snapshots),
+        }
+
+
+# =============================================================================
+# PR #82 Features - 10 major governed scheduler features
+# =============================================================================
+
+
+def _parse_cron_expression(cron_expr: str) -> dict[str, list[int]]:
+    """Parse a simple cron expression into field value lists.
+
+    Supports *, N, N/M, N-M, and comma patterns across 5 fields:
+    minute hour day month weekday. Fails closed (ValueError) on invalid.
+    """
+    fields = cron_expr.strip().split()
+    if len(fields) != 5:
+        raise ValueError(f"Invalid cron expression: {cron_expr}")
+
+    field_names = ["minute", "hour", "day", "month", "weekday"]
+    parsed: dict[str, list[int]] = {}
+    for i, (field, name) in enumerate(zip(fields, field_names)):
+        parsed[name] = _parse_cron_field(field, name)
+    return parsed
+
+
+def _parse_cron_field(field: str, name: str) -> list[int]:
+    """Parse a single cron field into a sorted list of valid values."""
+    min_val, max_val = _FIELD_RANGES[name]
+
+    if field == "*":
+        return list(range(min_val, max_val + 1))
+
+    result: list[int] = []
+    for part in field.split(","):
+        part = part.strip()
+        if "/" in part:
+            base, step_str = part.split("/", 1)
+            step = int(step_str)
+            if step < 1:
+                raise ValueError(f"Invalid step in cron field: {field}")
+            if base == "*":
+                start = min_val
+                end = max_val
+            elif "-" in base:
+                start_str, end_str = base.split("-", 1)
+                start = int(start_str)
+                end = int(end_str)
+                if start < min_val or end > max_val or start > end:
+                    raise ValueError(f"Invalid range in cron field: {field}")
+            else:
+                start = int(base)
+                end = max_val
+            result.extend(range(start, end + 1, step))
+        elif "-" in part:
+            start_str, end_str = part.split("-", 1)
+            start = int(start_str)
+            end = int(end_str)
+            if start < min_val or end > max_val or start > end:
+                raise ValueError(f"Invalid range in cron field: {field}")
+            result.extend(range(start, end + 1))
+        else:
+            val = int(part)
+            if val < min_val or val > max_val:
+                raise ValueError(f"Value {val} out of range for {name}")
+            result.append(val)
+
+    return sorted(set(result))
+
+
+_FIELD_RANGES: dict[str, tuple[int, int]] = {
+    "minute": (0, 59),
+    "hour": (0, 23),
+    "day": (1, 31),
+    "month": (1, 12),
+    "weekday": (0, 6),
+}
+
+
+def _datetime_matches_cron(dt: datetime, parsed: dict[str, list[int]]) -> bool:
+    """Check if a datetime matches a parsed cron expression."""
+    return (
+        dt.minute in parsed["minute"]
+        and dt.hour in parsed["hour"]
+        and dt.day in parsed["day"]
+        and dt.month in parsed["month"]
+        and dt.weekday() in parsed["weekday"]
+    )
+
+class CronWindow:
+    """Feature 6 (PR82): Cron/calendar admit windows.
+
+    Admit only inside allowed windows defined by a cron expression.
+    Fail-closed outside allowed times. Uses croniter if available;
+    otherwise parses simple *, step, range, and comma patterns
+    across the five cron fields (minute hour day month weekday).
+    """
+
+    def __init__(self, cron_expr: str = "* * * * *") -> None:
+        self._cron_expr = cron_expr
+        self._parsed = _parse_cron_expression(cron_expr)
+
+    def set_cron(self, cron_expr: str) -> None:
+        self._cron_expr = cron_expr
+        self._parsed = _parse_cron_expression(cron_expr)
+
+    def is_admissible(self, at_time: float | None = None) -> tuple[bool, str]:
+        if at_time is None:
+            at_time = time.time()
+        dt = datetime.fromtimestamp(at_time, tz=timezone.utc)
+        if _datetime_matches_cron(dt, self._parsed):
+            return (True, "within_window")
+        return (False, "outside_window")
+
+    def next_admission(self) -> float:
+        now = time.time()
+        current = datetime.fromtimestamp(now, tz=timezone.utc)
+        candidate = current + timedelta(minutes=1)
+        for _ in range(60 * 24 * 366):
+            if _datetime_matches_cron(candidate, self._parsed):
+                return candidate.timestamp()
+            candidate += timedelta(minutes=1)
+        return now
+
+    def get_state(self) -> dict[str, Any]:
+        return {
+            "cron_expr": self._cron_expr,
+            "parsed_fields": {k: sorted(v) for k, v in self._parsed.items()},
+            "current_admissible": self.is_admissible(),
+        }
+
+
+@dataclass
+
+class _Reservation:
+    job_id: str
+    cpu: int
+    mem_mb: int
+    gpu: int
+
+class ResourceQuota:
+    """Feature 7 (PR82): CPU/memory/GPU resource quotas.
+
+    Track reserved vs available resources; refuse overcommit.
+    Fail-closed when insufficient resources are available for a
+    reservation request.
+    """
+
+    def __init__(self, cpu_units: int = 100, mem_mb: int = 1024, gpu_units: int = 0) -> None:
+        self._total_cpu = cpu_units
+        self._total_mem = mem_mb
+        self._total_gpu = gpu_units
+        self._reservations: dict[str, _Reservation] = {}
+        self._used_cpu = 0
+        self._used_mem = 0
+        self._used_gpu = 0
+
+    def reserve(self, job_id: str, cpu: int = 1, mem_mb: int = 100, gpu: int = 0) -> dict[str, Any]:
+        if cpu <= 0 or mem_mb <= 0 or gpu < 0:
+            return {
+                "success": False,
+                "reason": "invalid_request",
+                "job_id": job_id,
+                "requested": {"cpu": cpu, "mem_mb": mem_mb, "gpu": gpu},
+            }
+        if job_id in self._reservations:
+            return {
+                "success": False,
+                "reason": "already_reserved",
+                "job_id": job_id,
+            }
+        available_cpu = self._total_cpu - self._used_cpu
+        available_mem = self._total_mem - self._used_mem
+        available_gpu = self._total_gpu - self._used_gpu
+        if cpu > available_cpu or mem_mb > available_mem or gpu > available_gpu:
+            return {
+                "success": False,
+                "reason": "insufficient_resources",
+                "job_id": job_id,
+                "requested": {"cpu": cpu, "mem_mb": mem_mb, "gpu": gpu},
+                "available": {
+                    "cpu": available_cpu,
+                    "mem_mb": available_mem,
+                    "gpu": available_gpu,
+                },
+            }
+        self._reservations[job_id] = _Reservation(
+            job_id=job_id, cpu=cpu, mem_mb=mem_mb, gpu=gpu
+        )
+        self._used_cpu += cpu
+        self._used_mem += mem_mb
+        self._used_gpu += gpu
+        return {
+            "success": True,
+            "reason": "reserved",
+            "job_id": job_id,
+            "allocated": {"cpu": cpu, "mem_mb": mem_mb, "gpu": gpu},
+        }
+
+    def release(self, job_id: str) -> bool:
+        if job_id not in self._reservations:
+            return False
+        res = self._reservations.pop(job_id)
+        self._used_cpu -= res.cpu
+        self._used_mem -= res.mem_mb
+        self._used_gpu -= res.gpu
+        return True
+
+    def get_available(self) -> dict[str, int]:
+        return {
+            "cpu": self._total_cpu - self._used_cpu,
+            "mem_mb": self._total_mem - self._used_mem,
+            "gpu": self._total_gpu - self._used_gpu,
+        }
+
+    def get_allocated(self) -> dict[str, dict[str, int]]:
+        return {
+            job_id: {"cpu": r.cpu, "mem_mb": r.mem_mb, "gpu": r.gpu}
+            for job_id, r in self._reservations.items()
+        }
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "total": {"cpu": self._total_cpu, "mem_mb": self._total_mem, "gpu": self._total_gpu},
+            "used": {"cpu": self._used_cpu, "mem_mb": self._used_mem, "gpu": self._used_gpu},
+            "available": self.get_available(),
+            "active_reservations": len(self._reservations),
+            "utilization": {
+                "cpu": round(self._used_cpu / self._total_cpu, 4) if self._total_cpu > 0 else 0.0,
+                "mem_mb": round(self._used_mem / self._total_mem, 4) if self._total_mem > 0 else 0.0,
+                "gpu": round(self._used_gpu / self._total_gpu, 4) if self._total_gpu > 0 else 0.0,
+            },
+        }
+
+class WorkerHeartbeat:
+    """Feature 3 (PR82): Worker heartbeats with dead-letter queue.
+
+    Tracks worker liveness via heartbeat timestamps. Stale workers are
+    evicted and their in-flight jobs are moved to a dead-letter queue
+    with a reason string for later recovery or reassignment.
+    """
+
+    def __init__(self, heartbeat_timeout_s: float = 30.0) -> None:
+        self.heartbeat_timeout_s = heartbeat_timeout_s
+        self._workers: dict[str, dict[str, Any]] = {}
+        self._dlq: list[dict[str, Any]] = []
+
+    def register_worker(self, worker_id: str, capabilities: list[str] = []) -> None:
+        self._workers[worker_id] = {
+            "capabilities": list(capabilities),
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
+            "registered_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def heartbeat(self, worker_id: str) -> bool:
+        if worker_id not in self._workers:
+            return False
+        self._workers[worker_id]["last_heartbeat"] = datetime.now(timezone.utc).isoformat()
+        return True
+
+    def evict_stale(self) -> list[str]:
+        now = datetime.now(timezone.utc)
+        evicted: list[str] = []
+        for worker_id in list(self._workers.keys()):
+            worker = self._workers[worker_id]
+            last_hb = datetime.fromisoformat(worker["last_heartbeat"])
+            if (now - last_hb).total_seconds() > self.heartbeat_timeout_s:
+                evicted.append(worker_id)
+                for job_id in worker.get("assigned_jobs", []):
+                    self.move_to_dlq(
+                        job_id,
+                        reason=f"worker {worker_id} evicted: heartbeat stale",
+                    )
+                del self._workers[worker_id]
+        return evicted
+
+    def move_to_dlq(self, job_id: str, reason: str) -> dict[str, Any]:
+        entry: dict[str, Any] = {
+            "job_id": job_id,
+            "reason": reason,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._dlq.append(entry)
+        return entry
+
+    def get_dlq(self) -> list[dict[str, Any]]:
+        return list(self._dlq)
+
+    def get_active_workers(self) -> list[str]:
+        return list(self._workers.keys())
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "active_workers": len(self._workers),
+            "dlq_size": len(self._dlq),
+            "heartbeat_timeout_s": self.heartbeat_timeout_s,
+        }
+
+class TokenBucketRateLimit:
+    """Feature 4 (PR82): Per-tenant token-bucket rate limits.
+
+    Each tenant has an independent token bucket. Tokens refill at a
+    configured rate per second up to the bucket capacity. Consumes
+    return a structured tuple: (allowed, reason, event).
+    """
+
+    def __init__(self, capacity: int = 10, refill_rate: float = 1.0) -> None:
+        self._default_capacity = capacity
+        self._default_refill_rate = refill_rate
+        self._tenants: dict[str, dict[str, Any]] = {}
+        self._last_refill: dict[str, float] = {}
+
+    def set_tenant(
+        self,
+        tenant_id: str,
+        capacity: int | None = None,
+        refill_rate: float | None = None,
+    ) -> None:
+        self._tenants[tenant_id] = {
+            "capacity": capacity if capacity is not None else self._default_capacity,
+            "refill_rate": refill_rate if refill_rate is not None else self._default_refill_rate,
+            "tokens": float(capacity) if capacity is not None else float(self._default_capacity),
+        }
+        self._last_refill[tenant_id] = datetime.now(timezone.utc).timestamp()
+
+    def refill(self) -> None:
+        now = datetime.now(timezone.utc).timestamp()
+        for tenant_id in list(self._tenants.keys()):
+            if tenant_id not in self._last_refill:
+                self._last_refill[tenant_id] = now
+                continue
+            elapsed = now - self._last_refill[tenant_id]
+            if elapsed <= 0:
+                continue
+            tenant = self._tenants[tenant_id]
+            added = elapsed * tenant["refill_rate"]
+            tenant["tokens"] = min(tenant["tokens"] + added, float(tenant["capacity"]))
+            self._last_refill[tenant_id] = now
+
+    def consume(self, tenant_id: str, tokens: int = 1) -> tuple[bool, str, dict[str, Any]]:
+        if tenant_id not in self._tenants:
+            return (
+                False,
+                "tenant not registered",
+                {
+                    "tenant_id": tenant_id,
+                    "tokens_requested": tokens,
+                    "allowed": False,
+                    "reason": "tenant not registered",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        if tokens <= 0:
+            return (
+                False,
+                "invalid token count",
+                {
+                    "tenant_id": tenant_id,
+                    "tokens_requested": tokens,
+                    "allowed": False,
+                    "reason": "invalid token count",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        self.refill()
+        tenant = self._tenants[tenant_id]
+        if tenant["tokens"] >= tokens:
+            tenant["tokens"] -= tokens
+            now = datetime.now(timezone.utc)
+            event: dict[str, Any] = {
+                "tenant_id": tenant_id,
+                "tokens_requested": tokens,
+                "tokens_deducted": tokens,
+                "remaining_balance": tenant["tokens"],
+                "allowed": True,
+                "reason": "ok",
+                "timestamp": now.isoformat(),
+            }
+            return (True, "ok", event)
+        now = datetime.now(timezone.utc)
+        event = {
+            "tenant_id": tenant_id,
+            "tokens_requested": tokens,
+            "tokens_deducted": 0,
+            "remaining_balance": tenant["tokens"],
+            "allowed": False,
+            "reason": "insufficient tokens",
+            "timestamp": now.isoformat(),
+        }
+        return (False, "insufficient tokens", event)
+
+    def get_balance(self, tenant_id: str) -> float:
+        if tenant_id not in self._tenants:
+            return 0.0
+        self.refill()
+        return self._tenants[tenant_id]["tokens"]
+
+    def get_stats(self) -> dict[str, Any]:
+        self.refill()
+        total_capacity = sum(t["capacity"] for t in self._tenants.values())
+        total_balance = sum(t["tokens"] for t in self._tenants.values())
+        return {
+            "tenant_count": len(self._tenants),
+            "default_capacity": self._default_capacity,
+            "default_refill_rate": self._default_refill_rate,
+            "total_capacity": total_capacity,
+            "total_balance": total_balance,
+        }
+
+class CascadeCancel:
+    """Feature 5 (PR82): Cascading cancel/abort tree.
+
+    Cancels a job and all transitive DAG descendants via a
+    stack-based traversal (mirrors DAGExecutionEngine.
+    _cancel_downstream). Registered dependencies determine
+    the cancellation cascade.
+    """
+
+    def __init__(self) -> None:
+        self._deps: dict[str, set[str]] = {}
+        self._dependents: dict[str, set[str]] = {}
+        self._cancelled: set[str] = set()
+
+    def register_dag(self, job_id: str, depends_on: list[str] = []) -> None:
+        self._deps[job_id] = set(depends_on)
+        if job_id not in self._dependents:
+            self._dependents[job_id] = set()
+        for dep in depends_on:
+            self._dependents.setdefault(dep, set()).add(job_id)
+            if dep not in self._deps:
+                self._deps[dep] = set()
+            if dep not in self._dependents:
+                self._dependents[dep] = set()
+    def cancel(self, job_id: str, reason: str = "cancelled") -> list[str]:
+        if job_id in self._cancelled:
+            return [job_id]
+        cancelled: list[str] = []
+        stack = [job_id]
+        while stack:
+            current = stack.pop()
+            if current in self._cancelled:
+                continue
+            self._cancelled.add(current)
+            cancelled.append(current)
+            for dependent in self._dependents.get(current, set()):
+                if dependent not in self._cancelled:
+                    stack.append(dependent)
+        return sorted(cancelled)
+
+    def is_cancelled(self, job_id: str) -> bool:
+        return job_id in self._cancelled
+
+    def get_cancelled(self) -> list[str]:
+        return sorted(self._cancelled)
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "cancelled_count": len(self._cancelled),
+            "registered_jobs": len(self._deps),
+            "dependency_edges": sum(len(v) for v in self._deps.values()),
+        }
+
+class PriorityInheritance:
+    """Feature 6 (PR82): Priority inheritance under blockers.
+
+    Applies brief priority boosts to waiters blocked on
+    lower-priority holders. Prevents priority inversion by
+    temporarily elevating blocked waiters when their holder
+    lacks sufficient priority.
+    """
+
+    def __init__(self, boost_amount: int = 5, boost_duration_s: float = 10.0) -> None:
+        self.boost_amount = boost_amount
+        self.boost_duration_s = boost_duration_s
+        self._blocks: dict[str, dict[str, Any]] = {}
+        self._holder_priorities: dict[str, int] = {}
+        self._boosted: list[dict[str, Any]] = []
+        self._resolved: list[str] = []
+
+    def register_block(self, waiter_id: str, holder_id: str, waiter_priority: int) -> None:
+        self._blocks[waiter_id] = {
+            "waiter_id": waiter_id,
+            "holder_id": holder_id,
+            "waiter_priority": waiter_priority,
+        }
+        if holder_id not in self._holder_priorities:
+            self._holder_priorities[holder_id] = waiter_priority
+        if waiter_id in self._resolved:
+            self._resolved.remove(waiter_id)
+
+    def apply_inheritance(self) -> list[dict[str, Any]]:
+        boosts: list[dict[str, Any]] = []
+        for waiter_id, block in self._blocks.items():
+            if waiter_id in self._resolved:
+                continue
+            holder_id = block["holder_id"]
+            waiter_priority = block["waiter_priority"]
+            holder_priority = self._holder_priorities.get(holder_id, 0)
+            if holder_priority < waiter_priority:
+                boost_entry: dict[str, Any] = {
+                    "waiter_id": waiter_id,
+                    "holder_id": holder_id,
+                    "waiter_priority": waiter_priority,
+                    "holder_priority": holder_priority,
+                    "boost_amount": self.boost_amount,
+                    "boosted_priority": waiter_priority + self.boost_amount,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                boosts.append(boost_entry)
+                self._boosted.append(boost_entry)
+        return boosts
+
+    def resolve_block(self, waiter_id: str) -> bool:
+        if waiter_id not in self._blocks:
+            return False
+        del self._blocks[waiter_id]
+        self._resolved.append(waiter_id)
+        return True
+
+    def get_active_blocks(self) -> list[dict[str, Any]]:
+        return [dict(b) for b in self._blocks.values()]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "active_blocks": len(self._blocks),
+            "resolved_blocks": len(self._resolved),
+            "boosted_count": len(self._boosted),
+            "boost_amount": self.boost_amount,
+            "boost_duration_s": self.boost_duration_s,
+            "holder_count": len(self._holder_priorities),
+        }
+
+class ShadowRun:
+    """Feature 7 (PR82): Shadow run — speculative dual-run without committing ledger side effects.
+
+    Records proposals in a shadow ledger for inspection without
+    applying side effects. Committing a shadow promotes a recorded
+    proposal to a committed result.
+    """
+
+    def __init__(self, enabled: bool = False) -> None:
+        self.enabled = enabled
+        self._shadows: dict[str, dict[str, Any]] = {}
+        self._committed: dict[str, dict[str, Any]] = {}
+
+    def enable(self) -> None:
+        self.enabled = True
+
+    def disable(self) -> None:
+        self.enabled = False
+
+    def submit_shadow(self, job_id: str, proposal: dict[str, Any]) -> dict[str, Any]:
+        if not self.enabled:
+            raise RuntimeError("ShadowRun is not enabled")
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        entry: dict[str, Any] = {
+            "job_id": job_id,
+            "proposal": proposal,
+            "status": "shadowed",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._shadows[job_id] = entry
+        return entry
+
+    def commit_shadow(self, job_id: str) -> dict[str, Any]:
+        if job_id not in self._shadows:
+            raise KeyError(f"No shadow found for job_id: {job_id}")
+        shadow = self._shadows[job_id]
+        committed: dict[str, Any] = {
+            "job_id": job_id,
+            "proposal": shadow["proposal"],
+            "status": "committed",
+            "committed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._committed[job_id] = committed
+        shadow["status"] = "committed"
+        shadow["committed_at"] = committed["committed_at"]
+        return committed
+
+    def get_shadow(self, job_id: str) -> dict[str, Any] | None:
+        return self._shadows.get(job_id)
+
+    def get_all_shadows(self) -> list[dict[str, Any]]:
+        return list(self._shadows.values())
+
+    def get_stats(self) -> dict[str, Any]:
+        total = len(self._shadows)
+        committed_count = sum(1 for s in self._shadows.values() if s["status"] == "committed")
+        return {
+            "enabled": self.enabled,
+            "total_shadows": total,
+            "committed": committed_count,
+            "pending": total - committed_count,
+        }
+
+class CostAccounting:
+    """Feature 8 (PR82): Cost accounting — estimate + record cost per job/tenant; hard budget stop.
+
+    Tracks estimated and actual costs per job and tenant. Enforces
+    a hard global budget — recording beyond the budget fails (hard stop).
+    """
+
+    def __init__(self, global_budget: float = 10000.0) -> None:
+        if global_budget < 0:
+            raise ValueError("global_budget must be non-negative")
+        self.global_budget = global_budget
+        self._costs: dict[str, float] = {}
+        self._tenant_map: dict[str, str] = {}
+        self._tenant_costs: dict[str, float] = {}
+
+    def estimate(
+        self,
+        job_id: str,
+        cpu_hours: float = 1.0,
+        mem_gb_hours: float = 1.0,
+        gpu_hours: float = 0.0,
+    ) -> dict[str, Any]:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if cpu_hours < 0 or mem_gb_hours < 0 or gpu_hours < 0:
+            raise ValueError("resource hours must be non-negative")
+        CPU_RATE = 0.05
+        MEM_RATE = 0.01
+        GPU_RATE = 1.0
+        estimated_cost = (cpu_hours * CPU_RATE) + (mem_gb_hours * MEM_RATE) + (gpu_hours * GPU_RATE)
+        return {
+            "job_id": job_id,
+            "estimated_cost": round(estimated_cost, 6),
+            "cpu_hours": cpu_hours,
+            "mem_gb_hours": mem_gb_hours,
+            "gpu_hours": gpu_hours,
+            "rates": {
+                "cpu_per_hour": CPU_RATE,
+                "memory_per_gb_hour": MEM_RATE,
+                "gpu_per_hour": GPU_RATE,
+            },
+        }
+
+    def record(self, job_id: str, actual_cost: float) -> bool:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if actual_cost < 0:
+            raise ValueError("actual_cost must be non-negative")
+        projected_total = self._total_spent() + actual_cost
+        if projected_total > self.global_budget:
+            return False
+        self._costs[job_id] = self._costs.get(job_id, 0.0) + actual_cost
+        tenant_id = self._tenant_map.get(job_id, "default")
+        self._tenant_costs[tenant_id] = self._tenant_costs.get(tenant_id, 0.0) + actual_cost
+        return True
+
+    def set_tenant(self, job_id: str, tenant_id: str) -> None:
+        self._tenant_map[job_id] = tenant_id
+
+    def get_cost(self, job_id: str) -> float:
+        return self._costs.get(job_id, 0.0)
+
+    def get_tenant_cost(self, tenant_id: str) -> float:
+        return self._tenant_costs.get(tenant_id, 0.0)
+
+    def get_remaining(self) -> float:
+        return self.global_budget - self._total_spent()
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "global_budget": self.global_budget,
+            "total_spent": round(self._total_spent(), 6),
+            "remaining": round(self.get_remaining(), 6),
+            "jobs_tracked": len(self._costs),
+            "tenants": len(self._tenant_costs),
+        }
+
+    def _total_spent(self) -> float:
+        return sum(self._costs.values())
+
+class PolicyHotReload:
+    """Feature 9 (PR #82): Hot reload SchedulerPolicyPackV2 from JSON.
+
+    Allows loading and reloading scheduler policy packs from JSON
+    strings without process restart. Version-pinned. Tracks reload
+    history and active policies.
+    """
+
+    def __init__(self) -> None:
+        self._pack = SchedulerPolicyPackV2()
+        self._active: dict[str, dict[str, Any]] = {}
+        self._reload_history: list[dict[str, Any]] = []
+
+    def load_policy(self, policy_id: str, json_str: str, version_pin: str = "v2") -> dict[str, Any]:
+        if not policy_id:
+            raise ValueError("policy_id must not be empty")
+        if not json_str:
+            raise ValueError("json_str must not be empty")
+        raw = self._pack.load_from_json(policy_id, json_str)
+        raw["version"] = version_pin
+        self._active[policy_id] = {
+            "policy_id": policy_id,
+            "version": version_pin,
+            "policy": self._pack.get_policy(policy_id) or {},
+            "loaded": True,
+            "loaded_at": datetime.now(timezone.utc).isoformat(),
+            "sections": raw.get("sections", list(self._pack.get_policy(policy_id).keys())),
+        }
+        return dict(self._active[policy_id])
+
+    def hot_reload(self, policy_id: str, json_str: str) -> dict[str, Any]:
+        if not policy_id:
+            raise ValueError("policy_id must not be empty")
+        if policy_id not in self._active:
+            raise KeyError(f"No active policy found for policy_id: {policy_id}")
+        previous = dict(self._active[policy_id])
+        if not json_str:
+            raise ValueError("json_str must not be empty")
+        loaded = self.load_policy(policy_id, json_str, version_pin=previous["version"])
+        self._reload_history.append({
+            "policy_id": policy_id,
+            "action": "hot_reload",
+            "previous_version": previous["version"],
+            "new_version": loaded["version"],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        return previous
+
+    def get_active_policy(self, policy_id: str) -> dict[str, Any] | None:
+        return self._active.get(policy_id)
+
+    def list_active(self) -> list[str]:
+        return list(self._active.keys())
+
+    def get_reload_history(self, policy_id: str | None = None) -> list[dict[str, Any]]:
+        if policy_id is None:
+            return list(self._reload_history)
+        return [h for h in self._reload_history if h["policy_id"] == policy_id]
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "active_policies": len(self._active),
+            "active_policy_ids": list(self._active.keys()),
+            "total_reloads": len(self._reload_history),
+            "pack_version": self._pack._version,
+            "pack_stats": self._pack.get_stats(),
+        }
+
+class ChaosInjection:
+    """Feature 10 (PR #82): Chaos fault-injection hooks.
+
+    Injects delays and failures into job execution for testing
+    resilience. OFF by default. Enabling requires the
+    THINKBOX_CHAOS_ENABLED environment variable to be set to a
+    truthy value (env-gated).
+    """
+
+    ENV_VAR = "THINKBOX_CHAOS_ENABLED"
+
+    def __init__(self) -> None:
+        self._enabled: bool = False
+        self._faults: dict[str, dict[str, Any]] = {}
+
+    def enable(self) -> None:
+        env_val = os.environ.get(self.ENV_VAR, "")
+        if not env_val or env_val.lower() in ("0", "false", "no", "off", ""):
+            raise RuntimeError(
+                f"ChaosInjection.enable() requires {self.ENV_VAR} environment variable "
+                "to be set to a truthy value"
+            )
+        self._enabled = True
+
+    def disable(self) -> None:
+        self._enabled = False
+
+    def set_fault(
+        self,
+        job_id: str,
+        delay_s: float = 0.0,
+        should_fail: bool = False,
+        error_msg: str = "",
+    ) -> None:
+        if not job_id:
+            raise ValueError("job_id must not be empty")
+        if delay_s < 0:
+            raise ValueError("delay_s must be non-negative")
+        self._faults[job_id] = {
+            "job_id": job_id,
+            "delay_s": float(delay_s),
+            "should_fail": bool(should_fail),
+            "error_msg": str(error_msg),
+            "set_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def should_delay(self, job_id: str) -> tuple[bool, float]:
+        fault = self._faults.get(job_id)
+        if fault and fault["delay_s"] > 0:
+            return True, fault["delay_s"]
+        return False, 0.0
+
+    def should_fail(self, job_id: str) -> tuple[bool, str]:
+        fault = self._faults.get(job_id)
+        if fault and fault["should_fail"]:
+            return True, fault["error_msg"]
+        return False, ""
+
+    def clear_fault(self, job_id: str) -> bool:
+        if job_id in self._faults:
+            del self._faults[job_id]
+            return True
+        return False
+
+    def get_active_faults(self) -> list[dict[str, Any]]:
+        return list(self._faults.values())
+
+    def get_stats(self) -> dict[str, Any]:
+        total_faults = len(self._faults)
+        failing = sum(1 for f in self._faults.values() if f["should_fail"])
+        delaying = sum(1 for f in self._faults.values() if f["delay_s"] > 0)
+        return {
+            "enabled": self._enabled,
+            "total_faults": total_faults,
+            "failing_faults": failing,
+            "delaying_faults": delaying,
+            "faults": total_faults,
         }

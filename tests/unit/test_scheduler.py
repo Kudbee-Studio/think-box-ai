@@ -5,6 +5,7 @@ Each feature has tests for valid input, invalid input, and edge cases.
 """
 
 import unittest
+from unittest.mock import patch
 import hashlib
 import json
 import math
@@ -74,6 +75,16 @@ from thinkbox.scheduler import (
     DurableJobCheckpoints,
     DAGExecutionEngine,
     ObservabilityExportPack,
+    CronWindow,
+    ResourceQuota,
+    WorkerHeartbeat,
+    TokenBucketRateLimit,
+    CascadeCancel,
+    PriorityInheritance,
+    ShadowRun,
+    CostAccounting,
+    PolicyHotReload,
+    ChaosInjection,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -2733,3 +2744,1391 @@ class TestObservabilityExportPack(unittest.TestCase):
         self.assertEqual(stats["metrics_count"], 1)
         # record_metric creates both a metric and an event, so total_events = 2
         self.assertEqual(stats["total_events"], 2)
+
+
+# =============================================================================
+# Tests for PR #82 - 10 major governed scheduler features
+# =============================================================================
+
+_SAMPLE_POLICY = {
+    "version": "v2",
+    "priority": {"goal-a": 10, "goal-b": 5},
+    "deadlines": {"goal-a": 300.0},
+    "fair_share": {"mode": "weighted"},
+    "retry": {"max_retries": 3},
+}
+
+
+class TestCronWindow(unittest.TestCase):
+    """Feature 6 (PR82): Cron/calendar admit windows."""
+
+    def test_default_cron_admits_every_minute(self) -> None:
+        cw = CronWindow("* * * * *")
+        now = time.time()
+        result = cw.is_admissible(now)
+        self.assertEqual(result, (True, "within_window"))
+
+    def test_explicit_time_within_window(self) -> None:
+        cw = CronWindow("* * * * *")
+        ts = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        result = cw.is_admissible(ts)
+        self.assertEqual(result, (True, "within_window"))
+
+    def test_explicit_time_outside_window(self) -> None:
+        cw = CronWindow("0 0 * * *")
+        ts = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        result = cw.is_admissible(ts)
+        self.assertEqual(result, (False, "outside_window"))
+
+    def test_set_cron_updates_pattern(self) -> None:
+        cw = CronWindow("* * * * *")
+        cw.set_cron("0 0 * * *")
+        ts = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        result = cw.is_admissible(ts)
+        self.assertEqual(result, (False, "outside_window"))
+        ts_midnight = datetime(2026, 9, 18, 0, 0, 0, tzinfo=timezone.utc).timestamp()
+        result2 = cw.is_admissible(ts_midnight)
+        self.assertEqual(result2, (True, "within_window"))
+
+    def test_next_admission_with_mocked_time(self) -> None:
+        cw = CronWindow("0 0 * * *")
+        fixed = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        with patch("thinkbox.scheduler.time.time", return_value=fixed):
+            next_ts = cw.next_admission()
+        expected = datetime(2026, 9, 19, 0, 0, 0, tzinfo=timezone.utc).timestamp()
+        self.assertAlmostEqual(next_ts, expected, delta=60)
+
+    def test_next_admission_every_minute(self) -> None:
+        cw = CronWindow("* * * * *")
+        fixed = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        with patch("thinkbox.scheduler.time.time", return_value=fixed):
+            next_ts = cw.next_admission()
+        expected = datetime(2026, 9, 18, 12, 31, 0, tzinfo=timezone.utc).timestamp()
+        self.assertAlmostEqual(next_ts, expected, delta=60)
+
+    def test_get_state(self) -> None:
+        cw = CronWindow("30 * * * *")
+        state = cw.get_state()
+        self.assertEqual(state["cron_expr"], "30 * * * *")
+        self.assertIn("parsed_fields", state)
+        self.assertIn("minute", state["parsed_fields"])
+        self.assertIn("current_admissible", state)
+
+    def test_minute_step_pattern(self) -> None:
+        cw = CronWindow("*/5 * * * *")
+        ts = datetime(2026, 9, 18, 12, 30, 0, tzinfo=timezone.utc).timestamp()
+        result = cw.is_admissible(ts)
+        self.assertEqual(result, (True, "within_window"))
+        ts2 = datetime(2026, 9, 18, 12, 32, 0, tzinfo=timezone.utc).timestamp()
+        result2 = cw.is_admissible(ts2)
+        self.assertEqual(result2, (False, "outside_window"))
+
+    def test_hour_range_pattern(self) -> None:
+        cw = CronWindow("0 8-10 * * *")
+        ts = datetime(2026, 9, 18, 9, 0, 0, tzinfo=timezone.utc).timestamp()
+        result = cw.is_admissible(ts)
+        self.assertEqual(result, (True, "within_window"))
+        ts2 = datetime(2026, 9, 18, 11, 0, 0, tzinfo=timezone.utc).timestamp()
+        result2 = cw.is_admissible(ts2)
+        self.assertEqual(result2, (False, "outside_window"))
+
+    def test_invalid_cron_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            CronWindow("invalid")
+
+
+class TestResourceQuota(unittest.TestCase):
+    """Feature 7 (PR82): CPU/memory/GPU resource quotas."""
+
+    def test_default_quota(self) -> None:
+        rq = ResourceQuota()
+        stats = rq.get_stats()
+        self.assertEqual(stats["total"]["cpu"], 100)
+        self.assertEqual(stats["total"]["mem_mb"], 1024)
+        self.assertEqual(stats["total"]["gpu"], 0)
+        self.assertEqual(stats["active_reservations"], 0)
+
+    def test_reserve_success(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-1", cpu=2, mem_mb=200, gpu=0)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["reason"], "reserved")
+        self.assertEqual(result["allocated"], {"cpu": 2, "mem_mb": 200, "gpu": 0})
+
+    def test_reserve_success_with_gpu(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=1024, gpu_units=4)
+        result = rq.reserve("job-1", cpu=2, mem_mb=200, gpu=1)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["reason"], "reserved")
+        self.assertEqual(result["allocated"], {"cpu": 2, "mem_mb": 200, "gpu": 1})
+
+    def test_reserve_default_values(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-default")
+        self.assertTrue(result["success"])
+        self.assertEqual(result["allocated"], {"cpu": 1, "mem_mb": 100, "gpu": 0})
+
+    def test_reserve_insufficient_cpu(self) -> None:
+        rq = ResourceQuota(cpu_units=2, mem_mb=1024, gpu_units=0)
+        rq.reserve("job-1", cpu=2, mem_mb=100)
+        result = rq.reserve("job-2", cpu=1, mem_mb=100)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "insufficient_resources")
+
+    def test_reserve_insufficient_mem(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=200, gpu_units=0)
+        rq.reserve("job-1", cpu=1, mem_mb=150)
+        result = rq.reserve("job-2", cpu=1, mem_mb=100)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "insufficient_resources")
+
+    def test_reserve_insufficient_gpu(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=1024, gpu_units=1)
+        rq.reserve("job-1", cpu=1, mem_mb=100, gpu=1)
+        result = rq.reserve("job-2", cpu=1, mem_mb=100, gpu=1)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "insufficient_resources")
+
+    def test_reserve_duplicate_job_id(self) -> None:
+        rq = ResourceQuota()
+        rq.reserve("job-1")
+        result = rq.reserve("job-1")
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "already_reserved")
+
+    def test_reserve_negative_cpu_fails(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-1", cpu=-1)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "invalid_request")
+
+    def test_reserve_zero_cpu_fails(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-1", cpu=0)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "invalid_request")
+
+    def test_reserve_negative_mem_fails(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-1", mem_mb=-100)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "invalid_request")
+
+    def test_reserve_negative_gpu_fails(self) -> None:
+        rq = ResourceQuota()
+        result = rq.reserve("job-1", gpu=-1)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["reason"], "invalid_request")
+
+    def test_release_success(self) -> None:
+        rq = ResourceQuota()
+        rq.reserve("job-1", cpu=5, mem_mb=500)
+        result = rq.release("job-1")
+        self.assertTrue(result)
+        self.assertEqual(rq.get_available(), {"cpu": 100, "mem_mb": 1024, "gpu": 0})
+
+    def test_release_nonexistent_job(self) -> None:
+        rq = ResourceQuota()
+        result = rq.release("nonexistent")
+        self.assertFalse(result)
+
+    def test_get_available(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=1024, gpu_units=4)
+        rq.reserve("job-1", cpu=10, mem_mb=200, gpu=2)
+        available = rq.get_available()
+        self.assertEqual(available, {"cpu": 90, "mem_mb": 824, "gpu": 2})
+
+    def test_get_allocated(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=1024, gpu_units=4)
+        rq.reserve("job-1", cpu=2, mem_mb=200, gpu=1)
+        rq.reserve("job-2", cpu=3, mem_mb=300, gpu=0)
+        allocated = rq.get_allocated()
+        self.assertEqual(len(allocated), 2)
+        self.assertEqual(allocated["job-1"], {"cpu": 2, "mem_mb": 200, "gpu": 1})
+        self.assertEqual(allocated["job-2"], {"cpu": 3, "mem_mb": 300, "gpu": 0})
+
+    def test_get_stats(self) -> None:
+        rq = ResourceQuota(cpu_units=100, mem_mb=1024, gpu_units=2)
+        rq.reserve("job-1", cpu=25, mem_mb=256, gpu=1)
+        stats = rq.get_stats()
+        self.assertEqual(stats["used"], {"cpu": 25, "mem_mb": 256, "gpu": 1})
+        self.assertEqual(stats["available"], {"cpu": 75, "mem_mb": 768, "gpu": 1})
+        self.assertEqual(stats["active_reservations"], 1)
+        self.assertIn("utilization", stats)
+        self.assertAlmostEqual(stats["utilization"]["cpu"], 0.25)
+
+    def test_multiple_reserves_and_releases(self) -> None:
+        rq = ResourceQuota(cpu_units=50, mem_mb=2048, gpu_units=4)
+        for i in range(5):
+            result = rq.reserve(f"job-{i}", cpu=5, mem_mb=200, gpu=0)
+            self.assertTrue(result["success"])
+        available_before = rq.get_available()
+        self.assertEqual(available_before["cpu"], 25)
+        self.assertEqual(rq.release("job-2"), True)
+        self.assertEqual(rq.get_available()["cpu"], 30)
+        self.assertEqual(len(rq.get_allocated()), 4)
+
+    def test_full_depletion(self) -> None:
+        rq = ResourceQuota(cpu_units=4, mem_mb=400, gpu_units=0)
+        rq.reserve("job-1", cpu=2, mem_mb=200)
+        rq.reserve("job-2", cpu=2, mem_mb=200)
+        result = rq.reserve("job-3", cpu=1, mem_mb=100)
+        self.assertFalse(result["success"])
+        self.assertEqual(rq.get_available(), {"cpu": 0, "mem_mb": 0, "gpu": 0})
+
+    def test_zero_gpu_quota(self) -> None:
+        rq = ResourceQuota(cpu_units=10, mem_mb=1024, gpu_units=0)
+        result = rq.reserve("job-1", gpu=1)
+        self.assertFalse(result["success"])
+        result2 = rq.reserve("job-2", gpu=0)
+        self.assertTrue(result2["success"])
+
+    def test_release_then_reserve(self) -> None:
+        rq = ResourceQuota(cpu_units=10, mem_mb=1024)
+        rq.reserve("job-1", cpu=5)
+        rq.release("job-1")
+        result = rq.reserve("job-1", cpu=5)
+        self.assertTrue(result["success"])
+
+class TestWorkerHeartbeat(unittest.TestCase):
+    def test_register_worker_default(self) -> None:
+        wh = WorkerHeartbeat()
+        wh.register_worker("w1")
+        self.assertIn("w1", wh.get_active_workers())
+        self.assertEqual(wh.get_stats()["active_workers"], 1)
+
+    def test_register_worker_with_capabilities(self) -> None:
+        wh = WorkerHeartbeat()
+        wh.register_worker("w1", ["read", "write"])
+        self.assertIn("w1", wh.get_active_workers())
+
+    def test_heartbeat_registered_worker(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=10.0)
+        wh.register_worker("w1")
+        result = wh.heartbeat("w1")
+        self.assertTrue(result)
+
+    def test_heartbeat_unknown_worker(self) -> None:
+        wh = WorkerHeartbeat()
+        result = wh.heartbeat("unknown")
+        self.assertFalse(result)
+
+    def test_evict_stale_no_stale_workers(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=60.0)
+        wh.register_worker("w1")
+        evicted = wh.evict_stale()
+        self.assertEqual(evicted, [])
+        self.assertIn("w1", wh.get_active_workers())
+
+    def test_evict_stale_worker(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=0.01)
+        wh.register_worker("w1")
+        time.sleep(0.02)
+        evicted = wh.evict_stale()
+        self.assertIn("w1", evicted)
+        self.assertNotIn("w1", wh.get_active_workers())
+
+    def test_evict_stale_moves_jobs_to_dlq(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=0.01)
+        wh.register_worker("w1")
+        wh._workers["w1"]["assigned_jobs"] = ["job1", "job2"]
+        time.sleep(0.02)
+        evicted = wh.evict_stale()
+        self.assertIn("w1", evicted)
+        dlq = wh.get_dlq()
+        self.assertEqual(len(dlq), 2)
+        job_ids = [e["job_id"] for e in dlq]
+        self.assertIn("job1", job_ids)
+        self.assertIn("job2", job_ids)
+
+    def test_evict_stale_preserves_active_workers(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=1.0)
+        wh.register_worker("w1")
+        wh.register_worker("w2")
+        wh._workers["w1"]["last_heartbeat"] = "2020-01-01T00:00:00+00:00"
+        time.sleep(0.01)
+        evicted = wh.evict_stale()
+        self.assertIn("w1", evicted)
+        self.assertIn("w2", wh.get_active_workers())
+
+    def test_move_to_dlq(self) -> None:
+        wh = WorkerHeartbeat()
+        entry = wh.move_to_dlq("job1", reason="test failure")
+        self.assertEqual(entry["job_id"], "job1")
+        self.assertEqual(entry["reason"], "test failure")
+        self.assertIn("timestamp", entry)
+        dlq = wh.get_dlq()
+        self.assertEqual(len(dlq), 1)
+        self.assertEqual(dlq[0]["job_id"], "job1")
+
+    def test_get_dlq_returns_copy(self) -> None:
+        wh = WorkerHeartbeat()
+        wh.move_to_dlq("job1", reason="r1")
+        wh.move_to_dlq("job2", reason="r2")
+        dlq = wh.get_dlq()
+        dlq.clear()
+        self.assertEqual(len(wh.get_dlq()), 2)
+
+    def test_get_active_workers_returns_list(self) -> None:
+        wh = WorkerHeartbeat()
+        wh.register_worker("w1")
+        wh.register_worker("w2")
+        workers = wh.get_active_workers()
+        self.assertEqual(len(workers), 2)
+        self.assertIn("w1", workers)
+        self.assertIn("w2", workers)
+
+    def test_get_stats(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=15.0)
+        wh.register_worker("w1")
+        wh.register_worker("w2")
+        wh.move_to_dlq("job1", reason="r")
+        stats = wh.get_stats()
+        self.assertEqual(stats["active_workers"], 2)
+        self.assertEqual(stats["dlq_size"], 1)
+        self.assertEqual(stats["heartbeat_timeout_s"], 15.0)
+
+    def test_empty_initial_state(self) -> None:
+        wh = WorkerHeartbeat()
+        self.assertEqual(wh.get_active_workers(), [])
+        self.assertEqual(wh.get_dlq(), [])
+        stats = wh.get_stats()
+        self.assertEqual(stats["active_workers"], 0)
+        self.assertEqual(stats["dlq_size"], 0)
+
+    def test_multiple_evictions(self) -> None:
+        wh = WorkerHeartbeat(heartbeat_timeout_s=0.01)
+        wh.register_worker("w1")
+        wh.register_worker("w2")
+        wh.register_worker("w3")
+        for w in ["w1", "w2", "w3"]:
+            wh._workers[w]["last_heartbeat"] = "2020-01-01T00:00:00+00:00"
+        time.sleep(0.02)
+        evicted = wh.evict_stale()
+        self.assertEqual(sorted(evicted), ["w1", "w2", "w3"])
+        self.assertEqual(wh.get_active_workers(), [])
+
+
+class TestTokenBucketRateLimit(unittest.TestCase):
+    def test_consume_allowed_default(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=1.0)
+        tb.set_tenant("t1")
+        allowed, reason, event = tb.consume("t1", tokens=3)
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "ok")
+        self.assertTrue(event["allowed"])
+        self.assertEqual(event["tokens_deducted"], 3)
+
+    def test_consume_denied_insufficient_tokens(self) -> None:
+        tb = TokenBucketRateLimit(capacity=2, refill_rate=0.0)
+        tb.set_tenant("t1")
+        allowed, reason, event = tb.consume("t1", tokens=3)
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "insufficient tokens")
+        self.assertFalse(event["allowed"])
+        self.assertEqual(event["tokens_deducted"], 0)
+
+    def test_consume_unknown_tenant(self) -> None:
+        tb = TokenBucketRateLimit()
+        allowed, reason, event = tb.consume("unknown", tokens=1)
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "tenant not registered")
+        self.assertFalse(event["allowed"])
+
+    def test_consume_invalid_token_count_zero(self) -> None:
+        tb = TokenBucketRateLimit()
+        tb.set_tenant("t1")
+        allowed, reason, _ = tb.consume("t1", tokens=0)
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "invalid token count")
+
+    def test_consume_invalid_token_count_negative(self) -> None:
+        tb = TokenBucketRateLimit()
+        tb.set_tenant("t1")
+        allowed, reason, _ = tb.consume("t1", tokens=-1)
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "invalid token count")
+
+    def test_set_tenant_custom_capacity_and_rate(self) -> None:
+        tb = TokenBucketRateLimit()
+        tb.set_tenant("t1", capacity=100, refill_rate=5.0)
+        self.assertEqual(tb.get_balance("t1"), 100.0)
+
+    def test_set_tenant_default_capacity_and_rate(self) -> None:
+        tb = TokenBucketRateLimit(capacity=50, refill_rate=2.0)
+        tb.set_tenant("t1")
+        self.assertEqual(tb.get_balance("t1"), 50.0)
+
+    def test_set_tenant_partial_override(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=1.0)
+        tb.set_tenant("t1", capacity=20)
+        self.assertEqual(tb.get_balance("t1"), 20.0)
+        tb.set_tenant("t2", refill_rate=2.0)
+        self.assertEqual(tb.get_balance("t2"), 10.0)
+
+    def test_get_balance_unknown_tenant(self) -> None:
+        tb = TokenBucketRateLimit()
+        self.assertEqual(tb.get_balance("unknown"), 0.0)
+
+    def test_refill_increases_tokens(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=1.0)
+        tb.set_tenant("t1")
+        tb.consume("t1", tokens=5)
+        balance_before = tb.get_balance("t1")
+        time.sleep(1.1)
+        tb.refill()
+        balance_after = tb.get_balance("t1")
+        self.assertGreater(balance_after, balance_before)
+        self.assertLessEqual(balance_after, 10.0)
+
+    def test_refill_caps_at_capacity(self) -> None:
+        tb = TokenBucketRateLimit(capacity=5, refill_rate=10.0)
+        tb.set_tenant("t1")
+        tb.consume("t1", tokens=5)
+        time.sleep(1.0)
+        tb.refill()
+        balance = tb.get_balance("t1")
+        self.assertLessEqual(balance, 5.0)
+
+    def test_consume_then_refill_then_consume(self) -> None:
+        tb = TokenBucketRateLimit(capacity=5, refill_rate=2.0)
+        tb.set_tenant("t1")
+        allowed1, _, _ = tb.consume("t1", tokens=5)
+        self.assertTrue(allowed1)
+        allowed2, _, _ = tb.consume("t1", tokens=3)
+        self.assertFalse(allowed2)
+        time.sleep(2.0)
+        tb.refill()
+        allowed3, _, _ = tb.consume("t1", tokens=3)
+        self.assertTrue(allowed3)
+
+    def test_get_stats(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=1.0)
+        tb.set_tenant("t1")
+        tb.set_tenant("t2", capacity=20)
+        stats = tb.get_stats()
+        self.assertEqual(stats["tenant_count"], 2)
+        self.assertEqual(stats["default_capacity"], 10)
+        self.assertEqual(stats["default_refill_rate"], 1.0)
+        self.assertEqual(stats["total_capacity"], 30)
+
+    def test_get_balance_after_consumes(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=100.0)
+        tb.set_tenant("t1")
+        _, _, _ = tb.consume("t1", tokens=3)
+        balance = tb.get_balance("t1")
+        self.assertAlmostEqual(balance, 7.0, delta=0.1)
+
+    def test_consume_exact_balance(self) -> None:
+        tb = TokenBucketRateLimit(capacity=5, refill_rate=0.0)
+        tb.set_tenant("t1")
+        allowed, _, _ = tb.consume("t1", tokens=5)
+        self.assertTrue(allowed)
+        allowed2, _, _ = tb.consume("t1", tokens=1)
+        self.assertFalse(allowed2)
+
+    def test_multiple_tenants_independent(self) -> None:
+        tb = TokenBucketRateLimit(capacity=10, refill_rate=0.0)
+        tb.set_tenant("t1")
+        tb.set_tenant("t2")
+        _, _, _ = tb.consume("t1", tokens=8)
+        _, _, _ = tb.consume("t2", tokens=3)
+        self.assertAlmostEqual(tb.get_balance("t1"), 2.0, delta=0.01)
+        self.assertAlmostEqual(tb.get_balance("t2"), 7.0, delta=0.01)
+
+    def test_default_constructor_values(self) -> None:
+        tb = TokenBucketRateLimit()
+        self.assertEqual(tb._default_capacity, 10)
+        self.assertEqual(tb._default_refill_rate, 1.0)
+        tb.set_tenant("t1")
+        self.assertAlmostEqual(tb.get_balance("t1"), 10.0, delta=0.01)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+class TestCascadeCancel(unittest.TestCase):
+    def test_init_empty(self) -> None:
+        cc = CascadeCancel()
+        self.assertEqual(cc.get_cancelled(), [])
+        self.assertEqual(cc.get_stats()["cancelled_count"], 0)
+
+    def test_cancel_single_job_no_deps(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        result = cc.cancel("job1")
+        self.assertEqual(result, ["job1"])
+        self.assertTrue(cc.is_cancelled("job1"))
+
+    def test_cancel_returns_all_transitive_dependents(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        cc.register_dag("job2", depends_on=["job1"])
+        cc.register_dag("job3", depends_on=["job2"])
+        result = cc.cancel("job1")
+        self.assertEqual(sorted(result), ["job1", "job2", "job3"])
+        self.assertTrue(cc.is_cancelled("job1"))
+        self.assertTrue(cc.is_cancelled("job2"))
+        self.assertTrue(cc.is_cancelled("job3"))
+
+    def test_cancel_direct_dependents_only(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("A")
+        cc.register_dag("B", depends_on=["A"])
+        cc.register_dag("C", depends_on=["A"])
+        result = cc.cancel("A")
+        self.assertEqual(sorted(result), ["A", "B", "C"])
+
+    def test_diamond_dependency_cancellation(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("root")
+        cc.register_dag("left", depends_on=["root"])
+        cc.register_dag("right", depends_on=["root"])
+        cc.register_dag("leaf", depends_on=["left", "right"])
+        result = cc.cancel("root")
+        self.assertEqual(sorted(result), ["leaf", "left", "right", "root"])
+
+    def test_cancel_non_registered_job(self) -> None:
+        cc = CascadeCancel()
+        result = cc.cancel("unknown")
+        self.assertEqual(result, ["unknown"])
+        self.assertTrue(cc.is_cancelled("unknown"))
+
+    def test_cancel_with_custom_reason(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        result = cc.cancel("job1", reason="manual_abort")
+        self.assertEqual(result, ["job1"])
+        self.assertTrue(cc.is_cancelled("job1"))
+
+    def test_is_cancelled_returns_true_for_dependent(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        cc.register_dag("job2", depends_on=["job1"])
+        cc.cancel("job1")
+        self.assertTrue(cc.is_cancelled("job1"))
+        self.assertTrue(cc.is_cancelled("job2"))
+
+    def test_is_cancelled_returns_false_for_unrelated(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        cc.register_dag("job2", depends_on=["job3"])
+        self.assertFalse(cc.is_cancelled("job1"))
+
+    def test_get_cancelled_returns_copy(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        cc.cancel("job1")
+        cancelled = cc.get_cancelled()
+        cancelled.clear()
+        self.assertEqual(len(cc.get_cancelled()), 1)
+
+    def test_get_cancelled_sorted(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("z-job")
+        cc.register_dag("a-job")
+        cc.cancel("z-job")
+        cc.cancel("a-job")
+        self.assertEqual(cc.get_cancelled(), ["a-job", "z-job"])
+
+    def test_get_stats(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("j1")
+        cc.register_dag("j2", depends_on=["j1"])
+        cc.cancel("j1")
+        stats = cc.get_stats()
+        self.assertEqual(stats["cancelled_count"], 2)
+        self.assertEqual(stats["registered_jobs"], 2)
+        self.assertEqual(stats["dependency_edges"], 1)
+
+    def test_get_stats_empty(self) -> None:
+        cc = CascadeCancel()
+        stats = cc.get_stats()
+        self.assertEqual(stats["cancelled_count"], 0)
+        self.assertEqual(stats["registered_jobs"], 0)
+        self.assertEqual(stats["dependency_edges"], 0)
+
+    def test_cancel_does_not_duplicate(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        cc.register_dag("job2", depends_on=["job1"])
+        result1 = cc.cancel("job1")
+        self.assertEqual(result1, ["job1", "job2"])
+        result2 = cc.cancel("job1")
+        self.assertEqual(result2, ["job1"])
+        self.assertEqual(len(cc.get_cancelled()), 2)
+
+    def test_partial_cancel_does_not_affect_unrelated(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("a")
+        cc.register_dag("b", depends_on=["a"])
+        cc.register_dag("x")
+        cc.register_dag("y", depends_on=["x"])
+        cc.cancel("a")
+        self.assertTrue(cc.is_cancelled("a"))
+        self.assertTrue(cc.is_cancelled("b"))
+        self.assertFalse(cc.is_cancelled("x"))
+        self.assertFalse(cc.is_cancelled("y"))
+
+    def test_dependent_without_explicit_registration(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("parent", depends_on=["orphan_dep"])
+        result = cc.cancel("orphan_dep")
+        self.assertIn("parent", result)
+
+    def test_circular_dependencies_no_infinite_loop(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("a", depends_on=["c"])
+        cc.register_dag("b", depends_on=["a"])
+        cc.register_dag("c", depends_on=["b"])
+        result = cc.cancel("a")
+        self.assertIn("a", result)
+        self.assertIn("b", result)
+        self.assertIn("c", result)
+        self.assertEqual(len(cc.get_cancelled()), 3)
+
+    def test_register_dag_default_depends_on(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("job1")
+        self.assertIn("job1", cc._deps)
+        self.assertEqual(cc._deps["job1"], set())
+
+    def test_diamond_with_unrelated_branches(self) -> None:
+        cc = CascadeCancel()
+        cc.register_dag("root")
+        cc.register_dag("child1", depends_on=["root"])
+        cc.register_dag("child2", depends_on=["root"])
+        cc.register_dag("grandchild", depends_on=["child1"])
+        cc.register_dag("isolated")
+        cc.cancel("root")
+        self.assertTrue(cc.is_cancelled("root"))
+        self.assertTrue(cc.is_cancelled("child1"))
+        self.assertTrue(cc.is_cancelled("child2"))
+        self.assertTrue(cc.is_cancelled("grandchild"))
+        self.assertFalse(cc.is_cancelled("isolated"))
+
+
+class TestPriorityInheritance(unittest.TestCase):
+    def test_init_defaults(self) -> None:
+        pi = PriorityInheritance()
+        self.assertEqual(pi.boost_amount, 5)
+        self.assertEqual(pi.boost_duration_s, 10.0)
+
+    def test_init_custom_params(self) -> None:
+        pi = PriorityInheritance(boost_amount=10, boost_duration_s=30.0)
+        self.assertEqual(pi.boost_amount, 10)
+        self.assertEqual(pi.boost_duration_s, 30.0)
+
+    def test_apply_inheritance_lower_priority_holder(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("waiter1", "holder1", waiter_priority=10)
+        pi._holder_priorities["holder1"] = 5
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 1)
+        self.assertEqual(boosts[0]["waiter_id"], "waiter1")
+        self.assertEqual(boosts[0]["boost_amount"], 5)
+        self.assertEqual(boosts[0]["boosted_priority"], 15)
+
+    def test_apply_inheritance_equal_priority_no_boost(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("waiter1", "holder1", waiter_priority=5)
+        pi._holder_priorities["holder1"] = 5
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 0)
+
+    def test_apply_inheritance_higher_priority_holder_no_boost(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("waiter1", "holder1", waiter_priority=3)
+        pi._holder_priorities["holder1"] = 10
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 0)
+
+    def test_apply_inheritance_multiple_blocks_mixed(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi.register_block("w2", "h2", waiter_priority=5)
+        pi.register_block("w3", "h3", waiter_priority=3)
+        pi._holder_priorities["h1"] = 5
+        pi._holder_priorities["h2"] = 5
+        pi._holder_priorities["h3"] = 10
+        boosts = pi.apply_inheritance()
+        boosted_ids = {b["waiter_id"] for b in boosts}
+        self.assertIn("w1", boosted_ids)
+        self.assertNotIn("w2", boosted_ids)
+        self.assertNotIn("w3", boosted_ids)
+
+    def test_apply_inheritance_no_blocks(self) -> None:
+        pi = PriorityInheritance()
+        boosts = pi.apply_inheritance()
+        self.assertEqual(boosts, [])
+
+    def test_resolve_block_existing(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        result = pi.resolve_block("w1")
+        self.assertTrue(result)
+        self.assertEqual(len(pi.get_active_blocks()), 0)
+
+    def test_resolve_block_nonexistent(self) -> None:
+        pi = PriorityInheritance()
+        result = pi.resolve_block("nonexistent")
+        self.assertFalse(result)
+
+    def test_resolved_block_not_boosted(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi.resolve_block("w1")
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 0)
+
+    def test_get_active_blocks_returns_copy(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        blocks = pi.get_active_blocks()
+        blocks.clear()
+        self.assertEqual(len(pi.get_active_blocks()), 1)
+
+    def test_get_active_blocks_structure(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=7)
+        blocks = pi.get_active_blocks()
+        self.assertEqual(len(blocks), 1)
+        block = blocks[0]
+        self.assertEqual(block["waiter_id"], "w1")
+        self.assertEqual(block["holder_id"], "h1")
+        self.assertEqual(block["waiter_priority"], 7)
+
+    def test_get_stats(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi.register_block("w2", "h2", waiter_priority=3)
+        pi._holder_priorities["h1"] = 5
+        pi._holder_priorities["h2"] = 10
+        pi.apply_inheritance()
+        pi.resolve_block("w1")
+        stats = pi.get_stats()
+        self.assertEqual(stats["active_blocks"], 1)
+        self.assertEqual(stats["resolved_blocks"], 1)
+        self.assertEqual(stats["boosted_count"], 1)
+        self.assertEqual(stats["boost_amount"], 5)
+        self.assertEqual(stats["boost_duration_s"], 10.0)
+        self.assertEqual(stats["holder_count"], 2)
+
+    def test_get_stats_empty(self) -> None:
+        pi = PriorityInheritance()
+        stats = pi.get_stats()
+        self.assertEqual(stats["active_blocks"], 0)
+        self.assertEqual(stats["resolved_blocks"], 0)
+        self.assertEqual(stats["boosted_count"], 0)
+
+    def test_register_block_default_holder_priority(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        self.assertEqual(pi._holder_priorities["h1"], 10)
+
+    def test_register_block_holder_priority_from_first_waiter(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=3)
+        pi.register_block("w2", "h1", waiter_priority=10)
+        self.assertEqual(pi._holder_priorities["h1"], 3)
+        boosts = pi.apply_inheritance()
+        boosted_ids = {b["waiter_id"] for b in boosts}
+        self.assertIn("w2", boosted_ids)
+        self.assertNotIn("w1", boosted_ids)
+
+    def test_holder_priority_default_zero(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=1)
+        pi._holder_priorities["h1"] = 0
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 1)
+
+    def test_multiple_resolve_calls(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        self.assertTrue(pi.resolve_block("w1"))
+        self.assertFalse(pi.resolve_block("w1"))
+
+    def test_re_register_after_resolve(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi.resolve_block("w1")
+        pi.register_block("w1", "h1", waiter_priority=8)
+        pi._holder_priorities["h1"] = 5
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 1)
+
+    def test_apply_inheritance_returns_in_registration_order(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w2", "h1", waiter_priority=10)
+        pi.register_block("w1", "h2", waiter_priority=8)
+        pi._holder_priorities["h1"] = 5
+        pi._holder_priorities["h2"] = 5
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 2)
+        self.assertEqual(boosts[0]["waiter_id"], "w2")
+        self.assertEqual(boosts[1]["waiter_id"], "w1")
+
+    def test_boost_entries_have_timestamp(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi._holder_priorities["h1"] = 5
+        boosts = pi.apply_inheritance()
+        self.assertEqual(len(boosts), 1)
+        self.assertIn("timestamp", boosts[0])
+
+    def test_boost_entries_have_correct_fields(self) -> None:
+        pi = PriorityInheritance(boost_amount=3)
+        pi.register_block("w1", "h1", waiter_priority=7)
+        pi._holder_priorities["h1"] = 2
+        boosts = pi.apply_inheritance()
+        entry = boosts[0]
+        self.assertEqual(entry["waiter_id"], "w1")
+        self.assertEqual(entry["holder_id"], "h1")
+        self.assertEqual(entry["waiter_priority"], 7)
+        self.assertEqual(entry["holder_priority"], 2)
+        self.assertEqual(entry["boost_amount"], 3)
+        self.assertEqual(entry["boosted_priority"], 10)
+
+    def test_holder_count_tracks_unique_holders(self) -> None:
+        pi = PriorityInheritance()
+        pi.register_block("w1", "h1", waiter_priority=10)
+        pi.register_block("w2", "h1", waiter_priority=8)
+        stats = pi.get_stats()
+        self.assertEqual(stats["holder_count"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+class TestShadowRun(unittest.TestCase):
+    def setUp(self) -> None:
+        self.sr = ShadowRun()
+
+    def test_init_default_disabled(self) -> None:
+        sr = ShadowRun()
+        self.assertFalse(sr.enabled)
+
+    def test_init_with_enabled(self) -> None:
+        sr = ShadowRun(enabled=True)
+        self.assertTrue(sr.enabled)
+
+    def test_enable(self) -> None:
+        sr = ShadowRun()
+        sr.enable()
+        self.assertTrue(sr.enabled)
+
+    def test_disable(self) -> None:
+        sr = ShadowRun(enabled=True)
+        sr.disable()
+        self.assertFalse(sr.enabled)
+
+    def test_submit_shadow_success(self) -> None:
+        self.sr.enable()
+        result = self.sr.submit_shadow("job-1", {"action": "run", "target": "x"})
+        self.assertEqual(result["job_id"], "job-1")
+        self.assertEqual(result["proposal"], {"action": "run", "target": "x"})
+        self.assertEqual(result["status"], "shadowed")
+        self.assertIn("timestamp", result)
+
+    def test_submit_shadow_when_disabled_raises(self) -> None:
+        with self.assertRaises(RuntimeError):
+            self.sr.submit_shadow("job-1", {"action": "run"})
+
+    def test_submit_shadow_empty_job_id_raises(self) -> None:
+        self.sr.enable()
+        with self.assertRaises(ValueError):
+            self.sr.submit_shadow("", {"action": "run"})
+
+    def test_get_shadow_returns_entry(self) -> None:
+        self.sr.enable()
+        self.sr.submit_shadow("job-1", {"action": "run"})
+        shadow = self.sr.get_shadow("job-1")
+        self.assertIsNotNone(shadow)
+        self.assertEqual(shadow["job_id"], "job-1")
+
+    def test_get_shadow_missing_returns_none(self) -> None:
+        result = self.sr.get_shadow("nonexistent")
+        self.assertIsNone(result)
+
+    def test_get_all_shadows(self) -> None:
+        self.sr.enable()
+        self.sr.submit_shadow("job-1", {"a": 1})
+        self.sr.submit_shadow("job-2", {"a": 2})
+        shadows = self.sr.get_all_shadows()
+        self.assertEqual(len(shadows), 2)
+        job_ids = {s["job_id"] for s in shadows}
+        self.assertEqual(job_ids, {"job-1", "job-2"})
+
+    def test_commit_shadow_success(self) -> None:
+        self.sr.enable()
+        self.sr.submit_shadow("job-1", {"action": "run"})
+        result = self.sr.commit_shadow("job-1")
+        self.assertEqual(result["status"], "committed")
+        self.assertIn("committed_at", result)
+        self.assertEqual(result["proposal"], {"action": "run"})
+
+    def test_commit_shadow_missing_raises(self) -> None:
+        with self.assertRaises(KeyError):
+            self.sr.commit_shadow("nonexistent")
+
+    def test_commit_updates_shadow_status(self) -> None:
+        self.sr.enable()
+        self.sr.submit_shadow("job-1", {"action": "run"})
+        self.sr.commit_shadow("job-1")
+        shadow = self.sr.get_shadow("job-1")
+        self.assertEqual(shadow["status"], "committed")
+
+    def test_get_stats(self) -> None:
+        self.sr.enable()
+        self.assertEqual(self.sr.get_stats()["total_shadows"], 0)
+        self.sr.submit_shadow("job-1", {})
+        self.sr.submit_shadow("job-2", {})
+        self.sr.commit_shadow("job-1")
+        stats = self.sr.get_stats()
+        self.assertEqual(stats["total_shadows"], 2)
+        self.assertEqual(stats["committed"], 1)
+        self.assertEqual(stats["pending"], 1)
+        self.assertEqual(stats["enabled"], True)
+
+    def test_get_all_shadows_empty(self) -> None:
+        self.assertEqual(self.sr.get_all_shadows(), [])
+
+
+class TestCostAccounting(unittest.TestCase):
+    def setUp(self) -> None:
+        self.ca = CostAccounting(global_budget=100.0)
+
+    def test_init_default_budget(self) -> None:
+        ca = CostAccounting()
+        self.assertEqual(ca.global_budget, 10000.0)
+
+    def test_init_custom_budget(self) -> None:
+        ca = CostAccounting(global_budget=500.0)
+        self.assertEqual(ca.global_budget, 500.0)
+
+    def test_init_negative_budget_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            CostAccounting(global_budget=-1.0)
+
+    def test_estimate_default(self) -> None:
+        result = self.ca.estimate("job-1")
+        self.assertEqual(result["job_id"], "job-1")
+        self.assertEqual(result["estimated_cost"], 0.06)
+        self.assertEqual(result["cpu_hours"], 1.0)
+        self.assertEqual(result["mem_gb_hours"], 1.0)
+        self.assertEqual(result["gpu_hours"], 0.0)
+        self.assertIn("rates", result)
+
+    def test_estimate_with_resources(self) -> None:
+        result = self.ca.estimate("job-1", cpu_hours=2.0, mem_gb_hours=4.0, gpu_hours=1.0)
+        self.assertAlmostEqual(result["estimated_cost"], 2.0 * 0.05 + 4.0 * 0.01 + 1.0 * 1.0, places=6)
+        self.assertEqual(result["gpu_hours"], 1.0)
+
+    def test_estimate_zero_resources(self) -> None:
+        result = self.ca.estimate("job-1", cpu_hours=0.0, mem_gb_hours=0.0, gpu_hours=0.0)
+        self.assertEqual(result["estimated_cost"], 0.0)
+
+    def test_estimate_negative_cpu_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.estimate("job-1", cpu_hours=-1.0)
+
+    def test_estimate_negative_mem_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.estimate("job-1", mem_gb_hours=-1.0)
+
+    def test_estimate_negative_gpu_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.estimate("job-1", gpu_hours=-1.0)
+
+    def test_estimate_empty_job_id_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.estimate("")
+
+    def test_record_success(self) -> None:
+        result = self.ca.record("job-1", 10.0)
+        self.assertTrue(result)
+        self.assertEqual(self.ca.get_cost("job-1"), 10.0)
+
+    def test_record_multiple(self) -> None:
+        self.ca.record("job-1", 10.0)
+        self.ca.record("job-1", 5.0)
+        self.assertEqual(self.ca.get_cost("job-1"), 15.0)
+
+    def test_record_over_budget_fails(self) -> None:
+        self.ca.record("job-1", 95.0)
+        result = self.ca.record("job-2", 10.0)
+        self.assertFalse(result)
+        self.assertEqual(self.ca.get_cost("job-2"), 0.0)
+
+    def test_record_exact_budget(self) -> None:
+        self.ca.record("job-1", 90.0)
+        result = self.ca.record("job-2", 10.0)
+        self.assertTrue(result)
+        self.assertAlmostEqual(self.ca.get_remaining(), 0.0, places=6)
+
+    def test_record_negative_cost_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.record("job-1", -1.0)
+
+    def test_record_empty_job_id_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.ca.record("", 10.0)
+
+    def test_get_cost_missing(self) -> None:
+        self.assertEqual(self.ca.get_cost("unknown"), 0.0)
+
+    def test_get_tenant_cost_default(self) -> None:
+        self.ca.set_tenant("job-1", "tenant-A")
+        self.ca.record("job-1", 20.0)
+        self.assertEqual(self.ca.get_tenant_cost("tenant-A"), 20.0)
+
+    def test_get_tenant_cost_unassigned_uses_default(self) -> None:
+        self.ca.record("job-1", 10.0)
+        self.assertEqual(self.ca.get_tenant_cost("default"), 10.0)
+
+    def test_get_tenant_cost_multiple_jobs(self) -> None:
+        self.ca.set_tenant("job-1", "tenant-A")
+        self.ca.set_tenant("job-2", "tenant-A")
+        self.ca.record("job-1", 10.0)
+        self.ca.record("job-2", 30.0)
+        self.assertEqual(self.ca.get_tenant_cost("tenant-A"), 40.0)
+
+    def test_get_tenant_cost_missing(self) -> None:
+        self.assertEqual(self.ca.get_tenant_cost("noone"), 0.0)
+
+    def test_get_remaining(self) -> None:
+        self.assertEqual(self.ca.get_remaining(), 100.0)
+        self.ca.record("job-1", 30.0)
+        self.assertAlmostEqual(self.ca.get_remaining(), 70.0, places=6)
+
+    def test_get_stats(self) -> None:
+        stats = self.ca.get_stats()
+        self.assertEqual(stats["global_budget"], 100.0)
+        self.assertEqual(stats["total_spent"], 0.0)
+        self.assertEqual(stats["remaining"], 100.0)
+        self.assertEqual(stats["jobs_tracked"], 0)
+        self.assertEqual(stats["tenants"], 0)
+        self.ca.record("job-1", 10.0)
+        self.ca.set_tenant("job-2", "tenant-A")
+        self.ca.record("job-2", 20.0)
+        stats = self.ca.get_stats()
+        self.assertAlmostEqual(stats["total_spent"], 30.0, places=6)
+        self.assertAlmostEqual(stats["remaining"], 70.0, places=6)
+        self.assertEqual(stats["jobs_tracked"], 2)
+        self.assertEqual(stats["tenants"], 2)
+
+    def test_set_tenant(self) -> None:
+        self.ca.set_tenant("job-1", "tenant-B")
+        self.ca.record("job-1", 5.0)
+        self.assertEqual(self.ca.get_tenant_cost("tenant-B"), 5.0)
+
+    def test_rounding_precision(self) -> None:
+        result = self.ca.estimate("job-1", cpu_hours=0.1, mem_gb_hours=0.1, gpu_hours=0.1)
+        cost = result["estimated_cost"]
+        self.assertIsInstance(cost, float)
+        self.assertLess(cost, 1.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+class TestPolicyHotReload(unittest.TestCase):
+    def setUp(self) -> None:
+        self.reloader = PolicyHotReload()
+
+    def test_init_empty(self) -> None:
+        self.assertEqual(self.reloader.list_active(), [])
+        self.assertEqual(self.reloader.get_stats()["active_policies"], 0)
+        self.assertEqual(self.reloader.get_reload_history(), [])
+
+    def test_load_policy_valid(self) -> None:
+        result = self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.assertEqual(result["policy_id"], "policy-1")
+        self.assertEqual(result["version"], "v2")
+        self.assertTrue(result["loaded"])
+        self.assertIn("loaded_at", result)
+        self.assertIn("sections", result)
+
+    def test_load_policy_custom_version_pin(self) -> None:
+        result = self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY), version_pin="v3")
+        self.assertEqual(result["version"], "v3")
+        active = self.reloader.get_active_policy("policy-1")
+        self.assertIsNotNone(active)
+        self.assertEqual(active["version"], "v3")
+
+    def test_load_policy_default_version_pin(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        active = self.reloader.get_active_policy("policy-1")
+        self.assertIsNotNone(active)
+        self.assertEqual(active["version"], "v2")
+
+    def test_load_policy_empty_policy_id_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.reloader.load_policy("", "{}")
+
+    def test_load_policy_empty_json_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.reloader.load_policy("policy-1", "")
+
+    def test_load_policy_invalid_json_raises(self) -> None:
+        with self.assertRaises(Exception):
+            self.reloader.load_policy("policy-1", "not-json")
+
+    def test_get_active_policy_returns_none_for_missing(self) -> None:
+        self.assertIsNone(self.reloader.get_active_policy("nonexistent"))
+
+    def test_get_active_policy_returns_loaded(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        result = self.reloader.get_active_policy("policy-1")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["policy_id"], "policy-1")
+        self.assertEqual(result["policy"], _SAMPLE_POLICY)
+
+    def test_list_active(self) -> None:
+        self.assertEqual(self.reloader.list_active(), [])
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.load_policy("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        active = self.reloader.list_active()
+        self.assertEqual(len(active), 2)
+        self.assertIn("policy-1", active)
+        self.assertIn("policy-2", active)
+
+    def test_hot_reload_returns_previous(self) -> None:
+        modified = dict(_SAMPLE_POLICY)
+        modified["priority"] = {"goal-a": 20}
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        previous = self.reloader.hot_reload("policy-1", __import__("json").dumps(modified))
+        self.assertEqual(previous["version"], "v2")
+        self.assertEqual(previous["policy"]["priority"], _SAMPLE_POLICY["priority"])
+
+    def test_hot_reload_updates_active_policy(self) -> None:
+        modified = dict(_SAMPLE_POLICY)
+        modified["priority"] = {"goal-a": 20}
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-1", __import__("json").dumps(modified))
+        active = self.reloader.get_active_policy("policy-1")
+        self.assertIsNotNone(active)
+        self.assertEqual(active["policy"]["priority"], {"goal-a": 20})
+
+    def test_hot_reload_missing_policy_raises(self) -> None:
+        with self.assertRaises(KeyError):
+            self.reloader.hot_reload("nonexistent", "{}")
+
+    def test_hot_reload_empty_json_raises(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        with self.assertRaises(ValueError):
+            self.reloader.hot_reload("policy-1", "")
+
+    def test_hot_reload_records_history(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        modified = dict(_SAMPLE_POLICY)
+        modified["priority"] = {"goal-a": 20}
+        self.reloader.hot_reload("policy-1", __import__("json").dumps(modified))
+        history = self.reloader.get_reload_history()
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["policy_id"], "policy-1")
+        self.assertEqual(history[0]["action"], "hot_reload")
+        self.assertEqual(history[0]["previous_version"], "v2")
+        self.assertIn("timestamp", history[0])
+
+    def test_get_reload_history_filtered(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.load_policy("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        filtered = self.reloader.get_reload_history("policy-1")
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["policy_id"], "policy-1")
+
+    def test_get_reload_history_none_returns_all(self) -> None:
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.load_policy("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        history = self.reloader.get_reload_history()
+        self.assertEqual(len(history), 2)
+
+    def test_get_stats(self) -> None:
+        stats = self.reloader.get_stats()
+        self.assertEqual(stats["active_policies"], 0)
+        self.reloader.load_policy("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.load_policy("policy-2", __import__("json").dumps(_SAMPLE_POLICY))
+        self.reloader.hot_reload("policy-1", __import__("json").dumps(_SAMPLE_POLICY))
+        stats = self.reloader.get_stats()
+        self.assertEqual(stats["active_policies"], 2)
+        self.assertEqual(stats["total_reloads"], 1)
+        self.assertIn("pack_stats", stats)
+
+    def test_load_policy_multiple_different_versions(self) -> None:
+        self.reloader.load_policy("p1", __import__("json").dumps(_SAMPLE_POLICY), version_pin="v2")
+        self.reloader.load_policy("p2", __import__("json").dumps(_SAMPLE_POLICY), version_pin="v3")
+        self.reloader.load_policy("p3", __import__("json").dumps(_SAMPLE_POLICY), version_pin="v1")
+        self.assertEqual(self.reloader.get_active_policy("p1")["version"], "v2")
+        self.assertEqual(self.reloader.get_active_policy("p2")["version"], "v3")
+        self.assertEqual(self.reloader.get_active_policy("p3")["version"], "v1")
+
+
+class TestChaosInjection(unittest.TestCase):
+    def setUp(self) -> None:
+        self.chaos = ChaosInjection()
+        # Ensure disabled state
+        self.chaos.disable()
+
+    def test_init_default_off(self) -> None:
+        self.assertFalse(self.chaos.get_stats()["enabled"])
+        self.assertEqual(self.chaos.get_active_faults(), [])
+        self.assertEqual(self.chaos.get_stats()["total_faults"], 0)
+
+    def test_enable_without_env_var_raises(self) -> None:
+        if "THINKBOX_CHAOS_ENABLED" in os.environ:
+            del os.environ["THINKBOX_CHAOS_ENABLED"]
+        with self.assertRaises(RuntimeError):
+            self.chaos.enable()
+        self.assertFalse(self.chaos.get_stats()["enabled"])
+
+    def test_enable_with_env_var_succeeds(self) -> None:
+        os.environ["THINKBOX_CHAOS_ENABLED"] = "1"
+        try:
+            self.chaos.enable()
+            self.assertTrue(self.chaos.get_stats()["enabled"])
+        finally:
+            del os.environ["THINKBOX_CHAOS_ENABLED"]
+
+    def test_enable_with_false_env_var_raises(self) -> None:
+        for val in ["0", "false", "no", "off", ""]:
+            os.environ["THINKBOX_CHAOS_ENABLED"] = val
+            with self.subTest(val=val):
+                self.chaos.disable()
+                with self.assertRaises(RuntimeError):
+                    self.chaos.enable()
+                self.assertFalse(self.chaos.get_stats()["enabled"])
+        if "THINKBOX_CHAOS_ENABLED" in os.environ:
+            del os.environ["THINKBOX_CHAOS_ENABLED"]
+
+    def test_disable_turns_off(self) -> None:
+        os.environ["THINKBOX_CHAOS_ENABLED"] = "1"
+        try:
+            self.chaos.enable()
+            self.assertTrue(self.chaos.get_stats()["enabled"])
+        finally:
+            del os.environ["THINKBOX_CHAOS_ENABLED"]
+        self.chaos.disable()
+        self.assertFalse(self.chaos.get_stats()["enabled"])
+
+    def test_set_fault_basic(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=2.5, should_fail=True, error_msg="boom")
+        faults = self.chaos.get_active_faults()
+        self.assertEqual(len(faults), 1)
+        self.assertEqual(faults[0]["job_id"], "job-1")
+        self.assertEqual(faults[0]["delay_s"], 2.5)
+        self.assertTrue(faults[0]["should_fail"])
+        self.assertEqual(faults[0]["error_msg"], "boom")
+        self.assertIn("set_at", faults[0])
+
+    def test_set_fault_defaults(self) -> None:
+        self.chaos.set_fault("job-1")
+        fault = self.chaos.get_active_faults()[0]
+        self.assertEqual(fault["job_id"], "job-1")
+        self.assertEqual(fault["delay_s"], 0.0)
+        self.assertFalse(fault["should_fail"])
+        self.assertEqual(fault["error_msg"], "")
+
+    def test_set_fault_empty_job_id_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.chaos.set_fault("", delay_s=1.0)
+
+    def test_set_fault_negative_delay_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.chaos.set_fault("job-1", delay_s=-1.0)
+
+    def test_should_delay_no_fault(self) -> None:
+        result = self.chaos.should_delay("job-1")
+        self.assertEqual(result, (False, 0.0))
+
+    def test_should_delay_with_fault(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=3.0)
+        result = self.chaos.should_delay("job-1")
+        self.assertEqual(result, (True, 3.0))
+
+    def test_should_delay_zero_delay_no_delay(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=0.0)
+        result = self.chaos.should_delay("job-1")
+        self.assertEqual(result, (False, 0.0))
+
+    def test_should_fail_no_fault(self) -> None:
+        result = self.chaos.should_fail("job-1")
+        self.assertEqual(result, (False, ""))
+
+    def test_should_fail_with_fault(self) -> None:
+        self.chaos.set_fault("job-1", should_fail=True, error_msg="crash")
+        result = self.chaos.should_fail("job-1")
+        self.assertEqual(result, (True, "crash"))
+
+    def test_should_fail_no_failure_flag(self) -> None:
+        self.chaos.set_fault("job-1", should_fail=False, error_msg="won't happen")
+        result = self.chaos.should_fail("job-1")
+        self.assertEqual(result, (False, ""))
+
+    def test_should_fail_empty_error_msg(self) -> None:
+        self.chaos.set_fault("job-1", should_fail=True)
+        result = self.chaos.should_fail("job-1")
+        self.assertEqual(result, (True, ""))
+
+    def test_clear_fault_existing(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=1.0)
+        result = self.chaos.clear_fault("job-1")
+        self.assertTrue(result)
+        self.assertEqual(len(self.chaos.get_active_faults()), 0)
+
+    def test_clear_fault_nonexistent(self) -> None:
+        result = self.chaos.clear_fault("nonexistent")
+        self.assertFalse(result)
+
+    def test_get_active_faults_empty(self) -> None:
+        self.assertEqual(self.chaos.get_active_faults(), [])
+
+    def test_get_active_faults_multiple(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=1.0, should_fail=True, error_msg="err1")
+        self.chaos.set_fault("job-2", delay_s=2.0, should_fail=False)
+        faults = self.chaos.get_active_faults()
+        self.assertEqual(len(faults), 2)
+        job_ids = {f["job_id"] for f in faults}
+        self.assertEqual(job_ids, {"job-1", "job-2"})
+
+    def test_get_stats_default(self) -> None:
+        stats = self.chaos.get_stats()
+        self.assertFalse(stats["enabled"])
+        self.assertEqual(stats["total_faults"], 0)
+        self.assertEqual(stats["failing_faults"], 0)
+        self.assertEqual(stats["delaying_faults"], 0)
+
+    def test_get_stats_with_faults(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=1.0, should_fail=True, error_msg="err1")
+        self.chaos.set_fault("job-2", delay_s=0.0, should_fail=True, error_msg="err2")
+        self.chaos.set_fault("job-3", delay_s=5.0, should_fail=False)
+        self.chaos.set_fault("job-4", delay_s=0.0, should_fail=False)
+        stats = self.chaos.get_stats()
+        self.assertEqual(stats["total_faults"], 4)
+        self.assertEqual(stats["failing_faults"], 2)
+        self.assertEqual(stats["delaying_faults"], 2)
+
+    def test_combined_delay_and_fail(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=2.0, should_fail=True, error_msg="fail")
+        delay_result = self.chaos.should_delay("job-1")
+        fail_result = self.chaos.should_fail("job-1")
+        self.assertEqual(delay_result, (True, 2.0))
+        self.assertEqual(fail_result, (True, "fail"))
+
+    def test_set_fault_overwrites_existing(self) -> None:
+        self.chaos.set_fault("job-1", delay_s=1.0, should_fail=True, error_msg="first")
+        self.chaos.set_fault("job-1", delay_s=5.0, should_fail=False, error_msg="second")
+        fault = self.chaos.get_active_faults()[0]
+        self.assertEqual(fault["delay_s"], 5.0)
+        self.assertFalse(fault["should_fail"])
+        self.assertEqual(fault["error_msg"], "second")
+        self.assertEqual(len(self.chaos.get_active_faults()), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
