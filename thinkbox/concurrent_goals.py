@@ -43,6 +43,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -415,9 +416,123 @@ class StressTestResult:
     duration_seconds: float = 0.0
     peak_concurrency: int = 0
     completed_goals: int = 0
-    failed_goals: int = 0
-    timestamp: str = ""
+failed_goals: int = 0
+        timestamp: str = ""
 
     def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
+
+
+class StressTestRunner:
+    """Runs concurrency stress tests using the ConcurrentGoalsRunner."""
+
+    def __init__(self, concurrent_runner: ConcurrentGoalsRunner | None = None) -> None:
+        self.concurrent_runner = concurrent_runner or ConcurrentGoalsRunner()
+        self._active_goals: dict[str, asyncio.Task] = {}
+        self._concurrency_samples: list[int] = []
+
+    def _default_goal_factory(self, index: int) -> ConcurrentGoalSpec:
+        """Default factory creating simple compute goals."""
+        from thinkbox.pop_arena import system_prompt_for_v2, VerifiedRetryConfig
+        def _sub(family: str, variant: str) -> dict:
+            prompt, spec = system_prompt_for_v2(family, variant)
+            return {"description": prompt, "family": family, "variant": variant,
+                    "spec": spec, "depends_on": []}
+        return ConcurrentGoalSpec(
+            goal=f"stress-goal-{index}",
+            subtasks=[_sub("compute", "add_small")],
+            budget_config=VerifiedRetryConfig(max_calls=5, max_retries=1),
+            priority=index % 10,
+        )
+
+    async def _sample_concurrency(self, interval: float = 0.1) -> None:
+        """Background task to sample concurrency levels."""
+        while True:
+            active = sum(1 for t in self._active_goals.values() if not t.done())
+            self._concurrency_samples.append(active)
+            await asyncio.sleep(interval)
+
+    async def run_stress_test(
+        self,
+        config: StressTestConfig,
+        complete_async: Callable[[str], Any],
+        manager: Any = None,
+        ledger_path: str = ":memory:",
+    ) -> StressTestResult:
+        """Run a concurrency stress test."""
+        start_time = time.monotonic()
+        
+        # Create goals
+        goal_factory = config.goal_factory or self._default_goal_factory
+        specs = [config.goal_factory(i) for i in range(config.num_goals)]
+        
+        # Run stress test
+        cfg = ConcurrentGoalsConfig(
+            independent_goals=False,
+            max_calls_global=config.max_calls_global,
+            max_retries_global=config.max_retries_global,
+            contention_policy=config.contention_policy,
+        )
+        
+        # Sample concurrency in background
+        sample_task = asyncio.create_task(self._sample_concurrency(0.1))
+        
+        try:
+            # Run all goals concurrently
+            result = await self.concurrent_runner.run_concurrent(
+                specs=specs,
+                complete_async=complete_async,
+                config=cfg,
+                agent_id="stress-test-agent",
+                manager=manager,
+                emit_dashboard=True,
+                ledger_path=":memory:",
+            )
+        finally:
+            sample_task.cancel()
+            try:
+                await sample_task
+            except asyncio.CancelledError:
+                pass
+        
+        duration = time.monotonic() - start_time
+        
+        # Aggregate results
+        return self._aggregate_results(config, result, duration)
+    
+    def _aggregate_results(
+        self,
+        config: StressTestConfig,
+        result: ConcurrentGoalsResult,
+        duration: float,
+    ) -> StressTestResult:
+        """Aggregate stress test results."""
+        per_goal_calls = {k: v.get("calls_spent", 0) for k, v in result.per_goal_accounting.items()}
+        per_goal_retries = {k: v.get("retries_fired", 0) for k, v in result.per_goal_accounting.items()}
+        
+        # Compute Jain's fairness index
+        calls = list(per_goal_calls.values())
+        fairness = 0.0
+        if calls and sum(calls) > 0:
+            n = len(calls)
+            sum_calls = sum(calls)
+            sum_sq = sum(c * c for c in calls)
+            fairness = (sum_calls * sum_calls) / (n * sum_sq) if sum_sq > 0 else 0.0
+        
+        return StressTestResult(
+            config=config,
+            total_calls=result.global_calls_spent,
+            total_retries=result.global_retries_fired,
+            total_budget_exhausted=sum(
+                v.get("budget_exhausted", 0) for v in result.per_goal_accounting.values()
+            ),
+            goal_results=result.goal_results,
+            per_goal_calls=per_goal_calls,
+            per_goal_retries=per_goal_retries,
+            fairness_index=round(fairness, 4),
+            duration_seconds=round(duration, 3),
+            peak_concurrency=max(self._concurrency_samples) if self._concurrency_samples else 0,
+            completed_goals=sum(1 for v in result.per_goal_accounting.values() if v.get("execution_status") == "verified"),
+            failed_goals=sum(1 for v in result.per_goal_accounting.values() if v.get("execution_status") != "verified"),
+        )
