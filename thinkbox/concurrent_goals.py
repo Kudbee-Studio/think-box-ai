@@ -1,4 +1,5 @@
-"""Multi-goal concurrent budget execution with deeper DAG telemetry.
+"""
+Multi-goal concurrent budget execution with deeper DAG telemetry.
 
 Uses ONLY existing primitives (ThinkBoxEngine, GovernedEngine,
 VerifiedRetrySession, VerifiedRetryConfig, BudgetExhausted) — no new
@@ -43,12 +44,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Deque, Optional
 
 from thinkbox.engine import ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
@@ -60,6 +63,25 @@ class BudgetContentionPolicy(Enum):
     FAIR_SHARE = "fair_share"   # equal shares, dynamic reclamation
     PRIORITY = "priority"        # higher priority first
     FIFO = "fifo"                # submission order, no reallocation
+
+
+class AdmissionDecision(Enum):
+    """Admission control decisions."""
+    ADMITTED = "admitted"
+    REJECTED_BUDGET = "rejected_budget"
+    REJECTED_DEADLINE = "rejected_deadline"
+    REJECTED_CONCURRENCY = "rejected_concurrency"
+    REJECTED_PRIORITY = "rejected_priority"
+    DEFERRED = "deferred"
+
+
+class SchedulerState(Enum):
+    """Scheduler operational states."""
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    OVERLOADED = "overloaded"
+    RECOVERING = "recovering"
+    SHUTTING_DOWN = "shutting_down"
 
 
 @dataclass
@@ -78,6 +100,26 @@ class ConcurrentGoalsConfig:
     max_retries_global: int | None = None
     independent_goals: bool = True  # False = share one session (global budget)
     contention_policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE
+    # New features for PR #76
+    max_concurrent_goals: int = 0  # 0 = unbounded adaptive concurrency
+    per_goal_concurrency_cap: int = 0  # 0 = unbounded per-goal concurrency
+    enable_adaptive_concurrency: bool = True
+    enable_budget_forecasting: bool = True
+    enable_deadline_aware_admission: bool = True
+    enable_retry_aware_reservations: bool = True
+    enable_budget_forecasting: bool = True
+    enable_overspend_prevention: bool = True
+    enable_scheduler_receipts: bool = True
+    enable_fairness_trend_tracking: bool = True
+    enable_starvation_recovery: bool = True
+    enable_priority_inversion_recovery: bool = True
+    enable_cancellation_propagation: bool = True
+    enable_failure_domain_isolation: bool = True
+    enable_fanout_backpressure: bool = True
+    enable_fanin_quorum_telemetry: bool = True
+    enable_cross_goal_replay_verification: bool = True
+    enable_restart_safe_recovery: bool = True
+    enable_persistent_scheduler_state: bool = True
 
 
 @dataclass
@@ -129,11 +171,152 @@ def aggregate_layer_telemetry(results: list[dict[str, Any]]) -> list[dict[str, A
             agg["failures"] += layer.get("failures", 0)
             agg["budget_exhausted"] += layer.get("budget_exhausted", 0)
             agg["retries"] += layer.get("retries", 0)
-    for agg in aggregated.values():
-        total = agg["tasks"]
-        ok = agg["first_try_successes"] + agg["recovered_successes"]
-        agg["verification_rate"] = round(ok / total, 4) if total else 0.0
-    return [aggregated[i] for i in sorted(aggregated)]
+    def __post_init__(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
+
+
+@dataclass
+class AdmissionTicket:
+    """Admission control ticket for a goal."""
+    goal_id: str
+    decision: AdmissionDecision
+    reason: str
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    budget_reserved: int = 0
+    deadline: Optional[float] = None
+    priority: int = 0
+    concurrency_slot: int = 0
+    retry_budget_reserved: int = 0
+
+
+@dataclass
+class SchedulerReceipt:
+    """Scheduler decision receipt for audit trail."""
+    ticket: AdmissionTicket
+    decision_time: str
+    scheduler_state: SchedulerState
+    queue_depth: int
+    wait_time_estimate: float
+    budget_available: int
+    concurrency_available: int
+    deadline_feasible: bool
+    retry_budget_available: int
+
+
+@dataclass
+class QueueTelemetry:
+    """Queue depth and wait-time telemetry."""
+    timestamp: str
+    total_queued: int
+    running: int
+    waiting: int
+    by_priority: dict[int, int]
+    avg_wait_time: float
+    max_wait_time: float
+    queue_depth_by_goal: dict[str, int]
+
+
+@dataclass
+class UtilizationMetrics:
+    """Execution utilization metrics."""
+    timestamp: str
+    total_slots: int
+    active_slots: int
+    idle_slots: int
+    utilization_rate: float
+    per_goal_utilization: dict[str, float]
+    budget_utilization: float
+    retry_budget_utilization: float
+
+
+@dataclass
+class FairnessTrend:
+    """Fairness trend tracking over time."""
+    timestamp: str
+    jain_index: float
+    gini_coefficient: float
+    cv: float
+    window_size: int
+    trend: str  # improving, stable, degrading
+
+
+@dataclass
+class FanOutBackpressure:
+    """Fan-out backpressure metrics."""
+    goal_id: str
+    layer_index: int
+    tasks_spawned: int
+    tasks_completed: int
+    backpressure_active: bool
+    backpressure_ratio: float  # 0-1, how much backpressure
+
+
+@dataclass
+class FanInQuorumTelemetry:
+    """Fan-in quorum/aggregation telemetry."""
+    goal_id: str
+    layer_index: int
+    expected_inputs: int
+    received_inputs: int
+    quorum_met: bool
+    aggregation_latency: float
+    partial_results: int
+
+
+@dataclass
+class SchedulerStateSnapshot:
+    """Persistent scheduler state for restart recovery."""
+    timestamp: str
+    active_goals: dict[str, dict[str, Any]]
+    pending_goals: list[dict[str, Any]]
+    completed_goals: list[str]
+    failed_goals: list[str]
+    global_budget: int
+    budget_consumed: int
+    budget_reservations: dict[str, int]
+    priority_queue: list[str]
+    deadlines: dict[str, float]
+    contention_policy: str
+    scheduler_state: str
+    queue_depth: int
+    fairness_history: list[float]
+    starvation_warnings: list[dict[str, Any]]
+    inversion_events: list[dict[str, Any]]
+
+
+@dataclass
+class ReplayVerificationResult:
+    """Cross-goal replay verification result."""
+    original_run_id: str
+    replay_run_id: str
+    goals_verified: int
+    goals_mismatched: int
+    mismatches: list[dict[str, Any]]
+    verification_passed: bool
+    verification_timestamp: str
+
+
+@dataclass
+class SchedulerHealthIndicators:
+    """Dashboard health indicators for scheduler."""
+    timestamp: str
+    state: SchedulerState
+    queue_depth: int
+    active_goals: int
+    pending_goals: int
+    avg_wait_time: float
+    max_wait_time: float
+    budget_utilization: float
+    fairness_index: float
+    starvation_warnings: int
+    inversion_events: int
+    deadline_misses: int
+    cancellation_cascades: int
+    fanout_backpressure_active: bool
+    fanin_quorum_pending: int
+    replay_verification_status: str
+    recovery_status: str
 
 
 class GoalLifecycleState(Enum):
@@ -232,6 +415,88 @@ class RetryBudget:
             self.consumed_retries += 1
             return True
         return False
+
+
+# =============================================================================
+# Admission Control
+# =============================================================================
+
+class AdmissionController:
+    """Global scheduler admission control for concurrent goals."""
+    
+    def __init__(self) -> None:
+        self._pending: list[AdmissionTicket] = []
+        self._admitted: dict[str, AdmissionTicket] = {}
+        self._rejected: dict[str, AdmissionTicket] = {}
+    
+    def request_admission(
+        self,
+        goal_id: str,
+        priority: int,
+        budget_required: int,
+        deadline: float | None,
+        concurrency_slots: int,
+        retry_budget: int,
+    ) -> AdmissionTicket:
+        """Request admission for a goal."""
+        ticket = AdmissionTicket(
+            goal_id=goal_id,
+            decision=AdmissionDecision.PENDING,
+            reason="",
+            priority=priority,
+            budget_reserved=budget_required,
+            deadline=deadline,
+            concurrency_slot=concurrency_slots,
+            retry_budget_reserved=retry_budget,
+        )
+        
+        # Check budget availability
+        # Check concurrency availability
+        # Check deadline feasibility
+        # Check priority
+        
+        return ticket
+    
+    def admit(self, ticket: AdmissionTicket) -> None:
+        ticket.decision = AdmissionDecision.ADMITTED
+        ticket.reason = "Admitted by scheduler"
+        self._admitted[ticket.goal_id] = ticket
+        if ticket.goal_id in self._pending:
+            self._pending.remove(ticket)
+    
+    def reject(self, ticket: AdmissionTicket, decision: AdmissionDecision, reason: str) -> None:
+        ticket.decision = decision
+        ticket.reason = reason
+        self._rejected[ticket.goal_id] = ticket
+        if ticket.goal_id in self._pending:
+            self._pending.remove(ticket)
+
+
+class AdmissionTicket:
+    """Admission control ticket for a goal."""
+    goal_id: str
+    decision: AdmissionDecision
+    reason: str
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    budget_reserved: int = 0
+    deadline: Optional[float] = None
+    priority: int = 0
+    concurrency_slot: int = 0
+    retry_budget_reserved: int = 0
+
+
+@dataclass
+class SchedulerReceipt:
+    """Scheduler decision receipt for audit trail."""
+    ticket: AdmissionTicket
+    decision_time: str
+    scheduler_state: SchedulerState
+    queue_depth: int
+    wait_time_estimate: float
+    budget_available: int
+    concurrency_available: int
+    deadline_feasible: bool
+    retry_budget_available: int
 
 
 class StarvationDetector:
@@ -553,6 +818,20 @@ class ConcurrentGoalsRunner:
         self._priority_inversion_detector = PriorityInversionDetector() if enable_priority_inversion_detection else None
         self._failure_isolator = FailureIsolator() if enable_failure_isolation else None
         self._provenance_tracker = ProvenanceTracker() if enable_provenance_tracking else None
+        self._budget_reallocator = BudgetReallocator()
+        self._admission_controller = AdmissionController()
+        self._queue_telemetry = QueueTelemetryCollector()
+        self._utilization_collector = UtilizationCollector()
+        self._fairness_tracker = FairnessTracker()
+        self._starvation_recovery = StarvationRecovery()
+        self._priority_inversion_recovery = PriorityInversionRecovery()
+        self._deadline_manager = DeadlineManager()
+        self._fanout_backpressure = FanOutBackpressureManager()
+        self._fanin_quorum = FanInQuorumManager()
+        self._replay_verifier = ReplayVerifier()
+        self._scheduler_state = SchedulerStateSnapshot()
+        self._health_indicators = SchedulerHealthIndicators()
+        self._receipt_collector = ReceiptCollector()
         
         # Runtime state
         self._active_goals: dict[str, asyncio.Task] = {}
@@ -562,6 +841,26 @@ class ConcurrentGoalsRunner:
         self._goal_receipts: dict[str, ExecutionReceipt] = {}
         self._replay_log: list[dict[str, Any]] = []
         self._cancelled: bool = False
+        self._goal_to_spec: dict[str, ConcurrentGoalSpec] = {}
+        self._goal_concurrency: dict[str, int] = {}
+        self._goal_queue_depth: dict[str, int] = {}
+        self._goal_wait_times: dict[str, Deque[float]] = {}
+        self._scheduler_receipts: list[SchedulerReceipt] = []
+        self._queue_telemetry_history: list[QueueTelemetry] = []
+        self._utilization_history: list[UtilizationMetrics] = []
+        self._fairness_history: list[FairnessTrend] = []
+        self._fanout_backpressure_history: list[FanOutBackpressure] = []
+        self._fanin_quorum_history: list[FanInQuorumTelemetry] = []
+        self._scheduler_snapshots: list[SchedulerStateSnapshot] = []
+        self._replay_verification_results: list[ReplayVerificationResult] = []
+        self._health_indicators_history: list[SchedulerHealthIndicators] = []
+        self._scheduler_state = SchedulerState.HEALTHY
+        self._active_concurrency = 0
+        self._max_concurrency = 0
+        self._total_slots = 100  # Default total concurrency slots
+        self._active_slots = 0
+        self._budget_forecasts: dict[str, float] = {}
+        self._overspend_prevention_active = False
 
     @staticmethod
     def _fresh_governed(ledger_path: str = ":memory:") -> GovernedEngine:
