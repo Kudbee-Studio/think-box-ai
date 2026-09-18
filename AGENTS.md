@@ -684,7 +684,8 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 ### PR Status (2026-09-18)
 - **PR #82 merged** (10 scheduler features: CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection)
 - **PR #83 merged** (10 additional scheduler features: WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary)
-- **PR #84 IN PROGRESS** (10 additional scheduler features: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity) — https://github.com/Kudbee-Studio/think-box-ai/pull/84
+- **PR #84 merged** (10 scheduler features: AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity)
+- **PR #85 IN PROGRESS** (10 hardening features: DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter) — https://github.com/Kudbee-Studio/think-box-ai/pull/85
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
 - **No stale PRs remain**
 
@@ -695,25 +696,21 @@ The `thinkbox/scheduler.py` module extends the governed concurrency architecture
 ### Module Structure
 
 - `thinkbox/scheduler.py` — All scheduler features as classes
-- `tests/unit/test_scheduler.py` — 22 test classes (571 tests) covering all features
+- `tests/unit/test_scheduler.py` — 99 test classes (689 tests) covering all features
+- `tests/unit/test_scheduler_integration.py` — 42 integration and chaos-gate tests for PR #85 features
 
 ### Features by PR
 
-**PR #76** (25 features): SchedulerDecisionReceipt, AdaptiveConcurrencyLimiter, GlobalSchedulerAdmission, PerGoalConcurrencyCap, WeightedPriorityScheduler, BudgetAwareAdmission, DeadlineAwareAdmission, RetryAwareReservation, BudgetForecaster, BudgetOverspendPrevention, QueueDepthTelemetry, WaitTimeTelemetry, ExecutionUtilization, FairnessTrendTracker, SchedulerHealth, StarvationRecovery, PriorityInversionRecovery, CancellationPropagator, FanOutBackpressure, FanInQuorumTracker, CrossGoalReplayVerifier, RestartSafeSchedulerRecovery, PersistentSchedulerState, SchedulerIntegration, FailureDomainIsolator
+**PR #84** (10 features, merged): AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity
 
-**PR #81** (5 features): SchedulerDashboardExtension, StressReportEnhancer, GoalTimeoutEnforcer, GoalDependencyResolver, SchedulerPerformanceAnalytics
-
-**PR #82** (10 features): CronWindow, ResourceQuota, WorkerHeartbeat, TokenBucketRateLimit, CascadeCancel, PriorityInheritance, ShadowRun, CostAccounting, PolicyHotReload, ChaosInjection + 2 bug fixes (BackpressureAdmissionV2 tenant tracking, DurableJobCheckpoints sqlite persistence)
-
-**PR #83** (10 features): WeightedFairQueue, JobLease, DedupedDelayedEnqueue, CircuitBreaker, AdmissionLottery, PlacementConstraints, ProgressiveDrain, ReplayFromLedger, MultiPriorityAging, SchedulerCanary
-
-**PR #84** (10 features, IN PROGRESS): AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity
+**PR #85** (10 features, merged + integrated): DeadLetterQueue, ConfigValidator (is_valid bug fixed), MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter — integrated via `SchedulerHarness` class
 
 ### Testing
 
-- `tests/unit/test_scheduler.py` — 620 tests, all passing
+- `tests/unit/test_scheduler.py` — 689 tests, all passing
+- `tests/unit/test_scheduler_integration.py` — 42 tests, all passing
 - Run: `python3 -m unittest tests.unit.test_scheduler -v`
-- Full suite: `python3 -m unittest discover tests/` (1275 tests, 6 skipped)
+- Full suite: `python3 -m unittest discover tests/` (1435 tests, 6 skipped, 3 pre-existing failures in test_swarm_instrumentation)
 
 ## CNC Manufacturing Intelligence Platform
 

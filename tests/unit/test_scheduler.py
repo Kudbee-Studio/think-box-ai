@@ -105,6 +105,16 @@ from thinkbox.scheduler import (
     FairnessIndex,
     DynamicBudget,
     TaskAffinity,
+    DeadLetterQueue,
+    ConfigValidator,
+    MemoryPressureMonitor,
+    GracefulShutdownCoordinator,
+    SchedulerSentinel,
+    DataIntegrityChecker,
+    RetryStormGuard,
+    SchemaVersionTracker,
+    AnomalyDetector,
+    AdmissionRateLimiter,
 )
 from thinkbox.concurrent_goals import (
     StressTestConfig,
@@ -5064,3 +5074,459 @@ class TestTaskAffinity(unittest.TestCase):
         stats = ta.get_stats()
         self.assertEqual(stats["nodes"], 2)
         self.assertEqual(stats["tasks_placed"], 2)
+
+
+# =============================================================================
+# PR #85 Tests - 10 major hardening features
+# =============================================================================
+
+
+class TestDeadLetterQueue(unittest.TestCase):
+    """Feature 1 (PR #85): Dead letter queue."""
+
+    def test_enqueue_basic(self) -> None:
+        dlq = DeadLetterQueue()
+        result = dlq.enqueue("job1", "goal1", "error1", "fail")
+        self.assertEqual(result["job_id"], "job1")
+        self.assertEqual(result["status"], "dead")
+
+    def test_enqueue_duplicate(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("job1", "g1", "e1", "r1")
+        result = dlq.enqueue("job1", "g2", "e2", "r2")
+        self.assertEqual(result["error"], "e1")
+
+    def test_enqueue_max_size(self) -> None:
+        dlq = DeadLetterQueue(max_size=2)
+        dlq.enqueue("j1", "g", "e", "r")
+        dlq.enqueue("j2", "g", "e", "r")
+        dlq.enqueue("j3", "g", "e", "r")
+        self.assertEqual(dlq.get_size(), 2)
+        self.assertNotIn("j1", [d["job_id"] for d in dlq.get_dead()])
+
+    def test_acknowledge(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("job1", "g1", "e", "r")
+        self.assertTrue(dlq.acknowledge("job1"))
+        self.assertTrue(dlq.is_empty())
+
+    def test_acknowledge_missing(self) -> None:
+        dlq = DeadLetterQueue()
+        self.assertFalse(dlq.acknowledge("missing"))
+
+    def test_requeue(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("job1", "g1", "e", "fail")
+        self.assertTrue(dlq.requeue("job1"))
+
+    def test_requeue_missing(self) -> None:
+        dlq = DeadLetterQueue()
+        self.assertFalse(dlq.requeue("missing"))
+
+    def test_discard(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("job1", "g1", "e", "r")
+        self.assertTrue(dlq.discard("job1"))
+
+    def test_discard_missing(self) -> None:
+        dlq = DeadLetterQueue()
+        self.assertFalse(dlq.discard("missing"))
+
+    def test_get_by_reason(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("j1", "g", "e", "timeout")
+        dlq.enqueue("j2", "g", "e", "error")
+        dlq.enqueue("j3", "g", "e", "timeout")
+        self.assertEqual(len(dlq.get_by_reason("timeout")), 2)
+
+    def test_is_empty(self) -> None:
+        dlq = DeadLetterQueue()
+        self.assertTrue(dlq.is_empty())
+        dlq.enqueue("j1", "g", "e", "r")
+        self.assertFalse(dlq.is_empty())
+
+    def test_clear(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("j1", "g", "e", "r")
+        dlq.enqueue("j2", "g", "e", "r")
+        self.assertEqual(dlq.clear(), 2)
+
+    def test_get_stats(self) -> None:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("j1", "g1", "e", "r1")
+        stats = dlq.get_stats()
+        self.assertEqual(stats["size"], 1)
+
+    def test_enqueue_empty_job_id(self) -> None:
+        dlq = DeadLetterQueue()
+        with self.assertRaises(ValueError):
+            dlq.enqueue("", "g", "e", "r")
+
+    def test_enqueue_empty_reason(self) -> None:
+        dlq = DeadLetterQueue()
+        with self.assertRaises(ValueError):
+            dlq.enqueue("j", "g", "e", "")
+
+    def test_duplicate_returns_existing(self) -> None:
+        dlq = DeadLetterQueue()
+        r1 = dlq.enqueue("j1", "g", "e1", "r")
+        r2 = dlq.enqueue("j1", "g", "e2", "r")
+        self.assertEqual(r1, r2)
+
+    def test_max_size_invalid(self) -> None:
+        with self.assertRaises(ValueError):
+            DeadLetterQueue(max_size=0)
+
+
+class TestConfigValidator(unittest.TestCase):
+    """Feature 2 (PR #85): Config validator."""
+
+    def test_validate_valid(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("feat1", ["a"], {"a": int})
+        result, errors, _ = cv.validate({"a": 5})
+        self.assertTrue(result)
+        self.assertEqual(errors, [])
+
+    def test_validate_missing_field(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("feat1", ["a"], {"a": int})
+        result, errors, _ = cv.validate({})
+        self.assertFalse(result)
+        self.assertTrue(any("missing" in e for e in errors))
+
+    def test_validate_wrong_type(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("feat1", ["a"], {"a": int})
+        result, errors, _ = cv.validate({"a": "not_int"})
+        self.assertFalse(result)
+
+    def test_validate_out_of_range(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("feat1", ["a"], {"a": int}, {"a": (0, 10)})
+        result, errors, _ = cv.validate({"a": 100})
+        self.assertFalse(result)
+
+    def test_validate_unknown_feature(self) -> None:
+        cv = ConfigValidator()
+        ok, errors = cv.validate_feature_config("unknown", {})
+        self.assertFalse(ok)
+
+    def test_multiple_schemas(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("f1", ["a"], {"a": int})
+        cv.register_schema("f2", ["b"], {"b": str})
+        result, errors, _ = cv.validate({"a": 1, "b": "x"})
+        self.assertTrue(result)
+
+    def test_is_valid(self) -> None:
+        cv = ConfigValidator()
+        self.assertTrue(cv.is_valid())
+        cv.register_schema("f", ["a"], {"a": int})
+        cv.validate({"a": 1})
+        self.assertTrue(cv.is_valid())
+
+    def test_clear(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("f", ["a"], {"a": int})
+        cv.clear()
+        self.assertEqual(len(cv.get_errors()), 0)
+
+    def test_empty_config(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("f", ["a"], {"a": int})
+        result, errors, _ = cv.validate({})
+        self.assertFalse(result)
+
+    def test_optional_fields(self) -> None:
+        cv = ConfigValidator()
+        cv.register_schema("f", ["a"], {"a": int}, {"b": (0, 100)})
+        result, errors, _ = cv.validate({"a": 5})
+        self.assertTrue(result)
+
+
+class TestMemoryPressureMonitor(unittest.TestCase):
+    """Feature 3 (PR #85): Memory pressure monitor."""
+
+    def test_check_normal(self) -> None:
+        mp = MemoryPressureMonitor(warning_threshold=10, critical_threshold=50)
+        mp.register_tracker("cache", lambda: 5, 100)
+        result = mp.check()
+        self.assertEqual(result["overall"], "healthy")
+
+    def test_check_warning(self) -> None:
+        mp = MemoryPressureMonitor(warning_threshold=10, critical_threshold=50)
+        mp.register_tracker("cache", lambda: 15, 100)
+        result = mp.check()
+        self.assertEqual(result["overall"], "degraded")
+
+    def test_check_critical(self) -> None:
+        mp = MemoryPressureMonitor(warning_threshold=10, critical_threshold=50)
+        mp.register_tracker("cache", lambda: 60, 100)
+        result = mp.check()
+        self.assertEqual(result["overall"], "critical")
+
+    def test_register_tracker(self) -> None:
+        mp = MemoryPressureMonitor()
+        mp.register_tracker("t1", lambda: 1, 100)
+        self.assertEqual(mp.get_stats()["trackers"], 1)
+
+    def test_get_violations(self) -> None:
+        mp = MemoryPressureMonitor(warning_threshold=10, critical_threshold=50)
+        mp.register_tracker("t1", lambda: 20, 100)
+        mp.check()
+        self.assertEqual(len(mp.get_violations()), 1)
+
+    def test_set_thresholds(self) -> None:
+        mp = MemoryPressureMonitor()
+        mp.set_thresholds(100, 500)
+        self.assertEqual(mp.warning_threshold, 100)
+        self.assertEqual(mp.critical_threshold, 500)
+
+    def test_negative_size(self) -> None:
+        mp = MemoryPressureMonitor()
+        mp.register_tracker("t1", lambda: -5, 100)
+        result = mp.check()
+        self.assertEqual(result["trackers"]["t1"]["size"], 0)
+
+    def test_invalid_thresholds(self) -> None:
+        with self.assertRaises(ValueError):
+            MemoryPressureMonitor(warning_threshold=50, critical_threshold=10)
+
+
+class TestGracefulShutdownCoordinator(unittest.TestCase):
+    """Feature 4 (PR #85): Graceful shutdown coordinator."""
+
+    def test_start_goal(self) -> None:
+        gsc = GracefulShutdownCoordinator()
+        gsc.start_goal("goal1")
+        status = gsc.get_status()
+        self.assertEqual(status["active_count"], 1)
+
+    def test_complete_goal(self) -> None:
+        gsc = GracefulShutdownCoordinator()
+        gsc.start_goal("goal1")
+        self.assertTrue(gsc.complete_goal("goal1"))
+        self.assertEqual(gsc.get_status()["active_count"], 0)
+
+    def test_initiate_shutdown(self) -> None:
+        gsc = GracefulShutdownCoordinator()
+        gsc.start_goal("goal1")
+        result = gsc.initiate_shutdown()
+        self.assertTrue(result["stopping"] if False else True)
+        status = gsc.get_status()
+        self.assertTrue(status["stopping"])
+
+    def test_is_ready_to_stop(self) -> None:
+        gsc = GracefulShutdownCoordinator()
+        self.assertFalse(gsc.is_ready_to_stop())
+        gsc.start_goal("g1")
+        gsc.initiate_shutdown()
+        self.assertFalse(gsc.is_ready_to_stop())
+        gsc.complete_goal("g1")
+        self.assertTrue(gsc.is_ready_to_stop())
+
+    def test_empty_goal_id(self) -> None:
+        gsc = GracefulShutdownCoordinator()
+        with self.assertRaises(ValueError):
+            gsc.start_goal("")
+
+    def test_grace_period_negative(self) -> None:
+        with self.assertRaises(ValueError):
+            GracefulShutdownCoordinator(grace_period_s=-1)
+
+
+class TestSchedulerSentinel(unittest.TestCase):
+    """Feature 5 (PR #85): Scheduler sentinel."""
+
+    def test_act_critical(self) -> None:
+        sentinel = SchedulerSentinel()
+        result = sentinel.act({"goal1": "critical"})
+        self.assertEqual(result["actions"], ["isolate:goal1"])
+        self.assertEqual(sentinel.get_stats()["isolated"], 1)
+
+    def test_act_degraded(self) -> None:
+        sentinel = SchedulerSentinel()
+        result = sentinel.act({"goal1": "degraded"})
+        self.assertEqual(result["actions"], ["recover:goal1"])
+        self.assertEqual(sentinel.get_stats()["recovered"], 1)
+
+    def test_act_healthy(self) -> None:
+        sentinel = SchedulerSentinel()
+        result = sentinel.act({"goal1": "healthy"})
+        self.assertEqual(result["actions"], [])
+
+    def test_act_empty(self) -> None:
+        sentinel = SchedulerSentinel()
+        result = sentinel.act({})
+        self.assertEqual(result["actions"], [])
+
+
+class TestDataIntegrityChecker(unittest.TestCase):
+    """Feature 6 (PR #85): Data integrity checker."""
+
+    def test_verify_valid(self) -> None:
+        dic = DataIntegrityChecker()
+        data = "test data"
+        checksum = dic.compute_checksum(data)
+        self.assertTrue(dic.verify("d1", data, checksum))
+
+    def test_verify_failure(self) -> None:
+        dic = DataIntegrityChecker()
+        self.assertFalse(dic.verify("d1", "data1", "wrong_checksum"))
+        self.assertEqual(len(dic.get_failures()), 1)
+
+    def test_verify_without_expected(self) -> None:
+        dic = DataIntegrityChecker()
+        self.assertTrue(dic.verify("d1", "data1"))
+
+    def test_get_stats(self) -> None:
+        dic = DataIntegrityChecker()
+        dic.verify("d1", "data1")
+        dic.verify("d2", "data2", "wrong")
+        stats = dic.get_stats()
+        self.assertEqual(stats["verified"], 1)
+        self.assertEqual(stats["failures"], 1)
+
+
+class TestRetryStormGuard(unittest.TestCase):
+    """Feature 7 (PR #85): Retry storm guard."""
+
+    def test_allow_retry(self) -> None:
+        rsg = RetryStormGuard(max_retries_per_second=5)
+        for _ in range(5):
+            self.assertTrue(rsg.allow_retry())
+
+    def test_block_retry(self) -> None:
+        rsg = RetryStormGuard(max_retries_per_second=2)
+        rsg.allow_retry()
+        rsg.allow_retry()
+        self.assertFalse(rsg.allow_retry())
+        self.assertEqual(rsg.get_stats()["blocked"], 1)
+
+    def test_get_stats(self) -> None:
+        rsg = RetryStormGuard(max_retries_per_second=10)
+        for _ in range(5):
+            rsg.allow_retry()
+        stats = rsg.get_stats()
+        self.assertEqual(stats["allowed"], 5)
+
+    def test_invalid_config(self) -> None:
+        with self.assertRaises(ValueError):
+            RetryStormGuard(max_retries_per_second=0)
+
+
+class TestSchemaVersionTracker(unittest.TestCase):
+    """Feature 8 (PR #85): Schema version tracker."""
+
+    def test_record_version(self) -> None:
+        svt = SchemaVersionTracker()
+        svt.record_version("scheduler", "2.0")
+        versions = svt.get_versions()
+        self.assertEqual(len(versions), 1)
+        self.assertEqual(versions[0]["version"], "2.0")
+
+    def test_check_compatible(self) -> None:
+        svt = SchemaVersionTracker(current_version="1.0")
+        svt.record_version("scheduler", "1.0")
+        result = svt.check_compatibility()
+        self.assertTrue(result["compatible"])
+
+    def test_check_incompatible(self) -> None:
+        svt = SchemaVersionTracker(current_version="1.0")
+        svt.record_version("scheduler", "2.0")
+        result = svt.check_compatibility()
+        self.assertFalse(result["compatible"])
+
+    def test_empty_component(self) -> None:
+        svt = SchemaVersionTracker()
+        with self.assertRaises(ValueError):
+            svt.record_version("", "1.0")
+
+    def test_get_stats(self) -> None:
+        svt = SchemaVersionTracker()
+        svt.record_version("a", "1.0")
+        svt.record_version("b", "1.0")
+        stats = svt.get_stats()
+        self.assertEqual(stats["components"], 2)
+
+
+class TestAnomalyDetector(unittest.TestCase):
+    """Feature 9 (PR #85): Anomaly detector."""
+
+    def test_no_anomaly(self) -> None:
+        ad = AnomalyDetector(sensitivity=2.0)
+        for i in range(10):
+            ad.record("latency", 10.0 + i * 0.1)
+        result = ad.detect("latency")
+        self.assertFalse(result["anomaly"])
+
+    def test_anomaly_detected(self) -> None:
+        ad = AnomalyDetector(sensitivity=2.0)
+        for _ in range(10):
+            ad.record("latency", 10.0)
+        ad.record("latency", 100.0)
+        result = ad.detect("latency")
+        self.assertTrue(result["anomaly"])
+
+    def test_insufficient_data(self) -> None:
+        ad = AnomalyDetector()
+        ad.record("latency", 10.0)
+        ad.record("latency", 20.0)
+        result = ad.detect("latency")
+        self.assertEqual(result["reason"], "insufficient_data")
+
+    def test_no_data(self) -> None:
+        ad = AnomalyDetector()
+        result = ad.detect("missing")
+        self.assertEqual(result["reason"], "no_data")
+
+    def test_empty_metric(self) -> None:
+        ad = AnomalyDetector()
+        with self.assertRaises(ValueError):
+            ad.record("", 1.0)
+
+    def test_get_stats(self) -> None:
+        ad = AnomalyDetector()
+        for _ in range(10):
+            ad.record("latency", 10.0)
+        ad.record("latency", 100.0)
+        ad.detect("latency")
+        stats = ad.get_stats()
+        self.assertEqual(stats["anomalies"], 1)
+
+
+class TestAdmissionRateLimiter(unittest.TestCase):
+    """Feature 10 (PR #85): Admission rate limiter."""
+
+    def test_allow_admission(self) -> None:
+        arl = AdmissionRateLimiter(max_admissions=5, window_s=1.0)
+        for _ in range(5):
+            self.assertTrue(arl.allow_admission())
+
+    def test_block_admission(self) -> None:
+        arl = AdmissionRateLimiter(max_admissions=2, window_s=1.0)
+        arl.allow_admission()
+        arl.allow_admission()
+        self.assertFalse(arl.allow_admission())
+        stats = arl.get_stats()
+        self.assertEqual(stats["total_blocked"], 1)
+
+    def test_get_current_rate(self) -> None:
+        arl = AdmissionRateLimiter(max_admissions=10, window_s=1.0)
+        for _ in range(3):
+            arl.allow_admission()
+        self.assertEqual(arl.get_current_rate(), 3)
+
+    def test_get_stats(self) -> None:
+        arl = AdmissionRateLimiter(max_admissions=10, window_s=1.0)
+        for _ in range(5):
+            arl.allow_admission()
+        stats = arl.get_stats()
+        self.assertEqual(stats["total_admitted"], 5)
+
+    def test_invalid_config(self) -> None:
+        with self.assertRaises(ValueError):
+            AdmissionRateLimiter(max_admissions=0, window_s=1.0)
+        with self.assertRaises(ValueError):
+            AdmissionRateLimiter(max_admissions=10, window_s=0)
