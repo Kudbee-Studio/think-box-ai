@@ -1,9 +1,9 @@
 # PR91: Distributed Governance — Implementation Plan
 
-**Date:** Planned (Post-PR90)  
-**Status:** PLANNED  
-**Branch:** `feat/kilo-distributed-governance-pr91` (to be created)  
-**PR:** #91 (to be created)  
+**Date:** 2026-09-19
+**Status:** MERGED
+**Branch:** pushed to `main` as `d803cd2` (no dedicated branch)
+**PR:** KILO PR91 (no GitHub PR; pushed directly to main) 
 
 ---
 

@@ -33,10 +33,10 @@ agents/
 └── chronological/                      # Historical evolution track
     ├── 000-pre-agent-architecture.md   # Pre-agent architecture baseline
     ├── 001-pr88-initialization.md      # PR88: framework initialization
-    ├── 002-pr89-autonomous-core.md     # PR89: autonomous agent core (planned)
-    ├── 003-pr90-multi-agent-clustering.md  # PR90: multi-agent clustering (planned)
-    ├── 004-pr91-distributed-governance.md  # PR91: distributed governance (planned)
-    └── 005-pr92-agent-marketplace.md   # PR92: agent marketplace (planned)
+    ├── 002-pr89-autonomous-core.md     # PR89: autonomous agent core (merged)
+├── 003-pr90-multi-agent-clustering.md  # PR90: multi-agent clustering (merged)
+├── 004-pr91-distributed-governance.md  # PR91: distributed governance (merged)
+└── 005-pr92-agent-marketplace.md   # PR92: agent marketplace (merged)
 ```
 
 ---

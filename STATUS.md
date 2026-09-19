@@ -536,11 +536,11 @@ None in this PR.
 - `thinkbox/scheduler.py` +1319 lines
 - `tests/unit/test_scheduler.py` +433 lines
 
-## PR #84 — 10 Additional Governed Scheduler Features (IN PROGRESS)
+## PR #84 — 10 Additional Governed Scheduler Features (MERGED)
 
-**Status:** In Progress
+**Status:** Merged
 **Branch:** `feat/scheduler-10-pr84`
-**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/84 (TBD)
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/84
 
 ### Features
 
@@ -566,11 +566,11 @@ None in this PR.
 - `thinkbox/scheduler.py` +760 lines
 - `tests/unit/test_scheduler.py` +580 lines
 
-## PR #85 — 10 Hardening Features for Governed Scheduler (IN PROGRESS)
+## PR #85 — 10 Hardening Features for Governed Scheduler (MERGED)
 
-**Status:** In Progress
+**Status:** Merged
 **Branch:** `feat/scheduler-10-pr85`
-**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/85 (TBD)
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/85
 
 ### Features
 
