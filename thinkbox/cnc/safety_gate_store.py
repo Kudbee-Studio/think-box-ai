@@ -53,3 +53,9 @@ class SafetyGateStore:
             if g.gate_id == gate_id:
                 return g
         return None
+
+    def get_gate_by_job_id(self, job_id: str) -> ApprovalGate | None:
+        for g in self._gates:
+            if g.job_id == job_id:
+                return g
+        return None

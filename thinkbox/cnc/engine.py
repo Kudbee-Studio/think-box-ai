@@ -18,6 +18,7 @@ class CNCManufacturingEngine:
                  proof_store: ProofStore | None = None) -> None:
         self._proof_store = proof_store or ProofStore()
         self._safety_store = safety_gate_store or SafetyGateStore()
+        self._jobs: list[dict[str, Any]] = []
 
     def validate_job(self, job: CNCJob | dict[str, Any]) -> ValidationResult:
         if isinstance(job, dict):
@@ -56,6 +57,8 @@ class CNCManufacturingEngine:
         for op in job.operations:
             records.append({"operation_id": op.operation_id, "status": "completed", "start_time": datetime.now(timezone.utc).isoformat()})
 
+        self._jobs.append(job.model_dump())
+
         return {"status": "completed", "execution_records": records}
 
     def get_stats(self) -> dict[str, Any]:
@@ -66,3 +69,14 @@ class CNCManufacturingEngine:
             job = CNCJob(**job)
         proof = self._proof_store.create_proof(job.job_id, evidence_label)
         return proof
+
+    def list_jobs_by_tenant(self, tenant_id: str) -> list[dict[str, Any]]:
+        return [j for j in self._jobs if j.get("customer_id") == tenant_id]
+
+    def query_jobs(self, status: str | None = None, customer_id: str | None = None) -> list[dict[str, Any]]:
+        results = list(self._jobs)
+        if status is not None:
+            results = [j for j in results if j.get("status") == status]
+        if customer_id is not None:
+            results = [j for j in results if j.get("customer_id") == customer_id]
+        return results

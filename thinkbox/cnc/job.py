@@ -133,3 +133,77 @@ class CNCJob:
 
     def model_dump(self) -> dict[str, Any]:
         return {"job_id": self.job_id, "part_name": self.part_name, "part_number": self.part_number, "material": self.material.model_dump(), "machine": self.machine.model_dump(), "operations": [op.model_dump() for op in self.operations], "customer_id": self.customer_id, "priority": self.priority, "status": self.status, "approval_records": [a.model_dump() for a in self.approval_records], "execution_records": [e.model_dump() for e in self.execution_records], "inspection_results": [i.model_dump() for i in self.inspection_results], "created_at": self.created_at, "updated_at": self.updated_at}
+
+
+class JobTemplate:
+    """Preset templates for common CNC jobs."""
+
+    @staticmethod
+    def aluminum_bracket() -> dict[str, Any]:
+        return {
+            "part_name": "Aluminum Bracket",
+            "part_number": "BRKT-AL-001",
+            "material": Material(name="6061-T6 Aluminum", grade="6061-T6", stock_size="100x50x10", stock_units="mm"),
+            "machine": MachineProfile(name="HAAS VF-2SS", control_system="Fanuc", spindle_speed_rpm=8000),
+            "operations": [
+                Operation(operation_id="op-1", operation_type="milling", tool=Tool(name="End Mill 10mm", tool_type="end_mill", diameter_mm=10.0), spindle_speed_rpm=8000, feed_rate_mm_min=200, depth_of_cut_mm=2.0, description="Roughing pass"),
+                Operation(operation_id="op-2", operation_type="milling", tool=Tool(name="End Mill 6mm", tool_type="end_mill", diameter_mm=6.0), spindle_speed_rpm=10000, feed_rate_mm_min=150, depth_of_cut_mm=0.5, description="Finishing pass"),
+                Operation(operation_id="op-3", operation_type="drilling", tool=Tool(name="Drill 8mm", tool_type="drill", diameter_mm=8.0), spindle_speed_rpm=3000, feed_rate_mm_min=100, depth_of_cut_mm=10.0, description="Mounting holes"),
+            ],
+            "customer_id": "default",
+            "priority": "normal",
+        }
+
+    @staticmethod
+    def steel_shaft() -> dict[str, Any]:
+        return {
+            "part_name": "Steel Shaft",
+            "part_number": "SHFT-ST-001",
+            "material": Material(name="1045 Steel", grade="1045", stock_size="50x50x200", stock_units="mm"),
+            "machine": MachineProfile(name="Mazak QT-250", control_system="Mazatrol", spindle_speed_rpm=3000),
+            "operations": [
+                Operation(operation_id="op-1", operation_type="turning", tool=Tool(name="Turning Insert CNMG", tool_type="insert", diameter_mm=12.0), spindle_speed_rpm=1500, feed_rate_mm_min=300, depth_of_cut_mm=3.0, description="Rough turning"),
+                Operation(operation_id="op-2", operation_type="turning", tool=Tool(name="Finishing Insert CCMT", tool_type="insert", diameter_mm=9.5), spindle_speed_rpm=2000, feed_rate_mm_min=200, depth_of_cut_mm=0.5, description="Finish turning"),
+            ],
+            "customer_id": "default",
+            "priority": "high",
+        }
+
+    @staticmethod
+    def titanium_implant() -> dict[str, Any]:
+        return {
+            "part_name": "Titanium Implant",
+            "part_number": "IMPL-TI-001",
+            "material": Material(name="Ti-6Al-4V", grade="Grade 5", stock_size="30x30x30", stock_units="mm"),
+            "machine": MachineProfile(name="DMG MORI DMU 50", control_system="Heidenhain", spindle_speed_rpm=12000),
+            "operations": [
+                Operation(operation_id="op-1", operation_type="milling", tool=Tool(name="Ball Nose 4mm", tool_type="ball_nose", diameter_mm=4.0), spindle_speed_rpm=12000, feed_rate_mm_min=500, depth_of_cut_mm=0.2, description="5-axis roughing"),
+                Operation(operation_id="op-2", operation_type="milling", tool=Tool(name="Ball Nose 2mm", tool_type="ball_nose", diameter_mm=2.0), spindle_speed_rpm=15000, feed_rate_mm_min=300, depth_of_cut_mm=0.1, description="5-axis finishing"),
+            ],
+            "customer_id": "medical-corp",
+            "priority": "critical",
+        }
+
+    @staticmethod
+    def list_templates() -> list[str]:
+        return ["aluminum_bracket", "steel_shaft", "titanium_implant"]
+
+    @classmethod
+    def from_template(cls, name: str) -> CNCJob:
+        template_map = {
+            "aluminum_bracket": cls.aluminum_bracket(),
+            "steel_shaft": cls.steel_shaft(),
+            "titanium_implant": cls.titanium_implant(),
+        }
+        if name not in template_map:
+            raise ValueError(f"Unknown template: {name}. Available: {list(template_map.keys())}")
+        data = template_map[name]
+        return CNCJob(
+            part_name=data["part_name"],
+            part_number=data["part_number"],
+            material=data["material"],
+            machine=data["machine"],
+            operations=data["operations"],
+            customer_id=data["customer_id"],
+            priority=data["priority"],
+        )

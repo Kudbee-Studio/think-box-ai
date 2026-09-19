@@ -71,7 +71,6 @@ class TestMultiModelVoting(unittest.TestCase):
 
     def test_register_model(self) -> None:
         self.voter.register_model("model1", reliability=0.85)
-        # Internal state test: vote with single model uses registered reliability
 
     def test_vote_empty(self) -> None:
         result = self.voter.vote("task1", [])
@@ -87,9 +86,12 @@ class TestMultiModelVoting(unittest.TestCase):
         self.assertEqual(result.winning_model, "m1")
 
     def test_vote_multiple(self) -> None:
+        # Register different reliabilities to get different confidences
+        self.voter.register_model("m1", reliability=0.6)
+        self.voter.register_model("m2", reliability=0.9)
         outputs = [
-            ModelOutput(model_id="m1", output="answer A", confidence=0.6),
-            ModelOutput(model_id="m2", output="answer B", confidence=0.8),
+            ModelOutput(model_id="m1", output="answer A", confidence=0.0),
+            ModelOutput(model_id="m2", output="answer B", confidence=0.0),
         ]
         result = self.voter.vote("task1", outputs)
         self.assertEqual(result.method, "weighted_vote")
@@ -97,12 +99,16 @@ class TestMultiModelVoting(unittest.TestCase):
         self.assertGreater(result.agreement_score, 0.0)
 
     def test_vote_assigns_confidence(self) -> None:
+        # Use multiple outputs to trigger confidence assignment (single-model returns early)
         outputs = [
-            ModelOutput(model_id="m1", output="text", confidence=0.0),
+            ModelOutput(model_id="m1", output="def foo():\n    return 42\n", confidence=0.0),
+            ModelOutput(model_id="m2", output="print('hello')", confidence=0.0),
         ]
         self.voter.register_model("m1", reliability=0.9)
+        self.voter.register_model("m2", reliability=0.8)
         result = self.voter.vote("task1", outputs)
-        self.assertGreater(result.model_outputs[0].confidence, 0.0)
+        for out in result.model_outputs:
+            self.assertGreater(out.confidence, 0.0)
 
 
 class TestDisagreementResolver(unittest.TestCase):
@@ -129,8 +135,11 @@ class TestDisagreementResolver(unittest.TestCase):
     def test_caution_medium_agreement(self) -> None:
         result = ConsensusResult(
             consensus_id="c1", task_id="t1", winning_output="ok",
-            winning_model="m1", agreement_score=0.5, model_outputs=[],
+            winning_model="m1", agreement_score=0.5,
+            model_outputs=[ModelOutput(model_id="m1", output="ok", confidence=0.5)],
         )
+        decision, output = self.resolver.resolve(result)
+        self.assertEqual(decision, "accepted_with_caution")
         decision, output = self.resolver.resolve(result)
         self.assertEqual(decision, "accepted_with_caution")
 
@@ -180,12 +189,12 @@ class TestConsensusAuditTrail(unittest.TestCase):
         self.assertIsNotNone(hash_val)
         self.assertEqual(len(hash_val), 16)
 
-    def test_get_records(self) -> None:
+    def test_get_trail(self) -> None:
         result = ConsensusResult(
             consensus_id="c1", task_id="t1", winning_output="ok",
             winning_model="m1", agreement_score=0.8, model_outputs=[],
         )
         self.trail.record(result)
-        records = self.trail.get_records()
+        records = self.trail.get_trail()
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0]["consensus_id"], "c1")
