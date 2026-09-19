@@ -756,6 +756,98 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `docs/cnc-roi-report.md` — Enterprise ROI and evidence report
 
+## KILO Cloud Agent Framework
+
+The `agents/` documentation and `thinkbox/agent/` implementation establish the Agent Era for KILO platform.
+
+### Documentation (PR88 — Complete)
+
+| Domain | Files | Location |
+|--------|-------|----------|
+| Core Architecture | 5 | `agents/core/` |
+| Governance | 4 | `agents/governance/` |
+| Chronological | 6 | `agents/chronological/` |
+| Index | 1 | `agents/README.md` |
+
+### Implementation (PR89+ — In Progress)
+
+| Module | Description | Location |
+|--------|-------------|----------|
+| `agent.kernel` | AgentKernel base class, identity, lifecycle state machine | `thinkbox/agent/kernel.py` |
+| `agent.lifecycle` | 10-state lifecycle manager, governance checkpoints | `thinkbox/agent/lifecycle.py` |
+| `agent.protocol` | gRPC/HTTP protocol definitions (scheduler, governance, orchestration, health, CNC) | `thinkbox/agent/protocol/` |
+| `agent.scheduler_client` | Work pull, heartbeat, capacity reporting, outcome reporting | `thinkbox/agent/scheduler_client.py` |
+| `agent.governance_client` | Admission checks, approval requests, audit logging, token management | `thinkbox/agent/governance_client.py` |
+| `agent.telemetry` | Metrics (Prometheus), traces (OTEL), logs, health endpoints | `thinkbox/agent/telemetry.py` |
+| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` |
+| `agent.registry` | Agent registration, discovery, health tracking | `thinkbox/agent/registry.py` |
+| `agent.base` | TaskAgent, WorkflowAgent, BatchAgent, StreamAgent base classes | `thinkbox/agent/base/` |
+
+### Protocol Definitions (Protobuf)
+
+| Protocol | File | Services |
+|----------|------|----------|
+| Scheduler | `scheduler.proto` | SchedulerService (RegisterAgent, PullWork, ReportOutcome, Heartbeat, ReportCapacity, HealthCheck) |
+| Governance | `governance.proto` | GovernanceService (CheckAdmission, RequestApproval, RequestToken, EmitAuditEvent, EvaluatePolicy) |
+| Orchestration | `orchestration.proto` | OrchestrationService (RequestCapacity, DiscoverServices, WatchConfig, InjectSecrets) |
+| Health | `health.proto` | HealthService (Check, Watch, GetAgentInfo) |
+| CNC | `cnc.proto` | CNCService (SubmitJob, StreamTelemetry, RequestSafetyApproval, SubmitProof, ReplayJob) |
+
+### Architectural Principles
+
+1. **Documentation-first** — PR88 establishes full conceptual foundation before code
+2. **Protocol-first** — gRPC + HTTP, Protobuf schemas defined before implementation
+3. **Governance-by-default** — Every side effect → AdmissionGate → ActionLedger (extends KUDBEE Control Fabric)
+4. **Telemetry-as-contract** — Metrics, traces, logs, health — all mandatory, versioned, validated
+5. **Category-based resource profiles** — Default limits by agent type, overrideable at registration
+6. **Work pull model** — Agents pull from scheduler (backpressure, autonomy)
+7. **PAL for cloud** — No provider SDKs in agents; Platform Abstraction Layer enforces governance
+8. **Evidence classification** — All data: SIMULATED/INFERRED/VERIFIED/PHYSICALLY_MEASURED (from CNC)
+9. **ThinkBox as work unit** — Portable execution context (extends KUDBEE Control Fabric)
+10. **Mesh compromise containment** — Agent mesh cells, expulsion on compromise (extends KUDBEE)
+
+### Integration with Existing Systems
+
+| System | Integration Point |
+|--------|------------------|
+| **Governed Scheduler (PR80–85)** | Work pull, capacity management, 29 features via SchedulerHarness |
+| **CNC Platform (PR86–87)** | CNC_AGENT category, telemetry, proofs, safety gates |
+| **KUDBEE Control Fabric (Phase 12)** | AdmissionGate, ActionLedger, GovernanceToken, ThinkBox, Mesh |
+| **Experiment Manager** | Agent experiments, parameter provenance, learning loop |
+| **Memory/Vector Store** | Organizational knowledge, agent embeddings |
+| **Dashboard** | Pipeline view, agent observability |
+| **Upstash Box** | Primary execution substrate for agents |
+
+### Testing Requirements
+
+| Module | Minimum Tests |
+|--------|---------------|
+| `thinkbox/agent/kernel.py` | 15 (identity, config, init/shutdown) |
+| `thinkbox/agent/lifecycle.py` | 20 (all transitions, invalid transitions, checkpoints) |
+| `thinkbox/agent/scheduler_client.py` | 15 (pull, heartbeat, capacity, outcome) |
+| `thinkbox/agent/governance_client.py` | 20 (admission allow/deny/timeout, approval, tokens) |
+| `thinkbox/agent/telemetry.py` | 15 (metrics, traces, logs, health) |
+| `thinkbox/agent/orchestration_client.py` | 15 (capacity, discovery, config, secrets) |
+| `thinkbox/agent/base/*.py` | 10 each (agent type behaviors) |
+| Contract tests | All protocol services |
+| Integration tests | Scheduler, Admission Gate, Action Ledger, CNC Platform |
+
+### FourState Classification
+
+| Phase | PR88 (Docs) | PR89 (Core) | PR90 (Clustering) | PR91 (Distributed) | PR92 (Marketplace) |
+|-------|-------------|-------------|-------------------|---------------------|---------------------|
+| **CODE_COMPLETE** | N/A | Target | Target | Target | Target |
+| **TEST_VERIFIED** | N/A | Target | Target | Target | Target |
+| **LIVE_VERIFIED** | N/A | Target | Target | Target | Target |
+| **DOCS_COMPLETE** | ✅ | — | — | — | — |
+
+### Development Workflow (PR89+)
+
+1. **PR89: Autonomous Agent Core** — kernel, lifecycle, protocol, governance client, telemetry, orchestration client
+2. **PR90: Multi-Agent Clustering** — SUPERVISOR_AGENT, ROUTER_AGENT, ENSEMBLE_AGENT, agent registry
+3. **PR91: Distributed Governance** — multi-node AdmissionGate, ActionLedger, tokens, mesh expulsion
+4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow
+
 ## THINK Burst Protocol — Operational Note
 
 Short bounded bursts on `openai/gpt-oss-20b` maximize THINK-token quality per
