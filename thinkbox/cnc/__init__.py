@@ -34,6 +34,7 @@ from thinkbox.cnc.safety import ApprovalGate, SafetyGate
 from thinkbox.cnc.safety_gate_store import SafetyGateStore
 from thinkbox.cnc.tenant import Tenant, TenantPermission, TenantBoundary
 from thinkbox.cnc.tenant_store import TenantStore
+from thinkbox.cnc.telemetry import TelemetryIngest, TelemetrySeries, TelemetryPoint
 
 __all__ = [
     "CADInterface", "MachineControllerInterface", "InspectionSystemInterface",
@@ -45,4 +46,5 @@ __all__ = [
     "ROIStats", "ROIDashboard", "DemoMode", "DemoResult",
     "CNCManufacturingEngine", "KnowledgeEntry", "ManufacturingMemory",
     "ProofPackage", "ProofStore", "JobTemplate",
+    "TelemetryIngest", "TelemetrySeries", "TelemetryPoint",
 ]
