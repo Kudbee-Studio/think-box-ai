@@ -564,6 +564,61 @@ class TestCNCLifecycleIntegration(unittest.TestCase):
         self.assertIn("simulated", result.evidence_labels)
         self.assertIsNotNone(result.roi_stats)
 
+
+class TestCNCSafetyGateFailClosed(unittest.TestCase):
+    """Fail-closed: execute_job must block without approved SafetyGate."""
+
+    def test_execute_blocked_without_approval(self) -> None:
+        from thinkbox.cnc import CNCJob, CNCManufacturingEngine, Material, MachineProfile, Tool, Operation
+        engine = CNCManufacturingEngine()
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        machine = MachineProfile(name="HAAS VF-2SS")
+        material = Material(name="6061-T6")
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000)
+        job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
+        result = engine.execute_job(job)
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("Safety gate", result.get("reason", ""))
+
+    def test_execute_blocked_after_rejection(self) -> None:
+        from thinkbox.cnc import CNCJob, CNCManufacturingEngine, Material, MachineProfile, Tool, Operation
+        from thinkbox.cnc.safety import SafetyGateStore, ApprovalStatus
+        engine = CNCManufacturingEngine()
+        gate_store = SafetyGateStore()
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        machine = MachineProfile(name="HAAS VF-2SS")
+        material = Material(name="6061-T6")
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000)
+        job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
+        gate = gate_store.approve(job.job_id, "operator", "test")
+        gate.status = ApprovalStatus.REJECTED
+        result = engine.execute_job(job)
+        self.assertEqual(result["status"], "blocked")
+
+    def test_execute_with_approval(self) -> None:
+        from thinkbox.cnc import CNCJob, CNCManufacturingEngine, Material, MachineProfile, Tool, Operation
+        from thinkbox.cnc.safety import SafetyGateStore
+        engine = CNCManufacturingEngine()
+        gate_store = SafetyGateStore()
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        machine = MachineProfile(name="HAAS VF-2SS")
+        material = Material(name="6061-T6")
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000)
+        job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
+        gate_store.approve(job.job_id, "operator", "test")
+        result = engine.execute_job(job)
+        self.assertEqual(result["status"], "completed")
+
+    def test_execute_no_operations_blocked(self) -> None:
+        from thinkbox.cnc import CNCJob, CNCManufacturingEngine
+        engine = CNCManufacturingEngine()
+        job = CNCJob(part_name="Test", material=None)
+        result = engine.execute_job(job)
+        self.assertEqual(result["status"], "failed")
+        self.assertGreater(len(result.get("errors", [])), 0)
+
+
+
         dashboard = get_dashboard_state()
         cnc_entry = CNCJobEntry(
             job_id=job.job_id, part_name=job.part_name,
