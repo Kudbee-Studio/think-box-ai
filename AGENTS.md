@@ -687,7 +687,9 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 
 ### PR Status (2026-09-19)
 - **PR #90 MERGED** — Multi-Agent Clustering (registry, base agents, kernel, scheduler/governance clients, agent-to-agent protocol)
-- **PR #91 IN PROGRESS** — Distributed Governance (Raft AdmissionGate, CRDT ActionLedger, threshold-signed Tokens, Mesh with expulsion)
+- **PR #91 MERGED** — Distributed Governance (Raft AdmissionGate, CRDT ActionLedger, threshold Tokens, Mesh expulsion)
+- **PR #92 MERGED** — Agent Marketplace (package format, registry, installer, publisher)
+- **PR #93 IN PROGRESS** — Agent Telemetry & Observability (TelemetryEmitter: metrics, traces, logs, health) — https://github.com/Kudbee-Studio/think-box-ai/pull/91
 - **PR #85 IN PROGRESS** (10 hardening features: DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter) — https://github.com/Kudbee-Studio/think-box-ai/pull/85
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
 - **No stale PRs remain**
@@ -777,13 +779,14 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 | `agent.protocol` | gRPC/HTTP protocol definitions (scheduler, governance, orchestration, health, CNC, agent-to-agent) | `thinkbox/agent/protocol/` | ✅ PR89+PR90 |
 | `agent.scheduler_client` | Work pull, heartbeat, capacity reporting, outcome reporting | `thinkbox/agent/scheduler_client.py` | ✅ PR90 |
 | `agent.governance_client` | Admission checks, approval requests, audit logging, token management | `thinkbox/agent/governance_client.py` | ✅ PR90 |
-| `agent.telemetry` | Metrics (Prometheus), traces (OTEL), logs, health endpoints | `thinkbox/agent/telemetry.py` | ⏳ PR91 |
-| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` | ⏳ PR91 |
+| `agent.telemetry` | Metrics, traces, logs, health endpoints | `thinkbox/agent/telemetry.py` | 🔨 PR93 |
+| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` | ⏳ PR93 |
 | `agent.registry` | Agent registration, discovery, health tracking | `thinkbox/agent/registry.py` | ✅ PR90 |
 | `agent.base` | TaskAgent, WorkflowAgent, BatchAgent, StreamAgent base classes | `thinkbox/agent/base.py` | ✅ PR90 |
-| `agent.distributed_admission` | Raft-based distributed admission gate | `thinkbox/governance/distributed/` | 🔨 PR91 |
-| `agent.distributed_ledger` | CRDT-based distributed ActionLedger | `thinkbox/ledger/distributed/` | 🔨 PR91 |
-| `agent.mesh` | Multi-cell mesh coordinator with expulsion | `thinkbox/mesh/` | 🔨 PR91 |
+| `agent.marketplace` | Package format, registry, installer, publisher | `thinkbox/marketplace/` | ✅ PR92 |
+| `agent.distributed_admission` | Raft-based distributed admission gate | `thinkbox/governance/distributed/` | ✅ PR91 |
+| `agent.distributed_ledger` | CRDT-based distributed ActionLedger | `thinkbox/ledger/distributed/` | ✅ PR91 |
+| `agent.mesh` | Multi-cell mesh coordinator with expulsion | `thinkbox/mesh/` | ✅ PR91 |
 
 ### Protocol Definitions (Protobuf)
 
@@ -840,19 +843,20 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 
 ### FourState Classification
 
-| Phase | PR88 (Docs) | PR89 (Core) | PR90 (Clustering) | PR91 (Distributed) | PR92 (Marketplace) |
-|-------|-------------|-------------|-------------------|---------------------|---------------------|
-| **CODE_COMPLETE** | N/A | ✅ Protocol | ✅ Registry, Base, Kernel, Clients | 🔨 In Progress | Target |
-| **TEST_VERIFIED** | N/A | ✅ Syntax | ✅ Imports, 1605 tests | Target | Target |
-| **LIVE_VERIFIED** | N/A | ⏳ Deploy | ⏳ Deploy | Target | Target |
-| **DOCS_COMPLETE** | ✅ | — | — | — | — |
+| Phase | PR88 (Docs) | PR89 (Core) | PR90 (Clustering) | PR91 (Distributed) | PR92 (Marketplace) | PR93 (Telemetry) |
+|-------|-------------|-------------|-------------------|---------------------|---------------------|---------------------|
+| **CODE_COMPLETE** | N/A | ✅ Protocol | ✅ Registry, Base, Kernel, Clients | ✅ Gate, Ledger, Tokens, Mesh | ✅ Package, Registry, Installer, Publisher | 🔨 In Progress |
+| **TEST_VERIFIED** | N/A | ✅ Syntax | ✅ Imports, 1605 tests | ✅ 70 tests | ✅ 59 tests | ✅ 32 tests |
+| **LIVE_VERIFIED** | N/A | ⏳ Deploy | ⏳ Deploy | Target | Target | Target |
+| **DOCS_COMPLETE** | ✅ | — | — | — | — | — |
 
 ### Development Workflow (PR89+)
 
 1. **PR89: Autonomous Agent Core** — Protocol layer (5 protobuf services) ✅ **MERGED**
 2. **PR90: Multi-Agent Clustering** — Registry, 4 base agent types, kernel, scheduler/governance clients, agent-to-agent protocol ✅ **MERGED**
-3. **PR91: Distributed Governance** — Raft-based AdmissionGate, CRDT ActionLedger, threshold-signed GovernanceTokens, Mesh with compromise detection and expulsion 🔨 **IN PROGRESS**
-4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow
+3. **PR91: Distributed Governance** — Raft AdmissionGate, CRDT ActionLedger, threshold-signed Tokens, Mesh with compromise detection and expulsion ✅ **MERGED**
+4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow ✅ **MERGED**
+5. **PR93: Agent Telemetry & Observability** — TelemetryEmitter: metrics, traces, logs, health 🔨 **IN PROGRESS**
 
 ## THINK Burst Protocol — Operational Note
 
