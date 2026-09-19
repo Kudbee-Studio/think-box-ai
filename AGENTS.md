@@ -713,6 +713,7 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 
 | GitHub PR # | KILO PR | Status |
 |-------------|---------|--------|
+| #94 | PR95 | 🔨 IN PROGRESS |
 | #92 | PR94 | ✅ MERGED |
 | #91 | PR93 | ✅ MERGED |
 | #90 | PR90 | ✅ MERGED |
@@ -887,6 +888,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow ✅ **MERGED** (pushed to main directly; no GitHub PR)
 5. **PR93 (GitHub PR #91): Agent Telemetry & Observability** — TelemetryEmitter: metrics, traces, logs, health ✅ **MERGED**
 6. **PR94 (GitHub PR #92): Orchestration Client** — Capacity, service discovery, config watch, secret injection ✅ **MERGED**
+7. **PR95 (GitHub PR #94): Orchestration Client kernel wire** — Wire OrchestrationClient into AgentKernel lifecycle 🔨 **IN PROGRESS**
 
 ## THINK Burst Protocol — Operational Note
 

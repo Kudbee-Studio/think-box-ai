@@ -203,7 +203,11 @@ class AgentKernel:
         self._telemetry: Optional[TelemetryEmitter] = None
         self._orchestration: Optional[OrchestrationClient] = None
         self._registry: Optional[AgentRegistry] = None
-        
+
+        # Orchestration state
+        self._orchestration_allocation_id: Optional[str] = None
+        self._config_watch_task: Optional[asyncio.Task] = None
+
         # Lifecycle
         self.lifecycle = LifecycleManager(self, self.governance)
         
@@ -251,6 +255,50 @@ class AgentKernel:
             self._registry = get_global_registry()
         return self._registry
 
+    async def _inject_required_secrets(self):
+        """Inject required secrets; fail-closed if any are missing."""
+        required_secrets = self.config.metadata.get(
+            "required_secrets", []
+        )
+        if not required_secrets:
+            return
+        response = await self.orchestration.inject_secrets(
+            [{"name": s} for s in required_secrets],
+        )
+        injected_names = {h.name for h in response.handles}
+        missing = [
+            s for s in required_secrets if s not in injected_names
+        ]
+        if missing:
+            raise RuntimeError(
+                f"Required secrets injection failed: {missing}"
+            )
+
+    async def _watch_config_loop(self):
+        """Background task: watch config changes."""
+        try:
+            async for config_value in self.orchestration.watch_config(
+                "agent.config"
+            ):
+                logger.info(
+                    f"Config updated: {config_value.key} "
+                    f"= {config_value.value}"
+                )
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Config watch error: {e}")
+
+    def get_config(self, key: str, default: Any = None) -> Any:
+        """Get a cached config value."""
+        return self.orchestration.get_config_cache().get(
+            key, default
+        )
+
+    def watch_config(self, key: str):
+        """Watch a config key (delegates to OrchestrationClient)."""
+        return self.orchestration.watch_config(key)
+
     async def initialize(self) -> InitResult:
         """Initialize the agent kernel and all platform connections."""
         try:
@@ -262,7 +310,36 @@ class AgentKernel:
             await self.governance.connect()
             await self.telemetry.start()
             await self.orchestration.connect()
-            
+
+            # Orchestration: request capacity before proceeding
+            _profile = self.config.resource_profile
+            if isinstance(_profile, dict):
+                _profile_dict = _profile
+            else:
+                _profile_dict = vars(_profile)
+            capacity = await self.orchestration.request_capacity(
+                _profile_dict,
+                priority="NORMAL",
+            )
+            if not capacity.granted:
+                raise RuntimeError(
+                    f"Capacity request denied: {capacity.reason}"
+                )
+            self._orchestration_allocation_id = capacity.allocation_id
+
+            # Orchestration: discover services as needed
+            await self.orchestration.discover_services(
+                "compute", namespace="default",
+            )
+
+            # Orchestration: inject secrets (fail-closed if required keys missing)
+            await self._inject_required_secrets()
+
+            # Orchestration: start config watch
+            self._config_watch_task = asyncio.create_task(
+                self._watch_config_loop()
+            )
+
             # Register with agent registry
             from .registry import AgentInfo
             agent_info = AgentInfo(
@@ -299,26 +376,35 @@ class AgentKernel:
         try:
             # Stop accepting new work
             await self.lifecycle.transition(AgentState.TERMINATED)
-            
+
             # Flush telemetry
             await self.telemetry.flush()
-            
+
             # Deregister from registry
             await self.registry.deregister(self.config.agent_id)
-            
+
             # Close platform connections
             await self.scheduler.close()
             await self.governance.close()
             await self.telemetry.stop()
             await self.orchestration.close()
-            
+
             self._shutdown = True
             logger.info(f"Agent {self.config.agent_id} shut down: {reason}")
             return ShutdownResult(success=True)
-            
+
         except Exception as e:
             logger.error(f"Agent shutdown error: {e}")
             return ShutdownResult(success=False, error=str(e))
+        finally:
+            if self._orchestration_allocation_id:
+                try:
+                    await self.orchestration.release_capacity(
+                        self._orchestration_allocation_id, reason=reason
+                    )
+                except Exception:
+                    pass
+                self._orchestration_allocation_id = None
 
     async def checkpoint(self) -> bool:
         """Create a checkpoint of current execution state."""

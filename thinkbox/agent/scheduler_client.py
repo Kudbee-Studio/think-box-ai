@@ -4,6 +4,8 @@ KILO Cloud Agent — Scheduler Client
 Handles work pull, heartbeat, capacity reporting, and outcome reporting to the governed scheduler.
 """
 
+from __future__ import annotations
+
 import asyncio
 import time
 import grpc
@@ -11,7 +13,6 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from .protocol import scheduler_pb2, scheduler_pb2_grpc
-from .kernel import AgentConfig
 
 logger = logging.getLogger(__name__)
 
