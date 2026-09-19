@@ -771,17 +771,17 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 
 ### Implementation (PR89+ — In Progress)
 
-| Module | Description | Location |
-|--------|-------------|----------|
-| `agent.kernel` | AgentKernel base class, identity, lifecycle state machine | `thinkbox/agent/kernel.py` |
-| `agent.lifecycle` | 10-state lifecycle manager, governance checkpoints | `thinkbox/agent/lifecycle.py` |
-| `agent.protocol` | gRPC/HTTP protocol definitions (scheduler, governance, orchestration, health, CNC) | `thinkbox/agent/protocol/` |
-| `agent.scheduler_client` | Work pull, heartbeat, capacity reporting, outcome reporting | `thinkbox/agent/scheduler_client.py` |
-| `agent.governance_client` | Admission checks, approval requests, audit logging, token management | `thinkbox/agent/governance_client.py` |
-| `agent.telemetry` | Metrics (Prometheus), traces (OTEL), logs, health endpoints | `thinkbox/agent/telemetry.py` |
-| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` |
-| `agent.registry` | Agent registration, discovery, health tracking | `thinkbox/agent/registry.py` |
-| `agent.base` | TaskAgent, WorkflowAgent, BatchAgent, StreamAgent base classes | `thinkbox/agent/base/` |
+| Module | Description | Location | Status |
+|--------|-------------|----------|--------|
+| `agent.kernel` | AgentKernel base class, identity, lifecycle state machine | `thinkbox/agent/kernel.py` | ✅ PR90 |
+| `agent.lifecycle` | 10-state lifecycle manager, governance checkpoints | `thinkbox/agent/kernel.py` | ✅ PR90 |
+| `agent.protocol` | gRPC/HTTP protocol definitions (scheduler, governance, orchestration, health, CNC, agent-to-agent) | `thinkbox/agent/protocol/` | ✅ PR89+PR90 |
+| `agent.scheduler_client` | Work pull, heartbeat, capacity reporting, outcome reporting | `thinkbox/agent/scheduler_client.py` | ✅ PR90 |
+| `agent.governance_client` | Admission checks, approval requests, audit logging, token management | `thinkbox/agent/governance_client.py` | ✅ PR90 |
+| `agent.telemetry` | Metrics (Prometheus), traces (OTEL), logs, health endpoints | `thinkbox/agent/telemetry.py` | ⏳ PR91 |
+| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` | ⏳ PR91 |
+| `agent.registry` | Agent registration, discovery, health tracking | `thinkbox/agent/registry.py` | ✅ PR90 |
+| `agent.base` | TaskAgent, WorkflowAgent, BatchAgent, StreamAgent base classes | `thinkbox/agent/base.py` | ✅ PR90 |
 
 ### Protocol Definitions (Protobuf)
 
@@ -792,6 +792,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 | Orchestration | `orchestration.proto` | OrchestrationService (RequestCapacity, DiscoverServices, WatchConfig, InjectSecrets) |
 | Health | `health.proto` | HealthService (Check, Watch, GetAgentInfo) |
 | CNC | `cnc.proto` | CNCService (SubmitJob, StreamTelemetry, RequestSafetyApproval, SubmitProof, ReplayJob) |
+| Agent-to-Agent | `agent_to_agent.proto` | SupervisorService, RouterService, EnsembleService |
 
 ### Architectural Principles
 
@@ -823,28 +824,28 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 | Module | Minimum Tests |
 |--------|---------------|
 | `thinkbox/agent/kernel.py` | 15 (identity, config, init/shutdown) |
-| `thinkbox/agent/lifecycle.py` | 20 (all transitions, invalid transitions, checkpoints) |
+| `thinkbox/agent/registry.py` | 20 (register, discover, health, selection, TTL cleanup) |
+| `thinkbox/agent/base.py` | 15 each (TaskAgent, WorkflowAgent, BatchAgent, StreamAgent) |
 | `thinkbox/agent/scheduler_client.py` | 15 (pull, heartbeat, capacity, outcome) |
 | `thinkbox/agent/governance_client.py` | 20 (admission allow/deny/timeout, approval, tokens) |
 | `thinkbox/agent/telemetry.py` | 15 (metrics, traces, logs, health) |
 | `thinkbox/agent/orchestration_client.py` | 15 (capacity, discovery, config, secrets) |
-| `thinkbox/agent/base/*.py` | 10 each (agent type behaviors) |
-| Contract tests | All protocol services |
+| Contract tests | All protocol services (scheduler, governance, orchestration, health, CNC, agent-to-agent) |
 | Integration tests | Scheduler, Admission Gate, Action Ledger, CNC Platform |
 
 ### FourState Classification
 
 | Phase | PR88 (Docs) | PR89 (Core) | PR90 (Clustering) | PR91 (Distributed) | PR92 (Marketplace) |
 |-------|-------------|-------------|-------------------|---------------------|---------------------|
-| **CODE_COMPLETE** | N/A | Target | Target | Target | Target |
-| **TEST_VERIFIED** | N/A | Target | Target | Target | Target |
-| **LIVE_VERIFIED** | N/A | Target | Target | Target | Target |
+| **CODE_COMPLETE** | N/A | ✅ Protocol | ✅ Registry, Base, Kernel, Clients | Target | Target |
+| **TEST_VERIFIED** | N/A | ✅ Syntax | ✅ Imports, 1605 tests | Target | Target |
+| **LIVE_VERIFIED** | N/A | ⏳ Deploy | ⏳ Deploy | Target | Target |
 | **DOCS_COMPLETE** | ✅ | — | — | — | — |
 
 ### Development Workflow (PR89+)
 
-1. **PR89: Autonomous Agent Core** — kernel, lifecycle, protocol, governance client, telemetry, orchestration client
-2. **PR90: Multi-Agent Clustering** — SUPERVISOR_AGENT, ROUTER_AGENT, ENSEMBLE_AGENT, agent registry
+1. **PR89: Autonomous Agent Core** — Protocol layer (5 protobuf services) ✅ **MERGED**
+2. **PR90: Multi-Agent Clustering** — Registry, 4 base agent types, kernel, scheduler/governance clients, agent-to-agent protocol ✅ **IMPLEMENTED**
 3. **PR91: Distributed Governance** — multi-node AdmissionGate, ActionLedger, tokens, mesh expulsion
 4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow
 

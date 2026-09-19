@@ -1,0 +1,319 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// Agent-to-Agent Communication
+// ============================================================
+
+message AgentMessage {
+  string from_agent_id = 1;
+  string to_agent_id = 2;
+  string correlation_id = 3;
+  MessageType type = 4;
+  google.protobuf.Any payload = 5;
+  string timestamp = 6;
+}
+
+enum MessageType {
+  TASK_FORWARD = 0;      // ROUTER -> WORKER
+  TASK_RESULT = 1;       // WORKER -> ROUTER/ENSEMBLE
+  CONSENSUS_PROPOSE = 2; // ENSEMBLE -> WORKERS
+  CONSENSUS_VOTE = 3;    // WORKERS -> ENSEMBLE
+  HEALTH_UPDATE = 4;     // WORKER -> SUPERVISOR
+  CONFIG_PUSH = 5;       // SUPERVISOR -> WORKERS
+  SHUTDOWN_SIGNAL = 6;   // SUPERVISOR -> WORKER
+  POOL_JOIN = 7;         // WORKER -> SUPERVISOR
+  POOL_LEAVE = 8;        // WORKER -> SUPERVISOR
+}
+
+message TaskForward {
+  string task_id = 1;
+  string task_type = 2;
+  google.protobuf.Struct task_spec = 3;
+  int32 priority = 4;
+  string deadline = 5;
+  string governance_token = 6;
+  string experiment_id = 7;
+  string think_box_id = 8;
+}
+
+message TaskResult {
+  string task_id = 1;
+  string worker_agent_id = 2;
+  enum Outcome { SUCCESS = 0; FAILED = 1; CANCELLED = 2; TIMEOUT = 3; }
+  Outcome outcome = 3;
+  string completed_at = 4;
+  int64 duration_ms = 5;
+  google.protobuf.Struct resource_usage = 6;
+  string result_ref = 7;
+  google.protobuf.Struct error = 8;
+  google.protobuf.Struct governance = 9;
+  google.protobuf.Struct verification = 10;
+}
+
+message ConsensusPropose {
+  string proposal_id = 1;
+  string task_id = 2;
+  google.protobuf.Struct proposal_data = 3;
+  ConsensusConfig config = 4;
+}
+
+message ConsensusVote {
+  string proposal_id = 1;
+  string voter_agent_id = 2;
+  bool agree = 3;
+  google.protobuf.Struct reasoning = 4;
+  string signature = 5;
+}
+
+message ConsensusConfig {
+  enum Algorithm { MAJORITY = 0; UNANIMOUS = 1; WEIGHTED = 2; MEDIAN = 3; }
+  Algorithm algorithm = 1;
+  int32 quorum = 2;
+  int32 timeout_seconds = 3;
+  map<string, double> voter_weights = 4;  // agent_id -> weight
+}
+
+message HealthUpdate {
+  string agent_id = 1;
+  enum Status { HEALTHY = 0; DEGRADED = 1; UNHEALTHY = 2; }
+  Status status = 2;
+  string state = 3;
+  string current_task_id = 4;
+  int32 task_progress = 5;
+  double cpu_percent = 6;
+  double memory_percent = 7;
+}
+
+message ConfigPush {
+  map<string, string> config = 1;
+  int64 version = 2;
+  bool require_restart = 3;
+}
+
+message PoolJoin {
+  string agent_id = 1;
+  string agent_type = 2;
+  repeated string capabilities = 3;
+  google.protobuf.Struct resource_profile = 4;
+  string endpoint = 5;
+}
+
+message PoolLeave {
+  string agent_id = 1;
+  string reason = 2;
+}
+
+// ============================================================
+// Supervisor Agent Service
+// ============================================================
+
+message ScalingPolicy {
+  int32 min_replicas = 1;
+  int32 max_replicas = 2;
+  int32 target_queue_depth_per_agent = 3;
+  int32 target_latency_p99_ms = 4;
+  double target_error_rate = 5;
+  int32 scale_up_stabilization_seconds = 6;
+  int32 scale_down_stabilization_seconds = 7;
+  bool predictive_enabled = 8;
+}
+
+message PoolConfig {
+  string pool_id = 1;
+  string agent_type = 2;
+  string tenant_id = 3;
+  ScalingPolicy scaling_policy = 4;
+  google.protobuf.Struct launch_config = 5;
+  repeated string required_capabilities = 6;
+}
+
+message PoolStatus {
+  string pool_id = 1;
+  int32 target_replicas = 2;
+  int32 current_replicas = 3;
+  int32 healthy_replicas = 4;
+  repeated string agent_ids = 5;
+  string status = 6;  // SCALING, STABLE, DRAINING
+}
+
+message ScaleRequest {
+  string pool_id = 1;
+  int32 target_replicas = 2;
+  string reason = 3;
+}
+
+message ScaleResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string new_agent_ids = 3;
+}
+
+service SupervisorService {
+  rpc CreatePool(PoolConfig) returns (PoolStatus);
+  rpc GetPoolStatus(PoolStatusRequest) returns (PoolStatus);
+  rpc ListPools(PoolListRequest) returns (PoolListResponse);
+  rpc ScalePool(ScaleRequest) returns (ScaleResponse);
+  rpc DrainPool(DrainRequest) returns (DrainResponse);
+  rpc DeletePool(DeletePoolRequest) returns (google.protobuf.Empty);
+  rpc WatchPoolStatus(PoolStatusRequest) returns (stream PoolStatus);
+}
+
+message PoolStatusRequest {
+  string pool_id = 1;
+}
+
+message PoolListRequest {
+  string tenant_id = 1;
+}
+
+message PoolListResponse {
+  repeated PoolStatus pools = 1;
+}
+
+message DrainRequest {
+  string pool_id = 1;
+  bool graceful = 1;
+  int32 timeout_seconds = 2;
+}
+
+message DrainResponse {
+  bool success = 1;
+  int32 drained_agents = 2;
+  repeated string remaining_agent_ids = 3;
+}
+
+message DeletePoolRequest {
+  string pool_id = 1;
+  bool force = 1;
+}
+
+// ============================================================
+// Router Agent Service
+// ============================================================
+
+message RoutingRequest {
+  string task_id = 1;
+  string task_type = 2;
+  google.protobuf.Struct task_spec = 3;
+  repeated string required_capabilities = 4;
+  string governance_tier = 5;
+  string tenant_id = 6;
+  int32 priority = 7;
+  string deadline = 8;
+}
+
+message RoutingResponse {
+  string selected_agent_id = 1;
+  string reason = 2;
+  double confidence = 3;
+}
+
+message RoutingRule {
+  string rule_id = 1;
+  string name = 2;
+  repeated string task_type_match = 3;
+  repeated string capability_require = 4;
+  string target_pool = 5;
+  int32 priority = 6;
+}
+
+service RouterService {
+  rpc RouteTask(RoutingRequest) returns (RoutingResponse);
+  rpc AddRoutingRule(RoutingRule) returns (google.protobuf.Empty);
+  rpc RemoveRoutingRule(RuleIdRequest) returns (google.protobuf.Empty);
+  rpc ListRoutingRules(google.protobuf.Empty) returns (RoutingRuleList);
+  rpc GetRoutingStats(RoutingStatsRequest) returns (RoutingStats);
+}
+
+message RuleIdRequest {
+  string rule_id = 1;
+}
+
+message RoutingRuleList {
+  repeated RoutingRule rules = 1;
+}
+
+message RoutingStatsRequest {
+  string time_range = 1;  // e.g., "1h", "24h"
+}
+
+message RoutingStats {
+  int64 total_routed = 1;
+  int64 failed_routes = 2;
+  map<string, int64> by_task_type = 3;
+  map<string, int64> by_agent = 4;
+  double avg_routing_latency_ms = 5;
+}
+
+// ============================================================
+// Ensemble Agent Service
+// ============================================================
+
+message EnsembleRequest {
+  string ensemble_id = 1;
+  string task_id = 2;
+  string task_type = 3;
+  google.protobuf.Struct task_spec = 4.
+  repeated string participant_agent_ids = 5;
+  ConsensusConfig consensus_config = 6;
+  int32 timeout_seconds = 7.
+}
+
+message EnsembleResponse {
+  string ensemble_id = 1.
+  string task_id = 2.
+  google.protobuf.Struct aggregated_result = 3.
+  bool consensus_reached = 4.
+  repeated ConsensusVote votes = 5.
+  string error = 6.
+}
+
+message EnsembleConfig {
+  string ensemble_id = 1.
+  string name = 2.
+  string task_type = 3.
+  int32 min_participants = 4.
+  int32 max_participants = 5.
+  ConsensusConfig consensus_config = 6.
+  google.protobuf.Struct participant_selection = 7.  // diversity, capability, etc.
+}
+
+service EnsembleService {
+  rpc ExecuteEnsemble(EnsembleRequest) returns (EnsembleResponse).
+  rpc CreateEnsemble(EnsembleConfig) returns (EnsembleInfo).
+  rpc GetEnsembleStatus(EnsembleStatusRequest) returns (EnsembleInfo).
+  rpc ListEnsembles(google.protobuf.Empty) returns (EnsembleList).
+  rpc DeleteEnsemble(EnsembleIdRequest) returns (google.protobuf.Empty).
+}
+
+message EnsembleInfo {
+  string ensemble_id = 1.
+  string name = 2.
+  string task_type = 3.
+  int32 min_participants = 4.
+  int32 max_participants = 5.
+  ConsensusConfig consensus_config = 6.
+  string status = 7.  // ACTIVE, INACTIVE, EXECUTING
+  repeated string participant_agent_ids = 8.
+}
+
+message EnsembleStatusRequest {
+  string ensemble_id = 1.
+}
+
+message EnsembleList {
+  repeated EnsembleInfo ensembles = 1.
+}
+
+message EnsembleIdRequest {
+  string ensemble_id = 1.
+}
