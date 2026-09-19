@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// ============================================================
+// Agent Registration & Identity
+// ============================================================
+
+message ResourceProfile {
+  double cpu_cores = 1;
+  int64 memory_mb = 2;
+  bool gpu_required = 3;
+  string gpu_type = 4;
+  int32 gpu_count = 5;
+  bool network_egress = 6;
+  int64 network_mbps = 7;
+  int64 disk_mb = 8;
+  int64 max_duration_seconds = 9;
+}
+
+message AgentRegistration {
+  string agent_id = 1;
+  string agent_type = 2;
+  string agent_version = 3;
+  string protocol_version = 4;
+  repeated string capabilities = 5;
+  ResourceProfile resource_profile = 6;
+  string governance_tier = 7;  // GOVERNED, RESTRICTED, PRIVILEGED
+  string tenant_id = 8;
+  map<string, string> metadata = 9;
+}
+
+message RegistrationResponse {
+  bool accepted = 1;
+  string scheduler_version = 2;
+  repeated string supported_protocol_versions = 3;
+  map<string, string> config = 4;
+  string error = 5;
+}
+
+// ============================================================
+// Work Pull Protocol
+// ============================================================
+
+message PullWorkRequest {
+  string agent_id = 1;
+  int32 max_tasks = 2;
+  int32 accept_timeout_seconds = 3;
+  repeated string preferred_task_types = 4;
+}
+
+message TaskAssignment {
+  string task_id = 1;
+  string task_type = 2;
+  google.protobuf.Struct task_spec = 3;
+  int32 priority = 4;
+  string deadline = 5;  // ISO8601
+  string governance_token = 6;
+  string experiment_id = 7;
+  string think_box_id = 8;
+  map<string, string> metadata = 9;
+}
+
+message PullWorkResponse {
+  repeated TaskAssignment tasks = 1;
+  int32 next_pull_after_seconds = 2;
+  string scheduler_time = 3;  // ISO8601
+}
+
+// ============================================================
+// Task Outcome & Reporting
+// ============================================================
+
+enum TaskOutcome {
+  SUCCESS = 0;
+  FAILED = 1;
+  CANCELLED = 2;
+  TIMEOUT = 3;
+}
+
+message ResourceUsage {
+  double cpu_seconds = 1;
+  int64 memory_peak_mb = 2;
+  double gpu_seconds = 3;
+  int64 network_egress_mb = 4;
+}
+
+message TaskError {
+  string error_code = 1;
+  string message = 2;
+  google.protobuf.Struct context = 3;
+  bool retryable = 4;
+}
+
+message GovernanceSummary {
+  int32 admission_decisions = 1;
+  int32 approvals_requested = 2;
+  int32 approvals_granted = 3;
+  int32 tokens_used = 4;
+}
+
+message VerificationSummary {
+  bool verified = 1;
+  string verification_id = 2;
+  string policy_version = 3;
+}
+
+message TaskOutcomeReport {
+  string task_id = 1;
+  string agent_id = 2;
+  TaskOutcome outcome = 3;
+  string completed_at = 4;
+  int64 duration_ms = 5;
+  ResourceUsage resource_usage = 6;
+  string result_ref = 7;
+  TaskError error = 8;
+  GovernanceSummary governance = 9;
+  VerificationSummary verification = 10;
+}
+
+// ============================================================
+// Heartbeat & Commands
+// ============================================================
+
+enum AgentStatus {
+  SPAWNED = 0;
+  INITIALIZED = 1;
+  IDLE = 2;
+  EXECUTING = 3;
+  CHECKPOINTED = 4;
+  COMPLETED = 5;
+  FAILED = 6;
+  CANCELLED = 7;
+  TERMINATED = 8;
+}
+
+message ResourceSnapshot {
+  double cpu_percent = 1;
+  double memory_percent = 2;
+  double disk_percent = 3;
+  double gpu_percent = 4;
+  int32 network_connections = 5;
+}
+
+message Heartbeat {
+  string agent_id = 1;
+  int64 sequence = 2;
+  string timestamp = 3;  // ISO8601
+  AgentStatus status = 4;
+  string current_task_id = 5;
+  int32 task_progress_percent = 6;
+  ResourceSnapshot resource_snapshot = 7;
+}
+
+enum SchedulerCommandType {
+  PREEMPT = 0;
+  PAUSE = 1;
+  RESUME = 2;
+  TERMINATE = 3;
+  CONFIG_UPDATE = 4;
+}
+
+message SchedulerCommand {
+  SchedulerCommandType type = 1;
+  string task_id = 2;
+  string reason = 3;
+  google.protobuf.Struct parameters = 4;
+}
+
+message ConfigUpdates {
+  map<string, string> values = 1;
+}
+
+message HeartbeatResponse {
+  bool ack = 1;
+  int64 sequence = 2;
+  string scheduler_time = 3;
+  repeated SchedulerCommand commands = 4;
+  ConfigUpdates config_updates = 5;
+}
+
+// ============================================================
+// Capacity Reporting
+// ============================================================
+
+message ResourceCapacity {
+  double cpu_cores_available = 1;
+  double cpu_cores_total = 2;
+  int64 memory_mb_available = 3;
+  int64 memory_mb_total = 4;
+  bool gpu_available = 5;
+  int64 network_mbps_available = 6;
+  int64 disk_mb_available = 7;
+  int64 disk_mb_total = 8;
+  int32 max_concurrent_tasks = 9;
+  int32 current_tasks = 10;
+}
+
+message HealthStatus {
+  enum Status { HEALTHY = 0; DEGRADED = 1; UNHEALTHY = 2; }
+  Status status = 1;
+  int32 checks_passing = 2;
+  int32 checks_warning = 3;
+  int32 checks_failing = 4;
+}
+
+message AgentPreferences {
+  repeated string preferred_task_types = 1;
+  repeated string avoid_task_types = 2;
+  int64 max_task_duration_seconds = 3;
+}
+
+message CapacityReport {
+  string agent_id = 1;
+  string timestamp = 2;
+  ResourceCapacity capacity = 3;
+  HealthStatus health = 4;
+  AgentPreferences preferences = 5;
+}
+
+message CapacityReportResponse {
+  bool acknowledged = 1;
+}
+
+// ============================================================
+// Health Check
+// ============================================================
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheck {
+  string name = 1;
+  enum Status { PASS = 0; WARN = 1; FAIL = 2; }
+  Status status = 2;
+  int64 latency_ms = 3;
+  google.protobuf.Struct details = 4;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus { SERVING = 0; NOT_SERVING = 1; SERVICE_UNKNOWN = 2; }
+  ServingStatus status = 1;
+  string agent_id = 2;
+  repeated HealthCheck check = 3;
+}
+
+// ============================================================
+// Scheduler Service Definition
+// ============================================================
+
+service SchedulerService {
+  rpc RegisterAgent(AgentRegistration) returns (RegistrationResponse);
+  rpc PullWork(PullWorkRequest) returns (PullWorkResponse);
+  rpc ReportOutcome(TaskOutcomeReport) returns (google.protobuf.Empty);
+  rpc Heartbeat(Heartbeat) returns (HeartbeatResponse);
+  rpc ReportCapacity(CapacityReport) returns (CapacityReportResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
