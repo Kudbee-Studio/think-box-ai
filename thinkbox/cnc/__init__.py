@@ -23,6 +23,7 @@ from thinkbox.cnc.job import (
     Operation,
     Tool,
     ValidationResult,
+    JobTemplate,
 )
 from thinkbox.cnc.memory import KnowledgeEntry, ManufacturingMemory
 from thinkbox.cnc.proof import ProofPackage
@@ -41,5 +42,5 @@ __all__ = [
     "InspectionResult", "Material", "MachineProfile", "Operation", "Tool",
     "ROIStats", "ROIDashboard", "DemoMode", "DemoResult",
     "CNCManufacturingEngine", "KnowledgeEntry", "ManufacturingMemory",
-    "ProofPackage", "ProofStore",
+    "ProofPackage", "ProofStore", "JobTemplate",
 ]
