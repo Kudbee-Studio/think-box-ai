@@ -14,9 +14,10 @@ from thinkbox.cnc.safety import SafetyGate, SafetyGateStore
 
 @dataclass
 class CNCManufacturingEngine:
-    def __init__(self):
-        self._proof_store = ProofStore()
-        self._safety_store = SafetyGateStore()
+    def __init__(self, safety_gate_store: SafetyGateStore | None = None,
+                 proof_store: ProofStore | None = None) -> None:
+        self._proof_store = proof_store or ProofStore()
+        self._safety_store = safety_gate_store or SafetyGateStore()
 
     def validate_job(self, job: CNCJob | dict[str, Any]) -> ValidationResult:
         if isinstance(job, dict):
@@ -45,8 +46,10 @@ class CNCManufacturingEngine:
         if not validation.is_valid:
             return {"status": "failed", "errors": validation.errors}
 
-        gate = self._safety_store.get_gate(job.job_id)
-        if gate and gate.status.value != "APPROVED":
+        gate = self._safety_store.get_gate_by_job_id(job.job_id)
+        if gate is None:
+            return {"status": "blocked", "reason": "Safety gate not found"}
+        if gate.status.value != "APPROVED":
             return {"status": "blocked", "reason": "Safety gate not approved"}
 
         records = []

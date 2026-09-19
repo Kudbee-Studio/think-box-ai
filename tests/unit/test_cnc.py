@@ -290,6 +290,7 @@ class TestCNCManufacturingEngine(unittest.TestCase):
         tool = Tool(name="End Mill", diameter_mm=10.0)
         operation = Operation(operation_id="op-1", operation_type="milling", tool=tool)
         job = CNCJob(part_name="Test", material=material, machine=machine, operations=[operation])
+        engine._safety_store.approve(job.job_id, "operator", "test")
         result = engine.execute_job(job)
         self.assertEqual(result["status"], "completed")
 
@@ -301,7 +302,7 @@ class TestCNCManufacturingEngine(unittest.TestCase):
         operation = Operation(operation_id="op-1", operation_type="milling", tool=tool)
         job = CNCJob(part_name="Test", material=material, machine=machine, operations=[operation])
         result = engine.execute_job(job)
-        self.assertIn(result["status"], ["completed", "blocked"])
+        self.assertIn(result["status"], ["blocked"])
 
     def test_get_stats(self):
         engine = CNCManufacturingEngine()
@@ -534,11 +535,7 @@ class TestCNCLifecycleIntegration(unittest.TestCase):
         self.assertTrue(validation.is_valid)
         self.assertEqual(len(validation.errors), 0)
 
-        gate = SafetyGateStore()
-        approval = gate.approve(job.job_id, "operator", "Demo approved")
-        self.assertEqual(approval.approver_id, "operator")
-        self.assertEqual(approval.status.value, "APPROVED")
-
+        engine._safety_store.approve(job.job_id, "operator", "Demo approved")
         execution = engine.execute_job(job)
         self.assertEqual(execution["status"], "completed")
         self.assertEqual(len(execution["execution_records"]), 1)
@@ -582,30 +579,27 @@ class TestCNCSafetyGateFailClosed(unittest.TestCase):
 
     def test_execute_blocked_after_rejection(self) -> None:
         from thinkbox.cnc import CNCJob, CNCManufacturingEngine, Material, MachineProfile, Tool, Operation
-        from thinkbox.cnc.safety import SafetyGateStore, ApprovalStatus
+        from thinkbox.cnc.safety import ApprovalStatus
         engine = CNCManufacturingEngine()
-        gate_store = SafetyGateStore()
         tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
         machine = MachineProfile(name="HAAS VF-2SS")
         material = Material(name="6061-T6")
         op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000)
         job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
-        gate = gate_store.approve(job.job_id, "operator", "test")
+        gate = engine._safety_store.get_gate(job.job_id) or engine._safety_store.approve(job.job_id, "operator", "test")
         gate.status = ApprovalStatus.REJECTED
         result = engine.execute_job(job)
         self.assertEqual(result["status"], "blocked")
 
     def test_execute_with_approval(self) -> None:
         from thinkbox.cnc import CNCJob, CNCManufacturingEngine, Material, MachineProfile, Tool, Operation
-        from thinkbox.cnc.safety import SafetyGateStore
         engine = CNCManufacturingEngine()
-        gate_store = SafetyGateStore()
         tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
         machine = MachineProfile(name="HAAS VF-2SS")
         material = Material(name="6061-T6")
         op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000)
         job = CNCJob(part_name="Bracket", material=material, machine=machine, operations=[op])
-        gate_store.approve(job.job_id, "operator", "test")
+        engine._safety_store.approve(job.job_id, "operator", "test")
         result = engine.execute_job(job)
         self.assertEqual(result["status"], "completed")
 
