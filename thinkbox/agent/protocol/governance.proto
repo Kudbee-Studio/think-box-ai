@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// Admission Gate
+// ============================================================
+
+message AdmissionRequest {
+  string agent_id = 1;
+  string task_id = 2;
+  string action_type = 3;
+  google.protobuf.Struct action_spec = 4;
+  string governance_token = 5;
+  string tenant_id = 6;
+  string timestamp = 7;  // ISO8601
+}
+
+message Condition {
+  string type = 1;  // RESOURCE_LIMIT, TIME_LIMIT, NETWORK_ALLOWLIST, etc.
+  google.protobuf.Struct parameters = 2;
+}
+
+message AdmissionDecision {
+  string decision_id = 1;
+  bool allowed = 2;
+  string reason = 3;
+  repeated Condition conditions = 4;
+  string expires_at = 5;  // ISO8601
+  string governance_token = 6;
+}
+
+// ============================================================
+// Approval Gates
+// ============================================================
+
+enum GateType {
+  HUMAN = 0;
+  POLICY_AUTO = 1;
+  TIME_BASED = 2;
+  QUOTA = 3;
+}
+
+enum ApprovalDecisionType {
+  APPROVED = 0;
+  DENIED = 1;
+  EXPIRED = 2;
+}
+
+message ApprovalRequest {
+  string request_id = 1;
+  string agent_id = 2;
+  string task_id = 3;
+  string action_type = 4;
+  google.protobuf.Struct action_spec = 5;
+  GateType gate_type = 6;
+  string expires_at = 7;
+  enum Priority { LOW = 0; NORMAL = 1; HIGH = 2; CRITICAL = 3; }
+  Priority priority = 8;
+  google.protobuf.Struct context = 9;
+}
+
+message ApprovalDecision {
+  string decision_id = 1;
+  string request_id = 2;
+  string decided_by = 3;
+  string decided_at = 4;
+  ApprovalDecisionType decision = 5;
+  string reason = 6;
+  repeated Condition conditions = 7;
+  string governance_token = 8;
+  string token_expires_at = 9;
+}
+
+// ============================================================
+// Governance Token
+// ============================================================
+
+message TokenRequest {
+  string agent_id = 1;
+  string task_id = 2;
+  string action_type = 3;
+  string tenant_id = 4;
+  int32 ttl_seconds = 5;
+}
+
+message TokenResponse {
+  string token = 1;
+  string token_id = 2;
+  string expires_at = 3;
+  repeated string scope = 4;
+}
+
+message TokenRevocationRequest {
+  string token_id = 1;
+  string reason = 2;
+}
+
+message TokenRevocationResponse {
+  bool revoked = 1;
+}
+
+// ============================================================
+// Audit Events
+// ============================================================
+
+message AuditEvent {
+  string event_id = 1;
+  string event_type = 2;
+  string timestamp = 3;
+  string agent_id = 4;
+  string task_id = 5;
+  string tenant_id = 6;
+  string correlation_id = 7;
+  string causation_id = 8;
+  google.protobuf.Struct payload = 9;
+  google.protobuf.Struct metadata = 10;
+}
+
+message AuditEventBatch {
+  repeated AuditEvent events = 1;
+}
+
+message AuditEventResponse {
+  bool accepted = 1;
+  string error = 2;
+}
+
+// ============================================================
+// Policy Evaluation
+// ============================================================
+
+message PolicyEvaluationRequest {
+  string policy_version = 1;
+  google.protobuf.Struct input = 2;
+}
+
+message PolicyEvaluationResponse {
+  bool allowed = 1;
+  string decision_id = 2;
+  string reason = 3;
+  int64 evaluation_ms = 4;
+}
+
+// ============================================================
+// Governance Service Definition
+// ============================================================
+
+service GovernanceService {
+  rpc CheckAdmission(AdmissionRequest) returns (AdmissionDecision);
+  rpc RequestApproval(ApprovalRequest) returns (ApprovalDecision);
+  rpc GetApprovalStatus(ApprovalStatusRequest) returns (ApprovalDecision);
+  rpc RequestToken(TokenRequest) returns (TokenResponse);
+  rpc RevokeToken(TokenRevocationRequest) returns (TokenRevocationResponse);
+  rpc EmitAuditEvent(AuditEvent) returns (AuditEventResponse);
+  rpc EmitAuditBatch(AuditEventBatch) returns (AuditEventResponse);
+  rpc EvaluatePolicy(PolicyEvaluationRequest) returns (PolicyEvaluationResponse);
+}
+
+message ApprovalStatusRequest {
+  string request_id = 1;
+}

@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// Capacity Requests
+// ============================================================
+
+message PlacementConstraints {
+  string zone = 1;
+  string region = 2;
+  string provider = 3;
+  repeated string instance_types = 4;
+  bool require_gpu = 5;
+  repeated string gpu_types = 6;
+  string tenancy = 7;  // shared, dedicated
+  repeated string compliance = 8;
+  string data_residency = 9;
+}
+
+message CapacityRequest {
+  string request_id = 1;
+  string agent_id = 2;
+  string tenant_id = 3;
+  ResourceProfile resource_profile = 4;
+  int32 duration_hint_seconds = 5;
+  enum Priority { LOW = 0; NORMAL = 1; HIGH = 2; CRITICAL = 3; }
+  Priority priority = 6;
+  PlacementConstraints constraints = 7;
+  repeated string required_capabilities = 8;
+}
+
+message AllocatedResources {
+  string allocation_id = 1;
+  string instance_id = 2;
+  string instance_type = 3;
+  string provider = 4;
+  string region = 5;
+  string zone = 6;
+  ResourceProfile resource_profile = 7;
+  map<string, string> endpoints = 8;  // service_name -> endpoint
+}
+
+message CapacityResponse {
+  string request_id = 1;
+  bool granted = 2;
+  string allocation_id = 3;
+  AllocatedResources resources = 4;
+  string expires_at = 5;
+  map<string, string> endpoints = 6;
+}
+
+message ReleaseRequest {
+  string allocation_id = 1;
+  string agent_id = 2;
+  string reason = 3;
+}
+
+// ============================================================
+// Service Discovery
+// ============================================================
+
+message ServiceQuery {
+  string service_name = 1;
+  string namespace = 2;
+  map<string, string> tags = 3;
+  string health = 4;  // HEALTHY, DEGRADED, UNHEALTHY
+}
+
+message ServiceEndpoint {
+  string service_name = 1;
+  string endpoint = 2;
+  string protocol = 3;  // grpc, http, https
+  string health = 4;
+  map<string, string> metadata = 5;
+}
+
+message ServiceDiscoveryResponse {
+  repeated ServiceEndpoint endpoints = 1;
+  int32 ttl_seconds = 2;
+}
+
+// ============================================================
+// Configuration Sync
+// ============================================================
+
+message ConfigWatchRequest {
+  string key = 1;
+  string current_version = 2;  // For resume
+}
+
+message ConfigValue {
+  string key = 1;
+  google.protobuf.Value value = 2;
+  string type = 3;
+  int64 version = 4;
+  string updated_at = 4;
+  string updated_by = 5;
+}
+
+// ============================================================
+// Secret Injection
+// ============================================================
+
+message SecretSpec {
+  string name = 1;
+  string path = 2;
+  string version = 3;
+  enum Format { ENV = 0; FILE = 1; MEMORY = 2; }
+  Format format = 4;
+  string mount_path = 5;
+}
+
+message SecretInjectionSpec {
+  string request_id = 1;
+  string agent_id = 2;
+  repeated SecretSpec secrets = 3;
+  enum InjectionMethod { ENV_FILE = 0; MEMORY = 1; VOLUME = 2; }
+  InjectionMethod injection_method = 4;
+  string rotation_policy = 5;  // auto, manual
+}
+
+message SecretHandle {
+  string name = 1;
+  string value = 2;  // For env/memory
+  string file_path = 3;  // For file/volume
+}
+
+message SecretInjectionResponse {
+  repeated SecretHandle handles = 1;
+}
+
+message SecretRotationEvent {
+  string secret_name = 1;
+  string new_version = 2;
+  string rotated_at = 3;
+}
+
+// ============================================================
+// Orchestration Service Definition
+// ============================================================
+
+service OrchestrationService {
+  rpc RequestCapacity(CapacityRequest) returns (CapacityResponse);
+  rpc ReleaseCapacity(ReleaseRequest) returns (google.protobuf.Empty);
+  rpc DiscoverServices(ServiceQuery) returns (ServiceDiscoveryResponse);
+  rpc WatchConfig(ConfigWatchRequest) returns (stream ConfigValue);
+  rpc InjectSecrets(SecretInjectionSpec) returns (SecretInjectionResponse);
+  rpc WatchSecretRotation(google.protobuf.Empty) returns (stream SecretRotationEvent);
+}

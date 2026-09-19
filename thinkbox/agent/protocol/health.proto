@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+
+// ============================================================
+// Health Check (GRPC Health Checking Protocol compatible)
+// ============================================================
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    SERVING = 0;
+    NOT_SERVING = 1;
+    SERVICE_UNKNOWN = 2;
+  }
+  ServingStatus status = 1;
+  string agent_id = 2;
+  repeated HealthCheck checks = 3;
+}
+
+message HealthCheck {
+  string name = 1;
+  enum Status {
+    PASS = 0;
+    WARN = 1;
+    FAIL = 2;
+  }
+  Status status = 2;
+  int64 latency_ms = 3;
+  google.protobuf.Struct details = 4;
+}
+
+// ============================================================
+// Agent Info (for /health endpoint)
+// ============================================================
+
+message AgentInfo {
+  string agent_id = 1;
+  string agent_type = 2;
+  string agent_version = 3;
+  string protocol_version = 4;
+  string governance_tier = 5;
+  string tenant_id = 6;
+  int64 uptime_seconds = 7;
+  repeated HealthCheck checks = 8;
+  MetricsSummary metrics_summary = 9;
+  string last_task_completed_at = 10;
+  string timestamp = 11;
+}
+
+message MetricsSummary {
+  int64 tasks_completed = 1;
+  int64 tasks_failed = 2;
+  int64 tasks_cancelled = 3;
+  double avg_task_duration_ms = 4;
+  double error_rate_5m = 5;
+}
+
+// ============================================================
+// Health Service Definition
+// ============================================================
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+  rpc GetAgentInfo(google.protobuf.Empty) returns (AgentInfo);
+}

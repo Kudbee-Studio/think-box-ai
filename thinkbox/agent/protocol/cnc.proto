@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package kilo.agent.v1;
+
+option go_package = "github.com/kudbee/think-box-ai/gen/go/kilo/agent/v1";
+option python_package = "kilo.agent.v1";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// CNC Job Specification
+// ============================================================
+
+message PartSpecification {
+  string part_id = 1;
+  string name = 2;
+  string material = 3;
+  google.protobuf.Struct geometry = 4;  // STEP/STL reference or inline
+  google.protobuf.Struct tolerances = 5;
+}
+
+message MaterialSpec {
+  string material_id = 1;
+  string name = 2;
+  string grade = 3;
+  double density_kg_m3 = 4;
+  google.protobuf.Struct properties = 5;
+}
+
+message MachineProfile {
+  string machine_id = 1;
+  string name = 2;
+  string controller = 3;  // FANUC, SIEMENS, HEIDENHAIN, etc.
+  int32 axes = 4;
+  google.protobuf.Struct limits = 5;  // travel, speed, accel
+  google.protobuf.Struct capabilities = 6;
+}
+
+message Operation {
+  string operation_id = 1;
+  string name = 2;
+  string type = 3;  // MILLING, TURNING, DRILLING, etc.
+  string tool_id = 4;
+  google.protobuf.Struct parameters = 5;  // speeds, feeds, depths
+  google.protobuf.Struct toolpath_ref = 6;  // reference to toolpath artifact
+}
+
+message QualitySpec {
+  repeated string inspection_points = 1;
+  google.protobuf.Struct tolerances = 2;
+  string cmm_program_ref = 3;
+}
+
+message SafetySpec {
+  repeated string collision_zones = 1;
+  google.protobuf.Struct limits = 2;
+  bool require_approval = 3;
+}
+
+message EvidenceSpec {
+  enum Classification { SIMULATED = 0; INFERRED = 1; VERIFIED = 2; PHYSICALLY_MEASURED = 3; }
+  map<string, Classification> required_evidence = 1;  // measurement -> classification
+}
+
+message CNCJobSpec {
+  string job_id = 1;
+  string tenant_id = 2;
+  PartSpecification part_spec = 3;
+  MaterialSpec material = 4;
+  MachineProfile machine = 5;
+  repeated Operation operations = 6;
+  QualitySpec quality_requirements = 7;
+  SafetySpec safety_requirements = 8;
+  EvidenceSpec evidence_requirements = 9;
+}
+
+message JobSubmissionResult {
+  string job_id = 1;
+  bool accepted = 2;
+  string status = 3;  // PLANNING, AWAITING_APPROVAL, EXECUTING, COMPLETED, FAILED
+  string error = 4;
+}
+
+// ============================================================
+// Telemetry
+// ============================================================
+
+message MachineState {
+  map<string, double> position = 1;  // axis -> position (mm)
+  int32 spindle_rpm = 2;
+  double feed_rate = 3;  // mm/min
+  string tool_id = 4;
+  double spindle_load = 5;  // percent
+}
+
+message SensorData {
+  map<string, double> vibration = 1;  // axis -> g
+  map<string, double> temperature = 2;  // sensor -> celsius
+  double power_draw = 3;  // kW
+  double coolant_flow = 4;  // L/min
+  double coolant_temp = 5;  // celsius
+}
+
+enum TelemetryEventType {
+  OPERATION_START = 0;
+  OPERATION_PROGRESS = 1;
+  OPERATION_COMPLETE = 2;
+  TOOL_CHANGE = 3;
+  QUALITY_CHECK = 4;
+  SAFETY_EVENT = 5;
+  ANOMALY_DETECTED = 6;
+}
+
+message TelemetryEvent {
+  string job_id = 1;
+  string timestamp = 2;
+  TelemetryEventType event_type = 3;
+  string operation_id = 4;
+  MachineState machine_state = 5;
+  SensorData sensor_data = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+// ============================================================
+// Proof Package
+// ============================================================
+
+enum EvidenceType {
+  SIMULATION = 0;
+  TOOLPATH = 1;
+  VALIDATION = 2;
+  APPROVAL = 3;
+  TELEMETRY = 4;
+  INSPECTION = 5;
+  MATERIAL_CERT = 6;
+  TOOL_CERT = 7;
+}
+
+enum EvidenceClassification {
+  SIMULATED = 0;
+  INFERRED = 1;
+  VERIFIED = 2;
+  PHYSICALLY_MEASURED = 3;
+}
+
+message Evidence {
+  EvidenceType type = 1;
+  string artifact_ref = 2;
+  string hash = 3;  // SHA256
+  EvidenceClassification classification = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message ProofPackage {
+  string job_id = 1;
+  string package_id = 2;
+  repeated Evidence evidence = 3;
+  string merkle_root = 4;
+  string timestamp = 5;
+  EvidenceClassification classification = 6;
+}
+
+// ============================================================
+// Safety Approval
+// ============================================================
+
+message SafetyApprovalRequest {
+  string request_id = 1;
+  string job_id = 2;
+  string gate_type = 3;  // SAFETY_GATE
+  string risk_level = 4;  // LOW, MEDIUM, HIGH, CRITICAL
+  google.protobuf.Struct validation_result = 5;
+  string simulation_artifact = 6;
+  double estimated_cost_usd = 7;
+  double estimated_duration_hours = 8;
+  string expires_at = 9;
+}
+
+message ApprovalResult {
+  string decision_id = 1;
+  bool approved = 2;
+  string reason = 3;
+  repeated string conditions = 4;
+  string governance_token = 5;
+  string token_expires_at = 6;
+}
+
+// ============================================================
+// Replay
+// ============================================================
+
+enum ReplayMode {
+  EXACT = 0;
+  MODIFIED_PARAMS = 1;
+  DIFFERENT_MACHINE = 2;
+}
+
+message ReplayConfig {
+  ReplayMode mode = 1;
+  google.protobuf.Struct parameter_overrides = 2;
+  MachineProfile machine_profile = 3;
+}
+
+message ReplayResult {
+  string replay_id = 1;
+  string original_job_id = 2;
+  bool success = 3;
+  google.protobuf.Struct comparison = 4;
+  string error = 5;
+}
+
+// ============================================================
+// CNC Service Definition
+// ============================================================
+
+service CNCService {
+  rpc SubmitJob(CNCJobSpec) returns (JobSubmissionResult);
+  rpc GetJobStatus(JobStatusRequest) returns (CNCJobStatus);
+  rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetryEvent);
+  rpc RequestSafetyApproval(SafetyApprovalRequest) returns (ApprovalResult);
+  rpc SubmitProof(ProofPackage) returns (ProofReceipt);
+  rpc ReplayJob(ReplayRequest) returns (ReplayResult);
+}
+
+message JobStatusRequest {
+  string job_id = 1;
+}
+
+message CNCJobStatus {
+  string job_id = 1;
+  string status = 2;
+  double progress_percent = 3;
+  string current_operation = 4;
+  string error = 5;
+}
+
+message TelemetryStreamRequest {
+  string job_id = 1;
+}
+
+message ProofReceipt {
+  string package_id = 1;
+  bool accepted = 2;
+  string merkle_root = 3;
+  string timestamp = 4;
+}
+
+message ReplayRequest {
+  string job_id = 1;
+  ReplayConfig config = 2;
+}
