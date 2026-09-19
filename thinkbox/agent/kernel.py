@@ -368,6 +368,14 @@ class AgentKernel:
             
         except Exception as e:
             logger.error(f"Agent initialization failed: {e}")
+            if self._orchestration_allocation_id:
+                try:
+                    await self.orchestration.release_capacity(
+                        self._orchestration_allocation_id, reason="INIT_FAILED"
+                    )
+                except Exception:
+                    pass
+                self._orchestration_allocation_id = None
             await self.lifecycle.transition(AgentState.TERMINATED)
             return InitResult(success=False, agent_id=self.config.agent_id, error=str(e))
 
@@ -397,6 +405,13 @@ class AgentKernel:
             logger.error(f"Agent shutdown error: {e}")
             return ShutdownResult(success=False, error=str(e))
         finally:
+            if self._config_watch_task:
+                self._config_watch_task.cancel()
+                try:
+                    await self._config_watch_task
+                except asyncio.CancelledError:
+                    pass
+                self._config_watch_task = None
             if self._orchestration_allocation_id:
                 try:
                     await self.orchestration.release_capacity(

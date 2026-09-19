@@ -469,6 +469,97 @@ class TestKernelOrchestrationWiring(unittest.TestCase):
         self.assertIs(first, second)
         MockOC.assert_called_once()
 
+    @patch("thinkbox.agent.kernel.SchedulerClient")
+    @patch("thinkbox.agent.kernel.GovernanceClient")
+    @patch("thinkbox.agent.kernel.TelemetryEmitter")
+    @patch("thinkbox.agent.kernel.OrchestrationClient")
+    def test_initialize_releases_capacity_on_failure(
+        self, MockOC, MockTE, MockGC, MockSC
+    ):
+        mock_orch = _make_mock_orch()
+        mock_orch.request_capacity = AsyncMock(
+            return_value=MagicMock(granted=True, allocation_id="alloc_1")
+        )
+        mock_orch.discover_services = AsyncMock(
+            side_effect=Exception("mid-init failure")
+        )
+        mock_orch.release_capacity = AsyncMock(return_value=True)
+        MockOC.return_value = mock_orch
+
+        mock_sched = _make_mock_sched()
+        MockSC.return_value = mock_sched
+
+        mock_gov = _make_mock_gov()
+        MockGC.return_value = mock_gov
+
+        mock_te = _make_mock_te()
+        MockTE.return_value = mock_te
+
+        kernel = self._make_kernel()
+        result = self.loop.run_until_complete(kernel.initialize())
+
+        self.assertFalse(result.success)
+        mock_orch.release_capacity.assert_awaited_once()
+
+    @patch("thinkbox.agent.kernel.OrchestrationClient")
+    def test_inject_required_secrets_empty_list(self, MockOC):
+        mock_orch = MagicMock()
+        MockOC.return_value = mock_orch
+
+        from thinkbox.agent.kernel import AgentKernel, AgentConfig
+
+        config = AgentConfig(
+            agent_id="test",
+            agent_type="TASK_AGENT",
+            tenant_id="t1",
+            metadata={"required_secrets": []},
+        )
+        kernel = AgentKernel(config)
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(kernel._inject_required_secrets())
+        loop.close()
+
+        mock_orch.inject_secrets.assert_not_called()
+
+    @patch("thinkbox.agent.kernel.SchedulerClient")
+    @patch("thinkbox.agent.kernel.GovernanceClient")
+    @patch("thinkbox.agent.kernel.TelemetryEmitter")
+    @patch("thinkbox.agent.kernel.OrchestrationClient")
+    def test_shutdown_cancels_watch_task(
+        self, MockOC, MockTE, MockGC, MockSC
+    ):
+        mock_orch = _make_mock_orch()
+        mock_orch.release_capacity = AsyncMock(return_value=True)
+        MockOC.return_value = mock_orch
+
+        mock_sched = _make_mock_sched()
+        MockSC.return_value = mock_sched
+
+        mock_gov = _make_mock_gov()
+        MockGC.return_value = mock_gov
+
+        mock_te = _make_mock_te()
+        MockTE.return_value = mock_te
+
+        kernel = self._make_kernel()
+        kernel._orchestration_allocation_id = "alloc_1"
+
+        cancelled = []
+
+        async def _watch():
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                cancelled.append(True)
+                raise
+
+        kernel._config_watch_task = self.loop.create_task(_watch())
+
+        result = self.loop.run_until_complete(kernel.shutdown())
+
+        self.assertTrue(result.success)
+        self.assertTrue(cancelled)
+
 
 if __name__ == "__main__":
     unittest.main()
