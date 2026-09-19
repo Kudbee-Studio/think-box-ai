@@ -9,6 +9,8 @@ from thinkbox.cnc.adapter import (
     SimulatorInterface,
     ShopDatabaseInterface,
     CNCAdapterRegistry,
+    MachineAdapter,
+    SimMachineAdapter,
 )
 from thinkbox.cnc.dashboard import ROIStats, ROIDashboard
 from thinkbox.cnc.demo import DemoMode, DemoResult
