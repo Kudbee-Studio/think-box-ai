@@ -130,9 +130,11 @@ class TestTaskDelegationMarket(unittest.TestCase):
         self.assertFalse(result)
 
     def test_place_bid_closed_task(self) -> None:
+        # Must place a bid first, then winner selection closes the task
         self.market.list_task("task1", "Fix", reward=100)
+        self.market.place_bid("task1", "agent1", 50, 0.9, 1000.0)
         self.market.select_winner("task1")
-        result = self.market.place_bid("task1", "agent1", 50, 0.9, 1000.0)
+        result = self.market.place_bid("task1", "agent2", 30, 0.9, 1000.0)
         self.assertFalse(result)
 
     def test_select_winner(self) -> None:
@@ -205,19 +207,30 @@ class TestAgentCapabilityRegistry(unittest.TestCase):
         self.registry = AgentCapabilityRegistry()
 
     def test_register(self) -> None:
-        cap = AgentCapability(name="search", version="1.0", agent_id="agent1")
-        self.registry.register(cap)
-        result = self.registry.get("search")
-        self.assertIsNotNone(result)
-        self.assertEqual(result.name, "search")
+        self.registry.register("agent1", "search", {"version": "1.0"})
+        agents = self.registry.get_all_agents()
+        self.assertEqual(len(agents), 1)
+        self.assertEqual(agents[0].agent_id, "agent1")
 
-    def test_get_missing(self) -> None:
-        self.assertIsNone(self.registry.get("nonexistent"))
+    def test_update_performance(self) -> None:
+        self.registry.register("agent1", "search")
+        self.registry.update_performance("agent1", 100.0, True)
+        agents = self.registry.get_all_agents()
+        self.assertEqual(agents[0].tasks_completed, 1)
 
-    def test_list_capabilities(self) -> None:
-        self.registry.register(AgentCapability(name="a1", version="1.0", agent_id="a"))
-        self.registry.register(AgentCapability(name="a2", version="1.0", agent_id="a"))
-        caps = self.registry.list_capabilities()
+    def test_find_best_agent(self) -> None:
+        self.registry.register("a1", "search")
+        self.registry.register("a2", "search")
+        self.registry.update_performance("a1", 100.0, True)
+        self.registry.update_performance("a1", 100.0, True)
+        self.registry.update_performance("a2", 100.0, False)
+        best = self.registry.find_best_agent("search")
+        self.assertEqual(best, "a1")
+
+    def test_get_all_agents(self) -> None:
+        self.registry.register("a1", "search")
+        self.registry.register("a2", "code")
+        caps = self.registry.get_all_agents()
         self.assertEqual(len(caps), 2)
 
 
@@ -226,7 +239,7 @@ class TestCoalitionGovernance(unittest.TestCase):
         self.gov = CoalitionGovernance()
 
     def test_create_proposal(self) -> None:
-        proposal_id = self.gov.create_proposal("Test Proposal", "agent1")
+        proposal_id = self.gov.propose("Test Proposal", "desc", "agent1")
         self.assertIsNotNone(proposal_id)
         proposal = self.gov.get_proposal(proposal_id)
         self.assertIsNotNone(proposal)
@@ -234,19 +247,19 @@ class TestCoalitionGovernance(unittest.TestCase):
         self.assertEqual(proposal.status, "active")
 
     def test_vote(self) -> None:
-        proposal_id = self.gov.create_proposal("Test", "agent1")
+        proposal_id = self.gov.propose("Test", "desc", "agent1")
         result = self.gov.vote(proposal_id, "agent2", True)
         self.assertTrue(result)
 
     def test_get_proposal_missing(self) -> None:
         self.assertIsNone(self.gov.get_proposal("nonexistent"))
 
-    def test_governance_pass(self) -> None:
-        proposal_id = self.gov.create_proposal("Test", "agent1")
+    def test_tally_passes(self) -> None:
+        proposal_id = self.gov.propose("Test", "desc", "agent1")
         self.gov.vote(proposal_id, "agent2", True)
         self.gov.vote(proposal_id, "agent3", True)
-        status = self.gov.get_proposal(proposal_id)
-        self.assertIn(status.status, ["passed", "active", "rejected"])
+        status = self.gov.tally(proposal_id, total_agents=3)
+        self.assertEqual(status, "passed")
 
 
 class TestConcurrency(unittest.TestCase):

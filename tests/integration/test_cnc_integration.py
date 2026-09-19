@@ -55,10 +55,10 @@ class TestCNCLifecycleIntegration(unittest.TestCase):
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
-        self.engine = CNCEngine()
+        self.safety_store = SafetyStore(storage_path=Path(self.tmpdir) / "safety")
+        self.engine = CNCEngine(safety_gate_store=self.safety_store)
         self.memory = ManufacturingMemory(storage_path=Path(self.tmpdir) / "memory")
         self.proof_store = ProofStoreClass(storage_path=Path(self.tmpdir) / "proofs")
-        self.safety_store = SafetyStore(storage_path=Path(self.tmpdir) / "safety")
         self.tenant_store = TenantStoreClass(storage_path=Path(self.tmpdir) / "tenants")
         self.dashboard = ROIDashboard()
 

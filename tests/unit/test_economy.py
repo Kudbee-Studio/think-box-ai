@@ -89,6 +89,7 @@ class TestAgentTokenEconomy(unittest.TestCase):
 class TestContributionMining(unittest.TestCase):
     def setUp(self) -> None:
         self.economy = AgentTokenEconomy()
+        self.economy.create_account("treasury", initial_balance=10000)
         self.mining = ContributionMining(self.economy)
 
     def test_mine_task_complete(self) -> None:
@@ -123,14 +124,17 @@ class TestStakingMechanism(unittest.TestCase):
         self.staking = StakingMechanism(self.economy)
 
     def test_stake(self) -> None:
+        self.economy.create_account("agent1", initial_balance=100)
         result = self.staking.stake("agent1", "task1", 50)
         self.assertTrue(result)
 
     def test_stake_insufficient(self) -> None:
-        result = self.staking.stake("agent1", "task1", 200)
+        self.economy.create_account("agent1", initial_balance=10)
+        result = self.staking.stake("agent1", "task1", 50)
         self.assertFalse(result)
 
     def test_get_stake(self) -> None:
+        self.economy.create_account("agent1", initial_balance=100)
         self.staking.stake("agent1", "task1", 50)
         self.assertEqual(self.staking.get_stake("task1", "agent1"), 50)
 
@@ -138,12 +142,15 @@ class TestStakingMechanism(unittest.TestCase):
         self.assertEqual(self.staking.get_stake("task1", "agent1"), 0)
 
     def test_release_stake(self) -> None:
+        self.economy.create_account("agent1", initial_balance=100)
         self.staking.stake("agent1", "task1", 50)
         released = self.staking.release_stake("task1", "agent1")
         self.assertEqual(released, 50)
         self.assertEqual(self.staking.get_stake("task1", "agent1"), 0)
 
     def test_get_task_stakes(self) -> None:
+        self.economy.create_account("a1", initial_balance=100)
+        self.economy.create_account("a2", initial_balance=100)
         self.staking.stake("a1", "task1", 30)
         self.staking.stake("a2", "task1", 40)
         stakes = self.staking.get_task_stakes("task1")
