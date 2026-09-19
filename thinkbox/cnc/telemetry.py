@@ -10,6 +10,8 @@ from typing import Any
 
 @dataclass
 class TelemetryPoint:
+    """A single telemetry measurement at a point in time."""
+
     timestamp: str
     metric: str
     value: float
@@ -23,6 +25,8 @@ class TelemetryPoint:
 
 @dataclass
 class TelemetrySeries:
+    """A named series of telemetry points."""
+
     metric: str
     points: list[TelemetryPoint] = field(default_factory=list)
 
