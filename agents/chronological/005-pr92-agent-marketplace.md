@@ -1,9 +1,9 @@
 # PR92: Agent Marketplace — Implementation Plan
 
-**Date:** Planned (Post-PR91)  
-**Status:** PLANNED  
-**Branch:** `feat/kilo-agent-marketplace-pr92` (to be created)  
-**PR:** #92 (to be created)  
+**Date:** 2026-09-19
+**Status:** MERGED
+**Branch:** pushed to `main` as `c4c326c` (no dedicated branch)
+**PR:** KILO PR92 (no GitHub PR; pushed directly to main) 
 
 ---
 

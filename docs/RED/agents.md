@@ -36,7 +36,7 @@
 | 2026-09-17 | CONTINUITY.md established | Canonical agent state artifact; persists across sessions |
 | 2026-09-17 | PR #82 merged | 10 scheduler features via `feat/scheduler-10-pr82` |
 | 2026-09-18 | PR #83 merged | 10 scheduler features via `feat/scheduler-10-pr83`; 82 new tests |
-| 2026-09-18 | PR #84 in progress | 10 scheduler features via `feat/scheduler-10-pr84` |
+| 2026-09-18 | PR #84 merged | 10 scheduler features via `feat/scheduler-10-pr84` |
 | 2026-09-18 | Agent exit checklist updated | CONTINUITY.md includes mandatory verification before declaring completion |
 | Ongoing | Test gate enforcement | `python3 -m unittest discover tests/` must pass before commit |
 | Ongoing | PR cycle | Feature branch → PR → founder review → merge (no direct pushes to main) |

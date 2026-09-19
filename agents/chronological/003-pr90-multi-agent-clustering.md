@@ -1,9 +1,9 @@
 # PR90: Multi-Agent Clustering — Implementation Plan
 
 **Date:** Planned (Post-PR89)  
-**Status:** PLANNED  
-**Branch:** `feat/kilo-agent-clustering-pr90` (to be created)  
-**PR:** #90 (to be created)  
+**Status:** MERGED
+**Branch:** `feat/kilo-agent-clustering-pr90`
+**PR:** #90 (merged) 
 
 ---
 
@@ -81,7 +81,7 @@ class ScalingPolicy:
     scale_up_stabilization_seconds: int = 60
     scale_down_stabilization_seconds: int = 300
     
-    # Predictive scaling (PR91+)
+    # Predictive scaling (planned)
     # predictive_enabled: bool = False
 ```
 
@@ -283,7 +283,7 @@ enum MessageType {
 | **CODE_COMPLETE** | ✅ All 3 agent types + registry + communication |
 | **TEST_VERIFIED** | ✅ Unit + integration + chaos tests |
 | **LIVE_VERIFIED** | ✅ Multi-agent pool on Upstash Box |
-| **PRODUCTION_READY** | ⏳ After PR91 (distributed governance) |
+| **PRODUCTION_READY** | ⏳ After PR91+PR92+PR93 (governance + marketplace + telemetry) |
 
 ---
 

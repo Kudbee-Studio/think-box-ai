@@ -16,7 +16,7 @@ Before declaring completion, every agent MUST verify:
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
 - [x] Tests executed and passing (571 scheduler OK, 1275 full suite, 6 skipped)
-- [x] PR #83 merged, PR #84 merged, PR #85 in progress
+- [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
 - [x] Git state clean (working tree clean, main merged)
@@ -127,22 +127,22 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (571 scheduler) / PRODUCTION not claimed |
 
 
-### 2026-09-18 — PR #84 IN PROGRESS: 10 Additional Scheduler Features
+### 2026-09-18 — PR #84 COMPLETE: 10 Additional Scheduler Features
 
 | Field | Value |
 |---|---|
 | **Date** | 2026-09-18 |
-| **Status** | IN PROGRESS |
+| **Status** | COMPLETE (merged) |
 | **Agent/task** | Add 10 features extending governed scheduler. Branch `feat/scheduler-10-pr84`. |
 | **Features** | AdaptiveConcurrency, Preemption, TaskCoalescing, WorkflowTemplate, BackpressurePropagation, SchedulerClock, AdmissionFilter, FairnessIndex, DynamicBudget, TaskAffinity |
 | **Tests** | 10 new classes (~60 tests). 620 total scheduler tests, all passing. |
 
-### 2026-09-18 — PR #85 IN PROGRESS: 10 Hardening Features
+### 2026-09-18 — PR #85 COMPLETE: 10 Hardening Features
 
 | Field | Value |
 |---|---|
 | **Date** | 2026-09-18 |
-| **Status** | IN PROGRESS |
+| **Status** | COMPLETE (merged) |
 | **Agent/task** | Add 10 hardening features extending governed scheduler. Branch `feat/scheduler-10-pr85`. |
 | **Features** | DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter |
 | **Tests** | 10 new classes (~89 tests). 689 total scheduler tests, all passing. |
