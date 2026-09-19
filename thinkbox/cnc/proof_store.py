@@ -46,3 +46,11 @@ class ProofStore:
 
     def list_proofs(self) -> list[ProofPackage]:
         return self._proofs
+
+    def query_proofs(self, job_id: str | None = None, evidence_label: str | None = None) -> list[ProofPackage]:
+        results = self._proofs
+        if job_id is not None:
+            results = [p for p in results if p.job_id == job_id]
+        if evidence_label is not None:
+            results = [p for p in results if p.evidence_label == evidence_label]
+        return results
