@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from thinkbox.intelligence import (
     ConceptEdge,
@@ -108,7 +108,7 @@ class TestKnowledgeDecay(unittest.TestCase):
 
     def test_access_bonus(self) -> None:
         kd = KnowledgeDecay(half_life_days=30)
-        old = (datetime.now(timezone.utc) - __import__("datetime").timedelta(days=10)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
         score_0 = kd.relevance_score(old, access_count=0)
         score_5 = kd.relevance_score(old, access_count=5)
         self.assertGreater(score_5, score_0)
@@ -375,6 +375,7 @@ class TestKyberKeyExchange(unittest.TestCase):
 
 class TestDilithiumSignatures(unittest.TestCase):
     def test_sign_and_verify(self) -> None:
+        """Dilithium is simulated — HMAC is symmetric so priv doubles as verify key."""
         d = DilithiumSignatures()
         pub, priv = d.generate_keypair()
         msg = b"hello"

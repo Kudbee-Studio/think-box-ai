@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -12,8 +11,9 @@ from thinkbox.cnc.proof import ProofPackage, ProofStore
 from thinkbox.cnc.safety import SafetyGate, SafetyGateStore
 
 
-@dataclass
 class CNCManufacturingEngine:
+    """CNC manufacturing engine — validates, gates, executes, and proves jobs."""
+
     def __init__(self, safety_gate_store: SafetyGateStore | None = None,
                  proof_store: ProofStore | None = None) -> None:
         self._proof_store = proof_store or ProofStore()
@@ -21,6 +21,7 @@ class CNCManufacturingEngine:
         self._jobs: list[dict[str, Any]] = []
 
     def validate_job(self, job: CNCJob | dict[str, Any]) -> ValidationResult:
+        """Validate a CNC job, returning errors and warnings."""
         if isinstance(job, dict):
             job = CNCJob(**job)
         errors = []
@@ -41,6 +42,7 @@ class CNCManufacturingEngine:
         return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
     def execute_job(self, job: CNCJob | dict[str, Any]) -> dict[str, Any]:
+        """Execute a validated and approved CNC job."""
         if isinstance(job, dict):
             job = CNCJob(**job)
         validation = self.validate_job(job)
@@ -62,18 +64,22 @@ class CNCManufacturingEngine:
         return {"status": "completed", "execution_records": records}
 
     def get_stats(self) -> dict[str, Any]:
+        """Return engine status statistics."""
         return {"engines": 1, "active_jobs": 0, "status": "running"}
 
     def create_proof(self, job: CNCJob | dict[str, Any], evidence_label: str = "simulated") -> ProofPackage:
+        """Create a proof package for a job."""
         if isinstance(job, dict):
             job = CNCJob(**job)
         proof = self._proof_store.create_proof(job.job_id, evidence_label)
         return proof
 
     def list_jobs_by_tenant(self, tenant_id: str) -> list[dict[str, Any]]:
+        """List jobs for a tenant (matched by customer_id)."""
         return [j for j in self._jobs if j.get("customer_id") == tenant_id]
 
     def query_jobs(self, status: str | None = None, customer_id: str | None = None) -> list[dict[str, Any]]:
+        """Query jobs by optional status and/or customer_id filters."""
         results = list(self._jobs)
         if status is not None:
             results = [j for j in results if j.get("status") == status]
