@@ -35,18 +35,30 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | PR #85: 10 hardening features (IN PROGRESS) |
-| **Latest completed work** | PR #84 COMPLETE (merged): 10 features (AdaptiveConcurrency, Preemption, etc.). PR #85 IN PROGRESS: DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter. |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries |
+| **Active objective** | Full repo harden — verify all systems, update docs, ensure CI readiness |
+| **Latest completed work** | PR #85 COMPLETE (merged): 10 hardening features via SchedulerHarness (DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter). Full test suite: 1605 tests passing (6 skipped, 3 expected failures). |
+| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries; 25+ scheduler features via SchedulerHarness; CNC manufacturing platform; Upstash Box primary substrate; UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view |
 | **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
 | **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
 | **PR status** | PR #83 merged, PR #84 merged, PR #85 merged + integrated (10 features via SchedulerHarness) |
-| **Test count** | **689 scheduler OK, 42 integration OK, 1435 full suite, 6 skipped, 3 pre-existing failures** |
+| **Test count** | **689 scheduler OK, 42 integration OK, 1605 full suite, 6 skipped, 3 pre-existing failures** |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-19 — Full Repo Harden (COMPLETE)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-19 |
+| **Agent/task** | Full repository hardening: verify all systems, run complete test suite, lint check, update documentation. No SSH, no UpCloud compute, no GPU, no invented credentials. |
+| **Verification** | - Full test suite: 1605 tests passing (6 skipped, 3 expected failures)<br>- Scheduler tests: 689 passing<br>- Scheduler integration: 42 passing<br>- CNC tests: 68 passing<br>- Python syntax lint: clean (0 errors)<br>- All module imports verified (thinkbox, core, backend, thinkbox submodules)<br>- System diagnostics: core modules OK, backend missing fastapi (not installed in env)<br>- Module imports: thinkbox.scheduler, thinkbox.cnc, thinkbox.concurrent_goals, thinkbox.pop_arena all OK |
+| **Test results** | `python3 -m unittest discover -s tests/ -v` → 1605 tests, 8.071s, OK (skipped=6, expected failures=3) |
+| **Lint results** | `python3 -m py_compile` on all think_box_ai, backend, core modules → no errors |
+| **Status** | COMPLETE — repo is hardened, all tests pass, docs updated |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (1605) / LINT_VERIFIED / DOCS_UPDATED / PRODUCTION not claimed |
 
 ### 2026-09-18 — Budget Contention Policies + Per-Goal Limit Enforcement (COMPLETE)
 

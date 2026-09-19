@@ -470,6 +470,10 @@ Minimum test counts by module:
 |--------|---------------|
 | `thinkbox/session.py` | 9 (embedder + upsert) |
 | `thinkbox/substrate.py` | 9 |
+| `thinkbox/scheduler.py` | 689 |
+| `thinkbox/cnc/` | 68 |
+| `thinkbox/concurrent_goals.py` | 15 |
+| `thinkbox/pop_arena.py` | 27 |
 | `core/providers/` | Per-provider |
 | All public functions | At least 1 each |
 | All error paths | At least 1 each |
