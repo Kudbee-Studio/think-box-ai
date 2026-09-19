@@ -783,7 +783,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 | `agent.scheduler_client` | Work pull, heartbeat, capacity reporting, outcome reporting | `thinkbox/agent/scheduler_client.py` | ✅ PR90 |
 | `agent.governance_client` | Admission checks, approval requests, audit logging, token management | `thinkbox/agent/governance_client.py` | ✅ PR90 |
 | `agent.telemetry` | Metrics, traces, logs, health endpoints | `thinkbox/agent/telemetry.py` | ✅ PR93 |
-| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` | ⏳ Future |
+| `agent.orchestration_client` | Capacity requests, service discovery, config watch, secret injection | `thinkbox/agent/orchestration_client.py` | ✅ PR94 |
 | `agent.registry` | Agent registration, discovery, health tracking | `thinkbox/agent/registry.py` | ✅ PR90 |
 | `agent.base` | TaskAgent, WorkflowAgent, BatchAgent, StreamAgent base classes | `thinkbox/agent/base.py` | ✅ PR90 |
 | `agent.marketplace` | Package format, registry, installer, publisher | `thinkbox/marketplace/` | ✅ PR92 |
@@ -837,7 +837,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 | `thinkbox/agent/scheduler_client.py` | 15 (pull, heartbeat, capacity, outcome) |
 | `thinkbox/agent/governance_client.py` | 20 (admission allow/deny/timeout, approval, tokens) |
 | `thinkbox/agent/telemetry.py` | 15 (metrics, traces, logs, health) |
-| `thinkbox/agent/orchestration_client.py` | 15 (capacity, discovery, config, secrets) |
+| `thinkbox/agent/orchestration_client.py` | 29 (capacity, discovery, config, secrets) |
 | `thinkbox/governance/distributed/` | Per PR91 features |
 | `thinkbox/ledger/distributed/` | Per PR91 features |
 | `thinkbox/mesh/` | Per PR91 features |
@@ -860,6 +860,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 3. **PR91: Distributed Governance** — Raft AdmissionGate, CRDT ActionLedger, threshold-signed Tokens, Mesh with compromise detection and expulsion ✅ **MERGED** (pushed to main directly; no GitHub PR)
 4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow ✅ **MERGED** (pushed to main directly; no GitHub PR)
 5. **PR93 (GitHub PR #91): Agent Telemetry & Observability** — TelemetryEmitter: metrics, traces, logs, health ✅ **MERGED**
+6. **PR94 (GitHub PR #92): Orchestration Client** — Capacity, service discovery, config watch, secret injection 🔨 **IN PROGRESS**
 
 ## THINK Burst Protocol — Operational Note
 
