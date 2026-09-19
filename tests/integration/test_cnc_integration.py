@@ -554,5 +554,115 @@ class TestLayerDiscipline(unittest.TestCase):
         self.assertIsNotNone(engine)
 
 
+class TestCNCIntegrationPhase2(unittest.TestCase):
+    """Integration tests for telemetry, tenant scoping, and proof queries."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.safety_store = SafetyStore(storage_path=Path(self.tmpdir) / "safety")
+        self.engine = CNCEngine(safety_gate_store=self.safety_store)
+        self.proof_store = ProofStoreClass(storage_path=Path(self.tmpdir) / "proofs")
+        self.tenant_store = TenantStoreClass(storage_path=Path(self.tmpdir) / "tenants")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_telemetry_ingest_simulated_only(self):
+        """TelemetryIngest only accepts simulated evidence."""
+        from thinkbox.cnc.telemetry import TelemetryIngest, TelemetryPoint
+
+        ingest = TelemetryIngest(storage_path=Path(self.tmpdir) / "telemetry")
+        point = TelemetryPoint(
+            timestamp="2026-01-01T00:00:00",
+            metric="spindle_rpm",
+            value=8000.0,
+            unit="rpm",
+            evidence_label="simulated",
+            job_id="cnc-001",
+        )
+        ingest.append(point)
+        results = ingest.query("spindle_rpm")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].value, 8000.0)
+
+    def test_telemetry_rejects_physical_evidence(self):
+        """TelemetryIngest rejects non-simulated evidence labels."""
+        from thinkbox.cnc.telemetry import TelemetryIngest, TelemetryPoint
+
+        ingest = TelemetryIngest(storage_path=Path(self.tmpdir) / "telemetry2")
+        point = TelemetryPoint(
+            timestamp="2026-01-01T00:00:00",
+            metric="spindle_rpm",
+            value=8000.0,
+            evidence_label="physically_measured",
+        )
+        with self.assertRaises(ValueError):
+            ingest.append(point)
+
+    def test_telemetry_summarize(self):
+        """TelemetryIngest.summarize returns correct statistics."""
+        from thinkbox.cnc.telemetry import TelemetryIngest, TelemetryPoint
+
+        ingest = TelemetryIngest(storage_path=Path(self.tmpdir) / "telemetry3")
+        for i, val in enumerate([100.0, 200.0, 300.0]):
+            point = TelemetryPoint(
+                timestamp=f"2026-01-01T00:0{i}:00",
+                metric="feed_rate",
+                value=val,
+                unit="mm/min",
+                evidence_label="simulated",
+            )
+            ingest.append(point)
+        summary = ingest.summarize("feed_rate")
+        self.assertEqual(summary["count"], 3)
+        self.assertEqual(summary["min"], 100.0)
+        self.assertEqual(summary["max"], 300.0)
+        self.assertEqual(summary["mean"], 200.0)
+
+    def test_tenant_scoped_job_list(self):
+        """Engine.list_jobs_by_tenant filters by customer_id."""
+        tenant = self.tenant_store.create_tenant(name="Acme", plan="enterprise")
+        material = Material(name="6061-T6 Aluminum", grade="6061-T6", stock_size="100x100x10")
+        machine = MachineProfile(name="HAAS VF-2SS")
+        tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
+        op = Operation(operation_id="op-1", operation_type="milling", tool=tool, spindle_speed_rpm=8000, depth_of_cut_mm=2.0)
+        self.safety_store.approve(job_id="job-1", approver_id="op", reason="ok")
+        self.safety_store.approve(job_id="job-2", approver_id="op", reason="ok")
+        job1 = CNCJob(part_name="Part A", material=material, machine=machine, operations=[op], customer_id=tenant.tenant_id)
+        job2 = CNCJob(part_name="Part B", material=material, machine=machine, operations=[op], customer_id=tenant.tenant_id)
+        self.safety_store.approve(job_id=job1.job_id, approver_id="op", reason="ok")
+        self.safety_store.approve(job_id=job2.job_id, approver_id="op", reason="ok")
+        self.engine.execute_job(job1)
+        self.engine.execute_job(job2)
+        jobs = self.engine.list_jobs_by_tenant(tenant.tenant_id)
+        self.assertEqual(len(jobs), 2)
+        other = self.engine.list_jobs_by_tenant("nonexistent")
+        self.assertEqual(len(other), 0)
+
+    def test_proof_query_helpers(self):
+        """ProofStore.query_proofs filters by job_id and evidence_label."""
+        job = CNCJob(part_name="Query Test")
+        self.safety_store.approve(job_id=job.job_id, approver_id="op", reason="ok")
+        p1 = self.proof_store.create_proof(job_id=job.job_id, evidence_label="simulated")
+        p2 = self.proof_store.create_proof(job_id="other-job", evidence_label="simulated")
+        p3 = self.proof_store.create_proof(job_id=job.job_id, evidence_label="simulated")
+        by_job = self.proof_store.query_proofs(job_id=job.job_id)
+        self.assertEqual(len(by_job), 2)
+        by_label = self.proof_store.query_proofs(evidence_label="simulated")
+        self.assertEqual(len(by_label), 3)
+        by_both = self.proof_store.query_proofs(job_id=job.job_id, evidence_label="simulated")
+        self.assertEqual(len(by_both), 2)
+
+    def test_safety_gate_store_get_gate_by_job_id(self):
+        """SafetyGateStore.get_gate_by_job_id retrieves correct gate."""
+        self.safety_store.approve(job_id="abc", approver_id="op", reason="ok")
+        gate = self.safety_store.get_gate_by_job_id("abc")
+        self.assertIsNotNone(gate)
+        self.assertEqual(gate.job_id, "abc")
+        self.assertEqual(gate.status.value, "APPROVED")
+        self.assertIsNone(self.safety_store.get_gate_by_job_id("missing"))
+
+
 if __name__ == "__main__":
     unittest.main()
