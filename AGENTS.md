@@ -247,6 +247,16 @@ commits.
 - `__pycache__`, `.pytest_cache`, `.mypy_cache`
 - IDE config files (`.vscode/`, `.idea/`)
 
+### 6.4 PR-Before-Work Rule
+
+**Every meaningful change requires a GitHub PR. No exceptions.**
+
+1. **Open a GitHub PR first** (or draft PR for non-urgent work), then commit to that branch.
+2. **No direct pushes to `main`** — every commit to `main` must be a merge from a PR. Direct pushes to `main` are prohibited (debt from past direct pushes — KILO PR91, PR92 — must not repeat).
+3. **One PR at a time** — do not start new product work while a PR is open (docs PR or otherwise).
+4. **PR title format**: `type(scope): description` matching commit message convention.
+5. **Docs changes** require a real PR, not direct pushes to `main`.
+
 ---
 
 ## 7. Git Hygiene
@@ -687,15 +697,31 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 
 ### PR Status (2026-09-19)
 
-> **⚠️ GitHub PR numbering is offset from KILO PR labels.** KILO's internal PR93 was filed on GitHub as PR #91. KILO's internal PR91 and PR92 were pushed directly to `main` with no GitHub PR.
+> **⚠️ GitHub PR numbering is offset from KILO PR labels.** See the GitHub↔KILO PR Map below for the complete mapping. KILO PRs without a GitHub # were pushed directly to `main` (no PR process was followed at the time — not repeated).
 
-- **PR #90 MERGED** — Multi-Agent Clustering (registry, base agents, kernel, scheduler/governance clients, agent-to-agent protocol) — [GitHub PR #90](https://github.com/Kudbee-Studio/think-box-ai/pull/90)
-- **KILO PR91** — Distributed Governance (Raft AdmissionGate, CRDT ActionLedger, threshold Tokens, Mesh expulsion) — pushed to `main` as `d803cd2`, **no GitHub PR** (commit message incorrectly references non-existent PR #91)
-- **KILO PR92** — Agent Marketplace (package format, registry, installer, publisher) — pushed to `main` as `c4c326c`, **no GitHub PR**
-- **KILO PR93 = GitHub PR #91** MERGED — Agent Telemetry & Observability (TelemetryEmitter: metrics, traces, logs, health) — [GitHub PR #91](https://github.com/Kudbee-Studio/think-box-ai/pull/91) — tip `63c66a5`
-- **PR #85 MERGED** — 10 hardening features (DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter) — [GitHub PR #85](https://github.com/Kudbee-Studio/think-box-ai/pull/85)
+- **GitHub PR #92** = KILO PR94 — Orchestration Client — ✅ **MERGED** (2026-09-19)
+- **GitHub PR #91** = KILO PR93 — Agent Telemetry & Observability — ✅ MERGED
+- **GitHub PR #90** = KILO PR90 — Multi-Agent Clustering — ✅ MERGED
+- **GitHub PR #89** = KILO PR89 — Autonomous Agent Core — ✅ MERGED
+- **GitHub PR #85** — 10 hardening features — ✅ MERGED
+- **KILO PR91** (Distributed Governance) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
+- **KILO PR92** (Agent Marketplace) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
 - **Zero open PRs**
+
+#### GitHub↔KILO PR Map
+
+| GitHub PR # | KILO PR | Status |
+|-------------|---------|--------|
+| #92 | PR94 | ✅ MERGED |
+| #91 | PR93 | ✅ MERGED |
+| #90 | PR90 | ✅ MERGED |
+| #89 | PR89 | ✅ MERGED |
+| #85 | PR85 | ✅ MERGED |
+| #84 | PR84 | ✅ MERGED |
+| #80–#83 | PR80–PR83 | ✅ MERGED |
+| — | PR91 | ✅ MERGED (direct push, no GH PR — debt) |
+| — | PR92 | ✅ MERGED (direct push, no GH PR — debt) |
 
 ## Governed Scheduler
 
@@ -860,7 +886,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 3. **PR91: Distributed Governance** — Raft AdmissionGate, CRDT ActionLedger, threshold-signed Tokens, Mesh with compromise detection and expulsion ✅ **MERGED** (pushed to main directly; no GitHub PR)
 4. **PR92: Agent Marketplace** — package format, registry, installer, publisher workflow ✅ **MERGED** (pushed to main directly; no GitHub PR)
 5. **PR93 (GitHub PR #91): Agent Telemetry & Observability** — TelemetryEmitter: metrics, traces, logs, health ✅ **MERGED**
-6. **PR94 (GitHub PR #92): Orchestration Client** — Capacity, service discovery, config watch, secret injection 🔨 **IN PROGRESS**
+6. **PR94 (GitHub PR #92): Orchestration Client** — Capacity, service discovery, config watch, secret injection ✅ **MERGED**
 
 ## THINK Burst Protocol — Operational Note
 
