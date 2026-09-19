@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo — Think Box AI</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .demo-panel { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: var(--space-6); margin: var(--space-6) 0; }
+    .demo-cmd { background: var(--color-bg); padding: var(--space-3) var(--space-4); border-radius: 4px; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-secondary); margin: var(--space-2) 0; }
+    .demo-output { background: var(--color-bg); padding: var(--space-3) var(--space-4); border-radius: 4px; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-success); margin: var(--space-2) 0; white-space: pre-wrap; }
+    .run-btn { background: var(--color-accent); color: white; border: none; padding: var(--space-3) var(--space-6); border-radius: 4px; cursor: pointer; font-size: var(--text-base); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main id="main">
+    <div class="container">
+      <h1>Demo-in-60s / Demo-in-10</h1>
+      <p style="color: var(--color-text-secondary);">Launch a full control-plane demo path.</p>
+      <div class="demo-panel">
+        <h3>Demo-in-60s Commands</h3>
+        <div class="demo-cmd"># Run via API (requires auth header):</div>
+        <div class="demo-cmd">curl -H "Authorization: Bearer dev-only-local-token" http://localhost:8000/api/v1/control-plane/status</div>
+        <div class="demo-cmd"># Run Demo-in-10:</div>
+        <div class="demo-cmd">python -m thinkbox.agent.control_plane.demo_proof</div>
+        <button class="run-btn" onclick="runDemo()">Run Demo-in-60s (mock)</button>
+        <div id="demo-output" class="demo-output" style="display:none;"></div>
+      </div>
+      <div class="demo-panel">
+        <h3>Last Run Summary</h3>
+        <div id="last-run" style="font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-tertiary);">No runs yet</div>
+      </div>
+    </div>
+    <script>
+      function runDemo() {
+        const out = document.getElementById('demo-output');
+        out.style.display = 'block';
+        out.textContent = '=== THINK BOX AI — Control Plane Demo ===\n[1/6] ADMISSION: ADMITTED\n[2/6] RECEIPTS: chain valid\n[3/6] BUDGET: remaining=$100.00\n[4/6] CHAOS: disabled\n[5/6] LEASES: 0 active\n[6/6] REPLAY: bundle ready\n=== Demo complete ===';
+        document.getElementById('last-run').textContent = `Last run: ${new Date().toISOString()} — 6 phases OK`;
+      }
+    </script>
+  </main>
+</body>
+</html>

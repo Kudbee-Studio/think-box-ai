@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipts — Think Box AI</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .receipt-row { display: grid; grid-template-columns: 1fr 100px 100px 1fr; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); font-family: var(--font-mono); font-size: var(--text-sm); }
+    .receipt-row.header { font-weight: var(--font-bold); color: var(--color-text-tertiary); }
+    .verify-btn { background: var(--color-accent); color: white; border: none; padding: var(--space-2) var(--space-4); border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main id="main">
+    <div class="container">
+      <h1>ActionReceipts — Hash Chain</h1>
+      <button class="verify-btn" onclick="verifyChain()">Verify Chain</button>
+      <div id="verify-result" style="margin: var(--space-4) 0; font-family: var(--font-mono);"></div>
+      <div class="receipt-row header"><span>Action</span><span>Agent</span><span>Status</span><span>Sig</span></div>
+      <div id="receipts-list"></div>
+    </div>
+    <script>
+      const AUTH = 'Bearer dev-only-local-token';
+      async function load() {
+        try {
+          const res = await fetch('/api/v1/control-plane/receipts', { headers: { Authorization: AUTH } });
+          const data = await res.json();
+          const list = document.getElementById('receipts-list');
+          list.innerHTML = '';
+          (data.receipts || []).forEach(r => {
+            const row = document.createElement('div');
+            row.className = 'receipt-row';
+            row.innerHTML = `<span>${r.action_type}</span><span>${r.agent_id}</span><span style="color: ${r.status==='OK'?'var(--color-success)':'var(--color-danger)'}">${r.status}</span><span>${r.signature?.slice(0,12)}…</span>`;
+            list.appendChild(row);
+          });
+        } catch(e) {
+          document.getElementById('receipts-list').innerHTML = '<div style="padding:var(--space-4);color:var(--color-text-tertiary);">Mock mode — no live API</div>';
+        }
+      }
+      async function verifyChain() {
+        try {
+          const res = await fetch('/api/v1/control-plane/receipts/verify', { headers: { Authorization: AUTH } });
+          const data = await res.json();
+          document.getElementById('verify-result').innerHTML = `Chain ${data.valid ? '✅ VALID' : '❌ INVALID'} (${data.count} receipts, error: ${data.error_code})`;
+        } catch(e) {
+          document.getElementById('verify-result').innerHTML = 'Mock mode — verification skipped';
+        }
+      }
+      load();
+    </script>
+  </main>
+</body>
+</html>
