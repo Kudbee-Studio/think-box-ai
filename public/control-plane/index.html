@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Plane — Think Box AI</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .cp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); padding: var(--space-6); }
+    .cp-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: var(--space-4); }
+    .cp-label { font-size: var(--text-xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-2); font-family: var(--font-mono); }
+    .cp-value { font-size: var(--text-xl); font-weight: var(--font-bold); font-family: var(--font-mono); }
+    .cp-status-ok { color: var(--color-success); }
+    .cp-status-warn { color: var(--color-warning); }
+    .cp-status-error { color: var(--color-danger); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main id="main">
+    <div class="container">
+      <h1>Agent Control Plane</h1>
+      <p style="color: var(--color-text-secondary);">Live status of admission, capacity, kill-switch, budget, leases.</p>
+      <p style="font-size: var(--text-sm); color: var(--color-text-tertiary); font-family: var(--font-mono);">
+        Auth: Bearer dev-only-local-token | Evidence: simulated | Demo: true
+      </p>
+    </div>
+    <div class="cp-grid" id="cp-grid">
+      <div class="cp-card"><div class="cp-label">Admission</div><div class="cp-value cp-status-ok" id="cp-admission">—</div></div>
+      <div class="cp-card"><div class="cp-label">Capacity</div><div class="cp-value cp-status-ok" id="cp-capacity">—</div></div>
+      <div class="cp-card"><div class="cp-label">Kill Switch</div><div class="cp-value cp-status-ok" id="cp-kill">—</div></div>
+      <div class="cp-card"><div class="cp-label">Budget Remaining</div><div class="cp-value cp-status-ok" id="cp-budget">—</div></div>
+      <div class="cp-card"><div class="cp-label">Quarantined</div><div class="cp-value cp-status-ok" id="cp-quarantine">—</div></div>
+      <div class="cp-card"><div class="cp-label">Active Leases</div><div class="cp-value cp-status-ok" id="cp-leases">—</div></div>
+    </div>
+    <script>
+      const AUTH = 'Bearer dev-only-local-token';
+      async function refresh() {
+        try {
+          const res = await fetch('/api/v1/control-plane/status', { headers: { Authorization: AUTH } });
+          const data = await res.json();
+          set('cp-admission', data.admission ? 'ADMITTED' : 'DENIED');
+          set('cp-capacity', data.capacity && data.capacity.granted ? 'HELD' : 'NONE');
+          set('cp-kill', data.kill_switch && data.kill_switch.killed ? 'KILLED' : 'OK');
+          set('cp-budget', data.budget ? `$${data.budget.remaining}` : '—');
+          set('cp-quarantine', data.kill_switch && data.kill_switch.quarantined ? 'QUARANTINED' : 'OK');
+          set('cp-leases', data.capacity ? '1' : '0');
+        } catch(e) { /* mock mode */ set('cp-admission', 'MOCK'); set('cp-capacity', 'MOCK'); set('cp-kill', 'MOCK'); set('cp-budget', 'MOCK'); set('cp-quarantine', 'MOCK'); set('cp-leases', 'MOCK'); }
+      }
+      function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+      refresh(); setInterval(refresh, 5000);
+    </script>
+  </main>
+</body>
+</html>
