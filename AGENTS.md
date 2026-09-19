@@ -713,6 +713,7 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 
 | GitHub PR # | KILO PR | Status |
 |-------------|---------|--------|
+| #97 | integration suite | 🔨 IN PROGRESS |
 | #94 | PR95 | ✅ **MERGED** |
 | #93 | docs process lock | ✅ MERGED |
 | #92 | PR94 | ✅ MERGED |
@@ -890,7 +891,8 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 5. **PR93 (GitHub PR #91): Agent Telemetry & Observability** — TelemetryEmitter: metrics, traces, logs, health ✅ **MERGED**
 6. **PR94 (GitHub PR #92): Orchestration Client** — Capacity, service discovery, config watch, secret injection ✅ **MERGED**
 7. **PR95 (GitHub PR #94): Orchestration Client kernel wire** — Wire OrchestrationClient into AgentKernel lifecycle ✅ **MERGED**
-8. **PR96 (GitHub PR #95): Agent kernel capacity lifecycle hardening** — Harden AgentKernel ↔ OrchestrationClient lifecycle 🔨 **IN PROGRESS**
+8. **PR96 (GitHub PR #95): Agent kernel capacity lifecycle hardening** — Harden AgentKernel ↔ OrchestrationClient lifecycle ✅ **MERGED**
+9. **PR97 (GitHub PR #96): OrchestrationClient↔AgentKernel integration suite** — Integration tests for full lifecycle paths 🔨 **IN PROGRESS**
 
 ## THINK Burst Protocol — Operational Note
 
