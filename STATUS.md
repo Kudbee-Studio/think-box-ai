@@ -694,7 +694,7 @@ None in this PR.
 ## PR #102 — Upstash Box + Inception Mercury-2 Live Experiment (DRAFT)
 
 **Status:** Draft
-**Branch:** `feat/byoc-think-stash-mercury-upstash-x10` (to be branched from main after #101 merge)
+**Branch:** `feat/byoc-box-mercury-live`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/102
 
 ### Features

@@ -901,7 +901,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Demo: `scripts/demo_in_10_byoc.sh`
     - Tests: `tests/unit/byoc/test_e2e.py` (hermetic, mock-only)
     - Tag: `THINK_STASH_BOUND` (parity with PR #100 `CONTROL_PLANE_BOUND`)
-11. **PR102 — Upstash Box + Inception Mercury-2 Live Experiment:** `feat/byoc-think-stash-mercury-upstash-x10` 🔨 IN PROGRESS
+11. **PR102 — Upstash Box + Inception Mercury-2 Live Experiment:** `feat/byoc-box-mercury-live` 🔨 IN PROGRESS
     - Experiment: `experiments/box_mercury_live.py` — substrate verify, Mercury-2 burst at concurrency 1/4/8/16, throughput + proof artifact
     - Tests: `tests/unit/byoc/test_box_mercury.py` (hermetic, mock-only)
     - Demo: `scripts/demo_in_10_box_mercury.sh`
