@@ -1,10 +1,12 @@
 """Live experiment: Upstash Box substrate + Inception Mercury-2 throughput (v2).
 
 Enhanced with:
-- Configurable parameters (concurrency levels, calls, iterations)
+- Configurable parameters (concurrency levels, calls, iterations, model)
 - Multiple iterations per level for statistical significance
-- Results persisted via ExperimentManager
-- Comparison with previous runs
+- Aggregate statistics (mean, p50, p95, p99, std dev) per concurrency level
+- Results comparison with previous artifact runs
+- Proof artifact with SHA-256 verification
+- Dashboard state emit
 
 Usage: python3 experiments/box_mercury_live.py
 Requires: INCEPTION_API_KEY + UPSTASH_PUBLIC_BOX_URL in env.
