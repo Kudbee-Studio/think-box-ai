@@ -914,7 +914,7 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Tests: `tests/unit/byoc/test_integration.py`, `tests/unit/test_substrate.py` additions
     - Demo: `scripts/demo_in_10_box_mercury_v2.sh`
     - Tag: `THINK_BOX_BOUND`
-12. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
+13. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
 
 ## THINK Burst Protocol — Operational Note
 
