@@ -51,6 +51,42 @@ def _quarantine_active(store: OrgMemoryReceiptStore) -> bool:
     return False
 
 
+def _ci_observations(receipts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for row in receipts:
+        if str(row.get("action") or "") != "ci_status_observed":
+            continue
+        evidence = row.get("evidence") or {}
+        out.append(
+            {
+                "conclusion": str(evidence.get("conclusion") or "").lower(),
+                "workflow": evidence.get("workflow"),
+            }
+        )
+    return out
+
+
+def _evaluate_ci_gate(summary_last_ci: Optional[dict[str, Any]], receipts: list[dict[str, Any]]) -> MergeReadinessRule:
+    """CI is not required when Actions are unavailable; explicit failure still blocks."""
+    observations = _ci_observations(receipts)
+    if not observations:
+        return MergeReadinessRule(
+            "ci_success",
+            True,
+            25,
+            "CI not observed (local unittest gate; GitHub Actions optional)",
+        )
+    conclusion = str((summary_last_ci or {}).get("conclusion") or observations[0].get("conclusion") or "").lower()
+    if conclusion == "success":
+        return MergeReadinessRule("ci_success", True, 25, "last CI success")
+    return MergeReadinessRule(
+        "ci_success",
+        False,
+        25,
+        f"last CI not success ({conclusion or 'unknown'})",
+    )
+
+
 def evaluate_merge_readiness(
     store: OrgMemoryReceiptStore,
     pr_number: int,
@@ -59,10 +95,8 @@ def evaluate_merge_readiness(
 ) -> MergeReadinessReport:
     """Score whether a PR is eligible to *request* founder merge (not auto-merge)."""
     chain_ok = store.verify()
-    summary = summarize_pr_from_receipts(
-        pr_number,
-        store.query(pr_number=pr_number, limit=receipt_limit),
-    )
+    receipts = store.query(pr_number=pr_number, limit=receipt_limit)
+    summary = summarize_pr_from_receipts(pr_number, receipts)
     rules: list[MergeReadinessRule] = []
 
     rules.append(
@@ -79,19 +113,10 @@ def evaluate_merge_readiness(
             "quarantine_clear",
             q_ok,
             20,
-            "pipeline not quarantined" if q_ok else "pipeline quarantine active",
+            "pipeline not quarantined" if q_ok else             "pipeline quarantine active",
         )
     )
-    ci = summary.last_ci
-    ci_ok = bool(ci and str(ci.get("conclusion") or "").lower() == "success")
-    rules.append(
-        MergeReadinessRule(
-            "ci_success",
-            ci_ok,
-            25,
-            "last CI success" if ci_ok else "missing or failing CI observation",
-        )
-    )
+    rules.append(_evaluate_ci_gate(summary.last_ci, receipts))
     adm_ok = summary.admission_denied_count == 0
     rules.append(
         MergeReadinessRule(

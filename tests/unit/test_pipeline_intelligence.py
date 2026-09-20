@@ -61,9 +61,55 @@ class TestMergeReadiness(unittest.TestCase):
             result="success",
             evidence_label="verified",
         )
-        report = evaluate_merge_readiness(aggregator._store, 902)  # noqa: SLF001
+        report = evaluate_merge_readiness(store, 902)
+        self.assertTrue(report.ready)
+        self.assertEqual(report.score, 100)
+
+    def test_explicit_ci_failure_blocks(self) -> None:
+        aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="r",
+            pr_number=906,
+            branch="b",
+            from_state="A",
+            to_state="B",
+            action="act",
+            result="success",
+            evidence_label="verified",
+        )
+        store.append_lifecycle(
+            run_id="r",
+            pr_number=906,
+            branch="b",
+            from_state="A",
+            to_state="A",
+            action="ci_status_observed",
+            result="success",
+            evidence={"workflow": "unittest", "conclusion": "failure"},
+        )
+        report = evaluate_merge_readiness(store, 906)
         self.assertFalse(report.ready)
-        self.assertIn("missing or failing CI observation", report.blockers[0])
+
+
+class TestMergeWithoutCiReceipt(unittest.TestCase):
+    def test_request_merge_without_ci_observation(self) -> None:
+        aggregator, merge_svc, token, proof_key = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="run_local",
+            pr_number=907,
+            branch="feat/local-gate",
+            from_state="LEARN",
+            to_state="LEARN",
+            action="lifecycle_complete",
+            result="success",
+            evidence_label="verified",
+        )
+        proof = compute_founder_merge_proof(907, proof_key)
+        result = merge_svc.request_merge(907, governance_token=token, founder_proof=proof)
+        self.assertTrue(result.admitted)
+        self.assertEqual(result.receipt_action, "founder_merge_requested")
 
 
 class TestAuditPacket(unittest.TestCase):
@@ -78,7 +124,7 @@ class TestAuditPacket(unittest.TestCase):
 
 
 class TestMergePolicyIntegration(unittest.TestCase):
-    def test_policy_blocks_without_ci(self) -> None:
+    def test_policy_blocks_without_verified_evidence(self) -> None:
         aggregator, merge_svc, token, proof_key = build_hermetic_pipeline_dashboard()
         proof = compute_founder_merge_proof(904, proof_key)
         result = merge_svc.request_merge(904, governance_token=token, founder_proof=proof)
