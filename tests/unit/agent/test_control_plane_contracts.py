@@ -1,156 +1,191 @@
-"""Hermetic API+UI contract tests for control-plane bind."""
+"""Hermetic contract tests for control-plane store, hooks, and proof bundles."""
+
+from __future__ import annotations
 
 import os
 import sys
-import types
+import tempfile
 import unittest
-from types import SimpleNamespace
+from datetime import datetime, timedelta, timezone
 
-sys.modules["grpc"] = types.ModuleType("grpc")
-sys.modules["grpc.aio"] = types.ModuleType("grpc.aio")
-sys.modules["google.protobuf"] = types.ModuleType("google.protobuf")
-sys.modules["thinkbox.agent.protocol"] = types.ModuleType("protocol")
+# Contract tests must not mutate sys.modules["thinkbox.agent.control_plane.receipt"].
+# A failed import after module-level receipt stubs poisoned test_receipt (repair #2).
 
-# Mock receipt types from #97 (ledger.py doesn't need these)
-sys.modules["thinkbox.agent.control_plane.receipt"] = types.ModuleType("receipt")
-sys.modules["thinkbox.agent.control_plane.receipt"].ActionReceipt = SimpleNamespace
-sys.modules["thinkbox.agent.control_plane.receipt"].ReceiptChain = SimpleNamespace
-
-from thinkbox.agent.control_plane.ledger import ActionReceiptStore
-from thinkbox.agent.control_plane.verify_chain import ChainVerifier
-from thinkbox.agent.control_plane.export import ProofExporter
-from thinkbox.agent.control_plane.import_bundle import ProofImporter
-from thinkbox.agent.control_plane.kernel_hooks import KernelHooks
-from thinkbox.agent.control_plane.budget_trip import BudgetTripHandler
-from thinkbox.agent.control_plane.kill_events import KillEventStore
-from thinkbox.agent.control_plane.lease_evict import LeaseEvictionHandler
+from thinkbox.agent.control_plane.budget_trip import BudgetBreaker, BudgetBreakerConfig
+from thinkbox.agent.control_plane.export import export_proof_bundle
+from thinkbox.agent.control_plane.import_bundle import import_bundle
+from thinkbox.agent.control_plane.kernel_hooks import HookContext, on_admit, on_capacity, on_shutdown
+from thinkbox.agent.control_plane.kill_events import KillSwitch
+from thinkbox.agent.control_plane.lease_evict import Lease, LeaseEvictor
+from thinkbox.agent.control_plane.store import ActionReceiptStore
+from thinkbox.agent.control_plane.verify_chain import verify_chain
 
 
 class TestControlPlaneContracts(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.mkdtemp(prefix="cp_contract_")
+        self.db_path = os.path.join(self._tmpdir, "receipts.db")
 
-    def setUp(self):
-        self.db_path = os.path.join("/tmp", f"cp_test_{id(self)}.db")
-        if os.path.exists(self.db_path):
-            os.remove(self.db_path)
+    def tearDown(self) -> None:
+        for name in os.listdir(self._tmpdir):
+            path = os.path.join(self._tmpdir, name)
+            if os.path.isfile(path):
+                os.remove(path)
+        os.rmdir(self._tmpdir)
 
-    def tearDown(self):
-        if os.path.exists(self.db_path):
-            os.remove(self.db_path)
-
-    def test_ledger_empty_verify(self):
+    def test_ledger_empty_verify(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
         self.assertTrue(store.verify())
         self.assertEqual(store.count(), 0)
         store.close()
 
-    def test_ledger_append_verify(self):
+    def test_ledger_append_verify(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        store.append({"action_type": "X", "agent_id": "a1", "status": "OK"})
+        store.append(
+            action="test",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
         self.assertTrue(store.verify())
         self.assertEqual(store.count(), 1)
         store.close()
 
-    def test_ledger_tamper(self):
+    def test_ledger_tamper(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        store.append({"action_type": "A", "agent_id": "a1", "status": "OK"})
-        conn = store._connect()
-        conn.execute("UPDATE receipts SET previous_hash = 'TAMPERED' WHERE id = 1")
+        store.append(
+            action="A",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
+        conn = store._conn
+        conn.execute("UPDATE receipts SET entry_hash = 'TAMPERED' WHERE receipt_id IS NOT NULL")
         conn.commit()
         self.assertFalse(store.verify())
         store.close()
 
-    def test_chain_verifier_empty(self):
+    def test_chain_verifier_empty(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        verifier = ChainVerifier(store)
-        result = verifier.verify()
-        self.assertEqual(result["error_code"], "EMPTY_CHAIN")
+        result = verify_chain(store)
+        self.assertTrue(result.valid)
+        self.assertEqual(result.receipts, 0)
         store.close()
 
-    def test_chain_verifier_valid(self):
+    def test_chain_verifier_valid(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        store.append({"action_type": "A", "agent_id": "a1", "status": "OK"})
-        verifier = ChainVerifier(store)
-        result = verifier.verify()
-        self.assertTrue(result["valid"])
+        store.append(
+            action="A",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
+        result = verify_chain(store)
+        self.assertTrue(result.valid)
         store.close()
 
-    def test_kernel_hooks_admit(self):
+    def test_kernel_hooks_admit(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        hooks = KernelHooks(store)
-        hooks.bind("agent-1")
-        sig = hooks.on_admit("AGENT_SPAWN", {"allowed": True, "reason": "", "conditions": {}})
-        self.assertIsInstance(sig, str)
+        on_admit(
+            store,
+            HookContext(agent_id="agent-1", action="AGENT_SPAWN", reason="admitted"),
+        )
         self.assertEqual(store.count(), 1)
         store.close()
 
-    def test_kernel_hooks_capacity(self):
+    def test_kernel_hooks_capacity(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        hooks = KernelHooks(store)
-        hooks.bind("agent-1")
-        hooks.on_capacity("alloc-1", True, "")
+        on_capacity(
+            store,
+            HookContext(agent_id="agent-1", action="capacity", reason="granted"),
+        )
         self.assertEqual(store.count(), 1)
         store.close()
 
-    def test_kernel_hooks_shutdown(self):
+    def test_kernel_hooks_shutdown(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        hooks = KernelHooks(store)
-        hooks.bind("agent-1")
-        hooks.on_shutdown("NORMAL")
+        on_shutdown(
+            store,
+            HookContext(agent_id="agent-1", action="shutdown", reason="normal"),
+        )
         self.assertEqual(store.count(), 1)
         store.close()
 
-    def test_budget_trip_handler(self):
+    def test_budget_trip_handler(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        handler = BudgetTripHandler(store, "agent-1")
-        sig = handler.on_trip(110.0, 100.0)
-        self.assertIsInstance(sig, str)
-        self.assertEqual(store.count(), 1)
+        config = BudgetBreakerConfig(max_calls=1, max_spend=0.0, calls=1, spend=0.0)
+        breaker = BudgetBreaker(store, config=config)
+        result = breaker.trip("agent-1")
+        self.assertTrue(result["tripped"])
+        self.assertGreaterEqual(store.count(), 1)
         store.close()
 
-    def test_kill_event_store(self):
-        store = KillEventStore(db_path="/tmp/kill_test.json")
-        from thinkbox.agent.control_plane.kill_events import KillEvent
-        evt = KillEvent("evt-1", "KILL", "agent-1", reason="test")
-        store.record(evt)
-        self.assertTrue(store.is_killed("agent-1"))
-        self.assertEqual(store.count(), 1)
-        if os.path.exists("/tmp/kill_test.json"):
-            os.remove("/tmp/kill_test.json")
-
-    def test_lease_eviction_handler(self):
+    def test_kill_event_store(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        handler = LeaseEvictionHandler(store, None)
-        sig = handler.on_expiry("agent-1", "task-1", reason="stale")
-        self.assertIsInstance(sig, str)
-        self.assertEqual(store.count(), 1)
+        ks = KillSwitch(store)
+        evt = ks.kill("agent-1", reason="test")
+        self.assertEqual(evt.agent_id, "agent-1")
+        self.assertGreaterEqual(store.count(), 1)
         store.close()
 
-    def test_bundle_export_import(self):
+    def test_lease_eviction_handler(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        store.append({"action_type": "A", "agent_id": "a1", "status": "OK"})
+        evictor = LeaseEvictor(store)
+        past = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+        evictor.register_lease(
+            Lease(agent_id="agent-1", lease_id="lease-1", expires_at=past),
+        )
+        evictions = evictor.check_expired()
+        self.assertEqual(len(evictions), 1)
+        self.assertGreaterEqual(store.count(), 1)
         store.close()
 
-        exporter = ProofExporter(ActionReceiptStore(db_path=self.db_path), output_dir="/tmp")
-        manifest = exporter.export("test-bundle")
-
-        importer = ProofImporter(output_dir="/tmp")
-        result = importer.import_bundle(manifest)
-        self.assertTrue(result["valid"])
-
-        for ext in [".jsonl", ".manifest.json"]:
-            path = os.path.join("/tmp", f"test-bundle{ext}")
-            if os.path.exists(path):
-                os.remove(path)
-
-    def test_chain_verify_after_import(self):
+    def test_bundle_export_import(self) -> None:
         store = ActionReceiptStore(db_path=self.db_path)
-        store.append({"action_type": "A", "agent_id": "a1", "status": "OK"})
-        store.append({"action_type": "B", "agent_id": "a1", "status": "OK"})
+        store.append(
+            action="A",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
+        bundle = export_proof_bundle(store, output_dir=self._tmpdir, prefix="test-bundle")
+        self.assertTrue(bundle["chain_valid"])
+
+        imported_store = ActionReceiptStore(db_path=os.path.join(self._tmpdir, "imported.db"))
+        result = import_bundle(imported_store, bundle["jsonl"])
+        self.assertEqual(result["imported"], 1)
+        self.assertTrue(imported_store.verify())
+        store.close()
+        imported_store.close()
+
+    def test_chain_verify_after_import(self) -> None:
+        store = ActionReceiptStore(db_path=self.db_path)
+        store.append(
+            action="A",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
+        store.append(
+            action="B",
+            status="OK",
+            reason="ok",
+            evidence_label="simulated",
+        )
         store.close()
         reopened = ActionReceiptStore(db_path=self.db_path)
         self.assertTrue(reopened.verify())
         self.assertEqual(reopened.count(), 2)
         reopened.close()
+
+    def test_receipt_module_not_stubbed_in_sys_modules(self) -> None:
+        """Guard: contract tests must never replace the real receipt module."""
+        mod = sys.modules.get("thinkbox.agent.control_plane.receipt")
+        self.assertIsNotNone(mod)
+        from thinkbox.agent.control_plane.receipt import ActionReceipt
+
+        receipt = ActionReceipt("CAPACITY", "a1", "OK")
+        self.assertEqual(receipt.action_type, "CAPACITY")
 
 
 if __name__ == "__main__":
