@@ -209,6 +209,43 @@ class PipelineDashboardAggregator:
             "production_ready": False,
         }
 
+    def admission_denial_ledger(
+        self,
+        *,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        receipt_limit: int = 500,
+    ) -> dict[str, Any]:
+        """Aggregate webhook/gate denial receipts by reason within a time window."""
+        rows = self._store.query(since=since, until=until, limit=receipt_limit)
+        by_reason: dict[str, int] = {}
+        by_action: dict[str, int] = {}
+        total = 0
+        for row in rows:
+            action = str(row.get("action") or "")
+            if action not in ("admission_denied", "merge_request_denied"):
+                continue
+            total += 1
+            by_action[action] = by_action.get(action, 0) + 1
+            evidence = row.get("evidence") or {}
+            reason = str(
+                evidence.get("admission_reason")
+                or evidence.get("reason")
+                or action
+            )
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+        return {
+            "since": since,
+            "until": until,
+            "total_denials": total,
+            "by_reason": dict(sorted(by_reason.items(), key=lambda kv: (-kv[1], kv[0]))),
+            "by_action": by_action,
+            "receipt_limit": receipt_limit,
+            "truncated": len(rows) >= receipt_limit,
+            "evidence_label": "simulated",
+            "auto_merge": False,
+        }
+
 
 @dataclass
 class FounderMergeRequestResult:

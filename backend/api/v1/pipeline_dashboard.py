@@ -152,6 +152,22 @@ async def pipeline_request_merge(
     return payload
 
 
+@pipeline_dashboard_router.get("/admissions/denials")
+async def pipeline_admission_denials(
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    receipt_limit: int = 500,
+) -> dict[str, Any]:
+    if receipt_limit < 1 or receipt_limit > 2000:
+        raise HTTPException(status_code=400, detail="receipt_limit must be 1..2000")
+    aggregator, _ = _cached_bundle()
+    return aggregator.admission_denial_ledger(
+        since=since,
+        until=until,
+        receipt_limit=receipt_limit,
+    )
+
+
 @pipeline_dashboard_router.get("/health")
 async def pipeline_dashboard_health() -> dict[str, Any]:
     aggregator, _ = _cached_bundle()

@@ -177,5 +177,26 @@ class TestDistinctPrNumbers(unittest.TestCase):
         self.assertEqual(store.distinct_pr_numbers(), [1, 2, 3])
 
 
+class TestAdmissionDenialLedger(unittest.TestCase):
+    def test_denial_aggregation_by_reason(self) -> None:
+        aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        for reason in ("capability_not_granted", "capability_not_granted", "signature_mismatch"):
+            store.append_lifecycle(
+                run_id="wb",
+                pr_number=501,
+                branch="b",
+                from_state="BLOCKED",
+                to_state="BLOCKED",
+                action="admission_denied",
+                result="blocked",
+                evidence={"admission_reason": reason},
+            )
+        ledger = aggregator.admission_denial_ledger(receipt_limit=100)
+        self.assertEqual(ledger["total_denials"], 3)
+        self.assertEqual(ledger["by_reason"]["capability_not_granted"], 2)
+        self.assertEqual(ledger["by_reason"]["signature_mismatch"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
