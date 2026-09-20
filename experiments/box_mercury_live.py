@@ -236,7 +236,7 @@ async def main() -> int:
 
     aggregated = _aggregate_iterations(all_iterations_by_level)
 
-    all_latencies = [r["latency_s"] for lr in all_iterations_by_level for r in lr if r["latency_s"] is not None]
+    all_latencies = [l for lr in all_iterations_by_level for r in lr for l in r["latencies"]]
     all_errors = sum(r["total_errors"] for r in aggregated)
     all_completed = sum(r["total_calls"] for r in aggregated)
 
@@ -314,7 +314,6 @@ async def main() -> int:
 
     try:
         from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
-        import asyncio as _asyncio
 
         async def _emit() -> None:
             ds = get_dashboard_state()
@@ -333,7 +332,7 @@ async def main() -> int:
                 "box_mercury_live_v2",
                 evidence_label="verified",
             )
-        _asyncio.run(_emit())
+        await _emit()
         print("dashboard: emitted")
     except Exception as e:
         print(f"dashboard: emit skipped ({e})")
