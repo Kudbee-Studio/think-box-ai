@@ -318,6 +318,19 @@ npm start              # runs server.ts via Node 22 type stripping
 
 ## Demo in 10
 
+### Control plane dry-run (PR #111 — hermetic, no LIVE claim)
+
+Proves org-memory receipts → admission → signed webhook → pipeline dashboard → founder merge-request **without** GitHub merge or staging. PR #110 LIVE drill is separate.
+
+```bash
+bash scripts/demo_in_10_control_plane_dry_run.sh
+# or: python3 -m thinkbox.control_plane_dry_run
+```
+
+See `docs/PR111_CONTROL_PLANE_DRY_RUN.md`.
+
+### Burst / mock vLLM demo (legacy control-plane bound)
+
 Run the full burst→harvest→scores→proof→verify loop in under 10 minutes. No GPU, no public bind, no AWS.
 
 ```bash

@@ -927,12 +927,18 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Docs: `docs/guides/github_webhook.md` (`WEBHOOK_SECRET` setup)
     - Tests: `tests/unit/test_github_webhook.py` (hermetic HMAC fixtures; live optional off by default)
     - Tag: `PR_LIFECYCLE_GITHUB_WEBHOOK` (builds on merged PR #106)
-16. **PR108 — Pipeline control surface (webhook admissions, verified receipts, founder merge gate):** `feat/pipeline-dashboard-admission-merge-gate` 🔨 DRAFT
+16. **PR108 — Pipeline control surface (webhook admissions, verified receipts, founder merge gate):** `feat/pipeline-dashboard-admission-merge-gate` ✅ **MERGED** (GitHub #108)
     - Modules: `thinkbox/pipeline_dashboard.py`, `backend/api/v1/pipeline_dashboard.py`
     - API: pipeline overview with `ops_scorecard`, denial ledger, integrity, CI timeline, delta poll/SSE, quarantine, founder-gated `request-merge` (governance token + PR-bound founder proof; never GitHub merge)
     - Dashboard: `public/control-plane/pipeline_dashboard.html` (5s poll + denial/quarantine banners)
     - Tests: `tests/unit/test_pipeline_dashboard.py`, `test_pipeline_delta.py`, `test_pipeline_adversarial.py`, `test_pipeline_concurrency.py` (hermetic)
     - Tag: `PR_PIPELINE_DASHBOARD_MERGE_GATE` (builds on merged PR #106/#107)
+17. **PR111 — Demo-in-10 control-plane dry-run:** `feat/demo-in-10-control-plane-dry-run` 🔨 DRAFT (GitHub #111)
+    - Module: `thinkbox/control_plane_dry_run.py`
+    - Demo: `scripts/demo_in_10_control_plane_dry_run.sh`, `python3 -m thinkbox.control_plane_dry_run`
+    - Docs: `docs/PR111_CONTROL_PLANE_DRY_RUN.md`
+    - Tests: `tests/unit/demo/test_control_plane_dry_run.py` (hermetic; asserts `github_merge_called=false`)
+    - Tag: `PR_CONTROL_PLANE_DRY_RUN` — **not** LIVE_VERIFIED; PR #110 staging drill is separate
 
 ## THINK Burst Protocol — Operational Note
 
