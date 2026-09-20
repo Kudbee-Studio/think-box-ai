@@ -51,6 +51,22 @@ class TestPipelineAdversarial(unittest.TestCase):
         self.assertFalse(result.admitted)
         self.assertEqual(result.detail, "token_agent_mismatch")
 
+    def test_replay_fingerprint_without_idem_still_idempotent_queue(self) -> None:
+        merge_svc, _f, valid, proof_key = self._svc()
+        proof = compute_founder_merge_proof(903, proof_key)
+        merge_svc.request_merge(903, governance_token=valid, founder_proof=proof)
+        second = merge_svc.request_merge(903, governance_token=valid, founder_proof=proof)
+        self.assertFalse(second.github_merge_called)
+        self.assertIn(
+            second.detail,
+            (
+                "already_queued",
+                "replay_guard_hit",
+                "idempotency_replay",
+                "policy_readiness_below_threshold",
+            ),
+        )
+
     def test_missing_gate_identity_denied(self) -> None:
         store = OrgMemoryReceiptStore(":memory:")
         coordinator = PRLifecycleEventCoordinator(store, test_mode=True)
