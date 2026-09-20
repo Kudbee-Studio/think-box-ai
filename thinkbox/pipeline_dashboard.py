@@ -111,12 +111,20 @@ class PipelineDashboardAggregator:
                 or action
             )
             by_reason[reason] = by_reason.get(reason, 0) + 1
+        by_pr: dict[str, int] = {}
+        for row in rows:
+            action = str(row.get("action") or "")
+            if action not in ("admission_denied", "merge_request_denied"):
+                continue
+            pr_key = str(int(row.get("pr_number") or 0))
+            by_pr[pr_key] = by_pr.get(pr_key, 0) + 1
         return {
             "since": since,
             "until": until,
             "total_denials": total,
             "by_reason": dict(sorted(by_reason.items(), key=lambda kv: (-kv[1], kv[0]))),
             "by_action": by_action,
+            "by_pr": dict(sorted(by_pr.items(), key=lambda kv: (-kv[1], kv[0]))),
             "receipt_limit": receipt_limit,
             "truncated": len(rows) >= receipt_limit,
             "evidence_label": "simulated",
@@ -173,6 +181,7 @@ class PipelineDeltaSnapshot:
     pr_count: int
     admission_denied_total: int
     overview_digest: str
+    schema_version: str = "pipeline-delta-v2"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -180,6 +189,7 @@ class PipelineDeltaSnapshot:
             "pr_count": self.pr_count,
             "admission_denied_total": self.admission_denied_total,
             "overview_digest": self.overview_digest,
+            "schema_version": self.schema_version,
             "evidence_label": "simulated",
         }
 
@@ -191,6 +201,7 @@ class PipelineDeltaTracker:
         self._aggregator = aggregator
         self._last: Optional[PipelineDeltaSnapshot] = None
         self._sequence = 0
+        self._last_event_id = ""
 
     def _digest_overview(self, overview: dict[str, Any]) -> str:
         body = json.dumps(
@@ -231,6 +242,13 @@ class PipelineDeltaTracker:
             )
             self._last = current
             delta["current"] = current.to_dict()
+        event_id = f"pd-{current.overview_digest}-{current.sequence}"
+        if event_id == self._last_event_id:
+            delta["duplicate_event"] = True
+        else:
+            delta["duplicate_event"] = False
+            self._last_event_id = event_id
+        delta["event_id"] = event_id
         return delta
 
 
@@ -327,16 +345,25 @@ class PipelineQuarantineController:
 def pipeline_ops_scorecard(overview: dict[str, Any], *, quarantine: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Raw autonomy/ops fields for dashboard API consumers."""
     q = quarantine or {}
+    denied = int((overview.get("totals") or {}).get("admission_denied_count") or 0)
+    pr_count = int(overview.get("pr_count") or 0)
+    health = "green"
+    if q.get("quarantined"):
+        health = "red"
+    elif denied > 0:
+        health = "yellow"
     return {
         "autonomy_merge_enabled": False,
         "github_merge_enabled": False,
         "founder_gate_required": True,
-        "admission_denied_total": int((overview.get("totals") or {}).get("admission_denied_count") or 0),
-        "pr_count": int(overview.get("pr_count") or 0),
+        "admission_denied_total": denied,
+        "pr_count": pr_count,
         "chain_verified": bool(overview.get("chain_verified")),
         "quarantine_active": bool(q.get("quarantined")),
         "live_verified": bool(overview.get("live_verified")),
         "production_ready": bool(overview.get("production_ready")),
+        "health_status": health,
+        "denial_rate_per_pr": round(denied / pr_count, 4) if pr_count else 0.0,
         "evidence_label": "simulated",
     }
 
@@ -401,11 +428,36 @@ class FounderGatedMergeService:
         founder_proof: str = "",
         metadata: Optional[dict[str, Any]] = None,
         idempotency_key: str = "",
+        quarantine_state: Optional[dict[str, Any]] = None,
     ) -> FounderMergeRequestResult:
         meta = dict(metadata or {})
         meta["pr_number"] = pr_number
         idem_key = (idempotency_key or str(meta.get("idempotency_key") or "")).strip()
         deny_matrix: list[dict[str, Any]] = []
+
+        if quarantine_state and quarantine_state.get("quarantined"):
+            deny_matrix.append(
+                {
+                    "check": "kill_switch_quarantine",
+                    "passed": False,
+                    "reason": str(quarantine_state.get("reason") or "quarantine_active"),
+                }
+            )
+            self._record_merge_denied(
+                pr_number,
+                branch,
+                AdmissionDecision(False, "pipeline_quarantined", self._agent_id, PIPELINE_FOUNDER_MERGE_CAPABILITY),
+            )
+            return FounderMergeRequestResult(
+                http_status=403,
+                admitted=False,
+                merged=False,
+                github_merge_called=False,
+                evidence_label="simulated",
+                detail="pipeline_quarantined",
+                receipt_action="merge_request_denied",
+                deny_matrix=deny_matrix,
+            )
 
         proof_ok = verify_founder_merge_proof(pr_number, self._founder_proof_key, founder_proof)
         deny_matrix.append(
@@ -569,17 +621,20 @@ class FounderGatedMergeService:
         }
         if idem_key:
             queue_evidence["idempotency_key"] = idem_key
-        receipt = self._store.append_lifecycle(
-            run_id=self._run_id_for_pr(pr_number),
-            pr_number=pr_number,
-            branch=resolved_branch,
-            from_state="READY_FOR_CLOSE",
-            to_state="READY_FOR_CLOSE",
-            action="founder_merge_requested",
-            result="queued",
-            evidence_label="simulated",
-            evidence=queue_evidence,
-        )
+        from thinkbox.pipeline_store_lock import serialized_org_memory_write
+
+        with serialized_org_memory_write():
+            receipt = self._store.append_lifecycle(
+                run_id=self._run_id_for_pr(pr_number),
+                pr_number=pr_number,
+                branch=resolved_branch,
+                from_state="READY_FOR_CLOSE",
+                to_state="READY_FOR_CLOSE",
+                action="founder_merge_requested",
+                result="queued",
+                evidence_label="simulated",
+                evidence=queue_evidence,
+            )
         return FounderMergeRequestResult(
             http_status=200,
             admitted=True,
