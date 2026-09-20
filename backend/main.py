@@ -87,6 +87,9 @@ app.include_router(box_status_router)
 from backend.api.v1.box_mercury import box_mercury_router
 app.include_router(box_mercury_router)
 
+from backend.api.v1.lifecycle_receipts import lifecycle_receipts_router
+app.include_router(lifecycle_receipts_router)
+
 
 @app.on_event("startup")
 async def startup() -> None:

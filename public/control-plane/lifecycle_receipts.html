@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PR Lifecycle Receipts (stub)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #0f1115; color: #e8eaed; }
+    .chip { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; background: #333; font-size: 0.85rem; }
+    pre { background: #1a1d24; padding: 1rem; border-radius: 8px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>PR lifecycle org-memory receipts</h1>
+  <p>
+    <span class="chip">evidence_label=simulated</span>
+    <span class="chip">stub</span>
+  </p>
+  <label>PR number <input id="pr" type="number" value="106" min="1" /></label>
+  <button id="load">Load last 20</button>
+  <pre id="out">Click load…</pre>
+  <script>
+    document.getElementById('load').onclick = async () => {
+      const pr = document.getElementById('pr').value;
+      const out = document.getElementById('out');
+      out.textContent = 'Loading…';
+      try {
+        const res = await fetch(`/api/v1/control-plane/lifecycle/receipts/pr/${pr}?limit=20`);
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        out.textContent = String(e);
+      }
+    };
+  </script>
+</body>
+</html>
