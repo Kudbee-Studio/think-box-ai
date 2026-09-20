@@ -93,6 +93,8 @@ class SubstrateProbe:
 
     def history(self, limit: int = 20) -> list[dict[str, Any]]:
         with self._lock:
+            if limit <= 0:
+                return []
             return [r.to_dict() for r in self._reports[-limit:]]
 
 
