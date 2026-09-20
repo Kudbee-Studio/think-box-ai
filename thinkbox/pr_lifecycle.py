@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -78,6 +80,13 @@ SUCCESS_TRANSITIONS["FAILED"] = []
 SUCCESS_TRANSITIONS["BLOCKED"] = []
 
 TERMINAL_STATES = {"LEARN", "FAILED", "BLOCKED"}
+
+# Success-path states that require a recorded approval grant (no snapshot bypass).
+_POST_APPROVAL_STATES = frozenset(
+    s
+    for s in LINEAR_SUCCESS
+    if LINEAR_SUCCESS.index(s) > LINEAR_SUCCESS.index("APPLY_APPROVAL_BOUNDARY")
+)
 
 GATED_CLOSE_ACTIONS = (
     "merge",
@@ -181,6 +190,7 @@ class PRLifecycleConfig:
     inject_failure_at: Optional[str] = None
     skip_cleanup: bool = False
     deterministic_metrics: Optional[list[dict[str, Any]]] = None
+    provisioner_state_path: Optional[str] = None
 
 
 @dataclass
@@ -279,6 +289,112 @@ class PRLifecycleOrchestrator:
     def scorecard(self) -> AutonomyScorecard:
         return self._scorecard
 
+    @property
+    def run_id(self) -> str:
+        return self._run_id
+
+    @property
+    def context(self) -> dict[str, Any]:
+        return dict(self._context)
+
+    def snapshot(self) -> dict[str, Any]:
+        """Serializable checkpoint for crash-resume (no open handles)."""
+        return {
+            "run_id": self._run_id,
+            "state": self._state,
+            "context": dict(self._context),
+            "receipts": [r.to_dict() for r in self._receipts],
+            "scorecard": self._scorecard.to_dict(),
+        }
+
+    @classmethod
+    def validate_snapshot(cls, data: dict[str, Any]) -> None:
+        """Fail-closed validation before restore (malformed / approval bypass)."""
+        if not isinstance(data, dict):
+            raise ValueError("snapshot must be a dict")
+        if "run_id" not in data:
+            raise ValueError("snapshot missing run_id")
+        state = data.get("state")
+        if state not in PR_LIFECYCLE_STATES:
+            raise ValueError(f"snapshot invalid state: {state}")
+        if PRLifecycle.is_terminal(state):
+            raise ValueError(f"cannot restore terminal snapshot state: {state}")
+        receipts_raw = data.get("receipts") or []
+        if receipts_raw:
+            last_to = receipts_raw[-1].get("to_state")
+            if last_to and last_to != state and last_to not in TERMINAL_STATES:
+                raise ValueError(
+                    f"snapshot state/receipt mismatch: state={state} last_receipt_to={last_to}"
+                )
+        if state in _POST_APPROVAL_STATES:
+            granted = any(
+                r.get("action") == "approval_granted" and r.get("result") == "success"
+                for r in receipts_raw
+            )
+            if not granted:
+                raise ValueError(
+                    f"snapshot bypass: state {state} requires prior approval_granted receipt"
+                )
+
+    def restore_snapshot(self, data: dict[str, Any]) -> None:
+        """Restore orchestrator from snapshot; rehydrates DB handles on next step."""
+        self.validate_snapshot(data)
+        self._run_id = data["run_id"]
+        self._state = data["state"]
+        self._context = dict(data["context"])
+        self._receipts = []
+        for raw in data.get("receipts", []):
+            self._receipts.append(
+                LifecycleReceipt(
+                    receipt_id=raw["receipt_id"],
+                    timestamp=raw["timestamp"],
+                    run_id=raw["run_id"],
+                    pr_number=raw["pr_number"],
+                    branch=raw["branch"],
+                    from_state=raw["from_state"],
+                    to_state=raw["to_state"],
+                    action=raw["action"],
+                    result=raw["result"],
+                    evidence=dict(raw.get("evidence", {})),
+                )
+            )
+        sc = data.get("scorecard", {})
+        self._scorecard = AutonomyScorecard(
+            transitions_completed=sc.get("transitions_completed", 0),
+            transitions_failed=sc.get("transitions_failed", 0),
+            receipts_count=sc.get("receipts_count", 0),
+            autonomous_actions_taken=sc.get("autonomous_actions_taken", 0),
+            approval_gates_encountered=sc.get("approval_gates_encountered", 0),
+            approval_denied_count=sc.get("approval_denied_count", 0),
+            replay_performed=sc.get("replay_performed", False),
+            cleanup_performed=sc.get("cleanup_performed", False),
+            cleanup_idempotent_calls=sc.get("cleanup_idempotent_calls", 0),
+            terminal_state=sc.get("terminal_state", ""),
+            stages_visited=list(sc.get("stages_visited", [])),
+        )
+        self._provisioner = None
+        self._manager = None
+        self._analytics = None
+
+    def _rehydrate_runtime(self) -> None:
+        """Rebuild provisioner/manager after process restart from persisted PR DB state."""
+        if self._manager is not None:
+            return
+        db_id = self._context.get("db_id")
+        state_path = self._context.get("provisioner_state_path") or self._config.provisioner_state_path
+        if not db_id or not state_path:
+            return
+        db_config = PRDatabaseConfig(
+            pr_number=self._config.pr_number,
+            branch=self._config.branch,
+            test_mode=self._config.test_mode,
+            state_file=state_path,
+        )
+        self._provisioner = PRDatabaseProvisioner(db_config)
+        self._manager = self._provisioner.get_manager(db_id)
+        self._analytics = ExperimentAnalytics(self._manager)
+        self._boundary = ApprovalBoundary(self._manager)
+
     def _emit_receipt(
         self,
         from_state: str,
@@ -332,6 +448,7 @@ class PRLifecycleOrchestrator:
         if PRLifecycle.is_terminal(self._state):
             raise RuntimeError(f"Orchestrator already terminal: {self._state}")
 
+        self._rehydrate_runtime()
         stage = self._state
         if self._check_injected_failure(stage):
             self._fail(stage, f"{stage}_action", f"injected_failure_at_{stage}", {})
@@ -348,10 +465,28 @@ class PRLifecycleOrchestrator:
             )
         elif stage == PRLifecycleState.PROVISION_PERSISTENCE.value:
             try:
+                if self._context.get("db_id") and self._context.get("provisioner_state_path"):
+                    self._rehydrate_runtime()
+                    record_db = self._context["db_id"]
+                    self._advance(
+                        PRLifecycleState.HEALTH_CHECK.value,
+                        "provision_persistence_idempotent",
+                        {"db_id": record_db, "idempotent": True},
+                    )
+                    return self._receipts[-1]
+                state_path = (
+                    self._config.provisioner_state_path
+                    or self._context.get("provisioner_state_path")
+                    or os.path.join(
+                        tempfile.gettempdir(),
+                        f"prdb_state_{self._config.pr_number}_{self._run_id}.json",
+                    )
+                )
                 db_config = PRDatabaseConfig(
                     pr_number=self._config.pr_number,
                     branch=self._config.branch,
                     test_mode=self._config.test_mode,
+                    state_file=state_path,
                 )
                 self._provisioner = PRDatabaseProvisioner(db_config)
                 record = self._provisioner.provision()
@@ -360,6 +495,7 @@ class PRLifecycleOrchestrator:
                 self._analytics = ExperimentAnalytics(self._manager)
                 self._boundary = ApprovalBoundary(self._manager)
                 self._context["db_id"] = record.db_id
+                self._context["provisioner_state_path"] = self._provisioner.state_path
                 self._advance(
                     PRLifecycleState.HEALTH_CHECK.value,
                     "provision_persistence",
@@ -376,6 +512,14 @@ class PRLifecycleOrchestrator:
                 self._advance(PRLifecycleState.EXECUTE.value, "health_check", health)
         elif stage == PRLifecycleState.EXECUTE.value:
             try:
+                if self._context.get("experiment_id"):
+                    exp_id = self._context["experiment_id"]
+                    self._advance(
+                        PRLifecycleState.OBSERVE.value,
+                        "execute_experiment_idempotent",
+                        {"experiment_id": exp_id, "idempotent": True},
+                    )
+                    return self._receipts[-1]
                 exp_id = self._execute_local_experiment()
                 self._context["experiment_id"] = exp_id
                 self._scorecard.autonomous_actions_taken += 1
@@ -409,6 +553,14 @@ class PRLifecycleOrchestrator:
                 self._fail(stage, "compare_runs", str(exc), {})
         elif stage == PRLifecycleState.GENERATE_PROOF.value:
             try:
+                if self._context.get("proof_sha256"):
+                    proof_hash = self._context["proof_sha256"]
+                    self._advance(
+                        PRLifecycleState.GENERATE_NEXT_ACTION.value,
+                        "generate_proof_idempotent",
+                        {"proof_sha256": proof_hash, "idempotent": True},
+                    )
+                    return self._receipts[-1]
                 proof_hash = self._generate_proof()
                 self._context["proof_sha256"] = proof_hash
                 self._advance(PRLifecycleState.GENERATE_NEXT_ACTION.value, "generate_proof", {"proof_sha256": proof_hash})
@@ -416,6 +568,13 @@ class PRLifecycleOrchestrator:
                 self._fail(stage, "generate_proof", str(exc), {})
         elif stage == PRLifecycleState.GENERATE_NEXT_ACTION.value:
             try:
+                if self._context.get("next_action_id"):
+                    self._advance(
+                        PRLifecycleState.APPLY_APPROVAL_BOUNDARY.value,
+                        "generate_next_action_idempotent",
+                        {"next_action_id": self._context["next_action_id"], "idempotent": True},
+                    )
+                    return self._receipts[-1]
                 exp_id = self._context["experiment_id"]
                 generator = NextActionGenerator(self._manager, self._analytics)
                 outcome = {"status": "completed", "source": "pr_lifecycle_local"}
@@ -433,6 +592,13 @@ class PRLifecycleOrchestrator:
             self._apply_approval_boundary()
         elif stage == PRLifecycleState.REPLAY.value:
             try:
+                if self._context.get("replay_runs") is not None:
+                    self._advance(
+                        PRLifecycleState.READY_FOR_CLOSE.value,
+                        "replay_from_evidence_idempotent",
+                        {"replay_runs": self._context["replay_runs"], "idempotent": True},
+                    )
+                    return self._receipts[-1]
                 exp_id = self._context["experiment_id"]
                 replayer = ReplayEngine(self._manager, self._analytics)
                 replay = replayer.replay(exp_id)
@@ -479,6 +645,11 @@ class PRLifecycleOrchestrator:
         execute_fn: Optional[Callable[[ExperimentManager, ExperimentAnalytics], str]] = None,
     ) -> PRLifecycleResult:
         """Run until terminal state. Optional execute_fn overrides local EXECUTE."""
+        if getattr(self, "_resilience_wrapped", False):
+            raise RuntimeError(
+                "orchestrator.run() disabled under ResilientPRLifecycleRunner; "
+                "use run_to_completion() or step_resilient()"
+            )
         self._execute_override = execute_fn
         while not PRLifecycle.is_terminal(self._state):
             self.step()
@@ -535,7 +706,11 @@ class PRLifecycleOrchestrator:
             "comparison_n": self._context.get("comparison", {}).get("n_comparisons", 0),
             "run_id": self._run_id,
         }
-        raw = json.dumps(proof_payload, sort_keys=True, default=str).encode()
+        hash_payload = dict(proof_payload)
+        if self._config.test_mode:
+            hash_payload.pop("run_id", None)
+            hash_payload["experiment_id"] = f"deterministic-pr-{self._config.pr_number}"
+        raw = json.dumps(hash_payload, sort_keys=True, default=str).encode()
         proof_hash = hashlib.sha256(raw).hexdigest()
         proof_payload["proof_sha256"] = proof_hash
         self._manager.add_proof(exp_id, proof_payload)

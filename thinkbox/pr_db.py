@@ -53,11 +53,13 @@ class PRDatabaseConfig:
         branch: str = "",
         ttl_hours: int = PR_DB_TTL_HOURS,
         test_mode: bool = False,
+        state_file: Optional[str] = None,
     ) -> None:
         self.pr_number = pr_number
         self.branch = branch
         self.ttl_hours = ttl_hours
         self.test_mode = test_mode
+        self.state_file = state_file
 
 
 class PRDatabaseRecord:
@@ -105,15 +107,24 @@ class PRDatabaseProvisioner:
     def __init__(self, config: PRDatabaseConfig) -> None:
         self._config = config
         self._records: dict[str, PRDatabaseRecord] = {}
-        self._state_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, prefix="prdb_"
-        )
-        self._state_file.close()
+        if config.state_file:
+            self._state_path = config.state_file
+        else:
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False, prefix="prdb_"
+            )
+            tmp.close()
+            self._state_path = tmp.name
         self._load_state()
+
+    @property
+    def state_path(self) -> str:
+        """Persisted JSON path for crash-resume across orchestrator processes."""
+        return self._state_path
 
     def _load_state(self) -> None:
         try:
-            with open(self._state_file.name, "r") as f:
+            with open(self._state_path, "r") as f:
                 data = json.load(f)
                 for db_id, record in data.items():
                     self._records[db_id] = PRDatabaseRecord(**record)
@@ -124,7 +135,7 @@ class PRDatabaseProvisioner:
         data = {
             db_id: record.model_dump() for db_id, record in self._records.items()
         }
-        with open(self._state_file.name, "w") as f:
+        with open(self._state_path, "w") as f:
             json.dump(data, f, indent=2)
 
     def _is_expired(self, record: PRDatabaseRecord) -> bool:
