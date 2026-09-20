@@ -830,3 +830,15 @@ python3 -m unittest \
 
 ### Tags
 - PR_PIPELINE_DASHBOARD_MERGE_GATE
+
+### Intelligence layer (v2 — merge readiness + audit + policy + correlation + fleet checkpoint)
+
+| Capability | Endpoint / module |
+|------------|-------------------|
+| Merge readiness score (0–100, rule-based) | `GET .../pr/{n}/merge-readiness`, `thinkbox/pipeline_readiness.py` |
+| Founder audit packet + HMAC | `GET .../pr/{n}/audit-packet`, `thinkbox/pipeline_audit_packet.py` |
+| Merge policy gate on request-merge | `thinkbox/pipeline_merge_policy.py` → `merge_policy_denied` receipts |
+| Blast-radius correlation | `GET .../correlation/blast-radius` |
+| Fleet checkpoint attest/verify | `POST .../checkpoint/attest`, `GET .../checkpoint/verify` |
+
+Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
