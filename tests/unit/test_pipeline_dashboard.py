@@ -210,6 +210,21 @@ class TestAdmissionDenialLedger(unittest.TestCase):
 
 
 class TestPrReceiptIntegrity(unittest.TestCase):
+    def test_pr_detail_includes_state_machine(self) -> None:
+        agg, _, _, _ = build_hermetic_pipeline_dashboard()
+        store = agg._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="r",
+            pr_number=88,
+            branch="b",
+            from_state="A",
+            to_state="LEARN",
+            action="learn",
+            result="success",
+        )
+        detail = agg.pr_detail(88)
+        self.assertIn("state_machine", detail)
+
     def test_integrity_reports_chain_and_hashes(self) -> None:
         aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
         store = aggregator._store  # noqa: SLF001
