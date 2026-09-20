@@ -31,6 +31,20 @@ curl -sS -X POST -H "X-API-Key: $KEY" \
   -d '{"branch":"feat/example"}'
 ```
 
+## Staging live drill (PR #110)
+
+```bash
+export THINKBOX_PIPELINE_STAGING=1
+export THINKBOX_LIVE_DRILL_ENABLED=1
+export THINKBOX_ORG_MEMORY_DB=/path/to/staging/org_memory_receipts.db
+# plus WEBHOOK_SECRET, THINKBOX_FOUNDER_MERGE_PROOF_KEY, governance tokens
+
+python3 experiments/pipeline_live_drill_staging.py
+curl -sS -H "X-API-Key: $KEY" http://localhost:8000/api/v1/control-plane/pipeline/live/preflight
+```
+
+Deliver GitHub webhooks with `X-GitHub-Delivery` and optional `X-Thinkbox-Live-Drill-Correlation`.
+
 ## Four-State
 
-LIVE_VERIFIED and PRODUCTION_READY remain blocked until a documented live exercise with production tokens (not performed in CI).
+`LIVE_VERIFIED` requires a persisted `live_verification_attestation` receipt with `live_verified: true` — not hermetic tests alone. `PRODUCTION_READY` remains blocked until founder sign-off.
