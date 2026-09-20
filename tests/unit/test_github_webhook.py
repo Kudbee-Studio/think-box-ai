@@ -175,6 +175,20 @@ class TestGitHubWebhookLifecycleService(unittest.TestCase):
     and bool(os.getenv("WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET")),
     "live webhook test disabled (set THINKBOX_GITHUB_WEBHOOK_LIVE_TEST=1 and WEBHOOK_SECRET)",
 )
+class TestGitHubWebhookReplay(unittest.TestCase):
+    def test_duplicate_delivery_suppressed(self) -> None:
+        from thinkbox.pipeline_webhook_replay import reset_replay_cache
+
+        reset_replay_cache()
+        svc = build_hermetic_github_webhook_service(_HERMETIC_SECRET)
+        payload = {"zen": "replay-test"}
+        body, sig = _signed_body(_HERMETIC_SECRET, payload)
+        first = svc.process(body, "ping", sig, delivery_id="delivery-abc")
+        second = svc.process(body, "ping", sig, delivery_id="delivery-abc")
+        self.assertEqual(first.detail, "ping")
+        self.assertEqual(second.detail, "delivery_replay_suppressed")
+
+
 class TestGitHubWebhookLiveOptional(unittest.TestCase):
     def test_live_secret_roundtrip(self) -> None:
         secret = os.getenv("WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET") or ""
