@@ -122,24 +122,46 @@ class PRLifecycleEventCoordinator:
     def merge_attempts(self) -> list[dict[str, Any]]:
         return list(self._merge_attempts)
 
-    def handle_github_event(self, event: GitHubPREvent) -> dict[str, Any]:
+    def handle_github_event(
+        self,
+        event: GitHubPREvent,
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         action = event.action.lower()
         if action == GitHubPRAction.CLOSED.value:
             return self._record_external(
                 event.pr_number,
                 "github_pr_closed",
                 {"action": action, "branch": event.branch},
+                evidence_label=evidence_label,
             )
         if action in (
             GitHubPRAction.OPENED.value,
-            GitHubPRAction.SYNCHRONIZE.value,
             GitHubPRAction.REOPENED.value,
             GitHubPRAction.READY_FOR_REVIEW.value,
         ):
-            return self._start_or_resume(event.pr_number, event.branch, source=f"github:{action}")
+            return self._start_or_resume(
+                event.pr_number,
+                event.branch,
+                source=f"github:{action}",
+                evidence_label=evidence_label,
+            )
+        if action == GitHubPRAction.SYNCHRONIZE.value:
+            return self._start_or_resume(
+                event.pr_number,
+                event.branch,
+                source=f"github:{action}",
+                evidence_label=evidence_label,
+            )
         return {"handled": False, "reason": f"ignored_action:{action}"}
 
-    def handle_ci_event(self, event: CIStatusEvent) -> dict[str, Any]:
+    def handle_ci_event(
+        self,
+        event: CIStatusEvent,
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         conclusion = event.conclusion.lower()
         active = self._runs_by_pr.get(event.pr_number)
         if active is None:
@@ -158,12 +180,21 @@ class PRLifecycleEventCoordinator:
                 "conclusion": conclusion,
                 "ci_run_id": event.run_id,
             },
+            evidence_label=evidence_label,
         )
 
         if conclusion == CIConclusion.FAILURE.value:
-            return self._fail_active(event.pr_number, f"ci_failure:{event.workflow}")
+            return self._fail_active(
+                event.pr_number,
+                f"ci_failure:{event.workflow}",
+                evidence_label=evidence_label,
+            )
         if conclusion == CIConclusion.SUCCESS.value:
-            return self._resume_active(event.pr_number, source=f"ci_success:{event.workflow}")
+            return self._resume_active(
+                event.pr_number,
+                source=f"ci_success:{event.workflow}",
+                evidence_label=evidence_label,
+            )
         return {"handled": True, "action": "ci_pending_noop", "conclusion": conclusion}
 
     def request_merge(self, pr_number: int) -> dict[str, Any]:
@@ -196,10 +227,17 @@ class PRLifecycleEventCoordinator:
             outcomes.append(self.handle_ci_event(ev))
         return outcomes
 
-    def _start_or_resume(self, pr_number: int, branch: str, source: str) -> dict[str, Any]:
+    def _start_or_resume(
+        self,
+        pr_number: int,
+        branch: str,
+        source: str,
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         active = self._runs_by_pr.get(pr_number)
         if active and not active.terminal:
-            return self._resume_active(pr_number, source=source)
+            return self._resume_active(pr_number, source=source, evidence_label=evidence_label)
 
         cfg = PRLifecycleConfig(
             pr_number=pr_number,
@@ -225,11 +263,18 @@ class PRLifecycleEventCoordinator:
             action="lifecycle_start",
             result="success",
             evidence={"source": source},
+            evidence_label=evidence_label,
         )
         active.runner.step_resilient()
         return {"handled": True, "action": "started", "run_id": active.run_id}
 
-    def _resume_active(self, pr_number: int, source: str) -> dict[str, Any]:
+    def _resume_active(
+        self,
+        pr_number: int,
+        source: str,
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         active = self._runs_by_pr.get(pr_number)
         if active is None:
             return {"handled": False, "reason": "no_active_run"}
@@ -251,7 +296,13 @@ class PRLifecycleEventCoordinator:
             "run_id": active.run_id,
         }
 
-    def _fail_active(self, pr_number: int, reason: str) -> dict[str, Any]:
+    def _fail_active(
+        self,
+        pr_number: int,
+        reason: str,
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         active = self._runs_by_pr.get(pr_number)
         if active is None:
             return {"handled": False, "reason": "no_active_run"}
@@ -261,7 +312,14 @@ class PRLifecycleEventCoordinator:
         active.result = active.runner._finalize_result(error=reason)
         return {"handled": True, "action": "failed", "reason": reason, "run_id": active.run_id}
 
-    def _record_external(self, pr_number: int, action: str, evidence: dict[str, Any]) -> dict[str, Any]:
+    def _record_external(
+        self,
+        pr_number: int,
+        action: str,
+        evidence: dict[str, Any],
+        *,
+        evidence_label: str = "simulated",
+    ) -> dict[str, Any]:
         run_id = (
             self._runs_by_pr[pr_number].run_id if pr_number in self._runs_by_pr else f"external_{pr_number}"
         )
@@ -274,6 +332,7 @@ class PRLifecycleEventCoordinator:
             action=action,
             result="success",
             evidence=evidence,
+            evidence_label=evidence_label,
         )
         return {"handled": True, "action": action}
 

@@ -915,12 +915,18 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Demo: `scripts/demo_in_10_box_mercury_v2.sh`
     - Tag: `THINK_BOX_BOUND`
 13. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
-14. **PR106 — Org-memory lifecycle receipts + CI/PR event hooks:** `feat/lifecycle-org-memory-ci-hooks` 🔨 DRAFT
+14. **PR106 — Org-memory lifecycle receipts + CI/PR event hooks:** `feat/lifecycle-org-memory-ci-hooks` ✅ **MERGED** (GitHub #106)
     - Modules: `thinkbox/org_memory_receipts.py`, `thinkbox/pr_lifecycle_event_hooks.py`
     - API: `GET /api/v1/control-plane/lifecycle/receipts/pr/{pr_number}`
     - Dashboard stub: `public/control-plane/lifecycle_receipts.html`
     - Tests: `tests/unit/test_org_memory_lifecycle.py` (hermetic); `test_pr_lifecycle` + stress suites unchanged
     - Tag: `PR_LIFECYCLE_ORG_MEMORY` (builds on merged PR #105 `feat/pr-lifecycle-stress-resilience`)
+15. **PR107 — Signed GitHub webhook + Actions status behind AdmissionGate:** `feat/lifecycle-github-webhook-admission` 🔨 DRAFT
+    - Modules: `thinkbox/github_webhook.py`, `backend/api/v1/github_webhook.py`
+    - API: `POST /api/v1/github/webhook`, `GET /api/v1/github/webhook/health`
+    - Docs: `docs/guides/github_webhook.md` (`WEBHOOK_SECRET` setup)
+    - Tests: `tests/unit/test_github_webhook.py` (hermetic HMAC fixtures; live optional off by default)
+    - Tag: `PR_LIFECYCLE_GITHUB_WEBHOOK` (builds on merged PR #106)
 
 ## THINK Burst Protocol — Operational Note
 

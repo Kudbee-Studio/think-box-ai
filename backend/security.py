@@ -52,7 +52,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: Any, api_keys: set[str] | None = None):
         super().__init__(app)
         self._api_keys = api_keys or set()
-        self._exempt_paths = {"/health", "/docs", "/openapi.json", "/favicon.ico"}
+        self._exempt_paths = {
+            "/health",
+            "/docs",
+            "/openapi.json",
+            "/favicon.ico",
+            "/api/v1/github/webhook",
+            "/api/v1/github/webhook/health",
+        }
 
     def _is_exempt(self, path: str) -> bool:
         return path in self._exempt_paths

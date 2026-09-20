@@ -90,6 +90,9 @@ app.include_router(box_mercury_router)
 from backend.api.v1.lifecycle_receipts import lifecycle_receipts_router
 app.include_router(lifecycle_receipts_router)
 
+from backend.api.v1.github_webhook import github_webhook_router
+app.include_router(github_webhook_router)
+
 
 @app.on_event("startup")
 async def startup() -> None:
