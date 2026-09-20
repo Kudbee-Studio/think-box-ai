@@ -81,6 +81,13 @@ SUCCESS_TRANSITIONS["BLOCKED"] = []
 
 TERMINAL_STATES = {"LEARN", "FAILED", "BLOCKED"}
 
+# Success-path states that require a recorded approval grant (no snapshot bypass).
+_POST_APPROVAL_STATES = frozenset(
+    s
+    for s in LINEAR_SUCCESS
+    if LINEAR_SUCCESS.index(s) > LINEAR_SUCCESS.index("APPLY_APPROVAL_BOUNDARY")
+)
+
 GATED_CLOSE_ACTIONS = (
     "merge",
     "deploy_production",
@@ -300,8 +307,38 @@ class PRLifecycleOrchestrator:
             "scorecard": self._scorecard.to_dict(),
         }
 
+    @classmethod
+    def validate_snapshot(cls, data: dict[str, Any]) -> None:
+        """Fail-closed validation before restore (malformed / approval bypass)."""
+        if not isinstance(data, dict):
+            raise ValueError("snapshot must be a dict")
+        if "run_id" not in data:
+            raise ValueError("snapshot missing run_id")
+        state = data.get("state")
+        if state not in PR_LIFECYCLE_STATES:
+            raise ValueError(f"snapshot invalid state: {state}")
+        if PRLifecycle.is_terminal(state):
+            raise ValueError(f"cannot restore terminal snapshot state: {state}")
+        receipts_raw = data.get("receipts") or []
+        if receipts_raw:
+            last_to = receipts_raw[-1].get("to_state")
+            if last_to and last_to != state and last_to not in TERMINAL_STATES:
+                raise ValueError(
+                    f"snapshot state/receipt mismatch: state={state} last_receipt_to={last_to}"
+                )
+        if state in _POST_APPROVAL_STATES:
+            granted = any(
+                r.get("action") == "approval_granted" and r.get("result") == "success"
+                for r in receipts_raw
+            )
+            if not granted:
+                raise ValueError(
+                    f"snapshot bypass: state {state} requires prior approval_granted receipt"
+                )
+
     def restore_snapshot(self, data: dict[str, Any]) -> None:
         """Restore orchestrator from snapshot; rehydrates DB handles on next step."""
+        self.validate_snapshot(data)
         self._run_id = data["run_id"]
         self._state = data["state"]
         self._context = dict(data["context"])
@@ -608,6 +645,11 @@ class PRLifecycleOrchestrator:
         execute_fn: Optional[Callable[[ExperimentManager, ExperimentAnalytics], str]] = None,
     ) -> PRLifecycleResult:
         """Run until terminal state. Optional execute_fn overrides local EXECUTE."""
+        if getattr(self, "_resilience_wrapped", False):
+            raise RuntimeError(
+                "orchestrator.run() disabled under ResilientPRLifecycleRunner; "
+                "use run_to_completion() or step_resilient()"
+            )
         self._execute_override = execute_fn
         while not PRLifecycle.is_terminal(self._state):
             self.step()
@@ -664,7 +706,11 @@ class PRLifecycleOrchestrator:
             "comparison_n": self._context.get("comparison", {}).get("n_comparisons", 0),
             "run_id": self._run_id,
         }
-        raw = json.dumps(proof_payload, sort_keys=True, default=str).encode()
+        hash_payload = dict(proof_payload)
+        if self._config.test_mode:
+            hash_payload.pop("run_id", None)
+            hash_payload["experiment_id"] = f"deterministic-pr-{self._config.pr_number}"
+        raw = json.dumps(hash_payload, sort_keys=True, default=str).encode()
         proof_hash = hashlib.sha256(raw).hexdigest()
         proof_payload["proof_sha256"] = proof_hash
         self._manager.add_proof(exp_id, proof_payload)

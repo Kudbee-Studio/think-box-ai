@@ -220,6 +220,7 @@ class ResilientPRLifecycleRunner:
     def __init__(self, config: ResilienceConfig) -> None:
         self._config = config
         self._orch = PRLifecycleOrchestrator(config.base)
+        self._orch._resilience_wrapped = True  # noqa: SLF001 — fail-closed duplicate orchestration
         self._resilience_score = ResilienceScorecard()
         self._audit_log: list[dict[str, Any]] = []
         self._retry_counts: dict[str, int] = {b: 0 for b in BOUNDARY_STAGES}
@@ -357,12 +358,25 @@ class ResilientPRLifecycleRunner:
                 policy = policy or self._policy_for(boundary)
                 if not policy.retryable or self._retry_counts[boundary] > policy.max_retries:
                     self._resilience_score.retries_exhausted += 1
-                    self._orch._fail(
-                        boundary,
-                        f"{boundary}_transient",
-                        f"transient_failure_exhausted:{boundary}",
-                        {"retry_count": self._retry_counts[boundary], "policy": policy.boundary},
-                    )
+                    reason = f"transient_failure_exhausted:{boundary}"
+                    evidence = {
+                        "retry_count": self._retry_counts[boundary],
+                        "policy": policy.boundary,
+                    }
+                    if policy.exhausted_terminal == "BLOCKED":
+                        self._orch._block(
+                            boundary,
+                            f"{boundary}_transient",
+                            reason,
+                            evidence,
+                        )
+                    else:
+                        self._orch._fail(
+                            boundary,
+                            f"{boundary}_transient",
+                            reason,
+                            evidence,
+                        )
                     self._record_audit(
                         "transient_failure_exhausted",
                         {"boundary": boundary},

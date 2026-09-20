@@ -132,6 +132,7 @@ class TestIdempotency(unittest.TestCase):
         db_id = orch.context["db_id"]
         snap = orch.snapshot()
         snap["state"] = PRLifecycleState.PROVISION_PERSISTENCE.value
+        snap["receipts"] = snap["receipts"][:-1]
         orch.restore_snapshot(snap)
         orch.step()
         self.assertEqual(orch.context["db_id"], db_id)
@@ -213,6 +214,81 @@ class TestAuditAndScorecard(unittest.TestCase):
         self.assertTrue(v.test_verified)
         self.assertFalse(v.live_verified)
         self.assertFalse(v.production_ready)
+
+
+class TestAdversarialSnapshotAndOrchestration(unittest.TestCase):
+    def test_malformed_snapshot_rejected(self) -> None:
+        orch = PRLifecycleOrchestrator(_happy_base(pr_number=9951))
+        with self.assertRaises(ValueError):
+            orch.restore_snapshot({"state": "NOT_A_STATE", "run_id": "x", "context": {}, "receipts": []})
+
+    def test_approval_bypass_snapshot_rejected(self) -> None:
+        orch = PRLifecycleOrchestrator(_happy_base(pr_number=9952))
+        while orch.current_state != PRLifecycleState.APPLY_APPROVAL_BOUNDARY.value:
+            orch.step()
+        snap = orch.snapshot()
+        snap["state"] = PRLifecycleState.REPLAY.value
+        snap["context"]["replay_runs"] = 1
+        with self.assertRaises(ValueError):
+            orch.restore_snapshot(snap)
+
+    def test_resilient_blocks_nested_orchestrator_run(self) -> None:
+        r_cfg = ResilienceConfig(base=_happy_base(pr_number=9953), checkpoint_dir=tempfile.mkdtemp())
+        runner = ResilientPRLifecycleRunner(r_cfg)
+        runner.orchestrator.step()
+        with self.assertRaises(RuntimeError):
+            runner.orchestrator.run()
+
+    def test_deterministic_proof_same_pr_and_metrics(self) -> None:
+        metrics = [
+            {
+                "throughput": 5.0,
+                "p50_latency": 0.1,
+                "p95_latency": 0.2,
+                "p99_latency": 0.3,
+                "error_rate": 0.0,
+                "iteration_count": 1,
+            },
+            {
+                "throughput": 6.0,
+                "p50_latency": 0.1,
+                "p95_latency": 0.2,
+                "p99_latency": 0.3,
+                "error_rate": 0.0,
+                "iteration_count": 2,
+            },
+        ]
+        cfg_a = _happy_base(pr_number=9954)
+        cfg_a.deterministic_metrics = metrics
+        cfg_b = _happy_base(pr_number=9954)
+        cfg_b.deterministic_metrics = metrics
+        p1 = PRLifecycleOrchestrator(cfg_a).run().context["proof_sha256"]
+        p2 = PRLifecycleOrchestrator(cfg_b).run().context["proof_sha256"]
+        self.assertEqual(p1, p2)
+
+    def test_crash_resume_every_checkpoint_no_duplicate_experiment(self) -> None:
+        ck = tempfile.mkdtemp()
+        r_cfg = ResilienceConfig(base=_happy_base(pr_number=9955), checkpoint_dir=ck)
+        runner = ResilientPRLifecycleRunner(r_cfg)
+        run_id = runner.orchestrator.run_id
+        while runner.orchestrator.current_state not in (
+            PRLifecycleState.LEARN.value,
+            PRLifecycleState.FAILED.value,
+            PRLifecycleState.BLOCKED.value,
+        ):
+            runner.step_resilient()
+            if runner.orchestrator.current_state in (
+                PRLifecycleState.LEARN.value,
+                PRLifecycleState.FAILED.value,
+                PRLifecycleState.BLOCKED.value,
+            ):
+                break
+            resumed = ResilientPRLifecycleRunner.resume_from_checkpoint(r_cfg, run_id)
+            self.assertEqual(
+                resumed.orchestrator.context.get("experiment_id"),
+                runner.orchestrator.context.get("experiment_id"),
+            )
+        self.assertEqual(runner.orchestrator.current_state, PRLifecycleState.LEARN.value)
 
 
 class TestResilientHappyPath(unittest.TestCase):
