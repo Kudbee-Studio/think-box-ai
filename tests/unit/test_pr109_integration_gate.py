@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import unittest
 
@@ -20,9 +21,12 @@ class TestPR109IntegrationGate(unittest.TestCase):
             "tests.unit.test_org_memory_lifecycle",
             "tests.unit.test_pr109_contract",
             "tests.unit.test_pipeline_e2e_hermetic",
+            "tests.unit.test_pipeline_kill_switch",
+            "tests.unit.test_pipeline_webhook_replay",
             "-q",
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=".")
+        env = {**os.environ, "THINKBOX_GITHUB_WEBHOOK_LIVE_TEST": "0"}
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=".", env=env)
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
 
 

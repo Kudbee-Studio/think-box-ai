@@ -170,11 +170,6 @@ class TestGitHubWebhookLifecycleService(unittest.TestCase):
         self.assertEqual(blocked[0]["result"], "blocked")
 
 
-@unittest.skipUnless(
-    os.getenv("THINKBOX_GITHUB_WEBHOOK_LIVE_TEST", "").lower() in ("1", "true", "yes")
-    and bool(os.getenv("WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET")),
-    "live webhook test disabled (set THINKBOX_GITHUB_WEBHOOK_LIVE_TEST=1 and WEBHOOK_SECRET)",
-)
 class TestGitHubWebhookReplay(unittest.TestCase):
     def test_duplicate_delivery_suppressed(self) -> None:
         from thinkbox.pipeline_webhook_replay import reset_replay_cache
@@ -189,6 +184,11 @@ class TestGitHubWebhookReplay(unittest.TestCase):
         self.assertEqual(second.detail, "delivery_replay_suppressed")
 
 
+@unittest.skipUnless(
+    os.getenv("THINKBOX_GITHUB_WEBHOOK_LIVE_TEST", "").lower() in ("1", "true", "yes")
+    and bool(os.getenv("WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET")),
+    "live webhook test disabled (set THINKBOX_GITHUB_WEBHOOK_LIVE_TEST=1 and WEBHOOK_SECRET)",
+)
 class TestGitHubWebhookLiveOptional(unittest.TestCase):
     def test_live_secret_roundtrip(self) -> None:
         secret = os.getenv("WEBHOOK_SECRET") or os.getenv("GITHUB_WEBHOOK_SECRET") or ""
