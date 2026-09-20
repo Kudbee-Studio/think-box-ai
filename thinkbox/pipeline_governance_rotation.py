@@ -1,4 +1,8 @@
-"""Governance token rotation safeguards (hermetic)."""
+"""Governance token rotation staging helpers (hermetic library hooks).
+
+Does not perform runtime fleet rotation or automatic token rollover in the
+control-plane API — operators rotate signing keys via deployment configuration.
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,10 @@
 - Never enable GitHub merge from this control plane.
 - Founder merge requires governance token + `THINKBOX_FOUNDER_MERGE_PROOF_KEY` PR-bound proof.
 - Quarantine blocks `request-merge` fail-closed.
+- Quarantine state is loaded from the latest `pipeline_quarantine` receipt (action-scoped), not a global receipt window.
+- Webhook replay dedupe uses org-memory delivery fingerprints when `THINKBOX_ORG_MEMORY_DB` is shared; do not rely on in-process cache in multi-worker production.
+- `THINKBOX_PIPELINE_DEPLOYMENT_ENV=staging|production` requires a non-default `THINKBOX_FOUNDER_MERGE_PROOF_KEY`.
+- `pipeline_state_machine` output is advisory unless explicitly enforced by a caller.
 
 ## Health checks
 

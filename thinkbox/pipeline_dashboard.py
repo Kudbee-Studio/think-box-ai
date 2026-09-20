@@ -290,16 +290,15 @@ class PipelineQuarantineController:
         self._state = PipelineQuarantineState()
 
     def read(self) -> dict[str, Any]:
-        rows = self._store.query(limit=50)
-        for row in rows:
-            if str(row.get("action") or "") == "pipeline_quarantine":
-                evidence = row.get("evidence") or {}
-                self._state = PipelineQuarantineState(
-                    quarantined=bool(evidence.get("quarantined")),
-                    reason=str(evidence.get("reason") or ""),
-                    updated_at=str(row.get("timestamp") or ""),
-                )
-                break
+        rows = self._store.query_by_action("pipeline_quarantine", limit=1)
+        if rows:
+            row = rows[0]
+            evidence = row.get("evidence") or {}
+            self._state = PipelineQuarantineState(
+                quarantined=bool(evidence.get("quarantined")),
+                reason=str(evidence.get("reason") or ""),
+                updated_at=str(row.get("timestamp") or ""),
+            )
         return self._state.to_dict()
 
     def set_quarantine(
@@ -324,7 +323,10 @@ class PipelineQuarantineController:
                 **self._state.to_dict(),
             }
         ts = datetime.now(timezone.utc).isoformat()
-        self._store.append_lifecycle(
+        from thinkbox.pipeline_store_lock import append_pipeline_lifecycle
+
+        append_pipeline_lifecycle(
+            self._store,
             run_id="pipeline_quarantine",
             pr_number=0,
             branch="control-plane",
@@ -571,7 +573,10 @@ class FounderGatedMergeService:
                 }
             )
             if not pol.allowed:
-                self._store.append_lifecycle(
+                from thinkbox.pipeline_store_lock import append_pipeline_lifecycle
+
+                append_pipeline_lifecycle(
+                    self._store,
                     run_id=f"merge_policy_{pr_number}",
                     pr_number=pr_number,
                     branch=branch,
@@ -624,20 +629,20 @@ class FounderGatedMergeService:
         }
         if idem_key:
             queue_evidence["idempotency_key"] = idem_key
-        from thinkbox.pipeline_store_lock import serialized_org_memory_write
+        from thinkbox.pipeline_store_lock import append_pipeline_lifecycle
 
-        with serialized_org_memory_write():
-            receipt = self._store.append_lifecycle(
-                run_id=self._run_id_for_pr(pr_number),
-                pr_number=pr_number,
-                branch=resolved_branch,
-                from_state="READY_FOR_CLOSE",
-                to_state="READY_FOR_CLOSE",
-                action="founder_merge_requested",
-                result="queued",
-                evidence_label="simulated",
-                evidence=queue_evidence,
-            )
+        receipt = append_pipeline_lifecycle(
+            self._store,
+            run_id=self._run_id_for_pr(pr_number),
+            pr_number=pr_number,
+            branch=resolved_branch,
+            from_state="READY_FOR_CLOSE",
+            to_state="READY_FOR_CLOSE",
+            action="founder_merge_requested",
+            result="queued",
+            evidence_label="simulated",
+            evidence=queue_evidence,
+        )
         return FounderMergeRequestResult(
             http_status=200,
             admitted=True,
@@ -672,7 +677,10 @@ class FounderGatedMergeService:
         branch: str,
         decision: AdmissionDecision,
     ) -> None:
-        self._store.append_lifecycle(
+        from thinkbox.pipeline_store_lock import append_pipeline_lifecycle
+
+        append_pipeline_lifecycle(
+            self._store,
             run_id=f"merge_denied_{pr_number}",
             pr_number=pr_number,
             branch=branch,
