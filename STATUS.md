@@ -847,7 +847,7 @@ Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory
 
 **Status:** Draft  
 **Branch:** `feat/pipeline-control-plane-pr109` (from PR #108 lineage)  
-**PR:** (open on push)
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/109 (base: `feat/pipeline-dashboard-admission-merge-gate`)
 
 ### Scope
 
