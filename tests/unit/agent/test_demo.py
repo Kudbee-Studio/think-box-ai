@@ -1,34 +1,74 @@
-"""Tests for Demo (commit 10: demo-in-60s)."""
+"""Tests for agent control-plane demo (subprocess-safe, repair #4)."""
 
+from __future__ import annotations
+
+import subprocess
 import sys
-import types
 import unittest
-from types import SimpleNamespace
+from pathlib import Path
 
-sys.modules["grpc"] = types.ModuleType("grpc")
-sys.modules["grpc.aio"] = types.ModuleType("grpc.aio")
-sys.modules["google.protobuf"] = types.ModuleType("google.protobuf")
-sys.modules["thinkbox.agent.protocol"] = types.ModuleType("protocol")
-sys.modules["thinkbox.agent.protocol"].governance_pb2 = types.ModuleType("governance_pb2")
-sys.modules["thinkbox.agent.protocol"].governance_pb2_grpc = types.ModuleType("governance_pb2_grpc")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2 = types.ModuleType("orchestration_pb2")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2_grpc = types.ModuleType("orchestration_pb2_grpc")
-
-# Import demo module to verify it loads without error
-from thinkbox.agent.control_plane import demo as demo_module
+from thinkbox.agent.control_plane.receipt import ActionReceipt
 
 
-class TestDemo(unittest.TestCase):
+class TestAgentControlPlaneDemoSubprocess(unittest.TestCase):
+    """Demo must run in a fresh interpreter; parent must stay unpolluted."""
 
-    def test_demo_imports(self):
+    def test_import_does_not_inject_demo_stubs(self) -> None:
+        before_grpc = sys.modules.get("grpc")
+        before_proto = sys.modules.get("thinkbox.agent.protocol")
+
+        import thinkbox.agent.control_plane.demo as demo_module  # noqa: F401
+
         self.assertTrue(hasattr(demo_module, "demo"))
+        after_grpc = sys.modules.get("grpc")
+        after_proto = sys.modules.get("thinkbox.agent.protocol")
+        self.assertIs(after_grpc, before_grpc)
+        self.assertIs(after_proto, before_proto)
 
-    def test_demo_runs(self):
-        """Demo should run without exception."""
-        try:
-            demo_module.demo()
-        except Exception as e:
-            self.fail(f"demo() raised {e}")
+    def test_receipt_module_real_after_demo_import(self) -> None:
+        import thinkbox.agent.control_plane.demo  # noqa: F401
+
+        receipt = ActionReceipt("CAPACITY", "a1", "OK")
+        self.assertEqual(receipt.action_type, "CAPACITY")
+
+    def test_module_main_exit_zero_subprocess(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, "-m", "thinkbox.agent.control_plane.demo"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr or proc.stdout)
+        self.assertIn("Demo complete — all 6 phases green.", proc.stdout)
+        self.assertIn("Admit AGENT_SPAWN: True", proc.stdout)
+
+    def test_demo_script_runs_subprocess(self) -> None:
+        path = Path("scripts/demo_in_10_agent_control_plane.sh")
+        self.assertTrue(path.exists())
+        self.assertTrue(path.stat().st_mode & 0o111)
+        proc = subprocess.run(
+            ["bash", str(path)],
+            cwd=Path.cwd(),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr or proc.stdout)
+        self.assertIn("Subprocess demo complete", proc.stdout)
+
+    def test_subprocess_parent_unpolluted_after_demo_run(self) -> None:
+        before_grpc = sys.modules.get("grpc")
+        proc = subprocess.run(
+            [sys.executable, "-m", "thinkbox.agent.control_plane.demo"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIs(sys.modules.get("grpc"), before_grpc)
+        receipt = ActionReceipt("SECRET", "a2", "OK")
+        self.assertEqual(receipt.status, "OK")
 
 
 if __name__ == "__main__":
