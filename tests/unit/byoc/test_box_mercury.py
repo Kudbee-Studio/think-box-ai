@@ -16,7 +16,7 @@ from experiments.box_mercury_live import (
     CALLS_PER_LEVEL,
     MODEL,
     BASE_URL,
-    run_level,
+    run_iteration,
 )
 
 
@@ -44,12 +44,12 @@ class TestRunLevel(unittest.TestCase):
     def setUp(self) -> None:
         self.semaphore = asyncio.Semaphore(2)
 
-    def test_run_level_returns_expected_keys(self) -> None:
+    def test_run_iteration_returns_expected_keys(self) -> None:
         provider = MagicMock()
         provider.complete = AsyncMock(return_value=MagicMock(content='{"answer": 1}', usage={"total_tokens": 10}))
 
         async def _run() -> dict:
-            result = await run_level(provider, self.semaphore, 2, 2)
+            result = await run_iteration(provider, self.semaphore, 2, 2)
             return result
 
         result = asyncio.run(_run()) if hasattr(__import__("asyncio"), "run") else {}
@@ -71,12 +71,12 @@ class TestRunLevel(unittest.TestCase):
         self.assertEqual(result["completed"], 2)
         self.assertEqual(result["errors"], 0)
 
-    def test_run_level_handles_errors(self) -> None:
+    def test_run_iteration_handles_errors(self) -> None:
         provider = MagicMock()
         provider.complete = AsyncMock(side_effect=RuntimeError("test error"))
 
         async def _run() -> dict:
-            result = await run_level(provider, self.semaphore, 1, 2)
+            result = await run_iteration(provider, self.semaphore, 1, 2)
             return result
 
         result = asyncio.run(_run()) if hasattr(__import__("asyncio"), "run") else {}
@@ -88,7 +88,7 @@ class TestRunLevel(unittest.TestCase):
         self.assertEqual(result["errors"], 2)
         self.assertIsNotNone(result["latencies"])
 
-    def test_run_level_respects_concurrency(self) -> None:
+    def test_run_iteration_respects_concurrency(self) -> None:
         active = {"n": 0, "max": 0}
 
         async def slow_complete(*a: Any, **kw: Any) -> MagicMock:
@@ -102,7 +102,7 @@ class TestRunLevel(unittest.TestCase):
         provider.complete = AsyncMock(side_effect=slow_complete)
 
         async def _run() -> dict:
-            result = await run_level(provider, asyncio.Semaphore(2), 2, 4)
+            result = await run_iteration(provider, asyncio.Semaphore(2), 2, 4)
             return result
 
         result = asyncio.run(_run()) if hasattr(__import__("asyncio"), "run") else {}
@@ -112,12 +112,12 @@ class TestRunLevel(unittest.TestCase):
 
         self.assertLessEqual(active["max"], 2)
 
-    def test_run_level_empty_results(self) -> None:
+    def test_run_iteration_empty_results(self) -> None:
         provider = MagicMock()
         provider.complete = AsyncMock(side_effect=RuntimeError("all fail"))
 
         async def _run() -> dict:
-            result = await run_level(provider, self.semaphore, 1, 1)
+            result = await run_iteration(provider, self.semaphore, 1, 1)
             return result
 
         result = asyncio.run(_run()) if hasattr(__import__("asyncio"), "run") else {}

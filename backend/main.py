@@ -81,6 +81,12 @@ app.include_router(api_v1)
 from backend.api.v1.router import api_v1_router
 app.include_router(api_v1_router)
 
+from backend.api.v1.box_status import box_status_router
+app.include_router(box_status_router)
+
+from backend.api.v1.box_mercury import box_mercury_router
+app.include_router(box_mercury_router)
+
 
 @app.on_event("startup")
 async def startup() -> None:

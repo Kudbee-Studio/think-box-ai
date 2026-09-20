@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Box Mercury-2 — Experiment Results</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e1e4ed;
+      --muted: #8b8fa3;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --blue: #3b82f6;
+      --cyan: #06b6d4;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; margin: 0; padding: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    h2 { margin: 0 0 16px 0; font-size: 16px; }
+    h3 { margin: 0 0 8px 0; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+    .item { padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; }
+    .item-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+    .item-value { font-size: 14px; color: var(--text); word-break: break-all; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 10px; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-verified { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-simulated { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-unknown { background: rgba(139,143,163,0.15); color: var(--muted); }
+    .timestamp { font-size: 11px; color: var(--muted); }
+    .probe-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .probe-fill { height: 100%; background: var(--blue); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h2>Box + Mercury-2 — Experiment Results</h2>
+
+  <div id="status" class="card">
+    <h3>Live Status</h3>
+    <div id="status-content">Loading...</div>
+  </div>
+
+  <div id="results" class="card">
+    <h3>Results by Concurrency</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Concurrency</th>
+          <th>Iterations</th>
+          <th>Calls</th>
+          <th>P50</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>RPS</th>
+          <th>Errors</th>
+        </tr>
+      </thead>
+      <tbody id="results-body">
+        <tr><td colspan="8" style="color:var(--muted)">No results yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="comparison" class="card" style="display:none;">
+    <h3>Comparison vs Previous Run</h3>
+    <div id="comparison-content"></div>
+  </div>
+
+  <div id="history" class="card">
+    <h3>Run History</h3>
+    <div id="history-content">Loading...</div>
+  </div>
+
+  <script>
+    const API = location.origin + '/api/v1';
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(`${API}/think/box-mercury/status`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        renderStatus(data);
+      } catch (e) {
+        document.getElementById('status-content').innerHTML = `<span style="color:var(--red)">Status unavailable: ${e}</span>`;
+      }
+    }
+
+    async function loadResults() {
+      try {
+        const res = await fetch(`${API}/think/box-mercury/results`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        renderResults(data);
+      } catch (e) {
+        document.getElementById('results-body').innerHTML = `<tr><td colspan="8" style="color:var(--yellow)">Results unavailable: ${e}</td></tr>`;
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch(`${API}/think/box-mercury/results?limit=10`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        renderHistory(data);
+      } catch (e) {
+        document.getElementById('history-content').innerHTML = `<span style="color:var(--muted)">History unavailable</span>`;
+      }
+    }
+
+    function renderStatus(data) {
+      const el = document.getElementById('status-content');
+      const badge = data.evidence_label === 'verified' ? 'badge-verified' : data.evidence_label === 'simulated' ? 'badge-simulated' : 'badge-unknown';
+      el.innerHTML = `
+        <div class="grid">
+          <div class="item"><div class="item-label">Substrate</div><div class="item-value">${data.substrate || 'unknown'}</div></div>
+          <div class="item"><div class="item-label">Model</div><div class="item-value">${data.model || 'unknown'}</div></div>
+          <div class="item"><div class="item-label">Box URL</div><div class="item-value">${data.box_url || 'none'}</div></div>
+          <div class="item"><div class="item-label">Evidence</div><div class="item-value"><span class="badge ${badge}">${data.evidence_label || 'unknown'}</span></div></div>
+        </div>
+      `;
+    }
+
+    function renderResults(data) {
+      const tbody = document.getElementById('results-body');
+      const results = data.results || data.aggregated_results || [];
+      if (!results.length) { tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted)">No results</td></tr>'; return; }
+      tbody.innerHTML = results.map(r => `
+        <tr>
+          <td>${r.concurrency}</td>
+          <td>${r.iterations || '-'}</td>
+          <td>${r.total_calls || r.calls || '-'}</td>
+          <td>${(r.p50_latency || 0).toFixed(3)}s</td>
+          <td>${(r.p95_latency || 0).toFixed(3)}s</td>
+          <td>${(r.p99_latency || 0).toFixed(3)}s</td>
+          <td>${(r.rps || 0).toFixed(1)}</td>
+          <td>${r.total_errors || r.errors || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderHistory(data) {
+      const el = document.getElementById('history-content');
+      const runs = data.runs || data.results || [];
+      if (!runs.length) { el.innerHTML = '<span style="color:var(--muted)">No run history</span>'; return; }
+      el.innerHTML = `<table><thead><tr><th>Timestamp</th><th>Calls</th><th>RPS</th><th>Proof</th></tr></thead><tbody>
+        ${runs.map(r => `<tr><td>${r.timestamp || '-'}</td><td>${r.global_calls || '-'}</td><td>${r.global_throughput_rps ? r.global_throughput_rps.toFixed(1) : '-'}</td><td style="font-size:10px">${(r.proof_sha256 || '').slice(0,16)}</td></tr>`).join('')}
+      </tbody></table>`;
+    }
+
+    loadStatus();
+    loadResults();
+    loadHistory();
+  </script>
+</body>
+</html>

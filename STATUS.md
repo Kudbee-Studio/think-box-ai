@@ -691,9 +691,9 @@ None in this PR.
 ### Tags
 - THINK_STASH_BOUND (parity with CONTROL_PLANE_BOUND)
 
-## PR #102 — Upstash Box + Inception Mercury-2 Live Experiment (DRAFT)
+## PR #102 — Upstash Box + Inception Mercury-2 Live Experiment (MERGED)
 
-**Status:** Draft
+**Status:** Merged
 **Branch:** `feat/byoc-box-mercury-live`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/102
 
@@ -710,6 +710,31 @@ None in this PR.
 ### Goal
 
 First live experiment executing on the Upstash Box substrate using Inception Mercury-2: substrate verification, throughput measurement at concurrency 1/4/8/16, proof artifact generation, dashboard state emit.
+
+### Tags
+- THINK_BOX_BOUND
+
+## PR #103 — Persistent Box + Mercury-2 Results v2 (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/byoc-box-mercury-live-v2`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/103
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | PR plan document | `docs/PR103_BOX_MERCURY_PERSISTENT.md` |
+| 2 | Enhanced experiment (configurable, multi-iteration, persistent) | `experiments/box_mercury_live.py` v2 |
+| 3 | API endpoints | `backend/api/v1/box_mercury.py`, `backend/api/v1/box_status.py` |
+| 4 | Dashboard panel | `public/control-plane/box_mercury.html` |
+| 5 | Integration tests | `tests/unit/byoc/test_integration.py` |
+| 6 | Substrate probe tests | `tests/unit/test_substrate.py` additions |
+| 7 | Demo script | `scripts/demo_in_10_box_mercury_v2.sh` |
+
+### Goal
+
+Take PR #102 experiment to next level: persistent results via SQLite, configurable parameters, multiple iterations for statistical significance, results comparison, API + dashboard for visualization.
 
 ### Tags
 - THINK_BOX_BOUND

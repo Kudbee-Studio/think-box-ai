@@ -901,12 +901,20 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Demo: `scripts/demo_in_10_byoc.sh`
     - Tests: `tests/unit/byoc/test_e2e.py` (hermetic, mock-only)
     - Tag: `THINK_STASH_BOUND` (parity with PR #100 `CONTROL_PLANE_BOUND`)
-11. **PR102 — Upstash Box + Inception Mercury-2 Live Experiment:** `feat/byoc-box-mercury-live` 🔨 IN PROGRESS
+11. **PR102 — Upstash Box + Inception Mercury-2 Live Experiment:** `feat/byoc-box-mercury-live` ✅ **MERGED**
     - Experiment: `experiments/box_mercury_live.py` — substrate verify, Mercury-2 burst at concurrency 1/4/8/16, throughput + proof artifact
     - Tests: `tests/unit/byoc/test_box_mercury.py` (hermetic, mock-only)
     - Demo: `scripts/demo_in_10_box_mercury.sh`
     - Tag: `THINK_BOX_BOUND` (parity with PR #100 `CONTROL_PLANE_BOUND` and PR #101 `THINK_STASH_BOUND`)
-12. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
+12. **PR103 — Persistent Box + Mercury-2 Results v2:** `feat/byoc-box-mercury-live-v2` 🔨 DRAFT
+    - Enhanced experiment: configurable params, multi-iteration, SQLite persistence
+    - API: `backend/api/v1/box_mercury.py` (GET /think/box-mercury/status + results)
+    - API: `backend/api/v1/box_status.py` (GET /think/box-status)
+    - Dashboard: `public/control-plane/box_mercury.html` (results comparison panel)
+    - Tests: `tests/unit/byoc/test_integration.py`, `tests/unit/test_substrate.py` additions
+    - Demo: `scripts/demo_in_10_box_mercury_v2.sh`
+    - Tag: `THINK_BOX_BOUND`
+13. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
 
 ## THINK Burst Protocol — Operational Note
 
