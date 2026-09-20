@@ -595,3 +595,44 @@ None in this PR.
 ### Files Changed
 - `thinkbox/scheduler.py` +600 lines
 - `tests/unit/test_scheduler.py` +580 lines
+
+## PR #97 — Agent Control Plane x10 (MERGED)
+
+**Status:** Merged
+**Branch:** `feat/agent-control-plane-x10`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/97
+
+## PR #98 — Dashboard Control Plane Bind (MERGED)
+
+**Status:** Merged
+**Branch:** `feat/dashboard-control-plane-bind-x10`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/98
+
+## PR #99 — Durable Proof Plane (READY FOR REVIEW)
+
+**Status:** Ready for review
+**Branch:** `feat/agent-durable-proof-plane-x10`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/99
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | SQLite ActionReceiptStore + hash-chain | `thinkbox/agent/control_plane/store.py` |
+| 2 | Kernel hooks (admit/capacity/secret/shutdown) | `thinkbox/agent/control_plane/kernel_hooks.py` |
+| 3 | verify_chain() gap/tamper/fork | `thinkbox/agent/control_plane/verify_chain.py` |
+| 4 | Export proof bundle (JSONL + sha256) | `thinkbox/agent/control_plane/export.py` |
+| 5 | Import + offline verify bundle | `thinkbox/agent/control_plane/import_bundle.py` |
+| 6 | Budget-breaker terminal receipt | `thinkbox/agent/control_plane/budget_trip.py` |
+| 7 | Kill-switch durable events | `thinkbox/agent/control_plane/kill_events.py` |
+| 8 | Lease expiry eviction receipt | `thinkbox/agent/control_plane/lease_evict.py` |
+| 9 | Dashboard/API chain status read | `thinkbox/agent/control_plane/api.py` |
+| 10 | E2e hermetic crash → verify | `tests/unit/agent/test_durable_e2e.py` |
+
+### Testing
+- 71 new tests across 9 files in `tests/unit/agent/`
+- Full suite: 1913 tests, 6 skipped, 3 expected failures
+
+### Files Changed
+- `thinkbox/agent/control_plane/` (9 modules)
+- `tests/unit/agent/` (9 test files)
