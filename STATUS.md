@@ -739,9 +739,9 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 ### Tags
 - THINK_BOX_BOUND
 
-## PR #106 — Org-Memory Lifecycle Receipts + CI/PR Event Hooks (DRAFT)
+## PR #106 — Org-Memory Lifecycle Receipts + CI/PR Event Hooks
 
-**Status:** Draft
+**Status:** Merged
 **Branch:** `feat/lifecycle-org-memory-ci-hooks`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/106
 
@@ -764,3 +764,29 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 ### Tags
 - PR_LIFECYCLE_ORG_MEMORY
+
+## PR #107 — Signed GitHub Webhook + AdmissionGate (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/lifecycle-github-webhook-admission`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/107
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | `X-Hub-Signature-256` verification (`WEBHOOK_SECRET`); fail-closed | `thinkbox/github_webhook.py` |
+| 2 | Map `pull_request` / `check_suite` / `workflow_run` / `status` → coordinator | `parse_github_webhook_payload` |
+| 3 | `AdmissionGate` on mutating dispatch; denial → `BLOCKED` org-memory receipt | `GitHubWebhookLifecycleService` |
+| 4 | FastAPI receiver (no API key; HMAC only) | `backend/api/v1/github_webhook.py` |
+| 5 | Hermetic + optional live signature tests | `tests/unit/test_github_webhook.py` |
+| 6 | Operator guide | `docs/guides/github_webhook.md` |
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (local unittest) | **BLOCKED** (no GitHub delivery in CI) | **BLOCKED** |
+
+### Tags
+- PR_LIFECYCLE_GITHUB_WEBHOOK
