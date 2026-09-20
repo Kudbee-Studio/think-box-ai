@@ -769,7 +769,7 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 **Status:** Draft
 **Branch:** `feat/lifecycle-github-webhook-admission`
-**PR:** (open on push)
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/107
 
 ### Features
 
