@@ -738,3 +738,29 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 ### Tags
 - THINK_BOX_BOUND
+
+## PR #106 — Org-Memory Lifecycle Receipts + CI/PR Event Hooks (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/lifecycle-org-memory-ci-hooks`
+**PR:** _(GitHub URL after open)_
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | Append-only org-memory receipt store (sequence + hash chain) | `thinkbox/org_memory_receipts.py` |
+| 2 | Query by `pr_number` / `experiment_id` / time range (redacted) | `OrgMemoryReceiptStore.query` |
+| 3 | GitHub PR + CI status adapters (hermetic fakes); never auto-merge | `thinkbox/pr_lifecycle_event_hooks.py` |
+| 4 | Crash-resume via org-memory checkpoints | `OrgMemoryResilientRunner` |
+| 5 | Control-plane API + dashboard stub | `backend/api/v1/lifecycle_receipts.py`, `public/control-plane/lifecycle_receipts.html` |
+| 6 | Hermetic tests | `tests/unit/test_org_memory_lifecycle.py` |
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (local unittest) | **BLOCKED** (no external provider) | **BLOCKED** |
+
+### Tags
+- PR_LIFECYCLE_ORG_MEMORY
