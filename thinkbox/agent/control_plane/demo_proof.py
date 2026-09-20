@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -41,7 +40,12 @@ def write_run_record_with_proof(
     conn: Any,  # sqlite3.Connection
     record: DemoRunRecord,
 ) -> dict[str, Any]:
-    """Save run record and emit proof bundle atomically."""
+    """Save run record then emit proof bundle.
+
+    Note: not atomic — if save_run succeeds but emit_proof_bundle fails,
+    the run record persists without a proof bundle. Callers should verify
+    chain_valid after both operations complete.
+    """
     save_run(conn, record)
     bundle = emit_proof_bundle(store, record.run_id)
     return bundle

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -51,23 +50,44 @@ def create_run_table(conn: sqlite3.Connection) -> None:
 
 
 def save_run(conn: sqlite3.Connection, record: DemoRunRecord) -> None:
-    conn.execute(
-        "INSERT INTO demo_runs (run_id, agent_id, started_at, finished_at, scores, budget_spent, burst_records, grounded, ungrounded, chain_valid, evidence_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            record.run_id,
-            record.agent_id,
-            record.started_at,
-            record.finished_at,
-            json.dumps(record.scores, sort_keys=True),
-            record.budget_spent,
-            record.burst_records,
-            record.grounded,
-            record.ungrounded,
-            1 if record.chain_valid else 0,
-            record.evidence_label,
-        ),
-    )
-    conn.commit()
+    try:
+        conn.execute(
+            "INSERT INTO demo_runs (run_id, agent_id, started_at, finished_at, scores, budget_spent, burst_records, grounded, ungrounded, chain_valid, evidence_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.run_id,
+                record.agent_id,
+                record.started_at,
+                record.finished_at,
+                json.dumps(record.scores, sort_keys=True),
+                record.budget_spent,
+                record.burst_records,
+                record.grounded,
+                record.ungrounded,
+                1 if record.chain_valid else 0,
+                record.evidence_label,
+            ),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        logger.warning("Duplicate run_id, replacing: %s", record.run_id)
+        conn.execute(
+            "INSERT OR REPLACE INTO demo_runs (run_id, agent_id, started_at, finished_at, scores, budget_spent, burst_records, grounded, ungrounded, chain_valid, evidence_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                record.run_id,
+                record.agent_id,
+                record.started_at,
+                record.finished_at,
+                json.dumps(record.scores, sort_keys=True),
+                record.budget_spent,
+                record.burst_records,
+                record.grounded,
+                record.ungrounded,
+                1 if record.chain_valid else 0,
+                record.evidence_label,
+            ),
+        )
+        conn.commit()
     logger.info("Saved demo run record: %s", record.run_id)
 
 
@@ -78,12 +98,17 @@ def load_run(conn: sqlite3.Connection, run_id: str) -> dict[str, Any] | None:
     ).fetchone()
     if row is None:
         return None
+    try:
+        scores = json.loads(row[4])
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Corrupted scores for run %s, using empty", run_id)
+        scores = {}
     return {
         "run_id": row[0],
         "agent_id": row[1],
         "started_at": row[2],
         "finished_at": row[3],
-        "scores": json.loads(row[4]),
+        "scores": scores,
         "budget_spent": row[5],
         "burst_records": row[6],
         "grounded": row[7],
@@ -99,12 +124,17 @@ def last_run(conn: sqlite3.Connection) -> dict[str, Any] | None:
     ).fetchone()
     if row is None:
         return None
+    try:
+        scores = json.loads(row[4])
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Corrupted scores for run %s, using empty", row[0])
+        scores = {}
     return {
         "run_id": row[0],
         "agent_id": row[1],
         "started_at": row[2],
         "finished_at": row[3],
-        "scores": json.loads(row[4]),
+        "scores": scores,
         "budget_spent": row[5],
         "burst_records": row[6],
         "grounded": row[7],

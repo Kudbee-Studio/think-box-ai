@@ -659,8 +659,9 @@ None in this PR.
 | 10 | CONTROL_PLANE_BOUND tag | STATUS.md (this section) |
 
 ### Testing
-- 27 new tests across 7 files in `tests/unit/demo/`
-- Full suite: TBD (pending merge)
+ - 40 new tests across 8 files in `tests/unit/demo/`
+ - All hermetic, no network, no GPU
+ - Edge cases: duplicate run_id, corrupted JSON, empty token, caching
 
 ### Tags
 - Demo-in-10 → CONTROL_PLANE_BOUND

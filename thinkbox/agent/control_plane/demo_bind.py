@@ -120,6 +120,7 @@ class DemoControlPlaneBind:
     def _has_token(self) -> bool:
         import os
         token = os.environ.get("THINKBOX_DEMO_TOKEN", "")
+        # "EMPTY": mock-mode sentinel (same convention as burst.py)
         return token in ("dev-only-local-token", "EMPTY")
 
     def _check_capacity(self) -> bool:
