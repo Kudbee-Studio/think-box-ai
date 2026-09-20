@@ -91,7 +91,8 @@ async def receive_github_webhook(request: Request) -> Response:
     event_type = request.headers.get("X-GitHub-Event", "")
     signature = request.headers.get("X-Hub-Signature-256")
     service = _cached_service()
-    result = service.process(body, event_type, signature)
+    delivery_id = request.headers.get("X-GitHub-Delivery", "")
+    result = service.process(body, event_type, signature, delivery_id=delivery_id or None)
     import json
 
     return Response(

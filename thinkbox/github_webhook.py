@@ -233,7 +233,19 @@ class GitHubWebhookLifecycleService:
         body: bytes,
         event_type: str,
         signature_header: Optional[str],
+        delivery_id: Optional[str] = None,
     ) -> GitHubWebhookProcessResult:
+        from thinkbox.pipeline_webhook_replay import register_delivery
+
+        if delivery_id and not register_delivery(delivery_id):
+            return GitHubWebhookProcessResult(
+                http_status=200,
+                evidence_label="simulated",
+                signature_valid=True,
+                admission_allowed=True,
+                detail="delivery_replay_suppressed",
+            )
+
         sig = verify_github_webhook_signature(self._secret, body, signature_header)
         if not sig.valid:
             return GitHubWebhookProcessResult(
