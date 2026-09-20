@@ -6,7 +6,10 @@ import os
 from pathlib import Path
 from typing import Any
 
+from thinkbox.pipeline_dashboard import DEFAULT_FOUNDER_PROOF_KEY
+
 STAGING_FLAG_ENV = "THINKBOX_PIPELINE_STAGING"
+PHYSICAL_STAGING_ENV = "THINKBOX_LIVE_DRILL_PHYSICAL_STAGING"
 LIVE_DRILL_FLAG_ENV = "THINKBOX_LIVE_DRILL_ENABLED"
 STAGING_DB_ENV = "THINKBOX_ORG_MEMORY_DB"
 STAGING_ID_ENV = "THINKBOX_STAGING_ENVIRONMENT_ID"
@@ -20,7 +23,13 @@ _REQUIRED_FOR_LIVE_DRILL: tuple[tuple[str, bool], ...] = (
     ("THINKBOX_GITHUB_WEBHOOK_GOVERNANCE_TOKEN", True),
     ("THINKBOX_GOVERNANCE_SIGNING_KEY", True),
     (STAGING_DB_ENV, True),
+    (PHYSICAL_STAGING_ENV, True),
 )
+
+
+def founder_proof_key_acceptable() -> bool:
+    key = os.environ.get("THINKBOX_FOUNDER_MERGE_PROOF_KEY", "").strip()
+    return bool(key) and key != DEFAULT_FOUNDER_PROOF_KEY
 
 
 def _env_present(name: str) -> bool:
@@ -60,7 +69,8 @@ def inspect_staging_config() -> dict[str, Any]:
         "staging_flag": _env_present(STAGING_FLAG_ENV),
         "live_drill_flag": _env_present(LIVE_DRILL_FLAG_ENV),
         "webhook_secret": webhook_secret_configured(),
-        "founder_proof_key": _env_present("THINKBOX_FOUNDER_MERGE_PROOF_KEY"),
+        "founder_proof_key": founder_proof_key_acceptable(),
+        "physical_staging_flag": _env_present(PHYSICAL_STAGING_ENV),
         "webhook_governance_token": _env_present("THINKBOX_GITHUB_WEBHOOK_GOVERNANCE_TOKEN"),
         "governance_signing_key": _env_present("THINKBOX_GOVERNANCE_SIGNING_KEY"),
         "org_memory_db_configured": _env_present(STAGING_DB_ENV),
@@ -77,7 +87,7 @@ def inspect_staging_config() -> dict[str, Any]:
     if not checks["webhook_secret"]:
         missing.append("WEBHOOK_SECRET|GITHUB_WEBHOOK_SECRET")
     if not checks["founder_proof_key"]:
-        missing.append("THINKBOX_FOUNDER_MERGE_PROOF_KEY")
+        missing.append("THINKBOX_FOUNDER_MERGE_PROOF_KEY(non-default)")
     if not checks["webhook_governance_token"]:
         missing.append("THINKBOX_GITHUB_WEBHOOK_GOVERNANCE_TOKEN")
     if not checks["governance_signing_key"]:
@@ -86,10 +96,16 @@ def inspect_staging_config() -> dict[str, Any]:
         missing.append(STAGING_DB_ENV)
     if not iso_ok:
         missing.append("staging_db_isolation")
+    physical_ok = bool(checks["physical_staging_flag"])
     ready = len(missing) == 0
+    all_missing = list(missing)
+    if not physical_ok:
+        all_missing.append(PHYSICAL_STAGING_ENV)
     return {
         "ready_for_live_drill": ready,
-        "missing_prerequisites": missing,
+        "physical_staging_configured": physical_ok,
+        "missing_prerequisites": all_missing,
+        "execution_blockers": missing,
         "checks": checks,
         "evidence_label": "simulated",
         "auto_merge": False,

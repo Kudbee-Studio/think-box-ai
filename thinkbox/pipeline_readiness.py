@@ -42,13 +42,10 @@ class MergeReadinessReport:
 
 
 def _quarantine_active(store: OrgMemoryReceiptStore) -> bool:
-    for row in store.query(limit=30):
-        if str(row.get("action") or "") != "pipeline_quarantine":
-            continue
-        evidence = row.get("evidence") or {}
-        if evidence.get("quarantined"):
-            return True
-    return False
+    rows = store.query_by_action("pipeline_quarantine", limit=1)
+    if not rows:
+        return False
+    return bool((rows[0].get("evidence") or {}).get("quarantined"))
 
 
 def _ci_observations(receipts: list[dict[str, Any]]) -> list[dict[str, Any]]:

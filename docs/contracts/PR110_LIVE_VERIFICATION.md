@@ -22,10 +22,27 @@
 | `THINKBOX_FOUNDER_MERGE_PROOF_KEY` | PR-bound founder proof |
 | `THINKBOX_GITHUB_WEBHOOK_GOVERNANCE_TOKEN` | Webhook admission |
 | `THINKBOX_GOVERNANCE_SIGNING_KEY` | Token validation |
+| `THINKBOX_LIVE_DRILL_PHYSICAL_STAGING=1` | Operator attestation: real staging cell (not CI/hermetic) |
+
+Founder proof key must be **non-default** (`THINKBOX_FOUNDER_MERGE_PROOF_KEY` ≠ hermetic default).
 
 ## Attestation schema
 
 `LIVE_VERIFICATION_ATTESTATION` — see `thinkbox/pipeline_live_drill.py::build_live_verification_attestation`.
+
+### Verification milestone (all must be true for `live_verified`)
+
+| Field | Meaning |
+|-------|---------|
+| `github_merge_called` | Always `false` |
+| `merged` | Always `false` |
+| `chain_verified` | `store.verify()` at attestation time |
+| `founder_proof_valid` | PR-bound founder proof validated |
+| `webhook_verified` | Signed staging webhook processed |
+| `replay_rejected` | Duplicate `X-GitHub-Delivery` suppressed |
+| `quarantine_fail_closed` | Merge denied while quarantine armed |
+
+`chain_head` in the attestation is the org-memory entry hash at drill completion.
 
 ## Four-State
 

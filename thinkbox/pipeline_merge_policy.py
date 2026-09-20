@@ -66,15 +66,14 @@ def evaluate_merge_policy(
             policy=pol.to_dict(),
         )
     if pol.block_when_quarantine:
-        for row in store.query(limit=20):
-            if str(row.get("action") or "") == "pipeline_quarantine":
-                if (row.get("evidence") or {}).get("quarantined"):
-                    return PolicyEvaluation(
-                        allowed=False,
-                        reason="policy_quarantine_active",
-                        readiness=readiness,
-                        policy=pol.to_dict(),
-                    )
+        quarantine_rows = store.query_by_action("pipeline_quarantine", limit=1)
+        if quarantine_rows and (quarantine_rows[0].get("evidence") or {}).get("quarantined"):
+            return PolicyEvaluation(
+                allowed=False,
+                reason="policy_quarantine_active",
+                readiness=readiness,
+                policy=pol.to_dict(),
+            )
     if readiness.score < pol.require_readiness_score:
         return PolicyEvaluation(
             allowed=False,

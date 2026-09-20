@@ -21,7 +21,11 @@ def main() -> int:
     if not pre.get("ready_for_live_drill"):
         print("\nLIVE_VERIFIED: BLOCKED — missing prerequisites (no fabricated evidence).", file=sys.stderr)
         return 2
-    print("\nPreflight OK — invoke POST /api/v1/control-plane/pipeline/live/drill/run with staging tokens.", file=sys.stderr)
+    print(
+        "\nPreflight OK — set THINKBOX_LIVE_DRILL_PHYSICAL_STAGING=1 on the staging cell, "
+        "then POST /api/v1/control-plane/pipeline/live/drill/run with governance + founder proof.",
+        file=sys.stderr,
+    )
     return 0
 
 

@@ -16,6 +16,10 @@ class TestLiveAttestation(unittest.TestCase):
         evidence = LiveDrillEvidence(correlation_id="corr_test", pr_number=110)
         evidence.real_webhook_exercised = True
         evidence.real_founder_merge_exercised = True
+        evidence.founder_telemetry = {"proof_valid": True}
+        evidence.webhook_verified = True
+        evidence.replay_rejected = True
+        evidence.quarantine_fail_closed = True
         att = build_live_verification_attestation(
             store,
             evidence,
@@ -28,6 +32,8 @@ class TestLiveAttestation(unittest.TestCase):
         self.assertFalse(att["live_verified"])
         self.assertFalse(att["github_merge_called"])
         self.assertFalse(att["merged"])
+        ms = att.get("verification_milestone") or {}
+        self.assertTrue(ms.get("founder_proof_valid"))
 
     def test_preflight_not_ready_in_cloud_agent(self) -> None:
         pre = preflight_report()
