@@ -307,7 +307,10 @@ async def main() -> int:
     print(f"proof_sha256: {proof_hash}")
 
     previous = _load_previous_results(artifacts_dir)
-    comparison = _compare_with_previous(proof, previous)
+    # Exclude the current run from previous results to compare against prior runs only
+    current_proof_hash = proof.get("proof_sha256", "")
+    prior_runs = [r for r in previous if r.get("proof_sha256") != current_proof_hash]
+    comparison = _compare_with_previous(proof, prior_runs)
     print(f"comparison: {comparison.get('verdict', 'no_previous')}")
     if comparison.get("throughput_change_pct") is not None:
         print(f"throughput change: {comparison['throughput_change_pct']:+.1f}%")
