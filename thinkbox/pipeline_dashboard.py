@@ -263,6 +263,31 @@ class PipelineDashboardAggregator:
             "auto_merge": False,
         }
 
+    def ci_status_timeline(
+        self,
+        pr_number: int,
+        *,
+        receipt_limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Chronological CI observations from org-memory (oldest first)."""
+        rows = self._store.query(pr_number=pr_number, limit=receipt_limit)
+        events: list[dict[str, Any]] = []
+        for row in reversed(rows):
+            if str(row.get("action") or "") != "ci_status_observed":
+                continue
+            evidence = row.get("evidence") or {}
+            events.append(
+                {
+                    "timestamp": row.get("timestamp"),
+                    "workflow": evidence.get("workflow"),
+                    "conclusion": evidence.get("conclusion"),
+                    "ci_run_id": evidence.get("ci_run_id"),
+                    "evidence_label": row.get("evidence_label"),
+                    "entry_hash": row.get("entry_hash"),
+                }
+            )
+        return events
+
 
 @dataclass
 class PipelineDeltaSnapshot:

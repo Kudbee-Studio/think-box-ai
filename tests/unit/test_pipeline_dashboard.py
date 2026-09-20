@@ -218,5 +218,26 @@ class TestPrReceiptIntegrity(unittest.TestCase):
         self.assertTrue(report["first_entry_hash"])
 
 
+class TestCITimeline(unittest.TestCase):
+    def test_ci_timeline_chronological(self) -> None:
+        aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        for wf, conclusion in (("unittest", "failure"), ("unittest", "success")):
+            store.append_lifecycle(
+                run_id="r",
+                pr_number=602,
+                branch="b",
+                from_state="A",
+                to_state="A",
+                action="ci_status_observed",
+                result="success",
+                evidence={"workflow": wf, "conclusion": conclusion, "ci_run_id": conclusion},
+            )
+        timeline = aggregator.ci_status_timeline(602)
+        self.assertEqual(len(timeline), 2)
+        self.assertEqual(timeline[0]["conclusion"], "failure")
+        self.assertEqual(timeline[1]["conclusion"], "success")
+
+
 if __name__ == "__main__":
     unittest.main()

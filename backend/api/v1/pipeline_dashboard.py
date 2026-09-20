@@ -148,6 +148,20 @@ async def pipeline_stream_deltas() -> StreamingResponse:
     return StreamingResponse(_once(), media_type="text/event-stream")
 
 
+@pipeline_dashboard_router.get("/pr/{pr_number}/ci-timeline")
+async def pipeline_pr_ci_timeline(pr_number: int, receipt_limit: int = 200) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    aggregator, _ = _cached_bundle()
+    events = aggregator.ci_status_timeline(pr_number, receipt_limit=receipt_limit)
+    return {
+        "pr_number": pr_number,
+        "events": events,
+        "count": len(events),
+        "evidence_label": "simulated",
+    }
+
+
 @pipeline_dashboard_router.post("/pr/{pr_number}/request-merge")
 async def pipeline_request_merge(
     pr_number: int,
