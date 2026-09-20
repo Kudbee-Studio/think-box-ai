@@ -876,3 +876,33 @@ python3 -m unittest \
 ### Tags
 
 - `PR_PIPELINE_CONTROL_PLANE_V4`
+
+## PR #110 — LIVE_VERIFIED Staging Drill
+
+**Status:** Draft  
+**Branch:** `feat/pipeline-live-verification-pr110` (from PR #109)  
+**PR:** (open on push)
+
+### Scope
+
+Staging preflight, live webhook delivery receipts, founder proof telemetry, fleet checkpoint v2 metadata, `LIVE_VERIFICATION_ATTESTATION`, adversarial drill runner — **never GitHub merge**.
+
+### Cloud agent drill (2026-09-20)
+
+| Check | Result |
+|-------|--------|
+| Staging env vars | **All unset** — preflight `ready_for_live_drill: false` |
+| `experiments/pipeline_live_drill_staging.py` | Exit **2** (blocked, no fabricated evidence) |
+| `LIVE_VERIFIED` | **BLOCKED** — no real GitHub webhook delivery or staging DB in agent VM |
+
+**Blockers:** `THINKBOX_PIPELINE_STAGING`, `THINKBOX_LIVE_DRILL_ENABLED`, `THINKBOX_ORG_MEMORY_DB` (staging path), `WEBHOOK_SECRET`, `THINKBOX_FOUNDER_MERGE_PROOF_KEY`, `THINKBOX_GITHUB_WEBHOOK_GOVERNANCE_TOKEN`, `THINKBOX_GOVERNANCE_SIGNING_KEY`.
+
+### Four-State (PR #110)
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (hermetic + attestation gate tests) | **BLOCKED** (prerequisites absent in cloud agent; no live drill executed) | **BLOCKED** |
+
+### Tags
+
+- `PR_PIPELINE_LIVE_VERIFICATION`

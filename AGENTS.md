@@ -939,6 +939,12 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Runbook: `docs/guides/pipeline_control_plane_runbook.md`
     - Tests: extended `test_pipeline_*` + `test_pr109_integration_gate.py` (hermetic matrix)
     - Tag: `PR_PIPELINE_CONTROL_PLANE_V4` (lineage: PR #108 branch)
+18. **PR110 — LIVE_VERIFIED staging drill (no GitHub merge):** `feat/pipeline-live-verification-pr110` 🔨 DRAFT
+    - Contract: `docs/contracts/PR110_LIVE_VERIFICATION.md`
+    - Modules: `thinkbox/pipeline_live_staging.py`, `pipeline_live_drill.py`, `pipeline_founder_telemetry.py`
+    - API: `GET .../pipeline/live/preflight`, `POST .../pipeline/live/drill/run`, `GET .../pipeline/live/attestation/latest`
+    - Runner: `experiments/pipeline_live_drill_staging.py` (exit 2 when prerequisites missing)
+    - Tag: `PR_PIPELINE_LIVE_VERIFICATION` (lineage: PR #109)
 
 ## THINK Burst Protocol — Operational Note
 
