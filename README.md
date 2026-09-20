@@ -318,17 +318,19 @@ npm start              # runs server.ts via Node 22 type stripping
 
 ## Demo in 10
 
-Run the full burst→harvest→scores loop in under 10 minutes. No GPU, no public bind, no AWS.
+Run the full burst→harvest→scores→proof→verify loop in under 10 minutes. No GPU, no public bind, no AWS.
 
 ```bash
-bash scripts/demo_in_10.sh
+bash scripts/demo_in_10_control_plane.sh
 ```
 
 What it does:
 1. Starts mock vLLM on `127.0.0.1:8001` (deterministic responses, no API key needed)
 2. Runs `python3 -m thinkbox.burst --live --pairs 2 --minutes 1 --max-calls 8 --budget 1.0 --out data/evals/burst-smoke`
 3. Harvests and replays the burst output: `python3 -m thinkbox.harvest --dir data/evals/burst-smoke`
-4. Prints groundedness / bind-failure / reasoning coverage
+4. Writes DemoRunRecord (scores, budget, timestamps) to SQLite and emits proof bundle under `data/proofs/demo-<id>/`
+5. Verifies the hash-chain: `GET /api/v1/receipts/verify`
+6. Dashboard shows run metrics + verify-chain status
 
 ### What you'll see
 
@@ -339,6 +341,8 @@ What it does:
 | **Groundedness score** | How often grounded answers are correctly scored grounded |
 | **Bind-failure rate** | How often ungrounded answers are correctly rejected |
 | **Budget spent** | Elastic-cash ceiling per burst (default $1.00) |
+| **Proof bundle** | JSONL + manifest sha256 under `data/proofs/demo-<id>/` |
+| **Chain valid** | Hash-chain verification result |
 
 The mock server and burst/harvest modules are shared infrastructure — see `thinkbox/mock_vllm.py`, `thinkbox/burst.py`, `thinkbox/harvest.py`. Do not duplicate.
 
