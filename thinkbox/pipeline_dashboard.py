@@ -51,10 +51,13 @@ class PipelineDashboardAggregator:
         return out
 
     def pr_detail(self, pr_number: int, *, receipt_limit: int = 100) -> dict[str, Any]:
+        from thinkbox.pipeline_state_machine import state_machine_report
+
         receipts = self._store.query(pr_number=pr_number, limit=receipt_limit)
         summary = summarize_pr_from_receipts(pr_number, receipts)
         return {
             "summary": summary.to_dict(),
+            "state_machine": state_machine_report(receipts),
             "receipts": receipts,
             "receipt_count": len(receipts),
             "chain_verified": self._store.verify(),
