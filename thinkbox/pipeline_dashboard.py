@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -261,6 +262,75 @@ class PipelineDashboardAggregator:
             "evidence_label": "verified" if chain_ok else "rejected",
             "auto_merge": False,
         }
+
+
+@dataclass
+class PipelineDeltaSnapshot:
+    """Hermetic poll cursor for pipeline overview changes."""
+
+    sequence: int
+    pr_count: int
+    admission_denied_total: int
+    overview_digest: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sequence": self.sequence,
+            "pr_count": self.pr_count,
+            "admission_denied_total": self.admission_denied_total,
+            "overview_digest": self.overview_digest,
+            "evidence_label": "simulated",
+        }
+
+
+class PipelineDeltaTracker:
+    """In-process snapshot diff for control-plane polling (no external SSE deps)."""
+
+    def __init__(self, aggregator: PipelineDashboardAggregator) -> None:
+        self._aggregator = aggregator
+        self._last: Optional[PipelineDeltaSnapshot] = None
+        self._sequence = 0
+
+    def _digest_overview(self, overview: dict[str, Any]) -> str:
+        body = json.dumps(
+            {
+                "pr_count": overview.get("pr_count"),
+                "totals": overview.get("totals"),
+                "prs": overview.get("prs"),
+            },
+            sort_keys=True,
+            default=str,
+        ).encode()
+        return hashlib.sha256(body).hexdigest()[:16]
+
+    def snapshot(self) -> dict[str, Any]:
+        overview = self._aggregator.overview()
+        admission_total = int((overview.get("totals") or {}).get("admission_denied_count") or 0)
+        digest = self._digest_overview(overview)
+        current = PipelineDeltaSnapshot(
+            sequence=self._sequence,
+            pr_count=int(overview.get("pr_count") or 0),
+            admission_denied_total=admission_total,
+            overview_digest=digest,
+        )
+        changed = self._last is None or self._last.overview_digest != current.overview_digest
+        delta: dict[str, Any] = {
+            "changed": changed,
+            "current": current.to_dict(),
+            "previous": self._last.to_dict() if self._last else None,
+            "overview": overview if changed else None,
+        }
+        if changed:
+            self._sequence += 1
+            current = PipelineDeltaSnapshot(
+                sequence=self._sequence,
+                pr_count=current.pr_count,
+                admission_denied_total=current.admission_denied_total,
+                overview_digest=current.overview_digest,
+            )
+            self._last = current
+            delta["current"] = current.to_dict()
+        return delta
 
 
 @dataclass

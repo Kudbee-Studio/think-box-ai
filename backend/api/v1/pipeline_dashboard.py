@@ -7,7 +7,7 @@ from functools import lru_cache
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from thinkbox.admission import AdmissionGate
 from thinkbox.governance_token import GovernanceTokenService
@@ -19,6 +19,7 @@ from thinkbox.pipeline_dashboard import (
     PIPELINE_FOUNDER_MERGE_CAPABILITY,
     FounderGatedMergeService,
     PipelineDashboardAggregator,
+    PipelineDeltaTracker,
 )
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
@@ -75,8 +76,21 @@ def _cached_bundle() -> tuple[PipelineDashboardAggregator, FounderGatedMergeServ
     return build_pipeline_dashboard_bundle(test_mode=test_mode)
 
 
+_delta_tracker: Optional[PipelineDeltaTracker] = None
+
+
+def _get_delta_tracker() -> PipelineDeltaTracker:
+    global _delta_tracker
+    if _delta_tracker is None:
+        aggregator, _ = _cached_bundle()
+        _delta_tracker = PipelineDeltaTracker(aggregator)
+    return _delta_tracker
+
+
 def reset_pipeline_dashboard_cache() -> None:
     """Clear process-local singleton (tests)."""
+    global _delta_tracker
+    _delta_tracker = None
     _cached_bundle.cache_clear()
 
 
@@ -114,6 +128,24 @@ async def pipeline_pr_integrity(pr_number: int, receipt_limit: int = 500) -> dic
         raise HTTPException(status_code=400, detail="invalid pr_number")
     aggregator, _ = _cached_bundle()
     return aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
+
+
+@pipeline_dashboard_router.get("/poll/deltas")
+async def pipeline_poll_deltas() -> dict[str, Any]:
+    return _get_delta_tracker().snapshot()
+
+
+@pipeline_dashboard_router.get("/stream/deltas")
+async def pipeline_stream_deltas() -> StreamingResponse:
+    """Hermetic SSE: one snapshot event (poll-friendly)."""
+
+    async def _once() -> Any:
+        import json
+
+        payload = _get_delta_tracker().snapshot()
+        yield f"data: {json.dumps(payload, default=str)}\n\n"
+
+    return StreamingResponse(_once(), media_type="text/event-stream")
 
 
 @pipeline_dashboard_router.post("/pr/{pr_number}/request-merge")
