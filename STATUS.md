@@ -842,3 +842,37 @@ python3 -m unittest \
 | Fleet checkpoint attest/verify | `POST .../checkpoint/attest`, `GET .../checkpoint/verify` |
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
+
+## PR #109 — Pipeline Control Plane v4 (25 checkpoints)
+
+**Status:** Draft  
+**Branch:** `feat/pipeline-control-plane-pr109` (from PR #108 lineage)  
+**PR:** (open on push)
+
+### Scope
+
+25 reviewable commits: state machine, admission provenance, founder proof lifecycle, replay/idempotency guards, denial ledger v2, integrity expansion, chain corruption tests, rollup consistency, writer lock, CI timeline validation, delta v2 + SSE dedupe, quarantine kill-switch, governance rotation, webhook replay suppression, UI provenance/audit, ops health scorecard, adversarial matrix, reconcile recovery, e2e hermetic scenario, operator runbook, integration gate.
+
+### Test matrix
+
+```bash
+python3 -m unittest \
+  tests.unit.test_pipeline_dashboard \
+  tests.unit.test_pipeline_delta \
+  tests.unit.test_pipeline_adversarial \
+  tests.unit.test_pipeline_concurrency \
+  tests.unit.test_github_webhook \
+  tests.unit.test_org_memory_lifecycle \
+  tests.unit.test_pr109_contract \
+  tests.unit.test_pr109_integration_gate -v
+```
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (hermetic unittest) | **BLOCKED** (no live control-plane exercise) | **BLOCKED** (founder sign-off pending) |
+
+### Tags
+
+- `PR_PIPELINE_CONTROL_PLANE_V4`

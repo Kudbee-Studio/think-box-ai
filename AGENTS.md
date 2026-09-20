@@ -933,6 +933,12 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Dashboard: `public/control-plane/pipeline_dashboard.html` (5s poll + denial/quarantine banners)
     - Tests: `tests/unit/test_pipeline_dashboard.py`, `test_pipeline_delta.py`, `test_pipeline_adversarial.py`, `test_pipeline_concurrency.py` (hermetic)
     - Tag: `PR_PIPELINE_DASHBOARD_MERGE_GATE` (builds on merged PR #106/#107)
+17. **PR109 — Pipeline control plane v4 (25 checkpoint hardening):** `feat/pipeline-control-plane-pr109` 🔨 DRAFT
+    - Contract: `docs/contracts/PR109_PIPELINE_CONTRACT.md`
+    - Modules: state machine, admission provenance, replay guard, integrity expansion, reconcile recovery, webhook replay suppression, quarantine kill-switch
+    - Runbook: `docs/guides/pipeline_control_plane_runbook.md`
+    - Tests: extended `test_pipeline_*` + `test_pr109_integration_gate.py` (hermetic matrix)
+    - Tag: `PR_PIPELINE_CONTROL_PLANE_V4` (lineage: PR #108 branch)
 
 ## THINK Burst Protocol — Operational Note
 
