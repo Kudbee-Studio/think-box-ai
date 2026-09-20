@@ -16,7 +16,6 @@ from thinkbox.identity import IdentityLedger
 from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
 from thinkbox.pipeline_dashboard import (
     DEFAULT_FOUNDER_AGENT_ID,
-    DEFAULT_FOUNDER_PROOF_KEY,
     PIPELINE_FOUNDER_MERGE_CAPABILITY,
     PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
     FounderGatedMergeService,
@@ -54,7 +53,9 @@ def _signing_key() -> str:
 
 
 def _founder_proof_key() -> str:
-    return os.getenv("THINKBOX_FOUNDER_MERGE_PROOF_KEY", DEFAULT_FOUNDER_PROOF_KEY)
+    from thinkbox.pipeline_founder_proof_preflight import resolve_founder_proof_key
+
+    return resolve_founder_proof_key()
 
 
 @dataclass
@@ -72,6 +73,10 @@ def build_pipeline_dashboard_bundle(
     test_mode: bool = True,
 ) -> PipelineDashboardBundle:
     """Construct aggregator + merge gate + quarantine sharing one store."""
+    if not test_mode:
+        from thinkbox.pipeline_founder_proof_preflight import assert_founder_proof_key_configured
+
+        assert_founder_proof_key_configured()
     store = OrgMemoryReceiptStore(db_path or _DEFAULT_DB)
     coordinator = PRLifecycleEventCoordinator(store, test_mode=test_mode)
     agent_id = _founder_agent_id()

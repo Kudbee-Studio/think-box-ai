@@ -237,7 +237,7 @@ class GitHubWebhookLifecycleService:
     ) -> GitHubWebhookProcessResult:
         from thinkbox.pipeline_webhook_replay import register_delivery
 
-        if delivery_id and not register_delivery(delivery_id):
+        if delivery_id and not register_delivery(delivery_id, store=self._store):
             return GitHubWebhookProcessResult(
                 http_status=200,
                 evidence_label="simulated",

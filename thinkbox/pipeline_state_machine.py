@@ -1,4 +1,10 @@
-"""Pipeline PR lifecycle state machine — validates receipt-derived transitions."""
+"""Pipeline PR lifecycle state machine — advisory receipt-derived transition reporting.
+
+This module does **not** enforce transitions on append paths unless a caller
+explicitly invokes ``validate_transition``. Merge admission, quarantine, and
+webhook side-effects remain governed by ``AdmissionGate`` and dedicated
+controllers — not by this state machine.
+"""
 
 from __future__ import annotations
 

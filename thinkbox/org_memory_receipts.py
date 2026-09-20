@@ -117,6 +117,9 @@ class OrgMemoryReceiptStore:
             "CREATE INDEX IF NOT EXISTS idx_org_rcpt_run ON org_lifecycle_receipts(run_id)"
         )
         self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_org_rcpt_action ON org_lifecycle_receipts(action)"
+        )
+        self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS org_lifecycle_checkpoints (
                 run_id TEXT PRIMARY KEY,
@@ -361,6 +364,70 @@ class OrgMemoryReceiptStore:
             )
             out.append(rcpt.to_public_dict())
         return out
+
+    def query_by_action(
+        self,
+        action: str,
+        *,
+        pr_number: Optional[int] = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Query receipts for one action, newest sequence first."""
+        clauses = ["action = ?"]
+        params: list[Any] = [action]
+        if pr_number is not None:
+            clauses.append("pr_number = ?")
+            params.append(pr_number)
+        where = " AND ".join(clauses)
+        sql = f"""
+            SELECT sequence, receipt_id, timestamp, run_id, pr_number, branch,
+                   experiment_id, from_state, to_state, action, result,
+                   evidence_label, entry_hash, evidence_json
+            FROM org_lifecycle_receipts
+            WHERE {where}
+            ORDER BY sequence DESC LIMIT ?
+        """
+        params.append(limit)
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            evidence = json.loads(row[13])
+            rcpt = OrgMemoryReceipt(
+                receipt_id=row[1],
+                sequence=int(row[0]),
+                timestamp=row[2],
+                run_id=row[3],
+                pr_number=int(row[4]),
+                branch=row[5],
+                experiment_id=row[6],
+                from_state=row[7],
+                to_state=row[8],
+                action=row[9],
+                result=row[10],
+                evidence_label=row[11],
+                prev_hash="",
+                entry_hash=row[12],
+                evidence=evidence,
+            )
+            out.append(rcpt.to_public_dict())
+        return out
+
+    def has_webhook_delivery_fingerprint(self, fingerprint: str) -> bool:
+        """True if org-memory already recorded this webhook delivery fingerprint."""
+        if not fingerprint:
+            return False
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT 1 FROM org_lifecycle_receipts
+                WHERE action = 'pipeline_webhook_delivery'
+                  AND json_extract(evidence_json, '$.delivery_id_fingerprint') = ?
+                LIMIT 1
+                """,
+                (fingerprint,),
+            ).fetchone()
+        return row is not None
 
     def count(self) -> int:
         with self._lock:

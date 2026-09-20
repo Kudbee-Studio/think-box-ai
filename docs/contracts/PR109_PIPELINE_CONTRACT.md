@@ -1,6 +1,7 @@
 # PR #109 — Pipeline Control Plane Evolution Contract
 
 **Branch:** `feat/pipeline-control-plane-pr109`  
+**Stack order:** `main` → **PR #108** (`feat/pipeline-dashboard-admission-merge-gate`) → **PR #109** (this branch). Do not rebase #109 off `main` without #108.  
 **Lineage:** builds on merged PR #106/#107 org-memory + PR #108 pipeline surface  
 **Tag:** `PR_PIPELINE_CONTROL_PLANE_V4`
 
@@ -14,6 +15,11 @@
 6. Hash-chain integrity must verify (`store.verify()`).
 7. Idempotency keys on `request-merge` must not double-queue.
 8. Quarantine/kill-switch fail-closed on merge requests when armed.
+9. Quarantine state is read via action-scoped org-memory lookup (`pipeline_quarantine`, newest first) — not a global receipt window.
+10. GitHub webhook delivery replay: when `THINKBOX_ORG_MEMORY_DB` is shared, duplicate `X-GitHub-Delivery` IDs are suppressed via org-memory fingerprints (no raw delivery id or payload in receipts). In-memory-only replay cache is hermetic test fallback.
+11. Pipeline lifecycle appends on the founder merge path (queue, admission denial, policy denial, quarantine toggle) serialize through `append_pipeline_lifecycle` (process-local lock; same DB for cross-worker ordering).
+12. `pipeline_state_machine` is **advisory** reporting unless a caller explicitly enforces `validate_transition`.
+13. Staging/production (`THINKBOX_PIPELINE_DEPLOYMENT_ENV`) require a non-default `THINKBOX_FOUNDER_MERGE_PROOF_KEY`.
 
 ## Four-State gates
 

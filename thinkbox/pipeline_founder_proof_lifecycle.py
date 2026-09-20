@@ -1,4 +1,8 @@
-"""Founder merge proof lifecycle — versioned key rotation metadata (hermetic)."""
+"""Founder merge proof lifecycle — versioned key metadata for audit packets (hermetic).
+
+Does not rotate ``THINKBOX_FOUNDER_MERGE_PROOF_KEY`` at runtime; production
+rotation is an operator action outside this module.
+"""
 
 from __future__ import annotations
 
