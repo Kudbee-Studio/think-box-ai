@@ -9,6 +9,7 @@ from thinkbox.github_webhook import build_hermetic_github_webhook_service, compu
 from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
 from thinkbox.pipeline_dashboard import (
     build_hermetic_pipeline_dashboard,
+    compute_founder_merge_proof,
     summarize_pr_from_receipts,
 )
 from thinkbox.pr_lifecycle_event_hooks import (
@@ -64,7 +65,7 @@ class TestPipelineRollup(unittest.TestCase):
         self.assertIn("capability_not_granted", summary.blocked_reasons)
 
     def test_aggregator_overview(self) -> None:
-        aggregator, _, _ = build_hermetic_pipeline_dashboard()
+        aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
         store = aggregator._store  # noqa: SLF001
         store.append_lifecycle(
             run_id="r1",
@@ -85,7 +86,7 @@ class TestPipelineRollup(unittest.TestCase):
 
 class TestFounderGatedMerge(unittest.TestCase):
     def test_admitted_queues_without_github_merge(self) -> None:
-        aggregator, merge_svc, token = build_hermetic_pipeline_dashboard()
+        aggregator, merge_svc, token, proof_key = build_hermetic_pipeline_dashboard()
         store = aggregator._store  # noqa: SLF001
         store.append_lifecycle(
             run_id="run_301",
@@ -97,17 +98,28 @@ class TestFounderGatedMerge(unittest.TestCase):
             result="success",
             evidence_label="verified",
         )
-        result = merge_svc.request_merge(301, governance_token=token)
+        proof = compute_founder_merge_proof(301, proof_key)
+        result = merge_svc.request_merge(301, governance_token=token, founder_proof=proof)
         self.assertTrue(result.admitted)
         self.assertFalse(result.merged)
         self.assertFalse(result.github_merge_called)
         self.assertEqual(result.receipt_action, "founder_merge_requested")
+        self.assertTrue(result.receipt_proof_hash)
         detail = aggregator.pr_detail(301)
         self.assertEqual(detail["summary"]["merge_request_status"], "queued")
 
+    def test_missing_proof_denied_with_matrix(self) -> None:
+        _, merge_svc, token, _ = build_hermetic_pipeline_dashboard()
+        result = merge_svc.request_merge(305, governance_token=token, founder_proof="")
+        self.assertFalse(result.admitted)
+        self.assertEqual(result.http_status, 403)
+        checks = {row["check"] for row in result.deny_matrix}
+        self.assertIn("founder_merge_proof", checks)
+
     def test_invalid_token_denied_with_receipt(self) -> None:
-        aggregator, merge_svc, _token = build_hermetic_pipeline_dashboard()
-        result = merge_svc.request_merge(302, governance_token="not-a-real-token")
+        aggregator, merge_svc, _, proof_key = build_hermetic_pipeline_dashboard()
+        proof = compute_founder_merge_proof(302, proof_key)
+        result = merge_svc.request_merge(302, governance_token="not-a-real-token", founder_proof=proof)
         self.assertFalse(result.admitted)
         self.assertEqual(result.http_status, 403)
         receipts = aggregator._store.query(pr_number=302, limit=10)  # noqa: SLF001
@@ -121,7 +133,7 @@ class TestFounderGatedMerge(unittest.TestCase):
         gh_svc._store = store  # noqa: SLF001
         gh_svc._coordinator = coord  # noqa: SLF001
 
-        aggregator, merge_svc, founder_token = build_hermetic_pipeline_dashboard()
+        aggregator, merge_svc, founder_token, proof_key = build_hermetic_pipeline_dashboard()
         aggregator._store = store  # noqa: SLF001
         merge_svc._store = store  # noqa: SLF001
         merge_svc._coordinator = coord  # noqa: SLF001
@@ -143,7 +155,8 @@ class TestFounderGatedMerge(unittest.TestCase):
 
         overview = aggregator.overview()
         self.assertGreaterEqual(overview["pr_count"], 1)
-        merge = merge_svc.request_merge(401, governance_token=founder_token)
+        proof = compute_founder_merge_proof(401, proof_key)
+        merge = merge_svc.request_merge(401, governance_token=founder_token, founder_proof=proof)
         self.assertTrue(merge.admitted)
         self.assertFalse(merge.github_merge_called)
 

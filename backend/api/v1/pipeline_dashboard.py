@@ -15,6 +15,7 @@ from thinkbox.identity import IdentityLedger
 from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
 from thinkbox.pipeline_dashboard import (
     DEFAULT_FOUNDER_AGENT_ID,
+    DEFAULT_FOUNDER_PROOF_KEY,
     PIPELINE_FOUNDER_MERGE_CAPABILITY,
     FounderGatedMergeService,
     PipelineDashboardAggregator,
@@ -40,6 +41,10 @@ def _signing_key() -> str:
     return os.getenv("THINKBOX_GOVERNANCE_SIGNING_KEY", "pipeline-founder-dev-key")
 
 
+def _founder_proof_key() -> str:
+    return os.getenv("THINKBOX_FOUNDER_MERGE_PROOF_KEY", DEFAULT_FOUNDER_PROOF_KEY)
+
+
 def build_pipeline_dashboard_bundle(
     *,
     db_path: str | None = None,
@@ -54,7 +59,13 @@ def build_pipeline_dashboard_bundle(
     identities.register(agent_id=agent_id, capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY])
     gate = AdmissionGate(tokens, identities)
     aggregator = PipelineDashboardAggregator(store)
-    merge_svc = FounderGatedMergeService(store, gate, coordinator, agent_id=agent_id)
+    merge_svc = FounderGatedMergeService(
+        store,
+        gate,
+        coordinator,
+        agent_id=agent_id,
+        founder_proof_key=_founder_proof_key(),
+    )
     return aggregator, merge_svc
 
 
@@ -121,11 +132,15 @@ async def pipeline_request_merge(
         body = {}
 
     branch = str(body.get("branch") or "")
+    founder_proof = str(body.get("founder_proof") or body.get("founder_merge_proof") or "")
+    if not founder_proof:
+        founder_proof = request.headers.get("X-Thinkbox-Founder-Proof") or ""
     _, merge_svc = _cached_bundle()
     result = merge_svc.request_merge(
         pr_number,
         branch=branch,
         governance_token=token,
+        founder_proof=founder_proof.strip(),
         metadata={"source": "control_plane_api"},
     )
     if result.http_status >= 400 and result.http_status != 403:

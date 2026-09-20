@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -13,6 +15,21 @@ from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
 PIPELINE_FOUNDER_MERGE_CAPABILITY = "pipeline:founder:request_merge"
 DEFAULT_FOUNDER_AGENT_ID = "pipeline-founder-gate"
+DEFAULT_FOUNDER_PROOF_KEY = "hermetic-founder-merge-proof-key"
+
+
+def compute_founder_merge_proof(pr_number: int, proof_key: str) -> str:
+    """PR-bound HMAC proof (second factor alongside governance token)."""
+    message = f"thinkbox:founder_merge:{int(pr_number)}".encode("utf-8")
+    digest = hmac.new(proof_key.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return digest[:32]
+
+
+def verify_founder_merge_proof(pr_number: int, proof_key: str, proof: str) -> bool:
+    if not proof or not proof_key:
+        return False
+    expected = compute_founder_merge_proof(pr_number, proof_key)
+    return hmac.compare_digest(expected, proof.strip())
 
 
 @dataclass
@@ -202,6 +219,9 @@ class FounderMergeRequestResult:
     evidence_label: str
     detail: str
     receipt_action: str = ""
+    idempotent: bool = False
+    deny_matrix: list[dict[str, Any]] = field(default_factory=list)
+    receipt_proof_hash: str = ""
 
     def to_response_body(self) -> dict[str, Any]:
         return {
@@ -212,6 +232,9 @@ class FounderMergeRequestResult:
             "evidence_label": self.evidence_label,
             "detail": self.detail,
             "receipt_action": self.receipt_action,
+            "idempotent": self.idempotent,
+            "deny_matrix": self.deny_matrix,
+            "receipt_proof_hash": self.receipt_proof_hash,
         }
 
 
@@ -224,11 +247,13 @@ class FounderGatedMergeService:
         gate: AdmissionGate,
         coordinator: PRLifecycleEventCoordinator,
         agent_id: str = DEFAULT_FOUNDER_AGENT_ID,
+        founder_proof_key: str = DEFAULT_FOUNDER_PROOF_KEY,
     ) -> None:
         self._store = store
         self._gate = gate
         self._coordinator = coordinator
         self._agent_id = agent_id
+        self._founder_proof_key = founder_proof_key
 
     def request_merge(
         self,
@@ -236,15 +261,51 @@ class FounderGatedMergeService:
         *,
         branch: str = "",
         governance_token: str,
+        founder_proof: str = "",
         metadata: Optional[dict[str, Any]] = None,
     ) -> FounderMergeRequestResult:
         meta = dict(metadata or {})
         meta["pr_number"] = pr_number
+        deny_matrix: list[dict[str, Any]] = []
+
+        proof_ok = verify_founder_merge_proof(pr_number, self._founder_proof_key, founder_proof)
+        deny_matrix.append(
+            {
+                "check": "founder_merge_proof",
+                "passed": proof_ok,
+                "reason": "ok" if proof_ok else "founder_proof_invalid_or_missing",
+            }
+        )
+        if not proof_ok:
+            self._record_merge_denied(
+                pr_number,
+                branch,
+                AdmissionDecision(False, "founder_proof_invalid_or_missing", self._agent_id, PIPELINE_FOUNDER_MERGE_CAPABILITY),
+            )
+            return FounderMergeRequestResult(
+                http_status=403,
+                admitted=False,
+                merged=False,
+                github_merge_called=False,
+                evidence_label="simulated",
+                detail="founder_proof_invalid_or_missing",
+                receipt_action="merge_request_denied",
+                deny_matrix=deny_matrix,
+            )
+
         decision = self._gate.authorize(
             governance_token,
             self._agent_id,
             PIPELINE_FOUNDER_MERGE_CAPABILITY,
             metadata=meta,
+        )
+        deny_matrix.append(
+            {
+                "check": "admission_gate",
+                "passed": decision.allowed,
+                "reason": decision.reason,
+                "capability": decision.capability,
+            }
         )
         if not decision.allowed:
             self._record_merge_denied(pr_number, branch, decision)
@@ -256,10 +317,26 @@ class FounderGatedMergeService:
                 evidence_label="simulated",
                 detail=decision.reason,
                 receipt_action="merge_request_denied",
+                deny_matrix=deny_matrix,
+            )
+
+        if self._merge_already_queued(pr_number):
+            return FounderMergeRequestResult(
+                http_status=200,
+                admitted=True,
+                merged=False,
+                github_merge_called=False,
+                evidence_label="simulated",
+                detail="already_queued",
+                receipt_action="founder_merge_requested",
+                idempotent=True,
+                deny_matrix=deny_matrix,
+                receipt_proof_hash=self._last_queue_proof_hash(pr_number),
             )
 
         resolved_branch = branch or self._branch_for_pr(pr_number)
-        self._store.append_lifecycle(
+        proof_hash = compute_founder_merge_proof(pr_number, self._founder_proof_key)
+        receipt = self._store.append_lifecycle(
             run_id=self._run_id_for_pr(pr_number),
             pr_number=pr_number,
             branch=resolved_branch,
@@ -267,12 +344,14 @@ class FounderGatedMergeService:
             to_state="READY_FOR_CLOSE",
             action="founder_merge_requested",
             result="queued",
-            evidence_label="verified",
+            evidence_label="simulated",
             evidence={
                 "github_merge": False,
                 "auto_merge": False,
                 "founder_gated": True,
                 "agent_id": self._agent_id,
+                "founder_proof_hash": proof_hash,
+                "admission_reason": decision.reason,
             },
         )
         return FounderMergeRequestResult(
@@ -280,10 +359,28 @@ class FounderGatedMergeService:
             admitted=True,
             merged=False,
             github_merge_called=False,
-            evidence_label="verified",
+            evidence_label="simulated",
             detail="queued_for_founder_review",
             receipt_action="founder_merge_requested",
+            deny_matrix=deny_matrix,
+            receipt_proof_hash=receipt.entry_hash,
         )
+
+    def _merge_already_queued(self, pr_number: int) -> bool:
+        rows = self._store.query(pr_number=pr_number, limit=30)
+        for row in rows:
+            if str(row.get("action") or "") == "founder_merge_requested" and row.get("result") == "queued":
+                return True
+            if str(row.get("action") or "") in ("merge_request_denied",):
+                return False
+        return False
+
+    def _last_queue_proof_hash(self, pr_number: int) -> str:
+        rows = self._store.query(pr_number=pr_number, limit=30)
+        for row in rows:
+            if str(row.get("action") or "") == "founder_merge_requested":
+                return str(row.get("entry_hash") or "")
+        return ""
 
     def _record_merge_denied(
         self,
@@ -330,8 +427,9 @@ def build_hermetic_pipeline_dashboard(
     *,
     signing_key: str = "hermetic-pipeline-founder-key",
     agent_id: str = DEFAULT_FOUNDER_AGENT_ID,
-) -> tuple[PipelineDashboardAggregator, FounderGatedMergeService, str]:
-    """In-memory store, gate, and issued founder token (unit tests only)."""
+    founder_proof_key: str = DEFAULT_FOUNDER_PROOF_KEY,
+) -> tuple[PipelineDashboardAggregator, FounderGatedMergeService, str, str]:
+    """In-memory store, gate, issued founder token, and PR proof (unit tests only)."""
     store = OrgMemoryReceiptStore(":memory:")
     coordinator = PRLifecycleEventCoordinator(store, test_mode=True)
     tokens = GovernanceTokenService(signing_key=signing_key)
@@ -346,5 +444,11 @@ def build_hermetic_pipeline_dashboard(
     )
     gate = AdmissionGate(tokens, identities)
     aggregator = PipelineDashboardAggregator(store)
-    merge_svc = FounderGatedMergeService(store, gate, coordinator, agent_id=agent_id)
-    return aggregator, merge_svc, issued.token_value
+    merge_svc = FounderGatedMergeService(
+        store,
+        gate,
+        coordinator,
+        agent_id=agent_id,
+        founder_proof_key=founder_proof_key,
+    )
+    return aggregator, merge_svc, issued.token_value, founder_proof_key
