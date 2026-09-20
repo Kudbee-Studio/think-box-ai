@@ -400,9 +400,11 @@ class FounderGatedMergeService:
         governance_token: str,
         founder_proof: str = "",
         metadata: Optional[dict[str, Any]] = None,
+        idempotency_key: str = "",
     ) -> FounderMergeRequestResult:
         meta = dict(metadata or {})
         meta["pr_number"] = pr_number
+        idem_key = (idempotency_key or str(meta.get("idempotency_key") or "")).strip()
         deny_matrix: list[dict[str, Any]] = []
 
         proof_ok = verify_founder_merge_proof(pr_number, self._founder_proof_key, founder_proof)
@@ -457,10 +459,35 @@ class FounderGatedMergeService:
                 deny_matrix=deny_matrix,
             )
 
-        if self._aggregator is not None:
-            from thinkbox.pipeline_merge_policy import evaluate_merge_policy
+        if idem_key:
+            from thinkbox.pipeline_idempotency import find_merge_idempotency_receipt
 
-            pol = evaluate_merge_policy(self._aggregator, pr_number, policy=self._merge_policy)
+            prior = find_merge_idempotency_receipt(self._store, pr_number, idem_key)
+            if prior is not None:
+                return FounderMergeRequestResult(
+                    http_status=200,
+                    admitted=True,
+                    merged=False,
+                    github_merge_called=False,
+                    evidence_label="simulated",
+                    detail="idempotency_replay",
+                    receipt_action="founder_merge_requested",
+                    idempotent=True,
+                    deny_matrix=deny_matrix,
+                    receipt_proof_hash=str(prior.get("entry_hash") or ""),
+                )
+
+        resolved_branch = branch or self._branch_for_pr(pr_number)
+        from thinkbox.pipeline_merge_policy import DEFAULT_PIPELINE_MERGE_POLICY, evaluate_merge_policy
+        from thinkbox.pipeline_policy_profiles import resolve_merge_policy_for_branch
+        from thinkbox.pipeline_waiver import has_active_policy_waiver
+
+        effective_policy = self._merge_policy
+        if effective_policy == DEFAULT_PIPELINE_MERGE_POLICY:
+            effective_policy = resolve_merge_policy_for_branch(resolved_branch)
+
+        if self._aggregator is not None and not has_active_policy_waiver(self._store, pr_number):
+            pol = evaluate_merge_policy(self._aggregator, pr_number, policy=effective_policy)
             deny_matrix.append(
                 {
                     "check": "merge_policy",
@@ -511,8 +538,18 @@ class FounderGatedMergeService:
                 receipt_proof_hash=self._last_queue_proof_hash(pr_number),
             )
 
-        resolved_branch = branch or self._branch_for_pr(pr_number)
         proof_hash = compute_founder_merge_proof(pr_number, self._founder_proof_key)
+        queue_evidence: dict[str, Any] = {
+            "github_merge": False,
+            "auto_merge": False,
+            "founder_gated": True,
+            "agent_id": self._agent_id,
+            "founder_proof_hash": proof_hash,
+            "admission_reason": decision.reason,
+            "policy_version": effective_policy.version,
+        }
+        if idem_key:
+            queue_evidence["idempotency_key"] = idem_key
         receipt = self._store.append_lifecycle(
             run_id=self._run_id_for_pr(pr_number),
             pr_number=pr_number,
@@ -522,14 +559,7 @@ class FounderGatedMergeService:
             action="founder_merge_requested",
             result="queued",
             evidence_label="simulated",
-            evidence={
-                "github_merge": False,
-                "auto_merge": False,
-                "founder_gated": True,
-                "agent_id": self._agent_id,
-                "founder_proof_hash": proof_hash,
-                "admission_reason": decision.reason,
-            },
+            evidence=queue_evidence,
         )
         return FounderMergeRequestResult(
             http_status=200,
@@ -611,9 +641,16 @@ def build_hermetic_pipeline_dashboard(
     coordinator = PRLifecycleEventCoordinator(store, test_mode=True)
     tokens = GovernanceTokenService(signing_key=signing_key)
     identities = IdentityLedger()
+    from thinkbox.pipeline_waiver import PIPELINE_POLICY_WAIVER_CAPABILITY
+
     identities.register(
         agent_id=agent_id,
-        capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY, PIPELINE_FLEET_CHECKPOINT_CAPABILITY],
+        capabilities=[
+            PIPELINE_FOUNDER_MERGE_CAPABILITY,
+            PipelineQuarantineController.QUARANTINE_CAPABILITY,
+            PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
+            PIPELINE_POLICY_WAIVER_CAPABILITY,
+        ],
     )
     issued = tokens.issue(
         TokenRequest(
@@ -622,6 +659,7 @@ def build_hermetic_pipeline_dashboard(
                 PIPELINE_FOUNDER_MERGE_CAPABILITY,
                 PipelineQuarantineController.QUARANTINE_CAPABILITY,
                 PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
+                PIPELINE_POLICY_WAIVER_CAPABILITY,
             ],
             ttl_seconds=3600.0,
         )

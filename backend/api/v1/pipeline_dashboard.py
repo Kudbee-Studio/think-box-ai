@@ -26,9 +26,12 @@ from thinkbox.pipeline_dashboard import (
     pipeline_ops_scorecard,
 )
 from thinkbox.pipeline_audit_packet import build_founder_audit_packet
+from thinkbox.pipeline_audit_verify import verify_audit_packet
+from thinkbox.pipeline_anomaly import detect_denial_anomalies
 from thinkbox.pipeline_correlation import compute_blast_radius
 from thinkbox.pipeline_fleet_checkpoint import DEFAULT_FLEET_CHECKPOINT_KEY, FleetCheckpointService, CHECKPOINT_CAPABILITY
 from thinkbox.pipeline_readiness import evaluate_merge_readiness
+from thinkbox.pipeline_waiver import PIPELINE_POLICY_WAIVER_CAPABILITY, PolicyWaiverService
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
 pipeline_dashboard_router = APIRouter(
@@ -60,6 +63,7 @@ class PipelineDashboardBundle:
     merge_svc: FounderGatedMergeService
     quarantine: PipelineQuarantineController
     fleet_checkpoint: FleetCheckpointService
+    policy_waiver: PolicyWaiverService
 
 
 def build_pipeline_dashboard_bundle(
@@ -77,6 +81,7 @@ def build_pipeline_dashboard_bundle(
         PIPELINE_FOUNDER_MERGE_CAPABILITY,
         PipelineQuarantineController.QUARANTINE_CAPABILITY,
         PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
+        PIPELINE_POLICY_WAIVER_CAPABILITY,
     ]
     identities.register(agent_id=agent_id, capabilities=caps)
     gate = AdmissionGate(tokens, identities)
@@ -91,11 +96,13 @@ def build_pipeline_dashboard_bundle(
     )
     quarantine = PipelineQuarantineController(store, gate, agent_id=agent_id)
     fleet = FleetCheckpointService(store, aggregator)
+    waiver = PolicyWaiverService(store, gate, agent_id=agent_id)
     return PipelineDashboardBundle(
         aggregator=aggregator,
         merge_svc=merge_svc,
         quarantine=quarantine,
         fleet_checkpoint=fleet,
+        policy_waiver=waiver,
     )
 
 
@@ -179,6 +186,37 @@ async def pipeline_audit_packet(pr_number: int, receipt_limit: int = 100) -> dic
         attestation_key=key,
         receipt_limit=receipt_limit,
     )
+
+
+@pipeline_dashboard_router.post("/pr/{pr_number}/audit-packet/verify")
+async def pipeline_audit_packet_verify(pr_number: int, request: Request) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    body: dict[str, Any] = {}
+    try:
+        if request.headers.get("content-type", "").startswith("application/json"):
+            parsed = await request.json()
+            if isinstance(parsed, dict):
+                body = parsed
+    except Exception:
+        body = {}
+    packet = body.get("packet") if isinstance(body.get("packet"), dict) else body
+    if not isinstance(packet, dict) or not packet:
+        raise HTTPException(status_code=400, detail="audit_packet_required")
+    key = os.getenv("THINKBOX_PIPELINE_AUDIT_KEY", "hermetic-pipeline-audit-key")
+    result = verify_audit_packet(packet, attestation_key=key)
+    result["pr_number"] = pr_number
+    if not result.get("verified"):
+        return JSONResponse(status_code=400, content=result)
+    return result
+
+
+@pipeline_dashboard_router.get("/admissions/anomalies")
+async def pipeline_admission_anomalies(window: int = 50, spike_ratio: float = 2.5) -> dict[str, Any]:
+    if window < 10 or window > 500:
+        raise HTTPException(status_code=400, detail="window must be 10..500")
+    store = _cached_bundle().aggregator._store  # noqa: SLF001
+    return detect_denial_anomalies(store, window=window, spike_ratio=spike_ratio)
 
 
 @pipeline_dashboard_router.get("/correlation/blast-radius")
@@ -279,12 +317,14 @@ async def pipeline_request_merge(
     founder_proof = str(body.get("founder_proof") or body.get("founder_merge_proof") or "")
     if not founder_proof:
         founder_proof = request.headers.get("X-Thinkbox-Founder-Proof") or ""
+    idempotency_key = request.headers.get("X-Thinkbox-Idempotency-Key") or str(body.get("idempotency_key") or "")
     result = _cached_bundle().merge_svc.request_merge(
         pr_number,
         branch=branch,
         governance_token=token,
         founder_proof=founder_proof.strip(),
         metadata={"source": "control_plane_api"},
+        idempotency_key=idempotency_key.strip(),
     )
     if result.http_status >= 400 and result.http_status != 403:
         raise HTTPException(status_code=result.http_status, detail=result.detail)
@@ -338,6 +378,42 @@ async def pipeline_quarantine_write(
         governance_token=token,
     )
     if not result.get("admitted"):
+        return JSONResponse(status_code=403, content=result)
+    return result
+
+
+@pipeline_dashboard_router.post("/pr/{pr_number}/policy-waiver")
+async def pipeline_policy_waiver(
+    pr_number: int,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    x_governance_token: Optional[str] = Header(None, alias="X-Thinkbox-Governance-Token"),
+) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    token = _extract_governance_token(authorization, x_governance_token)
+    if not token:
+        raise HTTPException(status_code=401, detail="governance_token_required")
+    body: dict[str, Any] = {}
+    try:
+        if request.headers.get("content-type", "").startswith("application/json"):
+            parsed = await request.json()
+            if isinstance(parsed, dict):
+                body = parsed
+    except Exception:
+        body = {}
+    branch = str(body.get("branch") or "")
+    reason = str(body.get("reason") or "founder_accepted_risk")
+    result = _cached_bundle().policy_waiver.grant_waiver(
+        pr_number,
+        branch=branch,
+        governance_token=token,
+        reason=reason,
+    )
+    result["pr_number"] = pr_number
+    result["auto_merge"] = False
+    result["github_merge"] = False
+    if not result.get("granted"):
         return JSONResponse(status_code=403, content=result)
     return result
 
