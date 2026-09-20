@@ -448,8 +448,12 @@ class PRLifecycleOrchestrator:
         if PRLifecycle.is_terminal(self._state):
             raise RuntimeError(f"Orchestrator already terminal: {self._state}")
 
-        self._rehydrate_runtime()
         stage = self._state
+        try:
+            self._rehydrate_runtime()
+        except Exception as exc:
+            self._fail(stage, "rehydrate_runtime", str(exc), {})
+            return self._receipts[-1]
         if self._check_injected_failure(stage):
             self._fail(stage, f"{stage}_action", f"injected_failure_at_{stage}", {})
             return self._receipts[-1]
@@ -672,28 +676,45 @@ class PRLifecycleOrchestrator:
             error=err,
         )
 
+    def _find_lifecycle_experiment_id(self) -> Optional[str]:
+        assert self._manager is not None
+        intent = f"pr-{self._config.pr_number}-lifecycle"
+        rows = [
+            row
+            for row in self._manager.db.get_all_experiments(limit=100)
+            if row.get("intent") == intent
+        ]
+        if not rows:
+            return None
+        rows.sort(key=lambda row: row.get("timestamp", ""))
+        return rows[0]["experiment_id"]
+
     def _execute_local_experiment(self) -> str:
         if getattr(self, "_execute_override", None):
             return self._execute_override(self._manager, self._analytics)
 
         assert self._manager is not None and self._analytics is not None
-        exp = self._manager.create_experiment(
-            intent=f"pr-{self._config.pr_number}-lifecycle",
-            hypothesis="Local deterministic PR lifecycle experiment",
-            agent_id="pr_lifecycle_orchestrator",
-        )
+        exp_id = self._find_lifecycle_experiment_id()
+        if not exp_id:
+            exp = self._manager.create_experiment(
+                intent=f"pr-{self._config.pr_number}-lifecycle",
+                hypothesis="Local deterministic PR lifecycle experiment",
+                agent_id="pr_lifecycle_orchestrator",
+            )
+            exp_id = exp.experiment_id
         runs = self._config.deterministic_metrics or _default_metric_runs()
-        for run in runs:
-            self._analytics.persist_run(exp.experiment_id, run)
-        self._manager.record_outcome(
-            exp.experiment_id,
-            {"status": "completed", "runs": len(runs)},
-            confidence=0.9,
-        )
-        lifecycle = ExperimentLifecycle(self._manager, exp.experiment_id)
-        for target in ("RUNNING", "OBSERVED", "VERIFIED"):
-            lifecycle.transition(target, evidence={"source": "pr_lifecycle_execute"})
-        return exp.experiment_id
+        if not self._analytics._query_artifacts(exp_id):
+            for run in runs:
+                self._analytics.persist_run(exp_id, run)
+            self._manager.record_outcome(
+                exp_id,
+                {"status": "completed", "runs": len(runs)},
+                confidence=0.9,
+            )
+            lifecycle = ExperimentLifecycle(self._manager, exp_id)
+            for target in ("RUNNING", "OBSERVED", "VERIFIED"):
+                lifecycle.transition(target, evidence={"source": "pr_lifecycle_execute"})
+        return exp_id
 
     def _generate_proof(self) -> str:
         assert self._manager is not None

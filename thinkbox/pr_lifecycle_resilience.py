@@ -255,6 +255,17 @@ class ResilientPRLifecycleRunner:
             raise ValueError(f"No checkpoint for run_id={run_id}")
         runner = cls(config)
         runner._orch.restore_snapshot(snapshot)
+        resilience = snapshot.get("resilience_runner") or {}
+        runner._steps_taken = int(resilience.get("steps_taken", 0))
+        runner._retry_counts = {b: 0 for b in BOUNDARY_STAGES}
+        runner._retry_counts.update(resilience.get("retry_counts") or {})
+        runner._transient_remaining = dict(config.transient_failures)
+        runner._transient_remaining.update(resilience.get("transient_remaining") or {})
+        saved_score = resilience.get("resilience_score") or {}
+        for key, value in saved_score.items():
+            if hasattr(runner._resilience_score, key):
+                setattr(runner._resilience_score, key, value)
+        runner._audit_log = list(resilience.get("audit_log") or [])
         runner._resilience_score.crash_resumes += 1
         runner._prev_context = dict(runner._orch.context)
         return runner
@@ -286,6 +297,13 @@ class ResilientPRLifecycleRunner:
 
     def _checkpoint(self) -> None:
         snap = self._orch.snapshot()
+        snap["resilience_runner"] = {
+            "steps_taken": self._steps_taken,
+            "retry_counts": dict(self._retry_counts),
+            "transient_remaining": dict(self._transient_remaining),
+            "resilience_score": self._resilience_score.to_dict(),
+            "audit_log": list(self._audit_log),
+        }
         self._store.save(
             self._orch.run_id,
             self._config.base.pr_number,
@@ -301,11 +319,12 @@ class ResilientPRLifecycleRunner:
         )
 
     def _safety_block(self, reason: str) -> PRLifecycleResult:
+        from_state = self._orch.current_state
         self._resilience_score.safety_blocks += 1
         self._orch._state = PRLifecycleState.BLOCKED.value
         self._orch._scorecard.terminal_state = PRLifecycleState.BLOCKED.value
         self._orch._emit_receipt(
-            self._orch.current_state,
+            from_state,
             PRLifecycleState.BLOCKED.value,
             "safety_guard",
             "blocked",
@@ -492,7 +511,19 @@ def run_parallel_lifecycles(
         result = runner.run_to_completion()
         with lock:
             runner.resilience_scorecard.parallel_runs_completed += 1
-        return result
+        merged_score = dict(result.scorecard)
+        merged_score["resilience"] = runner.resilience_scorecard.to_dict()
+        merged_score["audit_records"] = runner.resilience_scorecard.audit_records
+        return PRLifecycleResult(
+            terminal_state=result.terminal_state,
+            run_id=result.run_id,
+            pr_number=result.pr_number,
+            branch=result.branch,
+            receipts=result.receipts,
+            scorecard=merged_score,
+            context=result.context,
+            error=result.error,
+        )
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {pool.submit(_one, c): c for c in configs}
