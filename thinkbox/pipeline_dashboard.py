@@ -13,9 +13,11 @@ from thinkbox.admission import AdmissionGate, AdmissionDecision
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.identity import IdentityLedger
 from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
+from thinkbox.pipeline_rollup import EvidenceLabelCounts, PRPipelineSummary, summarize_pr_from_receipts
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
 PIPELINE_FOUNDER_MERGE_CAPABILITY = "pipeline:founder:request_merge"
+PIPELINE_FLEET_CHECKPOINT_CAPABILITY = "pipeline:fleet:checkpoint"
 DEFAULT_FOUNDER_AGENT_ID = "pipeline-founder-gate"
 DEFAULT_FOUNDER_PROOF_KEY = "hermetic-founder-merge-proof-key"
 
@@ -32,133 +34,6 @@ def verify_founder_merge_proof(pr_number: int, proof_key: str, proof: str) -> bo
         return False
     expected = compute_founder_merge_proof(pr_number, proof_key)
     return hmac.compare_digest(expected, proof.strip())
-
-
-@dataclass
-class EvidenceLabelCounts:
-    verified: int = 0
-    simulated: int = 0
-    rejected: int = 0
-
-    def to_dict(self) -> dict[str, int]:
-        return {
-            "verified": self.verified,
-            "simulated": self.simulated,
-            "rejected": self.rejected,
-        }
-
-
-@dataclass
-class PRPipelineSummary:
-    pr_number: int
-    branch: str
-    lifecycle_state: str
-    evidence_counts: EvidenceLabelCounts
-    admission_denied_count: int
-    last_ci: Optional[dict[str, Any]]
-    blocked_reasons: list[str] = field(default_factory=list)
-    merge_request_status: str = "none"
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "pr_number": self.pr_number,
-            "branch": self.branch,
-            "lifecycle_state": self.lifecycle_state,
-            "evidence_counts": self.evidence_counts.to_dict(),
-            "admission_denied_count": self.admission_denied_count,
-            "last_ci": self.last_ci,
-            "blocked_reasons": self.blocked_reasons,
-            "merge_request_status": self.merge_request_status,
-        }
-
-
-def _label_counts(receipts: list[dict[str, Any]]) -> EvidenceLabelCounts:
-    counts = EvidenceLabelCounts()
-    for row in receipts:
-        label = str(row.get("evidence_label") or "simulated").lower()
-        if label == "verified":
-            counts.verified += 1
-        elif label == "rejected":
-            counts.rejected += 1
-        else:
-            counts.simulated += 1
-    return counts
-
-
-def _collect_blocked_reasons(receipts: list[dict[str, Any]]) -> list[str]:
-    reasons: list[str] = []
-    seen: set[str] = set()
-    for row in receipts:
-        action = str(row.get("action") or "")
-        result = str(row.get("result") or "")
-        evidence = row.get("evidence") or {}
-        if action == "admission_denied":
-            reason = str(evidence.get("admission_reason") or "admission_denied")
-        elif action == "merge_requested" and result == "blocked":
-            reason = str(evidence.get("reason") or "founder_approval_required")
-        elif action == "merge_request_denied":
-            reason = str(evidence.get("admission_reason") or evidence.get("reason") or "merge_denied")
-        elif result == "blocked":
-            reason = str(evidence.get("reason") or action or "blocked")
-        else:
-            continue
-        if reason not in seen:
-            seen.add(reason)
-            reasons.append(reason)
-    return reasons
-
-
-def _last_ci_observation(receipts: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
-    for row in receipts:
-        if str(row.get("action") or "") != "ci_status_observed":
-            continue
-        evidence = row.get("evidence") or {}
-        return {
-            "workflow": evidence.get("workflow"),
-            "conclusion": evidence.get("conclusion"),
-            "ci_run_id": evidence.get("ci_run_id"),
-            "timestamp": row.get("timestamp"),
-            "evidence_label": row.get("evidence_label"),
-        }
-    return None
-
-
-def _merge_request_status(receipts: list[dict[str, Any]]) -> str:
-    for row in receipts:
-        action = str(row.get("action") or "")
-        if action == "founder_merge_requested":
-            return "queued"
-        if action == "merge_requested":
-            return "blocked" if row.get("result") == "blocked" else str(row.get("result") or "unknown")
-        if action == "merge_request_denied":
-            return "denied"
-    return "none"
-
-
-def summarize_pr_from_receipts(
-    pr_number: int,
-    receipts_newest_first: list[dict[str, Any]],
-) -> PRPipelineSummary:
-    """Build a pipeline summary from receipts (newest-first order)."""
-    branch = ""
-    lifecycle_state = "UNKNOWN"
-    if receipts_newest_first:
-        branch = str(receipts_newest_first[0].get("branch") or "")
-        lifecycle_state = str(receipts_newest_first[0].get("to_state") or "UNKNOWN")
-
-    admission_denied = sum(
-        1 for r in receipts_newest_first if str(r.get("action") or "") == "admission_denied"
-    )
-    return PRPipelineSummary(
-        pr_number=pr_number,
-        branch=branch,
-        lifecycle_state=lifecycle_state,
-        evidence_counts=_label_counts(receipts_newest_first),
-        admission_denied_count=admission_denied,
-        last_ci=_last_ci_observation(receipts_newest_first),
-        blocked_reasons=_collect_blocked_reasons(receipts_newest_first),
-        merge_request_status=_merge_request_status(receipts_newest_first),
-    )
 
 
 class PipelineDashboardAggregator:
@@ -504,12 +379,18 @@ class FounderGatedMergeService:
         coordinator: PRLifecycleEventCoordinator,
         agent_id: str = DEFAULT_FOUNDER_AGENT_ID,
         founder_proof_key: str = DEFAULT_FOUNDER_PROOF_KEY,
+        aggregator: Optional["PipelineDashboardAggregator"] = None,
+        merge_policy: Optional[Any] = None,
     ) -> None:
+        from thinkbox.pipeline_merge_policy import DEFAULT_PIPELINE_MERGE_POLICY
+
         self._store = store
         self._gate = gate
         self._coordinator = coordinator
         self._agent_id = agent_id
         self._founder_proof_key = founder_proof_key
+        self._aggregator = aggregator
+        self._merge_policy = merge_policy or DEFAULT_PIPELINE_MERGE_POLICY
 
     def request_merge(
         self,
@@ -575,6 +456,46 @@ class FounderGatedMergeService:
                 receipt_action="merge_request_denied",
                 deny_matrix=deny_matrix,
             )
+
+        if self._aggregator is not None:
+            from thinkbox.pipeline_merge_policy import evaluate_merge_policy
+
+            pol = evaluate_merge_policy(self._aggregator, pr_number, policy=self._merge_policy)
+            deny_matrix.append(
+                {
+                    "check": "merge_policy",
+                    "passed": pol.allowed,
+                    "reason": pol.reason,
+                    "readiness_score": pol.readiness.score,
+                }
+            )
+            if not pol.allowed:
+                self._store.append_lifecycle(
+                    run_id=f"merge_policy_{pr_number}",
+                    pr_number=pr_number,
+                    branch=branch,
+                    from_state="BLOCKED",
+                    to_state="BLOCKED",
+                    action="merge_policy_denied",
+                    result="blocked",
+                    evidence_label="simulated",
+                    evidence={
+                        "policy_reason": pol.reason,
+                        "readiness_score": pol.readiness.score,
+                        "blockers": pol.readiness.blockers,
+                        "github_merge": False,
+                    },
+                )
+                return FounderMergeRequestResult(
+                    http_status=403,
+                    admitted=False,
+                    merged=False,
+                    github_merge_called=False,
+                    evidence_label="simulated",
+                    detail=pol.reason,
+                    receipt_action="merge_policy_denied",
+                    deny_matrix=deny_matrix,
+                )
 
         if self._merge_already_queued(pr_number):
             return FounderMergeRequestResult(
@@ -692,7 +613,7 @@ def build_hermetic_pipeline_dashboard(
     identities = IdentityLedger()
     identities.register(
         agent_id=agent_id,
-        capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY],
+        capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY, PIPELINE_FLEET_CHECKPOINT_CAPABILITY],
     )
     issued = tokens.issue(
         TokenRequest(
@@ -700,6 +621,7 @@ def build_hermetic_pipeline_dashboard(
             capabilities=[
                 PIPELINE_FOUNDER_MERGE_CAPABILITY,
                 PipelineQuarantineController.QUARANTINE_CAPABILITY,
+                PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
             ],
             ttl_seconds=3600.0,
         )
@@ -712,5 +634,10 @@ def build_hermetic_pipeline_dashboard(
         coordinator,
         agent_id=agent_id,
         founder_proof_key=founder_proof_key,
+        aggregator=aggregator,
     )
     return aggregator, merge_svc, issued.token_value, founder_proof_key
+
+
+# Re-exports for tests and API consumers
+from thinkbox.pipeline_rollup import EvidenceLabelCounts, PRPipelineSummary, summarize_pr_from_receipts  # noqa: E402,F401

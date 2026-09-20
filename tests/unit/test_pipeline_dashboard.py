@@ -98,6 +98,17 @@ class TestFounderGatedMerge(unittest.TestCase):
             result="success",
             evidence_label="verified",
         )
+        store.append_lifecycle(
+            run_id="run_301",
+            pr_number=301,
+            branch="feat/x",
+            from_state="LEARN",
+            to_state="LEARN",
+            action="ci_status_observed",
+            result="success",
+            evidence_label="verified",
+            evidence={"workflow": "unittest", "conclusion": "success", "ci_run_id": "1"},
+        )
         proof = compute_founder_merge_proof(301, proof_key)
         result = merge_svc.request_merge(301, governance_token=token, founder_proof=proof)
         self.assertTrue(result.admitted)

@@ -18,12 +18,17 @@ from thinkbox.pipeline_dashboard import (
     DEFAULT_FOUNDER_AGENT_ID,
     DEFAULT_FOUNDER_PROOF_KEY,
     PIPELINE_FOUNDER_MERGE_CAPABILITY,
+    PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
     FounderGatedMergeService,
     PipelineDashboardAggregator,
     PipelineDeltaTracker,
     PipelineQuarantineController,
     pipeline_ops_scorecard,
 )
+from thinkbox.pipeline_audit_packet import build_founder_audit_packet
+from thinkbox.pipeline_correlation import compute_blast_radius
+from thinkbox.pipeline_fleet_checkpoint import DEFAULT_FLEET_CHECKPOINT_KEY, FleetCheckpointService, CHECKPOINT_CAPABILITY
+from thinkbox.pipeline_readiness import evaluate_merge_readiness
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
 pipeline_dashboard_router = APIRouter(
@@ -54,6 +59,7 @@ class PipelineDashboardBundle:
     aggregator: PipelineDashboardAggregator
     merge_svc: FounderGatedMergeService
     quarantine: PipelineQuarantineController
+    fleet_checkpoint: FleetCheckpointService
 
 
 def build_pipeline_dashboard_bundle(
@@ -67,7 +73,11 @@ def build_pipeline_dashboard_bundle(
     agent_id = _founder_agent_id()
     tokens = GovernanceTokenService(signing_key=_signing_key())
     identities = IdentityLedger()
-    caps = [PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY]
+    caps = [
+        PIPELINE_FOUNDER_MERGE_CAPABILITY,
+        PipelineQuarantineController.QUARANTINE_CAPABILITY,
+        PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
+    ]
     identities.register(agent_id=agent_id, capabilities=caps)
     gate = AdmissionGate(tokens, identities)
     aggregator = PipelineDashboardAggregator(store)
@@ -77,9 +87,16 @@ def build_pipeline_dashboard_bundle(
         coordinator,
         agent_id=agent_id,
         founder_proof_key=_founder_proof_key(),
+        aggregator=aggregator,
     )
     quarantine = PipelineQuarantineController(store, gate, agent_id=agent_id)
-    return PipelineDashboardBundle(aggregator=aggregator, merge_svc=merge_svc, quarantine=quarantine)
+    fleet = FleetCheckpointService(store, aggregator)
+    return PipelineDashboardBundle(
+        aggregator=aggregator,
+        merge_svc=merge_svc,
+        quarantine=quarantine,
+        fleet_checkpoint=fleet,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -142,6 +159,66 @@ async def pipeline_pr_integrity(pr_number: int, receipt_limit: int = 500) -> dic
     if pr_number < 1:
         raise HTTPException(status_code=400, detail="invalid pr_number")
     return _cached_bundle().aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
+
+
+@pipeline_dashboard_router.get("/pr/{pr_number}/merge-readiness")
+async def pipeline_merge_readiness(pr_number: int) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    return evaluate_merge_readiness(_cached_bundle().aggregator._store, pr_number).to_dict()  # noqa: SLF001
+
+
+@pipeline_dashboard_router.get("/pr/{pr_number}/audit-packet")
+async def pipeline_audit_packet(pr_number: int, receipt_limit: int = 100) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    key = os.getenv("THINKBOX_PIPELINE_AUDIT_KEY", "hermetic-pipeline-audit-key")
+    return build_founder_audit_packet(
+        _cached_bundle().aggregator,
+        pr_number,
+        attestation_key=key,
+        receipt_limit=receipt_limit,
+    )
+
+
+@pipeline_dashboard_router.get("/correlation/blast-radius")
+async def pipeline_blast_radius(receipt_limit: int = 400) -> dict[str, Any]:
+    if receipt_limit < 50 or receipt_limit > 2000:
+        raise HTTPException(status_code=400, detail="receipt_limit must be 50..2000")
+    return compute_blast_radius(_cached_bundle().aggregator, receipt_limit=receipt_limit)
+
+
+@pipeline_dashboard_router.get("/checkpoint/latest")
+async def pipeline_checkpoint_latest() -> dict[str, Any]:
+    latest = _cached_bundle().fleet_checkpoint.latest()
+    return latest or {"checkpoint": None, "evidence_label": "simulated"}
+
+
+@pipeline_dashboard_router.post("/checkpoint/attest")
+async def pipeline_checkpoint_attest(
+    authorization: Optional[str] = Header(None),
+    x_governance_token: Optional[str] = Header(None, alias="X-Thinkbox-Governance-Token"),
+) -> dict[str, Any]:
+    token = _extract_governance_token(authorization, x_governance_token)
+    if not token:
+        raise HTTPException(status_code=401, detail="governance_token_required")
+    bundle = _cached_bundle()
+    decision = bundle.merge_svc._gate.authorize(  # noqa: SLF001
+        token,
+        _founder_agent_id(),
+        PIPELINE_FLEET_CHECKPOINT_CAPABILITY,
+        metadata={"action": "fleet_checkpoint"},
+    )
+    if not decision.allowed:
+        return JSONResponse(status_code=403, content={"admitted": False, "detail": decision.reason})
+    q = bundle.quarantine.read()
+    cp = bundle.fleet_checkpoint.create_checkpoint(quarantine=q)
+    return {"admitted": True, "checkpoint": cp.to_dict()}
+
+
+@pipeline_dashboard_router.get("/checkpoint/verify")
+async def pipeline_checkpoint_verify() -> dict[str, Any]:
+    return _cached_bundle().fleet_checkpoint.verify_latest()
 
 
 @pipeline_dashboard_router.get("/poll/deltas")

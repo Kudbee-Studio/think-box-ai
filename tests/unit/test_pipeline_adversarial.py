@@ -11,6 +11,7 @@ from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
 from thinkbox.pipeline_dashboard import (
     PIPELINE_FOUNDER_MERGE_CAPABILITY,
     FounderGatedMergeService,
+    PipelineDashboardAggregator,
     compute_founder_merge_proof,
 )
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
@@ -31,6 +32,7 @@ class TestPipelineAdversarial(unittest.TestCase):
             TokenRequest(agent_id=agent_id, capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY])
         )
         gate = AdmissionGate(tokens, identities)
+        aggregator = PipelineDashboardAggregator(store)
         proof_key = "proof-key"
         merge_svc = FounderGatedMergeService(
             store,
@@ -38,6 +40,7 @@ class TestPipelineAdversarial(unittest.TestCase):
             coordinator,
             agent_id=agent_id,
             founder_proof_key=proof_key,
+            aggregator=aggregator,
         )
         return merge_svc, forged.token_value, valid.token_value, proof_key
 
@@ -58,6 +61,7 @@ class TestPipelineAdversarial(unittest.TestCase):
             gate,
             coordinator,
             founder_proof_key="pk",
+            aggregator=PipelineDashboardAggregator(store),
         )
         issued = tokens.issue(TokenRequest(agent_id="pipeline-founder-gate", capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY]))
         proof = compute_founder_merge_proof(902, "pk")
@@ -66,6 +70,28 @@ class TestPipelineAdversarial(unittest.TestCase):
 
     def test_double_request_merge_idempotent(self) -> None:
         merge_svc, _forged, valid, proof_key = self._svc()
+        store = merge_svc._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="run_903",
+            pr_number=903,
+            branch="feat/x",
+            from_state="LEARN",
+            to_state="LEARN",
+            action="lifecycle_complete",
+            result="success",
+            evidence_label="verified",
+        )
+        store.append_lifecycle(
+            run_id="run_903",
+            pr_number=903,
+            branch="feat/x",
+            from_state="LEARN",
+            to_state="LEARN",
+            action="ci_status_observed",
+            result="success",
+            evidence_label="verified",
+            evidence={"workflow": "unittest", "conclusion": "success", "ci_run_id": "1"},
+        )
         proof = compute_founder_merge_proof(903, proof_key)
         first = merge_svc.request_merge(903, governance_token=valid, founder_proof=proof)
         second = merge_svc.request_merge(903, governance_token=valid, founder_proof=proof)
