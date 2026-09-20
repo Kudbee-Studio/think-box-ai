@@ -246,6 +246,22 @@ class PipelineDashboardAggregator:
             "auto_merge": False,
         }
 
+    def verify_pr_receipt_integrity(self, pr_number: int, *, receipt_limit: int = 500) -> dict[str, Any]:
+        """Hash-chain verify (global) plus per-PR receipt stats."""
+        chain_ok = self._store.verify()
+        rows = self._store.query(pr_number=pr_number, limit=receipt_limit)
+        first_hash = rows[-1]["entry_hash"] if rows else ""
+        last_hash = rows[0]["entry_hash"] if rows else ""
+        return {
+            "pr_number": pr_number,
+            "receipt_count": len(rows),
+            "chain_verified": chain_ok,
+            "first_entry_hash": first_hash,
+            "last_entry_hash": last_hash,
+            "evidence_label": "verified" if chain_ok else "rejected",
+            "auto_merge": False,
+        }
+
 
 @dataclass
 class FounderMergeRequestResult:

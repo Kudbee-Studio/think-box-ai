@@ -108,6 +108,14 @@ async def pipeline_pr_detail(pr_number: int, receipt_limit: int = 50) -> dict[st
     return aggregator.pr_detail(pr_number, receipt_limit=receipt_limit)
 
 
+@pipeline_dashboard_router.get("/pr/{pr_number}/integrity")
+async def pipeline_pr_integrity(pr_number: int, receipt_limit: int = 500) -> dict[str, Any]:
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    aggregator, _ = _cached_bundle()
+    return aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
+
+
 @pipeline_dashboard_router.post("/pr/{pr_number}/request-merge")
 async def pipeline_request_merge(
     pr_number: int,

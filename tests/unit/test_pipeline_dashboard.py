@@ -198,5 +198,25 @@ class TestAdmissionDenialLedger(unittest.TestCase):
         self.assertEqual(ledger["by_reason"]["signature_mismatch"], 1)
 
 
+class TestPrReceiptIntegrity(unittest.TestCase):
+    def test_integrity_reports_chain_and_hashes(self) -> None:
+        aggregator, _, _, _ = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="r",
+            pr_number=601,
+            branch="b",
+            from_state="A",
+            to_state="B",
+            action="act",
+            result="success",
+            evidence_label="verified",
+        )
+        report = aggregator.verify_pr_receipt_integrity(601)
+        self.assertTrue(report["chain_verified"])
+        self.assertEqual(report["receipt_count"], 1)
+        self.assertTrue(report["first_entry_hash"])
+
+
 if __name__ == "__main__":
     unittest.main()
