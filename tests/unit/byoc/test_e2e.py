@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from thinkbox.byoc_config import ByocConfig
 from thinkbox.byoc_resolve import resolve_mercury_byoc
-from thinkbox.byoc_stash_store import ThinkStashStore
+from thinkbox.byoc_stash_store import ThinkStashStore, StashRecord
 from thinkbox.byoc_stash_writer import ThinkStashEntry, ThinkStashWriter
 from thinkbox.byoc_stash_reader import ThinkStashReader
 from thinkbox.byoc_proof_bind import StashProofBinder, StashProofLink
@@ -76,8 +76,21 @@ class TestThinkStashStore(unittest.TestCase):
     def setUp(self) -> None:
         self.store = ThinkStashStore(":memory:")
 
+    def _record(self, stash_id: str, **overrides: str) -> StashRecord:
+        return StashRecord(
+            stash_id=stash_id,
+            session_id=overrides.get("session_id", ""),
+            burst_id=overrides.get("burst_id", ""),
+            reasoning_sha256=overrides.get("reasoning_sha256", "abc123"),
+            vector_id=overrides.get("vector_id", "vec456"),
+            proof_receipt_id=overrides.get("proof_receipt_id", ""),
+            metadata=overrides.get("metadata", {}),
+            created_at=overrides.get("created_at", ""),
+            evidence_label=overrides.get("evidence_label", "simulated"),
+        )
+
     def test_upsert_and_get(self) -> None:
-        record = self._make_record("stash-1")
+        record = self._record("stash-1")
         self.store.upsert(record)
         result = self.store.get("stash-1")
         self.assertIsNotNone(result)
@@ -87,9 +100,9 @@ class TestThinkStashStore(unittest.TestCase):
         self.assertIsNone(self.store.get("nonexistent"))
 
     def test_find_by_session(self) -> None:
-        r1 = self._make_record("s1", session_id="sess-1")
-        r2 = self._make_record("s2", session_id="sess-1")
-        r3 = self._make_record("s3", session_id="sess-2")
+        r1 = self._record("s1", session_id="sess-1")
+        r2 = self._record("s2", session_id="sess-1")
+        r3 = self._record("s3", session_id="sess-2")
         self.store.upsert(r1)
         self.store.upsert(r2)
         self.store.upsert(r3)
@@ -97,8 +110,8 @@ class TestThinkStashStore(unittest.TestCase):
         self.assertEqual(len(results), 2)
 
     def test_find_by_proof(self) -> None:
-        r1 = self._make_record("p1", proof_receipt_id="proof-1")
-        r2 = self._make_record("p2", proof_receipt_id="proof-1")
+        r1 = self._record("p1", proof_receipt_id="proof-1")
+        r2 = self._record("p2", proof_receipt_id="proof-1")
         self.store.upsert(r1)
         self.store.upsert(r2)
         results = self.store.find_by_proof("proof-1")
@@ -106,46 +119,37 @@ class TestThinkStashStore(unittest.TestCase):
 
     def test_count(self) -> None:
         self.assertEqual(self.store.count(), 0)
-        self.store.upsert(self._make_record("a"))
-        self.store.upsert(self._make_record("b"))
+        self.store.upsert(self._record("a"))
+        self.store.upsert(self._record("b"))
         self.assertEqual(self.store.count(), 2)
 
     def test_last_harvest_returns_none_when_empty(self) -> None:
         self.assertIsNone(self.store.last_harvest())
 
     def test_last_harvest_returns_latest(self) -> None:
-        r1 = self._make_record("old", created_at="2026-01-01T00:00:00+00:00")
-        r2 = self._make_record("new", created_at="2026-06-15T12:00:00+00:00")
+        r1 = self._record("old", created_at="2026-01-01T00:00:00+00:00")
+        r2 = self._record("new", created_at="2026-06-15T12:00:00+00:00")
         self.store.upsert(r1)
         self.store.upsert(r2)
         last = self.store.last_harvest()
         self.assertEqual(last["stash_id"], "new")
 
-    def _make_record(
-        self, stash_id: str, session_id: str = "", burst_id: str = "",
-        proof_receipt_id: str = "", created_at: str = "",
-    ) -> dict[str, str]:
-        record: dict[str, str] = {"stash_id": stash_id}
-        if session_id:
-            record["session_id"] = session_id
-        if burst_id:
-            record["burst_id"] = burst_id
-        if proof_receipt_id:
-            record["proof_receipt_id"] = proof_receipt_id
-        if created_at:
-            record["created_at"] = created_at
-        record["reasoning_sha256"] = "abc123"
-        record["vector_id"] = "vec456"
-        record["metadata"] = "{}"
-        record["evidence_label"] = "simulated"
-        return record  # type: ignore[return-type]
+    def test_find_by_session_returns_empty_when_none(self) -> None:
+        results = self.store.find_by_session("nonexistent")
+        self.assertEqual(results, [])
+
+    def test_count_after_upsert_and_get(self) -> None:
+        record = self._record("x")
+        self.store.upsert(record)
+        self.assertEqual(self.store.count(), 1)
+        self.assertIsNotNone(self.store.get("x"))
 
 
 class TestThinkStashWriter(unittest.TestCase):
     def test_write_with_mock_embedder(self) -> None:
         with patch("thinkbox.byoc_stash_writer.DeterministicEmbedder") as mock_embed:
             mock_embed.return_value.embed.return_value = [[0.1] * 1536]
-            config = ByocConfig(demo_mode="mock")
+            config = ByocConfig(demo_mode="mock", vector_url="", vector_token="")
             writer = ThinkStashWriter(config)
             entry = ThinkStashEntry(
                 stash_id="test-1",
@@ -153,20 +157,22 @@ class TestThinkStashWriter(unittest.TestCase):
                 reasoning_sha256="sha1",
                 proof_receipt_id="proof-1",
             )
-            result = writer.write(entry)
+            with patch.object(writer, "_upsert", return_value={"ok": True}):
+                result = writer.write(entry)
             self.assertEqual(result.stash_id, "test-1")
             self.assertIsNotNone(result.vector_id)
 
     def test_write_batch(self) -> None:
         with patch("thinkbox.byoc_stash_writer.DeterministicEmbedder") as mock_embed:
             mock_embed.return_value.embed.return_value = [[0.1] * 1536]
-            config = ByocConfig(demo_mode="mock")
+            config = ByocConfig(demo_mode="mock", vector_url="", vector_token="")
             writer = ThinkStashWriter(config)
             entries = [
                 ThinkStashEntry(stash_id=f"batch-{i}", reasoning_sha256=f"sha-{i}")
                 for i in range(3)
             ]
-            results = writer.write_batch(entries)
+            with patch.object(writer, "_upsert", return_value={"ok": True}):
+                results = writer.write_batch(entries)
             self.assertEqual(len(results), 3)
 
 
@@ -193,16 +199,17 @@ class TestThinkStashReader(unittest.TestCase):
 class TestStashProofBinder(unittest.TestCase):
     def test_bind_creates_link(self) -> None:
         store = MagicMock()
-        config = ByocConfig(demo_mode="mock")
+        config = ByocConfig(demo_mode="mock", vector_url="", vector_token="")
         binder = StashProofBinder(store, config)
-        link = binder.bind(
-            stash_id="stash-1",
-            proof_receipt_id="proof-1",
-            reasoning_text="test reasoning",
-        )
+        with patch.object(binder._writer, "write", return_value=MagicMock()) as mock_write:
+            link = binder.bind(
+                stash_id="stash-1",
+                proof_receipt_id="proof-1",
+                reasoning_text="test reasoning",
+            )
+            mock_write.assert_called_once()
         self.assertEqual(link.stash_id, "stash-1")
         self.assertEqual(link.proof_receipt_id, "proof-1")
-        self.assertTrue(link.chain_valid or not link.chain_valid)
         self.assertEqual(len(binder._links), 1)
 
     def test_verify_bind_delegates_to_verify_chain(self) -> None:
