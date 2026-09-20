@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from thinkbox.substrate import (
     SubstrateProbe,
+    SubstrateReport,
     ThinkBoxVectorSync,
     bind_think_box,
     detect_substrate,
@@ -40,6 +41,48 @@ class TestSubstrateProbe(unittest.TestCase):
         self.assertIn("unshare", by_name)
         self.assertIsInstance(by_name["unshare"], bool)
         self.assertEqual(len(probe.history()), 1)
+
+    def test_probe_history_tracks_multiple(self):
+        probe = SubstrateProbe()
+        probe.probe()
+        probe.probe()
+        probe.probe()
+        self.assertEqual(len(probe.history()), 3)
+        self.assertEqual(len(probe.history(limit=2)), 2)
+        self.assertEqual(len(probe.history(limit=0)), 0)
+
+    def test_substrate_report_to_dict_keys(self):
+        report = SubstrateReport(substrate="upstash-box", box_url="https://mybox.preview.box.upstash.com/")
+        d = report.to_dict()
+        self.assertIn("substrate", d)
+        self.assertIn("isolation_tools", d)
+        self.assertIn("vector_sync", d)
+        self.assertIn("box_url", d)
+        self.assertIn("timestamp", d)
+        self.assertEqual(d["substrate"], "upstash-box")
+
+    def test_substrate_report_default_values(self):
+        report = SubstrateReport(substrate="local")
+        self.assertEqual(report.isolation_tools, [])
+        self.assertFalse(report.vector_sync)
+        self.assertEqual(report.substrate, "local")
+        self.assertTrue(report.timestamp)
+
+    def test_substrate_probe_isolation_tools_present(self):
+        probe = SubstrateProbe()
+        report = probe.probe()
+        tool_names = {p.tool for p in report.isolation_tools}
+        self.assertIn("unshare", tool_names)
+        self.assertIn("bwrap", tool_names)
+        self.assertIn("docker", tool_names)
+        self.assertIn("podman", tool_names)
+
+    def test_substrate_probe_deterministic_report(self):
+        probe = SubstrateProbe()
+        report = probe.probe()
+        with patch.dict(os.environ, {"UPSTASH_PUBLIC_BOX_URL": "https://fixed.preview.box.upstash.com/"}, clear=True):
+            report2 = probe.probe()
+        self.assertIn("fixed.preview.box.upstash.com", report2.box_url)
 
 
 class TestThinkBoxVectorSync(unittest.TestCase):
