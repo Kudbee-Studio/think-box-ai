@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THINK Stash — BYOC Status</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e1e4ed;
+      --muted: #8b8fa3;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --blue: #3b82f6;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; margin: 0; padding: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .badge-live { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-mock { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-unknown { background: rgba(139,143,163,0.15); color: var(--muted); }
+    .badge-error { background: rgba(239,68,68,0.15); color: var(--red); }
+    h3 { margin: 0 0 8px 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+    .item { padding: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; }
+    .item-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+    .item-value { font-size: 14px; color: var(--text); word-break: break-all; }
+    .chip { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin: 2px; }
+    .chip-configured { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .chip-missing { background: rgba(239,68,68,0.15); color: var(--red); }
+    .timestamp { font-size: 11px; color: var(--muted); }
+    a { color: var(--blue); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h2 style="margin:0 0 16px 0;">THINK Stash — BYOC Mercury-2 + Upstash</h2>
+  <div id="status"></div>
+  <div id="chips"></div>
+  <div id="last" class="card" style="display:none;">
+    <h3>Last Harvest (redacted)</h3>
+    <div id="last-content"></div>
+  </div>
+  <div id="links" class="card" style="display:none;">
+    <h3>Proof Chain</h3>
+    <div id="links-content"></div>
+  </div>
+
+  <script>
+    const API = location.origin + '/api/v1';
+
+    async function load() {
+      try {
+        const res = await fetch(`${API}/think/stash/status`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        renderStatus(data);
+        renderChips(data);
+      } catch (e) {
+        document.getElementById('status').innerHTML = '<div class="card"><span class="badge badge-error">BYOC status unavailable</span></div>';
+      }
+
+      try {
+        const res = await fetch(`${API}/think/stash/last`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        if (data.stash_id) {
+          document.getElementById('last').style.display = '';
+          document.getElementById('last-content').innerHTML = Object.entries(data)
+            .filter(([k]) => k !== 'stash_id')
+            .map(([k, v]) => `<div class="item"><div class="item-label">${k}</div><div class="item-value">${v ?? '—'}</div></div>`).join('');
+        }
+      } catch (e) { /* last harvest is optional */ }
+
+      try {
+        const res = await fetch(`${API}/think/stash/status`);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        if (data.mode === 'live') {
+          document.getElementById('links').style.display = '';
+          document.getElementById('links-content').innerHTML =
+            `<a href="/api/v1/think/stash/last">View last stash entry</a> · ` +
+            `<a href="/demo">Verify proof chain</a>`;
+        }
+      } catch (e) { /* links optional */ }
+    }
+
+    function renderStatus(data) {
+      const mode = data.mode || 'unknown';
+      const badgeClass = mode === 'live' ? 'badge-live' : mode === 'mock' ? 'badge-mock' : 'badge-unknown';
+      document.getElementById('status').innerHTML = `
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span class="badge ${badgeClass}">${mode.toUpperCase()}</span>
+            <span style="font-size:12px;color:var(--muted);" class="timestamp">evidence_label=${data.evidence_label || 'simulated'}</span>
+          </div>
+          <div class="grid">
+            <div class="item"><div class="item-label">Store Records</div><div class="item-value">${data.store_records ?? 0}</div></div>
+            <div class="item"><div class="item-label">Has API Key</div><div class="item-value">${data.has_api_key ? 'Yes' : 'No'}</div></div>
+            <div class="item"><div class="item-label">Has Vector Creds</div><div class="item-value">${data.has_vector_creds ? 'Yes' : 'No'}</div></div>
+            <div class="item"><div class="item-label">Vector URL</div><div class="item-value">${data.vector_url || '—'}</div></div>
+          </div>
+        </div>`;
+    }
+
+    function renderChips(data) {
+      const apiChip = data.has_api_key ? '<span class="chip chip-configured">Mercury-2 API ✓</span>' : '<span class="chip chip-missing">Mercury-2 API ✗</span>';
+      const vectorChip = data.has_vector_creds ? '<span class="chip chip-configured">Upstash Vector ✓</span>' : '<span class="chip chip-missing">Upstash Vector ✗</span>';
+      document.getElementById('chips').innerHTML = `
+        <div class="card">
+          <div style="margin-bottom:4px;">
+            ${apiChip}
+            ${vectorChip}
+          </div>
+        </div>`;
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -894,7 +894,14 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
 7. **PR95 (GitHub PR #94): Orchestration Client kernel wire** — Wire OrchestrationClient into AgentKernel lifecycle ✅ **MERGED**
 8. **PR96 (GitHub PR #95): Agent kernel capacity lifecycle hardening** — Harden AgentKernel ↔ OrchestrationClient lifecycle ✅ **MERGED**
 9. **PR97 (GitHub PR #96): OrchestrationClient↔AgentKernel integration suite** — Integration tests for full lifecycle paths ✅ **MERGED**
-10. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
+10. **PR101 — BYOC Mercury-2 + Upstash THINK stash x proof bind (x10): `feat/byoc-think-stash-mercury-upstash-x10`
+    - Modules: `thinkbox/byoc_config.py`, `thinkbox/byoc_client.py`, `thinkbox/byoc_resolve.py`, `thinkbox/byoc_stash_store.py`, `thinkbox/byoc_stash_writer.py`, `thinkbox/byoc_stash_reader.py`, `thinkbox/byoc_proof_bind.py`
+    - API: `backend/api/v1/think_stash.py` (GET /think/stash/status, GET /think/stash/last)
+    - Dashboard: `public/control-plane/think_stash.html` (BYOC status chips)
+    - Demo: `scripts/demo_in_10_byoc.sh`
+    - Tests: `tests/unit/byoc/test_e2e.py` (hermetic, mock-only)
+    - Tag: `THINK_STASH_BOUND` (parity with PR #100 `CONTROL_PLANE_BOUND`)
+11. **PR98 (GitHub PR #97): control-plane x10 — admission, proof, autonomy under hard constraints** — 10-feature agent control plane 🔨 IN PROGRESS
 
 ## THINK Burst Protocol — Operational Note
 
