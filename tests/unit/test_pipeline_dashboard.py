@@ -239,5 +239,29 @@ class TestCITimeline(unittest.TestCase):
         self.assertEqual(timeline[1]["conclusion"], "success")
 
 
+class TestPipelineQuarantine(unittest.TestCase):
+    def test_quarantine_toggle_requires_token(self) -> None:
+        store = OrgMemoryReceiptStore(":memory:")
+        from thinkbox.admission import AdmissionGate
+        from thinkbox.governance_token import GovernanceTokenService, TokenRequest
+        from thinkbox.identity import IdentityLedger
+        from thinkbox.pipeline_dashboard import PipelineQuarantineController
+
+        agent_id = "pipeline-founder-gate"
+        tokens = GovernanceTokenService(signing_key="q-key")
+        identities = IdentityLedger()
+        identities.register(agent_id=agent_id, capabilities=[PipelineQuarantineController.QUARANTINE_CAPABILITY])
+        issued = tokens.issue(
+            TokenRequest(agent_id=agent_id, capabilities=[PipelineQuarantineController.QUARANTINE_CAPABILITY])
+        )
+        gate = AdmissionGate(tokens, identities)
+        ctrl = PipelineQuarantineController(store, gate, agent_id=agent_id)
+        denied = ctrl.set_quarantine(quarantined=True, reason="test", governance_token="bad")
+        self.assertFalse(denied["admitted"])
+        ok = ctrl.set_quarantine(quarantined=True, reason="test", governance_token=issued.token_value)
+        self.assertTrue(ok["admitted"])
+        self.assertTrue(ctrl.read()["quarantined"])
+
+
 if __name__ == "__main__":
     unittest.main()

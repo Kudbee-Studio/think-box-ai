@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Optional
 
@@ -20,6 +21,8 @@ from thinkbox.pipeline_dashboard import (
     FounderGatedMergeService,
     PipelineDashboardAggregator,
     PipelineDeltaTracker,
+    PipelineQuarantineController,
+    pipeline_ops_scorecard,
 )
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
 
@@ -46,18 +49,26 @@ def _founder_proof_key() -> str:
     return os.getenv("THINKBOX_FOUNDER_MERGE_PROOF_KEY", DEFAULT_FOUNDER_PROOF_KEY)
 
 
+@dataclass
+class PipelineDashboardBundle:
+    aggregator: PipelineDashboardAggregator
+    merge_svc: FounderGatedMergeService
+    quarantine: PipelineQuarantineController
+
+
 def build_pipeline_dashboard_bundle(
     *,
     db_path: str | None = None,
     test_mode: bool = True,
-) -> tuple[PipelineDashboardAggregator, FounderGatedMergeService]:
-    """Construct aggregator + merge gate sharing one store and coordinator."""
+) -> PipelineDashboardBundle:
+    """Construct aggregator + merge gate + quarantine sharing one store."""
     store = OrgMemoryReceiptStore(db_path or _DEFAULT_DB)
     coordinator = PRLifecycleEventCoordinator(store, test_mode=test_mode)
     agent_id = _founder_agent_id()
     tokens = GovernanceTokenService(signing_key=_signing_key())
     identities = IdentityLedger()
-    identities.register(agent_id=agent_id, capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY])
+    caps = [PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY]
+    identities.register(agent_id=agent_id, capabilities=caps)
     gate = AdmissionGate(tokens, identities)
     aggregator = PipelineDashboardAggregator(store)
     merge_svc = FounderGatedMergeService(
@@ -67,11 +78,12 @@ def build_pipeline_dashboard_bundle(
         agent_id=agent_id,
         founder_proof_key=_founder_proof_key(),
     )
-    return aggregator, merge_svc
+    quarantine = PipelineQuarantineController(store, gate, agent_id=agent_id)
+    return PipelineDashboardBundle(aggregator=aggregator, merge_svc=merge_svc, quarantine=quarantine)
 
 
 @lru_cache(maxsize=1)
-def _cached_bundle() -> tuple[PipelineDashboardAggregator, FounderGatedMergeService]:
+def _cached_bundle() -> PipelineDashboardBundle:
     test_mode = os.getenv("THINKBOX_PIPELINE_TEST_MODE", "true").lower() != "false"
     return build_pipeline_dashboard_bundle(test_mode=test_mode)
 
@@ -82,8 +94,7 @@ _delta_tracker: Optional[PipelineDeltaTracker] = None
 def _get_delta_tracker() -> PipelineDeltaTracker:
     global _delta_tracker
     if _delta_tracker is None:
-        aggregator, _ = _cached_bundle()
-        _delta_tracker = PipelineDeltaTracker(aggregator)
+        _delta_tracker = PipelineDeltaTracker(_cached_bundle().aggregator)
     return _delta_tracker
 
 
@@ -108,8 +119,12 @@ def _extract_governance_token(
 @pipeline_dashboard_router.get("")
 async def pipeline_overview() -> dict[str, Any]:
     """All PR pipeline rows with evidence and admission rollups."""
-    aggregator, _ = _cached_bundle()
-    return aggregator.overview()
+    bundle = _cached_bundle()
+    overview = bundle.aggregator.overview()
+    q = bundle.quarantine.read()
+    overview["quarantine"] = q
+    overview["ops_scorecard"] = pipeline_ops_scorecard(overview, quarantine=q)
+    return overview
 
 
 @pipeline_dashboard_router.get("/pr/{pr_number}")
@@ -118,7 +133,7 @@ async def pipeline_pr_detail(pr_number: int, receipt_limit: int = 50) -> dict[st
         raise HTTPException(status_code=400, detail="invalid pr_number")
     if receipt_limit < 1 or receipt_limit > 200:
         raise HTTPException(status_code=400, detail="receipt_limit must be 1..200")
-    aggregator, _ = _cached_bundle()
+    aggregator = _cached_bundle().aggregator
     return aggregator.pr_detail(pr_number, receipt_limit=receipt_limit)
 
 
@@ -126,8 +141,7 @@ async def pipeline_pr_detail(pr_number: int, receipt_limit: int = 50) -> dict[st
 async def pipeline_pr_integrity(pr_number: int, receipt_limit: int = 500) -> dict[str, Any]:
     if pr_number < 1:
         raise HTTPException(status_code=400, detail="invalid pr_number")
-    aggregator, _ = _cached_bundle()
-    return aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
+    return _cached_bundle().aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
 
 
 @pipeline_dashboard_router.get("/poll/deltas")
@@ -152,8 +166,7 @@ async def pipeline_stream_deltas() -> StreamingResponse:
 async def pipeline_pr_ci_timeline(pr_number: int, receipt_limit: int = 200) -> dict[str, Any]:
     if pr_number < 1:
         raise HTTPException(status_code=400, detail="invalid pr_number")
-    aggregator, _ = _cached_bundle()
-    events = aggregator.ci_status_timeline(pr_number, receipt_limit=receipt_limit)
+    events = _cached_bundle().aggregator.ci_status_timeline(pr_number, receipt_limit=receipt_limit)
     return {
         "pr_number": pr_number,
         "events": events,
@@ -189,8 +202,7 @@ async def pipeline_request_merge(
     founder_proof = str(body.get("founder_proof") or body.get("founder_merge_proof") or "")
     if not founder_proof:
         founder_proof = request.headers.get("X-Thinkbox-Founder-Proof") or ""
-    _, merge_svc = _cached_bundle()
-    result = merge_svc.request_merge(
+    result = _cached_bundle().merge_svc.request_merge(
         pr_number,
         branch=branch,
         governance_token=token,
@@ -214,18 +226,49 @@ async def pipeline_admission_denials(
 ) -> dict[str, Any]:
     if receipt_limit < 1 or receipt_limit > 2000:
         raise HTTPException(status_code=400, detail="receipt_limit must be 1..2000")
-    aggregator, _ = _cached_bundle()
-    return aggregator.admission_denial_ledger(
+    return _cached_bundle().aggregator.admission_denial_ledger(
         since=since,
         until=until,
         receipt_limit=receipt_limit,
     )
 
 
+@pipeline_dashboard_router.get("/quarantine")
+async def pipeline_quarantine_read() -> dict[str, Any]:
+    return _cached_bundle().quarantine.read()
+
+
+@pipeline_dashboard_router.post("/quarantine")
+async def pipeline_quarantine_write(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    x_governance_token: Optional[str] = Header(None, alias="X-Thinkbox-Governance-Token"),
+) -> dict[str, Any]:
+    token = _extract_governance_token(authorization, x_governance_token)
+    if not token:
+        raise HTTPException(status_code=401, detail="governance_token_required")
+    body: dict[str, Any] = {}
+    try:
+        if request.headers.get("content-type", "").startswith("application/json"):
+            parsed = await request.json()
+            if isinstance(parsed, dict):
+                body = parsed
+    except Exception:
+        body = {}
+    result = _cached_bundle().quarantine.set_quarantine(
+        quarantined=bool(body.get("quarantined")),
+        reason=str(body.get("reason") or "manual"),
+        governance_token=token,
+    )
+    if not result.get("admitted"):
+        return JSONResponse(status_code=403, content=result)
+    return result
+
+
 @pipeline_dashboard_router.get("/health")
 async def pipeline_dashboard_health() -> dict[str, Any]:
-    aggregator, _ = _cached_bundle()
-    overview = aggregator.overview()
+    bundle = _cached_bundle()
+    overview = bundle.aggregator.overview()
     return {
         "capability": PIPELINE_FOUNDER_MERGE_CAPABILITY,
         "founder_agent_id": _founder_agent_id(),
@@ -235,4 +278,5 @@ async def pipeline_dashboard_health() -> dict[str, Any]:
         "github_merge": False,
         "evidence_label": "simulated",
         "live_verified": False,
+        "quarantine": bundle.quarantine.read(),
     }

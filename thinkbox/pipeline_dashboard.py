@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from thinkbox.admission import AdmissionGate, AdmissionDecision
@@ -359,6 +360,113 @@ class PipelineDeltaTracker:
 
 
 @dataclass
+class PipelineQuarantineState:
+    """Pipeline-scoped quarantine flag (org-memory backed receipt on toggle)."""
+
+    quarantined: bool = False
+    reason: str = ""
+    updated_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "quarantined": self.quarantined,
+            "reason": self.reason,
+            "updated_at": self.updated_at,
+            "evidence_label": "simulated",
+            "kill_switch_armed": self.quarantined,
+        }
+
+
+class PipelineQuarantineController:
+    """Read/write quarantine with governance gate (never auto-merge)."""
+
+    QUARANTINE_CAPABILITY = "pipeline:quarantine:mutate"
+
+    def __init__(
+        self,
+        store: OrgMemoryReceiptStore,
+        gate: AdmissionGate,
+        agent_id: str = DEFAULT_FOUNDER_AGENT_ID,
+    ) -> None:
+        self._store = store
+        self._gate = gate
+        self._agent_id = agent_id
+        self._state = PipelineQuarantineState()
+
+    def read(self) -> dict[str, Any]:
+        rows = self._store.query(limit=50)
+        for row in rows:
+            if str(row.get("action") or "") == "pipeline_quarantine":
+                evidence = row.get("evidence") or {}
+                self._state = PipelineQuarantineState(
+                    quarantined=bool(evidence.get("quarantined")),
+                    reason=str(evidence.get("reason") or ""),
+                    updated_at=str(row.get("timestamp") or ""),
+                )
+                break
+        return self._state.to_dict()
+
+    def set_quarantine(
+        self,
+        *,
+        quarantined: bool,
+        reason: str,
+        governance_token: str,
+    ) -> dict[str, Any]:
+        decision = self._gate.authorize(
+            governance_token,
+            self._agent_id,
+            self.QUARANTINE_CAPABILITY,
+            metadata={"quarantined": quarantined},
+        )
+        if not decision.allowed:
+            return {
+                "updated": False,
+                "admitted": False,
+                "detail": decision.reason,
+                "evidence_label": "simulated",
+                **self._state.to_dict(),
+            }
+        ts = datetime.now(timezone.utc).isoformat()
+        self._store.append_lifecycle(
+            run_id="pipeline_quarantine",
+            pr_number=0,
+            branch="control-plane",
+            from_state="RUNNING",
+            to_state="QUARANTINED" if quarantined else "RUNNING",
+            action="pipeline_quarantine",
+            result="success",
+            evidence_label="simulated",
+            evidence={
+                "quarantined": quarantined,
+                "reason": reason,
+                "agent_id": self._agent_id,
+                "github_merge": False,
+                "auto_merge": False,
+            },
+        )
+        self._state = PipelineQuarantineState(quarantined=quarantined, reason=reason, updated_at=ts)
+        return {"updated": True, "admitted": True, "detail": "ok", **self._state.to_dict()}
+
+
+def pipeline_ops_scorecard(overview: dict[str, Any], *, quarantine: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    """Raw autonomy/ops fields for dashboard API consumers."""
+    q = quarantine or {}
+    return {
+        "autonomy_merge_enabled": False,
+        "github_merge_enabled": False,
+        "founder_gate_required": True,
+        "admission_denied_total": int((overview.get("totals") or {}).get("admission_denied_count") or 0),
+        "pr_count": int(overview.get("pr_count") or 0),
+        "chain_verified": bool(overview.get("chain_verified")),
+        "quarantine_active": bool(q.get("quarantined")),
+        "live_verified": bool(overview.get("live_verified")),
+        "production_ready": bool(overview.get("production_ready")),
+        "evidence_label": "simulated",
+    }
+
+
+@dataclass
 class FounderMergeRequestResult:
     http_status: int
     admitted: bool
@@ -582,11 +690,17 @@ def build_hermetic_pipeline_dashboard(
     coordinator = PRLifecycleEventCoordinator(store, test_mode=True)
     tokens = GovernanceTokenService(signing_key=signing_key)
     identities = IdentityLedger()
-    identities.register(agent_id=agent_id, capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY])
+    identities.register(
+        agent_id=agent_id,
+        capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY, PipelineQuarantineController.QUARANTINE_CAPABILITY],
+    )
     issued = tokens.issue(
         TokenRequest(
             agent_id=agent_id,
-            capabilities=[PIPELINE_FOUNDER_MERGE_CAPABILITY],
+            capabilities=[
+                PIPELINE_FOUNDER_MERGE_CAPABILITY,
+                PipelineQuarantineController.QUARANTINE_CAPABILITY,
+            ],
             ttl_seconds=3600.0,
         )
     )
