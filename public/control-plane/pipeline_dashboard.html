@@ -97,6 +97,15 @@
     .status-queued { color: var(--warn); }
     .status-blocked { color: var(--danger); }
     .status-none { color: var(--muted); }
+    .banner {
+      padding: 0.5rem 1rem;
+      background: #2a1820;
+      border-bottom: 1px solid #5c3040;
+      color: var(--danger);
+      font-size: 0.85rem;
+    }
+    .banner.quarantine { background: #2a2410; border-color: #5c5030; color: var(--warn); }
+    .poll-hint { font-size: 0.72rem; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -114,8 +123,11 @@
         <input id="apiKey" type="password" placeholder="X-API-Key" style="width:140px" />
       </label>
       <button id="refresh">Refresh</button>
+      <span class="poll-hint" id="pollStatus">poll: off</span>
     </div>
   </header>
+  <div id="denialBanner" class="banner" style="display:none"></div>
+  <div id="quarantineBanner" class="banner quarantine" style="display:none"></div>
   <main>
     <div class="table-wrap">
       <table>
@@ -128,6 +140,7 @@
             <th>Adm↓</th>
             <th>CI</th>
             <th>Merge</th>
+            <th>Blocked</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -141,6 +154,7 @@
   <script>
     let overview = { prs: [] };
     let selectedPr = null;
+    let pollTimer = null;
 
     function headers() {
       const h = { Accept: 'application/json' };
@@ -166,6 +180,25 @@
       return 'status-none';
     }
 
+    function renderBanners() {
+      const total = (overview.totals && overview.totals.admission_denied_count) || 0;
+      const denialEl = document.getElementById('denialBanner');
+      if (total > 0) {
+        denialEl.style.display = 'block';
+        denialEl.textContent = `Admission denials across pipeline: ${total} — review blocked reasons per PR.`;
+      } else {
+        denialEl.style.display = 'none';
+      }
+      const q = overview.quarantine || {};
+      const qEl = document.getElementById('quarantineBanner');
+      if (q.quarantined) {
+        qEl.style.display = 'block';
+        qEl.textContent = `Pipeline quarantine ACTIVE — ${q.reason || 'manual'}`;
+      } else {
+        qEl.style.display = 'none';
+      }
+    }
+
     function renderTable() {
       const tbody = document.getElementById('rows');
       tbody.innerHTML = '';
@@ -179,7 +212,8 @@
           <td>${ec(row)}</td>
           <td>${row.admission_denied_count || 0}</td>
           <td>${ciLabel(row)}</td>
-          <td class="${mergeClass(row.merge_request_status)}">${row.merge_request_status || 'none'}</td>`;
+          <td class="${mergeClass(row.merge_request_status)}">${row.merge_request_status || 'none'}</td>
+          <td>${(row.blocked_reasons && row.blocked_reasons[0]) || '—'}</td>`;
         tr.onclick = () => selectPr(row.pr_number);
         tbody.appendChild(tr);
       });
@@ -209,6 +243,7 @@
           <pre>${JSON.stringify(s.last_ci, null, 2)}</pre>
           <div class="toolbar" style="margin:0.75rem 0">
             <input id="govToken" type="password" placeholder="Governance token" style="flex:1;min-width:160px" />
+            <input id="founderProof" type="password" placeholder="Founder proof (PR-bound)" style="flex:1;min-width:160px" />
             <button class="primary" id="reqMerge">Request merge (founder gate)</button>
           </div>
           <pre id="mergeOut">Merge requests are recorded in org-memory only — GitHub merge is never called.</pre>
@@ -216,12 +251,18 @@
           <pre>${JSON.stringify(data.receipts?.slice(0, 8), null, 2)}</pre>`;
         document.getElementById('reqMerge').onclick = async () => {
           const token = document.getElementById('govToken').value.trim();
+          const proof = document.getElementById('founderProof').value.trim();
           const out = document.getElementById('mergeOut');
           out.textContent = 'Submitting…';
           const r = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}/request-merge`, {
             method: 'POST',
-            headers: { ...headers(), 'Content-Type': 'application/json', 'X-Thinkbox-Governance-Token': token },
-            body: JSON.stringify({ branch: s.branch || '' }),
+            headers: {
+              ...headers(),
+              'Content-Type': 'application/json',
+              'X-Thinkbox-Governance-Token': token,
+              'X-Thinkbox-Founder-Proof': proof,
+            },
+            body: JSON.stringify({ branch: s.branch || '', founder_proof: proof }),
           });
           const body = await r.json();
           out.textContent = JSON.stringify(body, null, 2);
@@ -236,13 +277,32 @@
     async function loadOverview() {
       const res = await fetch('/api/v1/control-plane/pipeline', { headers: headers() });
       overview = await res.json();
+      renderBanners();
       renderTable();
+    }
+
+    async function pollDeltas() {
+      try {
+        const res = await fetch('/api/v1/control-plane/pipeline/poll/deltas', { headers: headers() });
+        const delta = await res.json();
+        document.getElementById('pollStatus').textContent = 'poll: seq ' + (delta.current && delta.current.sequence);
+        if (delta.changed && delta.overview) {
+          overview = delta.overview;
+          renderBanners();
+          renderTable();
+          if (selectedPr) await selectPr(selectedPr);
+        }
+      } catch (e) {
+        document.getElementById('pollStatus').textContent = 'poll: error';
+      }
     }
 
     document.getElementById('refresh').onclick = loadOverview;
     loadOverview().catch(e => {
-      document.getElementById('rows').innerHTML = '<tr><td colspan="7">Failed to load: ' + e + '</td></tr>';
+      document.getElementById('rows').innerHTML = '<tr><td colspan="8">Failed to load: ' + e + '</td></tr>';
     });
+    pollTimer = setInterval(pollDeltas, 5000);
+    pollDeltas();
   </script>
 </body>
 </html>
