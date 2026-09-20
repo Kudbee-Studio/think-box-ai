@@ -2,6 +2,7 @@
 
 **Status:** Draft
 **Branch:** `feat/byoc-box-mercury-live`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/102
 **Base:** `main` (includes merged PR #101 BYOC)
 **Implementer:** KILO (follow-on commits)
 **Merge:** Founder on GitHub only  

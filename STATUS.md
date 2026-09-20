@@ -665,3 +665,51 @@ None in this PR.
 
 ### Tags
 - Demo-in-10 → CONTROL_PLANE_BOUND
+
+## PR #101 — BYOC Mercury-2 + Upstash THINK Stash × Proof Bind (MERGED)
+
+**Status:** Merged
+**Branch:** `feat/byoc-think-stash-mercury-upstash-x10`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/101
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | ByocConfig loader (no secret logging) | `thinkbox/byoc_config.py` |
+| 2 | Mercury-2 OpenAI-compat client | `thinkbox/byoc_client.py` |
+| 3 | DEMO_MODE mock\|byoc resolver | `thinkbox/byoc_resolve.py` |
+| 4 | THINK stash SQLite local store | `thinkbox/byoc_stash_store.py` |
+| 5 | THINK stash writer to Upstash Vector | `thinkbox/byoc_stash_writer.py` |
+| 6 | THINK stash reader from Upstash | `thinkbox/byoc_stash_reader.py` |
+| 7 | Bind stash to ActionReceipt chain | `thinkbox/byoc_proof_bind.py` |
+| 8 | GET /think/stash/status + last | `backend/api/v1/think_stash.py` |
+| 9 | Dashboard BYOC status chips | `public/control-plane/think_stash.html` |
+| 10 | Demo script | `scripts/demo_in_10_byoc.sh` |
+| 11 | Hermetic tests | `tests/unit/byoc/test_e2e.py` |
+
+### Tags
+- THINK_STASH_BOUND (parity with CONTROL_PLANE_BOUND)
+
+## PR #102 — Upstash Box + Inception Mercury-2 Live Experiment (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/byoc-think-stash-mercury-upstash-x10` (to be branched from main after #101 merge)
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/102
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | PR plan document | `docs/PR102_BOX_MERCURY_LIVE.md` |
+| 2 | Live Box + Mercury-2 throughput experiment | `experiments/box_mercury_live.py` |
+| 3 | Substrate report + dashboard emit | `thinkbox/substrate.py` (live usage) |
+| 4 | Hermetic tests for experiment | `tests/unit/byoc/test_box_mercury.py` |
+| 5 | Demo script | `scripts/demo_in_10_box_mercury.sh` |
+
+### Goal
+
+First live experiment executing on the Upstash Box substrate using Inception Mercury-2: substrate verification, throughput measurement at concurrency 1/4/8/16, proof artifact generation, dashboard state emit.
+
+### Tags
+- THINK_BOX_BOUND
