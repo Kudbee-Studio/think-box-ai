@@ -765,9 +765,9 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 ### Tags
 - PR_LIFECYCLE_ORG_MEMORY
 
-## PR #107 — Signed GitHub Webhook + AdmissionGate (DRAFT)
+## PR #107 — Signed GitHub Webhook + AdmissionGate
 
-**Status:** Draft
+**Status:** Merged
 **Branch:** `feat/lifecycle-github-webhook-admission`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/107
 
@@ -790,3 +790,55 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 ### Tags
 - PR_LIFECYCLE_GITHUB_WEBHOOK
+
+## PR #108 — Pipeline Dashboard + Founder Merge Gate (DRAFT)
+
+**Status:** Draft — hardened (10 checkpoint commits on branch)
+**Branch:** `feat/pipeline-dashboard-admission-merge-gate`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/108
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | Per-PR pipeline rollup (evidence + admission + CI + blocked reasons) | `thinkbox/pipeline_dashboard.py` |
+| 2 | Admission denial ledger API (`GET .../admissions/denials`) | `PipelineDashboardAggregator.admission_denial_ledger` |
+| 3 | Founder merge: governance token + PR-bound founder proof + deny matrix | `FounderGatedMergeService` |
+| 4 | Per-PR receipt integrity + CI timeline + delta poll/SSE | `backend/api/v1/pipeline_dashboard.py` |
+| 5 | Pipeline quarantine read/write (governance-gated) | `PipelineQuarantineController` |
+| 6 | Ops scorecard on overview (`ops_scorecard`) | `pipeline_ops_scorecard()` |
+| 7 | Live refresh UI + denial/quarantine banners | `public/control-plane/pipeline_dashboard.html` |
+| 8 | Adversarial + concurrency hermetic tests | `tests/unit/test_pipeline_*.py` |
+
+### Tests (local gate)
+
+```bash
+python3 -m unittest \
+  tests.unit.test_pipeline_dashboard \
+  tests.unit.test_pipeline_delta \
+  tests.unit.test_pipeline_adversarial \
+  tests.unit.test_pipeline_concurrency \
+  tests.unit.test_github_webhook \
+  tests.unit.test_org_memory_lifecycle -v
+```
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (32 unittest, 1 skipped) | **BLOCKED** (no production GitHub merge exercised) | **BLOCKED** |
+
+### Tags
+- PR_PIPELINE_DASHBOARD_MERGE_GATE
+
+### Intelligence layer (v2 — merge readiness + audit + policy + correlation + fleet checkpoint)
+
+| Capability | Endpoint / module |
+|------------|-------------------|
+| Merge readiness score (0–100, rule-based) | `GET .../pr/{n}/merge-readiness`, `thinkbox/pipeline_readiness.py` |
+| Founder audit packet + HMAC | `GET .../pr/{n}/audit-packet`, `thinkbox/pipeline_audit_packet.py` |
+| Merge policy gate on request-merge | `thinkbox/pipeline_merge_policy.py` → `merge_policy_denied` receipts |
+| Blast-radius correlation | `GET .../correlation/blast-radius` |
+| Fleet checkpoint attest/verify | `POST .../checkpoint/attest`, `GET .../checkpoint/verify` |
+
+Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).

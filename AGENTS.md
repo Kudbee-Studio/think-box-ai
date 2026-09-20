@@ -921,12 +921,18 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Dashboard stub: `public/control-plane/lifecycle_receipts.html`
     - Tests: `tests/unit/test_org_memory_lifecycle.py` (hermetic); `test_pr_lifecycle` + stress suites unchanged
     - Tag: `PR_LIFECYCLE_ORG_MEMORY` (builds on merged PR #105 `feat/pr-lifecycle-stress-resilience`)
-15. **PR107 — Signed GitHub webhook + Actions status behind AdmissionGate:** `feat/lifecycle-github-webhook-admission` 🔨 DRAFT
+15. **PR107 — Signed GitHub webhook + Actions status behind AdmissionGate:** `feat/lifecycle-github-webhook-admission` ✅ **MERGED** (GitHub #107)
     - Modules: `thinkbox/github_webhook.py`, `backend/api/v1/github_webhook.py`
     - API: `POST /api/v1/github/webhook`, `GET /api/v1/github/webhook/health`
     - Docs: `docs/guides/github_webhook.md` (`WEBHOOK_SECRET` setup)
     - Tests: `tests/unit/test_github_webhook.py` (hermetic HMAC fixtures; live optional off by default)
     - Tag: `PR_LIFECYCLE_GITHUB_WEBHOOK` (builds on merged PR #106)
+16. **PR108 — Pipeline control surface (webhook admissions, verified receipts, founder merge gate):** `feat/pipeline-dashboard-admission-merge-gate` 🔨 DRAFT
+    - Modules: `thinkbox/pipeline_dashboard.py`, `backend/api/v1/pipeline_dashboard.py`
+    - API: pipeline overview with `ops_scorecard`, denial ledger, integrity, CI timeline, delta poll/SSE, quarantine, founder-gated `request-merge` (governance token + PR-bound founder proof; never GitHub merge)
+    - Dashboard: `public/control-plane/pipeline_dashboard.html` (5s poll + denial/quarantine banners)
+    - Tests: `tests/unit/test_pipeline_dashboard.py`, `test_pipeline_delta.py`, `test_pipeline_adversarial.py`, `test_pipeline_concurrency.py` (hermetic)
+    - Tag: `PR_PIPELINE_DASHBOARD_MERGE_GATE` (builds on merged PR #106/#107)
 
 ## THINK Burst Protocol — Operational Note
 
