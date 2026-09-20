@@ -929,9 +929,9 @@ The `agents/` documentation and `thinkbox/agent/` implementation establish the A
     - Tag: `PR_LIFECYCLE_GITHUB_WEBHOOK` (builds on merged PR #106)
 16. **PR108 — Pipeline control surface (webhook admissions, verified receipts, founder merge gate):** `feat/pipeline-dashboard-admission-merge-gate` 🔨 DRAFT
     - Modules: `thinkbox/pipeline_dashboard.py`, `backend/api/v1/pipeline_dashboard.py`
-    - API: `GET /api/v1/control-plane/pipeline`, `GET /api/v1/control-plane/pipeline/pr/{n}`, `POST .../request-merge` (governance token; never GitHub merge)
-    - Dashboard: `public/control-plane/pipeline_dashboard.html`
-    - Tests: `tests/unit/test_pipeline_dashboard.py` (hermetic)
+    - API: pipeline overview with `ops_scorecard`, denial ledger, integrity, CI timeline, delta poll/SSE, quarantine, founder-gated `request-merge` (governance token + PR-bound founder proof; never GitHub merge)
+    - Dashboard: `public/control-plane/pipeline_dashboard.html` (5s poll + denial/quarantine banners)
+    - Tests: `tests/unit/test_pipeline_dashboard.py`, `test_pipeline_delta.py`, `test_pipeline_adversarial.py`, `test_pipeline_concurrency.py` (hermetic)
     - Tag: `PR_PIPELINE_DASHBOARD_MERGE_GATE` (builds on merged PR #106/#107)
 
 ## THINK Burst Protocol — Operational Note

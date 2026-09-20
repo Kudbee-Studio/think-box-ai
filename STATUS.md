@@ -793,7 +793,7 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 ## PR #108 — Pipeline Dashboard + Founder Merge Gate (DRAFT)
 
-**Status:** Draft
+**Status:** Draft — hardened (10 checkpoint commits on branch)
 **Branch:** `feat/pipeline-dashboard-admission-merge-gate`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/108
 
@@ -802,17 +802,31 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 | # | Feature | Module |
 |---|---------|--------|
 | 1 | Per-PR pipeline rollup (evidence + admission + CI + blocked reasons) | `thinkbox/pipeline_dashboard.py` |
-| 2 | Control-plane API (`/api/v1/control-plane/pipeline`) | `backend/api/v1/pipeline_dashboard.py` |
-| 3 | Founder-gated `request-merge` (AdmissionGate + org-memory; no GitHub merge) | `FounderGatedMergeService` |
-| 4 | Dark control-plane table + detail UI | `public/control-plane/pipeline_dashboard.html` |
-| 5 | Reuses org-memory store + lifecycle coordinator + admission gate (#106/#107) | shared `THINKBOX_ORG_MEMORY_DB` |
-| 6 | Hermetic tests | `tests/unit/test_pipeline_dashboard.py` |
+| 2 | Admission denial ledger API (`GET .../admissions/denials`) | `PipelineDashboardAggregator.admission_denial_ledger` |
+| 3 | Founder merge: governance token + PR-bound founder proof + deny matrix | `FounderGatedMergeService` |
+| 4 | Per-PR receipt integrity + CI timeline + delta poll/SSE | `backend/api/v1/pipeline_dashboard.py` |
+| 5 | Pipeline quarantine read/write (governance-gated) | `PipelineQuarantineController` |
+| 6 | Ops scorecard on overview (`ops_scorecard`) | `pipeline_ops_scorecard()` |
+| 7 | Live refresh UI + denial/quarantine banners | `public/control-plane/pipeline_dashboard.html` |
+| 8 | Adversarial + concurrency hermetic tests | `tests/unit/test_pipeline_*.py` |
+
+### Tests (local gate)
+
+```bash
+python3 -m unittest \
+  tests.unit.test_pipeline_dashboard \
+  tests.unit.test_pipeline_delta \
+  tests.unit.test_pipeline_adversarial \
+  tests.unit.test_pipeline_concurrency \
+  tests.unit.test_github_webhook \
+  tests.unit.test_org_memory_lifecycle -v
+```
 
 ### Four-State
 
 | CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
 |---------------|---------------|---------------|------------------|
-| Yes | Yes (local unittest) | **BLOCKED** | **BLOCKED** |
+| Yes | Yes (32 unittest, 1 skipped) | **BLOCKED** (no production GitHub merge exercised) | **BLOCKED** |
 
 ### Tags
 - PR_PIPELINE_DASHBOARD_MERGE_GATE
