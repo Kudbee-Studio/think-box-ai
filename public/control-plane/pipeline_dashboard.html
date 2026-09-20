@@ -225,8 +225,14 @@
       const panel = document.getElementById('detail');
       panel.innerHTML = '<h2>PR #' + pr + '</h2><p>Loading…</p>';
       try {
-        const res = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}`, { headers: headers() });
+        const [res, provRes, auditRes] = await Promise.all([
+          fetch(`/api/v1/control-plane/pipeline/pr/${pr}`, { headers: headers() }),
+          fetch(`/api/v1/control-plane/pipeline/admissions/provenance?pr_number=${pr}`, { headers: headers() }),
+          fetch(`/api/v1/control-plane/pipeline/pr/${pr}/audit-packet`, { headers: headers() }),
+        ]);
         const data = await res.json();
+        const prov = provRes.ok ? await provRes.json() : { events: [] };
+        const audit = auditRes.ok ? await auditRes.json() : {};
         const s = data.summary || {};
         const rr = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}/merge-readiness`, { headers: headers() });
         const readiness = await rr.json();
@@ -239,10 +245,14 @@
             <div class="metric"><label>Rejected</label><span>${s.evidence_counts?.rejected ?? 0}</span></div>
             <div class="metric"><label>Admission denied</label><span>${s.admission_denied_count ?? 0}</span></div>
           </div>
+          <p><strong>Ops health</strong> <span class="poll-hint">${(overview.ops_scorecard && overview.ops_scorecard.health_status) || '—'}</span></p>
           <p><strong>Merge readiness</strong></p>
-          <pre id="readinessOut">Loading…</pre>
+          <pre>${JSON.stringify(readiness, null, 2)}</pre>
+          <p><strong>Admission provenance</strong></p>
+          <pre>${JSON.stringify(prov.events || [], null, 2)}</pre>
+          <p><strong>Founder audit packet</strong></p>
+          <pre>${JSON.stringify(audit, null, 2)}</pre>
           <p><strong>Blocked reasons</strong></p>
-          <pre id="readinessOut">${JSON.stringify(readiness, null, 2)}</pre>
           <ul style="color:var(--muted);font-size:0.85rem">${blocked}</ul>
           <p><strong>Last CI</strong></p>
           <pre>${JSON.stringify(s.last_ci, null, 2)}</pre>
