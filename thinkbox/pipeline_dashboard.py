@@ -459,6 +459,25 @@ class FounderGatedMergeService:
                 deny_matrix=deny_matrix,
             )
 
+        proof_hash = compute_founder_merge_proof(pr_number, self._founder_proof_key)
+        from thinkbox.pipeline_replay_guard import find_replay_receipt, merge_request_fingerprint
+
+        replay_fp = merge_request_fingerprint(pr_number, branch or self._branch_for_pr(pr_number), idem_key, proof_hash)
+        prior_replay = find_replay_receipt(self._store, pr_number, replay_fp)
+        if prior_replay is not None:
+            return FounderMergeRequestResult(
+                http_status=200,
+                admitted=True,
+                merged=False,
+                github_merge_called=False,
+                evidence_label="simulated",
+                detail="replay_guard_hit",
+                receipt_action="founder_merge_requested",
+                idempotent=True,
+                deny_matrix=deny_matrix,
+                receipt_proof_hash=str(prior_replay.get("entry_hash") or ""),
+            )
+
         if idem_key:
             from thinkbox.pipeline_idempotency import find_merge_idempotency_receipt
 
@@ -538,7 +557,6 @@ class FounderGatedMergeService:
                 receipt_proof_hash=self._last_queue_proof_hash(pr_number),
             )
 
-        proof_hash = compute_founder_merge_proof(pr_number, self._founder_proof_key)
         queue_evidence: dict[str, Any] = {
             "github_merge": False,
             "auto_merge": False,
@@ -547,6 +565,7 @@ class FounderGatedMergeService:
             "founder_proof_hash": proof_hash,
             "admission_reason": decision.reason,
             "policy_version": effective_policy.version,
+            "replay_fingerprint": replay_fp,
         }
         if idem_key:
             queue_evidence["idempotency_key"] = idem_key
