@@ -165,7 +165,10 @@ async def pipeline_pr_detail(pr_number: int, receipt_limit: int = 50) -> dict[st
 async def pipeline_pr_integrity(pr_number: int, receipt_limit: int = 500) -> dict[str, Any]:
     if pr_number < 1:
         raise HTTPException(status_code=400, detail="invalid pr_number")
-    return _cached_bundle().aggregator.verify_pr_receipt_integrity(pr_number, receipt_limit=receipt_limit)
+    from thinkbox.pipeline_integrity import expanded_pr_integrity
+
+    store = _cached_bundle().aggregator._store  # noqa: SLF001
+    return expanded_pr_integrity(store, pr_number, receipt_limit=receipt_limit)
 
 
 @pipeline_dashboard_router.get("/pr/{pr_number}/merge-readiness")
@@ -318,13 +321,15 @@ async def pipeline_request_merge(
     if not founder_proof:
         founder_proof = request.headers.get("X-Thinkbox-Founder-Proof") or ""
     idempotency_key = request.headers.get("X-Thinkbox-Idempotency-Key") or str(body.get("idempotency_key") or "")
-    result = _cached_bundle().merge_svc.request_merge(
+    bundle = _cached_bundle()
+    result = bundle.merge_svc.request_merge(
         pr_number,
         branch=branch,
         governance_token=token,
         founder_proof=founder_proof.strip(),
         metadata={"source": "control_plane_api"},
         idempotency_key=idempotency_key.strip(),
+        quarantine_state=bundle.quarantine.read(),
     )
     if result.http_status >= 400 and result.http_status != 403:
         raise HTTPException(status_code=result.http_status, detail=result.detail)
@@ -416,6 +421,52 @@ async def pipeline_policy_waiver(
     if not result.get("granted"):
         return JSONResponse(status_code=403, content=result)
     return result
+
+
+@pipeline_dashboard_router.get("/admissions/provenance")
+async def pipeline_admission_provenance(
+    pr_number: Optional[int] = None,
+    limit: int = 200,
+) -> dict[str, Any]:
+    from thinkbox.pipeline_admission_provenance import collect_admission_provenance, provenance_summary
+
+    store = _cached_bundle().aggregator._store  # noqa: SLF001
+    events = collect_admission_provenance(store, pr_number=pr_number, limit=limit)
+    return {"events": events, "summary": provenance_summary(events), "auto_merge": False}
+
+
+@pipeline_dashboard_router.get("/pr/{pr_number}/rollup-consistency")
+async def pipeline_rollup_consistency(pr_number: int) -> dict[str, Any]:
+    from thinkbox.pipeline_rollup_consistency import verify_pr_rollup_consistency
+
+    if pr_number < 1:
+        raise HTTPException(status_code=400, detail="invalid pr_number")
+    return verify_pr_rollup_consistency(_cached_bundle().aggregator._store, pr_number)  # noqa: SLF001
+
+
+@pipeline_dashboard_router.get("/reconcile")
+async def pipeline_reconcile() -> dict[str, Any]:
+    from thinkbox.pipeline_recovery import reconcile_overview_chain
+
+    return reconcile_overview_chain(_cached_bundle().aggregator._store)  # noqa: SLF001
+
+
+@pipeline_dashboard_router.get("/quarantine/history")
+async def pipeline_quarantine_history(limit: int = 100) -> dict[str, Any]:
+    from thinkbox.pipeline_quarantine_lifecycle import quarantine_history
+
+    return {
+        "history": quarantine_history(_cached_bundle().aggregator._store, limit=limit),  # noqa: SLF001
+        "evidence_label": "simulated",
+    }
+
+
+@pipeline_dashboard_router.get("/pr/{pr_number}/ci-timeline/validate")
+async def pipeline_ci_timeline_validate(pr_number: int, receipt_limit: int = 200) -> dict[str, Any]:
+    from thinkbox.pipeline_ci_timeline import validate_ci_timeline
+
+    events = _cached_bundle().aggregator.ci_status_timeline(pr_number, receipt_limit=receipt_limit)
+    return {"pr_number": pr_number, "validation": validate_ci_timeline(events), "events": events}
 
 
 @pipeline_dashboard_router.get("/health")
