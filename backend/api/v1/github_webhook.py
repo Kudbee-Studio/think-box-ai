@@ -92,7 +92,14 @@ async def receive_github_webhook(request: Request) -> Response:
     signature = request.headers.get("X-Hub-Signature-256")
     service = _cached_service()
     delivery_id = request.headers.get("X-GitHub-Delivery", "")
-    result = service.process(body, event_type, signature, delivery_id=delivery_id or None)
+    drill_corr = request.headers.get("X-Thinkbox-Live-Drill-Correlation", "")
+    result = service.process(
+        body,
+        event_type,
+        signature,
+        delivery_id=delivery_id or None,
+        drill_correlation_id=drill_corr or None,
+    )
     import json
 
     return Response(

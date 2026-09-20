@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -115,6 +116,10 @@ class FleetCheckpointService:
                 "chain_verified": overview.get("chain_verified"),
                 "github_merge": False,
                 "auto_merge": False,
+                "fleet_id": os.environ.get("THINKBOX_FLEET_ID", "thinkbox-fleet-default"),
+                "checkpoint_version": os.environ.get(
+                    "THINKBOX_FLEET_CHECKPOINT_VERSION", "fleet-checkpoint-v2"
+                ),
             },
         )
         return FleetCheckpoint(

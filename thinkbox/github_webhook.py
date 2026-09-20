@@ -234,6 +234,7 @@ class GitHubWebhookLifecycleService:
         event_type: str,
         signature_header: Optional[str],
         delivery_id: Optional[str] = None,
+        drill_correlation_id: Optional[str] = None,
     ) -> GitHubWebhookProcessResult:
         from thinkbox.pipeline_webhook_replay import register_delivery
 
@@ -324,6 +325,15 @@ class GitHubWebhookLifecycleService:
                         evidence_label="verified",
                     )
                 )
+        self._maybe_record_live_webhook_delivery(
+            payload=payload,
+            items=items,
+            event_type=event_type,
+            delivery_id=delivery_id,
+            drill_correlation_id=drill_correlation_id,
+            signature_valid=True,
+            admission_allowed=True,
+        )
         return GitHubWebhookProcessResult(
             http_status=200,
             evidence_label="verified",
@@ -331,6 +341,38 @@ class GitHubWebhookLifecycleService:
             admission_allowed=True,
             outcomes=outcomes,
             detail="dispatched",
+        )
+
+    def _maybe_record_live_webhook_delivery(
+        self,
+        *,
+        payload: dict[str, Any],
+        items: list[Any],
+        event_type: str,
+        delivery_id: Optional[str],
+        drill_correlation_id: Optional[str],
+        signature_valid: bool,
+        admission_allowed: bool,
+    ) -> None:
+        import os
+
+        if os.environ.get("THINKBOX_PIPELINE_STAGING", "").lower() not in ("1", "true", "yes"):
+            return
+        from thinkbox.pipeline_live_drill import record_webhook_delivery
+
+        pr_number, branch = infer_pr_context(payload, items)
+        corr = drill_correlation_id or delivery_id or ""
+        if not corr:
+            return
+        record_webhook_delivery(
+            self._store,
+            delivery_id=delivery_id or corr,
+            correlation_id=corr,
+            pr_number=pr_number,
+            branch=branch,
+            event_type=event_type,
+            signature_valid=signature_valid,
+            admission_allowed=admission_allowed,
         )
 
     def _record_admission_blocked(
