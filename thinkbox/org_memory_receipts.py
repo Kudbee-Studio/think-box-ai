@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -84,6 +85,8 @@ class OrgMemoryReceiptStore:
 
     def __init__(self, db_path: str | Path = ":memory:") -> None:
         self._path = str(db_path)
+        if self._path != ":memory:":
+            os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(self._path, check_same_thread=False)
         self._conn.execute(

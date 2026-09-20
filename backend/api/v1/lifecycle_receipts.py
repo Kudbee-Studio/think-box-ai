@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+import threading
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -20,8 +21,16 @@ _DEFAULT_DB = os.getenv(
 )
 
 
+_store: Optional[OrgMemoryReceiptStore] = None
+_store_lock = threading.Lock()
+
+
 def _get_store() -> OrgMemoryReceiptStore:
-    return OrgMemoryReceiptStore(_DEFAULT_DB)
+    global _store
+    with _store_lock:
+        if _store is None:
+            _store = OrgMemoryReceiptStore(_DEFAULT_DB)
+        return _store
 
 
 @lifecycle_receipts_router.get("/receipts/pr/{pr_number}")

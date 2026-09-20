@@ -125,11 +125,16 @@ class PRLifecycleEventCoordinator:
     def handle_github_event(self, event: GitHubPREvent) -> dict[str, Any]:
         action = event.action.lower()
         if action == GitHubPRAction.CLOSED.value:
-            return self._record_external(
+            out = self._record_external(
                 event.pr_number,
                 "github_pr_closed",
                 {"action": action, "branch": event.branch},
             )
+            active = self._runs_by_pr.get(event.pr_number)
+            if active is not None and not active.terminal:
+                fail_out = self._fail_active(event.pr_number, "github_pr_closed")
+                out = {**out, **fail_out}
+            return out
         if action in (
             GitHubPRAction.OPENED.value,
             GitHubPRAction.SYNCHRONIZE.value,
@@ -145,6 +150,13 @@ class PRLifecycleEventCoordinator:
         if active is None:
             return {"handled": False, "reason": "no_active_run"}
 
+        ci_result = (
+            "success"
+            if conclusion == CIConclusion.SUCCESS.value
+            else "failure"
+            if conclusion == CIConclusion.FAILURE.value
+            else "pending"
+        )
         self._store.append_lifecycle(
             run_id=active.run_id,
             pr_number=event.pr_number,
@@ -152,7 +164,7 @@ class PRLifecycleEventCoordinator:
             from_state=active.runner.orchestrator.current_state,
             to_state=active.runner.orchestrator.current_state,
             action="ci_status_observed",
-            result="success",
+            result=ci_result,
             evidence={
                 "workflow": event.workflow,
                 "conclusion": conclusion,
@@ -199,7 +211,12 @@ class PRLifecycleEventCoordinator:
     def _start_or_resume(self, pr_number: int, branch: str, source: str) -> dict[str, Any]:
         active = self._runs_by_pr.get(pr_number)
         if active and not active.terminal:
-            return self._resume_active(pr_number, source=source)
+            return {
+                "handled": True,
+                "action": "awaiting_ci",
+                "run_id": active.run_id,
+                "source": source,
+            }
 
         cfg = PRLifecycleConfig(
             pr_number=pr_number,
@@ -255,8 +272,36 @@ class PRLifecycleEventCoordinator:
         active = self._runs_by_pr.get(pr_number)
         if active is None:
             return {"handled": False, "reason": "no_active_run"}
+        if active.terminal:
+            return {
+                "handled": True,
+                "action": "already_terminal",
+                "state": active.result.terminal_state if active.result else "",
+            }
         state = active.runner.orchestrator.current_state
-        active.runner.orchestrator._fail(state, "ci_failure", reason, {"source": "ci"})
+        fail_source = "ci" if reason.startswith("ci_") else "github"
+        active.runner.orchestrator._fail(
+            state,
+            "ci_failure" if fail_source == "ci" else "github_pr_closed",
+            reason,
+            {"source": fail_source},
+        )
+        self._store.append_lifecycle(
+            run_id=active.run_id,
+            pr_number=pr_number,
+            branch=active.branch,
+            from_state=state,
+            to_state=PRLifecycleState.FAILED.value,
+            action="ci_failure" if fail_source == "ci" else "github_pr_closed",
+            result="failure",
+            evidence={"reason": reason, "source": fail_source},
+        )
+        self._store.save_checkpoint(
+            active.run_id,
+            pr_number,
+            active.branch,
+            active.runner.orchestrator.snapshot(),
+        )
         active.terminal = True
         active.result = active.runner._finalize_result(error=reason)
         return {"handled": True, "action": "failed", "reason": reason, "run_id": active.run_id}
