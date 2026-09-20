@@ -38,10 +38,11 @@ pipeline_dashboard_router = APIRouter(
     tags=["control-plane", "pipeline"],
 )
 
-_DEFAULT_DB = os.getenv(
-    "THINKBOX_ORG_MEMORY_DB",
-    os.path.join("data", "thinkboxmd", "db", "org_memory_receipts.db"),
-)
+def _default_db_path() -> str:
+    return os.getenv(
+        "THINKBOX_ORG_MEMORY_DB",
+        os.path.join("data", "thinkboxmd", "db", "org_memory_receipts.db"),
+    )
 
 
 def _founder_agent_id() -> str:
@@ -77,7 +78,7 @@ def build_pipeline_dashboard_bundle(
         from thinkbox.pipeline_founder_proof_preflight import assert_founder_proof_key_configured
 
         assert_founder_proof_key_configured()
-    store = OrgMemoryReceiptStore(db_path or _DEFAULT_DB)
+    store = OrgMemoryReceiptStore(db_path or _default_db_path())
     coordinator = PRLifecycleEventCoordinator(store, test_mode=test_mode)
     agent_id = _founder_agent_id()
     tokens = GovernanceTokenService(signing_key=_signing_key())

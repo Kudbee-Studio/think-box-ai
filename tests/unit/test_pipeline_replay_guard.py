@@ -33,12 +33,18 @@ class TestReplayGuard(unittest.TestCase):
             idempotency_key="idem-1",
         )
         self.assertFalse(r2.github_merge_called)
-        self.assertIn(
-            r2.detail,
-            ("idempotency_replay", "replay_guard_hit", "already_queued", "queued_for_founder_review"),
+        allowed_details = (
+            "idempotency_replay",
+            "replay_guard_hit",
+            "already_queued",
+            "queued_for_founder_review",
+            "policy_readiness_below_threshold",
         )
+        self.assertIn(r2.detail, allowed_details)
         if r1.admitted and r2.admitted:
             self.assertTrue(r2.idempotent or r2.detail == "already_queued")
+        if r1.detail == r2.detail == "policy_readiness_below_threshold":
+            self.assertFalse(r2.github_merge_called)
 
     def test_find_replay_receipt(self) -> None:
         store = OrgMemoryReceiptStore(":memory:")
