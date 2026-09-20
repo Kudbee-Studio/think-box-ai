@@ -29,6 +29,9 @@ class TestPipelineDeltaTracker(unittest.TestCase):
         third = tracker.snapshot()
         self.assertTrue(third["changed"])
         self.assertIsNotNone(third.get("overview"))
+        self.assertEqual(third["current"].get("schema_version"), "pipeline-delta-v2")
+        fourth = tracker.snapshot()
+        self.assertTrue(fourth.get("duplicate_event"))
 
 
 if __name__ == "__main__":
