@@ -743,7 +743,7 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 **Status:** Draft
 **Branch:** `feat/lifecycle-org-memory-ci-hooks`
-**PR:** _(GitHub URL after open)_
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/106
 
 ### Features
 
