@@ -1,0 +1,1 @@
+{"timestamp": "2026-09-20T14:05:00+00:00", "substrate": "test-box", "model": "mercury-2", "global_calls": 4, "aggregate": {"global_throughput_rps": 2.5, "global_p50_latency": 0.5, "total_calls": 4, "total_errors": 0}, "proof_sha256": "abc123", "evidence_label": "verified", "config": {"concurrency_levels": [1, 4], "calls_per_level": 2, "iterations": 2}}

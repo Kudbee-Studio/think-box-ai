@@ -1,0 +1,85 @@
+{
+  "aggregate": {
+    "error_rate": 0.0,
+    "global_avg_latency": 0.531,
+    "global_p50_latency": 0.531,
+    "global_p95_latency": 0.531,
+    "global_p99_latency": 0.531,
+    "global_throughput_rps": 1.8832391713747645,
+    "total_calls": 1,
+    "total_errors": 0
+  },
+  "aggregated_results": [
+    {
+      "avg_latency": 0.531,
+      "concurrency": 1,
+      "error_rate": 0.0,
+      "iterations": 1,
+      "p50_latency": 0.531,
+      "p95_latency": 0.531,
+      "p99_latency": 0.531,
+      "rps": 1.8832391713747645,
+      "std_latency": 0.0,
+      "total_calls": 1,
+      "total_errors": 0,
+      "total_tokens": 77,
+      "wall_s": 0.531
+    }
+  ],
+  "all_iterations": [
+    {
+      "avg_latency": 0.531,
+      "completed": 1,
+      "concurrency": 1,
+      "errors": 0,
+      "iteration": 0,
+      "p50_latency": 0.531,
+      "p95_latency": 0.531,
+      "p99_latency": 0.531,
+      "rps": 1.88,
+      "std_latency": 0.0,
+      "total_tokens": 77,
+      "wall_s": 0.531
+    }
+  ],
+  "base_url": "https://api.inceptionlabs.ai/v1",
+  "box_url": "https://wanted-tuna-71803-3000.preview.box.upstash.com/",
+  "config": {
+    "calls_per_level": 1,
+    "concurrency_levels": [
+      1
+    ],
+    "iterations": 1
+  },
+  "evidence_label": "verified",
+  "experiment": "box-mercury-live-v2",
+  "global_calls": 1,
+  "hard_call_guard": 32,
+  "live_calls_observed": 1,
+  "model": "mercury-2",
+  "no_claims": [
+    "no model intelligence improvement claimed",
+    "no concurrency-for-performance claim (measurement only)",
+    "no GPU",
+    "no UpCloud compute",
+    "no SSH"
+  ],
+  "proof_sha256": "6ee1d4d58f6775fba8ee272eafc99da4a13727d340045e83c308a82108b242ef",
+  "provider": "openai_compat",
+  "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+  "substrate_report": {
+    "box_url": "https://wanted-tuna-71803-3000.preview.box.upstash.com/",
+    "isolation_tools": {
+      "bwrap": false,
+      "cloudflared": true,
+      "docker": false,
+      "firecracker-jailer": false,
+      "podman": false,
+      "unshare": true
+    },
+    "substrate": "wanted-tuna-71803-3000.preview.box.upstash.com",
+    "timestamp": "2026-09-20T14:06:41.432680+00:00",
+    "vector_sync": true
+  },
+  "timestamp": "2026-09-20T14:06:41.963880+00:00"
+}
