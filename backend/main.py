@@ -93,6 +93,9 @@ app.include_router(lifecycle_receipts_router)
 from backend.api.v1.github_webhook import github_webhook_router
 app.include_router(github_webhook_router)
 
+from backend.api.v1.pipeline_dashboard import pipeline_dashboard_router
+app.include_router(pipeline_dashboard_router)
+
 
 @app.on_event("startup")
 async def startup() -> None:

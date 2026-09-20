@@ -368,6 +368,18 @@ class OrgMemoryReceiptStore:
                 self._conn.execute("SELECT COUNT(*) FROM org_lifecycle_receipts").fetchone()[0]
             )
 
+    def distinct_pr_numbers(self) -> list[int]:
+        """Distinct GitHub PR numbers present in the receipt chain."""
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT DISTINCT pr_number FROM org_lifecycle_receipts
+                WHERE pr_number > 0
+                ORDER BY pr_number ASC
+                """
+            ).fetchall()
+        return [int(r[0]) for r in rows]
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()

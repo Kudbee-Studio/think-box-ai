@@ -765,9 +765,9 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 ### Tags
 - PR_LIFECYCLE_ORG_MEMORY
 
-## PR #107 — Signed GitHub Webhook + AdmissionGate (DRAFT)
+## PR #107 — Signed GitHub Webhook + AdmissionGate
 
-**Status:** Draft
+**Status:** Merged
 **Branch:** `feat/lifecycle-github-webhook-admission`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/107
 
@@ -790,3 +790,29 @@ Take PR #102 experiment to next level: persistent results via SQLite, configurab
 
 ### Tags
 - PR_LIFECYCLE_GITHUB_WEBHOOK
+
+## PR #108 — Pipeline Dashboard + Founder Merge Gate (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/pipeline-dashboard-admission-merge-gate`
+**PR:** (open on push)
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | Per-PR pipeline rollup (evidence + admission + CI + blocked reasons) | `thinkbox/pipeline_dashboard.py` |
+| 2 | Control-plane API (`/api/v1/control-plane/pipeline`) | `backend/api/v1/pipeline_dashboard.py` |
+| 3 | Founder-gated `request-merge` (AdmissionGate + org-memory; no GitHub merge) | `FounderGatedMergeService` |
+| 4 | Dark control-plane table + detail UI | `public/control-plane/pipeline_dashboard.html` |
+| 5 | Reuses org-memory store + lifecycle coordinator + admission gate (#106/#107) | shared `THINKBOX_ORG_MEMORY_DB` |
+| 6 | Hermetic tests | `tests/unit/test_pipeline_dashboard.py` |
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (local unittest) | **BLOCKED** | **BLOCKED** |
+
+### Tags
+- PR_PIPELINE_DASHBOARD_MERGE_GATE

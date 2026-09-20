@@ -1,0 +1,168 @@
+"""Hermetic tests: pipeline dashboard rollup + founder-gated merge requests."""
+
+from __future__ import annotations
+
+import json
+import unittest
+
+from thinkbox.github_webhook import build_hermetic_github_webhook_service, compute_github_signature
+from thinkbox.org_memory_receipts import OrgMemoryReceiptStore
+from thinkbox.pipeline_dashboard import (
+    build_hermetic_pipeline_dashboard,
+    summarize_pr_from_receipts,
+)
+from thinkbox.pr_lifecycle_event_hooks import (
+    CIStatusEvent,
+    GitHubPREvent,
+    HermeticCIStatusEventSource,
+    HermeticGitHubPREventSource,
+    PRLifecycleEventCoordinator,
+)
+
+
+class TestPipelineRollup(unittest.TestCase):
+    def test_summarize_counts_and_blocked_reasons(self) -> None:
+        store = OrgMemoryReceiptStore(":memory:")
+        store.append_lifecycle(
+            run_id="run_108",
+            pr_number=108,
+            branch="feat/pipeline-dashboard-admission-merge-gate",
+            from_state="PR_CREATED",
+            to_state="IDENTIFY",
+            action="lifecycle_start",
+            result="success",
+            evidence_label="verified",
+        )
+        store.append_lifecycle(
+            run_id="run_108",
+            pr_number=108,
+            branch="feat/pipeline-dashboard-admission-merge-gate",
+            from_state="IDENTIFY",
+            to_state="IDENTIFY",
+            action="ci_status_observed",
+            result="success",
+            evidence_label="verified",
+            evidence={"workflow": "unittest", "conclusion": "success", "ci_run_id": "1"},
+        )
+        store.append_lifecycle(
+            run_id="webhook_blocked_108",
+            pr_number=108,
+            branch="feat/pipeline-dashboard-admission-merge-gate",
+            from_state="BLOCKED",
+            to_state="BLOCKED",
+            action="admission_denied",
+            result="blocked",
+            evidence_label="simulated",
+            evidence={"admission_reason": "capability_not_granted"},
+        )
+        receipts = store.query(pr_number=108, limit=50)
+        summary = summarize_pr_from_receipts(108, receipts)
+        self.assertEqual(summary.evidence_counts.verified, 2)
+        self.assertEqual(summary.evidence_counts.simulated, 1)
+        self.assertEqual(summary.admission_denied_count, 1)
+        self.assertIsNotNone(summary.last_ci)
+        self.assertIn("capability_not_granted", summary.blocked_reasons)
+
+    def test_aggregator_overview(self) -> None:
+        aggregator, _, _ = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="r1",
+            pr_number=201,
+            branch="b1",
+            from_state="A",
+            to_state="B",
+            action="act",
+            result="success",
+            evidence_label="rejected",
+        )
+        overview = aggregator.overview()
+        self.assertEqual(overview["pr_count"], 1)
+        self.assertEqual(overview["totals"]["evidence_counts"]["rejected"], 1)
+        self.assertFalse(overview["auto_merge"])
+        self.assertTrue(overview["chain_verified"])
+
+
+class TestFounderGatedMerge(unittest.TestCase):
+    def test_admitted_queues_without_github_merge(self) -> None:
+        aggregator, merge_svc, token = build_hermetic_pipeline_dashboard()
+        store = aggregator._store  # noqa: SLF001
+        store.append_lifecycle(
+            run_id="run_301",
+            pr_number=301,
+            branch="feat/x",
+            from_state="LEARN",
+            to_state="LEARN",
+            action="lifecycle_complete",
+            result="success",
+            evidence_label="verified",
+        )
+        result = merge_svc.request_merge(301, governance_token=token)
+        self.assertTrue(result.admitted)
+        self.assertFalse(result.merged)
+        self.assertFalse(result.github_merge_called)
+        self.assertEqual(result.receipt_action, "founder_merge_requested")
+        detail = aggregator.pr_detail(301)
+        self.assertEqual(detail["summary"]["merge_request_status"], "queued")
+
+    def test_invalid_token_denied_with_receipt(self) -> None:
+        aggregator, merge_svc, _token = build_hermetic_pipeline_dashboard()
+        result = merge_svc.request_merge(302, governance_token="not-a-real-token")
+        self.assertFalse(result.admitted)
+        self.assertEqual(result.http_status, 403)
+        receipts = aggregator._store.query(pr_number=302, limit=10)  # noqa: SLF001
+        self.assertTrue(any(r.get("action") == "merge_request_denied" for r in receipts))
+
+    def test_webhook_and_pipeline_share_store_pattern(self) -> None:
+        """Webhook admissions + pipeline rollup compose on one org-memory store."""
+        store = OrgMemoryReceiptStore(":memory:")
+        coord = PRLifecycleEventCoordinator(store, test_mode=True)
+        gh_svc = build_hermetic_github_webhook_service("whsec-test")
+        gh_svc._store = store  # noqa: SLF001
+        gh_svc._coordinator = coord  # noqa: SLF001
+
+        aggregator, merge_svc, founder_token = build_hermetic_pipeline_dashboard()
+        aggregator._store = store  # noqa: SLF001
+        merge_svc._store = store  # noqa: SLF001
+        merge_svc._coordinator = coord  # noqa: SLF001
+
+        payload = {
+            "action": "opened",
+            "number": 401,
+            "pull_request": {"head": {"ref": "feat/pipeline", "sha": "abc"}},
+        }
+        body = json.dumps(payload).encode()
+        sig = compute_github_signature("whsec-test", body)
+        wh = gh_svc.process(body, "pull_request", sig)
+        self.assertTrue(wh.admission_allowed)
+
+        ci = HermeticCIStatusEventSource()
+        gh = HermeticGitHubPREventSource()
+        ci.push(CIStatusEvent(pr_number=401, workflow="unittest", conclusion="success"))
+        coord.drain_sources(gh, ci)
+
+        overview = aggregator.overview()
+        self.assertGreaterEqual(overview["pr_count"], 1)
+        merge = merge_svc.request_merge(401, governance_token=founder_token)
+        self.assertTrue(merge.admitted)
+        self.assertFalse(merge.github_merge_called)
+
+
+class TestDistinctPrNumbers(unittest.TestCase):
+    def test_distinct_pr_numbers_ordered(self) -> None:
+        store = OrgMemoryReceiptStore(":memory:")
+        for pr in (3, 1, 2):
+            store.append_lifecycle(
+                run_id=f"r{pr}",
+                pr_number=pr,
+                branch="b",
+                from_state="A",
+                to_state="B",
+                action="act",
+                result="success",
+            )
+        self.assertEqual(store.distinct_pr_numbers(), [1, 2, 3])
+
+
+if __name__ == "__main__":
+    unittest.main()

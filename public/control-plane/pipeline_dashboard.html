@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pipeline — admissions &amp; merge gate</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #141820;
+      --border: #2a3140;
+      --text: #e8ecf1;
+      --muted: #8b95a8;
+      --accent: #5b9cff;
+      --ok: #3dd68c;
+      --warn: #f5c451;
+      --danger: #f07178;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { font-size: 1.15rem; margin: 0; font-weight: 600; }
+    .chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .chip {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      background: #222833;
+      color: var(--muted);
+    }
+    .chip.live { color: var(--warn); border: 1px solid #4a4030; }
+    main { display: grid; grid-template-columns: 1fr 360px; gap: 0; min-height: calc(100vh - 64px); }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .table-wrap { overflow: auto; border-right: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 0.65rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; position: sticky; top: 0; background: var(--bg); }
+    tr { cursor: pointer; }
+    tr:hover td { background: #1a1f2a; }
+    tr.selected td { background: #1e2636; }
+    .detail {
+      padding: 1rem 1.25rem;
+      background: var(--panel);
+      overflow: auto;
+    }
+    .detail h2 { margin: 0 0 0.75rem; font-size: 1rem; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .metric {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.65rem;
+    }
+    .metric label { display: block; font-size: 0.68rem; color: var(--muted); text-transform: uppercase; }
+    .metric span { font-family: ui-monospace, monospace; font-size: 1.05rem; }
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.72rem;
+      overflow: auto;
+      max-height: 280px;
+    }
+    .toolbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    input, button {
+      font: inherit;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.35rem 0.55rem;
+    }
+    button.primary { background: var(--accent); border-color: #3d7fd6; color: #041018; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-queued { color: var(--warn); }
+    .status-blocked { color: var(--danger); }
+    .status-none { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Pipeline control surface</h1>
+      <div class="chips">
+        <span class="chip">evidence=simulated</span>
+        <span class="chip live">LIVE/PROD BLOCKED</span>
+        <span class="chip">auto_merge=false</span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <label title="Optional THINKBOX API key">API key
+        <input id="apiKey" type="password" placeholder="X-API-Key" style="width:140px" />
+      </label>
+      <button id="refresh">Refresh</button>
+    </div>
+  </header>
+  <main>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>PR</th>
+            <th>Branch</th>
+            <th>State</th>
+            <th>V / S / R</th>
+            <th>Adm↓</th>
+            <th>CI</th>
+            <th>Merge</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <aside class="detail" id="detail">
+      <h2>Select a PR</h2>
+      <p style="color:var(--muted);font-size:0.85rem">Webhook admissions, verified receipts, blocked reasons.</p>
+    </aside>
+  </main>
+  <script>
+    let overview = { prs: [] };
+    let selectedPr = null;
+
+    function headers() {
+      const h = { Accept: 'application/json' };
+      const key = document.getElementById('apiKey').value.trim();
+      if (key) h['X-API-Key'] = key;
+      return h;
+    }
+
+    function ec(row) {
+      const c = row.evidence_counts || {};
+      return `${c.verified||0} / ${c.simulated||0} / ${c.rejected||0}`;
+    }
+
+    function ciLabel(row) {
+      const ci = row.last_ci;
+      if (!ci) return '—';
+      return `${ci.workflow || '?'}:${ci.conclusion || '?'}`;
+    }
+
+    function mergeClass(s) {
+      if (s === 'queued') return 'status-queued';
+      if (s === 'blocked' || s === 'denied') return 'status-blocked';
+      return 'status-none';
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      (overview.prs || []).forEach(row => {
+        const tr = document.createElement('tr');
+        if (selectedPr === row.pr_number) tr.classList.add('selected');
+        tr.innerHTML = `
+          <td>#${row.pr_number}</td>
+          <td>${row.branch || '—'}</td>
+          <td>${row.lifecycle_state || '—'}</td>
+          <td>${ec(row)}</td>
+          <td>${row.admission_denied_count || 0}</td>
+          <td>${ciLabel(row)}</td>
+          <td class="${mergeClass(row.merge_request_status)}">${row.merge_request_status || 'none'}</td>`;
+        tr.onclick = () => selectPr(row.pr_number);
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function selectPr(pr) {
+      selectedPr = pr;
+      renderTable();
+      const panel = document.getElementById('detail');
+      panel.innerHTML = '<h2>PR #' + pr + '</h2><p>Loading…</p>';
+      try {
+        const res = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}`, { headers: headers() });
+        const data = await res.json();
+        const s = data.summary || {};
+        const blocked = (s.blocked_reasons || []).map(r => `<li>${r}</li>`).join('') || '<li>none</li>';
+        panel.innerHTML = `
+          <h2>PR #${pr}</h2>
+          <div class="metric-grid">
+            <div class="metric"><label>Verified</label><span>${s.evidence_counts?.verified ?? 0}</span></div>
+            <div class="metric"><label>Simulated</label><span>${s.evidence_counts?.simulated ?? 0}</span></div>
+            <div class="metric"><label>Rejected</label><span>${s.evidence_counts?.rejected ?? 0}</span></div>
+            <div class="metric"><label>Admission denied</label><span>${s.admission_denied_count ?? 0}</span></div>
+          </div>
+          <p><strong>Blocked reasons</strong></p>
+          <ul style="color:var(--muted);font-size:0.85rem">${blocked}</ul>
+          <p><strong>Last CI</strong></p>
+          <pre>${JSON.stringify(s.last_ci, null, 2)}</pre>
+          <div class="toolbar" style="margin:0.75rem 0">
+            <input id="govToken" type="password" placeholder="Governance token" style="flex:1;min-width:160px" />
+            <button class="primary" id="reqMerge">Request merge (founder gate)</button>
+          </div>
+          <pre id="mergeOut">Merge requests are recorded in org-memory only — GitHub merge is never called.</pre>
+          <p><strong>Recent receipts</strong></p>
+          <pre>${JSON.stringify(data.receipts?.slice(0, 8), null, 2)}</pre>`;
+        document.getElementById('reqMerge').onclick = async () => {
+          const token = document.getElementById('govToken').value.trim();
+          const out = document.getElementById('mergeOut');
+          out.textContent = 'Submitting…';
+          const r = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}/request-merge`, {
+            method: 'POST',
+            headers: { ...headers(), 'Content-Type': 'application/json', 'X-Thinkbox-Governance-Token': token },
+            body: JSON.stringify({ branch: s.branch || '' }),
+          });
+          const body = await r.json();
+          out.textContent = JSON.stringify(body, null, 2);
+          await loadOverview();
+          await selectPr(pr);
+        };
+      } catch (e) {
+        panel.innerHTML = '<h2>Error</h2><pre>' + e + '</pre>';
+      }
+    }
+
+    async function loadOverview() {
+      const res = await fetch('/api/v1/control-plane/pipeline', { headers: headers() });
+      overview = await res.json();
+      renderTable();
+    }
+
+    document.getElementById('refresh').onclick = loadOverview;
+    loadOverview().catch(e => {
+      document.getElementById('rows').innerHTML = '<tr><td colspan="7">Failed to load: ' + e + '</td></tr>';
+    });
+  </script>
+</body>
+</html>
