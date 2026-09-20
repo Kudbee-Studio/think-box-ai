@@ -33,22 +33,48 @@
         <div class="demo-cmd"># Run via API (requires auth header):</div>
         <div class="demo-cmd">curl -H "Authorization: Bearer dev-only-local-token" http://localhost:8000/api/v1/control-plane/status</div>
         <div class="demo-cmd"># Run Demo-in-10:</div>
-        <div class="demo-cmd">python -m thinkbox.agent.control_plane.demo_proof</div>
+        <div class="demo-cmd">bash scripts/demo_in_10_control_plane.sh</div>
         <button class="run-btn" onclick="runDemo()">Run Demo-in-60s (mock)</button>
+        <button class="run-btn" style="background: var(--color-text-secondary); margin-left: 8px;" onclick="copyCmd()">Copy run cmd</button>
         <div id="demo-output" class="demo-output" style="display:none;"></div>
       </div>
       <div class="demo-panel">
         <h3>Last Run Summary</h3>
         <div id="last-run" style="font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-tertiary);">No runs yet</div>
+        <button class="run-btn" style="background: var(--color-text-secondary); margin-top: 8px; margin-left: 8px;" onclick="verifyChain()">Verify chain</button>
+        <div id="verify-output" class="demo-output" style="display:none;"></div>
       </div>
     </div>
     <script>
-      function runDemo() {
+    function runDemo() {
         const out = document.getElementById('demo-output');
         out.style.display = 'block';
         out.textContent = '=== THINK BOX AI — Control Plane Demo ===\n[1/6] ADMISSION: ADMITTED\n[2/6] RECEIPTS: chain valid\n[3/6] BUDGET: remaining=$100.00\n[4/6] CHAOS: disabled\n[5/6] LEASES: 0 active\n[6/6] REPLAY: bundle ready\n=== Demo complete ===';
-        document.getElementById('last-run').textContent = `Last run: ${new Date().toISOString()} — 6 phases OK`;
-      }
+        document.getElementById('last-run').textContent = `Last run: ${new Date().toISOString()} — 6 phases OK — grounded: 0.90 — budget: $1.00 — proofs: 1`;
+    }
+    function copyCmd() {
+        const cmd = 'bash scripts/demo_in_10_control_plane.sh';
+        navigator.clipboard.writeText(cmd).then(() => {
+            const out = document.getElementById('demo-output');
+            out.style.display = 'block';
+            out.textContent = 'Copied: ' + cmd;
+        }).catch(() => {
+            console.log('Copy failed - command:', cmd);
+        });
+    }
+    async function verifyChain() {
+        const out = document.getElementById('verify-output');
+        out.style.display = 'block';
+        try {
+            const resp = await fetch('/api/v1/receipts/verify', {
+                headers: { 'Authorization': 'Bearer dev-only-local-token' },
+            });
+            const data = await resp.json();
+            out.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            out.textContent = 'Verify failed: ' + e;
+        }
+    }
     </script>
   </main>
 </body>

@@ -608,9 +608,9 @@ None in this PR.
 **Branch:** `feat/dashboard-control-plane-bind-x10`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/98
 
-## PR #99 — Durable Proof Plane (READY FOR REVIEW)
+## PR #99 — Durable Proof Plane (MERGED)
 
-**Status:** Ready for review
+**Status:** Merged
 **Branch:** `feat/agent-durable-proof-plane-x10`
 **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/99
 
@@ -636,3 +636,32 @@ None in this PR.
 ### Files Changed
 - `thinkbox/agent/control_plane/` (9 modules)
 - `tests/unit/agent/` (9 test files)
+
+## PR #100 — Demo-in-10 × Control Plane × Durable Proof (DRAFT)
+
+**Status:** Draft
+**Branch:** `feat/demo-in-10-control-plane-proof-x10`
+**PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/100
+
+### Features
+
+| # | Feature | Module |
+|---|---------|--------|
+| 1 | demo_in_10_control_plane.sh (mock→burst→harvest→proof) | `scripts/demo_in_10_control_plane.sh` |
+| 2 | Admit + capacity binding (fail-closed) | `thinkbox/agent/control_plane/demo_bind.py` |
+| 3 | DemoRunRecord (scores, budget, timestamps) | `thinkbox/agent/control_plane/demo_record.py` |
+| 4 | Proof bundle under data/proofs/demo-<id>/ | `thinkbox/agent/control_plane/demo_proof.py` |
+| 5 | GET /demo/runs + /demo/runs/{id}/proof | `backend/api/v1/demo_runs.py` |
+| 6 | Dashboard panel + copy run cmd + last run metrics | `public/control-plane/demo.html` |
+| 7 | Dashboard verify-chain button | `public/control-plane/demo.html` |
+| 8 | README Demo in 10 section | `README.md` |
+| 9 | Hermetic e2e test | `tests/unit/demo/test_e2e.py` |
+| 10 | CONTROL_PLANE_BOUND tag | STATUS.md (this section) |
+
+### Testing
+ - 40 new tests across 8 files in `tests/unit/demo/`
+ - All hermetic, no network, no GPU
+ - Edge cases: duplicate run_id, corrupted JSON, empty token, caching
+
+### Tags
+- Demo-in-10 → CONTROL_PLANE_BOUND
