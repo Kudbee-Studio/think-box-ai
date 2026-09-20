@@ -404,22 +404,32 @@ class TestPackagePublisher(unittest.TestCase):
 
 
 class TestPackageIntegration(unittest.TestCase):
-    def test_publish_then_install(self):
-        registry = PackageRegistry()
-        publisher = PackagePublisher(registry)
-        installer = PackageInstaller(registry)
-        m = _make_manifest()
-        publisher.publish(m)
-        installed = installer.install(m)
-        self.assertEqual(installed.manifest.id, m.id)
+    """End-to-end publish → search → install using a writable hermetic base_path."""
 
-    def test_publish_search_install(self):
-        registry = PackageRegistry()
-        publisher = PackagePublisher(registry)
-        installer = PackageInstaller(registry)
+    def setUp(self) -> None:
+        self.tmpdir = tempfile.mkdtemp()
+        self.registry = PackageRegistry()
+        self.publisher = PackagePublisher(self.registry)
+        self.installer = PackageInstaller(self.registry, base_path=self.tmpdir)
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_publish_then_install(self) -> None:
+        m = _make_manifest()
+        self.publisher.publish(m)
+        installed = self.installer.install(m)
+        self.assertEqual(installed.manifest.id, m.id)
+        manifest_path = os.path.join(installed.install_path, "manifest.json")
+        self.assertTrue(os.path.isfile(manifest_path))
+
+    def test_publish_search_install(self) -> None:
         m = _make_manifest(name="compute-agent", tags=["compute"])
-        publisher.publish(m)
-        result = registry.search("compute")
+        self.publisher.publish(m)
+        result = self.registry.search("compute")
         self.assertEqual(result.total, 1)
-        installed = installer.install(result.packages[0])
+        installed = self.installer.install(result.packages[0])
         self.assertEqual(installed.manifest.name, "compute-agent")
+        self.assertTrue(installed.install_path.startswith(self.tmpdir))
