@@ -68,5 +68,6 @@ backend/instance/
 .env.local
 .env.production
 .env.example
+data/proofs/
 data/cnc/safety/
 data/cnc/
