@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (2199 full suite OK, 7 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
+- [x] Tests executed and passing (2203 full suite OK, 8 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
 - [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
@@ -42,7 +42,7 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency; baseline run had 20 HTTP 503 transient failures (not reproduced in 256+ run). |
 | **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 512+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2199 OK (7 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
+| **Test count** | **2203 OK (8 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
 
 ---
 
@@ -993,8 +993,8 @@ After finishing:
 
 | Field | Value |
 |---|---|
-| **Full suite** | 2199 OK (7 skipped, 3 expected failures) |
-| **New tests** | 8 focused scaling safeguards in `tests/unit/test_swarm_instrumentation.py::TestSwarmScalingSafeguards` |
+| **Full suite** | 2203 OK (8 skipped, 3 expected failures) |
+| **New tests** | `thinkbox/swarm_stats`, `tests/unit/test_swarm_stats.py`, scaling safeguards in `test_swarm_instrumentation.py` |
 | **Concurrency safety** | 256 concurrent ledger writes, verify() True |
 | **Ledger at scale** | 388 entries, valid=True |
 | **Traces grounded** | 256/256 (100%) |
@@ -1067,13 +1067,13 @@ After finishing:
 | **Proof artifact** | `data/thinkboxmd/big_swarm_20260921_135330.json` |
 | **Baseline artifact** | `data/thinkboxmd/big_swarm_20260921_135102.json` |
 | **Event stream** | `data/thinkboxmd/swarm_events.jsonl` |
-| **Accounting** | 388 ledger entries valid, cross-verified by validator tier |
+| **Accounting** | 256 live calls; ledger verify true; 388 **cumulative** rows on shared `action_ledger.db` (baseline 132 + scaled 256). Use `--fresh-ledger` on next runs for per-run `ledger_entries_this_run`. |
 | **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED / PRODUCTION_NOT_CLAIMED |
 
 ### DECISION
 
 - Swarm at 256 agents with Mercury-2 via Inception API is OPERATIONAL
-- All 256 ledger entries valid, all 256 traces grounded
+- Ledger chain valid; 256/256 traces grounded (388 cumulative ledger rows documented above)
 - Zero failures (vs baseline 20 transient 503s)
 - Strength index improved from 0.6075 to 0.6948
 - Tier inflation decreased from 7 to 4 (-43%)
