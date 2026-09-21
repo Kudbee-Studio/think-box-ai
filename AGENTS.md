@@ -463,6 +463,8 @@ Run swarm experiments (see skill: `swarm-instrument`):
 4. Check metrics: TSSI, learning curve, Mercury 2 throughput
 5. Self-ImprovementLoop: exists but NOT auto-wired into runs (TODO)
 
+**256+ swarm results** (2026-09-21): `python3 experiments/big_swarm.py --primary 256 --validators 32 --concurrency 32` — 256/256 OK, 0 failures, 18.15 RPS, 14.10s wall clock, 388 ledger entries valid, 256/256 traces grounded, strength index 0.6948, reliability 1.0. Baseline (132 agents): 112/132 OK, 20 HTTP 503, 8.08 RPS. Linear scaling NOT claimed (baseline had API throttling). Proof artifacts: `big_swarm_20260921_135102.json` (baseline), `big_swarm_20260921_135330.json` (256+).
+
 ---
 
 ### 13.8 Test-Driven Development
@@ -748,7 +750,7 @@ The `thinkbox/scheduler.py` module extends the governed concurrency architecture
 - `tests/unit/test_scheduler.py` — 689 tests, all passing
 - `tests/unit/test_scheduler_integration.py` — 42 tests, all passing
 - Run: `python3 -m unittest tests.unit.test_scheduler -v`
-- Full suite: `python3 -m unittest discover tests/` (1435 tests, 6 skipped, 3 pre-existing failures in test_swarm_instrumentation)
+- Full suite: `python3 -m unittest discover tests/` (2199 OK, 7 skipped, 3 expected failures)
 
 ## CNC Manufacturing Intelligence Platform
 
@@ -780,7 +782,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 59 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (1435 tests, 6 skipped; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (2199 OK, 7 skipped, 3 expected failures; canonical count — see Chronicle)
 
 ### ADR
 
