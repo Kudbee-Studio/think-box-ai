@@ -838,3 +838,68 @@ After finishing:
 - Exact next larger improvement: **live Upstash Box execution verification** — connect to an actual provisioned `UPSTASH_PUBLIC_BOX_URL`, exercise PATH A, and prove `LIVE_VERIFIED` with a remote receipt. No paid infrastructure without explicit existing provider contract/authorization.
 
 ---
+
+## PR #118 LIVE-VERIFY BOUNDARY (2026-09-21) — Auth Contract Investigation
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Determined actual auth contract for Upstash Box adapter from repository/config/provider evidence. No secrets printed. |
+| **UPSTASH_PUBLIC_BOX_URL** | PRESENT (`wanted-tuna-71803-3000.preview.box.upstash.com/`) |
+| **UPSTASH_PUBLIC_BOX_TOKEN** | ABSENT |
+| **UPSTASH_BOX_API_KEY** | PRESENT (NOT used by adapter code) |
+| **UPSTASH_API_KEY** | PRESENT (used in `pr_db.py` for provisioning, unrelated to Box auth) |
+| **Classification** | **B — Credential contract confirmed but required credential missing** |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Action** | Traced adapter auth contract from source code; performed safe HTTP probes against real endpoint. |
+| **Auth contract source** | `thinkbox/execution_adapter.py:27-28` — `ENV_URL = "UPSTASH_PUBLIC_BOX_URL"`, `ENV_TOKEN = "UPSTASH_PUBLIC_BOX_TOKEN"` |
+| **Auth mechanism** | `UpstashBoxConfig.load_from_env()` reads `token` from `ENV_TOKEN` (`UPSTASH_PUBLIC_BOX_TOKEN`). `_post()` sends `Authorization: Bearer {self._config.token}` to `{url}/run` (line 218). `is_configured` requires both `url AND token` (line 75). |
+| **UPSTASH_BOX_API_KEY in code** | ZERO references in Python source (`grep -r UPSTASH_BOX_API_KEY thinkbox/` → no matches). Present only in documentation (`KUDBEE_AGENT_RUNTIME_CONTRACT.md`, `docs/THINKBOXMD_REPORT.md`, `docs/PREP.md`). |
+| **SDK/CLI** | No `upstash_redis`, `redis`, or Upstash SDK packages installed in environment. |
+| **Probe 1** | GET `/` on Box URL → HTTP 404, body `preview not found` |
+| **Probe 2** | POST `/run` with no auth → HTTP 404, body `preview not found` |
+| **Probe 3** | POST `/run` with `Authorization: Bearer test` → HTTP 404, body `preview not found` |
+| **Probe 4** | POST `/run` with `Authorization: Bearer {UPSTASH_BOX_API_KEY}` → HTTP 404, body `preview not found` |
+| **Probe conclusion** | Endpoint returns `preview not found` regardless of auth method. 404 is service-level (preview not provisioned), NOT an auth rejection. |
+| **Adapter behavior** | `discover_env()` reports `UPSTASH_PUBLIC_BOX_URL=True`, `UPSTASH_PUBLIC_BOX_TOKEN=False`. `is_configured()` returns `False`. Adapter returns `NOT_CONFIGURED` — fail-closed, no synthetic receipt. |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Focused adapter tests** | 8 OK (`python3 -m unittest tests.unit.test_execution_adapter`) — fail-closed, env loading, stub live path |
+| **Focused BYOC tests** | 10 OK (`python3 -m unittest tests.unit.byoc.test_box_mercury`) |
+| **Full suite** | 2191 OK, 7 skipped, 3 expected failures (`python3 -m unittest discover tests/`) |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Auth contract** | CONFIRMED from source code: adapter requires `UPSTASH_PUBLIC_BOX_TOKEN` (not `UPSTASH_BOX_API_KEY`) |
+| **Required credential** | `UPSTASH_PUBLIC_BOX_TOKEN` — ABSENT |
+| **Real endpoint result** | HTTP 404 `preview not found` (all probe variants); endpoint not functional for this URL |
+| **PATH A** | BLOCKED — missing credential + endpoint returns `preview not found` |
+| **PATH B** | PROVEN — adapter returns `NOT_CONFIGURED` when `UPSTASH_PUBLIC_BOX_TOKEN` absent |
+| **No false receipts** | Confirmed — adapter never fabricates success |
+| **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED |
+
+### DECISION
+
+- **Auth contract is definitively `UPSTASH_PUBLIC_BOX_TOKEN`** (from `execution_adapter.py:28`), NOT `UPSTASH_BOX_API_KEY`.
+- `UPSTASH_BOX_API_KEY` is documented in the runtime contract as "API key for Upstash Box remote worker" but is NEVER used by the adapter or any Python code. It is a documentation-only reference.
+- Even if `UPSTASH_BOX_API_KEY` were supplied as the token, the endpoint returns 404 `preview not found` — the preview service is not provisioned for this URL.
+- The classification is **B**: credential contract confirmed, required credential (`UPSTASH_PUBLIC_BOX_TOKEN`) missing.
+- Do NOT invent, rotate, or provision credentials.
+
+### NEXT ACTION
+
+- Exact next larger improvement: **provision a valid Upstash Box preview** with `UPSTASH_PUBLIC_BOX_TOKEN` set, then retry PATH A. Until the endpoint responds with a valid execution result, `LIVE_VERIFIED` remains unachievable.
+- Alternative: if `UPSTASH_BOX_API_KEY` is the intended credential, the adapter code must be updated to read it (contract mismatch between docs and implementation) — but this requires a decision record and does NOT fix the endpoint 404.
+
+---
