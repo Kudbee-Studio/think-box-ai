@@ -861,3 +861,67 @@ The endpoint is not live (`preview not found`) regardless of auth, so PATH A can
 
 CODE_COMPLETE / TEST_VERIFIED (2191 OK, 7 skipped, 3 expected failures) / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED.
 
+---
+
+## Swarm 100 Agents — Live Verified (2026-09-21)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Launched `experiments/big_swarm.py` with 100 primary + 32 validator agents against Mercury-2 via Inception API |
+| **Command** | `python3 experiments/big_swarm.py --primary 100 --validators 32 --concurrency 32` |
+| **INCEPTION_API_KEY** | SET and functional |
+| **Model** | mercury-2 via `https://api.inceptionlabs.ai/v1` |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Experiment** | `experiments/big_swarm.py` |
+| **Primary workers** | 100 |
+| **Validator workers** | 32 |
+| **Concurrency** | 32 |
+| **Claims** | 100 synthetic research claims (tiers: EVIDENCE, INFERENCE, HYPOTHESIS, UNVERIFIED) |
+| **Live calls** | 132 total (100 primary + 32 validator) |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **OK / failed** | 132 / 0 (100% success) |
+| **Tiers** | EVIDENCE: 3, INFERENCE: 18, HYPOTHESIS: 0, UNVERIFIED: 79, ERROR: 0 |
+| **Disagreements** | 23 (validator tier inflation: 7) |
+| **Ledger entries** | 132 (valid=True) |
+| **Traces grounded** | 132/132 |
+| **Memory entries** | 132 |
+| **Wall clock** | 6.82s (wave1 4.36s, wave2 2.33s) |
+| **Effective RPS** | 19.4 |
+| **p50 / max latency** | 1.008s / 2.084s |
+| **Full suite** | 2191 OK (7 skipped, 3 expected failures) |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Mercury-2** | LIVE — 132/132 successful live calls via Inception API |
+| **Proof artifact** | `data/thinkboxmd/big_swarm_20260921_024412.json` |
+| **Event stream** | `data/thinkboxmd/swarm_events.jsonl` (132 events + run_start + corpus_ready) |
+| **Accounting** | 132 ledger entries valid, cross-verified by validator tier |
+| **Swarm strength** | Compute via `compute_swarm_strength()` on metrics store |
+
+### DECISION
+
+- Swarm at 100 agents with Mercury-2 via Inception API is FULLY OPERATIONAL at 19.4 RPS
+- All 132 ledger entries valid, all 132 traces grounded
+- No failures, no errors, no timeout-related failures
+- Classification: **LIVE_VERIFIED** for Mercury-2 inference at swarm scale
+- Next larger improvement: scale to 256+ agents; add real-time dashboard instrumentation
+
+### NEXT ACTION
+
+- Exact next larger improvement: **scale swarm to 256 primary + 64 validators** to prove linear throughput scaling; instrument dashboard real-time metrics; **provision UPSTASH_PUBLIC_BOX_TOKEN** to achieve PATH A live verification for Upstash Box execution adapter.
+
+---
+
