@@ -1086,3 +1086,27 @@ After finishing:
 - Exact next larger improvement: **provision UPSTASH_PUBLIC_BOX_TOKEN** for PATH A live verification of Upstash Box execution adapter; **scale swarm to 512+ agents** to prove scaling across multiple runs with different baselines; **instrument dashboard real-time metrics** for swarm sessions.
 
 ---
+
+## Swarm 256+ — PR #121 engineering pass (2026-09-21)
+
+**Branch:** `feat/swarm-256-scaling` · **HEAD:** `ad1bd03` (pushed to `origin`)
+
+| Area | Change |
+|------|--------|
+| **Proof validation** | `thinkbox/swarm_stats.py` — `validate_proof_document`, `open_action_ledger`, RPS/percentile helpers |
+| **Runner** | `experiments/big_swarm.py` — `--fresh-ledger`, `ledger_entries_this_run`, p95 latency, reconcile `validation_errors`, exit 1 on invalid accounting |
+| **CLI** | `experiments/verify_swarm_proof.py` — hermetic proof JSON gate before merge claims |
+| **Dashboard** | `swarm_dashboard.py` — ledger summary from proof `reconciliation` (cumulative + this-run) |
+| **Tests** | `tests/unit/test_swarm_stats.py` + tightened `TestSwarmScalingSafeguards` — **2204 OK**, 8 skipped, 3 xfail |
+| **Docs** | `docs/guides/kilo_swarm_scale.md`; AGENTS/PREP/skill CLI fixed to `--primary 224 --validators 32` |
+
+**Canonical scale command (256 live calls):**
+
+```bash
+python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger
+python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.json
+```
+
+**Not claimed:** new live 256 run in this pass (evidence JSON from prior session unchanged). Next live step: re-run with `--fresh-ledger` and attach new proof + `swarm_events.jsonl` (gitignored).
+
+---

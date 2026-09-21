@@ -37,6 +37,7 @@ Current repository health, infrastructure status, known defects, and improvement
 - **Strength index**: 0.6075 → 0.6948; reliability 0.8485 → 1.0; traces grounded 112/132 → 256/256
 - **Proof artifacts**: `data/thinkboxmd/big_swarm_20260921_135102.json` (baseline), `data/thinkboxmd/big_swarm_20260921_135330.json` (256+)
 - **Validate**: `python3 experiments/verify_swarm_proof.py <proof.json>`
+- **PR #121 pass** (2026-09-21): `swarm_stats` + `--fresh-ledger` + reconcile validation; see `docs/CONTINUITY.md` § Swarm 256+ PR #121 engineering pass
 
 ### GitHub MCP (Agent-to-Agent Communication)
 - **Status**: ✅ **Connected**
