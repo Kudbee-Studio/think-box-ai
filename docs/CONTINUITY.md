@@ -722,6 +722,61 @@ After finishing:
 5. **Git log** provides commit history and authorship trace
 6. **GitHub PRs** provide review history and approval state
 
+---
+
+## PR #118 — LIVE VERIFY ATTEMPT (2026-09-21)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Real-time env check with existing environment (no fabricated values). |
+| **UPSTASH_PUBLIC_BOX_URL** | PRESENT (redacted) |
+| **UPSTASH_BOX_API_KEY** | PRESENT (redacted) |
+| **UPSTASH_PUBLIC_BOX_TOKEN** | ABSENT |
+| **INCEPTION_API_KEY** | PRESENT (redacted) |
+| **Result** | Box URL configured; Box auth token (UPSTASH_PUBLIC_BOX_TOKEN) missing; Box API key (UPSTASH_BOX_API_KEY) available but adapter expects token key; endpoint returns HTTP 404 / auth failure. |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Ran `UpstashBoxExecutionAdapter.execute()` against real Box URL using actual `UPSTASH_PUBLIC_BOX_URL` + `UPSTASH_BOX_API_KEY` (existing env) with `Repository` persistence. |
+| **Evidence file** | /tmp/tmpb17k_7m0 (temp worktree, cleaned after inspection; artifact path = NONE) |
+| **Adapter behavior** | `discover_env()` correctly reported `UPSTASH_PUBLIC_BOX_URL=True`; `is_configured()` returned False when token missing. With explicit `token=UPSTASH_BOX_API_KEY` override, adapter attempted POST to Box endpoint and received `HTTPError`; adapter returned `RECEIPT_STATUS: REMOTE_FAILED`, `exit_code: -1`, `artifact_path: NONE`, `checkpoint_id: NONE`. No synthetic receipt produced. |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Focused adapter tests** | 8 OK (fail-closed + stub live) |
+| **Full suite (main)** | 2191 OK, 7 skipped, 3 expected failures |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **PATH A (real remote)** | ATTEMPTED — adapter contacted real Box URL; endpoint responded with error (404/auth failure per historical CASE C: preview not found / security group block). Adapter reported `REMOTE_FAILED`; no false receipt. |
+| **PATH B (fail-closed)** | PROVEN AGAIN — with missing token, adapter returns `NOT_CONFIGURED`; with URL + key, adapter returns `REMOTE_FAILED`; never fabricates success. |
+| **Evidence** | Real environment variables present; adapter execution performed with real URL; no mock/stub used for this attempt; receipt/provenance reflects failure honestly. |
+| **Artifact** | NONE produced (adapter refused to create synthetic artifact). |
+| **Remote identity** | Box URL host confirmed (redacted); no session/SSH; physical measurement not performed. |
+
+### DECISION
+
+- The adapter is working correctly and honestly: it attempts real remote execution when configured, reports failure when endpoint/auth fails, and never claims `LIVE_VERIFIED` without proof.
+- The missing link is not code but environment: the existing `UPSTASH_PUBLIC_BOX_TOKEN` is not set; using `UPSTASH_BOX_API_KEY` as token does not satisfy endpoint auth.
+- The existing Box endpoint returns HTTP 404 (preview not found) per historical network diagnosis (§0, Phase 2 — exact failure layer: NETWORK/FIREWALL/UPSTASH_SECURITY).
+- Do not invent a token or purchase infrastructure.
+
+### NEXT ACTION
+
+- Exact next larger improvement remains: **resolve Box auth mechanism** (whether token should come from `UPSTASH_BOX_API_KEY`, `UPSTASH_PUBLIC_BOX_TOKEN`, or a new provisioned secret) and retry PATH A. Until the endpoint responds with a valid execution result, `LIVE_VERIFIED` remains unachievable.
+
+---
+
 **The repository is the memory. No agent may assume the next agent knows what it knows.**
 
 ---
