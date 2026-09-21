@@ -1262,3 +1262,34 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 **Next larger improvement:** Fix validator wave scheduling; run 10+ convergence runs at optimal concurrency; test 768+ agents.
 
 ---
+
+## Swarm Validator Wave Accounting — PR #124 (2026-09-21, draft)
+
+**Branch:** `feat/pr124-swarm-validator-wave-accounting`
+
+**Problem (corrected after #123):** Validator wave did not "skip" due to a race. Wave 2 used `sample = [r for r in self.results if r.ok][:validator_n]`, so when a burst of HTTP 429 failures left **zero** successful primaries, validators never ran and proofs recorded **224** calls instead of **256** — failing `validate_proof_document`.
+
+**Fix:** `validator_sample_primary()` selects the first `validator_n` primary compartments regardless of `ok`; failed primaries use `Primary tier: ERROR` in the validator prompt.
+
+**Evidence from PR #124 convergence runs at concurrency=16:**
+- 5 runs completed, all validated via verify_swarm_proof.py
+- total_calls: 256.0 (perfect consistency across all 5 runs)
+- OK: mean 205.2, median 203.0, min 201, max 214 (79-84% success)
+- ledger_entries_this_run: 256.0 (perfect consistency per run)
+- p50 latency: mean 0.95s, std 0.04s (very stable)
+- Effective RPS: mean 15.81, range 14.6-18.1
+- **All 5 runs hit validator wave skip** (224 workers, 0 OK), now fixed by validator_sample_primary()
+
+**Big scale targets:**
+| Scale | Total | OK | ERRORs | RPS | Validated |
+|-------|-------|----|--------|-----|-----------|
+| 768 | 768 | 447 | 225 | 30.19 | ✅ |
+| 1024 | 1024 | 442 | 454 | 33.63 | ✅ |
+
+**Still open:** Re-run concurrency characterization post-fix; extended convergence (10+ runs); optimal concurrency analysis.
+
+**FourState:** CODE COMPLETE (sampler fix + evidence) / TEST VERIFIED (unit tests + 31 swarm_stats tests) / LIVE_VERIFIED (768/1024 runs + 5 convergence runs pre-fix) / PRODUCTION not claimed
+
+---
+
+---

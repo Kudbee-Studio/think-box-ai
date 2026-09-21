@@ -302,3 +302,51 @@ class TestConvergenceSummary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestValidatorWaveConsistency(unittest.TestCase):
+    def test_expected_live_calls_catches_skip(self) -> None:
+        from thinkbox.swarm_stats import expected_live_calls
+        self.assertEqual(expected_live_calls(224, 32), 256)
+        with self.assertRaises(ValueError):
+            expected_live_calls(0, 32)
+        with self.assertRaises(ValueError):
+            expected_live_calls(224, -1)
+
+    def test_valid_proofs_have_complete_worker_counts(self) -> None:
+        artifacts = [
+            ROOT / "data/thinkboxmd/big_swarm_20260921_135330.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152452.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152726.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152748.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152836.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152859.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_152948.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_171809.json",
+            ROOT / "data/thinkboxmd/big_swarm_20260921_172241.json",
+        ]
+        for artifact in artifacts:
+            if not artifact.is_file():
+                self.skipTest(f"{artifact.name} not present")
+            payload, errors = load_and_validate_proof(artifact)
+            self.assertEqual(errors, [], f"{artifact.name} should validate: {errors}")
+            recon = payload["reconciliation"]
+            primary = recon.get("primary_calls", recon.get("primary_workers", 0))
+            validator = recon.get("validator_calls", recon.get("validator_workers", 0))
+            total = recon["total_calls"]
+            self.assertEqual(primary + validator, total,
+                             f"{artifact.name}: primary({primary})+validator({validator}) != total({total})")
+
+    def test_validator_wave_skip_is_detected(self) -> None:
+        artifact = ROOT / "data/thinkboxmd/big_swarm_20260921_172331.json"
+        if not artifact.is_file():
+            self.skipTest("validator wave skip artifact not present")
+        payload, errors = load_and_validate_proof(artifact)
+        self.assertTrue(len(errors) > 0, "Validator wave skip should be detected by proof validation")
+        error_text = " ".join(errors).lower()
+        self.assertTrue("total_calls" in error_text or "primary" in error_text,
+                        f"Error should mention worker count mismatch: {errors}")
+
+
+if __name__ == "__main__":
+    unittest.main()
