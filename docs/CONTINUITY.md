@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (2203 full suite OK, 8 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
+- [x] Tests executed and passing (2204 full suite OK, 8 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
 - [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
@@ -42,7 +42,7 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency; baseline run had 20 HTTP 503 transient failures (not reproduced in 256+ run). |
 | **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 512+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2203 OK (8 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
+| **Test count** | **2204 OK (8 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
 
 ---
 
@@ -993,7 +993,7 @@ After finishing:
 
 | Field | Value |
 |---|---|
-| **Full suite** | 2203 OK (8 skipped, 3 expected failures) |
+| **Full suite** | 2204 OK (8 skipped, 3 expected failures) |
 | **New tests** | `thinkbox/swarm_stats`, `tests/unit/test_swarm_stats.py`, scaling safeguards in `test_swarm_instrumentation.py` |
 | **Concurrency safety** | 256 concurrent ledger writes, verify() True |
 | **Ledger at scale** | 388 entries, valid=True |

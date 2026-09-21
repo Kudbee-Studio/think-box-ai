@@ -782,7 +782,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 59 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (2203 OK, 8 skipped, 3 expected failures; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (2204 OK, 8 skipped, 3 expected failures; canonical count — see Chronicle)
 
 ### ADR
 
