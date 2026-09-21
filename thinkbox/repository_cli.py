@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from thinkbox.repository import Repository
+from thinkbox.execution_adapter import UpstashBoxExecutionAdapter
 
 
 def _repository(args: argparse.Namespace) -> Repository:
@@ -106,6 +107,37 @@ def cmd_job_receipt(args: argparse.Namespace) -> None:
     print(f"verified: {bool(receipt.get('content'))}")
 
 
+def cmd_job_execute(args: argparse.Namespace) -> None:
+    repo = _repository(args)
+    adapter = UpstashBoxExecutionAdapter(repo=repo)
+    inventory = adapter.discover_env()
+    print("upstash_env_inventory:")
+    for name, present in inventory.items():
+        print(f"  {name}: {present}")
+    if not adapter.is_configured():
+        print("status: NOT_CONFIGURED")
+        print("result: remote execution is unavailable; no job executed")
+        return
+    receipt = adapter.execute(
+        job_id=args.job_id,
+        command=args.exec_command,
+        artifact_name=args.artifact,
+    )
+    print(f"job_id: {receipt.job_id}")
+    print(f"execution_id: {receipt.execution_id}")
+    print(f"status: {receipt.status}")
+    print(f"provider: {receipt.provider}")
+    print(f"box_id: {receipt.box_id}")
+    print(f"exit_code: {receipt.exit_code}")
+    print(f"artifact_name: {receipt.artifact_name}")
+    print(f"artifact_path: {receipt.artifact_path}")
+    print(f"artifact_hash: {receipt.artifact_hash}")
+    print(f"checkpoint_id: {receipt.checkpoint_id}")
+    print(f"receipt_path: {receipt.receipt_path}")
+    print(f"verified: {receipt.verified}")
+    print(f"error: {receipt.error}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="think")
     parser.add_argument("--worktree", default=".", help="Worktree path")
@@ -137,6 +169,11 @@ def main() -> None:
     job_receipt = job_sub.add_parser("receipt", help="Locate job receipt")
     job_receipt.add_argument("--job-id", required=True)
 
+    job_execute = job_sub.add_parser("execute", help="Execute a job on Upstash Box")
+    job_execute.add_argument("--job-id", required=True)
+    job_execute.add_argument("--exec-command", default="", help="Command to execute")
+    job_execute.add_argument("--artifact", default="artifact.json", help="Artifact name")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -150,6 +187,7 @@ def main() -> None:
         ("job", "status"): cmd_job_status,
         ("job", "checkpoint"): cmd_job_checkpoint,
         ("job", "receipt"): cmd_job_receipt,
+        ("job", "execute"): cmd_job_execute,
     }
     handler = commands.get((args.command, sub_key))
     if handler is None:
