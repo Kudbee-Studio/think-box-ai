@@ -1,20 +1,13 @@
-"""Demo-in-60s: show cold start → admit → run → receipt → shutdown."""
+"""Demo-in-60s: show cold start → admit → run → receipt → shutdown.
+
+Runs as a subprocess for determinism. No import-time sys.modules pollution.
+"""
 
 import asyncio
-import sys
-import types
 import logging
+import sys
 import unittest.mock
 from types import SimpleNamespace
-
-sys.modules["grpc"] = types.ModuleType("grpc")
-sys.modules["grpc.aio"] = types.ModuleType("grpc.aio")
-sys.modules["google.protobuf"] = types.ModuleType("google.protobuf")
-sys.modules["thinkbox.agent.protocol"] = types.ModuleType("protocol")
-sys.modules["thinkbox.agent.protocol"].governance_pb2 = types.ModuleType("governance_pb2")
-sys.modules["thinkbox.agent.protocol"].governance_pb2_grpc = types.ModuleType("governance_pb2_grpc")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2 = types.ModuleType("orchestration_pb2")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2_grpc = types.ModuleType("orchestration_pb2_grpc")
 
 from thinkbox.agent.control_plane.admission import ControlPlaneAdmission
 from thinkbox.agent.control_plane.receipt import ActionReceipt, ReceiptChain
@@ -23,10 +16,8 @@ from thinkbox.agent.control_plane.chaos import ChaosHooks
 from thinkbox.agent.control_plane.lease import LeaseManager
 from thinkbox.agent.control_plane.replay import ReplayEnvelope
 
-logger = logging.getLogger(__name__)
 
-
-def demo():
+def main() -> int:
     """Run the 60-second demo path."""
     print("=" * 60)
     print("THINK BOX AI — Agent Control Plane Demo (60s)")
@@ -77,7 +68,8 @@ def demo():
     print("\n" + "=" * 60)
     print("Demo complete — all 6 phases green.")
     print("=" * 60)
+    return 0
 
 
 if __name__ == "__main__":
-    demo()
+    sys.exit(main())
