@@ -35,7 +35,8 @@ Current repository health, infrastructure status, known defects, and improvement
 - **Throughput**: Swarm 256 agents → 256/256 OK, 0 failures, 18.15 RPS, 14.10s wall clock
 - **Baseline**: 132 agents → 112/132 OK (20 HTTP 503 transient), 8.08 RPS, 16.34s
 - **Strength index**: 0.6075 → 0.6948; reliability 0.8485 → 1.0; traces grounded 112/132 → 256/256
-- **Proof artifacts**: `big_swarm_20260921_135102.json` (baseline), `big_swarm_20260921_135330.json` (256+)
+- **Proof artifacts**: `data/thinkboxmd/big_swarm_20260921_135102.json` (baseline), `data/thinkboxmd/big_swarm_20260921_135330.json` (256+)
+- **Validate**: `python3 experiments/verify_swarm_proof.py <proof.json>`
 
 ### GitHub MCP (Agent-to-Agent Communication)
 - **Status**: ✅ **Connected**
@@ -63,7 +64,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2199 | ✅ | 7 | 3 | ✅ PASS |
+| All unit + integration | 2203 | ✅ | 8 | 3 | ✅ PASS |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents) | 256 calls | ✅ (256/256) | 0 | 0 | ✅ PASS (18.15 RPS) |
 | Scheduler | 689 | ✅ | 0 | 0 | ✅ PASS |
