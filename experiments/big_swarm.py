@@ -119,7 +119,77 @@ class Compartment:
     trace_id: str = ""
     total_tokens: int = 0
     reasoning_tokens: int = 0
-    status: str = "idle"          # idle -> loading -> fired -> done/error
+    status: str = "idle"
+    http_status: int = 0
+    queue_s: float = 0.0
+
+
+@dataclass
+class Instruments:
+    """Aggregated execution instrumentation for a swarm run."""
+
+    total_calls: int = 0
+    http_200: int = 0
+    http_429: int = 0
+    http_5xx: int = 0
+    http_4xx_other: int = 0
+    http_other: int = 0
+    rate_limit_headers: list[dict[str, str]] = field(default_factory=list)
+    error_types: dict[str, int] = field(default_factory=dict)
+    wave1_s: float = 0.0
+    wave2_s: float = 0.0
+    total_wall_s: float = 0.0
+    p50_latency_s: float = 0.0
+    p95_latency_s: float = 0.0
+    max_latency_s: float = 0.0
+    latency_under_1s: int = 0
+    latency_1_to_5s: int = 0
+    latency_5_to_30s: int = 0
+    latency_over_30s: int = 0
+    max_active_concurrency: int = 0
+    peak_primary_active: int = 0
+    peak_validator_active: int = 0
+    calls_per_second: dict[int, int] = field(default_factory=dict)
+    primary_ok: int = 0
+    primary_failed: int = 0
+    validator_ok: int = 0
+    validator_failed: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "total_calls": self.total_calls,
+            "http_status_distribution": {
+                "200": self.http_200, "429": self.http_429,
+                "5xx": self.http_5xx, "4xx_other": self.http_4xx_other,
+                "other": self.http_other,
+            },
+            "rate_limit_headers_observed": len(self.rate_limit_headers),
+            "rate_limit_header_samples": self.rate_limit_headers[:10],
+            "error_types": self.error_types,
+            "timing": {
+                "wave1_s": self.wave1_s, "wave2_s": self.wave2_s,
+                "total_wall_s": self.total_wall_s,
+                "p50_latency_s": self.p50_latency_s,
+                "p95_latency_s": self.p95_latency_s,
+                "max_latency_s": self.max_latency_s,
+            },
+            "latency_buckets": {
+                "under_1s": self.latency_under_1s,
+                "1_to_5s": self.latency_1_to_5s,
+                "5_to_30s": self.latency_5_to_30s,
+                "over_30s": self.latency_over_30s,
+            },
+            "concurrency": {
+                "max_active": self.max_active_concurrency,
+                "peak_primary_active": self.peak_primary_active,
+                "peak_validator_active": self.peak_validator_active,
+            },
+            "throughput_per_second": dict(sorted(self.calls_per_second.items())),
+            "role_distribution": {
+                "primary": {"ok": self.primary_ok, "failed": self.primary_failed},
+                "validator": {"ok": self.validator_ok, "failed": self.validator_failed},
+            },
+        }
 
 
 class BigSwarm:
@@ -158,12 +228,30 @@ class BigSwarm:
             metadata={"primary": primary, "validators": validators, "synthetic": True},
         )
 
+        self.instruments = Instruments()
+        self._active_concurrency = 0
+        self._max_active_concurrency = 0
+        self._concurrency_lock = threading.Lock()
+        self._call_timestamps: list[float] = []
+        self._peak_primary_active = 0
+        self._peak_validator_active = 0
+
         self.bus.emit(event="run_start", session_id=self.session_id, primary=primary,
                       validators=validators, concurrency=concurrency, model=MODEL)
 
+    def _rate_limit_headers(self, e: urllib.error.HTTPError) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if e.headers:
+            for key in ("Retry-After", "X-RateLimit-Remaining",
+                        "X-RateLimit-Limit", "X-RateLimit-Reset"):
+                val = e.headers.get(key)
+                if val:
+                    headers[key] = val
+        return headers
+
     # -- HTTP -------------------------------------------------------------
 
-    def _call(self, system: str, user: str, max_tokens: int = 900) -> tuple[bool, str, float, str, dict]:
+    def _call(self, system: str, user: str, max_tokens: int = 900) -> tuple[bool, str, float, str, dict, int, dict[str, str]]:
         body = json.dumps(
             {
                 "model": MODEL,
@@ -186,11 +274,11 @@ class BigSwarm:
             with urllib.request.urlopen(req, timeout=60) as r:
                 payload = json.loads(r.read().decode())
                 content = payload["choices"][0]["message"].get("content") or ""
-                return True, content, time.monotonic() - t0, "", payload.get("usage", {}) or {}
+                return True, content, time.monotonic() - t0, "", payload.get("usage", {}) or {}, 200, {}
         except urllib.error.HTTPError as e:
-            return False, "", time.monotonic() - t0, f"HTTP {e.code}: {e.read(160).decode(errors='replace')[:120]}", {}
+            return False, "", time.monotonic() - t0, f"HTTP {e.code}: {e.read(160).decode(errors='replace')[:120]}", {}, e.code, self._rate_limit_headers(e)
         except Exception as e:
-            return False, "", time.monotonic() - t0, f"{type(e).__name__}: {str(e)[:120]}", {}
+            return False, "", time.monotonic() - t0, f"{type(e).__name__}: {str(e)[:120]}", {}, 0, {}
 
     # -- claim corpus ------------------------------------------------------
 
@@ -220,6 +308,18 @@ class BigSwarm:
         system: str,
         user: str,
     ) -> Compartment:
+        t_entry = time.monotonic()
+        with self._concurrency_lock:
+            self._active_concurrency += 1
+            if self._active_concurrency > self._max_active_concurrency:
+                self._max_active_concurrency = self._active_concurrency
+            self._call_timestamps.append(t_entry)
+            if role == "PRIMARY":
+                if self._active_concurrency > self._peak_primary_active:
+                    self._peak_primary_active = self._active_concurrency
+            elif role == "VALIDATOR":
+                if self._active_concurrency > self._peak_validator_active:
+                    self._peak_validator_active = self._active_concurrency
         wid = f"SWARM-{role}-{slot:04d}"
         comp = Compartment(slot=slot, worker_id=wid, role=role, capability=capability,
                            claim_id=claim["claim_id"], claim=claim["text"])
@@ -234,7 +334,7 @@ class BigSwarm:
         self.store.save(box)
         comp.box_id = box.box_id
         self.bus.emit(event="slot_loaded", slot=slot, worker=wid, role=role, box_id=box.box_id,
-                      capability=capability, claim_id=claim["claim_id"])
+                       capability=capability, claim_id=claim["claim_id"])
 
         if not decision.allowed:
             comp.status = "error"
@@ -242,14 +342,22 @@ class BigSwarm:
             self.ledger.append(wid, capability, f"swarm:{role}", False, decision.reason,
                                {"claim_id": claim["claim_id"]})
             self.bus.emit(event="slot_error", slot=slot, worker=wid, role=role, error=comp.error)
+            with self._concurrency_lock:
+                self._active_concurrency -= 1
             return comp
 
         # --- fire ----------------------------------------------------------
         comp.status = "fired"
-        ok, content, latency, err, usage = self._call(system, user)
+        t_call = time.monotonic()
+        comp.queue_s = round(t_call - t_entry, 4)
+        ok, content, latency, err, usage, http_status, rate_headers = self._call(system, user)
+        comp.http_status = http_status
         comp.ok = ok
         comp.latency_s = round(latency, 3)
         comp.error = err
+
+        with self._concurrency_lock:
+            self._active_concurrency -= 1
 
         # token + session accounting
         self.metrics.record_tokens(self.session_id, wid, role, MODEL, usage, latency, ok)
@@ -374,6 +482,81 @@ class BigSwarm:
         recon = self.reconcile()
         proof = self.write_proof(recon, wave1, wave2)
         return proof
+
+    def _build_instruments(self, wave1: float, wave2: float) -> Instruments:
+        instr = Instruments()
+        instr.total_calls = len(self.results)
+        instr.wave1_s = wave1
+        instr.wave2_s = wave2
+        instr.total_wall_s = round(time.monotonic() - self.started, 2)
+        instr.max_active_concurrency = self._max_active_concurrency
+        instr.peak_primary_active = self._peak_primary_active
+        instr.peak_validator_active = self._peak_validator_active
+
+        latencies: list[float] = []
+        for r in self.results:
+            total_lat = r.latency_s + r.queue_s
+            latencies.append(total_lat)
+            if total_lat < 1.0:
+                instr.latency_under_1s += 1
+            elif total_lat < 5.0:
+                instr.latency_1_to_5s += 1
+            elif total_lat < 30.0:
+                instr.latency_5_to_30s += 1
+            else:
+                instr.latency_over_30s += 1
+
+            # HTTP status distribution
+            if r.http_status == 200:
+                instr.http_200 += 1
+            elif r.http_status == 429:
+                instr.http_429 += 1
+            elif r.http_status >= 500:
+                instr.http_5xx += 1
+            elif r.http_status >= 400:
+                instr.http_4xx_other += 1
+            else:
+                instr.http_other += 1
+
+            # Error types
+            if r.error:
+                err_key = r.error.split(":")[0] if ":" in r.error else r.error[:50]
+                instr.error_types[err_key] = instr.error_types.get(err_key, 0) + 1
+
+            # Rate-limit headers
+            if r.http_status == 429 and r.error:
+                for key in ("Retry-After", "X-RateLimit-Remaining",
+                            "X-RateLimit-Limit", "X-RateLimit-Reset"):
+                    if key in r.error:
+                        val = r.error.split(f"{key}:")[-1].strip()[:20] if key in r.error else ""
+                        if val:
+                            instr.rate_limit_headers.append({key: val})
+
+            # Role distribution
+            if r.role == "PRIMARY":
+                if r.ok:
+                    instr.primary_ok += 1
+                else:
+                    instr.primary_failed += 1
+            elif r.role == "VALIDATOR":
+                if r.ok:
+                    instr.validator_ok += 1
+                else:
+                    instr.validator_failed += 1
+
+        if latencies:
+            latencies.sort()
+            n = len(latencies)
+            instr.p50_latency_s = round(latencies[n // 2], 4)
+            instr.p95_latency_s = round(latencies[int(n * 0.95)], 4) if n > 1 else instr.p50_latency_s
+            instr.max_latency_s = round(max(latencies), 4)
+
+        # Per-second throughput from call timestamps
+        for ts in self._call_timestamps:
+            sec = int(ts)
+            instr.calls_per_second[sec] = instr.calls_per_second.get(sec, 0) + 1
+
+        return instr
 
     # -- reconcile ---------------------------------------------------------
 
@@ -551,6 +734,7 @@ class BigSwarm:
             payload["arena"] = self.arena.report()
 
         # --- 4/6/1. instrument summaries -----------------------------------
+        instr = self._build_instruments(wave1, wave2)
         payload["instruments"] = {
             "flight_recorder_records": self.flight.count(self.session_id),
             "memory_evolution": self.memory_evo.stats(),
@@ -558,6 +742,7 @@ class BigSwarm:
             "reputation_leaderboard": self.reputation.leaderboard(limit=10),
             "genome_verified": payload["genome"]["verified"],
             "proof_chain_verified": payload.get("proof_chain", {}).get("verified", False),
+            "execution": instr.to_dict(),
         }
 
         path.write_text(json.dumps(payload, indent=2, default=str))
@@ -595,6 +780,11 @@ def main() -> int:
     print(f"  ledger entries     : {r['ledger_entries']}  valid={r['ledger_valid']}")
     print(f"  traces grounded    : {r['traces_grounded']}/{r['traces']}")
     print(f"  memory entries     : {r['memory_entries']}")
+    instr = swarm._build_instruments(proof['payload']['wave1_seconds'], proof['payload']['wave2_seconds'])
+    print(f"  HTTP 200/429/5xx   : {instr.http_200}/{instr.http_429}/{instr.http_5xx}")
+    print(f"  max concurrency    : {instr.max_active_concurrency}")
+    print(f"  p50/p95/max latency: {instr.p50_latency_s}s / {instr.p95_latency_s}s / {instr.max_latency_s}s")
+    print(f"  error types        : {instr.error_types}")
     print(f"  proof              : {proof['path']}")
     return 0 if r["ledger_valid"] and r["ok"] > 0 else 1
 
