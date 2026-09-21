@@ -21,6 +21,7 @@ from thinkbox.git_engine import GitEngine
 METADATA_VERSION = "stage1"
 METADATA_FILE = ".thinkbox/repository.json"
 CHECKPOINT_DIR = ".thinkbox/checkpoints"
+JOB_DIR = ".thinkbox/jobs"
 
 
 def _now() -> str:
@@ -145,6 +146,66 @@ class Checkpoint:
             attached_session_id=data.get("attached_session_id"),
             current_job_id=data.get("current_job_id"),
             created_at=data.get("created_at", ""),
+            metadata=data.get("metadata") or {},
+        )
+
+
+@dataclass
+class Job:
+    job_id: str = ""
+    worktree_id: str = ""
+    path: str | Path = ""
+    name: str = ""
+    intent: str = ""
+    status: str = "pending"
+    next_action: str = "run"
+    provenance: list[str] = field(default_factory=list)
+    checkpoint_ids: list[str] = field(default_factory=list)
+    created_at: str = ""
+    updated_at: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.path, str):
+            self.path = Path(self.path)
+        if not self.job_id:
+            self.job_id = _id("job")
+        now = _now()
+        if not self.created_at:
+            self.created_at = now
+        if not self.updated_at:
+            self.updated_at = now
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "job_id": self.job_id,
+            "worktree_id": self.worktree_id,
+            "path": str(self.path),
+            "name": self.name,
+            "intent": self.intent,
+            "status": self.status,
+            "next_action": self.next_action,
+            "provenance": self.provenance,
+            "checkpoint_ids": self.checkpoint_ids,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_snapshot(cls, data: dict[str, Any]) -> Job:
+        return cls(
+            job_id=data.get("job_id", ""),
+            worktree_id=data.get("worktree_id", ""),
+            path=data.get("path", ""),
+            name=data.get("name", ""),
+            intent=data.get("intent", ""),
+            status=data.get("status", "pending"),
+            next_action=data.get("next_action", "run"),
+            provenance=data.get("provenance") or [],
+            checkpoint_ids=data.get("checkpoint_ids") or [],
+            created_at=data.get("created_at", ""),
+            updated_at=data.get("updated_at", ""),
             metadata=data.get("metadata") or {},
         )
 
@@ -276,7 +337,12 @@ class Repository:
                 }
             return snapshot
 
-    def checkpoint(self, name: str, metadata: dict[str, Any] | None = None) -> Checkpoint:
+    def checkpoint(
+        self,
+        name: str,
+        metadata: dict[str, Any] | None = None,
+        job_id: str | None = None,
+    ) -> Checkpoint:
         with self._lock:
             worktree = replace(self._worktree)
             checkpoint = Checkpoint(
@@ -295,6 +361,13 @@ class Repository:
                 json.dumps(checkpoint.snapshot(), indent=2, sort_keys=True),
                 encoding="utf-8",
             )
+            if job_id:
+                job = self._load_job(job_id)
+                if job is None:
+                    raise FileNotFoundError(f"job not found: {job_id}")
+                if checkpoint.checkpoint_id not in job.checkpoint_ids:
+                    job.checkpoint_ids.append(checkpoint.checkpoint_id)
+                self._save_job(job)
             return checkpoint
 
     def checkpoints(self) -> list[Checkpoint]:
@@ -323,3 +396,92 @@ class Repository:
             self._worktree.metadata = checkpoint.metadata
             self._save(self._worktree)
             return replace(self._worktree)
+
+    def _jobs_dir(self) -> Path:
+        return self._path / JOB_DIR
+
+    def _job_path(self, job_id: str) -> Path:
+        return self._jobs_dir() / f"{job_id}.json"
+
+    def _load_job(self, job_id: str) -> Job | None:
+        job_file = self._job_path(job_id)
+        if not job_file.exists():
+            return None
+        try:
+            data = json.loads(job_file.read_text(encoding="utf-8"))
+            return Job.from_snapshot(data)
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def _save_job(self, job: Job) -> None:
+        job.updated_at = _now()
+        self._jobs_dir().mkdir(parents=True, exist_ok=True)
+        self._job_path(job.job_id).write_text(
+            json.dumps(job.snapshot(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    def create_job(
+        self,
+        job_id: str | None = None,
+        intent: str = "",
+        name: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> Job:
+        with self._lock:
+            if job_id is None:
+                job_id = _id("job")
+            job = Job(
+                job_id=job_id,
+                worktree_id=self._worktree.worktree_id,
+                path=self._worktree.path,
+                name=name,
+                intent=intent,
+                metadata=metadata or {},
+            )
+            self._save_job(job)
+            self._worktree.current_job_id = job_id
+            self._worktree.status = "active"
+            self._save(self._worktree)
+            return replace(job)
+
+    def job_status(self, job_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            job = self._load_job(job_id)
+            if job is None:
+                return None
+            return job.snapshot()
+
+    def update_job(
+        self,
+        job_id: str,
+        status: str | None = None,
+        next_action: str | None = None,
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            job = self._load_job(job_id)
+            if job is None:
+                return None
+            if status is not None:
+                job.status = status
+            if next_action is not None:
+                job.next_action = next_action
+            self._save_job(job)
+            return job.snapshot()
+
+    def receipt(self, job_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            job = self._load_job(job_id)
+            if job is None or not job.checkpoint_ids:
+                return None
+            checkpoint_id = job.checkpoint_ids[-1]
+            checkpoint_file = self._checkpoints_dir() / f"{checkpoint_id}.json"
+            if not checkpoint_file.exists():
+                return None
+            data = json.loads(checkpoint_file.read_text(encoding="utf-8"))
+            return {
+                "job_id": job_id,
+                "checkpoint_id": checkpoint_id,
+                "path": str(checkpoint_file),
+                "content": data,
+            }
