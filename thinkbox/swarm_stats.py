@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, Tuple
 
 from thinkbox.ledger import ActionLedger
 
@@ -150,3 +151,88 @@ def load_and_validate_proof(path: str | Path) -> tuple[dict[str, Any], list[str]
     """Load proof JSON from disk and return (payload, errors)."""
     data = json.loads(Path(path).read_text())
     return data, validate_proof_document(data)
+
+
+def proof_metrics(payload: Mapping[str, Any]) -> Mapping[str, float]:
+    """Extract comparable metrics from a swarm proof payload."""
+    recon = payload.get("reconciliation") or {}
+    return {
+        "total_calls": float(recon.get("total_calls", 0)),
+        "ok": float(recon.get("ok", 0)),
+        "failed": float(recon.get("failed", 0)),
+        "effective_rps": float(recon.get("effective_rps", 0)),
+        "elapsed_s": float(recon.get("elapsed_s", 0)),
+        "p50_latency_s": float(recon.get("p50_latency_s", 0)),
+        "p95_latency_s": float(recon.get("p95_latency_s", 0)),
+        "max_latency_s": float(recon.get("max_latency_s", 0)),
+        "traces_grounded": float(recon.get("traces_grounded", 0)),
+        "ledger_entries_this_run": float(recon.get("ledger_entries_this_run", 0)),
+        "primary_workers": float(payload.get("primary_workers", 0)),
+        "validator_workers": float(payload.get("validator_workers", 0)),
+    }
+
+
+def _mean(values: Sequence[float]) -> float:
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def _median(values: Sequence[float]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    n = len(ordered)
+    mid = n // 2
+    if n % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def convergence_summary(results: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
+    """Compute descriptive statistics across convergence runs.
+
+    Each entry in ``results`` is a swarm proof payload (or proof metrics dict
+    as returned by :func:`proof_metrics`).  Returns a dict mapping metric
+    name to statistics (mean, median, min, max, std, n, values).
+
+    The function is purely descriptive; callers must not infer statistical
+    significance from the output alone.
+    """
+    metric_names = (
+        "total_calls", "ok", "failed", "effective_rps", "elapsed_s",
+        "p50_latency_s", "p95_latency_s", "max_latency_s",
+        "traces_grounded", "ledger_entries_this_run",
+    )
+    values: dict[str, list[float]] = {m: [] for m in metric_names}
+    extra: dict[str, list[Any]] = {"payloads": [], "run_indices": []}
+
+    for i, r in enumerate(results):
+        extra["payloads"].append(r)
+        extra["run_indices"].append(i)
+        m = proof_metrics(r) if isinstance(r, Mapping) and "reconciliation" in r else r
+        for name in metric_names:
+            values[name].append(float(m.get(name, 0)))
+
+    summary: dict[str, Any] = {"n": len(results), "metrics": {}}
+    for name in metric_names:
+        vs = values[name]
+        avg = _mean(vs)
+        summary["metrics"][name] = {
+            "mean": round(avg, 4),
+            "median": round(_median(vs), 4),
+            "min": round(min(vs), 4) if vs else 0.0,
+            "max": round(max(vs), 4) if vs else 0.0,
+            "std": round(_std(vs, avg), 4) if len(vs) > 1 else 0.0,
+            "n": len(vs),
+            "values": [round(v, 4) for v in vs],
+        }
+    summary["payloads"] = extra["payloads"]
+    return summary
+
+
+def _std(values: Sequence[float], mean: float) -> float:
+    if len(values) <= 1:
+        return 0.0
+    variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+    return math.sqrt(variance)
