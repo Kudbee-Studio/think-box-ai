@@ -838,3 +838,26 @@ After finishing:
 - Exact next larger improvement: **live Upstash Box execution verification** — connect to an actual provisioned `UPSTASH_PUBLIC_BOX_URL`, exercise PATH A, and prove `LIVE_VERIFIED` with a remote receipt. No paid infrastructure without explicit existing provider contract/authorization.
 
 ---
+
+## PR #118 — Auth Contract Probe (2026-09-21)
+
+### PROBE
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Safe HTTP POST probe of `UPSTASH_PUBLIC_BOX_URL/run` using env vars only; no secret values printed. |
+| `UPSTASH_PUBLIC_BOX_URL` | PRESENT |
+| `UPSTASH_PUBLIC_BOX_TOKEN` (adapter token) | ABSENT |
+| `UPSTASH_BOX_API_KEY` (env available) | PRESENT |
+| Probe no-auth `/run` | HTTP 404 `preview not found` |
+| Probe Bearer `UPSTASH_BOX_API_KEY` `/run` | HTTP 404 `preview not found` |
+
+### FINDING
+
+The endpoint is not live (`preview not found`) regardless of auth, so PATH A cannot be proven and the auth mechanism is unverified. The adapter currently expects `UPSTASH_PUBLIC_BOX_TOKEN`; that variable is absent. The environment provides `UPSTASH_BOX_API_KEY`, but the adapter does not use it and the endpoint does not accept it for live execution in this sandbox. Do not invent or purchase a token.
+
+### STATUS
+
+CODE_COMPLETE / TEST_VERIFIED (2191 OK, 7 skipped, 3 expected failures) / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED.
+
