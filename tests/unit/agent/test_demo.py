@@ -1,34 +1,29 @@
-"""Tests for Demo (commit 10: demo-in-60s)."""
+"""Tests for Demo-in-10 (commit 10: demo-in-60s)."""
 
+import subprocess
 import sys
-import types
 import unittest
-from types import SimpleNamespace
-
-sys.modules["grpc"] = types.ModuleType("grpc")
-sys.modules["grpc.aio"] = types.ModuleType("grpc.aio")
-sys.modules["google.protobuf"] = types.ModuleType("google.protobuf")
-sys.modules["thinkbox.agent.protocol"] = types.ModuleType("protocol")
-sys.modules["thinkbox.agent.protocol"].governance_pb2 = types.ModuleType("governance_pb2")
-sys.modules["thinkbox.agent.protocol"].governance_pb2_grpc = types.ModuleType("governance_pb2_grpc")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2 = types.ModuleType("orchestration_pb2")
-sys.modules["thinkbox.agent.protocol"].orchestration_pb2_grpc = types.ModuleType("orchestration_pb2_grpc")
-
-# Import demo module to verify it loads without error
-from thinkbox.agent.control_plane import demo as demo_module
+from pathlib import Path
 
 
 class TestDemo(unittest.TestCase):
 
     def test_demo_imports(self):
-        self.assertTrue(hasattr(demo_module, "demo"))
+        from thinkbox.agent.control_plane import demo as demo_module
+
+        self.assertTrue(hasattr(demo_module, "main"))
 
     def test_demo_runs(self):
-        """Demo should run without exception."""
-        try:
-            demo_module.demo()
-        except Exception as e:
-            self.fail(f"demo() raised {e}")
+        """Demo should run as a module without importing grpc/protobuf."""
+        result = subprocess.run(
+            [sys.executable, "-m", "thinkbox.agent.control_plane.demo"],
+            cwd=str(Path(__file__).resolve().parents[3]),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Demo complete", result.stdout)
 
 
 if __name__ == "__main__":
