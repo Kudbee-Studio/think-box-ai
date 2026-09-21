@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-17
+**Last updated:** 2026-09-21
 
 ---
 
@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (571 scheduler OK, 1275 full suite, 6 skipped)
+- [x] Tests executed and passing (2191 full suite OK, 7 skipped, 3 expected failures; swarm 100 agents: 132/132 OK, 0 failed, 19.4 RPS)
 - [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
@@ -35,14 +35,14 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Full repo harden — verify all systems, update docs, ensure CI readiness |
-| **Latest completed work** | PR #85 COMPLETE (merged): 10 hardening features via SchedulerHarness (DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter). Full test suite: 1605 tests passing (6 skipped, 3 expected failures). |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries; 25+ scheduler features via SchedulerHarness; CNC manufacturing platform; Upstash Box primary substrate; UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view |
-| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
-| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
-| **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #83 merged, PR #84 merged, PR #85 merged + integrated (10 features via SchedulerHarness) |
-| **Test count** | **689 scheduler OK, 42 integration OK, 1605 full suite, 6 skipped, 3 pre-existing failures** |
+| **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
+| **Latest completed work** | PR #120 merged: ADR 004 — Upstash Box auth contract investigation (classification B: credential confirmed, UPSTASH_PUBLIC_BOX_TOKEN missing). PR #118 adapter live-verified PARTIAL (Box preview not provisioned). Swarm 100 agents: 132/132 OK, 0 failed, 19.4 RPS, ledger valid, traces grounded 132/132, memory 132 entries. |
+| **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 100 agents (Mercury-2 via Inception API); 19.4 effective RPS; 132 ledger entries valid; 132/132 traces grounded |
+| **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. |
+| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency. |
+| **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 256+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
+| **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
+| **Test count** | **2191 OK (7 skipped, 3 expected failures); swarm 100 agents: 132/132 OK** |
 
 ---
 
@@ -901,5 +901,69 @@ After finishing:
 
 - Exact next larger improvement: **provision a valid Upstash Box preview** with `UPSTASH_PUBLIC_BOX_TOKEN` set, then retry PATH A. Until the endpoint responds with a valid execution result, `LIVE_VERIFIED` remains unachievable.
 - Alternative: if `UPSTASH_BOX_API_KEY` is the intended credential, the adapter code must be updated to read it (contract mismatch between docs and implementation) — but this requires a decision record and does NOT fix the endpoint 404.
+
+---
+
+## Swarm 100 Agents — Live Verified (2026-09-21)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Launched `experiments/big_swarm.py` with 100 primary + 32 validator agents against Mercury-2 via Inception API |
+| **Command** | `python3 experiments/big_swarm.py --primary 100 --validators 32 --concurrency 32` |
+| **INCEPTION_API_KEY** | SET and functional |
+| **Model** | mercury-2 via `https://api.inceptionlabs.ai/v1` |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Experiment** | `experiments/big_swarm.py` |
+| **Primary workers** | 100 |
+| **Validator workers** | 32 |
+| **Concurrency** | 32 |
+| **Claims** | 100 synthetic research claims (tiers: EVIDENCE, INFERENCE, HYPOTHESIS, UNVERIFIED) |
+| **Live calls** | 132 total (100 primary + 32 validator) |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **OK / failed** | 132 / 0 (100% success) |
+| **Tiers** | EVIDENCE: 3, INFERENCE: 18, HYPOTHESIS: 0, UNVERIFIED: 79, ERROR: 0 |
+| **Disagreements** | 23 (validator tier inflation: 7) |
+| **Ledger entries** | 132 (valid=True) |
+| **Traces grounded** | 132/132 |
+| **Memory entries** | 132 |
+| **Wall clock** | 6.82s (wave1 4.36s, wave2 2.33s) |
+| **Effective RPS** | 19.4 |
+| **p50 / max latency** | 1.008s / 2.084s |
+| **Full suite** | 2191 OK (7 skipped, 3 expected failures) |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Mercury-2** | LIVE — 132/132 successful live calls via Inception API |
+| **Proof artifact** | `data/thinkboxmd/big_swarm_20260921_024412.json` |
+| **Event stream** | `data/thinkboxmd/swarm_events.jsonl` (132 events + run_start + corpus_ready) |
+| **Accounting** | 132 ledger entries valid, cross-verified by validator tier |
+| **Swarm strength** | Compute via `compute_swarm_strength()` on metrics store |
+
+### DECISION
+
+- Swarm at 100 agents with Mercury-2 via Inception API is FULLY OPERATIONAL at 19.4 RPS
+- All 132 ledger entries valid, all 132 traces grounded
+- No failures, no errors, no timeout-related failures
+- Classification: **LIVE_VERIFIED** for Mercury-2 inference at swarm scale
+- Next larger improvement: scale to 256+ agents; add real-time dashboard instrumentation
+
+### NEXT ACTION
+
+- Exact next larger improvement: **scale swarm to 256 primary + 64 validators** to prove linear throughput scaling; instrument dashboard real-time metrics; **provision UPSTASH_PUBLIC_BOX_TOKEN** to achieve PATH A live verification for Upstash Box execution adapter.
+
+---
 
 ---
