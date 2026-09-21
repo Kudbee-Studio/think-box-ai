@@ -723,3 +723,63 @@ After finishing:
 6. **GitHub PRs** provide review history and approval state
 
 **The repository is the memory. No agent may assume the next agent knows what it knows.**
+
+---
+
+## PR #118 — Upstash Box Remote Execution Adapter (MERGED)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Inspected existing execution/provider abstractions, Upstash integration, and substrate detection. |
+| **Repository/branch/HEAD** | `main = 1d13171cac53383b4d4aef030f7857e4e60288a7`; original branch `feat/execution-upstash-live` |
+| **Upstash discovery result** | `UPSTASH_PUBLIC_BOX_URL` absent; `UPSTASH_PUBLIC_BOX_TOKEN` absent; real remote execution unavailable. No UpCloud. No paid infrastructure created. |
+| **Boundary** | Env-var-name inventory only; no secret values logged, printed, or stored. |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Implemented `thinkbox/execution_adapter.py` and added `think job execute` to the Think CLI. |
+| **Files changed** | `thinkbox/execution_adapter.py`, `thinkbox/repository_cli.py`, `tests/unit/test_execution_adapter.py` |
+| **Abstractions reused** | `thinkbox.repository` for job/checkpoint/receipt persistence; `thinkbox.repository_cli` CLI framework. No GitEngine/receipt/governance/memory duplication. |
+| **Think Job identity** | `job_id` is independent of KILO session ID; adapter auto-creates job when missing. |
+| **Decision** | Narrow controlled deterministic workload only; no unrestricted shell; adapter fails closed when no usable Upstash Box is configured. |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Focused tests** | `python3 -m unittest tests.unit.test_execution_adapter` → 8 OK |
+| **Full suite** | `python3 -m unittest discover tests/` → 2191 OK, 7 skipped, 3 expected failures |
+| **CLI evidence** | `think job execute --job-id job_cli --exec-command "echo hi"` in isolated temp worktree → exit code 0, `status: NOT_CONFIGURED`, no secret values, no command text printed, no checkpoint produced. |
+| **PR #118 commit** | `336bf0d0dad388ec0dae7f0529e3260b1d56e3ec` |
+| **Merge commit** | `1d13171cac53383b4d4aef030f7857e4e60288a7` |
+| **PR URL** | https://github.com/Kudbee-Studio/think-box-ai/pull/118 |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **PATH B fail-closed** | Proven. Adapter returns `NOT_CONFIGURED` when `UPSTASH_PUBLIC_BOX_URL`/`UPSTASH_PUBLIC_BOX_TOKEN` are absent and never pretends remote execution occurred. |
+| **PATH A real remote** | NOT proven in sandbox. No usable real Upstash Box was configured. |
+| **PATH A stub test** | Proven with local HTTP server only: job created, workload executed, artifact written, SHA256 verified, checkpoint/receipt created. Stub artifact hash `5b8595aa396d55039338a87d7748acaf1f2231d8fab5f6bee8d5306d9510834e`. This does **not** prove live external compute. |
+| **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED |
+
+### DECISION
+
+- Upstash Box execution adapter is the smallest real control surface above `thinkbox.repository`.
+- `think job create` remains separate; `think job execute` auto-creates the job only if missing for ergonomics.
+- No secrets, model credentials, or UpCloud resources are used by this PR.
+- No #119. No unrelated refactoring.
+
+### NEXT ACTION
+
+- Exact next larger improvement: **live Upstash Box execution verification** — connect to an actual provisioned `UPSTASH_PUBLIC_BOX_URL`, exercise PATH A, and prove `LIVE_VERIFIED` with a remote receipt. No paid infrastructure without explicit existing provider contract/authorization.
+
+---
