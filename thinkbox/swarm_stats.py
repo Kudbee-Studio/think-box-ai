@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from thinkbox.ledger import ActionLedger
+
 
 def effective_rps(total_calls: int, elapsed_s: float) -> float:
     """Throughput for a swarm run; raises if elapsed is non-positive."""
@@ -37,6 +39,16 @@ def latency_percentiles(
         "p95_latency_s": _at(p95),
         "max_latency_s": round(max(ordered), 3),
     }
+
+
+def open_action_ledger(path: Path, fresh: bool = False) -> tuple[ActionLedger, int]:
+    """Open swarm ledger; optionally reset file. Returns (ledger, entries_at_start)."""
+    if fresh and path.exists():
+        path.unlink()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ledger = ActionLedger(path)
+    at_start = len(ledger.entries(limit=1_000_000))
+    return ledger, at_start
 
 
 def expected_live_calls(primary_workers: int, validator_workers: int) -> int:
@@ -103,6 +115,10 @@ def validate_reconciliation(recon: Mapping[str, Any], workers: Sequence[Mapping[
     if ledger_this is not None and ledger_total is not None:
         if int(ledger_this) > int(ledger_total):
             errors.append("ledger_entries_this_run exceeds ledger_entries")
+    if ledger_this is not None and int(ledger_this) != total_calls:
+        errors.append(
+            f"ledger_entries_this_run {ledger_this} != total_calls {total_calls}"
+        )
 
     return errors
 

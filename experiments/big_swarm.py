@@ -49,7 +49,12 @@ from thinkbox.admission import AdmissionGate
 from thinkbox.ledger import ActionLedger
 from thinkbox.thinktrace import ThinkTraceCapture
 from thinkbox.metrics import MetricsStore, compute_swarm_strength
-from thinkbox.swarm_stats import effective_rps, latency_percentiles
+from thinkbox.swarm_stats import (
+    effective_rps,
+    latency_percentiles,
+    open_action_ledger,
+    validate_reconciliation,
+)
 from thinkbox.flightrecorder import FlightRecorder, WorkerRecord
 from thinkbox.arena import ChallengeArena
 from thinkbox.memory_evolution import MemoryEvolution
@@ -146,11 +151,9 @@ class BigSwarm:
         self.tokens = GovernanceTokenService(signing_key=f"big-swarm-{uuid.uuid4().hex[:8]}")
         self.gate = AdmissionGate(self.tokens, self.identities)
         ledger_path = DB / "action_ledger.db"
-        if fresh_ledger and ledger_path.exists():
-            ledger_path.unlink()
-        self._ledger_entries_at_start = 0
-        self.ledger = ActionLedger(ledger_path)
-        self._ledger_entries_at_start = len(self.ledger.entries(limit=1_000_000))
+        self.ledger, self._ledger_entries_at_start = open_action_ledger(
+            ledger_path, fresh=fresh_ledger
+        )
         self.traces = ThinkTraceCapture()
         self.memory = MemoryStore(DB / "research_memory.db")
         self.metrics = MetricsStore(DB / "metrics.db")
@@ -418,7 +421,7 @@ class BigSwarm:
                     disagreements.append({"claim_id": v.claim_id, "primary": p, "validator": v.tier})
 
         ok = [r for r in self.results if r.ok]
-        elapsed = time.monotonic() - self.started
+        elapsed = round(time.monotonic() - self.started, 2)
         inflation = sum(1 for d in disagreements if rank.get(d["validator"], 0) > rank.get(d["primary"], 0))
 
         non_error_tiers = {t: dist.get(t, 0) for t in TIERS}
@@ -443,7 +446,7 @@ class BigSwarm:
             "tier_distribution": dist,
             "disagreements": len(disagreements),
             "tier_inflation_by_validator": inflation,
-            "elapsed_s": round(elapsed, 2),
+            "elapsed_s": elapsed,
             "effective_rps": effective_rps(len(self.results), elapsed),
             **latency_percentiles([r.latency_s for r in ok]),
             "ledger_entries": len(self.ledger.entries(limit=1_000_000)),
@@ -459,8 +462,16 @@ class BigSwarm:
             "strength": strength.to_dict(),
             "disagreement_sample": disagreements[:8],
         }
+        worker_rows = [
+            {"role": r.role, "ok": r.ok}
+            for r in self.results
+        ]
+        recon["validation_errors"] = validate_reconciliation(recon, worker_rows)
         self.reconciliation = recon
-        self.bus.emit(event="reconcile", **{k: v for k, v in recon.items() if k != "disagreement_sample"})
+        emit_fields = {k: v for k, v in recon.items() if k not in ("disagreement_sample", "validation_errors")}
+        self.bus.emit(event="reconcile", **emit_fields)
+        if recon["validation_errors"]:
+            self.bus.emit(event="reconcile_invalid", errors=recon["validation_errors"])
         return recon
 
     # -- proof -------------------------------------------------------------
@@ -636,6 +647,9 @@ def main() -> int:
     print(f"  traces grounded    : {r['traces_grounded']}/{r['traces']}")
     print(f"  memory entries     : {r['memory_entries']}")
     print(f"  proof              : {proof['path']}")
+    if r.get("validation_errors"):
+        print(f"  validation errors   : {r['validation_errors']}")
+        return 1
     return 0 if r["ledger_valid"] and r["ok"] > 0 else 1
 
 
