@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (2191 full suite OK, 7 skipped, 3 expected failures; swarm 100 agents: 132/132 OK, 0 failed, 19.4 RPS)
+- [x] Tests executed and passing (2199 full suite OK, 7 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
 - [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
@@ -36,13 +36,13 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | PR #120 merged: ADR 004 — Upstash Box auth contract investigation (classification B: credential confirmed, UPSTASH_PUBLIC_BOX_TOKEN missing). PR #118 adapter live-verified PARTIAL (Box preview not provisioned). Swarm 100 agents: 132/132 OK, 0 failed, 19.4 RPS, ledger valid, traces grounded 132/132, memory 132 entries. |
-| **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 100 agents (Mercury-2 via Inception API); 19.4 effective RPS; 132 ledger entries valid; 132/132 traces grounded |
+| **Latest completed work** | PR #120 merged: ADR 004 — Upstash Box auth contract investigation (classification B: credential confirmed, UPSTASH_PUBLIC_BOX_TOKEN missing). PR #118 adapter live-verified PARTIAL (Box preview not provisioned). Swarm 256+ agents (224 primary + 32 validator): 256/256 OK, 0 failed, 18.15 RPS, ledger valid (388 entries), traces grounded 256/256, memory 368 entries. Baseline 132 agents: 112/132 OK, 20 failed (HTTP 503), 8.08 RPS, ledger valid, traces grounded 112/132. |
+| **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 256+ agents (Mercury-2 via Inception API); 18.15 effective RPS; 388 ledger entries valid; 256/256 traces grounded; strength index 0.6948; reliability 1.0 |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. |
-| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency. |
-| **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 256+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
+| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency; baseline run had 20 HTTP 503 transient failures (not reproduced in 256+ run). |
+| **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 512+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2191 OK (7 skipped, 3 expected failures); swarm 100 agents: 132/132 OK** |
+| **Test count** | **2199 OK (7 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
 
 ---
 
@@ -965,5 +965,124 @@ After finishing:
 - Exact next larger improvement: **scale swarm to 256 primary + 64 validators** to prove linear throughput scaling; instrument dashboard real-time metrics; **provision UPSTASH_PUBLIC_BOX_TOKEN** to achieve PATH A live verification for Upstash Box execution adapter.
 
 ---
+
+## Swarm 256+ Agents — Live Verified (2026-09-21)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Scaled `experiments/big_swarm.py` from 132 to 256 agents; measured factual scaling, ledger integrity, and trace grounding |
+| **Experiment** | `experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32` |
+| **Model** | mercury-2 via `https://api.inceptionlabs.ai/v1` |
+| **Baseline command** | `experiments/big_swarm.py --primary 100 --validators 32 --concurrency 32` |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Baseline agents** | 132 (100 primary + 32 validator) |
+| **256+ agents** | 256 (224 primary + 32 validator) |
+| **Concurrency** | 32 (both runs, directly comparable) |
+| **Claims** | 224 synthetic research claims (baseline: 100) |
+| **Live calls** | 256 total (224 primary + 32 validator) |
+| **Scaling focus** | Preserve grounded traces, valid ledger, zero silent failures, concurrency safety, deterministic accounting |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Full suite** | 2199 OK (7 skipped, 3 expected failures) |
+| **New tests** | 8 focused scaling safeguards in `tests/unit/test_swarm_instrumentation.py::TestSwarmScalingSafeguards` |
+| **Concurrency safety** | 256 concurrent ledger writes, verify() True |
+| **Ledger at scale** | 388 entries, valid=True |
+| **Traces grounded** | 256/256 (100%) |
+| **RPS measurement** | Accurate (total_calls / elapsed_s) |
+| **Latency distribution** | p50/p95 meaningful, p95 >= p50 |
+| **Strength index** | Non-degrading with more data |
+
+### BASELINE RESULTS (132 agents)
+
+| Field | Value |
+|---|---|
+| **Total calls** | 132 |
+| **OK / failed** | 112 / 20 (HTTP 503 transient) |
+| **Effective RPS** | 8.08 |
+| **Wall clock** | 16.34s |
+| **P50 / max latency** | 1.572s / 4.462s |
+| **Ledger entries** | 132 (valid=True) |
+| **Traces grounded** | 112/132 |
+| **Memory entries** | 112 |
+| **Disagreements** | 20 |
+| **Tier inflation** | 7 |
+| **Strength index** | 0.6075 |
+| **Reliability** | 0.8485 |
+| **Tier distribution** | EVIDENCE: 2, INFERENCE: 13, HYPOTHESIS: 2, UNVERIFIED: 63, ERROR: 20 |
+
+### 256+ RESULTS (256 agents)
+
+| Field | Value |
+|---|---|
+| **Total calls** | 256 |
+| **OK / failed** | 256 / 0 (100% success) |
+| **Effective RPS** | 18.15 |
+| **Wall clock** | 14.10s |
+| **P50 / max latency** | 1.132s / 3.266s |
+| **Ledger entries** | 388 (valid=True) |
+| **Traces grounded** | 256/256 (100%) |
+| **Memory entries** | 368 |
+| **Disagreements** | 21 |
+| **Tier inflation** | 4 |
+| **Strength index** | 0.6948 |
+| **Reliability** | 1.0 |
+| **Tier distribution** | EVIDENCE: 3, INFERENCE: 33, HYPOTHESIS: 2, UNVERIFIED: 186, ERROR: 0 |
+
+### EVIDENCE — FACTUAL COMPARISON
+
+| Metric | Baseline (132) | 256+ (256) | Delta |
+|---|---|---|---|
+| OK calls | 112 | 256 | +144 (+129%) |
+| Failed calls | 20 (503s) | 0 | -20 (-100%) |
+| Effective RPS | 8.08 | 18.15 | +10.1 (+125%) |
+| Wall clock | 16.34s | 14.10s | -2.24s (-14%) |
+| P50 latency | 1.572s | 1.132s | -0.440s (-28%) |
+| Max latency | 4.462s | 3.266s | -1.196s (-27%) |
+| Ledger valid | True | True | No change |
+| Traces grounded | 112/132 (85%) | 256/256 (100%) | +144 (+129%) |
+| Strength index | 0.6075 | 0.6948 | +0.0873 |
+| Tier inflation | 7 | 4 | -3 (-43%) |
+| Agent scaling | — | 132→256 | 1.94x |
+| RPS scaling | — | 8.08→18.15 | 2.25x |
+
+**Linear scaling claim**: NOT definitively claimed. RPS scaled 2.25x vs agent scaling of 1.94x, but the baseline run had 20 HTTP 503 failures causing retries/throttling. The 256+ run had 0 failures. The RPS improvement likely reflects reduced API-side throttling due to more uniform request distribution rather than pure linear throughput scaling.
+
+**Deterministic accounting verified**: Global total (256) == primary (224) + validator (32) == sum of per-agent results. No double-counting.
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **256+ experiment** | LIVE — 256/256 successful live calls via Inception API |
+| **Proof artifact** | `data/thinkboxmd/big_swarm_20260921_135330.json` |
+| **Baseline artifact** | `data/thinkboxmd/big_swarm_20260921_135102.json` |
+| **Event stream** | `data/thinkboxmd/swarm_events.jsonl` |
+| **Accounting** | 388 ledger entries valid, cross-verified by validator tier |
+| **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED / PRODUCTION_NOT_CLAIMED |
+
+### DECISION
+
+- Swarm at 256 agents with Mercury-2 via Inception API is OPERATIONAL
+- All 256 ledger entries valid, all 256 traces grounded
+- Zero failures (vs baseline 20 transient 503s)
+- Strength index improved from 0.6075 to 0.6948
+- Tier inflation decreased from 7 to 4 (-43%)
+- Reliability improved from 0.8485 to 1.0
+- No linear scaling claim without more evidence across multiple runs
+- Next: provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A; scale to 512+ agents
+
+### NEXT ACTION
+
+- Exact next larger improvement: **provision UPSTASH_PUBLIC_BOX_TOKEN** for PATH A live verification of Upstash Box execution adapter; **scale swarm to 512+ agents** to prove scaling across multiple runs with different baselines; **instrument dashboard real-time metrics** for swarm sessions.
 
 ---

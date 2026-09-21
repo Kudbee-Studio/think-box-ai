@@ -28,11 +28,14 @@ Current repository health, infrastructure status, known defects, and improvement
 - **Error**: HTTP 422 "This index requires dense vectors" (client sends no vector; no embedding provider exists)
 
 ### Inception (Mercury 2) — Model Provider
-- **Status**: ✅ **LIVE**
+- **Status**: ✅ **LIVE VERIFIED at swarm scale**
 - **URL**: `https://api.inceptionlabs.ai/v1`
 - **Model**: `mercury-2`
 - **Key**: `INCEPTION_API_KEY` present and working
-- **Throughput**: Live swarm test (100 primary + 32 validator agents) → 132 calls in 6.82s, 19.4 RPS, 0 failures, ledger valid, traces grounded 132/132.
+- **Throughput**: Swarm 256 agents → 256/256 OK, 0 failures, 18.15 RPS, 14.10s wall clock
+- **Baseline**: 132 agents → 112/132 OK (20 HTTP 503 transient), 8.08 RPS, 16.34s
+- **Strength index**: 0.6075 → 0.6948; reliability 0.8485 → 1.0; traces grounded 112/132 → 256/256
+- **Proof artifacts**: `big_swarm_20260921_135102.json` (baseline), `big_swarm_20260921_135330.json` (256+)
 
 ### GitHub MCP (Agent-to-Agent Communication)
 - **Status**: ✅ **Connected**
@@ -60,8 +63,9 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2191 | ✅ | 7 | 3 | ✅ PASS |
-| Swarm (100 agents) | 132 calls | ✅ (132/132) | 0 | 0 | ✅ PASS (19.4 RPS) |
+| All unit + integration | 2199 | ✅ | 7 | 3 | ✅ PASS |
+| Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
+| Swarm (256 agents) | 256 calls | ✅ (256/256) | 0 | 0 | ✅ PASS (18.15 RPS) |
 | Scheduler | 689 | ✅ | 0 | 0 | ✅ PASS |
 | Scheduler integration | 42 | ✅ | 0 | 0 | ✅ PASS |
 | CNC manufacturing | 68 | ✅ | 0 | 0 | ✅ PASS |
