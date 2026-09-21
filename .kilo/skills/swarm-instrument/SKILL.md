@@ -25,7 +25,8 @@ All 11 checks should pass (10 offline + 1 live).
 ## Step 2 — Run Swarm
 
 ```bash
-python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena
+python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger
+python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_*.json
 ```
 
 ## Step 3 — Check Dashboard

@@ -64,7 +64,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2203 | ✅ | 8 | 3 | ✅ PASS |
+| All unit + integration | 2204 | ✅ | 8 | 3 | ✅ PASS |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents) | 256 calls | ✅ (256/256) | 0 | 0 | ✅ PASS (18.15 RPS) |
 | Scheduler | 689 | ✅ | 0 | 0 | ✅ PASS |

@@ -42,7 +42,8 @@ explicitly marked as not-verified.
 ```bash
 python3 -m unittest discover tests/                    # 302 OK
 python3 experiments/verify_instrumentation.py --live   # 11/11
-python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena
+python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger
+python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_*.json
 python3 experiments/swarm_dashboard.py --port 8787
 cloudflared tunnel --url http://127.0.0.1:8787
 ```

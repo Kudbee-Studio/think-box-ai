@@ -458,7 +458,7 @@ Run burst evaluations (see skill: `burst-execute`):
 Run swarm experiments (see skill: `swarm-instrument`):
 
 1. Verify instrumentation: `python3 experiments/verify_instrumentation.py --live` (expect 11/11)
-2. Run swarm: `python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena`
+2. Run swarm: `python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger` (256 live calls; add `--arena` for probes)
 3. Dashboard: `python3 experiments/swarm_dashboard.py --port 8787`
 4. Check metrics: TSSI, learning curve, Mercury 2 throughput
 5. Self-ImprovementLoop: exists but NOT auto-wired into runs (TODO)
@@ -750,7 +750,7 @@ The `thinkbox/scheduler.py` module extends the governed concurrency architecture
 - `tests/unit/test_scheduler.py` — 689 tests, all passing
 - `tests/unit/test_scheduler_integration.py` — 42 tests, all passing
 - Run: `python3 -m unittest tests.unit.test_scheduler -v`
-- Full suite: `python3 -m unittest discover tests/` (2203 OK, 8 skipped, 3 expected failures)
+- Full suite: `python3 -m unittest discover tests/` (2204 OK, 8 skipped, 3 expected failures)
 
 ## CNC Manufacturing Intelligence Platform
 

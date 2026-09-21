@@ -31,6 +31,9 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_*.json
 - `ok + failed == total_calls`
 - `effective_rps == round(total_calls / elapsed_s, 2)`
 - Worker row count matches reconciliation
+- When present, `ledger_entries_this_run` must equal `total_calls` (one audit row per fired compartment)
+
+`big_swarm` runs `validate_reconciliation` at end of `reconcile()`; non-empty `validation_errors` fail the process exit code.
 
 ## Event stream
 
