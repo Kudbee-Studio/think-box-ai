@@ -128,6 +128,23 @@ class Compartment:
     status: str = "idle"          # idle -> loading -> fired -> done/error
 
 
+def validator_sample_primary(
+    results: list[Compartment],
+    validator_n: int,
+) -> list[Compartment]:
+    """Select primary compartments for the validator wave.
+
+    Uses the first ``validator_n`` primaries in completion order stored in
+    ``results`` (wave 1 appends primaries only). Validators always run when
+    configured, even if every primary failed, so ``total_calls`` stays
+    ``primary_n + validator_n`` for proof validation.
+    """
+    if validator_n <= 0:
+        return []
+    primaries = [r for r in results if r.role == "PRIMARY"]
+    return primaries[:validator_n]
+
+
 class BigSwarm:
     def __init__(
         self,
@@ -369,19 +386,26 @@ class BigSwarm:
         self.bus.emit(event="wave_done", wave="primary", seconds=round(wave1, 2),
                       calls=len(claims))
 
-        # Wave 2: validator compartments challenge a sample
-        sample = [r for r in self.results if r.ok][: self.validator_n]
+        # Wave 2: validator compartments challenge a fixed primary sample
+        sample = validator_sample_primary(self.results, self.validator_n)
         t0 = time.monotonic()
         if sample:
             with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
-                futs = [
-                    pool.submit(self.fire, 10000 + i, "VALIDATOR", "research:validator",
-                                {"claim_id": r.claim_id, "text": r.claim},
-                                validator_system,
-                                f"Claim: {r.claim}\nPrimary tier: {r.tier}. "
-                                f"Give your independent more-skeptical tier as one token.")
-                    for i, r in enumerate(sample)
-                ]
+                futs = []
+                for i, r in enumerate(sample):
+                    primary_tier = r.tier if (r.ok and r.tier) else "ERROR"
+                    futs.append(
+                        pool.submit(
+                            self.fire,
+                            10000 + i,
+                            "VALIDATOR",
+                            "research:validator",
+                            {"claim_id": r.claim_id, "text": r.claim},
+                            validator_system,
+                            f"Claim: {r.claim}\nPrimary tier: {primary_tier}. "
+                            f"Give your independent more-skeptical tier as one token.",
+                        )
+                    )
                 for f in as_completed(futs):
                     self.results.append(f.result())
         wave2 = time.monotonic() - t0
