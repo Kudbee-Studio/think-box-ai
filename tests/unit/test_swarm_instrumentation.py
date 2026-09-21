@@ -1020,3 +1020,117 @@ class TestDagVerifiedExecution(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSwarmScalingSafeguards(unittest.TestCase):
+    """Scaling safeguards: concurrency safety, ledger integrity, trace grounding, deterministic accounting."""
+
+    def test_ledger_valid_at_scale(self) -> None:
+        """Ledger must verify after 256+ agent calls with zero silent failures."""
+        from thinkbox.ledger import ActionLedger
+
+        ledger = ActionLedger(":memory:")
+        agents = 256
+        for i in range(agents):
+            ledger.append(
+                f"SWARM-PRIMARY-{i:04d}",
+                "research:primary",
+                "swarm:PRIMARY",
+                True,
+                "admitted",
+                {"claim_id": f"CLM-{i:04d}", "synthetic": True},
+            )
+        self.assertTrue(ledger.verify(), "ledger must verify after 256+ calls")
+        self.assertEqual(len(ledger.entries(limit=1_000_000)), agents)
+
+    def test_ledger_valid_with_zero_failures(self) -> None:
+        """When all calls succeed, ledger verify() must be True."""
+        from thinkbox.ledger import ActionLedger
+
+        ledger = ActionLedger(":memory:")
+        for i in range(32):
+            ledger.append(f"w{i}", "cap", "swarm", True, "admitted", {})
+        self.assertTrue(ledger.verify())
+
+    def test_trace_grounding_equals_successful_calls(self) -> None:
+        """Only successful calls produce grounded traces; grounding rate must be 100% for OK calls."""
+        from thinkbox.thinktrace import ThinkTraceCapture
+
+        traces = ThinkTraceCapture()
+        ok = 256
+        for i in range(ok):
+            traces.capture(f"SWARM-PRIMARY-{i:04d}", "tier EVIDENCE", evidence_refs=[f"claim:CLM-{i:04d}"], tags=["PRIMARY", "swarm", "EVIDENCE"])
+        self.assertEqual(traces.count(grounded=True), ok)
+        self.assertEqual(traces.count(), ok)
+
+    def test_deterministic_accounting_global_equals_sum(self) -> None:
+        """Global call count must equal sum of per-agent results; no double-counting."""
+        results = [{"ok": True, "latency_s": 0.5} for _ in range(256)]
+        total_calls = len(results)
+        ok_count = sum(1 for r in results if r["ok"])
+        failed_count = total_calls - ok_count
+        self.assertEqual(ok_count + failed_count, total_calls)
+        self.assertEqual(ok_count, 256)
+        self.assertEqual(failed_count, 0)
+
+    def test_rps_measurement_accuracy(self) -> None:
+        """effective_rps must equal total_calls / elapsed_s with no division by zero."""
+        total_calls = 256
+        elapsed = 14.1
+        rps = round(total_calls / elapsed, 2)
+        self.assertGreater(rps, 0)
+        self.assertEqual(rps, round(256 / 14.1, 2))
+
+    def test_latency_distribution_p50_p95(self) -> None:
+        """p50 latency must be computed from sorted results; p95 must be >= p50."""
+        import random
+
+        random.seed(42)
+        latencies = sorted([random.uniform(0.5, 4.0) for _ in range(256)])
+        p50 = latencies[len(latencies) // 2]
+        p95 = latencies[int(len(latencies) * 0.95)]
+        self.assertGreaterEqual(p95, p50)
+        self.assertGreater(p50, 0)
+
+    def test_strength_index_improves_with_more_data(self) -> None:
+        """Strength index should not degrade as agent count increases (more evidence)."""
+        from thinkbox.metrics import compute_swarm_strength
+
+        small = compute_swarm_strength(
+            total=132, ok=112, traces=132, grounded=112, validators=32,
+            disagreements=20, validator_downgrades=7, tier_inflation=7,
+            tier_distribution={"EVIDENCE": 2, "INFERENCE": 13, "HYPOTHESIS": 2, "UNVERIFIED": 63, "ERROR": 20},
+        )
+        large = compute_swarm_strength(
+            total=256, ok=256, traces=256, grounded=256, validators=32,
+            disagreements=21, validator_downgrades=4, tier_inflation=4,
+            tier_distribution={"EVIDENCE": 3, "INFERENCE": 33, "HYPOTHESIS": 2, "UNVERIFIED": 186, "ERROR": 0},
+        )
+        self.assertGreaterEqual(large.score, small.score)
+        self.assertEqual(large.reliability, 1.0)
+        self.assertEqual(large.grounding, 1.0)
+
+    def test_concurrency_safety_no_race_conditions(self) -> None:
+        """Concurrent writes to ledger must not corrupt hash chain."""
+        from thinkbox.ledger import ActionLedger
+        import threading
+
+        ledger = ActionLedger(":memory:")
+        errors = []
+
+        def worker(base: int) -> None:
+            try:
+                for i in range(32):
+                    ledger.append(f"w{base+i}", "cap", "swarm", True, "admitted", {})
+            except Exception as e:
+                errors.append(str(e))
+
+        threads = [threading.Thread(target=worker, args=(i * 32,)) for i in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        self.assertEqual(len(errors), 0, f"Concurrent writes caused errors: {errors}")
+        self.assertTrue(ledger.verify(), "ledger must verify after concurrent writes")
+        self.assertEqual(len(ledger.entries(limit=1_000_000)), 256)

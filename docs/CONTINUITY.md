@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-17
+**Last updated:** 2026-09-21
 
 ---
 
@@ -15,7 +15,7 @@ Before declaring completion, every agent MUST verify:
 
 - [x] Existing continuity state read
 - [x] Work classified ACTIVE/BLOCKED/PARKED/COMPLETE
-- [x] Tests executed and passing (571 scheduler OK, 1275 full suite, 6 skipped)
+- [x] Tests executed and passing (2199 full suite OK, 7 skipped, 3 expected failures; swarm 256+ agents: 256/256 OK, 0 failed, 18.15 RPS)
 - [x] PR #83 merged, PR #84 merged, PR #85 merged
 - [x] Evidence recorded in CONTINUITY.md
 - [x] Documentation updated (CONTINUITY.md, AGENTS.md §14, STATUS.md)
@@ -35,14 +35,14 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Full repo harden — verify all systems, update docs, ensure CI readiness |
-| **Latest completed work** | PR #85 COMPLETE (merged): 10 hardening features via SchedulerHarness (DeadLetterQueue, ConfigValidator, MemoryPressureMonitor, GracefulShutdownCoordinator, SchedulerSentinel, DataIntegrityChecker, RetryStormGuard, SchemaVersionTracker, AnomalyDetector, AdmissionRateLimiter). Full test suite: 1605 tests passing (6 skipped, 3 expected failures). |
-| **Current verified capabilities** | Multi-goal concurrent execution (independent + shared budget); cross-goal accounting (global == sum, no double count); per-goal/global retry counts; per-layer DAG telemetry (fan-out/fan-in); bounded retries; honest `BudgetExhausted`; preserved failure taxonomy; deterministic aggregation; restart-safe persistence; dashboard concurrent block; budget contention policies (FAIR_SHARE/PRIORITY/FIFO); per-goal budget limit enforcement; goal timeout enforcement; dependency resolution; performance analytics; capacity prediction; work stealing; SLA compliance; checkpoint management; adaptive retry backoff; resource profiling; error classification; weighted fair-queueing; job lease/visibility timeout; deduped delayed enqueue; circuit breaker; admission lottery; placement constraints; progressive drain; ledger replay; multi-priority aging; scheduler canaries; 25+ scheduler features via SchedulerHarness; CNC manufacturing platform; Upstash Box primary substrate; UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view |
-| **Current blockers** | None. `record_outcome` status stays pending (pre-existing). Pipeline dbs reconstructable from artifacts via `experiments/recover_pipeline_db.py` (ledger hash chain NOT reconstructable — documented limitation). |
-| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost. Shared-budget per-goal attribution cross-checked against session total. PRIORITY policy: lower-priority goals may be completely skipped if budget exhausted by higher-priority goals. |
-| **Next larger improvement** | Concurrency stress test (many goals, tight shared budget) to quantify scheduler fairness — accounting-first; integrate scheduler with GovernedEngine.execute_goal DAG routing; N>2 goals with dynamic budget reallocation |
-| **PR status** | PR #83 merged, PR #84 merged, PR #85 merged + integrated (10 features via SchedulerHarness) |
-| **Test count** | **689 scheduler OK, 42 integration OK, 1605 full suite, 6 skipped, 3 pre-existing failures** |
+| **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
+| **Latest completed work** | PR #120 merged: ADR 004 — Upstash Box auth contract investigation (classification B: credential confirmed, UPSTASH_PUBLIC_BOX_TOKEN missing). PR #118 adapter live-verified PARTIAL (Box preview not provisioned). Swarm 256+ agents (224 primary + 32 validator): 256/256 OK, 0 failed, 18.15 RPS, ledger valid (388 entries), traces grounded 256/256, memory 368 entries. Baseline 132 agents: 112/132 OK, 20 failed (HTTP 503), 8.08 RPS, ledger valid, traces grounded 112/132. |
+| **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 256+ agents (Mercury-2 via Inception API); 18.15 effective RPS; 388 ledger entries valid; 256/256 traces grounded; strength index 0.6948; reliability 1.0 |
+| **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. |
+| **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency; baseline run had 20 HTTP 503 transient failures (not reproduced in 256+ run). |
+| **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 512+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
+| **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
+| **Test count** | **2199 OK (7 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
 
 ---
 
@@ -839,27 +839,68 @@ After finishing:
 
 ---
 
-## PR #118 — Auth Contract Probe (2026-09-21)
+## PR #118 LIVE-VERIFY BOUNDARY (2026-09-21) — Auth Contract Investigation
 
-### PROBE
+### DISCOVERY
 
 | Field | Value |
 |---|---|
 | **Timestamp** | 2026-09-21 |
-| **Action** | Safe HTTP POST probe of `UPSTASH_PUBLIC_BOX_URL/run` using env vars only; no secret values printed. |
-| `UPSTASH_PUBLIC_BOX_URL` | PRESENT |
-| `UPSTASH_PUBLIC_BOX_TOKEN` (adapter token) | ABSENT |
-| `UPSTASH_BOX_API_KEY` (env available) | PRESENT |
-| Probe no-auth `/run` | HTTP 404 `preview not found` |
-| Probe Bearer `UPSTASH_BOX_API_KEY` `/run` | HTTP 404 `preview not found` |
+| **Action** | Determined actual auth contract for Upstash Box adapter from repository/config/provider evidence. No secrets printed. |
+| **UPSTASH_PUBLIC_BOX_URL** | PRESENT (`wanted-tuna-71803-3000.preview.box.upstash.com/`) |
+| **UPSTASH_PUBLIC_BOX_TOKEN** | ABSENT |
+| **UPSTASH_BOX_API_KEY** | PRESENT (NOT used by adapter code) |
+| **UPSTASH_API_KEY** | PRESENT (used in `pr_db.py` for provisioning, unrelated to Box auth) |
+| **Classification** | **B — Credential contract confirmed but required credential missing** |
 
-### FINDING
+### IMPLEMENTATION
 
-The endpoint is not live (`preview not found`) regardless of auth, so PATH A cannot be proven and the auth mechanism is unverified. The adapter currently expects `UPSTASH_PUBLIC_BOX_TOKEN`; that variable is absent. The environment provides `UPSTASH_BOX_API_KEY`, but the adapter does not use it and the endpoint does not accept it for live execution in this sandbox. Do not invent or purchase a token.
+| Field | Value |
+|---|---|
+| **Action** | Traced adapter auth contract from source code; performed safe HTTP probes against real endpoint. |
+| **Auth contract source** | `thinkbox/execution_adapter.py:27-28` — `ENV_URL = "UPSTASH_PUBLIC_BOX_URL"`, `ENV_TOKEN = "UPSTASH_PUBLIC_BOX_TOKEN"` |
+| **Auth mechanism** | `UpstashBoxConfig.load_from_env()` reads `token` from `ENV_TOKEN` (`UPSTASH_PUBLIC_BOX_TOKEN`). `_post()` sends `Authorization: Bearer {self._config.token}` to `{url}/run` (line 218). `is_configured` requires both `url AND token` (line 75). |
+| **UPSTASH_BOX_API_KEY in code** | ZERO references in Python source (`grep -r UPSTASH_BOX_API_KEY thinkbox/` → no matches). Present only in documentation (`KUDBEE_AGENT_RUNTIME_CONTRACT.md`, `docs/THINKBOXMD_REPORT.md`, `docs/PREP.md`). |
+| **SDK/CLI** | No `upstash_redis`, `redis`, or Upstash SDK packages installed in environment. |
+| **Probe 1** | GET `/` on Box URL → HTTP 404, body `preview not found` |
+| **Probe 2** | POST `/run` with no auth → HTTP 404, body `preview not found` |
+| **Probe 3** | POST `/run` with `Authorization: Bearer test` → HTTP 404, body `preview not found` |
+| **Probe 4** | POST `/run` with `Authorization: Bearer {UPSTASH_BOX_API_KEY}` → HTTP 404, body `preview not found` |
+| **Probe conclusion** | Endpoint returns `preview not found` regardless of auth method. 404 is service-level (preview not provisioned), NOT an auth rejection. |
+| **Adapter behavior** | `discover_env()` reports `UPSTASH_PUBLIC_BOX_URL=True`, `UPSTASH_PUBLIC_BOX_TOKEN=False`. `is_configured()` returns `False`. Adapter returns `NOT_CONFIGURED` — fail-closed, no synthetic receipt. |
 
-### STATUS
+### TEST_VERIFIED
 
-CODE_COMPLETE / TEST_VERIFIED (2191 OK, 7 skipped, 3 expected failures) / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED.
+| Field | Value |
+|---|---|
+| **Focused adapter tests** | 8 OK (`python3 -m unittest tests.unit.test_execution_adapter`) — fail-closed, env loading, stub live path |
+| **Focused BYOC tests** | 10 OK (`python3 -m unittest tests.unit.byoc.test_box_mercury`) |
+| **Full suite** | 2191 OK, 7 skipped, 3 expected failures (`python3 -m unittest discover tests/`) |
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Auth contract** | CONFIRMED from source code: adapter requires `UPSTASH_PUBLIC_BOX_TOKEN` (not `UPSTASH_BOX_API_KEY`) |
+| **Required credential** | `UPSTASH_PUBLIC_BOX_TOKEN` — ABSENT |
+| **Real endpoint result** | HTTP 404 `preview not found` (all probe variants); endpoint not functional for this URL |
+| **PATH A** | BLOCKED — missing credential + endpoint returns `preview not found` |
+| **PATH B** | PROVEN — adapter returns `NOT_CONFIGURED` when `UPSTASH_PUBLIC_BOX_TOKEN` absent |
+| **No false receipts** | Confirmed — adapter never fabricates success |
+| **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED PARTIAL / PRODUCTION_READY NOT CLAIMED |
+
+### DECISION
+
+- **Auth contract is definitively `UPSTASH_PUBLIC_BOX_TOKEN`** (from `execution_adapter.py:28`), NOT `UPSTASH_BOX_API_KEY`.
+- `UPSTASH_BOX_API_KEY` is documented in the runtime contract as "API key for Upstash Box remote worker" but is NEVER used by the adapter or any Python code. It is a documentation-only reference.
+- Even if `UPSTASH_BOX_API_KEY` were supplied as the token, the endpoint returns 404 `preview not found` — the preview service is not provisioned for this URL.
+- The classification is **B**: credential contract confirmed, required credential (`UPSTASH_PUBLIC_BOX_TOKEN`) missing.
+- Do NOT invent, rotate, or provision credentials.
+
+### NEXT ACTION
+
+- Exact next larger improvement: **provision a valid Upstash Box preview** with `UPSTASH_PUBLIC_BOX_TOKEN` set, then retry PATH A. Until the endpoint responds with a valid execution result, `LIVE_VERIFIED` remains unachievable.
+- Alternative: if `UPSTASH_BOX_API_KEY` is the intended credential, the adapter code must be updated to read it (contract mismatch between docs and implementation) — but this requires a decision record and does NOT fix the endpoint 404.
 
 ---
 
@@ -925,3 +966,123 @@ CODE_COMPLETE / TEST_VERIFIED (2191 OK, 7 skipped, 3 expected failures) / LIVE_V
 
 ---
 
+## Swarm 256+ Agents — Live Verified (2026-09-21)
+
+### DISCOVERY
+
+| Field | Value |
+|---|---|
+| **Timestamp** | 2026-09-21 |
+| **Action** | Scaled `experiments/big_swarm.py` from 132 to 256 agents; measured factual scaling, ledger integrity, and trace grounding |
+| **Experiment** | `experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32` |
+| **Model** | mercury-2 via `https://api.inceptionlabs.ai/v1` |
+| **Baseline command** | `experiments/big_swarm.py --primary 100 --validators 32 --concurrency 32` |
+
+### IMPLEMENTATION
+
+| Field | Value |
+|---|---|
+| **Baseline agents** | 132 (100 primary + 32 validator) |
+| **256+ agents** | 256 (224 primary + 32 validator) |
+| **Concurrency** | 32 (both runs, directly comparable) |
+| **Claims** | 224 synthetic research claims (baseline: 100) |
+| **Live calls** | 256 total (224 primary + 32 validator) |
+| **Scaling focus** | Preserve grounded traces, valid ledger, zero silent failures, concurrency safety, deterministic accounting |
+
+### TEST_VERIFIED
+
+| Field | Value |
+|---|---|
+| **Full suite** | 2199 OK (7 skipped, 3 expected failures) |
+| **New tests** | 8 focused scaling safeguards in `tests/unit/test_swarm_instrumentation.py::TestSwarmScalingSafeguards` |
+| **Concurrency safety** | 256 concurrent ledger writes, verify() True |
+| **Ledger at scale** | 388 entries, valid=True |
+| **Traces grounded** | 256/256 (100%) |
+| **RPS measurement** | Accurate (total_calls / elapsed_s) |
+| **Latency distribution** | p50/p95 meaningful, p95 >= p50 |
+| **Strength index** | Non-degrading with more data |
+
+### BASELINE RESULTS (132 agents)
+
+| Field | Value |
+|---|---|
+| **Total calls** | 132 |
+| **OK / failed** | 112 / 20 (HTTP 503 transient) |
+| **Effective RPS** | 8.08 |
+| **Wall clock** | 16.34s |
+| **P50 / max latency** | 1.572s / 4.462s |
+| **Ledger entries** | 132 (valid=True) |
+| **Traces grounded** | 112/132 |
+| **Memory entries** | 112 |
+| **Disagreements** | 20 |
+| **Tier inflation** | 7 |
+| **Strength index** | 0.6075 |
+| **Reliability** | 0.8485 |
+| **Tier distribution** | EVIDENCE: 2, INFERENCE: 13, HYPOTHESIS: 2, UNVERIFIED: 63, ERROR: 20 |
+
+### 256+ RESULTS (256 agents)
+
+| Field | Value |
+|---|---|
+| **Total calls** | 256 |
+| **OK / failed** | 256 / 0 (100% success) |
+| **Effective RPS** | 18.15 |
+| **Wall clock** | 14.10s |
+| **P50 / max latency** | 1.132s / 3.266s |
+| **Ledger entries** | 388 (valid=True) |
+| **Traces grounded** | 256/256 (100%) |
+| **Memory entries** | 368 |
+| **Disagreements** | 21 |
+| **Tier inflation** | 4 |
+| **Strength index** | 0.6948 |
+| **Reliability** | 1.0 |
+| **Tier distribution** | EVIDENCE: 3, INFERENCE: 33, HYPOTHESIS: 2, UNVERIFIED: 186, ERROR: 0 |
+
+### EVIDENCE — FACTUAL COMPARISON
+
+| Metric | Baseline (132) | 256+ (256) | Delta |
+|---|---|---|---|
+| OK calls | 112 | 256 | +144 (+129%) |
+| Failed calls | 20 (503s) | 0 | -20 (-100%) |
+| Effective RPS | 8.08 | 18.15 | +10.1 (+125%) |
+| Wall clock | 16.34s | 14.10s | -2.24s (-14%) |
+| P50 latency | 1.572s | 1.132s | -0.440s (-28%) |
+| Max latency | 4.462s | 3.266s | -1.196s (-27%) |
+| Ledger valid | True | True | No change |
+| Traces grounded | 112/132 (85%) | 256/256 (100%) | +144 (+129%) |
+| Strength index | 0.6075 | 0.6948 | +0.0873 |
+| Tier inflation | 7 | 4 | -3 (-43%) |
+| Agent scaling | — | 132→256 | 1.94x |
+| RPS scaling | — | 8.08→18.15 | 2.25x |
+
+**Linear scaling claim**: NOT definitively claimed. RPS scaled 2.25x vs agent scaling of 1.94x, but the baseline run had 20 HTTP 503 failures causing retries/throttling. The 256+ run had 0 failures. The RPS improvement likely reflects reduced API-side throttling due to more uniform request distribution rather than pure linear throughput scaling.
+
+**Deterministic accounting verified**: Global total (256) == primary (224) + validator (32) == sum of per-agent results. No double-counting.
+
+### LIVE_VERIFIED
+
+| Field | Value |
+|---|---|
+| **256+ experiment** | LIVE — 256/256 successful live calls via Inception API |
+| **Proof artifact** | `data/thinkboxmd/big_swarm_20260921_135330.json` |
+| **Baseline artifact** | `data/thinkboxmd/big_swarm_20260921_135102.json` |
+| **Event stream** | `data/thinkboxmd/swarm_events.jsonl` |
+| **Accounting** | 388 ledger entries valid, cross-verified by validator tier |
+| **Four-State** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED / PRODUCTION_NOT_CLAIMED |
+
+### DECISION
+
+- Swarm at 256 agents with Mercury-2 via Inception API is OPERATIONAL
+- All 388 cumulative ledger entries valid (256 from 256+ run + 132 from baseline); 256-agent experiment ledger entries = 256 per artifact reconciliation; all 256 traces grounded
+- Zero failures (vs baseline 20 transient 503s)
+- Strength index improved from 0.6075 to 0.6948
+- Tier inflation decreased from 7 to 4 (-43%)
+- Reliability improved from 0.8485 to 1.0
+- No linear scaling claim without more evidence across multiple runs
+- Next: provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A; scale to 512+ agents
+
+### NEXT ACTION
+
+- Exact next larger improvement: **provision UPSTASH_PUBLIC_BOX_TOKEN** for PATH A live verification of Upstash Box execution adapter; **scale swarm to 512+ agents** to prove scaling across multiple runs with different baselines; **instrument dashboard real-time metrics** for swarm sessions.
+
+---

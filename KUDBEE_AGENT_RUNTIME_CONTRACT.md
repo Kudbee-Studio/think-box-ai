@@ -28,10 +28,11 @@ All environment variables currently available to the agent. **No secret values a
 | `CURSOR_API_KEY` | API key for Cursor SDK integration | Optional | ⚠️ Present but value not verified |
 | `UPCLOUD_API_KEY` | API key for UpCloud infrastructure | Optional | ⚠️ Present but value not verified |
 | `UPSTASH_API_KEY` | Primary API key for Upstash Redis/Vector services | Optional | ⚠️ Present but value not verified |
-| `UPSTASH_BOX_API_KEY` | API key for Upstash Box remote worker | Optional | ⚠️ Present but value not verified |
-| `UPSTASH_BOX_CLI_KEY` | CLI key for Upstash Box operations | Optional | ✅ Yes (empty) |
-| `UPSTASH_BOX_SSH_KEY` | SSH key for Upstash Box access | Optional | ✅ Yes |
-| `UPSTASH_PUBLIC_BOX_URL` | Public URL for Upstash Box preview | Optional | ✅ Yes |
+| `UPSTASH_BOX_API_KEY` | API key for Upstash Box remote worker; **DOCUMENTED ONLY** — NOT used by Think Box for remote execution. The adapter uses `UPSTASH_PUBLIC_BOX_TOKEN`. | Optional | ⚠️ Present but value not verified |
+ | `UPSTASH_BOX_CLI_KEY` | CLI key for Upstash Box operations | Optional | ✅ Yes (empty) |
+ | `UPSTASH_BOX_SSH_KEY` | SSH key for Upstash Box access | Optional | ✅ Yes |
+ | `UPSTASH_PUBLIC_BOX_URL` | Public URL for Upstash Box preview | Optional | ✅ Yes |
+ | `UPSTASH_PUBLIC_BOX_TOKEN` | Bearer token for Upstash Box remote execution adapter (required for `is_configured()`) | Optional | ❌ Missing in this environment |
 | `UPSTASH_VECTOR_REST_TOKEN` | REST token for Upstash Vector database | Optional | ⚠️ Present but value not verified |
 | `UPSTASH_VECTOR_REST_URL` | REST URL for Upstash Vector database | Optional | ✅ Yes |
 | `UPCLOUD_SERVER_HOSTNAME` | UpCloud server hostname | Optional | ✅ Yes |
