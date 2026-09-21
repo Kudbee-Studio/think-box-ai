@@ -32,12 +32,14 @@ Current repository health, infrastructure status, known defects, and improvement
 - **URL**: `https://api.inceptionlabs.ai/v1`
 - **Model**: `mercury-2`
 - **Key**: `INCEPTION_API_KEY` present and working
-- **Throughput**: Swarm 256 agents → 256/256 OK, 0 failures, 18.15 RPS, 14.10s wall clock
+- **Throughput**: Swarm 512 agents (448 primary + 64 validator) → 444/512 OK (86.7%), 27.25 RPS, 18.79s wall clock
+- **Convergence**: 5× 256-agent runs — all validated, mean 219/256 OK, mean 27.24 RPS, ledger 256/256 per run (mean 219, median 256, min 161, max 256 OK)
 - **Baseline**: 132 agents → 112/132 OK (20 HTTP 503 transient), 8.08 RPS, 16.34s
-- **Strength index**: 0.6075 → 0.6948; reliability 0.8485 → 1.0; traces grounded 112/132 → 256/256
-- **Proof artifacts**: `data/thinkboxmd/big_swarm_20260921_135102.json` (baseline), `data/thinkboxmd/big_swarm_20260921_135330.json` (256+)
+- **Strength index**: 0.6075 → 0.6948 → 0.6655 (512); convergence mean varies by run
+- **Proof artifacts**: `data/thinkboxmd/big_swarm_20260921_135102.json` (baseline), `data/thinkboxmd/big_swarm_20260921_135330.json` (256+), `data/thinkboxmd/big_swarm_20260921_152452.json` (512+), `data/thinkboxmd/big_swarm_20260921_152726.json`–`152948.json` (convergence), `data/thinkboxmd/swarm_convergence_1790004588.json` (statistics)
 - **Validate**: `python3 experiments/verify_swarm_proof.py <proof.json>`
 - **PR #121 pass** (2026-09-21): `swarm_stats` + `--fresh-ledger` + reconcile validation; see `docs/CONTINUITY.md` § Swarm 256+ PR #121 engineering pass
+- **PR #122 pass** (2026-09-21): 512+ scale target + 5×256 convergence + convergence statistics; see `docs/CONTINUITY.md` § Swarm 512+ PR #122 reproducible scaling
 
 ### GitHub MCP (Agent-to-Agent Communication)
 - **Status**: ✅ **Connected**
@@ -65,9 +67,10 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2204 | ✅ | 8 | 3 | ✅ PASS |
+| All unit + integration | 2224 | ✅ | 7 | 3 | ✅ PASS |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
-| Swarm (256 agents) | 256 calls | ✅ (256/256) | 0 | 0 | ✅ PASS (18.15 RPS) |
+| Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
+| Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |
 | Scheduler | 689 | ✅ | 0 | 0 | ✅ PASS |
 | Scheduler integration | 42 | ✅ | 0 | 0 | ✅ PASS |
 | CNC manufacturing | 68 | ✅ | 0 | 0 | ✅ PASS |

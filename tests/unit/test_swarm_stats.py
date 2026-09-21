@@ -1,5 +1,6 @@
 """Unit tests for thinkbox.swarm_stats (KILO swarm proof helpers)."""
 
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,9 +8,11 @@ from pathlib import Path
 from thinkbox.swarm_stats import (
     effective_rps,
     expected_live_calls,
+    convergence_summary,
     load_and_validate_proof,
     latency_percentiles,
     open_action_ledger,
+    proof_metrics,
     validate_proof_document,
     validate_reconciliation,
 )
@@ -118,6 +121,183 @@ class TestValidateReconciliation(unittest.TestCase):
             },
         }
         self.assertEqual(validate_proof_document(payload), [])
+
+
+class TestProofMetrics(unittest.TestCase):
+    def test_metrics_returns_all_keys(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        required = {
+            "total_calls", "ok", "failed", "effective_rps", "elapsed_s",
+            "p50_latency_s", "p95_latency_s", "max_latency_s",
+            "traces_grounded", "ledger_entries_this_run",
+            "primary_workers", "validator_workers",
+        }
+        self.assertEqual(set(m.keys()), required)
+
+    def test_metrics_values_are_floats(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        for k, v in m.items():
+            self.assertIsInstance(v, float, f"{k} should be float")
+
+    def test_metrics_ok_plus_failed_equals_total(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        self.assertEqual(m["ok"] + m["failed"], m["total_calls"])
+
+    def test_metrics_primary_plus_validator_equals_total(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        self.assertEqual(m["primary_workers"] + m["validator_workers"], m["total_calls"])
+
+    def test_metrics_traces_grounded_le_ok(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        self.assertLessEqual(m["traces_grounded"], m["ok"])
+
+    def test_metrics_non_negative(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        m = proof_metrics(payload)
+        for k, v in m.items():
+            self.assertGreaterEqual(v, 0.0, f"{k} is negative")
+
+    def test_metrics_match_reconciliation(self) -> None:
+        if not PROOF_256.is_file():
+            self.skipTest("proof artifact not present")
+        payload, _ = load_and_validate_proof(PROOF_256)
+        recon = payload["reconciliation"]
+        m = proof_metrics(payload)
+        self.assertEqual(m["total_calls"], float(recon["total_calls"]))
+        self.assertEqual(m["effective_rps"], float(recon["effective_rps"]))
+        self.assertEqual(m["elapsed_s"], float(recon["elapsed_s"]))
+
+    def test_minimal_payload(self) -> None:
+        payload = {
+            "primary_workers": 2,
+            "validator_workers": 1,
+            "reconciliation": {
+                "total_calls": 3, "ok": 2, "failed": 1,
+                "effective_rps": 1.5, "elapsed_s": 2.0,
+                "p50_latency_s": 0.5, "p95_latency_s": 1.0, "max_latency_s": 1.2,
+                "traces_grounded": 2, "ledger_entries_this_run": 3,
+            },
+        }
+        m = proof_metrics(payload)
+        self.assertEqual(m["total_calls"], 3.0)
+        self.assertEqual(m["ok"], 2.0)
+        self.assertEqual(m["failed"], 1.0)
+        self.assertEqual(m["primary_workers"], 2.0)
+        self.assertEqual(m["validator_workers"], 1.0)
+
+
+class TestConvergenceSummary(unittest.TestCase):
+    def test_summary_has_required_keys(self) -> None:
+        payloads = [
+            {"total_calls": 256.0, "ok": 256.0, "failed": 0.0, "effective_rps": 24.52},
+            {"total_calls": 256.0, "ok": 161.0, "failed": 95.0, "effective_rps": 38.79},
+        ]
+        s = convergence_summary(payloads)
+        self.assertIn("n", s)
+        self.assertIn("metrics", s)
+        self.assertEqual(s["n"], 2)
+        self.assertIn("total_calls", s["metrics"])
+        self.assertIn("effective_rps", s["metrics"])
+
+    def test_summary_n_matches_input_count(self) -> None:
+        payloads = [{"total_calls": float(i)} for i in range(7)]
+        s = convergence_summary(payloads)
+        self.assertEqual(s["n"], 7)
+        self.assertEqual(len(s["metrics"]["total_calls"]["values"]), 7)
+
+    def test_summary_values_preserved(self) -> None:
+        vals = [10.0, 20.0, 30.0, 40.0, 50.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        self.assertEqual(s["metrics"]["total_calls"]["values"], vals)
+
+    def test_summary_mean_is_correct(self) -> None:
+        vals = [10.0, 20.0, 30.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertAlmostEqual(stats["mean"], 20.0, places=4)
+
+    def test_summary_median_is_correct(self) -> None:
+        vals = [10.0, 20.0, 30.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertAlmostEqual(stats["median"], 20.0, places=4)
+
+    def test_summary_min_max(self) -> None:
+        vals = [10.0, 20.0, 30.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertEqual(stats["min"], 10.0)
+        self.assertEqual(stats["max"], 30.0)
+
+    def test_summary_std_non_negative(self) -> None:
+        vals = [10.0, 20.0, 30.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertGreaterEqual(stats["std"], 0.0)
+
+    def test_summary_std_zero_for_identical(self) -> None:
+        vals = [256.0] * 5
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertAlmostEqual(stats["std"], 0.0, places=4)
+
+    def test_summary_min_le_mean_le_max(self) -> None:
+        vals = [15.0, 10.0, 25.0, 20.0, 5.0]
+        payloads = [{"total_calls": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["total_calls"]
+        self.assertLessEqual(stats["min"], stats["mean"])
+        self.assertLessEqual(stats["mean"], stats["max"])
+
+    def test_summary_values_are_rounded(self) -> None:
+        vals = [1.111111, 2.222222, 3.333333]
+        payloads = [{"effective_rps": v} for v in vals]
+        s = convergence_summary(payloads)
+        stats = s["metrics"]["effective_rps"]
+        for v in stats["values"]:
+            self.assertAlmostEqual(v, round(v, 4), places=4)
+
+    def test_summary_includes_payloads(self) -> None:
+        p1 = {"total_calls": 256.0, "ok": 256.0}
+        p2 = {"total_calls": 200.0, "ok": 180.0}
+        s = convergence_summary([p1, p2])
+        self.assertEqual(len(s["payloads"]), 2)
+        self.assertEqual(s["payloads"][0], p1)
+        self.assertEqual(s["payloads"][1], p2)
+
+    def test_summary_with_real_256_proofs(self) -> None:
+        if not PROOF_256.is_file() or not PROOF_BASE.is_file():
+            self.skipTest("proof artifacts not present")
+        p256, _ = load_and_validate_proof(PROOF_256)
+        pbase, _ = load_and_validate_proof(PROOF_BASE)
+        s = convergence_summary([p256, pbase])
+        self.assertEqual(s["n"], 2)
+        self.assertEqual(s["metrics"]["total_calls"]["values"][0], 256.0)
+        self.assertEqual(s["metrics"]["total_calls"]["values"][1], 132.0)
+        self.assertGreaterEqual(s["metrics"]["effective_rps"]["mean"], 0.0)
 
 
 if __name__ == "__main__":
