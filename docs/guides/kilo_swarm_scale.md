@@ -44,3 +44,26 @@ Each run truncates `data/thinkboxmd/swarm_events.jsonl` (gitignored). Proof JSON
 - Compare runs at fixed `--concurrency` only.
 - Do not claim linear RPS scaling from a single baseline with HTTP 503 noise.
 - `PRODUCTION_NOT_CLAIMED` until Box PATH A and multi-run baselines are recorded.
+
+## Five-run convergence harness (PR #122)
+
+Repeat the same 256-call configuration to measure run-to-run variance (not a single hero run):
+
+```bash
+export INCEPTION_API_KEY=...  # runtime only
+python3 experiments/run_swarm_convergence.py --runs 5 --primary 224 --validators 32 --concurrency 32 --fresh-ledger
+```
+
+Outputs:
+
+- One `big_swarm_*.json` proof per run (same validation as single-run scale).
+- One `swarm_convergence_*.json` with per-run scalars and `variance` blocks:
+  `effective_rps`, `p50_latency_s`, `strength_index`, `reliability`, `ok_rate` — each with `mean`, `stdev`, `min`, `max`, `n`.
+
+Without `INCEPTION_API_KEY`, the harness exits `2`, writes `swarm_convergence_BLOCKED_*.json` (no fabricated metrics), and unit tests cover summary math via `thinkbox.swarm_stats`.
+
+Recompute variance from existing proofs only:
+
+```bash
+python3 experiments/run_swarm_convergence.py --summarize-only data/thinkboxmd/big_swarm_a.json data/thinkboxmd/big_swarm_b.json
+```

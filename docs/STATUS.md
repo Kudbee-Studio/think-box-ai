@@ -38,6 +38,7 @@ Current repository health, infrastructure status, known defects, and improvement
 - **Proof artifacts**: `data/thinkboxmd/big_swarm_20260921_135102.json` (baseline), `data/thinkboxmd/big_swarm_20260921_135330.json` (256+)
 - **Validate**: `python3 experiments/verify_swarm_proof.py <proof.json>`
 - **PR #121 pass** (2026-09-21): `swarm_stats` + `--fresh-ledger` + reconcile validation; see `docs/CONTINUITY.md` § Swarm 256+ PR #121 engineering pass
+- **PR #122 (draft)**: `experiments/run_swarm_convergence.py` — 5×256-call variance harness; live blocked in CI/agent env when `INCEPTION_API_KEY` absent (no fake LIVE numbers)
 
 ### GitHub MCP (Agent-to-Agent Communication)
 - **Status**: ✅ **Connected**
@@ -65,7 +66,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2204 | ✅ | 8 | 3 | ✅ PASS |
+| All unit + integration | 2209 | ✅ | 8 | 3 | ✅ PASS |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents) | 256 calls | ✅ (256/256) | 0 | 0 | ✅ PASS (18.15 RPS) |
 | Scheduler | 689 | ✅ | 0 | 0 | ✅ PASS |

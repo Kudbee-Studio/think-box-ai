@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import statistics
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -150,3 +151,84 @@ def load_and_validate_proof(path: str | Path) -> tuple[dict[str, Any], list[str]
     """Load proof JSON from disk and return (payload, errors)."""
     data = json.loads(Path(path).read_text())
     return data, validate_proof_document(data)
+
+
+CONVERGENCE_METRIC_KEYS = (
+    "effective_rps",
+    "p50_latency_s",
+    "strength_index",
+    "reliability",
+    "ok_rate",
+)
+
+
+def extract_convergence_metrics(proof: Mapping[str, Any]) -> dict[str, float]:
+    """Scalar metrics from one big_swarm proof for multi-run variance summaries."""
+    recon = proof.get("reconciliation") or {}
+    total = int(recon.get("total_calls", 0))
+    ok = int(recon.get("ok", 0))
+    if total < 1:
+        raise ValueError("total_calls must be >= 1")
+    strength = recon.get("strength") or {}
+    components = strength.get("components") or {}
+    rel = components.get("reliability")
+    if rel is None:
+        rel = ok / total
+    return {
+        "effective_rps": float(recon.get("effective_rps", 0.0)),
+        "p50_latency_s": float(recon.get("p50_latency_s", 0.0)),
+        "strength_index": float(strength.get("index", 0.0)),
+        "reliability": float(rel),
+        "ok_rate": round(ok / total, 4),
+    }
+
+
+def summarize_metric_series(values: Sequence[float]) -> dict[str, float | int]:
+    """Mean, sample stdev, min, max for one metric across runs."""
+    if not values:
+        raise ValueError("values must be non-empty")
+    if len(values) == 1:
+        stdev = 0.0
+    else:
+        stdev = statistics.stdev(values)
+    return {
+        "mean": round(statistics.mean(values), 4),
+        "stdev": round(stdev, 4),
+        "min": round(min(values), 4),
+        "max": round(max(values), 4),
+        "n": len(values),
+    }
+
+
+def summarize_convergence_proofs(
+    proofs: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Aggregate per-run metrics and variance summary for convergence harness."""
+    if not proofs:
+        raise ValueError("proofs must be non-empty")
+    runs: list[dict[str, Any]] = []
+    for proof in proofs:
+        row = extract_convergence_metrics(proof)
+        row["run_id"] = proof.get("run_id", "")
+        runs.append(row)
+    summary: dict[str, Any] = {}
+    for key in CONVERGENCE_METRIC_KEYS:
+        summary[key] = summarize_metric_series([float(r[key]) for r in runs])
+    return {"runs": runs, "summary": summary}
+
+
+def summarize_convergence_proof_paths(
+    paths: Sequence[str | Path],
+) -> dict[str, Any]:
+    """Load proof files from disk and compute convergence summary."""
+    payloads: list[dict[str, Any]] = []
+    proof_paths: list[str] = []
+    for path in paths:
+        data, errors = load_and_validate_proof(path)
+        if errors:
+            raise ValueError(f"{path}: {errors}")
+        payloads.append(data)
+        proof_paths.append(str(path))
+    out = summarize_convergence_proofs(payloads)
+    out["proof_paths"] = proof_paths
+    return out

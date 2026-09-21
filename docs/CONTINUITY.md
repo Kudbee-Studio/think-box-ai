@@ -42,7 +42,7 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API rate limits at high concurrency; baseline run had 20 HTTP 503 transient failures (not reproduced in 256+ run). |
 | **Next larger improvement** | Live verification of Upstash Box PATH A — provision UPSTASH_PUBLIC_BOX_TOKEN; then scale swarm to 512+ agents with validators; instrument dashboard real-time; prove production readiness with full end-to-end receipt. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2204 OK (8 skipped, 3 expected failures); swarm 256+ agents: 256/256 OK** |
+| **Test count** | **2209 OK (8 skipped, 3 expected failures); swarm 256+ single-run proof on main; PR #122 convergence LIVE blocked without INCEPTION_API_KEY** |
 
 ---
 
@@ -1108,5 +1108,22 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 ```
 
 **Not claimed:** new live 256 run in this pass (evidence JSON from prior session unchanged). Next live step: re-run with `--fresh-ledger` and attach new proof + `swarm_events.jsonl` (gitignored).
+
+---
+
+## Swarm convergence — PR #122 (2026-09-21, draft)
+
+**Branch:** `feat/pr122-swarm-convergence-256x5`
+
+| Area | Change |
+|------|--------|
+| **Harness** | `experiments/run_swarm_convergence.py` — `--runs 5`, default 224+32, `--fresh-ledger` per run |
+| **Stats** | `thinkbox/swarm_stats.py` — `extract_convergence_metrics`, `summarize_convergence_proofs`, `summarize_metric_series` |
+| **Tests** | `tests/unit/test_swarm_stats.py` (convergence math) + `tests/unit/test_swarm_convergence_harness.py` (LIVE blocked path) |
+| **Docs** | `docs/guides/kilo_swarm_scale.md` convergence section |
+
+**Live (this agent session):** `INCEPTION_API_KEY` **missing** — no 5× live runs executed; blocker JSON only. Prior single-run proofs (`big_swarm_20260921_*.json`) unchanged.
+
+**FourState:** CODE_COMPLETE / TEST_VERIFIED (hermetic) / LIVE_VERIFIED **blocked** (`INCEPTION_API_KEY`) / PRODUCTION not claimed
 
 ---
