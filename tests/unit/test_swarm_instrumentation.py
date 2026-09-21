@@ -1018,5 +1018,82 @@ class TestDagVerifiedExecution(unittest.TestCase):
         self.assertTrue(secrets_clean(summary))
 
 
+class TestSwarmScalingSafeguards(unittest.TestCase):
+    """Ledger/trace/metrics safeguards aligned with production swarm modules."""
+
+    def test_ledger_valid_at_scale(self) -> None:
+        from thinkbox.ledger import ActionLedger
+
+        ledger = ActionLedger(":memory:")
+        for i in range(256):
+            ledger.append(
+                f"SWARM-PRIMARY-{i:04d}",
+                "research:primary",
+                "swarm:PRIMARY",
+                True,
+                "admitted",
+                {"claim_id": f"CLM-{i:04d}", "synthetic": True},
+            )
+        self.assertTrue(ledger.verify())
+        self.assertEqual(len(ledger.entries(limit=1_000_000)), 256)
+
+    def test_trace_grounding_only_when_evidence_refs(self) -> None:
+        from thinkbox.thinktrace import ThinkTraceCapture
+
+        traces = ThinkTraceCapture()
+        traces.capture("w1", "UNVERIFIED", evidence_refs=None, tags=["PRIMARY"])
+        traces.capture("w2", "EVIDENCE", evidence_refs=["claim:CLM-0001"], tags=["PRIMARY"])
+        self.assertEqual(traces.count(grounded=True), 1)
+        self.assertEqual(traces.count(), 2)
+
+    def test_swarm_stats_matches_big_swarm_reconcile_shape(self) -> None:
+        from thinkbox.swarm_stats import effective_rps, latency_percentiles
+
+        latencies = [1.132, 0.985, 1.462, 2.1]
+        stats = latency_percentiles(latencies)
+        self.assertIn("p50_latency_s", stats)
+        self.assertIn("p95_latency_s", stats)
+        self.assertEqual(effective_rps(132, 16.34), 8.08)
+
+    def test_strength_index_improves_with_more_data(self) -> None:
+        small = compute_swarm_strength(
+            total=132, ok=112, traces=132, grounded=112, validators=32,
+            disagreements=20, validator_downgrades=7, tier_inflation=7,
+            tier_distribution={"EVIDENCE": 2, "INFERENCE": 13, "HYPOTHESIS": 2, "UNVERIFIED": 63, "ERROR": 20},
+        )
+        large = compute_swarm_strength(
+            total=256, ok=256, traces=256, grounded=256, validators=32,
+            disagreements=21, validator_downgrades=4, tier_inflation=4,
+            tier_distribution={"EVIDENCE": 3, "INFERENCE": 33, "HYPOTHESIS": 2, "UNVERIFIED": 186, "ERROR": 0},
+        )
+        self.assertGreaterEqual(large.score, small.score)
+        self.assertEqual(large.reliability, 1.0)
+
+    def test_concurrency_safety_no_race_conditions(self) -> None:
+        import threading
+
+        from thinkbox.ledger import ActionLedger
+
+        ledger = ActionLedger(":memory:")
+        errors: list[str] = []
+
+        def worker(base: int) -> None:
+            try:
+                for i in range(32):
+                    ledger.append(f"w{base + i}", "cap", "swarm", True, "admitted", {})
+            except Exception as exc:
+                errors.append(str(exc))
+
+        threads = [threading.Thread(target=worker, args=(i * 32,)) for i in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertTrue(ledger.verify())
+        self.assertEqual(len(ledger.entries(limit=1_000_000)), 256)
+
+
 if __name__ == "__main__":
     unittest.main()

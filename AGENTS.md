@@ -458,10 +458,12 @@ Run burst evaluations (see skill: `burst-execute`):
 Run swarm experiments (see skill: `swarm-instrument`):
 
 1. Verify instrumentation: `python3 experiments/verify_instrumentation.py --live` (expect 11/11)
-2. Run swarm: `python3 experiments/big_swarm.py --primary 256 --validators 64 --concurrency 32 --arena`
+2. Run swarm: `python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger` (256 live calls; add `--arena` for probes)
 3. Dashboard: `python3 experiments/swarm_dashboard.py --port 8787`
 4. Check metrics: TSSI, learning curve, Mercury 2 throughput
 5. Self-ImprovementLoop: exists but NOT auto-wired into runs (TODO)
+
+**256+ swarm results** (2026-09-21): `python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger` — 256/256 OK, 0 failures, 18.15 RPS, 14.10s wall clock, ledger verify true (388 cumulative on shared DB without `--fresh-ledger`; use `--fresh-ledger` for per-run counts), 256/256 traces grounded, strength index 0.6948, reliability 1.0. Baseline (100+32 calls): 112/132 OK, 20 HTTP 503, 8.08 RPS. Validate proofs: `python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_*.json`. See `docs/guides/kilo_swarm_scale.md`. Linear scaling NOT claimed. Artifacts: `data/thinkboxmd/big_swarm_20260921_135102.json`, `data/thinkboxmd/big_swarm_20260921_135330.json`.
 
 ---
 
@@ -748,7 +750,7 @@ The `thinkbox/scheduler.py` module extends the governed concurrency architecture
 - `tests/unit/test_scheduler.py` — 689 tests, all passing
 - `tests/unit/test_scheduler_integration.py` — 42 tests, all passing
 - Run: `python3 -m unittest tests.unit.test_scheduler -v`
-- Full suite: `python3 -m unittest discover tests/` (1435 tests, 6 skipped, 3 pre-existing failures in test_swarm_instrumentation)
+- Full suite: `python3 -m unittest discover tests/` (2204 OK, 8 skipped, 3 expected failures)
 
 ## CNC Manufacturing Intelligence Platform
 
@@ -780,7 +782,7 @@ The `thinkbox/cnc/` module extends Think Box AI into a manufacturing intelligenc
 
 - `tests/unit/test_cnc.py` — 59 tests covering all CNC modules
 - Run: `python3 -m unittest tests.unit.test_cnc -v`
-- Full suite: `python3 -m unittest discover tests/` (1435 tests, 6 skipped; canonical count — see Chronicle)
+- Full suite: `python3 -m unittest discover tests/` (2204 OK, 8 skipped, 3 expected failures; canonical count — see Chronicle)
 
 ### ADR
 

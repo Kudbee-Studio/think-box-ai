@@ -16,13 +16,13 @@ Emits a live event stream to data/thinkboxmd/swarm_events.jsonl so the
 dashboard (experiments/swarm_dashboard.py) can render it while it runs.
 
 Usage:
-    python3 experiments/big_swarm.py --primary 128 --validators 32 --concurrency 32
+    python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger
+    # 256 live calls = primary + validator wave. Use --fresh-ledger for per-run ledger cardinality.
 """
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import hashlib
 import json
 import os
@@ -49,11 +49,17 @@ from thinkbox.admission import AdmissionGate
 from thinkbox.ledger import ActionLedger
 from thinkbox.thinktrace import ThinkTraceCapture
 from thinkbox.metrics import MetricsStore, compute_swarm_strength
+from thinkbox.swarm_stats import (
+    effective_rps,
+    latency_percentiles,
+    open_action_ledger,
+    validate_reconciliation,
+)
 from thinkbox.flightrecorder import FlightRecorder, WorkerRecord
 from thinkbox.arena import ChallengeArena
 from thinkbox.memory_evolution import MemoryEvolution
 from thinkbox.reputation import ReputationLedger
-from thinkbox.experiments import ExperimentStore, Variant, VariantResult, efficiency, price_tokens
+from thinkbox.experiments import ExperimentStore, price_tokens
 from core.memory.store import MemoryStore
 from core.memory.schema import MemoryEntry, MemoryEntryType, MemoryLayer
 
@@ -123,7 +129,14 @@ class Compartment:
 
 
 class BigSwarm:
-    def __init__(self, primary: int, validators: int, concurrency: int, arena: bool = False) -> None:
+    def __init__(
+        self,
+        primary: int,
+        validators: int,
+        concurrency: int,
+        arena: bool = False,
+        fresh_ledger: bool = False,
+    ) -> None:
         OUT.mkdir(parents=True, exist_ok=True)
         DB.mkdir(parents=True, exist_ok=True)
         self.primary_n = primary
@@ -137,7 +150,10 @@ class BigSwarm:
         self.identities = IdentityLedger()
         self.tokens = GovernanceTokenService(signing_key=f"big-swarm-{uuid.uuid4().hex[:8]}")
         self.gate = AdmissionGate(self.tokens, self.identities)
-        self.ledger = ActionLedger(DB / "action_ledger.db")
+        ledger_path = DB / "action_ledger.db"
+        self.ledger, self._ledger_entries_at_start = open_action_ledger(
+            ledger_path, fresh=fresh_ledger
+        )
         self.traces = ThinkTraceCapture()
         self.memory = MemoryStore(DB / "research_memory.db")
         self.metrics = MetricsStore(DB / "metrics.db")
@@ -405,7 +421,7 @@ class BigSwarm:
                     disagreements.append({"claim_id": v.claim_id, "primary": p, "validator": v.tier})
 
         ok = [r for r in self.results if r.ok]
-        elapsed = time.monotonic() - self.started
+        elapsed = round(time.monotonic() - self.started, 2)
         inflation = sum(1 for d in disagreements if rank.get(d["validator"], 0) > rank.get(d["primary"], 0))
 
         non_error_tiers = {t: dist.get(t, 0) for t in TIERS}
@@ -430,11 +446,13 @@ class BigSwarm:
             "tier_distribution": dist,
             "disagreements": len(disagreements),
             "tier_inflation_by_validator": inflation,
-            "elapsed_s": round(elapsed, 2),
-            "effective_rps": round(len(self.results) / elapsed, 2),
-            "p50_latency_s": round(sorted(r.latency_s for r in ok)[len(ok) // 2], 3) if ok else 0.0,
-            "max_latency_s": round(max((r.latency_s for r in ok), default=0.0), 3),
+            "elapsed_s": elapsed,
+            "effective_rps": effective_rps(len(self.results), elapsed),
+            **latency_percentiles([r.latency_s for r in ok]),
             "ledger_entries": len(self.ledger.entries(limit=1_000_000)),
+            "ledger_entries_this_run": (
+                len(self.ledger.entries(limit=1_000_000)) - self._ledger_entries_at_start
+            ),
             "ledger_valid": self.ledger.verify(),
             "traces": self.traces.count(),
             "traces_grounded": self.traces.count(grounded=True),
@@ -444,8 +462,16 @@ class BigSwarm:
             "strength": strength.to_dict(),
             "disagreement_sample": disagreements[:8],
         }
+        worker_rows = [
+            {"role": r.role, "ok": r.ok}
+            for r in self.results
+        ]
+        recon["validation_errors"] = validate_reconciliation(recon, worker_rows)
         self.reconciliation = recon
-        self.bus.emit(event="reconcile", **{k: v for k, v in recon.items() if k != "disagreement_sample"})
+        emit_fields = {k: v for k, v in recon.items() if k not in ("disagreement_sample", "validation_errors")}
+        self.bus.emit(event="reconcile", **emit_fields)
+        if recon["validation_errors"]:
+            self.bus.emit(event="reconcile_invalid", errors=recon["validation_errors"])
         return recon
 
     # -- proof -------------------------------------------------------------
@@ -570,13 +596,34 @@ def main() -> int:
     ap.add_argument("--validators", type=int, default=32)
     ap.add_argument("--concurrency", type=int, default=32)
     ap.add_argument("--arena", action="store_true", help="enable adversarial Challenge Arena probes")
+    ap.add_argument(
+        "--fresh-ledger",
+        action="store_true",
+        help="truncate shared action_ledger.db before run (per-run ledger cardinality)",
+    )
     args = ap.parse_args()
+
+    if args.primary < 1:
+        print("--primary must be >= 1")
+        return 2
+    if args.validators < 0:
+        print("--validators must be >= 0")
+        return 2
+    if args.concurrency < 1:
+        print("--concurrency must be >= 1")
+        return 2
 
     if not os.environ.get("INCEPTION_API_KEY"):
         print("INCEPTION_API_KEY missing")
         return 2
 
-    swarm = BigSwarm(args.primary, args.validators, args.concurrency, arena=args.arena)
+    swarm = BigSwarm(
+        args.primary,
+        args.validators,
+        args.concurrency,
+        arena=args.arena,
+        fresh_ledger=args.fresh_ledger,
+    )
     t0 = time.monotonic()
     proof = swarm.run()
     total = time.monotonic() - t0
@@ -591,11 +638,18 @@ def main() -> int:
     print(f"  disagreements      : {r['disagreements']}  (validator tier inflation: {r['tier_inflation_by_validator']})")
     print(f"  wall clock         : {round(total,2)}s  (wave1 {proof['payload']['wave1_seconds']}s, wave2 {proof['payload']['wave2_seconds']}s)")
     print(f"  effective rps      : {r['effective_rps']}")
-    print(f"  p50 / max latency  : {r['p50_latency_s']}s / {r['max_latency_s']}s")
-    print(f"  ledger entries     : {r['ledger_entries']}  valid={r['ledger_valid']}")
+    p95 = r.get("p95_latency_s", r["max_latency_s"])
+    print(f"  p50 / p95 / max    : {r['p50_latency_s']}s / {p95}s / {r['max_latency_s']}s")
+    print(
+        f"  ledger entries     : {r['ledger_entries']} "
+        f"(this run {r.get('ledger_entries_this_run', '?')})  valid={r['ledger_valid']}"
+    )
     print(f"  traces grounded    : {r['traces_grounded']}/{r['traces']}")
     print(f"  memory entries     : {r['memory_entries']}")
     print(f"  proof              : {proof['path']}")
+    if r.get("validation_errors"):
+        print(f"  validation errors   : {r['validation_errors']}")
+        return 1
     return 0 if r["ledger_valid"] and r["ok"] > 0 else 1
 
 

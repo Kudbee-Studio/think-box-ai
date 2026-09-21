@@ -150,7 +150,21 @@ def _instruments() -> dict[str, Any]:
         "run_id": proof.get("run_id", ""),
         "session_id": proof.get("session_id", ""),
         "proof_hash": proof.get("proof_hash", ""),
-        "ledger": proof.get("ledger", {}),
+        "ledger": _proof_ledger_summary(proof),
+    }
+
+
+def _proof_ledger_summary(proof: dict[str, Any]) -> dict[str, Any]:
+    """Ledger fields from latest big_swarm proof reconciliation."""
+    if proof.get("ledger"):
+        return proof["ledger"]
+    recon = proof.get("reconciliation") or {}
+    if not recon:
+        return {}
+    return {
+        "valid": recon.get("ledger_valid"),
+        "entries": recon.get("ledger_entries"),
+        "entries_this_run": recon.get("ledger_entries_this_run"),
     }
 
 
