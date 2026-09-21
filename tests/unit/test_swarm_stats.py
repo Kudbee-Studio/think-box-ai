@@ -1,5 +1,6 @@
 """Unit tests for thinkbox.swarm_stats (KILO swarm proof helpers)."""
 
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from thinkbox.swarm_stats import (
     expected_live_calls,
     load_and_validate_proof,
     latency_percentiles,
+    open_action_ledger,
     validate_proof_document,
     validate_reconciliation,
 )
@@ -15,6 +17,19 @@ from thinkbox.swarm_stats import (
 ROOT = Path(__file__).resolve().parent.parent.parent
 PROOF_256 = ROOT / "data/thinkboxmd/big_swarm_20260921_135330.json"
 PROOF_BASE = ROOT / "data/thinkboxmd/big_swarm_20260921_135102.json"
+
+
+class TestOpenActionLedger(unittest.TestCase):
+    def test_fresh_ledger_clears_prior_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "action_ledger.db"
+            ledger, _ = open_action_ledger(path, fresh=False)
+            ledger.append("w1", "cap", "swarm", True, "admitted", {})
+            self.assertEqual(len(ledger.entries(limit=10)), 1)
+            fresh, at_start = open_action_ledger(path, fresh=True)
+            self.assertEqual(at_start, 0)
+            fresh.append("w2", "cap", "swarm", True, "admitted", {})
+            self.assertEqual(len(fresh.entries(limit=10)), 1)
 
 
 class TestSwarmStatsMath(unittest.TestCase):
