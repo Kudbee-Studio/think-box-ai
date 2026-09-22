@@ -525,7 +525,7 @@ Capture `delta.reasoning` / `reasoning` fields when present — do not drop them
 ### Connection Path Summary
 - **Server IP**: 212.147.250.183 (hostname: kudbee-host-v1)
 - **SSH key**: ~/.ssh/kilo-upcloud (ed25519, recovered from git commit 5f6a5c7)
-- **UpCloud API tokens**: UPCLOUD_API=ucat_Y8X1T01M2NP0SMDK6073EBBCP7, THINKBOX_UPCLOUD_API_TOKEN=ucat_01M15R0CYV33FZ1G410MX8FPTA
+- **UpCloud API tokens**: `UPCLOUD_API=REDACTED_UPCLOUD_API`, `THINKBOX_UPCLOUD_API_TOKEN=REDACTED_THINKBOX_UPCLOUD_API_TOKEN` (env only; never commit literals)
 - **Upstash box**: wanted-tuna-71803@us-east-1.box.upstash.com (SSH key: ssh wanted-tuna-71803@us-east-1.box.upstash.com)
 - **Upstash Vector**: https://unified-chigger-36053-gcp-usc1-vector.upstash.io/
 

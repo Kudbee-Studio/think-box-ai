@@ -1,6 +1,6 @@
 # End-to-end tests (Phase 1 placeholder)
 
-The Phase 1 architecture calls for mock-provider e2e coverage under `tests/e2e/`. This directory is intentionally minimal until a hermetic full runtime loop test lands (see audit finding **F009** / **F023** in `docs/audit/passes/2026-09-22-pr125.json`).
+The Phase 1 architecture calls for mock-provider e2e coverage under `tests/e2e/`. **PR #126** adds a hermetic governed-runtime loop in `test_governed_runtime_loop.py` (no network). Full five-tool mock-provider loop remains **F023**.
 
 **Target shape (not yet implemented):**
 

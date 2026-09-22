@@ -1,0 +1,51 @@
+{
+  "base_commit": "28c4723",
+  "checker": "cursor-cloud-pr126",
+  "completed_at": "2026-09-22T15:05:00Z",
+  "findings": [
+    {
+      "id": "F010",
+      "rank": 1,
+      "severity": "P0",
+      "title": "Literal infrastructure tokens in AGENTS.md chronicle",
+      "status": "done",
+      "paths": ["AGENTS.md", "scripts/scan_doc_secrets.py", "tests/unit/test_doc_secrets_scan.py"],
+      "notes": "Redacted to REDACTED_* placeholders; hermetic doc scan script + unit test"
+    },
+    {
+      "id": "F006",
+      "rank": 2,
+      "severity": "P1",
+      "title": "docs/PREP.md header test counts obsolete",
+      "status": "done",
+      "paths": ["docs/PREP.md"],
+      "notes": "PR #126 addendum; historical 09-15 body preserved below addenda"
+    },
+    {
+      "id": "F009",
+      "rank": 3,
+      "severity": "P1",
+      "title": "tests/e2e/ missing Phase 1 end-to-end coverage",
+      "status": "done",
+      "paths": ["tests/e2e/test_governed_runtime_loop.py"],
+      "notes": "Hermetic governed loop; full mock-provider five-tool loop deferred to F023"
+    },
+    {
+      "id": "F013",
+      "rank": 4,
+      "severity": "P2",
+      "title": "docs/STATUS PR table stops at legacy KILO map",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Extended with PR #125/#126 rows"
+    }
+  ],
+  "pass_id": "pr126",
+  "prior_pass": "passes/2026-09-22-pr125.json",
+  "started_at": "2026-09-22T14:58:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "note": "Counts recorded post-push on branch feat/pr126-f010-token-redact-and-p1"
+  },
+  "title": "PR126 — F010 doc redaction + P1 close-outs"
+}
