@@ -58,24 +58,6 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED (not claimed) / PRODUCTION not claimed |
 | **ADR** | `docs/decisions/005-windows-server-execution-substrate.md` — created, requires founder review |
 
-| **Next larger improvement** | Provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A live verification; scale swarm beyond 512 agents with increasing concurrency; prove convergence stability across more runs (currently 5); establish statistically rigorous scaling evidence. |
-| **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2235 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
-
-### 2026-09-22 — Windows Server Execution Substrate Investigation (ADR 005)
-
-| Field | Value |
-|-------|-------|
-| **Agent/task** | Investigate whether dedicated UpCloud Windows Server `kudbee-thinkbox-test-win01` should become a first-class Think Box execution substrate |
-| **Architecture boundary confirmed** | Control plane (UpCloud/Windows) is strictly separated from execution substrate (Upstash Box). `UpstashBoxExecutionAdapter` is the sole execution mechanism, requiring HTTP POST to `<UPSTASH_PUBLIC_BOX_URL>/run` with Bearer token auth. UpCloud is control-plane only (read-only REST), SSH-to-infrastructure execution explicitly unsupported |
-| **Observed capabilities** | RDP (3389) reachable on public IP only; SSH (22) blocked by security groups; WinRM (5985/5986) not enabled; HTTP/HTTPS blocked by Cloudflare 1003; no `/run` endpoint present |
-| **Options evaluated** | A) Windows+OpenSSH (blocked), B) Windows+WinRM (blocked), C) Windows-hosted HTTPS `/run` (architecturally valid, operationally blocked), D) Windows outbound agent (hypothetical), E) Keep Upstash Box as substrate + Windows as dev/test/control (recommended) |
-| **Decision** | **CONDITIONAL — Option E recommended.** Windows server should NOT become a first-class execution substrate in current architecture. It remains a development/test/control machine. Option C is preserved for when network allows. No code changes made |
-| **Security/governance** | No new secrets, no firewall changes, no Cloudflare removal. All governance, admission, ledger, receipt, and proof mechanisms remain unchanged and fully compatible |
-| **Verification** | Full test suite: 2243 OK (8 skipped, 3 expected failures) — unchanged from baseline. No regressions introduced |
-| **FourState** | CODE_COMPLETE / TEST_VERIFIED / LIVE_VERIFIED (not claimed) / PRODUCTION not claimed |
-| **ADR** | `docs/decisions/005-windows-server-execution-substrate.md` — created, requires founder review |
-
 ## RECENT CHANGES
 
 ### 2026-09-19 — Full Repo Harden (COMPLETE)
@@ -91,18 +73,6 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE_COMPLETE / TEST_VERIFIED (1605) / LINT_VERIFIED / DOCS_UPDATED / PRODUCTION not claimed |
 
 ---
-
-### 2026-09-19 — Full Repo Harden (COMPLETE)
-
-| Field | Value |
-|---|---|
-| **Date** | 2026-09-19 |
-| **Agent/task** | Full repository hardening: verify all systems, run complete test suite, lint check, update documentation. No SSH, no UpCloud compute, no GPU, no invented credentials. |
-| **Verification** | - Full test suite: 1605 tests passing (6 skipped, 3 expected failures)<br>- Scheduler tests: 689 passing<br>- Scheduler integration: 42 passing<br>- CNC tests: 68 passing<br>- Python syntax lint: clean (0 errors)<br>- All module imports verified (thinkbox, core, backend, thinkbox submodules)<br>- System diagnostics: core modules OK, backend missing fastapi (not installed in env)<br>- Module imports: thinkbox.scheduler, thinkbox.cnc, thinkbox.concurrent_goals, thinkbox.pop_arena all OK |
-| **Test results** | `python3 -m unittest discover -s tests/ -v` → 1605 tests, 8.071s, OK (skipped=6, expected failures=3) |
-| **Lint results** | `python3 -m py_compile` on all think_box_ai, backend, core modules → no errors |
-| **Status** | COMPLETE — repo is hardened, all tests pass, docs updated |
-| **FourState** | CODE_COMPLETE / TEST_VERIFIED (1605) / LINT_VERIFIED / DOCS_UPDATED / PRODUCTION not claimed |
 
 ### 2026-09-18 — Budget Contention Policies + Per-Goal Limit Enforcement (COMPLETE)
 
