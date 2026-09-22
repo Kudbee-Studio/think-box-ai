@@ -1,0 +1,30 @@
+{
+  "base_commit": "43f8d04",
+  "checker": "cursor-cloud-pr127",
+  "completed_at": "2026-09-22T18:30:00Z",
+  "findings": [
+    {
+      "id": "F009",
+      "rank": 1,
+      "severity": "P1",
+      "title": "tests/e2e/ Phase 1 end-to-end coverage",
+      "status": "done",
+      "paths": [
+        "tests/e2e/hermetic_scaffold.py",
+        "tests/e2e/test_governed_runtime_loop.py",
+        "tests/e2e/README.md"
+      ],
+      "notes": "Deepened hermetic scaffold: admission, denial, tool-capability, verified task, five-subtask Think Job DAG; 11 e2e tests; F023 ModelProvider lifecycle still open"
+    }
+  ],
+  "pass_id": "pr127",
+  "prior_pass": "passes/2026-09-22-pr126.json",
+  "started_at": "2026-09-22T18:20:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2249,
+    "skipped": 8
+  },
+  "title": "PR127 — F009 Phase 1 governed runtime e2e (10 improvements)"
+}

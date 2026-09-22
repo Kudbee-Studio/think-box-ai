@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-22T18:30:00Z",
+      "checker": "cursor-cloud-pr127",
+      "commit_sha": "43f8d04fcdf52a5bf4376570fd0cfb5610cc8b2a",
+      "finding_ids": ["F009"],
+      "notes": "11 hermetic e2e tests + scaffold; full suite 2249 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-22T15:05:00Z",
       "checker": "cursor-cloud-pr126",
       "commit_sha": "f034d4ebf72ec341fd7afbcb3ed5e14bbd18b89f",
