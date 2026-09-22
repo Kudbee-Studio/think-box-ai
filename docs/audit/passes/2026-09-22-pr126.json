@@ -45,7 +45,9 @@
   "started_at": "2026-09-22T14:58:00Z",
   "suite": {
     "command": "python3 -m unittest discover tests/",
-    "note": "Counts recorded post-push on branch feat/pr126-f010-token-redact-and-p1"
+    "expected_failures": 3,
+    "ok": 2240,
+    "skipped": 8
   },
   "title": "PR126 — F010 doc redaction + P1 close-outs"
 }
