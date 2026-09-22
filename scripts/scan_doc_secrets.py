@@ -63,20 +63,26 @@ def line_allowed(line: str) -> bool:
     return any(token in line for token in ALLOW_SUBSTRINGS)
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def scan_file(path: Path) -> list[str]:
     violations: list[str] = []
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
         return [f"{path}: read error: {exc}"]
+    disp = _display_path(path)
     for line_no, line in enumerate(text.splitlines(), start=1):
         if line_allowed(line):
             continue
         for label, pattern in SECRET_PATTERNS:
             if pattern.search(line):
-                violations.append(
-                    f"{path.relative_to(REPO_ROOT)}:{line_no}: {label} pattern"
-                )
+                violations.append(f"{disp}:{line_no}: {label} pattern")
     return violations
 
 
