@@ -124,6 +124,8 @@ Current repository health, infrastructure status, known defects, and improvement
 | PR85 | #85 | ✅ MERGED |
 | PR91 | — (direct push) | ✅ MERGED |
 | PR92 | — (direct push) | ✅ MERGED |
+| PR125 audit ledger | #125 | ✅ MERGED |
+| PR126 doc redaction + P1 | #126 | 🔨 DRAFT |
 
 ### PR Workflow Notes
 - PR-Before-Work Rule enforced: every meaningful change requires a GitHub PR first.
@@ -161,7 +163,7 @@ Current repository health, infrastructure status, known defects, and improvement
 ## Security and Credential Hygiene
 
 - **No secrets in application source** ✅ (env injection at runtime)
-- **Historical tokens in AGENTS.md chronicle** ⚠️ — redaction tracked as audit **F010** (open)
+- **Historical tokens in AGENTS.md chronicle** ✅ — redacted in PR **#126**; gated by `scripts/scan_doc_secrets.py`
 - **All runtime secrets via environment** ✅
 - **Tool execution gated by permission checks** ✅
 - **Audit logs append-only** ✅
