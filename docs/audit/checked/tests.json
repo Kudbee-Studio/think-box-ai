@@ -1,0 +1,23 @@
+{
+  "area": "tests",
+  "items": [
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": ["F002", "F003"],
+      "notes": "Full suite 2235 OK locally (incl. test_audit_ledger)",
+      "path": "tests/",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": ["F009"],
+      "notes": "e2e directory empty except README scaffold",
+      "path": "tests/e2e/",
+      "status": "warn"
+    }
+  ]
+}

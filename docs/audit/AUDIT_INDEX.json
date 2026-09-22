@@ -1,0 +1,19 @@
+{
+  "areas": [
+    "architecture",
+    "agents",
+    "backend",
+    "deploy",
+    "docs",
+    "governance",
+    "providers",
+    "scheduler",
+    "security",
+    "tests"
+  ],
+  "last_updated": "2026-09-22T14:35:00Z",
+  "passes": [
+    "passes/2026-09-22-pr125.json"
+  ],
+  "version": 1
+}

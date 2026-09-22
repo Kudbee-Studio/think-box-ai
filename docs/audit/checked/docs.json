@@ -1,0 +1,23 @@
+{
+  "area": "docs",
+  "items": [
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": ["F003", "F004", "F012"],
+      "notes": "Counts and environment section corrected in PR #125",
+      "path": "docs/STATUS.md",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": ["F025"],
+      "notes": "Addendum references PR #125 pass",
+      "path": "docs/PREP.md",
+      "status": "pass"
+    }
+  ]
+}
