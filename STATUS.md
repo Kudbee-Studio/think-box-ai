@@ -1,3 +1,12 @@
+## PR #125 — Audit ledger (draft)
+
+- **Artifacts:** `docs/audit/` (index, pass `passes/2026-09-22-pr125.json`, checklists, checked areas)
+- **CLI:** `python3 scripts/audit_ledger.py list|mark-checked|stale`
+- **Canonical health:** `docs/STATUS.md` + `docs/CONTINUITY.md`
+- **Test gate (2026-09-22):** `python3 -m unittest discover tests/` → **2235 OK**, 8 skipped, 3 expected failures
+
+---
+
 ## CNC Manufacturing Intelligence Platform
 
 **Status:** Complete
@@ -27,7 +36,7 @@
 ### Tests
 
 - `tests/unit/test_cnc.py` — 68 tests
-- Full suite: 1605 tests, 6 skipped, 3 expected failures (canonical count)
+- Full suite: see PR #125 gate above (`docs/STATUS.md` for module breakdown)
 
 ## Experiment + Learning Dashboard
 

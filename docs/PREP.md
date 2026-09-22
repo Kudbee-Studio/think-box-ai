@@ -1,6 +1,14 @@
 # PREP — Handoff & Readiness Brief
 
 **Date:** 2026-09-15
+
+> ## ADDENDUM — 2026-09-22 (PR #125 audit)
+>
+> **Branch:** `feat/pr125-audit-ledger-and-25-fixes` (draft PR #125).  
+> **Test gate:** `python3 -m unittest discover tests/` → **2235 OK**, 8 skipped, 3 expected failures.  
+> **Audit artifacts:** `docs/audit/README.md`, `docs/audit/passes/2026-09-22-pr125.json`, `scripts/audit_ledger.py`.  
+> **Deploy:** Vercel preview blocked in agent env — see `docs/audit/checklists/deploy-vercel.md` (finding F018).  
+> Canonical narrative: `docs/CONTINUITY.md` + `docs/STATUS.md`.
 **Repo:** `Kudbee-Studio/think-box-ai`
 **Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
 

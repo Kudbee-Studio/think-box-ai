@@ -1,0 +1,23 @@
+{
+  "area": "security",
+  "items": [
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": ["F010", "F011"],
+      "notes": "Runtime code uses env injection; chronicle token redaction still open",
+      "path": "AGENTS.md",
+      "status": "warn"
+    },
+    {
+      "checked_at": "2026-09-22T14:35:00Z",
+      "checker": "cursor-cloud-pr125",
+      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "finding_ids": [],
+      "notes": "HTTP clients use explicit timeouts in thinkbox/core providers sampled",
+      "path": "thinkbox/",
+      "status": "pass"
+    }
+  ]
+}

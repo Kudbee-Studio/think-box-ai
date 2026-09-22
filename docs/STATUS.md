@@ -23,9 +23,10 @@ Current repository health, infrastructure status, known defects, and improvement
 - **Current role**: Read-only control plane via `https://api.upcloud.com/1.3` (GET servers).
 
 ### Upstash Vector (Session Memory)
-- **Status**: ❌ **Writes rejected**
-- **REST endpoint**: `UPSTASH_VECTOR_REST_URL` present, `UPSTASH_VECTOR_REST_TOKEN` present
-- **Error**: HTTP 422 "This index requires dense vectors" (client sends no vector; no embedding provider exists)
+- **Status**: ⚠️ **Client path TEST_VERIFIED; live writes environment-dependent**
+- **REST endpoint**: `UPSTASH_VECTOR_REST_URL` / `UPSTASH_VECTOR_REST_TOKEN` via env
+- **Client**: `OpenAICompatEmbedder` + dense `vector` on upsert; failures raise `EmbeddingError` (fail-closed, PR #67)
+- **Live**: Requires working embedder credentials; not re-verified in PR #125 agent environment
 
 ### Inception (Mercury 2) — Model Provider
 - **Status**: ✅ **LIVE VERIFIED at swarm scale**
@@ -55,7 +56,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 ## Known Defects (As of 2026-09-21)
 
-1. **Upstash Vector writes** (`HTTP 422 "This index requires dense vectors"`) — no embedding provider configured
+1. **Upstash Vector live writes** — embedder + dense upsert implemented; live index/credentials not verified in PR #125
 2. **UpCloud compute access** (`401 API token`) — no SSH key on disk, network blocked by Cloudflare
 3. **`tests/e2e/` directory** empty — Phase 1 requirement for end-to-end tests not yet fulfilled
 4. **Solana CLI not installed** — environment issue, unrelated to core Think Box functionality
@@ -67,7 +68,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2224 | ✅ | 7 | 3 | ✅ PASS |
+| All unit + integration | 2235 | ✅ | 8 | 3 | ✅ PASS (PR #125 gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |
@@ -159,38 +160,30 @@ Current repository health, infrastructure status, known defects, and improvement
 
 ## Security and Credential Hygiene
 
-- **Zero credentials in code** ✅
-- **All secrets injected via environment** ✅
+- **No secrets in application source** ✅ (env injection at runtime)
+- **Historical tokens in AGENTS.md chronicle** ⚠️ — redaction tracked as audit **F010** (open)
+- **All runtime secrets via environment** ✅
 - **Tool execution gated by permission checks** ✅
 - **Audit logs append-only** ✅
+- **Repo audit ledger** ✅ `docs/audit/` + `scripts/audit_ledger.py` (PR #125)
 
 ---
 
 ## Environment Consistency
 
-### Correct Python Runtime
+### Python runtime
 
-**All KUDBEE orchestrations MUST use this exact interpreter:**
+Use **Python 3.10+** (`python3` on PATH). Cloud agents and local dev may use different virtualenv paths; do not hard-code session-specific interpreter paths in docs.
+
+**Canonical test gate:**
+
 ```bash
-/workspace/bcdfac4f-1903-4a17-8abf-0b10fd495578/sessions/agent_0c8313fa-a5aa-428f-929c-95a1f71a6876/.venv/bin/python3
+python3 -m unittest discover tests/
 ```
 
-### Dependency Verification (in orchestrator startup)
-```python
-def _verify_environment() -> None:
-    required = ["fastapi", "uvicorn", "pytest", "aiohttp", "websockets"]
-    missing = []
-    for dep in required:
-        try:
-            __import__(dep.replace("-", "_"))
-        except ImportError:
-            missing.append(dep)
-    if missing:
-        raise RuntimeError(
-            f"ENVIRONMENT_UNAVAILABLE: Missing dependencies in {sys.executable}: {missing}. "
-            f"Expected interpreter: /workspace/.../.venv/bin/python3"
-        )
-```
+### Optional backend stack
+
+FastAPI backend dependencies live in `backend/requirements.txt`. CI currently runs the unittest suite only (see audit **F014**).
 
 ---
 
@@ -209,7 +202,8 @@ def _verify_environment() -> None:
 - **UpCloud control-plane only** ✅
 - **Think Burst protocol** ✅
 - **Dashboard pipeline view** ✅
-- **Swarm 100 agents (live)** ✅ (132/132 OK, 19.4 RPS)
+- **Swarm baseline (live)** ✅ (112/132 OK, 20× HTTP 503 transient — see CONTINUITY)
+- **PR #125 audit ledger** ✅ (25 ranked findings; deploy preview blocked — F018)
 
 ---
 

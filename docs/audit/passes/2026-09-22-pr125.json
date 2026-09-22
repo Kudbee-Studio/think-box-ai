@@ -1,0 +1,241 @@
+{
+  "base_commit": "60f27dfa096f952c8c10bbb3464ff945afface21",
+  "checker": "cursor-cloud-pr125",
+  "completed_at": "2026-09-22T14:35:00Z",
+  "findings": [
+    {
+      "id": "F001",
+      "rank": 1,
+      "severity": "P0",
+      "title": "Missing docs/audit tracking filesystem",
+      "status": "done",
+      "paths": ["docs/audit/"],
+      "notes": "Added README, index, passes, checklists, checked/"
+    },
+    {
+      "id": "F002",
+      "rank": 2,
+      "severity": "P0",
+      "title": "No audit_ledger.py CLI (list / mark-checked / stale)",
+      "status": "done",
+      "paths": ["scripts/audit_ledger.py", "tests/unit/test_audit_ledger.py"],
+      "notes": "Hermetic unit tests; git-aware stale detection"
+    },
+    {
+      "id": "F010",
+      "rank": 3,
+      "severity": "P0",
+      "title": "Literal infrastructure tokens in AGENTS.md chronicle",
+      "status": "open",
+      "paths": ["AGENTS.md"],
+      "notes": "Redact to env-var placeholders; ADR + scripted scan recommended"
+    },
+    {
+      "id": "F011",
+      "rank": 4,
+      "severity": "P1",
+      "title": "docs/STATUS.md claims zero credentials while chronicle lists tokens",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Security section now distinguishes code vs historical chronicle"
+    },
+    {
+      "id": "F012",
+      "rank": 5,
+      "severity": "P1",
+      "title": "Ephemeral agent venv path baked into docs/STATUS.md",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Replaced with portable python3 guidance"
+    },
+    {
+      "id": "F003",
+      "rank": 6,
+      "severity": "P1",
+      "title": "CONTINUITY.md test counts behind full suite",
+      "status": "done",
+      "paths": ["docs/CONTINUITY.md"],
+      "notes": "Synced to 2235 OK (8 skipped, 3 xfail) after PR #125 run"
+    },
+    {
+      "id": "F004",
+      "rank": 7,
+      "severity": "P1",
+      "title": "docs/STATUS.md suite table stale (2224)",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Updated suite row + PR #125 reference"
+    },
+    {
+      "id": "F005",
+      "rank": 8,
+      "severity": "P1",
+      "title": "Root STATUS.md canonical test count stale (1605)",
+      "status": "done",
+      "paths": ["STATUS.md"],
+      "notes": "Added PR #125 audit pointer and current gate command"
+    },
+    {
+      "id": "F006",
+      "rank": 9,
+      "severity": "P1",
+      "title": "docs/PREP.md header test counts obsolete",
+      "status": "open",
+      "paths": ["docs/PREP.md"],
+      "notes": "Addendum added; full PREP rewrite deferred"
+    },
+    {
+      "id": "F007",
+      "rank": 10,
+      "severity": "P1",
+      "title": "Known defect #1 still claims Vector writes lack embedder",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Fail-closed EmbeddingError + dense vectors path exists (PR #67)"
+    },
+    {
+      "id": "F008",
+      "rank": 11,
+      "severity": "P1",
+      "title": "Conflicting swarm OK rates in docs/STATUS snapshot (132/132 vs 112/132)",
+      "status": "done",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Aligned AGENTS snapshot with measured baseline"
+    },
+    {
+      "id": "F009",
+      "rank": 12,
+      "severity": "P1",
+      "title": "tests/e2e/ missing Phase 1 end-to-end coverage",
+      "status": "open",
+      "paths": ["tests/e2e/"],
+      "notes": "README scaffold only; mock-provider e2e loop still TODO"
+    },
+    {
+      "id": "F015",
+      "rank": 13,
+      "severity": "P1",
+      "title": "Deploy topology (static + Express + FastAPI) undocumented",
+      "status": "done",
+      "paths": ["docs/audit/checklists/deploy-vercel.md"],
+      "notes": "Vercel checklist + blockers recorded"
+    },
+    {
+      "id": "F013",
+      "rank": 14,
+      "severity": "P2",
+      "title": "docs/STATUS PR table stops at legacy KILO map",
+      "status": "open",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Extend through PR #124/#125 in follow-up"
+    },
+    {
+      "id": "F014",
+      "rank": 15,
+      "severity": "P2",
+      "title": "CI runs unittest only; backend FastAPI stack not installed in workflow",
+      "status": "open",
+      "paths": [".github/workflows/test.yml", "backend/requirements.txt"],
+      "notes": "Optional job with pip install -r backend/requirements.txt"
+    },
+    {
+      "id": "F016",
+      "rank": 16,
+      "severity": "P2",
+      "title": "No CI gate for audit_ledger stale checks",
+      "status": "open",
+      "paths": ["scripts/audit_ledger.py"],
+      "notes": "Founder may add non-blocking stale report on docs/audit changes"
+    },
+    {
+      "id": "F017",
+      "rank": 17,
+      "severity": "P2",
+      "title": "AGENTS.md chronicle duplicates long operational history",
+      "status": "open",
+      "paths": ["AGENTS.md", "docs/CONTINUITY.md"],
+      "notes": "Trim AGENTS to rules; move narrative to CONTINUITY only"
+    },
+    {
+      "id": "F018",
+      "rank": 18,
+      "severity": "P2",
+      "title": "No vercel.json / preview deploy evidence",
+      "status": "done",
+      "paths": ["apps/web/", "public/control-plane/"],
+      "notes": "Blocked: no VERCEL creds in agent env; documented only"
+    },
+    {
+      "id": "F019",
+      "rank": 19,
+      "severity": "P2",
+      "title": "apps/web lacks deployment hardening guide",
+      "status": "open",
+      "paths": ["apps/web/server.ts"],
+      "notes": "TLS termination, auth, and WS scaling not documented"
+    },
+    {
+      "id": "F022",
+      "rank": 20,
+      "severity": "P2",
+      "title": "Dashboard telemetry gaps (verify_instrumentation not 11/11 in all envs)",
+      "status": "open",
+      "paths": ["experiments/verify_instrumentation.py"],
+      "notes": "Re-run live when substrate creds available"
+    },
+    {
+      "id": "F023",
+      "rank": 21,
+      "severity": "P2",
+      "title": "Think Job full lifecycle e2e not automated",
+      "status": "open",
+      "paths": ["tests/e2e/"],
+      "notes": "Depends on F009"
+    },
+    {
+      "id": "F024",
+      "rank": 22,
+      "severity": "P2",
+      "title": "UpCloud section mixes historical 401 with kudbeev3 API inventory",
+      "status": "open",
+      "paths": ["docs/STATUS.md"],
+      "notes": "Consolidate with ADR 004 + substrate decision"
+    },
+    {
+      "id": "F020",
+      "rank": 23,
+      "severity": "P3",
+      "title": "Control-plane static assets cache policy undefined",
+      "status": "open",
+      "paths": ["public/control-plane/"],
+      "notes": "CDN cache headers for pipeline_dashboard polling"
+    },
+    {
+      "id": "F021",
+      "rank": 24,
+      "severity": "P3",
+      "title": "Solana CLI absent in default dev image",
+      "status": "open",
+      "paths": ["core/solana/"],
+      "notes": "Environment-only; core paths guarded"
+    },
+    {
+      "id": "F025",
+      "rank": 25,
+      "severity": "P3",
+      "title": "PREP addendum date not tied to audit pass",
+      "status": "done",
+      "paths": ["docs/PREP.md"],
+      "notes": "PR #125 addendum block added"
+    }
+  ],
+  "pass_id": "pr125",
+  "started_at": "2026-09-22T14:00:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2235,
+    "skipped": 8
+  },
+  "title": "Founder Zero full-repo audit — ledger + 25 ranked fixes"
+}
