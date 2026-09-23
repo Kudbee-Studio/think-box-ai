@@ -18,6 +18,7 @@ PR #161 adds ``end_link_api_ops_harden`` (API/ops harden after #160; not Live pr
 PR #162 adds ``control_plane_e2e_deepen`` (hermetic control-plane e2e suite after #161; not Live proof).
 PR #162 also retains ``receipt_chain_end_link_era_close`` (era audit pack #154–#161; not Live proof).
 PR #164 adds ``governance_evidence_live_proof_readiness`` (governance-evidence Live-proof readiness; not Live proof).
+PR #165 adds ``pr165_combined_harden_era_chronicle`` (live-smoke audit-flip harden + post-#164 control-plane deepen + receipt-chain season harden + #154–#164 era chronicle; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -206,6 +207,9 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_receipt_chain_end_link_era_close import (
         receipt_chain_end_link_era_close_contract_summary,
     )
+    from thinkbox.kilo_pr165_combined_harden_era_chronicle import (
+        pr165_combined_harden_era_chronicle_contract_summary,
+    )
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -236,6 +240,7 @@ def spine_contract_summary() -> dict[str, object]:
     governance_evidence_live_proof_readiness_summary = (
         governance_evidence_live_proof_readiness_contract_summary()
     )
+    pr165_combined_summary = pr165_combined_harden_era_chronicle_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -291,4 +296,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr162_gate_id": control_plane_e2e_deepen_summary.get("pr162_gate_id"),
         "governance_evidence_live_proof_readiness": governance_evidence_live_proof_readiness_summary,
         "pr164_gate_id": governance_evidence_live_proof_readiness_summary.get("pr164_gate_id"),
+        "pr165_combined_harden_era_chronicle": pr165_combined_summary,
+        "pr165_gate_id": pr165_combined_summary.get("pr165_gate_id"),
     }

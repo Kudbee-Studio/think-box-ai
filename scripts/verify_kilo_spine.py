@@ -85,6 +85,9 @@ def main() -> int:
     gov_evidence_readiness_block = summary.get("governance_evidence_live_proof_readiness") or {}
     if not gov_evidence_readiness_block.get("hermetic_operator_ok"):
         return 1
+    pr165_block = summary.get("pr165_combined_harden_era_chronicle") or {}
+    if not pr165_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
