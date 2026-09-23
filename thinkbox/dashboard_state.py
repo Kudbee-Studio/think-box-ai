@@ -333,6 +333,11 @@ class DashboardState:
         self.test_milestones[milestone.test_name] = milestone
 
     def get_state(self) -> dict[str, Any]:
+        receipt_linked = sum(
+            1
+            for j in self.think_jobs.values()
+            if j.receipt_id and j.experiment_id and j.session_id
+        )
         return {
             "think_boxes": [b.model_dump() for b in self.think_boxes.values()],
             "think_jobs": [j.model_dump() for j in self.think_jobs.values()],
@@ -341,6 +346,10 @@ class DashboardState:
             "providers": [p.model_dump() for p in self.providers.values()],
             "test_milestones": [t.model_dump() for t in self.test_milestones.values()],
             "events": [e.model_dump() for e in self.events[-100:]],
+            "think_job_receipt_summary": {
+                "tracked": len(self.think_jobs),
+                "receipt_linked": receipt_linked,
+            },
             "summary": {
                 "total_think_boxes": len(self.think_boxes),
                 "total_think_jobs": len(self.think_jobs),
