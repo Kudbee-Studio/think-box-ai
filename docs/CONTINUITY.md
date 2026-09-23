@@ -36,24 +36,32 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#145 merged** (spine through governance-evidence). **PR #144 merged:** CI/post-merge fix. **PR #146 (draft):** `mercury-hermetic` (`thinkbox/kilo_mercury_hermetic.py`). |
+| **Latest completed work** | **PR #141–#146 merged** (spine through mercury-hermetic). **PR #144 merged:** CI/post-merge fix. **PR #147 (draft):** `swarm-instrumentation` (`thinkbox/kilo_swarm_instrumentation.py`). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **PR #147:** close `swarm-instrumentation` gate (11/11 verify prereq). |
-| **PR status** | PR #141–#145 merged; PR #146 draft (`mercury-hermetic`) |
+| **Next larger improvement** | **PR #148:** close `proof-schema` gate (KILO live proof JSON schema). |
+| **PR status** | PR #141–#146 merged; PR #147 draft (`swarm-instrumentation`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #146 draft: KILO mercury-hermetic gate (#141–#150 arc)
+### 2026-09-23 — PR #147 draft: KILO swarm-instrumentation gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`, `scripts/verify_kilo_swarm_instrumentation.py`, spine wiring, runbook H11, pr147 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr147`; `verify_kilo_swarm_instrumentation.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr147.json` |
+
+### 2026-09-23 — PR #146 merged: KILO mercury-hermetic gate (#141–#150 arc)
 
 | Field | Value |
 |---|---|
 | **Scope** | `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py`, spine wiring, runbook H10, pr146 tests |
-| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
 | **Tests** | `test_kilo_live_proof_readiness_pr146`; `verify_kilo_mercury_hermetic.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr146.json` |
 
 ### 2026-09-23 — PR #145 merged: KILO governance-evidence gate (#141–#150 arc)
