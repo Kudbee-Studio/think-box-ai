@@ -11,6 +11,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
@@ -38,6 +39,12 @@ from backend.api.v1.run_job_status import (
     resolve_think_job_by_receipt,
     resolve_think_job_record,
     status_payload_etag,
+)
+from backend.api.v1.run_job_status_stream import (
+    clamp_stream_query_params,
+    iter_jobs_status_stream,
+    iter_think_job_status_stream,
+    iter_think_job_status_stream_by_receipt,
 )
 from thinkbox.read_cache import weak_etag_from_payload
 from thinkbox.session import create_session, get_current_session, sync_session, clear_session
@@ -275,6 +282,26 @@ async def think_job_status_digest(request: Request, limit: int = 50) -> Any:
     limit = max(1, min(limit, 200))
     body = list_think_job_status_digest(limit=limit)
     return conditional_json_response(request, body, etag=_dashboard_state.revision_etag())
+
+
+@api_v1_router.get("/run/job/{engine_id}/status/stream")
+async def stream_think_job_poll_status(
+    engine_id: str,
+    max_events: int = 64,
+    timeout_s: float = 120.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    """Hermetic SSE: incremental Think Job status deltas (poll → push)."""
+    try:
+        resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_think_job_status_stream(engine_id, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @api_v1_router.get("/dashboard/state/summary")
