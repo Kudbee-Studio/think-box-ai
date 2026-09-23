@@ -1,7 +1,19 @@
 {
   "base_commit": "b0e48bf",
   "checker": "cursor-cloud-pr132",
-  "completed_at": "2026-09-23T06:15:00Z",
+  "completed_at": "2026-09-23T06:35:00Z",
+  "commit_rollup": [
+    "refactor(api): reuse admission GovernedEngine shell for shared ledger",
+    "feat(api): validate verified subtask shape before governance admission",
+    "feat(api): accept X-Capability header on governed POST /run",
+    "feat(api): GET /run/governance/status and admission summary fields",
+    "test(e2e): align parse_run_admission calls with header capability",
+    "test(unit): cover run_governed admission parsing and status snapshot",
+    "test(e2e): governance status, subtask 422, expired and revoked identity",
+    "chore(api): drop unused ModelConfig import from run_governed",
+    "docs(guides): governed POST /run HTTP admission contract",
+    "docs(audit): pr132 follow-on commit rollup and suite bump"
+  ],
   "findings": [
     {
       "id": "F132-GOVERNED-RUN",
@@ -69,7 +81,7 @@
   "suite": {
     "command": "python3 -m unittest discover tests/",
     "expected_failures": 3,
-    "ok": 2343,
+    "ok": 2354,
     "skipped": 7
   },
   "title": "PR132 — governed hermetic POST /run admission + ledger (~25 improvements)"
