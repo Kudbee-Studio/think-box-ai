@@ -36,17 +36,35 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#163 on main** (#163 = control-plane E2E deepen merge). **PR #164 (draft):** governance-evidence Live-proof readiness gate. |
+| **Latest completed work** | **PR #141–#164 on main** (#164 = governance-evidence Live-proof readiness). **PR #165 (draft):** combined harden + #154–#164 era chronicle. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **Founder-run KILO Live proof** per runbook; **PR #164 draft:** governance-evidence Live-proof readiness. |
-| **PR status** | PR #141–#163 merged; PR #164 draft (`governance-evidence-live-proof-readiness`) |
+| **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
+| **PR status** | PR #141–#164 merged; PR #165 draft (`pr165-combined-harden-era-chronicle`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — PR #165 draft: combined harden + #154–#164 era chronicle (after #164)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_smoke_audit_flip_correlation` + audit-flip harden; Theme B: `control_plane_post164_deepen`; Theme C: `receipt_chain_end_link_season_harden`; Theme D: `docs/audit/passes/2026-09-23-pr154-164-era-chronicle.json` + `docs/CONTINUITY.md` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr165_combined_harden.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr165 tests.unit.test_live_smoke_audit_flip_correlation -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr165.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #164 merged: governance-evidence Live-proof readiness (after #163)
+
+| Field | Value |
+|---|---|
+| **Scope** | `governance_evidence_live_proof_readiness`, `kilo_governance_evidence_live_proof_readiness` gate — on `main` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Audit** | `docs/audit/passes/2026-09-23-pr164.json` |
 
 ### 2026-09-23 — PR #164 draft: governance-evidence Live-proof readiness (after #163)
 
