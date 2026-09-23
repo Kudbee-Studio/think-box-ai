@@ -1,0 +1,49 @@
+{
+  "pass_id": "pr147",
+  "title": "PR147 — KILO swarm-instrumentation gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr146.json",
+  "started_at": "2026-09-23T19:00:00Z",
+  "completed_at": "2026-09-23T20:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr147",
+  "base_commit": "dbc01a9",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr147 -v",
+    "pr147_tests": 28,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "swarm_verify": "python3 scripts/verify_kilo_swarm_instrumentation.py OK",
+    "instrumentation_verify": "python3 experiments/verify_instrumentation.py 10/10 OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/swarm_instrumentation_checks shared hermetic instruments",
+    "thinkbox/kilo_swarm_instrumentation contract module",
+    "eleven entry catalog with live swarm deferred",
+    "layer on mercury-hermetic operator check",
+    "hermetic modes live_api_called false",
+    "hermetic_swarm_operator_check spine-safe",
+    "swarm_instrumentation_contract_summary JSON",
+    "swarm_instrumentation_gate_closed helper",
+    "spine_contract_summary swarm_instrumentation block",
+    "pr147_gate_id in spine summary",
+    "scripts/verify_kilo_swarm_instrumentation.py operator helper",
+    "verify_kilo_spine swarm gate",
+    "unit tests pr147 hermetic and deny paths",
+    "runbook swarm-instrumentation section H11",
+    "arc doc PR #147 swarm-instrumentation",
+    "CONTINUITY STATUS AGENTS pr147 entries",
+    "audit checklist kilo-swarm-instrumentation-pr147",
+    "audit pass pr147 + AUDIT_INDEX",
+    "ADR 006 swarm instrumentation decision",
+    "hermetic only no live Mercury GPU deploy",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #148 proof-schema next"
+  ]
+}

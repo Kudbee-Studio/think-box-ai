@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
+**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -59,8 +59,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H8 | KILO substrate checklist operator gate (`scripts/verify_kilo_substrate_checklist.py` exit 0) | PR #143 tests |
 | H9 | KILO governance-evidence operator gate (`scripts/verify_kilo_governance_evidence.py` exit 0) | PR #145 tests |
 | H10 | KILO mercury-hermetic operator gate (`scripts/verify_kilo_mercury_hermetic.py` exit 0) | PR #146 tests |
+| H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#146 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#147 hermetic gates.
 
 ---
 
@@ -73,8 +74,8 @@ No `INCEPTION_API_KEY` consumption is required for #141–#146 hermetic gates.
 | **143** | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | **Merged** |
 | **144** | CI/post-merge unittest discover green (bot merge; no arc gate closure) | `ci-post-merge` | **Merged** |
 | **145** | Governance token + admission evidence shape for live burst | `governance-evidence` | **Merged** |
-| **146** | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #146 |
-| 147 | Swarm instrumentation verify (11/11) as prereq gate | `swarm-instrumentation` | #147 |
+| **146** | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | **Merged** |
+| **147** | Swarm instrumentation verify (11/11 hermetic catalog) as prereq gate | `swarm-instrumentation` | #147 |
 | 148 | Ledger + proof JSON schema for KILO live artifact | `proof-schema` | #148 |
 | 149 | Dashboard / control-plane Live proof slots (hermetic) | `dashboard-slots` | #149 |
 | 150 | Integrated rehearsal + **Live proof execution** runbook + founder ack (`THINKBOX_SWARM_LIVE_ACK`; still earns LIVE VERIFIED only when run) | `live-proof-exec` | #150 |
@@ -102,10 +103,11 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
+- Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
 
 ---
 
@@ -182,6 +184,24 @@ Summaries redact via `redact_secret_value` / `redact_mercury_summary`.
 
 ---
 
+## Swarm-instrumentation gate (PR #147)
+
+Gate ID: **`swarm-instrumentation`**. Hermetic only — layers on **`mercury-hermetic`**
+(calls `hermetic_mercury_operator_check` first). Wraps ten self-contained instrumentation
+checks from `thinkbox/swarm_instrumentation_checks` (shared with
+`experiments/verify_instrumentation.py`) plus an eleventh catalog entry:
+**live swarm deferred** (the optional `--live` swarm path is never run in this gate).
+
+| Check band | Expectation |
+|------------|-------------|
+| `inst-01` … `inst-10` | Hermetic instrument checks (10/10 pass) |
+| `inst-11` | Verifier script present; `live_swarm_invoked=false`; `live_api_called=false` |
+
+Operator verify fails closed on production-shaped provider keys without mercury mock.
+Summaries redact via `redact_secret_value` / `redact_swarm_summary`.
+
+---
+
 ## Verification commands
 
 ```bash
@@ -190,13 +210,15 @@ python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr147 -v
 python3 scripts/verify_kilo_env_matrix.py
 python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_governance_evidence.py
 python3 scripts/verify_kilo_mercury_hermetic.py
+python3 scripts/verify_kilo_swarm_instrumentation.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #146 mercury-hermetic — hermetic only; Live proof not executed.
+**Revision:** PR #147 swarm-instrumentation — hermetic only; Live proof not executed.
