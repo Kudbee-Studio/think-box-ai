@@ -28,6 +28,7 @@
     "refactor(job-status): sqlite fallback when dashboard cleared",
     "docs(status): PR134 four-state honesty footer"
   ],
+  "code_review_completed_at": "2026-09-23T18:30:00Z",
   "completed_at": "2026-09-23T18:00:00Z",
   "pass_id": "pr134",
   "prior_pass": "passes/2026-09-23-pr133.json",
