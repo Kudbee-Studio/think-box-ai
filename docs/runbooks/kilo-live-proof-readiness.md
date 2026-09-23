@@ -73,8 +73,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H22 | KILO end-link-operator-ux gate (`scripts/verify_kilo_end_link_operator_ux.py` exit 0) | PR #159 tests |
 | H23 | KILO receipt-chain-end-link-docs gate (`scripts/verify_kilo_receipt_chain_end_link_docs.py` exit 0) | PR #160 tests |
 | H24 | KILO governance-evidence Live-proof readiness gate (`scripts/verify_kilo_governance_evidence_live_proof_readiness.py` exit 0) | PR #164 tests |
+| H25 | KILO PR #165 combined harden + era chronicle (`scripts/verify_kilo_pr165_combined_harden.py` exit 0) | PR #165 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#164 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#165 hermetic gates.
 
 ---
 
