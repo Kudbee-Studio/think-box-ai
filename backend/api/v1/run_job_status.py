@@ -15,6 +15,7 @@ from backend.api.v1.run_receipts import (
     redact_receipt_payload,
 )
 from thinkbox.dashboard_state import ThinkJobEntry, get_dashboard_state
+from thinkbox.read_cache import weak_etag_from_payload
 
 STATUS_SCHEMA_VERSION = "think_job_status_v1"
 
@@ -23,12 +24,14 @@ __all__ = [
     "ThinkJobNotFoundError",
     "build_receipt_link_card",
     "build_think_job_status_payload",
+    "build_think_job_status_summary",
     "job_status_snapshot_for_governance",
     "list_recent_think_job_statuses",
     "poll_hints_for_status",
     "redact_status_payload",
     "resolve_think_job_by_receipt",
     "resolve_think_job_record",
+    "status_payload_etag",
 ]
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 DEFAULT_POLL_INTERVAL_MS = 250
@@ -212,6 +215,51 @@ def _entry_to_record(entry: ThinkJobEntry, *, source: str) -> dict[str, Any]:
     }
 
 
+def status_payload_etag(payload: dict[str, Any]) -> str:
+    """ETag for a single job status document (includes receipt_card)."""
+    return weak_etag_from_payload(
+        {
+            "job_id": payload.get("job_id"),
+            "status": payload.get("status"),
+            "phase": payload.get("phase"),
+            "progress": payload.get("progress"),
+            "tasks_total": payload.get("tasks_total"),
+            "tasks_completed": payload.get("tasks_completed"),
+            "receipt": payload.get("receipt"),
+        }
+    )
+
+
+def build_think_job_status_summary(record: dict[str, Any]) -> dict[str, Any]:
+    """Minimal poll payload — skips receipt_card and heavy result blobs."""
+    status = str(record.get("status") or "unknown")
+    job_id = str(record.get("job_id") or record.get("engine_id") or "")
+    return redact_status_payload(
+        {
+            "job_id": job_id,
+            "engine_id": record.get("engine_id") or job_id,
+            "status": status,
+            "phase": record.get("phase") or "",
+            "progress": float(record.get("progress") or 0.0),
+            "receipt": {
+                "receipt_id": str(record.get("receipt_id") or ""),
+                "experiment_id": str(record.get("experiment_id") or ""),
+                "session_id": str(record.get("session_id") or ""),
+                "linked": bool(
+                    record.get("receipt_id") and record.get("experiment_id") and record.get("session_id")
+                ),
+            },
+            "poll": poll_hints_for_status(status),
+            "tasks_total": int(record.get("tasks_total") or 0),
+            "tasks_completed": int(record.get("tasks_completed") or 0),
+            "source": record.get("source") or "dashboard",
+            "four_state": HTTP_RUN_FOUR_STATE,
+            "live_verified": False,
+            "production_ready": False,
+        }
+    )
+
+
 def build_think_job_status_payload(
     record: dict[str, Any],
     *,
@@ -261,15 +309,41 @@ def build_think_job_status_payload(
     return redact_status_payload(payload)
 
 
-def list_recent_think_job_statuses(limit: int = 50) -> list[dict[str, Any]]:
+def list_recent_think_job_statuses(
+    limit: int = 50,
+    *,
+    detail: str = "full",
+) -> list[dict[str, Any]]:
     dashboard = get_dashboard_state()
     jobs = list(dashboard.think_jobs.values())
     jobs.sort(key=lambda j: j.started_at, reverse=True)
     out: list[dict[str, Any]] = []
+    use_summary = detail == "summary"
     for entry in jobs[: max(1, min(limit, 200))]:
         record = _entry_to_record(entry, source="dashboard")
-        out.append(build_think_job_status_payload(record))
+        if use_summary:
+            out.append(build_think_job_status_summary(record))
+        else:
+            out.append(build_think_job_status_payload(record))
     return out
+
+
+def list_think_job_status_digest(limit: int = 50) -> dict[str, Any]:
+    """Counts-only list response for dashboard boot (no per-job cards)."""
+    dashboard = get_dashboard_state()
+    jobs = list(dashboard.think_jobs.values())
+    jobs.sort(key=lambda j: j.started_at, reverse=True)
+    capped = jobs[: max(1, min(limit, 200))]
+    running = sum(1 for j in capped if j.status not in TERMINAL_STATUSES)
+    return {
+        "count": len(capped),
+        "running": running,
+        "terminal": len(capped) - running,
+        "dashboard_revision": dashboard.revision(),
+        "poll_schema_version": STATUS_SCHEMA_VERSION,
+        "live_verified": False,
+        "production_ready": False,
+    }
 
 
 def job_status_snapshot_for_governance() -> dict[str, Any]:

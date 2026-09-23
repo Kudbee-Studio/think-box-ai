@@ -27,6 +27,7 @@ from thinkbox.dashboard_state import (
     ThinkJobEntry,
     get_dashboard_state,
 )
+from thinkbox.read_cache import receipt_cache, reset_read_caches_for_tests
 
 DEFAULT_HTTP_RUN_DB = "data/thinkboxmd/db/http_run_experiments.db"
 DEFAULT_HTTP_RUN_ARTIFACTS = "data/thinkboxmd/artifacts/http_run"
@@ -63,9 +64,16 @@ class HttpRunPersistence:
     db_path: str
     artifacts_dir: Path
     _engine_index: dict[str, str] = field(default_factory=dict, repr=False)
+    _receipt_experiment_index: dict[str, str] = field(default_factory=dict, repr=False)
 
     def index_engine(self, engine_id: str, receipt_id: str) -> None:
         self._engine_index[engine_id] = receipt_id
+
+    def index_receipt_experiment(self, receipt_id: str, experiment_id: str) -> None:
+        self._receipt_experiment_index[receipt_id] = experiment_id
+
+    def experiment_for_receipt(self, receipt_id: str) -> str | None:
+        return self._receipt_experiment_index.get(receipt_id)
 
     def receipt_for_engine(self, engine_id: str) -> str | None:
         return self._engine_index.get(engine_id)
@@ -114,6 +122,7 @@ def reset_http_run_persistence_for_tests(
         db_path=db_path,
         artifacts_dir=Path(artifacts_dir),
     )
+    reset_read_caches_for_tests()
     return _http_persistence
 
 
@@ -188,6 +197,8 @@ def begin_http_run_receipt(
         {"receipt_id": receipt_id, "admission_reason": admission_reason},
     )
     stack.index_engine(engine_id, receipt_id)
+    stack.index_receipt_experiment(receipt_id, experiment_id)
+    _invalidate_receipt_reads(receipt_id, engine_id)
     binding = HttpRunReceiptBinding(
         receipt_id=receipt_id,
         session_id=session_id,
@@ -325,6 +336,13 @@ def finalize_http_run_receipt(
                 "path": proof_path,
             },
         )
+    _invalidate_receipt_reads(binding.receipt_id, binding.engine_id)
+
+
+def _invalidate_receipt_reads(receipt_id: str, engine_id: str = "") -> None:
+    receipt_cache().invalidate(f"receipt:{receipt_id}")
+    if engine_id:
+        receipt_cache().invalidate(f"engine:{engine_id}")
 
 
 def write_simple_http_run_proof(
@@ -391,12 +409,17 @@ def _param_value(raw: Any) -> str:
 
 
 def _experiment_id_for_receipt(stack: HttpRunPersistence, receipt_id: str) -> str | None:
+    indexed = stack.experiment_for_receipt(receipt_id)
+    if indexed:
+        return indexed
     if stack.manager.db.get_experiment(receipt_id):
+        stack.index_receipt_experiment(receipt_id, receipt_id)
         return receipt_id
     for row in stack.manager.db.restart_recovery().get("recent_experiments", []):
         exp_id = row["experiment_id"]
         for p in stack.manager.db.get_parameters_by_experiment(exp_id):
             if p.get("name") == "receipt_id" and _param_value(p.get("value")) == receipt_id:
+                stack.index_receipt_experiment(receipt_id, exp_id)
                 return exp_id
     return None
 
@@ -438,7 +461,7 @@ def redact_receipt_payload(data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
+def _load_run_receipt_uncached(receipt_id: str) -> dict[str, Any] | None:
     stack = get_http_run_persistence()
     exp_id = _experiment_id_for_receipt(stack, receipt_id)
     if not exp_id:
@@ -448,10 +471,12 @@ def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
         return None
     params = stack.manager.db.get_parameters_by_experiment(exp_id)
     resolved_receipt = receipt_id
+    engine_id = ""
     for p in params:
         if p.get("name") == "receipt_id":
             resolved_receipt = _param_value(p.get("value")) or receipt_id
-            break
+        if p.get("name") == "engine_id":
+            engine_id = _param_value(p.get("value")) or ""
     outcome = stack.manager.db.get_outcomes_by_experiment(exp_id)
     lessons = stack.manager.db.get_lessons_by_experiment(exp_id)
     payload = {
@@ -465,15 +490,37 @@ def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
         "live_verified": False,
         "production_ready": False,
     }
-    return redact_receipt_payload(payload)
+    redacted = redact_receipt_payload(payload)
+    if engine_id:
+        stack.index_engine(engine_id, resolved_receipt)
+    return redacted
+
+
+def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
+    cache_key = f"receipt:{receipt_id}"
+    cached = receipt_cache().get(cache_key)
+    if cached is not None:
+        return dict(cached.value)
+    loaded = _load_run_receipt_uncached(receipt_id)
+    if loaded is None:
+        return None
+    receipt_cache().set(cache_key, loaded)
+    return loaded
 
 
 def read_run_receipt_by_engine(engine_id: str) -> dict[str, Any] | None:
+    cache_key = f"engine:{engine_id}"
+    cached = receipt_cache().get(cache_key)
+    if cached is not None:
+        return dict(cached.value)
     stack = get_http_run_persistence()
     receipt_id = _receipt_id_for_engine(stack, engine_id)
     if not receipt_id:
         return None
-    return read_run_receipt(receipt_id)
+    payload = read_run_receipt(receipt_id)
+    if payload is not None:
+        receipt_cache().set(cache_key, payload)
+    return payload
 
 
 async def emit_receipt_dashboard(

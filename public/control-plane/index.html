@@ -45,12 +45,15 @@
       <div class="cp-card"><div class="cp-label">Quarantined</div><div class="cp-value cp-status-ok" id="cp-quarantine">—</div></div>
       <div class="cp-card"><div class="cp-label">Active Leases</div><div class="cp-value cp-status-ok" id="cp-leases">—</div></div>
     </div>
+    <script src="load_perf.js"></script>
     <script>
       const AUTH = 'Bearer dev-only-local-token';
+      const etagStore = {};
       async function refresh() {
+        if (!TBLoadPerf.isDocumentVisible()) return;
         try {
-          const res = await fetch('/api/v1/control-plane/status', { headers: { Authorization: AUTH } });
-          const data = await res.json();
+          const result = await TBLoadPerf.fetchJsonConditional('/api/v1/control-plane/status', { headers: { Authorization: AUTH } }, etagStore);
+          const data = result.data;
           set('cp-admission', data.admission ? 'ADMITTED' : 'DENIED');
           set('cp-capacity', data.capacity && data.capacity.granted ? 'HELD' : 'NONE');
           set('cp-kill', data.kill_switch && data.kill_switch.killed ? 'KILLED' : 'OK');
@@ -60,7 +63,8 @@
         } catch(e) { /* mock mode */ set('cp-admission', 'MOCK'); set('cp-capacity', 'MOCK'); set('cp-kill', 'MOCK'); set('cp-budget', 'MOCK'); set('cp-quarantine', 'MOCK'); set('cp-leases', 'MOCK'); }
       }
       function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
-      refresh(); setInterval(refresh, 5000);
+      TBLoadPerf.createVisibilityPoller(refresh, 5000, 20000);
+      refresh();
     </script>
   </main>
 </body>

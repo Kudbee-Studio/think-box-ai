@@ -151,10 +151,10 @@
       <p style="color:var(--muted);font-size:0.85rem">Webhook admissions, verified receipts, blocked reasons.</p>
     </aside>
   </main>
+  <script src="load_perf.js"></script>
   <script>
     let overview = { prs: [] };
     let selectedPr = null;
-    let pollTimer = null;
 
     function headers() {
       const h = { Accept: 'application/json' };
@@ -219,17 +219,21 @@
       });
     }
 
+    const etagStore = {};
+
     async function selectPr(pr) {
       selectedPr = pr;
       renderTable();
       const panel = document.getElementById('detail');
       panel.innerHTML = '<h2>PR #' + pr + '</h2><p>Loading…</p>';
       try {
-        const res = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}`, { headers: headers() });
-        const data = await res.json();
+        const [detailRes, readinessRes] = await Promise.all([
+          TBLoadPerf.fetchJsonConditional(`/api/v1/control-plane/pipeline/pr/${pr}`, { headers: headers() }, etagStore),
+          TBLoadPerf.fetchJsonConditional(`/api/v1/control-plane/pipeline/pr/${pr}/merge-readiness`, { headers: headers() }, etagStore),
+        ]);
+        const data = detailRes.data;
         const s = data.summary || {};
-        const rr = await fetch(`/api/v1/control-plane/pipeline/pr/${pr}/merge-readiness`, { headers: headers() });
-        const readiness = await rr.json();
+        const readiness = readinessRes.data;
         const blocked = (s.blocked_reasons || []).map(r => `<li>${r}</li>`).join('') || '<li>none</li>';
         panel.innerHTML = `
           <h2>PR #${pr}</h2>
@@ -280,16 +284,21 @@
     }
 
     async function loadOverview() {
-      const res = await fetch('/api/v1/control-plane/pipeline', { headers: headers() });
-      overview = await res.json();
+      const result = await TBLoadPerf.fetchJsonConditional('/api/v1/control-plane/pipeline', { headers: headers() }, etagStore);
+      overview = result.data;
       renderBanners();
       renderTable();
     }
 
     async function pollDeltas() {
+      if (!TBLoadPerf.isDocumentVisible()) return;
       try {
-        const res = await fetch('/api/v1/control-plane/pipeline/poll/deltas', { headers: headers() });
-        const delta = await res.json();
+        const result = await TBLoadPerf.fetchJsonConditional('/api/v1/control-plane/pipeline/poll/deltas', { headers: headers() }, etagStore);
+        const delta = result.data;
+        if (result.cached && !delta.changed) {
+          document.getElementById('pollStatus').textContent = 'poll: unchanged (304)';
+          return;
+        }
         document.getElementById('pollStatus').textContent = 'poll: seq ' + (delta.current && delta.current.sequence);
         if (delta.changed && delta.overview) {
           overview = delta.overview;
@@ -306,7 +315,7 @@
     loadOverview().catch(e => {
       document.getElementById('rows').innerHTML = '<tr><td colspan="8">Failed to load: ' + e + '</td></tr>';
     });
-    pollTimer = setInterval(pollDeltas, 5000);
+    const poller = TBLoadPerf.createVisibilityPoller(pollDeltas, 5000, 20000);
     pollDeltas();
   </script>
 </body>

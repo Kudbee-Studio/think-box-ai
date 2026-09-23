@@ -1,0 +1,37 @@
+{
+  "pass_id": "pr135",
+  "title": "PR135 — Cut load times across app (cache, ETag, lazy paths)",
+  "prior_pass": "passes/2026-09-23-pr134.json",
+  "started_at": "2026-09-23T20:00:00Z",
+  "completed_at": "2026-09-23T21:30:00Z",
+  "code_review_completed_at": "2026-09-23T21:30:00Z",
+  "checker": "cursor-cloud-pr135",
+  "base_commit": "be451f0",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "ok": 2398,
+    "skipped": 8,
+    "expected_failures": 3,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "TTL read_cache module with weak ETags",
+    "conditional_json_response 304 helper",
+    "dashboard revision + get_state_summary",
+    "HTTP run receipt read-through cache + indexes",
+    "think job status summary + digest list",
+    "ETag on job/receipt/experiment poll routes",
+    "lazy CNC imports on router",
+    "WebSocket sends full dashboard only on revision change",
+    "pipeline overview 1s TTL + delta 304",
+    "experiment dashboard summary + cache",
+    "control-plane visibility polling + conditional fetch",
+    "parallel PR detail fetches in pipeline UI"
+  ]
+}

@@ -26,6 +26,7 @@ from thinkbox.dashboard_state import (
     get_dashboard_state, DashboardCategory, DashboardEvent,
     InfrastructureEntry, ProviderEntry, TestMilestoneEntry,
 )
+from thinkbox.read_cache import experiment_dashboard_cache, weak_etag_from_payload
 
 DEFAULT_DB = "data/thinkboxmd/db/experiments.db"
 DEFAULT_ARTIFACTS_DIR = "data/thinkboxmd/artifacts"
@@ -747,16 +748,24 @@ class ExperimentManager:
         self.db.save_event(experiment.experiment_id, "execution_complete", {"mode": "local"})
         return experiment.model_dump()
 
-    def get_dashboard_data(self) -> dict[str, Any]:
+    def get_dashboard_data(self, *, use_cache: bool = True) -> dict[str, Any]:
+        cache = experiment_dashboard_cache()
+        key = f"experiment_dashboard:{getattr(self.db, 'db_path', DEFAULT_DB)}"
+        if use_cache:
+            hit = cache.get(key)
+            if hit is not None:
+                return dict(hit.value)
         aggregates = self.db.get_dashboard_aggregates()
         state = get_dashboard_state()
-        state_data = state.get_state()
-        return {
+        payload = {
             **aggregates,
-            "dashboard_state": state_data,
+            "dashboard_state": state.get_state_summary(),
+            "dashboard_revision": state.revision(),
             "current_session": self._current_session.model_dump() if self._current_session else None,
             "active_experiments": self.db.restart_recovery().get("active_experiments", []),
         }
+        cache.set(key, payload, etag=weak_etag_from_payload(payload))
+        return payload
 
     def restart(self) -> dict[str, Any]:
         return self.db.restart_recovery()
