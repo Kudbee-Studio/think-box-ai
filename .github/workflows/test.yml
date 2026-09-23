@@ -54,6 +54,11 @@ jobs:
           python3 scripts/verify_kilo_dashboard_pr167_gates_bind.py
           python3 scripts/verify_kilo_swarm_governance_post167_deepen.py
           python3 scripts/verify_kilo_pr168_combined_post167_lane.py
+          python3 scripts/verify_kilo_live_proof_operator_audit_flip_post168.py
+          python3 scripts/verify_kilo_api_ops_harden_post168.py
+          python3 scripts/verify_kilo_dashboard_pr168_gates_bind.py
+          python3 scripts/verify_kilo_swarm_governance_post168_deepen.py
+          python3 scripts/verify_kilo_pr169_combined_post168_lane.py
       - name: Secret scan (docs + repo hygiene)
         run: python3 scripts/scan_doc_secrets.py
 
