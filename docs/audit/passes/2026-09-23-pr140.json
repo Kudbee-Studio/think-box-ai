@@ -1,0 +1,50 @@
+{
+  "pass_id": "pr140",
+  "title": "PR140 — Receipt deep-link + shared control-plane etag store",
+  "prior_pass": "passes/2026-09-23-pr139.json",
+  "started_at": "2026-09-23T17:00:00Z",
+  "completed_at": "2026-09-23T18:30:00Z",
+  "code_review_completed_at": "2026-09-23T18:30:00Z",
+  "checker": "cursor-cloud-pr140",
+  "base_commit": "70c69b3",
+  "suite": {
+    "command": "python3 -m unittest discover -s tests -t .",
+    "ok": 2498,
+    "skipped": 8,
+    "expected_failures": 3,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "control_plane_etag_store Python merge/prune/serialize",
+    "control_plane_deep_link query+hash parse",
+    "build_think_job_watch_href from receipts",
+    "fail-closed invalid receipt_missing prefix",
+    "JS TBControlPlaneEtag sessionStorage persist",
+    "JS TBControlPlaneDeepLink parseLocation",
+    "load_perf fetchJsonConditional __tbPersist hook",
+    "receipts.html think job receipt table + watch links",
+    "think_job_status applyDeepLinkFromLocation boot",
+    "index.html shared etag store",
+    "pipeline_dashboard shared etag store",
+    "think_job_status watcher/multiplex shared etag",
+    "mock action receipt think_job_receipt_id field",
+    "unit tests etag store",
+    "unit tests deep link",
+    "unit tests static pr140",
+    "unit tests ui pr140 parity",
+    "e2e F140 deep link poll etag 304",
+    "docs think_job_control_plane_ui pr140",
+    "docs CONTINUITY STATUS pr140",
+    "e2e README F140",
+    "audit pass pr140 + AUDIT_INDEX",
+    "AGENTS pr140 milestone note",
+    "hermetic only — no live Mercury claims",
+    "extends #138/#139 client — no parallel status plane"
+  ]
+}

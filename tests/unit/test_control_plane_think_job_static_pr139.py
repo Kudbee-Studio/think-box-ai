@@ -14,7 +14,7 @@ class TestThinkJobStaticPr139(unittest.TestCase):
         self.assertIn("receiptId", html)
         self.assertIn("Jobs digest", html)
         self.assertIn("JobsDigestMultiplexer", html)
-        self.assertIn("PR #139", html)
+        self.assertTrue("PR #139" in html or "PR #140" in html)
 
     def test_client_receipt_watch_exports(self) -> None:
         js = (ROOT / "think_job_status_client.js").read_text(encoding="utf-8")

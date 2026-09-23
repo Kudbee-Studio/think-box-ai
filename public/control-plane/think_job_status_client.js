@@ -1,6 +1,6 @@
 /**
- * Think Job status subscribe + poll fallback (PR #138, #139).
- * Receipt-keyed watch + jobs digest multiplex panel (hermetic only).
+ * Think Job status subscribe + poll fallback (PR #138, #139, #140).
+ * Receipt-keyed watch + jobs digest multiplex; shared etag via TBControlPlaneEtag.
  * Uses poll.stream hints from #137 — no parallel status plane.
  */
 (function (global) {

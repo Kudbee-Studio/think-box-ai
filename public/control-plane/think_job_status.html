@@ -72,7 +72,7 @@
   <main class="tj-wrap">
     <h1>Think Job status</h1>
     <p style="color: var(--color-text-secondary);">
-      PR #139: receipt-keyed watch + jobs digest multiplex. Hermetic SSE (#137) with poll fallback (#138).
+      PR #140: deep-link receipt watch + shared ETag across tabs. Multiplex (#139), SSE (#137), poll (#138).
       Evidence: simulated — not LIVE VERIFIED.
     </p>
     <div id="degradedBanner" class="tj-banner degraded"></div>
@@ -113,11 +113,13 @@
     </div>
   </main>
   <script src="load_perf.js"></script>
+  <script src="control_plane_etag_store.js"></script>
   <script src="think_job_status_client.js"></script>
+  <script src="control_plane_deep_link.js"></script>
   <script>
     var watcher = null;
     var multiplexer = null;
-    var etagStore = {};
+    var etagStore = TBControlPlaneEtag.getSharedEtagStore();
     var selectedEngine = null;
     var selectedReceipt = null;
 
@@ -310,7 +312,29 @@
       if (multiplexer) multiplexer.setActiveWatch(null, "idle");
     };
     document.getElementById("btnRefreshList").onclick = refreshJobList;
+
+    function applyDeepLinkFromLocation() {
+      var link = TBControlPlaneDeepLink.parseLocation(window.location);
+      if (link.error) {
+        showError(link.error);
+        return;
+      }
+      if (link.receipt_id) {
+        document.getElementById("receiptId").value = link.receipt_id;
+      }
+      if (link.engine_id) {
+        document.getElementById("engineId").value = link.engine_id;
+      }
+      if (link.from === "receipts") {
+        logEvent("deep-link from receipts.html");
+      }
+      if (link.auto_watch && (link.receipt_id || link.engine_id)) {
+        startWatch(link.engine_id || "", link.receipt_id || "");
+      }
+    }
+
     startMultiplex();
+    applyDeepLinkFromLocation();
   </script>
 </body>
 </html>

@@ -36,17 +36,25 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #138 merged** (`299120f`): control-plane UI subscribe + poll fallback. **PR #139 draft:** receipt-keyed watch + jobs digest multiplex panel. |
+| **Latest completed work** | **PR #139 merged:** receipt-keyed watch + jobs digest multiplex. **PR #140 draft:** deep-link from `receipts.html` + shared control-plane ETag store (hermetic). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **PR #140 (suggested):** control-plane deep-link receipt watch from `receipts.html` + shared etag store across tabs — hermetic only. |
-| **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2479 OK (7 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` |
+| **Next larger improvement** | **PR #141 (suggested):** cross-tab multiplex transport badge on control-plane index + receipt watch telemetry export (hermetic). |
+| **PR status** | PR #139 merged (receipt multiplex UI); PR #140 draft (deep-link + shared etag) |
+| **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#140 branch) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — PR #140 draft: receipt deep-link + shared etag store (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | `receipts.html` watch links, `control_plane_deep_link.js`, `control_plane_etag_store.js`, tab-shared sessionStorage etag |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Tests** | `test_control_plane_etag_store`, `test_control_plane_deep_link`, `test_f140_*`, static pr140 |
 
 ### 2026-09-23 — PR #139 draft: receipt-keyed watch + jobs digest multiplex (hermetic)
 

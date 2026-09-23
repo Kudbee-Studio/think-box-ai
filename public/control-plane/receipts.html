@@ -7,9 +7,14 @@
   <link rel="stylesheet" href="../assets/css/design-system.css">
   <link rel="stylesheet" href="../assets/css/components.css">
   <style>
-    .receipt-row { display: grid; grid-template-columns: 1fr 100px 100px 1fr; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); font-family: var(--font-mono); font-size: var(--text-sm); }
+    .receipt-row { display: grid; grid-template-columns: 1fr 100px 100px 1fr auto; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); font-family: var(--font-mono); font-size: var(--text-sm); align-items: center; }
     .receipt-row.header { font-weight: var(--font-bold); color: var(--color-text-tertiary); }
     .verify-btn { background: var(--color-accent); color: white; border: none; padding: var(--space-2) var(--space-4); border-radius: 4px; cursor: pointer; }
+    .watch-link { font-size: var(--text-xs); color: var(--color-accent); text-decoration: none; }
+    .watch-link.disabled { color: var(--color-text-tertiary); pointer-events: none; }
+    .tj-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: var(--space-4) 0; }
+    .tj-toolbar input { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
+    .banner-err { color: var(--color-danger); font-family: var(--font-mono); font-size: var(--text-sm); margin: var(--space-2) 0; }
   </style>
 </head>
 <body>
@@ -27,13 +32,107 @@
   <main id="main">
     <div class="container">
       <h1>ActionReceipts — Hash Chain</h1>
-      <button class="verify-btn" onclick="verifyChain()">Verify Chain</button>
+      <p style="color: var(--color-text-secondary); font-size: var(--text-sm);">
+        PR #140: deep-link into receipt-keyed Think Job watch (#139). Shared ETag store across control-plane tabs — hermetic only.
+      </p>
+      <div class="tj-toolbar">
+        <label>X-API-Key <input id="apiKey" type="password" placeholder="for /api/v1/run jobs" /></label>
+        <button class="verify-btn" onclick="verifyChain()">Verify Chain</button>
+        <button class="verify-btn" style="background:var(--color-bg-card);color:var(--color-text-primary);border:1px solid var(--color-border)" onclick="loadThinkJobs()">Refresh job receipts</button>
+      </div>
       <div id="verify-result" style="margin: var(--space-4) 0; font-family: var(--font-mono);"></div>
-      <div class="receipt-row header"><span>Action</span><span>Agent</span><span>Status</span><span>Sig</span></div>
+      <div id="deeplink-error" class="banner-err" style="display:none"></div>
+      <h2 style="font-size:var(--text-lg)">Think job receipts</h2>
+      <div class="receipt-row header"><span>Engine</span><span>Status</span><span>Receipt</span><span>Phase</span><span>Watch</span></div>
+      <div id="think-job-receipts"></div>
+      <h2 style="font-size:var(--text-lg);margin-top:var(--space-6)">Action receipt chain</h2>
+      <div class="receipt-row header"><span>Action</span><span>Agent</span><span>Status</span><span>Sig</span><span>Watch</span></div>
       <div id="receipts-list"></div>
     </div>
+    <script src="load_perf.js"></script>
+    <script src="control_plane_etag_store.js"></script>
+    <script src="think_job_status_client.js"></script>
+    <script src="control_plane_deep_link.js"></script>
     <script>
       const AUTH = 'Bearer dev-only-local-token';
+      const API_KEY_STORAGE = 'thinkbox.cp.api_key';
+      var etagStore = TBControlPlaneEtag.getSharedEtagStore();
+
+      function apiKey() {
+        var el = document.getElementById('apiKey');
+        var v = (el && el.value) || '';
+        if (v) try { sessionStorage.setItem(API_KEY_STORAGE, v); } catch (e) {}
+        try {
+          if (!v) v = sessionStorage.getItem(API_KEY_STORAGE) || '';
+          if (v && el) el.value = v;
+        } catch (e) {}
+        return v;
+      }
+
+      function runHeaders() {
+        return TBThinkJobStatus.apiHeaders(apiKey(), '');
+      }
+
+      function showDeepLinkError(msg) {
+        var el = document.getElementById('deeplink-error');
+        if (!msg) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.textContent = msg;
+      }
+
+      function watchHrefForReceipt(receiptId) {
+        try {
+          return TBControlPlaneDeepLink.buildWatchHref(receiptId, { from: 'receipts', autoWatch: true });
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function renderWatchLink(receiptId) {
+        if (!receiptId) {
+          return '<span class="watch-link disabled">—</span>';
+        }
+        try {
+          TBThinkJobStatus.normalizeReceiptKey(receiptId);
+        } catch (e) {
+          return '<span class="watch-link disabled">invalid</span>';
+        }
+        var href = watchHrefForReceipt(receiptId);
+        if (!href) return '<span class="watch-link disabled">—</span>';
+        return '<a class="watch-link" href="' + href + '">Watch status</a>';
+      }
+
+      async function loadThinkJobs() {
+        showDeepLinkError('');
+        var list = document.getElementById('think-job-receipts');
+        list.innerHTML = '<div style="padding:var(--space-4);color:var(--color-text-tertiary);">Loading…</div>';
+        if (!apiKey()) {
+          list.innerHTML = '<div style="padding:var(--space-4);">Enter X-API-Key to list hermetic job receipts.</div>';
+          return;
+        }
+        try {
+          var url = TBThinkJobStatus.formatJobsListPollPath(30, 'summary');
+          var result = await TBLoadPerf.fetchJsonConditional(url, { headers: runHeaders() }, etagStore);
+          var jobs = result.data.jobs || [];
+          list.innerHTML = '';
+          if (!jobs.length) {
+            list.innerHTML = '<div style="padding:var(--space-4);">No jobs — POST /api/v1/run first (hermetic).</div>';
+            return;
+          }
+          jobs.forEach(function (row) {
+            var eid = row.engine_id || row.job_id || '?';
+            var rid = row.receipt && row.receipt.receipt_id ? row.receipt.receipt_id : '';
+            var div = document.createElement('div');
+            div.className = 'receipt-row';
+            div.innerHTML = '<span>' + eid + '</span><span>' + (row.status || '?') + '</span><span>' + (rid ? rid.slice(0, 20) + '…' : '—') + '</span><span>' + (row.phase || '—') + '</span><span>' + renderWatchLink(rid) + '</span>';
+            list.appendChild(div);
+          });
+        } catch (e) {
+          list.innerHTML = '<div style="padding:var(--space-4);color:var(--color-text-tertiary);">Mock mode — job list unavailable</div>';
+          showDeepLinkError(String(e));
+        }
+      }
+
       async function load() {
         try {
           const res = await fetch('/api/v1/control-plane/receipts', { headers: { Authorization: AUTH } });
@@ -43,7 +142,8 @@
           (data.receipts || []).forEach(r => {
             const row = document.createElement('div');
             row.className = 'receipt-row';
-            row.innerHTML = `<span>${r.action_type}</span><span>${r.agent_id}</span><span style="color: ${r.status==='OK'?'var(--color-success)':'var(--color-danger)'}">${r.status}</span><span>${r.signature?.slice(0,12)}…</span>`;
+            const watchId = r.think_job_receipt_id || r.receipt_id || '';
+            row.innerHTML = `<span>${r.action_type}</span><span>${r.agent_id}</span><span style="color: ${r.status==='OK'?'var(--color-success)':'var(--color-danger)'}">${r.status}</span><span>${r.signature?.slice(0,12)}…</span><span>${renderWatchLink(watchId)}</span>`;
             list.appendChild(row);
           });
         } catch(e) {
@@ -60,6 +160,7 @@
         }
       }
       load();
+      loadThinkJobs();
     </script>
   </main>
 </body>

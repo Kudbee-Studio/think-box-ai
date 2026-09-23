@@ -153,6 +153,7 @@
     </aside>
   </main>
   <script src="load_perf.js"></script>
+  <script src="control_plane_etag_store.js"></script>
   <script>
     let overview = { prs: [] };
     let selectedPr = null;
@@ -220,7 +221,7 @@
       });
     }
 
-    const etagStore = {};
+    const etagStore = TBControlPlaneEtag.getSharedEtagStore();
 
     async function selectPr(pr) {
       selectedPr = pr;

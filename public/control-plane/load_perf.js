@@ -49,6 +49,7 @@
     if (etagStore && etag) {
       etagStore[key] = etag;
       etagStore[key + ":body"] = data;
+      if (etagStore.__tbPersist) etagStore.__tbPersist();
     }
     return { cached: false, data, response: res };
   }

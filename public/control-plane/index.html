@@ -47,9 +47,10 @@
       <div class="cp-card"><div class="cp-label">Active Leases</div><div class="cp-value cp-status-ok" id="cp-leases">—</div></div>
     </div>
     <script src="load_perf.js"></script>
+    <script src="control_plane_etag_store.js"></script>
     <script>
       const AUTH = 'Bearer dev-only-local-token';
-      const etagStore = {};
+      const etagStore = TBControlPlaneEtag.getSharedEtagStore();
       async function refresh() {
         if (!TBLoadPerf.isDocumentVisible()) return;
         try {
