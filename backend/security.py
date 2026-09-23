@@ -19,6 +19,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
+ALLOW_QUERY_API_KEY = os.environ.get("THINKBOX_ALLOW_QUERY_API_KEY", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 ALLOWED_ORIGINS = os.environ.get(
     "THINKBOX_ALLOWED_ORIGINS",
@@ -30,8 +35,6 @@ RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("THINKBOX_RATE_LIMIT", "100"))
 MAX_REQUEST_BODY_SIZE = 1_048_576
 WS_MAX_MESSAGE_SIZE = 1_048_576
-
-DEFAULT_API_KEYS = {"changeme-production-key", "changeme", "test", "admin", "password"}
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -67,7 +70,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
     def _validate_key(self, request: Request) -> bool:
         key = request.headers.get(API_KEY_HEADER, "")
-        if not key:
+        if not key and ALLOW_QUERY_API_KEY:
             key = request.query_params.get("api_key", "")
         if not key:
             return False
