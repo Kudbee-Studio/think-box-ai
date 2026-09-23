@@ -11,3 +11,4 @@
 - [ ] No affirmative KILO LIVE VERIFIED / PRODUCTION READY on spine paths
 - [ ] Four-state capped at TEST VERIFIED on branch
 - [ ] `gate_for_pr(143).gate_id == substrate-checklist` via unit tests
+- [ ] PR #145 `governance-evidence` layers on this gate (`kilo-governance-evidence-pr145.md`)
