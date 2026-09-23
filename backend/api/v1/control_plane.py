@@ -8,7 +8,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.api.v1.control_plane_auth import require_control_plane_auth
-from backend.api.v1.http_conditional import conditional_json_response
+from backend.api.v1.http_conditional import (
+    conditional_json_response,
+    conditional_json_response_if_match,
+)
+from thinkbox.receipt_chain_query import ReceiptChainValidationError
 from thinkbox.control_plane_api_contract import (
     ControlPlaneApiError,
     error_envelope,
@@ -18,10 +22,14 @@ from thinkbox.control_plane_api_surface import (
     build_admission_snapshot,
     build_capacity_snapshot,
     build_contract_payload,
+    build_chain_head_payload,
+    build_chain_page_payload,
+    build_chain_tail_payload,
     build_operation_list_payload,
     build_status_snapshot,
     create_operation_via_admission,
     get_chain_payload,
+    validate_chain_receipt_id,
     wrap_success,
 )
 from thinkbox.control_plane_hermetic_clients import (
@@ -155,9 +163,98 @@ async def cancel_operation(
 @control_plane_api.get("/receipts/chain")
 async def receipts_chain(
     request: Request,
+    limit: int = 50,
+    cursor: str | None = None,
+    action: str | None = None,
+    agent_id: str | None = None,
     _token: str = Depends(require_control_plane_auth),
 ):
-    """Receipt chain status with conditional GET."""
-    payload = get_chain_payload()
+    """Receipt chain status with conditional GET, pagination, and filters."""
+    payload = get_chain_payload(limit=limit, cursor=cursor, action=action, agent_id=agent_id)
     etag = payload.get("etag")
-    return conditional_json_response(request, wrap_success(payload, request_id=_request_id()), etag=etag)
+    return conditional_json_response(
+        request,
+        wrap_success(payload, request_id=_request_id()),
+        etag=etag,
+    )
+
+
+@control_plane_api.get("/receipts/chain/page")
+async def receipts_chain_page(
+    request: Request,
+    limit: int = 50,
+    cursor: str | None = None,
+    action: str | None = None,
+    agent_id: str | None = None,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Paginated receipt list only (conditional GET)."""
+    page = build_chain_page_payload(
+        limit=limit,
+        cursor=cursor,
+        action=action,
+        agent_id=agent_id,
+    )
+    from thinkbox.control_plane_conditional import chain_read_etag
+
+    etag = chain_read_etag({"page": page})
+    return conditional_json_response(
+        request,
+        wrap_success(page, request_id=_request_id()),
+        etag=etag,
+    )
+
+
+@control_plane_api.get("/receipts/chain/head")
+async def receipts_chain_head(
+    request: Request,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Genesis-adjacent head receipt read."""
+    head = build_chain_head_payload()
+    from thinkbox.read_cache import weak_etag_from_payload
+
+    etag = weak_etag_from_payload(head)
+    return conditional_json_response(
+        request,
+        wrap_success(head, request_id=_request_id()),
+        etag=etag,
+    )
+
+
+@control_plane_api.get("/receipts/chain/tail")
+async def receipts_chain_tail(
+    request: Request,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Latest receipt read."""
+    tail = build_chain_tail_payload()
+    from thinkbox.read_cache import weak_etag_from_payload
+
+    etag = weak_etag_from_payload(tail)
+    return conditional_json_response(
+        request,
+        wrap_success(tail, request_id=_request_id()),
+        etag=etag,
+    )
+
+
+@control_plane_api.get("/receipts/{receipt_id}/validate")
+async def receipts_validate_link(
+    receipt_id: str,
+    request: Request,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Fail-closed link validation; If-Match required when If-Match header sent."""
+    try:
+        body = validate_chain_receipt_id(receipt_id)
+    except ReceiptChainValidationError as exc:
+        raise HTTPException(status_code=404, detail=exc.code) from exc
+    from thinkbox.read_cache import weak_etag_from_payload
+
+    etag = weak_etag_from_payload(body)
+    return conditional_json_response_if_match(
+        request,
+        wrap_success(body, request_id=_request_id()),
+        etag=etag,
+    )
