@@ -34,6 +34,10 @@ class TestThinkJobStatusStatic(unittest.TestCase):
         html = (self.root / "think_job_status.html").read_text()
         self.assertIn("btnStop", html)
 
+    def test_html_mode_chip_styles(self) -> None:
+        html = (self.root / "think_job_status.html").read_text()
+        self.assertIn("tj-mode.sse", html)
+
 
 if __name__ == "__main__":
     unittest.main()
