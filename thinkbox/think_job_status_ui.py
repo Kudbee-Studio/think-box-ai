@@ -102,3 +102,35 @@ class MultiplexPanelState:
     last_watch_error: str = ""
 
 
+def api_headers(api_key: str, *, bearer: str = "") -> dict[str, str]:
+    """Fail-closed auth: require API key or bearer."""
+    headers: dict[str, str] = {"Accept": "application/json"}
+    key = (api_key or "").strip()
+    tok = (bearer or "").strip()
+    if key:
+        headers["X-API-Key"] = key
+    elif tok:
+        headers["Authorization"] = tok if tok.lower().startswith("bearer ") else f"Bearer {tok}"
+    else:
+        raise ValueError("api_key_or_bearer_required")
+    return headers
+
+
+def format_job_poll_path(engine_id: str) -> str:
+    return f"/api/v1/run/job/{engine_id}/status"
+
+
+def format_receipt_poll_path(receipt_id: str) -> str:
+    return f"/api/v1/run/job/by-receipt/{receipt_id}/status"
+
+
+def format_jobs_digest_poll_path() -> str:
+    return "/api/v1/run/jobs/status/digest"
+
+
+def format_jobs_list_poll_path(limit: int = 50, detail: str = "summary") -> str:
+    return f"/api/v1/run/jobs/status?limit={max(1, min(limit, 200))}&detail={detail}"
+
+
+def format_job_stream_path(engine_id: str) -> str:
+    return f"/api/v1/run/job/{engine_id}/status/stream"
