@@ -1,13 +1,15 @@
 # STATUS — Think Box AI
 
-## PR #162 — Receipt-chain / END_LINK era audit close #154–#161 (DRAFT)
+## PR #162 — Control-plane E2E hermetic suite deepen after #161 (DRAFT)
 
 | Field | Value |
 |-------|-------|
-| **Gate** | `receipt-chain-end-link-era-close` (layers `end-link-api-ops-harden`) |
-| **Scope** | consolidated era pack #154–#161, AUDIT_INDEX sync, operator guide era close |
+| **Gate** | `control-plane-e2e-deepen` (layers `end-link-api-ops-harden`) |
+| **Scope** | F162 e2e harness + validate/batch/chain filters/integrity/ops envelope/fail-closed HTTP tests |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
-| **Verify** | `python3 scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
+| **Verify** | `python3 scripts/verify_kilo_control_plane_e2e_deepen.py` |
+
+Era audit close pack (`receipt-chain-end-link-era-close`) remains on main from the prior #162 checkpoint; this draft deepens hermetic e2e only.
 
 ## PR #161 — END LINK API / ops harden after #159–#160 (MERGED)
 
