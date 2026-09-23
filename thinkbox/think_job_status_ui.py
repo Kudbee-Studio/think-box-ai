@@ -1,7 +1,8 @@
-"""Control-plane Think Job status client helpers (PR #138, #139).
+"""Control-plane Think Job status client helpers (PR #138, #139, #140).
 
 Hermetic subscribe + poll fallback logic shared by browser JS and unit tests.
 PR #139 adds receipt-keyed watch targets and jobs-digest multiplex panel state.
+PR #140 deep-links from receipts.html reuse the same watch targets (see control_plane_deep_link).
 Does not perform HTTP — callers supply fetch/EventSource.
 """
 
