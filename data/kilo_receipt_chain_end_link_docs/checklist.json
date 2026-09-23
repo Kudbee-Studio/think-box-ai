@@ -1,0 +1,18 @@
+{
+  "gate_id": "receipt-chain-end-link-docs",
+  "pr_number": 160,
+  "receipt_chain_end_link_docs": "receipt-chain-end-link-docs",
+  "receipt_chain_end_link_docs_version": "1.0.0",
+  "end_link_operator_ux": "end-link-operator-ux",
+  "prior_gate_ids": [
+    "end-link-operator-ux",
+    "end-link-deepen",
+    "dashboard-receipt-chain-bind",
+    "receipt-chain-etag"
+  ],
+  "era_consolidated_pass": "docs/audit/passes/2026-09-23-pr155-159-era-consolidated.json",
+  "operator_guide": "docs/guides/kilo_receipt_chain_end_link_operator.md",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false
+}
