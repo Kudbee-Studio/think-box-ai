@@ -1,0 +1,50 @@
+{
+  "pass_id": "pr137",
+  "title": "PR137 — Hermetic Think Job status SSE (poll → push)",
+  "prior_pass": "passes/2026-09-23-pr136.json",
+  "started_at": "2026-09-23T10:00:00Z",
+  "completed_at": "2026-09-23T12:00:00Z",
+  "code_review_completed_at": "2026-09-23T12:00:00Z",
+  "checker": "cursor-cloud-pr137",
+  "base_commit": "f0c43f0",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "ok": 2430,
+    "skipped": 8,
+    "expected_failures": 3,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "think_job_stream schema version and hub wake signals",
+    "status fingerprint for deduplicated deltas",
+    "compute_status_delta incremental documents",
+    "SSE format_sse_data with frame byte cap",
+    "stream hello heartbeat close event kinds",
+    "poll stream_hints_for_poll on status API",
+    "governance stream snapshot metadata",
+    "dashboard upsert signals stream hub",
+    "run_job_status_stream async iterators",
+    "single job SSE route with fail-closed 404",
+    "by-receipt status stream route",
+    "jobs digest multiplex SSE route",
+    "clamp_stream_query_params bounds",
+    "THINKBOX_STREAM_MAX_EVENTS env cap",
+    "validation clamp_stream_scalar helper",
+    "unit tests think_job_stream core",
+    "unit tests run_job_status_stream async",
+    "unit tests validation stream clamp",
+    "e2e F137 post-run stream hello and close",
+    "e2e poll includes stream hints",
+    "e2e by-receipt and jobs digest stream smoke",
+    "e2e openapi lists stream routes",
+    "e2e governance stream snapshot",
+    "docs CONTINUITY STATUS audit pass pr137",
+    "AUDIT_INDEX pr137 entry"
+  ]
+}
