@@ -48,6 +48,7 @@
         <button id="btnHead">Head</button>
         <button id="btnTail">Tail</button>
         <button id="btnEndLink">END_LINK validate</button>
+        <button id="btnEndLinkBatch" title="POST validate/batch">END_LINK batch</button>
         <button id="btnEndLink412" title="Send wrong If-Match">Probe 412</button>
       </div>
       <div id="banner" class="rc-mono rc-etag-warn" style="display:none"></div>
@@ -170,10 +171,33 @@
           if (res.precondition_failed || res.http_status === 412) {
             showBanner("END_LINK If-Match mismatch → 412 (fail-closed)", "rc-etag-err");
           } else if (res.valid) {
-            showBanner("END_LINK OK", "rc-etag-ok");
+            var integrity = res.link_integrity ? " integrity=" + res.link_integrity : "";
+            showBanner("END_LINK OK" + integrity, "rc-etag-ok");
           } else {
             showBanner("END_LINK invalid or missing", "rc-etag-warn");
           }
+        } catch (e) {
+          document.getElementById("endLinkOut").textContent = String(e);
+        }
+      }
+
+      async function runEndLinkBatch() {
+        var rid = document.getElementById("receiptId").value.trim();
+        if (!rid) {
+          showBanner("receipt_id required for batch seed", "rc-etag-err");
+          return;
+        }
+        try {
+          var res = await TBEndLink.endLinkBatchValidate(
+            [rid, rid + "_missing_probe"],
+            {},
+            AUTH,
+          );
+          document.getElementById("endLinkOut").textContent = JSON.stringify(res, null, 2);
+          showBanner(
+            "END_LINK batch valid=" + (res.valid_count || 0) + " invalid=" + (res.invalid_count || 0),
+            "rc-etag-ok",
+          );
         } catch (e) {
           document.getElementById("endLinkOut").textContent = String(e);
         }
@@ -191,6 +215,7 @@
       document.getElementById("btnHead").onclick = function () { loadProbe("head"); };
       document.getElementById("btnTail").onclick = function () { loadProbe("tail"); };
       document.getElementById("btnEndLink").onclick = function () { runEndLink(false); };
+      document.getElementById("btnEndLinkBatch").onclick = function () { runEndLinkBatch(); };
       document.getElementById("btnEndLink412").onclick = function () { runEndLink(true); };
 
       if (TBControlPlaneDeepLink && TBControlPlaneDeepLink.parseLocation) {
