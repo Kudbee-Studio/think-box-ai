@@ -278,3 +278,63 @@ def parse_sse_buffer_incremental(
         data_line = next((ln for ln in block.splitlines() if ln.startswith("data: ")), "")
         if not data_line:
             continue
+        try:
+            events.append(json.loads(data_line[6:]))
+        except json.JSONDecodeError as exc:
+            events.append({"kind": "parse_error", "error": str(exc)})
+    return events, rest
+
+
+def parse_sse_data_events(raw: str) -> list[dict[str, Any]]:
+    """Parse SSE blocks into JSON data payloads (hermetic tests + JS parity)."""
+    events: list[dict[str, Any]] = []
+    for block in raw.split("\n\n"):
+        if not block.strip():
+            continue
+        data_line = next((ln for ln in block.splitlines() if ln.startswith("data: ")), "")
+        if not data_line:
+            continue
+        try:
+            events.append(json.loads(data_line[6:]))
+        except json.JSONDecodeError as exc:
+            events.append({"kind": "parse_error", "error": str(exc), "raw": data_line[6:][:200]})
+    return events
+
+
+def apply_status_event(
+    state: ThinkJobWatchState,
+    event: Mapping[str, Any],
+) -> bool:
+    """Merge hello/delta/close into watch state; return True if summary changed."""
+    kind = str(event.get("kind") or "")
+    state.telemetry.events_received += 1
+    if kind == "think_job_stream_hello":
+        snap = event.get("snapshot")
+        if isinstance(snap, dict):
+            state.summary = dict(snap)
+            state.last_sequence = int(event.get("sequence") or 0)
+            return True
+    if kind == "think_job_status_delta":
+        seq = int(event.get("sequence") or 0)
+        if seq >= state.last_sequence:
+            state.last_sequence = seq
+        merged = dict(state.summary or {})
+        for key in (
+            "status",
+            "phase",
+            "progress",
+            "job_id",
+            "engine_id",
+            "receipt",
+            "tasks_total",
+            "tasks_completed",
+            "poll",
+            "four_state",
+        ):
+            if key in event:
+                merged[key] = event[key]
+        state.summary = merged
+        return True
+    if kind == "think_job_stream_close":
+        reason = str(event.get("reason") or "closed")
+        state.telemetry.last_error = f"stream_close:{reason}"
