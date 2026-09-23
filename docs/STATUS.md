@@ -68,7 +68,8 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2235 | ✅ | 8 | 3 | ✅ PASS (PR #125 gate) |
+| All unit + integration | 2260 | ✅ | 7 | 3 | ✅ PASS (PR #126 gate; Phase 1+2) |
+| KUDBEECLI (Phase 1+2) | 36 CLI tests | ✅ | 0 | 0 | ✅ PASS |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |
@@ -125,7 +126,8 @@ Current repository health, infrastructure status, known defects, and improvement
 | PR91 | — (direct push) | ✅ MERGED |
 | PR92 | — (direct push) | ✅ MERGED |
 | PR125 audit ledger | #125 | ✅ MERGED |
-| PR126 doc redaction + P1 | #126 | 🔨 DRAFT |
+| PR126 doc redaction + P1 | #126 | ✅ MERGED |
+| PR127 KUDBEECLI Phase 2 | #127 | 🔨 OPEN (draft, do not merge) |
 
 ### PR Workflow Notes
 - PR-Before-Work Rule enforced: every meaningful change requires a GitHub PR first.

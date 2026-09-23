@@ -2,22 +2,30 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-22 (PR #126 audit close-out)
+> ## ADDENDUM — 2026-09-23 (PR #127 KUDBEECLI Phase 2)
 >
-> **Branch:** `feat/pr126-f010-token-redact-and-p1` (draft PR #126).  
-> **Test gate:** `python3 -m unittest discover tests/` (run after merge candidate; see pass JSON for last counts).  
-> **Doc secrets:** `python3 scripts/scan_doc_secrets.py` must exit 0 (F010).  
-> **Audit artifacts:** `docs/audit/passes/2026-09-22-pr126.json`, prior pass `2026-09-22-pr125.json`.  
-> Canonical narrative: `docs/CONTINUITY.md` + `docs/STATUS.md`.
+> **Branch:** `kilo/great-cedar-qui` (draft PR #127).
+> **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
+> **Capabilities:** persistent identity ledger (SQLite), persistent traces (SQLite), interactive REPL, dashboard status, swarm live (fail-closed).
+> **Secret scan:** OK (no credentials in changed files).
+> **PR URL:** https://github.com/Kudbee-Studio/think-box-ai/pull/127
 >
-> ## ADDENDUM — 2026-09-22 (PR #125 audit)
->
-> **Branch:** `feat/pr125-audit-ledger-and-25-fixes` (merged PR #125).  
-> **Test gate:** `python3 -m unittest discover tests/` → **2235 OK**, 8 skipped, 3 expected failures.  
-> **Audit artifacts:** `docs/audit/README.md`, `docs/audit/passes/2026-09-22-pr125.json`, `scripts/audit_ledger.py`.  
-> **Deploy:** Vercel preview blocked in agent env — see `docs/audit/checklists/deploy-vercel.md` (finding F018).  
-**Repo:** `Kudbee-Studio/think-box-ai`
-**Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
+> > ## ADDENDUM — 2026-09-22 (PR #126 — MERGED)
+> >
+> > **Branch:** `feat/pr126-f010-token-redact-and-p1` — MERGED as PR #126.
+> > **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
+> > **Doc secrets:** `python3 scripts/scan_doc_secrets.py` exited 0 (F010 closed).
+> > **Audit artifacts:** `docs/audit/passes/2026-09-22-pr126.json`, prior pass `2026-09-22-pr125.json`.
+> > Canonical narrative: `docs/CONTINUITY.md` + `docs/STATUS.md`.
+> >
+> > ## ADDENDUM — 2026-09-22 (PR #125 audit)
+> >
+> > **Branch:** `feat/pr125-audit-ledger-and-25-fixes` (merged PR #125).
+> > **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
+> > **Audit artifacts:** `docs/audit/README.md`, `docs/audit/passes/2026-09-22-pr125.json`, `scripts/audit_ledger.py`.
+> > **Deploy:** Vercel preview blocked in agent env — see `docs/audit/checklists/deploy-vercel.md` (finding F018).
+> **Repo:** `Kudbee-Studio/think-box-ai`
+> **Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
 
 > ## ADDENDUM — 2026-09-17 (supersedes the numbers above; 09-15 body preserved below)
 >

@@ -697,10 +697,66 @@ The connection path used:
 
 SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
 
-### PR Status (2026-09-19)
+---
+
+## KUDBEECLI — Interactive Terminal (CLI)
+
+The `thinkbox/cli.py` module provides a unified CLI for agent operations, persistence, REPL, dashboard inspection, and swarm governance.
+
+### Module Structure
+
+- `thinkbox/cli.py` — Main CLI with 17 commands (Phase 1 + Phase 2):
+  - **Phase 1 (PR #126, 10 commands + 16 tests):** agent list, agent register, agent grant, agent revoke, agent show, trace capture, trace show, proof check, swarm status, ledger verify
+  - **Phase 2 (PR #127, 10 commands + 20 tests):** swarm live (fail-closed), shell (REPL), dashboard status, agent list (--db persistent), trace show (--db persistent)
+
+### Phase 1 — PR #126 (Merged)
+
+- 10 CLI commands
+- 16 tests (`tests/unit/test_cli.py`)
+- Commands cover agent management, trace capture/inspection, proof validation, swarm status, ledger verification
+
+### Phase 2 — PR #127 (Open, Draft)
+
+- **SQLite persistence:**
+  - `IdentityLedger` (`thinkbox/identity.py`) — register/get/grant/revoke/list persist to `data/thinkboxmd/db/identities.db`
+  - `ThinkTraceCapture` (`thinkbox/thinktrace.py`) — capture/find_by_id persist to `data/thinkboxmd/db/traces.db`
+- **Interactive REPL:** `thinkbox shell` — readline + history at `~/.kudbee_cli_history`
+- **Dashboard integration:** `thinkbox dashboard status` — reads SQLite + `swarm_events.jsonl`, no live API
+- **Swarm live path:** `thinkbox swarm live` — checks `INCEPTION_API_KEY`, FAILS CLOSED when absent, never executes live API
+- 20 tests (`tests/unit/test_cli.py`)
+
+### Test Counts
+
+| Phase | CLI Tests | Full Suite |
+|-------|-----------|------------|
+| Phase 1 | 16 | — |
+| Phase 2 | 20 | — |
+| Full suite | — | **2260 OK** (7 skipped, 3 expected failures) |
+
+### Four-State Classification
+
+| Capability | State |
+|------------|-------|
+| Phase 1 CLI | CODE COMPLETE / TEST VERIFIED |
+| Phase 2 CLI | CODE COMPLETE / TEST VERIFIED |
+| `swarm live` | CODE COMPLETE / TEST VERIFIED / **fail closed** |
+| All commands | PRODUCTION NOT CLAIMED (awaiting founder review) |
+
+### PR Status
+
+- PR #126 (Phase 1): ✅ Merged
+- PR #127 (Phase 2): 🔨 Open (draft, do not merge)
+
+---
+
+### PR Status (2026-09-23)
 
 > **⚠️ GitHub PR numbering is offset from KILO PR labels.** See the GitHub↔KILO PR Map below for the complete mapping. KILO PRs without a GitHub # were pushed directly to `main` (no PR process was followed at the time — not repeated).
 
+- **GitHub PR #127** = KILO PR127 — KUDBEECLI Phase 2 (persistence + REPL + dashboard + live path) — 🔨 OPEN (draft)
+  - URL: https://github.com/Kudbee-Studio/think-box-ai/pull/127
+- **GitHub PR #126** = KILO PR126 — PR126 doc redaction + P1 fixes — ✅ **MERGED**
+- **GitHub PR #125** = KILO PR125 — Audit ledger — ✅ **MERGED**
 - **GitHub PR #92** = KILO PR94 — Orchestration Client — ✅ **MERGED** (2026-09-19)
 - **GitHub PR #91** = KILO PR93 — Agent Telemetry & Observability — ✅ MERGED
 - **GitHub PR #90** = KILO PR90 — Multi-Agent Clustering — ✅ MERGED
@@ -709,14 +765,17 @@ SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter,
 - **KILO PR91** (Distributed Governance) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
 - **KILO PR92** (Agent Marketplace) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
-- **Zero open PRs**
+- **1 open PR**: #127 (draft, do not merge — awaiting founder review)
 
 #### GitHub↔KILO PR Map
 
 | GitHub PR # | KILO PR | Status |
 |-------------|---------|--------|
-| #96 | integration suite | ✅ **MERGED** |
+| #127 | PR127 | 🔨 OPEN (draft) |
+| #126 | PR126 | ✅ **MERGED** |
+| #125 | PR125 | ✅ MERGED |
 | #97 | control-plane x10 | 🔨 READY |
+| #96 | integration suite | ✅ **MERGED** |
 | #94 | PR95 | ✅ **MERGED** |
 | #93 | docs process lock | ✅ MERGED |
 | #92 | PR94 | ✅ MERGED |
