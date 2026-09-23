@@ -4,6 +4,7 @@ Hermetic documentation gates only — no live Mercury, GPU, or deploy side effec
 PR #143 adds ``substrate_checklist`` summary layered on ``env_matrix``.
 PR #145 adds ``governance_evidence`` summary layered on env-matrix + substrate-checklist.
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
+PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 """
 
 from __future__ import annotations
@@ -165,6 +166,7 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
     from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
     from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
+    from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
 
     runbook_raw = load_text(runbook_path())
     runbook_scan = _runbook_text_for_claim_scan(runbook_raw)
@@ -172,6 +174,7 @@ def spine_contract_summary() -> dict[str, object]:
     substrate_summary = substrate_checklist_contract_summary()
     governance_summary = governance_evidence_contract_summary()
     mercury_summary = mercury_hermetic_contract_summary()
+    swarm_summary = swarm_instrumentation_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -187,8 +190,10 @@ def spine_contract_summary() -> dict[str, object]:
         "pr143_gate_id": (gate_for_pr(143).gate_id if gate_for_pr(143) else None),
         "pr145_gate_id": (gate_for_pr(145).gate_id if gate_for_pr(145) else None),
         "pr146_gate_id": (gate_for_pr(146).gate_id if gate_for_pr(146) else None),
+        "pr147_gate_id": (gate_for_pr(147).gate_id if gate_for_pr(147) else None),
         "env_matrix": env_summary,
         "substrate_checklist": substrate_summary,
         "governance_evidence": governance_summary,
         "mercury_hermetic": mercury_summary,
+        "swarm_instrumentation": swarm_summary,
     }
