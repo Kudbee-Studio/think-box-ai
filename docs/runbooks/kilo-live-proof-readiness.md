@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` + PR #149 `dashboard-slots` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
+**Status:** PR #141–#149 merged + PR #150 `live-proof-exec` (PR #144 = CI/post-merge fix only) — **arc season closed** at hermetic TEST VERIFIED; **not** Live proof executed.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -24,7 +24,7 @@ PRs **#141–#150** close checklist gates; **#141** is the documentation and con
 |-------|----------------------|
 | CODE COMPLETE | Runbook, arc map, and spine modules merged on branch |
 | TEST VERIFIED | Hermetic tests assert contracts; full unittest suite green (minus documented expected failures) |
-| LIVE VERIFIED | **Forbidden in #141–#149 spine.** Earned only after bounded Live proof is executed and recorded |
+| LIVE VERIFIED | **Forbidden in #141–#150 hermetic PR.** Earned only after founder-run bounded Live proof + audit artifact |
 | PRODUCTION READY | **Forbidden** until Live VERIFIED + founder sign-off on production gates |
 
 Historical Mercury/swarm Live evidence elsewhere in the repo does **not** substitute for a future **KILO Live proof** pass.
@@ -62,8 +62,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
 | H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
 | H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
+| H14 | KILO live-proof-exec operator gate (`scripts/verify_kilo_live_proof_exec.py` exit 0) | PR #150 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#149 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#150 hermetic gates.
 
 ---
 
@@ -80,9 +81,9 @@ No `INCEPTION_API_KEY` consumption is required for #141–#149 hermetic gates.
 | **147** | Swarm instrumentation verify (11/11 hermetic catalog) as prereq gate | `swarm-instrumentation` | #147 |
 | 148 | Ledger + proof JSON schema for KILO live artifact | `proof-schema` | #148 |
 | 149 | Dashboard / control-plane Live proof slots (hermetic) | `dashboard-slots` | #149 |
-| 150 | Integrated rehearsal + **Live proof execution** runbook + founder ack (`THINKBOX_SWARM_LIVE_ACK`; still earns LIVE VERIFIED only when run) | `live-proof-exec` | #150 |
+| **150** | Live-proof **execution plan** + founder ack contract (`THINKBOX_SWARM_LIVE_ACK` + `UPSTASH_PUBLIC_BOX_URL`; LIVE VERIFIED only when founder runs proof) | `live-proof-exec` | **#150 (season close)** |
 
-Optional follow-on (non-binding): cross-tab control-plane telemetry export can land in #142 if founder prioritizes UI over env matrix — must stay inside this arc.
+**Season close (#150):** Arc #141–#150 checklist is complete at CODE COMPLETE / TEST VERIFIED. Cloud Bot on standby — no #151 unless founder asks. KILO LIVE VERIFIED remains earned only via founder-run bounded smoke + `data/thinkboxmd/artifacts/kilo_live_proof_*.json` + audit pass with `live_verified: true`.
 
 ---
 
@@ -105,13 +106,14 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`, `scripts/verify_kilo_proof_schema.py`, `scripts/verify_kilo_dashboard_slots.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`, `scripts/verify_kilo_proof_schema.py`, `scripts/verify_kilo_dashboard_slots.py`, `scripts/verify_kilo_live_proof_exec.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
 - Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, guide `docs/guides/kilo_proof_schema.md`
 - Dashboard slots: `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, guide `docs/guides/kilo_dashboard_slots.md`
+- Live-proof exec: `thinkbox/kilo_live_proof_exec.py`, `data/kilo_live_proof_exec/fixtures/`, guide `docs/guides/kilo_live_proof_exec.md`
 
 ---
 
@@ -228,8 +230,6 @@ kill-switch enums. Four-state honesty is fail-closed: `LIVE_VERIFIED` /
 Operator verify runs after swarm-instrumentation; `live_api_called=false` always in
 hermetic modes. Summaries redact via `redact_proof_summary`.
 
-Optional non-binding next gate: **#150 `live-proof-exec`**.
-
 ---
 
 ## Dashboard-slots gate (PR #149)
@@ -258,6 +258,34 @@ hermetic modes. Summaries redact via `redact_dashboard_slots_summary`.
 
 ---
 
+## Live-proof-exec gate (PR #150) — season closer
+
+Gate ID: **`live-proof-exec`**. Hermetic only — layers on **`dashboard-slots`**
+(calls `hermetic_dashboard_slots_operator_check` first). Defines a bounded **execution
+plan** (`kilo-live-proof-exec-v1`) for a future founder-run Live proof: full
+`prior_gate_ids` chain (spine through dashboard-slots), canonical
+`THINKBOX_SWARM_LIVE_ACK` + `UPSTASH_PUBLIC_BOX_URL` env keys, smoke step catalog,
+artifact path under `data/thinkboxmd/artifacts/kilo_live_proof_*.json`, halt reasons
+from proof-schema `HALT_REASONS`, and season marker
+`kilo-live-proof-arc-141-150-season-closed`. Fail-closed: `live_verified: true` and
+`live_api_called: true` are rejected in hermetic plans; hermetic modes reject
+founder ack + Box URL together (live prep belongs to optional `--live` check only).
+
+| Step (bounded smoke) | Network |
+|----------------------|---------|
+| `verify_kilo_spine.py` | none |
+| `verify_kilo_live_proof_exec.py` | none |
+| Substrate URL shape check | none |
+| Founder ack export | none |
+| Single bounded Mercury smoke | founder-run optional |
+| Write proof artifact | none |
+| Audit flip (`live_verified: true`) | none — only after artifact on disk |
+
+Operator `scripts/verify_kilo_live_proof_exec.py` defaults to hermetic mode
+(`live_api_called=false`). Optional `--live` verifies ack + URL presence only — **no HTTP**.
+
+---
+
 ## Verification commands
 
 ```bash
@@ -269,6 +297,7 @@ python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr147 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr148 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr149 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr150 -v
 python3 scripts/verify_kilo_env_matrix.py
 python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_governance_evidence.py
@@ -276,9 +305,10 @@ python3 scripts/verify_kilo_mercury_hermetic.py
 python3 scripts/verify_kilo_swarm_instrumentation.py
 python3 scripts/verify_kilo_proof_schema.py
 python3 scripts/verify_kilo_dashboard_slots.py
+python3 scripts/verify_kilo_live_proof_exec.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #149 dashboard-slots — hermetic only; Live proof not executed.
+**Revision:** PR #150 live-proof-exec — arc #141–#150 season closed at TEST VERIFIED; Live proof not executed in this PR.
