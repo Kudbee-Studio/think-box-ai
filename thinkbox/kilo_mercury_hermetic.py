@@ -43,3 +43,43 @@ __all__ = (
     "MercuryHermeticViolation",
     "MercuryMockMode",
     "PR_NUMBER",
+    "align_live_gate_stub",
+    "bounded_mercury_fixtures",
+    "evaluate_mercury_hermetic",
+    "hermetic_mercury_operator_check",
+    "mercury_hermetic_contract_summary",
+    "mercury_hermetic_gate_closed",
+    "minimal_mercury_hermetic_environ",
+    "mock_client_configured",
+    "redact_mercury_summary",
+)
+
+GATE_ID = "mercury-hermetic"
+PR_NUMBER = 146
+
+MERCURY_HERMETIC_MODEL = "mercury-2"
+_MOCK_ENV_KEY = "THINKBOX_KILO_MERCURY_MOCK"
+_PROVIDER_KEYS = ("INCEPTION_API_KEY", "THINKBOX_OPENAI_COMPAT_API_KEY")
+_SECRET_ENV_KEYS = frozenset(
+    {
+        "INCEPTION_API_KEY",
+        "THINKBOX_OPENAI_COMPAT_API_KEY",
+        "UPSTASH_PUBLIC_BOX_TOKEN",
+        "UPSTASH_PUBLIC_BOX_URL",
+        "THINKBOX_GOVERNANCE_TOKEN",
+        "GOVERNANCE_TOKEN",
+    }
+)
+_KEY_MIN_LEN = 12
+
+
+class MercuryMockMode(str, Enum):
+    """Alias of env-matrix modes for mercury-hermetic reporting."""
+
+    HERMETIC_UNIT = EnvMatrixMode.HERMETIC_UNIT.value
+    HERMETIC_CI = EnvMatrixMode.HERMETIC_CI.value
+    LIVE_PROOF_PREP = EnvMatrixMode.LIVE_PROOF_PREP.value
+
+
+@dataclass(frozen=True)
+class MercuryHermeticViolation:
