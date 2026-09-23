@@ -8,4 +8,4 @@
 - [ ] No affirmative KILO LIVE VERIFIED / PRODUCTION READY on spine paths
 - [ ] Four-state capped at TEST VERIFIED on branch
 - [ ] `gate_for_pr(141).gate_id == spine-docs` via unit tests
-- [ ] PR #141 merged; follow-on env-matrix gate tracked in `kilo-env-matrix-pr142.md`
+- [ ] PR #141 merged; follow-on gates tracked in `kilo-env-matrix-pr142.md` and `kilo-substrate-checklist-pr143.md`
