@@ -1,0 +1,14 @@
+{
+  "gate_id": "pr166-combined-post165-lane",
+  "pr_number": 166,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "pr165-combined-harden-era-chronicle",
+    "live-proof-operator-prep-deepen",
+    "api-ops-harden-post165",
+    "dashboard-pr165-gates-bind",
+    "swarm-governance-post165-deepen"
+  ]
+}
