@@ -55,6 +55,9 @@ def main() -> int:
     control_plane_block = summary.get("control_plane_api") or {}
     if not control_plane_block.get("hermetic_operator_ok"):
         return 1
+    receipt_chain_block = summary.get("receipt_chain_etag") or {}
+    if not receipt_chain_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

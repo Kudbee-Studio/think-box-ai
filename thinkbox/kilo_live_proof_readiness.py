@@ -8,6 +8,7 @@ PR #151 adds ``post_season_harden`` summary (ops CI + branch hygiene; not an arc
 PR #152 adds ``live_smoke_evidence`` summary (bounded smoke binder + audit flip; not Live proof).
 PR #153 adds ``live_smoke_operator`` summary (hermetic CLI write + audit flip candidate; not Live proof).
 PR #154 adds ``control_plane_api`` summary (HTTP surface upgrade; not Live proof).
+PR #155 adds ``receipt_chain_etag`` summary (chain pagination + ETag deepen; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -178,6 +179,7 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_live_smoke_evidence import live_smoke_evidence_contract_summary
     from thinkbox.kilo_live_smoke_operator import live_smoke_operator_contract_summary
     from thinkbox.kilo_control_plane_api import control_plane_api_contract_summary
+    from thinkbox.kilo_receipt_chain_etag import receipt_chain_etag_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -196,6 +198,7 @@ def spine_contract_summary() -> dict[str, object]:
     live_smoke_summary = live_smoke_evidence_contract_summary()
     live_smoke_operator_summary = live_smoke_operator_contract_summary()
     control_plane_api_summary = control_plane_api_contract_summary()
+    receipt_chain_etag_summary = receipt_chain_etag_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -232,4 +235,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr153_gate_id": live_smoke_operator_summary.get("pr153_gate_id"),
         "control_plane_api": control_plane_api_summary,
         "pr154_gate_id": control_plane_api_summary.get("pr154_gate_id"),
+        "receipt_chain_etag": receipt_chain_etag_summary,
+        "pr155_gate_id": receipt_chain_etag_summary.get("pr155_gate_id"),
     }

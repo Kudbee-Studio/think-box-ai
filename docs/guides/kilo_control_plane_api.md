@@ -21,7 +21,10 @@ Set `THINKBOX_CONTROL_PLANE_TOKEN` or `THINKBOX_CONTROL_PLANE_ALLOW_DEV_TOKEN=1`
 - `GET /contract` — API version + route catalog
 - `GET /status`, `/admission`, `/capacity`
 - `GET|POST /operations`, `GET /operations/{id}`, `POST /operations/{id}/cancel`
-- `GET /receipts/chain` — conditional GET with ETag
+- `GET /receipts/chain` — conditional GET with ETag (status + page; filters)
+- `GET /receipts/chain/page` — paginated receipts only
+- `GET /receipts/chain/head` / `tail` — boundary reads
+- `GET /receipts/{receipt_id}/validate` — fail-closed link check (`If-Match` → 412 on mismatch)
 
 No live Mercury or Box HTTP from these handlers in CI.
 

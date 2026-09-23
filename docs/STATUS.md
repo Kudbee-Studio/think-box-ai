@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #154 — Control-plane API surface upgrade (DRAFT)
+## PR #155 — Receipt-chain / ETag deepen (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `receipt-chain-etag` (layers `control-plane-api`) |
+| **Scope** | `thinkbox/receipt_chain_query.py`, deepen `/receipts/chain*` routes, spine verify |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_receipt_chain_etag.py` |
+
+## PR #154 — Control-plane API surface upgrade (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `control-plane-api` (layers `live-smoke-operator`) |
 | **Scope** | `thinkbox/control_plane_api_*`, `backend/api/v1/control_plane.py`, spine verify |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_control_plane_api.py` |
 
 ## PR #153 — KILO live-smoke operator path (DRAFT)

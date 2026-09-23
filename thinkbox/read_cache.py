@@ -27,6 +27,20 @@ def weak_etag_from_payload(payload: Any) -> str:
     return f'W/"{digest}"'
 
 
+def strong_etag_from_payload(payload: Any) -> str:
+    """Strong ETag (quoted opaque token) from a JSON-serializable payload."""
+    digest = hashlib.sha256(stable_json_bytes(payload)).hexdigest()[:32]
+    return f'"{digest}"'
+
+
+def normalize_etag_token(token: str) -> str:
+    """Strip weak prefix for comparison (W/\"abc\" vs \"abc\")."""
+    t = token.strip()
+    if t.upper().startswith("W/"):
+        t = t[2:].strip()
+    return t
+
+
 def etag_matches(if_none_match: str | None, etag: str) -> bool:
     if not if_none_match or not etag:
         return False
@@ -36,7 +50,25 @@ def etag_matches(if_none_match: str | None, etag: str) -> bool:
     if candidate == "*":
         return True
     parts = [p.strip() for p in candidate.split(",")]
-    return etag in parts
+    target = normalize_etag_token(etag)
+    for part in parts:
+        if normalize_etag_token(part) == target:
+            return True
+        if part == etag:
+            return True
+    return False
+
+
+def parse_entity_tags(header_value: str | None) -> tuple[str, ...]:
+    """Parse If-None-Match / If-Match header into normalized tokens."""
+    if not header_value or not str(header_value).strip():
+        return ()
+    raw = str(header_value).strip()
+    if len(raw) > 4096:
+        return ()
+    if raw == "*":
+        return ("*",)
+    return tuple(p.strip() for p in raw.split(",") if p.strip())
 
 
 @dataclass
