@@ -23,9 +23,13 @@ python3 -m unittest tests.e2e.test_governed_runtime_loop
 - Scripted mock-provider completions (`deterministic_emission_v2`) for verified tasks and DAGs
 - Five-subtask Think Job shape: submit → admission → execute → per-task proof → goal-level ledger metadata
 
-### Deferred (F023)
+### F023 prep (PR #128)
 
-Full Think Job lifecycle with `core.providers.ModelProvider` wiring, experiment persistence artifacts on disk, and dashboard emission remains **F023** — this directory prepares hermetic patterns only.
+| File | Purpose |
+|------|---------|
+| `test_f023_prep.py` | Hermetic `ModelProvider` protocol wiring, `ExperimentManager` SQLite round-trip, Think Job `POST /run` API surface (source contract) |
+
+Full Think Job lifecycle with live `ModelProvider` execution and dashboard emission remains **F023** — not claimed in PR #128.
 
 ## Full gate
 
