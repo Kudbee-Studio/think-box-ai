@@ -38,6 +38,8 @@
     .tj-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: var(--space-4); }
     .tj-toolbar input { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
     .tj-mode { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); }
+    .tj-mode.sse { color: var(--color-success); }
+    .tj-mode.poll { color: var(--color-warning); }
     pre.tj-json {
       background: var(--color-bg);
       border: 1px solid var(--color-border);
@@ -110,7 +112,9 @@
     }
 
     function setMode(mode) {
-      document.getElementById("modeChip").textContent = "mode: " + mode;
+      var chip = document.getElementById("modeChip");
+      chip.textContent = "mode: " + mode;
+      chip.className = "tj-mode" + (mode === "sse" ? " sse" : mode.indexOf("poll") >= 0 ? " poll" : "");
       var deg = document.getElementById("degradedBanner");
       if (mode === "degraded_poll" || mode === "poll") {
         deg.style.display = "block";
