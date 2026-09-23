@@ -36,17 +36,34 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#164 on main** (#164 = governance-evidence Live-proof readiness). **PR #165 (draft):** combined harden + #154–#164 era chronicle. |
+| **Latest completed work** | **PR #141–#165 on main** (#165 = combined harden + #154–#164 era chronicle). **PR #166 (draft):** combined post-#165 lane (operator prep + api ops + dashboard bind + swarm/gov deepen). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#164 merged; PR #165 draft (`pr165-combined-harden-era-chronicle`) |
+| **PR status** | PR #141–#165 merged; PR #166 draft (`pr166-combined-post165-lane`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — PR #166 draft: combined post-#165 lane (after #165)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_proof_operator_prep_deepen`; Theme B: `api_ops_harden_post165`; Theme C: `dashboard_pr165_gates_bind` + `pr165_gates_status.html`; Theme D: `swarm_governance_post165_deepen`; Umbrella: `pr166_combined_post165_lane` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr166_combined_post165_lane.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr166 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr166.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #165 merged: combined harden + #154–#164 era chronicle (after #164)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A–C + era chronicle pack on `main` (merge `cbc09c57`) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
 
 ### 2026-09-23 — PR #165 draft: combined harden + #154–#164 era chronicle (after #164)
 
