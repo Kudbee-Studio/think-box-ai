@@ -1,10 +1,9 @@
 # STATUS — Think Box AI
 
-## PR #143 — KILO substrate-checklist gate (DRAFT)
+## PR #143 — KILO substrate-checklist gate (MERGED)
 
 | Field | Value |
 |-------|-------|
-| **Branch** | `cursor/pr143-kilo-substrate-checklist-fe6b` |
 | **Gate** | `substrate-checklist` |
 | **Scope** | `thinkbox/kilo_substrate_checklist.py` on top of env-matrix, operator verify scripts |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |

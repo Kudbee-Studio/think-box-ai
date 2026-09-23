@@ -852,10 +852,9 @@ python3 -m unittest \
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
 
-## PR #143 — KILO substrate-checklist gate (DRAFT)
+## PR #143 — KILO substrate-checklist gate (MERGED)
 
-**Status:** Draft — closes **`substrate-checklist`** in **#141–#150** arc (Box URL/token readiness on env-matrix; no Live proof)  
-**Branch:** `cursor/pr143-kilo-substrate-checklist-fe6b`  
+**Status:** Merged — closes **`substrate-checklist`** in **#141–#150** arc (Box URL/token readiness on env-matrix; no Live proof)  
 **Scope:** `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py`, PR #143 hermetic tests
 
 ### Four-State

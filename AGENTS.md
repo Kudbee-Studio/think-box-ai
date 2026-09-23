@@ -546,13 +546,13 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 |------|-----------|--------|
 | Env docs + runbook spine + hermetic gates | **#141** (merged) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
 | Hermetic KILO env matrix + contract tests | **#142** (merged) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
-| Box URL/token substrate checklist | **#143** (draft) | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py` |
+| Box URL/token substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py` |
 | #144–#149 | planned | Close arc gates in runbook (`governance-evidence` … `founder-ack`) |
 | Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
 
-Four-state on #143 branch: **CODE COMPLETE / TEST VERIFIED** only.
+Four-state on #143 (merged): **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED.
 
 ---
 

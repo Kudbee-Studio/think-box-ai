@@ -68,7 +68,7 @@ No `INCEPTION_API_KEY` consumption is required for #141–#143 hermetic gates.
 |----|---------------------|---------|-----------|
 | **141** | Env docs + runbook spine | `spine-docs` | **Merged** |
 | **142** | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | **Merged** |
-| **143** | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | **This PR (draft)** |
+| **143** | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | **Merged** |
 | 144 | Governance token + admission evidence shape for live burst | `governance-evidence` | #144 |
 | 145 | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #145 |
 | 146 | Swarm instrumentation verify (11/11) as prereq gate | `swarm-instrumentation` | #146 |
