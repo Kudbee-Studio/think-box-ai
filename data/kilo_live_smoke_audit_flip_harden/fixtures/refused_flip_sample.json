@@ -1,0 +1,5 @@
+{
+  "expect_refused_flip": true,
+  "audit_flip_status": "refused",
+  "live_verified": false
+}

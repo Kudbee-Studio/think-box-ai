@@ -25,6 +25,11 @@
     "scripts/verify_kilo_receipt_chain_etag.py",
     "scripts/verify_kilo_dashboard_receipt_chain_bind.py",
     "scripts/verify_kilo_api_ops_harden.py",
+    "scripts/verify_kilo_governance_evidence_live_proof_readiness.py",
+    "scripts/verify_kilo_live_smoke_audit_flip_harden.py",
+    "scripts/verify_kilo_control_plane_post164_deepen.py",
+    "scripts/verify_kilo_receipt_chain_end_link_season_harden.py",
+    "scripts/verify_kilo_pr165_combined_harden.py",
     "scripts/verify_kilo_spine.py",
     "scripts/scan_doc_secrets.py"
   ]

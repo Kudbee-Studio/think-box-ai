@@ -1,0 +1,33 @@
+{
+  "chronicle_label": "pr165-era-chronicle-154-164",
+  "chronicle_version": "1.0.0",
+  "audit_pack": "pr154-164-era-chronicle",
+  "date": "2026-09-23",
+  "pr_range_first": 154,
+  "pr_range_last": 164,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "description": "Append-only honesty chronicle for control-plane / receipt-chain / END_LINK / governance-evidence era (#154–#164). Hermetic TEST VERIFIED only — no Live proof executed in CI.",
+  "prior_era_pack": "passes/2026-09-23-pr154-161-era-consolidated.json",
+  "gates": [
+    {"pr_number": 154, "gate_id": "control-plane-api", "pass_file": "passes/2026-09-23-pr154.json", "live_proved": false},
+    {"pr_number": 155, "gate_id": "receipt-chain-etag", "pass_file": "passes/2026-09-23-pr155.json", "live_proved": false},
+    {"pr_number": 156, "gate_id": "dashboard-receipt-chain-bind", "pass_file": "passes/2026-09-23-pr156.json", "live_proved": false},
+    {"pr_number": 157, "gate_id": "api-ops-harden", "pass_file": "passes/2026-09-23-pr157.json", "live_proved": false},
+    {"pr_number": 158, "gate_id": "end-link-deepen", "pass_file": "passes/2026-09-23-pr158.json", "live_proved": false},
+    {"pr_number": 159, "gate_id": "end-link-operator-ux", "pass_file": "passes/2026-09-23-pr159.json", "live_proved": false},
+    {"pr_number": 160, "gate_id": "receipt-chain-end-link-docs", "pass_file": "passes/2026-09-23-pr160.json", "live_proved": false},
+    {"pr_number": 161, "gate_id": "end-link-api-ops-harden", "pass_file": "passes/2026-09-23-pr161.json", "live_proved": false},
+    {"pr_number": 162, "gate_id": "receipt-chain-end-link-era-close", "pass_file": "passes/2026-09-23-pr162.json", "live_proved": false},
+    {"pr_number": 162, "gate_id": "control-plane-e2e-deepen", "pass_file": "passes/2026-09-23-pr162.json", "live_proved": false},
+    {"pr_number": 164, "gate_id": "governance-evidence-live-proof-readiness", "pass_file": "passes/2026-09-23-pr164.json", "live_proved": false}
+  ],
+  "explicitly_not_live_proved": [
+    "bounded Live smoke to Box/Mercury",
+    "founder-run KILO LIVE VERIFIED flip",
+    "production readiness on spine paths",
+    "live HTTP in CI for control-plane receipt-chain"
+  ],
+  "next_larger_improvement": "Founder-run bounded Live proof when UPSTASH_PUBLIC_BOX_URL, token, and THINKBOX_SWARM_LIVE_ACK are present in founder runtime."
+}

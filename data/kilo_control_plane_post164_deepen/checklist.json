@@ -1,0 +1,11 @@
+{
+  "gate_id": "control-plane-post164-deepen",
+  "pr_number": 165,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "post164_deepen_label": "control-plane-post164-deepen",
+  "post164_deepen_version": "1.0.0",
+  "prior_gate_ids": ["governance-evidence-live-proof-readiness"],
+  "verify_script": "scripts/verify_kilo_control_plane_post164_deepen.py"
+}

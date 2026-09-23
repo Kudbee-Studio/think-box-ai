@@ -1,0 +1,7 @@
+{
+  "expect_envelope_ok": true,
+  "body": {
+    "correlation_id": "cp-pr165-fixture",
+    "four_state_max": "TEST_VERIFIED"
+  }
+}
