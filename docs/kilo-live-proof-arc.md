@@ -3,7 +3,13 @@
 **Owner:** Founder-directed arc (2026-09-23)  
 **Goal:** Prepare KILO so a later **Live proof** can be earned honestly — not to run Live proof in the spine PRs.
 
-**Season status (PR #150):** Arc checklist **closed** at CODE COMPLETE / TEST VERIFIED. Cloud Bot on standby — no #151 unless founder asks.
+**Season status (PR #150 merged):** Arc checklist **closed** at CODE COMPLETE / TEST VERIFIED. **PR #151** (founder-directed) is post-season ops harden — not a Live proof gate.
+
+## Post-season (#151)
+
+| Work | PR | Outcome |
+|------|-----|---------|
+| CI + branch hygiene + docs sync | **#151** | `post-season-harden` hermetic ops gate (draft) |
 
 ## Scope
 
@@ -38,8 +44,9 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Runbook: `docs/runbooks/kilo-live-proof-readiness.md`
 - Contract: `thinkbox/kilo_live_proof_readiness.py`
 - Live-proof exec: `thinkbox/kilo_live_proof_exec.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr150.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr150.json` (`live_verified: false` for #150)
+- Post-season ops: `thinkbox/kilo_post_season_harden.py` (PR #151, not arc gate)
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr151.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr151.json` (`live_verified: false`)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
