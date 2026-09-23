@@ -306,9 +306,36 @@ python3 scripts/verify_kilo_swarm_instrumentation.py
 python3 scripts/verify_kilo_proof_schema.py
 python3 scripts/verify_kilo_dashboard_slots.py
 python3 scripts/verify_kilo_live_proof_exec.py
+python3 scripts/verify_kilo_post_season_harden.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #150 live-proof-exec — arc #141–#150 season closed at TEST VERIFIED; Live proof not executed in this PR.
+**Revision:** PR #151 post-season harden — ops CI + branch hygiene; arc #141–#150 remains closed at TEST VERIFIED.
+
+---
+
+## Post-season harden (PR #151)
+
+Gate ID: **`post-season-harden`**. Hermetic only — layers on **`live-proof-exec`**
+(`hermetic_live_proof_exec_operator_check` first). Not an arc #141–#150 gate. Validates
+CI workflow snippets (`verify_kilo_spine.py`, `verify_kilo_post_season_harden.py`,
+`scan_doc_secrets.py`), presence of spine operator scripts, frozen checklist
+`data/kilo_post_season_harden/checklist.json`, and branch hygiene tooling
+(`scripts/cleanup_merged_cursor_branches.py` + `docs/runbooks/branch-hygiene.md`).
+Dry-run is the default for remote branch deletes; protected branches never removed.
+
+| Check | Expectation |
+|-------|-------------|
+| `verify_kilo_post_season_harden.py` | exit 0, `live_api_called=false` |
+| `cleanup_merged_cursor_branches.py` | dry-run unless `--execute` |
+| Four-state | TEST VERIFIED max — not LIVE VERIFIED |
+
+Add to verification block:
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr151 -v
+python3 scripts/verify_kilo_post_season_harden.py
+python3 scripts/cleanup_merged_cursor_branches.py
+```
