@@ -233,3 +233,53 @@ class BoundedMercuryMockClient:
         else:
             reasoning_out = None
         return MercuryHermeticCallResult(
+            model=self._model,
+            content=content,
+            reasoning=reasoning_out,
+            prompt_chars=len(prompt),
+            fixture_id=self._fixture_id,
+            live_api_called=False,
+        )
+
+
+def align_live_gate_stub(
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Merge ``cli_live_gate`` authorization report with mercury-hermetic metadata."""
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    ack = (env.get("THINKBOX_SWARM_LIVE_ACK") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "accept",
+    )
+    provider_present = any((env.get(k) or "").strip() for k in _PROVIDER_KEYS)
+    missing: list[str] = []
+    if not provider_present:
+        missing.append(f"one of: {', '.join(_PROVIDER_KEYS)}")
+    if not ack:
+        missing.append("THINKBOX_SWARM_LIVE_ACK=1 (founder explicit live ack)")
+    report: dict[str, Any] = {
+        "authorized": provider_present and ack,
+        "provider_credential_present": provider_present,
+        "founder_ack_present": ack,
+        "missing": missing,
+        "mode": "authorization_check_only",
+        "live_api_called": False,
+        "evidence_label": "inferred",
+    }
+    report["gate_id"] = GATE_ID
+    report["pr_number"] = PR_NUMBER
+    report["mercury_network_io"] = False
+    report["mock_client_configured"] = mock_client_configured(env)
+    return report
+
+
+def redact_mercury_summary(text: str) -> str:
+    """Scrub provider key-like literals from serialized summaries."""
+    scrubbed = text
+    for key in _PROVIDER_KEYS:
+        scrubbed = re.sub(
+            rf'("{key}"\s*:\s*")[^"]+(")',
+            rf"\1<redacted>\2",
+            scrubbed,
