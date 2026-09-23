@@ -1316,4 +1316,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FourState:** KUDBEECLI Phase 1 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**. F023 full Think Job lifecycle still open.
 - **NEXT ACTION:** Founder review draft PR #128; PR #129 theme: Phase 2 CLI persistence + `thinkbox shell` REPL (fail-closed live paths).
 
+### 2026-09-23 — PR #128 merged; PR #129 draft (KUDBEECLI Phase 2)
+
+- **MERGED:** GitHub PR **#128** → `main` at **`bfa067d`** (Phase 1 CLI six commands).
+- **BRANCH:** `feat/pr129-cli-phase2-25` — Phase 2: `cli_persist.py`, `cli_shell.py`, `cli_dashboard.py`, `cli_live_gate.py`; `thinkbox shell`, `dashboard status`, `persist *`, `identity *`, `trace *`, `swarm live` (gate only); `ThinkTraceCapture.list_recent`; audit `docs/audit/passes/2026-09-23-pr129.json`.
+- **FourState:** Phase 2 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**.
+- **NEXT ACTION:** Founder review draft PR #129; PR #130 theme: F023 Think Job lifecycle e2e + dashboard emission (hermetic).
+
 ---

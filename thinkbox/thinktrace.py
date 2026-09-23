@@ -84,6 +84,13 @@ class ThinkTraceCapture:
                 return len(self._traces)
             return len([t for t in self._traces if t.grounded == grounded])
 
+    def list_recent(self, limit: int = 100) -> list[ThinkTrace]:
+        """Return newest traces up to ``limit`` (for durable export / CLI)."""
+        with self._lock:
+            if limit <= 0:
+                return []
+            return list(self._traces[-limit:])
+
     @staticmethod
     def _similarity(a: str, b: str) -> float:
         a_terms = set(a.lower().split())
