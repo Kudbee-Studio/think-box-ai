@@ -30,6 +30,9 @@ def main() -> int:
     mercury_block = summary.get("mercury_hermetic") or {}
     if not mercury_block.get("hermetic_operator_ok"):
         return 1
+    swarm_block = summary.get("swarm_instrumentation") or {}
+    if not swarm_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
