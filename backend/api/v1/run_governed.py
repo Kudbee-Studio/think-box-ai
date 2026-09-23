@@ -268,7 +268,7 @@ async def execute_governed_run_background(
                 capability=ctx.capability,
                 emit_dashboard=True,
                 manager=stack.manager,
-                persist_profile=persist_profile_for_http(),
+                persist_profile=persist_profile_for_http(ctx.agent_id),
                 goal_experiment_id=binding.experiment_id if binding else None,
                 session_id_override=binding.session_id if binding else None,
             )

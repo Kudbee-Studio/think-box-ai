@@ -223,11 +223,11 @@ def begin_http_run_receipt(
     return binding
 
 
-def persist_profile_for_http() -> dict[str, Any]:
+def persist_profile_for_http(agent_id: str = "http-run-agent") -> dict[str, Any]:
     return {
         "four_state": HTTP_RUN_FOUR_STATE,
         "execution_mode": HTTP_RUN_EXECUTION_MODE,
-        "agent_id_field": "http-run-agent",
+        "agent_id_field": agent_id or "http-run-agent",
         "model": "hermetic-mock",
         "provider": "hermetic-mock",
         "evidence_label": HTTP_RUN_EVIDENCE,
