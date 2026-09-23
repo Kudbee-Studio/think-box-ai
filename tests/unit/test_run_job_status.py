@@ -33,6 +33,11 @@ class TestPollHints(unittest.TestCase):
         hints = poll_hints_for_status("completed")
         self.assertTrue(hints["terminal"])
 
+    def test_poll_hints_expose_stream_paths(self) -> None:
+        hints = poll_hints_for_status("running")
+        self.assertTrue(hints["stream"]["stream_available"])
+        self.assertIn("status/stream", hints["stream"]["job_path"])
+
 
 class TestReceiptLinkCard(unittest.TestCase):
     def test_card_marks_linked_when_ids_present(self) -> None:

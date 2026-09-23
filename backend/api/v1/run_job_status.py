@@ -19,6 +19,7 @@ from thinkbox.dashboard_state import ThinkJobEntry, get_dashboard_state
 from thinkbox.read_cache import weak_etag_from_payload
 
 STATUS_SCHEMA_VERSION = "think_job_status_v1"
+# Stream companion schema: thinkbox.think_job_stream.STREAM_SCHEMA_VERSION (PR #137)
 
 __all__ = [
     "STATUS_SCHEMA_VERSION",
@@ -81,12 +82,15 @@ def build_receipt_link_card(
 
 
 def poll_hints_for_status(status: str) -> dict[str, Any]:
+    from thinkbox.think_job_stream import stream_hints_for_poll
+
     terminal = status in TERMINAL_STATUSES
     interval = DEFAULT_POLL_INTERVAL_MS if terminal else RUNNING_POLL_INTERVAL_MS
     return {
         "terminal": terminal,
         "recommended_interval_ms": interval,
         "schema_version": STATUS_SCHEMA_VERSION,
+        "stream": stream_hints_for_poll(),
     }
 
 
@@ -356,6 +360,8 @@ def list_think_job_status_digest(limit: int = 50) -> dict[str, Any]:
 
 
 def job_status_snapshot_for_governance() -> dict[str, Any]:
+    from thinkbox.think_job_stream import job_status_stream_snapshot_for_governance
+
     dashboard = get_dashboard_state()
     statuses: dict[str, int] = {}
     linked = 0
@@ -368,4 +374,5 @@ def job_status_snapshot_for_governance() -> dict[str, Any]:
         "receipt_linked_jobs": linked,
         "status_counts": statuses,
         "poll_schema_version": STATUS_SCHEMA_VERSION,
+        "stream": job_status_stream_snapshot_for_governance(),
     }
