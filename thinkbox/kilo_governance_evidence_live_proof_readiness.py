@@ -291,6 +291,17 @@ def run_readiness_fixture_suite() -> tuple[int, int, list[str]]:
 
     for path in sorted(fixtures_dir.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc.get("expect_metadata_ok"):
+            if (
+                doc.get("founder_ack_documented")
+                and doc.get("box_url_documented")
+                and doc.get("live_verified") is False
+                and doc.get("live_api_called") is False
+            ):
+                positive += 1
+            else:
+                errors.append(f"{path.name}: expect_metadata_ok failed")
+            continue
         if doc.get("expect_ok"):
             val = validate_readiness_document(doc)
             if val.ok:
