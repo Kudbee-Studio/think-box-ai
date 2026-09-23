@@ -539,18 +539,19 @@ Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury cl
 
 ## KILO Live-proof readiness arc (PR #141–#150)
 
-Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141** spine merged; **PR #142** closes `env-matrix` — **not** Live proof, **not** live build, **not** GPU spin-up.
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141** spine merged; **PR #142** `env-matrix` merged; **PR #143** closes `substrate-checklist` — **not** Live proof, **not** live build, **not** GPU spin-up.
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
 | Env docs + runbook spine + hermetic gates | **#141** (merged) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
-| Hermetic KILO env matrix + contract tests | **#142** (draft) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
-| #143–#149 | planned | Close arc gates in runbook (`substrate-checklist` … `founder-ack`) |
+| Hermetic KILO env matrix + contract tests | **#142** (merged) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
+| Box URL/token substrate checklist | **#143** (draft) | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py` |
+| #144–#149 | planned | Close arc gates in runbook (`governance-evidence` … `founder-ack`) |
 | Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
 
-Four-state on #142 branch: **CODE COMPLETE / TEST VERIFIED** only.
+Four-state on #143 branch: **CODE COMPLETE / TEST VERIFIED** only.
 
 ---
 
