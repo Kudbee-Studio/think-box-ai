@@ -44,6 +44,12 @@ class TestReceiptChainQuery(unittest.TestCase):
         page = fetch_chain_page(self.store, limit=50, agent_id="ag1")
         self.assertTrue(all(r.get("agent_id") == "ag1" for r in page.receipts))
 
+    def test_filter_evidence_label(self) -> None:
+        self.store.append("act", "ok", "r", "inferred", metadata={})
+        page = fetch_chain_page(self.store, limit=50, evidence_label="inferred")
+        self.assertEqual(len(page.receipts), 1)
+        self.assertEqual(page.receipts[0]["evidence_label"], "inferred")
+
     def test_head_tail(self) -> None:
         head = fetch_head_receipt(self.store)
         tail = fetch_tail_receipt(self.store)

@@ -24,9 +24,12 @@ from thinkbox.dashboard_receipt_chain_models import (
 from thinkbox.end_link_api import (
     END_LINK_API_LABEL,
     EndLinkResult,
+    build_end_link_batch_path,
     build_end_link_path,
     parse_end_link_envelope,
 )
+from thinkbox.end_link_deepen import run_end_link_batch_validate
+from thinkbox.control_plane_receipt_store import get_control_plane_receipt_store
 from thinkbox.receipt_chain_query import ReceiptChainValidationError
 
 DEFAULT_HERMETIC_FETCH_TIMEOUT_MS = 5000
@@ -69,6 +72,7 @@ def chain_api_paths(base: str = "/api/v1/control-plane") -> dict[str, str]:
         "head": f"{prefix}/receipts/chain/head",
         "tail": f"{prefix}/receipts/chain/tail",
         "end_link_template": f"{prefix}/receipts/{{receipt_id}}/validate",
+        "end_link_batch": build_end_link_batch_path(base_prefix=prefix),
         "end_link_api": END_LINK_API_LABEL,
     }
 
@@ -78,7 +82,8 @@ def hermetic_end_link_validate(receipt_id: str) -> EndLinkResult:
     try:
         body = validate_chain_receipt_id(receipt_id)
         envelope = wrap_success(body, request_id="hermetic_end_link")
-        return parse_end_link_envelope(envelope, receipt_id=receipt_id, http_status=200)
+        result = parse_end_link_envelope(envelope, receipt_id=receipt_id, http_status=200)
+        return result
     except ReceiptChainValidationError as exc:
         return EndLinkResult(
             receipt_id=receipt_id,
@@ -86,6 +91,8 @@ def hermetic_end_link_validate(receipt_id: str) -> EndLinkResult:
             live_api_called=False,
             http_status=404,
             evidence_label="simulated",
+            failure_code=exc.code,
+            link_integrity="broken",
         )
 
 
@@ -122,9 +129,13 @@ class DashboardReceiptChainClient:
         return get_chain_payload(limit=limit)
 
     def validate_end_link(self, receipt_id: str) -> EndLinkResult:
-        path = build_end_link_path(receipt_id, base_prefix=self._base)
         result = hermetic_end_link_validate(receipt_id)
         return result
+
+    def validate_end_link_batch(self, receipt_ids: list[str]) -> dict[str, Any]:
+        """Hermetic bulk END LINK (PR #158)."""
+        store = get_control_plane_receipt_store()
+        return run_end_link_batch_validate(store, receipt_ids).to_dict()
 
     def bind_state(
         self,
@@ -144,7 +155,9 @@ class DashboardReceiptChainClient:
                     valid=el.valid,
                     http_status=el.http_status,
                     etag=el.etag,
-                    error_code=None if el.valid else "validation_failed",
+                    error_code=el.failure_code if not el.valid else None,
+                    link_integrity=el.link_integrity,
+                    prev_receipt_id=el.prev_receipt_id,
                 )
             state.etag_events.append(
                 EtagCacheView(

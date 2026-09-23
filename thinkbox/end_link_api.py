@@ -11,11 +11,14 @@ from typing import Any, Mapping
 
 __all__ = (
     "END_LINK_API_LABEL",
+    "END_LINK_BATCH_ROUTE_SUFFIX",
     "END_LINK_ROUTE_SUFFIX",
     "EndLinkConditionalHint",
     "EndLinkResult",
     "EndLinkViolation",
+    "build_end_link_batch_path",
     "build_end_link_path",
+    "merge_end_link_deepen_fields",
     "normalize_end_link_receipt_id",
     "parse_end_link_envelope",
     "redact_end_link_summary",
@@ -23,6 +26,7 @@ __all__ = (
 
 END_LINK_API_LABEL = "END_LINK"
 END_LINK_ROUTE_SUFFIX = "/receipts/{receipt_id}/validate"
+END_LINK_BATCH_ROUTE_SUFFIX = "/receipts/validate/batch"
 
 
 class EndLinkViolation(ValueError):
@@ -56,8 +60,12 @@ class EndLinkResult:
     http_status: int | None = None
     conditional: EndLinkConditionalHint = EndLinkConditionalHint()
 
+    link_integrity: str | None = None
+    prev_receipt_id: str | None = None
+    failure_code: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "api": END_LINK_API_LABEL,
             "receipt_id": self.receipt_id,
             "valid": self.valid,
@@ -72,6 +80,18 @@ class EndLinkResult:
                 "not_modified_status": self.conditional.not_modified_status,
             },
         }
+        if self.link_integrity is not None:
+            out["link_integrity"] = self.link_integrity
+        if self.prev_receipt_id is not None:
+            out["prev_receipt_id"] = self.prev_receipt_id
+        if self.failure_code is not None:
+            out["failure_code"] = self.failure_code
+        return out
+
+
+def build_end_link_batch_path(*, base_prefix: str = "/api/v1/control-plane") -> str:
+    """Absolute path for bulk END LINK validate (POST)."""
+    return f"{base_prefix.rstrip('/')}/receipts/validate/batch"
 
 
 def build_end_link_path(receipt_id: str, *, base_prefix: str = "/api/v1/control-plane") -> str:
@@ -107,7 +127,32 @@ def parse_end_link_envelope(
         evidence_label=str(data.get("evidence_label") or "simulated"),
         etag=etag,
         http_status=http_status,
+        link_integrity=data.get("link_integrity") if data.get("link_integrity") else None,
+        prev_receipt_id=data.get("prev_receipt_id") if data.get("prev_receipt_id") else None,
+        failure_code=data.get("failure_code") if data.get("failure_code") else None,
     )
+
+
+def merge_end_link_deepen_fields(
+    base: Mapping[str, Any],
+    deepen: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Merge PR #158 integrity fields into a validate payload (idempotent)."""
+    merged = dict(base)
+    for key in (
+        "link_integrity",
+        "prev_receipt_id",
+        "entry_hash",
+        "failure_code",
+        "failure_message",
+        "deepen",
+        "deepen_version",
+    ):
+        if key in deepen and deepen[key] is not None:
+            merged[key] = deepen[key]
+    merged.setdefault("api", END_LINK_API_LABEL)
+    merged.setdefault("live_api_called", False)
+    return merged
 
 
 def redact_end_link_summary(payload: Mapping[str, Any]) -> dict[str, Any]:

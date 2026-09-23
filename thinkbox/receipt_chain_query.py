@@ -90,6 +90,8 @@ def fetch_chain_page(
     cursor: str | None = None,
     action: str | None = None,
     agent_id: str | None = None,
+    status_filter: str | None = None,
+    evidence_label: str | None = None,
 ) -> ChainPage:
     """Forward page in append order with stable cursor on sqlite rowid."""
     after_rowid = decode_cursor(cursor)
@@ -108,7 +110,7 @@ def fetch_chain_page(
         ).fetchall()
     filtered: list[tuple[Any, ...]] = []
     for row in rows:
-        rid, receipt_id, act, status, reason, ev, ts, prev_hash, entry_hash, meta_str = row
+        rid, receipt_id, act, row_status, reason, ev, ts, prev_hash, entry_hash, meta_str = row
         if action and act != action:
             continue
         if agent_id:
@@ -118,6 +120,10 @@ def fetch_chain_page(
                 continue
             if not isinstance(meta, dict) or meta.get("agent_id") != agent_id:
                 continue
+        if status_filter and row_status != status_filter:
+            continue
+        if evidence_label and ev != evidence_label:
+            continue
         filtered.append(row)
         if len(filtered) >= lim:
             break
