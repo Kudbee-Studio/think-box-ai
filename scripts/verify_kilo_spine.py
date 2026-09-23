@@ -76,6 +76,9 @@ def main() -> int:
     end_link_api_ops_harden_block = summary.get("end_link_api_ops_harden") or {}
     if not end_link_api_ops_harden_block.get("hermetic_operator_ok"):
         return 1
+    era_close_block = summary.get("receipt_chain_end_link_era_close") or {}
+    if not era_close_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

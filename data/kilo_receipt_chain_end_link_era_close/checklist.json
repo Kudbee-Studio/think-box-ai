@@ -1,0 +1,14 @@
+{
+  "gate_id": "receipt-chain-end-link-era-close",
+  "pr_number": 162,
+  "receipt_chain_end_link_era_close": "receipt-chain-end-link-era-close",
+  "receipt_chain_end_link_era_close_version": "1.0.0",
+  "prior_gate_ids": [
+    "end-link-api-ops-harden",
+    "receipt-chain-end-link-docs",
+    "end-link-operator-ux"
+  ],
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false
+}
