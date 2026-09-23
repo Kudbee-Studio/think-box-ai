@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T06:15:00Z",
+      "checker": "cursor-cloud-pr132",
+      "commit_sha": "pending",
+      "finding_ids": ["F132-GOVERNED-RUN", "F132-ADMISSION", "F132-LEDGER", "F132-VERIFIED-HTTP"],
+      "notes": "test_f132_governed_run_admission + run_governed; suite 2343 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-23T03:55:00Z",
       "checker": "cursor-cloud-pr131",
       "commit_sha": "pending",

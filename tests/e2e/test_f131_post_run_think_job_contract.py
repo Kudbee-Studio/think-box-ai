@@ -18,7 +18,7 @@ from backend.api.v1.router import RunRequest, RunResponse
 from thinkbox.dashboard_state import DashboardCategory, DashboardEvent
 from thinkbox.engine import EngineConfig
 
-from tests.e2e.api_run_hermetic import auth_headers, events_matching, hermetic_run_client
+from tests.e2e.api_run_hermetic import auth_headers, events_matching, hermetic_run_client, run_payload
 from tests.e2e.hermetic_scaffold import (
     assert_hermetic_blob_has_no_secrets,
     isolated_dashboard_state,
@@ -54,7 +54,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
     def test_post_run_returns_started_status(self) -> None:
         with isolated_dashboard_state():
             with hermetic_run_client() as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "contract goal"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("contract goal"), headers=auth_headers())
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual(body["status"], "started")
@@ -65,7 +65,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
     def test_think_job_entry_upserted_through_lifecycle(self) -> None:
         with isolated_dashboard_state() as dash:
             with hermetic_run_client() as (client, mock_cls):
-                r = client.post("/api/v1/run", json={"goal": "upsert check"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("upsert check"), headers=auth_headers())
                 self.assertEqual(r.status_code, 200)
                 mock_cls.assert_called_once()
             eid = r.json()["engine_id"]
@@ -74,12 +74,12 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
             self.assertEqual(job.goal, "upsert check")
             self.assertEqual(job.status, "completed")
             self.assertEqual(job.engine_id, eid)
-            self.assertEqual(job.phase, "started")
+            self.assertEqual(job.phase, "completed")
 
     def test_task_started_event_emitted(self) -> None:
         with isolated_dashboard_state() as dash:
             with hermetic_run_client() as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "events"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("events"), headers=auth_headers())
                 self.assertEqual(r.status_code, 200)
                 started = events_matching(
                     dash,
@@ -94,7 +94,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
     def test_task_completed_after_engine_finishes(self) -> None:
         with isolated_dashboard_state() as dash:
             with hermetic_run_client(execute_result={"total_tasks": 5, "completed": 4}) as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "finish"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("finish"), headers=auth_headers())
                 self.assertEqual(r.status_code, 200)
             completed = events_matching(
                 dash,
@@ -102,7 +102,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
                 event_type=DashboardEvent.TASK_COMPLETED,
             )
             self.assertEqual(len(completed), 1)
-            self.assertEqual(completed[0].source, "engine")
+            self.assertEqual(completed[0].source, "governed_engine")
             self.assertEqual(completed[0].data["tasks_total"], 5)
             self.assertEqual(completed[0].data["tasks_completed"], 4)
             self.assertEqual(completed[0].data["progress"], 1.0)
@@ -112,7 +112,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
 
         with isolated_dashboard_state():
             with hermetic_run_client() as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "register"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("register"), headers=auth_headers())
         eid = r.json()["engine_id"]
         self.assertIn(eid, router_mod.active_engines)
 
@@ -121,7 +121,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
             with hermetic_run_client() as (client, mock_cls):
                 client.post(
                     "/api/v1/run",
-                    json={"goal": "no speculate", "speculative": False},
+                    json=run_payload("no speculate", speculative=False),
                     headers=auth_headers(),
                 )
         cfg: EngineConfig = mock_cls.call_args[0][0]
@@ -132,7 +132,7 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
             with hermetic_run_client() as (client, mock_cls):
                 client.post(
                     "/api/v1/run",
-                    json={"goal": "tuned", "model": "hermetic-model", "temperature": 0.42},
+                    json=run_payload("tuned", model="hermetic-model", temperature=0.42),
                     headers=auth_headers(),
                 )
         cfg: EngineConfig = mock_cls.call_args[0][0]
@@ -177,14 +177,14 @@ class TestPostRunAuthFailClosed(unittest.TestCase):
             with hermetic_run_client() as (client, _):
                 r = client.post(
                     "/api/v1/run?api_key=tb_hermetic_pr131_contract_key",
-                    json={"goal": "query auth"},
+                    json=run_payload("query auth"),
                 )
         self.assertEqual(r.status_code, 200)
 
     def test_rate_limit_headers_present_on_authed_request(self) -> None:
         with isolated_dashboard_state():
             with hermetic_run_client() as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "rl"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("rl"), headers=auth_headers())
         self.assertEqual(r.status_code, 200)
         self.assertIn("X-RateLimit-Limit", r.headers)
         self.assertIn("X-RateLimit-Remaining", r.headers)
@@ -208,7 +208,7 @@ class TestPostRunValidationAndFailure(unittest.TestCase):
     def test_engine_failure_emits_task_failed(self) -> None:
         with isolated_dashboard_state() as dash:
             with hermetic_run_client(execute_raises=RuntimeError("hermetic boom")) as (client, _):
-                r = client.post("/api/v1/run", json={"goal": "fail"}, headers=auth_headers())
+                r = client.post("/api/v1/run", json=run_payload("fail"), headers=auth_headers())
                 self.assertEqual(r.status_code, 200)
             failed = events_matching(
                 dash,
@@ -223,7 +223,7 @@ class TestPostRunValidationAndFailure(unittest.TestCase):
         with hermetic_run_client() as (client, _):
             r = client.post(
                 "/api/v1/run",
-                json={"goal": "scan me"},
+                json=run_payload("scan me"),
                 headers=auth_headers(),
             )
         assert_hermetic_blob_has_no_secrets(json.dumps(r.json()))
@@ -248,7 +248,7 @@ class TestPostRunOpenApiContract(unittest.TestCase):
     def test_goal_truncated_in_immediate_summary(self) -> None:
         long_goal = "g" * 150
         with hermetic_run_client() as (client, _):
-            r = client.post("/api/v1/run", json={"goal": long_goal}, headers=auth_headers())
+            r = client.post("/api/v1/run", json=run_payload(long_goal), headers=auth_headers())
         summary_goal = r.json()["summary"]["goal"]
         self.assertEqual(len(summary_goal), 100)
 

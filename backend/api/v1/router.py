@@ -10,11 +10,20 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Header, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
+from thinkbox.governed import GovernedEngine
 from thinkbox.model_client import ModelConfig
+
+from backend.api.v1.run_governed import (
+    build_complete_async_for_run,
+    execute_governed_run_background,
+    get_api_run_governance,
+    parse_run_admission,
+    require_http_admission,
+)
 from thinkbox.session import create_session, get_current_session, sync_session, clear_session
 from backend.security import get_api_keys, validate_ws_token
 
@@ -41,6 +50,7 @@ from thinkbox.dashboard_state import (
 api_v1_router = APIRouter(prefix="/api/v1")
 
 active_engines: dict[str, ThinkBoxEngine] = {}
+active_governed_engines: dict[str, GovernedEngine] = {}
 active_cnc_engines: dict[str, CNCManufacturingEngine] = {}
 _dashboard_state = get_dashboard_state()
 
@@ -54,6 +64,11 @@ class RunRequest(BaseModel):
     speculative: bool = True
     model: str | None = None
     temperature: float | None = None
+    agent_id: str | None = None
+    governance_token: str | None = None
+    capability: str | None = None
+    verified: bool = False
+    subtasks: list[dict[str, Any]] | None = None
 
 
 class RunResponse(BaseModel):
@@ -63,8 +78,37 @@ class RunResponse(BaseModel):
     summary: dict[str, Any]
 
 
+@api_v1_router.get("/run/governance/status")
+async def run_governance_status() -> dict[str, Any]:
+    """Read-only governed-run admission surface (no secrets)."""
+    from backend.api.v1.run_governed import governance_status_snapshot
+
+    return governance_status_snapshot()
+
+
 @api_v1_router.post("/run", response_model=RunResponse)
-async def run_goal(request: RunRequest) -> RunResponse:
+async def run_goal(
+    request: RunRequest,
+    x_governance_token: str | None = Header(None, alias="X-Governance-Token"),
+    x_agent_id: str | None = Header(None, alias="X-Agent-Id"),
+    x_capability: str | None = Header(None, alias="X-Capability"),
+) -> RunResponse:
+    if request.verified:
+        from backend.api.v1.run_governed import validate_verified_subtasks
+
+        validate_verified_subtasks(list(request.subtasks or []))
+
+    admission_ctx = parse_run_admission(
+        agent_id=x_agent_id or request.agent_id,
+        governance_token=request.governance_token,
+        header_token=x_governance_token,
+        header_capability=x_capability,
+        capability=request.capability,
+        verified=request.verified,
+        subtasks=request.subtasks,
+    )
+    admission_decision = require_http_admission(admission_ctx)
+
     model_config = ModelConfig()
     if request.model:
         model_config.model = request.model
@@ -76,7 +120,9 @@ async def run_goal(request: RunRequest) -> RunResponse:
         speculative=request.speculative,
     )
     engine = ThinkBoxEngine(engine_config)
+    governed = get_api_run_governance().build_governed_engine(engine)
     active_engines[engine.engine_id] = engine
+    active_governed_engines[engine.engine_id] = governed
 
     job_entry = ThinkJobEntry(
         job_id=engine.engine_id, goal=request.goal,
@@ -87,33 +133,30 @@ async def run_goal(request: RunRequest) -> RunResponse:
     await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
                                job_entry.model_dump(), "api_v1")
 
-    asyncio.create_task(_execute_and_track(engine, request.goal, job_entry))
+    complete_async = build_complete_async_for_run(request.model, admission_ctx.subtasks)
+    asyncio.create_task(
+        execute_governed_run_background(
+            governed,
+            admission_ctx,
+            request.goal,
+            job_entry,
+            complete_async=complete_async,
+        )
+    )
 
     return RunResponse(
         engine_id=engine.engine_id,
         session_id="",
         status="started",
-        summary={"goal": request.goal[:100]},
+        summary={
+            "goal": request.goal[:100],
+            "governed": True,
+            "verified": request.verified,
+            "agent_id": admission_ctx.agent_id,
+            "admission_reason": admission_decision.reason,
+            "capability": admission_ctx.capability,
+        },
     )
-
-
-async def _execute_and_track(engine: ThinkBoxEngine, goal: str, job_entry: ThinkJobEntry) -> None:
-    try:
-        result = await engine.execute_goal(goal)
-        job_entry.status = "completed"
-        job_entry.progress = 1.0
-        job_entry.tasks_total = result.get("total_tasks", 0)
-        job_entry.tasks_completed = result.get("completed", 0)
-        job_entry.result = result
-        _dashboard_state.upsert_think_job(job_entry)
-        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_COMPLETED,
-                               job_entry.model_dump(), "engine")
-    except Exception as e:
-        job_entry.status = "failed"
-        job_entry.result = {"error": str(e)}
-        _dashboard_state.upsert_think_job(job_entry)
-        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_FAILED,
-                               job_entry.model_dump(), "engine")
 
 
 @api_v1_router.get("/engine/{engine_id}")

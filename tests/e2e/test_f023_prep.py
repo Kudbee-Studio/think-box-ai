@@ -55,7 +55,9 @@ class TestThinkJobApiSurface(unittest.TestCase):
         source = router_path.read_text(encoding="utf-8")
         self.assertIn('@api_v1_router.post("/run"', source)
         self.assertIn("class RunRequest(BaseModel):", source)
-        self.assertIn("async def run_goal(request: RunRequest)", source)
+        self.assertIn("governance_token", source)
+        self.assertIn("require_http_admission", source)
+        self.assertIn("execute_governed_run_background", source)
         self.assertIn("ThinkJobEntry", source)
 
 
