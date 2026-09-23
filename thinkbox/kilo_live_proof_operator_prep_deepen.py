@@ -18,10 +18,12 @@ from thinkbox.kilo_live_smoke_evidence import (
     GATE_ID as SMOKE_GATE_ID,
     hermetic_live_smoke_evidence_operator_check,
 )
+from thinkbox.kilo_live_smoke_audit_flip_harden import (
+    minimal_live_smoke_audit_flip_harden_environ,
+)
 from thinkbox.kilo_live_smoke_operator import (
     GATE_ID as OPERATOR_GATE_ID,
     hermetic_live_smoke_operator_check,
-    minimal_live_smoke_operator_environ,
 )
 from thinkbox.live_proof_operator_prep_deepen import (
     OPERATOR_PREP_DEEPEN_LABEL,
@@ -87,7 +89,7 @@ class OperatorPrepDeepenResult:
 def minimal_live_proof_operator_prep_deepen_environ(
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    base: MutableMapping[str, str] = dict(minimal_live_smoke_operator_environ())
+    base: MutableMapping[str, str] = dict(minimal_live_smoke_audit_flip_harden_environ())
     if extra:
         base.update(extra)
     return dict(base)
