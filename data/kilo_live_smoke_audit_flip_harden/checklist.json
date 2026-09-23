@@ -1,0 +1,15 @@
+{
+  "gate_id": "live-smoke-audit-flip-harden",
+  "pr_number": 165,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "correlation_label": "live-smoke-audit-flip-correlation",
+  "correlation_version": "1.0.0",
+  "prior_gate_ids": [
+    "governance-evidence-live-proof-readiness",
+    "live-smoke-evidence",
+    "live-smoke-operator"
+  ],
+  "verify_script": "scripts/verify_kilo_live_smoke_audit_flip_harden.py"
+}
