@@ -170,4 +170,5 @@ def spine_contract_summary() -> dict[str, object]:
         "affirmative_kilo_claims_in_runbook": find_affirmative_kilo_live_claims(runbook_scan),
         "four_state_max": "TEST_VERIFIED",
         "live_proof_in_this_pr": False,
+        "pr141_gate_id": (gate_for_pr(141).gate_id if gate_for_pr(141) else None),
     }
