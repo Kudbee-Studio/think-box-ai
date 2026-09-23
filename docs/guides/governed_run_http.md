@@ -1,6 +1,6 @@
 # Governed `POST /api/v1/run` (hermetic)
 
-Branch contract for PR #132–#133. **Not LIVE VERIFIED. Not PRODUCTION READY.**
+Branch contract for PR #132–#134. **Not LIVE VERIFIED. Not PRODUCTION READY.**
 
 ## Required headers
 
@@ -26,6 +26,17 @@ Branch contract for PR #132–#133. **Not LIVE VERIFIED. Not PRODUCTION READY.**
 - `GET /api/v1/run/receipt/{receipt_id}` — redacted SQLite receipt
 - `GET /api/v1/run/receipt/by-engine/{engine_id}` — lookup via engine id
 
+## Think Job status polling (PR #134)
+
+Poll after `POST /run` using `engine_id` (same as `job_id`):
+
+- `GET /api/v1/run/job/{engine_id}/status` — phase, receipt linkage, `poll.terminal`, `receipt_card`
+- `GET /api/v1/run/job/by-receipt/{receipt_id}/status` — resolve via receipt id
+- `GET /api/v1/run/jobs/status?limit=N` — recent jobs (redacted, max 200)
+- `GET /api/v1/dashboard/think-job/{engine_id}/receipt-card` — dashboard card payload only
+
+Unknown ids return **404** `think_job_not_found` (fail-closed). Poll clients should stop when `poll.terminal` is true.
+
 ## Fail-closed
 
 HTTP **403** when token is missing, invalid, expired, revoked, agent mismatch, or capability not granted.
@@ -34,7 +45,7 @@ Background completion **fails the Think Job** if receipt persistence raises (`ru
 
 ## Inspection
 
-`GET /api/v1/run/governance/status` — redacted ledger/identity counts + receipt persistence counters (no token values).
+`GET /api/v1/run/governance/status` — redacted ledger/identity counts + receipt persistence counters + `think_job_status` snapshot (no token values).
 
 ## Persistence
 
@@ -48,3 +59,5 @@ Background completion **fails the Think Job** if receipt persistence raises (`ru
 - `tests/e2e/test_f133_governed_run_receipts.py`
 - `tests/unit/test_run_governed.py`
 - `tests/unit/test_run_receipts.py`
+- `tests/e2e/test_f134_think_job_status_poll.py`
+- `tests/unit/test_run_job_status.py`

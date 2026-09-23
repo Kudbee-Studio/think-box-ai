@@ -54,11 +54,22 @@ Current repository health, infrastructure status, known defects, and improvement
 
 ---
 
+## PR #134 Four-State (draft branch)
+
+| Gate | Status |
+|------|--------|
+| CODE COMPLETE | Yes (hermetic status poll + receipt card) |
+| TEST VERIFIED | Yes (`2389` OK, `8` skipped, `3` expected failures) |
+| LIVE VERIFIED | **No** — mock/hermetic HTTP only |
+| PRODUCTION READY | **No** |
+
+---
+
 ## Known Defects (As of 2026-09-21)
 
 1. **Upstash Vector live writes** — embedder + dense upsert implemented; live index/credentials not verified in PR #125
 2. **UpCloud compute access** (`401 API token`) — no SSH key on disk, network blocked by Cloudflare
-3. **`POST /run` live path** — F023 governed DAG + hermetic `POST /api/v1/run` on `main` (PR #131–#132); **PR #133 draft** adds SQLite run receipts + ExperimentManager bind + GET receipt (hermetic only); live Mercury via HTTP still out of scope
+3. **`POST /run` live path** — F023 governed DAG + hermetic `POST /api/v1/run` on `main` (PR #131–#133); **PR #134 draft** adds Think Job status polling + receipt-linked dashboard card (hermetic only); live Mercury via HTTP still out of scope
 4. **Solana CLI not installed** — environment issue, unrelated to core Think Box functionality
 5. **Dashboard telemetry** — missing some instrumentation (see `experiments/verify_instrumentation.py`)
 
@@ -68,7 +79,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2364 | ✅ | 7 | 3 | ✅ PASS (PR #133 merged gate) |
+| All unit + integration + e2e | 2389 | ✅ | 8 | 3 | ✅ PASS (PR #134 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

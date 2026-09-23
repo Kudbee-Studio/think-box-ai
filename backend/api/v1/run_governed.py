@@ -200,6 +200,9 @@ def governance_status_snapshot() -> dict[str, Any]:
     stack = get_http_run_persistence()
     recent = stack.manager.db.restart_recovery()
     receipt_snap = receipt_persistence_snapshot()
+    from backend.api.v1.run_job_status import job_status_snapshot_for_governance
+
+    job_snap = job_status_snapshot_for_governance()
     return {
         "surface": "http",
         "default_capability": DEFAULT_RUN_CAPABILITY,
@@ -214,6 +217,7 @@ def governance_status_snapshot() -> dict[str, Any]:
         "receipt_recent_experiments": len(recent.get("recent_experiments", [])),
         "receipt_persistence": "enabled",
         "receipt_snapshot": receipt_snap,
+        "think_job_status": job_snap,
     }
 
 
@@ -358,10 +362,25 @@ async def execute_governed_run_background(
                 return
         job_entry.completed_at = datetime.now(timezone.utc).isoformat()
         dashboard.upsert_think_job(job_entry)
+        completed_payload = job_entry.model_dump()
+        if binding:
+            from backend.api.v1.run_job_status import build_receipt_link_card
+
+            completed_payload["receipt_card"] = build_receipt_link_card(
+                job_id=job_entry.job_id,
+                status=job_entry.status,
+                phase=job_entry.phase,
+                receipt_id=job_entry.receipt_id,
+                experiment_id=job_entry.experiment_id,
+                session_id=job_entry.session_id,
+                proof_artifact=str((job_entry.result or {}).get("proof_artifact") or ""),
+                tasks_total=job_entry.tasks_total,
+                tasks_completed=job_entry.tasks_completed,
+            )
         await dashboard.emit(
             DashboardCategory.THINK_JOBS,
             DashboardEvent.TASK_COMPLETED,
-            job_entry.model_dump(),
+            completed_payload,
             "governed_engine",
         )
     except Exception as exc:

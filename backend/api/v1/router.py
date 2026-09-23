@@ -26,6 +26,15 @@ from backend.api.v1.run_governed import (
     require_http_admission,
 )
 from backend.api.v1.run_receipts import read_run_receipt, read_run_receipt_by_engine
+from backend.api.v1.run_job_status import (
+    STATUS_SCHEMA_VERSION,
+    ThinkJobNotFoundError,
+    build_receipt_link_card,
+    build_think_job_status_payload,
+    list_recent_think_job_statuses,
+    resolve_think_job_by_receipt,
+    resolve_think_job_record,
+)
 from thinkbox.session import create_session, get_current_session, sync_session, clear_session
 from backend.security import get_api_keys, validate_ws_token
 
@@ -50,6 +59,7 @@ from thinkbox.dashboard_state import (
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
+THINK_JOB_NOT_FOUND_DETAIL = "think_job_not_found"
 
 active_engines: dict[str, ThinkBoxEngine] = {}
 active_governed_engines: dict[str, GovernedEngine] = {}
@@ -193,6 +203,58 @@ async def get_run_receipt_for_engine(engine_id: str) -> dict[str, Any]:
     if not payload:
         raise HTTPException(status_code=404, detail="run_receipt_not_found")
     return payload
+
+
+@api_v1_router.get("/run/job/{engine_id}/status")
+async def get_think_job_poll_status(engine_id: str) -> dict[str, Any]:
+    """Poll-friendly Think Job status with receipt linkage (hermetic)."""
+    try:
+        record = resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    return build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
+
+
+@api_v1_router.get("/run/job/by-receipt/{receipt_id}/status")
+async def get_think_job_status_by_receipt(receipt_id: str) -> dict[str, Any]:
+    try:
+        record = resolve_think_job_by_receipt(receipt_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    return build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
+
+
+@api_v1_router.get("/run/jobs/status")
+async def list_think_job_poll_statuses(limit: int = 50) -> dict[str, Any]:
+    limit = max(1, min(limit, 200))
+    jobs = list_recent_think_job_statuses(limit=limit)
+    return {
+        "jobs": jobs,
+        "count": len(jobs),
+        "poll_schema_version": STATUS_SCHEMA_VERSION,
+        "live_verified": False,
+        "production_ready": False,
+    }
+
+
+@api_v1_router.get("/dashboard/think-job/{engine_id}/receipt-card")
+async def get_think_job_receipt_card(engine_id: str) -> dict[str, Any]:
+    try:
+        record = resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    status = str(record.get("status") or "unknown")
+    return build_receipt_link_card(
+        job_id=str(record.get("job_id") or engine_id),
+        status=status,
+        phase=str(record.get("phase") or ""),
+        receipt_id=str(record.get("receipt_id") or ""),
+        experiment_id=str(record.get("experiment_id") or ""),
+        session_id=str(record.get("session_id") or ""),
+        proof_artifact=str(record.get("proof_artifact") or ""),
+        tasks_total=int(record.get("tasks_total") or 0),
+        tasks_completed=int(record.get("tasks_completed") or 0),
+    )
 
 
 @api_v1_router.get("/engine/{engine_id}")

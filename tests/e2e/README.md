@@ -61,12 +61,23 @@ python3 -m unittest tests.e2e.test_f131_post_run_think_job_contract
 |------|---------|
 | `test_f132_governed_run_admission.py` | GovernedEngine on HTTP background task; ledger; hermetic verified subtasks |
 
-### F133 run receipts (PR #133 draft)
+### F133 run receipts (PR #133, merged)
 
 | File | Purpose |
 |------|---------|
 | `backend/api/v1/run_receipts.py` | SQLite receipts + proof artifacts for HTTP runs |
 | `test_f133_governed_run_receipts.py` | Persist + GET receipt + fail-closed persist errors |
+
+### F134 Think Job status poll (PR #134 draft)
+
+| File | Purpose |
+|------|---------|
+| `backend/api/v1/run_job_status.py` | Poll schema, receipt card, dashboard/SQLite resolution |
+| `test_f134_think_job_status_poll.py` | POST → poll status → receipt linkage; 404 fail-closed |
+
+```bash
+python3 -m unittest tests.e2e.test_f134_think_job_status_poll
+```
 
 ```bash
 python3 -m unittest tests.e2e.test_f133_governed_run_receipts tests.unit.test_run_receipts
