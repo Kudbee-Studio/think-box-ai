@@ -21,7 +21,9 @@ class HermeticModelProvider:
         subtasks: list[dict[str, Any]],
         behaviors: dict[int, str] | None = None,
     ) -> None:
-        self._subtasks = subtasks
+        self._subtasks = list(subtasks)
+        if not self._subtasks:
+            raise ValueError("HermeticModelProvider requires at least one subtask")
         self._behaviors = behaviors or {}
         self.complete_calls: int = 0
         self._calls: dict[str, int] = {}
