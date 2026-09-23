@@ -68,6 +68,14 @@ class TestThinkJobStatusStream(unittest.TestCase):
             self.assertTrue(stream["stream_available"])
             self.assertIn("status/stream", stream["job_path"])
 
+    def test_unknown_receipt_stream_404(self) -> None:
+        with hermetic_run_client() as (client, _):
+            missing = client.get(
+                "/api/v1/run/job/by-receipt/receipt_missing_xyz/status/stream",
+                headers=auth_headers(),
+            )
+            self.assertEqual(missing.status_code, 404)
+
     def test_unknown_job_stream_404(self) -> None:
         with hermetic_run_client() as (client, _):
             missing = client.get(
