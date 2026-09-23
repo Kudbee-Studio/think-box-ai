@@ -17,6 +17,7 @@ from thinkbox.kilo_governance_evidence_live_proof_readiness import (
     GATE_ID,
     PR_NUMBER,
     PRIOR_GATE_IDS,
+    run_readiness_fixture_suite,
 )
 from thinkbox.kilo_live_proof_exec import FOUNDER_ACK_ENV
 from thinkbox.kilo_substrate_checklist import BOX_URL_ENV
@@ -65,6 +66,12 @@ class TestGovernanceEvidenceLiveProofReadiness(unittest.TestCase):
             BOX_URL_ENV: "https://example-3000.preview.box.upstash.com",
         }
         self.assertTrue(live_proof_prereqs_satisfied(env))
+
+    def test_readiness_fixture_suite_closed(self) -> None:
+        pos, neg, errors = run_readiness_fixture_suite()
+        self.assertFalse(errors, msg=errors)
+        self.assertGreaterEqual(pos, 3)
+        self.assertGreaterEqual(neg, 1)
 
 
 if __name__ == "__main__":
