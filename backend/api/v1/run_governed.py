@@ -177,6 +177,24 @@ def parse_run_admission(
     )
 
 
+def governance_status_snapshot() -> dict[str, Any]:
+    """Redacted read-only status for hermetic ops (no token values)."""
+    gov = get_api_run_governance()
+    shell = gov.admission_governed()
+    entries = list(shell.ledger.entries())
+    return {
+        "surface": "http",
+        "default_capability": DEFAULT_RUN_CAPABILITY,
+        "verified_capability": DEFAULT_VERIFIED_CAPABILITY,
+        "hermetic_model_id": HERMETIC_MODEL_ID,
+        "identities_registered": len(gov.identity_ledger.list()),
+        "tokens_issued": gov.token_service.issued_count(),
+        "ledger_entries": len(entries),
+        "ledger_verified": shell.ledger.verify(),
+        "ledger_path_kind": "memory" if gov.ledger_path == ":memory:" else "file",
+    }
+
+
 def require_http_admission(ctx: RunAdmissionContext) -> AdmissionDecision:
     """Fail-closed synchronous admission before background work starts."""
     gov = get_api_run_governance()

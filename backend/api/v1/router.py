@@ -78,6 +78,14 @@ class RunResponse(BaseModel):
     summary: dict[str, Any]
 
 
+@api_v1_router.get("/run/governance/status")
+async def run_governance_status() -> dict[str, Any]:
+    """Read-only governed-run admission surface (no secrets)."""
+    from backend.api.v1.run_governed import governance_status_snapshot
+
+    return governance_status_snapshot()
+
+
 @api_v1_router.post("/run", response_model=RunResponse)
 async def run_goal(
     request: RunRequest,
@@ -99,7 +107,7 @@ async def run_goal(
         verified=request.verified,
         subtasks=request.subtasks,
     )
-    require_http_admission(admission_ctx)
+    admission_decision = require_http_admission(admission_ctx)
 
     model_config = ModelConfig()
     if request.model:
@@ -145,6 +153,8 @@ async def run_goal(
             "governed": True,
             "verified": request.verified,
             "agent_id": admission_ctx.agent_id,
+            "admission_reason": admission_decision.reason,
+            "capability": admission_ctx.capability,
         },
     )
 
