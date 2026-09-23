@@ -540,7 +540,7 @@ Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury cl
 
 ## KILO Live-proof readiness arc (PR #141–#150)
 
-Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#143** merged; **PR #144** CI/post-merge fix; **PR #145** closes `governance-evidence` — **not** Live proof, **not** live build, **not** GPU spin-up.
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#145** merged; **PR #144** CI/post-merge fix; **PR #146** closes `mercury-hermetic` — **not** Live proof, **not** live build, **not** GPU spin-up.
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
@@ -548,13 +548,14 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Hermetic KILO env matrix + contract tests | **#142** (merged) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
 | Box URL/token substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py` |
 | CI/post-merge unittest discover green | **#144** (merged) | Not governance-evidence; gate id `ci-post-merge` |
-| Governance admission evidence shape | **#145** (draft) | `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py` |
-| #146–#149 | planned | `mercury-hermetic` … `dashboard-slots` per runbook |
+| Governance admission evidence shape | **#145** (merged) | `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py` |
+| Mercury hermetic mocks + live-gate stub | **#146** (draft) | `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py` |
+| #147–#149 | planned | `swarm-instrumentation` … `dashboard-slots` per runbook |
 | Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
 
-Four-state on #145 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED.
+Four-state on #146 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED.
 
 ---
 
