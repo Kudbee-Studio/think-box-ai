@@ -27,13 +27,15 @@ from thinkbox.control_plane_api_surface import (
     build_chain_head_payload,
     build_chain_page_payload,
     build_chain_tail_payload,
+    build_end_link_batch_payload,
+    build_end_link_validate_payload,
     build_operation_list_payload,
     build_status_snapshot,
     create_operation_via_admission,
     get_chain_payload,
-    validate_chain_receipt_id,
     wrap_success,
 )
+from thinkbox.end_link_deepen import evaluate_end_link_batch_body
 from thinkbox.control_plane_hermetic_clients import (
     HermeticGovernanceClient,
     HermeticOrchestrationClient,
@@ -257,12 +259,21 @@ async def receipts_chain(
     cursor: str | None = None,
     action: str | None = None,
     agent_id: str | None = None,
+    status: str | None = None,
+    evidence_label: str | None = None,
     token: str = Depends(require_control_plane_auth),
 ):
     """Receipt chain status with conditional GET, pagination, and filters."""
     _enforce_ops_rate_limit(request, token)
     lim = clamp_query_limit(limit)
-    payload = get_chain_payload(limit=lim, cursor=cursor, action=action, agent_id=agent_id)
+    payload = get_chain_payload(
+        limit=lim,
+        cursor=cursor,
+        action=action,
+        agent_id=agent_id,
+        status_filter=status,
+        evidence_label=evidence_label,
+    )
     etag = payload.get("etag")
     return conditional_json_response(
         request,
@@ -278,6 +289,8 @@ async def receipts_chain_page(
     cursor: str | None = None,
     action: str | None = None,
     agent_id: str | None = None,
+    status: str | None = None,
+    evidence_label: str | None = None,
     token: str = Depends(require_control_plane_auth),
 ):
     """Paginated receipt list only (conditional GET)."""
@@ -288,6 +301,8 @@ async def receipts_chain_page(
         cursor=cursor,
         action=action,
         agent_id=agent_id,
+        status_filter=status,
+        evidence_label=evidence_label,
     )
     from thinkbox.control_plane_conditional import chain_read_etag
 
@@ -344,7 +359,7 @@ async def receipts_validate_link(
     """Fail-closed link validation; If-Match required when If-Match header sent."""
     _enforce_ops_rate_limit(request, token)
     try:
-        body = validate_chain_receipt_id(receipt_id)
+        body = build_end_link_validate_payload(receipt_id)
     except ReceiptChainValidationError as exc:
         raise _api_error(exc.code, exc.message, http_status=404) from exc
     from thinkbox.read_cache import weak_etag_from_payload
@@ -355,3 +370,30 @@ async def receipts_validate_link(
         wrap_success(body, request_id=_request_id()),
         etag=etag,
     )
+
+
+@control_plane_api.post("/receipts/validate/batch")
+async def receipts_validate_batch(
+    request: Request,
+    token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Bulk END LINK validate (PR #158); per-receipt fail-closed inside envelope."""
+    _enforce_ops_rate_limit(request, token)
+    try:
+        body = await request.json()
+    except Exception as exc:
+        raise _api_error("invalid_json", "request body must be JSON", http_status=400) from exc
+    if not isinstance(body, dict):
+        raise _api_error("invalid_body", "body must be an object", http_status=400)
+    receipt_ids, parse_errors = evaluate_end_link_batch_body(body)
+    if parse_errors:
+        raise _api_error(
+            parse_errors[0],
+            "batch validate body invalid",
+            http_status=400,
+        )
+    limit = body.get("limit")
+    lim = clamp_query_limit(limit) if limit is not None else None
+    payload = build_end_link_batch_payload(receipt_ids, limit=lim)
+    _logger.debug("end_link_batch_validate %s", redact_mapping_for_logs(payload))
+    return wrap_success(payload, request_id=_request_id())
