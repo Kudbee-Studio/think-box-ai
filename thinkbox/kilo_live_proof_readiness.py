@@ -12,6 +12,8 @@ PR #155 adds ``receipt_chain_etag`` summary (chain pagination + ETag deepen; not
 PR #156 adds ``dashboard_receipt_chain_bind`` (dashboard UI + END_LINK; not Live proof).
 PR #157 adds ``api_ops_harden`` (control-plane ops harden after #156; not Live proof).
 PR #158 adds ``end_link_deepen`` (END LINK batch + integrity deepen after #157; not Live proof).
+PR #159 adds ``end_link_operator_ux`` (operator dashboard UX after #158; not Live proof).
+PR #160 adds ``receipt_chain_end_link_docs`` (docs + audit pack after #159; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -189,6 +191,9 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_api_ops_harden import api_ops_harden_contract_summary
     from thinkbox.kilo_end_link_deepen import end_link_deepen_contract_summary
     from thinkbox.kilo_end_link_operator_ux import end_link_operator_ux_contract_summary
+    from thinkbox.kilo_receipt_chain_end_link_docs import (
+        receipt_chain_end_link_docs_contract_summary,
+    )
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -212,6 +217,7 @@ def spine_contract_summary() -> dict[str, object]:
     api_ops_harden_summary = api_ops_harden_contract_summary()
     end_link_deepen_summary = end_link_deepen_contract_summary()
     end_link_operator_ux_summary = end_link_operator_ux_contract_summary()
+    receipt_chain_end_link_docs_summary = receipt_chain_end_link_docs_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -258,4 +264,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr158_gate_id": end_link_deepen_summary.get("pr158_gate_id"),
         "end_link_operator_ux": end_link_operator_ux_summary,
         "pr159_gate_id": end_link_operator_ux_summary.get("pr159_gate_id"),
+        "receipt_chain_end_link_docs": receipt_chain_end_link_docs_summary,
+        "pr160_gate_id": receipt_chain_end_link_docs_summary.get("pr160_gate_id"),
     }

@@ -70,6 +70,9 @@ def main() -> int:
     end_link_operator_ux_block = summary.get("end_link_operator_ux") or {}
     if not end_link_operator_ux_block.get("hermetic_operator_ok"):
         return 1
+    receipt_chain_end_link_docs_block = summary.get("receipt_chain_end_link_docs") or {}
+    if not receipt_chain_end_link_docs_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

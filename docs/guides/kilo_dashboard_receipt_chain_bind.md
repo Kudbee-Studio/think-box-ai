@@ -27,3 +27,5 @@ python3 scripts/verify_kilo_spine.py
 ## Four-state
 
 CODE COMPLETE / TEST VERIFIED only — not KILO LIVE VERIFIED.
+
+See also: `docs/guides/kilo_receipt_chain_end_link_operator.md` (rollup #155–#159).

@@ -562,13 +562,14 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Dashboard bind receipt-chain / END_LINK | **#156** (merged) | `thinkbox/kilo_dashboard_receipt_chain_bind.py`, `public/control-plane/receipt_chain_dashboard.html`, `scripts/verify_kilo_dashboard_receipt_chain_bind.py` |
 | API / ops harden after #156 | **#157** (merged) | `thinkbox/kilo_api_ops_harden.py`, `thinkbox/control_plane_ops_harden.py`, `scripts/verify_kilo_api_ops_harden.py` |
 | END LINK / control-plane deepen after #157 | **#158** (merged) | `thinkbox/kilo_end_link_deepen.py`, `thinkbox/end_link_deepen.py`, `scripts/verify_kilo_end_link_deepen.py` |
-| END LINK operator dashboard UX after #158 | **#159** (draft) | `thinkbox/kilo_end_link_operator_ux.py`, `thinkbox/end_link_operator_ux.py`, `scripts/verify_kilo_end_link_operator_ux.py` |
+| END LINK operator dashboard UX after #158 | **#159** (merged) | `thinkbox/kilo_end_link_operator_ux.py`, `thinkbox/end_link_operator_ux.py`, `scripts/verify_kilo_end_link_operator_ux.py` |
+| Receipt-chain / END_LINK docs + audit pack after #159 | **#160** (draft) | `thinkbox/kilo_receipt_chain_end_link_docs.py`, `docs/guides/kilo_receipt_chain_end_link_operator.md`, `scripts/verify_kilo_receipt_chain_end_link_docs.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #159 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr159` ships `live_verified: false`.
+Four-state on #160 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr160` ships `live_verified: false`.
 
-Four-state on #157 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr157` ships `live_verified: false`.
+Four-state on #159 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr159` ships `live_verified: false`.
 
 ---
 

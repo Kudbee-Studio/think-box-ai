@@ -19,3 +19,5 @@ idempotency keys, ops rate windows, and structured error envelopes.
 - Chain list `limit` query params clamp to 200.
 - Receipt page rows validate in-page `prev_receipt_id` linkage.
 - Errors return structured envelopes with `live_api_called: false`.
+
+See also: `docs/guides/kilo_receipt_chain_end_link_operator.md`.

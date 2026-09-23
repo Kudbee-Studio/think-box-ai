@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #159 — END LINK operator UX deepen (DRAFT)
+## PR #160 — Receipt-chain / END_LINK docs + audit pack (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `receipt-chain-end-link-docs` (layers `end-link-operator-ux`) |
+| **Scope** | consolidated operator guide (#155–#159), era audit index, AUDIT_INDEX sync, spine honesty gate |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Verify** | `python3 scripts/verify_kilo_receipt_chain_end_link_docs.py` |
+
+## PR #159 — END LINK operator UX deepen (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `end-link-operator-ux` (layers `end-link-deepen`) |
 | **Scope** | batch results UX, chain filter controls, integrity panel, four-state copy |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_end_link_operator_ux.py` |
 
 ## PR #158 — END LINK / control-plane deepen (MERGED)
@@ -54,13 +63,13 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_control_plane_api.py` |
 
-## PR #153 — KILO live-smoke operator path (DRAFT)
+## PR #153 — KILO live-smoke operator path (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `live-smoke-operator` (layers `live-smoke-evidence`) |
 | **Scope** | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, audit flip candidate writer |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_live_smoke_operator.py` |
 
 ## PR #152 — KILO bounded live smoke evidence (MERGED)

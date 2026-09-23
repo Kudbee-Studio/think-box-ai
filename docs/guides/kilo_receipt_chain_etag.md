@@ -20,3 +20,5 @@ python3 scripts/verify_kilo_spine.py
 ## Four-state
 
 CODE COMPLETE / TEST VERIFIED only — not KILO LIVE VERIFIED.
+
+Operator rollup (PR #160): `docs/guides/kilo_receipt_chain_end_link_operator.md`.

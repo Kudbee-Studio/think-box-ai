@@ -14,3 +14,5 @@ python3 -m unittest tests.unit.test_end_link_operator_ux tests.unit.test_dashboa
 ```
 
 Four-state max: **TEST VERIFIED** — not LIVE VERIFIED.
+
+Consolidated operator surface: `docs/guides/kilo_receipt_chain_end_link_operator.md`.
