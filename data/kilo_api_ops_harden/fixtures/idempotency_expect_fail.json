@@ -1,0 +1,4 @@
+{
+  "expect_fail": true,
+  "scenario": "idempotency_key_body_mismatch"
+}

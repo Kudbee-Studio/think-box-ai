@@ -1,0 +1,18 @@
+{
+  "gate_id": "api-ops-harden",
+  "pr_number": 157,
+  "ops_harden": "api-ops-harden",
+  "ops_harden_version": "1.0.0",
+  "prior_gate_ids": ["dashboard-receipt-chain-bind", "receipt-chain-etag", "control-plane-api"],
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "structured_error_envelopes",
+    "idempotency_key_header",
+    "ops_rate_limit_window",
+    "query_limit_clamp",
+    "log_redaction",
+    "receipt_page_prev_link_integrity"
+  ]
+}
