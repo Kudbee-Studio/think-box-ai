@@ -2,12 +2,17 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-23 (PR #141 draft)
+> ## ADDENDUM — 2026-09-23 (PR #142 draft)
 >
-> **Branch:** `cursor/pr141-kilo-live-proof-readiness-spine-5823` (draft).  
-> **Scope:** KILO Live-proof readiness **spine** (#141–#150 arc start): runbook, arc doc, `thinkbox/kilo_live_proof_readiness.py`, hermetic gates — **no Live proof, no live build**.  
-> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` + full suite; `scripts/scan_doc_secrets.py` OK.  
+> **Branch:** `cursor/pr142-kilo-env-matrix-9aa0` (draft).  
+> **Scope:** KILO **`env-matrix`** gate: `thinkbox/kilo_env_matrix.py`, `verify_kilo_env_matrix.py`, hermetic contract tests — **no Live proof, no live build**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v` + `verify_kilo_spine.py` / `verify_kilo_env_matrix.py`; `scripts/scan_doc_secrets.py` OK.  
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #141 merged)
+>
+> **Scope:** KILO Live-proof readiness **spine** (#141–#150 arc start): runbook, arc doc, `thinkbox/kilo_live_proof_readiness.py`, hermetic gates — **no Live proof**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v`.
 >
 > ## ADDENDUM — 2026-09-23 (PR #140 merged)
 >

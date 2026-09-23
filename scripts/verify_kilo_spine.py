@@ -18,6 +18,9 @@ def main() -> int:
     print(json.dumps(summary, indent=2, sort_keys=True))
     if summary.get("missing_spine_docs") or summary.get("missing_runbook_headings"):
         return 1
+    env_block = summary.get("env_matrix") or {}
+    if not env_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #141 — KILO Live-proof readiness (DRAFT)
+## PR #142 — KILO env-matrix gate (DRAFT)
 
 | Field | Value |
 |-------|-------|
-| **Branch** | `cursor/pr141-kilo-live-proof-readiness-spine-5823` |
-| **Scope** | Runbook spine for #141–#150; hermetic contract module; no live Mercury / no Live proof |
+| **Branch** | `cursor/pr142-kilo-env-matrix-9aa0` |
+| **Gate** | `env-matrix` |
+| **Scope** | `thinkbox/kilo_env_matrix.py`, operator verify scripts, hermetic contract tests |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_env_matrix.py` |
+
+## PR #141 — KILO Live-proof readiness (MERGED)
+
+| Field | Value |
+|-------|-------|
+| **Scope** | Runbook spine for #141–#150; `thinkbox/kilo_live_proof_readiness.py` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** KILO LIVE VERIFIED |
 | **Runbook** | `docs/runbooks/kilo-live-proof-readiness.md` |
 
 ---

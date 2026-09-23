@@ -158,8 +158,11 @@ def gate_for_pr(pr_number: int) -> ArcGate | None:
 
 def spine_contract_summary() -> dict[str, object]:
     """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads)."""
+    from thinkbox.kilo_env_matrix import env_matrix_contract_summary
+
     runbook_raw = load_text(runbook_path())
     runbook_scan = _runbook_text_for_claim_scan(runbook_raw)
+    env_summary = env_matrix_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -171,4 +174,6 @@ def spine_contract_summary() -> dict[str, object]:
         "four_state_max": "TEST_VERIFIED",
         "live_proof_in_this_pr": False,
         "pr141_gate_id": (gate_for_pr(141).gate_id if gate_for_pr(141) else None),
+        "pr142_gate_id": (gate_for_pr(142).gate_id if gate_for_pr(142) else None),
+        "env_matrix": env_summary,
     }

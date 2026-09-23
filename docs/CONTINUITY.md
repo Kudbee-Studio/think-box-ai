@@ -36,24 +36,32 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #140 merged:** receipt deep-link + shared control-plane ETag store. **PR #141 draft:** KILO Live-proof readiness spine (#141–#150 arc start; docs + hermetic gates only). |
+| **Latest completed work** | **PR #141 merged:** KILO Live-proof readiness spine. **PR #142 draft:** `env-matrix` gate (`thinkbox/kilo_env_matrix.py`, hermetic contract tests). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **PR #142:** close `env-matrix` gate (hermetic KILO env contract) — optional non-binding: control-plane telemetry export if founder prioritizes UI. |
-| **PR status** | PR #140 merged (deep-link + shared etag); PR #141 draft (KILO Live-proof readiness spine) |
+| **Next larger improvement** | **PR #143:** close `substrate-checklist` gate (Box URL/token contract) — optional non-binding UI telemetry if founder re-prioritizes. |
+| **PR status** | PR #141 merged (KILO spine); PR #142 draft (env-matrix) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #141 draft: KILO Live-proof readiness spine (#141–#150 arc)
+### 2026-09-23 — PR #142 draft: KILO env-matrix gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`, spine wiring, runbook H7, pr142 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr142`; `verify_kilo_env_matrix.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr142.json` |
+
+### 2026-09-23 — PR #141 merged: KILO Live-proof readiness spine (#141–#150 arc)
 
 | Field | Value |
 |---|---|
 | **Scope** | `docs/runbooks/kilo-live-proof-readiness.md`, `docs/kilo-live-proof-arc.md`, `thinkbox/kilo_live_proof_readiness.py`, hermetic tests |
-| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
 | **Tests** | `test_kilo_live_proof_readiness_pr141`; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr141.json` |
 
 ### 2026-09-23 — PR #140 merged: receipt deep-link + shared etag store (hermetic)
