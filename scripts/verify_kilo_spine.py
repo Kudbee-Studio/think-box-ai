@@ -79,6 +79,9 @@ def main() -> int:
     era_close_block = summary.get("receipt_chain_end_link_era_close") or {}
     if not era_close_block.get("hermetic_operator_ok"):
         return 1
+    e2e_deepen_block = summary.get("control_plane_e2e_deepen") or {}
+    if not e2e_deepen_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
