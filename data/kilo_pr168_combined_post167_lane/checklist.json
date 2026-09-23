@@ -1,0 +1,14 @@
+{
+  "gate_id": "pr168-combined-post167-lane",
+  "pr_number": 168,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "pr167-combined-post166-lane",
+    "live-proof-operator-audit-flip-post167",
+    "api-ops-harden-post167",
+    "dashboard-pr167-gates-bind",
+    "swarm-governance-post167-deepen"
+  ]
+}
