@@ -47,6 +47,13 @@ class ApiRunGovernance:
     token_service: GovernanceTokenService
     identity_ledger: IdentityLedger
     ledger_path: str = ":memory:"
+    _admission_governed: GovernedEngine | None = field(default=None, repr=False)
+
+    def admission_governed(self) -> GovernedEngine:
+        """Reuse one governed shell so HTTP admission shares the run ledger file."""
+        if self._admission_governed is None:
+            self._admission_governed = self.build_governed_engine(ThinkBoxEngine(EngineConfig()))
+        return self._admission_governed
 
     def register_agent(self, agent_id: str, capabilities: list[str]) -> str:
         self.identity_ledger.register(agent_id=agent_id, capabilities=capabilities)
@@ -56,7 +63,7 @@ class ApiRunGovernance:
         return token.token_value
 
     def admit_http_run(self, ctx: RunAdmissionContext) -> AdmissionDecision:
-        governed = self._shell_governed(ThinkBoxEngine(EngineConfig()))
+        governed = self.admission_governed()
         if not ctx.token_value.strip():
             decision = governed.authorize(
                 "",
@@ -83,10 +90,6 @@ class ApiRunGovernance:
                 ledger_path=self.ledger_path,
             )
         )
-
-    def _shell_governed(self, base: ThinkBoxEngine) -> GovernedEngine:
-        return self.build_governed_engine(base)
-
 
 _api_governance: ApiRunGovernance | None = None
 _complete_async_override: CompleteAsyncFn | None = None
