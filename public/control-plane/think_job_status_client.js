@@ -118,3 +118,103 @@
 
   function normalizeReceiptKey(raw) {
     var key = String(raw || "").trim();
+    if (!key) throw new Error("receipt_key_required");
+    if (key.length > 256) throw new Error("receipt_key_too_long");
+    if (key.toLowerCase().indexOf("receipt_missing") === 0) throw new Error("receipt_key_invalid");
+    return key;
+  }
+
+  function normalizeEngineKey(raw) {
+    var key = String(raw || "").trim();
+    if (!key) throw new Error("engine_key_required");
+    return key;
+  }
+
+  function resolveWatchTarget(engineId, receiptId) {
+    var eng = String(engineId || "").trim();
+    var rec = String(receiptId || "").trim();
+    if (rec) return { kind: "receipt", key: normalizeReceiptKey(rec) };
+    if (eng) return { kind: "engine", key: normalizeEngineKey(eng) };
+    throw new Error("watch_target_required");
+  }
+
+  function pollPathForTarget(target) {
+    if (target.kind === "receipt") return formatReceiptPollPath(target.key);
+    return "/api/v1/run/job/" + target.key + "/status";
+  }
+
+  function streamPlanForTarget(target, doc) {
+    if (target.kind === "receipt") {
+      var receipt = doc.receipt || {};
+      if (!receipt.receipt_id || receipt.receipt_id !== target.key) {
+        throw new Error("receipt_key_mismatch");
+      }
+    }
+    var plan = streamPlanFromPoll(doc);
+    if (target.kind === "receipt") {
+      var rUrl = plan.receiptStreamUrl || buildStreamUrl(
+        "/api/v1/run/job/by-receipt/" + target.key + "/status/stream"
+      );
+      plan.pollUrl = formatReceiptPollPath(target.key);
+      plan.streamUrl = rUrl;
+      plan.receiptStreamUrl = rUrl;
+    }
+    return plan;
+  }
+
+  function createWatch(engineId, target) {
+    var t = target || { kind: "engine", key: engineId };
+    return {
+      engineId: t.kind === "engine" ? t.key : String(engineId || ""),
+      summary: null,
+      lastSequence: 0,
+      watchKind: t.kind,
+      watchKey: t.key,
+      receiptId: t.kind === "receipt" ? t.key : "",
+      telemetry: {
+        lastError: "",
+        sseDisconnectCount: 0,
+        pollErrorCount: 0,
+        mode: "idle",
+        eventsReceived: 0,
+      },
+    };
+  }
+
+  function docEngineId(doc) {
+    if (!doc) return "";
+    return String(doc.engine_id || doc.job_id || "");
+  }
+
+  function createMultiplexPanel() {
+    return {
+      digestDocument: null,
+      digestJobs: [],
+      dashboardRevision: 0,
+      digestTransport: "idle",
+      watchTransport: "idle",
+      activeTarget: null,
+      lastDigestError: "",
+      lastWatchError: "",
+    };
+  }
+
+  function applyDigestEvent(panel, event) {
+    var kind = event.kind || "";
+    if (kind === "think_jobs_stream_hello" && event.digest) {
+      panel.digestDocument = event.digest;
+      panel.dashboardRevision = event.digest.dashboard_revision || 0;
+      return true;
+    }
+    if (kind === "think_jobs_digest_delta") {
+      if (event.digest) panel.digestDocument = event.digest;
+      if (event.dashboard_revision) panel.dashboardRevision = event.dashboard_revision;
+      return true;
+    }
+    return false;
+  }
+
+  function multiplexChipLabel(panel) {
+    var parts = [];
+    if (panel.digestTransport && panel.digestTransport !== "idle") {
+      parts.push("digest:" + panel.digestTransport);
