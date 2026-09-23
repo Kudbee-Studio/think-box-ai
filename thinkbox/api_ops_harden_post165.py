@@ -45,7 +45,7 @@ def validate_post165_ops_envelope(
     payload.setdefault("live_verified", False)
     payload.setdefault("live_api_called", False)
     if payload.get("live_verified") is True:
-        errors.append("live_verified_forbidden")
+        errors.append("live_verified_forbidden_in_hermetic_request")
     if payload.get("live_api_called") is True:
         errors.append("live_api_forbidden")
     return payload, errors
@@ -72,7 +72,10 @@ def build_post165_fail_closed_envelope(
         body["correlation_id"] = correlation_id
     normalized, errors = validate_post165_ops_envelope(body)
     assert not errors, f"internal envelope invalid: {errors}"
-    return assert_hermetic_control_plane_response(normalized)
+    response_violations = assert_hermetic_control_plane_response(normalized)
+    assert not response_violations, f"response violations: {response_violations}"
+    normalized.setdefault("four_state_max", "TEST_VERIFIED")
+    return normalized
 
 
 def api_ops_post165_markers_present(text: str) -> bool:
