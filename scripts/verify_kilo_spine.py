@@ -64,6 +64,9 @@ def main() -> int:
     api_ops_harden_block = summary.get("api_ops_harden") or {}
     if not api_ops_harden_block.get("hermetic_operator_ok"):
         return 1
+    end_link_deepen_block = summary.get("end_link_deepen") or {}
+    if not end_link_deepen_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
