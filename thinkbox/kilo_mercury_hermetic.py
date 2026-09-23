@@ -83,3 +83,48 @@ class MercuryMockMode(str, Enum):
 
 @dataclass(frozen=True)
 class MercuryHermeticViolation:
+    """Single fail-closed mercury-hermetic violation."""
+
+    code: str
+    message: str
+    env_key: str | None = None
+
+
+@dataclass(frozen=True)
+class MercuryHermeticCallResult:
+    """Bounded mock Mercury completion (no network)."""
+
+    model: str
+    content: str
+    reasoning: str | None
+    prompt_chars: int
+    fixture_id: str
+    live_api_called: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "content": self.content,
+            "reasoning": self.reasoning,
+            "prompt_chars": self.prompt_chars,
+            "fixture_id": self.fixture_id,
+            "live_api_called": self.live_api_called,
+        }
+
+
+@dataclass(frozen=True)
+class MercuryHermeticEvidence:
+    """Redacted evidence for mercury-hermetic gate (hermetic contract)."""
+
+    gate_id: str
+    pr_number: int
+    governance_evidence_ok: bool
+    governance_summary_ref: dict[str, Any]
+    live_gate_report: dict[str, Any]
+    mock_client_configured: bool
+    mock_call: MercuryHermeticCallResult | None
+    model: str
+    evidence_label: str
+    live_api_called: bool
+    governance_evidence: LiveBurstEvidence | None = None
+
