@@ -1,0 +1,51 @@
+{
+  "pass_id": "pr142",
+  "title": "PR142 — KILO env-matrix gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr141.json",
+  "started_at": "2026-09-23T21:00:00Z",
+  "completed_at": "2026-09-23T22:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr142",
+  "base_commit": "9f0f2c8",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v",
+    "pr142_tests": 21,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "env_matrix_verify": "python3 scripts/verify_kilo_env_matrix.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_env_matrix contract module",
+    "EnvMatrixMode hermetic_unit/ci/live_proof_prep",
+    "KILO_ENV_CONTRACTS substrate governance provider flags",
+    "forbidden THINKBOX_SWARM_LIVE_ACK in hermetic modes",
+    "forbidden KILO claim env flags",
+    "loopback and mock endpoint validators",
+    "forbidden public :8000/:8001 bind scan",
+    "evaluate_env_matrix fail-closed API",
+    "hermetic_operator_check spine-safe for CI keys",
+    "env_matrix_contract_summary JSON",
+    "env_matrix_gate_closed helper",
+    "spine_contract_summary env_matrix block",
+    "pr142_gate_id in spine summary",
+    "scripts/verify_kilo_env_matrix.py operator helper",
+    "verify_kilo_spine env_matrix gate",
+    "unit tests pr142 matrix modes",
+    "unit tests live_proof_prep completeness",
+    "runbook env-matrix section H7",
+    "docs guides pointer to verify_kilo_env_matrix",
+    "CONTINUITY STATUS AGENTS pr142 entries",
+    "audit checklist kilo-env-matrix-pr142",
+    "audit pass pr142 + AUDIT_INDEX",
+    "hermetic only no live Mercury GPU deploy",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #143 substrate-checklist next"
+  ]
+}
