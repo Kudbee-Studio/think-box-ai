@@ -30,6 +30,8 @@ jobs:
           python3 scripts/verify_kilo_api_ops_harden.py
           python3 scripts/verify_kilo_end_link_deepen.py
           python3 scripts/verify_kilo_end_link_operator_ux.py
+          python3 scripts/verify_kilo_receipt_chain_end_link_docs.py
+          python3 scripts/verify_kilo_end_link_api_ops_harden.py
       - name: Secret scan (docs + repo hygiene)
         run: python3 scripts/scan_doc_secrets.py
 
