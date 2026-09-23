@@ -185,6 +185,7 @@ def pr167_combined_post166_lane_contract_summary(
 ) -> dict[str, Any]:
     env = environ if environ is not None else os.environ
     result = hermetic_pr167_combined_post166_lane_check(env)
+    gate_closed = result.ok
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,
@@ -200,7 +201,7 @@ def pr167_combined_post166_lane_contract_summary(
         "live_api_called": False,
         "four_state_max": "TEST_VERIFIED",
         "live_proof_in_this_pr": False,
-        "gate_closed_default": pr167_combined_post166_lane_gate_closed(),
+        "gate_closed_default": gate_closed,
         "verify_script": str(VERIFY_SCRIPT_REL),
         "audit_pass": str(PR167_PASS_REL),
         "hermetic_violation_codes": sorted({v.code for v in result.violations}),
