@@ -918,11 +918,25 @@ python3 scripts/scan_doc_secrets.py
 **Status:** Merged — **`env-matrix`** in **#141–#150** arc  
 **Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`
 
-## PR #150 — KILO live-proof-exec (DRAFT, season close)
+## PR #151 — KILO post-season harden (DRAFT)
 
-**Status:** Draft — closes **`live-proof-exec`**; arc #141–#150 season complete at TEST VERIFIED (not LIVE VERIFIED)  
+**Status:** Draft — ops gate **`post-season-harden`** (CI, branch hygiene, docs sync; not Live proof)  
+**Scope:** `thinkbox/kilo_post_season_harden.py`, `scripts/verify_kilo_post_season_harden.py`, `scripts/cleanup_merged_cursor_branches.py`
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr151 -v
+python3 scripts/verify_kilo_post_season_harden.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #150 — KILO live-proof-exec (MERGED, season close)
+
+**Status:** Merged — closes **`live-proof-exec`**; arc #141–#150 season complete at TEST VERIFIED (not LIVE VERIFIED)  
 **Scope:** `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`  
-**Post-merge:** Cloud Bot on standby — no #151 unless founder asks
+**Next:** Founder-run Live proof per runbook; **PR #151** post-season harden in flight
 
 ## PR #141 — KILO Live-proof readiness spine (MERGED)
 
