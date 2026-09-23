@@ -61,8 +61,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H10 | KILO mercury-hermetic operator gate (`scripts/verify_kilo_mercury_hermetic.py` exit 0) | PR #146 tests |
 | H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
 | H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
+| H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#148 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#149 hermetic gates.
 
 ---
 
