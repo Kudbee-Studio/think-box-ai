@@ -852,9 +852,29 @@ python3 -m unittest \
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
 
-## PR #145 — KILO governance-evidence gate (DRAFT)
+## PR #146 — KILO mercury-hermetic gate (DRAFT)
 
-**Status:** Draft — closes **`governance-evidence`** in **#141–#150** arc (admission token + live-burst evidence shape; no Live proof)  
+**Status:** Draft — closes **`mercury-hermetic`** in **#141–#150** arc (bounded Mercury mocks + live-gate stub; no Live proof)  
+**Scope:** `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py`, PR #146 hermetic tests  
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
+python3 scripts/verify_kilo_mercury_hermetic.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #145 — KILO governance-evidence gate (MERGED)
+
+**Status:** Merged — closes **`governance-evidence`** in **#141–#150** arc (admission token + live-burst evidence shape; no Live proof)  
 **Scope:** `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py`, PR #145 hermetic tests  
 **Note:** PR **#144** was CI/post-merge unittest green only — not governance-evidence.
 
