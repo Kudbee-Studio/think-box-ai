@@ -569,11 +569,14 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Control-plane E2E deepen merge checkpoint | **#163** (merged) | Same as #162 on `main` |
 | Receipt-chain / END_LINK era audit close (#154–#161) | merged on main | `thinkbox/kilo_receipt_chain_end_link_era_close.py`, `scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
 | Governance-evidence Live-proof readiness (hermetic) | **#164** (merged) | `thinkbox/kilo_governance_evidence_live_proof_readiness.py`, `thinkbox/governance_evidence_live_proof_readiness.py`, `scripts/verify_kilo_governance_evidence_live_proof_readiness.py` |
-| Combined harden + #154–#164 era chronicle (hermetic) | **#165** (draft) | `thinkbox/kilo_pr165_combined_harden_era_chronicle.py`, `thinkbox/live_smoke_audit_flip_correlation.py`, `scripts/verify_kilo_pr165_combined_harden.py` |
+| Combined harden + #154–#164 era chronicle (hermetic) | **#165** (merged) | `thinkbox/kilo_pr165_combined_harden_era_chronicle.py`, `thinkbox/live_smoke_audit_flip_correlation.py`, `scripts/verify_kilo_pr165_combined_harden.py` |
+| Combined post-#165 lane (operator prep + api ops + dashboard bind + swarm/gov) | **#166** (draft) | `thinkbox/kilo_pr166_combined_post165_lane.py`, `scripts/verify_kilo_pr166_combined_post165_lane.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #165 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr165` (`pr165-combined-harden-era-chronicle`) ships `live_verified: false` and `live_api_called: false`.
+Four-state on #166 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr166` (`pr166-combined-post165-lane`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #165 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr165` (`pr165-combined-harden-era-chronicle`) ships `live_verified: false` and `live_api_called: false`.
 
 Four-state on #164 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr164` (`governance-evidence-live-proof-readiness`) ships `live_verified: false` and `live_api_called: false`.
 
