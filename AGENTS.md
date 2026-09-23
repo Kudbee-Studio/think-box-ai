@@ -511,14 +511,15 @@ Known failures to track:
 
 ---
 
-## Think Job control-plane UI (PR #138–#139)
+## Think Job control-plane UI (PR #138–#140)
 
 Hermetic static UI at `public/control-plane/think_job_status.html` — **not LIVE VERIFIED**.
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
 | SSE subscribe + poll fallback on #137 routes | **#138** (merged) | `think_job_status_client.js`, `thinkbox/think_job_status_ui.py` |
-| Receipt-keyed watch + jobs digest multiplex panel | **#139** (draft) | `watchReceipt`, `JobsDigestMultiplexer`, F139 e2e |
+| Receipt-keyed watch + jobs digest multiplex panel | **#139** (merged) | `watchReceipt`, `JobsDigestMultiplexer`, F139 e2e |
+| Deep-link from `receipts.html` + shared etag across tabs | **#140** (draft) | `control_plane_deep_link.js`, `control_plane_etag_store.js`, F140 e2e |
 
 Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury claims.
 
