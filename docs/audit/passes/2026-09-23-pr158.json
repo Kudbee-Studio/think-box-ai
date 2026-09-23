@@ -1,0 +1,17 @@
+{
+  "audit_pass": "pr158",
+  "date": "2026-09-23",
+  "pr_number": 158,
+  "gate_id": "end-link-deepen",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "end_link_batch_validate",
+    "link_integrity_fields",
+    "fail_closed_failure_codes",
+    "chain_status_evidence_filters",
+    "dashboard_end_link_batch_client",
+    "spine_end_link_deepen_gate"
+  ]
+}
