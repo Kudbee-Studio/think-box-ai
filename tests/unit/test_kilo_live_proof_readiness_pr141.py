@@ -58,6 +58,12 @@ class TestArcDoc(unittest.TestCase):
         assert gate is not None
         self.assertEqual(gate.gate_id, "spine-docs")
 
+    def test_pr150_live_proof_exec_gate(self) -> None:
+        gate = spine.gate_for_pr(150)
+        self.assertIsNotNone(gate)
+        assert gate is not None
+        self.assertEqual(gate.gate_id, "live-proof-exec")
+
     def test_spine_docs_on_disk(self) -> None:
         missing = spine.missing_spine_docs()
         self.assertEqual(missing, [], msg=f"missing: {missing}")
