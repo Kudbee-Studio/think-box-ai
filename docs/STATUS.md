@@ -68,7 +68,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2363 | ✅ | 7 | 3 | ✅ PASS (PR #133 draft gate) |
+| All unit + integration + e2e | 2364 | ✅ | 7 | 3 | ✅ PASS (PR #133 merged gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |
