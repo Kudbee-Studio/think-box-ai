@@ -1,12 +1,31 @@
 # STATUS — Think Box AI
 
-## PR #149 — KILO dashboard-slots gate (DRAFT)
+## PR #151 — KILO post-season harden (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `post-season-harden` (ops — not arc #141–#150) |
+| **Scope** | CI spine alignment, `cleanup_merged_cursor_branches.py`, docs/STATUS sync |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_post_season_harden.py` |
+
+## PR #150 — KILO live-proof-exec (MERGED, arc season close)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `live-proof-exec` |
+| **Scope** | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`, spine wiring |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — audit `live_verified: false` |
+| **Season** | Arc #141–#150 closed at hermetic gates; Live proof founder-run post-merge |
+| **Verify** | `python3 scripts/verify_kilo_live_proof_exec.py` |
+
+## PR #149 — KILO dashboard-slots gate (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `dashboard-slots` |
 | **Scope** | `thinkbox/kilo_dashboard_slots.py` on proof-schema + hermetic slot registry + fixtures |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** LIVE VERIFIED / **not** PRODUCTION READY |
 | **Verify** | `python3 scripts/verify_kilo_dashboard_slots.py` |
 
 ## PR #148 — KILO proof-schema gate (MERGED)
@@ -69,16 +88,6 @@
 | **Scope** | Runbook spine for #141–#150; `thinkbox/kilo_live_proof_readiness.py` |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** KILO LIVE VERIFIED |
 | **Runbook** | `docs/runbooks/kilo-live-proof-readiness.md` |
-
-## PR #150 — KILO live-proof-exec (draft, arc season close)
-
-| Field | Value |
-|-------|-------|
-| **Gate** | `live-proof-exec` |
-| **Scope** | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`, spine wiring |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED — audit `live_verified: false` |
-| **Season** | Arc #141–#150 closed at hermetic gates; Cloud Bot standby; Live proof founder-run post-merge |
-| **Verify** | `python3 scripts/verify_kilo_live_proof_exec.py` |
 
 ---
 
