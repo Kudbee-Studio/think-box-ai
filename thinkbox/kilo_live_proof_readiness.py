@@ -21,6 +21,7 @@ PR #164 adds ``governance_evidence_live_proof_readiness`` (governance-evidence L
 PR #165 adds ``pr165_combined_harden_era_chronicle`` (live-smoke audit-flip harden + post-#164 control-plane deepen + receipt-chain season harden + #154–#164 era chronicle; not Live proof).
 PR #166 adds ``pr166_combined_post165_lane`` (operator prep deepen + api ops post165 + dashboard PR165 bind + swarm/governance post165; not Live proof).
 PR #167 adds ``pr167_combined_post166_lane`` (operator audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/governance post166; not Live proof).
+PR #168 adds ``pr168_combined_post167_lane`` (operator audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/governance post167; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -29,9 +30,12 @@ PR #149 adds ``dashboard_slots`` summary layered on proof-schema.
 
 from __future__ import annotations
 
+import os
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterator
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -180,8 +184,34 @@ def gate_for_pr(pr_number: int) -> ArcGate | None:
     return None
 
 
-def spine_contract_summary() -> dict[str, object]:
-    """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads)."""
+@contextmanager
+def _spine_fast_mode_context(fast: bool) -> Iterator[None]:
+    """Temporarily set ``KILO_SPINE_FAST`` for nested gate evaluation."""
+    if not fast:
+        yield
+        return
+    previous = os.environ.get("KILO_SPINE_FAST")
+    os.environ["KILO_SPINE_FAST"] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("KILO_SPINE_FAST", None)
+        else:
+            os.environ["KILO_SPINE_FAST"] = previous
+
+
+def spine_contract_summary(fast: bool = False) -> dict[str, object]:
+    """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads).
+
+    When *fast* is True, nested control-plane e2e unittest subprocesses are skipped
+    (static/file checks still run). Use ``--e2e`` on ``verify_kilo_spine.py`` for full e2e.
+    """
+    with _spine_fast_mode_context(fast):
+        return _build_spine_contract_summary_body()
+
+
+def _build_spine_contract_summary_body() -> dict[str, object]:
     from thinkbox.kilo_env_matrix import env_matrix_contract_summary
     from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
     from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
@@ -218,6 +248,9 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_pr167_combined_post166_lane import (
         pr167_combined_post166_lane_contract_summary,
     )
+    from thinkbox.kilo_pr168_combined_post167_lane import (
+        pr168_combined_post167_lane_contract_summary,
+    )
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -251,6 +284,7 @@ def spine_contract_summary() -> dict[str, object]:
     pr165_combined_summary = pr165_combined_harden_era_chronicle_contract_summary()
     pr166_combined_summary = pr166_combined_post165_lane_contract_summary()
     pr167_combined_summary = pr167_combined_post166_lane_contract_summary()
+    pr168_combined_summary = pr168_combined_post167_lane_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -312,4 +346,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr166_gate_id": pr166_combined_summary.get("pr166_gate_id"),
         "pr167_combined_post166_lane": pr167_combined_summary,
         "pr167_gate_id": pr167_combined_summary.get("pr167_gate_id"),
+        "pr168_combined_post167_lane": pr168_combined_summary,
+        "pr168_gate_id": pr168_combined_summary.get("pr168_gate_id"),
     }
