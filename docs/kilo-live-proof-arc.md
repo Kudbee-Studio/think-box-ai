@@ -27,6 +27,8 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py`
 - Audit: `docs/audit/passes/2026-09-23-pr141.json` (draft)
 
+See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
+
 ## Non-binding #142 suggestion
 
 If founder prefers UI-first inside this arc: **#142** could ship cross-tab control-plane telemetry export (hermetic) instead of env-matrix first — either path must keep four-state honest.
