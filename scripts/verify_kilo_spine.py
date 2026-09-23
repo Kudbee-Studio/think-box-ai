@@ -88,6 +88,9 @@ def main() -> int:
     pr165_block = summary.get("pr165_combined_harden_era_chronicle") or {}
     if not pr165_block.get("hermetic_operator_ok"):
         return 1
+    pr166_block = summary.get("pr166_combined_post165_lane") or {}
+    if not pr166_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

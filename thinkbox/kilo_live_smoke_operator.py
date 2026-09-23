@@ -559,6 +559,8 @@ def live_smoke_operator_contract_summary(
         "evidence_artifact_glob": str(ARTIFACT_DIR_REL / EVIDENCE_ARTIFACT_GLOB),
         "default_audit_prior": str(DEFAULT_AUDIT_PRIOR_REL),
         "audit_candidate_suffix": AUDIT_CANDIDATE_NAME_SUFFIX,
+        "operator_prep_deepen_label": "live-proof-operator-prep-deepen",
+        "operator_prep_deepen_gate_id": "live-proof-operator-prep-deepen",
         "hermetic_violation_codes": sorted({v.code for v in operator.violations}),
     }
 
