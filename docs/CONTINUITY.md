@@ -28,8 +28,9 @@ Before declaring completion, every agent MUST verify:
 - [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
 - [x] 10 new scheduler features (timeout, deps, analytics, prediction, stealing, SLA, checkpoints, backoff, profiling, error classification) COMPLETE
 - [x] 10 more scheduler features (weighted fair-queue, job lease, deduped delay, circuit breaker, admission lottery, placement constraints, progressive drain, ledger replay, multi-priority aging, scheduler canaries) COMPLETE (PR #83)
-- [x] KUDBEECLI Phase 1: 10 commands + 16 tests (PR #126 audit close-out)
 - [x] KUDBEECLI Phase 2: persistent identity ledger, persistent traces, interactive REPL, dashboard status, swarm live path (fail closed)
+- [x] KILO Live-proof readiness spine (PR #141): runbook, arc doc, hermetic contract module, gate stubs
+- [x] KILO env-matrix gate (PR #142 draft): env matrix, verify scripts, hermetic contract tests
 
 ---
 
