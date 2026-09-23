@@ -36,19 +36,27 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#159 on main** (END LINK operator UX merged). **PR #160 (draft):** receipt-chain / END_LINK docs + audit pack. |
+| **Latest completed work** | **PR #141–#160 on main** (receipt-chain / END_LINK docs merged). **PR #161 (draft):** END LINK API / ops harden. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **Founder-run KILO Live proof** per runbook; **PR #160 draft:** receipt-chain / END_LINK docs + audit pack. |
-| **PR status** | PR #141–#159 merged; PR #160 draft (`receipt-chain-end-link-docs`) |
+| **Next larger improvement** | **Founder-run KILO Live proof** per runbook; **PR #161 draft:** END LINK API / ops harden after #160. |
+| **PR status** | PR #141–#160 merged; PR #161 draft (`end-link-api-ops-harden`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #160 draft: receipt-chain / END_LINK docs + audit pack
+### 2026-09-23 — PR #161 draft: END LINK API / ops harden after #160
+
+| Field | Value |
+|---|---|
+| **Scope** | `end_link_api_ops_harden`, chain filter fail-closed, batch Idempotency-Key, ops timing metadata |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_api_ops_harden`, `test_backend_end_link_api_ops_harden_pr161`, `test_kilo_live_proof_readiness_pr161`; audit `passes/2026-09-23-pr161.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #160 merged: receipt-chain / END_LINK docs + audit pack
 
 | Field | Value |
 |---|---|

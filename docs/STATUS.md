@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #160 — Receipt-chain / END_LINK docs + audit pack (DRAFT)
+## PR #161 — END LINK API / ops harden after #159–#160 (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `end-link-api-ops-harden` (layers `receipt-chain-end-link-docs`) |
+| **Scope** | chain filter fail-closed, failure_code normalization, ops timing, batch Idempotency-Key replay |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Verify** | `python3 scripts/verify_kilo_end_link_api_ops_harden.py` |
+
+## PR #160 — Receipt-chain / END_LINK docs + audit pack (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `receipt-chain-end-link-docs` (layers `end-link-operator-ux`) |
 | **Scope** | consolidated operator guide (#155–#159), era audit index, AUDIT_INDEX sync, spine honesty gate |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false`, `live_api_called: false` |
 | **Verify** | `python3 scripts/verify_kilo_receipt_chain_end_link_docs.py` |
 
 ## PR #159 — END LINK operator UX deepen (MERGED)

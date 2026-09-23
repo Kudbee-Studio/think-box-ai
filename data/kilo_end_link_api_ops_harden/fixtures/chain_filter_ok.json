@@ -1,0 +1,4 @@
+{
+  "expect_ok": true,
+  "description": "sanitized chain filter params pass validation"
+}

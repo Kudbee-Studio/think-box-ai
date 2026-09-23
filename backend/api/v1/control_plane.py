@@ -36,6 +36,16 @@ from thinkbox.control_plane_api_surface import (
     wrap_success,
 )
 from thinkbox.end_link_deepen import evaluate_end_link_batch_body
+from thinkbox.end_link_api_ops_harden import (
+    OpsRouteTiming,
+    enrich_batch_validate_payload,
+    enrich_validate_payload,
+    lookup_batch_idempotency_replay,
+    normalize_failure_code,
+    parse_batch_idempotency_key,
+    register_batch_idempotency_replay,
+    validate_chain_filter_query,
+)
 from thinkbox.control_plane_hermetic_clients import (
     HermeticGovernanceClient,
     HermeticOrchestrationClient,
@@ -88,6 +98,19 @@ def _enforce_ops_rate_limit(request: Request, token: str) -> None:
             detail=http_exception_detail(err, request_id=_request_id()),
             headers={"Retry-After": str(int(exc.retry_after_seconds))},
         ) from exc
+
+
+def _chain_filter_error(filter_errors: list[str]) -> HTTPException:
+    code = normalize_failure_code(filter_errors[0]) if filter_errors else "chain_filter_invalid"
+    return _api_error(
+        code or "chain_filter_invalid",
+        "receipt chain filter query invalid",
+        http_status=400,
+        details=tuple(
+            ControlPlaneApiViolation(code=err, message=err, field="query")
+            for err in filter_errors[:5]
+        ),
+    )
 
 
 def _api_error(
@@ -265,14 +288,22 @@ async def receipts_chain(
 ):
     """Receipt chain status with conditional GET, pagination, and filters."""
     _enforce_ops_rate_limit(request, token)
+    filters, filter_errors = validate_chain_filter_query(
+        status=status,
+        evidence_label=evidence_label,
+        action=action,
+        agent_id=agent_id,
+    )
+    if filter_errors:
+        raise _chain_filter_error(filter_errors)
     lim = clamp_query_limit(limit)
     payload = get_chain_payload(
         limit=lim,
         cursor=cursor,
-        action=action,
-        agent_id=agent_id,
-        status_filter=status,
-        evidence_label=evidence_label,
+        action=filters.action,
+        agent_id=filters.agent_id,
+        status_filter=filters.status_filter,
+        evidence_label=filters.evidence_label,
     )
     etag = payload.get("etag")
     return conditional_json_response(
@@ -295,14 +326,22 @@ async def receipts_chain_page(
 ):
     """Paginated receipt list only (conditional GET)."""
     _enforce_ops_rate_limit(request, token)
+    filters, filter_errors = validate_chain_filter_query(
+        status=status,
+        evidence_label=evidence_label,
+        action=action,
+        agent_id=agent_id,
+    )
+    if filter_errors:
+        raise _chain_filter_error(filter_errors)
     lim = clamp_query_limit(limit)
     page = build_chain_page_payload(
         limit=lim,
         cursor=cursor,
-        action=action,
-        agent_id=agent_id,
-        status_filter=status,
-        evidence_label=evidence_label,
+        action=filters.action,
+        agent_id=filters.agent_id,
+        status_filter=filters.status_filter,
+        evidence_label=filters.evidence_label,
     )
     from thinkbox.control_plane_conditional import chain_read_etag
 
@@ -358,10 +397,16 @@ async def receipts_validate_link(
 ):
     """Fail-closed link validation; If-Match required when If-Match header sent."""
     _enforce_ops_rate_limit(request, token)
+    timing = OpsRouteTiming.start("GET /receipts/{receipt_id}/validate")
     try:
         body = build_end_link_validate_payload(receipt_id)
     except ReceiptChainValidationError as exc:
-        raise _api_error(exc.code, exc.message, http_status=404) from exc
+        raise _api_error(
+            normalize_failure_code(exc.code) or exc.code,
+            exc.message,
+            http_status=404,
+        ) from exc
+    body = enrich_validate_payload(body, timing=timing)
     from thinkbox.read_cache import weak_etag_from_payload
 
     etag = weak_etag_from_payload(body)
@@ -379,21 +424,44 @@ async def receipts_validate_batch(
 ) -> dict[str, Any]:
     """Bulk END LINK validate (PR #158); per-receipt fail-closed inside envelope."""
     _enforce_ops_rate_limit(request, token)
+    timing = OpsRouteTiming.start("POST /receipts/validate/batch")
     try:
         body = await request.json()
     except Exception as exc:
         raise _api_error("invalid_json", "request body must be JSON", http_status=400) from exc
     if not isinstance(body, dict):
         raise _api_error("invalid_body", "body must be an object", http_status=400)
+    idem_key = parse_batch_idempotency_key(request.headers.get("Idempotency-Key"))
+    if idem_key:
+        try:
+            cached = lookup_batch_idempotency_replay(idem_key, body)
+        except IdempotencyConflict:
+            raise _api_error(
+                "idempotency_conflict",
+                "Idempotency-Key reused with different batch body",
+                http_status=409,
+            ) from None
+        if cached is not None:
+            return wrap_success(cached, request_id=_request_id())
     receipt_ids, parse_errors = evaluate_end_link_batch_body(body)
     if parse_errors:
         raise _api_error(
-            parse_errors[0],
+            normalize_failure_code(parse_errors[0]) or parse_errors[0],
             "batch validate body invalid",
             http_status=400,
         )
     limit = body.get("limit")
     lim = clamp_query_limit(limit) if limit is not None else None
     payload = build_end_link_batch_payload(receipt_ids, limit=lim)
+    payload = enrich_batch_validate_payload(payload, timing=timing, idempotency_key=idem_key)
+    if idem_key:
+        try:
+            register_batch_idempotency_replay(idem_key, body, payload)
+        except IdempotencyConflict:
+            raise _api_error(
+                "idempotency_conflict",
+                "Idempotency-Key reused with different batch body",
+                http_status=409,
+            ) from None
     _logger.debug("end_link_batch_validate %s", redact_mapping_for_logs(payload))
     return wrap_success(payload, request_id=_request_id())

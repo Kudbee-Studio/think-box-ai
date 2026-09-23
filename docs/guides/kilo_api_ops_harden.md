@@ -20,4 +20,4 @@ idempotency keys, ops rate windows, and structured error envelopes.
 - Receipt page rows validate in-page `prev_receipt_id` linkage.
 - Errors return structured envelopes with `live_api_called: false`.
 
-See also: `docs/guides/kilo_receipt_chain_end_link_operator.md`.
+See also: `docs/guides/kilo_receipt_chain_end_link_operator.md`, `docs/guides/kilo_end_link_api_ops_harden.md` (PR #161 stack harden).
