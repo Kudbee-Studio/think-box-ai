@@ -283,3 +283,48 @@ def redact_mercury_summary(text: str) -> str:
             rf'("{key}"\s*:\s*")[^"]+(")',
             rf"\1<redacted>\2",
             scrubbed,
+        )
+    return scrubbed
+
+
+def _governance_violations_to_mercury(
+    gov: GovernanceEvidenceResult,
+) -> list[MercuryHermeticViolation]:
+    return [
+        MercuryHermeticViolation(
+            code=f"governance_{v.code}",
+            message=v.message,
+            env_key=v.env_key,
+        )
+        for v in gov.violations
+    ]
+
+
+def _governance_summary_ref(gov: GovernanceEvidenceResult) -> dict[str, Any]:
+    return {
+        "mode": gov.mode.value,
+        "ok": gov.ok,
+        "env_matrix_ok": gov.env_matrix_ok,
+        "substrate_checklist_ok": gov.substrate_checklist_ok,
+        "violation_count": len(gov.violations),
+        "gate_id": "governance-evidence",
+    }
+
+
+def _mode_from_matrix(
+    mode: EnvMatrixMode | None,
+    environ: Mapping[str, str],
+) -> EnvMatrixMode:
+    if mode is not None:
+        return mode
+    return detect_matrix_mode(environ)
+
+
+def evaluate_mercury_hermetic(
+    mode: EnvMatrixMode | None = None,
+    environ: Mapping[str, str] | None = None,
+    *,
+    agent_id: str = "kilo-live-proof-agent",
+    capability: str = "kilo:live_burst",
+    policy_version: str = "kilo-live-proof-v1",
+    token_value: str | None = None,
