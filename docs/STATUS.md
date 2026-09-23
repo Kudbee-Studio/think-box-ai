@@ -1,5 +1,14 @@
 # STATUS — Think Box AI
 
+## PR #145 — KILO governance-evidence gate (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `governance-evidence` |
+| **Scope** | `thinkbox/kilo_governance_evidence.py` on env-matrix + substrate-checklist layers |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_governance_evidence.py` |
+
 ## PR #143 — KILO substrate-checklist gate (MERGED)
 
 | Field | Value |
