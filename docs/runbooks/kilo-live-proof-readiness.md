@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
+**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -60,8 +60,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H9 | KILO governance-evidence operator gate (`scripts/verify_kilo_governance_evidence.py` exit 0) | PR #145 tests |
 | H10 | KILO mercury-hermetic operator gate (`scripts/verify_kilo_mercury_hermetic.py` exit 0) | PR #146 tests |
 | H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
+| H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#147 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#148 hermetic gates.
 
 ---
 
@@ -103,11 +104,12 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`, `scripts/verify_kilo_proof_schema.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
+- Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`
 
 ---
 
@@ -202,6 +204,32 @@ Summaries redact via `redact_secret_value` / `redact_swarm_summary`.
 
 ---
 
+## Proof-schema gate (PR #148)
+
+Gate ID: **`proof-schema`**. Hermetic only — layers on **`swarm-instrumentation`**
+(calls `hermetic_swarm_operator_check` first). Defines a JSON document contract
+(`kilo-proof-v1`) for KILO ledger + live-proof artifacts: `receipt_key`, `etag`,
+`prior_gate_ids` (intersection admission — all listed gates must be
+`hermetic_operator_ok`), dependency graph (`depends_on` over gate node ids with
+cycle rejection), cue types (`user` vs `injected_nudge` / `cron` / `subagent_completion`
+/ `gate_ready` / `blocker` — injected cues must not set `counts_as_user_intent`),
+optional north-star / roadmap / tasks refs, idle/resume fields (`idle_secs`,
+`max_cycles`, `stop_sentinel`), `definition_of_done` predicates, and `halt_reason`
+kill-switch enums. Four-state honesty is fail-closed: `LIVE_VERIFIED` /
+`PRODUCTION_READY` require `live_verified: true` and all DoD `met: true`.
+
+| Fixture band | Expectation |
+|--------------|-------------|
+| `valid_*.json` | `validate_proof_document` returns ok |
+| `invalid_*.json` | Fail-closed with `_expect: invalid` |
+
+Operator verify runs after swarm-instrumentation; `live_api_called=false` always in
+hermetic modes. Summaries redact via `redact_proof_summary`.
+
+Optional non-binding next gate: **#149 `dashboard-slots`**.
+
+---
+
 ## Verification commands
 
 ```bash
@@ -211,14 +239,16 @@ python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr147 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr148 -v
 python3 scripts/verify_kilo_env_matrix.py
 python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_governance_evidence.py
 python3 scripts/verify_kilo_mercury_hermetic.py
 python3 scripts/verify_kilo_swarm_instrumentation.py
+python3 scripts/verify_kilo_proof_schema.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #147 swarm-instrumentation — hermetic only; Live proof not executed.
+**Revision:** PR #148 proof-schema — hermetic only; Live proof not executed.
