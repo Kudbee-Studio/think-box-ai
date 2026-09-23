@@ -276,3 +276,28 @@ def select_jobs_from_digest(digest: Mapping[str, Any], limit: int = 50) -> Seque
         if isinstance(item, dict):
             out.append(item)
     return out
+
+
+__all__ = [
+    "TransportMode",
+    "StreamEndpointPlan",
+    "ThinkJobClientTelemetry",
+    "ThinkJobWatchState",
+    "api_headers",
+    "format_job_poll_path",
+    "format_job_stream_path",
+    "format_receipt_stream_path",
+    "format_jobs_digest_stream_path",
+    "build_stream_url",
+    "stream_url_from_poll_payload",
+    "append_query_api_key",
+    "parse_sse_buffer_incremental",
+    "parse_sse_data_events",
+    "apply_status_event",
+    "backoff_delay_ms",
+    "should_enter_poll_fallback",
+    "classify_transport_after_error",
+    "terminal_from_summary",
+    "digest_row_label",
+    "select_jobs_from_digest",
+]
