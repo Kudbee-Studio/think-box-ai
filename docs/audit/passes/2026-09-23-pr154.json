@@ -1,0 +1,18 @@
+{
+  "pr_number": 154,
+  "gate_id": "control-plane-api",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "verify": {
+    "control_plane_api_verify": "python3 scripts/verify_kilo_control_plane_api.py OK",
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK"
+  },
+  "scope": [
+    "thinkbox/control_plane_api_contract.py",
+    "thinkbox/kilo_control_plane_api.py",
+    "backend/api/v1/control_plane.py",
+    "control_plane_api in spine_contract_summary"
+  ],
+  "notes": "Does not earn LIVE VERIFIED — founder ack + Box URL + smoke artifact still required"
+}
