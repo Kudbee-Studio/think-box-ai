@@ -218,3 +218,63 @@ def stream_plan_for_watch_target(
     poll_document: Mapping[str, Any],
 ) -> StreamEndpointPlan:
     """Receipt-keyed stream URL when poll hints include receipt_path."""
+    assert_receipt_watch_consistency(target, poll_document)
+    plan = stream_url_from_poll_payload(poll_document)
+    if target.kind == WatchKeyKind.RECEIPT:
+        receipt_stream = plan.receipt_stream_url or build_stream_url(
+            format_receipt_stream_path(target.key)
+        )
+        engine_id = str(poll_document.get("engine_id") or poll_document.get("job_id") or "")
+        return StreamEndpointPlan(
+            poll_url=format_receipt_poll_path(target.key),
+            stream_url=receipt_stream,
+            receipt_stream_url=receipt_stream,
+            recommended_interval_ms=plan.recommended_interval_ms,
+        )
+    return plan
+
+
+def stream_url_from_poll_payload(poll_document: Mapping[str, Any]) -> StreamEndpointPlan:
+    """Use poll.stream hints from #134/#137 — no parallel status plane."""
+    poll = poll_document.get("poll") if isinstance(poll_document.get("poll"), dict) else {}
+    stream = poll.get("stream") if isinstance(poll.get("stream"), dict) else {}
+    engine_id = str(poll_document.get("engine_id") or poll_document.get("job_id") or "")
+    job_template = str(stream.get("job_path") or format_job_stream_path("{engine_id}"))
+    stream_path = job_template.replace("{engine_id}", engine_id)
+    receipt = poll_document.get("receipt") if isinstance(poll_document.get("receipt"), dict) else {}
+    receipt_id = str(receipt.get("receipt_id") or "")
+    receipt_template = str(stream.get("receipt_path") or "")
+    receipt_stream = (
+        receipt_template.replace("{receipt_id}", receipt_id) if receipt_id and receipt_template else None
+    )
+    interval = int(poll.get("recommended_interval_ms") or 5000)
+    return StreamEndpointPlan(
+        poll_url=format_job_poll_path(engine_id),
+        stream_url=build_stream_url(stream_path),
+        receipt_stream_url=build_stream_url(receipt_stream) if receipt_stream else None,
+        recommended_interval_ms=max(500, interval),
+    )
+
+
+def append_query_api_key(url: str, api_key: str) -> str:
+    """Optional EventSource auth when THINKBOX_ALLOW_QUERY_API_KEY is enabled."""
+    key = (api_key or "").strip()
+    if not key:
+        return url
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}api_key={key}"
+
+
+def parse_sse_buffer_incremental(
+    buffer: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """Split complete SSE blocks from buffer; return remainder."""
+    events: list[dict[str, Any]] = []
+    parts = buffer.split("\n\n")
+    rest = parts.pop() if parts else ""
+    for block in parts:
+        if not block.strip():
+            continue
+        data_line = next((ln for ln in block.splitlines() if ln.startswith("data: ")), "")
+        if not data_line:
+            continue
