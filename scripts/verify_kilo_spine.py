@@ -43,6 +43,9 @@ def main() -> int:
     live_exec_block = summary.get("live_proof_exec") or {}
     if not live_exec_block.get("hermetic_operator_ok"):
         return 1
+    post_season_block = summary.get("post_season_harden") or {}
+    if not post_season_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
