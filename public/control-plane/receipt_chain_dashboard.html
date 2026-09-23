@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Receipt chain + END LINK — Think Box AI</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .rc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: var(--space-4) 0; }
+    @media (max-width: 800px) { .rc-grid { grid-template-columns: 1fr; } }
+    .rc-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: var(--space-4); }
+    .rc-mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+    .rc-row { display: grid; grid-template-columns: 1fr 80px 1fr auto; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
+    .rc-etag-ok { color: var(--color-success); }
+    .rc-etag-warn { color: var(--color-warning); }
+    .rc-etag-err { color: var(--color-danger); }
+    .rc-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: var(--space-4) 0; }
+    .rc-toolbar input, .rc-toolbar button { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
+    pre.rc-json { max-height: 200px; overflow: auto; background: var(--color-bg-subtle); padding: var(--space-3); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+        <li><a href="receipt_chain_dashboard.html">Chain + END LINK</a></li>
+        <li><a href="think_job_status.html">Think Jobs</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main id="main">
+    <div class="container">
+      <h1>Receipt chain / ETag dashboard</h1>
+      <p class="rc-mono" style="color: var(--color-text-secondary);">
+        PR #156 — bind dashboard slots to PR #155 chain reads. Proprietary <strong>END_LINK</strong> API:
+        <code>GET /api/v1/control-plane/receipts/{receipt_id}/validate</code>.
+        Hermetic only — <code>live_api_called=false</code>. If-None-Match → 304; bad If-Match → 412.
+        <!-- gate marker: /api/v1/control-plane/receipts/rcpt_marker/validate -->
+      </p>
+      <div class="rc-toolbar">
+        <label>Receipt id <input id="receiptId" type="text" placeholder="for END_LINK validate" style="min-width:200px" /></label>
+        <label>Cursor <input id="cursor" type="text" placeholder="page cursor" style="min-width:120px" /></label>
+        <button id="btnRefresh">Refresh chain page</button>
+        <button id="btnHead">Head</button>
+        <button id="btnTail">Tail</button>
+        <button id="btnEndLink">END_LINK validate</button>
+        <button id="btnEndLink412" title="Send wrong If-Match">Probe 412</button>
+      </div>
+      <div id="banner" class="rc-mono rc-etag-warn" style="display:none"></div>
+      <div class="rc-grid">
+        <div class="rc-card">
+          <div class="cp-label">ETag / cache</div>
+          <pre class="rc-json" id="etagOut">—</pre>
+        </div>
+        <div class="rc-card">
+          <div class="cp-label">END_LINK status</div>
+          <pre class="rc-json" id="endLinkOut">—</pre>
+        </div>
+      </div>
+      <div class="rc-card">
+        <div class="cp-label">Chain page (cursor pagination)</div>
+        <div id="pageMeta" class="rc-mono" style="margin-bottom:var(--space-2)">Loading…</div>
+        <div class="rc-row rc-mono" style="font-weight:bold;color:var(--color-text-tertiary)">
+          <span>Action</span><span>Agent</span><span>Receipt</span><span>END_LINK</span>
+        </div>
+        <div id="pageRows"></div>
+        <button id="btnNext" style="margin-top:var(--space-3)">Next page</button>
+      </div>
+      <div class="rc-card" style="margin-top:var(--space-4)">
+        <div class="cp-label">Head / tail probe</div>
+        <pre class="rc-json" id="probeOut">—</pre>
+      </div>
+    </div>
+    <script src="load_perf.js"></script>
+    <script src="control_plane_etag_store.js"></script>
+    <script src="control_plane_end_link_client.js"></script>
+    <script src="control_plane_deep_link.js"></script>
+    <script>
+      var AUTH = { Authorization: "Bearer dev-only-local-token" };
+      var etagStore = TBControlPlaneEtag.getSharedEtagStore();
+      var nextCursor = null;
+
+      function showBanner(msg, cls) {
+        var el = document.getElementById("banner");
+        if (!msg) { el.style.display = "none"; return; }
+        el.style.display = "block";
+        el.className = "rc-mono " + (cls || "rc-etag-warn");
+        el.textContent = msg;
+      }
+
+      function renderEtagEvents(events) {
+        document.getElementById("etagOut").textContent = JSON.stringify(events, null, 2);
+      }
+
+      function renderPage(page, meta) {
+        var rows = document.getElementById("pageRows");
+        rows.innerHTML = "";
+        (page.receipts || []).forEach(function (r) {
+          var div = document.createElement("div");
+          div.className = "rc-row rc-mono";
+          var rid = r.receipt_id || "";
+          var link = rid
+            ? '<a href="' + TBEndLink.buildEndLinkPath(rid) + '" style="pointer-events:none;color:var(--color-text-tertiary)">END_LINK</a>'
+            : "—";
+          div.innerHTML =
+            "<span>" + (r.action_type || "?") + "</span>" +
+            "<span>" + (r.agent_id || "—") + "</span>" +
+            "<span>" + (rid ? rid.slice(0, 18) + "…" : "—") + "</span>" +
+            "<span>" + link + "</span>";
+          rows.appendChild(div);
+        });
+        document.getElementById("pageMeta").textContent = meta;
+        nextCursor = page.next_cursor || null;
+        document.getElementById("btnNext").disabled = !nextCursor;
+      }
+
+      async function loadPage(cursor) {
+        showBanner("");
+        var events = [];
+        try {
+          var result = await TBEndLink.fetchChainPage(
+            { limit: 15, cursor: cursor || null },
+            etagStore,
+            AUTH,
+          );
+          events.push({
+            url: result.url,
+            cached: result.cached,
+            not_modified: result.not_modified,
+            etag: result.etag,
+          });
+          renderEtagEvents(events);
+          var page = result.page || {};
+          var meta = "total=" + (page.total || "?") + " next_cursor=" + (page.next_cursor || "—") +
+            (result.not_modified ? " (304 If-None-Match)" : "");
+          renderPage(page, meta);
+        } catch (e) {
+          showBanner("Chain page unavailable (mock): " + e, "rc-etag-err");
+          document.getElementById("pageMeta").textContent = "Error";
+        }
+      }
+
+      async function loadProbe(kind) {
+        try {
+          var p = await TBEndLink.fetchChainProbe(kind, etagStore, AUTH);
+          var out = document.getElementById("probeOut");
+          var prev = {};
+          try { prev = JSON.parse(out.textContent || "{}"); } catch (e) {}
+          prev[kind] = p;
+          out.textContent = JSON.stringify(prev, null, 2);
+        } catch (e) {
+          document.getElementById("probeOut").textContent = String(e);
+        }
+      }
+
+      async function runEndLink(wrongEtag) {
+        var rid = document.getElementById("receiptId").value.trim();
+        if (!rid) {
+          showBanner("receipt_id required for END_LINK", "rc-etag-err");
+          return;
+        }
+        var opts = wrongEtag ? { ifMatch: '"stale-wrong-etag"' } : {};
+        try {
+          var res = await TBEndLink.endLinkValidate(rid, opts, etagStore, AUTH);
+          document.getElementById("endLinkOut").textContent = JSON.stringify(res, null, 2);
+          if (res.precondition_failed || res.http_status === 412) {
+            showBanner("END_LINK If-Match mismatch → 412 (fail-closed)", "rc-etag-err");
+          } else if (res.valid) {
+            showBanner("END_LINK OK", "rc-etag-ok");
+          } else {
+            showBanner("END_LINK invalid or missing", "rc-etag-warn");
+          }
+        } catch (e) {
+          document.getElementById("endLinkOut").textContent = String(e);
+        }
+      }
+
+      document.getElementById("btnRefresh").onclick = function () {
+        loadPage(document.getElementById("cursor").value.trim() || null);
+      };
+      document.getElementById("btnNext").onclick = function () {
+        if (nextCursor) {
+          document.getElementById("cursor").value = nextCursor;
+          loadPage(nextCursor);
+        }
+      };
+      document.getElementById("btnHead").onclick = function () { loadProbe("head"); };
+      document.getElementById("btnTail").onclick = function () { loadProbe("tail"); };
+      document.getElementById("btnEndLink").onclick = function () { runEndLink(false); };
+      document.getElementById("btnEndLink412").onclick = function () { runEndLink(true); };
+
+      if (TBControlPlaneDeepLink && TBControlPlaneDeepLink.parseLocation) {
+        var link = TBControlPlaneDeepLink.parseLocation();
+        if (link.receipt_id) document.getElementById("receiptId").value = link.receipt_id;
+      }
+      loadPage(null);
+    </script>
+  </main>
+</body>
+</html>
