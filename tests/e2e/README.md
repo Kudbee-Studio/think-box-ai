@@ -68,6 +68,19 @@ python3 -m unittest tests.e2e.test_f131_post_run_think_job_contract
 | `backend/api/v1/run_receipts.py` | SQLite receipts + proof artifacts for HTTP runs |
 | `test_f133_governed_run_receipts.py` | Persist + GET receipt + fail-closed persist errors |
 
+### F138 Think Job status UI (PR #138 draft)
+
+| File | Purpose |
+|------|---------|
+| `public/control-plane/think_job_status.html` | Control-plane watch UI |
+| `public/control-plane/think_job_status_client.js` | SSE subscribe + poll fallback |
+| `thinkbox/think_job_status_ui.py` | Hermetic client helpers (unit-tested) |
+| `test_f138_think_job_status_ui.py` | Poll hints → stream plan; SSE merge parity |
+
+```bash
+python3 -m unittest tests.e2e.test_f138_think_job_status_ui tests.unit.test_think_job_status_ui
+```
+
 ### F134 Think Job status poll (PR #134 draft)
 
 | File | Purpose |

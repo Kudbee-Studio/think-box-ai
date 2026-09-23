@@ -33,3 +33,17 @@ provider only; no live Mercury.
 
 Clients should keep poll (`GET .../status`) as fallback when SSE disconnects; poll
 responses include `poll.stream` paths pointing at these routes.
+
+## Control-plane UI (PR #138)
+
+Static page: `public/control-plane/think_job_status.html` with
+`think_job_status_client.js`.
+
+- Initial `GET .../status` loads `poll.stream` hints (no parallel status plane).
+- Subscribe via **fetch + ReadableStream** so `X-API-Key` auth works (EventSource
+  cannot set headers fail-closed).
+- On SSE error, close, or unsupported body: exponential backoff reconnect (max 3),
+  then **degraded poll** at `poll.recommended_interval_ms`.
+- Shared logic for tests: `thinkbox/think_job_status_ui.py`.
+
+Four-state: CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.

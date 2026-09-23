@@ -1,5 +1,6 @@
 /**
  * Control-plane load helpers (PR #135): visibility-aware polling + conditional GET.
+ * Think Job status UI (PR #138) reuses fetchJsonConditional for poll fallback.
  */
 (function (global) {
   function isDocumentVisible() {

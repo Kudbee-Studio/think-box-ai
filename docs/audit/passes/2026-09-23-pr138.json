@@ -1,0 +1,50 @@
+{
+  "pass_id": "pr138",
+  "title": "PR138 — Control-plane Think Job status UI (SSE + poll fallback)",
+  "prior_pass": "passes/2026-09-23-pr137.json",
+  "started_at": "2026-09-23T13:00:00Z",
+  "completed_at": "2026-09-23T14:30:00Z",
+  "code_review_completed_at": "2026-09-23T14:30:00Z",
+  "checker": "cursor-cloud-pr138",
+  "base_commit": "f523202",
+  "suite": {
+    "command": "python3 -m unittest discover -s tests -t .",
+    "ok": 2462,
+    "skipped": 8,
+    "expected_failures": 3,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "think_job_status_ui TransportMode and telemetry",
+    "api_headers fail-closed X-API-Key or Bearer",
+    "stream URL builders from poll.stream hints",
+    "parse_sse_buffer_incremental for fetch SSE",
+    "apply_status_event hello delta close merge",
+    "backoff_delay_ms reconnect cap",
+    "should_enter_poll_fallback policy",
+    "append_query_api_key optional EventSource path",
+    "think_job_status_client.js stream plan from poll",
+    "fetch ReadableStream SSE with auth headers",
+    "poll fallback loop recommended_interval_ms",
+    "degraded_poll after SSE reconnect budget",
+    "ThinkJobStatusWatcher stop abort in-flight",
+    "think_job_status.html job list digest",
+    "watch toolbar engine id + mode chip",
+    "degraded and error banners fail-closed",
+    "event log panel for stream frames",
+    "control-plane index nav link Think Jobs",
+    "unit tests think_job_status_ui",
+    "unit tests static HTML JS contracts",
+    "e2e f138 poll plan and SSE merge parity",
+    "docs guides control-plane UI section",
+    "docs CONTINUITY STATUS pr138",
+    "e2e README F138 section",
+    "audit pass pr138 + AUDIT_INDEX"
+  ]
+}
