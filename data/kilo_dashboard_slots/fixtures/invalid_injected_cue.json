@@ -1,0 +1,30 @@
+{
+  "schema_version": "kilo-dashboard-slots-v1",
+  "registry_id": "kilo_slots_invalid_cue",
+  "gate_id": "dashboard-slots",
+  "pr_number": 149,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "slots": [
+    {
+      "slot_id": "slot-cue",
+      "kind": "cue_inbox",
+      "depends_on": [],
+      "bind": {
+        "receipt_key": "rcpt_cue_bad",
+        "etag": "etag_cue",
+        "multiplex_digest_id": "7e58b24287d57ae84d3824ffcd2f6f43"
+      },
+      "cues": [
+        {
+          "cue_id": "cue-bad",
+          "cue_type": "injected_nudge",
+          "counts_as_user_intent": true,
+          "text_ref": "logical://bad"
+        }
+      ]
+    }
+  ]
+}

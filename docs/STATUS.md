@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #148 — KILO proof-schema gate (DRAFT)
+## PR #149 — KILO dashboard-slots gate (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `dashboard-slots` |
+| **Scope** | `thinkbox/kilo_dashboard_slots.py` on proof-schema + hermetic slot registry + fixtures |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_dashboard_slots.py` |
+
+## PR #148 — KILO proof-schema gate (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `proof-schema` |
 | **Scope** | `thinkbox/kilo_proof_schema.py` on swarm-instrumentation + JSON proof contract + fixtures |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** LIVE VERIFIED / **not** PRODUCTION READY |
 | **Verify** | `python3 scripts/verify_kilo_proof_schema.py` |
 
 ## PR #147 — KILO swarm-instrumentation gate (MERGED)

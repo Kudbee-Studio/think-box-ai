@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
+**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` + PR #149 `dashboard-slots` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -61,8 +61,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H10 | KILO mercury-hermetic operator gate (`scripts/verify_kilo_mercury_hermetic.py` exit 0) | PR #146 tests |
 | H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
 | H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
+| H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#148 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#149 hermetic gates.
 
 ---
 
@@ -104,12 +105,13 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`, `scripts/verify_kilo_proof_schema.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`, `scripts/verify_kilo_mercury_hermetic.py`, `scripts/verify_kilo_swarm_instrumentation.py`, `scripts/verify_kilo_proof_schema.py`, `scripts/verify_kilo_dashboard_slots.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
 - Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, guide `docs/guides/kilo_proof_schema.md`
+- Dashboard slots: `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, guide `docs/guides/kilo_dashboard_slots.md`
 
 ---
 
@@ -226,7 +228,33 @@ kill-switch enums. Four-state honesty is fail-closed: `LIVE_VERIFIED` /
 Operator verify runs after swarm-instrumentation; `live_api_called=false` always in
 hermetic modes. Summaries redact via `redact_proof_summary`.
 
-Optional non-binding next gate: **#149 `dashboard-slots`**.
+Optional non-binding next gate: **#150 `live-proof-exec`**.
+
+---
+
+## Dashboard-slots gate (PR #149)
+
+Gate ID: **`dashboard-slots`**. Hermetic only — layers on **`proof-schema`**
+(calls `hermetic_proof_schema_operator_check` first). Defines control-plane
+**slot bindings** for future Live-proof UI (not live HTTP in this gate):
+`proof_receipt`, `gate_status`, `swarm_digest`, `governance_evidence`,
+`mercury_hermetic`, `cue_inbox`, `dod_checklist`. Each slot binds
+`receipt_key` + `etag` + optional `multiplex_digest_id` (via
+`build_multiplex_digest_identity`, aligned with Think Job receipt watch /
+jobs digest multiplex from PR #139–#140). Fail-closed on unbound slots,
+stale etags (`stale_after_etag`), exclusive receipt multiplex conflicts,
+slot `depends_on` cycles, injected cues marked as user intent, and any
+`dashboard_live_claim` that affirms KILO Live/production status. Slot-level
+`prior_gate_ids` and `definition_of_done_display` are **display-only**
+metadata — they do not earn LIVE VERIFIED.
+
+| Fixture band | Expectation |
+|--------------|-------------|
+| `valid_*.json` | `validate_slot_registry_document` returns ok |
+| `invalid_*.json` | Fail-closed (unbound, stale, multiplex, cycle, live claim) |
+
+Operator verify runs after proof-schema; `live_api_called=false` always in
+hermetic modes. Summaries redact via `redact_dashboard_slots_summary`.
 
 ---
 
@@ -240,15 +268,17 @@ python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr147 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr148 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr149 -v
 python3 scripts/verify_kilo_env_matrix.py
 python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_governance_evidence.py
 python3 scripts/verify_kilo_mercury_hermetic.py
 python3 scripts/verify_kilo_swarm_instrumentation.py
 python3 scripts/verify_kilo_proof_schema.py
+python3 scripts/verify_kilo_dashboard_slots.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #148 proof-schema — hermetic only; Live proof not executed.
+**Revision:** PR #149 dashboard-slots — hermetic only; Live proof not executed.

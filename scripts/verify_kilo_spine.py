@@ -37,6 +37,9 @@ def main() -> int:
     proof_block = summary.get("proof_schema") or {}
     if not proof_block.get("hermetic_operator_ok"):
         return 1
+    dashboard_block = summary.get("dashboard_slots") or {}
+    if not dashboard_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

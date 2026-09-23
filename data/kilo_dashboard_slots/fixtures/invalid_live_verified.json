@@ -1,0 +1,11 @@
+{
+  "schema_version": "kilo-dashboard-slots-v1",
+  "registry_id": "kilo_slots_invalid_live_flag",
+  "gate_id": "dashboard-slots",
+  "pr_number": 149,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": true,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "slots": []
+}
