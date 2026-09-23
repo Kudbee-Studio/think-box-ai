@@ -413,3 +413,53 @@ def evaluate_mercury_hermetic(
         evidence=evidence,
     )
 
+
+def _forbidden_live_provider_key_in_hermetic(
+    env: Mapping[str, str],
+) -> list[MercuryHermeticViolation]:
+    """Fail-closed when a production-shaped provider key is set without mock mode."""
+    if mock_client_configured(env):
+        return []
+    hits: list[MercuryHermeticViolation] = []
+    for key in _PROVIDER_KEYS:
+        raw = (env.get(key) or "").strip()
+        if not raw or len(raw) < _KEY_MIN_LEN:
+            continue
+        if raw.startswith("mock_") or raw.startswith("test_"):
+            continue
+        hits.append(
+            MercuryHermeticViolation(
+                code="forbidden_live_provider_without_mock",
+                message=(
+                    f"{key} present without {_MOCK_ENV_KEY} or mock:// URL "
+                    "in hermetic operator paths"
+                ),
+                env_key=key,
+            )
+        )
+    return hits
+
+
+def hermetic_mercury_operator_check(
+    environ: Mapping[str, str] | None = None,
+) -> MercuryHermeticResult:
+    """Spine/CI operator check: governance operator + mercury mock contract."""
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    mode = detect_matrix_mode(env)
+    gov_op = hermetic_governance_operator_check(env)
+    violations: list[MercuryHermeticViolation] = []
+    if not gov_op.ok:
+        violations.extend(_governance_violations_to_mercury(gov_op))
+    violations.extend(_forbidden_live_provider_key_in_hermetic(env))
+
+    live_gate = align_live_gate_stub(env)
+    mock_ok = mock_client_configured(env) or not any(
+        (env.get(k) or "").strip() for k in _PROVIDER_KEYS
+    )
+
+    evidence = MercuryHermeticEvidence(
+        gate_id=GATE_ID,
+        pr_number=PR_NUMBER,
+        governance_evidence_ok=gov_op.ok,
+        governance_summary_ref=_governance_summary_ref(gov_op),
+        live_gate_report=live_gate,
