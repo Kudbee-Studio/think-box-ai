@@ -328,3 +328,43 @@ def evaluate_mercury_hermetic(
     capability: str = "kilo:live_burst",
     policy_version: str = "kilo-live-proof-v1",
     token_value: str | None = None,
+    tokens: GovernanceTokenService | None = None,
+    identities: IdentityLedger | None = None,
+    fixture_id: str = "json_answer",
+    run_mock_call: bool = True,
+    now: float | None = None,
+) -> MercuryHermeticResult:
+    """Evaluate mercury-hermetic gate for *mode* (fail-closed)."""
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    resolved_mode = _mode_from_matrix(mode, env)
+    violations: list[MercuryHermeticViolation] = []
+
+    gov = evaluate_governance_evidence(
+        resolved_mode,
+        env,
+        agent_id=agent_id,
+        capability=capability,
+        policy_version=policy_version,
+        token_value=token_value,
+        tokens=tokens,
+        identities=identities,
+        now=now,
+    )
+    if not gov.ok:
+        violations.extend(_governance_violations_to_mercury(gov))
+
+    mock_ok = mock_client_configured(env)
+    if not mock_ok:
+        violations.append(
+            MercuryHermeticViolation(
+                code="mercury_mock_not_configured",
+                message=(
+                    f"{_MOCK_ENV_KEY}=hermetic or mock:// provider URL required "
+                    "in hermetic mercury paths"
+                ),
+                env_key=_MOCK_ENV_KEY,
+            )
+        )
+
+    mock_call: MercuryHermeticCallResult | None = None
+    if mock_ok and run_mock_call:
