@@ -15,7 +15,8 @@
 | Governance evidence | **#145** (merged) | Gate `governance-evidence`: `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
 | Mercury hermetic | **#146** (merged) | `thinkbox/kilo_mercury_hermetic.py` + `verify_kilo_mercury_hermetic.py` |
 | Swarm instrumentation | **#147** (merged) | `thinkbox/kilo_swarm_instrumentation.py` + `verify_kilo_swarm_instrumentation.py` |
-| Proof schema | **#148** (this arc step) | `thinkbox/kilo_proof_schema.py` + `verify_kilo_proof_schema.py` |
+| Proof schema | **#148** (merged) | `thinkbox/kilo_proof_schema.py` + `verify_kilo_proof_schema.py` |
+| Dashboard slots | **#149** (this arc step) | `thinkbox/kilo_dashboard_slots.py` + `verify_kilo_dashboard_slots.py` |
 | Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
 
 ## Four-state (arc-wide)
@@ -37,12 +38,13 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`
 - Proof schema: `thinkbox/kilo_proof_schema.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr148.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr148.json` (draft)
+- Dashboard slots: `thinkbox/kilo_dashboard_slots.py`
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr149.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr149.json` (draft)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
-## Non-binding #149 suggestion
+## Non-binding #150 suggestion
 
-**#148** ships `proof-schema` on top of `swarm-instrumentation` (cue types, dependency graph, DoD honesty). Optional non-binding follow-on: **#149** `dashboard-slots` — must keep four-state honest.
+**#149** ships `dashboard-slots` on top of `proof-schema` (hermetic slot binds, multiplex digest identity). Optional non-binding follow-on: **#150** `live-proof-exec` — earns LIVE VERIFIED only when founder runs bounded Live proof with Box URL + artifacts.
 
