@@ -1,4 +1,5 @@
 name: test
+# cursor/** push enables agent branch CI
 
 on:
   push:
