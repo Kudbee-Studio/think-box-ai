@@ -16,6 +16,25 @@ from urllib.parse import urlparse
 
 from thinkbox.kilo_live_proof_readiness import gate_for_pr
 
+__all__ = (
+    "EnvCategory",
+    "EnvMatrixMode",
+    "EnvMatrixResult",
+    "EnvVarContract",
+    "GATE_ID",
+    "KILO_ENV_CONTRACTS",
+    "PR_NUMBER",
+    "MatrixViolation",
+    "contract_by_key",
+    "detect_matrix_mode",
+    "env_matrix_contract_summary",
+    "env_matrix_gate_closed",
+    "evaluate_env_matrix",
+    "hermetic_operator_check",
+    "list_contracts",
+    "minimal_hermetic_environ",
+)
+
 GATE_ID = "env-matrix"
 PR_NUMBER = 142
 
