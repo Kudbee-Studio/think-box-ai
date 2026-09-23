@@ -67,8 +67,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H16 | KILO live-smoke-operator gate (`scripts/verify_kilo_live_smoke_operator.py` exit 0) | PR #153 tests |
 | H17 | KILO control-plane-api gate (`scripts/verify_kilo_control_plane_api.py` exit 0) | PR #154 tests |
 | H18 | KILO receipt-chain-etag gate (`scripts/verify_kilo_receipt_chain_etag.py` exit 0) | PR #155 tests |
+| H19 | KILO dashboard-receipt-chain-bind gate (`scripts/verify_kilo_dashboard_receipt_chain_bind.py` exit 0) | PR #156 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#155 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#156 hermetic gates.
 
 ---
 
@@ -163,6 +164,7 @@ Guide: `docs/guides/kilo_live_smoke_operator.md`
 - Live smoke operator: `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, guide `docs/guides/kilo_live_smoke_operator.md`
 - Control-plane API (PR #154): `thinkbox/kilo_control_plane_api.py`, guide `docs/guides/kilo_control_plane_api.md`
 - Receipt-chain / ETag (PR #155): `thinkbox/kilo_receipt_chain_etag.py`, guide `docs/guides/kilo_receipt_chain_etag.md`
+- Dashboard receipt-chain / END_LINK bind (PR #156): `thinkbox/kilo_dashboard_receipt_chain_bind.py`, guide `docs/guides/kilo_dashboard_receipt_chain_bind.md`
 
 ---
 

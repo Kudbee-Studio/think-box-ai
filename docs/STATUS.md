@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #155 — Receipt-chain / ETag deepen (DRAFT)
+## PR #156 — Dashboard receipt-chain / END_LINK bind (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `dashboard-receipt-chain-bind` (layers `receipt-chain-etag`) |
+| **Scope** | `receipt_chain_dashboard.html`, END_LINK client, `kilo_dashboard_receipt_chain_bind` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_dashboard_receipt_chain_bind.py` |
+
+## PR #155 — Receipt-chain / ETag deepen (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `receipt-chain-etag` (layers `control-plane-api`) |
 | **Scope** | `thinkbox/receipt_chain_query.py`, deepen `/receipts/chain*` routes, spine verify |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_receipt_chain_etag.py` |
 
 ## PR #154 — Control-plane API surface upgrade (MERGED)
