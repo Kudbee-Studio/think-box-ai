@@ -109,7 +109,7 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
-- Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`
+- Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, guide `docs/guides/kilo_proof_schema.md`
 
 ---
 
