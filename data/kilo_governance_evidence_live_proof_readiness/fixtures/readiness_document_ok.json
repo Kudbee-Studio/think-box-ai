@@ -1,0 +1,44 @@
+{
+  "schema_version": "kilo-governance-evidence-live-proof-readiness-v1",
+  "readiness_id": "fixture-readiness-ok",
+  "gate_id": "governance-evidence-live-proof-readiness",
+  "pr_number": 164,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "founder_ack_env_key": "THINKBOX_SWARM_LIVE_ACK",
+  "founder_ack_documented": true,
+  "box_url_env_key": "UPSTASH_PUBLIC_BOX_URL",
+  "box_url_documented": true,
+  "governance_evidence_gate_id": "governance-evidence",
+  "prior_gate_ids": [
+    "control-plane-e2e-deepen",
+    "governance-evidence",
+    "live-smoke-evidence",
+    "live-proof-exec"
+  ],
+  "readiness_checks": [
+    {
+      "check_id": "governance_evidence_hermetic_unit",
+      "status": "pass",
+      "live_api_called": false
+    },
+    {
+      "check_id": "documented_founder_ack",
+      "status": "documented",
+      "env_key": "THINKBOX_SWARM_LIVE_ACK"
+    },
+    {
+      "check_id": "documented_box_url",
+      "status": "documented",
+      "env_key": "UPSTASH_PUBLIC_BOX_URL"
+    },
+    {
+      "check_id": "no_live_api_in_hermetic",
+      "status": "pass",
+      "live_api_called": false
+    }
+  ],
+  "recorded_at": "2026-09-23T12:00:00+00:00",
+  "expect_ok": true
+}
