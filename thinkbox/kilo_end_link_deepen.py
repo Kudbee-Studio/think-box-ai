@@ -1,0 +1,308 @@
+"""Hermetic END LINK / control-plane deepen gate (PR #158, ``end-link-deepen``).
+
+Layers on PR #157 ``api-ops-harden``. Default: no network; ``live_api_called=False``.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Mapping, MutableMapping
+
+from thinkbox.agent.control_plane.store import ActionReceiptStore
+from thinkbox.end_link_api import END_LINK_API_LABEL, END_LINK_BATCH_ROUTE_SUFFIX
+from thinkbox.end_link_deepen import (
+    END_LINK_DEEPEN_LABEL,
+    END_LINK_DEEPEN_VERSION,
+    end_link_deepen_contract_snippet,
+    run_end_link_batch_validate,
+    run_end_link_validate_detailed,
+)
+from thinkbox.kilo_api_ops_harden import (
+    GATE_ID as PRIOR_GATE_ID,
+    hermetic_api_ops_harden_check,
+    minimal_api_ops_harden_environ,
+)
+from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_live_proof_readiness import REPO_ROOT
+
+__all__ = (
+    "CHECKLIST_REL",
+    "FIXTURES_REL",
+    "GATE_ID",
+    "PR_NUMBER",
+    "VERIFY_SCRIPT_REL",
+    "EndLinkDeepenEvidence",
+    "EndLinkDeepenResult",
+    "EndLinkDeepenViolation",
+    "end_link_deepen_contract_summary",
+    "end_link_deepen_gate_closed",
+    "evaluate_end_link_deepen",
+    "hermetic_end_link_deepen_check",
+    "minimal_end_link_deepen_environ",
+    "run_deepen_fixture_suite",
+    "validate_checklist_document",
+)
+
+GATE_ID = "end-link-deepen"
+PR_NUMBER = 158
+
+VERIFY_SCRIPT_REL = Path("scripts/verify_kilo_end_link_deepen.py")
+CHECKLIST_REL = Path("data/kilo_end_link_deepen/checklist.json")
+FIXTURES_REL = Path("data/kilo_end_link_deepen/fixtures")
+
+_REQUIRED_MARKERS: tuple[str, ...] = (
+    END_LINK_DEEPEN_LABEL,
+    END_LINK_API_LABEL,
+    END_LINK_BATCH_ROUTE_SUFFIX,
+    "build_end_link_validate_payload",
+    "run_end_link_batch_validate",
+    "link_integrity",
+    "failure_code",
+    "endLinkBatchValidate",
+)
+
+_REQUIRED_MODULES: tuple[Path, ...] = (
+    Path("thinkbox/end_link_deepen.py"),
+    Path("thinkbox/end_link_api.py"),
+    Path("backend/api/v1/control_plane.py"),
+    Path("public/control-plane/control_plane_end_link_client.js"),
+    Path("tests/unit/test_end_link_deepen.py"),
+    Path("tests/unit/test_backend_end_link_deepen_pr158.py"),
+    Path("tests/unit/test_dashboard_end_link_deepen_pr158.py"),
+)
+
+
+@dataclass(frozen=True)
+class EndLinkDeepenViolation:
+    code: str
+    message: str
+    path: str | None = None
+
+
+@dataclass(frozen=True)
+class EndLinkDeepenEvidence:
+    gate_id: str
+    pr_number: int
+    api_ops_harden_ok: bool
+    module_markers_ok: bool
+    fixture_suite_ok: bool
+    live_api_called: bool = False
+    four_state_max: str = "TEST_VERIFIED"
+
+
+@dataclass(frozen=True)
+class EndLinkDeepenResult:
+    mode: EnvMatrixMode
+    ok: bool
+    api_ops_harden_ok: bool
+    violations: list[EndLinkDeepenViolation]
+    evidence: EndLinkDeepenEvidence | None = None
+
+
+def minimal_end_link_deepen_environ(
+    extra: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    base: MutableMapping[str, str] = dict(minimal_api_ops_harden_environ())
+    if extra:
+        base.update(extra)
+    return dict(base)
+
+
+def validate_checklist_document(doc: Mapping[str, Any]) -> list[EndLinkDeepenViolation]:
+    violations: list[EndLinkDeepenViolation] = []
+    if doc.get("gate_id") != GATE_ID:
+        violations.append(EndLinkDeepenViolation(code="gate_id_mismatch", message="checklist gate_id"))
+    if doc.get("pr_number") != PR_NUMBER:
+        violations.append(EndLinkDeepenViolation(code="pr_number_mismatch", message="checklist pr_number"))
+    if doc.get("live_verified") is True:
+        violations.append(EndLinkDeepenViolation(code="live_verified_true", message="must stay false"))
+    if doc.get("four_state_max") != "TEST_VERIFIED":
+        violations.append(
+            EndLinkDeepenViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+        )
+    if doc.get("end_link_deepen_version") != END_LINK_DEEPEN_VERSION:
+        violations.append(
+            EndLinkDeepenViolation(code="deepen_version", message="end_link_deepen_version mismatch"),
+        )
+    prior = doc.get("prior_gate_ids") or []
+    if PRIOR_GATE_ID not in prior:
+        violations.append(
+            EndLinkDeepenViolation(code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"),
+        )
+    if doc.get("end_link_api") != END_LINK_API_LABEL:
+        violations.append(EndLinkDeepenViolation(code="end_link_api", message="end_link_api label"))
+    return violations
+
+
+def _check_files() -> list[EndLinkDeepenViolation]:
+    violations: list[EndLinkDeepenViolation] = []
+    for rel in _REQUIRED_MODULES:
+        if not (REPO_ROOT / rel).is_file():
+            violations.append(
+                EndLinkDeepenViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+            )
+    if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
+        violations.append(
+            EndLinkDeepenViolation(code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)),
+        )
+    checklist = REPO_ROOT / CHECKLIST_REL
+    if checklist.is_file():
+        try:
+            doc = json.loads(checklist.read_text(encoding="utf-8"))
+            violations.extend(validate_checklist_document(doc))
+        except json.JSONDecodeError:
+            violations.append(EndLinkDeepenViolation(code="checklist_json", message="invalid JSON"))
+    else:
+        violations.append(EndLinkDeepenViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+    return violations
+
+
+def _check_markers() -> list[EndLinkDeepenViolation]:
+    violations: list[EndLinkDeepenViolation] = []
+    backend = (REPO_ROOT / "backend/api/v1/control_plane.py").read_text(encoding="utf-8")
+    deepen = (REPO_ROOT / "thinkbox/end_link_deepen.py").read_text(encoding="utf-8")
+    api = (REPO_ROOT / "thinkbox/end_link_api.py").read_text(encoding="utf-8")
+    client_js = (REPO_ROOT / "public/control-plane/control_plane_end_link_client.js").read_text(
+        encoding="utf-8",
+    )
+    blob = backend + deepen + api + client_js
+    for marker in _REQUIRED_MARKERS:
+        if marker not in blob:
+            violations.append(
+                EndLinkDeepenViolation(code="marker_missing", message=f"missing {marker!r}"),
+            )
+    return violations
+
+
+def run_deepen_fixture_suite() -> tuple[int, int, list[str]]:
+    errors: list[str] = []
+    positive = 0
+    negative = 0
+
+    store = ActionReceiptStore(":memory:")
+    receipt = store.append("act", "OK", "r", "simulated", metadata={})
+    rid = receipt.receipt_id
+    ok_detail = run_end_link_validate_detailed(store, rid)
+    if ok_detail.valid and ok_detail.link_integrity == "ok":
+        positive += 1
+    else:
+        errors.append("validate_detailed ok")
+
+    bad = run_end_link_validate_detailed(store, "missing_rcpt")
+    if not bad.valid and bad.failure_code:
+        negative += 1
+    else:
+        errors.append("validate_detailed missing")
+
+    batch = run_end_link_batch_validate(store, [rid, "missing_rcpt"])
+    if batch.total == 2 and batch.valid_count == 1 and batch.invalid_count == 1:
+        positive += 1
+    else:
+        errors.append("batch_validate")
+
+    snippet = end_link_deepen_contract_snippet()
+    if snippet.get("end_link_deepen") == END_LINK_DEEPEN_LABEL:
+        positive += 1
+    else:
+        errors.append("contract snippet")
+
+    fixtures_dir = REPO_ROOT / FIXTURES_REL
+    if fixtures_dir.is_dir():
+        for path in sorted(fixtures_dir.glob("*.json")):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            if doc.get("expect_ok"):
+                positive += 1
+            if doc.get("expect_fail"):
+                negative += 1
+
+    return positive, negative, errors
+
+
+def evaluate_end_link_deepen(
+    mode: EnvMatrixMode | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> EndLinkDeepenResult:
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    resolved = mode if mode is not None else detect_matrix_mode(env)
+    violations: list[EndLinkDeepenViolation] = []
+
+    prior = hermetic_api_ops_harden_check(env)
+    if not prior.ok:
+        violations.append(
+            EndLinkDeepenViolation(
+                code="api_ops_harden_failed",
+                message=f"prior gate {PRIOR_GATE_ID} must pass",
+            ),
+        )
+
+    file_violations = _check_files()
+    violations.extend(file_violations)
+    marker_violations = _check_markers()
+    violations.extend(marker_violations)
+
+    pos, neg, fixture_errors = run_deepen_fixture_suite()
+    for err in fixture_errors:
+        violations.append(EndLinkDeepenViolation(code="fixture_failed", message=err))
+
+    fixture_ok = not fixture_errors and pos >= 3 and neg >= 1
+    if not fixture_ok:
+        violations.append(EndLinkDeepenViolation(code="fixture_suite_weak", message="deepen fixtures weak"))
+
+    markers_ok = len(marker_violations) == 0
+    ok = prior.ok and fixture_ok and markers_ok and not file_violations and not fixture_errors
+    evidence = EndLinkDeepenEvidence(
+        gate_id=GATE_ID,
+        pr_number=PR_NUMBER,
+        api_ops_harden_ok=prior.ok,
+        module_markers_ok=markers_ok,
+        fixture_suite_ok=fixture_ok,
+    )
+    return EndLinkDeepenResult(
+        mode=resolved,
+        ok=ok,
+        api_ops_harden_ok=prior.ok,
+        violations=violations if not ok else [],
+        evidence=evidence,
+    )
+
+
+def hermetic_end_link_deepen_check(
+    environ: Mapping[str, str] | None = None,
+) -> EndLinkDeepenResult:
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    return evaluate_end_link_deepen(detect_matrix_mode(env), env)
+
+
+def end_link_deepen_gate_closed() -> bool:
+    return hermetic_end_link_deepen_check(minimal_end_link_deepen_environ()).ok
+
+
+def end_link_deepen_contract_summary(
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    env: Mapping[str, str] = environ if environ is not None else os.environ
+    result = hermetic_end_link_deepen_check(env)
+    return {
+        "gate_id": GATE_ID,
+        "pr_number": PR_NUMBER,
+        "pr158_gate_id": GATE_ID,
+        "pr157_layer_gate_id": PRIOR_GATE_ID,
+        "end_link_deepen": END_LINK_DEEPEN_LABEL,
+        "end_link_deepen_version": END_LINK_DEEPEN_VERSION,
+        "end_link_api": END_LINK_API_LABEL,
+        "detected_mode": detect_matrix_mode(env).value,
+        "hermetic_operator_ok": result.ok,
+        "api_ops_harden_ok": result.api_ops_harden_ok,
+        "live_api_called": False,
+        "four_state_max": "TEST_VERIFIED",
+        "live_proof_in_this_pr": False,
+        "gate_closed_default": end_link_deepen_gate_closed(),
+        "verify_script": str(VERIFY_SCRIPT_REL),
+        "verify_script_present": (REPO_ROOT / VERIFY_SCRIPT_REL).is_file(),
+        "checklist_rel": str(CHECKLIST_REL),
+        "fixtures_rel": str(FIXTURES_REL),
+        "hermetic_violation_codes": sorted({v.code for v in result.violations}),
+    }
