@@ -1,0 +1,42 @@
+{
+  "base_commit": "ca54c8e",
+  "checker": "cursor-cloud-pr128",
+  "completed_at": "2026-09-23T02:45:00Z",
+  "findings": [
+    {
+      "id": "F128-CLI",
+      "rank": 1,
+      "severity": "P1",
+      "title": "KUDBEECLI Phase 1 six commands on main path",
+      "status": "done",
+      "paths": [
+        "thinkbox/cli.py",
+        "thinkbox/cli_inspect.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_cli_inspect.py"
+      ],
+      "notes": "swarm agents|status, ledger verify, proof check, env status, session list; exit codes + --json"
+    },
+    {
+      "id": "F023-prep",
+      "rank": 2,
+      "severity": "P2",
+      "title": "F023 hermetic prep (ModelProvider, experiment disk, API surface)",
+      "status": "partial",
+      "paths": [
+        "tests/e2e/test_f023_prep.py"
+      ],
+      "notes": "Full five-tool ModelProvider e2e + dashboard emission still F023"
+    }
+  ],
+  "pass_id": "pr128",
+  "prior_pass": "passes/2026-09-22-pr127.json",
+  "started_at": "2026-09-23T02:20:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2272,
+    "skipped": 8
+  },
+  "title": "PR128 — KUDBEECLI Phase 1 + governance inspection (~25 improvements)"
+}

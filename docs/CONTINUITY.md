@@ -1309,4 +1309,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **NOT IN MERGE:** KUDBEECLI Phase 1 **code** at `d54b797` (six CLI commands) — still off `main`; integrate via **PR #128** (planned).
 - **NEXT ACTION:** PR #128 draft (~25 improvements); land `d54b797` (+ Phase 2 lineage) with docs/code alignment.
 
+### 2026-09-23 — PR #128 draft (KUDBEECLI + governance + F023 prep)
+
+- **BRANCH:** `feat/pr128-cli-governance-25` — Phase 1 six CLI commands on `thinkbox/cli.py` + `thinkbox/cli_inspect.py`; F023 prep e2e (`tests/e2e/test_f023_prep.py`); audit pass `docs/audit/passes/2026-09-23-pr128.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2272 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** KUDBEECLI Phase 1 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**. F023 full Think Job lifecycle still open.
+- **NEXT ACTION:** Founder review draft PR #128; PR #129 theme: Phase 2 CLI persistence + `thinkbox shell` REPL (fail-closed live paths).
+
 ---

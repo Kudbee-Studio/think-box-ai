@@ -521,8 +521,8 @@ Unified CLI for hermetic inspection of swarm evidence, ledger integrity, proofs,
 |------|-----------|--------|
 | Doc redaction + audit P1 close-outs + minimal e2e scaffold | **#126** (merged `866a408`) | Not KUDBEECLI |
 | **Phase 1 hermetic e2e** (F009 governed runtime loop) | **#127** (merged `8abc574`) | `tests/e2e/` — on `main` |
-| **KUDBEECLI Phase 1** (six inspection commands) | **Not on `main`** | Implementation at **`d54b797`** (branch lineage); target **#128** or follow-on PR |
-| KUDBEECLI follow-on (persistence, REPL, dashboard) | **#128** (planned) | e.g. `bd5a76e` lineage; not merged |
+| **KUDBEECLI Phase 1** (six inspection commands) | **#128** (draft) | `thinkbox/cli_inspect.py` + `thinkbox/cli.py` on `feat/pr128-cli-governance-25` |
+| KUDBEECLI follow-on (persistence, REPL, dashboard) | **#129+** (planned) | Phase 2 boundary; not in #128 |
 
 **PR #126 is not the Phase 1 CLI PR.** Do not attribute `agent register`, `trace capture`, or other unimplemented commands to any merged PR.
 
@@ -541,7 +541,7 @@ Hermetic / read-only inspection surface (no live provider execution in these sub
 
 **Not implemented (do not document as shipped):** `agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture`.
 
-Evidence when integrated: `thinkbox/cli.py` and `tests/unit/test_cli.py` at **`d54b797`** (16 CLI unit tests). **`main` after PR #127 does not yet include that commit** — docs list the intended Phase 1 surface only.
+Evidence when integrated: `thinkbox/cli.py`, `thinkbox/cli_inspect.py`, `tests/unit/test_cli.py`, `tests/unit/test_cli_inspect.py` (PR **#128** draft). **`main` after PR #127** did not include Phase 1 CLI code until #128 merges.
 
 ### Phase 2 — boundary (not Phase 1)
 
@@ -552,8 +552,8 @@ Separate from the six Phase 1 commands above. Follow-on work adds persistence (`
 | Scope | State |
 |-------|--------|
 | Phase 1 e2e (F009, PR #127 merged) | **CODE COMPLETE** / **TEST VERIFIED** on `main` |
-| Phase 1 CLI (`d54b797`, six commands) | **CODE COMPLETE** / **TEST VERIFIED** at `d54b797` only — **not on `main`** |
-| Phase 2 CLI (persistence + REPL + dashboard + `swarm live` check) | **Not merged** to `main` |
+| Phase 1 CLI (six commands, PR #128 draft) | **CODE COMPLETE** / **TEST VERIFIED** on branch — **not on `main` until merge** |
+| Phase 2 CLI (persistence + REPL + dashboard + `swarm live` check) | **Not in PR #128** — not merged |
 | Any live Mercury / Inception execution via CLI | **Not claimed** — `swarm live` is authorization check only, fail-closed |
 
 ---

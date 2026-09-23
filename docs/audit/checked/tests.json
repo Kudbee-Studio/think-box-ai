@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T02:45:00Z",
+      "checker": "cursor-cloud-pr128",
+      "commit_sha": "f260de6",
+      "finding_ids": ["F128-CLI", "F023-prep"],
+      "notes": "test_cli + test_cli_inspect + test_f023_prep; suite 2272 OK",
+      "path": "tests/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-22T18:30:00Z",
       "checker": "cursor-cloud-pr127",
       "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
