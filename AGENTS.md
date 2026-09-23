@@ -571,11 +571,14 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Governance-evidence Live-proof readiness (hermetic) | **#164** (merged) | `thinkbox/kilo_governance_evidence_live_proof_readiness.py`, `thinkbox/governance_evidence_live_proof_readiness.py`, `scripts/verify_kilo_governance_evidence_live_proof_readiness.py` |
 | Combined harden + #154–#164 era chronicle (hermetic) | **#165** (merged) | `thinkbox/kilo_pr165_combined_harden_era_chronicle.py`, `thinkbox/live_smoke_audit_flip_correlation.py`, `scripts/verify_kilo_pr165_combined_harden.py` |
 | Combined post-#165 lane (operator prep + api ops + dashboard bind + swarm/gov) | **#166** (merged) | `thinkbox/kilo_pr166_combined_post165_lane.py`, `scripts/verify_kilo_pr166_combined_post165_lane.py` |
-| Combined post-#166 lane (audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/gov post166) | **#167** (draft) | `thinkbox/kilo_pr167_combined_post166_lane.py`, `scripts/verify_kilo_pr167_combined_post166_lane.py` |
+| Combined post-#166 lane (audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/gov post166) | **#167** (merged) | `thinkbox/kilo_pr167_combined_post166_lane.py`, `scripts/verify_kilo_pr167_combined_post166_lane.py` |
+| Combined post-#167 lane (audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/gov post167) | **#168** (draft) | `thinkbox/kilo_pr168_combined_post167_lane.py`, `scripts/verify_kilo_pr168_combined_post167_lane.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #167 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr167` (`pr167-combined-post166-lane`) ships `live_verified: false` and `live_api_called: false`.
+Four-state on #168 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr168` (`pr168-combined-post167-lane`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #167 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr167` (`pr167-combined-post166-lane`) ships `live_verified: false` and `live_api_called: false`.
 
 Four-state on #166 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr166` (`pr166-combined-post165-lane`) ships `live_verified: false` and `live_api_called: false`.
 
