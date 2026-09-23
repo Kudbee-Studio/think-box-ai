@@ -1,0 +1,42 @@
+{
+  "pass_id": "pr152",
+  "title": "PR152 — KILO bounded live smoke evidence binder + audit flip helper",
+  "prior_pass": "passes/2026-09-23-pr151.json",
+  "started_at": "2026-09-23T18:00:00Z",
+  "completed_at": "2026-09-23T19:30:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr152",
+  "base_commit": "pending-merge",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr152 -v",
+    "pr152_tests": 30,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "live_smoke_verify": "python3 scripts/verify_kilo_live_smoke_evidence.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "cleaned": [
+    "Bounded smoke evidence schema + validators (receipt/etag gate chain)",
+    "audit_flip_candidate fail-closed without founder artifact",
+    "Spine + CI wiring for verify_kilo_live_smoke_evidence.py",
+    "Post-season checklist spine script list updated",
+    "Runbook section for founder smoke → artifact → audit flip"
+  ],
+  "improvements": [
+    "thinkbox/kilo_live_smoke_evidence contract",
+    "live_smoke_evidence in spine_contract_summary + pr152_gate_id",
+    "scripts/verify_kilo_live_smoke_evidence.py",
+    "data/kilo_live_smoke_evidence/fixtures",
+    "unit tests test_kilo_live_proof_readiness_pr152",
+    "docs/guides/kilo_live_smoke_evidence.md",
+    "ADR 011 live smoke evidence",
+    "audit checklist and pass pr152 live_verified false"
+  ],
+  "pr152_gate_id": "live-smoke-evidence",
+  "note": "LIVE VERIFIED requires founder ack + Box URL + recorded kilo_live_smoke_*.json after merge"
+}
