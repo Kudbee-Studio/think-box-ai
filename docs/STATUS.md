@@ -59,7 +59,7 @@ Current repository health, infrastructure status, known defects, and improvement
 | Gate | Status |
 |------|--------|
 | CODE COMPLETE | Yes (hermetic status poll + receipt card) |
-| TEST VERIFIED | Yes (`2381` OK, `8` skipped, `3` expected failures) |
+| TEST VERIFIED | Yes (`2389` OK, `8` skipped, `3` expected failures) |
 | LIVE VERIFIED | **No** — mock/hermetic HTTP only |
 | PRODUCTION READY | **No** |
 
@@ -79,7 +79,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2381 | ✅ | 8 | 3 | ✅ PASS (PR #134 draft gate) |
+| All unit + integration + e2e | 2389 | ✅ | 8 | 3 | ✅ PASS (PR #134 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

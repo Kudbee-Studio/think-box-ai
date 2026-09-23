@@ -242,7 +242,7 @@ async def get_think_job_receipt_card(engine_id: str) -> dict[str, Any]:
     try:
         record = resolve_think_job_record(engine_id)
     except ThinkJobNotFoundError:
-        raise HTTPException(status_code=404, detail="think_job_not_found")
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
     status = str(record.get("status") or "unknown")
     return build_receipt_link_card(
         job_id=str(record.get("job_id") or engine_id),
