@@ -7,3 +7,4 @@
 - [ ] Audit pass `docs/audit/passes/2026-09-23-pr141.json` registered
 - [ ] No affirmative KILO LIVE VERIFIED / PRODUCTION READY on spine paths
 - [ ] Four-state capped at TEST VERIFIED on branch
+- [ ] `gate_for_pr(141).gate_id == spine-docs` via unit tests
