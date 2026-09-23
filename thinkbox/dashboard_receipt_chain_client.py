@@ -14,12 +14,19 @@ from thinkbox.control_plane_api_surface import (
     wrap_success,
 )
 from thinkbox.dashboard_receipt_chain_models import (
+    ChainFilterView,
     ChainPageView,
     ChainProbeView,
     DashboardChainBindState,
     EtagCacheView,
     chain_page_from_payload,
+    end_link_batch_panel_from_summary,
     end_link_panel_from_result,
+)
+from thinkbox.end_link_operator_ux import (
+    operator_empty_state,
+    operator_loading_state,
+    summarize_end_link_batch,
 )
 from thinkbox.end_link_api import (
     END_LINK_API_LABEL,
@@ -110,12 +117,16 @@ class DashboardReceiptChainClient:
         cursor: str | None = None,
         action: str | None = None,
         agent_id: str | None = None,
+        status_filter: str | None = None,
+        evidence_label: str | None = None,
     ) -> ChainPageView:
         page = build_chain_page_payload(
             limit=limit,
             cursor=cursor,
             action=action,
             agent_id=agent_id,
+            status_filter=status_filter,
+            evidence_label=evidence_label,
         )
         envelope = wrap_success(page, request_id="hermetic_page")
         return chain_page_from_payload(envelope)
@@ -137,16 +148,44 @@ class DashboardReceiptChainClient:
         store = get_control_plane_receipt_store()
         return run_end_link_batch_validate(store, receipt_ids).to_dict()
 
+    def summarize_batch_for_panel(self, receipt_ids: list[str]) -> dict[str, Any]:
+        """Batch validate + operator UX summary (PR #159)."""
+        raw = self.validate_end_link_batch(receipt_ids)
+        return summarize_end_link_batch(raw).to_dict()
+
     def bind_state(
         self,
         *,
         limit: int = 20,
         cursor: str | None = None,
         end_link_receipt_id: str | None = None,
+        end_link_batch_ids: list[str] | None = None,
+        status_filter: str | None = None,
+        evidence_label: str | None = None,
     ) -> DashboardChainBindState:
         state = DashboardChainBindState(loading=False, live_api_called=False)
         try:
-            state.page = self.fetch_page(limit=limit, cursor=cursor)
+            state.chain_filters = ChainFilterView(
+                status_filter=status_filter,
+                evidence_label=evidence_label,
+            )
+            loading = operator_loading_state("chain_page")
+            state.operator_message = loading.message
+            state.page = self.fetch_page(
+                limit=limit,
+                cursor=cursor,
+                status_filter=status_filter,
+                evidence_label=evidence_label,
+            )
+            if not state.page.receipts:
+                empty = operator_empty_state(
+                    "chain_page",
+                    "No receipts match filters",
+                    hint="Clear status/evidence_label filters or append receipts",
+                )
+                state.operator_message = empty.message
+            else:
+                state.operator_message = None
             state.probes = self.fetch_probes()
             if end_link_receipt_id:
                 el = self.validate_end_link(end_link_receipt_id)
@@ -158,7 +197,11 @@ class DashboardReceiptChainClient:
                     error_code=el.failure_code if not el.valid else None,
                     link_integrity=el.link_integrity,
                     prev_receipt_id=el.prev_receipt_id,
+                    failure_code=el.failure_code,
                 )
+            if end_link_batch_ids:
+                summary = summarize_end_link_batch(self.validate_end_link_batch(end_link_batch_ids))
+                state.end_link_batch = end_link_batch_panel_from_summary(summary.to_dict())
             state.etag_events.append(
                 EtagCacheView(
                     url=self.paths["page"],
