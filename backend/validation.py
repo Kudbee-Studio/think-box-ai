@@ -10,6 +10,8 @@ MAX_PATH_LENGTH = 4096
 MAX_TOOL_ARGS_SIZE = 100_000
 MAX_ITERATIONS = 100
 MAX_THINKBOX_ID_LENGTH = 128
+MAX_STREAM_EVENTS = 128
+MAX_STREAM_TIMEOUT_S = 300.0
 
 PATH_TRAVERSAL_PATTERN = re.compile(r"\.\.[\\/]|[\\/]\.\.")
 SAFE_FILENAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-./]+$")
@@ -96,6 +98,21 @@ def validate_thinkbox_id(identifier: Any, *, label: str = "ID") -> tuple[bool, s
     if not THINKBOX_ID_PATTERN.match(value):
         return False, f"{label} contains invalid characters"
     return True, value
+
+
+def clamp_stream_scalar(
+    value: Any,
+    *,
+    default: float,
+    minimum: float,
+    maximum: float,
+) -> float:
+    """Fail-soft numeric clamp for SSE query parameters."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    return max(minimum, min(parsed, maximum))
 
 
 def validate_receipt_id(receipt_id: Any) -> tuple[bool, str]:
