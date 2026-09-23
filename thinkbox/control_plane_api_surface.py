@@ -10,6 +10,7 @@ from thinkbox.agent.control_plane.store import ActionReceiptStore
 from thinkbox.control_plane_receipt_store import get_control_plane_receipt_store
 from thinkbox.receipt_chain_query import (
     ChainPage,
+    ReceiptChainValidationError,
     fetch_chain_page,
     fetch_head_receipt,
     fetch_tail_receipt,
@@ -32,6 +33,11 @@ from thinkbox.control_plane_operation_registry import (
     new_receipt_id,
 )
 from thinkbox.control_plane_ops_harden import clamp_query_limit, ops_harden_contract_snippet
+from thinkbox.end_link_api import merge_end_link_deepen_fields
+from thinkbox.end_link_deepen import (
+    run_end_link_batch_validate,
+    run_end_link_validate_detailed,
+)
 from thinkbox.read_cache import weak_etag_from_payload
 
 __all__ = (
@@ -45,6 +51,8 @@ __all__ = (
     "build_chain_head_payload",
     "build_chain_tail_payload",
     "get_chain_payload",
+    "build_end_link_batch_payload",
+    "build_end_link_validate_payload",
     "validate_chain_receipt_id",
 )
 
@@ -199,6 +207,8 @@ def get_chain_payload(
     cursor: str | None = None,
     action: str | None = None,
     agent_id: str | None = None,
+    status_filter: str | None = None,
+    evidence_label: str | None = None,
 ) -> dict[str, Any]:
     st = store or get_control_plane_receipt_store()
     status = chain_status(st)
@@ -209,6 +219,8 @@ def get_chain_payload(
         cursor=cursor,
         action=action,
         agent_id=agent_id,
+        status_filter=status_filter,
+        evidence_label=evidence_label,
     )
     body = {
         "chain": status,
@@ -232,6 +244,8 @@ def build_chain_page_payload(
     cursor: str | None = None,
     action: str | None = None,
     agent_id: str | None = None,
+    status_filter: str | None = None,
+    evidence_label: str | None = None,
     store: ActionReceiptStore | None = None,
 ) -> dict[str, Any]:
     st = store or get_control_plane_receipt_store()
@@ -241,6 +255,8 @@ def build_chain_page_payload(
         cursor=cursor,
         action=action,
         agent_id=agent_id,
+        status_filter=status_filter,
+        evidence_label=evidence_label,
     )
     return _page_dict(page)
 
@@ -257,10 +273,41 @@ def build_chain_tail_payload(store: ActionReceiptStore | None = None) -> dict[st
     return {"tail": tail, "live_api_called": False, "evidence_label": "simulated"}
 
 
-def validate_chain_receipt_id(receipt_id: str, store: ActionReceiptStore | None = None) -> dict[str, Any]:
+def build_end_link_validate_payload(
+    receipt_id: str,
+    store: ActionReceiptStore | None = None,
+) -> dict[str, Any]:
+    """END LINK validate with PR #158 integrity fields (raises on invalid)."""
     st = store or get_control_plane_receipt_store()
-    validate_receipt_link(st, receipt_id)
-    return {"receipt_id": receipt_id, "valid": True, "live_api_called": False}
+    detail = run_end_link_validate_detailed(st, receipt_id)
+    if not detail.valid:
+        raise ReceiptChainValidationError(
+            detail.failure_code or "end_link_invalid",
+            detail.failure_message or "END LINK validation failed",
+        )
+    base = {
+        "receipt_id": detail.receipt_id,
+        "valid": True,
+        "live_api_called": False,
+        "evidence_label": detail.evidence_label,
+    }
+    return merge_end_link_deepen_fields(base, detail.to_dict())
+
+
+def build_end_link_batch_payload(
+    receipt_ids: list[str],
+    *,
+    limit: int | None = None,
+    store: ActionReceiptStore | None = None,
+) -> dict[str, Any]:
+    """Bulk END LINK validate (per-item fail-closed; HTTP 200 envelope)."""
+    st = store or get_control_plane_receipt_store()
+    return run_end_link_batch_validate(st, receipt_ids, limit=limit).to_dict()
+
+
+def validate_chain_receipt_id(receipt_id: str, store: ActionReceiptStore | None = None) -> dict[str, Any]:
+    """Backward-compatible validate payload (delegates to deepen builder)."""
+    return build_end_link_validate_payload(receipt_id, store=store)
 
 
 def _page_dict(page: ChainPage) -> dict[str, Any]:
