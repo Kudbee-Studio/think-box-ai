@@ -1,0 +1,12 @@
+{
+  "gate_id": "end-link-operator-ux",
+  "pr_number": 159,
+  "end_link_operator_ux": "end-link-operator-ux",
+  "end_link_operator_ux_version": "1.0.0",
+  "end_link_deepen": "end-link-deepen",
+  "end_link_api": "END_LINK",
+  "prior_gate_ids": ["end-link-deepen", "api-ops-harden", "dashboard-receipt-chain-bind"],
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false
+}
