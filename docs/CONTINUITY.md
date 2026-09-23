@@ -1339,4 +1339,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FourState:** `POST /api/v1/run` hermetic HTTP contracts **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (mock `ThinkBoxEngine` only; no Mercury HTTP; governance admission not wired on `/run`).
 - **NEXT ACTION:** Founder review draft PR #131; PR #132 theme: wire governed verified runner into `/run` async path (hermetic first).
 
+### 2026-09-23 — PR #131 merged; PR #132 draft (governed `/run` admission + ledger)
+
+- **MERGED:** GitHub PR **#131** → `main` at **`b0e48bf`** (hermetic `POST /api/v1/run` Think Job HTTP contracts).
+- **BRANCH:** `feat/pr132-governed-run-admission-25` — `backend/api/v1/run_governed.py`, `thinkbox/hermetic_provider.py`, governed background execution on `/api/v1/run` (admission fail-closed, `GovernedEngine`, verified hermetic-mock path); `tests/e2e/test_f132_governed_run_admission.py`; audit `docs/audit/passes/2026-09-23-pr132.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2343 OK**, 7 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** governed hermetic `POST /api/v1/run` **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (mock `hermetic-mock` / patched engine only; no Mercury HTTP).
+- **NEXT ACTION:** Founder review draft PR #132; PR #133 theme: persist governed run receipts + experiment manager wiring on HTTP path (hermetic SQLite).
+
 ---

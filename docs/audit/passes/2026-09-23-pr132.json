@@ -1,0 +1,76 @@
+{
+  "base_commit": "b0e48bf",
+  "checker": "cursor-cloud-pr132",
+  "completed_at": "2026-09-23T06:15:00Z",
+  "findings": [
+    {
+      "id": "F132-GOVERNED-RUN",
+      "rank": 1,
+      "severity": "P1",
+      "title": "GovernedEngine background execution on POST /api/v1/run",
+      "status": "done",
+      "paths": [
+        "backend/api/v1/run_governed.py",
+        "backend/api/v1/router.py"
+      ],
+      "notes": "execute_governed_run_background; active_governed_engines registry"
+    },
+    {
+      "id": "F132-ADMISSION",
+      "rank": 2,
+      "severity": "P1",
+      "title": "Governance token required on HTTP surface (403 fail-closed)",
+      "status": "done",
+      "paths": [
+        "backend/api/v1/run_governed.py",
+        "tests/e2e/test_f132_governed_run_admission.py"
+      ],
+      "notes": "missing/invalid/revoked/wrong capability/agent mismatch"
+    },
+    {
+      "id": "F132-LEDGER",
+      "rank": 3,
+      "severity": "P1",
+      "title": "ActionLedger assertions after governed HTTP run",
+      "status": "done",
+      "paths": [
+        "tests/e2e/test_f132_governed_run_admission.py"
+      ],
+      "notes": "shared ledger_path file; verify() on success path"
+    },
+    {
+      "id": "F132-VERIFIED-HTTP",
+      "rank": 4,
+      "severity": "P1",
+      "title": "F023 verified runner via hermetic-mock + subtasks on HTTP",
+      "status": "done",
+      "paths": [
+        "thinkbox/hermetic_provider.py",
+        "tests/e2e/test_f132_governed_run_admission.py"
+      ],
+      "notes": "no Mercury HTTP"
+    },
+    {
+      "id": "F132-DASHBOARD",
+      "rank": 5,
+      "severity": "P2",
+      "title": "Dashboard TASK_COMPLETED source governed_engine under governed path",
+      "status": "done",
+      "paths": [
+        "backend/api/v1/run_governed.py",
+        "tests/e2e/test_f131_post_run_think_job_contract.py"
+      ],
+      "notes": "ThinkJobEntry phase completed after background drain"
+    }
+  ],
+  "pass_id": "pr132",
+  "prior_pass": "passes/2026-09-23-pr131.json",
+  "started_at": "2026-09-23T05:30:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2343,
+    "skipped": 7
+  },
+  "title": "PR132 — governed hermetic POST /run admission + ledger (~25 improvements)"
+}

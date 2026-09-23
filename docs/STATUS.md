@@ -58,7 +58,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 1. **Upstash Vector live writes** — embedder + dense upsert implemented; live index/credentials not verified in PR #125
 2. **UpCloud compute access** (`401 API token`) — no SSH key on disk, network blocked by Cloudflare
-3. **`POST /run` live path** — F023 governed DAG + hermetic `POST /api/v1/run` contracts on PR #131 branch (`test_f131_post_run_think_job_contract.py`); live Mercury via HTTP still out of scope
+3. **`POST /run` live path** — F023 governed DAG + hermetic `POST /api/v1/run` on `main` (PR #131); PR #132 draft wires `GovernedEngine` admission + ledger on HTTP (`test_f132_governed_run_admission.py`); live Mercury via HTTP still out of scope
 4. **Solana CLI not installed** — environment issue, unrelated to core Think Box functionality
 5. **Dashboard telemetry** — missing some instrumentation (see `experiments/verify_instrumentation.py`)
 
@@ -68,7 +68,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2323 | ✅ | 8 | 3 | ✅ PASS (PR #131 draft gate) |
+| All unit + integration + e2e | 2343 | ✅ | 7 | 3 | ✅ PASS (PR #132 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |
