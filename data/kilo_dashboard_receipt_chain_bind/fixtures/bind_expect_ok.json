@@ -1,0 +1,4 @@
+{
+  "expect_ok": true,
+  "notes": "hermetic dashboard bind state with page + probes"
+}
