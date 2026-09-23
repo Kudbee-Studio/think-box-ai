@@ -11,6 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from thinkbox.kilo_control_plane_e2e_deepen import control_plane_e2e_deepen_contract_summary
+from thinkbox.kilo_hermetic_subprocess import enable_nested_e2e_unittest
+
+enable_nested_e2e_unittest()
 
 
 def main() -> int:
