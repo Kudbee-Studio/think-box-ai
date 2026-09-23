@@ -97,6 +97,7 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Health: `docs/STATUS.md` + root `STATUS.md`  
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
+- Operator script: `scripts/verify_kilo_spine.py`
 
 ---
 
@@ -107,3 +108,5 @@ python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
+
+**Revision:** PR #141 spine — hermetic only; Live proof not executed.
