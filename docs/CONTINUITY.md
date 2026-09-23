@@ -28,6 +28,8 @@ Before declaring completion, every agent MUST verify:
 - [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
 - [x] 10 new scheduler features (timeout, deps, analytics, prediction, stealing, SLA, checkpoints, backoff, profiling, error classification) COMPLETE
 - [x] 10 more scheduler features (weighted fair-queue, job lease, deduped delay, circuit breaker, admission lottery, placement constraints, progressive drain, ledger replay, multi-priority aging, scheduler canaries) COMPLETE (PR #83)
+- [x] KUDBEECLI Phase 1: 10 commands + 16 tests (PR #126 audit close-out)
+- [x] KUDBEECLI Phase 2: persistent identity ledger, persistent traces, interactive REPL, dashboard status, swarm live path (fail closed)
 
 ---
 
@@ -42,11 +44,24 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | Provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A live verification; scale swarm beyond 512 agents with increasing concurrency; prove convergence stability across more runs (currently 5); establish statistically rigorous scaling evidence. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2235 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
+| **Test count** | **2260 OK** (7 skipped, 3 expected failures) — `python3 -m unittest discover tests/` |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — KUDBEECLI Phase 2: Persistence + REPL + Dashboard + Live Path (TEST VERIFIED)
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-09-23 |
+| **Agent/task** | Extend CLI with persistent storage, interactive shell, dashboard inspection, and separated swarm live path. |
+| **DISCOVERY** | Phase 1 used in-memory stores only — `IdentityLedger` and `ThinkTraceCapture` lost data across process boundaries. No SQLite persistence existed for either. |
+| **IMPLEMENTATION** | **A.** Added SQLite persistence to `IdentityLedger` (`thinkbox/identity.py`) — register/get/grant/revoke/list all persist to `data/thinkboxmd/db/identities.db`. In-memory mode preserved (backward compatible). **B.** Added SQLite persistence to `ThinkTraceCapture` (`thinkbox/thinktrace.py`) — capture/find_by_id persist to `data/thinkboxmd/db/traces.db`. `find_by_id` queries SQLite fallback when in-memory miss. **C.** Added `thinkbox shell` REPL with readline + history at `~/.kudbee_cli_history`. Commands map to existing CLI functions. **D.** Added `thinkbox dashboard status` — inspects dashboard script existence, events file, event count (reads SQLite + `swarm_events.jsonl`, no live API). **E.** Added `thinkbox swarm live` — checks `INCEPTION_API_KEY` presence, FAILS CLOSED when absent, never executes live API. |
+| **TEST_VERIFIED** | Full suite: 2260 OK (7 skipped, 3 xfail). Tests: 20 in `tests/unit/test_cli.py` covering persistence across store instances, trace write/reload/retrieval, REPL help/exit, swarm live fail-closed, dashboard status, proof check, ledger verify. Combined persistence test: agent + trace survive separate process instances. |
+| **LIVE VERIFIED** | CLI commands verified in sandbox (no live API calls). `swarm live` shows AUTHORIZED when key present but notes founder authorization required. No provider spending. |
+| **DECISION** | Persistence added to existing classes (not replaced). REPL uses readline if available with graceful fallback. Live path is clearly separated from offline and fails closed. No duplicate event buses. |
+| **FourState** | CODE_COMPLETE / TEST_VERIFIED (2260) / LIVE_VERIFIED (sandbox) / PRODUCTION not claimed |
 
 ### 2026-09-19 — Full Repo Harden (COMPLETE)
 

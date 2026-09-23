@@ -23,6 +23,9 @@ from thinkbox.session import (
 )
 from backend.audit_storage import list_sessions, list_audits
 
+DEFAULT_IDENTITY_DB = "data/thinkboxmd/db/identities.db"
+DEFAULT_TRACE_DB = "data/thinkboxmd/db/traces.db"
+
 
 def cmd_run(args: argparse.Namespace) -> None:
     session = create_session()
@@ -207,6 +210,19 @@ def cmd_swarm_status(args: argparse.Namespace) -> None:
     print(f"  Expected live calls (288+12): {expected_live_calls(prim, val)}")
 
 
+def cmd_swarm_live(args: argparse.Namespace) -> None:
+    import os
+    api_key = os.environ.get("INCEPTION_API_KEY", "")
+    print("Swarm Live Status:")
+    print(f"  INCEPTION_API_KEY present: {bool(api_key)}")
+    if not api_key:
+        print("  Status: BLOCKED — no provider authorization")
+        print("  Action: set INCEPTION_API_KEY and re-run with --live")
+        sys.exit(1)
+    print("  Status: AUTHORIZED — live mode would execute")
+    print("  Note: live execution requires explicit founder authorization")
+
+
 def cmd_ledger_verify(args: argparse.Namespace) -> None:
     from thinkbox.ledger import ActionLedger
     path = args.path or ":memory:"
@@ -257,7 +273,8 @@ def cmd_env_status(args: argparse.Namespace) -> None:
 
 def cmd_agent_list(args: argparse.Namespace) -> None:
     from thinkbox.identity import IdentityLedger
-    ledger = IdentityLedger()
+    db_path = getattr(args, "db", None)
+    ledger = IdentityLedger(db_path=db_path)
     agents = ledger.list()
     if not agents:
         print("No registered agents")
@@ -300,32 +317,21 @@ def cmd_config_redacted(args: argparse.Namespace) -> None:
 
 def cmd_trace_show(args: argparse.Namespace) -> None:
     from thinkbox.thinktrace import ThinkTraceCapture
-    trace_id = args.trace_id
-    capture = ThinkTraceCapture(max_traces=10000)
-    capture.capture(
-        agent_id="cli",
-        thought="noop",
-        evidence_refs=["cli-trace-check"],
-        tags=["cli"],
-    )
-    found = None
-    with capture._lock:
-        for t in capture._traces:
-            if t.trace_id == trace_id:
-                found = t
-                break
-    if found is None:
-        print(f"Trace not found: {trace_id}")
-        print(f"Total traces in capture: {capture.count()}")
+    db_path = getattr(args, "db", None)
+    capture = ThinkTraceCapture(max_traces=10000, db_path=db_path)
+    trace = capture.find_by_id(args.trace_id)
+    if trace is None:
+        print(f"Trace not found: {args.trace_id}")
+        print(f"Total traces: {capture.count()}")
         return
-    print(f"Trace: {found.trace_id}")
-    print(f"  Agent: {found.agent_id}")
-    print(f"  Thought: {found.thought[:100]}{'...' if len(found.thought) > 100 else ''}")
-    print(f"  Grounded: {found.grounded}")
-    print(f"  Confidence: {found.confidence}")
-    print(f"  Evidence refs: {found.evidence_refs}")
-    print(f"  Captured: {found.captured_at}")
-    print(f"  Tags: {found.tags}")
+    print(f"Trace: {trace.trace_id}")
+    print(f"  Agent: {trace.agent_id}")
+    print(f"  Thought: {trace.thought[:100]}{'...' if len(trace.thought) > 100 else ''}")
+    print(f"  Grounded: {trace.grounded}")
+    print(f"  Confidence: {trace.confidence}")
+    print(f"  Evidence refs: {trace.evidence_refs}")
+    print(f"  Captured: {trace.captured_at}")
+    print(f"  Tags: {trace.tags}")
 
 
 def cmd_receipts_pr(args: argparse.Namespace) -> None:
@@ -339,6 +345,107 @@ def cmd_receipts_pr(args: argparse.Namespace) -> None:
         print(f"  [{public['receipt_id']}] {public['action']}: {public['result']}")
         print(f"    from={public['from_state']} -> to={public['to_state']}")
         print(f"    evidence_label={public['evidence_label']} chain_verified={store.verify()}")
+
+
+def cmd_shell(args: argparse.Namespace) -> None:
+    try:
+        import readline
+        readline.parse_and_bind("tab: complete")
+        hist_path = Path.home() / ".kudbee_cli_history"
+        if hist_path.exists():
+            readline.read_history_file(str(hist_path))
+    except ImportError:
+        print("readline not available; interactive features limited")
+
+    print("KUDBEE CLI Shell — type 'help' for commands, 'exit' to quit")
+    commands = [
+        "swarm agents", "swarm status", "swarm live",
+        "ledger verify", "proof check", "agent list",
+        "governance check", "config redacted",
+        "trace show", "receipts pr", "dashboard status",
+    ]
+    while True:
+        try:
+            line = input("kudbee> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not line:
+            continue
+        if line in ("exit", "quit", "q"):
+            break
+        if line == "help":
+            print("Available commands:")
+            for c in commands:
+                print(f"  {c}")
+            print("  exit — quit shell")
+            continue
+        if line == "dashboard status":
+            cmd_dashboard_status(args)
+            continue
+        parts = line.split()
+        cmd = parts[0]
+        rest = " ".join(parts[1:])
+        if cmd == "swarm" and rest in ("agents", "status", "live"):
+            ns = argparse.Namespace(agents=0) if rest == "agents" else argparse.Namespace()
+            if rest == "agents":
+                cmd_swarm_agents(ns)
+            elif rest == "status":
+                cmd_swarm_status(ns)
+            elif rest == "live":
+                cmd_swarm_live(ns)
+        elif cmd == "ledger" and rest.startswith("verify"):
+            ns = argparse.Namespace(path=":memory:")
+            cmd_ledger_verify(ns)
+        elif cmd == "proof" and rest.startswith("check"):
+            ns = argparse.Namespace(path="data/thinkboxmd/big_swarm_20260921_152452.json")
+            cmd_proof_check(ns)
+        elif cmd == "agent" and rest == "list":
+            ns = argparse.Namespace(db=None)
+            cmd_agent_list(ns)
+        elif cmd == "governance" and rest == "check":
+            ns = argparse.Namespace()
+            cmd_governance_check(ns)
+        elif cmd == "config" and rest == "redacted":
+            ns = argparse.Namespace()
+            cmd_config_redacted(ns)
+        elif cmd == "trace" and rest.startswith("show"):
+            tid = rest.split("show", 1)[1].strip() or "test-trace"
+            ns = argparse.Namespace(trace_id=tid, db=None)
+            cmd_trace_show(ns)
+        elif cmd == "receipts" and rest.startswith("pr"):
+            try:
+                pr_n = int(rest.split("pr", 1)[1].strip())
+            except (ValueError, IndexError):
+                pr_n = 127
+            ns = argparse.Namespace(pr_number=pr_n)
+            cmd_receipts_pr(ns)
+        else:
+            print(f"Unknown command: {line}. Type 'help' for options.")
+    try:
+        import readline
+        readline.write_history_file(str(hist_path))
+    except ImportError:
+        pass
+    print("Shell exited")
+
+
+def cmd_dashboard_status(args: argparse.Namespace) -> None:
+    from pathlib import Path as P
+    dash_script = P(__file__).resolve().parent.parent / "experiments" / "swarm_dashboard.py"
+    events = P(__file__).resolve().parent.parent / "data" / "thinkboxmd" / "swarm_events.jsonl"
+    print("Dashboard Status:")
+    print(f"  Script: {dash_script}")
+    print(f"  Exists: {dash_script.exists()}")
+    print(f"  Events: {events}")
+    print(f"  Events exist: {events.exists()}")
+    if events.exists():
+        lines = events.read_text(errors="replace").strip().splitlines()
+        print(f"  Event count: {len(lines)}")
+    else:
+        print("  Event count: 0 (no swarm run yet)")
+    print("  Run: python3 experiments/swarm_dashboard.py --port 8787")
+    print("  Note: dashboard reads from SQLite + swarm_events.jsonl (no live API)")
 
 
 def main() -> None:
@@ -382,6 +489,7 @@ def main() -> None:
     swarm_agents_parser = swarm_subparsers.add_parser("agents", help="Show agent population")
     swarm_agents_parser.add_argument("--agents", type=int, default=0, help="Target agent count")
     swarm_status_parser = swarm_subparsers.add_parser("status", help="Swarm evidence status")
+    swarm_live_parser = swarm_subparsers.add_parser("live", help="Check live provider authorization")
 
     ledger_parser = subparsers.add_parser("ledger", help="Action ledger operations")
     ledger_subparsers = ledger_parser.add_subparsers(dest="ledger_command")
@@ -400,6 +508,7 @@ def main() -> None:
     agent_parser = subparsers.add_parser("agent", help="Agent registry")
     agent_subparsers = agent_parser.add_subparsers(dest="agent_command")
     agent_list_parser = agent_subparsers.add_parser("list", help="List registered agents")
+    agent_list_parser.add_argument("--db", default=None, help="SQLite DB path for persistence")
 
     gov_parser = subparsers.add_parser("governance", help="Governance operations")
     gov_subparsers = gov_parser.add_subparsers(dest="governance_command")
@@ -413,11 +522,18 @@ def main() -> None:
     trace_subparsers = trace_parser.add_subparsers(dest="trace_command")
     trace_show_parser = trace_subparsers.add_parser("show", help="Show a trace by ID")
     trace_show_parser.add_argument("trace_id", help="Trace ID")
+    trace_show_parser.add_argument("--db", default=None, help="SQLite DB path for persistence")
 
     receipts_parser = subparsers.add_parser("receipts", help="PR lifecycle receipts")
     receipts_subparsers = receipts_parser.add_subparsers(dest="receipts_command")
     receipts_pr_parser = receipts_subparsers.add_parser("pr", help="List receipts for a PR")
     receipts_pr_parser.add_argument("pr_number", type=int, help="PR number")
+
+    shell_parser = subparsers.add_parser("shell", help="Interactive REPL")
+
+    dashboard_parser = subparsers.add_parser("dashboard", help="Dashboard operations")
+    dashboard_subparsers = dashboard_parser.add_subparsers(dest="dashboard_command")
+    dashboard_status_parser = dashboard_subparsers.add_parser("status", help="Dashboard status")
 
     args = parser.parse_args()
 
@@ -442,6 +558,8 @@ def main() -> None:
             cmd_swarm_agents(args)
         elif args.swarm_command == "status":
             cmd_swarm_status(args)
+        elif args.swarm_command == "live":
+            cmd_swarm_live(args)
         else:
             swarm_parser.print_help()
             sys.exit(1)
@@ -492,6 +610,14 @@ def main() -> None:
             cmd_receipts_pr(args)
         else:
             receipts_parser.print_help()
+            sys.exit(1)
+    elif args.command == "shell":
+        cmd_shell(args)
+    elif args.command == "dashboard":
+        if args.dashboard_command == "status":
+            cmd_dashboard_status(args)
+        else:
+            dashboard_parser.print_help()
             sys.exit(1)
     else:
         parser.print_help()
