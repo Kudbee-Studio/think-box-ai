@@ -127,6 +127,31 @@ def set_complete_async_override(fn: CompleteAsyncFn | None) -> None:
     _complete_async_override = fn
 
 
+def validate_verified_subtasks(subtasks: list[dict[str, Any]]) -> None:
+    """Fail-fast shape check for F023 subtask specs before admission."""
+    if not subtasks:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "verified_run_requires_subtasks"},
+        )
+    for index, st in enumerate(subtasks):
+        missing = [k for k in ("description", "family", "spec") if k not in st]
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "invalid_subtask_shape",
+                    "index": index,
+                    "missing": missing,
+                },
+            )
+        if not isinstance(st.get("spec"), dict):
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "invalid_subtask_spec", "index": index},
+            )
+
+
 def parse_run_admission(
     *,
     agent_id: str | None,

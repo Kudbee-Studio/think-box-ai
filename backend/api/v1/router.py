@@ -84,11 +84,10 @@ async def run_goal(
     x_governance_token: str | None = Header(None, alias="X-Governance-Token"),
     x_agent_id: str | None = Header(None, alias="X-Agent-Id"),
 ) -> RunResponse:
-    if request.verified and not (request.subtasks or []):
-        raise HTTPException(
-            status_code=422,
-            detail={"error": "verified_run_requires_subtasks"},
-        )
+    if request.verified:
+        from backend.api.v1.run_governed import validate_verified_subtasks
+
+        validate_verified_subtasks(list(request.subtasks or []))
 
     admission_ctx = parse_run_admission(
         agent_id=x_agent_id or request.agent_id,
