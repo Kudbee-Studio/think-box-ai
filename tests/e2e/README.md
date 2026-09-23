@@ -106,6 +106,16 @@ python3 -m unittest tests.e2e.test_f133_governed_run_receipts tests.unit.test_ru
 python3 -m unittest tests.e2e.test_f139_think_job_receipt_multiplex
 ```
 
+### F140 receipt deep-link + shared etag (PR #140)
+
+| File | Purpose |
+|------|---------|
+| `test_f140_receipt_deep_link_etag.py` | Deep-link href ↔ by-receipt poll, shared etag 304 merge, invalid receipt 404 |
+
+```bash
+python3 -m unittest tests.e2e.test_f140_receipt_deep_link_etag
+```
+
 ## Full gate
 
 ```bash
