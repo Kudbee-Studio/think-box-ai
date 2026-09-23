@@ -1,0 +1,4 @@
+{
+  "expect_fail": true,
+  "description": "unsafe filter characters rejected fail-closed"
+}
