@@ -17,6 +17,19 @@ from backend.api.v1.run_receipts import (
 from thinkbox.dashboard_state import ThinkJobEntry, get_dashboard_state
 
 STATUS_SCHEMA_VERSION = "think_job_status_v1"
+
+__all__ = [
+    "STATUS_SCHEMA_VERSION",
+    "ThinkJobNotFoundError",
+    "build_receipt_link_card",
+    "build_think_job_status_payload",
+    "job_status_snapshot_for_governance",
+    "list_recent_think_job_statuses",
+    "poll_hints_for_status",
+    "redact_status_payload",
+    "resolve_think_job_by_receipt",
+    "resolve_think_job_record",
+]
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 DEFAULT_POLL_INTERVAL_MS = 250
 RUNNING_POLL_INTERVAL_MS = 500
