@@ -852,6 +852,27 @@ python3 -m unittest \
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
 
+## PR #145 — KILO governance-evidence gate (DRAFT)
+
+**Status:** Draft — closes **`governance-evidence`** in **#141–#150** arc (admission token + live-burst evidence shape; no Live proof)  
+**Scope:** `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py`, PR #145 hermetic tests  
+**Note:** PR **#144** was CI/post-merge unittest green only — not governance-evidence.
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
+python3 scripts/verify_kilo_governance_evidence.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
 ## PR #143 — KILO substrate-checklist gate (MERGED)
 
 **Status:** Merged — closes **`substrate-checklist`** in **#141–#150** arc (Box URL/token readiness on env-matrix; no Live proof)  

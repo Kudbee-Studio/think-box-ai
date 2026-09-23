@@ -8,9 +8,11 @@
 | Phase | PRs | Outcome |
 |-------|-----|---------|
 | Spine | **#141** | Docs, runbook, hermetic contract module, gate stubs (**merged**) |
-| Readiness | **#142–#149** | Close env, substrate, governance, Mercury hermetic, swarm, proof schema, dashboard, founder ack gates |
+| Readiness | **#142–#149** | Close env, substrate, governance, Mercury hermetic, swarm, proof schema, dashboard gates |
 | Env matrix | **#142** (merged) | `thinkbox/kilo_env_matrix.py` + `verify_kilo_env_matrix.py` |
 | Substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py` + `verify_kilo_substrate_checklist.py` |
+| CI fix | **#144** (merged) | Post-merge unittest discover green — **not** a readiness gate closure |
+| Governance evidence | **#145** (this arc step) | `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
 | Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
 
 ## Four-state (arc-wide)
@@ -28,11 +30,12 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix: `thinkbox/kilo_env_matrix.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py`, `tests/unit/test_kilo_live_proof_readiness_pr142.py`, `tests/unit/test_kilo_live_proof_readiness_pr143.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json`, `docs/audit/passes/2026-09-23-pr142.json`, `docs/audit/passes/2026-09-23-pr143.json` (draft)
+- Governance evidence: `thinkbox/kilo_governance_evidence.py`
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr145.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr145.json` (draft)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
-## Non-binding #144 suggestion
+## Non-binding #146 suggestion
 
-**#143** ships `substrate-checklist` on top of `env-matrix`. Optional non-binding follow-on: **#144** `governance-evidence` (admission token + evidence shape for live burst) — must keep four-state honest.
+**#145** ships `governance-evidence` on top of `env-matrix` + `substrate-checklist`. Optional non-binding follow-on: **#146** `mercury-hermetic` (bounded Mercury mocks + live-gate stub alignment with `thinkbox/cli_live_gate.py`) — must keep four-state honest.

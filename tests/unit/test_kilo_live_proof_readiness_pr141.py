@@ -99,6 +99,12 @@ class TestSpineModule(unittest.TestCase):
         substrate_block = summary.get("substrate_checklist")
         self.assertIsInstance(substrate_block, dict)
 
+    def test_summary_pr145_gate_id(self) -> None:
+        summary = spine.spine_contract_summary()
+        self.assertEqual(summary.get("pr145_gate_id"), "governance-evidence")
+        gov_block = summary.get("governance_evidence")
+        self.assertIsInstance(gov_block, dict)
+
     def test_summary_no_missing_contracts(self) -> None:
         summary = spine.spine_contract_summary()
         self.assertEqual(summary["missing_spine_docs"], [])
@@ -127,6 +133,10 @@ class TestVerifyScript(unittest.TestCase):
 
     def test_verify_kilo_substrate_checklist_script_exists(self) -> None:
         script = REPO_ROOT / "scripts" / "verify_kilo_substrate_checklist.py"
+        self.assertTrue(script.is_file())
+
+    def test_verify_kilo_governance_evidence_script_exists(self) -> None:
+        script = REPO_ROOT / "scripts" / "verify_kilo_governance_evidence.py"
         self.assertTrue(script.is_file())
 
     def test_audit_checklist_exists(self) -> None:

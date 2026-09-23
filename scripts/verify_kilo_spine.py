@@ -24,6 +24,9 @@ def main() -> int:
     substrate_block = summary.get("substrate_checklist") or {}
     if not substrate_block.get("hermetic_operator_ok"):
         return 1
+    governance_block = summary.get("governance_evidence") or {}
+    if not governance_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

@@ -2,6 +2,7 @@
 
 Hermetic documentation gates only — no live Mercury, GPU, or deploy side effects.
 PR #143 adds ``substrate_checklist`` summary layered on ``env_matrix``.
+PR #145 adds ``governance_evidence`` summary layered on env-matrix + substrate-checklist.
 """
 
 from __future__ import annotations
@@ -79,13 +80,13 @@ ARC_GATES: tuple[ArcGate, ...] = (
     ArcGate(141, "Env docs + runbook spine", "spine-docs"),
     ArcGate(142, "Hermetic KILO env matrix", "env-matrix"),
     ArcGate(143, "Substrate readiness checklist", "substrate-checklist"),
-    ArcGate(144, "Governance admission evidence shape", "governance-evidence"),
-    ArcGate(145, "Mercury hermetic mocks + live-gate stubs", "mercury-hermetic"),
-    ArcGate(146, "Swarm instrumentation verify prereq", "swarm-instrumentation"),
-    ArcGate(147, "KILO live proof JSON schema", "proof-schema"),
-    ArcGate(148, "Dashboard Live proof slots (hermetic)", "dashboard-slots"),
-    ArcGate(149, "Founder ack runbook wiring", "founder-ack"),
-    ArcGate(150, "Live proof execution runbook", "live-proof-exec"),
+    ArcGate(144, "CI/post-merge spine unittest green", "ci-post-merge"),
+    ArcGate(145, "Governance admission evidence shape", "governance-evidence"),
+    ArcGate(146, "Mercury hermetic mocks + live-gate stubs", "mercury-hermetic"),
+    ArcGate(147, "Swarm instrumentation verify prereq", "swarm-instrumentation"),
+    ArcGate(148, "KILO live proof JSON schema", "proof-schema"),
+    ArcGate(149, "Dashboard Live proof slots (hermetic)", "dashboard-slots"),
+    ArcGate(150, "Live proof execution + founder ack runbook", "live-proof-exec"),
 )
 
 
@@ -160,12 +161,14 @@ def gate_for_pr(pr_number: int) -> ArcGate | None:
 def spine_contract_summary() -> dict[str, object]:
     """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads)."""
     from thinkbox.kilo_env_matrix import env_matrix_contract_summary
+    from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
     from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
 
     runbook_raw = load_text(runbook_path())
     runbook_scan = _runbook_text_for_claim_scan(runbook_raw)
     env_summary = env_matrix_contract_summary()
     substrate_summary = substrate_checklist_contract_summary()
+    governance_summary = governance_evidence_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -179,6 +182,8 @@ def spine_contract_summary() -> dict[str, object]:
         "pr141_gate_id": (gate_for_pr(141).gate_id if gate_for_pr(141) else None),
         "pr142_gate_id": (gate_for_pr(142).gate_id if gate_for_pr(142) else None),
         "pr143_gate_id": (gate_for_pr(143).gate_id if gate_for_pr(143) else None),
+        "pr145_gate_id": (gate_for_pr(145).gate_id if gate_for_pr(145) else None),
         "env_matrix": env_summary,
         "substrate_checklist": substrate_summary,
+        "governance_evidence": governance_summary,
     }

@@ -21,5 +21,6 @@ Add `thinkbox/kilo_substrate_checklist.py` that:
 ## Consequences
 
 - `scripts/verify_kilo_substrate_checklist.py` and `verify_kilo_spine.py` enforce the gate.
+- PR #145 `governance-evidence` layers on this gate (see ADR 004).
 - Unit tests use `minimal_substrate_hermetic_environ()` built on `minimal_hermetic_environ()`.
 - LIVE VERIFIED remains forbidden until PR #150 proof artifacts exist.

@@ -2,6 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-23 (PR #145 draft)
+>
+> **Scope:** KILO **`governance-evidence`** gate: `thinkbox/kilo_governance_evidence.py`, `verify_kilo_governance_evidence.py`, layered on env-matrix + substrate-checklist — **no Live proof, no Mercury/GPU**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v` + `verify_kilo_governance_evidence.py`; `verify_kilo_spine.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #144 merged, CI only)
+>
+> **Scope:** Post-merge CI / unittest discover green — **not** governance-evidence gate closure.
+>
 > ## ADDENDUM — 2026-09-23 (PR #143 merged)
 >
 > **Scope:** KILO **`substrate-checklist`** gate: `thinkbox/kilo_substrate_checklist.py`, `verify_kilo_substrate_checklist.py`, layered on env-matrix — **no Live proof, no live build**.  

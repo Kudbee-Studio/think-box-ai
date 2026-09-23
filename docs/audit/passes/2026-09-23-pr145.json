@@ -1,0 +1,48 @@
+{
+  "pass_id": "pr145",
+  "title": "PR145 — KILO governance-evidence gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr143.json",
+  "started_at": "2026-09-23T15:00:00Z",
+  "completed_at": "2026-09-23T16:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr145",
+  "base_commit": "549f11f",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v",
+    "pr145_tests": 29,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "governance_verify": "python3 scripts/verify_kilo_governance_evidence.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_governance_evidence contract module",
+    "LiveBurstEvidence redacted schema with token fingerprint only",
+    "layer on env-matrix and substrate-checklist evaluators",
+    "AdmissionGate deny paths token missing expired revoked capability",
+    "hermetic modes live_api_called false",
+    "hermetic_governance_operator_check spine-safe",
+    "governance_evidence_contract_summary JSON",
+    "governance_evidence_gate_closed helper",
+    "spine_contract_summary governance_evidence block",
+    "pr145_gate_id in spine summary",
+    "scripts/verify_kilo_governance_evidence.py operator helper",
+    "verify_kilo_spine governance gate",
+    "unit tests pr145 hermetic and deny paths",
+    "runbook governance-evidence section H9",
+    "arc doc PR numbering #145 governance-evidence",
+    "CONTINUITY STATUS AGENTS pr145 entries",
+    "audit checklist kilo-governance-evidence-pr145",
+    "audit pass pr145 + AUDIT_INDEX",
+    "ADR 004 governance evidence decision",
+    "hermetic only no live Mercury GPU deploy",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #146 mercury-hermetic next"
+  ]
+}

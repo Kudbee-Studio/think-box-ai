@@ -36,17 +36,32 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141 merged:** KILO Live-proof readiness spine. **PR #142 merged:** `env-matrix`. **PR #143 merged:** `substrate-checklist` (`thinkbox/kilo_substrate_checklist.py`). |
+| **Latest completed work** | **PR #141–#143 merged** (spine, env-matrix, substrate-checklist). **PR #144 merged:** CI/post-merge fix. **PR #145 (draft):** `governance-evidence` (`thinkbox/kilo_governance_evidence.py`). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **PR #144:** close `governance-evidence` gate (admission token + evidence shape). |
-| **PR status** | PR #141–#143 merged (spine, env-matrix, substrate-checklist) |
+| **Next larger improvement** | **PR #146:** close `mercury-hermetic` gate (bounded Mercury mocks + live-gate stub alignment). |
+| **PR status** | PR #141–#144 merged; PR #145 draft (`governance-evidence`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — PR #145 draft: KILO governance-evidence gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py`, spine wiring, runbook H9, pr145 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr145`; `verify_kilo_governance_evidence.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr145.json` |
+
+### 2026-09-23 — PR #144 merged: CI/post-merge unittest green (not governance-evidence)
+
+| Field | Value |
+|---|---|
+| **Scope** | `.github/workflows/test.yml`, `pyproject.toml` httpx for e2e TestClient — spine gate id `ci-post-merge` |
+| **FourState** | CI fix only — does not close a Live-proof readiness gate beyond keeping unittest discover green |
 
 ### 2026-09-23 — PR #143 merged: KILO substrate-checklist gate (#141–#150 arc)
 
