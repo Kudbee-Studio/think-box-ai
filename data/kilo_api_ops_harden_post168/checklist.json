@@ -1,0 +1,11 @@
+{
+  "gate_id": "api-ops-harden-post168",
+  "pr_number": 169,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "post168_label": "api-ops-harden-post168",
+  "prior_gate_ids": [
+    "api-ops-harden-post167"
+  ]
+}
