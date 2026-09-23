@@ -1,0 +1,51 @@
+{
+  "pass_id": "pr141",
+  "title": "PR141 — KILO Live-proof readiness spine (#141–#150 arc start)",
+  "prior_pass": "passes/2026-09-23-pr140.json",
+  "started_at": "2026-09-23T19:00:00Z",
+  "completed_at": "2026-09-23T20:00:00Z",
+  "code_review_completed_at": "2026-09-23T20:00:00Z",
+  "checker": "cursor-cloud-pr141",
+  "base_commit": "4326803",
+  "suite": {
+    "command": "python3 -m unittest discover -s tests -t .",
+    "ok": 2418,
+    "skipped": 8,
+    "expected_failures": 3,
+    "environment_note": "Cloud agent snapshot missing fastapi — 15 e2e/integration loader errors; full gate on founder CI with deps",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "docs/runbooks README index",
+    "kilo-live-proof-readiness runbook spine",
+    "kilo-live-proof-arc.md #141-#150 map",
+    "thinkbox/kilo_live_proof_readiness contract module",
+    "ARC_GATES ten gate IDs",
+    "forbidden affirmative KILO claim scanners",
+    "spine_contract_summary hermetic API",
+    "scripts/verify_kilo_spine.py operator helper",
+    "unit tests runbook headings",
+    "unit tests arc PR range 141-150",
+    "unit tests spine docs on disk",
+    "unit tests AGENTS arc section",
+    "unit tests CONTINUITY pr141 entry",
+    "docs CONTINUITY arc state update",
+    "docs STATUS pr141 block",
+    "root STATUS pr141 draft section",
+    "AGENTS KILO Live-proof readiness arc section",
+    "docs PREP pr141 addendum",
+    "audit pass pr141 + AUDIT_INDEX",
+    "docs/guides kilo_live_proof_readiness pointer",
+    "roadmap link to runbook",
+    "hermetic only — no live Mercury GPU deploy",
+    "no KILO LIVE VERIFIED claims on spine",
+    "four-state cap TEST_VERIFIED on branch",
+    "optional #142 env-matrix vs telemetry note in runbook"
+  ]
+}

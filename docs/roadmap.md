@@ -8,6 +8,8 @@
 
 ## PHASE 9 — Zero-to-One Innovations (Complete)
 
+> **2026-09-23:** KILO Live-proof readiness arc **#141–#150** — runbook at `docs/runbooks/kilo-live-proof-readiness.md` (spine in PR #141; Live proof not claimed until #150).
+
 **Goal:** 55 novel innovations across coalition, consensus, economy, intelligence, and benchmarking subsystems.
 
 ### Phase 9 Modules

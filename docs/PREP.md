@@ -2,7 +2,14 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-23 (PR #140 draft)
+> ## ADDENDUM — 2026-09-23 (PR #141 draft)
+>
+> **Branch:** `cursor/pr141-kilo-live-proof-readiness-spine-5823` (draft).  
+> **Scope:** KILO Live-proof readiness **spine** (#141–#150 arc start): runbook, arc doc, `thinkbox/kilo_live_proof_readiness.py`, hermetic gates — **no Live proof, no live build**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` + full suite; `scripts/scan_doc_secrets.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #140 merged)
 >
 > **Branch:** `cursor/pr140-receipt-deeplink-shared-etag-17e7` (draft milestone).  
 > **Scope:** `receipts.html` deep-link → receipt-keyed Think Job watch (#139); shared `sessionStorage` etag across control-plane tabs.  

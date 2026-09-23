@@ -1,5 +1,16 @@
 # STATUS — Think Box AI
 
+## PR #141 — KILO Live-proof readiness (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `cursor/pr141-kilo-live-proof-readiness-spine-5823` |
+| **Scope** | Runbook spine for #141–#150; hermetic contract module; no live Mercury / no Live proof |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Runbook** | `docs/runbooks/kilo-live-proof-readiness.md` |
+
+---
+
 ## Overview
 Current repository health, infrastructure status, known defects, and improvement priorities.
 

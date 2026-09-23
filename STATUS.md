@@ -852,10 +852,28 @@ python3 -m unittest \
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
 
-## PR #140 — Receipt deep-link + shared etag (DRAFT)
+## PR #141 — KILO Live-proof readiness spine (DRAFT)
 
-**Status:** Draft — milestone control-plane deep-link + tab-shared conditional GET cache  
-**Branch:** `cursor/pr140-receipt-deeplink-shared-etag-17e7`  
+**Status:** Draft — start of **#141–#150** arc (docs + hermetic gates; no Live proof)  
+**Branch:** `cursor/pr141-kilo-live-proof-readiness-spine-5823`  
+**Scope:** Runbook, arc map, `thinkbox/kilo_live_proof_readiness.py`, PR #141 hermetic tests
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #140 — Receipt deep-link + shared etag (MERGED)
+
+**Status:** Merged — control-plane deep-link + tab-shared conditional GET cache  
 **Scope:** `receipts.html` → `think_job_status.html` receipt watch; `control_plane_etag_store.js` across tabs
 
 ### Four-State
