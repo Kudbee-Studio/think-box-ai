@@ -509,7 +509,8 @@ Before claiming progress on the **#141–#150** arc:
 
 1. Read `docs/runbooks/kilo-live-proof-readiness.md`
 2. Run `python3 scripts/verify_kilo_spine.py` (exit 0)
-3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` and PR-specific gates (e.g. `test_kilo_live_proof_readiness_pr142` for #142)
+3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` and PR-specific gates (e.g. `test_kilo_live_proof_readiness_pr142` for #142, `test_kilo_live_proof_readiness_pr143` for #143)
+4. Run `python3 scripts/verify_kilo_substrate_checklist.py` (exit 0) before claiming #143 progress
 4. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
 5. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
 
