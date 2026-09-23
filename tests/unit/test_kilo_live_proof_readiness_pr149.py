@@ -177,6 +177,10 @@ class TestSpineAndOperators(unittest.TestCase):
         self.assertIn("dashboard-slots", text)
         self.assertIn("verify_kilo_dashboard_slots", text)
 
+    def test_dashboard_slots_guide_exists(self) -> None:
+        path = REPO_ROOT / "docs/guides/kilo_dashboard_slots.md"
+        self.assertTrue(path.is_file())
+
     def test_module_doc_no_forbidden_literals(self) -> None:
         self.assertEqual(spine.find_forbidden_literal_claims(dashboard_slots.__doc__ or ""), [])
 
