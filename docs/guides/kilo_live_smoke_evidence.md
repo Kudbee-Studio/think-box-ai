@@ -38,3 +38,5 @@ Fails closed without founder ack + Box URL.
 3. Write `data/thinkboxmd/artifacts/kilo_live_smoke_<timestamp>.json` matching schema `kilo-live-smoke-evidence-v1`.
 4. Run `audit_flip_candidate` in a founder shell; write resulting pass under `docs/audit/passes/` only when predicates pass.
 5. Update `docs/CONTINUITY.md` with artifact SHA256 — do not claim KILO PRODUCTION READY.
+
+Hermetic operator CLI (PR #153): `docs/guides/kilo_live_smoke_operator.md`

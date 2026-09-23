@@ -918,9 +918,25 @@ python3 scripts/scan_doc_secrets.py
 **Status:** Merged — **`env-matrix`** in **#141–#150** arc  
 **Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`
 
-## PR #152 — KILO bounded live smoke evidence (DRAFT)
+## PR #153 — KILO live-smoke operator path (DRAFT)
 
-**Status:** Draft — gate **`live-smoke-evidence`** (evidence binder + audit flip helper; hermetic CI, no live HTTP)  
+**Status:** Draft — gate **`live-smoke-operator`** (hermetic CLI write + audit flip candidate; no live HTTP in CI)  
+**Scope:** `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, `scripts/verify_kilo_live_smoke_operator.py`
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr153 -v
+python3 scripts/verify_kilo_live_smoke_operator.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+**LIVE VERIFIED** still requires founder ack + Box URL + real recorded smoke after merge.
+
+## PR #152 — KILO bounded live smoke evidence (MERGED)
+
+**Status:** Merged — gate **`live-smoke-evidence`** (evidence binder + audit flip helper; hermetic CI, no live HTTP)  
 **Scope:** `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py`, `data/kilo_live_smoke_evidence/fixtures/`
 
 ### Tests
@@ -928,11 +944,7 @@ python3 scripts/scan_doc_secrets.py
 ```bash
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr152 -v
 python3 scripts/verify_kilo_live_smoke_evidence.py
-python3 scripts/verify_kilo_spine.py
-python3 scripts/scan_doc_secrets.py
 ```
-
-**LIVE VERIFIED** still requires founder `THINKBOX_SWARM_LIVE_ACK` + `UPSTASH_PUBLIC_BOX_URL` + recorded `kilo_live_smoke_*.json` after merge.
 
 ## PR #151 — KILO post-season harden (MERGED)
 
@@ -943,7 +955,7 @@ python3 scripts/scan_doc_secrets.py
 
 **Status:** Merged — closes **`live-proof-exec`**; arc #141–#150 season complete at TEST VERIFIED (not LIVE VERIFIED)  
 **Scope:** `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`  
-**Next:** Founder-run bounded smoke per runbook § Bounded live smoke (#152); **PR #152** in flight
+**Next:** Founder-run bounded smoke per runbook; **PR #153** operator path in flight
 
 ## PR #141 — KILO Live-proof readiness spine (MERGED)
 

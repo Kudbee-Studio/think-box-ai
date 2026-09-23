@@ -64,8 +64,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
 | H14 | KILO live-proof-exec operator gate (`scripts/verify_kilo_live_proof_exec.py` exit 0) | PR #150 tests |
 | H15 | KILO live-smoke-evidence operator gate (`scripts/verify_kilo_live_smoke_evidence.py` exit 0) | PR #152 tests |
+| H16 | KILO live-smoke-operator gate (`scripts/verify_kilo_live_smoke_operator.py` exit 0) | PR #153 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#152 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#153 hermetic gates.
 
 ---
 
@@ -121,6 +122,25 @@ Guide: `docs/guides/kilo_live_smoke_evidence.md`
 
 ---
 
+## Live-smoke operator path (#153)
+
+Gate ID: **`live-smoke-operator`**. Layers on **`live-smoke-evidence`** (#152 merged).
+Hermetic CLI writes `data/thinkboxmd/artifacts/kilo_live_smoke_*.json` and emits
+`docs/audit/passes/*-live-candidate.json` via `audit_flip_candidate` — default CI keeps
+`live_api_called: false` and audit `live_verified: false`.
+
+### Founder bounded smoke → write artifact → flip candidate
+
+1. `python3 scripts/verify_kilo_live_smoke_operator.py` (hermetic).
+2. Export `THINKBOX_SWARM_LIVE_ACK=1` and `UPSTASH_PUBLIC_BOX_URL` for live prep only.
+3. `python3 scripts/kilo_live_smoke_operator.py write --evidence-id <id>` (hermetic dry-run) or record real smoke fields.
+4. `python3 scripts/kilo_live_smoke_operator.py audit-flip-candidate --evidence-path <artifact>` → review candidate JSON.
+5. Founder promotes audit pass only when #152 predicates pass; chronicle SHA256.
+
+Guide: `docs/guides/kilo_live_smoke_operator.md`
+
+---
+
 ## Spine cross-links
 
 - Agent rules: `AGENTS.md` § KILO Live-proof readiness arc  
@@ -138,6 +158,7 @@ Guide: `docs/guides/kilo_live_smoke_evidence.md`
 - Dashboard slots: `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, guide `docs/guides/kilo_dashboard_slots.md`
 - Live-proof exec: `thinkbox/kilo_live_proof_exec.py`, `data/kilo_live_proof_exec/fixtures/`, guide `docs/guides/kilo_live_proof_exec.md`
 - Live smoke evidence: `thinkbox/kilo_live_smoke_evidence.py`, `data/kilo_live_smoke_evidence/fixtures/`, guide `docs/guides/kilo_live_smoke_evidence.md`
+- Live smoke operator: `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, guide `docs/guides/kilo_live_smoke_operator.md`
 
 ---
 

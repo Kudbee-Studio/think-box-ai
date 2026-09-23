@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #152 — KILO bounded live smoke evidence (DRAFT)
+## PR #153 — KILO live-smoke operator path (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `live-smoke-operator` (layers `live-smoke-evidence`) |
+| **Scope** | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, audit flip candidate writer |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_live_smoke_operator.py` |
+
+## PR #152 — KILO bounded live smoke evidence (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `live-smoke-evidence` (layers post-season-harden + live-proof-exec) |
 | **Scope** | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py`, audit flip helper |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_live_smoke_evidence.py` |
 
 ## PR #151 — KILO post-season harden (MERGED)

@@ -1,4 +1,6 @@
-# Audit checklist — PR #152 live-smoke-evidence
+# Audit checklist — PR #152 live-smoke-evidence (merged)
+
+Operator write path continues in PR #153 (`live-smoke-operator`).
 
 - [ ] `thinkbox/kilo_live_smoke_evidence.py` gate id `live-smoke-evidence`
 - [ ] Hermetic fixtures under `data/kilo_live_smoke_evidence/fixtures/`

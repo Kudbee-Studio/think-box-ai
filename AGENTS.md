@@ -540,7 +540,7 @@ Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury cl
 
 ## KILO Live-proof readiness arc (PR #141–#150)
 
-Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#150 merged** (arc season closed). **PR #151** merged: post-season ops harden. **PR #152** (draft): bounded live smoke evidence binder + audit flip helper — **not** Live proof executed in CI.
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#152 merged** (arc season closed + smoke evidence binder). **PR #153** (draft): live-smoke **operator** CLI + runbook — **not** Live proof executed in CI.
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
@@ -555,11 +555,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Dashboard Live-proof slots (hermetic) | **#149** (merged) | `thinkbox/kilo_dashboard_slots.py`, `scripts/verify_kilo_dashboard_slots.py` |
 | Live proof execution plan (hermetic) | **#150** (merged) | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py` |
 | Post-season harden (ops) | **#151** (merged) | `thinkbox/kilo_post_season_harden.py`, `scripts/verify_kilo_post_season_harden.py` |
-| Bounded live smoke evidence + audit flip | **#152** (draft) | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py` |
+| Bounded live smoke evidence + audit flip | **#152** (merged) | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py` |
+| Live-smoke operator path (write artifact + flip candidate) | **#153** (draft) | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #152 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr152` ships `live_verified: false`.
+Four-state on #153 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr153` ships `live_verified: false`.
 
 ---
 

@@ -6,6 +6,7 @@ PR #145 adds ``governance_evidence`` summary layered on env-matrix + substrate-c
 PR #150 adds ``live_proof_exec`` summary (arc season close; hermetic only).
 PR #151 adds ``post_season_harden`` summary (ops CI + branch hygiene; not an arc gate).
 PR #152 adds ``live_smoke_evidence`` summary (bounded smoke binder + audit flip; not Live proof).
+PR #153 adds ``live_smoke_operator`` summary (hermetic CLI write + audit flip candidate; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -174,6 +175,7 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_dashboard_slots import dashboard_slots_contract_summary
     from thinkbox.kilo_live_proof_exec import live_proof_exec_contract_summary
     from thinkbox.kilo_live_smoke_evidence import live_smoke_evidence_contract_summary
+    from thinkbox.kilo_live_smoke_operator import live_smoke_operator_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -190,6 +192,7 @@ def spine_contract_summary() -> dict[str, object]:
     live_proof_exec_summary = live_proof_exec_contract_summary()
     post_season_summary = post_season_harden_contract_summary()
     live_smoke_summary = live_smoke_evidence_contract_summary()
+    live_smoke_operator_summary = live_smoke_operator_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -222,4 +225,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr151_gate_id": post_season_summary.get("pr151_gate_id"),
         "live_smoke_evidence": live_smoke_summary,
         "pr152_gate_id": live_smoke_summary.get("pr152_gate_id"),
+        "live_smoke_operator": live_smoke_operator_summary,
+        "pr153_gate_id": live_smoke_operator_summary.get("pr153_gate_id"),
     }
