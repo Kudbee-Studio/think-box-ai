@@ -30,6 +30,7 @@
       head: API_PREFIX + "/receipts/chain/head",
       tail: API_PREFIX + "/receipts/chain/tail",
       end_link_template: API_PREFIX + "/receipts/{receipt_id}/validate",
+      end_link_batch: API_PREFIX + "/receipts/validate/batch",
       end_link_api: END_LINK_API,
     };
   }
@@ -99,6 +100,44 @@
     };
   }
 
+  async function endLinkBatchValidate(receiptIds, opts, authHeaders) {
+    opts = opts || {};
+    var paths = chainPaths();
+    var url = paths.end_link_batch;
+    var res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders || {}),
+        body: JSON.stringify({
+          receipt_ids: receiptIds,
+          limit: opts.limit,
+        }),
+      },
+      DEFAULT_FETCH_TIMEOUT_MS,
+    );
+    if (!res.ok) {
+      return {
+        api: END_LINK_API,
+        valid: false,
+        http_status: res.status,
+        url: url,
+        error: "HTTP " + res.status,
+      };
+    }
+    var json = await res.json();
+    var data = unwrapEnvelope(json);
+    return {
+      api: END_LINK_API,
+      batch: true,
+      valid_count: data.valid_count,
+      invalid_count: data.invalid_count,
+      items: data.items || [],
+      http_status: res.status,
+      url: url,
+    };
+  }
+
   async function endLinkValidate(receiptId, opts, etagStore, authHeaders) {
     opts = opts || {};
     var url = buildEndLinkPath(receiptId);
@@ -143,6 +182,9 @@
       api: END_LINK_API,
       valid: !!data.valid,
       receipt_id: data.receipt_id || receiptId,
+      link_integrity: data.link_integrity,
+      prev_receipt_id: data.prev_receipt_id,
+      failure_code: data.failure_code,
       http_status: res.status,
       etag: etag,
       url: url,
@@ -167,6 +209,7 @@
     fetchChainPage: fetchChainPage,
     fetchChainProbe: fetchChainProbe,
     endLinkValidate: endLinkValidate,
+    endLinkBatchValidate: endLinkBatchValidate,
     buildDashboardHref: buildDashboardHref,
   };
 })(typeof window !== "undefined" ? window : globalThis);
