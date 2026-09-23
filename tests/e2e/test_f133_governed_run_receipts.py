@@ -125,6 +125,8 @@ class TestGovernanceStatusReceiptFields(unittest.TestCase):
         body = r.json()
         self.assertEqual(body.get("receipt_persistence"), "enabled")
         self.assertIn("receipt_recent_experiments", body)
+        self.assertIn("receipt_snapshot", body)
+        self.assertIn("engine_index_size", body["receipt_snapshot"])
 
 
 if __name__ == "__main__":
