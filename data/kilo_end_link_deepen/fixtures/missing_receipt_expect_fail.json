@@ -1,0 +1,5 @@
+{
+  "expect_fail": true,
+  "failure_code": "receipt_not_found",
+  "notes": "negative END LINK item in batch"
+}
