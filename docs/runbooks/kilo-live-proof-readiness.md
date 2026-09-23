@@ -63,8 +63,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
 | H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
 | H14 | KILO live-proof-exec operator gate (`scripts/verify_kilo_live_proof_exec.py` exit 0) | PR #150 tests |
+| H15 | KILO live-smoke-evidence operator gate (`scripts/verify_kilo_live_smoke_evidence.py` exit 0) | PR #152 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#150 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#152 hermetic gates.
 
 ---
 
@@ -98,6 +99,28 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 
 ---
 
+## Bounded live smoke evidence (#152)
+
+Gate ID: **`live-smoke-evidence`**. Layers on **`post-season-harden`** and **`live-proof-exec`**.
+Hermetic only in CI — binds receipt ids, etags, and gate-chain hops into
+`kilo-live-smoke-evidence-v1` JSON. `audit_flip_candidate` refuses `live_verified: true`
+unless founder ack marker, Box URL present flag, `live_api_called`, and on-disk artifact path
+all validate.
+
+### Founder bounded smoke → artifact → audit flip
+
+1. `python3 scripts/verify_kilo_spine.py` and `python3 scripts/verify_kilo_live_smoke_evidence.py` (hermetic).
+2. Export `THINKBOX_SWARM_LIVE_ACK=1` and `UPSTASH_PUBLIC_BOX_URL` (preview Box host only).
+3. Run bounded smoke (single governed call path); set `founder_ack_marker_present` and `box_url_present` in evidence JSON.
+4. Write `data/thinkboxmd/artifacts/kilo_live_smoke_<id>.json`; record SHA256 in this chronicle.
+5. Use `thinkbox.kilo_live_smoke_evidence.audit_flip_candidate` to build a **candidate** audit pass; founder writes `docs/audit/passes/*` only when predicates pass.
+
+Optional `--live` on the verify script checks env readiness only (no HTTP). Default CI path keeps `live_verified: false`.
+
+Guide: `docs/guides/kilo_live_smoke_evidence.md`
+
+---
+
 ## Spine cross-links
 
 - Agent rules: `AGENTS.md` § KILO Live-proof readiness arc  
@@ -114,6 +137,7 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, guide `docs/guides/kilo_proof_schema.md`
 - Dashboard slots: `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, guide `docs/guides/kilo_dashboard_slots.md`
 - Live-proof exec: `thinkbox/kilo_live_proof_exec.py`, `data/kilo_live_proof_exec/fixtures/`, guide `docs/guides/kilo_live_proof_exec.md`
+- Live smoke evidence: `thinkbox/kilo_live_smoke_evidence.py`, `data/kilo_live_smoke_evidence/fixtures/`, guide `docs/guides/kilo_live_smoke_evidence.md`
 
 ---
 

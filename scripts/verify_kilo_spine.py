@@ -46,6 +46,9 @@ def main() -> int:
     post_season_block = summary.get("post_season_harden") or {}
     if not post_season_block.get("hermetic_operator_ok"):
         return 1
+    smoke_block = summary.get("live_smoke_evidence") or {}
+    if not smoke_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

@@ -18,6 +18,8 @@
     "scripts/verify_kilo_proof_schema.py",
     "scripts/verify_kilo_dashboard_slots.py",
     "scripts/verify_kilo_live_proof_exec.py",
+    "scripts/verify_kilo_post_season_harden.py",
+    "scripts/verify_kilo_live_smoke_evidence.py",
     "scripts/verify_kilo_spine.py",
     "scripts/scan_doc_secrets.py"
   ]
