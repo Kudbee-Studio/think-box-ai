@@ -1,0 +1,63 @@
+{
+  "audit_pack": "pr154-pr161-era-consolidated",
+  "date": "2026-09-23",
+  "pr_range_first": 154,
+  "pr_range_last": 161,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "description": "Consolidated honesty index for control-plane receipt-chain / END_LINK era (#154–#161); review without live Box/Mercury HTTP.",
+  "prior_partial_era_pack": "passes/2026-09-23-pr155-159-era-consolidated.json",
+  "gates": [
+    {
+      "pr_number": 154,
+      "gate_id": "control-plane-api",
+      "pass_file": "passes/2026-09-23-pr154.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 155,
+      "gate_id": "receipt-chain-etag",
+      "pass_file": "passes/2026-09-23-pr155.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 156,
+      "gate_id": "dashboard-receipt-chain-bind",
+      "pass_file": "passes/2026-09-23-pr156.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 157,
+      "gate_id": "api-ops-harden",
+      "pass_file": "passes/2026-09-23-pr157.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 158,
+      "gate_id": "end-link-deepen",
+      "pass_file": "passes/2026-09-23-pr158.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 159,
+      "gate_id": "end-link-operator-ux",
+      "pass_file": "passes/2026-09-23-pr159.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 160,
+      "gate_id": "receipt-chain-end-link-docs",
+      "pass_file": "passes/2026-09-23-pr160.json",
+      "live_verified": false
+    },
+    {
+      "pr_number": 161,
+      "gate_id": "end-link-api-ops-harden",
+      "pass_file": "passes/2026-09-23-pr161.json",
+      "live_verified": false
+    }
+  ],
+  "operator_guide": "docs/guides/kilo_receipt_chain_end_link_operator.md",
+  "era_close_gate": "receipt-chain-end-link-era-close"
+}
