@@ -318,3 +318,267 @@
     var abort = new AbortController();
     self._sseAbort = abort;
     fetch(url, { headers: headers, signal: abort.signal })
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        if (!res.body || !res.body.getReader) throw new Error("sse_body_unsupported");
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buf = "";
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (self._stopped) return;
+            if (chunk.done) {
+              self.watch.telemetry.sseDisconnectCount += 1;
+              self._startPollLoop(plan, false);
+              return;
+            }
+            buf += decoder.decode(chunk.value, { stream: true });
+            var parsed = parseSseBuffer(buf);
+            buf = parsed.rest;
+            parsed.events.forEach(function (event) {
+              var changed = applyEvent(self.watch, event);
+              if (changed) self.onUpdate(self.watch, event);
+              if (event.kind === "think_job_stream_close") {
+                abort.abort();
+                self._startPollLoop(plan, false);
+              }
+            });
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function (err) {
+        if (self._stopped || err.name === "AbortError") return;
+        self.watch.telemetry.sseDisconnectCount += 1;
+        self.watch.telemetry.lastError = String(err);
+        self.onError(err, self.watch);
+        var delay = backoffDelayMs(self._reconnectAttempt);
+        self._reconnectAttempt += 1;
+        if (self._reconnectAttempt > 3) {
+          self._startPollLoop(plan, true);
+          return;
+        }
+        setTimeout(function () {
+          if (!self._stopped) self._consumeFetchSse(plan, url);
+        }, delay);
+      });
+  };
+
+  ThinkJobStatusWatcher.prototype._attachSse = function (plan) {
+    var self = this;
+    self._consumeFetchSse(plan, plan.streamUrl);
+  };
+
+  ThinkJobStatusWatcher.prototype._beginWatch = async function (target) {
+    this.stop();
+    this._stopped = false;
+    this._reconnectAttempt = 0;
+    this.watch = createWatch(target.kind === "engine" ? target.key : "", target);
+    var pollUrl = pollPathForTarget(target);
+    var doc;
+    try {
+      doc = await this._fetchPoll(pollUrl);
+    } catch (err) {
+      this.watch.telemetry.lastError = String(err);
+      this.onError(err, this.watch);
+      throw err;
+    }
+    this.watch.engineId = docEngineId(doc) || this.watch.engineId;
+    this.watch.summary = doc;
+    if (target.kind === "receipt" && doc.receipt && doc.receipt.receipt_id) {
+      this.watch.receiptId = doc.receipt.receipt_id;
+    }
+    this.onUpdate(this.watch, { kind: "initial_poll", document: doc, target: target });
+    var plan = streamPlanForTarget(target, doc);
+    if (!plan.streamAvailable) {
+      this._startPollLoop(plan, true);
+      return this.watch;
+    }
+    var sseUrl = target.kind === "receipt" && plan.receiptStreamUrl
+      ? plan.receiptStreamUrl
+      : plan.streamUrl;
+    this._consumeFetchSse(plan, sseUrl);
+    return this.watch;
+  };
+
+  ThinkJobStatusWatcher.prototype.watchEngine = async function (engineId) {
+    return this._beginWatch(resolveWatchTarget(engineId, ""));
+  };
+
+  ThinkJobStatusWatcher.prototype.watchReceipt = async function (receiptId) {
+    return this._beginWatch(resolveWatchTarget("", receiptId));
+  };
+
+  ThinkJobStatusWatcher.prototype.watchTarget = async function (engineId, receiptId) {
+    return this._beginWatch(resolveWatchTarget(engineId, receiptId));
+  };
+
+  /**
+   * Jobs digest multiplex: digest counts + job list poll, optional digest SSE.
+   */
+  function JobsDigestMultiplexer(options) {
+    this.apiKey = options.apiKey || "";
+    this.bearer = options.bearer || "";
+    this.onPanelUpdate = options.onPanelUpdate || function () {};
+    this.onDigestMode = options.onDigestMode || function () {};
+    this.onError = options.onError || function () {};
+    this.panel = createMultiplexPanel();
+    this._etagStore = options.etagStore || {};
+    this._pollTimer = null;
+    this._sseAbort = null;
+    this._stopped = true;
+    this._listLimit = options.listLimit || 30;
+  }
+
+  JobsDigestMultiplexer.prototype._headers = function () {
+    return apiHeaders(this.apiKey, this.bearer);
+  };
+
+  JobsDigestMultiplexer.prototype.stop = function () {
+    this._stopped = true;
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+    if (this._sseAbort) {
+      this._sseAbort.abort();
+      this._sseAbort = null;
+    }
+    this.panel.digestTransport = "idle";
+    this.onDigestMode("idle", this.panel);
+  };
+
+  JobsDigestMultiplexer.prototype._refreshList = async function () {
+    var url = formatJobsListPollPath(this._listLimit, "summary");
+    var result = await global.TBLoadPerf.fetchJsonConditional(
+      url,
+      { headers: this._headers() },
+      this._etagStore
+    );
+    this.panel.digestJobs = result.data.jobs || [];
+    if (result.data.dashboard_revision) {
+      this.panel.dashboardRevision = result.data.dashboard_revision;
+    }
+    this.onPanelUpdate(this.panel, { kind: "jobs_list_poll", document: result.data });
+  };
+
+  JobsDigestMultiplexer.prototype._refreshDigestCounts = async function () {
+    var result = await global.TBLoadPerf.fetchJsonConditional(
+      formatJobsDigestPollPath(),
+      { headers: this._headers() },
+      this._etagStore
+    );
+    this.panel.digestDocument = result.data;
+    if (result.data.dashboard_revision) {
+      this.panel.dashboardRevision = result.data.dashboard_revision;
+    }
+    this.onPanelUpdate(this.panel, { kind: "digest_poll", document: result.data });
+  };
+
+  JobsDigestMultiplexer.prototype._startDigestPoll = function (degraded) {
+    var self = this;
+    if (self._pollTimer) clearInterval(self._pollTimer);
+    self.panel.digestTransport = degraded ? "degraded_poll" : "poll";
+    self.onDigestMode(self.panel.digestTransport, self.panel);
+    async function tick() {
+      if (self._stopped || !global.TBLoadPerf.isDocumentVisible()) return;
+      try {
+        await self._refreshDigestCounts();
+        await self._refreshList();
+      } catch (err) {
+        self.panel.lastDigestError = String(err);
+        self.onError(err, self.panel);
+      }
+    }
+    tick();
+    self._pollTimer = setInterval(tick, 8000);
+  };
+
+  JobsDigestMultiplexer.prototype._attachDigestSse = function () {
+    var self = this;
+    var url = buildStreamUrl("/api/v1/run/jobs/status/stream", { max_events: "16", timeout_s: "90" });
+    var headers = Object.assign({}, self._headers(), { Accept: "text/event-stream" });
+    self.panel.digestTransport = "sse";
+    self.onDigestMode("sse", self.panel);
+    var abort = new AbortController();
+    self._sseAbort = abort;
+    fetch(url, { headers: headers, signal: abort.signal })
+      .then(function (res) {
+        if (!res.ok) throw new Error("digest_sse_http_" + res.status);
+        if (!res.body || !res.body.getReader) throw new Error("digest_sse_body_unsupported");
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buf = "";
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (self._stopped) return;
+            if (chunk.done) {
+              self._startDigestPoll(false);
+              return;
+            }
+            buf += decoder.decode(chunk.value, { stream: true });
+            var parsed = parseSseBuffer(buf);
+            buf = parsed.rest;
+            parsed.events.forEach(function (ev) {
+              if (applyDigestEvent(self.panel, ev)) {
+                self.onPanelUpdate(self.panel, ev);
+              }
+            });
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function (err) {
+        if (self._stopped || err.name === "AbortError") return;
+        self.panel.lastDigestError = String(err);
+        self.onError(err, self.panel);
+        self._startDigestPoll(true);
+      });
+  };
+
+  JobsDigestMultiplexer.prototype.start = async function () {
+    this.stop();
+    this._stopped = false;
+    this.panel = createMultiplexPanel();
+    try {
+      await this._refreshDigestCounts();
+      await this._refreshList();
+    } catch (err) {
+      this.panel.lastDigestError = String(err);
+      this.onError(err, this.panel);
+      throw err;
+    }
+    this._attachDigestSse();
+    return this.panel;
+  };
+
+  JobsDigestMultiplexer.prototype.setActiveWatch = function (target, watchMode) {
+    this.panel.activeTarget = target;
+    this.panel.watchTransport = watchMode || "idle";
+    this.onPanelUpdate(this.panel, { kind: "active_watch", target: target, mode: watchMode });
+  };
+
+  global.TBThinkJobStatus = {
+    apiHeaders: apiHeaders,
+    buildStreamUrl: buildStreamUrl,
+    streamPlanFromPoll: streamPlanFromPoll,
+    streamPlanForTarget: streamPlanForTarget,
+    resolveWatchTarget: resolveWatchTarget,
+    normalizeReceiptKey: normalizeReceiptKey,
+    formatReceiptPollPath: formatReceiptPollPath,
+    formatJobsDigestPollPath: formatJobsDigestPollPath,
+    formatJobsListPollPath: formatJobsListPollPath,
+    backoffDelayMs: backoffDelayMs,
+    parseSseMessage: parseSseMessage,
+    parseSseBuffer: parseSseBuffer,
+    applyEvent: applyEvent,
+    applyDigestEvent: applyDigestEvent,
+    createWatch: createWatch,
+    createMultiplexPanel: createMultiplexPanel,
+    multiplexChipLabel: multiplexChipLabel,
+    ThinkJobStatusWatcher: ThinkJobStatusWatcher,
+    JobsDigestMultiplexer: JobsDigestMultiplexer,
+  };
+})(typeof window !== "undefined" ? window : globalThis);
