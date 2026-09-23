@@ -18,3 +18,5 @@ python3 -m unittest tests.unit.test_end_link_deepen tests.unit.test_backend_end_
 ```
 
 Hermetic only — `live_api_called=false`.
+
+Consolidated operator surface: `docs/guides/kilo_receipt_chain_end_link_operator.md`.
