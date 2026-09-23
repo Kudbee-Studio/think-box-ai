@@ -132,6 +132,9 @@ class TestSubstrateGate(unittest.TestCase):
     def test_redact_token_preserves_mock_literal(self) -> None:
         self.assertEqual(substrate.redact_box_token("mock_abc"), "mock_abc")
 
+    def test_redact_url_preserves_mock_literal(self) -> None:
+        self.assertEqual(substrate.redact_box_url("mock://box"), "mock://box")
+
     def test_redact_url_host_only(self) -> None:
         redacted = substrate.redact_box_url(
             "https://wanted-tuna-71803.preview.box.upstash.com/path?q=1"
