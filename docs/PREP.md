@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-23 (PR #140 draft)
+>
+> **Branch:** `cursor/pr140-receipt-deeplink-shared-etag-17e7` (draft milestone).  
+> **Scope:** `receipts.html` deep-link → receipt-keyed Think Job watch (#139); shared `sessionStorage` etag across control-plane tabs.  
+> **Test gate:** `python3 -m unittest discover -s tests -t .` → **2498 OK**, 8 skipped, 3 expected failures; F140 e2e.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
 > ## ADDENDUM — 2026-09-22 (PR #126 audit close-out)
 >
 > **Branch:** `feat/pr126-f010-token-redact-and-p1` (draft PR #126).  
