@@ -115,6 +115,10 @@ class TestVerifyScript(unittest.TestCase):
         script = REPO_ROOT / "scripts" / "verify_kilo_spine.py"
         self.assertTrue(script.is_file())
 
+    def test_verify_kilo_env_matrix_script_exists(self) -> None:
+        script = REPO_ROOT / "scripts" / "verify_kilo_env_matrix.py"
+        self.assertTrue(script.is_file())
+
     def test_audit_checklist_exists(self) -> None:
         path = REPO_ROOT / "docs/audit/checklists/kilo-spine-pr141.md"
         self.assertTrue(path.is_file())
