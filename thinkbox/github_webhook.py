@@ -20,6 +20,7 @@ from thinkbox.pr_lifecycle_event_hooks import (
 
 GITHUB_WEBHOOK_LIFECYCLE_CAPABILITY = "github:webhook:lifecycle_mutate"
 DEFAULT_WEBHOOK_AGENT_ID = "github-webhook-receiver"
+MAX_WEBHOOK_BODY_BYTES = 262_144
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,8 @@ def verify_github_webhook_signature(
     signature_header: Optional[str],
 ) -> SignatureVerification:
     """Fail-closed verification of GitHub webhook HMAC (X-Hub-Signature-256)."""
+    if len(body) > MAX_WEBHOOK_BODY_BYTES:
+        return SignatureVerification(False, "payload_too_large")
     if not secret:
         return SignatureVerification(False, "webhook_secret_not_configured")
     if not signature_header:
