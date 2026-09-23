@@ -16,8 +16,11 @@
     .rc-etag-warn { color: var(--color-warning); }
     .rc-etag-err { color: var(--color-danger); }
     .rc-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: var(--space-4) 0; }
-    .rc-toolbar input, .rc-toolbar button { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
+    .rc-toolbar input, .rc-toolbar button, .rc-toolbar select { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
     pre.rc-json { max-height: 200px; overflow: auto; background: var(--color-bg-subtle); padding: var(--space-3); border-radius: 4px; }
+    .rc-batch-table table { border-collapse: collapse; }
+    .rc-batch-table td, .rc-batch-table th { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--color-border); text-align: left; }
+    .rc-four-state { margin-top: var(--space-4); color: var(--color-text-tertiary); font-size: var(--text-xs); }
   </style>
 </head>
 <body>
@@ -36,14 +39,31 @@
     <div class="container">
       <h1>Receipt chain / ETag dashboard</h1>
       <p class="rc-mono" style="color: var(--color-text-secondary);">
-        PR #156 — bind dashboard slots to PR #155 chain reads. Proprietary <strong>END_LINK</strong> API:
-        <code>GET /api/v1/control-plane/receipts/{receipt_id}/validate</code>.
-        Hermetic only — <code>live_api_called=false</code>. If-None-Match → 304; bad If-Match → 412.
+        PR #159 — operator UX deepen on #158 END_LINK APIs.
+        Proprietary <strong>END_LINK</strong>:
+        <code>GET /api/v1/control-plane/receipts/{receipt_id}/validate</code>,
+        <code>POST …/receipts/validate/batch</code>.
+        Hermetic only — <code>live_api_called=false</code>. Four-state max: <code>TEST_VERIFIED</code>.
+        <!-- gate marker: end-link-operator-ux -->
         <!-- gate marker: /api/v1/control-plane/receipts/rcpt_marker/validate -->
       </p>
-      <div class="rc-toolbar">
+      <div class="rc-toolbar" id="filterForm">
         <label>Receipt id <input id="receiptId" type="text" placeholder="for END_LINK validate" style="min-width:200px" /></label>
         <label>Cursor <input id="cursor" type="text" placeholder="page cursor" style="min-width:120px" /></label>
+        <label>Status
+          <select id="chainFilterStatus" title="chain status filter">
+            <option value="">(any)</option>
+            <option value="OK">OK</option>
+            <option value="DENIED">DENIED</option>
+          </select>
+        </label>
+        <label>Evidence
+          <select id="chainFilterEvidenceLabel" title="evidence_label filter">
+            <option value="">(any)</option>
+            <option value="simulated">simulated</option>
+            <option value="verified">verified</option>
+          </select>
+        </label>
         <button id="btnRefresh">Refresh chain page</button>
         <button id="btnHead">Head</button>
         <button id="btnTail">Tail</button>
@@ -58,9 +78,15 @@
           <pre class="rc-json" id="etagOut">—</pre>
         </div>
         <div class="rc-card">
-          <div class="cp-label">END_LINK status</div>
+          <div class="cp-label">END_LINK status + integrity</div>
           <pre class="rc-json" id="endLinkOut">—</pre>
+          <div class="rc-mono" id="endLinkDetail" style="margin-top:0.5rem;color:var(--color-text-secondary)">—</div>
         </div>
+      </div>
+      <div class="rc-card rc-batch-table">
+        <div class="cp-label">Batch validate results</div>
+        <div id="batchSummary" class="rc-mono" style="margin-bottom:var(--space-2)">Run batch to see summary</div>
+        <div id="batchTableHost"></div>
       </div>
       <div class="rc-card">
         <div class="cp-label">Chain page (cursor pagination)</div>
@@ -75,15 +101,18 @@
         <div class="cp-label">Head / tail probe</div>
         <pre class="rc-json" id="probeOut">—</pre>
       </div>
+      <p class="rc-four-state rc-mono" id="fourStateHonesty">—</p>
     </div>
     <script src="load_perf.js"></script>
     <script src="control_plane_etag_store.js"></script>
     <script src="control_plane_end_link_client.js"></script>
+    <script src="control_plane_end_link_operator_ux.js"></script>
     <script src="control_plane_deep_link.js"></script>
     <script>
       var AUTH = { Authorization: "Bearer dev-only-local-token" };
       var etagStore = TBControlPlaneEtag.getSharedEtagStore();
       var nextCursor = null;
+      var pageLoading = false;
 
       function showBanner(msg, cls) {
         var el = document.getElementById("banner");
@@ -93,6 +122,13 @@
         el.textContent = msg;
       }
 
+      function renderFourState() {
+        var copy = TBEndLinkOperatorUx.four_state_honesty();
+        document.getElementById("fourStateHonesty").textContent =
+          "four_state_honesty: CODE COMPLETE / TEST VERIFIED — live_verified not claimed; live_api_called=" +
+          copy.live_api_called + "; max=" + copy.four_state_max;
+      }
+
       function renderEtagEvents(events) {
         document.getElementById("etagOut").textContent = JSON.stringify(events, null, 2);
       }
@@ -100,7 +136,11 @@
       function renderPage(page, meta) {
         var rows = document.getElementById("pageRows");
         rows.innerHTML = "";
-        (page.receipts || []).forEach(function (r) {
+        var list = page.receipts || [];
+        if (!list.length && !pageLoading) {
+          rows.innerHTML = '<div class="rc-mono" style="padding:0.5rem 0">No receipts (empty or filtered out)</div>';
+        }
+        list.forEach(function (r) {
           var div = document.createElement("div");
           div.className = "rc-row rc-mono";
           var rid = r.receipt_id || "";
@@ -108,9 +148,9 @@
             ? '<a href="' + TBEndLink.buildEndLinkPath(rid) + '" style="pointer-events:none;color:var(--color-text-tertiary)">END_LINK</a>'
             : "—";
           div.innerHTML =
-            "<span>" + (r.action_type || "?") + "</span>" +
+            "<span>" + (r.action_type || r.action || "?") + "</span>" +
             "<span>" + (r.agent_id || "—") + "</span>" +
-            "<span>" + (rid ? rid.slice(0, 18) + "…" : "—") + "</span>" +
+            "<span title='" + rid + "'>" + (rid ? rid.slice(0, 18) + "…" : "—") + "</span>" +
             "<span>" + link + "</span>";
           rows.appendChild(div);
         });
@@ -119,15 +159,24 @@
         document.getElementById("btnNext").disabled = !nextCursor;
       }
 
+      function chainFetchOpts(cursor) {
+        var filters = TBEndLinkOperatorUx.readChainFilters({
+          chainFilterStatus: document.getElementById("chainFilterStatus"),
+          chainFilterEvidenceLabel: document.getElementById("chainFilterEvidenceLabel"),
+        });
+        return TBEndLinkOperatorUx.applyChainFiltersToFetchOpts(
+          { limit: 15, cursor: cursor || null },
+          filters,
+        );
+      }
+
       async function loadPage(cursor) {
         showBanner("");
+        pageLoading = true;
+        document.getElementById("pageMeta").textContent = "Loading chain page…";
         var events = [];
         try {
-          var result = await TBEndLink.fetchChainPage(
-            { limit: 15, cursor: cursor || null },
-            etagStore,
-            AUTH,
-          );
+          var result = await TBEndLink.fetchChainPage(chainFetchOpts(cursor), etagStore, AUTH);
           events.push({
             url: result.url,
             cached: result.cached,
@@ -142,6 +191,8 @@
         } catch (e) {
           showBanner("Chain page unavailable (mock): " + e, "rc-etag-err");
           document.getElementById("pageMeta").textContent = "Error";
+        } finally {
+          pageLoading = false;
         }
       }
 
@@ -158,23 +209,34 @@
         }
       }
 
+      function renderEndLinkDetail(res) {
+        var detail = TBEndLinkOperatorUx.formatEndLinkPanelDetail(res);
+        document.getElementById("endLinkDetail").textContent =
+          "link_integrity=" + (detail.link_integrity || "—") +
+          " prev_receipt_id=" + (detail.prev_receipt_id || "—") +
+          " failure_code=" + (detail.failure_code || "—");
+      }
+
       async function runEndLink(wrongEtag) {
         var rid = document.getElementById("receiptId").value.trim();
         if (!rid) {
           showBanner("receipt_id required for END_LINK", "rc-etag-err");
           return;
         }
+        document.getElementById("endLinkOut").textContent = "Loading END_LINK…";
         var opts = wrongEtag ? { ifMatch: '"stale-wrong-etag"' } : {};
         try {
           var res = await TBEndLink.endLinkValidate(rid, opts, etagStore, AUTH);
           document.getElementById("endLinkOut").textContent = JSON.stringify(res, null, 2);
+          renderEndLinkDetail(res);
           if (res.precondition_failed || res.http_status === 412) {
             showBanner("END_LINK If-Match mismatch → 412 (fail-closed)", "rc-etag-err");
           } else if (res.valid) {
             var integrity = res.link_integrity ? " integrity=" + res.link_integrity : "";
             showBanner("END_LINK OK" + integrity, "rc-etag-ok");
           } else {
-            showBanner("END_LINK invalid or missing", "rc-etag-warn");
+            var fc = res.failure_code ? " (" + res.failure_code + ")" : "";
+            showBanner("END_LINK invalid or missing" + fc, "rc-etag-warn");
           }
         } catch (e) {
           document.getElementById("endLinkOut").textContent = String(e);
@@ -187,6 +249,7 @@
           showBanner("receipt_id required for batch seed", "rc-etag-err");
           return;
         }
+        document.getElementById("batchSummary").textContent = "Running batch validate…";
         try {
           var res = await TBEndLink.endLinkBatchValidate(
             [rid, rid + "_missing_probe"],
@@ -194,12 +257,22 @@
             AUTH,
           );
           document.getElementById("endLinkOut").textContent = JSON.stringify(res, null, 2);
+          var summary = TBEndLinkOperatorUx.endLinkBatchSummary({
+            items: res.items,
+            valid_count: res.valid_count,
+            invalid_count: res.invalid_count,
+            total: (res.items || []).length,
+          });
+          document.getElementById("batchSummary").textContent = summary.summary_label +
+            (summary.fail_closed ? " (fail-closed)" : "");
+          TBEndLinkOperatorUx.renderBatchResults(document.getElementById("batchTableHost"), summary);
           showBanner(
             "END_LINK batch valid=" + (res.valid_count || 0) + " invalid=" + (res.invalid_count || 0),
-            "rc-etag-ok",
+            summary.fail_closed ? "rc-etag-warn" : "rc-etag-ok",
           );
         } catch (e) {
           document.getElementById("endLinkOut").textContent = String(e);
+          document.getElementById("batchSummary").textContent = "Batch error";
         }
       }
 
@@ -222,6 +295,7 @@
         var link = TBControlPlaneDeepLink.parseLocation();
         if (link.receipt_id) document.getElementById("receiptId").value = link.receipt_id;
       }
+      renderFourState();
       loadPage(null);
     </script>
   </main>

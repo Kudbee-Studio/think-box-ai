@@ -188,6 +188,7 @@ def spine_contract_summary() -> dict[str, object]:
     )
     from thinkbox.kilo_api_ops_harden import api_ops_harden_contract_summary
     from thinkbox.kilo_end_link_deepen import end_link_deepen_contract_summary
+    from thinkbox.kilo_end_link_operator_ux import end_link_operator_ux_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -210,6 +211,7 @@ def spine_contract_summary() -> dict[str, object]:
     dashboard_receipt_chain_bind_summary = dashboard_receipt_chain_bind_contract_summary()
     api_ops_harden_summary = api_ops_harden_contract_summary()
     end_link_deepen_summary = end_link_deepen_contract_summary()
+    end_link_operator_ux_summary = end_link_operator_ux_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -254,4 +256,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr157_gate_id": api_ops_harden_summary.get("pr157_gate_id"),
         "end_link_deepen": end_link_deepen_summary,
         "pr158_gate_id": end_link_deepen_summary.get("pr158_gate_id"),
+        "end_link_operator_ux": end_link_operator_ux_summary,
+        "pr159_gate_id": end_link_operator_ux_summary.get("pr159_gate_id"),
     }

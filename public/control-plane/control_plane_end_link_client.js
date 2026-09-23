@@ -66,6 +66,8 @@
     if (opts.cursor) params.set("cursor", opts.cursor);
     if (opts.action) params.set("action", opts.action);
     if (opts.agent_id) params.set("agent_id", opts.agent_id);
+    if (opts.status) params.set("status", opts.status);
+    if (opts.evidence_label) params.set("evidence_label", opts.evidence_label);
     var url = paths.page + (params.toString() ? "?" + params.toString() : "");
     var result = await fetchJsonWithEtag(
       url,

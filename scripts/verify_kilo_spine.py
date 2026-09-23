@@ -67,6 +67,9 @@ def main() -> int:
     end_link_deepen_block = summary.get("end_link_deepen") or {}
     if not end_link_deepen_block.get("hermetic_operator_ok"):
         return 1
+    end_link_operator_ux_block = summary.get("end_link_operator_ux") or {}
+    if not end_link_operator_ux_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

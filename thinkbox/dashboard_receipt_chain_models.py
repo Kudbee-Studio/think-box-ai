@@ -6,12 +6,15 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 __all__ = (
+    "ChainFilterView",
     "ChainPageView",
     "ChainProbeView",
     "DashboardChainBindState",
     "EtagCacheView",
+    "EndLinkBatchPanelView",
     "EndLinkPanelView",
     "chain_page_from_payload",
+    "end_link_batch_panel_from_summary",
     "end_link_panel_from_result",
 )
 
@@ -73,6 +76,25 @@ class EtagCacheView:
 
 
 @dataclass(frozen=True)
+class ChainFilterView:
+    """Active chain list filters for operator controls (PR #159)."""
+
+    status_filter: str | None = None
+    evidence_label: str | None = None
+    action: str | None = None
+    agent_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status_filter": self.status_filter,
+            "evidence_label": self.evidence_label,
+            "action": self.action,
+            "agent_id": self.agent_id,
+            "live_api_called": False,
+        }
+
+
+@dataclass(frozen=True)
 class EndLinkPanelView:
     """END LINK validate panel state."""
 
@@ -84,6 +106,7 @@ class EndLinkPanelView:
     error_code: str | None = None
     link_integrity: str | None = None
     prev_receipt_id: str | None = None
+    failure_code: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -99,7 +122,37 @@ class EndLinkPanelView:
             out["link_integrity"] = self.link_integrity
         if self.prev_receipt_id is not None:
             out["prev_receipt_id"] = self.prev_receipt_id
+        if self.failure_code is not None:
+            out["failure_code"] = self.failure_code
         return out
+
+
+@dataclass(frozen=True)
+class EndLinkBatchPanelView:
+    """Batch validate results panel (per-item failure_code / link_integrity)."""
+
+    summary_label: str
+    valid_count: int
+    invalid_count: int
+    total: int
+    rows: tuple[dict[str, Any], ...]
+    fail_closed: bool
+    live_api_called: bool = False
+    four_state_max: str = "TEST_VERIFIED"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "api": "END_LINK",
+            "operator_ux": "end-link-operator-ux",
+            "summary_label": self.summary_label,
+            "valid_count": self.valid_count,
+            "invalid_count": self.invalid_count,
+            "total": self.total,
+            "rows": list(self.rows),
+            "fail_closed": self.fail_closed,
+            "live_api_called": self.live_api_called,
+            "four_state_max": self.four_state_max,
+        }
 
 
 @dataclass
@@ -111,8 +164,11 @@ class DashboardChainBindState:
     page: ChainPageView | None = None
     probes: ChainProbeView | None = None
     end_link: EndLinkPanelView | None = None
+    end_link_batch: EndLinkBatchPanelView | None = None
+    chain_filters: ChainFilterView | None = None
     etag_events: list[EtagCacheView] = field(default_factory=list)
     live_api_called: bool = False
+    operator_message: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -121,8 +177,11 @@ class DashboardChainBindState:
             "page": self.page.to_dict() if self.page else None,
             "probes": self.probes.to_dict() if self.probes else None,
             "end_link": self.end_link.to_dict() if self.end_link else None,
+            "end_link_batch": self.end_link_batch.to_dict() if self.end_link_batch else None,
+            "chain_filters": self.chain_filters.to_dict() if self.chain_filters else None,
             "etag_events": [e.to_dict() for e in self.etag_events],
             "live_api_called": self.live_api_called,
+            "operator_message": self.operator_message,
             "four_state_max": "TEST_VERIFIED",
         }
 
@@ -149,9 +208,11 @@ def end_link_panel_from_result(
     error_code: str | None = None,
     link_integrity: str | None = None,
     prev_receipt_id: str | None = None,
+    failure_code: str | None = None,
 ) -> EndLinkPanelView:
-    if error_code:
-        label = f"END LINK FAIL ({error_code})"
+    code = failure_code or error_code
+    if code:
+        label = f"END LINK FAIL ({code})"
     elif http_status == 412:
         label = "END LINK 412 precondition"
         valid = False
@@ -170,4 +231,17 @@ def end_link_panel_from_result(
         error_code=error_code,
         link_integrity=link_integrity,
         prev_receipt_id=prev_receipt_id,
+        failure_code=failure_code or error_code,
+    )
+
+
+def end_link_batch_panel_from_summary(summary: Mapping[str, Any]) -> EndLinkBatchPanelView:
+    rows = tuple(summary.get("rows") or [])
+    return EndLinkBatchPanelView(
+        summary_label=str(summary.get("summary_label") or "batch"),
+        valid_count=int(summary.get("valid_count") or 0),
+        invalid_count=int(summary.get("invalid_count") or 0),
+        total=int(summary.get("total") or len(rows)),
+        rows=rows,
+        fail_closed=bool(summary.get("fail_closed")),
     )
