@@ -3,6 +3,7 @@
 Layers on PR #142 ``env-matrix`` and PR #143 ``substrate-checklist``. Binds admission
 decisions to redacted evidence for a future live burst — no network, no
 ``INCEPTION_API_KEY`` consumption, ``live_api_called=False`` in hermetic modes.
+Aligned with ``thinkbox/cli_live_gate.py`` authorization-only reporting (no HTTP).
 """
 
 from __future__ import annotations
