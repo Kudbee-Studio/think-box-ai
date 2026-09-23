@@ -1,0 +1,16 @@
+{
+  "gate_id": "live-proof-operator-audit-flip-post168",
+  "pr_number": 169,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "audit_flip_label": "live-proof-operator-audit-flip-post168",
+  "required_checklist_items": 32,
+  "prior_gate_ids": [
+    "live-proof-operator-audit-flip-post167",
+    "live-proof-operator-audit-flip-deepen",
+    "live-smoke-audit-flip-harden",
+    "live-smoke-operator",
+    "live-smoke-evidence"
+  ]
+}
