@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #151 — KILO post-season harden (DRAFT)
+## PR #152 — KILO bounded live smoke evidence (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `live-smoke-evidence` (layers post-season-harden + live-proof-exec) |
+| **Scope** | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py`, audit flip helper |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_live_smoke_evidence.py` |
+
+## PR #151 — KILO post-season harden (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `post-season-harden` (ops — not arc #141–#150) |
 | **Scope** | CI spine alignment, `cleanup_merged_cursor_branches.py`, docs/STATUS sync |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** LIVE VERIFIED |
 | **Verify** | `python3 scripts/verify_kilo_post_season_harden.py` |
 
 ## PR #150 — KILO live-proof-exec (MERGED, arc season close)
