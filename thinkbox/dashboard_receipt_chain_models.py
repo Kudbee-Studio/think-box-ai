@@ -82,9 +82,11 @@ class EndLinkPanelView:
     etag: str | None = None
     http_status: int | None = None
     error_code: str | None = None
+    link_integrity: str | None = None
+    prev_receipt_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "api": "END_LINK",
             "receipt_id": self.receipt_id,
             "valid": self.valid,
@@ -93,6 +95,11 @@ class EndLinkPanelView:
             "http_status": self.http_status,
             "error_code": self.error_code,
         }
+        if self.link_integrity is not None:
+            out["link_integrity"] = self.link_integrity
+        if self.prev_receipt_id is not None:
+            out["prev_receipt_id"] = self.prev_receipt_id
+        return out
 
 
 @dataclass
@@ -140,6 +147,8 @@ def end_link_panel_from_result(
     http_status: int | None = None,
     etag: str | None = None,
     error_code: str | None = None,
+    link_integrity: str | None = None,
+    prev_receipt_id: str | None = None,
 ) -> EndLinkPanelView:
     if error_code:
         label = f"END LINK FAIL ({error_code})"
@@ -150,6 +159,8 @@ def end_link_panel_from_result(
         label = "END LINK OK"
     else:
         label = "END LINK invalid"
+    if link_integrity == "ok" and valid:
+        label = "END LINK OK (integrity)"
     return EndLinkPanelView(
         receipt_id=receipt_id,
         valid=valid,
@@ -157,4 +168,6 @@ def end_link_panel_from_result(
         etag=etag,
         http_status=http_status,
         error_code=error_code,
+        link_integrity=link_integrity,
+        prev_receipt_id=prev_receipt_id,
     )
