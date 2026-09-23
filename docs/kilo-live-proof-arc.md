@@ -14,7 +14,8 @@
 | CI fix | **#144** (merged) | Post-merge unittest discover green — **not** a readiness gate closure |
 | Governance evidence | **#145** (merged) | Gate `governance-evidence`: `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
 | Mercury hermetic | **#146** (merged) | `thinkbox/kilo_mercury_hermetic.py` + `verify_kilo_mercury_hermetic.py` |
-| Swarm instrumentation | **#147** (this arc step) | `thinkbox/kilo_swarm_instrumentation.py` + `verify_kilo_swarm_instrumentation.py` |
+| Swarm instrumentation | **#147** (merged) | `thinkbox/kilo_swarm_instrumentation.py` + `verify_kilo_swarm_instrumentation.py` |
+| Proof schema | **#148** (this arc step) | `thinkbox/kilo_proof_schema.py` + `verify_kilo_proof_schema.py` |
 | Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
 
 ## Four-state (arc-wide)
@@ -35,12 +36,13 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr147.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr147.json` (draft)
+- Proof schema: `thinkbox/kilo_proof_schema.py`
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr148.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr148.json` (draft)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
-## Non-binding #148 suggestion
+## Non-binding #149 suggestion
 
-**#147** ships `swarm-instrumentation` on top of `mercury-hermetic` (11-entry hermetic catalog; live swarm deferred). Optional non-binding follow-on: **#148** `proof-schema` — must keep four-state honest.
+**#148** ships `proof-schema` on top of `swarm-instrumentation` (cue types, dependency graph, DoD honesty). Optional non-binding follow-on: **#149** `dashboard-slots` — must keep four-state honest.
 
