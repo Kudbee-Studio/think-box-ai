@@ -3,6 +3,7 @@
 Hermetic documentation gates only — no live Mercury, GPU, or deploy side effects.
 PR #143 adds ``substrate_checklist`` summary layered on ``env_matrix``.
 PR #145 adds ``governance_evidence`` summary layered on env-matrix + substrate-checklist.
+PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 """
 
 from __future__ import annotations
@@ -162,6 +163,7 @@ def spine_contract_summary() -> dict[str, object]:
     """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads)."""
     from thinkbox.kilo_env_matrix import env_matrix_contract_summary
     from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
+    from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
     from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
 
     runbook_raw = load_text(runbook_path())
@@ -169,6 +171,7 @@ def spine_contract_summary() -> dict[str, object]:
     env_summary = env_matrix_contract_summary()
     substrate_summary = substrate_checklist_contract_summary()
     governance_summary = governance_evidence_contract_summary()
+    mercury_summary = mercury_hermetic_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -183,7 +186,9 @@ def spine_contract_summary() -> dict[str, object]:
         "pr142_gate_id": (gate_for_pr(142).gate_id if gate_for_pr(142) else None),
         "pr143_gate_id": (gate_for_pr(143).gate_id if gate_for_pr(143) else None),
         "pr145_gate_id": (gate_for_pr(145).gate_id if gate_for_pr(145) else None),
+        "pr146_gate_id": (gate_for_pr(146).gate_id if gate_for_pr(146) else None),
         "env_matrix": env_summary,
         "substrate_checklist": substrate_summary,
         "governance_evidence": governance_summary,
+        "mercury_hermetic": mercury_summary,
     }
