@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #161 — END LINK API / ops harden after #159–#160 (DRAFT)
+## PR #162 — Receipt-chain / END_LINK era audit close #154–#161 (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `receipt-chain-end-link-era-close` (layers `end-link-api-ops-harden`) |
+| **Scope** | consolidated era pack #154–#161, AUDIT_INDEX sync, operator guide era close |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Verify** | `python3 scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
+
+## PR #161 — END LINK API / ops harden after #159–#160 (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `end-link-api-ops-harden` (layers `receipt-chain-end-link-docs`) |
 | **Scope** | chain filter fail-closed, failure_code normalization, ops timing, batch Idempotency-Key replay |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false`, `live_api_called: false` |
 | **Verify** | `python3 scripts/verify_kilo_end_link_api_ops_harden.py` |
 
 ## PR #160 — Receipt-chain / END_LINK docs + audit pack (MERGED)
