@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 from pathlib import Path
 
@@ -51,8 +52,12 @@ class TestArcDoc(unittest.TestCase):
         ids = spine.gate_ids()
         self.assertEqual(len(ids), len(set(ids)))
 
+    def test_pr141_closes_spine_docs_gate(self) -> None:
+        gate = spine.gate_for_pr(141)
+        self.assertIsNotNone(gate)
+        assert gate is not None
+        self.assertEqual(gate.gate_id, "spine-docs")
 
-class TestSpineDocs(unittest.TestCase):
     def test_spine_docs_on_disk(self) -> None:
         missing = spine.missing_spine_docs()
         self.assertEqual(missing, [], msg=f"missing: {missing}")
@@ -98,10 +103,26 @@ class TestVerifyScript(unittest.TestCase):
         script = REPO_ROOT / "scripts" / "verify_kilo_spine.py"
         self.assertTrue(script.is_file())
 
+    def test_audit_checklist_exists(self) -> None:
+        path = REPO_ROOT / "docs/audit/checklists/kilo-spine-pr141.md"
+        self.assertTrue(path.is_file())
+
     def test_guide_pointer_exists(self) -> None:
         guide = REPO_ROOT / "docs/guides/kilo_live_proof_readiness.md"
         self.assertTrue(guide.is_file())
         self.assertIn("runbooks/kilo-live-proof-readiness", guide.read_text(encoding="utf-8"))
+
+    def test_verify_kilo_spine_exit_zero(self) -> None:
+        import subprocess
+
+        proc = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "scripts" / "verify_kilo_spine.py")],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr or proc.stdout)
 
 
 if __name__ == "__main__":
