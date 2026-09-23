@@ -94,6 +94,7 @@ print(c.summarize_end_link_batch_for_operator(['r1','r2']))
 
 - Era index: `docs/audit/passes/2026-09-23-pr155-159-era-consolidated.json`
 - PR #160 pass: `docs/audit/passes/2026-09-23-pr160.json`
+- PR #161 API/ops harden (hermetic): `docs/guides/kilo_end_link_api_ops_harden.md`
 - Checklist: `docs/audit/checklists/kilo-receipt-chain-end-link-docs-pr160.md`
 
 ## Verify bundle
