@@ -31,6 +31,8 @@ def etag_matches(if_none_match: str | None, etag: str) -> bool:
     if not if_none_match or not etag:
         return False
     candidate = if_none_match.strip()
+    if len(candidate) > 4096:
+        return False
     if candidate == "*":
         return True
     parts = [p.strip() for p in candidate.split(",")]
@@ -92,6 +94,12 @@ class TtlSnapshotCache(Generic[T]):
     def invalidate(self, key: str) -> None:
         with self._lock:
             self._store.pop(key, None)
+
+    def invalidate_prefix(self, prefix: str) -> None:
+        with self._lock:
+            doomed = [k for k in self._store if k.startswith(prefix)]
+            for key in doomed:
+                del self._store[key]
 
     def clear(self) -> None:
         with self._lock:
