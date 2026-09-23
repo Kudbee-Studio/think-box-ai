@@ -218,3 +218,103 @@
     var parts = [];
     if (panel.digestTransport && panel.digestTransport !== "idle") {
       parts.push("digest:" + panel.digestTransport);
+    }
+    if (panel.watchTransport && panel.watchTransport !== "idle") {
+      parts.push("watch:" + panel.watchTransport);
+    }
+    if (panel.activeTarget) {
+      parts.push(panel.activeTarget.kind + ":" + panel.activeTarget.key.slice(0, 12));
+    }
+    return parts.length ? parts.join(" · ") : "idle";
+  }
+
+  /**
+   * Subscribe via EventSource; on error/disconnect invokes onFallback and polls.
+   */
+  function ThinkJobStatusWatcher(options) {
+    this.apiKey = options.apiKey || "";
+    this.bearer = options.bearer || "";
+    this.onUpdate = options.onUpdate || function () {};
+    this.onModeChange = options.onModeChange || function () {};
+    this.onError = options.onError || function () {};
+    this._eventSource = null;
+    this._pollTimer = null;
+    this._reconnectAttempt = 0;
+    this._stopped = false;
+    this.watch = null;
+    this._etagStore = options.etagStore || {};
+  }
+
+  ThinkJobStatusWatcher.prototype._setMode = function (mode) {
+    if (!this.watch) return;
+    this.watch.telemetry.mode = mode;
+    this.onModeChange(mode, this.watch);
+  };
+
+  ThinkJobStatusWatcher.prototype.stop = function () {
+    this._stopped = true;
+    if (this._sseAbort) {
+      this._sseAbort.abort();
+      this._sseAbort = null;
+    }
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+    this._setMode("idle");
+  };
+
+  ThinkJobStatusWatcher.prototype._headers = function () {
+    return apiHeaders(this.apiKey, this.bearer);
+  };
+
+  ThinkJobStatusWatcher.prototype._fetchPoll = async function (pollUrl) {
+    var headers = this._headers();
+    var result = await global.TBLoadPerf.fetchJsonConditional(pollUrl, { headers: headers }, this._etagStore);
+    return result.data;
+  };
+
+  ThinkJobStatusWatcher.prototype._startPollLoop = function (plan, degraded) {
+    var self = this;
+    if (self._pollTimer) clearInterval(self._pollTimer);
+    self._setMode(degraded ? "degraded_poll" : "poll");
+    var interval = plan.recommendedIntervalMs || 5000;
+    async function tick() {
+      if (self._stopped || !global.TBLoadPerf.isDocumentVisible()) return;
+      try {
+        var doc = await self._fetchPoll(plan.pollUrl);
+        self.watch.summary = doc;
+        self.onUpdate(self.watch, { kind: "poll_snapshot", document: doc });
+      } catch (err) {
+        self.watch.telemetry.pollErrorCount += 1;
+        self.watch.telemetry.lastError = String(err);
+        self.onError(err, self.watch);
+      }
+    }
+    tick();
+    self._pollTimer = setInterval(tick, interval);
+  };
+
+  function parseSseBuffer(buffer) {
+    var events = [];
+    var parts = buffer.split("\n\n");
+    var rest = "";
+    if (parts.length) {
+      rest = parts.pop() || "";
+    }
+    parts.forEach(function (block) {
+      var dataLine = block.split("\n").filter(function (ln) {
+        return ln.indexOf("data: ") === 0;
+      })[0];
+      if (dataLine) events.push(parseSseMessage(dataLine.slice(6)));
+    });
+    return { events: events, rest: rest };
+  }
+
+  ThinkJobStatusWatcher.prototype._consumeFetchSse = function (plan, url) {
+    var self = this;
+    var headers = Object.assign({}, self._headers(), { Accept: "text/event-stream" });
+    self._setMode("sse");
+    var abort = new AbortController();
+    self._sseAbort = abort;
+    fetch(url, { headers: headers, signal: abort.signal })
