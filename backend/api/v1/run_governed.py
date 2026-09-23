@@ -20,6 +20,7 @@ from backend.api.v1.run_receipts import (
     persist_profile_for_http,
     reset_http_run_persistence_for_tests,
     write_simple_http_run_proof,
+    receipt_persistence_snapshot,
 )
 from thinkbox.admission import AdmissionDecision
 from thinkbox.dashboard_state import (
@@ -316,7 +317,9 @@ async def execute_governed_run_background(
             binding.metadata["goal_experiment_id"] = result.get("goal_experiment_id", binding.experiment_id)
             proof_path = result.get("proof_artifact")
             proof_sha = result.get("proof_sha256")
-            if not proof_path:
+            if not proof_path and not ctx.verified:
+                proof_path, proof_sha = write_simple_http_run_proof(binding, result, persistence=stack)
+            elif not proof_path:
                 proof_path, proof_sha = write_simple_http_run_proof(binding, result, persistence=stack)
             try:
                 finalize_http_run_receipt(
