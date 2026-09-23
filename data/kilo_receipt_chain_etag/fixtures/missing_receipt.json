@@ -1,0 +1,5 @@
+{
+  "expect_validation_error": true,
+  "receipt_id": "rcpt_does_not_exist",
+  "notes": "negative fixture for validate_receipt_link"
+}
