@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncGenerator
 
+from thinkbox.org_memory_receipts import redact_mapping
 from thinkbox.read_cache import RevisionCounter
 
 
@@ -309,7 +310,7 @@ class DashboardState:
             category=category,
             event_type=event_type,
             timestamp="",
-            data=data,
+            data=redact_mapping(data),
             source=source,
             evidence_label=evidence_label,
         )
