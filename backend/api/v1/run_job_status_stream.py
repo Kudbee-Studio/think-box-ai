@@ -193,4 +193,17 @@ def limits_poll_interval() -> float:
     return ThinkJobStreamLimits().poll_interval_s
 
 
+async def iter_think_job_status_stream_by_receipt(
+    receipt_id: str,
+    *,
+    limits: ThinkJobStreamLimits | None = None,
+) -> AsyncGenerator[str, None]:
+    record = resolve_think_job_by_receipt(receipt_id)
+    job_key = str(record.get("job_id") or record.get("engine_id") or "")
+    if not job_key:
+        raise ThinkJobNotFoundError(receipt_id)
+    async for frame in iter_think_job_status_stream(job_key, limits=limits):
+        yield frame
+
+
 
