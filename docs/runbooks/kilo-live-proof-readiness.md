@@ -76,8 +76,14 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H25 | KILO PR #165 combined harden + era chronicle (`scripts/verify_kilo_pr165_combined_harden.py` exit 0) | PR #165 tests |
 | H26 | KILO PR #166 combined post-#165 lane (`scripts/verify_kilo_pr166_combined_post165_lane.py` exit 0) | PR #166 tests |
 | H27 | KILO PR #167 combined post-#166 lane (`scripts/verify_kilo_pr167_combined_post166_lane.py` exit 0) | PR #167 tests |
+| H28 | KILO PR #168 combined post-#167 lane (`scripts/verify_kilo_pr168_combined_post167_lane.py` exit 0) | PR #168 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#167 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#168 hermetic gates.
+
+**Spine verify modes:** `python3 -u scripts/verify_kilo_spine.py` defaults to **fast** mode
+(skips nested control-plane e2e unittest subprocess; static gates still run). Use
+`python3 -u scripts/verify_kilo_spine.py --e2e` for the full nested e2e unittest suite
+(bounded timeout; not required on every PR).
 
 ---
 
