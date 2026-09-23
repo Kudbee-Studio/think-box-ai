@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T03:10:00Z",
+      "checker": "cursor-cloud-pr130",
+      "commit_sha": "pending",
+      "finding_ids": ["F023-PROVIDER", "F023-LIFECYCLE", "F023-DASHBOARD", "F023-EDGE"],
+      "notes": "test_f023_think_job_lifecycle + scaffold; suite 2298 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-23T02:40:00Z",
       "checker": "cursor-cloud-pr129",
       "commit_sha": "pending",

@@ -506,7 +506,7 @@ When something fails:
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
-- `tests/e2e/` hermetic governed loop (PR #127); F023 full Think Job lifecycle TODO
+- `tests/e2e/` F023 hermetic Think Job lifecycle (PR #130 draft); live API/Mercury path not e2e-covered
 - Solana CLI not installed — environment issue
 
 ---
