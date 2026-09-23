@@ -49,6 +49,7 @@ __all__ = (
     "kilo_proof_json_schema",
     "list_fixture_paths",
     "load_fixture",
+    "minimal_proof_schema_environ",
     "minimal_valid_proof_document",
     "proof_schema_contract_summary",
     "proof_schema_gate_closed",
