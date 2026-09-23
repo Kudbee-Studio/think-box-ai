@@ -7,6 +7,7 @@ import unittest
 from thinkbox.dashboard_receipt_chain_client import (
     DashboardReceiptChainClient,
     chain_api_paths,
+    classify_conditional_http_status,
     hermetic_fetch_chain_bind_state,
 )
 
@@ -26,6 +27,11 @@ class TestDashboardReceiptChainClient(unittest.TestCase):
         client = DashboardReceiptChainClient()
         probes = client.fetch_probes()
         self.assertFalse(probes.live_api_called)
+
+    def test_classify_conditional_http_status(self) -> None:
+        flags = classify_conditional_http_status(412)
+        self.assertTrue(flags["precondition_failed"])
+        self.assertFalse(flags["not_modified"])
 
 
 if __name__ == "__main__":

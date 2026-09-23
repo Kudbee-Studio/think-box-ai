@@ -31,6 +31,7 @@ from thinkbox.control_plane_operation_registry import (
     get_operation_registry,
     new_receipt_id,
 )
+from thinkbox.control_plane_ops_harden import clamp_query_limit, ops_harden_contract_snippet
 from thinkbox.read_cache import weak_etag_from_payload
 
 __all__ = (
@@ -72,6 +73,7 @@ def build_contract_payload() -> dict[str, Any]:
         "live_api_called": False,
         "four_state_max": "TEST_VERIFIED",
         "evidence_label": "simulated",
+        **ops_harden_contract_snippet(),
     }
 
 
@@ -179,9 +181,14 @@ async def create_operation_via_admission(
     return reg.get(operation_id), ""
 
 
-def build_operation_list_payload(registry: OperationRegistry | None = None) -> dict[str, Any]:
+def build_operation_list_payload(
+    registry: OperationRegistry | None = None,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
     reg = registry or get_operation_registry()
-    ops = [op.to_dict() for op in reg.list_operations()]
+    lim = clamp_query_limit(limit)
+    ops = [op.to_dict() for op in reg.list_operations(limit=lim)]
     return {"operations": ops, "count": len(ops), "live_api_called": False}
 
 
@@ -198,7 +205,7 @@ def get_chain_payload(
     health = chain_health(st)
     page = fetch_chain_page(
         st,
-        limit=limit,
+        limit=clamp_query_limit(limit),
         cursor=cursor,
         action=action,
         agent_id=agent_id,
@@ -230,7 +237,7 @@ def build_chain_page_payload(
     st = store or get_control_plane_receipt_store()
     page = fetch_chain_page(
         st,
-        limit=limit,
+        limit=clamp_query_limit(limit),
         cursor=cursor,
         action=action,
         agent_id=agent_id,

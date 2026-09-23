@@ -29,13 +29,27 @@ from thinkbox.end_link_api import (
 )
 from thinkbox.receipt_chain_query import ReceiptChainValidationError
 
+DEFAULT_HERMETIC_FETCH_TIMEOUT_MS = 5000
+
 __all__ = (
+    "DEFAULT_HERMETIC_FETCH_TIMEOUT_MS",
     "DashboardReceiptChainClient",
     "HermeticChainFetchResult",
     "chain_api_paths",
+    "classify_conditional_http_status",
     "hermetic_end_link_validate",
     "hermetic_fetch_chain_bind_state",
 )
+
+
+def classify_conditional_http_status(http_status: int | None) -> dict[str, bool]:
+    """Operator UX flags for 304 / 412 responses (dashboard bind)."""
+    code = int(http_status or 0)
+    return {
+        "not_modified": code == 304,
+        "precondition_failed": code == 412,
+        "retryable": code in (408, 429, 503),
+    }
 
 
 @dataclass(frozen=True)

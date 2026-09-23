@@ -18,6 +18,7 @@ __all__ = (
     "fetch_chain_page",
     "fetch_head_receipt",
     "fetch_tail_receipt",
+    "validate_page_prev_receipt_links",
     "validate_receipt_link",
 )
 
@@ -155,6 +156,9 @@ def fetch_chain_page(
             next_cursor = encode_cursor(last_rowid)
 
     total = store.count()
+    if receipts:
+        validate_page_prev_receipt_links(receipts)
+
     return ChainPage(
         receipts=receipts,
         next_cursor=next_cursor,
@@ -191,6 +195,18 @@ def fetch_tail_receipt(store: ActionReceiptStore) -> dict[str, Any] | None:
     tail = rows[0]
     prev_id = rows[1][0] if len(rows) > 1 else None
     return _row_to_dict(tail, prev_receipt_id=prev_id)
+
+
+def validate_page_prev_receipt_links(receipts: list[dict[str, Any]]) -> None:
+    """Ensure in-page prev_receipt_id fields link to the prior row in this page."""
+    for index in range(1, len(receipts)):
+        prior = receipts[index - 1]
+        current = receipts[index]
+        if current.get("prev_receipt_id") != prior.get("receipt_id"):
+            raise ReceiptChainValidationError(
+                "broken_prev_receipt_id",
+                f"page link mismatch at {current.get('receipt_id')}",
+            )
 
 
 def validate_receipt_link(store: ActionReceiptStore, receipt_id: str) -> None:
