@@ -178,3 +178,58 @@ class MercuryHermeticResult:
 
 def bounded_mercury_fixtures() -> dict[str, dict[str, Any]]:
     """Fixed mock response shapes for Live-proof prep (bounded, no secrets)."""
+    return {
+        "json_answer": {
+            "content": '{"answer": 42}',
+            "reasoning": "hermetic mock: bounded JSON answer fixture",
+        },
+        "think_token": {
+            "content": '{"status": "ok"}',
+            "reasoning": "THINK hermetic stub — not live Mercury",
+        },
+        "live_proof_prep": {
+            "content": '{"kilo_live_proof_prep": true}',
+            "reasoning": "prep shape only; live_api_called remains false",
+        },
+    }
+
+
+def mock_client_configured(environ: Mapping[str, str]) -> bool:
+    """True when hermetic Mercury mock mode or mock:// provider URL is set."""
+    mock_flag = (environ.get(_MOCK_ENV_KEY) or "").strip().lower()
+    if mock_flag in ("1", "true", "yes", "hermetic", "bounded"):
+        return True
+    for key in ("THINKBOX_MERCURY_BASE_URL", "THINKBOX_PROVIDER_BASE_URL"):
+        value = (environ.get(key) or "").strip()
+        if value.startswith("mock://"):
+            return True
+        if value.startswith("http://127.0.0.1") or value.startswith("http://localhost"):
+            return True
+    return False
+
+
+class BoundedMercuryMockClient:
+    """Sync-only bounded Mercury mock — never performs HTTP."""
+
+    def __init__(
+        self,
+        *,
+        fixture_id: str = "json_answer",
+        model: str = MERCURY_HERMETIC_MODEL,
+    ) -> None:
+        fixtures = bounded_mercury_fixtures()
+        if fixture_id not in fixtures:
+            raise ValueError(f"unknown mercury fixture: {fixture_id}")
+        self._fixture_id = fixture_id
+        self._model = model
+        self._fixture = fixtures[fixture_id]
+
+    def complete(self, prompt: str) -> MercuryHermeticCallResult:
+        """Return a bounded completion for *prompt* without network I/O."""
+        content = str(self._fixture["content"])
+        reasoning = self._fixture.get("reasoning")
+        if isinstance(reasoning, str):
+            reasoning_out: str | None = reasoning
+        else:
+            reasoning_out = None
+        return MercuryHermeticCallResult(
