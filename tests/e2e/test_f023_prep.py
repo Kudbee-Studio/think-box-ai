@@ -8,28 +8,15 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from core.providers.base import CompletionResponse, Message, ModelProvider, ProviderCapabilities
+from core.providers.base import ModelProvider
 from thinkbox.experiment import ExperimentManager, ExperimentStatus
 
-
-class _HermeticMockProvider:
-    """Minimal ModelProvider for F023 wiring tests (no network)."""
-
-    capabilities = ProviderCapabilities(completion=True, streaming=False)
-
-    async def complete(self, messages: list[Message], **kwargs: Any) -> CompletionResponse:
-        return CompletionResponse(content='{"answer": 1}', model="mock", usage={})
-
-    async def stream(self, messages: list[Message], **kwargs: Any):
-        yield CompletionResponse(content="{}", model="mock")
-
-    async def embed(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
-        return [[0.0] * 4 for _ in texts]
+from tests.e2e.hermetic_scaffold import HermeticModelProvider, subtask_spec
 
 
 class TestModelProviderHermeticWiring(unittest.TestCase):
     def test_mock_satisfies_protocol(self) -> None:
-        provider: ModelProvider = _HermeticMockProvider()
+        provider: ModelProvider = HermeticModelProvider([subtask_spec("compute", "add_small")])
         self.assertTrue(provider.capabilities.completion)
 
 

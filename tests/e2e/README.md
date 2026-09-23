@@ -29,7 +29,18 @@ python3 -m unittest tests.e2e.test_governed_runtime_loop
 |------|---------|
 | `test_f023_prep.py` | Hermetic `ModelProvider` protocol wiring, `ExperimentManager` SQLite round-trip, Think Job `POST /run` API surface (source contract) |
 
-Full Think Job lifecycle with live `ModelProvider` execution and dashboard emission remains **F023** — not claimed in PR #128.
+### F023 Think Job lifecycle (PR #130)
+
+| File | Purpose |
+|------|---------|
+| `hermetic_scaffold.py` | `HermeticModelProvider`, `provider_complete_async`, persistence/dashboard helpers, proof verification |
+| `test_f023_think_job_lifecycle.py` | Full hermetic lifecycle: admit → execute → proof on disk → ledger; dashboard `JOB_COMPLETED`; edge cases |
+
+```bash
+python3 -m unittest tests.e2e.test_f023_think_job_lifecycle
+```
+
+**FourState (branch only):** CODE COMPLETE / TEST VERIFIED — hermetic mock provider only; no LIVE Mercury, no PRODUCTION READY.
 
 ## Full gate
 

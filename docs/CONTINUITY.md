@@ -1323,4 +1323,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FourState:** Phase 2 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**.
 - **NEXT ACTION:** Founder review draft PR #129; PR #130 theme: F023 Think Job lifecycle e2e + dashboard emission (hermetic).
 
+### 2026-09-23 — PR #129 merged; PR #130 draft (F023 Think Job hermetic e2e)
+
+- **MERGED:** GitHub PR **#129** → `main` at **`f2ab98a`** (KUDBEECLI Phase 2 persistence, shell, dashboard, live gate).
+- **BRANCH:** `feat/pr130-f023-think-job-e2e-25` — F023 hermetic lifecycle: `HermeticModelProvider` + `provider_complete_async` in `tests/e2e/hermetic_scaffold.py`; `tests/e2e/test_f023_think_job_lifecycle.py` (~13 tests); prep aligned to shared provider; audit `docs/audit/passes/2026-09-23-pr130.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2298 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** F023 hermetic Think Job lifecycle **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (no Mercury HTTP, no `POST /run` live path).
+- **NEXT ACTION:** Founder review draft PR #130; PR #131 theme: hermetic `POST /run` + dashboard job upsert contract tests (still mock provider).
+
 ---
