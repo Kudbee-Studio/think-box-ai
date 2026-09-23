@@ -116,6 +116,23 @@ python3 -m unittest tests.e2e.test_f139_think_job_receipt_multiplex
 python3 -m unittest tests.e2e.test_f140_receipt_deep_link_etag
 ```
 
+### F162 control-plane receipt-chain / END_LINK (PR #162)
+
+| File | Purpose |
+|------|---------|
+| `control_plane_hermetic.py` | FastAPI TestClient harness (no Mercury HTTP) |
+| `test_f162_cp_validate_single_e2e.py` | Single validate + ops timing |
+| `test_f162_cp_batch_validate_e2e.py` | Batch validate + Idempotency-Key |
+| `test_f162_cp_chain_filters_e2e.py` | Chain list filters + 400 fail-closed |
+| `test_f162_cp_integrity_fields_e2e.py` | `prev_receipt_id` / `link_integrity` |
+| `test_f162_cp_ops_envelope_e2e.py` | Ops stack inside 200 envelopes |
+| `test_f162_cp_fail_closed_e2e.py` | Batch body errors + auth 401 |
+
+```bash
+python3 -m unittest discover tests/e2e -p 'test_f162_*'
+python3 scripts/verify_kilo_control_plane_e2e_deepen.py
+```
+
 ## Full gate
 
 ```bash
