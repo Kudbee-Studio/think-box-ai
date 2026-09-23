@@ -1,6 +1,7 @@
 /**
  * Think Job status subscribe + poll fallback (PR #138).
  * Uses poll.stream hints from #137 — no parallel status plane.
+ * Hermetic only: no live Mercury; errors surface via onError (fail-closed).
  */
 (function (global) {
   var DEFAULT_STREAM_QUERY = { max_events: "32", timeout_s: "120", heartbeat_s: "15" };
