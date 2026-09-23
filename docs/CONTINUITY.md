@@ -54,7 +54,7 @@ Before declaring completion, every agent MUST verify:
 |---|---|
 | **Scope** | `GET /run/job/{id}/status`, receipt card payloads, governance snapshot counters, fail-closed 404 |
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
-| **Tests** | 2381 OK; `scripts/scan_doc_secrets.py` OK |
+| **Tests** | 2381+ OK; `scripts/scan_doc_secrets.py` OK; 25-commit PR134 branch (10 core + 15 review) |
 
 ### 2026-09-23 — PR #133 merged: governed HTTP run receipts + ExperimentManager (hermetic)
 
