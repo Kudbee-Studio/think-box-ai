@@ -317,9 +317,7 @@ async def execute_governed_run_background(
             binding.metadata["goal_experiment_id"] = result.get("goal_experiment_id", binding.experiment_id)
             proof_path = result.get("proof_artifact")
             proof_sha = result.get("proof_sha256")
-            if not proof_path and not ctx.verified:
-                proof_path, proof_sha = write_simple_http_run_proof(binding, result, persistence=stack)
-            elif not proof_path:
+            if not proof_path:
                 proof_path, proof_sha = write_simple_http_run_proof(binding, result, persistence=stack)
             try:
                 finalize_http_run_receipt(
@@ -328,6 +326,8 @@ async def execute_governed_run_background(
                     outcome={
                         "governed": True,
                         "verified": ctx.verified,
+                        "capability": ctx.capability,
+                        "agent_id": ctx.agent_id,
                         "summary": {
                             k: result.get(k)
                             for k in (
