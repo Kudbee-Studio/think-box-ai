@@ -28,6 +28,16 @@ class TestSubstrateGate(unittest.TestCase):
         self.assertTrue(result.ok, msg=result.violations)
         self.assertTrue(result.env_matrix_ok)
 
+    def test_hermetic_mock_url_passes_env_matrix_layer(self) -> None:
+        env = substrate.minimal_substrate_hermetic_environ(
+            {"UPSTASH_PUBLIC_BOX_URL": "mock://box", "UPSTASH_PUBLIC_BOX_TOKEN": "mock_x"}
+        )
+        matrix_only = matrix.evaluate_env_matrix(matrix.EnvMatrixMode.HERMETIC_UNIT, env)
+        self.assertFalse(matrix_only.ok)
+        result = substrate.evaluate_substrate_checklist(matrix.EnvMatrixMode.HERMETIC_UNIT, env)
+        self.assertTrue(result.ok, msg=result.violations)
+        self.assertTrue(result.env_matrix_ok)
+
     def test_requires_env_matrix_layer(self) -> None:
         env = substrate.minimal_substrate_hermetic_environ(
             {"THINKBOX_SWARM_LIVE_ACK": "1"}
