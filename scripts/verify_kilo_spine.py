@@ -58,6 +58,9 @@ def main() -> int:
     receipt_chain_block = summary.get("receipt_chain_etag") or {}
     if not receipt_chain_block.get("hermetic_operator_ok"):
         return 1
+    dashboard_bind_block = summary.get("dashboard_receipt_chain_bind") or {}
+    if not dashboard_bind_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

@@ -36,19 +36,27 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#154 on main** (control-plane API merged). **PR #155 (draft):** receipt-chain / ETag deepen. |
+| **Latest completed work** | **PR #141–#155 on main** (receipt-chain / ETag deepen merged). **PR #156 (draft):** dashboard bind + END_LINK UI. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | **Founder-run KILO Live proof** per runbook; **PR #155 draft:** receipt-chain pagination + etag gate. |
-| **PR status** | PR #141–#154 merged; PR #155 draft (`receipt-chain-etag`) |
+| **Next larger improvement** | **Founder-run KILO Live proof** per runbook; **PR #156 draft:** dashboard receipt-chain / END_LINK bind. |
+| **PR status** | PR #141–#155 merged; PR #156 draft (`dashboard-receipt-chain-bind`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #155 draft: receipt-chain / ETag deepen
+### 2026-09-23 — PR #156 draft: dashboard receipt-chain / END_LINK bind
+
+| Field | Value |
+|---|---|
+| **Scope** | `receipt_chain_dashboard.html`, `control_plane_end_link_client.js`, `kilo_dashboard_receipt_chain_bind`, proprietary **END_LINK** validate API bind |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_api`, `test_dashboard_receipt_chain_*`, `test_kilo_live_proof_readiness_pr156`; audit `passes/2026-09-23-pr156.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #155 merged: receipt-chain / ETag deepen
 
 | Field | Value |
 |---|---|
