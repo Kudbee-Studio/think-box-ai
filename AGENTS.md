@@ -509,7 +509,7 @@ Before claiming progress on the **#141–#150** arc:
 
 1. Read `docs/runbooks/kilo-live-proof-readiness.md`
 2. Run `python3 scripts/verify_kilo_spine.py` (exit 0)
-3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v`
+3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` and PR-specific gates (e.g. `test_kilo_live_proof_readiness_pr142` for #142)
 4. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
 5. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
 
@@ -539,17 +539,18 @@ Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury cl
 
 ## KILO Live-proof readiness arc (PR #141–#150)
 
-Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141** is the spine only — env docs, runbook, hermetic contracts — **not** Live proof, **not** live build, **not** GPU spin-up.
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141** spine merged; **PR #142** closes `env-matrix` — **not** Live proof, **not** live build, **not** GPU spin-up.
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
-| Env docs + runbook spine + hermetic gates | **#141** (draft) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
-| #142–#149 | planned | Close arc gates in runbook (`env-matrix` … `founder-ack`) |
+| Env docs + runbook spine + hermetic gates | **#141** (merged) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
+| Hermetic KILO env matrix + contract tests | **#142** (draft) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
+| #143–#149 | planned | Close arc gates in runbook (`substrate-checklist` … `founder-ack`) |
 | Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
 
-Four-state on #141 branch: **CODE COMPLETE / TEST VERIFIED** only.
+Four-state on #142 branch: **CODE COMPLETE / TEST VERIFIED** only.
 
 ---
 
