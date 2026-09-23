@@ -10,6 +10,7 @@ PR #153 adds ``live_smoke_operator`` summary (hermetic CLI write + audit flip ca
 PR #154 adds ``control_plane_api`` summary (HTTP surface upgrade; not Live proof).
 PR #155 adds ``receipt_chain_etag`` summary (chain pagination + ETag deepen; not Live proof).
 PR #156 adds ``dashboard_receipt_chain_bind`` (dashboard UI + END_LINK; not Live proof).
+PR #157 adds ``api_ops_harden`` (control-plane ops harden after #156; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -184,6 +185,7 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_dashboard_receipt_chain_bind import (
         dashboard_receipt_chain_bind_contract_summary,
     )
+    from thinkbox.kilo_api_ops_harden import api_ops_harden_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -204,6 +206,7 @@ def spine_contract_summary() -> dict[str, object]:
     control_plane_api_summary = control_plane_api_contract_summary()
     receipt_chain_etag_summary = receipt_chain_etag_contract_summary()
     dashboard_receipt_chain_bind_summary = dashboard_receipt_chain_bind_contract_summary()
+    api_ops_harden_summary = api_ops_harden_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -244,4 +247,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr155_gate_id": receipt_chain_etag_summary.get("pr155_gate_id"),
         "dashboard_receipt_chain_bind": dashboard_receipt_chain_bind_summary,
         "pr156_gate_id": dashboard_receipt_chain_bind_summary.get("pr156_gate_id"),
+        "api_ops_harden": api_ops_harden_summary,
+        "pr157_gate_id": api_ops_harden_summary.get("pr157_gate_id"),
     }

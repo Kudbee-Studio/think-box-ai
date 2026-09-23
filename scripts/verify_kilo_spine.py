@@ -61,6 +61,9 @@ def main() -> int:
     dashboard_bind_block = summary.get("dashboard_receipt_chain_bind") or {}
     if not dashboard_bind_block.get("hermetic_operator_ok"):
         return 1
+    api_ops_harden_block = summary.get("api_ops_harden") or {}
+    if not api_ops_harden_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 
