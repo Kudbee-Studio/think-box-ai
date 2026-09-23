@@ -59,6 +59,8 @@ SPINE_VERIFY_SCRIPTS: tuple[Path, ...] = (
     Path("scripts/verify_kilo_proof_schema.py"),
     Path("scripts/verify_kilo_dashboard_slots.py"),
     Path("scripts/verify_kilo_live_proof_exec.py"),
+    Path("scripts/verify_kilo_post_season_harden.py"),
+    Path("scripts/verify_kilo_live_smoke_evidence.py"),
     Path("scripts/verify_kilo_spine.py"),
     Path("scripts/scan_doc_secrets.py"),
 )
@@ -67,6 +69,7 @@ _REQUIRED_CI_SNIPPETS: tuple[str, ...] = (
     "verify_kilo_spine.py",
     "scan_doc_secrets.py",
     "verify_kilo_post_season_harden.py",
+    "verify_kilo_live_smoke_evidence.py",
 )
 
 _FORBIDDEN_LITERAL_CLAIMS = (
