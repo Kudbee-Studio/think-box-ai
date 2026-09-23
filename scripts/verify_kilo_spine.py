@@ -82,6 +82,9 @@ def main() -> int:
     e2e_deepen_block = summary.get("control_plane_e2e_deepen") or {}
     if not e2e_deepen_block.get("hermetic_operator_ok"):
         return 1
+    gov_evidence_readiness_block = summary.get("governance_evidence_live_proof_readiness") or {}
+    if not gov_evidence_readiness_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

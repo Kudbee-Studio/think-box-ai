@@ -1,0 +1,10 @@
+{
+  "founder_ack_env_key": "THINKBOX_SWARM_LIVE_ACK",
+  "box_url_env_key": "UPSTASH_PUBLIC_BOX_URL",
+  "founder_ack_documented": true,
+  "box_url_documented": true,
+  "live_api_called": false,
+  "live_verified": false,
+  "expect_metadata_ok": true,
+  "note": "Documented prereqs only — not satisfied in hermetic CI"
+}

@@ -17,6 +17,7 @@ PR #160 adds ``receipt_chain_end_link_docs`` (docs + audit pack after #159; not 
 PR #161 adds ``end_link_api_ops_harden`` (API/ops harden after #160; not Live proof).
 PR #162 adds ``control_plane_e2e_deepen`` (hermetic control-plane e2e suite after #161; not Live proof).
 PR #162 also retains ``receipt_chain_end_link_era_close`` (era audit pack #154–#161; not Live proof).
+PR #164 adds ``governance_evidence_live_proof_readiness`` (governance-evidence Live-proof readiness; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -199,6 +200,9 @@ def spine_contract_summary() -> dict[str, object]:
     )
     from thinkbox.kilo_end_link_api_ops_harden import end_link_api_ops_harden_contract_summary
     from thinkbox.kilo_control_plane_e2e_deepen import control_plane_e2e_deepen_contract_summary
+    from thinkbox.kilo_governance_evidence_live_proof_readiness import (
+        governance_evidence_live_proof_readiness_contract_summary,
+    )
     from thinkbox.kilo_receipt_chain_end_link_era_close import (
         receipt_chain_end_link_era_close_contract_summary,
     )
@@ -229,6 +233,9 @@ def spine_contract_summary() -> dict[str, object]:
     end_link_api_ops_harden_summary = end_link_api_ops_harden_contract_summary()
     receipt_chain_end_link_era_close_summary = receipt_chain_end_link_era_close_contract_summary()
     control_plane_e2e_deepen_summary = control_plane_e2e_deepen_contract_summary()
+    governance_evidence_live_proof_readiness_summary = (
+        governance_evidence_live_proof_readiness_contract_summary()
+    )
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -282,4 +289,6 @@ def spine_contract_summary() -> dict[str, object]:
         "receipt_chain_end_link_era_close": receipt_chain_end_link_era_close_summary,
         "control_plane_e2e_deepen": control_plane_e2e_deepen_summary,
         "pr162_gate_id": control_plane_e2e_deepen_summary.get("pr162_gate_id"),
+        "governance_evidence_live_proof_readiness": governance_evidence_live_proof_readiness_summary,
+        "pr164_gate_id": governance_evidence_live_proof_readiness_summary.get("pr164_gate_id"),
     }

@@ -1,15 +1,32 @@
 # STATUS — Think Box AI
 
-## PR #162 — Control-plane E2E hermetic suite deepen after #161 (DRAFT)
+## PR #164 — Governance-evidence Live-proof readiness (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `governance-evidence-live-proof-readiness` (layers `control-plane-e2e-deepen`, `governance-evidence`) |
+| **Scope** | Hermetic readiness document + fixtures; documented `THINKBOX_SWARM_LIVE_ACK` + `UPSTASH_PUBLIC_BOX_URL` prereqs; no live HTTP |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Verify** | `python3 scripts/verify_kilo_governance_evidence_live_proof_readiness.py` |
+
+## PR #163 — Control-plane E2E deepen merge (MERGED)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `control-plane-e2e-deepen` (checkpoint merge of #162) |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Verify** | `python3 scripts/verify_kilo_control_plane_e2e_deepen.py` |
+
+## PR #162 — Control-plane E2E hermetic suite deepen after #161 (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `control-plane-e2e-deepen` (layers `end-link-api-ops-harden`) |
 | **Scope** | F162 e2e harness + validate/batch/chain filters/integrity/ops envelope/fail-closed HTTP tests |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false`, `live_api_called: false` |
 | **Verify** | `python3 scripts/verify_kilo_control_plane_e2e_deepen.py` |
 
-Era audit close pack (`receipt-chain-end-link-era-close`) remains on main from the prior #162 checkpoint; this draft deepens hermetic e2e only.
+Era audit close pack (`receipt-chain-end-link-era-close`) remains on main from the prior era checkpoint.
 
 ## PR #161 — END LINK API / ops harden after #159–#160 (MERGED)
 
