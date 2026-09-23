@@ -95,7 +95,7 @@ Current repository health, infrastructure status, known defects, and improvement
 | Gate | Status |
 |------|--------|
 | CODE COMPLETE | Yes (control-plane UI: fetch SSE + poll fallback on #137 routes) |
-| TEST VERIFIED | Yes (`2455` OK, `8` skipped, `3` expected failures) |
+| TEST VERIFIED | Yes (`2462` OK, `8` skipped, `3` expected failures) |
 | LIVE VERIFIED | **No** — static UI + hermetic API tests only |
 | PRODUCTION READY | **No** |
 
@@ -115,7 +115,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2455 | ✅ | 8 | 3 | ✅ PASS (PR #138 draft gate) |
+| All unit + integration + e2e | 2462 | ✅ | 8 | 3 | ✅ PASS (PR #138 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

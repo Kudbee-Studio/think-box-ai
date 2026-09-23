@@ -42,7 +42,7 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **PR #139 (not started):** Think Job stream UI hardening (receipt-keyed watch, digest multiplex panel) — hermetic only. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2455 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` |
+| **Test count** | **2462 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` |
 
 ---
 
@@ -54,7 +54,7 @@ Before declaring completion, every agent MUST verify:
 |---|---|
 | **Scope** | `think_job_status.html`, `think_job_status_client.js`, `thinkbox/think_job_status_ui.py` |
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
-| **Tests** | 2455 OK; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr138.json` |
+| **Tests** | 2462 OK; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr138.json` |
 
 ### 2026-09-23 — PR #137 merged: Think Job status SSE stream (hermetic)
 

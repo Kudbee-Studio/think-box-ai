@@ -9,7 +9,7 @@
   "base_commit": "f523202",
   "suite": {
     "command": "python3 -m unittest discover -s tests -t .",
-    "ok": 2455,
+    "ok": 2462,
     "skipped": 8,
     "expected_failures": 3,
     "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
