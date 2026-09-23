@@ -91,6 +91,9 @@ def main() -> int:
     pr166_block = summary.get("pr166_combined_post165_lane") or {}
     if not pr166_block.get("hermetic_operator_ok"):
         return 1
+    pr167_block = summary.get("pr167_combined_post166_lane") or {}
+    if not pr167_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

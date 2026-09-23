@@ -385,14 +385,14 @@ def run_operator_fixture_suite() -> tuple[int, int, list[str]]:
             else:
                 positive += 1
                 if result.path and result.path.is_file():
-                    result.path.unlink()
+                    result.path.unlink(missing_ok=True)
         elif kind == "write_expect_fail":
             doc = payload.get("document") or {}
             result = write_smoke_evidence_artifact(doc, path=None)
             if result.ok:
                 errors.append(f"{name}: expected write fail got ok")
                 if result.path and result.path.is_file():
-                    result.path.unlink()
+                    result.path.unlink(missing_ok=True)
             else:
                 negative += 1
         elif kind == "build_expect_fail":

@@ -20,6 +20,7 @@ PR #162 also retains ``receipt_chain_end_link_era_close`` (era audit pack #154â€
 PR #164 adds ``governance_evidence_live_proof_readiness`` (governance-evidence Live-proof readiness; not Live proof).
 PR #165 adds ``pr165_combined_harden_era_chronicle`` (live-smoke audit-flip harden + post-#164 control-plane deepen + receipt-chain season harden + #154â€“#164 era chronicle; not Live proof).
 PR #166 adds ``pr166_combined_post165_lane`` (operator prep deepen + api ops post165 + dashboard PR165 bind + swarm/governance post165; not Live proof).
+PR #167 adds ``pr167_combined_post166_lane`` (operator audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/governance post166; not Live proof).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -214,6 +215,9 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_pr166_combined_post165_lane import (
         pr166_combined_post165_lane_contract_summary,
     )
+    from thinkbox.kilo_pr167_combined_post166_lane import (
+        pr167_combined_post166_lane_contract_summary,
+    )
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -246,6 +250,7 @@ def spine_contract_summary() -> dict[str, object]:
     )
     pr165_combined_summary = pr165_combined_harden_era_chronicle_contract_summary()
     pr166_combined_summary = pr166_combined_post165_lane_contract_summary()
+    pr167_combined_summary = pr167_combined_post166_lane_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -305,4 +310,6 @@ def spine_contract_summary() -> dict[str, object]:
         "pr165_gate_id": pr165_combined_summary.get("pr165_gate_id"),
         "pr166_combined_post165_lane": pr166_combined_summary,
         "pr166_gate_id": pr166_combined_summary.get("pr166_gate_id"),
+        "pr167_combined_post166_lane": pr167_combined_summary,
+        "pr167_gate_id": pr167_combined_summary.get("pr167_gate_id"),
     }
