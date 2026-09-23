@@ -148,6 +148,14 @@ def gate_ids() -> list[str]:
     return [gate.gate_id for gate in ARC_GATES]
 
 
+def gate_for_pr(pr_number: int) -> ArcGate | None:
+    """Return arc gate metadata for a PR number, if defined."""
+    for gate in ARC_GATES:
+        if gate.pr_number == pr_number:
+            return gate
+    return None
+
+
 def spine_contract_summary() -> dict[str, object]:
     """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads)."""
     runbook_raw = load_text(runbook_path())
