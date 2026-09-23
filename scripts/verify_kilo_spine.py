@@ -28,6 +28,7 @@ def main() -> int:
     if not governance_block.get("hermetic_operator_ok"):
         return 1
     mercury_block = summary.get("mercury_hermetic") or {}
+    # PR #147 swarm-instrumentation layers on mercury-hermetic.
     if not mercury_block.get("hermetic_operator_ok"):
         return 1
     swarm_block = summary.get("swarm_instrumentation") or {}
