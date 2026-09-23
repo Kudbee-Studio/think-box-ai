@@ -572,11 +572,14 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Combined harden + #154–#164 era chronicle (hermetic) | **#165** (merged) | `thinkbox/kilo_pr165_combined_harden_era_chronicle.py`, `thinkbox/live_smoke_audit_flip_correlation.py`, `scripts/verify_kilo_pr165_combined_harden.py` |
 | Combined post-#165 lane (operator prep + api ops + dashboard bind + swarm/gov) | **#166** (merged) | `thinkbox/kilo_pr166_combined_post165_lane.py`, `scripts/verify_kilo_pr166_combined_post165_lane.py` |
 | Combined post-#166 lane (audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/gov post166) | **#167** (merged) | `thinkbox/kilo_pr167_combined_post166_lane.py`, `scripts/verify_kilo_pr167_combined_post166_lane.py` |
-| Combined post-#167 lane (audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/gov post167) | **#168** (draft) | `thinkbox/kilo_pr168_combined_post167_lane.py`, `scripts/verify_kilo_pr168_combined_post167_lane.py` |
+| Combined post-#167 lane (audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/gov post167) | **#168** (merged) | `thinkbox/kilo_pr168_combined_post167_lane.py`, `scripts/verify_kilo_pr168_combined_post167_lane.py` |
+| Combined post-#168 lane (audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/gov post168) | **#169** (draft) | `thinkbox/kilo_pr169_combined_post168_lane.py`, `scripts/verify_kilo_pr169_combined_post168_lane.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #168 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr168` (`pr168-combined-post167-lane`) ships `live_verified: false` and `live_api_called: false`.
+Four-state on #169 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr169` (`pr169-combined-post168-lane`) ships `live_verified: false` and `live_api_called: false`. Post168 theme gates deepen **prior theme gates only** (not prior combined umbrella ×4).
+
+Four-state on #168 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr168` (`pr168-combined-post167-lane`) ships `live_verified: false` and `live_api_called: false`.
 
 Four-state on #167 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr167` (`pr167-combined-post166-lane`) ships `live_verified: false` and `live_api_called: false`.
 
