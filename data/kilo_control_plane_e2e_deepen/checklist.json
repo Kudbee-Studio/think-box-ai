@@ -1,0 +1,21 @@
+{
+  "gate_id": "control-plane-e2e-deepen",
+  "pr_number": 162,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "layers": [
+    "end-link-api-ops-harden",
+    "control-plane-e2e-deepen"
+  ],
+  "e2e_modules": [
+    "tests.e2e.test_f162_cp_validate_single_e2e",
+    "tests.e2e.test_f162_cp_batch_validate_e2e",
+    "tests.e2e.test_f162_cp_chain_filters_e2e",
+    "tests.e2e.test_f162_cp_chain_head_tail_e2e",
+    "tests.e2e.test_f162_cp_integrity_fields_e2e",
+    "tests.e2e.test_f162_cp_ops_envelope_e2e",
+    "tests.e2e.test_f162_cp_fail_closed_e2e"
+  ],
+  "verify_script": "scripts/verify_kilo_control_plane_e2e_deepen.py"
+}
