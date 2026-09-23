@@ -1,6 +1,7 @@
 """KILO Live-proof readiness spine contracts (PR #141).
 
 Hermetic documentation gates only — no live Mercury, GPU, or deploy side effects.
+PR #143 adds ``substrate_checklist`` summary layered on ``env_matrix``.
 """
 
 from __future__ import annotations
