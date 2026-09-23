@@ -8,7 +8,7 @@ Persistent, git-tracked audit state for Kudbee Studio / Think Box AI. Conversati
 |------|---------|
 | `AUDIT_INDEX.json` | Index of audit passes and checked areas |
 | `passes/YYYY-MM-DD-pr125.json` | One ranked finding list per audit pass |
-| `checklists/*.md` | Human-readable checklists by area (incl. `kilo-spine-pr141.md` for PR #141) |
+| `checklists/*.md` | Human-readable checklists by area (incl. `kilo-spine-pr141.md`, `kilo-env-matrix-pr142.md`) |
 | `checked/<area>.json` | Machine-readable check records per area |
 
 Each **checked item** includes:
