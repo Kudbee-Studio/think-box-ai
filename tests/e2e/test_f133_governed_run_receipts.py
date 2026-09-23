@@ -127,6 +127,7 @@ class TestGovernanceStatusReceiptFields(unittest.TestCase):
         self.assertIn("receipt_recent_experiments", body)
         self.assertIn("receipt_snapshot", body)
         self.assertIn("engine_index_size", body["receipt_snapshot"])
+        self.assertIn("think_job_status", body)
 
 
 if __name__ == "__main__":
