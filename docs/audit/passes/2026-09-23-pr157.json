@@ -1,0 +1,17 @@
+{
+  "audit_pass": "pr157",
+  "date": "2026-09-23",
+  "pr_number": 157,
+  "gate_id": "api-ops-harden",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "structured_error_envelopes",
+    "idempotency_key_header",
+    "ops_rate_limit_window",
+    "query_limit_clamp",
+    "dashboard_fetch_timeout",
+    "receipt_page_prev_link_integrity"
+  ]
+}
