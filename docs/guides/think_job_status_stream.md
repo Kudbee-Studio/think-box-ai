@@ -28,3 +28,8 @@ All routes require the same API key as other `/api/v1` surfaces. Query parameter
 
 CODE COMPLETE / TEST VERIFIED on branch only. **Not LIVE VERIFIED.** Hermetic mock
 provider only; no live Mercury.
+
+## Fallback
+
+Clients should keep poll (`GET .../status`) as fallback when SSE disconnects; poll
+responses include `poll.stream` paths pointing at these routes.
