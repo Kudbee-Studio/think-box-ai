@@ -295,7 +295,7 @@ def finalize_http_run_receipt(
         AgentSessionRecord(
             session_id=binding.session_id,
             agent_id=binding.agent_id,
-            started_at=now_iso,
+            started_at=session_started,
             ended_at=now_iso,
             last_completed_action="http_run_receipt_closed",
             current_state=status.upper(),
