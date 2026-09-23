@@ -1293,3 +1293,14 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 ---
 
 ---
+
+### 2026-09-23 — PR #127 founder-review doc correction (KUDBEECLI)
+
+- **AUDIT:** Founder-review blockers on draft PR #127 — KUDBEECLI section in `AGENTS.md` (via `kilo/great-cedar-qui` / `ced113b`) mis-attributed Phase 1 CLI to merged PR #126 and listed unimplemented commands (`agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture`).
+- **FINDING:** Phase 1 CLI begins at `d54b797` on the PR #127 branch; PR #126 merge `866a408` is audit/token/e2e scaffold only. AST-verified Phase 1 surface: `swarm agents`, `swarm status`, `ledger verify`, `proof check`, `env status`, `session list`.
+- **CORRECTION:** `AGENTS.md` — canonical PR table, Phase 1 command list (six commands only), explicit not-implemented list, Phase 2 boundary (persistence/REPL/dashboard/`swarm live` fail-closed) without claiming merge to `main`. Removed stray trailing backtick in dashboard testing section. `STATUS.md` / `PREP.md` unchanged (no duplicate wrong CLI claims on PR #127 branch).
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` on PR #127 branch after doc-only edit (counts recorded in agent report). `python3 scripts/scan_doc_secrets.py` clean.
+- **DECISION:** Docs-only fix on `cursor/pr127-f009-phase1-e2e`; no CLI code changes in this correction commit; PR #127 remains **OPEN / DRAFT**; no merge, no ready-for-review automation by agent.
+- **NEXT ACTION:** Coordinator opens separate draft **PR #128** (~25 improvements); founder merges PR #127 when satisfied.
+
+---

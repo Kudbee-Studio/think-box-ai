@@ -1,11 +1,34 @@
-# End-to-end tests (Phase 1 placeholder)
+# End-to-end tests (Phase 1 — hermetic)
 
-The Phase 1 architecture calls for mock-provider e2e coverage under `tests/e2e/`. **PR #126** adds a hermetic governed-runtime loop in `test_governed_runtime_loop.py` (no network). Full five-tool mock-provider loop remains **F023**.
+Phase 1 mock-provider coverage lives here. **No network**, no Upstash/Mercury credentials, no live substrate.
 
-**Target shape (not yet implemented):**
+## Governed runtime loop (F009)
 
-- Mock `ModelProvider` (no network)
-- Single agent, five tools, governed tool execution
-- Assert AdmissionGate + ActionLedger entries
+| File | Purpose |
+|------|---------|
+| `hermetic_scaffold.py` | Shared harness: `make_governed`, mock `complete_async` router, five-subtask Think Job specs |
+| `test_governed_runtime_loop.py` | Admission, denial, tool-capability denial, verified tasks, five-tool DAG loop |
 
-**Gate today:** `python3 -m unittest discover tests/` (unit + integration only).
+### Run only these tests
+
+```bash
+python3 -m unittest tests.e2e.test_governed_runtime_loop
+```
+
+### What is covered
+
+- Valid governance token → `execute_goal` / `execute_verified_goal` → `ActionLedger.verify()`
+- Invalid, revoked, and wrong-capability tokens → fail-closed + ledger denial entries
+- Permission-style tool denial via `tool:filesystem:write` without grant
+- Scripted mock-provider completions (`deterministic_emission_v2`) for verified tasks and DAGs
+- Five-subtask Think Job shape: submit → admission → execute → per-task proof → goal-level ledger metadata
+
+### Deferred (F023)
+
+Full Think Job lifecycle with `core.providers.ModelProvider` wiring, experiment persistence artifacts on disk, and dashboard emission remains **F023** — this directory prepares hermetic patterns only.
+
+## Full gate
+
+```bash
+python3 -m unittest discover tests/
+```

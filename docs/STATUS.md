@@ -58,7 +58,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 1. **Upstash Vector live writes** — embedder + dense upsert implemented; live index/credentials not verified in PR #125
 2. **UpCloud compute access** (`401 API token`) — no SSH key on disk, network blocked by Cloudflare
-3. **`tests/e2e/` directory** empty — Phase 1 requirement for end-to-end tests not yet fulfilled
+3. **`tests/e2e/` Think Job lifecycle** — hermetic governed loop covered (PR #127); full `ModelProvider` F023 lifecycle still TODO
 4. **Solana CLI not installed** — environment issue, unrelated to core Think Box functionality
 5. **Dashboard telemetry** — missing some instrumentation (see `experiments/verify_instrumentation.py`)
 
@@ -68,7 +68,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration | 2235 | ✅ | 8 | 3 | ✅ PASS (PR #125 gate) |
+| All unit + integration + e2e | 2249 | ✅ | 8 | 3 | ✅ PASS (PR #127 gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

@@ -2,9 +2,18 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-22T18:30:00Z",
+      "checker": "cursor-cloud-pr127",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
+      "finding_ids": ["F009"],
+      "notes": "11 hermetic e2e tests + scaffold; full suite 2249 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-22T15:05:00Z",
       "checker": "cursor-cloud-pr126",
-      "commit_sha": "f034d4ebf72ec341fd7afbcb3ed5e14bbd18b89f",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F009", "F010"],
       "notes": "e2e governed loop + test_doc_secrets_scan",
       "path": "tests/e2e/",
@@ -13,7 +22,7 @@
     {
       "checked_at": "2026-09-22T14:35:00Z",
       "checker": "cursor-cloud-pr125",
-      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F002", "F003"],
       "notes": "Full suite 2235 OK locally (incl. test_audit_ledger)",
       "path": "tests/",
@@ -22,7 +31,7 @@
     {
       "checked_at": "2026-09-22T14:35:00Z",
       "checker": "cursor-cloud-pr125",
-      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F009"],
       "notes": "e2e directory empty except README scaffold",
       "path": "tests/e2e/",
