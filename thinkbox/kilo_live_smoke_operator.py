@@ -425,11 +425,9 @@ def _hermetic_roundtrip_write() -> tuple[bool, str]:
         )
         if flip.get("audit_flip_status") != "refused":
             return False, "hermetic flip must refuse without founder live predicates"
-        if flip_path.is_file():
-            flip_path.unlink()
+        flip_path.unlink(missing_ok=True)
     finally:
-        if result.path.is_file():
-            result.path.unlink()
+        result.path.unlink(missing_ok=True)
     return True, "hermetic roundtrip ok"
 
 

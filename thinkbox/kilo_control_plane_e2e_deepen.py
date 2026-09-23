@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +24,12 @@ from thinkbox.kilo_end_link_api_ops_harden import (
     minimal_end_link_api_ops_harden_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_hermetic_subprocess import (
+    DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS,
+    e2e_unittest_skipped_by_default,
+    nested_e2e_unittest_enabled,
+    run_bounded_unittest_modules,
+)
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -217,17 +222,19 @@ def run_e2e_fixture_suite() -> tuple[int, int, list[str]]:
 
 
 def run_hermetic_e2e_unittest_suite() -> tuple[bool, str]:
-    cmd = [sys.executable, "-m", "unittest"] + list(E2E_TEST_MODULES)
-    proc = subprocess.run(
-        cmd,
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+    if not nested_e2e_unittest_enabled():
+        return True, "skipped:KILO_RUN_NESTED_E2E_UNITTEST_not_set"
+    result = run_bounded_unittest_modules(
+        E2E_TEST_MODULES,
+        repo_root=REPO_ROOT,
+        timeout_seconds=DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS,
     )
-    if proc.returncode != 0:
-        return False, proc.stdout + proc.stderr
-    return True, proc.stdout
+    log = result.stdout + result.stderr
+    if result.timed_out:
+        return False, f"e2e_unittest_timeout:{DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS}s\n{log[:500]}"
+    if result.returncode != 0:
+        return False, log
+    return True, log
 
 
 def evaluate_control_plane_e2e_deepen(
@@ -323,6 +330,8 @@ def control_plane_e2e_deepen_contract_summary(
         "control_plane_e2e_deepen": CONTROL_PLANE_E2E_DEEPEN_LABEL,
         "control_plane_e2e_deepen_version": CONTROL_PLANE_E2E_DEEPEN_VERSION,
         "e2e_test_module_count": len(E2E_TEST_MODULES),
+        "e2e_unittest_skipped_default": e2e_unittest_skipped_by_default(),
+        "e2e_unittest_ran": nested_e2e_unittest_enabled(),
         "detected_mode": detect_matrix_mode(env).value,
         "hermetic_operator_ok": result.ok,
         "end_link_api_ops_harden_ok": result.end_link_api_ops_harden_ok,
