@@ -540,7 +540,7 @@ Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury cl
 
 ## KILO Live-proof readiness arc (PR #141–#150)
 
-Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#148** merged; **PR #144** CI/post-merge fix; **PR #149** closes `dashboard-slots` — **not** Live proof, **not** live build, **not** GPU spin-up.
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#149** merged; **PR #150** closes `live-proof-exec` and **ends the arc season** — **not** Live proof executed in #150, **not** live build, **not** GPU spin-up. Cloud Bot on standby after #150 merge (no #151 unless founder asks).
 
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
@@ -552,12 +552,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Mercury hermetic mocks + live-gate stub | **#146** (merged) | `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py` |
 | Swarm instrumentation hermetic catalog | **#147** (merged) | `thinkbox/kilo_swarm_instrumentation.py`, `scripts/verify_kilo_swarm_instrumentation.py` |
 | Proof JSON schema + cue/dependency contract | **#148** (merged) | `thinkbox/kilo_proof_schema.py`, `scripts/verify_kilo_proof_schema.py` |
-| Dashboard Live-proof slots (hermetic) | **#149** (draft) | `thinkbox/kilo_dashboard_slots.py`, `scripts/verify_kilo_dashboard_slots.py` |
-| Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
+| Dashboard Live-proof slots (hermetic) | **#149** (merged) | `thinkbox/kilo_dashboard_slots.py`, `scripts/verify_kilo_dashboard_slots.py` |
+| Live proof execution plan (hermetic) | **#150** (draft) | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py` |
 
-**Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
+**Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #149 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED.
+Four-state on #150 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr150` ships `live_verified: false`.
 
 ---
 

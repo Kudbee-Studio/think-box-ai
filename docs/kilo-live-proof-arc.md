@@ -1,27 +1,32 @@
 # KILO → Live proof readiness arc (#141–#150)
 
 **Owner:** Founder-directed arc (2026-09-23)  
-**Goal:** Prepare KILO so a later **Live proof** can be earned honestly — not to run Live proof in the spine PR.
+**Goal:** Prepare KILO so a later **Live proof** can be earned honestly — not to run Live proof in the spine PRs.
+
+**Season status (PR #150):** Arc checklist **closed** at CODE COMPLETE / TEST VERIFIED. Cloud Bot on standby — no #151 unless founder asks.
 
 ## Scope
 
 | Phase | PRs | Outcome |
 |-------|-----|---------|
 | Spine | **#141** | Docs, runbook, hermetic contract module, gate stubs (**merged**) |
-| Readiness | **#142–#149** | Close env, substrate, governance, Mercury hermetic, swarm, proof schema, dashboard gates |
-| Env matrix | **#142** (merged) | `thinkbox/kilo_env_matrix.py` + `verify_kilo_env_matrix.py` |
-| Substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py` + `verify_kilo_substrate_checklist.py` |
-| CI fix | **#144** (merged) | Post-merge unittest discover green — **not** a readiness gate closure |
-| Governance evidence | **#145** (merged) | Gate `governance-evidence`: `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
-| Mercury hermetic | **#146** (merged) | `thinkbox/kilo_mercury_hermetic.py` + `verify_kilo_mercury_hermetic.py` |
-| Swarm instrumentation | **#147** (merged) | `thinkbox/kilo_swarm_instrumentation.py` + `verify_kilo_swarm_instrumentation.py` |
-| Proof schema | **#148** (merged) | `thinkbox/kilo_proof_schema.py` + `verify_kilo_proof_schema.py` |
-| Dashboard slots | **#149** (this arc step) | `thinkbox/kilo_dashboard_slots.py` + `verify_kilo_dashboard_slots.py` |
-| Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
+| Readiness | **#142–#149** | Close env, substrate, governance, Mercury hermetic, swarm, proof schema, dashboard gates (**merged**) |
+| Season close | **#150** | `live-proof-exec` execution plan + operator verify (**hermetic**; not Live proof run) |
+
+| Gate | PR | Module |
+|------|-----|--------|
+| env-matrix | #142 | `thinkbox/kilo_env_matrix.py` |
+| substrate-checklist | #143 | `thinkbox/kilo_substrate_checklist.py` |
+| governance-evidence | #145 | `thinkbox/kilo_governance_evidence.py` |
+| mercury-hermetic | #146 | `thinkbox/kilo_mercury_hermetic.py` |
+| swarm-instrumentation | #147 | `thinkbox/kilo_swarm_instrumentation.py` |
+| proof-schema | #148 | `thinkbox/kilo_proof_schema.py` |
+| dashboard-slots | #149 | `thinkbox/kilo_dashboard_slots.py` |
+| live-proof-exec | #150 | `thinkbox/kilo_live_proof_exec.py` |
 
 ## Four-state (arc-wide)
 
-Until #150 Live proof completes with artifacts:
+Until a **founder-run** bounded Live proof completes with artifacts:
 
 - **Allowed:** CODE COMPLETE, TEST VERIFIED  
 - **Forbidden:** LIVE VERIFIED, PRODUCTION READY for the **KILO Live proof** product claim
@@ -32,19 +37,12 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 
 - Runbook: `docs/runbooks/kilo-live-proof-readiness.md`
 - Contract: `thinkbox/kilo_live_proof_readiness.py`
-- Env matrix: `thinkbox/kilo_env_matrix.py`
-- Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
-- Governance evidence: `thinkbox/kilo_governance_evidence.py`
-- Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
-- Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`
-- Proof schema: `thinkbox/kilo_proof_schema.py`
-- Dashboard slots: `thinkbox/kilo_dashboard_slots.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr149.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr149.json` (draft)
+- Live-proof exec: `thinkbox/kilo_live_proof_exec.py`
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr150.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr150.json` (`live_verified: false` for #150)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
-## Non-binding #150 suggestion
+## Earning LIVE VERIFIED (post-#150)
 
-**#149** ships `dashboard-slots` on top of `proof-schema` (hermetic slot binds, multiplex digest identity). Optional non-binding follow-on: **#150** `live-proof-exec` — earns LIVE VERIFIED only when founder runs bounded Live proof with Box URL + artifacts.
-
+Founder-run only: bounded smoke per runbook, artifact `data/thinkboxmd/artifacts/kilo_live_proof_*.json`, audit pass with `live_verified: true`, CONTINUITY entry with hash. Not part of PR #150 merge.

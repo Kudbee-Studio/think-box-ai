@@ -70,6 +70,16 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** KILO LIVE VERIFIED |
 | **Runbook** | `docs/runbooks/kilo-live-proof-readiness.md` |
 
+## PR #150 — KILO live-proof-exec (draft, arc season close)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `live-proof-exec` |
+| **Scope** | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`, spine wiring |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — audit `live_verified: false` |
+| **Season** | Arc #141–#150 closed at hermetic gates; Cloud Bot standby; Live proof founder-run post-merge |
+| **Verify** | `python3 scripts/verify_kilo_live_proof_exec.py` |
+
 ---
 
 ## Overview

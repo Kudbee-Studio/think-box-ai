@@ -3,6 +3,7 @@
 Hermetic documentation gates only — no live Mercury, GPU, or deploy side effects.
 PR #143 adds ``substrate_checklist`` summary layered on ``env_matrix``.
 PR #145 adds ``governance_evidence`` summary layered on env-matrix + substrate-checklist.
+PR #150 adds ``live_proof_exec`` summary (arc season close; hermetic only).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -169,6 +170,7 @@ def spine_contract_summary() -> dict[str, object]:
     from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
     from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
     from thinkbox.kilo_dashboard_slots import dashboard_slots_contract_summary
+    from thinkbox.kilo_live_proof_exec import live_proof_exec_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
 
@@ -181,6 +183,7 @@ def spine_contract_summary() -> dict[str, object]:
     swarm_summary = swarm_instrumentation_contract_summary()
     proof_schema_summary = proof_schema_contract_summary()
     dashboard_slots_summary = dashboard_slots_contract_summary()
+    live_proof_exec_summary = live_proof_exec_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -199,6 +202,8 @@ def spine_contract_summary() -> dict[str, object]:
         "pr147_gate_id": (gate_for_pr(147).gate_id if gate_for_pr(147) else None),
         "pr148_gate_id": (gate_for_pr(148).gate_id if gate_for_pr(148) else None),
         "pr149_gate_id": (gate_for_pr(149).gate_id if gate_for_pr(149) else None),
+        "pr150_gate_id": (gate_for_pr(150).gate_id if gate_for_pr(150) else None),
+        "arc_season_complete": True,
         "env_matrix": env_summary,
         "substrate_checklist": substrate_summary,
         "governance_evidence": governance_summary,
@@ -206,4 +211,5 @@ def spine_contract_summary() -> dict[str, object]:
         "swarm_instrumentation": swarm_summary,
         "proof_schema": proof_schema_summary,
         "dashboard_slots": dashboard_slots_summary,
+        "live_proof_exec": live_proof_exec_summary,
     }

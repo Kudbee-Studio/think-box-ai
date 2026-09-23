@@ -1,0 +1,31 @@
+{
+  "schema_version": "kilo-live-proof-exec-v1",
+  "plan_id": "kilo_live_proof_exec_invalid_ack",
+  "gate_id": "live-proof-exec",
+  "pr_number": 150,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "prior_gate_ids": [
+    "spine-docs",
+    "env-matrix",
+    "substrate-checklist",
+    "ci-post-merge",
+    "governance-evidence",
+    "mercury-hermetic",
+    "swarm-instrumentation",
+    "proof-schema",
+    "dashboard-slots"
+  ],
+  "founder_ack_env_key": "WRONG_ACK_ENV",
+  "box_url_env_key": "UPSTASH_PUBLIC_BOX_URL",
+  "steps": [
+    {"step_id": "a", "action": "x", "network": "none"},
+    {"step_id": "b", "action": "y", "network": "none"},
+    {"step_id": "c", "action": "z", "network": "none"}
+  ],
+  "artifact_paths": ["data/thinkboxmd/artifacts/kilo_live_proof_bad.json"],
+  "halt_reasons_allowed": ["user_stop"],
+  "season_arc_marker": "kilo-live-proof-arc-141-150-season-closed"
+}
