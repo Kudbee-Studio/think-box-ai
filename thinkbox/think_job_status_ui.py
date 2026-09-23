@@ -398,3 +398,97 @@ def digest_row_label(row: Mapping[str, Any]) -> str:
 
 def apply_digest_stream_event(
     panel: MultiplexPanelState,
+    event: Mapping[str, Any],
+) -> bool:
+    """Merge jobs digest SSE hello/delta into multiplex panel."""
+    kind = str(event.get("kind") or "")
+    if kind == "think_jobs_stream_hello":
+        digest = event.get("digest")
+        if isinstance(digest, dict):
+            panel.digest_document = dict(digest)
+            panel.dashboard_revision = int(digest.get("dashboard_revision") or 0)
+        return True
+    if kind == "think_jobs_digest_delta":
+        digest = event.get("digest")
+        if isinstance(digest, dict):
+            panel.digest_document = dict(digest)
+        rev = int(event.get("dashboard_revision") or 0)
+        if rev:
+            panel.dashboard_revision = rev
+        return True
+    return False
+
+
+def merge_jobs_list_into_panel(
+    panel: MultiplexPanelState,
+    list_document: Mapping[str, Any],
+) -> None:
+    """Attach poll list rows alongside digest counts."""
+    panel.digest_jobs = list(select_jobs_from_digest(list_document))
+    rev = int(list_document.get("dashboard_revision") or 0)
+    if rev:
+        panel.dashboard_revision = rev
+
+
+def multiplex_chip_label(panel: MultiplexPanelState) -> str:
+    """Human-readable multiplex status for UI chips."""
+    parts: list[str] = []
+    if panel.digest_transport != TransportMode.IDLE:
+        parts.append(f"digest:{panel.digest_transport.value}")
+    if panel.watch_transport != TransportMode.IDLE:
+        parts.append(f"watch:{panel.watch_transport.value}")
+    if panel.active_target:
+        parts.append(f"{panel.active_target.kind.value}:{panel.active_target.key[:12]}")
+    return " · ".join(parts) if parts else "idle"
+
+
+def select_jobs_from_digest(digest: Mapping[str, Any], limit: int = 50) -> Sequence[dict[str, Any]]:
+    jobs = digest.get("jobs")
+    if not isinstance(jobs, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in jobs[: max(1, min(limit, 200))]:
+        if isinstance(item, dict):
+            out.append(item)
+    return out
+
+
+__all__ = [
+    "TransportMode",
+    "WatchKeyKind",
+    "RECEIPT_KEY_MAX_LEN",
+    "StreamEndpointPlan",
+    "ThinkJobClientTelemetry",
+    "ThinkJobWatchState",
+    "WatchTarget",
+    "MultiplexPanelState",
+    "api_headers",
+    "format_job_poll_path",
+    "format_receipt_poll_path",
+    "format_jobs_digest_poll_path",
+    "format_jobs_list_poll_path",
+    "format_job_stream_path",
+    "format_receipt_stream_path",
+    "format_jobs_digest_stream_path",
+    "normalize_receipt_key",
+    "normalize_engine_key",
+    "resolve_watch_target",
+    "poll_path_for_target",
+    "assert_receipt_watch_consistency",
+    "build_stream_url",
+    "stream_url_from_poll_payload",
+    "stream_plan_for_watch_target",
+    "append_query_api_key",
+    "parse_sse_buffer_incremental",
+    "parse_sse_data_events",
+    "apply_status_event",
+    "apply_digest_stream_event",
+    "merge_jobs_list_into_panel",
+    "multiplex_chip_label",
+    "backoff_delay_ms",
+    "should_enter_poll_fallback",
+    "classify_transport_after_error",
+    "terminal_from_summary",
+    "digest_row_label",
+    "select_jobs_from_digest",
+]
