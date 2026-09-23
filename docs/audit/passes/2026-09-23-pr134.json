@@ -1,0 +1,92 @@
+{
+  "base_commit": "ba66a8122d0267757cfe8250744bb38caf795c88",
+  "checker": "cursor-cloud-pr134",
+  "commit_rollup": [
+    "feat(job-status): poll schema and receipt card builders",
+    "feat(api): GET think job status by engine id",
+    "feat(api): status by receipt and list endpoints",
+    "feat(api): receipt-card dashboard route",
+    "feat(governance): think_job_status snapshot on governance status",
+    "feat(receipts): receipt_card on receipt dashboard emit",
+    "feat(run): receipt_card on JOB_COMPLETED dashboard payload",
+    "feat(dashboard): think_job_receipt_summary in get_state",
+    "test(unit): run_job_status resolution and redaction",
+    "test(e2e): f134 POST poll receipt linkage",
+    "docs(guides): governed run HTTP status polling section",
+    "docs(continuity): PR134 state and PR135 theme",
+    "docs(status): suite count and PR134 note",
+    "chore(audit): pr134 pass record",
+    "test(e2e): unknown receipt 404 fail-closed",
+    "test(unit): resolve status by receipt id",
+    "test(unit): goal_preview on status payload",
+    "test(e2e): OpenAPI lists status routes",
+    "fix(api): clamp jobs status list limit 1-200",
+    "docs(e2e): README F134 section",
+    "chore(audit): AUDIT_INDEX pr134 entry",
+    "chore(audit): checked tests pr134 row",
+    "test(e2e): governance think_job_status counters",
+    "refactor(job-status): sqlite fallback when dashboard cleared",
+    "docs(status): PR134 four-state honesty footer"
+  ],
+  "completed_at": "2026-09-23T18:00:00Z",
+  "pass_id": "pr134",
+  "prior_pass": "passes/2026-09-23-pr133.json",
+  "started_at": "2026-09-23T16:30:00Z",
+  "title": "PR134 — Think Job status poll + receipt-linked dashboard card (~25 improvements)",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2381,
+    "skipped": 8,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "findings": [
+    {
+      "id": "F134-STATUS-MODULE",
+      "rank": 1,
+      "severity": "P1",
+      "title": "run_job_status poll schema + receipt card",
+      "status": "done",
+      "paths": ["backend/api/v1/run_job_status.py"]
+    },
+    {
+      "id": "F134-GET-STATUS",
+      "rank": 2,
+      "severity": "P1",
+      "title": "GET /run/job/{engine_id}/status",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py"]
+    },
+    {
+      "id": "F134-404",
+      "rank": 3,
+      "severity": "P1",
+      "title": "think_job_not_found fail-closed 404",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py", "tests/e2e/test_f134_think_job_status_poll.py"]
+    },
+    {
+      "id": "F134-RECEIPT-CARD",
+      "rank": 4,
+      "severity": "P1",
+      "title": "receipt_card on JOB_COMPLETED and receipt emit",
+      "status": "done",
+      "paths": ["backend/api/v1/run_governed.py", "backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F134-E2E-POLL",
+      "rank": 5,
+      "severity": "P1",
+      "title": "POST run then poll until terminal with receipt linkage",
+      "status": "done",
+      "paths": ["tests/e2e/test_f134_think_job_status_poll.py"]
+    }
+  ],
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "suggested_next_pr": "PR135 — hermetic SSE/stream of Think Job status deltas (no live Mercury)"
+}
