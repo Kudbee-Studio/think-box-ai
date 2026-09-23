@@ -67,6 +67,18 @@ class TestRunAdmissionParsing(unittest.TestCase):
         )
         self.assertEqual(ctx.capability, DEFAULT_VERIFIED_CAPABILITY)
 
+    def test_header_capability_overrides_default(self) -> None:
+        ctx = parse_run_admission(
+            agent_id="a1",
+            governance_token="tok",
+            header_token=None,
+            header_capability="tool:custom:cap",
+            capability=None,
+            verified=False,
+            subtasks=None,
+        )
+        self.assertEqual(ctx.capability, "tool:custom:cap")
+
     def test_header_token_overrides_empty_body_token(self) -> None:
         ctx = parse_run_admission(
             agent_id="a1",
