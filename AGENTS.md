@@ -556,11 +556,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Live proof execution plan (hermetic) | **#150** (merged) | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py` |
 | Post-season harden (ops) | **#151** (merged) | `thinkbox/kilo_post_season_harden.py`, `scripts/verify_kilo_post_season_harden.py` |
 | Bounded live smoke evidence + audit flip | **#152** (merged) | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py` |
-| Live-smoke operator path (write artifact + flip candidate) | **#153** (draft) | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py` |
+| Live-smoke operator path (write artifact + flip candidate) | **#153** (merged) | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py` |
+| Control-plane API surface upgrade (HTTP routes + contract) | **#154** (draft) | `thinkbox/kilo_control_plane_api.py`, `backend/api/v1/control_plane.py`, `scripts/verify_kilo_control_plane_api.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #153 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr153` ships `live_verified: false`.
+Four-state on #154 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr154` ships `live_verified: false`.
 
 ---
 
