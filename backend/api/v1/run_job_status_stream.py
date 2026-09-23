@@ -206,4 +206,73 @@ async def iter_think_job_status_stream_by_receipt(
         yield frame
 
 
+async def iter_jobs_status_stream(
+    *,
+    limit: int = 50,
+    limits: ThinkJobStreamLimits | None = None,
+) -> AsyncGenerator[str, None]:
+    """Multiplex digest + revision deltas for recent dashboard jobs."""
+    limits = limits or ThinkJobStreamLimits()
+    dashboard = get_dashboard_state()
+    stream_id = new_stream_id()
+    sequence = 0
+    events_sent = 0
+    started = time.monotonic()
+    last_rev = dashboard.revision()
+    hub = get_think_job_stream_hub()
 
+    from backend.api.v1.run_job_status import list_think_job_status_digest
+
+    digest = list_think_job_status_digest(limit=limit)
+    hello = {
+        "kind": "think_jobs_stream_hello",
+        "schema_version": STREAM_SCHEMA_VERSION,
+        "stream_id": stream_id,
+        "digest": digest,
+        "live_verified": False,
+        "production_ready": False,
+    }
+    yield format_sse_data(hello, event="hello")
+    events_sent += 1
+
+    while events_sent < limits.max_events:
+        if time.monotonic() - started > limits.idle_timeout_s:
+            yield format_sse_data(
+                build_stream_terminal(
+                    stream_id=stream_id,
+                    job_id="*",
+                    sequence=sequence,
+                    reason="idle_timeout",
+                ),
+                event="close",
+            )
+            return
+        rev = dashboard.revision()
+        if rev != last_rev:
+            digest = list_think_job_status_digest(limit=limit)
+            payload = {
+                "kind": "think_jobs_digest_delta",
+                "schema_version": STREAM_SCHEMA_VERSION,
+                "stream_id": stream_id,
+                "sequence": sequence,
+                "digest": digest,
+                "dashboard_revision": rev,
+                "live_verified": False,
+                "production_ready": False,
+            }
+            yield format_sse_data(payload, event="digest")
+            events_sent += 1
+            sequence += 1
+            last_rev = rev
+        try:
+            await asyncio.wait_for(_wait_for_hub(hub, last_rev), timeout=limits.poll_interval_s)
+        except asyncio.TimeoutError:
+            pass
+        last_rev = dashboard.revision()
+
+
+async def _wait_for_hub(hub: Any, last_rev: int) -> None:
+    dashboard = get_dashboard_state()
+    start_gen = hub.generation()
+    while hub.generation() == start_gen and dashboard.revision() == last_rev:
+        await asyncio.sleep(limits_poll_interval())
