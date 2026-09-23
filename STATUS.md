@@ -918,6 +918,12 @@ python3 scripts/scan_doc_secrets.py
 **Status:** Merged — **`env-matrix`** in **#141–#150** arc  
 **Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`
 
+## PR #150 — KILO live-proof-exec (DRAFT, season close)
+
+**Status:** Draft — closes **`live-proof-exec`**; arc #141–#150 season complete at TEST VERIFIED (not LIVE VERIFIED)  
+**Scope:** `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`  
+**Post-merge:** Cloud Bot on standby — no #151 unless founder asks
+
 ## PR #141 — KILO Live-proof readiness spine (MERGED)
 
 **Status:** Merged — start of **#141–#150** arc (docs + hermetic gates; no Live proof)  
