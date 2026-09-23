@@ -852,11 +852,11 @@ python3 -m unittest \
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
 
-## PR #142 — KILO env-matrix gate (DRAFT)
+## PR #143 — KILO substrate-checklist gate (DRAFT)
 
-**Status:** Draft — closes **`env-matrix`** in **#141–#150** arc (hermetic env contracts; no Live proof)  
-**Branch:** `cursor/pr142-kilo-env-matrix-9aa0`  
-**Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`, PR #142 hermetic tests
+**Status:** Draft — closes **`substrate-checklist`** in **#141–#150** arc (Box URL/token readiness on env-matrix; no Live proof)  
+**Branch:** `cursor/pr143-kilo-substrate-checklist-fe6b`  
+**Scope:** `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py`, PR #143 hermetic tests
 
 ### Four-State
 
@@ -867,11 +867,16 @@ Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory
 ### Tests
 
 ```bash
-python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v
-python3 scripts/verify_kilo_env_matrix.py
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
+python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 ```
+
+## PR #142 — KILO env-matrix gate (MERGED)
+
+**Status:** Merged — **`env-matrix`** in **#141–#150** arc  
+**Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`
 
 ## PR #141 — KILO Live-proof readiness spine (MERGED)
 
