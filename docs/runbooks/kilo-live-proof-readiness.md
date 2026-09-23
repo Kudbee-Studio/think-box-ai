@@ -68,8 +68,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H17 | KILO control-plane-api gate (`scripts/verify_kilo_control_plane_api.py` exit 0) | PR #154 tests |
 | H18 | KILO receipt-chain-etag gate (`scripts/verify_kilo_receipt_chain_etag.py` exit 0) | PR #155 tests |
 | H19 | KILO dashboard-receipt-chain-bind gate (`scripts/verify_kilo_dashboard_receipt_chain_bind.py` exit 0) | PR #156 tests |
+| H20 | KILO api-ops-harden gate (`scripts/verify_kilo_api_ops_harden.py` exit 0) | PR #157 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#156 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#157 hermetic gates.
 
 ---
 
@@ -88,7 +89,7 @@ No `INCEPTION_API_KEY` consumption is required for #141–#156 hermetic gates.
 | 149 | Dashboard / control-plane Live proof slots (hermetic) | `dashboard-slots` | #149 |
 | **150** | Live-proof **execution plan** + founder ack contract (`THINKBOX_SWARM_LIVE_ACK` + `UPSTASH_PUBLIC_BOX_URL`; LIVE VERIFIED only when founder runs proof) | `live-proof-exec` | **#150 (season close)** |
 
-**Season close (#150):** Arc #141–#150 checklist is complete at CODE COMPLETE / TEST VERIFIED. Cloud Bot on standby — no #151 unless founder asks. KILO LIVE VERIFIED remains earned only via founder-run bounded smoke + `data/thinkboxmd/artifacts/kilo_live_proof_*.json` + audit pass with `live_verified: true`.
+**Season close (#150):** Arc #141–#150 checklist is complete at CODE COMPLETE / TEST VERIFIED. Cloud Bot on standby — no #151 unless founder asks. Spine `live_verified: true` remains earned only via founder-run bounded smoke + `data/thinkboxmd/artifacts/kilo_live_proof_*.json` + audit pass scoped to KILO Live proof.
 
 ---
 
