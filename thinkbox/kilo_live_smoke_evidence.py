@@ -558,18 +558,34 @@ def audit_flip_candidate(
     artifact_exists: bool = False,
 ) -> dict[str, Any]:
     """Produce candidate audit pass; never invent live_verified without predicates."""
+    from thinkbox.live_smoke_audit_flip_correlation import (
+        correlate_smoke_evidence_with_audit_pass,
+    )
+
     candidate = copy.deepcopy(dict(audit_pass))
     four_state = candidate.get("four_state")
     if not isinstance(four_state, dict):
         four_state = {}
         candidate["four_state"] = four_state
 
+    correlation = correlate_smoke_evidence_with_audit_pass(
+        evidence,
+        audit_pass,
+        artifact_exists=artifact_exists,
+    )
+    candidate["smoke_audit_correlation"] = correlation
+
     reasons: list[str] = []
     if not can_flip_audit_live_verified(evidence, artifact_exists=artifact_exists):
         reasons.append("evidence_predicates_incomplete")
+        missing = correlation.get("missing_predicates") or []
+        if missing:
+            reasons.append(f"missing:{','.join(missing[:6])}")
     val = validate_smoke_evidence_document(evidence, artifact_exists=artifact_exists)
     if not val.ok:
         reasons.append("evidence_validation_failed")
+    if correlation.get("operator_aligns_with_audit") is False:
+        reasons.append("operator_audit_pr_mismatch")
 
     if reasons:
         four_state["live_verified"] = False
@@ -577,6 +593,7 @@ def audit_flip_candidate(
         candidate["audit_flip_status"] = "refused"
         candidate["audit_flip_refusal_reasons"] = reasons
         candidate["pr152_gate_id"] = GATE_ID
+        candidate["live_verified"] = False
         return candidate
 
     four_state["live_verified"] = True
