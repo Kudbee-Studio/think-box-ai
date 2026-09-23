@@ -35,7 +35,7 @@ Poll after `POST /run` using `engine_id` (same as `job_id`):
 - `GET /api/v1/run/jobs/status?limit=N` — recent jobs (redacted, max 200)
 - `GET /api/v1/dashboard/think-job/{engine_id}/receipt-card` — dashboard card payload only
 
-Unknown ids return **404** `think_job_not_found` (fail-closed).
+Unknown ids return **404** `think_job_not_found` (fail-closed). Poll clients should stop when `poll.terminal` is true.
 
 ## Fail-closed
 
