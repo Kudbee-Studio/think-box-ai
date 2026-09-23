@@ -36,6 +36,15 @@
       "notes": "Addendum references PR #125 pass",
       "path": "docs/PREP.md",
       "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T20:00:00Z",
+      "checker": "cursor-cloud-pr160",
+      "commit_sha": "pending",
+      "finding_ids": [],
+      "notes": "PR #160 receipt-chain / END_LINK operator rollup + era audit pack",
+      "path": "docs/guides/kilo_receipt_chain_end_link_operator.md",
+      "status": "pass"
     }
   ]
 }
