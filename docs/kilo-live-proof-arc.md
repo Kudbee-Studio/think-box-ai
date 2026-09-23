@@ -10,7 +10,7 @@
 | Spine | **#141** | Docs, runbook, hermetic contract module, gate stubs (**merged**) |
 | Readiness | **#142–#149** | Close env, substrate, governance, Mercury hermetic, swarm, proof schema, dashboard, founder ack gates |
 | Env matrix | **#142** (merged) | `thinkbox/kilo_env_matrix.py` + `verify_kilo_env_matrix.py` |
-| Substrate checklist | **#143** (draft) | `thinkbox/kilo_substrate_checklist.py` + `verify_kilo_substrate_checklist.py` |
+| Substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py` + `verify_kilo_substrate_checklist.py` |
 | Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
 
 ## Four-state (arc-wide)
