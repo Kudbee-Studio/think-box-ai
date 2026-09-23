@@ -271,7 +271,13 @@ def finalize_http_run_receipt(
         },
     )
     rec = stack.manager.db.get_experiment(exp_id)
+    session_started = now_iso
     if rec:
+        session_row = stack.manager.db.restart_recovery().get("recent_sessions", [])
+        for s in session_row:
+            if s.get("session_id") == binding.session_id and s.get("started_at"):
+                session_started = s["started_at"]
+                break
         updated = ExperimentRecord(
             experiment_id=exp_id,
             session_id=binding.session_id,
@@ -364,6 +370,44 @@ def write_simple_http_run_proof(
     return str(path), digest
 
 
+def _param_value(raw: Any) -> str:
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw.strip().strip('"')
+    return str(raw)
+
+
+def _experiment_id_for_receipt(stack: HttpRunPersistence, receipt_id: str) -> str | None:
+    if stack.manager.db.get_experiment(receipt_id):
+        return receipt_id
+    for row in stack.manager.db.restart_recovery().get("recent_experiments", []):
+        exp_id = row["experiment_id"]
+        for p in stack.manager.db.get_parameters_by_experiment(exp_id):
+            if p.get("name") == "receipt_id" and _param_value(p.get("value")) == receipt_id:
+                return exp_id
+    return None
+
+
+def _receipt_id_for_engine(stack: HttpRunPersistence, engine_id: str) -> str | None:
+    cached = stack.receipt_for_engine(engine_id)
+    if cached:
+        return cached
+    for row in stack.manager.db.restart_recovery().get("recent_experiments", []):
+        exp_id = row["experiment_id"]
+        engine_match = False
+        receipt_value = ""
+        for p in stack.manager.db.get_parameters_by_experiment(exp_id):
+            if p.get("name") == "engine_id" and _param_value(p.get("value")) == engine_id:
+                engine_match = True
+            if p.get("name") == "receipt_id":
+                receipt_value = _param_value(p.get("value"))
+        if engine_match and receipt_value:
+            stack.index_engine(engine_id, receipt_value)
+            return receipt_value
+    return None
+
+
 def redact_receipt_payload(data: dict[str, Any]) -> dict[str, Any]:
     """Strip token-like fields from API responses."""
     forbidden = {"governance_token", "token_value", "signing_key", "api_key"}
@@ -384,32 +428,23 @@ def redact_receipt_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
     stack = get_http_run_persistence()
-    conn_exp = stack.manager.db.get_experiment(receipt_id)
-    if conn_exp:
-        exp_id = receipt_id
-    else:
-        exp_id = None
-        for row in stack.manager.db.restart_recovery().get("recent_experiments", []):
-            params = stack.manager.db.get_parameters_by_experiment(row["experiment_id"])
-            for p in params:
-                if p.get("name") == "receipt_id" and p.get("value") == receipt_id:
-                    exp_id = row["experiment_id"]
-                    break
-            if exp_id:
-                break
-        if not exp_id:
-            by_engine = stack.receipt_for_engine(receipt_id)
-            if by_engine:
-                return read_run_receipt(by_engine)
-            return None
+    exp_id = _experiment_id_for_receipt(stack, receipt_id)
+    if not exp_id:
+        return None
     exp = stack.manager.db.get_experiment(exp_id)
     if not exp:
         return None
     params = stack.manager.db.get_parameters_by_experiment(exp_id)
+    resolved_receipt = receipt_id
+    for p in params:
+        if p.get("name") == "receipt_id":
+            resolved_receipt = _param_value(p.get("value")) or receipt_id
+            break
     outcome = stack.manager.db.get_outcomes_by_experiment(exp_id)
     lessons = stack.manager.db.get_lessons_by_experiment(exp_id)
     payload = {
-        "receipt_id": receipt_id,
+        "receipt_id": resolved_receipt,
+        "experiment_id": exp_id,
         "experiment": exp,
         "parameters": params,
         "outcome": outcome,
@@ -423,7 +458,7 @@ def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
 
 def read_run_receipt_by_engine(engine_id: str) -> dict[str, Any] | None:
     stack = get_http_run_persistence()
-    receipt_id = stack.receipt_for_engine(engine_id)
+    receipt_id = _receipt_id_for_engine(stack, engine_id)
     if not receipt_id:
         return None
     return read_run_receipt(receipt_id)
