@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR **#141** spine + PR **#142** `env-matrix` gate — **not** Live proof.  
+**Status:** PR **#141** spine + PR **#142** `env-matrix` + PR **#143** `substrate-checklist` — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -56,8 +56,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H5 | No affirmative KILO Live/production claims in spine files | PR #141 tests |
 | H6 | Governance: side effects remain behind AdmissionGate in runtime code (architecture unchanged) | Review + existing suites |
 | H7 | KILO env matrix operator gate (`scripts/verify_kilo_env_matrix.py` exit 0) | PR #142 tests |
+| H8 | KILO substrate checklist operator gate (`scripts/verify_kilo_substrate_checklist.py` exit 0) | PR #143 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#142 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#143 hermetic gates.
 
 ---
 
@@ -66,8 +67,8 @@ No `INCEPTION_API_KEY` consumption is required for #141–#142 hermetic gates.
 | PR | Theme (founder arc) | Gate ID | Closes in |
 |----|---------------------|---------|-----------|
 | **141** | Env docs + runbook spine | `spine-docs` | **Merged** |
-| **142** | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | **This PR (draft)** |
-| 143 | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | #143 |
+| **142** | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | **Merged** |
+| **143** | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | **This PR (draft)** |
 | 144 | Governance token + admission evidence shape for live burst | `governance-evidence` | #144 |
 | 145 | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #145 |
 | 146 | Swarm instrumentation verify (11/11) as prereq gate | `swarm-instrumentation` | #146 |
@@ -99,7 +100,8 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`
+- Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 
 ---
 
@@ -122,15 +124,33 @@ assertions.
 
 ---
 
+## Substrate-checklist gate (PR #143)
+
+Gate ID: **`substrate-checklist`**. Hermetic only — layers on **`env-matrix`** (calls
+`evaluate_env_matrix` / `hermetic_operator_check` first). Validates Upstash Box
+`UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` readiness without live HTTP.
+
+| Mode | Box URL / token expectation |
+|------|-----------------------------|
+| `hermetic_unit` / `hermetic_ci` | Absent, or mock/loopback/placeholder shapes only |
+| `live_proof_prep` | `https://*.box.upstash.com` host + token shape (min length, no whitespace) |
+
+Operator verify uses **forbidden live Box credential pairs** in hermetic paths — summaries
+redact values via `redact_box_url` / `redact_box_token`.
+
+---
+
 ## Verification commands
 
 ```bash
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
 python3 scripts/verify_kilo_env_matrix.py
+python3 scripts/verify_kilo_substrate_checklist.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #142 env-matrix — hermetic only; Live proof not executed.
+**Revision:** PR #143 substrate-checklist — hermetic only; Live proof not executed.
