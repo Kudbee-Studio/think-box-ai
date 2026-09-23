@@ -503,3 +503,82 @@ def mercury_hermetic_gate_closed() -> bool:
             policy_version="kilo-live-proof-v1",
             ttl_seconds=3600.0,
         )
+    )
+    unit = evaluate_mercury_hermetic(
+        EnvMatrixMode.HERMETIC_UNIT,
+        env,
+        token_value=issued.token_value,
+        tokens=tokens,
+        identities=identities,
+    )
+    return op.ok and unit.ok
+
+
+def mercury_hermetic_contract_summary(
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Hermetic summary for CLI and spine consumers (redacted)."""
+    env = environ if environ is not None else os.environ
+    mode = detect_matrix_mode(env)
+    operator = hermetic_mercury_operator_check(env)
+    prep_env = dict(env)
+    prep_env.setdefault("THINKBOX_KILO_MATRIX_MODE", EnvMatrixMode.LIVE_PROOF_PREP.value)
+    prep = evaluate_mercury_hermetic(
+        EnvMatrixMode.LIVE_PROOF_PREP,
+        prep_env,
+        run_mock_call=False,
+    )
+    gate = gate_for_pr(PR_NUMBER)
+    redacted_env_sample = {
+        k: redact_secret_value(k, env.get(k))
+        for k in sorted(
+            set(env.keys())
+            & (
+                _SECRET_ENV_KEYS
+                | {_MOCK_ENV_KEY, "THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"}
+            )
+        )
+    }
+    if "UPSTASH_PUBLIC_BOX_URL" in env:
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(
+            env.get("UPSTASH_PUBLIC_BOX_URL") or ""
+        )
+    if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
+            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
+        )
+    fixture_ids = sorted(bounded_mercury_fixtures().keys())
+    return {
+        "gate_id": GATE_ID,
+        "pr_number": PR_NUMBER,
+        "detected_mode": mode.value,
+        "governance_evidence_layer": True,
+        "env_matrix_layer": True,
+        "substrate_checklist_layer": True,
+        "hermetic_operator_ok": operator.ok,
+        "hermetic_governance_ok": operator.governance_evidence_ok,
+        "mock_client_configured": mock_client_configured(env),
+        "fixture_ids": fixture_ids,
+        "live_proof_prep_ok": prep.ok,
+        "live_proof_prep_violation_codes": sorted({v.code for v in prep.violations}),
+        "hermetic_violation_codes": sorted({v.code for v in operator.violations}),
+        "live_gate_mode": align_live_gate_stub(env).get("mode"),
+        "redacted_env_sample": redacted_env_sample,
+        "live_api_called": False,
+        "four_state_max": "TEST_VERIFIED",
+        "live_proof_in_this_pr": False,
+        "arc_gate_theme": gate.theme if gate else None,
+        "gate_closed_default": mercury_hermetic_gate_closed(),
+    }
+
+
+def minimal_mercury_hermetic_environ(
+    extra: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Clean hermetic env for mercury-hermetic unit tests."""
+    base: MutableMapping[str, str] = dict(minimal_governance_hermetic_environ())
+    base[_MOCK_ENV_KEY] = "hermetic"
+    base["THINKBOX_MERCURY_BASE_URL"] = "mock://mercury"
+    if extra:
+        base.update(extra)
+    return dict(base)
