@@ -128,3 +128,53 @@ class MercuryHermeticEvidence:
     live_api_called: bool
     governance_evidence: LiveBurstEvidence | None = None
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "gate_id": self.gate_id,
+            "pr_number": self.pr_number,
+            "governance_evidence_ok": self.governance_evidence_ok,
+            "governance_summary_ref": self.governance_summary_ref,
+            "live_gate_report": self.live_gate_report,
+            "mock_client_configured": self.mock_client_configured,
+            "mock_call": self.mock_call.to_dict() if self.mock_call else None,
+            "model": self.model,
+            "evidence_label": self.evidence_label,
+            "live_api_called": self.live_api_called,
+            "governance_evidence": (
+                self.governance_evidence.to_dict() if self.governance_evidence else None
+            ),
+        }
+
+
+@dataclass
+class MercuryHermeticResult:
+    """Outcome of evaluating mercury-hermetic for one mode."""
+
+    mode: EnvMatrixMode
+    ok: bool
+    governance_evidence_ok: bool
+    env_matrix_ok: bool
+    substrate_checklist_ok: bool
+    violations: list[MercuryHermeticViolation] = field(default_factory=list)
+    evidence: MercuryHermeticEvidence | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "mode": self.mode.value,
+            "ok": self.ok,
+            "governance_evidence_ok": self.governance_evidence_ok,
+            "env_matrix_ok": self.env_matrix_ok,
+            "substrate_checklist_ok": self.substrate_checklist_ok,
+            "violations": [
+                {"code": v.code, "message": v.message, "env_key": v.env_key}
+                for v in self.violations
+            ],
+            "evidence": self.evidence.to_dict() if self.evidence else None,
+            "gate_id": GATE_ID,
+            "pr_number": PR_NUMBER,
+            "four_state_max": "TEST_VERIFIED",
+        }
+
+
+def bounded_mercury_fixtures() -> dict[str, dict[str, Any]]:
+    """Fixed mock response shapes for Live-proof prep (bounded, no secrets)."""
