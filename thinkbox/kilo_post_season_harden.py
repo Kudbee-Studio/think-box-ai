@@ -66,6 +66,11 @@ SPINE_VERIFY_SCRIPTS: tuple[Path, ...] = (
     Path("scripts/verify_kilo_receipt_chain_etag.py"),
     Path("scripts/verify_kilo_dashboard_receipt_chain_bind.py"),
     Path("scripts/verify_kilo_api_ops_harden.py"),
+    Path("scripts/verify_kilo_governance_evidence_live_proof_readiness.py"),
+    Path("scripts/verify_kilo_live_smoke_audit_flip_harden.py"),
+    Path("scripts/verify_kilo_control_plane_post164_deepen.py"),
+    Path("scripts/verify_kilo_receipt_chain_end_link_season_harden.py"),
+    Path("scripts/verify_kilo_pr165_combined_harden.py"),
     Path("scripts/verify_kilo_spine.py"),
     Path("scripts/scan_doc_secrets.py"),
 )
@@ -80,6 +85,11 @@ _REQUIRED_CI_SNIPPETS: tuple[str, ...] = (
     "verify_kilo_receipt_chain_etag.py",
     "verify_kilo_dashboard_receipt_chain_bind.py",
     "verify_kilo_api_ops_harden.py",
+    "verify_kilo_governance_evidence_live_proof_readiness.py",
+    "verify_kilo_live_smoke_audit_flip_harden.py",
+    "verify_kilo_control_plane_post164_deepen.py",
+    "verify_kilo_receipt_chain_end_link_season_harden.py",
+    "verify_kilo_pr165_combined_harden.py",
 )
 
 _FORBIDDEN_LITERAL_CLAIMS = (
