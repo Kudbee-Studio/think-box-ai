@@ -851,3 +851,25 @@ python3 -m unittest \
 | Fleet checkpoint attest/verify | `POST .../checkpoint/attest`, `GET .../checkpoint/verify` |
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
+
+## PR #140 — Receipt deep-link + shared etag (DRAFT)
+
+**Status:** Draft — milestone control-plane deep-link + tab-shared conditional GET cache  
+**Branch:** `cursor/pr140-receipt-deeplink-shared-etag-17e7`  
+**Scope:** `receipts.html` → `think_job_status.html` receipt watch; `control_plane_etag_store.js` across tabs
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_control_plane_etag_store \
+  tests.unit.test_control_plane_deep_link \
+  tests.unit.test_control_plane_think_job_static_pr140 \
+  tests.unit.test_think_job_status_ui_pr140 \
+  tests.e2e.test_f140_receipt_deep_link_etag -v
+```
