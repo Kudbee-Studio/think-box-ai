@@ -158,6 +158,11 @@ class TestRunbookAndDocs(unittest.TestCase):
         self.assertIn("proof-schema", text)
         self.assertIn("#148", text)
 
+    def test_proof_schema_guide_exists(self) -> None:
+        path = REPO_ROOT / "docs/guides/kilo_proof_schema.md"
+        self.assertTrue(path.is_file())
+        self.assertIn("proof-schema", path.read_text(encoding="utf-8"))
+
     def test_no_forbidden_literals_in_module_doc(self) -> None:
         self.assertEqual(spine.find_forbidden_literal_claims(proof_schema.__doc__ or ""), [])
 
