@@ -1,0 +1,16 @@
+{
+  "audit_pass": "pr165",
+  "date": "2026-09-23",
+  "pr_number": 165,
+  "gate_id": "pr165-combined-harden-era-chronicle",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "live_smoke_audit_flip_correlation_harden",
+    "control_plane_post164_deepen",
+    "receipt_chain_end_link_season_harden",
+    "era_chronicle_154_164_append_only",
+    "audit_pass_pr165_live_verified_false"
+  ]
+}

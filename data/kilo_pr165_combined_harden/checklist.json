@@ -1,0 +1,16 @@
+{
+  "gate_id": "pr165-combined-harden-era-chronicle",
+  "pr_number": 165,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "chronicle_label": "pr165-era-chronicle-154-164",
+  "chronicle_version": "1.0.0",
+  "prior_gate_ids": [
+    "governance-evidence-live-proof-readiness",
+    "live-smoke-audit-flip-harden",
+    "control-plane-post164-deepen",
+    "receipt-chain-end-link-season-harden"
+  ],
+  "verify_script": "scripts/verify_kilo_pr165_combined_harden.py"
+}
