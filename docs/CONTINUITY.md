@@ -1303,4 +1303,10 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** Docs-only fix on `cursor/pr127-f009-phase1-e2e`; no CLI code changes in this correction commit; PR #127 remains **OPEN / DRAFT**; no merge, no ready-for-review automation by agent.
 - **NEXT ACTION:** Coordinator opens separate draft **PR #128** (~25 improvements); founder merges PR #127 when satisfied.
 
+### 2026-09-23 — PR #127 merged (founder)
+
+- **MERGED:** GitHub PR **#127** → `main` at **`8abc574`** (F009 hermetic e2e, audit pass `2026-09-22-pr127.json`, KUDBEECLI doc attribution corrections).
+- **NOT IN MERGE:** KUDBEECLI Phase 1 **code** at `d54b797` (six CLI commands) — still off `main`; integrate via **PR #128** (planned).
+- **NEXT ACTION:** PR #128 draft (~25 improvements); land `d54b797` (+ Phase 2 lineage) with docs/code alignment.
+
 ---

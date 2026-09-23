@@ -520,8 +520,9 @@ Unified CLI for hermetic inspection of swarm evidence, ledger integrity, proofs,
 | Work | GitHub PR | Notes |
 |------|-----------|--------|
 | Doc redaction + audit P1 close-outs + minimal e2e scaffold | **#126** (merged `866a408`) | Not KUDBEECLI |
-| **KUDBEECLI Phase 1** (inspection commands) | **#127** (draft) | Introduced at commit **`d54b797`** on the PR #127 branch |
-| KUDBEECLI follow-on (persistence, REPL, dashboard) | **#127** draft lineage / **#128** (planned) | Commits after `d54b797` (e.g. `bd5a76e`); not merged to `main` by agents |
+| **Phase 1 hermetic e2e** (F009 governed runtime loop) | **#127** (merged `8abc574`) | `tests/e2e/` — on `main` |
+| **KUDBEECLI Phase 1** (six inspection commands) | **Not on `main`** | Implementation at **`d54b797`** (branch lineage); target **#128** or follow-on PR |
+| KUDBEECLI follow-on (persistence, REPL, dashboard) | **#128** (planned) | e.g. `bd5a76e` lineage; not merged |
 
 **PR #126 is not the Phase 1 CLI PR.** Do not attribute `agent register`, `trace capture`, or other unimplemented commands to any merged PR.
 
@@ -540,18 +541,19 @@ Hermetic / read-only inspection surface (no live provider execution in these sub
 
 **Not implemented (do not document as shipped):** `agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture`.
 
-Evidence: `thinkbox/cli.py` and `tests/unit/test_cli.py` at `d54b797` on the PR #127 branch. Phase 1 CLI unit tests: **16** (`test_cli.py` at that commit).
+Evidence when integrated: `thinkbox/cli.py` and `tests/unit/test_cli.py` at **`d54b797`** (16 CLI unit tests). **`main` after PR #127 does not yet include that commit** — docs list the intended Phase 1 surface only.
 
 ### Phase 2 — boundary (not Phase 1)
 
-Separate from the six Phase 1 commands above. Follow-on draft work adds persistence (`IdentityLedger` / `ThinkTraceCapture` SQLite paths), `thinkbox shell` (REPL), `thinkbox dashboard status`, and `thinkbox swarm live` (**fail-closed** when live credentials absent). Treat as **CODE COMPLETE / TEST VERIFIED** only on the open draft branch until founder merge; **not** on `main`.
+Separate from the six Phase 1 commands above. Follow-on work adds persistence (`IdentityLedger` / `ThinkTraceCapture` SQLite paths), `thinkbox shell` (REPL), `thinkbox dashboard status`, and `thinkbox swarm live` (**fail-closed** when live credentials absent). **Not on `main`** until a follow-on PR (e.g. **#128**) merges.
 
 ### Four-state (KUDBEECLI)
 
 | Scope | State |
 |-------|--------|
-| Phase 1 CLI (`d54b797`, PR #127 draft) | **CODE COMPLETE** / **TEST VERIFIED** (hermetic; branch-only until merge) |
-| Phase 2 CLI (persistence + REPL + dashboard + `swarm live` check) | **CODE COMPLETE** / **TEST VERIFIED** on draft branch only; **not** merged |
+| Phase 1 e2e (F009, PR #127 merged) | **CODE COMPLETE** / **TEST VERIFIED** on `main` |
+| Phase 1 CLI (`d54b797`, six commands) | **CODE COMPLETE** / **TEST VERIFIED** at `d54b797` only — **not on `main`** |
+| Phase 2 CLI (persistence + REPL + dashboard + `swarm live` check) | **Not merged** to `main` |
 | Any live Mercury / Inception execution via CLI | **Not claimed** — `swarm live` is authorization check only, fail-closed |
 
 ---
