@@ -20,8 +20,6 @@ from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.hermetic_provider import HermeticModelProvider, provider_complete_async
 from thinkbox.identity import IdentityLedger
-from thinkbox.model_client import ModelConfig
-
 HERMETIC_MODEL_ID = "hermetic-mock"
 DEFAULT_RUN_CAPABILITY = "goal:execute"
 DEFAULT_VERIFIED_CAPABILITY = "goal:execute:verified"

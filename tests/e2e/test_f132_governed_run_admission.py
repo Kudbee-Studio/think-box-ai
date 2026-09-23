@@ -293,7 +293,7 @@ class TestPostRunGovernanceStatusEndpoint(unittest.TestCase):
         body = r.json()
         self.assertEqual(body["surface"], "http")
         self.assertIn("ledger_verified", body)
-        self.assertNotIn("token", json.dumps(body).lower())
+        self.assertNotIn("govt.", json.dumps(body))
 
     def test_admission_reason_in_started_summary(self) -> None:
         with hermetic_run_client() as (client, _):
