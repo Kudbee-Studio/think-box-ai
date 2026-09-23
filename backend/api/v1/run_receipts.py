@@ -223,6 +223,18 @@ def begin_http_run_receipt(
     return binding
 
 
+def receipt_persistence_snapshot() -> dict[str, Any]:
+    stack = get_http_run_persistence()
+    recent = stack.manager.db.restart_recovery()
+    return {
+        "db_path": stack.db_path,
+        "artifacts_dir": str(stack.artifacts_dir),
+        "recent_experiments": len(recent.get("recent_experiments", [])),
+        "recent_sessions": len(recent.get("recent_sessions", [])),
+        "engine_index_size": len(stack._engine_index),
+    }
+
+
 def persist_profile_for_http(agent_id: str = "http-run-agent") -> dict[str, Any]:
     return {
         "four_state": HTTP_RUN_FOUR_STATE,

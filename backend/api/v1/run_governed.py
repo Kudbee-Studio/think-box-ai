@@ -198,6 +198,7 @@ def governance_status_snapshot() -> dict[str, Any]:
     entries = list(shell.ledger.entries())
     stack = get_http_run_persistence()
     recent = stack.manager.db.restart_recovery()
+    receipt_snap = receipt_persistence_snapshot()
     return {
         "surface": "http",
         "default_capability": DEFAULT_RUN_CAPABILITY,
@@ -211,6 +212,7 @@ def governance_status_snapshot() -> dict[str, Any]:
         "receipt_db_path_kind": "file" if stack.db_path != ":memory:" else "memory",
         "receipt_recent_experiments": len(recent.get("recent_experiments", [])),
         "receipt_persistence": "enabled",
+        "receipt_snapshot": receipt_snap,
     }
 
 
@@ -343,6 +345,9 @@ async def execute_governed_run_background(
                 result["receipt_id"] = binding.receipt_id
                 result["experiment_id"] = binding.experiment_id
                 result["session_id"] = binding.session_id
+                job_entry.receipt_id = binding.receipt_id
+                job_entry.experiment_id = binding.experiment_id
+                job_entry.session_id = binding.session_id
                 job_entry.result = result
                 await emit_receipt_dashboard(binding, status="completed", proof_path=proof_path)
             except RunReceiptPersistError as persist_exc:
