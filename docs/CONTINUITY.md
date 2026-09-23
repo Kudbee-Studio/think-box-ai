@@ -48,7 +48,15 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #156 draft: dashboard receipt-chain / END_LINK bind
+### 2026-09-23 — PR #157 draft: API / ops harden after #156
+
+| Field | Value |
+|---|---|
+| **Scope** | `control_plane_ops_harden`, backend error envelopes, idempotency + rate limits, receipt page link checks |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_control_plane_ops_harden`, `test_backend_control_plane_ops_harden_pr157`, `test_kilo_live_proof_readiness_pr157`; audit `passes/2026-09-23-pr157.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #156 merged: dashboard receipt-chain / END_LINK bind
 
 | Field | Value |
 |---|---|
