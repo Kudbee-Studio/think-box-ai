@@ -503,6 +503,16 @@ When something fails:
 5. **Record** — update docs, findings, STATUS.md
 6. **Test the fix** — prove it works
 
+### 13.10 KILO Live-proof readiness spine (PR #141+)
+
+Before claiming progress on the **#141–#150** arc:
+
+1. Read `docs/runbooks/kilo-live-proof-readiness.md`
+2. Run `python3 scripts/verify_kilo_spine.py` (exit 0)
+3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v`
+4. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
+5. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
+
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
@@ -522,6 +532,22 @@ Hermetic static UI at `public/control-plane/think_job_status.html` — **not LIV
 | Deep-link from `receipts.html` + shared etag across tabs | **#140** (draft) | `control_plane_deep_link.js`, `control_plane_etag_store.js`, F140 e2e |
 
 Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury claims.
+
+---
+
+## KILO Live-proof readiness arc (PR #141–#150)
+
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141** is the spine only — env docs, runbook, hermetic contracts — **not** Live proof, **not** live build, **not** GPU spin-up.
+
+| Work | GitHub PR | Notes |
+|------|-----------|--------|
+| Env docs + runbook spine + hermetic gates | **#141** (draft) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
+| #142–#149 | planned | Close arc gates in runbook (`env-matrix` … `founder-ack`) |
+| Live proof execution procedure | **#150** (planned) | Earn LIVE VERIFIED only when proof is run and recorded |
+
+**Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until audit + artifacts say otherwise.
+
+Four-state on #141 branch: **CODE COMPLETE / TEST VERIFIED** only.
 
 ---
 
