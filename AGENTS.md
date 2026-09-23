@@ -565,11 +565,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | END LINK operator dashboard UX after #158 | **#159** (merged) | `thinkbox/kilo_end_link_operator_ux.py`, `thinkbox/end_link_operator_ux.py`, `scripts/verify_kilo_end_link_operator_ux.py` |
 | Receipt-chain / END_LINK docs + audit pack after #159 | **#160** (merged) | `thinkbox/kilo_receipt_chain_end_link_docs.py`, `docs/guides/kilo_receipt_chain_end_link_operator.md`, `scripts/verify_kilo_receipt_chain_end_link_docs.py` |
 | API / ops harden after END_LINK UX + docs (#159–#160) | **#161** (merged) | `thinkbox/kilo_end_link_api_ops_harden.py`, `thinkbox/end_link_api_ops_harden.py`, `scripts/verify_kilo_end_link_api_ops_harden.py` |
-| Receipt-chain / END_LINK era audit close (#154–#161) | **#162** (draft) | `thinkbox/kilo_receipt_chain_end_link_era_close.py`, `docs/audit/passes/2026-09-23-pr154-161-era-consolidated.json`, `scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
+| Control-plane E2E hermetic suite deepen after #161 | **#162** (draft) | `tests/e2e/control_plane_hermetic.py`, `tests/e2e/test_f162_cp_*`, `thinkbox/kilo_control_plane_e2e_deepen.py`, `scripts/verify_kilo_control_plane_e2e_deepen.py` |
+| Receipt-chain / END_LINK era audit close (#154–#161) | merged on main | `thinkbox/kilo_receipt_chain_end_link_era_close.py`, `scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
-Four-state on #162 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr162` ships `live_verified: false`.
+Four-state on #162 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr162` (`control-plane-e2e-deepen`) ships `live_verified: false`.
 
 Four-state on #161 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr161` ships `live_verified: false`.
 
