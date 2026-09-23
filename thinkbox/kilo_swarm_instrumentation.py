@@ -3,7 +3,7 @@
 Layers on PR #146 ``mercury-hermetic``. Wraps the ten hermetic instrumentation
 checks from ``thinkbox/swarm_instrumentation_checks`` plus an eleventh gate
 contract entry (live swarm deferred). No network, no ``INCEPTION_API_KEY``
-consumption, ``live_api_called=False``.
+consumption, ``live_api_called=False``. Gate contract check ``inst-11`` defers optional live swarm.
 """
 
 from __future__ import annotations
