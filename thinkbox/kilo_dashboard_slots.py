@@ -90,6 +90,7 @@ class SlotKind(str, Enum):
     MERCURY_HERMETIC = "mercury_hermetic"
     CUE_INBOX = "cue_inbox"
     DOD_CHECKLIST = "dod_checklist"
+    RECEIPT_CHAIN_END_LINK = "receipt_chain_end_link"
 
 
 SLOT_KINDS: frozenset[str] = frozenset(m.value for m in SlotKind)
