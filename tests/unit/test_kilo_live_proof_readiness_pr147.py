@@ -118,4 +118,130 @@ class TestOperatorAndSummary(unittest.TestCase):
 
     def test_spine_summary_includes_pr147(self) -> None:
         summary = spine.spine_contract_summary()
+        self.assertEqual(summary.get("pr147_gate_id"), swarm.GATE_ID)
+        block = summary.get("swarm_instrumentation")
+        self.assertIsInstance(block, dict)
+        assert isinstance(block, dict)
+        self.assertTrue(block.get("hermetic_operator_ok"))
+        self.assertTrue(block.get("eleven_of_eleven_hermetic"))
 
+    def test_eleven_of_eleven_flag(self) -> None:
+        summary = swarm.swarm_instrumentation_contract_summary(
+            swarm.minimal_swarm_instrumentation_environ()
+        )
+        self.assertTrue(summary["eleven_of_eleven_hermetic"])
+        self.assertEqual(summary["instrumentation_catalog_size"], 11)
+
+
+class TestRunbookAndDocs(unittest.TestCase):
+    def test_runbook_swarm_section(self) -> None:
+        text = spine.load_text(spine.runbook_path())
+        self.assertIn("swarm-instrumentation", text)
+        self.assertIn("PR #147", text)
+
+    def test_runbook_h11_prerequisite(self) -> None:
+        text = spine.load_text(spine.runbook_path())
+        self.assertIn("verify_kilo_swarm_instrumentation", text)
+
+    def test_arc_doc_pr147_theme(self) -> None:
+        text = spine.load_text(spine.arc_doc_path())
+        self.assertIn("swarm-instrumentation", text)
+        self.assertIn("#147", text)
+
+    def test_no_forbidden_literals_in_swarm_module_doc(self) -> None:
+        self.assertEqual(spine.find_forbidden_literal_claims(swarm.__doc__ or ""), [])
+
+
+class TestVerifyScripts(unittest.TestCase):
+    def test_verify_swarm_script_exists(self) -> None:
+        path = REPO_ROOT / "scripts" / "verify_kilo_swarm_instrumentation.py"
+        self.assertTrue(path.is_file())
+
+    def test_verify_swarm_exit_zero(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "scripts" / "verify_kilo_swarm_instrumentation.py")],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr or proc.stdout)
+
+    def test_verify_spine_still_exit_zero(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "scripts" / "verify_kilo_spine.py")],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr or proc.stdout)
+
+    def test_experiments_verify_hermetic_ten_of_ten(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "experiments" / "verify_instrumentation.py")],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stdout)
+        self.assertIn("10/10 checks passed", proc.stdout)
+
+
+class TestAuditArtifacts(unittest.TestCase):
+    def test_audit_checklist_pr147_exists(self) -> None:
+        path = REPO_ROOT / "docs/audit/checklists/kilo-swarm-instrumentation-pr147.md"
+        self.assertTrue(path.is_file())
+
+    def test_audit_pass_pr147_live_verified_false(self) -> None:
+        path = REPO_ROOT / "docs/audit/passes/2026-09-23-pr147.json"
+        self.assertTrue(path.is_file())
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertFalse(data["four_state"]["live_verified"])
+
+
+class TestEvidenceSerialization(unittest.TestCase):
+    def test_evidence_to_dict_no_live_flags(self) -> None:
+        env = swarm.minimal_swarm_instrumentation_environ()
+        result = swarm.evaluate_swarm_instrumentation(EnvMatrixMode.HERMETIC_UNIT, env)
+        payload = json.dumps(result.to_dict())
+        self.assertIn("swarm-instrumentation", payload)
+        self.assertIn('"live_api_called": false', payload)
+        self.assertNotIn("KILO LIVE VERIFIED", payload)
+
+    def test_instrumentation_results_shape(self) -> None:
+        env = swarm.minimal_swarm_instrumentation_environ()
+        result = swarm.evaluate_swarm_instrumentation(EnvMatrixMode.HERMETIC_UNIT, env)
+        assert result.evidence is not None
+        self.assertEqual(len(result.evidence.instrumentation_results), 10)
+
+    def test_redact_swarm_summary(self) -> None:
+        text = swarm.redact_swarm_summary('{"INCEPTION_API_KEY": "secret"}')
+        self.assertNotIn("secret", text)
+
+    def test_prep_mode_without_running_checks(self) -> None:
+        env = swarm.minimal_swarm_instrumentation_environ()
+        prep = swarm.evaluate_swarm_instrumentation(
+            EnvMatrixMode.LIVE_PROOF_PREP,
+            env,
+            run_instrumentation=False,
+        )
+        self.assertEqual(prep.passed_count, 0)
+        self.assertTrue(prep.mercury_hermetic_ok)
+
+
+class TestFourStateHonesty(unittest.TestCase):
+    def test_summary_four_state_cap(self) -> None:
+        summary = swarm.swarm_instrumentation_contract_summary()
+        self.assertEqual(summary["four_state_max"], "TEST_VERIFIED")
+        self.assertFalse(summary["live_proof_in_this_pr"])
+
+    def test_result_four_state_cap(self) -> None:
+        env = swarm.minimal_swarm_instrumentation_environ()
+        result = swarm.evaluate_swarm_instrumentation(EnvMatrixMode.HERMETIC_UNIT, env)
+        self.assertEqual(result.to_dict()["four_state_max"], "TEST_VERIFIED")
+
+
+if __name__ == "__main__":
+    unittest.main()
