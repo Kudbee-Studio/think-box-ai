@@ -1,0 +1,53 @@
+{
+  "pass_id": "pr143",
+  "title": "PR143 — KILO substrate-checklist gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr142.json",
+  "started_at": "2026-09-23T14:30:00Z",
+  "completed_at": "2026-09-23T15:30:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr143",
+  "base_commit": "35a25da",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v",
+    "pr143_tests": 28,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "substrate_verify": "python3 scripts/verify_kilo_substrate_checklist.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_substrate_checklist contract module",
+    "layer on env-matrix evaluate and operator checks",
+    "SubstrateChecklistResult with env_matrix_ok flag",
+    "hermetic mock loopback placeholder Box URL rules",
+    "forbidden live Box URL token pair in hermetic modes",
+    "live_proof_prep https box.upstash.com host shape",
+    "live_proof_prep token min length and whitespace ban",
+    "redact_box_token and redact_box_url summary helpers",
+    "evaluate_substrate_checklist fail-closed API",
+    "hermetic_substrate_operator_check spine-safe",
+    "substrate_checklist_contract_summary JSON",
+    "substrate_checklist_gate_closed helper",
+    "spine_contract_summary substrate_checklist block",
+    "pr143_gate_id in spine summary",
+    "scripts/verify_kilo_substrate_checklist.py operator helper",
+    "verify_kilo_spine substrate gate",
+    "unit tests pr143 hermetic and live_prep modes",
+    "unit tests redaction and spine integration",
+    "runbook substrate-checklist section H8",
+    "docs guides pointer to verify_kilo_substrate_checklist",
+    "CONTINUITY STATUS AGENTS pr143 entries",
+    "audit checklist kilo-substrate-checklist-pr143",
+    "audit pass pr143 + AUDIT_INDEX",
+    "ADR 003 substrate checklist decision",
+    "hermetic only no live Mercury GPU deploy",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #144 governance-evidence next"
+  ]
+}
