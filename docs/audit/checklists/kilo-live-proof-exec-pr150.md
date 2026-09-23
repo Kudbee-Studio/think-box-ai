@@ -9,3 +9,4 @@
 - [ ] `live_verified: false` in audit pass JSON
 - [ ] No affirmative KILO LIVE VERIFIED in spine paths
 - [ ] Season close noted in CONTINUITY / STATUS / arc doc
+- [ ] `arc_season_complete` true in spine summary (hermetic)
