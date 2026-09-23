@@ -1,0 +1,51 @@
+{
+  "fixture_kind": "write_expect_fail",
+  "document": {
+    "schema_version": "kilo-live-smoke-evidence-v1",
+    "evidence_id": "kilo_live_smoke_operator_fixture_forged_live",
+    "gate_id": "live-smoke-evidence",
+    "pr_number": 152,
+    "four_state_max": "TEST_VERIFIED",
+    "live_verified": true,
+    "live_api_called": true,
+    "evidence_label": "verified",
+    "prior_gate_ids": [
+      "spine-docs",
+      "env-matrix",
+      "substrate-checklist",
+      "ci-post-merge",
+      "governance-evidence",
+      "mercury-hermetic",
+      "swarm-instrumentation",
+      "proof-schema",
+      "dashboard-slots",
+      "live-proof-exec",
+      "post-season-harden"
+    ],
+    "founder_ack_env_key": "THINKBOX_SWARM_LIVE_ACK",
+    "founder_ack_marker_present": false,
+    "box_url_env_key": "UPSTASH_PUBLIC_BOX_URL",
+    "box_url_present": false,
+    "receipt_ids": ["rcpt_forge_a", "rcpt_forge_b"],
+    "etags": ["etag_forge_a", "etag_forge_b"],
+    "gate_chain": [
+      {
+        "gate_id": "post-season-harden",
+        "receipt_id": "rcpt_forge_a",
+        "etag": "etag_forge_a"
+      },
+      {
+        "gate_id": "live-smoke-evidence",
+        "receipt_id": "rcpt_forge_b",
+        "etag": "etag_forge_b"
+      }
+    ],
+    "redacted_endpoints": {
+      "box_url": "[REDACTED_BOX_URL]"
+    },
+    "recorded_at": "2026-09-23T20:00:00Z",
+    "halt_reason": "dod_met",
+    "evidence_artifact_path": "",
+    "season_arc_marker": "kilo-live-proof-arc-141-150-season-closed"
+  }
+}
