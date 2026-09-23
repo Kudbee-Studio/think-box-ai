@@ -59,6 +59,7 @@ from thinkbox.dashboard_state import (
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
+THINK_JOB_NOT_FOUND_DETAIL = "think_job_not_found"
 
 active_engines: dict[str, ThinkBoxEngine] = {}
 active_governed_engines: dict[str, GovernedEngine] = {}
@@ -210,7 +211,7 @@ async def get_think_job_poll_status(engine_id: str) -> dict[str, Any]:
     try:
         record = resolve_think_job_record(engine_id)
     except ThinkJobNotFoundError:
-        raise HTTPException(status_code=404, detail="think_job_not_found")
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
     return build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
 
 
@@ -219,7 +220,7 @@ async def get_think_job_status_by_receipt(receipt_id: str) -> dict[str, Any]:
     try:
         record = resolve_think_job_by_receipt(receipt_id)
     except ThinkJobNotFoundError:
-        raise HTTPException(status_code=404, detail="think_job_not_found")
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
     return build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
 
 
