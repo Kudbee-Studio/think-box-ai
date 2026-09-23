@@ -332,6 +332,12 @@ class DashboardState:
     def upsert_think_job(self, job: ThinkJobEntry) -> None:
         self.think_jobs[job.job_id] = job
         self._revision.bump()
+        try:
+            from thinkbox.think_job_stream import get_think_job_stream_hub
+
+            get_think_job_stream_hub().signal(job.job_id)
+        except Exception:
+            pass
 
     def upsert_cnc_job(self, job: CNCJobEntry) -> None:
         self.cnc_jobs[job.job_id] = job
