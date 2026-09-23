@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #157 — API / ops harden after #156 (DRAFT)
+## PR #158 — END LINK / control-plane deepen (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `end-link-deepen` (layers `api-ops-harden`) |
+| **Scope** | batch validate, link integrity fields, chain filters, dashboard batch client |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_end_link_deepen.py` |
+
+## PR #157 — API / ops harden after #156 (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `api-ops-harden` (layers `dashboard-receipt-chain-bind`) |
 | **Scope** | `control_plane_ops_harden`, structured errors, idempotency, rate limits |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_api_ops_harden.py` |
 
 ## PR #156 — Dashboard receipt-chain / END_LINK bind (MERGED)
