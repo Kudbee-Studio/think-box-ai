@@ -52,6 +52,9 @@ def main() -> int:
     operator_block = summary.get("live_smoke_operator") or {}
     if not operator_block.get("hermetic_operator_ok"):
         return 1
+    control_plane_block = summary.get("control_plane_api") or {}
+    if not control_plane_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

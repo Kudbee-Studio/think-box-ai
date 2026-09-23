@@ -65,8 +65,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H14 | KILO live-proof-exec operator gate (`scripts/verify_kilo_live_proof_exec.py` exit 0) | PR #150 tests |
 | H15 | KILO live-smoke-evidence operator gate (`scripts/verify_kilo_live_smoke_evidence.py` exit 0) | PR #152 tests |
 | H16 | KILO live-smoke-operator gate (`scripts/verify_kilo_live_smoke_operator.py` exit 0) | PR #153 tests |
+| H17 | KILO control-plane-api gate (`scripts/verify_kilo_control_plane_api.py` exit 0) | PR #154 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#153 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#154 hermetic gates.
 
 ---
 
@@ -159,6 +160,7 @@ Guide: `docs/guides/kilo_live_smoke_operator.md`
 - Live-proof exec: `thinkbox/kilo_live_proof_exec.py`, `data/kilo_live_proof_exec/fixtures/`, guide `docs/guides/kilo_live_proof_exec.md`
 - Live smoke evidence: `thinkbox/kilo_live_smoke_evidence.py`, `data/kilo_live_smoke_evidence/fixtures/`, guide `docs/guides/kilo_live_smoke_evidence.md`
 - Live smoke operator: `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, guide `docs/guides/kilo_live_smoke_operator.md`
+- Control-plane API (PR #154): `thinkbox/kilo_control_plane_api.py`, guide `docs/guides/kilo_control_plane_api.md`
 
 ---
 

@@ -1,71 +1,163 @@
-"""Control plane status endpoint: admission, capacity, kill-switch, budget."""
+"""Control plane HTTP surface: admission, capacity, operations, receipts (PR #154)."""
 
-from datetime import datetime, timezone
-from typing import Any, Dict
+from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException
+import uuid
+from typing import Any
 
-from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-logger = __import__("logging").getLogger(__name__)
-
-# Local-dev auth token for testing (NOT for production)
-LOCAL_DEV_TOKEN = "dev-only-local-token"
+from backend.api.v1.control_plane_auth import require_control_plane_auth
+from backend.api.v1.http_conditional import conditional_json_response
+from thinkbox.control_plane_api_contract import (
+    ControlPlaneApiError,
+    error_envelope,
+    validate_operation_create_body,
+)
+from thinkbox.control_plane_api_surface import (
+    build_admission_snapshot,
+    build_capacity_snapshot,
+    build_contract_payload,
+    build_operation_list_payload,
+    build_status_snapshot,
+    create_operation_via_admission,
+    get_chain_payload,
+    wrap_success,
+)
+from thinkbox.control_plane_hermetic_clients import (
+    HermeticGovernanceClient,
+    HermeticOrchestrationClient,
+)
+from thinkbox.control_plane_operation_registry import get_operation_registry
 
 control_plane_api = APIRouter(prefix="/api/v1/control-plane", tags=["control-plane"])
 
-
-def _require_dev_auth(authorization: str = Header(None)) -> str:
-    """Fail-closed: require local-dev token header."""
-    if not authorization or authorization != f"Bearer {LOCAL_DEV_TOKEN}":
-        raise HTTPException(status_code=401, detail="Unauthorized: local-dev token required")
-    return authorization
+_orchestration = HermeticOrchestrationClient()
 
 
-_dashboard_state = get_dashboard_state()
+def _request_id() -> str:
+    return f"cp_req_{uuid.uuid4().hex[:12]}"
+
+
+@control_plane_api.get("/contract")
+async def control_plane_contract(
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Hermetic API contract metadata."""
+    return wrap_success(build_contract_payload(), request_id=_request_id())
 
 
 @control_plane_api.get("/status")
-async def control_plane_status(authorization: str = Header(None)) -> Dict[str, Any]:
-    """Control plane status: admission, capacity, kill-switch, budget."""
-    _require_dev_auth(authorization)
-    return {
-        "admission": {
-            "enabled": True,
-            "tier": "GOVERNED",
-            "last_check": datetime.now(timezone.utc).isoformat(),
-        },
-        "capacity": {
-            "allocated": "alloc-demo-1",
-            "granted": True,
-            "resource_profile": {"cpu_cores": 1.0, "memory_mb": 512},
-        },
-        "kill_switch": {
-            "killed": False,
-            "quarantined": False,
-            "reason": "",
-        },
-        "budget": {
-            "spent": 0.0,
-            "limit": 100.0,
-            "currency": "usd",
-            "remaining": 100.0,
-            "tripped": False,
-        },
-        "evidence_label": "simulated",
-        "_demo": True,
-    }
+async def control_plane_status(
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Aggregated control-plane status."""
+    gov = HermeticGovernanceClient(_token)
+    data = build_status_snapshot(gov, _orchestration)
+    return wrap_success(data, request_id=_request_id())
 
 
 @control_plane_api.get("/admission")
-async def admission_status(authorization: str = Header(None)) -> Dict[str, Any]:
-    """Current admission state."""
-    _require_dev_auth(authorization)
-    return {
-        "enabled": True,
-        "tier": "GOVERNED",
-        "checks": 0,
-        "denials": 0,
-        "evidence_label": "simulated",
-        "_demo": True,
-    }
+async def admission_status(
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Current admission counters."""
+    gov = HermeticGovernanceClient(_token)
+    return wrap_success(build_admission_snapshot(gov), request_id=_request_id())
+
+
+@control_plane_api.get("/capacity")
+async def capacity_status(
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Hermetic capacity snapshot."""
+    return wrap_success(build_capacity_snapshot(_orchestration), request_id=_request_id())
+
+
+@control_plane_api.get("/operations")
+async def list_operations(
+    limit: int = 50,
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """List recent control-plane operations."""
+    data = build_operation_list_payload()
+    if limit != 50:
+        ops = data["operations"][: max(1, min(limit, 200))]
+        data = {"operations": ops, "count": len(ops), "live_api_called": False}
+    return wrap_success(data, request_id=_request_id())
+
+
+@control_plane_api.post("/operations")
+async def create_operation(
+    body: dict[str, Any],
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Create operation after governance admission (hermetic)."""
+    violations = validate_operation_create_body(body)
+    if violations:
+        err = ControlPlaneApiError(
+            code="validation_failed",
+            message="invalid operation body",
+            http_status=400,
+            details=tuple(violations),
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=error_envelope(err, request_id=_request_id()),
+        )
+    op, err_code = await create_operation_via_admission(
+        str(body["operation_id"]),
+        str(body["action_type"]),
+        governance_token=_token,
+        metadata=body.get("metadata") if isinstance(body.get("metadata"), dict) else {},
+    )
+    if err_code == "operation_exists":
+        raise HTTPException(status_code=409, detail="operation_exists")
+    if op is None:
+        raise HTTPException(status_code=500, detail="operation_create_failed")
+    payload = wrap_success(op.to_dict(), request_id=_request_id())
+    if err_code == "admission_denied":
+        raise HTTPException(status_code=403, detail=payload)
+    return payload
+
+
+@control_plane_api.get("/operations/{operation_id}")
+async def get_operation(
+    operation_id: str,
+    request: Request,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Get one operation; supports If-None-Match when etag present."""
+    op = get_operation_registry().get(operation_id)
+    if op is None:
+        raise HTTPException(status_code=404, detail="operation_not_found")
+    data = op.to_dict()
+    envelope = wrap_success(data, request_id=_request_id())
+    etag = op.etag
+    if etag:
+        return conditional_json_response(request, envelope, etag=etag)
+    return envelope
+
+
+@control_plane_api.post("/operations/{operation_id}/cancel")
+async def cancel_operation(
+    operation_id: str,
+    _token: str = Depends(require_control_plane_auth),
+) -> dict[str, Any]:
+    """Cancel a non-terminal operation."""
+    reg = get_operation_registry()
+    op = reg.cancel(operation_id)
+    if op is None:
+        raise HTTPException(status_code=404, detail="operation_not_found")
+    return wrap_success(op.to_dict(), request_id=_request_id())
+
+
+@control_plane_api.get("/receipts/chain")
+async def receipts_chain(
+    request: Request,
+    _token: str = Depends(require_control_plane_auth),
+):
+    """Receipt chain status with conditional GET."""
+    payload = get_chain_payload()
+    etag = payload.get("etag")
+    return conditional_json_response(request, wrap_success(payload, request_id=_request_id()), etag=etag)
