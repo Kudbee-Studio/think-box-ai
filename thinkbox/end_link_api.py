@@ -112,12 +112,15 @@ def parse_end_link_envelope(
 
 def redact_end_link_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Redact END LINK payloads for logs/spine (receipt id truncated)."""
+    from thinkbox.control_plane_ops_harden import redact_mapping_for_logs
+
     rid = str(payload.get("receipt_id") or "")
     short = rid[:12] + "…" if len(rid) > 12 else rid
-    return {
+    base = {
         "api": END_LINK_API_LABEL,
         "receipt_id": short,
         "valid": payload.get("valid"),
         "live_api_called": payload.get("live_api_called"),
         "http_status": payload.get("http_status"),
     }
+    return redact_mapping_for_logs(base)
