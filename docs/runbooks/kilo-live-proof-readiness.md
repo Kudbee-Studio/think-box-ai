@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR **#141** spine + PR **#142** `env-matrix` + PR **#143** `substrate-checklist` — **not** Live proof.  
+**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -57,8 +57,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H6 | Governance: side effects remain behind AdmissionGate in runtime code (architecture unchanged) | Review + existing suites |
 | H7 | KILO env matrix operator gate (`scripts/verify_kilo_env_matrix.py` exit 0) | PR #142 tests |
 | H8 | KILO substrate checklist operator gate (`scripts/verify_kilo_substrate_checklist.py` exit 0) | PR #143 tests |
+| H9 | KILO governance-evidence operator gate (`scripts/verify_kilo_governance_evidence.py` exit 0) | PR #145 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#143 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#145 hermetic gates.
 
 ---
 
@@ -69,13 +70,13 @@ No `INCEPTION_API_KEY` consumption is required for #141–#143 hermetic gates.
 | **141** | Env docs + runbook spine | `spine-docs` | **Merged** |
 | **142** | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | **Merged** |
 | **143** | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | **Merged** |
-| 144 | Governance token + admission evidence shape for live burst | `governance-evidence` | #144 |
-| 145 | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #145 |
-| 146 | Swarm instrumentation verify (11/11) as prereq gate | `swarm-instrumentation` | #146 |
-| 147 | Ledger + proof JSON schema for KILO live artifact | `proof-schema` | #147 |
-| 148 | Dashboard / control-plane Live proof slots (hermetic) | `dashboard-slots` | #148 |
-| 149 | Founder ack env (`THINKBOX_SWARM_LIVE_ACK`) runbook wiring | `founder-ack` | #149 |
-| 150 | Integrated rehearsal + **Live proof execution** runbook (still earns LIVE VERIFIED only when run) | `live-proof-exec` | #150 |
+| **144** | CI/post-merge unittest discover green (bot merge; no arc gate closure) | `ci-post-merge` | **Merged** |
+| **145** | Governance token + admission evidence shape for live burst | `governance-evidence` | #145 |
+| 146 | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #146 |
+| 147 | Swarm instrumentation verify (11/11) as prereq gate | `swarm-instrumentation` | #147 |
+| 148 | Ledger + proof JSON schema for KILO live artifact | `proof-schema` | #148 |
+| 149 | Dashboard / control-plane Live proof slots (hermetic) | `dashboard-slots` | #149 |
+| 150 | Integrated rehearsal + **Live proof execution** runbook + founder ack (`THINKBOX_SWARM_LIVE_ACK`; still earns LIVE VERIFIED only when run) | `live-proof-exec` | #150 |
 
 Optional follow-on (non-binding): cross-tab control-plane telemetry export can land in #142 if founder prioritizes UI over env matrix — must stay inside this arc.
 
@@ -100,8 +101,9 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
 - Env matrix contract: `thinkbox/kilo_env_matrix.py`
-- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`, `scripts/verify_kilo_substrate_checklist.py`, `scripts/verify_kilo_governance_evidence.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
+- Governance evidence: `thinkbox/kilo_governance_evidence.py`
 
 ---
 
@@ -140,17 +142,38 @@ redact values via `redact_box_url` / `redact_box_token`.
 
 ---
 
+## Governance-evidence gate (PR #145)
+
+Gate ID: **`governance-evidence`**. Hermetic only — layers on **`env-matrix`** and
+**`substrate-checklist`** (calls those evaluators first). Defines a redacted **live-burst
+evidence** shape binding `agent_id`, capability scope, `policy_version`, admission
+allow/deny + reason codes, **token fingerprint only** (never raw `token_value`), substrate
+and env-matrix summary refs, timestamps, `evidence_label` (`inferred` | `recorded`), and
+`live_api_called=False` in hermetic modes.
+
+| Mode | Admission / evidence expectation |
+|------|----------------------------------|
+| `hermetic_unit` / `hermetic_ci` | Valid in-memory governance token + identity capability; deny missing/expired/revoked/capability miss |
+| `live_proof_prep` | Same admission contract; substrate + env-matrix prep shapes must pass |
+
+Operator verify uses **forbidden production governance tokens** in hermetic paths and never
+consumes `INCEPTION_API_KEY`. Summaries redact via `redact_secret_value` / `token_fingerprint`.
+
+---
+
 ## Verification commands
 
 ```bash
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
 python3 scripts/verify_kilo_env_matrix.py
 python3 scripts/verify_kilo_substrate_checklist.py
+python3 scripts/verify_kilo_governance_evidence.py
 python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #143 substrate-checklist — hermetic only; Live proof not executed.
+**Revision:** PR #145 governance-evidence — hermetic only; Live proof not executed.
