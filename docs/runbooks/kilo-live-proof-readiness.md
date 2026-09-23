@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR **#141** spine — **not** Live proof.  
+**Status:** PR **#141** spine + PR **#142** `env-matrix` gate — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
@@ -55,8 +55,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H4 | Runbook headings complete (`REQUIRED_RUNBOOK_HEADINGS`) | PR #141 tests |
 | H5 | No affirmative KILO Live/production claims in spine files | PR #141 tests |
 | H6 | Governance: side effects remain behind AdmissionGate in runtime code (architecture unchanged) | Review + existing suites |
+| H7 | KILO env matrix operator gate (`scripts/verify_kilo_env_matrix.py` exit 0) | PR #142 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141.
+No `INCEPTION_API_KEY` consumption is required for #141–#142 hermetic gates.
 
 ---
 
@@ -64,8 +65,8 @@ No `INCEPTION_API_KEY` consumption is required for #141.
 
 | PR | Theme (founder arc) | Gate ID | Closes in |
 |----|---------------------|---------|-----------|
-| **141** | Env docs + runbook spine | `spine-docs` | **This PR (draft)** |
-| 142 | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | #142 |
+| **141** | Env docs + runbook spine | `spine-docs` | **Merged** |
+| **142** | Hermetic KILO env matrix + redacted env contract tests | `env-matrix` | **This PR (draft)** |
 | 143 | Substrate readiness checklist (Box URL/token contract) | `substrate-checklist` | #143 |
 | 144 | Governance token + admission evidence shape for live burst | `governance-evidence` | #144 |
 | 145 | Bounded Mercury hermetic mocks + live-gate stub alignment | `mercury-hermetic` | #145 |
@@ -97,7 +98,27 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Health: `docs/STATUS.md` + root `STATUS.md`  
 - Arc overview: `docs/kilo-live-proof-arc.md`  
 - Hermetic contract: `thinkbox/kilo_live_proof_readiness.py`
-- Operator script: `scripts/verify_kilo_spine.py`
+- Env matrix contract: `thinkbox/kilo_env_matrix.py`
+- Operator scripts: `scripts/verify_kilo_spine.py`, `scripts/verify_kilo_env_matrix.py`
+
+---
+
+## Env-matrix gate (PR #142)
+
+Gate ID: **`env-matrix`**. Hermetic only — defines modes (`hermetic_unit`, `hermetic_ci`,
+`live_proof_prep`), watched env contracts, forbidden live defaults (founder live ack, KILO claim
+flags, public `:8000` / `:8001` binds), and loopback/mock provider URLs when
+`THINKBOX_KILO_HERMETIC_MODE` is set.
+
+| Mode | Purpose |
+|------|---------|
+| `hermetic_unit` | Default unittest / agent spine checks (no provider keys) |
+| `hermetic_ci` | CI runner (`CI` / `GITHUB_ACTIONS`) with operator-only forbidden checks |
+| `live_proof_prep` | Checklist completeness for later Live proof (Box URL + token shapes) |
+
+Operator verify uses **forbidden live defaults only** — presence of provider API keys in founder
+CI does not fail the spine gate; unit tests use `minimal_hermetic_environ()` for strict matrix
+assertions.
 
 ---
 
@@ -105,8 +126,11 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 
 ```bash
 python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v
+python3 scripts/verify_kilo_env_matrix.py
+python3 scripts/verify_kilo_spine.py
 python3 scripts/scan_doc_secrets.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Revision:** PR #141 spine — hermetic only; Live proof not executed.
+**Revision:** PR #142 env-matrix — hermetic only; Live proof not executed.
