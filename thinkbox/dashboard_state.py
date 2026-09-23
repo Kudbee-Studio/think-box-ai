@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncGenerator
 
+from thinkbox.read_cache import RevisionCounter
+
 
 class DashboardCategory(str, Enum):
     THINK_BOXES = "think_boxes"
@@ -287,6 +289,7 @@ class DashboardState:
         self.test_milestones: dict[str, TestMilestoneEntry] = {}
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
+        self._revision = RevisionCounter()
 
     async def register_subscriber(self, queue: asyncio.Queue) -> None:
         self._subscribers.append(queue)
@@ -311,26 +314,62 @@ class DashboardState:
             evidence_label=evidence_label,
         )
         self.events.append(entry)
+        self._revision.bump()
         await self._notify(entry)
         return entry
 
+    def revision(self) -> int:
+        return self._revision.value
+
+    def revision_etag(self) -> str:
+        return self._revision.etag()
+
     def upsert_think_box(self, box: ThinkBoxEntry) -> None:
         self.think_boxes[box.box_id] = box
+        self._revision.bump()
 
     def upsert_think_job(self, job: ThinkJobEntry) -> None:
         self.think_jobs[job.job_id] = job
+        self._revision.bump()
 
     def upsert_cnc_job(self, job: CNCJobEntry) -> None:
         self.cnc_jobs[job.job_id] = job
+        self._revision.bump()
 
     def upsert_infrastructure(self, component: str, entry: InfrastructureEntry) -> None:
         self.infrastructure[component] = entry
+        self._revision.bump()
 
     def upsert_provider(self, provider: ProviderEntry) -> None:
         self.providers[provider.name] = provider
+        self._revision.bump()
 
     def upsert_test_milestone(self, milestone: TestMilestoneEntry) -> None:
         self.test_milestones[milestone.test_name] = milestone
+        self._revision.bump()
+
+    def get_state_summary(self) -> dict[str, Any]:
+        """Lightweight counts for polls and WebSocket (no full job payloads)."""
+        receipt_linked = sum(
+            1
+            for j in self.think_jobs.values()
+            if j.receipt_id and j.experiment_id and j.session_id
+        )
+        return {
+            "revision": self.revision(),
+            "summary": {
+                "total_think_boxes": len(self.think_boxes),
+                "total_think_jobs": len(self.think_jobs),
+                "total_cnc_jobs": len(self.cnc_jobs),
+                "total_infrastructure": len(self.infrastructure),
+                "total_providers": len(self.providers),
+                "total_events": len(self.events),
+            },
+            "think_job_receipt_summary": {
+                "tracked": len(self.think_jobs),
+                "receipt_linked": receipt_linked,
+            },
+        }
 
     def get_state(self) -> dict[str, Any]:
         receipt_linked = sum(
@@ -339,6 +378,7 @@ class DashboardState:
             if j.receipt_id and j.experiment_id and j.session_id
         )
         return {
+            "revision": self.revision(),
             "think_boxes": [b.model_dump() for b in self.think_boxes.values()],
             "think_jobs": [j.model_dump() for j in self.think_jobs.values()],
             "cnc_jobs": [j.model_dump() for j in self.cnc_jobs.values()],
