@@ -482,7 +482,18 @@ async def emit_receipt_dashboard(
     status: str,
     proof_path: str | None = None,
 ) -> None:
+    from backend.api.v1.run_job_status import build_receipt_link_card
+
     dashboard = get_dashboard_state()
+    receipt_card = build_receipt_link_card(
+        job_id=binding.engine_id,
+        status=status,
+        phase=status,
+        receipt_id=binding.receipt_id,
+        experiment_id=binding.experiment_id,
+        session_id=binding.session_id,
+        proof_artifact=proof_path or "",
+    )
     await dashboard.emit(
         DashboardCategory.THINK_JOBS,
         DashboardEvent.JOB_COMPLETED if status == "completed" else DashboardEvent.TASK_FAILED,
@@ -494,6 +505,7 @@ async def emit_receipt_dashboard(
             "status": status,
             "proof_artifact": proof_path or "",
             "kind": "http_run_receipt",
+            "receipt_card": receipt_card,
             "evidence_label": HTTP_RUN_EVIDENCE,
         },
         source="http_run_receipts",
