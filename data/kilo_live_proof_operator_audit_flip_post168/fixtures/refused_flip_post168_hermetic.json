@@ -1,0 +1,7 @@
+{
+  "expect_ready": false,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "note": "hermetic fixture — flip must stay refused without founder artifacts"
+}

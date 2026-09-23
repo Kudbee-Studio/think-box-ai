@@ -77,6 +77,7 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H26 | KILO PR #166 combined post-#165 lane (`scripts/verify_kilo_pr166_combined_post165_lane.py` exit 0) | PR #166 tests |
 | H27 | KILO PR #167 combined post-#166 lane (`scripts/verify_kilo_pr167_combined_post166_lane.py` exit 0) | PR #167 tests |
 | H28 | KILO PR #168 combined post-#167 lane (`scripts/verify_kilo_pr168_combined_post167_lane.py` exit 0) | PR #168 tests |
+| H29 | KILO PR #169 combined post-#168 lane (`scripts/verify_kilo_pr169_combined_post168_lane.py` exit 0) | PR #169 tests |
 
 No `INCEPTION_API_KEY` consumption is required for #141–#168 hermetic gates.
 
