@@ -1,0 +1,45 @@
+"""Hermetic Mercury mock client + live-gate stub alignment (PR #146, ``mercury-hermetic``).
+
+Layers on PR #142 ``env-matrix``, PR #143 ``substrate-checklist``, and PR #145
+``governance-evidence``. Bounded mock completions for Live-proof prep shape — no
+network, no ``INCEPTION_API_KEY`` consumption, ``live_api_called=False`` in hermetic
+modes. Aligned with ``thinkbox/cli_live_gate.swarm_live_authorization_report``.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Mapping, MutableMapping
+
+from thinkbox.governance_token import GovernanceTokenService, TokenRequest
+from thinkbox.identity import IdentityLedger
+from thinkbox.kilo_env_matrix import (
+    EnvMatrixMode,
+    detect_matrix_mode,
+    evaluate_env_matrix,
+)
+from thinkbox.kilo_governance_evidence import (
+    GovernanceEvidenceResult,
+    LiveBurstEvidence,
+    evaluate_governance_evidence,
+    hermetic_governance_operator_check,
+    minimal_governance_hermetic_environ,
+    redact_secret_value,
+)
+from thinkbox.kilo_live_proof_readiness import gate_for_pr
+from thinkbox.kilo_substrate_checklist import redact_box_token, redact_box_url
+
+__all__ = (
+    "BoundedMercuryMockClient",
+    "GATE_ID",
+    "MERCURY_HERMETIC_MODEL",
+    "MercuryHermeticCallResult",
+    "MercuryHermeticEvidence",
+    "MercuryHermeticResult",
+    "MercuryHermeticViolation",
+    "MercuryMockMode",
+    "PR_NUMBER",
