@@ -1,5 +1,14 @@
 # STATUS — Think Box AI
 
+## PR #154 — Control-plane API surface upgrade (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `control-plane-api` (layers `live-smoke-operator`) |
+| **Scope** | `thinkbox/control_plane_api_*`, `backend/api/v1/control_plane.py`, spine verify |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_control_plane_api.py` |
+
 ## PR #153 — KILO live-smoke operator path (DRAFT)
 
 | Field | Value |
