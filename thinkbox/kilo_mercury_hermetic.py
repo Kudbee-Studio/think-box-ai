@@ -368,3 +368,48 @@ def evaluate_mercury_hermetic(
 
     mock_call: MercuryHermeticCallResult | None = None
     if mock_ok and run_mock_call:
+        try:
+            client = BoundedMercuryMockClient(fixture_id=fixture_id)
+            mock_call = client.complete("kilo mercury hermetic probe")
+        except ValueError as exc:
+            violations.append(
+                MercuryHermeticViolation(
+                    code="mercury_mock_fixture_invalid",
+                    message=str(exc),
+                )
+            )
+
+    live_gate = align_live_gate_stub(env)
+    if live_gate.get("live_api_called"):
+        violations.append(
+            MercuryHermeticViolation(
+                code="live_api_called_forbidden",
+                message="live_api_called must be false in mercury-hermetic hermetic modes",
+            )
+        )
+
+    evidence = MercuryHermeticEvidence(
+        gate_id=GATE_ID,
+        pr_number=PR_NUMBER,
+        governance_evidence_ok=gov.ok,
+        governance_summary_ref=_governance_summary_ref(gov),
+        live_gate_report=live_gate,
+        mock_client_configured=mock_ok,
+        mock_call=mock_call,
+        model=MERCURY_HERMETIC_MODEL,
+        evidence_label="inferred",
+        live_api_called=False,
+        governance_evidence=gov.evidence,
+    )
+
+    ok = gov.ok and mock_ok and len(violations) == 0
+    return MercuryHermeticResult(
+        mode=resolved_mode,
+        ok=ok,
+        governance_evidence_ok=gov.ok,
+        env_matrix_ok=gov.env_matrix_ok,
+        substrate_checklist_ok=gov.substrate_checklist_ok,
+        violations=violations if not ok else [],
+        evidence=evidence,
+    )
+
