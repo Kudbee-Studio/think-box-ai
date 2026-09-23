@@ -12,7 +12,8 @@
 | Env matrix | **#142** (merged) | `thinkbox/kilo_env_matrix.py` + `verify_kilo_env_matrix.py` |
 | Substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py` + `verify_kilo_substrate_checklist.py` |
 | CI fix | **#144** (merged) | Post-merge unittest discover green — **not** a readiness gate closure |
-| Governance evidence | **#145** (this arc step) | `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
+| Governance evidence | **#145** (merged) | `thinkbox/kilo_governance_evidence.py` + `verify_kilo_governance_evidence.py` |
+| Mercury hermetic | **#146** (this arc step) | `thinkbox/kilo_mercury_hermetic.py` + `verify_kilo_mercury_hermetic.py` |
 | Execution | **#150** | Live proof **procedure** + rehearsal; LIVE VERIFIED only when proof is actually run and recorded |
 
 ## Four-state (arc-wide)
@@ -31,11 +32,12 @@ Subsystem-specific LIVE VERIFIED history (e.g. Mercury swarm at scale) remains h
 - Env matrix: `thinkbox/kilo_env_matrix.py`
 - Substrate checklist: `thinkbox/kilo_substrate_checklist.py`
 - Governance evidence: `thinkbox/kilo_governance_evidence.py`
-- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr145.py`
-- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr145.json` (draft)
+- Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
+- Tests: `tests/unit/test_kilo_live_proof_readiness_pr141.py` … `pr146.py`
+- Audit: `docs/audit/passes/2026-09-23-pr141.json` … `pr146.json` (draft)
 
 See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-proof-readiness.md)
 
-## Non-binding #146 suggestion
+## Non-binding #147 suggestion
 
-**#145** ships `governance-evidence` on top of `env-matrix` + `substrate-checklist`. Optional non-binding follow-on: **#146** `mercury-hermetic` (bounded Mercury mocks + live-gate stub alignment with `thinkbox/cli_live_gate.py`) — must keep four-state honest.
+**#146** ships `mercury-hermetic` on top of `governance-evidence`. Optional non-binding follow-on: **#147** `swarm-instrumentation` (11/11 `verify_instrumentation.py` prereq) — must keep four-state honest.

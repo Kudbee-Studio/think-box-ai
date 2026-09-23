@@ -27,6 +27,9 @@ def main() -> int:
     governance_block = summary.get("governance_evidence") or {}
     if not governance_block.get("hermetic_operator_ok"):
         return 1
+    mercury_block = summary.get("mercury_hermetic") or {}
+    if not mercury_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

@@ -1,6 +1,15 @@
 # STATUS — Think Box AI
 
-## PR #145 — KILO governance-evidence gate (DRAFT)
+## PR #146 — KILO mercury-hermetic gate (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `mercury-hermetic` |
+| **Scope** | `thinkbox/kilo_mercury_hermetic.py` on governance-evidence + mock client + live-gate stub |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_mercury_hermetic.py` |
+
+## PR #145 — KILO governance-evidence gate (MERGED)
 
 | Field | Value |
 |-------|-------|

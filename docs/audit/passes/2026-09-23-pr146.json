@@ -1,0 +1,48 @@
+{
+  "pass_id": "pr146",
+  "title": "PR146 — KILO mercury-hermetic gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr145.json",
+  "started_at": "2026-09-23T17:00:00Z",
+  "completed_at": "2026-09-23T18:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr146",
+  "base_commit": "ede6778",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v",
+    "pr146_tests": 31,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "mercury_verify": "python3 scripts/verify_kilo_mercury_hermetic.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_mercury_hermetic contract module",
+    "BoundedMercuryMockClient fixtures with reasoning field",
+    "layer on governance-evidence evaluators",
+    "align_live_gate_stub authorization_check_only",
+    "hermetic modes live_api_called false",
+    "hermetic_mercury_operator_check spine-safe",
+    "mercury_hermetic_contract_summary JSON",
+    "mercury_hermetic_gate_closed helper",
+    "spine_contract_summary mercury_hermetic block",
+    "pr146_gate_id in spine summary",
+    "scripts/verify_kilo_mercury_hermetic.py operator helper",
+    "verify_kilo_spine mercury gate",
+    "unit tests pr146 hermetic and deny paths",
+    "runbook mercury-hermetic section H10",
+    "arc doc PR #146 mercury-hermetic",
+    "CONTINUITY STATUS AGENTS pr146 entries",
+    "audit checklist kilo-mercury-hermetic-pr146",
+    "audit pass pr146 + AUDIT_INDEX",
+    "ADR 005 mercury hermetic decision",
+    "hermetic only no live Mercury GPU deploy",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #147 swarm-instrumentation next"
+  ]
+}
