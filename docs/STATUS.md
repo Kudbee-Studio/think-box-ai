@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #156 — Dashboard receipt-chain / END_LINK bind (DRAFT)
+## PR #157 — API / ops harden after #156 (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `api-ops-harden` (layers `dashboard-receipt-chain-bind`) |
+| **Scope** | `control_plane_ops_harden`, structured errors, idempotency, rate limits |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_api_ops_harden.py` |
+
+## PR #156 — Dashboard receipt-chain / END_LINK bind (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `dashboard-receipt-chain-bind` (layers `receipt-chain-etag`) |
 | **Scope** | `receipt_chain_dashboard.html`, END_LINK client, `kilo_dashboard_receipt_chain_bind` |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — audit `live_verified: false` |
 | **Verify** | `python3 scripts/verify_kilo_dashboard_receipt_chain_bind.py` |
 
 ## PR #155 — Receipt-chain / ETag deepen (MERGED)
