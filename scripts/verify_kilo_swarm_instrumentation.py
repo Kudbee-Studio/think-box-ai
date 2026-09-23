@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Print KILO swarm-instrumentation contract summary (PR #147, hermetic operator gate)."""
 
+# Hermetic operator gate — layers mercury-hermetic; no live swarm.
 from __future__ import annotations
 
 import json
