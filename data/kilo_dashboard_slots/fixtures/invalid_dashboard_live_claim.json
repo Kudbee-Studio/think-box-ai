@@ -1,0 +1,25 @@
+{
+  "schema_version": "kilo-dashboard-slots-v1",
+  "registry_id": "kilo_slots_invalid_claim",
+  "gate_id": "dashboard-slots",
+  "pr_number": 149,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "dashboard_live_claim": {
+    "summary": "KILO LIVE VERIFIED from dashboard panel"
+  },
+  "slots": [
+    {
+      "slot_id": "slot-claim",
+      "kind": "dod_checklist",
+      "depends_on": [],
+      "bind": {
+        "receipt_key": "rcpt_claim",
+        "etag": "etag_claim",
+        "multiplex_digest_id": "bcc6cd7e9e6f146fdbd9af77d12da9fa"
+      }
+    }
+  ]
+}
