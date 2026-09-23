@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T02:40:00Z",
+      "checker": "cursor-cloud-pr129",
+      "commit_sha": "pending",
+      "finding_ids": ["F129-PERSIST", "F129-LIVE-GATE", "F129-SHELL"],
+      "notes": "test_cli_phase2; suite 2285 OK",
+      "path": "tests/unit/test_cli_phase2.py",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-23T02:45:00Z",
       "checker": "cursor-cloud-pr128",
       "commit_sha": "f260de6",

@@ -20,6 +20,7 @@ from thinkbox.model_client import ModelConfig
 from thinkbox.session import create_session, get_session_sync
 
 from backend.audit_storage import list_audits, list_sessions
+from thinkbox.cli_dashboard import dashboard_status_report
 from thinkbox.cli_inspect import (
     CLI_EXIT_FAIL,
     CLI_EXIT_OK,
@@ -34,8 +35,22 @@ from thinkbox.cli_inspect import (
     swarm_agents_rollup,
     swarm_status_summary,
 )
+from thinkbox.cli_live_gate import require_swarm_live_authorization
+from thinkbox.cli_persist import (
+    SQLiteIdentityStore,
+    SQLiteTraceStore,
+    init_persist_files,
+    persist_paths_report,
+    resolve_identity_db_path,
+    resolve_trace_db_path,
+    sync_identity_ledger_to_sqlite,
+    sync_traces_to_sqlite,
+)
+from thinkbox.cli_shell import CliShell
+from thinkbox.identity import IdentityLedger
+from thinkbox.thinktrace import ThinkTraceCapture
 
-__version__ = "0.128.0"
+__version__ = "0.129.0"
 
 
 def _emit(payload: dict, args: argparse.Namespace, title: str) -> None:
@@ -276,6 +291,188 @@ def cmd_swarm_status(args: argparse.Namespace) -> int:
     return CLI_EXIT_OK
 
 
+def cmd_swarm_live(args: argparse.Namespace) -> int:
+    """Authorization check only — never calls live provider APIs."""
+    ok, report = require_swarm_live_authorization()
+    _emit(report, args, "Swarm live gate")
+    return CLI_EXIT_OK if ok or getattr(args, "check_only", False) else CLI_EXIT_FAIL
+
+
+def cmd_dashboard_status(args: argparse.Namespace) -> int:
+    payload = dashboard_status_report(include_env=not args.no_env)
+    _emit(payload, args, "Dashboard status (local)")
+    return CLI_EXIT_OK
+
+
+def cmd_persist_status(args: argparse.Namespace) -> int:
+    payload = persist_paths_report()
+    _emit(payload, args, "CLI persistence paths")
+    return CLI_EXIT_OK
+
+
+def cmd_persist_init(args: argparse.Namespace) -> int:
+    payload = init_persist_files(seed=args.seed)
+    _emit(payload, args, "CLI persistence init")
+    return CLI_EXIT_OK
+
+
+def cmd_persist_sync(args: argparse.Namespace) -> int:
+    id_path = resolve_identity_db_path(args.identity_db)
+    tr_path = resolve_trace_db_path(args.trace_db)
+    ledger = IdentityLedger()
+    if args.seed_identity:
+        ledger.register(agent_id=args.seed_identity, capabilities=["cli:sync"], policy_version="phase2")
+    id_count = sync_identity_ledger_to_sqlite(ledger, id_path)
+    capture = ThinkTraceCapture()
+    if args.seed_trace:
+        capture.capture(args.seed_trace, "cli sync seed", evidence_refs=["ev:cli"])
+    tr_count = sync_traces_to_sqlite(capture, tr_path)
+    payload = {
+        "identity_path": str(id_path),
+        "trace_path": str(tr_path),
+        "identity_rows": id_count,
+        "trace_rows": tr_count,
+        "evidence_label": "verified",
+    }
+    _emit(payload, args, "CLI persistence sync")
+    return CLI_EXIT_OK
+
+
+def cmd_identity_list(args: argparse.Namespace) -> int:
+    path = resolve_identity_db_path(args.db)
+    if not path.is_file():
+        payload = {"path": str(path), "identities": [], "count": 0, "error": "database not found"}
+        _emit(payload, args, "Identity list")
+        return CLI_EXIT_FAIL
+    store = SQLiteIdentityStore(path)
+    try:
+        rows = store.list_rows(limit=args.limit)
+        payload = {"path": str(path), "identities": rows, "count": len(rows)}
+        _emit(payload, args, "Identity list")
+        return CLI_EXIT_OK
+    finally:
+        store.close()
+
+
+def cmd_identity_path(args: argparse.Namespace) -> int:
+    payload = {"path": str(resolve_identity_db_path(args.db)), "evidence_label": "verified"}
+    _emit(payload, args, "Identity DB path")
+    return CLI_EXIT_OK
+
+
+def cmd_trace_list(args: argparse.Namespace) -> int:
+    path = resolve_trace_db_path(args.db)
+    if not path.is_file():
+        payload = {"path": str(path), "traces": [], "count": 0, "error": "database not found"}
+        _emit(payload, args, "Trace list")
+        return CLI_EXIT_FAIL
+    store = SQLiteTraceStore(path)
+    try:
+        grounded = None
+        if args.grounded == "true":
+            grounded = True
+        elif args.grounded == "false":
+            grounded = False
+        rows = store.list_rows(limit=args.limit, grounded=grounded)
+        payload = {"path": str(path), "traces": rows, "count": len(rows)}
+        _emit(payload, args, "Trace list")
+        return CLI_EXIT_OK
+    finally:
+        store.close()
+
+
+def cmd_trace_stats(args: argparse.Namespace) -> int:
+    path = resolve_trace_db_path(args.db)
+    if not path.is_file():
+        payload = {"path": str(path), "stats": None, "error": "database not found"}
+        _emit(payload, args, "Trace stats")
+        return CLI_EXIT_FAIL
+    store = SQLiteTraceStore(path)
+    try:
+        payload = {"path": str(path), "stats": store.stats()}
+        _emit(payload, args, "Trace stats")
+        return CLI_EXIT_OK
+    finally:
+        store.close()
+
+
+def _shell_tokenize(line: str) -> list[str]:
+    import shlex
+
+    return shlex.split(line)
+
+
+def shell_execute(argv: list[str]) -> int:
+    """Map REPL tokens to hermetic inspect handlers (no network)."""
+    if not argv:
+        return CLI_EXIT_OK
+    head = argv[0].lower()
+    if head in ("help", "?"):
+        print(
+            "Commands: help, exit, env status, ledger verify, proof check PATH,\n"
+            "  swarm agents|status, swarm live (gate only), dashboard status,\n"
+            "  identity list, trace list, persist status\n"
+        )
+        return CLI_EXIT_OK
+    if head == "env" and len(argv) >= 2 and argv[1].lower() == "status":
+        return cmd_env_status(argparse.Namespace(json=False, command="env", env_command="status"))
+    if head == "ledger" and len(argv) >= 2 and argv[1].lower() == "verify":
+        path = argv[2] if len(argv) > 2 else None
+        return cmd_ledger_verify(
+            argparse.Namespace(json=False, command="ledger", ledger_command="verify", path=path, verbose=False)
+        )
+    if head == "proof" and len(argv) >= 3 and argv[1].lower() == "check":
+        return cmd_proof_check(
+            argparse.Namespace(
+                json=False,
+                command="proof",
+                proof_command="check",
+                path=argv[2],
+                metrics_only=False,
+            )
+        )
+    if head == "swarm":
+        if len(argv) >= 2 and argv[1].lower() == "live":
+            return cmd_swarm_live(argparse.Namespace(json=False, command="swarm", swarm_command="live", check_only=False))
+        if len(argv) >= 2 and argv[1].lower() == "agents":
+            return cmd_swarm_agents(
+                argparse.Namespace(json=False, command="swarm", swarm_command="agents", proof_dir=None, limit=3)
+            )
+        if len(argv) >= 2 and argv[1].lower() == "status":
+            return cmd_swarm_status(
+                argparse.Namespace(json=False, command="swarm", swarm_command="status", proof_dir=None, limit=3)
+            )
+    if head == "dashboard" and len(argv) >= 2 and argv[1].lower() == "status":
+        return cmd_dashboard_status(
+            argparse.Namespace(json=False, command="dashboard", dashboard_command="status", no_env=False)
+        )
+    if head == "identity" and len(argv) >= 2 and argv[1].lower() == "list":
+        return cmd_identity_list(
+            argparse.Namespace(json=False, command="identity", identity_command="list", db=None, limit=20)
+        )
+    if head == "trace" and len(argv) >= 2 and argv[1].lower() == "list":
+        return cmd_trace_list(
+            argparse.Namespace(
+                json=False, command="trace", trace_command="list", db=None, limit=20, grounded="any"
+            )
+        )
+    if head == "persist" and len(argv) >= 2 and argv[1].lower() == "status":
+        return cmd_persist_status(argparse.Namespace(json=False, command="persist", persist_command="status"))
+    if head in _LIVE_COMMANDS:
+        return cmd_swarm_live(argparse.Namespace(json=False, command="swarm", swarm_command="live", check_only=False))
+    return CLI_EXIT_USAGE
+
+
+_LIVE_COMMANDS = frozenset({"live", "swarm-live", "run-live"})
+
+
+def cmd_shell(args: argparse.Namespace) -> int:
+    if args.command_line:
+        return shell_execute(_shell_tokenize(args.command_line))
+    shell = CliShell(shell_execute)
+    return shell.run(max_lines=args.max_lines or 0)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="thinkbox",
@@ -354,6 +551,72 @@ def build_parser() -> argparse.ArgumentParser:
     swarm_status_parser.add_argument("--proof-dir", help="Directory containing big_swarm_*.json")
     swarm_status_parser.add_argument("--json", action="store_true", help="Emit JSON")
 
+    swarm_live_parser = swarm_sub.add_parser(
+        "live",
+        help="Fail-closed live authorization check (no provider HTTP)",
+    )
+    swarm_live_parser.add_argument(
+        "--check-only",
+        action="store_true",
+        help="Exit 0 even when unauthorized (report only)",
+    )
+    swarm_live_parser.add_argument("--json", action="store_true", help="Emit JSON")
+
+    dash_parser = subparsers.add_parser("dashboard", help="Dashboard inspection (local state)")
+    dash_sub = dash_parser.add_subparsers(dest="dashboard_command")
+    dash_status_parser = dash_sub.add_parser("status", help="Read-only in-process dashboard summary")
+    dash_status_parser.add_argument("--no-env", action="store_true", help="Omit redacted env block")
+    dash_status_parser.add_argument("--json", action="store_true", help="Emit JSON")
+
+    persist_parser = subparsers.add_parser("persist", help="CLI SQLite persistence paths")
+    persist_sub = persist_parser.add_subparsers(dest="persist_command")
+    persist_status_parser = persist_sub.add_parser("status", help="Show identity/trace DB paths")
+    persist_status_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    persist_init_parser = persist_sub.add_parser("init", help="Create empty SQLite files")
+    persist_init_parser.add_argument("--seed", action="store_true", help="Insert hermetic seed identity")
+    persist_init_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    persist_sync_parser = persist_sub.add_parser("sync", help="Sync in-memory ledger/trace to SQLite")
+    persist_sync_parser.add_argument("--identity-db", help="Identity SQLite path override")
+    persist_sync_parser.add_argument("--trace-db", help="Trace SQLite path override")
+    persist_sync_parser.add_argument("--seed-identity", help="Optional agent_id to register before sync")
+    persist_sync_parser.add_argument("--seed-trace", help="Optional agent_id for a seed trace row")
+    persist_sync_parser.add_argument("--json", action="store_true", help="Emit JSON")
+
+    identity_parser = subparsers.add_parser("identity", help="Identity ledger SQLite (read-only)")
+    identity_sub = identity_parser.add_subparsers(dest="identity_command")
+    identity_list_parser = identity_sub.add_parser("list", help="List identities from SQLite")
+    identity_list_parser.add_argument("--db", help="Identity DB path override")
+    identity_list_parser.add_argument("--limit", type=int, default=50, help="Max rows")
+    identity_list_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    identity_path_parser = identity_sub.add_parser("path", help="Print resolved identity DB path")
+    identity_path_parser.add_argument("--db", help="Identity DB path override")
+    identity_path_parser.add_argument("--json", action="store_true", help="Emit JSON")
+
+    trace_parser = subparsers.add_parser("trace", help="Think-trace SQLite (read-only)")
+    trace_sub = trace_parser.add_subparsers(dest="trace_command")
+    trace_list_parser = trace_sub.add_parser("list", help="List recent traces")
+    trace_list_parser.add_argument("--db", help="Trace DB path override")
+    trace_list_parser.add_argument("--limit", type=int, default=30, help="Max rows")
+    trace_list_parser.add_argument(
+        "--grounded",
+        choices=["any", "true", "false"],
+        default="any",
+        help="Filter by grounded flag",
+    )
+    trace_list_parser.add_argument("--json", action="store_true", help="Emit JSON")
+    trace_stats_parser = trace_sub.add_parser("stats", help="Trace counts from SQLite")
+    trace_stats_parser.add_argument("--db", help="Trace DB path override")
+    trace_stats_parser.add_argument("--json", action="store_true", help="Emit JSON")
+
+    shell_parser = subparsers.add_parser("shell", help="Local inspect REPL (no network)")
+    shell_parser.add_argument("-c", "--command", dest="command_line", help="Run one REPL command and exit")
+    shell_parser.add_argument(
+        "--max-lines",
+        type=int,
+        default=0,
+        help="Stop REPL after N input lines (0 = unlimited)",
+    )
+
     return parser
 
 
@@ -389,7 +652,35 @@ def dispatch(args: argparse.Namespace) -> int:
             return cmd_swarm_agents(args)
         if args.swarm_command == "status":
             return cmd_swarm_status(args)
+        if args.swarm_command == "live":
+            return cmd_swarm_live(args)
         return CLI_EXIT_USAGE
+    if args.command == "dashboard":
+        if args.dashboard_command == "status":
+            return cmd_dashboard_status(args)
+        return CLI_EXIT_USAGE
+    if args.command == "persist":
+        if args.persist_command == "status":
+            return cmd_persist_status(args)
+        if args.persist_command == "init":
+            return cmd_persist_init(args)
+        if args.persist_command == "sync":
+            return cmd_persist_sync(args)
+        return CLI_EXIT_USAGE
+    if args.command == "identity":
+        if args.identity_command == "list":
+            return cmd_identity_list(args)
+        if args.identity_command == "path":
+            return cmd_identity_path(args)
+        return CLI_EXIT_USAGE
+    if args.command == "trace":
+        if args.trace_command == "list":
+            return cmd_trace_list(args)
+        if args.trace_command == "stats":
+            return cmd_trace_stats(args)
+        return CLI_EXIT_USAGE
+    if args.command == "shell":
+        return cmd_shell(args)
     return CLI_EXIT_USAGE
 
 
