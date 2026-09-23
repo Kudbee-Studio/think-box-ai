@@ -338,3 +338,63 @@ def apply_status_event(
     if kind == "think_job_stream_close":
         reason = str(event.get("reason") or "closed")
         state.telemetry.last_error = f"stream_close:{reason}"
+        return False
+    if kind == "think_job_stream_heartbeat":
+        return False
+    if kind == "parse_error":
+        state.telemetry.last_error = str(event.get("error") or "sse_parse_error")
+        state.telemetry.poll_error_count += 1
+        return False
+    return False
+
+
+def backoff_delay_ms(attempt: int, *, base_ms: int = MIN_BACKOFF_MS) -> int:
+    """Exponential backoff with cap for SSE reconnect."""
+    attempt = max(0, attempt)
+    delay = base_ms * (BACKOFF_FACTOR ** attempt)
+    return int(min(MAX_BACKOFF_MS, math.ceil(delay)))
+
+
+def should_enter_poll_fallback(
+    *,
+    sse_supported: bool,
+    sse_failed: bool,
+    stream_available: bool,
+) -> bool:
+    if not stream_available:
+        return True
+    if not sse_supported:
+        return True
+    return sse_failed
+
+
+def classify_transport_after_error(
+    current: TransportMode,
+    *,
+    sse_recoverable: bool,
+) -> TransportMode:
+    if current == TransportMode.SSE and not sse_recoverable:
+        return TransportMode.DEGRADED_POLL
+    if current == TransportMode.SSE:
+        return TransportMode.POLL
+    return TransportMode.DEGRADED_POLL
+
+
+def terminal_from_summary(summary: Mapping[str, Any] | None) -> bool:
+    if not summary:
+        return False
+    poll = summary.get("poll") if isinstance(summary.get("poll"), dict) else {}
+    if poll.get("terminal") is True:
+        return True
+    status = str(summary.get("status") or "").lower()
+    return status in {"completed", "failed", "cancelled", "error"}
+
+
+def digest_row_label(row: Mapping[str, Any]) -> str:
+    jid = str(row.get("job_id") or row.get("engine_id") or "?")
+    status = str(row.get("status") or "?")
+    return f"{jid} ({status})"
+
+
+def apply_digest_stream_event(
+    panel: MultiplexPanelState,
