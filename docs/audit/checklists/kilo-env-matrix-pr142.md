@@ -10,3 +10,4 @@
 - [ ] No affirmative KILO LIVE VERIFIED / PRODUCTION READY on spine paths
 - [ ] Four-state capped at TEST VERIFIED on branch
 - [ ] `gate_for_pr(142).gate_id == env-matrix` via unit tests
+- [ ] Follow-on Box checklist in `kilo-substrate-checklist-pr143.md` (PR #143)

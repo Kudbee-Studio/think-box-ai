@@ -1,13 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #142 — KILO env-matrix gate (DRAFT)
+## PR #143 — KILO substrate-checklist gate (DRAFT)
 
 | Field | Value |
 |-------|-------|
-| **Branch** | `cursor/pr142-kilo-env-matrix-9aa0` |
+| **Branch** | `cursor/pr143-kilo-substrate-checklist-fe6b` |
+| **Gate** | `substrate-checklist` |
+| **Scope** | `thinkbox/kilo_substrate_checklist.py` on top of env-matrix, operator verify scripts |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_substrate_checklist.py` |
+
+## PR #142 — KILO env-matrix gate (MERGED)
+
+| Field | Value |
+|-------|-------|
 | **Gate** | `env-matrix` |
 | **Scope** | `thinkbox/kilo_env_matrix.py`, operator verify scripts, hermetic contract tests |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
 | **Verify** | `python3 scripts/verify_kilo_env_matrix.py` |
 
 ## PR #141 — KILO Live-proof readiness (MERGED)

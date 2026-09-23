@@ -21,6 +21,9 @@ def main() -> int:
     env_block = summary.get("env_matrix") or {}
     if not env_block.get("hermetic_operator_ok"):
         return 1
+    substrate_block = summary.get("substrate_checklist") or {}
+    if not substrate_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

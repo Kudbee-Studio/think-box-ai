@@ -5,6 +5,6 @@ Live proof evidence is recorded separately under `data/thinkboxmd/artifacts/` an
 
 | Runbook | Purpose |
 |---------|---------|
-| [kilo-live-proof-readiness.md](./kilo-live-proof-readiness.md) | PR **#141–#150** arc: prerequisites and gates before KILO **Live proof** (not the proof itself); PR **#142** `env-matrix` operator verify |
+| [kilo-live-proof-readiness.md](./kilo-live-proof-readiness.md) | PR **#141–#150** arc: prerequisites and gates before KILO **Live proof** (not the proof itself); PR **#142** `env-matrix` + PR **#143** `substrate-checklist` operator verify |
 
 **Four-state on spine docs:** CODE COMPLETE / TEST VERIFIED only until a dedicated Live proof pass earns LIVE VERIFIED.

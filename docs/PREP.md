@@ -2,12 +2,16 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-23 (PR #142 draft)
+> ## ADDENDUM — 2026-09-23 (PR #143 draft)
 >
-> **Branch:** `cursor/pr142-kilo-env-matrix-9aa0` (draft).  
-> **Scope:** KILO **`env-matrix`** gate: `thinkbox/kilo_env_matrix.py`, `verify_kilo_env_matrix.py`, hermetic contract tests — **no Live proof, no live build**.  
-> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr142 -v` + `verify_kilo_spine.py` / `verify_kilo_env_matrix.py`; `scripts/scan_doc_secrets.py` OK.  
+> **Branch:** `cursor/pr143-kilo-substrate-checklist-fe6b` (draft).  
+> **Scope:** KILO **`substrate-checklist`** gate: `thinkbox/kilo_substrate_checklist.py`, `verify_kilo_substrate_checklist.py`, layered on env-matrix — **no Live proof, no live build**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v` + `verify_kilo_spine.py` / `verify_kilo_substrate_checklist.py`; `scripts/scan_doc_secrets.py` OK.  
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #142 merged)
+>
+> **Scope:** KILO **`env-matrix`** gate: `thinkbox/kilo_env_matrix.py`, `verify_kilo_env_matrix.py`, hermetic contract tests.
 >
 > ## ADDENDUM — 2026-09-23 (PR #141 merged)
 >
