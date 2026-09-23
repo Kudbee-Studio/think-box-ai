@@ -87,6 +87,12 @@ class TestSpineModule(unittest.TestCase):
         self.assertEqual(summary["four_state_max"], "TEST_VERIFIED")
         self.assertFalse(summary["live_proof_in_this_pr"])
 
+    def test_summary_pr142_gate_id(self) -> None:
+        summary = spine.spine_contract_summary()
+        self.assertEqual(summary.get("pr142_gate_id"), "env-matrix")
+        env_block = summary.get("env_matrix")
+        self.assertIsInstance(env_block, dict)
+
     def test_summary_no_missing_contracts(self) -> None:
         summary = spine.spine_contract_summary()
         self.assertEqual(summary["missing_spine_docs"], [])
