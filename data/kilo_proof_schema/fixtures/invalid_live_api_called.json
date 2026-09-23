@@ -1,0 +1,23 @@
+{
+  "_expect": "invalid",
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_live_api",
+  "gate_id": "proof-schema",
+  "pr_number": 148,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": true,
+  "evidence_label": "inferred",
+  "receipt_key": "rcpt_live_api_forbidden",
+  "etag": "etag_live_api_forbidden",
+  "prior_gate_ids": ["swarm-instrumentation"],
+  "gates": [
+    {
+      "node_id": "n1",
+      "gate_id": "swarm-instrumentation",
+      "depends_on": [],
+      "hermetic_operator_ok": true
+    }
+  ],
+  "cues": []
+}
