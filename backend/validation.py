@@ -9,9 +9,12 @@ MAX_GOAL_LENGTH = 10_000
 MAX_PATH_LENGTH = 4096
 MAX_TOOL_ARGS_SIZE = 100_000
 MAX_ITERATIONS = 100
+MAX_THINKBOX_ID_LENGTH = 128
 
 PATH_TRAVERSAL_PATTERN = re.compile(r"\.\.[\\/]|[\\/]\.\.")
 SAFE_FILENAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-./]+$")
+THINKBOX_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
+RECEIPT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+_rcpt_[0-9]{14}_[a-f0-9]{8}$")
 
 
 def validate_goal(goal: Any) -> tuple[bool, str]:
@@ -74,9 +77,38 @@ def validate_job_id(job_id: Any) -> tuple[bool, str]:
     job_id = job_id.strip()
     if not job_id:
         return False, "Job ID cannot be empty"
-    if not re.match(r"^[a-zA-Z0-9_\-]+$", job_id):
+    if len(job_id) > MAX_THINKBOX_ID_LENGTH:
+        return False, "Job ID too long"
+    if not THINKBOX_ID_PATTERN.match(job_id):
         return False, "Job ID contains invalid characters"
     return True, job_id
+
+
+def validate_thinkbox_id(identifier: Any, *, label: str = "ID") -> tuple[bool, str]:
+    """Validate engine/session/experiment style identifiers."""
+    if not isinstance(identifier, str):
+        return False, f"{label} must be a string"
+    value = identifier.strip()
+    if not value:
+        return False, f"{label} cannot be empty"
+    if len(value) > MAX_THINKBOX_ID_LENGTH:
+        return False, f"{label} too long"
+    if not THINKBOX_ID_PATTERN.match(value):
+        return False, f"{label} contains invalid characters"
+    return True, value
+
+
+def validate_receipt_id(receipt_id: Any) -> tuple[bool, str]:
+    if not isinstance(receipt_id, str):
+        return False, "Receipt ID must be a string"
+    value = receipt_id.strip()
+    if not value:
+        return False, "Receipt ID cannot be empty"
+    if len(value) > MAX_THINKBOX_ID_LENGTH:
+        return False, "Receipt ID too long"
+    if not RECEIPT_ID_PATTERN.match(value) and not THINKBOX_ID_PATTERN.match(value):
+        return False, "Receipt ID format invalid"
+    return True, value
 
 
 def validate_api_key(key: str) -> bool:
