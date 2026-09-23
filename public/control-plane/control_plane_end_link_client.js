@@ -6,6 +6,22 @@
 (function (global) {
   var API_PREFIX = "/api/v1/control-plane";
   var END_LINK_API = "END_LINK";
+  var DEFAULT_FETCH_TIMEOUT_MS = 8000;
+
+  function fetchWithTimeout(url, options, timeoutMs) {
+    timeoutMs = timeoutMs || DEFAULT_FETCH_TIMEOUT_MS;
+    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = controller
+      ? setTimeout(function () {
+          controller.abort();
+        }, timeoutMs)
+      : null;
+    var opts = Object.assign({}, options || {});
+    if (controller) opts.signal = controller.signal;
+    return fetch(url, opts).finally(function () {
+      if (timer) clearTimeout(timer);
+    });
+  }
 
   function chainPaths() {
     return {
@@ -33,7 +49,7 @@
     if (global.TBLoadPerf && global.TBLoadPerf.fetchJsonConditional) {
       return global.TBLoadPerf.fetchJsonConditional(url, options, etagStore);
     }
-    var res = await fetch(url, options || {});
+    var res = await fetchWithTimeout(url, options || {}, DEFAULT_FETCH_TIMEOUT_MS);
     if (!res.ok) {
       return { cached: false, data: null, response: res, error: "HTTP " + res.status };
     }
@@ -88,7 +104,7 @@
     var url = buildEndLinkPath(receiptId);
     var headers = Object.assign({}, authHeaders || {});
     if (opts.ifMatch) headers["If-Match"] = opts.ifMatch;
-    var res = await fetch(url, { headers: headers });
+    var res = await fetchWithTimeout(url, { headers: headers }, DEFAULT_FETCH_TIMEOUT_MS);
     if (res.status === 412) {
       return {
         api: END_LINK_API,
@@ -144,6 +160,8 @@
   global.TBEndLink = {
     END_LINK_API: END_LINK_API,
     API_PREFIX: API_PREFIX,
+    DEFAULT_FETCH_TIMEOUT_MS: DEFAULT_FETCH_TIMEOUT_MS,
+    fetchWithTimeout: fetchWithTimeout,
     chainPaths: chainPaths,
     buildEndLinkPath: buildEndLinkPath,
     fetchChainPage: fetchChainPage,
