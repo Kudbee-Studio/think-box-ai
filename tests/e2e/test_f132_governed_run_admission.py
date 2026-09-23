@@ -285,6 +285,69 @@ class TestPostRunVerifiedHermetic(unittest.TestCase):
         self.assertEqual(r.status_code, 403)
 
 
+class TestPostRunGovernanceStatusEndpoint(unittest.TestCase):
+    def test_governance_status_returns_redacted_snapshot(self) -> None:
+        with hermetic_run_client() as (client, _):
+            r = client.get("/api/v1/run/governance/status", headers=auth_headers())
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["surface"], "http")
+        self.assertIn("ledger_verified", body)
+        self.assertNotIn("token", json.dumps(body).lower())
+
+    def test_admission_reason_in_started_summary(self) -> None:
+        with hermetic_run_client() as (client, _):
+            r = client.post("/api/v1/run", json=run_payload("admit reason"), headers=auth_headers())
+        self.assertEqual(r.json()["summary"]["admission_reason"], "admitted")
+
+
+class TestPostRunSubtaskValidation(unittest.TestCase):
+    def test_verified_missing_spec_field_returns_422(self) -> None:
+        with hermetic_run_client() as (client, _):
+            r = client.post(
+                "/api/v1/run",
+                json=run_payload(
+                    "bad subtask",
+                    verified=True,
+                    subtasks=[{"description": "only desc", "family": "compute"}],
+                ),
+                headers=auth_headers(),
+            )
+        self.assertEqual(r.status_code, 422)
+
+
+class TestPostRunExpiredToken(unittest.TestCase):
+    def test_expired_governance_token_returns_403(self) -> None:
+        from thinkbox.governance_token import TokenRequest
+
+        gov = reset_api_run_governance_for_tests()
+        expired = gov.token_service.issue(
+            TokenRequest(agent_id="exp-agent", capabilities=["goal:execute"], ttl_seconds=-1.0)
+        )
+        gov.identity_ledger.register(agent_id="exp-agent", capabilities=["goal:execute"])
+        with TestPostRunGovernanceFailClosed()._bare_client() as client:
+            r = client.post(
+                "/api/v1/run",
+                json={"goal": "expired", "agent_id": "exp-agent", "governance_token": expired.token_value},
+                headers=auth_headers(),
+            )
+        self.assertEqual(r.status_code, 403)
+
+
+class TestPostRunIdentityRevoked(unittest.TestCase):
+    def test_revoked_identity_returns_403(self) -> None:
+        gov = reset_api_run_governance_for_tests()
+        token = gov.register_agent("revoked-id", ["goal:execute"])
+        gov.identity_ledger.revoke("revoked-id")
+        with TestPostRunGovernanceFailClosed()._bare_client() as client:
+            r = client.post(
+                "/api/v1/run",
+                json={"goal": "revoked id", "agent_id": "revoked-id", "governance_token": token},
+                headers=auth_headers(),
+            )
+        self.assertEqual(r.status_code, 403)
+
+
 class TestPostRunOpenApiGovernance(unittest.TestCase):
     def test_openapi_run_request_includes_governance_fields(self) -> None:
         with hermetic_run_client() as (client, _):
