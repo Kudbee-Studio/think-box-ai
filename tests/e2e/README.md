@@ -42,6 +42,19 @@ python3 -m unittest tests.e2e.test_f023_think_job_lifecycle
 
 **FourState (branch only):** CODE COMPLETE / TEST VERIFIED — hermetic mock provider only; no LIVE Mercury, no PRODUCTION READY.
 
+### F131 POST /run HTTP contracts (PR #131)
+
+| File | Purpose |
+|------|---------|
+| `api_run_hermetic.py` | Starlette TestClient harness: auth middleware, mocked `ThinkBoxEngine`, synchronous background drain |
+| `test_f131_post_run_think_job_contract.py` | 25 hermetic tests: schema, dashboard upsert/events, API-key fail-closed, OpenAPI, engine failure path |
+
+```bash
+python3 -m unittest tests.e2e.test_f131_post_run_think_job_contract
+```
+
+**FourState (branch only):** CODE COMPLETE / TEST VERIFIED — ASGI/TestClient + mock engine; no LIVE Mercury, no PRODUCTION READY.
+
 ## Full gate
 
 ```bash

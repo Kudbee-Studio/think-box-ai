@@ -44,7 +44,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = "default-src 'self'"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        response.headers.pop("Server", None)
+        if "server" in response.headers:
+            del response.headers["server"]
         return response
 
 

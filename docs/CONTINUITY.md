@@ -1331,4 +1331,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FourState:** F023 hermetic Think Job lifecycle **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (no Mercury HTTP, no `POST /run` live path).
 - **NEXT ACTION:** Founder review draft PR #130; PR #131 theme: hermetic `POST /run` + dashboard job upsert contract tests (still mock provider).
 
+### 2026-09-23 — PR #130 merged; PR #131 draft (POST /run Think Job HTTP contracts)
+
+- **MERGED:** GitHub PR **#130** → `main` at **`afd0b91`** (F023 hermetic Think Job lifecycle e2e).
+- **BRANCH:** `feat/pr131-post-run-think-job-contract-25` — hermetic `POST /api/v1/run`: `tests/e2e/api_run_hermetic.py`, `tests/e2e/test_f131_post_run_think_job_contract.py` (25 tests); router import fix for `ThinkJobEntry` / `ThinkBoxEntry` / `CNCJobEntry`; `SecurityHeadersMiddleware` header strip compatible with current Starlette; audit `docs/audit/passes/2026-09-23-pr131.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2323 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** `POST /api/v1/run` hermetic HTTP contracts **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (mock `ThinkBoxEngine` only; no Mercury HTTP; governance admission not wired on `/run`).
+- **NEXT ACTION:** Founder review draft PR #131; PR #132 theme: wire governed verified runner into `/run` async path (hermetic first).
+
 ---

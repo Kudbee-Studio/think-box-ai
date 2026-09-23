@@ -28,7 +28,14 @@ from thinkbox.experiment import (
     FourState,
     ProvenanceSource,
 )
-from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
+from thinkbox.dashboard_state import (
+    CNCJobEntry,
+    DashboardCategory,
+    DashboardEvent,
+    ThinkBoxEntry,
+    ThinkJobEntry,
+    get_dashboard_state,
+)
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
