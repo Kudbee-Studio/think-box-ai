@@ -1,6 +1,6 @@
 # KILO Live-proof readiness runbook
 
-**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
+**Status:** PR #141 spine + PR #142 `env-matrix` + PR #143 `substrate-checklist` + PR #145 `governance-evidence` + PR #146 `mercury-hermetic` + PR #147 `swarm-instrumentation` + PR #148 `proof-schema` + PR #149 `dashboard-slots` (PR #144 = CI/post-merge fix only) — **not** Live proof.  
 **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only.  
 **Audience:** Agents and founders preparing KILO for an honest **Live proof** (earned later, not in #141).
 
