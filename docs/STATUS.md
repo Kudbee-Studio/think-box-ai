@@ -86,7 +86,7 @@ Current repository health, infrastructure status, known defects, and improvement
 | Gate | Status |
 |------|--------|
 | CODE COMPLETE | Yes (Think Job status SSE: deltas, hub, three stream routes) |
-| TEST VERIFIED | Yes (`2430` OK, `8` skipped, `3` expected failures) |
+| TEST VERIFIED | Yes (`2435` OK, `8` skipped, `3` expected failures) |
 | LIVE VERIFIED | **No** — hermetic/mock only; no live Mercury |
 | PRODUCTION READY | **No** |
 
@@ -106,7 +106,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2430 | ✅ | 8 | 3 | ✅ PASS (PR #137 draft gate) |
+| All unit + integration + e2e | 2435 | ✅ | 8 | 3 | ✅ PASS (PR #137 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

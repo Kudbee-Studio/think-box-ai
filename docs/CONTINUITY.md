@@ -42,7 +42,7 @@ Before declaring completion, every agent MUST verify:
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **PR #138 (not started):** Control-plane UI wiring for Think Job stream (subscribe + fallback poll) — hermetic only. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2430 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
+| **Test count** | **2435 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
 
 ---
 
