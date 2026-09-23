@@ -1,6 +1,15 @@
 # STATUS — Think Box AI
 
-## PR #158 — END LINK / control-plane deepen (DRAFT)
+## PR #159 — END LINK operator UX deepen (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `end-link-operator-ux` (layers `end-link-deepen`) |
+| **Scope** | batch results UX, chain filter controls, integrity panel, four-state copy |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false` |
+| **Verify** | `python3 scripts/verify_kilo_end_link_operator_ux.py` |
+
+## PR #158 — END LINK / control-plane deepen (MERGED)
 
 | Field | Value |
 |-------|-------|
