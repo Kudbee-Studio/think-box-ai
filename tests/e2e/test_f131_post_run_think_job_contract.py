@@ -174,13 +174,23 @@ class TestPostRunAuthFailClosed(unittest.TestCase):
             r = client.get("/openapi.json")
         self.assertEqual(r.status_code, 200)
 
-    def test_api_key_query_param_accepted(self) -> None:
+    def test_api_key_query_param_rejected_by_default(self) -> None:
         with isolated_dashboard_state():
             with hermetic_run_client() as (client, _):
                 r = client.post(
                     "/api/v1/run?api_key=tb_hermetic_pr131_contract_key",
                     json=run_payload("query auth"),
                 )
+        self.assertEqual(r.status_code, 401)
+
+    def test_api_key_query_param_opt_in(self) -> None:
+        with isolated_dashboard_state():
+            with patch("backend.security.ALLOW_QUERY_API_KEY", True):
+                with hermetic_run_client() as (client, _):
+                    r = client.post(
+                        "/api/v1/run?api_key=tb_hermetic_pr131_contract_key",
+                        json=run_payload("query auth opt-in"),
+                    )
         self.assertEqual(r.status_code, 200)
 
     def test_rate_limit_headers_present_on_authed_request(self) -> None:
