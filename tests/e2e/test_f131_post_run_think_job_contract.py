@@ -59,7 +59,9 @@ class TestPostRunHermeticSuccess(unittest.TestCase):
         body = r.json()
         self.assertEqual(body["status"], "started")
         self.assertTrue(body["engine_id"].startswith("engine_"))
-        self.assertEqual(body["session_id"], "")
+        self.assertTrue(body["session_id"])
+        self.assertIn("receipt_id", body["summary"])
+        self.assertIn("experiment_id", body["summary"])
         self.assertIn("goal", body["summary"])
 
     def test_think_job_entry_upserted_through_lifecycle(self) -> None:

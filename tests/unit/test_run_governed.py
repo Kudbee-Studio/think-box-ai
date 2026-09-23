@@ -10,6 +10,7 @@ from backend.api.v1.run_governed import (
     DEFAULT_RUN_CAPABILITY,
     DEFAULT_VERIFIED_CAPABILITY,
     governance_status_snapshot,
+    open_http_run_receipt,
     parse_run_admission,
     reset_api_run_governance_for_tests,
     require_http_admission,
@@ -77,6 +78,21 @@ class TestAdmissionGovernedShell(unittest.TestCase):
         self.assertIs(first, second)
         probe = gov.build_governed_engine(ThinkBoxEngine(EngineConfig()))
         self.assertIsNot(probe, first)
+
+
+class TestOpenHttpRunReceipt(unittest.TestCase):
+    def test_open_receipt_binds_experiment(self) -> None:
+        reset_api_run_governance_for_tests()
+        binding = open_http_run_receipt(
+            engine_id="e1",
+            goal="unit goal",
+            agent_id="agent-x",
+            verified=False,
+            capability=DEFAULT_RUN_CAPABILITY,
+            admission_reason="admitted",
+        )
+        self.assertTrue(binding.receipt_id)
+        self.assertEqual(binding.engine_id, "e1")
 
 
 if __name__ == "__main__":

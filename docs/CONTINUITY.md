@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-23
 
 ---
 
@@ -36,17 +36,25 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #125 (draft):** Full-repo audit ledger (`docs/audit/`, `scripts/audit_ledger.py`), 25 ranked findings (`passes/2026-09-22-pr125.json`), P0/P1 doc fixes (suite counts, STATUS security/env, Vector defect text). Vercel preview **not** attempted (no creds). Prior: PR #124 merged (big-scale convergence); swarm 512+ and convergence stats in prior passes. |
+| **Latest completed work** | **PR #132 merged** (`8a176e8`): governed hermetic `POST /api/v1/run` admission + ledger. **PR #133 draft:** HTTP run receipts + ExperimentManager persistence (`backend/api/v1/run_receipts.py`). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | Provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A live verification; scale swarm beyond 512 agents with increasing concurrency; prove convergence stability across more runs (currently 5); establish statistically rigorous scaling evidence. |
+| **Next larger improvement** | **PR #134 (not started):** Think Job status polling + receipt-linked dashboard card on governed HTTP runs. |
 | **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2235 OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
+| **Test count** | **2363 OK (7 skipped, 3 expected failures)** — `python3 -m unittest discover tests/` |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-23 — PR #133 draft: governed HTTP run receipts + ExperimentManager (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | SQLite receipts, proof artifacts, GET receipt surfaces, fail-closed persistence on `POST /api/v1/run` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2363 OK; `scripts/scan_doc_secrets.py` OK |
 
 ### 2026-09-19 — Full Repo Harden (COMPLETE)
 

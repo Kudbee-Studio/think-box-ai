@@ -1,13 +1,26 @@
-"""Governed ``POST /api/v1/run`` admission, engine wiring, and background execution (PR #132)."""
+"""Governed ``POST /api/v1/run`` admission, engine wiring, and background execution (PR #132–#133)."""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Callable, Awaitable
 
 from fastapi import HTTPException
 
+from backend.api.v1.run_receipts import (
+    HttpRunReceiptBinding,
+    RunReceiptPersistError,
+    apply_persist_failure,
+    begin_http_run_receipt,
+    emit_receipt_dashboard,
+    finalize_http_run_receipt,
+    get_http_run_persistence,
+    persist_profile_for_http,
+    reset_http_run_persistence_for_tests,
+    write_simple_http_run_proof,
+)
 from thinkbox.admission import AdmissionDecision
 from thinkbox.dashboard_state import (
     DashboardCategory,
@@ -108,6 +121,7 @@ def reset_api_run_governance_for_tests(
     *,
     signing_key: str = "hermetic-test-signing",
     ledger_path: str = ":memory:",
+    reset_receipts: bool = True,
 ) -> ApiRunGovernance:
     """Replace singleton (unittest isolation)."""
     global _api_governance
@@ -116,6 +130,8 @@ def reset_api_run_governance_for_tests(
         identity_ledger=IdentityLedger(),
         ledger_path=ledger_path,
     )
+    if reset_receipts:
+        reset_http_run_persistence_for_tests()
     return _api_governance
 
 
@@ -180,6 +196,8 @@ def governance_status_snapshot() -> dict[str, Any]:
     gov = get_api_run_governance()
     shell = gov.admission_governed()
     entries = list(shell.ledger.entries())
+    stack = get_http_run_persistence()
+    recent = stack.manager.db.restart_recovery()
     return {
         "surface": "http",
         "default_capability": DEFAULT_RUN_CAPABILITY,
@@ -190,6 +208,9 @@ def governance_status_snapshot() -> dict[str, Any]:
         "ledger_entries": len(entries),
         "ledger_verified": shell.ledger.verify(),
         "ledger_path_kind": "memory" if gov.ledger_path == ":memory:" else "file",
+        "receipt_db_path_kind": "file" if stack.db_path != ":memory:" else "memory",
+        "receipt_recent_experiments": len(recent.get("recent_experiments", [])),
+        "receipt_persistence": "enabled",
     }
 
 
@@ -229,8 +250,11 @@ async def execute_governed_run_background(
     job_entry: ThinkJobEntry,
     *,
     complete_async: CompleteAsyncFn | None = None,
+    receipt_binding: HttpRunReceiptBinding | None = None,
 ) -> None:
     dashboard = get_dashboard_state()
+    stack = get_http_run_persistence()
+    binding = receipt_binding
     try:
         if ctx.verified and ctx.subtasks:
             if complete_async is None:
@@ -243,6 +267,10 @@ async def execute_governed_run_background(
                 agent_id=ctx.agent_id,
                 capability=ctx.capability,
                 emit_dashboard=True,
+                manager=stack.manager,
+                persist_profile=persist_profile_for_http(),
+                goal_experiment_id=binding.experiment_id if binding else None,
+                session_id_override=binding.session_id if binding else None,
             )
         else:
             result = await governed.execute_goal(
@@ -254,6 +282,19 @@ async def execute_governed_run_background(
         if result.get("governed") is False:
             job_entry.status = "failed"
             job_entry.result = {"error": result.get("reason", "governance_denied")}
+            if binding:
+                try:
+                    finalize_http_run_receipt(
+                        binding,
+                        status="failed",
+                        outcome=job_entry.result,
+                        confidence=0.0,
+                        persistence=stack,
+                    )
+                    await emit_receipt_dashboard(binding, status="failed")
+                except RunReceiptPersistError as persist_exc:
+                    await apply_persist_failure(job_entry, binding, persist_exc)
+                    return
             dashboard.upsert_think_job(job_entry)
             await dashboard.emit(
                 DashboardCategory.THINK_JOBS,
@@ -269,6 +310,45 @@ async def execute_governed_run_background(
         job_entry.tasks_completed = result.get("completed") or verified.get("tasks_succeeded") or job_entry.tasks_total
         job_entry.result = result
         job_entry.phase = "completed"
+        if binding:
+            binding.metadata["goal_experiment_id"] = result.get("goal_experiment_id", binding.experiment_id)
+            proof_path = result.get("proof_artifact")
+            proof_sha = result.get("proof_sha256")
+            if not proof_path:
+                proof_path, proof_sha = write_simple_http_run_proof(binding, result, persistence=stack)
+            try:
+                finalize_http_run_receipt(
+                    binding,
+                    status="completed",
+                    outcome={
+                        "governed": True,
+                        "verified": ctx.verified,
+                        "summary": {
+                            k: result.get(k)
+                            for k in (
+                                "total_tasks",
+                                "completed",
+                                "goal_experiment_id",
+                                "session_id",
+                                "verification_rate",
+                                "calls_spent",
+                            )
+                        },
+                    },
+                    confidence=float(verified.get("verification_rate", 1.0) or 1.0),
+                    proof_path=proof_path,
+                    proof_sha256=proof_sha,
+                    persistence=stack,
+                )
+                result["receipt_id"] = binding.receipt_id
+                result["experiment_id"] = binding.experiment_id
+                result["session_id"] = binding.session_id
+                job_entry.result = result
+                await emit_receipt_dashboard(binding, status="completed", proof_path=proof_path)
+            except RunReceiptPersistError as persist_exc:
+                await apply_persist_failure(job_entry, binding, persist_exc)
+                return
+        job_entry.completed_at = datetime.now(timezone.utc).isoformat()
         dashboard.upsert_think_job(job_entry)
         await dashboard.emit(
             DashboardCategory.THINK_JOBS,
@@ -279,6 +359,18 @@ async def execute_governed_run_background(
     except Exception as exc:
         job_entry.status = "failed"
         job_entry.result = {"error": str(exc)}
+        if binding:
+            try:
+                finalize_http_run_receipt(
+                    binding,
+                    status="failed",
+                    outcome=job_entry.result,
+                    confidence=0.0,
+                    persistence=stack,
+                )
+            except RunReceiptPersistError as persist_exc:
+                await apply_persist_failure(job_entry, binding, persist_exc)
+                return
         dashboard.upsert_think_job(job_entry)
         await dashboard.emit(
             DashboardCategory.THINK_JOBS,
@@ -286,3 +378,22 @@ async def execute_governed_run_background(
             job_entry.model_dump(),
             "governed_engine",
         )
+
+
+def open_http_run_receipt(
+    *,
+    engine_id: str,
+    goal: str,
+    agent_id: str,
+    verified: bool,
+    capability: str,
+    admission_reason: str,
+) -> HttpRunReceiptBinding:
+    return begin_http_run_receipt(
+        engine_id=engine_id,
+        goal=goal,
+        agent_id=agent_id,
+        verified=verified,
+        capability=capability,
+        admission_reason=admission_reason,
+    )
