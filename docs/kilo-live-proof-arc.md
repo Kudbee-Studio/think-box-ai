@@ -43,3 +43,4 @@ See runbook: [`docs/runbooks/kilo-live-proof-readiness.md`](runbooks/kilo-live-p
 ## Non-binding #148 suggestion
 
 **#147** ships `swarm-instrumentation` on top of `mercury-hermetic` (11-entry hermetic catalog; live swarm deferred). Optional non-binding follow-on: **#148** `proof-schema` — must keep four-state honest.
+
