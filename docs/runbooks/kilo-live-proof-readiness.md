@@ -60,7 +60,7 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H9 | KILO governance-evidence operator gate (`scripts/verify_kilo_governance_evidence.py` exit 0) | PR #145 tests |
 | H10 | KILO mercury-hermetic operator gate (`scripts/verify_kilo_mercury_hermetic.py` exit 0) | PR #146 tests |
 | H11 | KILO swarm-instrumentation operator gate (`scripts/verify_kilo_swarm_instrumentation.py` exit 0) | PR #147 tests |
-| H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py` exit 0) | PR #148 tests |
+| H12 | KILO proof-schema operator gate (`scripts/verify_kilo_proof_schema.py`, `scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #148 tests |
 | H13 | KILO dashboard-slots operator gate (`scripts/verify_kilo_dashboard_slots.py` exit 0) | PR #149 tests |
 
 No `INCEPTION_API_KEY` consumption is required for #141–#149 hermetic gates.
@@ -111,6 +111,7 @@ agents must mark this arc **CODE COMPLETE / TEST VERIFIED** at most.
 - Mercury hermetic: `thinkbox/kilo_mercury_hermetic.py`
 - Swarm instrumentation: `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`
 - Proof schema: `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, guide `docs/guides/kilo_proof_schema.md`
+- Dashboard slots: `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, guide `docs/guides/kilo_dashboard_slots.md`
 
 ---
 
