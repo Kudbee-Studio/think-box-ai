@@ -1,0 +1,43 @@
+{
+  "pass_id": "pr151",
+  "title": "PR151 — KILO post-season harden (CI + branch hygiene + docs sync)",
+  "prior_pass": "passes/2026-09-23-pr150.json",
+  "started_at": "2026-09-23T16:35:00Z",
+  "completed_at": "2026-09-23T17:30:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr151",
+  "base_commit": "227626b",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr151 -v",
+    "pr151_tests": 9,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "post_season_verify": "python3 scripts/verify_kilo_post_season_harden.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "cleaned": [
+    "CI workflow aligned with verify_kilo_spine + verify_kilo_post_season_harden",
+    "Added cursor/** push trigger for agent branches",
+    "Stale docs: PR #150 marked merged; arc season closed wording",
+    "Branch hygiene runbook + cleanup script (dry-run default)",
+    "CONTINUITY/STATUS/AGENTS post-#151 sync",
+    "AUDIT_INDEX pr151 entry"
+  ],
+  "improvements": [
+    "thinkbox/kilo_post_season_harden contract",
+    "post_season_harden in spine_contract_summary",
+    "scripts/verify_kilo_post_season_harden.py",
+    "scripts/cleanup_merged_cursor_branches.py",
+    "data/kilo_post_season_harden/checklist.json",
+    "unit tests test_kilo_live_proof_readiness_pr151",
+    "docs/runbooks/branch-hygiene.md",
+    "docs/guides/kilo_post_season_harden.md",
+    "ADR 010 post-season harden",
+    "audit checklist and pass pr151 live_verified false"
+  ]
+}

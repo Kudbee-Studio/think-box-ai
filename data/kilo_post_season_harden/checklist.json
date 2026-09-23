@@ -1,0 +1,24 @@
+{
+  "schema_version": "kilo-post-season-harden-v1",
+  "gate_id": "post-season-harden",
+  "pr_number": 151,
+  "arc_season_marker": "kilo-live-proof-arc-141-150-season-closed",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "ci_workflow_rel": ".github/workflows/test.yml",
+  "branch_hygiene_script": "scripts/cleanup_merged_cursor_branches.py",
+  "branch_hygiene_runbook": "docs/runbooks/branch-hygiene.md",
+  "notes": "Ops harden only — not a Live proof gate",
+  "spine_verify_scripts": [
+    "scripts/verify_kilo_env_matrix.py",
+    "scripts/verify_kilo_substrate_checklist.py",
+    "scripts/verify_kilo_governance_evidence.py",
+    "scripts/verify_kilo_mercury_hermetic.py",
+    "scripts/verify_kilo_swarm_instrumentation.py",
+    "scripts/verify_kilo_proof_schema.py",
+    "scripts/verify_kilo_dashboard_slots.py",
+    "scripts/verify_kilo_live_proof_exec.py",
+    "scripts/verify_kilo_spine.py",
+    "scripts/scan_doc_secrets.py"
+  ]
+}

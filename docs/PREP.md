@@ -2,6 +2,17 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-23 (PR #151 draft, post-season harden)
+>
+> **Scope:** Ops gate **`post-season-harden`**: CI spine alignment, `cleanup_merged_cursor_branches.py`, docs/STATUS sync — **not** Live proof, **not** arc gate #141–#150 extension.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr151 -v` + `verify_kilo_post_season_harden.py`; `verify_kilo_spine.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #150 merged, arc season close)
+>
+> **Scope:** KILO **`live-proof-exec`** gate merged — hermetic execution plan only.  
+> **Four-state:** TEST VERIFIED; audit `live_verified: false`.
+>
 > ## ADDENDUM — 2026-09-23 (PR #145 draft)
 >
 > **Scope:** KILO **`governance-evidence`** gate: `thinkbox/kilo_governance_evidence.py`, `verify_kilo_governance_evidence.py`, layered on env-matrix + substrate-checklist — **no Live proof, no Mercury/GPU**.  
