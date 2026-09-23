@@ -19,6 +19,7 @@ from thinkbox.dashboard_state import ThinkJobEntry, get_dashboard_state
 from thinkbox.read_cache import weak_etag_from_payload
 
 STATUS_SCHEMA_VERSION = "think_job_status_v1"
+# Stream companion schema: thinkbox.think_job_stream.STREAM_SCHEMA_VERSION (PR #137)
 
 __all__ = [
     "STATUS_SCHEMA_VERSION",
