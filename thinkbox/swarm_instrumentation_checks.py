@@ -2,7 +2,7 @@
 
 Each check is self-contained and uses ``:memory:`` SQLite where persistence is needed.
 No network I/O. The optional live swarm check lives in ``experiments/verify_instrumentation``
-only (``--live``); this module exposes exactly ten hermetic instrument checks.
+only (``--live``); this module exposes exactly ten hermetic instrument checks; the eleventh live swarm check stays in experiments only.
 """
 
 from __future__ import annotations
