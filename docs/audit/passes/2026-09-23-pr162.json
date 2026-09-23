@@ -1,0 +1,16 @@
+{
+  "audit_pass": "pr162",
+  "date": "2026-09-23",
+  "pr_number": 162,
+  "gate_id": "receipt-chain-end-link-era-close",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "era_consolidated_pack_154_161",
+    "audit_index_sync_161_162",
+    "operator_guide_era_close_section",
+    "spine_receipt_chain_end_link_era_close_gate",
+    "mark_pr161_merged_in_agents_status"
+  ]
+}
