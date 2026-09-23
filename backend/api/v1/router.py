@@ -304,6 +304,41 @@ async def stream_think_job_poll_status(
     )
 
 
+@api_v1_router.get("/run/job/by-receipt/{receipt_id}/status/stream")
+async def stream_think_job_status_by_receipt(
+    receipt_id: str,
+    max_events: int = 64,
+    timeout_s: float = 120.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    try:
+        resolve_think_job_by_receipt(receipt_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_think_job_status_stream_by_receipt(receipt_id, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@api_v1_router.get("/run/jobs/status/stream")
+async def stream_think_jobs_poll_status(
+    limit: int = 50,
+    max_events: int = 32,
+    timeout_s: float = 60.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    limit = max(1, min(limit, 200))
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_jobs_status_stream(limit=limit, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @api_v1_router.get("/dashboard/state/summary")
 async def dashboard_state_summary(request: Request) -> Any:
     body = _dashboard_state.get_state_summary()
