@@ -14,6 +14,7 @@ from typing import Any, Sequence
 
 from thinkbox.ledger import ActionLedger
 from thinkbox.org_memory_receipts import redact_mapping
+from thinkbox.path_safe import display_path, resolve_under_roots, repo_root
 from thinkbox.substrate import SubstrateProbe, detect_substrate
 from thinkbox.swarm_stats import (
     convergence_summary,
@@ -26,7 +27,7 @@ CLI_EXIT_OK = 0
 CLI_EXIT_FAIL = 1
 CLI_EXIT_USAGE = 2
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = repo_root()
 _DEFAULT_PROOF_DIR = _REPO_ROOT / "data" / "thinkboxmd"
 _DEFAULT_DB_DIR = _REPO_ROOT / "data" / "thinkboxmd" / "db"
 
@@ -55,17 +56,30 @@ def repo_root() -> Path:
 def default_proof_dir() -> Path:
     """Directory containing ``big_swarm_*.json`` proof artifacts."""
     explicit = os.environ.get("THINKBOX_PROOF_DIR", "").strip()
-    return Path(explicit) if explicit else _DEFAULT_PROOF_DIR
+    if explicit:
+        return resolve_under_roots(explicit)
+    return _DEFAULT_PROOF_DIR
+
+
+def resolve_proof_file(path: Path) -> Path:
+    """Resolve a proof JSON path under repo/data roots."""
+    return resolve_under_roots(str(path))
 
 
 def resolve_ledger_path(explicit: str | None = None) -> Path | None:
     """Resolve ledger SQLite path; ``None`` if no file exists."""
     if explicit:
-        p = Path(explicit)
+        try:
+            p = resolve_under_roots(explicit, allow_temp_dir=True)
+        except PermissionError:
+            return None
         return p if p.is_file() else None
     env = os.environ.get("THINKBOX_LEDGER_PATH", "").strip()
     if env:
-        p = Path(env)
+        try:
+            p = resolve_under_roots(env, allow_temp_dir=True)
+        except PermissionError:
+            return None
         return p if p.is_file() else None
     for name in ("action_ledger.db", "ledger.db"):
         candidate = _DEFAULT_DB_DIR / name
@@ -110,7 +124,7 @@ def ledger_verify_report(path: Path, verbose: bool = False) -> dict[str, Any]:
         ok = ledger.verify()
         entries = ledger.entries(limit=1_000_000)
         report: dict[str, Any] = {
-            "path": str(path),
+            "path": display_path(path),
             "valid": ok,
             "entry_count": len(entries),
             "evidence_label": "verified" if ok else "inferred",
@@ -128,15 +142,19 @@ def ledger_verify_report(path: Path, verbose: bool = False) -> dict[str, Any]:
 
 def proof_check_report(path: Path, metrics_only: bool = False) -> dict[str, Any]:
     """Validate proof JSON; optional metrics-only payload."""
-    if not path.is_file():
-        return {"path": str(path), "valid": False, "errors": ["file not found"]}
-    payload, errors = load_and_validate_proof(path)
+    try:
+        safe = resolve_proof_file(path)
+    except PermissionError as exc:
+        return {"path": str(path), "valid": False, "errors": [str(exc)]}
+    if not safe.is_file():
+        return {"path": display_path(safe), "valid": False, "errors": ["file not found"]}
+    payload, errors = load_and_validate_proof(safe)
     if errors:
-        return {"path": str(path), "valid": False, "errors": errors}
+        return {"path": display_path(safe), "valid": False, "errors": errors}
     if metrics_only:
-        return {"path": str(path), "valid": True, "metrics": dict(proof_metrics(payload))}
+        return {"path": display_path(safe), "valid": True, "metrics": dict(proof_metrics(payload))}
     return {
-        "path": str(path),
+        "path": display_path(safe),
         "valid": True,
         "run_id": payload.get("run_id"),
         "session_id": payload.get("session_id"),
