@@ -463,3 +463,43 @@ def hermetic_mercury_operator_check(
         governance_evidence_ok=gov_op.ok,
         governance_summary_ref=_governance_summary_ref(gov_op),
         live_gate_report=live_gate,
+        mock_client_configured=mock_ok,
+        mock_call=None,
+        model=MERCURY_HERMETIC_MODEL,
+        evidence_label="inferred",
+        live_api_called=False,
+        governance_evidence=gov_op.evidence,
+    )
+    ok = len(violations) == 0
+    return MercuryHermeticResult(
+        mode=mode,
+        ok=ok,
+        governance_evidence_ok=gov_op.ok,
+        env_matrix_ok=gov_op.env_matrix_ok,
+        substrate_checklist_ok=gov_op.substrate_checklist_ok,
+        violations=violations,
+        evidence=evidence,
+    )
+
+
+def mercury_hermetic_gate_closed() -> bool:
+    """True when PR #146 gate passes under hermetic_unit with clean env + mock."""
+    gate = gate_for_pr(PR_NUMBER)
+    if gate is None or gate.gate_id != GATE_ID:
+        return False
+    env = minimal_mercury_hermetic_environ()
+    op = hermetic_mercury_operator_check(env)
+    tokens = GovernanceTokenService(signing_key="hermetic-mercury-evidence")
+    identities = IdentityLedger()
+    identities.register(
+        agent_id="kilo-live-proof-agent",
+        capabilities=["kilo:live_burst"],
+        policy_version="kilo-live-proof-v1",
+    )
+    issued = tokens.issue(
+        TokenRequest(
+            agent_id="kilo-live-proof-agent",
+            capabilities=["kilo:live_burst"],
+            policy_version="kilo-live-proof-v1",
+            ttl_seconds=3600.0,
+        )
