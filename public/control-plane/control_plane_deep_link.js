@@ -65,6 +65,14 @@
     };
   }
 
+  function buildChainDashboardHref(receiptId, opts) {
+    opts = opts || {};
+    var params = new URLSearchParams();
+    if (receiptId) params.set("receipt_id", receiptId);
+    if (opts.from) params.set("from", opts.from);
+    return "receipt_chain_dashboard.html?" + params.toString();
+  }
+
   function buildWatchHref(receiptId, opts) {
     opts = opts || {};
     var rec = receiptId || "";
@@ -85,6 +93,7 @@
   global.TBControlPlaneDeepLink = {
     parseLocation: parseLocation,
     buildWatchHref: buildWatchHref,
+    buildChainDashboardHref: buildChainDashboardHref,
     RECEIPT_KEYS: RECEIPT_KEYS,
   };
 })(typeof window !== "undefined" ? window : globalThis);
