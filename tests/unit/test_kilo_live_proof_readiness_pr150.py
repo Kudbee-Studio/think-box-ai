@@ -225,6 +225,19 @@ class TestSpineAndOperators(unittest.TestCase):
         path = REPO_ROOT / "docs/guides/kilo_live_proof_exec.md"
         self.assertTrue(path.is_file())
 
+    def test_execution_plan_schema_gate_id(self) -> None:
+        schema = live_exec.execution_plan_json_schema()
+        self.assertEqual(schema["gate_id"], live_exec.GATE_ID)
+        self.assertEqual(schema["founder_ack_env"], live_exec.FOUNDER_ACK_ENV)
+
+    def test_audit_pass_live_verified_false(self) -> None:
+        path = REPO_ROOT / "docs/audit/passes/2026-09-23-pr150.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertFalse(data["four_state"]["live_verified"])
+
+    def test_spine_arc_season_complete_flag(self) -> None:
+        self.assertTrue(spine.spine_contract_summary().get("arc_season_complete"))
+
 
 if __name__ == "__main__":
     unittest.main()
