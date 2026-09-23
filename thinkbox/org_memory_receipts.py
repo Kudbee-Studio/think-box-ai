@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -13,14 +12,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from thinkbox.sqlite_pragmas import open_sqlite
+
 _SENSITIVE_KEY_RE = re.compile(
     r"(token|secret|password|api[_-]?key|authorization|bearer|private[_-]?key)",
     re.IGNORECASE,
 )
+_INLINE_SECRET_RE = re.compile(
+    r"(Bearer\s+[A-Za-z0-9._\-+/=]{8,}|sk-[A-Za-z0-9]{16,}|tb_[A-Za-z0-9_\-]{16,})",
+    re.IGNORECASE,
+)
 
 
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def _redact_string(value: str) -> str:
+    if value.startswith(("tb_exp_", "tb_sess_", "tb_rcpt_", "eng_", "art_")):
+        if len(value) > 512:
+            return value[:512] + "…"
+        return value
+    if _INLINE_SECRET_RE.search(value):
+        return "[REDACTED]"
+    if len(value) > 512:
+        return value[:512] + "…"
+    return value
 
 
 def redact_mapping(value: Any) -> Any:
@@ -35,9 +48,13 @@ def redact_mapping(value: Any) -> Any:
         return out
     if isinstance(value, list):
         return [redact_mapping(v) for v in value]
-    if isinstance(value, str) and len(value) > 512:
-        return value[:512] + "…"
+    if isinstance(value, str):
+        return _redact_string(value)
     return value
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 @dataclass
@@ -85,7 +102,7 @@ class OrgMemoryReceiptStore:
     def __init__(self, db_path: str | Path = ":memory:") -> None:
         self._path = str(db_path)
         self._lock = threading.Lock()
-        self._conn = sqlite3.connect(self._path, check_same_thread=False)
+        self._conn = open_sqlite(self._path, check_same_thread=False)
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS org_lifecycle_receipts (

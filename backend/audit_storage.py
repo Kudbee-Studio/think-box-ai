@@ -9,14 +9,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from thinkbox.sqlite_pragmas import open_sqlite
+
 DB_PATH = Path("data/audit.db")
 DB_LOCK = threading.Lock()
+MAX_AUDIT_LIST_LIMIT = 1000
 
 
 def _get_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn = open_sqlite(str(DB_PATH), check_same_thread=False)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,6 +68,7 @@ def list_audits(
     action_filter: str | None = None,
     session_id: str | None = None,
 ) -> list[dict[str, Any]]:
+    limit = max(1, min(int(limit), MAX_AUDIT_LIST_LIMIT))
     with DB_LOCK:
         conn = _get_db()
         query = "SELECT timestamp, session_id, action, actor, outcome, metadata FROM audit_log WHERE 1=1"

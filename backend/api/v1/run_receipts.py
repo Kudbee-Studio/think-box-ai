@@ -27,7 +27,9 @@ from thinkbox.dashboard_state import (
     ThinkJobEntry,
     get_dashboard_state,
 )
+from thinkbox.org_memory_receipts import redact_mapping
 from thinkbox.read_cache import receipt_cache, reset_read_caches_for_tests
+from backend.validation import validate_receipt_id
 
 DEFAULT_HTTP_RUN_DB = "data/thinkboxmd/db/http_run_experiments.db"
 DEFAULT_HTTP_RUN_ARTIFACTS = "data/thinkboxmd/artifacts/http_run"
@@ -497,6 +499,10 @@ def _load_run_receipt_uncached(receipt_id: str) -> dict[str, Any] | None:
 
 
 def read_run_receipt(receipt_id: str) -> dict[str, Any] | None:
+    ok, normalized = validate_receipt_id(receipt_id)
+    if not ok:
+        return None
+    receipt_id = normalized
     cache_key = f"receipt:{receipt_id}"
     cached = receipt_cache().get(cache_key)
     if cached is not None:

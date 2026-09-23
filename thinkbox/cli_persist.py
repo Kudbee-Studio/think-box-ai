@@ -11,6 +11,7 @@ from typing import Any
 
 from thinkbox.cli_inspect import repo_root
 from thinkbox.identity import AgentIdentity, IdentityLedger
+from thinkbox.path_safe import display_path, resolve_under_roots
 from thinkbox.thinktrace import ThinkTrace, ThinkTraceCapture
 
 _DEFAULT_DB_DIR = repo_root() / "data" / "thinkboxmd" / "db"
@@ -24,23 +25,27 @@ def default_db_dir() -> Path:
     return Path(explicit) if explicit else _DEFAULT_DB_DIR
 
 
+def _resolve_db_path(raw: str) -> Path:
+    return resolve_under_roots(raw, allow_temp_dir=True)
+
+
 def resolve_identity_db_path(explicit: str | None = None) -> Path:
     """Resolve identity ledger SQLite path (file may not exist yet)."""
     if explicit:
-        return Path(explicit)
+        return _resolve_db_path(explicit)
     env = os.environ.get("THINKBOX_IDENTITY_LEDGER_PATH", "").strip()
     if env:
-        return Path(env)
+        return _resolve_db_path(env)
     return default_db_dir() / _IDENTITY_DEFAULT
 
 
 def resolve_trace_db_path(explicit: str | None = None) -> Path:
     """Resolve think-trace SQLite path (file may not exist yet)."""
     if explicit:
-        return Path(explicit)
+        return _resolve_db_path(explicit)
     env = os.environ.get("THINKBOX_TRACE_DB_PATH", "").strip()
     if env:
-        return Path(env)
+        return _resolve_db_path(env)
     return default_db_dir() / _TRACE_DEFAULT
 
 

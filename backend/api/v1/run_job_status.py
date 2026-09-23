@@ -14,6 +14,7 @@ from backend.api.v1.run_receipts import (
     read_run_receipt_by_engine,
     redact_receipt_payload,
 )
+from backend.validation import validate_receipt_id, validate_thinkbox_id
 from thinkbox.dashboard_state import ThinkJobEntry, get_dashboard_state
 from thinkbox.read_cache import weak_etag_from_payload
 
@@ -149,6 +150,10 @@ def _session_from_receipt(receipt: dict[str, Any]) -> str:
 
 def resolve_think_job_record(job_id: str) -> dict[str, Any]:
     """Resolve job from dashboard memory first, then receipt SQLite."""
+    ok, normalized = validate_thinkbox_id(job_id, label="Job ID")
+    if not ok:
+        raise ThinkJobNotFoundError(job_id)
+    job_id = normalized
     dashboard = get_dashboard_state()
     entry = dashboard.think_jobs.get(job_id)
     if entry is not None:
@@ -160,6 +165,10 @@ def resolve_think_job_record(job_id: str) -> dict[str, Any]:
 
 
 def resolve_think_job_by_receipt(receipt_id: str) -> dict[str, Any]:
+    ok, normalized = validate_receipt_id(receipt_id)
+    if not ok:
+        raise ThinkJobNotFoundError(receipt_id)
+    receipt_id = normalized
     receipt = read_run_receipt(receipt_id)
     if not receipt:
         raise ThinkJobNotFoundError(receipt_id)

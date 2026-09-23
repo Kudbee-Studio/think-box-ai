@@ -23,8 +23,20 @@ class TestEtag(unittest.TestCase):
     def test_etag_star(self) -> None:
         self.assertTrue(etag_matches("*", 'W/"abc"'))
 
+    def test_oversized_if_none_match_rejected(self) -> None:
+        self.assertFalse(etag_matches("x" * 5000, 'W/"abc"'))
+
 
 class TestTtlCache(unittest.TestCase):
+    def test_invalidate_prefix(self) -> None:
+        cache = TtlSnapshotCache[int](ttl_seconds=60.0)
+        cache.set("prefix:a", 1)
+        cache.set("prefix:b", 2)
+        cache.set("other:c", 3)
+        cache.invalidate_prefix("prefix:")
+        self.assertIsNone(cache.get("prefix:a"))
+        self.assertIsNotNone(cache.get("other:c"))
+
     def test_get_or_load_once(self) -> None:
         cache = TtlSnapshotCache[dict](ttl_seconds=60.0)
         calls = {"n": 0}

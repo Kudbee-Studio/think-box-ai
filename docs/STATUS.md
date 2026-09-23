@@ -63,13 +63,22 @@ Current repository health, infrastructure status, known defects, and improvement
 | LIVE VERIFIED | **No** — mock/hermetic HTTP only |
 | PRODUCTION READY | **No** |
 
-## PR #135 Four-State (draft branch)
+## PR #135 Four-State (merged)
 
 | Gate | Status |
 |------|--------|
 | CODE COMPLETE | Yes (read caches, ETag/304, lighter dashboard polls) |
 | TEST VERIFIED | Yes (`2398` OK, `8` skipped, `3` expected failures) |
 | LIVE VERIFIED | **No** — hermetic only, no live Mercury |
+| PRODUCTION READY | **No** |
+
+## PR #136 Four-State (draft branch)
+
+| Gate | Status |
+|------|--------|
+| CODE COMPLETE | Yes (~25 repo harden commits: path jail, sqlite, redaction, validation) |
+| TEST VERIFIED | Yes (`2411` OK, `8` skipped, `3` expected failures) |
+| LIVE VERIFIED | **No** — hermetic/mock only |
 | PRODUCTION READY | **No** |
 
 ---
@@ -88,7 +97,7 @@ Current repository health, infrastructure status, known defects, and improvement
 
 | Module | Tests | OK | Skipped | Expected Failures | Status |
 |--------|-------|----|---------|-------------------|--------|
-| All unit + integration + e2e | 2398 | ✅ | 8 | 3 | ✅ PASS (PR #135 draft gate) |
+| All unit + integration + e2e | 2411 | ✅ | 8 | 3 | ✅ PASS (PR #136 draft gate) |
 | Swarm (132 agents, baseline) | 132 calls | ⚠️ (112/132, 20 HTTP 503 transient) | 0 | 0 | ⚠️ 85% OK |
 | Swarm (256 agents, convergence mean) | 256 calls × 5 | ✅ (mean 219/256 OK) | 0 | 0 | ✅ PASS (27.24 RPS mean) |
 | Swarm (512 agents) | 512 calls | ✅ (444/512 OK) | 0 | 0 | ✅ PASS (27.25 RPS) |

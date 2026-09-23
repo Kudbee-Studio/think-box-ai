@@ -109,6 +109,13 @@ async def run_goal(
     x_agent_id: str | None = Header(None, alias="X-Agent-Id"),
     x_capability: str | None = Header(None, alias="X-Capability"),
 ) -> RunResponse:
+    from backend.validation import validate_goal
+
+    ok, goal_or_err = validate_goal(request.goal)
+    if not ok:
+        raise HTTPException(status_code=422, detail=goal_or_err)
+    request.goal = goal_or_err
+
     if request.verified:
         from backend.api.v1.run_governed import validate_verified_subtasks
 
