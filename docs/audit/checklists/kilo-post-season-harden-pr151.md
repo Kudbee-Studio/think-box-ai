@@ -8,3 +8,5 @@
 - [ ] Docs: arc season closed; #151 ops harden documented
 - [ ] Audit pass `live_verified: false`
 - [ ] No live HTTP in PR #151 paths
+
+Runbook: `docs/runbooks/branch-hygiene.md`
