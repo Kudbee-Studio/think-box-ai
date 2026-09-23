@@ -134,3 +134,87 @@ def format_jobs_list_poll_path(limit: int = 50, detail: str = "summary") -> str:
 
 def format_job_stream_path(engine_id: str) -> str:
     return f"/api/v1/run/job/{engine_id}/status/stream"
+
+
+def format_receipt_stream_path(receipt_id: str) -> str:
+    return f"/api/v1/run/job/by-receipt/{receipt_id}/status/stream"
+
+
+def format_jobs_digest_stream_path() -> str:
+    return "/api/v1/run/jobs/status/stream"
+
+
+def build_stream_url(
+    path: str,
+    query: Mapping[str, str] | None = None,
+) -> str:
+    params = dict(DEFAULT_STREAM_QUERY)
+    if query:
+        params.update({k: str(v) for k, v in query.items()})
+    return f"{path}?{urlencode(params)}"
+
+
+def normalize_receipt_key(raw: str) -> str:
+    """Fail-closed receipt id for watch start."""
+    key = (raw or "").strip()
+    if not key:
+        raise ValueError("receipt_key_required")
+    if len(key) > RECEIPT_KEY_MAX_LEN:
+        raise ValueError("receipt_key_too_long")
+    lowered = key.lower()
+    for bad in INVALID_RECEIPT_PREFIXES:
+        if lowered.startswith(bad):
+            raise ValueError("receipt_key_invalid")
+    return key
+
+
+def normalize_engine_key(raw: str) -> str:
+    key = (raw or "").strip()
+    if not key:
+        raise ValueError("engine_key_required")
+    if len(key) > RECEIPT_KEY_MAX_LEN:
+        raise ValueError("engine_key_too_long")
+    return key
+
+
+def resolve_watch_target(
+    *,
+    engine_id: str = "",
+    receipt_id: str = "",
+    prefer_receipt: bool = True,
+) -> WatchTarget:
+    """Choose watch key: receipt wins when both provided (founder #139)."""
+    eng = (engine_id or "").strip()
+    rec = (receipt_id or "").strip()
+    if rec and prefer_receipt:
+        return WatchTarget(kind=WatchKeyKind.RECEIPT, key=normalize_receipt_key(rec))
+    if eng:
+        return WatchTarget(kind=WatchKeyKind.ENGINE, key=normalize_engine_key(eng))
+    if rec:
+        return WatchTarget(kind=WatchKeyKind.RECEIPT, key=normalize_receipt_key(rec))
+    raise ValueError("watch_target_required")
+
+
+def poll_path_for_target(target: WatchTarget) -> str:
+    if target.kind == WatchKeyKind.RECEIPT:
+        return format_receipt_poll_path(target.key)
+    return format_job_poll_path(target.key)
+
+
+def assert_receipt_watch_consistency(target: WatchTarget, poll_document: Mapping[str, Any]) -> None:
+    """Fail-closed when poll document does not match receipt-keyed watch."""
+    if target.kind != WatchKeyKind.RECEIPT:
+        return
+    receipt = poll_document.get("receipt") if isinstance(poll_document.get("receipt"), dict) else {}
+    rid = str(receipt.get("receipt_id") or "")
+    if not rid:
+        raise ValueError("receipt_not_linked")
+    if rid != target.key:
+        raise ValueError("receipt_key_mismatch")
+
+
+def stream_plan_for_watch_target(
+    target: WatchTarget,
+    poll_document: Mapping[str, Any],
+) -> StreamEndpointPlan:
+    """Receipt-keyed stream URL when poll hints include receipt_path."""
