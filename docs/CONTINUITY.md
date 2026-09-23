@@ -48,6 +48,22 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-23 — PR #153 draft: KILO live-smoke operator path
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, `scripts/verify_kilo_live_smoke_operator.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr153` (26); operator verify + spine + secret scan OK; audit `passes/2026-09-23-pr153.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #152 merged: KILO bounded live smoke evidence
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_live_smoke_evidence.py`, `audit_flip_candidate`, `scripts/verify_kilo_live_smoke_evidence.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr152`; audit `passes/2026-09-23-pr152.json` (`live_verified: false`) |
+
 ### 2026-09-23 — PR #151 draft: KILO post-season harden (ops after arc close)
 
 | Field | Value |
