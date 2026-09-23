@@ -34,6 +34,9 @@ def main() -> int:
     swarm_block = summary.get("swarm_instrumentation") or {}
     if not swarm_block.get("hermetic_operator_ok"):
         return 1
+    proof_block = summary.get("proof_schema") or {}
+    if not proof_block.get("hermetic_operator_ok"):
+        return 1
     return 0
 
 

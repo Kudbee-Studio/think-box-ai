@@ -1,0 +1,46 @@
+{
+  "pass_id": "pr148",
+  "title": "PR148 — KILO proof-schema gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr147.json",
+  "started_at": "2026-09-23T21:00:00Z",
+  "completed_at": "2026-09-23T22:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr148",
+  "base_commit": "34220b1",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr148 -v",
+    "pr148_tests": 32,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "proof_schema_verify": "python3 scripts/verify_kilo_proof_schema.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_proof_schema JSON contract and validators",
+    "dependency graph depends_on with cycle rejection",
+    "cue types user vs injected fail-closed",
+    "definition_of_done and four-state honesty",
+    "prior_gate_ids intersection admission",
+    "halt_reason and idle resume optional fields",
+    "layer on swarm-instrumentation operator",
+    "proof_schema_contract_summary JSON",
+    "spine_contract_summary proof_schema block",
+    "pr148_gate_id in spine summary",
+    "scripts/verify_kilo_proof_schema.py operator",
+    "verify_kilo_spine proof_schema gate",
+    "hermetic fixtures valid and invalid",
+    "unit tests pr148 hermetic and deny paths",
+    "runbook proof-schema section H11",
+    "ADR 007 kirocrew pattern note",
+    "audit checklist and pass pr148",
+    "hermetic only live_api_called false",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #149 dashboard-slots next"
+  ]
+}

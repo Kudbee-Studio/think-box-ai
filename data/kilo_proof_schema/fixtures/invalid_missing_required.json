@@ -1,0 +1,9 @@
+{
+  "_expect": "invalid",
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_missing_fields",
+  "gate_id": "proof-schema",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false
+}

@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## PR #147 — KILO swarm-instrumentation gate (DRAFT)
+## PR #148 — KILO proof-schema gate (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `proof-schema` |
+| **Scope** | `thinkbox/kilo_proof_schema.py` on swarm-instrumentation + JSON proof contract + fixtures |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Verify** | `python3 scripts/verify_kilo_proof_schema.py` |
+
+## PR #147 — KILO swarm-instrumentation gate (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `swarm-instrumentation` |
 | **Scope** | `thinkbox/kilo_swarm_instrumentation.py` on mercury-hermetic + 11-entry hermetic instrumentation catalog |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — **not** LIVE VERIFIED / **not** PRODUCTION READY |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — **not** LIVE VERIFIED / **not** PRODUCTION READY |
 | **Verify** | `python3 scripts/verify_kilo_swarm_instrumentation.py` |
 
 ## PR #146 — KILO mercury-hermetic gate (MERGED)
