@@ -1,0 +1,5 @@
+{
+  "fixture_id": "envelope_honesty_ok",
+  "expect_ok": true,
+  "notes": "success envelope must keep live_verified false"
+}
