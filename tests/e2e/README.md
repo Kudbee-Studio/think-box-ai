@@ -55,6 +55,23 @@ python3 -m unittest tests.e2e.test_f131_post_run_think_job_contract
 
 **FourState (branch only):** CODE COMPLETE / TEST VERIFIED — ASGI/TestClient + mock engine; no LIVE Mercury, no PRODUCTION READY.
 
+### F132 governed admission (PR #132, merged)
+
+| File | Purpose |
+|------|---------|
+| `test_f132_governed_run_admission.py` | GovernedEngine on HTTP background task; ledger; hermetic verified subtasks |
+
+### F133 run receipts (PR #133 draft)
+
+| File | Purpose |
+|------|---------|
+| `backend/api/v1/run_receipts.py` | SQLite receipts + proof artifacts for HTTP runs |
+| `test_f133_governed_run_receipts.py` | Persist + GET receipt + fail-closed persist errors |
+
+```bash
+python3 -m unittest tests.e2e.test_f133_governed_run_receipts tests.unit.test_run_receipts
+```
+
 ## Full gate
 
 ```bash

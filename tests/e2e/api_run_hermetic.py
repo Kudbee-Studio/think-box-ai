@@ -77,6 +77,9 @@ def hermetic_run_client(
 
     ledger_path = str(Path(tempfile.mkdtemp()) / "api_run_ledger.db")
     gov = reset_api_run_governance_for_tests(ledger_path=ledger_path)
+    from backend.api.v1.run_receipts import reset_http_run_persistence_for_tests
+
+    reset_http_run_persistence_for_tests()
     _HERMETIC_TOKEN = gov.register_agent(
         _HERMETIC_AGENT_ID,
         ["goal:execute", "goal:execute:verified"],
@@ -122,6 +125,9 @@ def hermetic_run_client_real_engine() -> Iterator[tuple[TestClient, Any]]:
 
     ledger_path = str(Path(tempfile.mkdtemp()) / "api_run_ledger.db")
     gov = reset_api_run_governance_for_tests(ledger_path=ledger_path)
+    from backend.api.v1.run_receipts import reset_http_run_persistence_for_tests
+
+    reset_http_run_persistence_for_tests()
     _HERMETIC_TOKEN = gov.register_agent(
         _HERMETIC_AGENT_ID,
         ["goal:execute", "goal:execute:verified"],

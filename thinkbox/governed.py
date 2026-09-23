@@ -232,6 +232,9 @@ class GovernedEngine:
         session: Any = None,
         manager: Any = None,
         emit_dashboard: bool = False,
+        persist_profile: dict[str, Any] | None = None,
+        goal_experiment_id: str | None = None,
+        session_id_override: str | None = None,
     ) -> dict[str, Any]:
         """DAG-level verified execution through the REAL engine lifecycle.
 
@@ -262,8 +265,8 @@ class GovernedEngine:
                 return {"governed": False, "reason": decision.reason, "events": len(self._base.events)}
 
         now = datetime.now(timezone.utc)
-        session_id = f"tb_sess_{now.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:4]}"
-        goal_experiment_id = f"tb_exp_{now.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        session_id = session_id_override or f"tb_sess_{now.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:4]}"
+        goal_experiment_id = goal_experiment_id or f"tb_exp_{now.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
         cfg_kwargs: dict[str, Any] = {"max_calls": max_calls}
         if max_retries is not None:
@@ -372,6 +375,7 @@ class GovernedEngine:
                 summary=summary,
                 task_outputs=task_outputs,
                 tokens_by_task=tokens_by_task,
+                persist_profile=persist_profile,
             )
 
         if emit_dashboard:
@@ -413,6 +417,7 @@ class GovernedEngine:
         summary: dict[str, Any],
         task_outputs: dict[str, dict[str, Any]],
         tokens_by_task: dict[str, int],
+        persist_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Persist DAG telemetry via the existing ExperimentManager architecture."""
         import hashlib
@@ -421,30 +426,37 @@ class GovernedEngine:
 
         from thinkbox.experiment import AgentSessionRecord, ExperimentRecord, ParameterProvenance
 
+        profile = persist_profile or {}
+        four_state = profile.get("four_state", "LIVE_VERIFIED")
+        execution_mode = profile.get("execution_mode", "live")
+        persist_agent = profile.get("agent_id_field", "governed-engine")
+        model_name = profile.get("model", "mercury-2")
+        provider_name = profile.get("provider", "openai_compat")
+        evidence_label = profile.get("evidence_label", "verified")
         verified = summary.get("verified", {})
         now_iso = _dt.now(timezone.utc).isoformat()
 
         manager.db.save_session(AgentSessionRecord(
             session_id=session_id,
-            agent_id="governed-engine",
+            agent_id=persist_agent,
             started_at=now_iso,
             ended_at=now_iso,
             last_completed_action="execute_verified_goal",
             current_state="COMPLETE",
-            four_state="LIVE_VERIFIED",
+            four_state=four_state,
             metadata={"goal": goal[:200], "goal_experiment_id": goal_experiment_id},
         ))
 
         goal_rec = ExperimentRecord(
             experiment_id=goal_experiment_id,
             session_id=session_id,
-            agent_id="governed-engine",
+            agent_id=persist_agent,
             timestamp=now_iso,
             intent=f"verified-goal-dag: {goal[:150]}",
             hypothesis="eligible DAG tasks pass through the governed verified-execution primitive with bounded retries",
-            execution_mode="live",
+            execution_mode=execution_mode,
             status="completed",
-            four_state="LIVE_VERIFIED",
+            four_state=four_state,
             confidence=1.0,
         )
         manager.db.save_experiment(goal_rec)
@@ -471,13 +483,13 @@ class GovernedEngine:
             rec = ExperimentRecord(
                 experiment_id=exp_id,
                 session_id=session_id,
-                agent_id="governed-engine",
+                agent_id=persist_agent,
                 timestamp=now_iso,
                 intent=node.metadata.get("family", "") + (f":{node.metadata['variant']}" if node.metadata.get("variant") else ""),
                 hypothesis=node.description[:200],
-                execution_mode="live",
+                execution_mode=execution_mode,
                 status="completed" if out.get("valid") else "failed",
-                four_state="MODEL_EXECUTION_VERIFIED" if out.get("valid") else "LIVE_VERIFIED",
+                four_state=four_state if out.get("valid") else four_state,
                 confidence=1.0 if out.get("valid") else 0.0,
             )
             manager.db.save_experiment(rec)
@@ -488,8 +500,8 @@ class GovernedEngine:
                 ("family", node.metadata.get("family", "")),
                 ("variant", node.metadata.get("variant", "")),
                 ("execution_status", out.get("execution_status", "")),
-                ("model", "mercury-2"),
-                ("provider", "openai_compat"),
+                ("model", model_name),
+                ("provider", provider_name),
             ):
                 manager.db.save_parameter(exp_id, ParameterProvenance(
                     name=name, value=str(value), source="measured", confidence=1.0, session_id=session_id,
@@ -509,7 +521,7 @@ class GovernedEngine:
             manager.db.save_outcome(
                 exp_id, outcome,
                 1.0 if out.get("valid") else 0.0,
-                "MODEL_EXECUTION_VERIFIED" if out.get("valid") else "LIVE_VERIFIED",
+                four_state,
             )
             artifact_payload = {
                 "experiment_id": exp_id,
@@ -570,7 +582,7 @@ class GovernedEngine:
                                  str(proof_path), proof_hash, {"tasks": len(nodes)})
         manager.db.save_proof(goal_experiment_id, {
             "proof_id": proof_path.stem,
-            "evidence_label": "verified",
+            "evidence_label": evidence_label,
             "hash": proof_hash,
         })
         summary["proof_artifact"] = str(proof_path)

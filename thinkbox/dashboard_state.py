@@ -118,6 +118,9 @@ class ThinkJobEntry:
     completed_at: str = ""
     result: dict[str, Any] = field(default_factory=dict)
     evidence_label: str = "simulated"
+    receipt_id: str = ""
+    experiment_id: str = ""
+    session_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.started_at:
@@ -137,6 +140,9 @@ class ThinkJobEntry:
             "completed_at": self.completed_at,
             "result": self.result,
             "evidence_label": self.evidence_label,
+            "receipt_id": self.receipt_id,
+            "experiment_id": self.experiment_id,
+            "session_id": self.session_id,
         }
 
 

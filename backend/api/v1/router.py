@@ -21,9 +21,11 @@ from backend.api.v1.run_governed import (
     build_complete_async_for_run,
     execute_governed_run_background,
     get_api_run_governance,
+    open_http_run_receipt,
     parse_run_admission,
     require_http_admission,
 )
+from backend.api.v1.run_receipts import read_run_receipt, read_run_receipt_by_engine
 from thinkbox.session import create_session, get_current_session, sync_session, clear_session
 from backend.security import get_api_keys, validate_ws_token
 
@@ -124,10 +126,23 @@ async def run_goal(
     active_engines[engine.engine_id] = engine
     active_governed_engines[engine.engine_id] = governed
 
+    receipt_binding = open_http_run_receipt(
+        engine_id=engine.engine_id,
+        goal=request.goal,
+        agent_id=admission_ctx.agent_id,
+        verified=request.verified,
+        capability=admission_ctx.capability,
+        admission_reason=admission_decision.reason,
+    )
+
     job_entry = ThinkJobEntry(
         job_id=engine.engine_id, goal=request.goal,
         status="running", engine_id=engine.engine_id,
         phase="started", tasks_total=0, tasks_completed=0,
+        receipt_id=receipt_binding.receipt_id,
+        experiment_id=receipt_binding.experiment_id,
+        session_id=receipt_binding.session_id,
+        evidence_label="verified",
     )
     _dashboard_state.upsert_think_job(job_entry)
     await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
@@ -141,12 +156,13 @@ async def run_goal(
             request.goal,
             job_entry,
             complete_async=complete_async,
+            receipt_binding=receipt_binding,
         )
     )
 
     return RunResponse(
         engine_id=engine.engine_id,
-        session_id="",
+        session_id=receipt_binding.session_id,
         status="started",
         summary={
             "goal": request.goal[:100],
@@ -155,8 +171,28 @@ async def run_goal(
             "agent_id": admission_ctx.agent_id,
             "admission_reason": admission_decision.reason,
             "capability": admission_ctx.capability,
+            "receipt_id": receipt_binding.receipt_id,
+            "experiment_id": receipt_binding.experiment_id,
+            "session_id": receipt_binding.session_id,
         },
     )
+
+
+@api_v1_router.get("/run/receipt/{receipt_id}")
+async def get_run_receipt(receipt_id: str) -> dict[str, Any]:
+    """Redacted governed-run receipt (hermetic SQLite)."""
+    payload = read_run_receipt(receipt_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="run_receipt_not_found")
+    return payload
+
+
+@api_v1_router.get("/run/receipt/by-engine/{engine_id}")
+async def get_run_receipt_for_engine(engine_id: str) -> dict[str, Any]:
+    payload = read_run_receipt_by_engine(engine_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="run_receipt_not_found")
+    return payload
 
 
 @api_v1_router.get("/engine/{engine_id}")
