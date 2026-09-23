@@ -210,6 +210,16 @@ def begin_http_run_receipt(
             session_id=session_id,
         ),
     )
+    stack.manager.db.save_parameter(
+        experiment_id,
+        ParameterProvenance(
+            name="engine_id",
+            value=engine_id,
+            source="measured",
+            confidence=1.0,
+            session_id=session_id,
+        ),
+    )
     return binding
 
 
