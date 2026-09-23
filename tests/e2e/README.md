@@ -96,6 +96,16 @@ python3 -m unittest tests.e2e.test_f134_think_job_status_poll
 python3 -m unittest tests.e2e.test_f133_governed_run_receipts tests.unit.test_run_receipts
 ```
 
+### F139 receipt-keyed watch + digest multiplex (PR #139)
+
+| File | Purpose |
+|------|---------|
+| `test_f139_think_job_receipt_multiplex.py` | Receipt poll/stream plan, digest SSE hello merge, 404 fail-closed |
+
+```bash
+python3 -m unittest tests.e2e.test_f139_think_job_receipt_multiplex
+```
+
 ## Full gate
 
 ```bash

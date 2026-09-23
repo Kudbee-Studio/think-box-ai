@@ -10,6 +10,9 @@ subscribe instead of polling `GET /api/v1/run/job/{engine_id}/status`.
 | GET | `/api/v1/run/job/{engine_id}/status/stream` | Single-job status deltas |
 | GET | `/api/v1/run/job/by-receipt/{receipt_id}/status/stream` | Same stream keyed by receipt |
 | GET | `/api/v1/run/jobs/status/stream` | Dashboard digest revision deltas |
+| GET | `/api/v1/run/jobs/status/digest` | Counts-only digest poll (multiplex boot) |
+
+PR #139 UI multiplexes digest poll + list with optional digest SSE alongside receipt-keyed job watch.
 
 All routes require the same API key as other `/api/v1` surfaces. Query parameters:
 

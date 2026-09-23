@@ -511,6 +511,19 @@ Known failures to track:
 
 ---
 
+## Think Job control-plane UI (PR #138–#139)
+
+Hermetic static UI at `public/control-plane/think_job_status.html` — **not LIVE VERIFIED**.
+
+| Work | GitHub PR | Notes |
+|------|-----------|--------|
+| SSE subscribe + poll fallback on #137 routes | **#138** (merged) | `think_job_status_client.js`, `thinkbox/think_job_status_ui.py` |
+| Receipt-keyed watch + jobs digest multiplex panel | **#139** (draft) | `watchReceipt`, `JobsDigestMultiplexer`, F139 e2e |
+
+Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury claims.
+
+---
+
 ## KUDBEECLI — Interactive Terminal (`thinkbox/cli.py`)
 
 Unified CLI for hermetic inspection of swarm evidence, ledger integrity, proofs, and environment status. **Do not claim LIVE VERIFIED or PRODUCTION READY** for CLI paths without earned gates.
