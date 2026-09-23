@@ -1,7 +1,7 @@
 # Checklist — KILO Live-proof readiness spine (PR #141)
 
 - [ ] `docs/runbooks/kilo-live-proof-readiness.md` headings complete
-- [ ] `python3 scripts/verify_kilo_spine.py` exit 0
+- [ ] `python3 scripts/verify_kilo_spine.py` exit 0 (includes env-matrix, substrate-checklist, governance-evidence blocks when merged)
 - [ ] `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` OK
 - [ ] `docs/CONTINUITY.md` + `docs/STATUS.md` + root `STATUS.md` mention PR #141
 - [ ] Audit pass `docs/audit/passes/2026-09-23-pr141.json` registered
