@@ -2,6 +2,15 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T18:00:00Z",
+      "checker": "cursor-cloud-pr134",
+      "commit_sha": "pending",
+      "finding_ids": ["F134-STATUS-MODULE", "F134-GET-STATUS", "F134-E2E-POLL"],
+      "notes": "test_f134_think_job_status_poll + test_run_job_status; suite 2381 OK",
+      "path": "tests/e2e/test_f134_think_job_status_poll.py",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-23T06:15:00Z",
       "checker": "cursor-cloud-pr132",
       "commit_sha": "pending",
