@@ -83,6 +83,7 @@ async def run_goal(
     request: RunRequest,
     x_governance_token: str | None = Header(None, alias="X-Governance-Token"),
     x_agent_id: str | None = Header(None, alias="X-Agent-Id"),
+    x_capability: str | None = Header(None, alias="X-Capability"),
 ) -> RunResponse:
     if request.verified:
         from backend.api.v1.run_governed import validate_verified_subtasks
@@ -93,6 +94,7 @@ async def run_goal(
         agent_id=x_agent_id or request.agent_id,
         governance_token=request.governance_token,
         header_token=x_governance_token,
+        header_capability=x_capability,
         capability=request.capability,
         verified=request.verified,
         subtasks=request.subtasks,

@@ -157,12 +157,13 @@ def parse_run_admission(
     agent_id: str | None,
     governance_token: str | None,
     header_token: str | None,
+    header_capability: str | None,
     capability: str | None,
     verified: bool,
     subtasks: list[dict[str, Any]] | None,
 ) -> RunAdmissionContext:
     token_value = (governance_token or header_token or "").strip()
-    cap = (capability or "").strip()
+    cap = (capability or header_capability or "").strip()
     if verified:
         cap = cap or DEFAULT_VERIFIED_CAPABILITY
     else:
