@@ -62,5 +62,24 @@ class TestRunReceiptLifecycle(unittest.TestCase):
             write_simple_http_run_proof(binding, {"governed": True})
 
 
+    def test_engine_lookup_without_memory_index(self) -> None:
+        stack = reset_http_run_persistence_for_tests()
+        binding = begin_http_run_receipt(
+            engine_id="engine_lookup_1",
+            goal="lookup",
+            agent_id="agent",
+            verified=False,
+            capability="goal:execute",
+        )
+        finalize_http_run_receipt(binding, status="completed", outcome={"ok": True}, persistence=stack)
+        stack._engine_index.clear()
+        from backend.api.v1.run_receipts import read_run_receipt_by_engine
+
+        payload = read_run_receipt_by_engine("engine_lookup_1")
+        self.assertIsNotNone(payload)
+        assert payload is not None
+        self.assertEqual(payload["receipt_id"], binding.receipt_id)
+
+
 if __name__ == "__main__":
     unittest.main()
