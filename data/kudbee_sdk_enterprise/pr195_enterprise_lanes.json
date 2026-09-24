@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 12,
+  "lane_count": 13,
   "lanes": [
     {
       "id": "ENT01",
@@ -64,6 +64,11 @@
       "id": "ENT12",
       "name": "secret_rotation_schedule_stub",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/secret_rotation_schedule_stub.py"
+    },
+    {
+      "id": "ENT13",
+      "name": "observability_slo_dashboard_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/observability_slo_dashboard_stub.py"
     }
   ]
 }
