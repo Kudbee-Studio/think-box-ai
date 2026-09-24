@@ -16,9 +16,12 @@ from thinkbox.upstash_box_access import (
     AccessClass,
     HttpProbeResult,
     assert_no_secret_material,
+    binding_blocker_suffix,
     classify_access,
     classify_http_body_reason,
+    cursor_secret_catalog_listed,
     endpoint_identity,
+    parse_cursor_secret_catalog,
     presence_inventory,
     run_access_probe,
 )
@@ -54,6 +57,41 @@ class _BoxOkHandler(BaseHTTPRequestHandler):
 
     def log_message(self, *args: object) -> None:
         return
+
+
+class TestCursorSecretCatalog(unittest.TestCase):
+    def test_parse_catalog_json_list_names_only(self) -> None:
+        env = {
+            "CLOUD_AGENT_ALL_SECRET_NAMES": '["UPSTASH_PUBLIC_BOX_URL","UPSTASH_BOX_API_KEY"]',
+        }
+        catalog = parse_cursor_secret_catalog(env)
+        self.assertEqual(catalog, ("UPSTASH_PUBLIC_BOX_URL", "UPSTASH_BOX_API_KEY"))
+
+    def test_catalog_listed_flags(self) -> None:
+        env = {"CLOUD_AGENT_ALL_SECRET_NAMES": "UPSTASH_BOX_API_KEY,UPSTASH_PUBLIC_BOX_TOKEN"}
+        listed = cursor_secret_catalog_listed(environ=env)
+        self.assertFalse(listed[ENV_URL])
+        self.assertTrue(listed[ENV_TOKEN])
+
+    def test_binding_suffix_when_names_not_in_catalog(self) -> None:
+        suffix = binding_blocker_suffix(
+            url_present=False,
+            token_present=False,
+            catalog_listed={ENV_URL: False, ENV_TOKEN: False},
+            catalog_available=True,
+        )
+        self.assertIn("not registered", suffix)
+
+    def test_run_probe_includes_catalog_when_env_set(self) -> None:
+        env = {
+            "CLOUD_AGENT_ALL_SECRET_NAMES": "UPSTASH_BOX_API_KEY",
+            ENV_URL: "",
+            ENV_TOKEN: "",
+        }
+        report = run_access_probe(environ=env, allow_execute=True)
+        self.assertTrue(report.cursor_secret_catalog_available)
+        self.assertFalse(report.cursor_secret_catalog_listed[ENV_URL])
+        self.assertIn("cursor_secret_catalog", report.blocker)
 
 
 class TestPresenceAndIdentity(unittest.TestCase):

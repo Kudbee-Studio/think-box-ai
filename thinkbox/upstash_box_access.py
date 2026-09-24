@@ -65,6 +65,72 @@ def _present(environ: Mapping[str, str], key: str) -> bool:
     return bool(raw and str(raw).strip())
 
 
+_CATALOG_ENV = "CLOUD_AGENT_ALL_SECRET_NAMES"
+_CATALOG_NAME_RE = re.compile(r"^[A-Z0-9_]+$")
+
+
+def parse_cursor_secret_catalog(
+    environ: Mapping[str, str] | None = None,
+) -> tuple[str, ...]:
+    """Return secret *names* registered for this Cloud Agent (no values).
+
+    Uses ``CLOUD_AGENT_ALL_SECRET_NAMES`` when present. Ignores tokens that do
+    not look like env var names so accidental value leakage cannot enter reports.
+    """
+    env = os.environ if environ is None else environ
+    raw = str(env.get(_CATALOG_ENV, "") or "").strip()
+    if not raw:
+        return ()
+    names: list[str] = []
+    if raw.startswith("["):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                names = [str(item) for item in parsed if isinstance(item, str)]
+        except json.JSONDecodeError:
+            return ()
+    else:
+        names = [part for part in re.split(r"[,;\s]+", raw) if part]
+    safe = tuple(dict.fromkeys(n for n in names if _CATALOG_NAME_RE.match(n)))
+    return safe
+
+
+def cursor_secret_catalog_listed(
+    keys: tuple[str, ...] = ADAPTER_REQUIRED_KEYS,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, bool]:
+    """Map adapter secret names to listed/not listed in the Cursor catalog."""
+    catalog = set(parse_cursor_secret_catalog(environ))
+    return {key: key in catalog for key in keys}
+
+
+def binding_blocker_suffix(
+    *,
+    url_present: bool,
+    token_present: bool,
+    catalog_listed: dict[str, bool],
+    catalog_available: bool,
+) -> str:
+    """Explain env A using non-secret Cursor binding metadata only."""
+    if url_present and token_present:
+        return ""
+    if not catalog_available:
+        return ""
+    missing_catalog = [k for k, listed in catalog_listed.items() if not listed]
+    if missing_catalog:
+        return (
+            "cursor_secret_catalog: not registered on attached environment ("
+            + ", ".join(missing_catalog)
+            + ")"
+        )
+    if not url_present or not token_present:
+        return (
+            "cursor_secret_catalog: official names registered but absent in process "
+            "(start a new Cloud Agent after saving secrets)"
+        )
+    return ""
+
+
 def presence_inventory(
     environ: Mapping[str, str] | None = None,
     extra_keys: tuple[str, ...] = (),
@@ -252,6 +318,8 @@ class AccessReport:
     receipt: dict[str, Any] | None
     live_http_used: bool
     unused_document_only_present: dict[str, bool] = field(default_factory=dict)
+    cursor_secret_catalog_available: bool = False
+    cursor_secret_catalog_listed: dict[str, bool] = field(default_factory=dict)
 
     @property
     def live_verified(self) -> bool:
@@ -296,6 +364,8 @@ class AccessReport:
             "adapter_required_keys": list(ADAPTER_REQUIRED_KEYS),
             "document_only_unused_keys": list(DOCUMENT_ONLY_UNUSED_KEYS),
             "auth_mechanism": "HTTP Authorization header from env UPSTASH_PUBLIC_BOX_TOKEN on POST {url}/run",
+            "cursor_secret_catalog_available": self.cursor_secret_catalog_available,
+            "cursor_secret_catalog_listed": dict(self.cursor_secret_catalog_listed),
         }
 
 
@@ -389,6 +459,17 @@ def run_access_probe(
         receipt_verified=receipt_verified,
     )
 
+    catalog_listed = cursor_secret_catalog_listed(env)
+    catalog_available = _CATALOG_ENV in env and bool(str(env.get(_CATALOG_ENV, "") or "").strip())
+    binding_suffix = binding_blocker_suffix(
+        url_present=url_present,
+        token_present=token_present,
+        catalog_listed=catalog_listed,
+        catalog_available=catalog_available,
+    )
+    if binding_suffix:
+        blocker = f"{blocker}; {binding_suffix}"
+
     return AccessReport(
         timestamp=_now(),
         classification=classification,
@@ -406,6 +487,8 @@ def run_access_probe(
             live_http_used and config.is_configured and (http_called or execute_attempted)
         ),
         unused_document_only_present=unused,
+        cursor_secret_catalog_available=catalog_available,
+        cursor_secret_catalog_listed=catalog_listed,
     )
 
 

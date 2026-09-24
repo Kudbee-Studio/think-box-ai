@@ -53,23 +53,23 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
-| **This-run class** | **A — ENV_NOT_CONFIGURED** (fresh agent 2026-09-24 post-founder secret save). Step 1 presence: `UPSTASH_PUBLIC_BOX_URL` **ABSENT**, `UPSTASH_PUBLIC_BOX_TOKEN` **ABSENT**. Live probe **not run** (mission stop). `UPSTASH_BOX_API_KEY` present, adapter-unused. **No HTTP.** |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (binding diagnosis 2026-09-24). Process: official pair **ABSENT**. Cursor catalog (`CLOUD_AGENT_ALL_SECRET_NAMES`): `UPSTASH_PUBLIC_BOX_URL` **NOT LISTED**, `UPSTASH_PUBLIC_BOX_TOKEN` **NOT LISTED**, `UPSTASH_BOX_API_KEY` **LISTED**. Attached env: **Personal** (`environmentJsonPath` null). Live probe **not run**. **No HTTP.** |
 | **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
 | **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
 | **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
 | **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
 
-**DISCOVERY:** Founder configured Cursor Environment secrets for the official pair; this **fresh** cloud agent still receives neither in process (presence-only check). Other Upstash-related vars (e.g. document-only `UPSTASH_BOX_API_KEY`) may be present. Supported mechanism remains Cursor Environment secrets with exact adapter names; `.cursor/environment.json` does not inject secrets.
+**DISCOVERY:** `cursor-cloud-environment-info`: Personal environment `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7`, `environmentJsonPath` null (DB-managed; repo `.cursor/environment.json` not active for this run). `CLOUD_AGENT_ALL_SECRET_NAMES` lists 17 names including `UPSTASH_BOX_API_KEY` but **not** the official adapter pair — secrets were not registered on the attached environment under the required names.
 
-**IMPLEMENTATION:** No adapter or auth changes. Fail-closed probe only (`scripts/upstash_box_access_probe.py` without live flags).
+**IMPLEMENTATION:** Catalog-aware binding diagnostics in `thinkbox/upstash_box_access.py`, operator script `scripts/cursor_box_env_binding_check.py`, valid JSON `.cursor/environment.json` (comments removed). Requested dashboard `add_secrets` + egress + external binding verification. No adapter/auth changes.
 
-**TEST_VERIFIED:** `tests.unit.test_upstash_box_access`, `tests.unit.test_kilo_live_proof_readiness_pr201`, `verify_kilo_pr201_upstash_box_access.py`, `scan_doc_secrets.py` green on checkpoint.
+**TEST_VERIFIED:** Expanded unit tests + gate verify + secret scan on checkpoint.
 
-**LIVE_VERIFIED:** **No** — live `/run` probe skipped because required env absent; classification **A**.
+**LIVE_VERIFIED:** **No** — official vars absent and not in Cursor secret catalog; live `/run` not attempted.
 
-**DECISION:** Do not substitute `UPSTASH_BOX_API_KEY`. Do not manipulate gate to D. Do not merge PR #201 until founder review.
+**DECISION:** Binding fix is dashboard-only on the **attached** Personal environment (exact secret names). Do not substitute `UPSTASH_BOX_API_KEY`. Do not merge PR #201 until founder review.
 
-**NEXT ACTION:** Ensure Environment secrets bind to the **same** Cursor environment this agent uses (exact names), then start another fresh agent and run `python3 scripts/upstash_box_access_probe.py --allow-network --allow-execute --live --out data/upstash_box_access/probe_live.json`.
+**NEXT ACTION:** On [environment dashboard](https://cursor.com/dashboard/cloud-agents/environments/e/66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7), add `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN`, Save, start a **new** agent on `cursor/env-setup-803e`, confirm catalog **LISTED** + process **PRESENT**, then one live probe to `probe_live.json`.
 
 ### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 

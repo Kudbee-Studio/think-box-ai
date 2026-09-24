@@ -32,9 +32,19 @@ The adapter reads **process environment variables only**. It does not read `.env
 | `.cursor/environment.json` | No | Defines `install` / `terminals` only (see public schema). Does **not** declare secret values or secret names. |
 | Personal / team saved environment | Partial in this run | Can inject other Upstash keys (Vector, Redis, `UPSTASH_BOX_API_KEY`) while omitting the adapter pair — yields classification **A**. |
 
-**Why classification A occurred:** this agent booted from a **Personal** environment (`environmentJsonPath` null). Partial Upstash secrets were injected, but the two **official** adapter variables were not present in the process.
+**Why classification A occurred:** the attached Cursor environment is **Personal** (`environmentJsonPath` null), so this run does **not** use repository `.cursor/environment.json` as the active config source. Partial Upstash secrets inject (for example `UPSTASH_BOX_API_KEY`), but the adapter pair is missing from the process.
 
-**After secrets are added:** start a **new** Cloud Agent (same repo/branch). Confirm presence-only, then:
+**Diagnose binding without secret values:**
+
+```bash
+python3 scripts/cursor_box_env_binding_check.py
+```
+
+When `CLOUD_AGENT_ALL_SECRET_NAMES` is present, the probe reports `cursor_secret_catalog_listed` for the official names. If those names are **not listed**, secrets were saved on a different environment or under different names — add them on the **same** environment attached to the agent ([environment dashboard](https://cursor.com/docs/cloud-agent/settings)). If names are **listed** but process presence is still absent, start a **new** Cloud Agent after saving (secrets do not hot-reload).
+
+Repository `.cursor/environment.json` defines install/terminals only (valid JSON; no secret fields). Secrets remain dashboard-only.
+
+**After both official names are listed and present:** start a **new** Cloud Agent (same repo/branch). Confirm presence-only, then:
 
 ```bash
 python3 scripts/upstash_box_access_probe.py \

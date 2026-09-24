@@ -25,3 +25,4 @@ We chose option 3. Authentication remains `Authorization: Bearer $UPSTASH_PUBLIC
 - `UPSTASH_BOX_API_KEY` may be present and is never sent.
 - Founder review remains required; this PR is not production-ready.
 - Cursor Cloud Agents inject adapter credentials via **Environment secrets** (dashboard), not via `.cursor/environment.json`. Partial Upstash secret sets (e.g. Vector + `UPSTASH_BOX_API_KEY` without the adapter pair) still classify as **A**.
+- When `CLOUD_AGENT_ALL_SECRET_NAMES` is available, probes may record **listed/not listed** for official names (metadata only). Names not listed on the attached environment explain process absence without substituting other credentials.
