@@ -581,7 +581,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Lint scope wave 2 (live-proof readiness spine +12 modules, 38 total) | **#175** (merged) | `thinkbox/kilo_pr175_lint_scope_wave2.py`, `scripts/verify_kilo_pr175_lint_scope_wave2.py` |
 | Chronicle honesty post-#175 | **#176** (merged) | Spine Markdown sync; next-slot pointers |
 | Kudbee SDK app (~25 features, kudbEE web shell) | **#177** (merged) | `thinkbox/kudbee_sdk/`, `apps/web/sdk/`, `thinkbox/kilo_pr177_kudbee_sdk_app.py`, `scripts/verify_kilo_pr177_kudbee_sdk_app.py` |
-| KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** (draft) | `thinkbox/cli_phase2/`, `thinkbox/kilo_pr178_kudbee_cli_phase2.py`, `scripts/verify_kilo_pr178_kudbee_cli_phase2.py` |
+| KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** (merged) | `thinkbox/cli_phase2/`, `thinkbox/kilo_pr178_kudbee_cli_phase2.py`, `scripts/verify_kilo_pr178_kudbee_cli_phase2.py` |
+| Kudbee SDK follow-up (~25 hermetic deepen features) | **#179** (draft) | `thinkbox/kudbee_sdk_followup/`, `apps/web/sdk/followup.ts`, `thinkbox/kilo_pr179_kudbee_sdk_followup.py`, `scripts/verify_kilo_pr179_kudbee_sdk_followup.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

@@ -443,9 +443,29 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.get('/api/sdk/capabilities', (_req: Request, res: Response) => {
   res.json({
     sdk_version: SDK_VERSION,
-    api_version: 1,
-    capabilities: ['sessions', 'tasks', 'plugins', 'websocket', 'health'],
+    api_version: 2,
+    sdk_followup_version: '0.2.0',
+    capabilities: ['sessions', 'tasks', 'plugins', 'websocket', 'health', 'pagination'],
   });
+});
+
+app.get('/api/sdk/version', (_req: Request, res: Response) => {
+  res.json({
+    sdk_version: SDK_VERSION,
+    sdk_followup_version: '0.2.0',
+    api_version: 2,
+    live_api_called: false,
+  });
+});
+
+app.get('/api/sdk/sessions', (req: Request, res: Response) => {
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  res.json({ items: [], next_cursor: null, limit });
+});
+
+app.get('/api/sdk/tasks', (req: Request, res: Response) => {
+  const status = String(req.query.status || 'all');
+  res.json({ items: [], next_cursor: null, status });
 });
 
 app.get('/api/models', async (_req: Request, res: Response) => {
