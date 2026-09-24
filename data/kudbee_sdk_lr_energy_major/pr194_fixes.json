@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 19,
+  "fix_count": 20,
   "fixes": [
     {
       "id": "FIX01",
@@ -98,6 +98,11 @@
       "id": "FIX19",
       "name": "lr_energy_loop_mesh_fix",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_energy_loop_mesh_fix.py"
+    },
+    {
+      "id": "FIX20",
+      "name": "deepen_packs_gate",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/deepen_packs_gate.py"
     }
   ]
 }
