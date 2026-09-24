@@ -13,6 +13,16 @@ python3 examples/kudbee_sdk_quickstart.py
 python3 scripts/scan_doc_secrets.py
 ```
 
+## PR #179 follow-up (draft)
+
+After #177 merges, the follow-up lane adds `thinkbox/kudbee_sdk_followup/` and `apps/web/sdk/followup.ts`:
+
+```bash
+python3 -m unittest tests.unit.test_kudbee_sdk_followup_deepen tests.unit.test_kilo_live_proof_readiness_pr179 -v
+python3 scripts/verify_kilo_pr179_kudbee_sdk_followup.py
+python3 examples/kudbee_sdk_followup_quickstart.py
+```
+
 ## Python
 
 ```python
