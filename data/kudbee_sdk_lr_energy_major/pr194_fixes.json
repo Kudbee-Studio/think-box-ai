@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 22,
+  "fix_count": 23,
   "fixes": [
     {
       "id": "FIX01",
@@ -113,6 +113,11 @@
       "id": "FIX22",
       "name": "no_live_mercury_claim",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/no_live_mercury_claim.py"
+    },
+    {
+      "id": "FIX23",
+      "name": "four_state_integrate",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/four_state_integrate.py"
     }
   ]
 }
