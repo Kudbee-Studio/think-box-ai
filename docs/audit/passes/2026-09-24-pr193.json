@@ -1,0 +1,20 @@
+{
+  "audit_pass_id": "pr193-kudbee-sdk-longrange-energy-deepen",
+  "pr_number": 193,
+  "gate_id": "kudbee-sdk-longrange-energy-deepen",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "primary_surface": "thinkbox/kudbee_sdk_longrange_energy + apps/web/sdk",
+  "themes": [
+    "long_range_session_bind",
+    "energy_loop_mesh",
+    "conservation_ledger",
+    "hop_scheduler_pagination",
+    "federation_energy_router",
+    "typescript_longrange_energy_parity"
+  ],
+  "notes": "Twenty-five Kudbee SDK long-range + energy loop features after merged #192; hermetic only; no live Box/Mercury calls."
+}

@@ -26,3 +26,13 @@ export {
   verifyWebhookDryRunV3,
   type TwinFederationSnapshotV3,
 } from './followup_w3.ts';
+export {
+  SDK_LR_ENERGY_VERSION,
+  collectHopPages,
+  emptyEnergyMeshSnapshot,
+  fetchCapabilitiesLrEnergy,
+  sdkRouteCatalogLrEnergy,
+  verifyWebhookDryRunLrEnergy,
+  type EnergyMeshSnapshot,
+  type SdkHopPage,
+} from './longrange_energy.ts';
