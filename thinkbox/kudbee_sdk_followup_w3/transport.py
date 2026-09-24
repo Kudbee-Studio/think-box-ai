@@ -39,5 +39,9 @@ class InMemoryTransport:
     ) -> HttpResponse:
         key = (method.upper(), url)
         if key not in self.routes:
-            return HttpResponse(status=404, headers={}, body=b"{}")
+            return HttpResponse(
+                status=404,
+                headers={"x-kudbee-transport": "in-memory-miss"},
+                body=b'{"error":"route_not_registered","live_api_called":false}',
+            )
         return self.routes[key]
