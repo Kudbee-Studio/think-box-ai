@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 20,
+  "fix_count": 21,
   "fixes": [
     {
       "id": "FIX01",
@@ -103,6 +103,11 @@
       "id": "FIX20",
       "name": "deepen_packs_gate",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/deepen_packs_gate.py"
+    },
+    {
+      "id": "FIX21",
+      "name": "typescript_longrange_energy",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/typescript_longrange_energy.py"
     }
   ]
 }
