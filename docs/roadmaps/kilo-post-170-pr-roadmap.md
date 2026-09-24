@@ -46,7 +46,8 @@
 | KUDBEECLI enterprise upgrade (Phase 4) | **#196** (merged) — `thinkbox/cli_phase4` + `thinkbox cli enterprise` (~25 features) |
 | Cloud execution substrate Phase 1 | **#197** (merged) — `thinkbox/cloud_execution` (10 foundation features) |
 | Cloud execution durable queue Phase 2 | **#198** (merged) — SQLite queue + `DurableCloudExecutionEngine` |
-| Cloud execution worker orchestrator Phase 3 | **#199** (draft) — `CloudExecutionWorker` + governed loop |
+| Cloud execution worker orchestrator Phase 3 | **#199** (merged) — `CloudExecutionWorker` + governed loop |
+| Environmental variables pack | **#200** (draft) — `thinkbox/env_vars` (~25 features) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

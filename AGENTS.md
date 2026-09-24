@@ -602,7 +602,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | KUDBEECLI enterprise upgrade (Phase 4, ~25 features) | **#196** (merged) | `thinkbox/cli_phase4/`, `thinkbox/kilo_pr196_kudbee_cli_enterprise_upgrade.py`, `scripts/verify_kilo_pr196_kudbee_cli_enterprise_upgrade.py` |
 | Cloud execution substrate Phase 1 (10 foundation features) | **#197** (merged) | `thinkbox/cloud_execution/`, `thinkbox/kilo_pr197_cloud_execution_substrate.py`, `scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
 | Cloud execution durable queue Phase 2 (10 features) | **#198** (merged) | `thinkbox/cloud_execution/sqlite_store.py`, `thinkbox/kilo_pr198_cloud_execution_durable_queue.py`, `scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
-| Cloud execution worker orchestrator Phase 3 (10 features) | **#199** (draft) | `thinkbox/cloud_execution/worker_orchestrator.py`, `thinkbox/kilo_pr199_cloud_execution_worker_orchestrator.py`, `scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
+| Cloud execution worker orchestrator Phase 3 (10 features) | **#199** (merged) | `thinkbox/cloud_execution/worker_orchestrator.py`, `thinkbox/kilo_pr199_cloud_execution_worker_orchestrator.py`, `scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
+| Environmental variables pack (~25 features) | **#200** (draft) | `thinkbox/env_vars/`, `thinkbox/kilo_pr200_environmental_variables.py`, `scripts/verify_kilo_pr200_environmental_variables.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
