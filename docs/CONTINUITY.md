@@ -53,23 +53,23 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
-| **This-run class** | **A — ENV_NOT_CONFIGURED** (continuation probe 2026-09-24T20:21Z). Official adapter vars still absent in process. `UPSTASH_BOX_API_KEY` present and unused. **No HTTP** even with `--allow-network --allow-execute --live`. |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (fresh agent 2026-09-24 post-founder secret save). Step 1 presence: `UPSTASH_PUBLIC_BOX_URL` **ABSENT**, `UPSTASH_PUBLIC_BOX_TOKEN` **ABSENT**. Live probe **not run** (mission stop). `UPSTASH_BOX_API_KEY` present, adapter-unused. **No HTTP.** |
 | **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
 | **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
-| **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_20260924_pr201_continuation.json`, `probe_20260924_pr201_live_attempt.json` |
+| **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
 | **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
 
-**DISCOVERY:** Cursor `environment-info` shows a **Personal** environment (`environmentJsonPath` null). Process env includes Vector/Redis/`UPSTASH_BOX_API_KEY` but not `UPSTASH_PUBLIC_BOX_URL` or `UPSTASH_PUBLIC_BOX_TOKEN`. Repo `.cursor/environment.json` defines install/terminals only; public schema has no secret fields. Adapter contract unchanged (`thinkbox/execution_adapter.py`).
+**DISCOVERY:** Founder configured Cursor Environment secrets for the official pair; this **fresh** cloud agent still receives neither in process (presence-only check). Other Upstash-related vars (e.g. document-only `UPSTASH_BOX_API_KEY`) may be present. Supported mechanism remains Cursor Environment secrets with exact adapter names; `.cursor/environment.json` does not inject secrets.
 
-**IMPLEMENTATION:** Documented Cursor **Environment secrets** as the supported injection path; requested dashboard `add_secrets` for the official pair + egress `box.upstash.com`. No adapter changes; no credential substitution.
+**IMPLEMENTATION:** No adapter or auth changes. Fail-closed probe only (`scripts/upstash_box_access_probe.py` without live flags).
 
-**TEST_VERIFIED:** Hermetic gate + unit tests green; continuation probe fail-closed.
+**TEST_VERIFIED:** `tests.unit.test_upstash_box_access`, `tests.unit.test_kilo_live_proof_readiness_pr201`, `verify_kilo_pr201_upstash_box_access.py`, `scan_doc_secrets.py` green on checkpoint.
 
-**LIVE_VERIFIED:** **No** — no remote HTTP; classification remains **A**.
+**LIVE_VERIFIED:** **No** — live `/run` probe skipped because required env absent; classification **A**.
 
-**DECISION:** Do not use `UPSTASH_BOX_API_KEY` as Bearer token. Do not claim D until a **new** agent process receives both official secrets and a verified adapter receipt.
+**DECISION:** Do not substitute `UPSTASH_BOX_API_KEY`. Do not manipulate gate to D. Do not merge PR #201 until founder review.
 
-**NEXT ACTION:** Founder adds Environment secrets (exact names) on the Cursor environment, starts a fresh agent on `cursor/env-setup-803e`, reruns `upstash_box_access_probe.py --allow-network --allow-execute --live`.
+**NEXT ACTION:** Ensure Environment secrets bind to the **same** Cursor environment this agent uses (exact names), then start another fresh agent and run `python3 scripts/upstash_box_access_probe.py --allow-network --allow-execute --live --out data/upstash_box_access/probe_live.json`.
 
 ### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 
