@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 13,
+  "pack_count": 14,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -69,6 +69,11 @@
       "id": "DEP13",
       "name": "quantitative_free_flow_index",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/quantitative_free_flow_index.py"
+    },
+    {
+      "id": "DEP14",
+      "name": "lr_energy_dry_run_seal",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_dry_run_seal.py"
     }
   ]
 }
