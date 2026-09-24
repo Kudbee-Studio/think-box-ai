@@ -78,8 +78,9 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H27 | KILO PR #167 combined post-#166 lane (`scripts/verify_kilo_pr167_combined_post166_lane.py` exit 0) | PR #167 tests |
 | H28 | KILO PR #168 combined post-#167 lane (`scripts/verify_kilo_pr168_combined_post167_lane.py` exit 0) | PR #168 tests |
 | H29 | KILO PR #169 combined post-#168 lane (`scripts/verify_kilo_pr169_combined_post168_lane.py` exit 0) | PR #169 tests |
+| H30 | Beyond-KILO lint readiness (`scripts/verify_kilo_beyond_kilo_lint.py` exit 0; ruff/mypy/bandit scoped) | PR #170 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#168 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#170 hermetic gates.
 
 **Spine verify modes:** `python3 -u scripts/verify_kilo_spine.py` defaults to **fast** mode
 (skips nested control-plane e2e unittest subprocess; static gates still run). Use
