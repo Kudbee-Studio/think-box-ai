@@ -15,6 +15,7 @@ from thinkbox.kudbee_sdk_followup_w2.sdk_status_report import route_catalog_w2, 
 from thinkbox.kudbee_sdk_followup_w2.secrets import scan_text_for_secrets
 from thinkbox.kudbee_sdk_followup_w2.session_bridge import SessionBridgeW2
 from thinkbox.kudbee_sdk_followup_w2.task_bridge import TaskBridgeW2
+from thinkbox.kudbee_sdk_followup_w2.docker_bridge import describe_docker_compose_bridge
 from thinkbox.kudbee_sdk_followup_w2.webhook_signature import sign_payload, verify_signature
 
 
@@ -70,6 +71,11 @@ class TestKudbeeSdkFollowupW2Deepen(unittest.TestCase):
     def test_secret_scan_clean_sample(self) -> None:
         scan = scan_text_for_secrets("export const x = 1;")
         self.assertTrue(scan.clean)
+
+    def test_docker_bridge_hermetic(self) -> None:
+        doc = describe_docker_compose_bridge()
+        self.assertEqual(doc["compose_service"], "api")
+        self.assertFalse(doc["live_api_called"])
 
 
 if __name__ == "__main__":
