@@ -1,0 +1,9 @@
+{
+  "name": "w3_major_flow",
+  "steps": [
+    {
+      "action": "run_all_fixes",
+      "dry_run": true
+    }
+  ]
+}

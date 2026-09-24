@@ -1,0 +1,18 @@
+{
+  "audit_pass_id": "pr192-kudbee-sdk-followup-w3-major-fixes",
+  "pr_number": 192,
+  "gate_id": "kudbee-sdk-followup-w3-major-fixes",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "fix_count": 35,
+  "primary_surface": "thinkbox/kudbee_sdk_followup_w3_major_fixes",
+  "themes": [
+    "sdk_followup_w3_major_fixes",
+    "pr191_upstream_validation",
+    "hermetic_fix_registry",
+    "twin_federation_hardening"
+  ],
+  "notes": "Thirty-five Kudbee SDK wave 3 major fixes after merged #191; hermetic only."
+}
