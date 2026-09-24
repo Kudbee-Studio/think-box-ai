@@ -16,14 +16,14 @@
 
 ---
 
-## Current snapshot (post-#172)
+## Current snapshot (post-#175)
 
 | Area | State |
 |------|--------|
-| Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; ruff/mypy/bandit on **two** modules only (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`) — **#170 merged** |
+| Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; **38** scoped modules (v3) — **#174** + **#175** merged |
 | Spine | `verify_kilo_spine.py` aggregates 28 blocks including #169 umbrella + #170 lint (static lint in spine unless `KILO_BEYOND_KILO_LINT_EXECUTE=1`) |
-| CI | **#172** (merged): `.github/workflows/test.yml` = unittest + **one** fast spine + beyond-KILO lint execute + secret scan (no duplicate per-gate scripts) |
-| Chronicle | **#173** (merged); **#174** (draft): lint wave 1 + enterprise editing guide |
+| CI | **#172** (merged): unittest + fast spine + beyond-KILO lint execute + secret scan |
+| Chronicle | **#173–#175** merged; lint waves 1–2 complete |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -48,9 +48,9 @@
 
 ---
 
-## Recommended default next **implementation** PR: **GitHub #174** (slot 3, in flight)
+## Recommended default next **implementation** PR: **GitHub #176** (slot 5)
 
-Lint scope wave 1 — 25-module scope + `docs/guides/kilo_enterprise_editing.md`. After merge: **#175** slot 4.
+Control-plane receipt-chain single deepen (412/precondition only). Lint waves **#174–#175** merged on main.
 
 ---
 

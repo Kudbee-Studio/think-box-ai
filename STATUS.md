@@ -5,7 +5,7 @@
 - **#172 merged:** PR CI trusts fast `scripts/verify_kilo_spine.py` + explicit lint execute (H31)
 - **#173 merged:** chronicle honesty — README + AGENTS/CONTINUITY/runbook sync
 - **#174 merged:** lint scope wave 1 — 25 modules + enterprise editing commitments
-- **#175 draft:** lint scope wave 2 — 37 modules (live-proof readiness spine)
+- **#175 merged:** lint scope wave 2 — 38 modules (`beyond_kilo_lint` v3)
 - **Four-state cap:** TEST VERIFIED for hermetic work; `live_verified: false` on spine audits until founder Live proof
 
 ---
