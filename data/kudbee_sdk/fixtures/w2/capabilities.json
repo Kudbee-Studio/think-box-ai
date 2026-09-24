@@ -1,0 +1,4 @@
+{
+  "capabilities": ["sessions", "tasks", "webhooks", "occupancy"],
+  "api_version": 3
+}

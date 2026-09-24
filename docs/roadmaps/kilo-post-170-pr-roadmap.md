@@ -27,7 +27,8 @@
 | Kudbee SDK app | **#177** (merged) — `thinkbox/kudbee_sdk` + `apps/web/sdk` (~25 features) |
 | KUDBEECLI Phase 2 | **#178** (merged) — `thinkbox/cli_phase2` + `thinkbox cli` deepen (~25 features) |
 | Kudbee SDK follow-up | **#179** (merged) — `thinkbox/kudbee_sdk_followup` + `apps/web/sdk/followup.ts` (~25 features) |
-| KUDBEECLI Phase 3 | **#180** (draft) — `thinkbox/cli_phase3` + `thinkbox cli` deepen (~25 features) |
+| KUDBEECLI Phase 3 | **#180** (merged) — `thinkbox/cli_phase3` + `thinkbox cli` deepen (~25 features) |
+| Kudbee SDK follow-up wave 2 | **#181** (draft) — `thinkbox/kudbee_sdk_followup_w2` + `apps/web/sdk/followup_w2.ts` (~25 features) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -45,20 +46,21 @@
 | **Slot 6 (→ GH #177)** | Kudbee SDK app (~25 features) | Primary surface: `thinkbox/kudbee_sdk` + `apps/web/sdk` for kudbEE web shell | ~20–30 commits; hermetic dry-run + gate `kudbee-sdk-app` | Combined umbrellas; live Box/Mercury | Scope creep into control-plane x10 |
 | **Slot 7 (→ GH #178)** | KUDBEECLI Phase 2 deepen (~25 hermetic CLI features) | **Merged** after #177; Phase 1 inspect on main; gate `kudbee-cli-phase2` | ~20–30 commits; `thinkbox/cli_phase2` + verify script | Live Mercury/Box; combined umbrellas | Scope creep into control-plane x10 |
 | **Slot 8 (→ GH #179)** | Kudbee SDK follow-up (~25 hermetic deepen features) | **Merged** after #178; gate `kudbee-sdk-followup` | ~20–30 commits; `thinkbox/kudbee_sdk_followup` + TS followup | Live Mercury/Box; combined umbrellas | Scope creep into control-plane x10 |
-| **Slot 9 (→ GH #180)** | KUDBEECLI Phase 3 deepen (~25 hermetic CLI features) | **In flight (draft)** after #179 merge; gate `kudbee-cli-phase3` | ~20–30 commits; `thinkbox/cli_phase3` + verify script | Live Mercury/Box; combined umbrellas | Scope creep into control-plane x10 |
-| **Slot 10+** | Founder-directed | Next implementation PR after #180 merge is **not** fixed in this doc | — | Auto-sequencing without founder sign-off | — |
-| **Slot 10 (→ GH #181)** | Nightly / manual `spine --e2e` workflow | Keeps deep control-plane e2e without blocking every PR | ~4–8 commits; new workflow `workflow_dispatch` + schedule | Making `--e2e` default on PR CI | Runner cost if scheduled too often |
-| **Slot 10 (→ GH #181)** | Founder optional: bounded live-smoke **runbook + operator dry-run** only | When Box URL/token/LIVE_ACK exist; documents #153 path | ~6–10 commits; runbook + hermetic operator tests | Executing live proof in CI; `live_verified: true` in repo | Credential leakage in docs; cost |
+| **Slot 9 (→ GH #180)** | KUDBEECLI Phase 3 deepen (~25 hermetic CLI features) | **Merged** after #179; gate `kudbee-cli-phase3` | ~20–30 commits; `thinkbox/cli_phase3` + verify script | Live Mercury/Box; combined umbrellas | Scope creep into control-plane x10 |
+| **Slot 10 (→ GH #181)** | Kudbee SDK follow-up wave 2 (~25 hermetic deepen features) | **In flight (draft)** after #180 merge; gate `kudbee-sdk-followup-w2` | ~20–30 commits; `thinkbox/kudbee_sdk_followup_w2` + TS `followup_w2.ts` | Live Mercury/Box; KUDBEECLI Phase 4; combined umbrellas | Scope creep into control-plane x10 |
+| **Slot 11+** | Founder-directed | Next implementation PR after #181 merge is **not** fixed in this doc | — | Auto-sequencing without founder sign-off | — |
+| **Slot 11 (optional)** | Nightly / manual `spine --e2e` workflow | Keeps deep control-plane e2e without blocking every PR | ~4–8 commits; new workflow `workflow_dispatch` + schedule | Making `--e2e` default on PR CI | Runner cost if scheduled too often |
+| **Slot 11 (optional)** | Founder optional: bounded live-smoke **runbook + operator dry-run** only | When Box URL/token/LIVE_ACK exist; documents #153 path | ~6–10 commits; runbook + hermetic operator tests | Executing live proof in CI; `live_verified: true` in repo | Credential leakage in docs; cost |
 
 **Not in default sequence (founder pull):** GitHub **#97** control-plane x10, **#103** Box Mercury v2, **#111** demo dry-run, retiring #165–#169 combined modules from spine imports (large refactor — park until CI slimmed).
 
 ---
 
-## Recommended default next **implementation** PR: **GitHub #180** (slot 9)
+## Recommended default next **implementation** PR: **GitHub #181** (slot 10)
 
-KUDBEECLI Phase 3 (~25 features) for `thinkbox/cli_phase3` and `thinkbox cli` deepen. **#179** Kudbee SDK follow-up merged on main.
+Kudbee SDK follow-up wave 2 (~25 features) for `thinkbox/kudbee_sdk_followup_w2` and `apps/web/sdk/followup_w2.ts`. **#180** KUDBEECLI Phase 3 merged on main.
 
-**After #178 merge:** founder-directed — update this roadmap snapshot before opening the next single-theme PR.
+**After #181 merge:** founder-directed — update this roadmap snapshot before opening the next single-theme PR.
 
 ---
 
