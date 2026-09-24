@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 14,
+  "pack_count": 15,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -74,6 +74,11 @@
       "id": "DEP14",
       "name": "lr_energy_dry_run_seal",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_dry_run_seal.py"
+    },
+    {
+      "id": "DEP15",
+      "name": "mesh_attachment_guard",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/mesh_attachment_guard.py"
     }
   ]
 }
