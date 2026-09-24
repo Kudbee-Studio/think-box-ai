@@ -18,6 +18,9 @@ python3 scripts/verify_kilo_beyond_kilo_lint.py
 
 CI sets `KILO_BEYOND_KILO_LINT_REQUIRE_TOOLS=1` when `CI=true`.
 
+PR **#172** CI step (after fast spine): `pip install -e ".[lint]"` then
+`KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py`.
+
 ## Mypy scope
 
 Mypy runs with `--follow-imports=skip` on gate modules only (gradual adoption).

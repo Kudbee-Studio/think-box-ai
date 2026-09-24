@@ -79,8 +79,11 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H28 | KILO PR #168 combined post-#167 lane (`scripts/verify_kilo_pr168_combined_post167_lane.py` exit 0) | PR #168 tests |
 | H29 | KILO PR #169 combined post-#168 lane (`scripts/verify_kilo_pr169_combined_post168_lane.py` exit 0) | PR #169 tests |
 | H30 | Beyond-KILO lint readiness (`scripts/verify_kilo_beyond_kilo_lint.py` exit 0; ruff/mypy/bandit scoped) | PR #170 tests |
+| H31 | PR CI spine-trust (#172): one fast `verify_kilo_spine.py` + `KILO_BEYOND_KILO_LINT_EXECUTE=1` lint step; no duplicate per-gate `verify_kilo_*` in `.github/workflows/test.yml` | PR #172 tests |
 
 No `INCEPTION_API_KEY` consumption is required for #141–#170 hermetic gates.
+
+**PR CI model (#172):** GitHub workflow runs `unittest discover`, fast spine only, explicit beyond-KILO lint execute, and `scan_doc_secrets.py`. Individual `scripts/verify_kilo_*` remain for operators locally; spine aggregates their hermetic contracts.
 
 **Spine verify modes:** `python3 -u scripts/verify_kilo_spine.py` defaults to **fast** mode
 (skips nested control-plane e2e unittest subprocess; static gates still run). Use

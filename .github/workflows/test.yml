@@ -18,49 +18,12 @@ jobs:
         run: pip install -e .
       - name: Run unit + integration tests
         run: python3 -m unittest discover -s tests -t .
-      - name: KILO spine operator gates (hermetic, post-#150)
+      - name: KILO fast spine verify (hermetic, post-#172)
+        run: PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
+      - name: Beyond-KILO lint execute (scoped ruff/mypy/bandit)
         run: |
-          PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
-          python3 scripts/verify_kilo_post_season_harden.py
-          python3 scripts/verify_kilo_live_smoke_evidence.py
-          python3 scripts/verify_kilo_live_smoke_operator.py
-          python3 scripts/verify_kilo_control_plane_api.py
-          python3 scripts/verify_kilo_receipt_chain_etag.py
-          python3 scripts/verify_kilo_dashboard_receipt_chain_bind.py
-          python3 scripts/verify_kilo_api_ops_harden.py
-          python3 scripts/verify_kilo_end_link_deepen.py
-          python3 scripts/verify_kilo_end_link_operator_ux.py
-          python3 scripts/verify_kilo_receipt_chain_end_link_docs.py
-          python3 scripts/verify_kilo_end_link_api_ops_harden.py
-          python3 scripts/verify_kilo_receipt_chain_end_link_era_close.py
-          python3 scripts/verify_kilo_control_plane_e2e_deepen.py
-          python3 scripts/verify_kilo_governance_evidence_live_proof_readiness.py
-          python3 scripts/verify_kilo_live_smoke_audit_flip_harden.py
-          python3 scripts/verify_kilo_control_plane_post164_deepen.py
-          python3 scripts/verify_kilo_receipt_chain_end_link_season_harden.py
-          python3 scripts/verify_kilo_pr165_combined_harden.py
-          python3 scripts/verify_kilo_live_proof_operator_prep_deepen.py
-          python3 scripts/verify_kilo_api_ops_harden_post165.py
-          python3 scripts/verify_kilo_dashboard_pr165_gates_bind.py
-          python3 scripts/verify_kilo_swarm_governance_post165_deepen.py
-          python3 scripts/verify_kilo_pr166_combined_post165_lane.py
-          python3 scripts/verify_kilo_live_proof_operator_audit_flip_deepen.py
-          python3 scripts/verify_kilo_api_ops_harden_post166.py
-          python3 scripts/verify_kilo_dashboard_pr166_gates_bind.py
-          python3 scripts/verify_kilo_swarm_governance_post166_deepen.py
-          python3 scripts/verify_kilo_pr167_combined_post166_lane.py
-          python3 scripts/verify_kilo_live_proof_operator_audit_flip_post167.py
-          python3 scripts/verify_kilo_api_ops_harden_post167.py
-          python3 scripts/verify_kilo_dashboard_pr167_gates_bind.py
-          python3 scripts/verify_kilo_swarm_governance_post167_deepen.py
-          python3 scripts/verify_kilo_pr168_combined_post167_lane.py
-          python3 scripts/verify_kilo_live_proof_operator_audit_flip_post168.py
-          python3 scripts/verify_kilo_api_ops_harden_post168.py
-          python3 scripts/verify_kilo_dashboard_pr168_gates_bind.py
-          python3 scripts/verify_kilo_swarm_governance_post168_deepen.py
-          python3 scripts/verify_kilo_pr169_combined_post168_lane.py
           pip install -e ".[lint]"
-          python3 scripts/verify_kilo_beyond_kilo_lint.py
+          KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
       - name: Secret scan (docs + repo hygiene)
         run: python3 scripts/scan_doc_secrets.py
 

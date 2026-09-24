@@ -9,6 +9,15 @@
   "branch_hygiene_script": "scripts/cleanup_merged_cursor_branches.py",
   "branch_hygiene_runbook": "docs/runbooks/branch-hygiene.md",
   "notes": "Ops harden only — not a Live proof gate",
+  "ci_trust_model": "pr172-spine-fast-plus-beyond-kilo-lint-execute",
+  "ci_required_snippets": [
+    "python3 -m unittest discover",
+    "verify_kilo_spine.py",
+    "pip install -e \".[lint]\"",
+    "KILO_BEYOND_KILO_LINT_EXECUTE=1",
+    "verify_kilo_beyond_kilo_lint.py",
+    "scan_doc_secrets.py"
+  ],
   "spine_verify_scripts": [
     "scripts/verify_kilo_env_matrix.py",
     "scripts/verify_kilo_substrate_checklist.py",

@@ -75,23 +75,6 @@ SPINE_VERIFY_SCRIPTS: tuple[Path, ...] = (
     Path("scripts/scan_doc_secrets.py"),
 )
 
-_REQUIRED_CI_SNIPPETS: tuple[str, ...] = (
-    "verify_kilo_spine.py",
-    "scan_doc_secrets.py",
-    "verify_kilo_post_season_harden.py",
-    "verify_kilo_live_smoke_evidence.py",
-    "verify_kilo_live_smoke_operator.py",
-    "verify_kilo_control_plane_api.py",
-    "verify_kilo_receipt_chain_etag.py",
-    "verify_kilo_dashboard_receipt_chain_bind.py",
-    "verify_kilo_api_ops_harden.py",
-    "verify_kilo_governance_evidence_live_proof_readiness.py",
-    "verify_kilo_live_smoke_audit_flip_harden.py",
-    "verify_kilo_control_plane_post164_deepen.py",
-    "verify_kilo_receipt_chain_end_link_season_harden.py",
-    "verify_kilo_pr165_combined_harden.py",
-)
-
 _FORBIDDEN_LITERAL_CLAIMS = (
     "KILO LIVE VERIFIED",
     "KILO PRODUCTION READY",
@@ -141,26 +124,15 @@ class PostSeasonHardenResult:
 
 
 def validate_ci_workflow_manifest(text: str) -> tuple[bool, tuple[PostSeasonHardenViolation, ...]]:
-    """Ensure CI workflow references spine + secrets scan + post-season gate."""
-    violations: list[PostSeasonHardenViolation] = []
-    for snippet in _REQUIRED_CI_SNIPPETS:
-        if snippet not in text:
-            violations.append(
-                PostSeasonHardenViolation(
-                    code="ci_workflow_missing_snippet",
-                    message=f"CI workflow must reference {snippet}",
-                    path=str(CI_WORKFLOW_REL),
-                )
-            )
-    if "python3 -m unittest discover" not in text:
-        violations.append(
-            PostSeasonHardenViolation(
-                code="ci_workflow_missing_unittest_discover",
-                message="CI workflow must run unittest discover",
-                path=str(CI_WORKFLOW_REL),
-            )
-        )
-    return (len(violations) == 0, tuple(violations))
+    """Ensure CI workflow matches PR #172 spine-trust manifest."""
+    from thinkbox.kilo_pr172_ci_spine_trust import validate_pr172_ci_workflow_manifest
+
+    ok, pr172_violations = validate_pr172_ci_workflow_manifest(text)
+    violations = tuple(
+        PostSeasonHardenViolation(code=v.code, message=v.message, path=v.path)
+        for v in pr172_violations
+    )
+    return (ok, violations)
 
 
 def validate_post_season_checklist_document(

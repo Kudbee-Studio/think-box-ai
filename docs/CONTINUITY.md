@@ -41,12 +41,21 @@ Before declaring completion, every agent MUST verify:
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#170 merged on main; **GitHub #171** draft = post-#170 roadmap doc; next impl **#172** CI spine-trust (`docs/roadmaps/kilo-post-170-pr-roadmap.md`) |
+| **PR status** | PR #141–#170 merged on main; **GitHub #171** roadmap merged; **#172** draft = CI spine-trust slimming (`docs/roadmaps/kilo-post-170-pr-roadmap.md` slot 1) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-24 — PR #172 draft: CI spine-trust slimming
+
+| Field | Value |
+|---|---|
+| **Scope** | `.github/workflows/test.yml` dedupes per-gate `verify_kilo_*`; PR CI = unittest + fast spine + `KILO_BEYOND_KILO_LINT_EXECUTE=1` + secret scan; `kilo_pr172_ci_spine_trust` contract |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr172 -v`; spine fast verify |
+| **Audit** | `docs/audit/passes/2026-09-24-pr172.json` (`live_verified: false`) |
 
 ### 2026-09-24 — Post-#170 planning roadmap (docs only)
 
