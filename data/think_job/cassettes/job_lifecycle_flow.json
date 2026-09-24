@@ -1,0 +1,8 @@
+{
+  "name": "job_lifecycle_flow",
+  "steps": [
+    {"step": "configure", "state": "CONFIGURED"},
+    {"step": "start", "state": "RUNNING"},
+    {"step": "complete", "state": "COMPLETE"}
+  ]
+}

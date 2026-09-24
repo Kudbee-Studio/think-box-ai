@@ -1,0 +1,11 @@
+{
+  "status": "think_job_status_v1",
+  "jobs": [
+    {
+      "job_id": "tb_job_hermetic_demo",
+      "state": "COMPLETE",
+      "receipt_id": "rcpt-demo",
+      "evidence_label": "simulated"
+    }
+  ]
+}
