@@ -25,6 +25,8 @@ COPY docs/audit/passes/ ./docs/audit/passes/
 COPY docs/runbooks/ ./docs/runbooks/
 COPY docs/guides/kudbee_sdk_followup_w2_quickstart.md ./docs/guides/kudbee_sdk_followup_w2_quickstart.md
 COPY docs/guides/kudbee_cli_phase3_quickstart.md ./docs/guides/kudbee_cli_phase3_quickstart.md
+COPY Dockerfile Dockerfile.hermetic docker-compose.yml .dockerignore ./
+COPY deploy/nginx.docker.conf ./deploy/nginx.docker.conf
 
 RUN pip install --no-cache-dir -e . --no-deps
 
