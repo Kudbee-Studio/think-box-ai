@@ -14,6 +14,7 @@ def think_job_post_run_deepen_status_report() -> dict[str, Any]:
         "think_job_post_run_deepen_version": THINK_JOB_POST_RUN_DEEPEN_VERSION,
         "integration": integration_summary(),
         "status_catalog": status_catalog(),
+        "error_catalog": error_catalog(),
         "e2e_bridge": e2e_bridge(),
         "think_job_e2e_bridge": bridge_summary(),
         "gate_summary": gate_summary(),
