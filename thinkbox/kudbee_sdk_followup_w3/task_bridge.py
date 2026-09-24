@@ -27,5 +27,13 @@ class TaskBridgeW3:
             "live_api_called": False,
         }
 
+    def cancel_hermetic(self, reason: str = "user") -> dict[str, Any]:
+        self.task.fail(f"cancelled:{reason}")
+        return {
+            "task_id": self.task.task_id,
+            "status": self.task.status.value,
+            "live_api_called": False,
+        }
+
     def is_terminal(self) -> bool:
         return self.task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED)
