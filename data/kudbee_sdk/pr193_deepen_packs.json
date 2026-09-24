@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 22,
+  "pack_count": 23,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -114,6 +114,11 @@
       "id": "DEP22",
       "name": "observability_energy_counter",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/observability_energy_counter.py"
+    },
+    {
+      "id": "DEP23",
+      "name": "cassette_energy_replay_tag",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/cassette_energy_replay_tag.py"
     }
   ]
 }
