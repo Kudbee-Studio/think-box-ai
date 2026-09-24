@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 18,
+  "pack_count": 19,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -94,6 +94,11 @@
       "id": "DEP18",
       "name": "federation_router_snapshot",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federation_router_snapshot.py"
+    },
+    {
+      "id": "DEP19",
+      "name": "task_budget_energy_tax",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/task_budget_energy_tax.py"
     }
   ]
 }
