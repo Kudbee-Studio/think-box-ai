@@ -36,3 +36,10 @@ export {
   type EnergyMeshSnapshot,
   type SdkHopPage,
 } from './longrange_energy.ts';
+export {
+  SDK_ENTERPRISE_LR_ENERGY_VERSION,
+  enterpriseCapabilityCatalog,
+  enterpriseRouteCatalog,
+  fetchEnterpriseCapabilities,
+  type EnterpriseTier,
+} from './enterprise_lr_energy.ts';
