@@ -47,11 +47,12 @@ from thinkbox.cli_persist import (
     sync_traces_to_sqlite,
 )
 from thinkbox.cli_phase2.integrate import dispatch_phase2, register_phase2_parser
+from thinkbox.cli_phase4.integrate import register_phase4_subcommands  # PR #196 wire (via phase2 cli group)
 from thinkbox.cli_shell import CliShell
 from thinkbox.identity import IdentityLedger
 from thinkbox.thinktrace import ThinkTraceCapture
 
-__version__ = "0.180.0"
+__version__ = "0.196.0"
 
 
 def _emit(payload: dict, args: argparse.Namespace, title: str) -> None:
