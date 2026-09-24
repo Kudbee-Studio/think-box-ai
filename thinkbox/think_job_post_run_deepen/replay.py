@@ -10,3 +10,9 @@ def replay_steps(steps: list[dict[str, Any]]) -> dict[str, Any]:
         if not v["valid"]:
             return {"verification": {"valid": False}, "live_api_called": False}
     return {"verification": {"valid": True, "steps": len(steps)}, "live_api_called": False}
+
+
+def replay_bounds() -> dict[str, Any]:
+    from thinkbox.think_job_stream import MAX_SSE_FRAME_BYTES
+
+    return {"max_bytes": MAX_SSE_FRAME_BYTES, "live_api_called": False}

@@ -31,7 +31,8 @@
 | Kudbee SDK follow-up wave 2 | **#181** (merged) — `thinkbox/kudbee_sdk_followup_w2` + `apps/web/sdk/followup_w2.ts` (~25 features) |
 | Receipt-chain deepen | **#182** (merged) — `thinkbox/receipt_chain_deepen` (~25 features) |
 | Think Job hermetic e2e deepen | **#183** (merged) — `thinkbox/think_job_e2e_deepen` (~25 features) |
-| Think Job POST /run contract deepen | **#184** (draft) — `thinkbox/think_job_post_run_deepen` (~25 features) |
+| Think Job POST /run contract deepen | **#184** (merged) — `thinkbox/think_job_post_run_deepen` (~25 features) |
+| Think Job lifecycle integration fix pack | **#185** (draft) — `thinkbox/think_job_lifecycle_fixes` (25 fixes) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

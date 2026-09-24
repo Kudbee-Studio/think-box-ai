@@ -1,0 +1,7 @@
+{
+  "name": "lifecycle_fix_flow",
+  "steps": [
+    {"method": "POST", "path": "/api/v1/run", "body": {"goal": "lifecycle fix pack"}},
+    {"method": "GET", "path": "/api/v1/run/job/tb_job_hermetic/status"}
+  ]
+}
