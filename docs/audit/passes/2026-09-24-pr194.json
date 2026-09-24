@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr194-kudbee-sdk-longrange-energy-major-fixes",
+  "pr_number": 194,
+  "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "fix_count": 25,
+  "primary_surface": "thinkbox/kudbee_sdk_longrange_energy_major_fixes",
+  "notes": "Twenty-five major fixes after merged #193; hermetic only."
+}

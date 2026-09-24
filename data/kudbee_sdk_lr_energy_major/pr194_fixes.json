@@ -1,0 +1,133 @@
+{
+  "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
+  "pr_number": 194,
+  "live_verified": false,
+  "fix_count": 25,
+  "fixes": [
+    {
+      "id": "FIX01",
+      "name": "pr193_gate_lazy",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/pr193_gate_lazy.py"
+    },
+    {
+      "id": "FIX02",
+      "name": "lr_config_fail_closed",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_config_fail_closed.py"
+    },
+    {
+      "id": "FIX03",
+      "name": "lr_dry_run_transport",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_dry_run_transport.py"
+    },
+    {
+      "id": "FIX04",
+      "name": "lr_webhook_signature_dry_run",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_webhook_signature_dry_run.py"
+    },
+    {
+      "id": "FIX05",
+      "name": "lr_federation_energy_router",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_federation_energy_router.py"
+    },
+    {
+      "id": "FIX06",
+      "name": "lr_session_bind_tags",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_session_bind_tags.py"
+    },
+    {
+      "id": "FIX07",
+      "name": "lr_task_cancel_hermetic",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_task_cancel_hermetic.py"
+    },
+    {
+      "id": "FIX08",
+      "name": "lr_hop_cursor_roundtrip",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_hop_cursor_roundtrip.py"
+    },
+    {
+      "id": "FIX09",
+      "name": "lr_cassette_replay",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_cassette_replay.py"
+    },
+    {
+      "id": "FIX10",
+      "name": "lr_fixture_library",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_fixture_library.py"
+    },
+    {
+      "id": "FIX11",
+      "name": "lr_observability_reset",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_observability_reset.py"
+    },
+    {
+      "id": "FIX12",
+      "name": "lr_health_readiness_tier",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_health_readiness_tier.py"
+    },
+    {
+      "id": "FIX13",
+      "name": "lr_transport_route_miss",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_transport_route_miss.py"
+    },
+    {
+      "id": "FIX14",
+      "name": "lr_client_capabilities",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_client_capabilities.py"
+    },
+    {
+      "id": "FIX15",
+      "name": "lr_integrate_registry",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_integrate_registry.py"
+    },
+    {
+      "id": "FIX16",
+      "name": "lr_route_catalog",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_route_catalog.py"
+    },
+    {
+      "id": "FIX17",
+      "name": "lr_secret_allowlist",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_secret_allowlist.py"
+    },
+    {
+      "id": "FIX18",
+      "name": "lr_conservation_ledger_fix",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_conservation_ledger_fix.py"
+    },
+    {
+      "id": "FIX19",
+      "name": "lr_energy_loop_mesh_fix",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_energy_loop_mesh_fix.py"
+    },
+    {
+      "id": "FIX20",
+      "name": "deepen_packs_gate",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/deepen_packs_gate.py"
+    },
+    {
+      "id": "FIX21",
+      "name": "typescript_longrange_energy",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/typescript_longrange_energy.py"
+    },
+    {
+      "id": "FIX22",
+      "name": "no_live_mercury_claim",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/no_live_mercury_claim.py"
+    },
+    {
+      "id": "FIX23",
+      "name": "four_state_integrate",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/four_state_integrate.py"
+    },
+    {
+      "id": "FIX24",
+      "name": "fix_count_honesty",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/fix_count_honesty.py"
+    },
+    {
+      "id": "FIX25",
+      "name": "fix_registry",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/fix_registry.py"
+    }
+  ]
+}
