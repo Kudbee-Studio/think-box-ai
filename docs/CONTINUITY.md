@@ -41,20 +41,27 @@ Before declaring completion, every agent MUST verify:
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#170 merged on main; next planned **#171** CI spine-trust (see roadmap doc) |
+| **PR status** | PR #141–#170 merged on main; **GitHub #171** draft = post-#170 roadmap doc; next impl **#172** CI spine-trust (`docs/roadmaps/kilo-post-170-pr-roadmap.md`) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — PR #170 draft: beyond-KILO lint lane (ruff/mypy/bandit)
+### 2026-09-24 — Post-#170 planning roadmap (docs only)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/roadmaps/kilo-post-170-pr-roadmap.md` — sequenced #171–#180 single-theme PR plan; no implementation |
+| **FourState** | N/A (planning) |
+
+### 2026-09-23 — PR #170 merged: beyond-KILO lint lane (ruff/mypy/bandit)
 
 | Field | Value |
 |---|---|
 | **Scope** | Single-theme lint readiness: `beyond_kilo_lint` primitives + `kilo_beyond_kilo_lint` gate; scoped paths; pyproject tool config; `verify_kilo_beyond_kilo_lint.py`; not a combined post-#169 A–D umbrella |
-| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
-| **Not proved** | No Live proof; linters scoped to gate modules only (gradual repo-wide adoption later) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No Live proof; linters scoped to gate modules only (gradual adoption per roadmap #173–#174) |
 | **Tests** | `pip install -e ".[lint]"`; `python3 scripts/verify_kilo_beyond_kilo_lint.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr170 -v` |
 | **Audit** | `docs/audit/passes/2026-09-23-pr170.json` (`live_verified: false`) |
 
