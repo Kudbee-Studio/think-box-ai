@@ -13,6 +13,8 @@ from thinkbox.cloud_execution.job import ExecutionJob, ExecutionJobState
 from thinkbox.cloud_execution.provider import CloudExecutionProvider
 from thinkbox.cloud_execution.receipt import ExecutionAttemptReceipt
 from thinkbox.cloud_execution.resources import ResourceLimits
+from thinkbox.cloud_execution.worker_config import WorkerConfig
+from thinkbox.cloud_execution.worker_orchestrator import CloudExecutionWorker
 from thinkbox.cloud_execution.workspace import WorkspaceBinding, WorkspaceRegistry
 
 __all__ = (
@@ -26,6 +28,8 @@ __all__ = (
     "ExecutionJob",
     "ExecutionJobState",
     "ResourceLimits",
+    "CloudExecutionWorker",
+    "WorkerConfig",
     "WorkspaceBinding",
     "WorkspaceRegistry",
 )

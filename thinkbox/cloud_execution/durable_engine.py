@@ -18,6 +18,7 @@ from thinkbox.cloud_execution.queue_model import QueueDisposition, QueuedJobReco
 from thinkbox.cloud_execution.recovery import recover_after_restart
 from thinkbox.cloud_execution.receipt import ExecutionAttemptReceipt
 from thinkbox.cloud_execution.resources import ResourceLimits
+from thinkbox.cloud_execution.retry_policy import RetryPolicy
 from thinkbox.cloud_execution.sqlite_store import DurableExecutionJobStore
 from thinkbox.cloud_execution.workspace import WorkspaceBinding, WorkspaceRegistry
 
@@ -33,10 +34,11 @@ class DurableCloudExecutionEngine(CloudExecutionEngine):
         admission: ExecutionAdmissionGate | None = None,
         admission_token_hook: AdmissionTokenHook | None = None,
         run_recovery: bool = True,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         store = DurableExecutionJobStore(db_path)
         self._durable_store = store
-        self._queue = ExecutionJobQueue(store)
+        self._queue = ExecutionJobQueue(store, retry_policy=retry_policy)
         super().__init__(
             provider,
             workspace_registry=workspace_registry,
@@ -56,6 +58,10 @@ class DurableCloudExecutionEngine(CloudExecutionEngine):
     @property
     def durable_store(self) -> DurableExecutionJobStore:
         return self._durable_store
+
+    @property
+    def db_path(self) -> Path:
+        return self._durable_store.db_path
 
     @property
     def recovery_summary(self) -> dict[str, Any]:
@@ -90,10 +96,14 @@ class DurableCloudExecutionEngine(CloudExecutionEngine):
         record: QueuedJobRecord,
         claim_token: str,
         admission_token: str | None = None,
+        *,
+        worker_id: str | None = None,
     ) -> ExecutionAttemptReceipt:
         job = record.job
         limits = record.limits
         workspace = record.workspace
+        if worker_id is not None:
+            self._queue.validate_claim_for_execution(job.job_id, claim_token, worker_id)
         self._token_hook.validate_token(job, limits, workspace, admission_token)
         try:
             receipt = self.execute(job, limits, workspace)

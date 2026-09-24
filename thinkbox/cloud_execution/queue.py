@@ -157,6 +157,68 @@ class ExecutionJobQueue:
             released.append(rec.job.job_id)
         return released
 
+    def renew_claim(self, job_id: str, worker_id: str, claim_token: str) -> bool:
+        lease_until = (
+            datetime.now(timezone.utc) + timedelta(seconds=self._claim_lease_s)
+        ).isoformat()
+        return self._store.extend_claim_lease(job_id, worker_id, claim_token, lease_until)
+
+    def validate_claim_for_execution(
+        self,
+        job_id: str,
+        claim_token: str,
+        worker_id: str,
+    ) -> None:
+        """Fail closed if claim expired, missing, or owned by another worker."""
+        record = self._store.get_record(job_id)
+        if record is None:
+            raise CloudExecutionError(error_type="JobNotFound", context={"job_id": job_id})
+        if record.queue_disposition != QueueDisposition.CLAIMED:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "not_claimed"},
+            )
+        if record.claim_token != claim_token:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "token_mismatch"},
+            )
+        if record.claimed_by != worker_id:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "worker_mismatch"},
+            )
+        if not record.claim_lease_until:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "missing_lease"},
+            )
+        now = datetime.now(timezone.utc)
+        try:
+            lease_end = datetime.fromisoformat(record.claim_lease_until)
+        except ValueError:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "invalid_lease"},
+            ) from None
+        if lease_end.tzinfo is None:
+            lease_end = lease_end.replace(tzinfo=timezone.utc)
+        if lease_end < now:
+            raise CloudExecutionError(
+                error_type="InvalidClaim",
+                context={"reason": "lease_expired"},
+            )
+
+    def requeue_claim(self, job_id: str, worker_id: str, claim_token: str) -> None:
+        """Release a claim back to QUEUED without marking success (shutdown path)."""
+        self.validate_claim_for_execution(job_id, claim_token, worker_id)
+        self._store.update_queue_fields(
+            job_id,
+            disposition=QueueDisposition.QUEUED,
+            state=ExecutionJobState.QUEUED,
+            clear_claim=True,
+        )
+
     def _verify_claim(self, job_id: str, claim_token: str) -> None:
         record = self._store.get_record(job_id)
         if record is None:

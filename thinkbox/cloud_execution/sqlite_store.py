@@ -102,6 +102,10 @@ class DurableExecutionJobStore:
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
+    @property
+    def db_path(self) -> Path:
+        return self._path
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()
@@ -370,3 +374,36 @@ class DurableExecutionJobStore:
                 (QueueDisposition.CLAIMED.value, now_iso),
             ).fetchall()
         return [_record_from_row(r) for r in rows]
+
+    def extend_claim_lease(
+        self,
+        job_id: str,
+        worker_id: str,
+        claim_token: str,
+        claim_lease_until: str,
+    ) -> bool:
+        """Renew lease only when worker and token still match (claim fencing)."""
+        with self._lock:
+            cur = self._conn.execute(
+                """
+                UPDATE cloud_execution_jobs
+                SET claim_lease_until = ?, updated_at = ?
+                WHERE job_id = ?
+                  AND queue_disposition = ?
+                  AND claimed_by = ?
+                  AND claim_token = ?
+                  AND claim_lease_until IS NOT NULL
+                  AND claim_lease_until >= ?
+                """,
+                (
+                    claim_lease_until,
+                    _now(),
+                    job_id,
+                    QueueDisposition.CLAIMED.value,
+                    worker_id,
+                    claim_token,
+                    _now(),
+                ),
+            )
+            self._conn.commit()
+            return cur.rowcount == 1
