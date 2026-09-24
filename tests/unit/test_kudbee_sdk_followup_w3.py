@@ -4,19 +4,28 @@ from __future__ import annotations
 
 import unittest
 
-from thinkbox.kudbee_sdk_followup_w3 import KudbeeSdkFollowupW3Client, load_config_from_env, negotiate
-from thinkbox.kudbee_sdk_followup_w3.cassette import replay_cassette
+from thinkbox.kudbee_sdk_followup_w3 import (
+    DEFAULT_CLIENT_CAPABILITIES,
+    KudbeeSdkFollowupW3Client,
+    TwinFederationStub,
+    load_config_from_env,
+    negotiate,
+)
+from thinkbox.kudbee_sdk_followup_w3.cassette import list_cassette_names, replay_cassette
 from thinkbox.kudbee_sdk_followup_w3.errors import SdkFollowupW3Error
-from thinkbox.kudbee_sdk_followup_w3.fixtures import load_fixture
+from thinkbox.kudbee_sdk_followup_w3.fixtures import fixture_exists, load_fixture
 from thinkbox.kudbee_sdk_followup_w3.integrate import integration_summary, run_feature_demo
 from thinkbox.kudbee_sdk_followup_w3.negotiation import compatible_with_server
-from thinkbox.kudbee_sdk_followup_w3.pagination import Page, filter_items, iter_pages
+from thinkbox.kudbee_sdk_followup_w3.health import ReadinessTier, classify_readiness
+from thinkbox.kudbee_sdk_followup_w3.pagination import Page, decode_cursor, encode_cursor, filter_items, iter_pages
+from thinkbox.kudbee_sdk_followup_w3.rate_limit import jitter_backoff_ms
+from thinkbox.kudbee_sdk_followup_w3.retry import is_idempotent_method
 from thinkbox.kudbee_sdk_followup_w3.sdk_status_report import route_catalog_w3, run_hermetic_sdk_w3_demo
 from thinkbox.kudbee_sdk_followup_w3.secrets import scan_text_for_secrets
 from thinkbox.kudbee_sdk_followup_w3.session_bridge import SessionBridgeW3
 from thinkbox.kudbee_sdk_followup_w3.task_bridge import TaskBridgeW3
 from thinkbox.kudbee_sdk_followup_w3.docker_bridge import describe_docker_compose_bridge
-from thinkbox.kudbee_sdk_followup_w3.webhook_signature import sign_payload, verify_signature
+from thinkbox.kudbee_sdk_followup_w3.webhook_signature import parse_signature_header, sign_payload, verify_signature
 
 
 class TestKudbeeSdkFollowupW3Deepen(unittest.TestCase):
@@ -81,6 +90,33 @@ class TestKudbeeSdkFollowupW3Deepen(unittest.TestCase):
         doc = describe_docker_compose_bridge()
         self.assertEqual(doc["compose_service"], "api")
         self.assertFalse(doc["live_api_called"])
+
+    def test_wave3_deepen_helpers(self) -> None:
+        cursor = encode_cursor({"page": 2})
+        self.assertEqual(decode_cursor(cursor)["page"], 2)
+        self.assertIn("twin_federation", DEFAULT_CLIENT_CAPABILITIES)
+        self.assertTrue(fixture_exists("health_ok.json"))
+        self.assertIn("webhook_flow.json", list_cassette_names())
+        algo, _ = parse_signature_header(sign_payload(b"s", b"{}"))
+        self.assertEqual(algo, "sha256")
+        self.assertTrue(is_idempotent_method("GET"))
+        self.assertGreater(jitter_backoff_ms(100, 1), 100)
+        client = KudbeeSdkFollowupW3Client.from_env()
+        fed = client.twin_federation()
+        self.assertEqual(fed["peer_count"], 0)
+        self.assertEqual(classify_readiness(True, "dry-run-w3"), ReadinessTier.READY)
+        session = SessionBridgeW3.open("s-tag")
+        session.set_tag("env", "hermetic")
+        self.assertEqual(session.tags["env"], "hermetic")
+        task = TaskBridgeW3.create("t-cancel", "x")
+        cancelled = task.cancel_hermetic()
+        self.assertEqual(cancelled["status"], "failed")
+        mesh = TwinFederationStub()
+        mesh.register_peer("t1", "s1")
+        self.assertEqual(mesh.federation_snapshot()["peer_count"], 1)
+        feat = run_feature_demo("twin_federation")
+        self.assertEqual(feat["peer_count"], 1)
+        self.assertTrue(scan_text_for_secrets("key = REDACTED").clean)
 
 
 if __name__ == "__main__":

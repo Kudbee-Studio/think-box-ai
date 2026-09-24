@@ -63,6 +63,8 @@ def validate_features_manifest(
         violations.append(KudbeeSdkFollowupW3Violation("pr_number", "pr_number mismatch"))
     if doc.get("live_verified") is True:
         violations.append(KudbeeSdkFollowupW3Violation("live_verified", "must be false"))
+    if doc.get("upstream_gate_id") != "kudbee-sdk-followup-w2":
+        violations.append(KudbeeSdkFollowupW3Violation("upstream_gate_id", "must reference wave 2 gate"))
     features = list(doc.get("features") or [])
     if len(features) != EXPECTED_FEATURE_COUNT:
         violations.append(

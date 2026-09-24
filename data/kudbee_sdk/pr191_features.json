@@ -4,6 +4,7 @@
   "live_verified": false,
   "feature_count": 25,
   "primary_surface": "thinkbox/kudbee_sdk_followup_w3 + apps/web/sdk (post-#181 wave 3)",
+  "upstream_gate_id": "kudbee-sdk-followup-w2",
   "features": [
     {"id": "F01", "name": "stable_w3_exports", "module": "thinkbox/kudbee_sdk_followup_w3/__init__.py"},
     {"id": "F02", "name": "structured_errors", "module": "thinkbox/kudbee_sdk_followup_w3/errors.py"},
