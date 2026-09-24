@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 28,
+  "pack_count": 29,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -144,6 +144,11 @@
       "id": "DEP28",
       "name": "pr193_deepen_gate_bind",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/pr193_deepen_gate_bind.py"
+    },
+    {
+      "id": "DEP29",
+      "name": "lr_energy_bridge_v2",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_bridge_v2.py"
     }
   ]
 }
