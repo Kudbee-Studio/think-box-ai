@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 8,
+  "pack_count": 9,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -44,6 +44,11 @@
       "id": "DEP08",
       "name": "lr_link_latency_model",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_link_latency_model.py"
+    },
+    {
+      "id": "DEP09",
+      "name": "loop_transfer_envelope",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/loop_transfer_envelope.py"
     }
   ]
 }
