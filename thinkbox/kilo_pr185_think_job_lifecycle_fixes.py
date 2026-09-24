@@ -191,10 +191,6 @@ def think_job_lifecycle_fixes_contract_summary(repo_root: Path | None = None) ->
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,
         "pr185_gate_id": GATE_ID,
-    return {
-        "gate_id": GATE_ID,
-        "pr_number": PR_NUMBER,
-        "pr185_gate_id": GATE_ID,
         "hermetic_operator_ok": ok,
         "local_setup_manifest_ok": local_ok,
         "fix_count": EXPECTED_FIX_COUNT,
@@ -205,20 +201,4 @@ def think_job_lifecycle_fixes_contract_summary(repo_root: Path | None = None) ->
         "live_api_called": False,
         "four_state_max": "TEST_VERIFIED",
         "combined_umbrella_nested": False,
-    }
-
-        "live_verified": False,
-        "live_api_called": False,
-        "four_state_max": "TEST_VERIFIED",
-        "combined_umbrella_nested": False,
-        "fix_count": EXPECTED_FIX_COUNT,
-        "fixes_manifest_ok": fixes_ok,
-        "think_job_lifecycle_fixes_version": THINK_JOB_LIFECYCLE_FIXES_VERSION,
-        "primary_surface": "thinkbox/think_job_lifecycle_fixes (F131–F140 glue)",
-
-        "think_job_lifecycle_fixes_version": THINK_JOB_LIFECYCLE_FIXES_VERSION,
-        "primary_surface": "thinkbox/think_job_lifecycle_fixes (F131–F140 glue)",
-        "fixes_manifest_rel": str(FIXES_MANIFEST_REL),
-        "violation_count": len(violations),
-        "violation_codes": [v.code for v in violations],
     }
