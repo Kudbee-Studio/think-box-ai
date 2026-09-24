@@ -10,3 +10,10 @@ export {
   parseSseChunk,
   sdkRouteCatalog,
 } from './followup.ts';
+export {
+  SDK_FOLLOWUP_W2_VERSION,
+  collectPagesV2,
+  fetchCapabilitiesV2,
+  sdkRouteCatalogV2,
+  verifyWebhookDryRun,
+} from './followup_w2.ts';
