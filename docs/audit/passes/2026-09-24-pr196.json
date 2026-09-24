@@ -1,0 +1,10 @@
+{
+  "audit_pass_id": "pr196-kudbee-cli-enterprise-upgrade",
+  "pr_number": 196,
+  "gate_id": "kudbee-cli-enterprise-upgrade",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "tier": "enterprise",
+  "notes": "KUDBEECLI Phase 4 enterprise upgrade wired to #195 SDK; TEST VERIFIED only."
+}
