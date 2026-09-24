@@ -16,7 +16,9 @@ const state = {
 };
 
 function connectWebSocket() {
-  const wsUrl = `ws://${window.location.hostname}:8000/ws`;
+  const sdk = window.KudbeeSdkBrowser?.loadConfig?.() ?? null;
+  const wsUrl = sdk?.wsUrl ?? `ws://${window.location.hostname}:${window.location.port || 3000}/ws`;
+  state.correlationId = sdk?.newCorrelationId?.() ?? null;
   state.ws = new WebSocket(wsUrl);
 
   state.ws.onopen = () => {

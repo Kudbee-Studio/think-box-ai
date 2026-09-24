@@ -1,0 +1,18 @@
+{
+  "audit_pass_id": "pr177-kudbee-sdk-app",
+  "pr_number": 177,
+  "gate_id": "kudbee-sdk-app",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "primary_surface": "thinkbox/kudbee_sdk + apps/web/sdk",
+  "themes": [
+    "kudbee_sdk_python_package",
+    "apps_web_typescript_sdk",
+    "hermetic_dry_run_fixtures",
+    "web_ui_sdk_browser_wiring"
+  ],
+  "notes": "Twenty-five SDK/app improvements for kudbEE web shell; hermetic only; no live Box/Mercury calls."
+}

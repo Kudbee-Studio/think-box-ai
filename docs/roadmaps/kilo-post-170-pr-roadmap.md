@@ -16,14 +16,15 @@
 
 ---
 
-## Current snapshot (post-#175)
+## Current snapshot (post-#176)
 
 | Area | State |
 |------|--------|
 | Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; **38** scoped modules (v3) — **#174** + **#175** merged |
 | Spine | `verify_kilo_spine.py` aggregates 28 blocks including #169 umbrella + #170 lint (static lint in spine unless `KILO_BEYOND_KILO_LINT_EXECUTE=1`) |
 | CI | **#172** (merged): unittest + fast spine + beyond-KILO lint execute + secret scan |
-| Chronicle | **#173–#175** merged; lint waves 1–2 complete |
+| Chronicle | **#173–#176** merged; lint waves 1–2 complete |
+| Kudbee SDK app | **#177** (draft) — `thinkbox/kudbee_sdk` + `apps/web/sdk` (~25 features) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -38,8 +39,8 @@
 | **Slot 3 (→ GH #174)** | Lint scope wave 1 (spine + hermetic subprocess helpers) | #170 explicitly deferred widening; (b) gradual lint | ~6–12 commits; `LINT_SCOPE_REL_PATHS` + ruff/mypy fixes on new files | Whole `thinkbox/` tree; `core/` runtime | Mypy time; keep `--follow-imports=skip` |
 | **Slot 4 (→ GH #175)** | Lint scope wave 2 (live-proof readiness spine modules) | Next bounded slice: `kilo_live_proof_readiness`, `kilo_env_matrix`, `kilo_hermetic_gate_memo` | ~8–15 commits | Combined lanes; importing provider SDKs | Same as slot 3 |
 | **Slot 5 (→ GH #176)** | Control-plane receipt-chain single deepen (412/precondition only) | Mature receipt/ETag stack (#155–#161); one HTTP edge theme | ~10–18 commits; `receipt_chain_query` / conditional GET tests | END_LINK UX; dashboard bind; api_ops combined | No live Mercury; hermetic e2e only if scoped |
-| **Slot 6 (→ GH #177)** | Control-plane ops harden slice (rate-limit / error shape only) | Thin follow-on after #157/#161 without post-NNN combined pattern | ~8–14 commits | New dashboard pages; swarm/gov themes | Duplicating #169 ops deepen |
-| **Slot 7 (→ GH #178)** | Think Job hermetic e2e deepen (F023+ control-plane poll/SSE) | CONTINUITY: F023 on main; live API path still uncovered | ~12–20 commits; `tests/e2e/` only + minimal route stubs | Live `POST /run` Mercury; GPU | Nested e2e — **not** in default spine; document `--e2e` |
+| **Slot 6 (→ GH #177)** | Kudbee SDK app (~25 features) | Primary surface: `thinkbox/kudbee_sdk` + `apps/web/sdk` for kudbEE web shell | ~20–30 commits; hermetic dry-run + gate `kudbee-sdk-app` | Combined umbrellas; live Box/Mercury | Scope creep into control-plane x10 |
+| **Slot 7 (→ GH #178)** | Think Job hermetic e2e deepen (F023+ control-plane poll/SSE) | **Default next after #177 merge**; F023 on main; live API path still uncovered | ~12–20 commits; `tests/e2e/` only + minimal route stubs | Live `POST /run` Mercury; GPU | Nested e2e — **not** in default spine; document `--e2e` |
 | **Slot 8 (→ GH #179)** | KUDBEECLI Phase 2 merge prep (single theme: persist + trace list) | #128 merged; #129 draft ages; isolate persist/trace before REPL/live gate | ~15–25 commits | `swarm live` HTTP; agent register | Scope creep into Phase 3 |
 | **Slot 9 (→ GH #180)** | Nightly / manual `spine --e2e` workflow | Keeps deep control-plane e2e without blocking every PR | ~4–8 commits; new workflow `workflow_dispatch` + schedule | Making `--e2e` default on PR CI | Runner cost if scheduled too often |
 | **Slot 10 (→ GH #181)** | Founder optional: bounded live-smoke **runbook + operator dry-run** only | When Box URL/token/LIVE_ACK exist; documents #153 path | ~6–10 commits; runbook + hermetic operator tests | Executing live proof in CI; `live_verified: true` in repo | Credential leakage in docs; cost |
@@ -48,9 +49,11 @@
 
 ---
 
-## Recommended default next **implementation** PR: **GitHub #176** (slot 5)
+## Recommended default next **implementation** PR: **GitHub #177** (slot 6)
 
-Control-plane receipt-chain single deepen (412/precondition only). Lint waves **#174–#175** merged on main.
+Kudbee SDK app improvements (~25 features) for `thinkbox/kudbee_sdk` and `apps/web/sdk`. **#176** chronicle sync merged on main.
+
+**After #177 merge:** slot 7 → GitHub **#178** (Think Job hermetic e2e deepen).
 
 ---
 
