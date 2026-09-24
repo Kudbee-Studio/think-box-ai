@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 5,
+  "lane_count": 6,
   "lanes": [
     {
       "id": "ENT01",
@@ -29,6 +29,11 @@
       "id": "ENT05",
       "name": "compliance_evidence_bundle",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/compliance_evidence_bundle.py"
+    },
+    {
+      "id": "ENT06",
+      "name": "audit_trail_chain",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/audit_trail_chain.py"
     }
   ]
 }
