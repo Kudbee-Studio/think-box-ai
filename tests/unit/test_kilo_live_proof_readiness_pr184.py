@@ -21,6 +21,10 @@ class TestPr184ThinkJobPostRunDeepenLane(unittest.TestCase):
         ok, violations = pr184.validate_features_manifest()
         self.assertTrue(ok, msg=[(v.code, v.message) for v in violations])
 
+    def test_fixes_manifest(self) -> None:
+        ok, violations = pr184.validate_fixes_manifest()
+        self.assertTrue(ok, msg=[(v.code, v.message) for v in violations])
+
     def test_honesty_flags(self) -> None:
         summary = pr184.think_job_post_run_deepen_contract_summary()
         self.assertTrue(summary.get("hermetic_operator_ok"))
@@ -41,6 +45,7 @@ class TestPr184ThinkJobPostRunDeepenLane(unittest.TestCase):
         body = json.loads((REPO_ROOT / pr184.PR184_PASS_REL).read_text(encoding="utf-8"))
         self.assertFalse(body["live_verified"])
         self.assertEqual(body["gate_id"], pr184.GATE_ID)
+        self.assertEqual(body.get("fix_count"), 10)
 
     def test_quickstart_runs(self) -> None:
         proc = subprocess.run(

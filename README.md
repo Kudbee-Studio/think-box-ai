@@ -137,7 +137,8 @@ python3 -m thinkbox cli health    # Phase 2+ deepen
 python3 examples/kudbee_sdk_followup_quickstart.py
 python3 examples/kudbee_sdk_followup_w2_quickstart.py
 python3 examples/receipt_chain_deepen_quickstart.py
-python3 examples/think_job_hermetic_e2e_quickstart.py   # when #183 branch present
+python3 examples/think_job_hermetic_e2e_quickstart.py
+python3 examples/think_job_post_run_deepen_quickstart.py
 ```
 
 ### Control fabric demo

@@ -9,7 +9,8 @@ from thinkbox.think_job_post_run_deepen.cassette import replay_cassette
 from thinkbox.think_job_post_run_deepen.config import load_config_from_env
 from thinkbox.think_job_post_run_deepen.dry_run import dry_run_post_run
 from thinkbox.think_job_post_run_deepen.errors import ThinkJobPostRunDeepenError
-from thinkbox.think_job_post_run_deepen.integrate import run_feature_demo
+from thinkbox.think_job_post_run_deepen.integrate import integration_summary, run_feature_demo
+from thinkbox.think_job_post_run_deepen.rate_limit_stub import rate_limit_allow
 from thinkbox.think_job_post_run_deepen.replay import replay_steps
 from thinkbox.think_job_post_run_deepen.secrets import scan_text
 
@@ -38,6 +39,11 @@ class TestThinkJobPostRunDeepen(unittest.TestCase):
     def test_integrate_demo(self) -> None:
         demo = run_feature_demo("cassette")
         self.assertEqual(demo["step_count"], 3)
+        env = run_feature_demo("envelope")
+        self.assertTrue(env["ok"])
+        summary = integration_summary()
+        self.assertIn("routes", summary)
+        self.assertFalse(rate_limit_allow(1)["allowed"] is False)
         out = replay_steps([{"body": {"goal": "g", "agent_id": "a", "governance_token": "t"}}])
         self.assertTrue(out["verification"]["valid"])
 
