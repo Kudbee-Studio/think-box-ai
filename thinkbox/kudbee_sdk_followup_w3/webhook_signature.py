@@ -17,6 +17,14 @@ class WebhookVerifyResult:
     dry_run: bool
 
 
+def parse_signature_header(header_value: str) -> tuple[str, str]:
+    value = header_value.strip()
+    if "=" not in value:
+        raise webhook_error("malformed signature header")
+    algorithm, digest = value.split("=", 1)
+    return algorithm, digest
+
+
 def sign_payload(secret: bytes, body: bytes, algorithm: str = "sha256") -> str:
     if algorithm != "sha256":
         raise webhook_error("unsupported algorithm", algorithm=algorithm)
