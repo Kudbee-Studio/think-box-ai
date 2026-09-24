@@ -1,0 +1,13 @@
+{
+  "gate_id": "think-job-post-run-deepen",
+  "pr_number": 184,
+  "live_verified": false,
+  "live_api_called": false,
+  "required_artifacts": [
+    "data/think_job_post_run/pr184_features.json",
+    "data/think_job_post_run/pr184_checklist.json",
+    "docs/audit/passes/2026-09-24-pr184.json"
+  ],
+  "paired_pr": 183,
+  "nested_e2e_opt_in_env": "KILO_RUN_NESTED_E2E_UNITTEST"
+}

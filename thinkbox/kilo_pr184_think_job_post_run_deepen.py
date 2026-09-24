@@ -87,6 +87,10 @@ def validate_features_manifest(
     if not cassette.is_file():
         violations.append(ThinkJobPostRunDeepenViolation("cassette_fixture", "missing cassette"))
 
+    checklist = root / "data/think_job_post_run/pr184_checklist.json"
+    if not checklist.is_file():
+        violations.append(ThinkJobPostRunDeepenViolation("checklist", "missing pr184 checklist"))
+
     return (len(violations) == 0, tuple(violations))
 
 
