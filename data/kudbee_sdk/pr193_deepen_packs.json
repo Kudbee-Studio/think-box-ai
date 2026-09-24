@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 24,
+  "pack_count": 25,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -124,6 +124,11 @@
       "id": "DEP24",
       "name": "fixture_conservation_sample",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/fixture_conservation_sample.py"
+    },
+    {
+      "id": "DEP25",
+      "name": "integrate_deepen_hook",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/integrate_deepen_hook.py"
     }
   ]
 }
