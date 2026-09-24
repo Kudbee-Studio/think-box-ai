@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 7,
+  "fix_count": 8,
   "fixes": [
     {
       "id": "FIX01",
@@ -38,6 +38,11 @@
       "id": "FIX07",
       "name": "lr_task_cancel_hermetic",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_task_cancel_hermetic.py"
+    },
+    {
+      "id": "FIX08",
+      "name": "lr_hop_cursor_roundtrip",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_hop_cursor_roundtrip.py"
     }
   ]
 }
