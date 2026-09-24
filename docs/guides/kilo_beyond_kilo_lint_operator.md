@@ -26,3 +26,8 @@ Mypy runs with `--follow-imports=skip` on gate modules only (gradual adoption).
 
 `python3 scripts/verify_kilo_spine.py` includes `beyond_kilo_lint_readiness` in **fast**
 mode (static checks; linters run via `verify_kilo_beyond_kilo_lint.py` in CI).
+
+## Gradual adoption
+
+Expand `LINT_SCOPE_REL_PATHS` in `thinkbox/beyond_kilo_lint.py` in follow-on PRs; do not
+nest combined post-#N umbrellas when widening scope.
