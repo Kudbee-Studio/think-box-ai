@@ -21,7 +21,8 @@ class TestThinkJobPostRunEnhancements(unittest.TestCase):
 
     def test_auth_flow_cassette(self) -> None:
         tape = replay_cassette("post_run_auth_flow.json")
-        self.assertEqual(tape["step_count"], 2)
+        self.assertEqual(tape["step_count"], 3)
+        self.assertTrue(any(s.get("status") == 401 for s in tape.get("steps", [])))
 
 
 if __name__ == "__main__":

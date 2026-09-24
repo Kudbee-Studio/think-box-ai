@@ -1,6 +1,7 @@
 {
   "name": "post_run_auth_flow",
   "steps": [
+    {"method": "POST", "path": "/api/v1/run", "status": 401},
     {"method": "POST", "path": "/api/v1/run?api_key=tb_demo", "headers": {"content-type": "application/json"}},
     {"method": "GET", "path": "/api/v1/run/job-auth/status"}
   ]
