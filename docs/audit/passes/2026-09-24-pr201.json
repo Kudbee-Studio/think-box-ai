@@ -8,5 +8,5 @@
   "gate_id": "upstash-box-access-verification",
   "this_run_classification": "A",
   "classification_name": "ENV_NOT_CONFIGURED",
-  "notes": "Official adapter vars UPSTASH_PUBLIC_BOX_URL and UPSTASH_PUBLIC_BOX_TOKEN were absent in this Cursor agent process. Adapter fail-closed with NOT_CONFIGURED. No HTTP. UPSTASH_BOX_API_KEY was present and unused."
+  "notes": "Continuation 2026-09-24: Personal Cursor environment injects Vector/Redis/UPSTASH_BOX_API_KEY but not UPSTASH_PUBLIC_BOX_URL or UPSTASH_PUBLIC_BOX_TOKEN. Classification A; no HTTP with or without --allow-network --allow-execute --live. Supported fix: Cursor Environment secrets (exact names), then fresh agent + live probe."
 }

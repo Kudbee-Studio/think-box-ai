@@ -22,6 +22,28 @@ Hermetic / operator path for proving whether this runtime can reach the **existi
 
 HTTP reachability is not D. A mocked or loopback stub is not LIVE VERIFIED.
 
+## Cursor Cloud Agent injection (PR #201 continuation)
+
+The adapter reads **process environment variables only**. It does not read `.env` from the repo (gitignored) and must not read `UPSTASH_BOX_API_KEY`.
+
+| Mechanism | Injects adapter vars? | Notes |
+|-----------|----------------------|--------|
+| **Cursor Environment secrets** | Yes (when configured) | Supported path. Secret **names** must match exactly: `UPSTASH_PUBLIC_BOX_URL`, `UPSTASH_PUBLIC_BOX_TOKEN`. Values are set in the Cursor dashboard for the agent environment, not in git. |
+| `.cursor/environment.json` | No | Defines `install` / `terminals` only (see public schema). Does **not** declare secret values or secret names. |
+| Personal / team saved environment | Partial in this run | Can inject other Upstash keys (Vector, Redis, `UPSTASH_BOX_API_KEY`) while omitting the adapter pair — yields classification **A**. |
+
+**Why classification A occurred:** this agent booted from a **Personal** environment (`environmentJsonPath` null). Partial Upstash secrets were injected, but the two **official** adapter variables were not present in the process.
+
+**After secrets are added:** start a **new** Cloud Agent (same repo/branch). Confirm presence-only, then:
+
+```bash
+python3 scripts/upstash_box_access_probe.py \
+  --allow-network --allow-execute --live \
+  --out data/upstash_box_access/probe_live.json
+```
+
+Do not substitute `UPSTASH_BOX_API_KEY` for `UPSTASH_PUBLIC_BOX_TOKEN`.
+
 ## Commands
 
 ```bash

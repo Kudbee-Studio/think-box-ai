@@ -24,3 +24,4 @@ We chose option 3. Authentication remains `Authorization: Bearer $UPSTASH_PUBLIC
 - Gate `upstash-box-access-verification` caps honesty at TEST_VERIFIED until a real configured Box execution produces classification D with `live_http_used=true`.
 - `UPSTASH_BOX_API_KEY` may be present and is never sent.
 - Founder review remains required; this PR is not production-ready.
+- Cursor Cloud Agents inject adapter credentials via **Environment secrets** (dashboard), not via `.cursor/environment.json`. Partial Upstash secret sets (e.g. Vector + `UPSTASH_BOX_API_KEY` without the adapter pair) still classify as **A**.

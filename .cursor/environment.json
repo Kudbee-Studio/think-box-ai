@@ -1,5 +1,7 @@
 {
   "name": "Think Box AI",
+  // Box remote execution: set Cursor Environment secrets (exact names, not in git):
+  // UPSTASH_PUBLIC_BOX_URL, UPSTASH_PUBLIC_BOX_TOKEN — see docs/guides/upstash_box_access_verification.md
   "install": "pip install -e \".[dev]\" && (cd apps/web && npm install)",
   "terminals": [
     {
