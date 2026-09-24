@@ -56,7 +56,7 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
 | **Tests** | `test_kudbee_sdk_longrange_energy`, `test_kilo_live_proof_readiness_pr193`; `verify_kilo_pr193_kudbee_sdk_longrange_energy.py` |
 | **Audit** | `docs/audit/passes/2026-09-24-pr193.json` (`live_verified: false`) |
-| **Notes** | Long-range session bind + energy loop mesh + conservation ledger after merged **#192** |
+| **Notes** | Long-range session bind + energy loop mesh + conservation ledger after merged **#192**; **30 deepen commits** DEP01–DEP30 (`thinkbox/kudbee_sdk_longrange_energy_deepen/`, gate `kudbee-sdk-longrange-energy-deepen-packs`) |
 
 ### 2026-09-24 — PR #192 (merged): Kudbee SDK follow-up wave 3 major fixes (35 fixes)
 
