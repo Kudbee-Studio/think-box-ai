@@ -1,0 +1,30 @@
+# Slim hermetic image: API + spine verify (no GPU, no live providers)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    THINKBOX_DEFAULT_PROVIDER=openai_compat
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
+
+COPY pyproject.toml LICENSE ./
+COPY core/ ./core/
+COPY thinkbox/ ./thinkbox/
+COPY think_box_ai/ ./think_box_ai/
+COPY backend/ ./backend/
+COPY scripts/ ./scripts/
+COPY data/kudbee_sdk/ ./data/kudbee_sdk/
+COPY docs/audit/passes/ ./docs/audit/passes/
+COPY docs/guides/kudbee_sdk_followup_w2_quickstart.md ./docs/guides/kudbee_sdk_followup_w2_quickstart.md
+COPY docs/guides/kudbee_cli_phase3_quickstart.md ./docs/guides/kudbee_cli_phase3_quickstart.md
+
+RUN pip install --no-cache-dir -e . --no-deps
+
+CMD ["python3", "scripts/verify_kilo_spine.py"]
