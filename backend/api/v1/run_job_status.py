@@ -319,6 +319,10 @@ def build_think_job_status_payload(
         "live_verified": False,
         "production_ready": False,
     }
+    if status in TERMINAL_STATUSES:
+        raw_result = record.get("result")
+        if isinstance(raw_result, dict) and raw_result:
+            payload["result"] = raw_result
     return redact_status_payload(payload)
 
 

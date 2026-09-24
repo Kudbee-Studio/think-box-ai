@@ -77,6 +77,21 @@ class TestResolveThinkJob(unittest.TestCase):
         payload = build_think_job_status_payload(record)
         self.assertTrue(payload["receipt"]["linked"])
 
+    def test_terminal_status_includes_result_blob(self) -> None:
+        dash = get_dashboard_state()
+        dash.upsert_think_job(
+            ThinkJobEntry(
+                job_id="eng_done",
+                goal="g",
+                status="completed",
+                engine_id="eng_done",
+                result={"governed_shell": True, "adapter_provider": "local"},
+            )
+        )
+        record = resolve_think_job_record("eng_done")
+        payload = build_think_job_status_payload(record)
+        self.assertEqual(payload["result"]["adapter_provider"], "local")
+
     def test_sqlite_fallback_when_dashboard_empty(self) -> None:
         binding = begin_http_run_receipt(
             engine_id="eng_sql",

@@ -48,6 +48,25 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-24 — Governed shell HTTP guide + hermetic e2e (local substrate)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/guides/governed_run_http.md`; `tests/e2e/test_f135_governed_shell_local_http.py`; terminal `result` on `GET /api/v1/run/job/{id}/status` |
+| **HTTP path** | `POST /api/v1/run` → admission → `execution_substrate=local` + `exec_command` → `LocalExecutionAdapter` → receipt/checkpoint/artifact → job status `result` |
+| **Harness** | `tests/e2e/api_run_hermetic.py` sets `THINKBOX_API_KEYS` with hermetic key when VM env overrides `THINKBOX_API_KEY` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Substrate routing landed in `70dea55` but operator docs and full FastAPI/router e2e coverage were missing; job status poll payload omitted terminal `result` even though dashboard entries carried governed shell proof.
+
+**IMPLEMENTATION:** Document paired `execution_substrate` / `exec_command` (local vs upstash-box, fail-closed pairing, no local fallback). E2e test exercises Starlette `TestClient` + background drain; expose redacted terminal `result` on status poll.
+
+**TEST_VERIFIED:** `python3 -m unittest tests.e2e.test_f135_governed_shell_local_http tests.unit.test_governed_job_execution tests.unit.test_local_execution_adapter tests.unit.test_execution_adapter tests.unit.test_run_job_status tests.unit.test_run_governed -q` → **40 OK**; `python3 scripts/scan_doc_secrets.py` → exit 0.
+
+**DECISION:** Hermetic HTTP tests must pin both `THINKBOX_API_KEY` and `THINKBOX_API_KEYS` when cloud VM injects multi-key env; do not weaken upstash-box fail-closed behavior in e2e (assert `remote_not_configured`, not local provider).
+
+**NEXT ACTION:** Founder-run bounded Live proof on `upstash-box` when official Box URL+token are injected (PR #201 gate unchanged); no further local-lane scope until then.
+
 ### 2026-09-24 — Governed Think Job explicit local substrate routing
 
 | Field | Value |
@@ -67,7 +86,7 @@ Before declaring completion, every agent MUST verify:
 
 **DECISION:** Never infer local from `detect_substrate()` for this path; never fall back to local when remote is misconfigured.
 
-**NEXT ACTION:** Document `execution_substrate` / `exec_command` in `docs/guides/governed_run_http.md`; optional e2e hermetic POST /run shell path test.
+**NEXT ACTION:** *(superseded)* Governed shell HTTP docs + e2e — see section above.
 
 ### 2026-09-24 — Local execution proof lane (provider-independent)
 
