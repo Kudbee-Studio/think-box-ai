@@ -1,0 +1,8 @@
+{
+  "name": "lr_energy_major_flow",
+  "steps": [
+    {"action": "run_fixes", "dry_run": true},
+    {"action": "verify_gate", "gate": "kudbee-sdk-longrange-energy-major-fixes"},
+    {"action": "complete", "live_api_called": false}
+  ]
+}
