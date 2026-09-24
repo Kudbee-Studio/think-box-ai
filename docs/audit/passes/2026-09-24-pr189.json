@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr189-think-job-lifecycle-major-fixes",
+  "date": "2026-09-24",
+  "gate_id": "think-job-lifecycle-major-fixes",
+  "pr_number": 189,
+  "fix_count": 25,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "combined_umbrella_nested": false,
+  "primary_surface": "thinkbox/think_job_lifecycle_major_fixes"
+}
