@@ -7,6 +7,8 @@
   "live_verified": false,
   "live_api_called": false,
   "feature_count": 25,
+  "deepen_pack_count": 30,
+  "deepen_gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "primary_surface": "thinkbox/kudbee_sdk_longrange_energy + apps/web/sdk",
   "themes": [
     "long_range_session_bind",

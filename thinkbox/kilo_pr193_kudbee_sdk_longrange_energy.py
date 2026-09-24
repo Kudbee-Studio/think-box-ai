@@ -12,6 +12,8 @@ from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kudbee_sdk_longrange_energy.negotiation import SDK_LR_ENERGY_VERSION
 
 __all__ = (
+    "DEEPEN_MANIFEST_REL",
+    "EXPECTED_DEEPEN_PACK_COUNT",
     "EXPECTED_FEATURE_COUNT",
     "FEATURES_MANIFEST_REL",
     "GATE_ID",
@@ -19,7 +21,9 @@ __all__ = (
     "PR_NUMBER",
     "KudbeeSdkLongrangeEnergyViolation",
     "kudbee_sdk_longrange_energy_contract_summary",
+    "load_deepen_manifest",
     "load_features_manifest",
+    "validate_deepen_manifest",
     "validate_features_manifest",
 )
 
@@ -28,7 +32,10 @@ PR_NUMBER = 193
 EXPECTED_FEATURE_COUNT = 25
 
 FEATURES_MANIFEST_REL = Path("data/kudbee_sdk/pr193_features.json")
+DEEPEN_MANIFEST_REL = Path("data/kudbee_sdk/pr193_deepen_packs.json")
 PR193_PASS_REL = Path("docs/audit/passes/2026-09-24-pr193.json")
+EXPECTED_DEEPEN_PACK_COUNT = 30
+DEEPEN_GATE_ID = "kudbee-sdk-longrange-energy-deepen-packs"
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,36 @@ class KudbeeSdkLongrangeEnergyViolation:
 def load_features_manifest(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     return json.loads((root / FEATURES_MANIFEST_REL).read_text(encoding="utf-8"))
+
+
+def load_deepen_manifest(repo_root: Path | None = None) -> dict[str, Any]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    return json.loads((root / DEEPEN_MANIFEST_REL).read_text(encoding="utf-8"))
+
+
+def validate_deepen_manifest(
+    doc: Mapping[str, Any] | None = None,
+    repo_root: Path | None = None,
+) -> tuple[bool, tuple[KudbeeSdkLongrangeEnergyViolation, ...]]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    violations: list[KudbeeSdkLongrangeEnergyViolation] = []
+    if doc is None:
+        if not (root / DEEPEN_MANIFEST_REL).is_file():
+            violations.append(KudbeeSdkLongrangeEnergyViolation("deepen_manifest", "missing deepen manifest"))
+            return (False, tuple(violations))
+        doc = load_deepen_manifest(root)
+    if doc.get("gate_id") != DEEPEN_GATE_ID:
+        violations.append(KudbeeSdkLongrangeEnergyViolation("deepen_gate_id", "gate_id mismatch"))
+    packs = list(doc.get("packs") or [])
+    if len(packs) != EXPECTED_DEEPEN_PACK_COUNT:
+        violations.append(KudbeeSdkLongrangeEnergyViolation("deepen_pack_count", "pack count mismatch"))
+    for pack in packs:
+        rel = pack.get("module")
+        if not rel or not (root / str(rel)).is_file():
+            violations.append(
+                KudbeeSdkLongrangeEnergyViolation("deepen_module_missing", str(rel), path=str(rel)),
+            )
+    return (len(violations) == 0, tuple(violations))
 
 
 def validate_features_manifest(
@@ -117,6 +154,10 @@ def validate_features_manifest(
     if not expansion_ok:
         violations.append(KudbeeSdkLongrangeEnergyViolation("pr192_expansion", "pr192 expansion invalid"))
 
+    deepen_ok, _ = validate_deepen_manifest(repo_root=root)
+    if not deepen_ok:
+        violations.append(KudbeeSdkLongrangeEnergyViolation("deepen_packs", "pr193 deepen packs invalid"))
+
     return (len(violations) == 0, tuple(violations))
 
 
@@ -140,4 +181,6 @@ def kudbee_sdk_longrange_energy_contract_summary(repo_root: Path | None = None) 
         "violation_codes": [v.code for v in violations],
         "upstream_pr": 192,
         "theme": "long_range_connections_quantitative_energy_loops",
+        "deepen_pack_count": EXPECTED_DEEPEN_PACK_COUNT,
+        "deepen_manifest_rel": str(DEEPEN_MANIFEST_REL),
     }
