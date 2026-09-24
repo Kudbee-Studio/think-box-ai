@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 18,
+  "fix_count": 19,
   "fixes": [
     {
       "id": "FIX01",
@@ -93,6 +93,11 @@
       "id": "FIX18",
       "name": "lr_conservation_ledger_fix",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_conservation_ledger_fix.py"
+    },
+    {
+      "id": "FIX19",
+      "name": "lr_energy_loop_mesh_fix",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_energy_loop_mesh_fix.py"
     }
   ]
 }
