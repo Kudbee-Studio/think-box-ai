@@ -51,7 +51,7 @@ from thinkbox.cli_shell import CliShell
 from thinkbox.identity import IdentityLedger
 from thinkbox.thinktrace import ThinkTraceCapture
 
-__version__ = "0.178.0"
+__version__ = "0.180.0"
 
 
 def _emit(payload: dict, args: argparse.Namespace, title: str) -> None:
