@@ -24,6 +24,10 @@ def default_retry_policy(max_attempts: int) -> RetryPolicy:
     return RetryPolicy(max_attempts=max(1, max_attempts), base_delay_ms=50)
 
 
+def is_idempotent_method(method: str) -> bool:
+    return method.upper() in ("GET", "HEAD", "PUT", "DELETE")
+
+
 def run_with_retry(
     fn: Callable[[int], T],
     policy: RetryPolicy,
