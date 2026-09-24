@@ -40,6 +40,8 @@
     "scripts/verify_kilo_receipt_chain_end_link_season_harden.py",
     "scripts/verify_kilo_pr165_combined_harden.py",
     "scripts/verify_kilo_spine.py",
+    "scripts/verify_kilo_pr172_ci_spine_trust.py",
+    "scripts/verify_kilo_beyond_kilo_lint.py",
     "scripts/scan_doc_secrets.py"
   ]
 }

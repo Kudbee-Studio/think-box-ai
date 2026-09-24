@@ -72,6 +72,8 @@ SPINE_VERIFY_SCRIPTS: tuple[Path, ...] = (
     Path("scripts/verify_kilo_receipt_chain_end_link_season_harden.py"),
     Path("scripts/verify_kilo_pr165_combined_harden.py"),
     Path("scripts/verify_kilo_spine.py"),
+    Path("scripts/verify_kilo_pr172_ci_spine_trust.py"),
+    Path("scripts/verify_kilo_beyond_kilo_lint.py"),
     Path("scripts/scan_doc_secrets.py"),
 )
 

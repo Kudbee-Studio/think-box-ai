@@ -44,4 +44,8 @@ lint: ## Check syntax of all Python files
 lint-beyond-kilo: ## PR #170 scoped ruff/mypy/bandit gate (requires pip install -e ".[lint]")
 	KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
 
+ci-spine-trust: ## PR #172 CI manifest + operator gate (hermetic)
+	python3 scripts/verify_kilo_pr172_ci_spine_trust.py
+	PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
+
 all: init dev test ## Full setup: init, install, test
