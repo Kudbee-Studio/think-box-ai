@@ -9,10 +9,11 @@ consumption, ``live_api_called=False``. Gate contract check ``inst-11`` defers o
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence import redact_secret_value
@@ -310,7 +311,12 @@ def evaluate_swarm_instrumentation(
         live_api_called=False,
     )
 
-    ok = mercury.ok and contract_ok and passed == EXPECTED_HERMETIC_PASS_COUNT and not live_swarm_invoked
+    ok = (
+        mercury.ok
+        and contract_ok
+        and passed == EXPECTED_HERMETIC_PASS_COUNT
+        and not live_swarm_invoked
+    )
     if ok:
         violations = []
 
@@ -445,8 +451,7 @@ def swarm_instrumentation_contract_summary(
     gate = gate_for_pr(PR_NUMBER)
     catalog = swarm_instrumentation_catalog()
     redacted_env_sample = {
-        k: redact_secret_value(k, env.get(k))
-        for k in sorted(set(env.keys()) & _SECRET_ENV_KEYS)
+        k: redact_secret_value(k, env.get(k)) for k in sorted(set(env.keys()) & _SECRET_ENV_KEYS)
     }
     if "UPSTASH_PUBLIC_BOX_URL" in env:
         redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(

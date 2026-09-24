@@ -14,10 +14,11 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence import redact_secret_value
@@ -146,8 +147,7 @@ class ProofValidationResult:
         return {
             "ok": self.ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "ordered_gate_ids": list(self.ordered_gate_ids),
         }
@@ -198,8 +198,7 @@ class ProofSchemaResult:
             "ok": self.ok,
             "swarm_instrumentation_ok": self.swarm_instrumentation_ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "gate_id": GATE_ID,
@@ -492,7 +491,9 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
             hits.append(_violation("missing_required", f"missing required field {key}", key))
 
     if doc.get("schema_version") != "kilo-proof-v1":
-        hits.append(_violation("schema_version", "schema_version must be kilo-proof-v1", "schema_version"))
+        hits.append(
+            _violation("schema_version", "schema_version must be kilo-proof-v1", "schema_version")
+        )
 
     gate_id = doc.get("gate_id")
     if gate_id is not None and gate_id not in KNOWN_ARC_GATE_IDS:
@@ -505,7 +506,13 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
     live_verified = doc.get("live_verified")
     live_api = doc.get("live_api_called")
     if live_api is True:
-        hits.append(_violation("live_api_forbidden", "live_api_called must be false in hermetic proofs", "live_api_called"))
+        hits.append(
+            _violation(
+                "live_api_forbidden",
+                "live_api_called must be false in hermetic proofs",
+                "live_api_called",
+            )
+        )
 
     dod = doc.get("definition_of_done") or []
     dod_all_met = isinstance(dod, list) and all(
@@ -530,7 +537,9 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
                 )
             )
 
-    if live_verified is True and (not dod_all_met or four_state not in ("LIVE_VERIFIED", "PRODUCTION_READY")):
+    if live_verified is True and (
+        not dod_all_met or four_state not in ("LIVE_VERIFIED", "PRODUCTION_READY")
+    ):
         hits.append(
             _violation(
                 "live_verified_without_dod",
@@ -543,7 +552,11 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
     if isinstance(prior, list):
         for idx, gid in enumerate(prior):
             if gid not in KNOWN_ARC_GATE_IDS:
-                hits.append(_violation("unknown_prior_gate", f"unknown prior gate {gid}", f"prior_gate_ids[{idx}]"))
+                hits.append(
+                    _violation(
+                        "unknown_prior_gate", f"unknown prior gate {gid}", f"prior_gate_ids[{idx}]"
+                    )
+                )
         if doc.get("gate_id") == GATE_ID and "swarm-instrumentation" not in prior:
             hits.append(
                 _violation(
@@ -561,11 +574,17 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
         else:
             for idx, gate in enumerate(gates):
                 if not isinstance(gate, Mapping):
-                    hits.append(_violation("gate_shape", f"gate entry {idx} not object", f"gates[{idx}]"))
+                    hits.append(
+                        _violation("gate_shape", f"gate entry {idx} not object", f"gates[{idx}]")
+                    )
                     continue
                 gid = gate.get("gate_id")
                 if gid not in KNOWN_ARC_GATE_IDS:
-                    hits.append(_violation("unknown_gate_node", f"unknown gate {gid}", f"gates[{idx}].gate_id"))
+                    hits.append(
+                        _violation(
+                            "unknown_gate_node", f"unknown gate {gid}", f"gates[{idx}].gate_id"
+                        )
+                    )
                 if gate.get("hermetic_operator_ok") is not True:
                     hits.append(
                         _violation(
@@ -590,7 +609,11 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
                 continue
             cue_type = cue.get("cue_type")
             if cue_type not in CUE_TYPES:
-                hits.append(_violation("unknown_cue_type", f"unknown cue_type {cue_type}", f"cues[{idx}].cue_type"))
+                hits.append(
+                    _violation(
+                        "unknown_cue_type", f"unknown cue_type {cue_type}", f"cues[{idx}].cue_type"
+                    )
+                )
                 continue
             counts = cue.get("counts_as_user_intent")
             if cue_type == "user":
@@ -628,7 +651,6 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
 
 def run_fixture_suite() -> tuple[int, int, list[str]]:
     """Validate fixtures: returns (positive_pass, negative_reject, errors)."""
-    root = fixtures_dir()
     positive = 0
     negative = 0
     errors: list[str] = []
@@ -645,8 +667,7 @@ def run_fixture_suite() -> tuple[int, int, list[str]]:
         else:
             if not result.ok:
                 errors.append(
-                    f"{path.name}: expected valid but failed: "
-                    f"{[v.code for v in result.violations]}"
+                    f"{path.name}: expected valid but failed: {[v.code for v in result.violations]}"
                 )
             else:
                 positive += 1
@@ -698,7 +719,9 @@ def evaluate_proof_schema(
 
     contract_ok, contract_detail = _schema_contract_check()
     if not contract_ok:
-        violations.append(ProofSchemaViolation(code="schema_contract_failed", message=contract_detail))
+        violations.append(
+            ProofSchemaViolation(code="schema_contract_failed", message=contract_detail)
+        )
 
     pos = neg = 0
     fixture_errors: list[str] = []

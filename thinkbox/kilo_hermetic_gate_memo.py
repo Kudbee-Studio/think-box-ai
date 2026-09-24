@@ -5,7 +5,8 @@ One evaluate per gate_id + environ fingerprint per process unless cleared.
 
 from __future__ import annotations
 
-from typing import Callable, Mapping, TypeVar
+from collections.abc import Callable, Mapping
+from typing import TypeVar
 
 _T = TypeVar("_T")
 

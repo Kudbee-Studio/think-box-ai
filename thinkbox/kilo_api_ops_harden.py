@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.control_plane_ops_harden import (
     OPS_HARDEN_LABEL,
@@ -22,6 +23,8 @@ from thinkbox.control_plane_ops_harden import (
 )
 from thinkbox.kilo_dashboard_receipt_chain_bind import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_dashboard_receipt_chain_bind import (
     hermetic_dashboard_receipt_chain_bind_check,
     minimal_dashboard_receipt_chain_bind_environ,
 )
@@ -110,14 +113,22 @@ def minimal_api_ops_harden_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[ApiOpsHardenViolation]:
     violations: list[ApiOpsHardenViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(ApiOpsHardenViolation(code="gate_id_mismatch", message="checklist gate_id"))
+        violations.append(
+            ApiOpsHardenViolation(code="gate_id_mismatch", message="checklist gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(ApiOpsHardenViolation(code="pr_number_mismatch", message="checklist pr_number"))
+        violations.append(
+            ApiOpsHardenViolation(code="pr_number_mismatch", message="checklist pr_number")
+        )
     if doc.get("live_verified") is True:
-        violations.append(ApiOpsHardenViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            ApiOpsHardenViolation(code="live_verified_true", message="must stay false")
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            ApiOpsHardenViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+            ApiOpsHardenViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            ),
         )
     if doc.get("ops_harden_version") != OPS_HARDEN_VERSION:
         violations.append(
@@ -136,7 +147,9 @@ def _check_files() -> list[ApiOpsHardenViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                ApiOpsHardenViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                ApiOpsHardenViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
         violations.append(
@@ -150,7 +163,9 @@ def _check_files() -> list[ApiOpsHardenViolation]:
         except json.JSONDecodeError:
             violations.append(ApiOpsHardenViolation(code="checklist_json", message="invalid JSON"))
     else:
-        violations.append(ApiOpsHardenViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+        violations.append(
+            ApiOpsHardenViolation(code="checklist_missing", message=str(CHECKLIST_REL))
+        )
     return violations
 
 
@@ -240,7 +255,9 @@ def evaluate_api_ops_harden(
 
     fixture_ok = not fixture_errors and pos >= 4 and neg >= 1
     if not fixture_ok:
-        violations.append(ApiOpsHardenViolation(code="fixture_suite_weak", message="harden fixtures weak"))
+        violations.append(
+            ApiOpsHardenViolation(code="fixture_suite_weak", message="harden fixtures weak")
+        )
 
     markers_ok = len(marker_violations) == 0
     ok = prior.ok and fixture_ok and markers_ok and not file_violations and not fixture_errors

@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 from urllib.parse import urlparse
 
 from thinkbox.kilo_live_proof_readiness import gate_for_pr
@@ -263,8 +264,6 @@ KILO_ENV_CONTRACTS: tuple[EnvVarContract, ...] = (
 )
 
 
-
-
 def detect_matrix_mode(environ: Mapping[str, str] | None = None) -> EnvMatrixMode:
     """Infer matrix mode from environment (explicit override wins)."""
     env = environ if environ is not None else os.environ
@@ -492,9 +491,7 @@ def hermetic_operator_check(environ: Mapping[str, str] | None = None) -> EnvMatr
                             env_key=key,
                         )
                     )
-    entries = [
-        _entry_status(c, env, mode) for c in KILO_ENV_CONTRACTS if not c.is_prefix
-    ]
+    entries = [_entry_status(c, env, mode) for c in KILO_ENV_CONTRACTS if not c.is_prefix]
     return EnvMatrixResult(
         mode=mode,
         ok=len(violations) == 0,
