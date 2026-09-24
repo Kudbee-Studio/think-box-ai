@@ -41,4 +41,7 @@ lint: ## Check syntax of all Python files
 	python3 -c "import py_compile, sys; [py_compile.compile(f, doraise=True) for f in sys.argv[1:]]" \
 		$$(find think_box_ai backend core -name "*.py" 2>/dev/null)
 
+lint-beyond-kilo: ## PR #170 scoped ruff/mypy/bandit gate (requires pip install -e ".[lint]")
+	KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
+
 all: init dev test ## Full setup: init, install, test

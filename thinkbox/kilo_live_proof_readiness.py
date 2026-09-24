@@ -23,6 +23,7 @@ PR #166 adds ``pr166_combined_post165_lane`` (operator prep deepen + api ops pos
 PR #167 adds ``pr167_combined_post166_lane`` (operator audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/governance post166; not Live proof).
 PR #168 adds ``pr168_combined_post167_lane`` (operator audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/governance post167; not Live proof).
 PR #169 adds ``pr169_combined_post168_lane`` (operator audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/governance post168; not Live proof).
+PR #170 adds ``beyond_kilo_lint_readiness`` (ruff + mypy + bandit scoped lint lane; not Live proof; not a combined umbrella).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -255,6 +256,7 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
     from thinkbox.kilo_pr169_combined_post168_lane import (
         pr169_combined_post168_lane_contract_summary,
     )
+    from thinkbox.kilo_beyond_kilo_lint import beyond_kilo_lint_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -290,6 +292,7 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
     pr167_combined_summary = pr167_combined_post166_lane_contract_summary()
     pr168_combined_summary = pr168_combined_post167_lane_contract_summary()
     pr169_combined_summary = pr169_combined_post168_lane_contract_summary()
+    beyond_kilo_lint_summary = beyond_kilo_lint_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -355,4 +358,6 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
         "pr168_gate_id": pr168_combined_summary.get("pr168_gate_id"),
         "pr169_combined_post168_lane": pr169_combined_summary,
         "pr169_gate_id": pr169_combined_summary.get("pr169_gate_id"),
+        "beyond_kilo_lint_readiness": beyond_kilo_lint_summary,
+        "pr170_gate_id": beyond_kilo_lint_summary.get("pr170_gate_id"),
     }
