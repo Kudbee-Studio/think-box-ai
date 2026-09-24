@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 13,
+  "lane_count": 14,
   "lanes": [
     {
       "id": "ENT01",
@@ -69,6 +69,11 @@
       "id": "ENT13",
       "name": "observability_slo_dashboard_stub",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/observability_slo_dashboard_stub.py"
+    },
+    {
+      "id": "ENT14",
+      "name": "incident_response_playbook_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/incident_response_playbook_stub.py"
     }
   ]
 }
