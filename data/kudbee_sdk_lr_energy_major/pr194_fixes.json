@@ -1,0 +1,13 @@
+{
+  "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
+  "pr_number": 194,
+  "live_verified": false,
+  "fix_count": 1,
+  "fixes": [
+    {
+      "id": "FIX01",
+      "name": "pr193_gate_lazy",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/pr193_gate_lazy.py"
+    }
+  ]
+}
