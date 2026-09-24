@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify PR #197 cloud execution substrate gate."""
+"""Verify PR #198 durable queue gate."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from thinkbox.kilo_pr197_cloud_execution_substrate import cloud_execution_substrate_contract_summary
+from thinkbox.kilo_pr198_cloud_execution_durable_queue import cloud_execution_durable_queue_contract_summary
 
 
 def main() -> int:
-    summary = cloud_execution_substrate_contract_summary()
+    summary = cloud_execution_durable_queue_contract_summary()
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0 if summary.get("hermetic_operator_ok") else 1
 

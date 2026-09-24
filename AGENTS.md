@@ -600,7 +600,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Kudbee SDK long-range energy major fixes (25 fixes) | **#194** (merged) | `thinkbox/kudbee_sdk_longrange_energy_major_fixes/`, `thinkbox/kilo_pr194_kudbee_sdk_longrange_energy_major_fixes.py`, `scripts/verify_kilo_pr194_kudbee_sdk_longrange_energy_major_fixes.py` |
 | Kudbee SDK enterprise lr-energy lanes (25 lanes) | **#195** (merged) | `thinkbox/kudbee_sdk_enterprise_lr_energy/`, `apps/web/sdk/enterprise_lr_energy.ts`, `thinkbox/kilo_pr195_kudbee_sdk_enterprise_lr_energy.py`, `scripts/verify_kilo_pr195_kudbee_sdk_enterprise_lr_energy.py` |
 | KUDBEECLI enterprise upgrade (Phase 4, ~25 features) | **#196** (merged) | `thinkbox/cli_phase4/`, `thinkbox/kilo_pr196_kudbee_cli_enterprise_upgrade.py`, `scripts/verify_kilo_pr196_kudbee_cli_enterprise_upgrade.py` |
-| Cloud execution substrate Phase 1 (10 foundation features) | **#197** (draft) | `thinkbox/cloud_execution/`, `thinkbox/kilo_pr197_cloud_execution_substrate.py`, `scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
+| Cloud execution substrate Phase 1 (10 foundation features) | **#197** (merged) | `thinkbox/cloud_execution/`, `thinkbox/kilo_pr197_cloud_execution_substrate.py`, `scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
+| Cloud execution durable queue Phase 2 (10 features) | **#198** (draft) | `thinkbox/cloud_execution/sqlite_store.py`, `thinkbox/kilo_pr198_cloud_execution_durable_queue.py`, `scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
