@@ -42,6 +42,12 @@ class TestPr170BeyondKiloLintLane(unittest.TestCase):
         self.assertFalse(body.get("live_verified", True))
         self.assertFalse(body.get("live_api_called", True))
 
+    def test_pr170_not_combined_umbrella(self) -> None:
+        summary = pr170.beyond_kilo_lint_contract_summary(
+            pr170.minimal_beyond_kilo_lint_environ(),
+        )
+        self.assertFalse(summary.get("combined_umbrella_nested"))
+
     def test_pr170_audit_pass_honesty(self) -> None:
         path = REPO_ROOT / "docs/audit/passes/2026-09-23-pr170.json"
         body = json.loads(path.read_text(encoding="utf-8"))
