@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 23,
+  "pack_count": 24,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -119,6 +119,11 @@
       "id": "DEP23",
       "name": "cassette_energy_replay_tag",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/cassette_energy_replay_tag.py"
+    },
+    {
+      "id": "DEP24",
+      "name": "fixture_conservation_sample",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/fixture_conservation_sample.py"
     }
   ]
 }
