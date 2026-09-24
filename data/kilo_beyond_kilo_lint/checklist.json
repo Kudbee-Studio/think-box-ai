@@ -7,5 +7,7 @@
   "four_state_max": "TEST_VERIFIED",
   "lint_tools": ["ruff", "mypy", "bandit"],
   "prior_gate_ids": ["pr169-combined-post168-lane"],
-  "scope_note": "Single-theme beyond-KILO lint lane; not a combined post-#169 A-D umbrella."
+  "scope_note": "Single-theme beyond-KILO lint lane; not a combined post-#169 A-D umbrella.",
+  "execute_env": "KILO_BEYOND_KILO_LINT_EXECUTE",
+  "require_tools_env": "KILO_BEYOND_KILO_LINT_REQUIRE_TOOLS"
 }
