@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr185-think-job-lifecycle-fixes",
+  "date": "2026-09-24",
+  "gate_id": "think-job-lifecycle-fixes",
+  "pr_number": 185,
+  "fix_count": 25,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "combined_umbrella_nested": false,
+  "primary_surface": "thinkbox/think_job_lifecycle_fixes"
+}
