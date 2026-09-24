@@ -27,6 +27,11 @@ def get_metrics() -> SdkW3Metrics:
     return _metrics
 
 
+def reset_metrics_for_tests() -> None:
+    global _metrics
+    _metrics = SdkW3Metrics()
+
+
 def correlation_headers(config: SdkFollowupW3Config, correlation_id: str | None) -> dict[str, str]:
     headers = {"accept": "application/json"}
     if correlation_id:
