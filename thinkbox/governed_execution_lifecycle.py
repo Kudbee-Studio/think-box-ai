@@ -84,8 +84,16 @@ def persist_lifecycle_phase(
     http_proof_path: str = "",
     result: dict[str, Any] | None = None,
     require_phase: str = "",
+    require_lease_id: str = "",
     transition_kind: str = "",
     lease_id: str = "",
+    lease_started_at: str = "",
+    lease_expires_at: str = "",
+    lease_timeout_seconds: int = 0,
+    prior_lease_id: str = "",
+    prior_lease_started_at: str = "",
+    timeout_reason: str = "",
+    transition_at: str = "",
 ) -> dict[str, Any]:
     """Append one durable lifecycle transition onto the Repository job."""
     from thinkbox.lifecycle_harden import (
@@ -144,13 +152,23 @@ def persist_lifecycle_phase(
             "verdict",
             "http_proof_path",
             "result",
+            "lease_id",
+            "lease_started_at",
+            "lease_expires_at",
+            "lease_timeout_seconds",
         ):
             life.pop(stale, None)
     transitions = list(life.get("transitions") or [])
+    current_lease = str(life.get("lease_id") or "")
+    if require_lease_id and current_lease != require_lease_id:
+        raise LifecycleError(
+            "cas_lease_mismatch",
+            f"expected lease {require_lease_id}, have {current_lease or 'none'}",
+        )
     admission_must_be_first(transitions, phase)
     completed_requires_receipt(phase, receipt_id, life)
     failed_requires_error(phase, result, verdict)
-    if skip_duplicate_consecutive_phase(transitions, phase):
+    if skip_duplicate_consecutive_phase(transitions, phase) and not transition_kind:
         life["phase"] = phase
         life["resume_eligible"] = resume_eligibility(phase)
         force_live_flags_false(life)
@@ -159,18 +177,32 @@ def persist_lifecycle_phase(
             status=http_status_for_phase(phase),
             metadata={LIFECYCLE_META_KEY: life},
             require_lifecycle_phase=require_phase or None,
+            require_lease_id=require_lease_id or None,
         )
-        if require_phase and not updated:
-            raise LifecycleError(
-                "cas_phase_mismatch",
-                f"expected phase {require_phase}, have {current_phase or 'none'}",
-            )
+        if (require_phase or require_lease_id) and not updated:
+            _raise_cas_rejected(repo, job_id, require_phase, require_lease_id, current_phase)
         return updated or {}
-    entry: dict[str, Any] = {"phase": phase, "at": _now()}
+    entry: dict[str, Any] = {"phase": phase, "at": transition_at or _now()}
     if transition_kind:
         entry["kind"] = transition_kind
     if lease_id:
         entry["lease_id"] = lease_id
+        life["lease_id"] = lease_id
+    if lease_started_at:
+        entry["lease_started_at"] = lease_started_at
+        life["lease_started_at"] = lease_started_at
+    if lease_expires_at:
+        entry["lease_expires_at"] = lease_expires_at
+        life["lease_expires_at"] = lease_expires_at
+    if lease_id and lease_timeout_seconds >= 0:
+        entry["lease_timeout_seconds"] = lease_timeout_seconds
+        life["lease_timeout_seconds"] = lease_timeout_seconds
+    if prior_lease_id:
+        entry["prior_lease_id"] = prior_lease_id
+    if prior_lease_started_at:
+        entry["prior_lease_started_at"] = prior_lease_started_at
+    if timeout_reason:
+        entry["timeout_reason"] = timeout_reason
     transitions.append(entry)
     life["transitions"] = bound_transitions(transitions)
     life["phase"] = phase
@@ -203,13 +235,37 @@ def persist_lifecycle_phase(
         metadata={LIFECYCLE_META_KEY: life},
         provenance_event=f"lifecycle:{phase}",
         require_lifecycle_phase=require_phase or None,
+        require_lease_id=require_lease_id or None,
     )
-    if require_phase and not updated:
-        raise LifecycleError(
-            "cas_phase_mismatch",
-            f"expected phase {require_phase}, have {current_phase or 'none'}",
-        )
+    if (require_phase or require_lease_id) and not updated:
+        _raise_cas_rejected(repo, job_id, require_phase, require_lease_id, current_phase)
     return updated or {}
+
+
+def _raise_cas_rejected(
+    repo: Repository,
+    job_id: str,
+    require_phase: str,
+    require_lease_id: str,
+    current_phase: str,
+) -> None:
+    from thinkbox.lifecycle_harden import LifecycleError
+
+    snap = repo.job_status(job_id) or {}
+    life = (snap.get("metadata") or {}).get(LIFECYCLE_META_KEY)
+    if not isinstance(life, dict):
+        life = {}
+    held = str(life.get("lease_id") or "")
+    if require_lease_id and held != require_lease_id:
+        raise LifecycleError(
+            "cas_lease_mismatch",
+            f"expected lease {require_lease_id}, have {held or 'none'}",
+        )
+    phase_now = str(life.get("phase") or current_phase or "none")
+    raise LifecycleError(
+        "cas_phase_mismatch",
+        f"expected phase {require_phase or '?'}, have {phase_now}",
+    )
 
 
 def load_lifecycle(repo: Repository, job_id: str) -> dict[str, Any] | None:

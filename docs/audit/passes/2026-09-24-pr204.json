@@ -1,0 +1,11 @@
+{
+  "audit_pass_id": "pr204-durable-running-reclaim",
+  "date": "2026-09-24",
+  "gate_id": "durable-running-reclaim",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "stacked_on": "durable-queued-resume",
+  "primary_surface": "thinkbox/lifecycle_reclaim",
+  "notes": "RUNNING orphan reclaim by expired ownership lease only. No worker pool. Not Upstash LIVE proof."
+}

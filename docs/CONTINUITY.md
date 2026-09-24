@@ -36,17 +36,36 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#200 on main**. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume** stacked on #202. |
+| **Latest completed work** | **PR #141–#200 on main**. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume**; **RUNNING orphan reclaim** stacked on resume. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#200 merged on main. **Open drafts (do not merge/retarget):** **#201** Upstash Box access; **#202** lifecycle hardens (stacked on env-setup); **QUEUED resume** stacked on #202 (`cursor/durable-queued-resume-723f`). **Next in this lane:** founder review, then RUNNING orphan reclaim. Upstash LIVE still REGISTRATION-blocked. |
+| **PR status** | PR #141–#200 merged on main. **Open drafts (do not merge/retarget):** **#201** Upstash; **#202** lifecycle hardens; **QUEUED resume** `cursor/durable-queued-resume-723f`; **RUNNING reclaim** `cursor/durable-running-reclaim-723f` stacked on resume. **Next:** founder review of reclaim before any further lifecycle feature. Upstash LIVE still REGISTRATION-blocked. |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-24 — RUNNING orphan reclaim via ownership lease (stacked on QUEUED resume)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_reclaim.py` + `thinkbox/lifecycle_lease.py` on the existing Repository lifecycle |
+| **Gate** | `durable-running-reclaim` / `scripts/verify_kilo_pr204_lifecycle_reclaim.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Base** | `cursor/durable-queued-resume-723f` @ `da3e0ff`. Do not merge or retarget #201/#202/#203. |
+
+**DISCOVERY:** QUEUED resume records `lease_id` on the RUNNING claim, but a process death after that claim leaves the job RUNNING. H20 does not resume RUNNING. Replaying it without an ownership check would double-execute.
+
+**IMPLEMENTATION:** A lease is an ownership id plus persisted `lease_started_at` / `lease_expires_at` / `lease_timeout_seconds` (default 300s). Expiry is `now >= lease_expires_at` on those stored timestamps. `reclaim_running_orphan` re-reads the lifecycle, CAS-claims only when phase is still RUNNING and that lease id is expired, and writes `kind=orphan_reclaim` (new `lease_id`, prior lease id and start, reclaim timestamp, `timeout_reason=lease_expired`) before calling existing `execute_governed_job_command`. Fresh leases, ADMISSION, QUEUED, and terminal jobs are not reclaimed. QUEUED resume is unchanged aside from storing the ownership lease on its claim. Missing goal/command/worktree → FAILED `orphan_reclaim_incomplete`. Unconfigured Upstash → `remote_not_configured`. No second receipt, no H13 recover, no worker/reaper. Live flags stay false.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_reclaim` + `tests.unit.test_kilo_live_proof_readiness_pr204` + resume/harden/lifecycle suites + `verify_kilo_pr202_lifecycle_harden.py` + `verify_kilo_pr203_lifecycle_resume.py` + `verify_kilo_pr204_lifecycle_reclaim.py` + `scan_doc_secrets.py`.
+
+**DECISION:** Reclaim extends the same CAS lifecycle. It is not a second execution system. Upstash LIVE proof stays untouched.
+
+**NEXT ACTION:** Founder review of this draft. Do not pick the next lifecycle feature until this reclaim behavior is reviewed. Upstash LIVE still blocked on secret REGISTRATION.
 
 ### 2026-09-24 — Durable QUEUED resume after process death (stacked on #202)
 
