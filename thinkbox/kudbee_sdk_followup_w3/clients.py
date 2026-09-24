@@ -38,3 +38,11 @@ class KudbeeSdkFollowupW3Client:
     def health(self) -> dict[str, Any]:
         status = fetch_health(self.http)
         return {"ready": status.ready, "detail": status.detail, "live_api_called": False}
+
+    def twin_federation(self) -> dict[str, Any]:
+        body = self.http.get_json("/api/sdk/v3/twin/federation")
+        return {
+            "peer_count": int(body.get("peer_count", 0)),
+            "peers": list(body.get("peers") or []),
+            "live_api_called": False,
+        }
