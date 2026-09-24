@@ -26,6 +26,8 @@
 | [Post-#170 PR roadmap](docs/roadmaps/kilo-post-170-pr-roadmap.md) | Sequenced implementation slots |
 | [Audit index](docs/audit/README.md) | Checklists and pass JSON under `docs/audit/passes/` |
 | [Known defects](docs/known-defects.md) | Tracked gaps with evidence |
+| [Docker enterprise](docs/guides/docker_enterprise.md) | API image, compose profiles, hermetic spine container |
+| [Deployment](docs/guides/deployment.md) | Production TLS, reverse proxy, compose quick start |
 
 ### Operator surfaces
 
@@ -137,6 +139,18 @@ python3 examples/kudbee_sdk_followup_w2_quickstart.py   # when #181 branch prese
 
 ```bash
 python3 examples/control_fabric_demo.py
+```
+
+### Docker (API + optional UI)
+
+Full guide: [docs/guides/docker_enterprise.md](docs/guides/docker_enterprise.md).
+
+```bash
+export THINKBOX_API_KEY="$(python3 -c "import secrets; print('tb_' + secrets.token_urlsafe(24))")"
+make docker-contract    # hermetic file contract (no daemon)
+make docker-build       # requires Docker engine
+make docker-up          # API on http://127.0.0.1:8000/health
+make docker-hermetic      # spine verify inside container
 ```
 
 ---
