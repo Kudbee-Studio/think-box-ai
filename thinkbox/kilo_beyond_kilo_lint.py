@@ -1,6 +1,7 @@
 """Hermetic beyond-KILO lint readiness gate (PR #170 — ruff, mypy, bandit).
 
-Self-contained lane: not a combined post-#N umbrella. Prior gates referenced by id only.
+Self-contained lane: not a combined post-#N umbrella. Prior gates referenced by id only
+(checklist ``prior_gate_ids``), without re-evaluating nested theme gates.
 """
 
 from __future__ import annotations
