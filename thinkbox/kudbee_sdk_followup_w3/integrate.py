@@ -8,6 +8,7 @@ from thinkbox.kudbee_sdk_followup_w3.cassette import replay_cassette
 from thinkbox.kudbee_sdk_followup_w3.clients import KudbeeSdkFollowupW3Client
 from thinkbox.kudbee_sdk_followup_w3.negotiation import SDK_FOLLOWUP_W3_VERSION
 from thinkbox.kudbee_sdk_followup_w3.occupancy_stub import OccupancyMeshStub
+from thinkbox.kudbee_sdk_followup_w3.twin_stub import TwinFederationStub
 from thinkbox.kudbee_sdk_followup_w3.webhook_signature import sign_payload
 
 _FEATURE_HANDLERS: dict[str, str] = {
@@ -16,6 +17,7 @@ _FEATURE_HANDLERS: dict[str, str] = {
     "cassette": "replay_cassette",
     "occupancy": "OccupancyMeshStub.snapshot",
     "webhook_sign": "sign_payload",
+    "twin_federation": "TwinFederationStub.federation_snapshot",
 }
 
 
@@ -39,6 +41,10 @@ def run_feature_demo(feature_id: str) -> dict[str, Any]:
     if feature_id == "webhook_sign":
         sig = sign_payload(b"test-secret", b'{"event":"ping"}')
         return {"signature_prefix": sig[:10], "dry_run": True, "live_api_called": False}
+    if feature_id == "twin_federation":
+        mesh = TwinFederationStub()
+        mesh.register_peer("twin-a", "sess-a")
+        return mesh.federation_snapshot()
     return {"error": "unknown_feature", "feature_id": feature_id, "live_api_called": False}
 
 
