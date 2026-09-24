@@ -1,0 +1,8 @@
+{
+  "name": "chain_append_flow",
+  "steps": [
+    {"op": "append", "receipt_id": "r-cassette-1", "action": "admit"},
+    {"op": "append", "receipt_id": "r-cassette-2", "action": "audit"},
+    {"op": "verify", "expect_valid": true}
+  ]
+}

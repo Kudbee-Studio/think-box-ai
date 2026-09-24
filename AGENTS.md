@@ -584,7 +584,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** (merged) | `thinkbox/cli_phase2/`, `thinkbox/kilo_pr178_kudbee_cli_phase2.py`, `scripts/verify_kilo_pr178_kudbee_cli_phase2.py` |
 | Kudbee SDK follow-up (~25 hermetic deepen features) | **#179** (merged) | `thinkbox/kudbee_sdk_followup/`, `apps/web/sdk/followup.ts`, `thinkbox/kilo_pr179_kudbee_sdk_followup.py`, `scripts/verify_kilo_pr179_kudbee_sdk_followup.py` |
 | KUDBEECLI Phase 3 (~25 hermetic CLI deepen features) | **#180** (merged) | `thinkbox/cli_phase3/`, `thinkbox/kilo_pr180_kudbee_cli_phase3.py`, `scripts/verify_kilo_pr180_kudbee_cli_phase3.py` |
-| Kudbee SDK follow-up wave 2 (~25 hermetic deepen features) | **#181** (draft) | `thinkbox/kudbee_sdk_followup_w2/`, `apps/web/sdk/followup_w2.ts`, `thinkbox/kilo_pr181_kudbee_sdk_followup_w2.py`, `scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py` |
+| Kudbee SDK follow-up wave 2 (~25 hermetic deepen features) | **#181** (merged) | `thinkbox/kudbee_sdk_followup_w2/`, `apps/web/sdk/followup_w2.ts`, `thinkbox/kilo_pr181_kudbee_sdk_followup_w2.py`, `scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py` |
+| Receipt-chain deepen (~25 hermetic features) | **#182** (draft) | `thinkbox/receipt_chain_deepen/`, `thinkbox/kilo_pr182_receipt_chain_deepen.py`, `scripts/verify_kilo_pr182_receipt_chain_deepen.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

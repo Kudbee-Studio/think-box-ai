@@ -1,0 +1,8 @@
+{
+  "receipts": [
+    {"receipt_id": "r-fix-1", "action": "dry_run", "entry_hash": "abc111"},
+    {"receipt_id": "r-fix-2", "action": "dry_run", "entry_hash": "abc222"}
+  ],
+  "next_cursor": null,
+  "chain_valid": true
+}
