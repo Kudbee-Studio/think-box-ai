@@ -42,6 +42,11 @@ class TestKiloLiveProofReadinessPr193(unittest.TestCase):
         self.assertFalse(doc["live_verified"])
         self.assertFalse(doc["live_api_called"])
         self.assertEqual(doc["gate_id"], pr193.GATE_ID)
+        self.assertEqual(doc.get("deepen_pack_count"), 30)
+
+    def test_pr193_deepen_manifest(self) -> None:
+        ok, violations = pr193.validate_deepen_manifest()
+        self.assertTrue(ok, violations)
 
 
 if __name__ == "__main__":
