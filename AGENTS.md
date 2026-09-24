@@ -595,7 +595,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Think Job lifecycle major fixes (25 fixes) | **#189** (merged) | `thinkbox/think_job_lifecycle_major_fixes/`, `thinkbox/kilo_pr189_think_job_lifecycle_major_fixes.py`, `scripts/verify_kilo_pr189_think_job_lifecycle_major_fixes.py` |
 | Think Job POST /run major fixes (25 fixes) | **#190** (merged) | `thinkbox/think_job_post_run_major_fixes/`, `thinkbox/kilo_pr190_think_job_post_run_major_fixes.py`, `scripts/verify_kilo_pr190_think_job_post_run_major_fixes.py` |
 | Kudbee SDK follow-up wave 3 (~25 hermetic deepen features) | **#191** (merged) | `thinkbox/kudbee_sdk_followup_w3/`, `apps/web/sdk/followup_w3.ts`, `thinkbox/kilo_pr191_kudbee_sdk_followup_w3.py`, `scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py` |
-| Kudbee SDK follow-up wave 3 major fixes (35 fixes) | **#192** (draft) | `thinkbox/kudbee_sdk_followup_w3_major_fixes/`, `thinkbox/kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py`, `scripts/verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py` |
+| Kudbee SDK follow-up wave 3 major fixes (35 fixes) + expansion packs (26) | **#192** (merged) | `thinkbox/kudbee_sdk_followup_w3_major_fixes/`, `thinkbox/kudbee_sdk_followup_w3_expansion/`, `thinkbox/kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py`, `scripts/verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py` |
+| Kudbee SDK long-range + energy loops deepen (~25 features) | **#193** (draft) | `thinkbox/kudbee_sdk_longrange_energy/`, `apps/web/sdk/longrange_energy.ts`, `thinkbox/kilo_pr193_kudbee_sdk_longrange_energy.py`, `scripts/verify_kilo_pr193_kudbee_sdk_longrange_energy.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

@@ -1,0 +1,36 @@
+"""Session lifecycle bridge atop wave 1 follow-up (PR #193 F20)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from thinkbox.kudbee_sdk_followup.session_mirror import SdkSessionFollowup
+
+
+@dataclass
+class SessionBridgeLrEnergy:
+    session: SdkSessionFollowup
+    twin_linked: bool = False
+    tags: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def open(cls, session_id: str) -> SessionBridgeLrEnergy:
+        return cls(session=SdkSessionFollowup(session_id))
+
+    def link_twin(self, twin_id: str) -> None:
+        self.twin_linked = True
+        self.session.touch_metadata("twin_id", twin_id)
+
+    def set_tag(self, key: str, value: str) -> None:
+        self.tags[key] = value
+        self.session.touch_metadata(f"tag:{key}", value)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session.session_id,
+            "twin_linked": self.twin_linked,
+            "tags": dict(self.tags),
+            "metadata": dict(self.session.metadata),
+            "live_api_called": False,
+        }
