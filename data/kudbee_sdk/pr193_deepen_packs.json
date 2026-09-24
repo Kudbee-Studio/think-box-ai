@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 4,
+  "pack_count": 5,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -24,6 +24,11 @@
       "id": "DEP04",
       "name": "federated_path_budget",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federated_path_budget.py"
+    },
+    {
+      "id": "DEP05",
+      "name": "long_range_session_correlation",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/long_range_session_correlation.py"
     }
   ]
 }
