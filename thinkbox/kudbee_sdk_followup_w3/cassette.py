@@ -16,6 +16,12 @@ def load_cassette(name: str) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def list_cassette_names() -> tuple[str, ...]:
+    if not _CASSETTE_DIR.is_dir():
+        return ()
+    return tuple(sorted(p.name for p in _CASSETTE_DIR.glob("*.json")))
+
+
 def replay_cassette(name: str) -> dict[str, Any]:
     tape = load_cassette(name)
     steps = list(tape.get("steps") or [])
