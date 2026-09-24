@@ -9,6 +9,7 @@
 | **Live chronicle** | [docs/CONTINUITY.md](docs/CONTINUITY.md) |
 | **Architecture** | [docs/architecture-v1.md](docs/architecture-v1.md) |
 | **Enterprise editing** | [docs/guides/kilo_enterprise_editing.md](docs/guides/kilo_enterprise_editing.md) |
+| **Env matrix (PR #200)** | [docs/guides/environmental_variables_matrix.md](docs/guides/environmental_variables_matrix.md) |
 
 ---
 

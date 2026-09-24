@@ -1,0 +1,9 @@
+{
+  "cassette_id": "malformed_int",
+  "live_verified": false,
+  "environ": {
+    "CI": "true",
+    "THINKBOX_KILO_HERMETIC_MODE": "true",
+    "THINKBOX_CLOUD_EXEC_MAX_ACTIVE_JOBS": "not-an-integer"
+  }
+}

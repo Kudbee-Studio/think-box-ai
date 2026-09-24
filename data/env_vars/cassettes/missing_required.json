@@ -1,0 +1,9 @@
+{
+  "cassette_id": "missing_required",
+  "live_verified": false,
+  "note": "Hermetic pack has no hard-required keys; this cassette documents empty optional substrate.",
+  "environ": {
+    "CI": "true",
+    "THINKBOX_KILO_HERMETIC_MODE": "true"
+  }
+}

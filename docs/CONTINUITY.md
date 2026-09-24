@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #199 (draft): Cloud execution worker orchestrator Phase 3 (10 features)
+### 2026-09-24 — PR #200 (draft): Environmental variables pack (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/env_vars/` typed schema, fail-closed parse, redaction, cassettes, matrix bridge to #142; gate `environmental-variables` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
+| **ADR** | `docs/decisions/005-environmental-variables.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr200_environmental_variables.py` |
+
+### 2026-09-24 — PR #199 (merged): Cloud execution worker orchestrator Phase 3 (10 features)
 
 | Field | Value |
 |---|---|
