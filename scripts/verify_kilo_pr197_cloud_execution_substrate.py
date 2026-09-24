@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
 from thinkbox.kilo_pr197_cloud_execution_substrate import cloud_execution_substrate_contract_summary
 
