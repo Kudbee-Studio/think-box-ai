@@ -17,7 +17,7 @@ wraps side effects so draft/simulate stays the default without a governance toke
 | CI spine-trust (fast spine + explicit lint in PR CI) | **#172** | **Merged** — see H31 in live-proof runbook |
 | Chronicle honesty (README + spine Markdown sync) | **#173** | **Merged** |
 | Lint scope wave 1 (25 spine modules + enterprise editing commitments) | **#174** | **Merged** |
-| Lint scope wave 2 (live-proof readiness spine, 38 modules total) | **#175** | **Draft** |
+| Lint scope wave 2 (live-proof readiness spine, 38 modules total) | **#175** | **Merged** |
 
 **Four-state honesty:** Hermetic PR work stops at **CODE COMPLETE / TEST VERIFIED**.
 Do not claim **KILO LIVE VERIFIED**, **KILO PRODUCTION READY**, or earned Live proof

@@ -578,7 +578,7 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | CI spine-trust slimming (PR CI trusts fast spine + explicit lint execute) | **#172** (merged) | `thinkbox/kilo_pr172_ci_spine_trust.py`, `.github/workflows/test.yml` |
 | Chronicle honesty sync (post-#170 era docs; README + spine Markdown) | **#173** (merged) | `thinkbox/kilo_pr173_chronicle_honesty.py`, `scripts/verify_kilo_pr173_chronicle_honesty.py` |
 | Lint scope wave 1 (25-module beyond-KILO lint + enterprise editing guide) | **#174** (merged) | `thinkbox/kilo_pr174_lint_scope_wave1.py`, `scripts/verify_kilo_pr174_lint_scope_wave1.py` |
-| Lint scope wave 2 (live-proof readiness spine +12 modules, 38 total) | **#175** (draft) | `thinkbox/kilo_pr175_lint_scope_wave2.py`, `scripts/verify_kilo_pr175_lint_scope_wave2.py` |
+| Lint scope wave 2 (live-proof readiness spine +12 modules, 38 total) | **#175** (merged) | `thinkbox/kilo_pr175_lint_scope_wave2.py`, `scripts/verify_kilo_pr175_lint_scope_wave2.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
