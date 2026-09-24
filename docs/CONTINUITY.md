@@ -53,23 +53,23 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
-| **This-run class** | **A — ENV_NOT_CONFIGURED** (final env→live gate 2026-09-24). **Failure stage: REGISTRATION** (both official names NOT LISTED on attached Personal env; process ABSENT). `add_secrets` request re-emitted; **registration not confirmed** (UI Save required). Same warm-fork run `bc-1e6f1537-662e-48eb-9c98-7e454d18723f`. Live probe **not run**. **No HTTP.** |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (live proof attempt 2026-09-24 post-founder Save claim). **Failure stage: REGISTRATION** — binding check: both official names still **NOT LISTED** / **NOT PRESENT** in this process. Warm-fork run `bc-1e6f1537-662e-48eb-9c98-7e454d18723f`, env version `66bcd4b4-aee3-11f1-bf4b-42ffb4d10ea7` unchanged. Live probe **not run**. **No HTTP.** |
 | **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
 | **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
 | **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
 | **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
 
-**DISCOVERY:** Phase 1 `request-environment-setup-actions` for `UPSTASH_PUBLIC_BOX_URL`, `UPSTASH_PUBLIC_BOX_TOKEN`, and egress `box.upstash.com` — **request only**; does not register secrets until founder Saves on Personal environment `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7`. Phase 2 `cursor_box_env_binding_check.py`: both keys NOT LISTED / NOT PRESENT → **REGISTRATION** failure (not INJECTION/PROCESS). Warm fork reuse; new agent required after Save.
+**DISCOVERY:** After reported dashboard Save, this agent’s `CLOUD_AGENT_ALL_SECRET_NAMES` still omits `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` (17-name catalog unchanged; `UPSTASH_BOX_API_KEY` still listed). Same `bcId` / warm fork — process never received a post-Save secret catalog refresh.
 
-**IMPLEMENTATION:** `binding_gate_status` + binding check emits `failure_stage` / `per_key_gate`. Prior A artifacts retained. No adapter changes.
+**IMPLEMENTATION:** Refreshed `binding_gate_20260924_pr201.json` only. No live probe; no adapter changes.
 
-**TEST_VERIFIED:** Unit + gate verify + secret scan on checkpoint.
+**TEST_VERIFIED:** Unit + gate verify + secret scan green.
 
-**LIVE_VERIFIED:** **No** — gate not ready; no `probe_live.json`.
+**LIVE_VERIFIED:** **No** — REGISTRATION gate failed; `probe_live.json` not created.
 
-**DECISION:** Stop before HTTP until REGISTRATION + INJECTION pass (LISTED + PRESENT on a **new** agent). Do not substitute `UPSTASH_BOX_API_KEY`. Do not merge PR #201.
+**DECISION:** Do not HTTP until binding check shows LISTED+PRESENT on a **new** Cloud Agent boot (not this warm-fork session). Verify secret names on Personal env `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7` match adapter contract exactly.
 
-**NEXT ACTION:** Founder Saves both official secrets on the attached Personal environment dashboard, starts a **new** Cloud Agent (not warm fork of this run), reruns binding check (`gate_ready: true`), then exactly one live probe to `probe_live.json`.
+**NEXT ACTION:** Start a **new** Cloud Agent on `cursor/env-setup-803e` after Save; first command `cursor_box_env_binding_check.py`; if `gate_ready: true`, one live probe to `probe_live.json`.
 
 ### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 
