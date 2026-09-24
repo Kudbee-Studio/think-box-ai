@@ -44,6 +44,7 @@ _SPINE_BLOCKS: tuple[tuple[str, str], ...] = (
     ("pr168_combined_post167_lane", "hermetic_operator_ok"),
     ("pr169_combined_post168_lane", "hermetic_operator_ok"),
     ("beyond_kilo_lint_readiness", "hermetic_operator_ok"),
+    ("ci_spine_trust_readiness", "hermetic_operator_ok"),
 )
 
 

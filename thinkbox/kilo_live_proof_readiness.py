@@ -258,6 +258,7 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
         pr169_combined_post168_lane_contract_summary,
     )
     from thinkbox.kilo_beyond_kilo_lint import beyond_kilo_lint_contract_summary
+    from thinkbox.kilo_pr172_ci_spine_trust import ci_spine_trust_contract_summary
     from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
@@ -294,6 +295,7 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
     pr168_combined_summary = pr168_combined_post167_lane_contract_summary()
     pr169_combined_summary = pr169_combined_post168_lane_contract_summary()
     beyond_kilo_lint_summary = beyond_kilo_lint_contract_summary()
+    ci_spine_trust_summary = ci_spine_trust_contract_summary()
     return {
         "arc_pr_count": len(ARC_GATES),
         "arc_pr_first": ARC_GATES[0].pr_number,
@@ -361,4 +363,6 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
         "pr169_gate_id": pr169_combined_summary.get("pr169_gate_id"),
         "beyond_kilo_lint_readiness": beyond_kilo_lint_summary,
         "pr170_gate_id": beyond_kilo_lint_summary.get("pr170_gate_id"),
+        "ci_spine_trust_readiness": ci_spine_trust_summary,
+        "pr172_gate_id": ci_spine_trust_summary.get("pr172_gate_id"),
     }
