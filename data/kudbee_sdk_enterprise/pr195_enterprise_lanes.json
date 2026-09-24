@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 10,
+  "lane_count": 11,
   "lanes": [
     {
       "id": "ENT01",
@@ -54,6 +54,11 @@
       "id": "ENT10",
       "name": "enterprise_quota_envelope",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/enterprise_quota_envelope.py"
+    },
+    {
+      "id": "ENT11",
+      "name": "rate_governor_enterprise",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/rate_governor_enterprise.py"
     }
   ]
 }
