@@ -19,7 +19,10 @@ class TestPr174LintScopeWave1Lane(unittest.TestCase):
         self.assertEqual(pr174.PR_NUMBER, 174)
 
     def test_wave1_scope_count_25(self) -> None:
-        self.assertEqual(len(LINT_SCOPE_REL_PATHS), pr174.EXPECTED_SCOPE_COUNT)
+        from thinkbox.kilo_pr174_lint_scope_wave1 import load_wave1_scope_manifest
+
+        manifest = load_wave1_scope_manifest()
+        self.assertEqual(len(manifest["scope_paths"]), pr174.EXPECTED_SCOPE_COUNT)
 
     def test_wave1_manifest_parity(self) -> None:
         ok, violations = pr174.validate_wave1_scope_manifest()
@@ -44,7 +47,7 @@ class TestPr174LintScopeWave1Lane(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
         body = json.loads(proc.stdout)
-        self.assertEqual(body.get("beyond_kilo_version"), "2")
+        self.assertIn(body.get("beyond_kilo_version"), ("2", "3"))
 
     def test_pr174_audit_pass_honesty(self) -> None:
         path = REPO_ROOT / pr174.PR174_PASS_REL

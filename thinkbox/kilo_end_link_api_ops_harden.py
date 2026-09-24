@@ -8,27 +8,30 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.end_link_api_ops_harden import (
     END_LINK_API_OPS_HARDEN_LABEL,
     END_LINK_API_OPS_HARDEN_VERSION,
     OpsRouteTiming,
+    end_link_api_ops_harden_contract_snippet,
     enrich_batch_validate_payload,
     enrich_validate_payload,
-    end_link_api_ops_harden_contract_snippet,
     normalize_failure_code,
     validate_chain_filter_query,
 )
+from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_receipt_chain_end_link_docs import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_receipt_chain_end_link_docs import (
     hermetic_receipt_chain_end_link_docs_check,
     minimal_receipt_chain_end_link_docs_environ,
 )
-from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
-from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
     "CHECKLIST_REL",
@@ -118,25 +121,39 @@ def minimal_end_link_api_ops_harden_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[EndLinkApiOpsHardenViolation]:
     violations: list[EndLinkApiOpsHardenViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(EndLinkApiOpsHardenViolation(code="gate_id_mismatch", message="checklist gate_id"))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="gate_id_mismatch", message="checklist gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(EndLinkApiOpsHardenViolation(code="pr_number_mismatch", message="checklist pr_number"))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="pr_number_mismatch", message="checklist pr_number")
+        )
     if doc.get("live_verified") is True:
-        violations.append(EndLinkApiOpsHardenViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="live_verified_true", message="must stay false")
+        )
     if doc.get("live_api_called") is True:
-        violations.append(EndLinkApiOpsHardenViolation(code="live_api_called_true", message="must stay false"))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="live_api_called_true", message="must stay false")
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            EndLinkApiOpsHardenViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+            EndLinkApiOpsHardenViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            ),
         )
     if doc.get("end_link_api_ops_harden_version") != END_LINK_API_OPS_HARDEN_VERSION:
         violations.append(
-            EndLinkApiOpsHardenViolation(code="version_mismatch", message="end_link_api_ops_harden_version"),
+            EndLinkApiOpsHardenViolation(
+                code="version_mismatch", message="end_link_api_ops_harden_version"
+            ),
         )
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
         violations.append(
-            EndLinkApiOpsHardenViolation(code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"),
+            EndLinkApiOpsHardenViolation(
+                code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"
+            ),
         )
     return violations
 
@@ -146,11 +163,15 @@ def _check_files() -> list[EndLinkApiOpsHardenViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                EndLinkApiOpsHardenViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                EndLinkApiOpsHardenViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
         violations.append(
-            EndLinkApiOpsHardenViolation(code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)),
+            EndLinkApiOpsHardenViolation(
+                code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)
+            ),
         )
     checklist = REPO_ROOT / CHECKLIST_REL
     if checklist.is_file():
@@ -158,9 +179,13 @@ def _check_files() -> list[EndLinkApiOpsHardenViolation]:
             doc = json.loads(checklist.read_text(encoding="utf-8"))
             violations.extend(validate_checklist_document(doc))
         except json.JSONDecodeError:
-            violations.append(EndLinkApiOpsHardenViolation(code="checklist_json", message="invalid JSON"))
+            violations.append(
+                EndLinkApiOpsHardenViolation(code="checklist_json", message="invalid JSON")
+            )
     else:
-        violations.append(EndLinkApiOpsHardenViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="checklist_missing", message=str(CHECKLIST_REL))
+        )
     return violations
 
 
@@ -207,7 +232,9 @@ def run_api_ops_harden_fixture_suite() -> tuple[int, int, list[str]]:
     else:
         errors.append("enrich_validate")
 
-    batch = enrich_batch_validate_payload({"items": [], "total": 0}, timing=timing, idempotency_key="k1")
+    batch = enrich_batch_validate_payload(
+        {"items": [], "total": 0}, timing=timing, idempotency_key="k1"
+    )
     if batch.get("ops", {}).get("idempotency_key_present"):
         positive += 1
     else:
@@ -259,7 +286,9 @@ def evaluate_end_link_api_ops_harden(
 
     fixture_ok = not fixture_errors and pos >= 4 and neg >= 1
     if not fixture_ok:
-        violations.append(EndLinkApiOpsHardenViolation(code="fixture_suite_weak", message="api ops fixtures weak"))
+        violations.append(
+            EndLinkApiOpsHardenViolation(code="fixture_suite_weak", message="api ops fixtures weak")
+        )
 
     markers_ok = len(marker_violations) == 0
     ok = prior.ok and fixture_ok and markers_ok and not file_violations and not fixture_errors

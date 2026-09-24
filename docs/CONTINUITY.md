@@ -36,24 +36,33 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#173 on main** (#173 chronicle honesty). **#174** draft = lint scope wave 1 (25 modules). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
+| **Latest completed work** | **PR #141–#174 on main** (#174 lint wave 1). **#175** draft = lint scope wave 2 (38 modules). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#173 merged on main; **GitHub #174** draft = lint scope wave 1 (`docs/roadmaps/kilo-post-170-pr-roadmap.md` slot 3). Next: **#175** live-proof readiness spine modules. |
+| **PR status** | PR #141–#174 merged on main; **GitHub #175** draft = lint scope wave 2 (slot 4). Next: **#176** receipt-chain 412 deepen. |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #174 draft: lint scope wave 1 (enterprise editing)
+### 2026-09-24 — PR #175 draft: lint scope wave 2 (live-proof readiness spine)
+
+| Field | Value |
+|---|---|
+| **Scope** | +12 modules (END_LINK, receipt-chain docs, operator audit-flip); `LINT_SCOPE_REL_PATHS` → 38; beyond-KILO lint v3 |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kilo_live_proof_readiness_pr175`; `verify_kilo_pr175_lint_scope_wave2.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr175.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #174 merged: lint scope wave 1 (enterprise editing)
 
 | Field | Value |
 |---|---|
 | **Scope** | `LINT_SCOPE_REL_PATHS` → 25 spine/hermetic modules; `docs/guides/kilo_enterprise_editing.md` (25 commitments); ruff/mypy/bandit fixes |
-| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
 | **Tests** | `test_kilo_live_proof_readiness_pr174`; `verify_kilo_pr174_lint_scope_wave1.py`; beyond-KILO lint v2 execute |
 | **Audit** | `docs/audit/passes/2026-09-24-pr174.json` (`live_verified: false`) |
 

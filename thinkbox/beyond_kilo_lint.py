@@ -31,10 +31,10 @@ __all__ = (
 )
 
 BEYOND_KILO_LINT_LABEL = "beyond-kilo-lint-readiness"
-BEYOND_KILO_LINT_VERSION = "2"
+BEYOND_KILO_LINT_VERSION = "3"
 
-# PR #174 wave 1: spine + hermetic helpers (25 modules). Manifest:
-# data/kilo_beyond_kilo_lint/wave1_scope.json
+# PR #174 wave 1 + PR #175 wave 2 (37 modules). Manifests:
+# data/kilo_beyond_kilo_lint/wave1_scope.json, wave2_scope.json
 LINT_SCOPE_REL_PATHS: tuple[str, ...] = (
     "thinkbox/beyond_kilo_lint.py",
     "thinkbox/kilo_beyond_kilo_lint.py",
@@ -61,6 +61,19 @@ LINT_SCOPE_REL_PATHS: tuple[str, ...] = (
     "thinkbox/kilo_pr172_ci_spine_trust.py",
     "thinkbox/kilo_pr173_chronicle_honesty.py",
     "thinkbox/kilo_pr174_lint_scope_wave1.py",
+    "thinkbox/kilo_control_plane_post164_deepen.py",
+    "thinkbox/kilo_dashboard_receipt_chain_bind.py",
+    "thinkbox/kilo_end_link_api_ops_harden.py",
+    "thinkbox/kilo_end_link_operator_ux.py",
+    "thinkbox/kilo_live_proof_operator_audit_flip_deepen.py",
+    "thinkbox/kilo_live_proof_operator_audit_flip_post167.py",
+    "thinkbox/kilo_live_proof_operator_audit_flip_post168.py",
+    "thinkbox/kilo_live_proof_operator_prep_deepen.py",
+    "thinkbox/kilo_live_smoke_audit_flip_harden.py",
+    "thinkbox/kilo_receipt_chain_end_link_docs.py",
+    "thinkbox/kilo_receipt_chain_end_link_era_close.py",
+    "thinkbox/kilo_receipt_chain_end_link_season_harden.py",
+    "thinkbox/kilo_pr175_lint_scope_wave2.py",
 )
 
 _LINT_TIMEOUT_SECONDS = 120

@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence_live_proof_readiness import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_governance_evidence_live_proof_readiness import (
     hermetic_governance_evidence_live_proof_readiness_check,
     minimal_governance_evidence_live_proof_readiness_environ,
 )
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_receipt_chain_end_link_era_close import (
     GATE_ID as ERA_CLOSE_GATE_ID,
+)
+from thinkbox.kilo_receipt_chain_end_link_era_close import (
     hermetic_receipt_chain_end_link_era_close_check,
 )
 from thinkbox.receipt_chain_end_link_season_harden import (
@@ -81,7 +86,9 @@ class ReceiptChainEndLinkSeasonHardenResult:
 def minimal_receipt_chain_end_link_season_harden_environ(
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    base: MutableMapping[str, str] = dict(minimal_governance_evidence_live_proof_readiness_environ())
+    base: MutableMapping[str, str] = dict(
+        minimal_governance_evidence_live_proof_readiness_environ()
+    )
     if extra:
         base.update(extra)
     return dict(base)
@@ -92,9 +99,13 @@ def validate_checklist_document(
 ) -> list[ReceiptChainEndLinkSeasonHardenViolation]:
     violations: list[ReceiptChainEndLinkSeasonHardenViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="gate_id", message="gate_id"))
+        violations.append(
+            ReceiptChainEndLinkSeasonHardenViolation(code="gate_id", message="gate_id")
+        )
     if doc.get("live_verified") is True:
-        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="live_verified", message="false"))
+        violations.append(
+            ReceiptChainEndLinkSeasonHardenViolation(code="live_verified", message="false")
+        )
     if doc.get("season_harden_label") != SEASON_HARDEN_LABEL:
         violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="label", message="label"))
     prior = doc.get("prior_gate_ids") or []
@@ -162,13 +173,23 @@ def evaluate_receipt_chain_end_link_season_harden(
         violations.extend(cv)
         season_doc_ok = len(cv) == 0
     else:
-        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="checklist", message="missing"))
+        violations.append(
+            ReceiptChainEndLinkSeasonHardenViolation(code="checklist", message="missing")
+        )
 
     pos, neg, fixture_errors = run_season_harden_fixture_suite()
     for err in fixture_errors:
         violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="fixture", message=err))
 
-    ok = era.ok and gov.ok and season_doc_ok and pos >= 1 and neg >= 1 and not fixture_errors and len(violations) == 0
+    ok = (
+        era.ok
+        and gov.ok
+        and season_doc_ok
+        and pos >= 1
+        and neg >= 1
+        and not fixture_errors
+        and len(violations) == 0
+    )
     evidence = ReceiptChainEndLinkSeasonHardenEvidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

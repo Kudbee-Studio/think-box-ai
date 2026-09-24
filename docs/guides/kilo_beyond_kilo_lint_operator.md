@@ -1,7 +1,7 @@
 # Beyond-KILO lint operator guide (PR #170, merged on main)
 
 Hermetic readiness lane for **ruff**, **mypy**, and **bandit** on a **scoped** path set
-(**25 modules** after PR **#174** wave 1 — see `data/kilo_beyond_kilo_lint/wave1_scope.json`).
+(**37 modules** after PR **#175** wave 2 — see `wave1_scope.json` + `wave2_scope.json`).
 This is **not** a combined post-#N umbrella and does not nest prior theme evaluators.
 
 Enterprise editing commitments: `docs/guides/kilo_enterprise_editing.md`.

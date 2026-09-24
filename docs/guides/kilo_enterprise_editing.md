@@ -8,8 +8,9 @@ and sequenced through single-theme PRs. It is the editorial layer of the KILO co
 admission before merge, chronicle after merge, linters on the modules that encode truth.
 
 Think Box AI applies the same discipline to **code contracts** in PR **#174** lint scope wave 1:
-twenty-five spine and hermetic-helper modules run under ruff, mypy (`--follow-imports=skip`),
-and bandit — the mechanical enforcement behind honest editing.
+spine and hermetic-helper modules run under ruff, mypy (`--follow-imports=skip`),
+and bandit — the mechanical enforcement behind honest editing. PR **#174** wave 1
+(25 modules) and PR **#175** wave 2 (+12 live-proof readiness modules, 37 total).
 
 ---
 

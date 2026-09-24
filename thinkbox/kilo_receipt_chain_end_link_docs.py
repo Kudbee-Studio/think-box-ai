@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_end_link_operator_ux import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_end_link_operator_ux import (
     hermetic_end_link_operator_ux_check,
     minimal_end_link_operator_ux_environ,
 )
@@ -121,16 +124,28 @@ def minimal_receipt_chain_end_link_docs_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[ReceiptChainEndLinkDocsViolation]:
     violations: list[ReceiptChainEndLinkDocsViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="gate_id_mismatch", message="checklist gate_id"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(code="gate_id_mismatch", message="checklist gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="pr_number_mismatch", message="checklist pr_number"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(
+                code="pr_number_mismatch", message="checklist pr_number"
+            )
+        )
     if doc.get("live_verified") is True:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(code="live_verified_true", message="must stay false")
+        )
     if doc.get("live_api_called") is True:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="live_api_called_true", message="must stay false"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(code="live_api_called_true", message="must stay false")
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            ReceiptChainEndLinkDocsViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+            ReceiptChainEndLinkDocsViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            ),
         )
     if doc.get("receipt_chain_end_link_docs_version") != RECEIPT_CHAIN_END_LINK_DOCS_VERSION:
         violations.append(
@@ -139,23 +154,35 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[ReceiptChainEndL
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
         violations.append(
-            ReceiptChainEndLinkDocsViolation(code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"),
+            ReceiptChainEndLinkDocsViolation(
+                code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"
+            ),
         )
     return violations
 
 
-def validate_era_consolidated_pack(doc: Mapping[str, Any]) -> list[ReceiptChainEndLinkDocsViolation]:
+def validate_era_consolidated_pack(
+    doc: Mapping[str, Any],
+) -> list[ReceiptChainEndLinkDocsViolation]:
     violations: list[ReceiptChainEndLinkDocsViolation] = []
     if doc.get("live_verified") is True:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="era_live_verified", message="era pack live_verified"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(
+                code="era_live_verified", message="era pack live_verified"
+            )
+        )
     if doc.get("live_api_called") is True:
         violations.append(
-            ReceiptChainEndLinkDocsViolation(code="era_live_api", message="era pack live_api_called"),
+            ReceiptChainEndLinkDocsViolation(
+                code="era_live_api", message="era pack live_api_called"
+            ),
         )
     gates = doc.get("gates") or []
     if len(gates) != 5:
         violations.append(
-            ReceiptChainEndLinkDocsViolation(code="era_gate_count", message="expected 5 gates in era pack"),
+            ReceiptChainEndLinkDocsViolation(
+                code="era_gate_count", message="expected 5 gates in era pack"
+            ),
         )
     for entry in gates:
         if entry.get("live_verified") is True:
@@ -184,16 +211,22 @@ def _check_files() -> list[ReceiptChainEndLinkDocsViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                ReceiptChainEndLinkDocsViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                ReceiptChainEndLinkDocsViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     for rel in _ERA_PASS_RELS:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                ReceiptChainEndLinkDocsViolation(code="era_pass_file", message=f"missing {rel}", path=str(rel)),
+                ReceiptChainEndLinkDocsViolation(
+                    code="era_pass_file", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / ERA_CONSOLIDATED_REL).is_file():
         violations.append(
-            ReceiptChainEndLinkDocsViolation(code="era_pack_missing", message="era consolidated pack"),
+            ReceiptChainEndLinkDocsViolation(
+                code="era_pack_missing", message="era consolidated pack"
+            ),
         )
     if not (REPO_ROOT / PR160_PASS_REL).is_file():
         violations.append(
@@ -223,7 +256,9 @@ def _check_audit_index() -> list[ReceiptChainEndLinkDocsViolation]:
     violations: list[ReceiptChainEndLinkDocsViolation] = []
     index_path = REPO_ROOT / AUDIT_INDEX_REL
     if not index_path.is_file():
-        violations.append(ReceiptChainEndLinkDocsViolation(code="audit_index_missing", message="AUDIT_INDEX"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(code="audit_index_missing", message="AUDIT_INDEX")
+        )
         return violations
     doc = json.loads(index_path.read_text(encoding="utf-8"))
     passes = doc.get("passes") or []
@@ -300,7 +335,9 @@ def run_docs_fixture_suite() -> tuple[int, int, list[str]]:
         errors.append(str(exc))
     checklist_path = REPO_ROOT / CHECKLIST_REL
     if checklist_path.is_file():
-        cl_violations = validate_checklist_document(json.loads(checklist_path.read_text(encoding="utf-8")))
+        cl_violations = validate_checklist_document(
+            json.loads(checklist_path.read_text(encoding="utf-8"))
+        )
         if not cl_violations:
             positive += 1
         else:
@@ -344,12 +381,20 @@ def evaluate_receipt_chain_end_link_docs(
 
     fixture_ok = not fixture_errors and pos >= 5
     if not fixture_ok:
-        violations.append(ReceiptChainEndLinkDocsViolation(code="fixture_suite_weak", message="docs fixtures weak"))
+        violations.append(
+            ReceiptChainEndLinkDocsViolation(
+                code="fixture_suite_weak", message="docs fixtures weak"
+            )
+        )
 
     audit_index_ok = not _check_audit_index()
-    era_pack_ok = not validate_era_consolidated_pack(
-        json.loads((REPO_ROOT / ERA_CONSOLIDATED_REL).read_text(encoding="utf-8")),
-    ) if (REPO_ROOT / ERA_CONSOLIDATED_REL).is_file() else False
+    era_pack_ok = (
+        not validate_era_consolidated_pack(
+            json.loads((REPO_ROOT / ERA_CONSOLIDATED_REL).read_text(encoding="utf-8")),
+        )
+        if (REPO_ROOT / ERA_CONSOLIDATED_REL).is_file()
+        else False
+    )
     operator_guide_ok = not _check_markers()
 
     ok = prior.ok and fixture_ok and not violations
