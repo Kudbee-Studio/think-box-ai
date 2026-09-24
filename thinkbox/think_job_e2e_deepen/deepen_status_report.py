@@ -11,6 +11,7 @@ from thinkbox.think_job_e2e_deepen.negotiation import THINK_JOB_E2E_DEEPEN_VERSI
 from thinkbox.think_job_e2e_deepen.run_job_bridge import run_job_bridge_summary
 from thinkbox.think_job_e2e_deepen.status_catalog import status_catalog
 from thinkbox.think_job_e2e_deepen.status_ui_bridge import status_ui_bridge_summary
+from thinkbox.think_job_e2e_deepen.fixes.fix_registry_integrate import run_all_fixes
 from thinkbox.think_job_e2e_deepen.stream_bridge import stream_bridge_summary
 
 
@@ -32,6 +33,7 @@ def think_job_e2e_deepen_status_report() -> dict[str, Any]:
         "run_job_bridge": run_job_bridge_summary(),
         "deep_link_bridge": deep_link_bridge_summary(),
         "gate_summary": gate_summary(),
+        "major_fixes": run_all_fixes(),
         "live_verified": False,
         "live_api_called": False,
         "four_state_max": "TEST_VERIFIED",

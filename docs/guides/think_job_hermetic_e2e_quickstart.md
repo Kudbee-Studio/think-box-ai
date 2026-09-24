@@ -8,7 +8,7 @@ CODE COMPLETE / TEST VERIFIED only — not LIVE VERIFIED.
 
 ```bash
 python3 scripts/verify_kilo_pr183_think_job_hermetic_e2e.py
-python3 -m unittest tests.unit.test_think_job_hermetic_e2e tests.unit.test_kilo_live_proof_readiness_pr183 -v
+python3 -m unittest tests.unit.test_think_job_hermetic_e2e tests.unit.test_think_job_e2e_major_fixes tests.unit.test_kilo_live_proof_readiness_pr183 -v
 ```
 
 ## Example

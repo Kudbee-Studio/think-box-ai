@@ -6,11 +6,10 @@ from typing import Any
 
 
 def run_job_bridge_summary() -> dict[str, Any]:
-    # Import lazily to avoid pulling FastAPI stack in minimal contexts.
-    from backend.api.v1.run_job_status import STATUS_SCHEMA_VERSION
+    from thinkbox.think_job_e2e_deepen.fixes.lazy_run_job_schema import resolve_status_schema_version
 
     return {
-        "status_schema_version": STATUS_SCHEMA_VERSION,
+        "status_schema_version": resolve_status_schema_version(),
         "surface": "backend/api/v1/run_job_status",
         "hermetic": True,
         "live_api_called": False,

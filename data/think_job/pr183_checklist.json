@@ -1,0 +1,13 @@
+{
+  "gate_id": "think-job-hermetic-e2e",
+  "pr_number": 183,
+  "live_verified": false,
+  "live_api_called": false,
+  "required_artifacts": [
+    "data/think_job/pr183_features.json",
+    "data/think_job/pr183_fixes.json",
+    "docs/audit/passes/2026-09-24-pr183.json"
+  ],
+  "nested_e2e_opt_in_env": "KILO_RUN_NESTED_E2E_UNITTEST",
+  "spine_fast_default": true
+}

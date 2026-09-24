@@ -10,6 +10,8 @@ def export_manifest() -> dict[str, Any]:
         "manifest_version": 1,
         "artifacts": [
             "data/think_job/pr183_features.json",
+            "data/think_job/pr183_fixes.json",
+            "data/think_job/pr183_checklist.json",
             "data/think_job/cassettes/job_lifecycle_flow.json",
             "data/think_job/fixtures/sample_job_status.json",
         ],

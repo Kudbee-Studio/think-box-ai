@@ -22,6 +22,11 @@ class TestPr183ThinkJobHermeticE2eLane(unittest.TestCase):
         ok, violations = pr183.validate_features_manifest()
         self.assertTrue(ok, msg=[(v.code, v.message) for v in violations])
 
+    def test_fixes_manifest(self) -> None:
+        ok, violations = pr183.validate_fixes_manifest()
+        self.assertTrue(ok, msg=[(v.code, v.message) for v in violations])
+        self.assertEqual(pr183.EXPECTED_FIX_COUNT, 20)
+
     def test_pr183_not_combined_umbrella(self) -> None:
         summary = pr183.think_job_hermetic_e2e_contract_summary()
         self.assertFalse(summary.get("combined_umbrella_nested"))
@@ -46,6 +51,7 @@ class TestPr183ThinkJobHermeticE2eLane(unittest.TestCase):
         self.assertFalse(body["live_api_called"])
         self.assertEqual(body["gate_id"], pr183.GATE_ID)
         self.assertEqual(body["feature_count"], 25)
+        self.assertEqual(body.get("fix_count"), 20)
 
     def test_quickstart_example_runs(self) -> None:
         proc = subprocess.run(

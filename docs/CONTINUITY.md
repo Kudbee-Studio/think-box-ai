@@ -56,7 +56,7 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
 | **Tests** | `test_think_job_hermetic_e2e`, `test_kilo_live_proof_readiness_pr183`; `verify_kilo_pr183_think_job_hermetic_e2e.py` |
 | **Audit** | `docs/audit/passes/2026-09-24-pr183.json` (`live_verified: false`) |
-| **Notes** | Deepens Think Job status/stream/UI + e2e scaffold (#127–#140); not SDK/CLI/receipt-chain |
+| **Notes** | Deepens Think Job status/stream/UI + e2e scaffold (#127–#140); **20 major fixes** in `thinkbox/think_job_e2e_deepen/fixes/`; not SDK/CLI/receipt-chain |
 
 ### 2026-09-24 — PR #182 merged: Receipt-chain deepen (~25 features)
 
