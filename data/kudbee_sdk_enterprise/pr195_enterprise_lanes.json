@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 8,
+  "lane_count": 9,
   "lanes": [
     {
       "id": "ENT01",
@@ -44,6 +44,11 @@
       "id": "ENT08",
       "name": "governance_admission_stub",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/governance_admission_stub.py"
+    },
+    {
+      "id": "ENT09",
+      "name": "multi_region_route_table",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/multi_region_route_table.py"
     }
   ]
 }
