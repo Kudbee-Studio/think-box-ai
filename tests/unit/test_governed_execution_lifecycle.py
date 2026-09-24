@@ -75,7 +75,7 @@ class TestGovernedExecutionLifecycle(unittest.TestCase):
             verdict="COMPLETED",
             checkpoint_id="chk_1",
             artifact_path="/tmp/a.json",
-            artifact_hash="abc",
+            artifact_hash="ab" * 8,
             result={"governed_shell": True, "adapter_provider": "local"},
         )
         reloaded = open_lifecycle_repo(self._repo_path)
