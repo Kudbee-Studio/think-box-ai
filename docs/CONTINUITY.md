@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #198 (draft): Cloud execution durable queue Phase 2 (10 features)
+### 2026-09-24 — PR #199 (draft): Cloud execution worker orchestrator Phase 3 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `CloudExecutionWorker` loop + heartbeat/claim renewal; gate `cloud-execution-worker-orchestrator` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/004-cloud-execution-worker-orchestrator.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
+
+### 2026-09-24 — PR #198 (merged): Cloud execution durable queue Phase 2 (10 features)
 
 | Field | Value |
 |---|---|
