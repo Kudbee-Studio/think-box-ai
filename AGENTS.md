@@ -576,7 +576,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Combined post-#168 lane (audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/gov post168) | **#169** (merged) | `thinkbox/kilo_pr169_combined_post168_lane.py`, `scripts/verify_kilo_pr169_combined_post168_lane.py` |
 | Beyond-KILO lint readiness (ruff + mypy + bandit scoped; not combined umbrella) | **#170** (merged) | `thinkbox/kilo_beyond_kilo_lint.py`, `scripts/verify_kilo_beyond_kilo_lint.py` |
 | CI spine-trust slimming (PR CI trusts fast spine + explicit lint execute) | **#172** (merged) | `thinkbox/kilo_pr172_ci_spine_trust.py`, `.github/workflows/test.yml` |
-| Chronicle honesty sync (post-#170 era docs; README + spine Markdown) | **#173** (draft) | `thinkbox/kilo_pr173_chronicle_honesty.py`, `scripts/verify_kilo_pr173_chronicle_honesty.py` |
+| Chronicle honesty sync (post-#170 era docs; README + spine Markdown) | **#173** (merged) | `thinkbox/kilo_pr173_chronicle_honesty.py`, `scripts/verify_kilo_pr173_chronicle_honesty.py` |
+| Lint scope wave 1 (25-module beyond-KILO lint + enterprise editing guide) | **#174** (draft) | `thinkbox/kilo_pr174_lint_scope_wave1.py`, `scripts/verify_kilo_pr174_lint_scope_wave1.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

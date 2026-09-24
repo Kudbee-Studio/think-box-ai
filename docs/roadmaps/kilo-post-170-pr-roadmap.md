@@ -23,7 +23,7 @@
 | Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; ruff/mypy/bandit on **two** modules only (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`) — **#170 merged** |
 | Spine | `verify_kilo_spine.py` aggregates 28 blocks including #169 umbrella + #170 lint (static lint in spine unless `KILO_BEYOND_KILO_LINT_EXECUTE=1`) |
 | CI | **#172** (merged): `.github/workflows/test.yml` = unittest + **one** fast spine + beyond-KILO lint execute + secret scan (no duplicate per-gate scripts) |
-| Chronicle | **#173** (draft): AGENTS / CONTINUITY / README / runbook honesty — no stale #170/#172 draft labels |
+| Chronicle | **#173** (merged); **#174** (draft): lint wave 1 + enterprise editing guide |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -48,9 +48,9 @@
 
 ---
 
-## Recommended default next **implementation** PR: **GitHub #174** (slot 3)
+## Recommended default next **implementation** PR: **GitHub #174** (slot 3, in flight)
 
-Lint scope wave 1 — see slot 3 row. Do not start until **#173** chronicle honesty merges.
+Lint scope wave 1 — 25-module scope + `docs/guides/kilo_enterprise_editing.md`. After merge: **#175** slot 4.
 
 ---
 

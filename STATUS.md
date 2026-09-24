@@ -3,7 +3,8 @@
 - **#170 merged:** beyond-KILO lint (`scripts/verify_kilo_beyond_kilo_lint.py`)
 - **#171 merged:** `docs/roadmaps/kilo-post-170-pr-roadmap.md`
 - **#172 merged:** PR CI trusts fast `scripts/verify_kilo_spine.py` + explicit lint execute (H31)
-- **#173 draft:** chronicle honesty — README + AGENTS/CONTINUITY/runbook sync
+- **#173 merged:** chronicle honesty — README + AGENTS/CONTINUITY/runbook sync
+- **#174 draft:** lint scope wave 1 — 25 modules + enterprise editing commitments
 - **Four-state cap:** TEST VERIFIED for hermetic work; `live_verified: false` on spine audits until founder Live proof
 
 ---
