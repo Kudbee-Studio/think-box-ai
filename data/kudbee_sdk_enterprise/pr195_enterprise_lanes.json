@@ -1,0 +1,134 @@
+{
+  "gate_id": "kudbee-sdk-enterprise-lr-energy-lanes",
+  "pr_number": 195,
+  "live_verified": false,
+  "tier": "enterprise",
+  "lane_count": 25,
+  "lanes": [
+    {
+      "id": "ENT01",
+      "name": "pr194_major_fixes_gate",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/pr194_major_fixes_gate.py"
+    },
+    {
+      "id": "ENT02",
+      "name": "tenant_isolation_envelope",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/tenant_isolation_envelope.py"
+    },
+    {
+      "id": "ENT03",
+      "name": "rbac_policy_matrix",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/rbac_policy_matrix.py"
+    },
+    {
+      "id": "ENT04",
+      "name": "sla_tier_contract",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/sla_tier_contract.py"
+    },
+    {
+      "id": "ENT05",
+      "name": "compliance_evidence_bundle",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/compliance_evidence_bundle.py"
+    },
+    {
+      "id": "ENT06",
+      "name": "audit_trail_chain",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/audit_trail_chain.py"
+    },
+    {
+      "id": "ENT07",
+      "name": "data_residency_classifier",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/data_residency_classifier.py"
+    },
+    {
+      "id": "ENT08",
+      "name": "governance_admission_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/governance_admission_stub.py"
+    },
+    {
+      "id": "ENT09",
+      "name": "multi_region_route_table",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/multi_region_route_table.py"
+    },
+    {
+      "id": "ENT10",
+      "name": "enterprise_quota_envelope",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/enterprise_quota_envelope.py"
+    },
+    {
+      "id": "ENT11",
+      "name": "rate_governor_enterprise",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/rate_governor_enterprise.py"
+    },
+    {
+      "id": "ENT12",
+      "name": "secret_rotation_schedule_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/secret_rotation_schedule_stub.py"
+    },
+    {
+      "id": "ENT13",
+      "name": "observability_slo_dashboard_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/observability_slo_dashboard_stub.py"
+    },
+    {
+      "id": "ENT14",
+      "name": "incident_response_playbook_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/incident_response_playbook_stub.py"
+    },
+    {
+      "id": "ENT15",
+      "name": "change_advisory_board_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/change_advisory_board_stub.py"
+    },
+    {
+      "id": "ENT16",
+      "name": "dr_rpo_rto_envelope",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/dr_rpo_rto_envelope.py"
+    },
+    {
+      "id": "ENT17",
+      "name": "bcp_checkpoint_ledger",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/bcp_checkpoint_ledger.py"
+    },
+    {
+      "id": "ENT18",
+      "name": "vendor_risk_register_stub",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/vendor_risk_register_stub.py"
+    },
+    {
+      "id": "ENT19",
+      "name": "soc2_mapping_catalog",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/soc2_mapping_catalog.py"
+    },
+    {
+      "id": "ENT20",
+      "name": "lr_energy_enterprise_bridge",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/lr_energy_enterprise_bridge.py"
+    },
+    {
+      "id": "ENT21",
+      "name": "typescript_enterprise_surface",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/typescript_enterprise_surface.py"
+    },
+    {
+      "id": "ENT22",
+      "name": "no_live_enterprise_claim",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/no_live_enterprise_claim.py"
+    },
+    {
+      "id": "ENT23",
+      "name": "enterprise_lane_honesty",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/enterprise_lane_honesty.py"
+    },
+    {
+      "id": "ENT24",
+      "name": "pr195_gate_bind",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/pr195_gate_bind.py"
+    },
+    {
+      "id": "ENT25",
+      "name": "lane_registry",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/lane_registry.py"
+    }
+  ]
+}

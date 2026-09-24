@@ -41,7 +41,8 @@
 | Kudbee SDK follow-up wave 3 | **#191** (merged) — `thinkbox/kudbee_sdk_followup_w3` + `apps/web/sdk/followup_w3.ts` (~25 features) |
 | Kudbee SDK follow-up wave 3 major fixes | **#192** (merged) — `thinkbox/kudbee_sdk_followup_w3_major_fixes` (35 fixes) + expansion packs |
 | Kudbee SDK long-range + energy loops | **#193** (merged) — `thinkbox/kudbee_sdk_longrange_energy` (~25 features + 30 deepen packs) |
-| Kudbee SDK long-range energy major fixes | **#194** (draft) — `thinkbox/kudbee_sdk_longrange_energy_major_fixes` (25 fixes) |
+| Kudbee SDK long-range energy major fixes | **#194** (merged) — `thinkbox/kudbee_sdk_longrange_energy_major_fixes` (25 fixes) |
+| Kudbee SDK enterprise lr-energy lanes | **#195** (draft) — `thinkbox/kudbee_sdk_enterprise_lr_energy` (25 enterprise lanes) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
