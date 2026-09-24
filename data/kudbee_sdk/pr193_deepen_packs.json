@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 9,
+  "pack_count": 10,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -49,6 +49,11 @@
       "id": "DEP09",
       "name": "loop_transfer_envelope",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/loop_transfer_envelope.py"
+    },
+    {
+      "id": "DEP10",
+      "name": "conservation_chain_verify",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/conservation_chain_verify.py"
     }
   ]
 }
