@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 19,
+  "pack_count": 20,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -99,6 +99,11 @@
       "id": "DEP19",
       "name": "task_budget_energy_tax",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/task_budget_energy_tax.py"
+    },
+    {
+      "id": "DEP20",
+      "name": "session_bind_long_path",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/session_bind_long_path.py"
     }
   ]
 }
