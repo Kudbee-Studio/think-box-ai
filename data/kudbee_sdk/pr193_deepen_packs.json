@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 12,
+  "pack_count": 13,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -64,6 +64,11 @@
       "id": "DEP12",
       "name": "twin_energy_path_bind",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/twin_energy_path_bind.py"
+    },
+    {
+      "id": "DEP13",
+      "name": "quantitative_free_flow_index",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/quantitative_free_flow_index.py"
     }
   ]
 }
