@@ -53,23 +53,23 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
-| **This-run class** | **A — ENV_NOT_CONFIGURED** (binding diagnosis 2026-09-24). Process: official pair **ABSENT**. Cursor catalog (`CLOUD_AGENT_ALL_SECRET_NAMES`): `UPSTASH_PUBLIC_BOX_URL` **NOT LISTED**, `UPSTASH_PUBLIC_BOX_TOKEN` **NOT LISTED**, `UPSTASH_BOX_API_KEY` **LISTED**. Attached env: **Personal** (`environmentJsonPath` null). Live probe **not run**. **No HTTP.** |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (final env→live gate 2026-09-24). **Failure stage: REGISTRATION** (both official names NOT LISTED on attached Personal env; process ABSENT). `add_secrets` request re-emitted; **registration not confirmed** (UI Save required). Same warm-fork run `bc-1e6f1537-662e-48eb-9c98-7e454d18723f`. Live probe **not run**. **No HTTP.** |
 | **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
 | **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
 | **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
 | **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
 
-**DISCOVERY:** `cursor-cloud-environment-info`: Personal environment `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7`, `environmentJsonPath` null (DB-managed; repo `.cursor/environment.json` not active for this run). `CLOUD_AGENT_ALL_SECRET_NAMES` lists 17 names including `UPSTASH_BOX_API_KEY` but **not** the official adapter pair — secrets were not registered on the attached environment under the required names.
+**DISCOVERY:** Phase 1 `request-environment-setup-actions` for `UPSTASH_PUBLIC_BOX_URL`, `UPSTASH_PUBLIC_BOX_TOKEN`, and egress `box.upstash.com` — **request only**; does not register secrets until founder Saves on Personal environment `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7`. Phase 2 `cursor_box_env_binding_check.py`: both keys NOT LISTED / NOT PRESENT → **REGISTRATION** failure (not INJECTION/PROCESS). Warm fork reuse; new agent required after Save.
 
-**IMPLEMENTATION:** Catalog-aware binding diagnostics in `thinkbox/upstash_box_access.py`, operator script `scripts/cursor_box_env_binding_check.py`, valid JSON `.cursor/environment.json` (comments removed). Requested dashboard `add_secrets` + egress + external binding verification. No adapter/auth changes.
+**IMPLEMENTATION:** `binding_gate_status` + binding check emits `failure_stage` / `per_key_gate`. Prior A artifacts retained. No adapter changes.
 
-**TEST_VERIFIED:** Expanded unit tests + gate verify + secret scan on checkpoint.
+**TEST_VERIFIED:** Unit + gate verify + secret scan on checkpoint.
 
-**LIVE_VERIFIED:** **No** — official vars absent and not in Cursor secret catalog; live `/run` not attempted.
+**LIVE_VERIFIED:** **No** — gate not ready; no `probe_live.json`.
 
-**DECISION:** Binding fix is dashboard-only on the **attached** Personal environment (exact secret names). Do not substitute `UPSTASH_BOX_API_KEY`. Do not merge PR #201 until founder review.
+**DECISION:** Stop before HTTP until REGISTRATION + INJECTION pass (LISTED + PRESENT on a **new** agent). Do not substitute `UPSTASH_BOX_API_KEY`. Do not merge PR #201.
 
-**NEXT ACTION:** On [environment dashboard](https://cursor.com/dashboard/cloud-agents/environments/e/66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7), add `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN`, Save, start a **new** agent on `cursor/env-setup-803e`, confirm catalog **LISTED** + process **PRESENT**, then one live probe to `probe_live.json`.
+**NEXT ACTION:** Founder Saves both official secrets on the attached Personal environment dashboard, starts a **new** Cloud Agent (not warm fork of this run), reruns binding check (`gate_ready: true`), then exactly one live probe to `probe_live.json`.
 
 ### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 

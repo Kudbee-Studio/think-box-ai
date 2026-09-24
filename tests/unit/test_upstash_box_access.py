@@ -17,6 +17,7 @@ from thinkbox.upstash_box_access import (
     HttpProbeResult,
     assert_no_secret_material,
     binding_blocker_suffix,
+    binding_gate_status,
     classify_access,
     classify_http_body_reason,
     cursor_secret_catalog_listed,
@@ -72,6 +73,24 @@ class TestCursorSecretCatalog(unittest.TestCase):
         listed = cursor_secret_catalog_listed(environ=env)
         self.assertFalse(listed[ENV_URL])
         self.assertTrue(listed[ENV_TOKEN])
+
+    def test_binding_gate_registration_when_not_listed(self) -> None:
+        ready, stage = binding_gate_status(
+            catalog_listed={ENV_URL: False, ENV_TOKEN: False},
+            presence={ENV_URL: False, ENV_TOKEN: False},
+            catalog_available=True,
+        )
+        self.assertFalse(ready)
+        self.assertEqual(stage, "REGISTRATION")
+
+    def test_binding_gate_injection_when_listed_not_present(self) -> None:
+        ready, stage = binding_gate_status(
+            catalog_listed={ENV_URL: True, ENV_TOKEN: True},
+            presence={ENV_URL: True, ENV_TOKEN: False},
+            catalog_available=True,
+        )
+        self.assertFalse(ready)
+        self.assertEqual(stage, "INJECTION")
 
     def test_binding_suffix_when_names_not_in_catalog(self) -> None:
         suffix = binding_blocker_suffix(

@@ -104,6 +104,30 @@ def cursor_secret_catalog_listed(
     return {key: key in catalog for key in keys}
 
 
+def binding_gate_status(
+    *,
+    catalog_listed: Mapping[str, bool],
+    presence: Mapping[str, bool],
+    catalog_available: bool,
+) -> tuple[bool, str]:
+    """Return (ready, failure_stage) for the official adapter env gate.
+
+    Stages (first failing layer wins):
+    - ``REGISTRATION`` — name not in ``CLOUD_AGENT_ALL_SECRET_NAMES``
+    - ``INJECTION`` — listed on environment but absent from process env
+    - ``PROCESS`` — catalog unavailable yet process vars absent (unknown registration)
+    """
+    for key in ADAPTER_REQUIRED_KEYS:
+        if catalog_available and not catalog_listed.get(key, False):
+            return (False, "REGISTRATION")
+    for key in ADAPTER_REQUIRED_KEYS:
+        if catalog_listed.get(key, False) and not presence.get(key, False):
+            return (False, "INJECTION")
+    if not all(presence.get(key, False) for key in ADAPTER_REQUIRED_KEYS):
+        return (False, "PROCESS")
+    return (True, "OK")
+
+
 def binding_blocker_suffix(
     *,
     url_present: bool,
