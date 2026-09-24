@@ -42,6 +42,11 @@ def build_dry_run_transport(config: SdkFollowupW3Config) -> InMemoryTransport:
                 headers={},
                 body=b'{"accepted":true,"dry_run":true}',
             ),
+            ("GET", f"{base}/api/sdk/v3/twin/federation"): HttpResponse(
+                status=200,
+                headers={},
+                body=b'{"peer_count":0,"peers":[],"live_api_called":false}',
+            ),
         },
     )
 
