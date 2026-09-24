@@ -7,6 +7,14 @@ from dataclasses import dataclass
 SDK_FOLLOWUP_W3_VERSION = "0.4.0"
 SDK_FOLLOWUP_W3_API_VERSION = 4
 
+DEFAULT_CLIENT_CAPABILITIES: tuple[str, ...] = (
+    "sessions",
+    "tasks",
+    "webhooks",
+    "occupancy",
+    "twin_federation",
+)
+
 
 @dataclass(frozen=True)
 class CapabilitySetW3:
