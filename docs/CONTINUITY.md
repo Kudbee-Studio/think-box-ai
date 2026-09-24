@@ -36,17 +36,36 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#200 on main** (#200 environmental variables merged). **Open draft:** **#201** Upstash Box access verification (`thinkbox/upstash_box_access.py`). |
+| **Latest completed work** | **PR #141–#200 on main**. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume** stacked on #202. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#200 merged on main. **Open implementation (draft):** **#201** Upstash Box access verification. **Next:** inject official Box URL+token into the agent runtime, then retry one bounded `POST /run`. |
+| **PR status** | PR #141–#200 merged on main. **Open drafts (do not merge/retarget):** **#201** Upstash Box access; **#202** lifecycle hardens (stacked on env-setup); **QUEUED resume** stacked on #202 (`cursor/durable-queued-resume-723f`). **Next in this lane:** founder review, then RUNNING orphan reclaim. Upstash LIVE still REGISTRATION-blocked. |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-24 — Durable QUEUED resume after process death (stacked on #202)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_resume.py` — `resume_queued_job` on the existing Repository lifecycle |
+| **Gate** | `durable-queued-resume` / `scripts/verify_kilo_pr203_lifecycle_resume.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Base** | `cursor/durable-lifecycle-harden-723f` (#202). Do not merge or retarget #201/#202. |
+
+**DISCOVERY:** H20 marks QUEUED jobs `resume_eligible` but resume was not implemented. Process death after ADMISSION+QUEUED left work stranded. Public result redaction (H06/H23) correctly omits `exec_command`; crash recovery therefore cannot reconstruct a shell command from the durable blob.
+
+**IMPLEMENTATION:** `resume_queued_job(repo, job_id, *, exec_command=None)` loads via `load_lifecycle` only (never H13 recover, never mint ADMISSION). Eligible only when `phase=queued` and H20 is true. Reconstructs goal from a matching HTTP receipt, else lifecycle goal, else intent. Reuses `receipt_id`. Validates worktree path/`worktree_id`. Revalidates stored substrate/provider (H08/H09 merged; no local fallback). CAS persist RUNNING only while still QUEUED, with `kind=resume_claim` + `lease_id`, then calls existing `execute_governed_job_command`. Operator HTTP: `POST /api/v1/run/job/{id}/resume` for shell-command re-supply. Missing inputs → FAILED `resume_incomplete`. Unconfigured Upstash → `remote_not_configured`. Live flags stay false.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_resume` + `tests.unit.test_kilo_live_proof_readiness_pr203` + existing lifecycle/harden suites + PR #202 verifier + `scripts/verify_kilo_pr203_lifecycle_resume.py` + `scripts/scan_doc_secrets.py`.
+
+**DECISION:** QUEUED resume only. ADMISSION-only and RUNNING crashes are not resumed. No second job system. No Upstash LIVE gate change.
+
+**NEXT ACTION:** Founder review of this draft (keep stacked on #202). Next product commitment in this lane: **orphaned RUNNING reclaim via lease/timeout**. Upstash LIVE still blocked on secret REGISTRATION.
 
 ### 2026-09-24 — PR #202 draft: 25 durable lifecycle hardens
 

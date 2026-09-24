@@ -293,6 +293,21 @@ def persist_http_run_lifecycle(
     )
 
 
+def resume_http_queued_job(
+    job_id: str,
+    *,
+    exec_command: str | None = None,
+    worktree: str | None = None,
+) -> Any:
+    """Operator QUEUED resume: reuse the existing receipt; never open a second one."""
+    from thinkbox.governed_execution_lifecycle import lifecycle_worktree_path
+    from thinkbox.lifecycle_resume import QueuedResumeResult, resume_queued_job
+
+    repo = open_lifecycle_repo(worktree or lifecycle_worktree_path())
+    result: QueuedResumeResult = resume_queued_job(repo, job_id, exec_command=exec_command)
+    return result
+
+
 def admit_and_queue_http_run(
     job_entry: ThinkJobEntry,
     *,

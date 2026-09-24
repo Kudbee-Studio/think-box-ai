@@ -26,6 +26,7 @@ from backend.api.v1.run_governed import (
     open_http_run_receipt,
     parse_run_admission,
     require_http_admission,
+    resume_http_queued_job,
 )
 from thinkbox.governed_execution_lifecycle import lifecycle_worktree_path
 from backend.api.v1.run_receipts import read_run_receipt, read_run_receipt_by_engine
@@ -103,6 +104,12 @@ class RunResponse(BaseModel):
     session_id: str
     status: str
     summary: dict[str, Any]
+
+
+class ResumeRequest(BaseModel):
+    """Operator re-supply of a shell command after process death (QUEUED only)."""
+
+    exec_command: str | None = None
 
 
 @api_v1_router.get("/run/governance/status")
@@ -242,6 +249,48 @@ async def get_run_receipt_for_engine(engine_id: str, request: Request) -> Any:
     if not payload:
         raise HTTPException(status_code=404, detail="run_receipt_not_found")
     return conditional_json_response(request, payload)
+
+
+@api_v1_router.post("/run/job/{engine_id}/resume")
+async def resume_queued_think_job(
+    engine_id: str,
+    request: ResumeRequest | None = None,
+) -> dict[str, Any]:
+    """Resume a durable QUEUED job. Reuses the existing receipt; no second open."""
+    from thinkbox.governed_execution_lifecycle import open_lifecycle_repo, lifecycle_worktree_path
+    from thinkbox.lifecycle_resume import OUTCOME_SKIPPED
+
+    body = request or ResumeRequest()
+    repo = open_lifecycle_repo(lifecycle_worktree_path())
+    if repo.job_status(engine_id) is None:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    result = resume_http_queued_job(
+        engine_id,
+        exec_command=body.exec_command,
+    )
+    if result.outcome == OUTCOME_SKIPPED:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": result.error or "not_resume_eligible",
+                "job_id": result.job_id,
+                "phase": result.phase,
+            },
+        )
+    return {
+        "job_id": result.job_id,
+        "outcome": result.outcome,
+        "claimed": result.claimed,
+        "executed": result.executed,
+        "receipt_id": result.receipt_id,
+        "phase": result.phase,
+        "verdict": result.verdict,
+        "error": result.error,
+        "lease_id": result.lease_id,
+        "live_verified": False,
+        "live_api_called": False,
+        "production_ready": False,
+    }
 
 
 @api_v1_router.get("/run/job/{engine_id}/status")

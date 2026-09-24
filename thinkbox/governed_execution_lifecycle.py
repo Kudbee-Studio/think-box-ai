@@ -83,9 +83,13 @@ def persist_lifecycle_phase(
     verdict: str = "",
     http_proof_path: str = "",
     result: dict[str, Any] | None = None,
+    require_phase: str = "",
+    transition_kind: str = "",
+    lease_id: str = "",
 ) -> dict[str, Any]:
     """Append one durable lifecycle transition onto the Repository job."""
     from thinkbox.lifecycle_harden import (
+        LifecycleError,
         admission_must_be_first,
         bound_goal,
         bound_transitions,
@@ -123,6 +127,11 @@ def persist_lifecycle_phase(
     meta = dict(snap.get("metadata") or {})
     life = recover_corrupt_lifecycle_blob(meta.get(LIFECYCLE_META_KEY))
     current_phase = str(life.get("phase") or "")
+    if require_phase and current_phase != require_phase:
+        raise LifecycleError(
+            "cas_phase_mismatch",
+            f"expected phase {require_phase}, have {current_phase or 'none'}",
+        )
     if current_phase:
         reject_terminal_regression(current_phase, phase)
     if phase == PHASE_ADMISSION:
@@ -149,9 +158,20 @@ def persist_lifecycle_phase(
             job_id,
             status=http_status_for_phase(phase),
             metadata={LIFECYCLE_META_KEY: life},
+            require_lifecycle_phase=require_phase or None,
         )
+        if require_phase and not updated:
+            raise LifecycleError(
+                "cas_phase_mismatch",
+                f"expected phase {require_phase}, have {current_phase or 'none'}",
+            )
         return updated or {}
-    transitions.append({"phase": phase, "at": _now()})
+    entry: dict[str, Any] = {"phase": phase, "at": _now()}
+    if transition_kind:
+        entry["kind"] = transition_kind
+    if lease_id:
+        entry["lease_id"] = lease_id
+    transitions.append(entry)
     life["transitions"] = bound_transitions(transitions)
     life["phase"] = phase
     life["resume_eligible"] = resume_eligibility(phase)
@@ -182,7 +202,13 @@ def persist_lifecycle_phase(
         next_action="inspect" if phase in TERMINAL_PHASES else "run",
         metadata={LIFECYCLE_META_KEY: life},
         provenance_event=f"lifecycle:{phase}",
+        require_lifecycle_phase=require_phase or None,
     )
+    if require_phase and not updated:
+        raise LifecycleError(
+            "cas_phase_mismatch",
+            f"expected phase {require_phase}, have {current_phase or 'none'}",
+        )
     return updated or {}
 
 
