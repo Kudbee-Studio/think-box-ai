@@ -1,0 +1,139 @@
+{
+  "gate_id": "kudbee-sdk-followup-w3-expansion-packs",
+  "pr_number": 192,
+  "live_verified": false,
+  "pack_count": 26,
+  "theme": "long_range_connections_quantitative_energy_loops",
+  "packs": [
+    {
+      "id": "EXP01",
+      "name": "long_range_link_open",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_link_open.py"
+    },
+    {
+      "id": "EXP02",
+      "name": "long_range_link_ping",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_link_ping.py"
+    },
+    {
+      "id": "EXP03",
+      "name": "long_range_hop_budget",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_hop_budget.py"
+    },
+    {
+      "id": "EXP04",
+      "name": "long_range_correlation_chain",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_correlation_chain.py"
+    },
+    {
+      "id": "EXP05",
+      "name": "long_range_mesh_stub",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_mesh_stub.py"
+    },
+    {
+      "id": "EXP06",
+      "name": "long_range_keepalive_pulse",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_keepalive_pulse.py"
+    },
+    {
+      "id": "EXP07",
+      "name": "long_range_backoff_curve",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_backoff_curve.py"
+    },
+    {
+      "id": "EXP08",
+      "name": "long_range_connection_pool",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_connection_pool.py"
+    },
+    {
+      "id": "EXP09",
+      "name": "energy_loop_open",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_loop_open.py"
+    },
+    {
+      "id": "EXP10",
+      "name": "energy_loop_quantize_unit",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_loop_quantize_unit.py"
+    },
+    {
+      "id": "EXP11",
+      "name": "energy_flow_rate_meter",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_flow_rate_meter.py"
+    },
+    {
+      "id": "EXP12",
+      "name": "energy_conservation_check",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_conservation_check.py"
+    },
+    {
+      "id": "EXP13",
+      "name": "energy_idle_drain_model",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_idle_drain_model.py"
+    },
+    {
+      "id": "EXP14",
+      "name": "energy_throughput_stub",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_throughput_stub.py"
+    },
+    {
+      "id": "EXP15",
+      "name": "energy_loop_closure_verifier",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_loop_closure_verifier.py"
+    },
+    {
+      "id": "EXP16",
+      "name": "energy_free_flow_regulator",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_free_flow_regulator.py"
+    },
+    {
+      "id": "EXP17",
+      "name": "energy_session_attribution",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_session_attribution.py"
+    },
+    {
+      "id": "EXP18",
+      "name": "energy_task_budget_cap",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/energy_task_budget_cap.py"
+    },
+    {
+      "id": "EXP19",
+      "name": "quantitative_metrics_snapshot",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/quantitative_metrics_snapshot.py"
+    },
+    {
+      "id": "EXP20",
+      "name": "long_range_energy_bridge",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/long_range_energy_bridge.py"
+    },
+    {
+      "id": "EXP21",
+      "name": "twin_energy_receipt_stub",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/twin_energy_receipt_stub.py"
+    },
+    {
+      "id": "EXP22",
+      "name": "federation_long_path",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/federation_long_path.py"
+    },
+    {
+      "id": "EXP23",
+      "name": "pr192_expansion_gate_bind",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/pr192_expansion_gate_bind.py"
+    },
+    {
+      "id": "EXP24",
+      "name": "expansion_count_honesty",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/expansion_count_honesty.py"
+    },
+    {
+      "id": "EXP25",
+      "name": "no_live_energy_claim",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/no_live_energy_claim.py"
+    },
+    {
+      "id": "EXP26",
+      "name": "pack_registry",
+      "module": "thinkbox/kudbee_sdk_followup_w3_expansion/packs/pack_registry.py"
+    }
+  ]
+}
