@@ -5,10 +5,11 @@ from typing import Any
 
 
 def activate_lane() -> dict[str, Any]:
+    from thinkbox.cnc.tenant import Tenant, TenantBoundary, TenantPlan
 
-    from thinkbox.cnc.tenant import TenantBoundary
-    ok = TenantBoundary(tenant_id="ent-1", label="simulated").tenant_id == "ent-1"
-
+    tenant = Tenant(tenant_id="ent-1", name="simulated", plan=TenantPlan.ENTERPRISE.value)
+    boundary = TenantBoundary(tenant)
+    ok = boundary.tenant.tenant_id == "ent-1"
     return {
         "lane_id": "ENT02",
         "ok": ok,

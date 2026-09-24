@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #194 (draft): Kudbee SDK lr-energy major fixes (25 fixes)
+### 2026-09-24 — PR #195 (draft): Kudbee SDK enterprise lr-energy lanes (25 commits)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_enterprise_lr_energy/`; gate `kudbee-sdk-enterprise-lr-energy-lanes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Commits** | 25 enterprise lanes ENT01–ENT25 (tenant/RBAC/SLA/compliance/audit/SOC2 themes) |
+| **Verify** | `python3 scripts/verify_kilo_pr195_kudbee_sdk_enterprise_lr_energy.py` |
+
+### 2026-09-24 — PR #194 (merged): Kudbee SDK lr-energy major fixes (25 fixes)
 
 | Field | Value |
 |---|---|
