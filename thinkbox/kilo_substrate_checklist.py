@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 from urllib.parse import urlparse
 
 from thinkbox.kilo_env_matrix import (
@@ -320,7 +321,9 @@ def _matrix_environ_for_check(
     return projected
 
 
-def _matrix_violations_to_substrate(matrix_violations: list[MatrixViolation]) -> list[SubstrateViolation]:
+def _matrix_violations_to_substrate(
+    matrix_violations: list[MatrixViolation],
+) -> list[SubstrateViolation]:
     return [
         SubstrateViolation(
             code=f"env_matrix_{v.code}",

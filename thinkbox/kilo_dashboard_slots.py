@@ -12,10 +12,11 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence import redact_secret_value
@@ -142,8 +143,7 @@ class SlotValidationResult:
         return {
             "ok": self.ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "ordered_slot_ids": list(self.ordered_slot_ids),
             "occupancy": dict(self.occupancy),
@@ -320,7 +320,9 @@ def validate_slot_registry_document(
     dumped = json.dumps(doc)
     if _SECRET_PATTERN.search(dumped):
         violations.append(
-            DashboardSlotsViolation(code="secret_like_literal", message="secret pattern in document")
+            DashboardSlotsViolation(
+                code="secret_like_literal", message="secret pattern in document"
+            )
         )
 
     slot_nodes = _slot_nodes_from_doc(doc)
@@ -369,7 +371,9 @@ def validate_slot_registry_document(
         bind = slot.get("bind")
         if not isinstance(bind, dict):
             violations.append(
-                DashboardSlotsViolation(code="bind_missing", message="bind object required", path=path)
+                DashboardSlotsViolation(
+                    code="bind_missing", message="bind object required", path=path
+                )
             )
             occupancy[sid] = OccupancyState.UNBOUND.value
             continue
@@ -490,9 +494,10 @@ def validate_slot_registry_document(
                 for item in dod:
                     if not isinstance(item, dict):
                         continue
-                    if item.get("met") is True and str(item.get("predicate") or "").lower().find(
-                        "live"
-                    ) >= 0:
+                    if (
+                        item.get("met") is True
+                        and str(item.get("predicate") or "").lower().find("live") >= 0
+                    ):
                         violations.append(
                             DashboardSlotsViolation(
                                 code="dod_display_live_claim",
@@ -847,7 +852,7 @@ def evaluate_dashboard_slots(
         mode=resolved_mode,
         ok=ok,
         proof_schema_ok=proof.ok,
-        violations=violations if not ok else [],
+        violations=tuple(violations) if not ok else (),
         evidence=evidence,
     )
 

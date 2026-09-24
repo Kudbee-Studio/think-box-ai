@@ -7,6 +7,7 @@ import unittest
 from unittest import mock
 
 from thinkbox.beyond_kilo_lint import (
+    BEYOND_KILO_LINT_VERSION,
     LINT_SCOPE_REL_PATHS,
     execute_beyond_kilo_lint_suite,
     lint_execution_enabled,
@@ -43,6 +44,10 @@ class TestBeyondKiloLintPrimitives(unittest.TestCase):
     def test_scope_paths_cover_gate_modules(self) -> None:
         for rel in LINT_SCOPE_REL_PATHS:
             self.assertTrue((REPO_ROOT / rel).is_file(), msg=rel)
+
+    def test_wave1_scope_count(self) -> None:
+        self.assertEqual(BEYOND_KILO_LINT_VERSION, "2")
+        self.assertEqual(len(LINT_SCOPE_REL_PATHS), 25)
 
 
 class TestBeyondKiloLintExecution(unittest.TestCase):

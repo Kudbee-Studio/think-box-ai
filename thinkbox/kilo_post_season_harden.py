@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_live_proof_exec import (
@@ -213,11 +214,7 @@ def evaluate_post_season_harden(
     run_checklist: bool = True,
 ) -> PostSeasonHardenResult:
     """Evaluate post-season harden gate (hermetic only)."""
-    resolved = (
-        PostSeasonHardenMode(mode.value)
-        if isinstance(mode, EnvMatrixMode)
-        else mode
-    )
+    resolved = PostSeasonHardenMode(mode.value) if isinstance(mode, EnvMatrixMode) else mode
     violations: list[PostSeasonHardenViolation] = []
 
     live_exec = hermetic_live_proof_exec_operator_check(environ)
@@ -323,7 +320,7 @@ def evaluate_post_season_harden(
         mode=resolved,
         ok=ok,
         live_proof_exec_ok=live_proof_exec_ok,
-        violations=violations if not ok else (),
+        violations=tuple(violations) if not ok else (),
         evidence=evidence,
     )
 

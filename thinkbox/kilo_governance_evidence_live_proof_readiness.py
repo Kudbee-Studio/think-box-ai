@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.governance_evidence_live_proof_readiness import (
     GOVERNANCE_EVIDENCE_LIVE_PROOF_READINESS_LABEL,
@@ -23,12 +24,16 @@ from thinkbox.governance_evidence_live_proof_readiness import (
 )
 from thinkbox.kilo_control_plane_e2e_deepen import (
     GATE_ID as PRIOR_E2E_GATE_ID,
+)
+from thinkbox.kilo_control_plane_e2e_deepen import (
     hermetic_control_plane_e2e_deepen_check,
     minimal_control_plane_e2e_deepen_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence import (
     GATE_ID as GOVERNANCE_EVIDENCE_GATE_ID,
+)
+from thinkbox.kilo_governance_evidence import (
     governance_evidence_gate_closed,
     hermetic_governance_operator_check,
 )

@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import json
 import os
-import sys
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.control_plane_e2e_assertions import (
     CONTROL_PLANE_E2E_DEEPEN_LABEL,
@@ -20,6 +20,8 @@ from thinkbox.control_plane_e2e_assertions import (
 )
 from thinkbox.kilo_end_link_api_ops_harden import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_end_link_api_ops_harden import (
     hermetic_end_link_api_ops_harden_check,
     minimal_end_link_api_ops_harden_environ,
 )

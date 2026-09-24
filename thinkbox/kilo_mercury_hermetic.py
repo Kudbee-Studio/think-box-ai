@@ -8,19 +8,18 @@ modes. Aligned with ``thinkbox/cli_live_gate.swarm_live_authorization_report``.
 
 from __future__ import annotations
 
-import json
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
 from thinkbox.identity import IdentityLedger
 from thinkbox.kilo_env_matrix import (
     EnvMatrixMode,
     detect_matrix_mode,
-    evaluate_env_matrix,
 )
 from thinkbox.kilo_governance_evidence import (
     GovernanceEvidenceResult,
@@ -281,7 +280,7 @@ def redact_mercury_summary(text: str) -> str:
     for key in _PROVIDER_KEYS:
         scrubbed = re.sub(
             rf'("{key}"\s*:\s*")[^"]+(")',
-            rf"\1<redacted>\2",
+            r"\1<redacted>\2",
             scrubbed,
         )
     return scrubbed

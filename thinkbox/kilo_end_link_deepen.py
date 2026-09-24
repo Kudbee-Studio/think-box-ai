@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.agent.control_plane.store import ActionReceiptStore
 from thinkbox.end_link_api import END_LINK_API_LABEL, END_LINK_BATCH_ROUTE_SUFFIX
@@ -22,6 +23,8 @@ from thinkbox.end_link_deepen import (
 )
 from thinkbox.kilo_api_ops_harden import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_api_ops_harden import (
     hermetic_api_ops_harden_check,
     minimal_api_ops_harden_environ,
 )
@@ -114,18 +117,28 @@ def minimal_end_link_deepen_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[EndLinkDeepenViolation]:
     violations: list[EndLinkDeepenViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(EndLinkDeepenViolation(code="gate_id_mismatch", message="checklist gate_id"))
+        violations.append(
+            EndLinkDeepenViolation(code="gate_id_mismatch", message="checklist gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(EndLinkDeepenViolation(code="pr_number_mismatch", message="checklist pr_number"))
+        violations.append(
+            EndLinkDeepenViolation(code="pr_number_mismatch", message="checklist pr_number")
+        )
     if doc.get("live_verified") is True:
-        violations.append(EndLinkDeepenViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            EndLinkDeepenViolation(code="live_verified_true", message="must stay false")
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            EndLinkDeepenViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+            EndLinkDeepenViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            ),
         )
     if doc.get("end_link_deepen_version") != END_LINK_DEEPEN_VERSION:
         violations.append(
-            EndLinkDeepenViolation(code="deepen_version", message="end_link_deepen_version mismatch"),
+            EndLinkDeepenViolation(
+                code="deepen_version", message="end_link_deepen_version mismatch"
+            ),
         )
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
@@ -142,7 +155,9 @@ def _check_files() -> list[EndLinkDeepenViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                EndLinkDeepenViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                EndLinkDeepenViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
         violations.append(
@@ -156,7 +171,9 @@ def _check_files() -> list[EndLinkDeepenViolation]:
         except json.JSONDecodeError:
             violations.append(EndLinkDeepenViolation(code="checklist_json", message="invalid JSON"))
     else:
-        violations.append(EndLinkDeepenViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+        violations.append(
+            EndLinkDeepenViolation(code="checklist_missing", message=str(CHECKLIST_REL))
+        )
     return violations
 
 
@@ -249,7 +266,9 @@ def evaluate_end_link_deepen(
 
     fixture_ok = not fixture_errors and pos >= 3 and neg >= 1
     if not fixture_ok:
-        violations.append(EndLinkDeepenViolation(code="fixture_suite_weak", message="deepen fixtures weak"))
+        violations.append(
+            EndLinkDeepenViolation(code="fixture_suite_weak", message="deepen fixtures weak")
+        )
 
     markers_ok = len(marker_violations) == 0
     ok = prior.ok and fixture_ok and markers_ok and not file_violations and not fixture_errors

@@ -6,9 +6,9 @@ import os
 import signal
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 __all__ = (
     "DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS",

@@ -7,10 +7,10 @@ claims in spine docs, and README/runbook pointers to fast spine + explicit lint.
 
 from __future__ import annotations
 
-import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from thinkbox.kilo_live_proof_readiness import (
     REPO_ROOT,
@@ -188,8 +188,7 @@ def validate_chronicle_documents(
     readme_scan = "\n".join(
         line
         for line in readme.splitlines()
-        if "do not claim" not in line.lower()
-        and "must not claim" not in line.lower()
+        if "do not claim" not in line.lower() and "must not claim" not in line.lower()
     )
     for literal in find_forbidden_literal_claims(readme_scan):
         violations.append(

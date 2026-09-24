@@ -26,6 +26,7 @@ PR #169 adds ``pr169_combined_post168_lane`` (operator audit-flip post168 + api 
 PR #170 adds ``beyond_kilo_lint_readiness`` (ruff + mypy + bandit scoped lint lane; not Live proof; not a combined umbrella).
 PR #172 documents CI spine-trust (workflow manifest only; not a spine block).
 PR #173 documents chronicle honesty (spine Markdown contracts; not a spine block).
+PR #174 documents lint scope wave 1 (25-module scope manifest; not a spine block).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
@@ -36,10 +37,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -188,6 +189,11 @@ def gate_for_pr(pr_number: int) -> ArcGate | None:
     return None
 
 
+def _arc_gate_id(pr_number: int) -> str | None:
+    gate = gate_for_pr(pr_number)
+    return gate.gate_id if gate is not None else None
+
+
 @contextmanager
 def _spine_fast_mode_context(fast: bool) -> Iterator[None]:
     """Temporarily set ``KILO_SPINE_FAST`` for nested gate evaluation."""
@@ -216,33 +222,27 @@ def spine_contract_summary(fast: bool = False) -> dict[str, object]:
 
 
 def _build_spine_contract_summary_body() -> dict[str, object]:
-    from thinkbox.kilo_env_matrix import env_matrix_contract_summary
-    from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
-    from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
-    from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
-    from thinkbox.kilo_dashboard_slots import dashboard_slots_contract_summary
-    from thinkbox.kilo_live_proof_exec import live_proof_exec_contract_summary
-    from thinkbox.kilo_live_smoke_evidence import live_smoke_evidence_contract_summary
-    from thinkbox.kilo_live_smoke_operator import live_smoke_operator_contract_summary
+    from thinkbox.kilo_api_ops_harden import api_ops_harden_contract_summary
+    from thinkbox.kilo_beyond_kilo_lint import beyond_kilo_lint_contract_summary
     from thinkbox.kilo_control_plane_api import control_plane_api_contract_summary
-    from thinkbox.kilo_receipt_chain_etag import receipt_chain_etag_contract_summary
+    from thinkbox.kilo_control_plane_e2e_deepen import control_plane_e2e_deepen_contract_summary
     from thinkbox.kilo_dashboard_receipt_chain_bind import (
         dashboard_receipt_chain_bind_contract_summary,
     )
-    from thinkbox.kilo_api_ops_harden import api_ops_harden_contract_summary
+    from thinkbox.kilo_dashboard_slots import dashboard_slots_contract_summary
+    from thinkbox.kilo_end_link_api_ops_harden import end_link_api_ops_harden_contract_summary
     from thinkbox.kilo_end_link_deepen import end_link_deepen_contract_summary
     from thinkbox.kilo_end_link_operator_ux import end_link_operator_ux_contract_summary
-    from thinkbox.kilo_receipt_chain_end_link_docs import (
-        receipt_chain_end_link_docs_contract_summary,
-    )
-    from thinkbox.kilo_end_link_api_ops_harden import end_link_api_ops_harden_contract_summary
-    from thinkbox.kilo_control_plane_e2e_deepen import control_plane_e2e_deepen_contract_summary
+    from thinkbox.kilo_env_matrix import env_matrix_contract_summary
+    from thinkbox.kilo_governance_evidence import governance_evidence_contract_summary
     from thinkbox.kilo_governance_evidence_live_proof_readiness import (
         governance_evidence_live_proof_readiness_contract_summary,
     )
-    from thinkbox.kilo_receipt_chain_end_link_era_close import (
-        receipt_chain_end_link_era_close_contract_summary,
-    )
+    from thinkbox.kilo_live_proof_exec import live_proof_exec_contract_summary
+    from thinkbox.kilo_live_smoke_evidence import live_smoke_evidence_contract_summary
+    from thinkbox.kilo_live_smoke_operator import live_smoke_operator_contract_summary
+    from thinkbox.kilo_mercury_hermetic import mercury_hermetic_contract_summary
+    from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_pr165_combined_harden_era_chronicle import (
         pr165_combined_harden_era_chronicle_contract_summary,
     )
@@ -258,9 +258,15 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
     from thinkbox.kilo_pr169_combined_post168_lane import (
         pr169_combined_post168_lane_contract_summary,
     )
-    from thinkbox.kilo_beyond_kilo_lint import beyond_kilo_lint_contract_summary
-    from thinkbox.kilo_post_season_harden import post_season_harden_contract_summary
     from thinkbox.kilo_proof_schema import proof_schema_contract_summary
+    from thinkbox.kilo_receipt_chain_end_link_docs import (
+        receipt_chain_end_link_docs_contract_summary,
+    )
+    from thinkbox.kilo_receipt_chain_end_link_era_close import (
+        receipt_chain_end_link_era_close_contract_summary,
+    )
+    from thinkbox.kilo_receipt_chain_etag import receipt_chain_etag_contract_summary
+    from thinkbox.kilo_substrate_checklist import substrate_checklist_contract_summary
     from thinkbox.kilo_swarm_instrumentation import swarm_instrumentation_contract_summary
 
     runbook_raw = load_text(runbook_path())
@@ -305,15 +311,15 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
         "affirmative_kilo_claims_in_runbook": find_affirmative_kilo_live_claims(runbook_scan),
         "four_state_max": "TEST_VERIFIED",
         "live_proof_in_this_pr": False,
-        "pr141_gate_id": (gate_for_pr(141).gate_id if gate_for_pr(141) else None),
-        "pr142_gate_id": (gate_for_pr(142).gate_id if gate_for_pr(142) else None),
-        "pr143_gate_id": (gate_for_pr(143).gate_id if gate_for_pr(143) else None),
-        "pr145_gate_id": (gate_for_pr(145).gate_id if gate_for_pr(145) else None),
-        "pr146_gate_id": (gate_for_pr(146).gate_id if gate_for_pr(146) else None),
-        "pr147_gate_id": (gate_for_pr(147).gate_id if gate_for_pr(147) else None),
-        "pr148_gate_id": (gate_for_pr(148).gate_id if gate_for_pr(148) else None),
-        "pr149_gate_id": (gate_for_pr(149).gate_id if gate_for_pr(149) else None),
-        "pr150_gate_id": (gate_for_pr(150).gate_id if gate_for_pr(150) else None),
+        "pr141_gate_id": _arc_gate_id(141),
+        "pr142_gate_id": _arc_gate_id(142),
+        "pr143_gate_id": _arc_gate_id(143),
+        "pr145_gate_id": _arc_gate_id(145),
+        "pr146_gate_id": _arc_gate_id(146),
+        "pr147_gate_id": _arc_gate_id(147),
+        "pr148_gate_id": _arc_gate_id(148),
+        "pr149_gate_id": _arc_gate_id(149),
+        "pr150_gate_id": _arc_gate_id(150),
         "arc_season_complete": True,
         "env_matrix": env_summary,
         "substrate_checklist": substrate_summary,

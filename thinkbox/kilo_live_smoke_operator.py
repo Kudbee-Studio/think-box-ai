@@ -8,23 +8,26 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_live_proof_exec import FOUNDER_ACK_ENV, live_exec_env_ready
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_evidence import (
     GATE_ID as SMOKE_EVIDENCE_GATE_ID,
+)
+from thinkbox.kilo_live_smoke_evidence import (
     audit_flip_candidate,
     hermetic_live_smoke_evidence_operator_check,
     minimal_live_smoke_evidence_environ,
     minimal_valid_smoke_evidence_document,
     validate_smoke_evidence_document,
 )
-from thinkbox.kilo_live_proof_exec import FOUNDER_ACK_ENV, live_exec_env_ready
 from thinkbox.kilo_substrate_checklist import BOX_URL_ENV, redact_box_url
 
 __all__ = (
@@ -221,9 +224,7 @@ def parse_receipt_etag_pairs(
             SmokeOperatorViolation(code="receipt_ids_empty", message="receipt_ids required")
         )
     if not e_list:
-        violations.append(
-            SmokeOperatorViolation(code="etags_empty", message="etags required")
-        )
+        violations.append(SmokeOperatorViolation(code="etags_empty", message="etags required"))
     return r_list, e_list, violations
 
 
@@ -312,9 +313,7 @@ def write_smoke_evidence_artifact(
     val = validate_smoke_evidence_document(mutable, artifact_exists=False)
     if not val.ok:
         for v in val.violations:
-            violations.append(
-                SmokeOperatorViolation(code=v.code, message=v.message, path=v.path)
-            )
+            violations.append(SmokeOperatorViolation(code=v.code, message=v.message, path=v.path))
         return SmokeOperatorWriteResult(False, None, tuple(violations), dict(mutable))
 
     if mkdir:
@@ -323,9 +322,7 @@ def write_smoke_evidence_artifact(
     post_val = validate_smoke_evidence_document(mutable, artifact_exists=True)
     if not post_val.ok:
         for v in post_val.violations:
-            violations.append(
-                SmokeOperatorViolation(code=v.code, message=v.message, path=v.path)
-            )
+            violations.append(SmokeOperatorViolation(code=v.code, message=v.message, path=v.path))
         return SmokeOperatorWriteResult(False, out_path, tuple(violations), dict(mutable))
 
     return SmokeOperatorWriteResult(True, out_path, (), dict(mutable))
@@ -360,7 +357,9 @@ def write_audit_flip_candidate_file(
     candidate["operator_pr_number"] = PR_NUMBER
     candidate["prior_pass"] = str(audit_prior_rel)
     candidate_path.parent.mkdir(parents=True, exist_ok=True)
-    candidate_path.write_text(json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    candidate_path.write_text(
+        json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return candidate_path, candidate
 
 

@@ -12,10 +12,11 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from thinkbox.kilo_dashboard_slots import (
     DashboardSlotsResult,
@@ -79,9 +80,7 @@ _ARTIFACT_DIR_REL = Path("data/thinkboxmd/artifacts")
 _ARTIFACT_GLOB = "kilo_live_proof_*.json"
 _AUDIT_PASS_GLOB = "docs/audit/passes/*-pr150.json"
 
-_REQUIRED_PRIOR: tuple[str, ...] = tuple(
-    gid for gid in gate_ids() if gid != GATE_ID
-)
+_REQUIRED_PRIOR: tuple[str, ...] = tuple(gid for gid in gate_ids() if gid != GATE_ID)
 REQUIRED_PRIOR_GATE_IDS: frozenset[str] = frozenset(_REQUIRED_PRIOR)
 
 _SECRET_PATTERN = re.compile(
@@ -143,8 +142,7 @@ class PlanValidationResult:
         return {
             "ok": self.ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "ordered_step_ids": list(self.ordered_step_ids),
         }
@@ -198,8 +196,7 @@ class LiveProofExecResult:
             "ok": self.ok,
             "dashboard_slots_ok": self.dashboard_slots_ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "evidence": self.evidence.to_dict() if self.evidence else None,
         }
@@ -339,7 +336,9 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
 
     if doc.get("schema_version") != "kilo-live-proof-exec-v1":
         hits.append(
-            _violation("schema_version", "schema_version must be kilo-live-proof-exec-v1", "schema_version")
+            _violation(
+                "schema_version", "schema_version must be kilo-live-proof-exec-v1", "schema_version"
+            )
         )
 
     if doc.get("gate_id") != GATE_ID:
@@ -360,12 +359,18 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
 
     if doc.get("box_url_env_key") != BOX_URL_ENV:
         hits.append(
-            _violation("box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key")
+            _violation(
+                "box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"
+            )
         )
 
     if doc.get("live_api_called") is True:
         hits.append(
-            _violation("live_api_forbidden", "live_api_called must be false in hermetic plans", "live_api_called")
+            _violation(
+                "live_api_forbidden",
+                "live_api_called must be false in hermetic plans",
+                "live_api_called",
+            )
         )
 
     four_state = doc.get("four_state_max")
@@ -411,14 +416,22 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
         for idx, gid in enumerate(prior):
             if gid not in gate_ids():
                 hits.append(
-                    _violation("unknown_prior_gate", f"unknown gate {gid}", f"prior_gate_ids[{idx}]")
+                    _violation(
+                        "unknown_prior_gate", f"unknown gate {gid}", f"prior_gate_ids[{idx}]"
+                    )
                 )
         if GATE_ID in prior_set:
             hits.append(
-                _violation("prior_includes_self", "prior_gate_ids must not include live-proof-exec", "prior_gate_ids")
+                _violation(
+                    "prior_includes_self",
+                    "prior_gate_ids must not include live-proof-exec",
+                    "prior_gate_ids",
+                )
             )
     else:
-        hits.append(_violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids"))
+        hits.append(
+            _violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids")
+        )
 
     halt_allowed = doc.get("halt_reasons_allowed") or []
     if isinstance(halt_allowed, list):
@@ -433,7 +446,9 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
                 )
     else:
         hits.append(
-            _violation("halt_reasons_type", "halt_reasons_allowed must be array", "halt_reasons_allowed")
+            _violation(
+                "halt_reasons_type", "halt_reasons_allowed must be array", "halt_reasons_allowed"
+            )
         )
 
     marker = doc.get("season_arc_marker")
@@ -450,14 +465,18 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
     ordered: list[str] = []
     if isinstance(steps, list):
         if len(steps) < 3:
-            hits.append(_violation("steps_too_few", "steps must include bounded smoke chain", "steps"))
+            hits.append(
+                _violation("steps_too_few", "steps must include bounded smoke chain", "steps")
+            )
         for idx, step in enumerate(steps):
             if not isinstance(step, Mapping):
                 hits.append(_violation("step_shape", f"step {idx} not object", f"steps[{idx}]"))
                 continue
             sid = step.get("step_id")
             if not sid:
-                hits.append(_violation("step_id_missing", "step_id required", f"steps[{idx}].step_id"))
+                hits.append(
+                    _violation("step_id_missing", "step_id required", f"steps[{idx}].step_id")
+                )
             else:
                 ordered.append(str(sid))
             net = step.get("network")
@@ -474,7 +493,9 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
 
     artifacts = doc.get("artifact_paths") or []
     if not isinstance(artifacts, list) or not artifacts:
-        hits.append(_violation("artifact_paths_empty", "artifact_paths must be non-empty", "artifact_paths"))
+        hits.append(
+            _violation("artifact_paths_empty", "artifact_paths must be non-empty", "artifact_paths")
+        )
     else:
         for idx, ap in enumerate(artifacts):
             if not isinstance(ap, str) or not ap.startswith("data/thinkboxmd/"):
@@ -639,13 +660,7 @@ def evaluate_live_proof_exec(
         evidence_label="inferred",
     )
 
-    ok = (
-        slots.ok
-        and contract_ok
-        and not fixture_errors
-        and minimal_val.ok
-        and len(violations) == 0
-    )
+    ok = slots.ok and contract_ok and not fixture_errors and minimal_val.ok and len(violations) == 0
     return LiveProofExecResult(
         mode=resolved_mode,
         ok=ok,

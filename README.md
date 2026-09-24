@@ -15,7 +15,8 @@ wraps side effects so draft/simulate stays the default without a governance toke
 | Beyond-KILO lint readiness (scoped ruff/mypy/bandit) | **#170** | **Merged** — hermetic gate only |
 | Post-#170 implementation roadmap (planning doc) | **#171** | **Merged** — `docs/roadmaps/kilo-post-170-pr-roadmap.md` |
 | CI spine-trust (fast spine + explicit lint in PR CI) | **#172** | **Merged** — see H31 in live-proof runbook |
-| Chronicle honesty (README + spine Markdown sync) | **#173** | **Draft** — this docs wave |
+| Chronicle honesty (README + spine Markdown sync) | **#173** | **Merged** |
+| Lint scope wave 1 (25 spine modules + enterprise editing commitments) | **#174** | **Draft** — `docs/guides/kilo_enterprise_editing.md` |
 
 **Four-state honesty:** Hermetic PR work stops at **CODE COMPLETE / TEST VERIFIED**.
 Do not claim **KILO LIVE VERIFIED**, **KILO PRODUCTION READY**, or earned Live proof

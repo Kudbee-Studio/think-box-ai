@@ -8,14 +8,17 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_operator import (
     GATE_ID as OPERATOR_GATE_ID,
+)
+from thinkbox.kilo_live_smoke_operator import (
     hermetic_live_smoke_operator_check,
     minimal_live_smoke_operator_environ,
 )
@@ -117,7 +120,9 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[ControlPlaneApiV
         )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            ControlPlaneApiViolation(code="four_state", message="four_state_max must be TEST_VERIFIED")
+            ControlPlaneApiViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            )
         )
     return violations
 
@@ -162,7 +167,9 @@ def _check_route_wiring() -> list[ControlPlaneApiViolation]:
     main_text = (REPO_ROOT / "backend/main.py").read_text(encoding="utf-8")
     if "control_plane_api" not in main_text:
         violations.append(
-            ControlPlaneApiViolation(code="main_router_missing", message="main.py must include control_plane_api")
+            ControlPlaneApiViolation(
+                code="main_router_missing", message="main.py must include control_plane_api"
+            )
         )
     cp_text = (REPO_ROOT / "backend/api/v1/control_plane.py").read_text(encoding="utf-8")
     for marker in _REQUIRED_ROUTE_MARKERS:
@@ -256,7 +263,9 @@ def evaluate_control_plane_api(
     contract_ok = not fixture_errors and pos >= 2 and neg >= 2
     if not contract_ok:
         violations.append(
-            ControlPlaneApiViolation(code="contract_suite_weak", message="contract fixtures insufficient")
+            ControlPlaneApiViolation(
+                code="contract_suite_weak", message="contract fixtures insufficient"
+            )
         )
 
     route_ok = len(route_violations) == 0 and "control_plane_api" in (
@@ -271,13 +280,7 @@ def evaluate_control_plane_api(
         contract_tests_ok=contract_ok,
         live_api_called=False,
     )
-    ok = (
-        operator_ok
-        and contract_ok
-        and route_ok
-        and not file_violations
-        and not fixture_errors
-    )
+    ok = operator_ok and contract_ok and route_ok and not file_violations and not fixture_errors
     return ControlPlaneApiResult(
         mode=resolved,
         ok=ok,

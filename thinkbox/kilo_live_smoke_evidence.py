@@ -12,21 +12,23 @@ import copy
 import json
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_governance_evidence import redact_secret_value
 from thinkbox.kilo_live_proof_exec import (
     ARC_SEASON_COMPLETE,
     FOUNDER_ACK_ENV,
-    hermetic_live_proof_exec_operator_check,
 )
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT, gate_for_pr, gate_ids
 from thinkbox.kilo_post_season_harden import (
     GATE_ID as POST_SEASON_GATE_ID,
+)
+from thinkbox.kilo_post_season_harden import (
     hermetic_post_season_harden_operator_check,
     minimal_post_season_harden_environ,
 )
@@ -188,8 +190,7 @@ class LiveSmokeEvidenceResult:
             "ok": self.ok,
             "post_season_harden_ok": self.post_season_harden_ok,
             "violations": [
-                {"code": v.code, "message": v.message, "path": v.path}
-                for v in self.violations
+                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
             ],
             "evidence": self.evidence.to_dict() if self.evidence else None,
         }
@@ -238,7 +239,9 @@ def _validate_gate_chain_cues(
         return
     if not isinstance(cues, list):
         hits.append(
-            _violation("gate_chain_cues_type", "cues must be array", f"gate_chain[{chain_idx}].cues")
+            _violation(
+                "gate_chain_cues_type", "cues must be array", f"gate_chain[{chain_idx}].cues"
+            )
         )
         return
     for cue_idx, cue in enumerate(cues):
@@ -323,7 +326,9 @@ def validate_smoke_evidence_document(
 
     if doc.get("box_url_env_key") != BOX_URL_ENV:
         hits.append(
-            _violation("box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key")
+            _violation(
+                "box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"
+            )
         )
 
     four_state = doc.get("four_state_max")
@@ -376,12 +381,16 @@ def validate_smoke_evidence_document(
                 )
             )
     else:
-        hits.append(_violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids"))
+        hits.append(
+            _violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids")
+        )
 
     halt = doc.get("halt_reason")
     if halt is not None and halt not in HALT_REASONS:
         hits.append(
-            _violation("unknown_halt_reason", f"halt_reason {halt} not in HALT_REASONS", "halt_reason")
+            _violation(
+                "unknown_halt_reason", f"halt_reason {halt} not in HALT_REASONS", "halt_reason"
+            )
         )
 
     marker = doc.get("season_arc_marker")
@@ -415,16 +424,26 @@ def validate_smoke_evidence_document(
     if isinstance(gate_chain, list):
         if len(gate_chain) < 2:
             hits.append(
-                _violation("gate_chain_too_short", "gate_chain must include spine + smoke hops", "gate_chain")
+                _violation(
+                    "gate_chain_too_short",
+                    "gate_chain must include spine + smoke hops",
+                    "gate_chain",
+                )
             )
         for idx, hop in enumerate(gate_chain):
             if not isinstance(hop, Mapping):
-                hits.append(_violation("gate_chain_shape", f"hop {idx} not object", f"gate_chain[{idx}]"))
+                hits.append(
+                    _violation("gate_chain_shape", f"hop {idx} not object", f"gate_chain[{idx}]")
+                )
                 continue
             gid = hop.get("gate_id")
             if not gid:
                 hits.append(
-                    _violation("gate_chain_gate_id", "gate_id required on hop", f"gate_chain[{idx}].gate_id")
+                    _violation(
+                        "gate_chain_gate_id",
+                        "gate_id required on hop",
+                        f"gate_chain[{idx}].gate_id",
+                    )
                 )
             else:
                 chain_ids.append(str(gid))
@@ -447,7 +466,9 @@ def validate_smoke_evidence_document(
     endpoints = doc.get("redacted_endpoints") or {}
     if not isinstance(endpoints, Mapping):
         hits.append(
-            _violation("redacted_endpoints_type", "redacted_endpoints must be object", "redacted_endpoints")
+            _violation(
+                "redacted_endpoints_type", "redacted_endpoints must be object", "redacted_endpoints"
+            )
         )
     else:
         for key, value in endpoints.items():

@@ -7,12 +7,15 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_control_plane_api import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_control_plane_api import (
     hermetic_control_plane_api_operator_check,
     minimal_control_plane_api_environ,
 )
@@ -113,7 +116,9 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[ReceiptChainEtag
         )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            ReceiptChainEtagViolation(code="four_state", message="four_state_max must be TEST_VERIFIED")
+            ReceiptChainEtagViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            )
         )
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
@@ -174,6 +179,7 @@ def _check_route_markers() -> list[ReceiptChainEtagViolation]:
 
 
 def run_chain_fixture_suite() -> tuple[int, int, list[str]]:
+    from thinkbox.agent.control_plane.store import ActionReceiptStore
     from thinkbox.receipt_chain_query import (
         ReceiptChainValidationError,
         decode_cursor,
@@ -181,7 +187,6 @@ def run_chain_fixture_suite() -> tuple[int, int, list[str]]:
         fetch_chain_page,
         validate_receipt_link,
     )
-    from thinkbox.agent.control_plane.store import ActionReceiptStore
 
     errors: list[str] = []
     positive = 0
@@ -269,17 +274,13 @@ def evaluate_receipt_chain_etag(
     fixture_ok = not fixture_errors and pos >= 3 and neg >= 2
     if not fixture_ok:
         violations.append(
-            ReceiptChainEtagViolation(code="fixture_suite_weak", message="chain fixtures insufficient")
+            ReceiptChainEtagViolation(
+                code="fixture_suite_weak", message="chain fixtures insufficient"
+            )
         )
 
     route_ok = len(route_violations) == 0
-    ok = (
-        cp.ok
-        and fixture_ok
-        and route_ok
-        and not file_violations
-        and not fixture_errors
-    )
+    ok = cp.ok and fixture_ok and route_ok and not file_violations and not fixture_errors
     evidence = ReceiptChainEtagEvidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

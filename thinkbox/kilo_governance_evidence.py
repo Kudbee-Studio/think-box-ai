@@ -11,9 +11,10 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.admission import AdmissionDecision
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
@@ -327,9 +328,7 @@ def evaluate_governance_evidence(
     if not substrate_ok:
         violations.extend(_substrate_violations_to_governance(substrate_result.violations))
 
-    decision = _admission_for_token(
-        token_value, agent_id, capability, tokens, identities, now=now
-    )
+    decision = _admission_for_token(token_value, agent_id, capability, tokens, identities, now=now)
     if not decision.allowed:
         code_map = {
             "token_missing": "token_missing",
@@ -399,9 +398,7 @@ def hermetic_governance_operator_check(
         violations.extend(_substrate_violations_to_governance(substrate_op.violations))
     violations.extend(_violations_for_hermetic_operator(env))
 
-    matrix_ref = _env_matrix_summary_ref(
-        evaluate_env_matrix(mode, env)
-    )
+    matrix_ref = _env_matrix_summary_ref(evaluate_env_matrix(mode, env))
     substrate_ref = _substrate_summary_ref(substrate_op)
 
     decision = AdmissionDecision(
@@ -476,10 +473,7 @@ def governance_evidence_contract_summary(
         k: redact_secret_value(k, env.get(k))
         for k in sorted(
             set(env.keys())
-            & (
-                _SECRET_ENV_KEYS
-                | {"THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"}
-            )
+            & (_SECRET_ENV_KEYS | {"THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"})
         )
     }
     return {
