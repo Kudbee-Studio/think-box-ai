@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_end_link_api_ops_harden import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_end_link_api_ops_harden import (
     hermetic_end_link_api_ops_harden_check,
     minimal_end_link_api_ops_harden_environ,
 )
@@ -112,24 +115,44 @@ def minimal_receipt_chain_end_link_era_close_environ(
     return dict(base)
 
 
-def validate_checklist_document(doc: Mapping[str, Any]) -> list[ReceiptChainEndLinkEraCloseViolation]:
+def validate_checklist_document(
+    doc: Mapping[str, Any],
+) -> list[ReceiptChainEndLinkEraCloseViolation]:
     violations: list[ReceiptChainEndLinkEraCloseViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="gate_id_mismatch", message="gate_id"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(code="gate_id_mismatch", message="gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="pr_number_mismatch", message="pr_number"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(code="pr_number_mismatch", message="pr_number")
+        )
     if doc.get("live_verified") is True:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(
+                code="live_verified_true", message="must stay false"
+            )
+        )
     if doc.get("live_api_called") is True:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="live_api_called_true", message="must stay false"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(
+                code="live_api_called_true", message="must stay false"
+            )
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="four_state", message="four_state_max"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(code="four_state", message="four_state_max")
+        )
     if doc.get("receipt_chain_end_link_era_close_version") != ERA_CLOSE_VERSION:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="version_mismatch", message="version"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(code="version_mismatch", message="version")
+        )
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
         violations.append(
-            ReceiptChainEndLinkEraCloseViolation(code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"),
+            ReceiptChainEndLinkEraCloseViolation(
+                code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"
+            ),
         )
     return violations
 
@@ -139,23 +162,37 @@ def _check_files() -> list[ReceiptChainEndLinkEraCloseViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                ReceiptChainEndLinkEraCloseViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                ReceiptChainEndLinkEraCloseViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
         violations.append(
-            ReceiptChainEndLinkEraCloseViolation(code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)),
+            ReceiptChainEndLinkEraCloseViolation(
+                code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)
+            ),
         )
     checklist = REPO_ROOT / CHECKLIST_REL
     if checklist.is_file():
         try:
-            violations.extend(validate_checklist_document(json.loads(checklist.read_text(encoding="utf-8"))))
+            violations.extend(
+                validate_checklist_document(json.loads(checklist.read_text(encoding="utf-8")))
+            )
         except json.JSONDecodeError:
-            violations.append(ReceiptChainEndLinkEraCloseViolation(code="checklist_json", message="invalid JSON"))
+            violations.append(
+                ReceiptChainEndLinkEraCloseViolation(code="checklist_json", message="invalid JSON")
+            )
     else:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(
+                code="checklist_missing", message=str(CHECKLIST_REL)
+            )
+        )
     if not (REPO_ROOT / PR162_PASS_REL).is_file():
         violations.append(
-            ReceiptChainEndLinkEraCloseViolation(code="pr162_pass_missing", message="pr162 audit pass"),
+            ReceiptChainEndLinkEraCloseViolation(
+                code="pr162_pass_missing", message="pr162 audit pass"
+            ),
         )
     return violations
 
@@ -179,7 +216,9 @@ def _check_audit_index() -> list[ReceiptChainEndLinkEraCloseViolation]:
     violations: list[ReceiptChainEndLinkEraCloseViolation] = []
     index_path = REPO_ROOT / AUDIT_INDEX_REL
     if not index_path.is_file():
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="audit_index_missing", message="AUDIT_INDEX"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(code="audit_index_missing", message="AUDIT_INDEX")
+        )
         return violations
     passes = json.loads(index_path.read_text(encoding="utf-8")).get("passes") or []
     for suffix in ("pr161.json", "pr154-161-era-consolidated.json", "pr162.json"):
@@ -257,7 +296,11 @@ def evaluate_receipt_chain_end_link_era_close(
 
     fixture_ok = not fixture_errors and pos >= 3
     if not fixture_ok:
-        violations.append(ReceiptChainEndLinkEraCloseViolation(code="fixture_suite_weak", message="era fixtures weak"))
+        violations.append(
+            ReceiptChainEndLinkEraCloseViolation(
+                code="fixture_suite_weak", message="era fixtures weak"
+            )
+        )
 
     era_pack_ok = not validate_era_consolidated_154_161_pack(load_era_consolidated_pack())
     audit_index_ok = not index_violations

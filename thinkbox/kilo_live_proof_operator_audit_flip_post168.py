@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_operator_audit_flip_post167 import (
     GATE_ID as POST167_THEME_A_GATE,
+)
+from thinkbox.kilo_live_proof_operator_audit_flip_post167 import (
     hermetic_live_proof_operator_audit_flip_post167_check,
     minimal_live_proof_operator_audit_flip_post167_environ,
 )
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
-from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_smoke_audit_flip_harden import GATE_ID as AUDIT_FLIP_HARDEN_GATE
 from thinkbox.kilo_live_smoke_evidence import GATE_ID as SMOKE_GATE_ID
 from thinkbox.kilo_live_smoke_operator import GATE_ID as OPERATOR_GATE_ID
@@ -101,7 +104,9 @@ def validate_checklist_document(
     if doc.get("live_api_called") is True:
         violations.append(OperatorAuditFlipPost168Violation(code="live_api", message="false"))
     if doc.get("audit_flip_label") != OPERATOR_AUDIT_FLIP_POST168_LABEL:
-        violations.append(OperatorAuditFlipPost168Violation(code="audit_flip_label", message="label"))
+        violations.append(
+            OperatorAuditFlipPost168Violation(code="audit_flip_label", message="label")
+        )
     prior = doc.get("prior_gate_ids") or []
     for required in (
         POST167_THEME_A_GATE,
@@ -110,10 +115,14 @@ def validate_checklist_document(
         SMOKE_GATE_ID,
     ):
         if required not in prior:
-            violations.append(OperatorAuditFlipPost168Violation(code="prior_missing", message=required))
+            violations.append(
+                OperatorAuditFlipPost168Violation(code="prior_missing", message=required)
+            )
     expected = doc.get("required_checklist_items")
     if expected != len(operator_audit_flip_post168_checklist_items()):
-        violations.append(OperatorAuditFlipPost168Violation(code="checklist_count", message="count"))
+        violations.append(
+            OperatorAuditFlipPost168Violation(code="checklist_count", message="count")
+        )
     return violations
 
 

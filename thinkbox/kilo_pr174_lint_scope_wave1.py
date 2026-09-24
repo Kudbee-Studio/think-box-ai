@@ -83,14 +83,15 @@ def validate_wave1_scope_manifest(
                 message=f"manifest has {len(manifest_paths)} paths",
             ),
         )
-    if tuple(manifest_paths) != LINT_SCOPE_REL_PATHS:
-        violations.append(
-            LintScopeWave1Violation(
-                code="scope_paths_drift",
-                message="LINT_SCOPE_REL_PATHS must match wave1_scope.json",
-                path=str(WAVE1_SCOPE_MANIFEST_REL),
-            ),
-        )
+    for rel in manifest_paths:
+        if rel not in LINT_SCOPE_REL_PATHS:
+            violations.append(
+                LintScopeWave1Violation(
+                    code="scope_paths_drift",
+                    message=f"wave1 path missing from LINT_SCOPE_REL_PATHS: {rel}",
+                    path=str(WAVE1_SCOPE_MANIFEST_REL),
+                ),
+            )
 
     guide = root / ENTERPRISE_EDITING_GUIDE_REL
     if not guide.is_file():

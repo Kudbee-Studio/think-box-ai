@@ -8,20 +8,23 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.dashboard_receipt_chain_client import (
     DashboardReceiptChainClient,
     chain_api_paths,
     hermetic_fetch_chain_bind_state,
 )
-from thinkbox.end_link_api import END_LINK_API_LABEL, END_LINK_ROUTE_SUFFIX, build_end_link_path
+from thinkbox.end_link_api import END_LINK_API_LABEL, build_end_link_path
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_receipt_chain_etag import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_receipt_chain_etag import (
     hermetic_receipt_chain_etag_check,
     minimal_receipt_chain_etag_environ,
 )
@@ -115,7 +118,9 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[DashboardReceipt
         )
     if doc.get("pr_number") != PR_NUMBER:
         violations.append(
-            DashboardReceiptChainBindViolation(code="pr_number_mismatch", message="checklist pr_number")
+            DashboardReceiptChainBindViolation(
+                code="pr_number_mismatch", message="checklist pr_number"
+            )
         )
     if doc.get("live_verified") is True:
         violations.append(
@@ -226,7 +231,9 @@ def run_bind_fixture_suite() -> tuple[int, int, list[str]]:
 
     st = get_control_plane_receipt_store()
     if st.count() == 0:
-        st.append("dashboard_bind_probe", "OK", "hermetic", "simulated", metadata={"agent_id": "pr156"})
+        st.append(
+            "dashboard_bind_probe", "OK", "hermetic", "simulated", metadata={"agent_id": "pr156"}
+        )
     client = DashboardReceiptChainClient()
     probes = client.fetch_probes()
     if probes.head is not None or probes.tail is not None:
@@ -283,7 +290,9 @@ def evaluate_dashboard_receipt_chain_bind(
     bind_ok = not fixture_errors and pos >= 4 and neg >= 1
     if not bind_ok:
         violations.append(
-            DashboardReceiptChainBindViolation(code="fixture_suite_weak", message="bind fixtures weak")
+            DashboardReceiptChainBindViolation(
+                code="fixture_suite_weak", message="bind fixtures weak"
+            )
         )
 
     ui_ok = len(ui_violations) == 0

@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.agent.control_plane.store import ActionReceiptStore
 from thinkbox.end_link_api import END_LINK_API_LABEL
@@ -25,6 +26,8 @@ from thinkbox.end_link_operator_ux import (
 )
 from thinkbox.kilo_end_link_deepen import (
     GATE_ID as PRIOR_GATE_ID,
+)
+from thinkbox.kilo_end_link_deepen import (
     hermetic_end_link_deepen_check,
     minimal_end_link_deepen_environ,
 )
@@ -119,26 +122,40 @@ def minimal_end_link_operator_ux_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[EndLinkOperatorUxViolation]:
     violations: list[EndLinkOperatorUxViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(EndLinkOperatorUxViolation(code="gate_id_mismatch", message="checklist gate_id"))
+        violations.append(
+            EndLinkOperatorUxViolation(code="gate_id_mismatch", message="checklist gate_id")
+        )
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(EndLinkOperatorUxViolation(code="pr_number_mismatch", message="checklist pr_number"))
+        violations.append(
+            EndLinkOperatorUxViolation(code="pr_number_mismatch", message="checklist pr_number")
+        )
     if doc.get("live_verified") is True:
-        violations.append(EndLinkOperatorUxViolation(code="live_verified_true", message="must stay false"))
+        violations.append(
+            EndLinkOperatorUxViolation(code="live_verified_true", message="must stay false")
+        )
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
-            EndLinkOperatorUxViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"),
+            EndLinkOperatorUxViolation(
+                code="four_state", message="four_state_max must be TEST_VERIFIED"
+            ),
         )
     if doc.get("end_link_operator_ux_version") != END_LINK_OPERATOR_UX_VERSION:
         violations.append(
-            EndLinkOperatorUxViolation(code="ux_version", message="end_link_operator_ux_version mismatch"),
+            EndLinkOperatorUxViolation(
+                code="ux_version", message="end_link_operator_ux_version mismatch"
+            ),
         )
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
         violations.append(
-            EndLinkOperatorUxViolation(code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"),
+            EndLinkOperatorUxViolation(
+                code="prior_gate_missing", message=f"must list {PRIOR_GATE_ID}"
+            ),
         )
     if doc.get("end_link_api") != END_LINK_API_LABEL:
-        violations.append(EndLinkOperatorUxViolation(code="end_link_api", message="end_link_api label"))
+        violations.append(
+            EndLinkOperatorUxViolation(code="end_link_api", message="end_link_api label")
+        )
     return violations
 
 
@@ -147,11 +164,15 @@ def _check_files() -> list[EndLinkOperatorUxViolation]:
     for rel in _REQUIRED_MODULES:
         if not (REPO_ROOT / rel).is_file():
             violations.append(
-                EndLinkOperatorUxViolation(code="module_missing", message=f"missing {rel}", path=str(rel)),
+                EndLinkOperatorUxViolation(
+                    code="module_missing", message=f"missing {rel}", path=str(rel)
+                ),
             )
     if not (REPO_ROOT / VERIFY_SCRIPT_REL).is_file():
         violations.append(
-            EndLinkOperatorUxViolation(code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)),
+            EndLinkOperatorUxViolation(
+                code="verify_script_missing", message=str(VERIFY_SCRIPT_REL)
+            ),
         )
     checklist = REPO_ROOT / CHECKLIST_REL
     if checklist.is_file():
@@ -159,15 +180,21 @@ def _check_files() -> list[EndLinkOperatorUxViolation]:
             doc = json.loads(checklist.read_text(encoding="utf-8"))
             violations.extend(validate_checklist_document(doc))
         except json.JSONDecodeError:
-            violations.append(EndLinkOperatorUxViolation(code="checklist_json", message="invalid JSON"))
+            violations.append(
+                EndLinkOperatorUxViolation(code="checklist_json", message="invalid JSON")
+            )
     else:
-        violations.append(EndLinkOperatorUxViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
+        violations.append(
+            EndLinkOperatorUxViolation(code="checklist_missing", message=str(CHECKLIST_REL))
+        )
     return violations
 
 
 def _check_markers() -> list[EndLinkOperatorUxViolation]:
     violations: list[EndLinkOperatorUxViolation] = []
-    html = (REPO_ROOT / "public/control-plane/receipt_chain_dashboard.html").read_text(encoding="utf-8")
+    html = (REPO_ROOT / "public/control-plane/receipt_chain_dashboard.html").read_text(
+        encoding="utf-8"
+    )
     ux_js = (REPO_ROOT / "public/control-plane/control_plane_end_link_operator_ux.js").read_text(
         encoding="utf-8",
     )
@@ -218,7 +245,11 @@ def run_operator_ux_fixture_suite() -> tuple[int, int, list[str]]:
     else:
         errors.append("contract_snippet")
 
-    if summary.rows and summary.rows[0].prev_receipt_id is None and summary.rows[0].link_integrity == "ok":
+    if (
+        summary.rows
+        and summary.rows[0].prev_receipt_id is None
+        and summary.rows[0].link_integrity == "ok"
+    ):
         positive += 1
     else:
         errors.append("row_integrity_fields")
@@ -263,7 +294,11 @@ def evaluate_end_link_operator_ux(
 
     fixture_ok = not fixture_errors and pos >= 4 and neg >= 0
     if not fixture_ok:
-        violations.append(EndLinkOperatorUxViolation(code="fixture_suite_weak", message="operator ux fixtures weak"))
+        violations.append(
+            EndLinkOperatorUxViolation(
+                code="fixture_suite_weak", message="operator ux fixtures weak"
+            )
+        )
 
     markers_ok = len(marker_violations) == 0
     ok = prior.ok and fixture_ok and markers_ok and not file_violations and not fixture_errors

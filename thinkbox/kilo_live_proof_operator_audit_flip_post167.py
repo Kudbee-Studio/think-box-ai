@@ -4,31 +4,42 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_live_proof_operator_audit_flip_deepen import (
     GATE_ID as AUDIT_FLIP_DEEPEN_GATE,
+)
+from thinkbox.kilo_live_proof_operator_audit_flip_deepen import (
     hermetic_live_proof_operator_audit_flip_deepen_check,
     minimal_live_proof_operator_audit_flip_deepen_environ,
 )
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_audit_flip_harden import (
     GATE_ID as AUDIT_FLIP_HARDEN_GATE,
+)
+from thinkbox.kilo_live_smoke_audit_flip_harden import (
     hermetic_live_smoke_audit_flip_harden_check,
 )
 from thinkbox.kilo_live_smoke_evidence import (
     GATE_ID as SMOKE_GATE_ID,
+)
+from thinkbox.kilo_live_smoke_evidence import (
     hermetic_live_smoke_evidence_operator_check,
 )
 from thinkbox.kilo_live_smoke_operator import (
     GATE_ID as OPERATOR_GATE_ID,
+)
+from thinkbox.kilo_live_smoke_operator import (
     hermetic_live_smoke_operator_check,
 )
 from thinkbox.kilo_pr167_combined_post166_lane import (
     GATE_ID as PR167_GATE_ID,
+)
+from thinkbox.kilo_pr167_combined_post166_lane import (
     hermetic_pr167_combined_post166_lane_check,
 )
 from thinkbox.live_proof_operator_audit_flip_post167 import (
@@ -114,7 +125,9 @@ def validate_checklist_document(
     if doc.get("live_api_called") is True:
         violations.append(OperatorAuditFlipPost167Violation(code="live_api", message="false"))
     if doc.get("audit_flip_label") != OPERATOR_AUDIT_FLIP_POST167_LABEL:
-        violations.append(OperatorAuditFlipPost167Violation(code="audit_flip_label", message="label"))
+        violations.append(
+            OperatorAuditFlipPost167Violation(code="audit_flip_label", message="label")
+        )
     prior = doc.get("prior_gate_ids") or []
     for required in (
         AUDIT_FLIP_DEEPEN_GATE,
@@ -124,10 +137,14 @@ def validate_checklist_document(
         PR167_GATE_ID,
     ):
         if required not in prior:
-            violations.append(OperatorAuditFlipPost167Violation(code="prior_missing", message=required))
+            violations.append(
+                OperatorAuditFlipPost167Violation(code="prior_missing", message=required)
+            )
     expected = doc.get("required_checklist_items")
     if expected != len(operator_audit_flip_post167_checklist_items()):
-        violations.append(OperatorAuditFlipPost167Violation(code="checklist_count", message="count"))
+        violations.append(
+            OperatorAuditFlipPost167Violation(code="checklist_count", message="count")
+        )
     return violations
 
 
@@ -166,21 +183,31 @@ def evaluate_live_proof_operator_audit_flip_post167(
     deepen = hermetic_live_proof_operator_audit_flip_deepen_check(env)
     if not deepen.ok:
         violations.append(
-            OperatorAuditFlipPost167Violation(code="audit_flip_deepen", message=AUDIT_FLIP_DEEPEN_GATE),
+            OperatorAuditFlipPost167Violation(
+                code="audit_flip_deepen", message=AUDIT_FLIP_DEEPEN_GATE
+            ),
         )
     pr167 = hermetic_pr167_combined_post166_lane_check(env)
     if not pr167.ok:
-        violations.append(OperatorAuditFlipPost167Violation(code="pr167_combined", message=PR167_GATE_ID))
+        violations.append(
+            OperatorAuditFlipPost167Violation(code="pr167_combined", message=PR167_GATE_ID)
+        )
     smoke = hermetic_live_smoke_evidence_operator_check(env)
     if not smoke.ok:
-        violations.append(OperatorAuditFlipPost167Violation(code="smoke_evidence", message=SMOKE_GATE_ID))
+        violations.append(
+            OperatorAuditFlipPost167Violation(code="smoke_evidence", message=SMOKE_GATE_ID)
+        )
     op = hermetic_live_smoke_operator_check(env)
     if not op.ok:
-        violations.append(OperatorAuditFlipPost167Violation(code="smoke_operator", message=OPERATOR_GATE_ID))
+        violations.append(
+            OperatorAuditFlipPost167Violation(code="smoke_operator", message=OPERATOR_GATE_ID)
+        )
     harden = hermetic_live_smoke_audit_flip_harden_check(env)
     if not harden.ok:
         violations.append(
-            OperatorAuditFlipPost167Violation(code="audit_flip_harden", message=AUDIT_FLIP_HARDEN_GATE),
+            OperatorAuditFlipPost167Violation(
+                code="audit_flip_harden", message=AUDIT_FLIP_HARDEN_GATE
+            ),
         )
 
     checklist = REPO_ROOT / CHECKLIST_REL

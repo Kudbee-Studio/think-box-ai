@@ -45,9 +45,9 @@ class TestBeyondKiloLintPrimitives(unittest.TestCase):
         for rel in LINT_SCOPE_REL_PATHS:
             self.assertTrue((REPO_ROOT / rel).is_file(), msg=rel)
 
-    def test_wave1_scope_count(self) -> None:
-        self.assertEqual(BEYOND_KILO_LINT_VERSION, "2")
-        self.assertEqual(len(LINT_SCOPE_REL_PATHS), 25)
+    def test_lint_scope_versions(self) -> None:
+        self.assertEqual(BEYOND_KILO_LINT_VERSION, "3")
+        self.assertGreaterEqual(len(LINT_SCOPE_REL_PATHS), 25)
 
 
 class TestBeyondKiloLintExecution(unittest.TestCase):

@@ -27,6 +27,7 @@ PR #170 adds ``beyond_kilo_lint_readiness`` (ruff + mypy + bandit scoped lint la
 PR #172 documents CI spine-trust (workflow manifest only; not a spine block).
 PR #173 documents chronicle honesty (spine Markdown contracts; not a spine block).
 PR #174 documents lint scope wave 1 (25-module scope manifest; not a spine block).
+PR #175 documents lint scope wave 2 (37-module cumulative scope; not a spine block).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.
