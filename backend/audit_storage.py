@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from thinkbox.sqlite_pragmas import open_sqlite
+from core.foundation.sqlite_pragmas import open_sqlite
 
 DB_PATH = Path("data/audit.db")
 DB_LOCK = threading.Lock()
