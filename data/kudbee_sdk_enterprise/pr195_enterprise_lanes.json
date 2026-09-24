@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 19,
+  "lane_count": 20,
   "lanes": [
     {
       "id": "ENT01",
@@ -99,6 +99,11 @@
       "id": "ENT19",
       "name": "soc2_mapping_catalog",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/soc2_mapping_catalog.py"
+    },
+    {
+      "id": "ENT20",
+      "name": "lr_energy_enterprise_bridge",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/lr_energy_enterprise_bridge.py"
     }
   ]
 }
