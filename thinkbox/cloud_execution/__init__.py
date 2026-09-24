@@ -5,7 +5,10 @@ execution evidence exists elsewhere.
 """
 
 from thinkbox.cloud_execution.admission import ExecutionAdmissionGate
+from thinkbox.cloud_execution.durable_engine import DurableCloudExecutionEngine
 from thinkbox.cloud_execution.engine import CloudExecutionEngine
+from thinkbox.cloud_execution.queue import ExecutionJobQueue
+from thinkbox.cloud_execution.sqlite_store import DurableExecutionJobStore
 from thinkbox.cloud_execution.job import ExecutionJob, ExecutionJobState
 from thinkbox.cloud_execution.provider import CloudExecutionProvider
 from thinkbox.cloud_execution.receipt import ExecutionAttemptReceipt
@@ -14,6 +17,9 @@ from thinkbox.cloud_execution.workspace import WorkspaceBinding, WorkspaceRegist
 
 __all__ = (
     "CloudExecutionEngine",
+    "DurableCloudExecutionEngine",
+    "DurableExecutionJobStore",
+    "ExecutionJobQueue",
     "CloudExecutionProvider",
     "ExecutionAdmissionGate",
     "ExecutionAttemptReceipt",

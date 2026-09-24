@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #197 (draft): Cloud execution substrate Phase 1 (10 features)
+### 2026-09-24 — PR #198 (draft): Cloud execution durable queue Phase 2 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cloud_execution/` SQLite queue + `DurableCloudExecutionEngine`; gate `cloud-execution-durable-queue` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/003-cloud-execution-durable-queue.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
+
+### 2026-09-24 — PR #197 (merged): Cloud execution substrate Phase 1 (10 features)
 
 | Field | Value |
 |---|---|
