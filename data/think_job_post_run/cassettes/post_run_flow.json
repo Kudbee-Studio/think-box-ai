@@ -1,0 +1,8 @@
+{
+  "name": "post_run_flow",
+  "steps": [
+    {"method": "POST", "path": "/api/v1/run", "body": {"goal": "demo", "agent_id": "a1", "governance_token": "t1"}},
+    {"method": "GET", "path": "/api/v1/run/job-1/status"},
+    {"method": "GET", "path": "/api/v1/run/job-1/stream"}
+  ]
+}
