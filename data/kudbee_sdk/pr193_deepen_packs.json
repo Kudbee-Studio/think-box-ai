@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 17,
+  "pack_count": 18,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -89,6 +89,11 @@
       "id": "DEP17",
       "name": "hop_cursor_energy_bind",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/hop_cursor_energy_bind.py"
+    },
+    {
+      "id": "DEP18",
+      "name": "federation_router_snapshot",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federation_router_snapshot.py"
     }
   ]
 }
