@@ -593,7 +593,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Think Job receipt major fixes (25 fixes) | **#187** (merged) | `thinkbox/think_job_run_receipt_deepen/fixes/`, `thinkbox/kilo_pr187_think_job_receipt_major_fixes.py`, `scripts/verify_kilo_pr187_think_job_receipt_major_fixes.py` |
 | Think Job governed run major fixes (25 fixes) | **#188** (merged) | `thinkbox/think_job_governed_run_fixes/`, `thinkbox/kilo_pr188_think_job_governed_run_major_fixes.py`, `scripts/verify_kilo_pr188_think_job_governed_run_major_fixes.py` |
 | Think Job lifecycle major fixes (25 fixes) | **#189** (merged) | `thinkbox/think_job_lifecycle_major_fixes/`, `thinkbox/kilo_pr189_think_job_lifecycle_major_fixes.py`, `scripts/verify_kilo_pr189_think_job_lifecycle_major_fixes.py` |
-| Think Job POST /run major fixes (25 fixes) | **#190** (draft) | `thinkbox/think_job_post_run_major_fixes/`, `thinkbox/kilo_pr190_think_job_post_run_major_fixes.py`, `scripts/verify_kilo_pr190_think_job_post_run_major_fixes.py` |
+| Think Job POST /run major fixes (25 fixes) | **#190** (merged) | `thinkbox/think_job_post_run_major_fixes/`, `thinkbox/kilo_pr190_think_job_post_run_major_fixes.py`, `scripts/verify_kilo_pr190_think_job_post_run_major_fixes.py` |
+| Kudbee SDK follow-up wave 3 (~25 hermetic deepen features) | **#191** (draft) | `thinkbox/kudbee_sdk_followup_w3/`, `apps/web/sdk/followup_w3.ts`, `thinkbox/kilo_pr191_kudbee_sdk_followup_w3.py`, `scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
