@@ -1,0 +1,21 @@
+{
+  "audit_pass_id": "pr183-think-job-hermetic-e2e",
+  "pr_number": 183,
+  "gate_id": "think-job-hermetic-e2e",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "fix_count": 20,
+  "primary_surface": "thinkbox/think_job_e2e_deepen",
+  "themes": [
+    "job_runner_stub",
+    "cassette_replay",
+    "dry_run_lifecycle",
+    "retry_backoff_stubs",
+    "receipt_bind_stub",
+    "think_job_stream_status_ui_bridges"
+  ],
+  "notes": "Twenty-five Think Job hermetic e2e deepen features after merged #182; no live Box/Mercury calls."
+}

@@ -117,6 +117,7 @@ python3 scripts/verify_kilo_pr179_kudbee_sdk_followup.py
 python3 scripts/verify_kilo_pr180_kudbee_cli_phase3.py
 python3 scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py
 python3 scripts/verify_kilo_pr182_receipt_chain_deepen.py
+python3 scripts/verify_kilo_pr183_think_job_hermetic_e2e.py
 python3 scripts/scan_doc_secrets.py
 ```
 
@@ -134,7 +135,8 @@ python3 -m thinkbox cli health    # Phase 2+ deepen
 ```bash
 python3 examples/kudbee_sdk_followup_quickstart.py
 python3 examples/kudbee_sdk_followup_w2_quickstart.py
-python3 examples/receipt_chain_deepen_quickstart.py   # when #182 branch present
+python3 examples/receipt_chain_deepen_quickstart.py
+python3 examples/think_job_hermetic_e2e_quickstart.py   # when #183 branch present
 ```
 
 ### Control fabric demo

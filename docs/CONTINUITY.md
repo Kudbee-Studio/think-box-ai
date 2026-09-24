@@ -36,24 +36,34 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#181 on main** (#181 Kudbee SDK follow-up wave 2 merged). **Open draft:** **#182** receipt-chain deepen (~25 features). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
+| **Latest completed work** | **PR #141–#182 on main** (#182 receipt-chain deepen merged). **Open draft:** **#183** Think Job hermetic e2e deepen (~25 features). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#181 merged on main. **Open implementation (draft):** **#182** receipt-chain deepen (`thinkbox/receipt_chain_deepen`). **Next:** founder-directed (see roadmap). |
+| **PR status** | PR #141–#182 merged on main. **Open implementation (draft):** **#183** Think Job hermetic e2e deepen (`thinkbox/think_job_e2e_deepen`). **Next:** founder-directed (see roadmap). |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #182 (draft): Receipt-chain deepen (~25 features)
+### 2026-09-24 — PR #183 (draft): Think Job hermetic e2e deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_e2e_deepen/` toolkit; gate `think-job-hermetic-e2e` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_think_job_hermetic_e2e`, `test_kilo_live_proof_readiness_pr183`; `verify_kilo_pr183_think_job_hermetic_e2e.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr183.json` (`live_verified: false`) |
+| **Notes** | Deepens Think Job status/stream/UI + e2e scaffold (#127–#140); **20 major fixes** in `thinkbox/think_job_e2e_deepen/fixes/`; not SDK/CLI/receipt-chain |
+
+### 2026-09-24 — PR #182 merged: Receipt-chain deepen (~25 features)
 
 | Field | Value |
 |---|---|
 | **Scope** | `thinkbox/receipt_chain_deepen/` toolkit; gate `receipt-chain-deepen` |
-| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
 | **Tests** | `test_receipt_chain_deepen`, `test_kilo_live_proof_readiness_pr182`; `verify_kilo_pr182_receipt_chain_deepen.py` |
 | **Audit** | `docs/audit/passes/2026-09-24-pr182.json` (`live_verified: false`) |
 | **Notes** | Deepens receipt-chain / END_LINK / audit-ledger surfaces (#155–#164); not SDK/CLI |

@@ -1,0 +1,29 @@
+{
+  "gate_id": "think-job-hermetic-e2e",
+  "pr_number": 183,
+  "live_verified": false,
+  "fix_count": 20,
+  "features_manifest": "data/think_job/pr183_features.json",
+  "fixes": [
+    {"id": "FIX01", "name": "lazy_run_job_schema_bridge", "module": "thinkbox/think_job_e2e_deepen/fixes/lazy_run_job_schema.py"},
+    {"id": "FIX02", "name": "e2e_scaffold_bridge", "module": "thinkbox/think_job_e2e_deepen/fixes/e2e_scaffold_bridge.py"},
+    {"id": "FIX03", "name": "dashboard_emit_shape", "module": "thinkbox/think_job_e2e_deepen/fixes/dashboard_emit_shape.py"},
+    {"id": "FIX04", "name": "f023_lifecycle_align", "module": "thinkbox/think_job_e2e_deepen/fixes/f023_lifecycle_align.py"},
+    {"id": "FIX05", "name": "sse_frame_bounds", "module": "thinkbox/think_job_e2e_deepen/fixes/sse_frame_bounds.py"},
+    {"id": "FIX06", "name": "poll_interval_guard", "module": "thinkbox/think_job_e2e_deepen/fixes/poll_interval_guard.py"},
+    {"id": "FIX07", "name": "jobs_digest_stub", "module": "thinkbox/think_job_e2e_deepen/fixes/jobs_digest_stub.py"},
+    {"id": "FIX08", "name": "etag_tab_stub", "module": "thinkbox/think_job_e2e_deepen/fixes/etag_tab_stub.py"},
+    {"id": "FIX09", "name": "deep_link_hash_mode", "module": "thinkbox/think_job_e2e_deepen/fixes/deep_link_hash_mode.py"},
+    {"id": "FIX10", "name": "bounded_step_runner", "module": "thinkbox/think_job_e2e_deepen/fixes/bounded_step_runner.py"},
+    {"id": "FIX11", "name": "cancel_terminal_guard", "module": "thinkbox/think_job_e2e_deepen/fixes/cancel_terminal_guard.py"},
+    {"id": "FIX12", "name": "failure_taxonomy_map", "module": "thinkbox/think_job_e2e_deepen/fixes/failure_taxonomy_map.py"},
+    {"id": "FIX13", "name": "proof_hash_stub", "module": "thinkbox/think_job_e2e_deepen/fixes/proof_hash_stub.py"},
+    {"id": "FIX14", "name": "ledger_metadata_shape", "module": "thinkbox/think_job_e2e_deepen/fixes/ledger_metadata_shape.py"},
+    {"id": "FIX15", "name": "nested_e2e_catalog", "module": "thinkbox/think_job_e2e_deepen/fixes/nested_e2e_catalog.py"},
+    {"id": "FIX16", "name": "checklist_honesty", "module": "thinkbox/think_job_e2e_deepen/fixes/checklist_honesty.py"},
+    {"id": "FIX17", "name": "receipt_watch_empty_guard", "module": "thinkbox/think_job_e2e_deepen/fixes/receipt_watch_empty_guard.py"},
+    {"id": "FIX18", "name": "stream_hub_reset", "module": "thinkbox/think_job_e2e_deepen/fixes/stream_hub_reset.py"},
+    {"id": "FIX19", "name": "control_plane_route_stub", "module": "thinkbox/think_job_e2e_deepen/fixes/control_plane_route_stub.py"},
+    {"id": "FIX20", "name": "fix_registry_integrate", "module": "thinkbox/think_job_e2e_deepen/fixes/fix_registry_integrate.py"}
+  ]
+}
