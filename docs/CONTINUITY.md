@@ -36,19 +36,121 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#195 on main** (#195 enterprise lr-energy lanes merged). **Open draft:** **#196** KUDBEECLI enterprise upgrade (`thinkbox/cli_phase4`). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
+| **Latest completed work** | **PR #141–#200 on main** (#200 environmental variables merged). **Open draft:** **#201** Upstash Box access verification (`thinkbox/upstash_box_access.py`). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#195 merged on main. **Open implementation (draft):** **#196** KUDBEECLI enterprise upgrade (`thinkbox/cli_phase4`). **Next:** founder-directed (see roadmap). |
+| **PR status** | PR #141–#200 merged on main. **Open implementation (draft):** **#201** Upstash Box access verification. **Next:** inject official Box URL+token into the agent runtime, then retry one bounded `POST /run`. |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #200 (draft): Environmental variables pack (~25 features)
+### 2026-09-24 — Durable governed execution lifecycle
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_execution_lifecycle.py` on existing Repository jobs + HTTP status recovery |
+| **Phases** | ADMISSION → QUEUED → RUNNING → COMPLETED / FAILED (receipt / artifact / verdict retained) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Think Job status lived in in-memory `ThinkJobEntry`. HTTP receipts persisted to SQLite but `_receipt_status_from_sqlite` dropped `result`. Process reload could not recover queued/running/terminal proof without rerunning.
+
+**IMPLEMENTATION:** Lifecycle transitions write to `.thinkbox/jobs/{job_id}.json` (existing Repository store — not a second job system). Router persists ADMISSION+QUEUED; background appends RUNNING then terminal refs. Status resolver: dashboard → repository lifecycle → SQLite outcome.
+
+**TEST_VERIFIED:** Unit lifecycle + f136 HTTP e2e + existing governed/local/HTTP suites + `scan_doc_secrets.py`.
+
+**DECISION:** No remote→local fallback; Upstash adapter unchanged; PR #201 registration gate untouched. Local durability is not LIVE VERIFIED.
+
+**NEXT ACTION:** Durable **resume** of QUEUED jobs after process death (pickup without re-admit). Do not implement in this commitment. Upstash LIVE proof still blocked on Cursor secret REGISTRATION.
+
+### 2026-09-24 — Governed shell HTTP guide + hermetic e2e (local substrate)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/guides/governed_run_http.md`; `tests/e2e/test_f135_governed_shell_local_http.py`; terminal `result` on `GET /api/v1/run/job/{id}/status` |
+| **HTTP path** | `POST /api/v1/run` → admission → `execution_substrate=local` + `exec_command` → `LocalExecutionAdapter` → receipt/checkpoint/artifact → job status `result` |
+| **Harness** | `tests/e2e/api_run_hermetic.py` sets `THINKBOX_API_KEYS` with hermetic key when VM env overrides `THINKBOX_API_KEY` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Substrate routing landed in `70dea55` but operator docs and full FastAPI/router e2e coverage were missing; job status poll payload omitted terminal `result` even though dashboard entries carried governed shell proof.
+
+**IMPLEMENTATION:** Document paired `execution_substrate` / `exec_command` (local vs upstash-box, fail-closed pairing, no local fallback). E2e test exercises Starlette `TestClient` + background drain; expose redacted terminal `result` on status poll.
+
+**TEST_VERIFIED:** `python3 -m unittest tests.e2e.test_f135_governed_shell_local_http tests.unit.test_governed_job_execution tests.unit.test_local_execution_adapter tests.unit.test_execution_adapter tests.unit.test_run_job_status tests.unit.test_run_governed -q` → **40 OK**; `python3 scripts/scan_doc_secrets.py` → exit 0.
+
+**DECISION:** Hermetic HTTP tests must pin both `THINKBOX_API_KEY` and `THINKBOX_API_KEYS` when cloud VM injects multi-key env; do not weaken upstash-box fail-closed behavior in e2e (assert `remote_not_configured`, not local provider).
+
+**NEXT ACTION:** Founder-run bounded Live proof on `upstash-box` when official Box URL+token are injected (PR #201 gate unchanged); no further local-lane scope until then.
+
+### 2026-09-24 — Governed Think Job explicit local substrate routing
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_job_execution.py` — explicit `substrate=local` → `LocalExecutionAdapter`; `upstash-box` only when configured (no fallback) |
+| **HTTP** | Optional `RunRequest.execution_substrate` + `exec_command` → `execute_governed_shell_background` |
+| **Evidence** | `data/local_execution/governed_local_proof_20260924.json` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Governed `POST /api/v1/run` handled model goals only; shell execution existed via adapters/CLI but was not routed through governed Think Job admission/receipt path with explicit substrate.
+
+**IMPLEMENTATION:** Substrate router + governed shell background task; paired request fields fail-closed when only one is set.
+
+**TEST_VERIFIED:** `tests.unit.test_governed_job_execution` + local/execution adapter unit tests green.
+
+**LIVE_VERIFIED:** **No** — local substrate only; remote requires explicit `upstash-box` + credentials.
+
+**DECISION:** Never infer local from `detect_substrate()` for this path; never fall back to local when remote is misconfigured.
+
+**NEXT ACTION:** *(superseded)* Governed shell HTTP docs + e2e — see section above.
+
+### 2026-09-24 — Local execution proof lane (provider-independent)
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded local subprocess execution via existing ``ExecutionReceipt`` + checkpoint contract |
+| **Surface** | `thinkbox/local_execution_adapter.py`, `scripts/local_execution_proof.py`, `thinkbox repository_cli job execute-local` |
+| **Evidence** | `data/local_execution/proof_20260924.json` (redacted; `live_verified: false`) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (local only; no external service) |
+
+**DISCOVERY:** Remote path is `UpstashBoxExecutionAdapter` + `ExecutionReceipt`; local hermetic tests used HTTP stubs but no first-class local adapter for operator proof without cloud credentials.
+
+**IMPLEMENTATION:** `LocalExecutionAdapter` (`provider=local`) runs one bounded `/bin/sh -c` command, writes hash-verified artifact under `.thinkbox/artifacts/`, creates checkpoint metadata with intent fingerprint (not full secret-bearing env). Public proof helper sets `evidence_label=verified` and explicitly `live_verified: false`.
+
+**TEST_VERIFIED:** `tests/unit/test_local_execution_adapter.py` + existing `tests/unit/test_execution_adapter.py` green; proof script exit 0 on workspace.
+
+**LIVE_VERIFIED:** **No** — by design; local lane does not call Upstash/UpCloud/AWS.
+
+**DECISION:** Keep PR #201 Upstash registration gate unchanged; local proof is parallel lane for Think Box contract exercise.
+
+**NEXT ACTION:** Wire Think Job governed-run path to select local adapter when substrate is `local` and remote is unconfigured (optional); keep remote live proof on PR #201 separate.
+
+### 2026-09-24 — PR #201 (draft): Upstash Box access verification
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (live proof attempt 2026-09-24 post-founder Save claim). **Failure stage: REGISTRATION** — binding check: both official names still **NOT LISTED** / **NOT PRESENT** in this process. Warm-fork run `bc-1e6f1537-662e-48eb-9c98-7e454d18723f`, env version `66bcd4b4-aee3-11f1-bf4b-42ffb4d10ea7` unchanged. Live probe **not run**. **No HTTP.** |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
+| **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
+| **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
+| **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
+
+**DISCOVERY:** After reported dashboard Save, this agent’s `CLOUD_AGENT_ALL_SECRET_NAMES` still omits `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` (17-name catalog unchanged; `UPSTASH_BOX_API_KEY` still listed). Same `bcId` / warm fork — process never received a post-Save secret catalog refresh.
+
+**IMPLEMENTATION:** Refreshed `binding_gate_20260924_pr201.json` only. No live probe; no adapter changes.
+
+**TEST_VERIFIED:** Unit + gate verify + secret scan green.
+
+**LIVE_VERIFIED:** **No** — REGISTRATION gate failed; `probe_live.json` not created.
+
+**DECISION:** Do not HTTP until binding check shows LISTED+PRESENT on a **new** Cloud Agent boot (not this warm-fork session). Verify secret names on Personal env `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7` match adapter contract exactly.
+
+**NEXT ACTION:** Start a **new** Cloud Agent on `cursor/env-setup-803e` after Save; first command `cursor_box_env_binding_check.py`; if `gate_ready: true`, one live probe to `probe_live.json`.
+
+### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 
 | Field | Value |
 |---|---|

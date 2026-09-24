@@ -1,5 +1,23 @@
 # STATUS — Think Box AI
 
+## PR #201 — Upstash Box access verification (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `upstash-box-access-verification` (layers `environmental-variables`) |
+| **Scope** | Presence-only inventory + existing `UpstashBoxExecutionAdapter` fail-closed probe; A–E classification |
+| **This-run class** | **A ENV_NOT_CONFIGURED** — official URL/token absent in this agent process; no HTTP; `UPSTASH_BOX_API_KEY` present unused |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — audit `live_verified: false`, `live_api_called: false` |
+| **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
+
+## PR #200 — Environmental variables pack (MERGED)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `environmental-variables` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Verify** | `python3 scripts/verify_kilo_pr200_environmental_variables.py` |
+
 ## PR #164 — Governance-evidence Live-proof readiness (DRAFT)
 
 | Field | Value |

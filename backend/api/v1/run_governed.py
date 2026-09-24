@@ -29,6 +29,15 @@ from thinkbox.dashboard_state import (
     ThinkJobEntry,
     get_dashboard_state,
 )
+from thinkbox.governed_execution_lifecycle import (
+    PHASE_ADMISSION,
+    PHASE_COMPLETED,
+    PHASE_FAILED,
+    PHASE_QUEUED,
+    PHASE_RUNNING,
+    open_lifecycle_repo,
+    persist_lifecycle_phase,
+)
 from thinkbox.engine import EngineConfig, ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest
@@ -250,6 +259,192 @@ def build_complete_async_for_run(
     return None
 
 
+def persist_http_run_lifecycle(
+    worktree: str,
+    job_entry: ThinkJobEntry,
+    phase: str,
+    *,
+    execution_substrate: str = "",
+    adapter_provider: str = "",
+    checkpoint_id: str = "",
+    artifact_path: str = "",
+    artifact_hash: str = "",
+    verdict: str = "",
+    http_proof_path: str = "",
+    result: dict[str, Any] | None = None,
+) -> None:
+    """Write one lifecycle transition to the existing Repository job store."""
+    persist_lifecycle_phase(
+        open_lifecycle_repo(worktree),
+        job_entry.job_id,
+        phase,
+        goal=job_entry.goal,
+        receipt_id=job_entry.receipt_id,
+        experiment_id=job_entry.experiment_id,
+        session_id=job_entry.session_id,
+        execution_substrate=execution_substrate,
+        adapter_provider=adapter_provider,
+        checkpoint_id=checkpoint_id,
+        artifact_path=artifact_path,
+        artifact_hash=artifact_hash,
+        verdict=verdict,
+        http_proof_path=http_proof_path,
+        result=result,
+    )
+
+
+def admit_and_queue_http_run(
+    job_entry: ThinkJobEntry,
+    *,
+    worktree: str,
+    execution_substrate: str = "",
+) -> None:
+    """Persist ADMISSION then QUEUED before background execution starts."""
+    persist_http_run_lifecycle(
+        worktree,
+        job_entry,
+        PHASE_ADMISSION,
+        execution_substrate=execution_substrate,
+    )
+    persist_http_run_lifecycle(
+        worktree,
+        job_entry,
+        PHASE_QUEUED,
+        execution_substrate=execution_substrate,
+    )
+
+
+async def execute_governed_shell_background(
+    ctx: RunAdmissionContext,
+    job_entry: ThinkJobEntry,
+    *,
+    execution_substrate: str,
+    exec_command: str,
+    receipt_binding: HttpRunReceiptBinding | None = None,
+    worktree: str = ".",
+) -> None:
+    """Explicit substrate shell execution (local or configured remote only)."""
+    from pathlib import Path
+
+    from thinkbox.governed_job_execution import (
+        GovernedJobExecutionError,
+        execute_governed_job_command,
+    )
+    from thinkbox.repository import Repository
+
+    dashboard = get_dashboard_state()
+    stack = get_http_run_persistence()
+    binding = receipt_binding
+    persist_http_run_lifecycle(
+        worktree,
+        job_entry,
+        PHASE_RUNNING,
+        execution_substrate=execution_substrate,
+    )
+    job_entry.phase = PHASE_RUNNING
+    dashboard.upsert_think_job(job_entry)
+    try:
+        result = execute_governed_job_command(
+            substrate=execution_substrate,
+            job_id=job_entry.job_id,
+            command=exec_command,
+            repo=Repository(Path(worktree)),
+        )
+    except GovernedJobExecutionError as exc:
+        job_entry.status = "failed"
+        job_entry.phase = PHASE_FAILED
+        job_entry.result = {"error": exc.code, "message": str(exc)}
+        persist_http_run_lifecycle(
+            worktree,
+            job_entry,
+            PHASE_FAILED,
+            execution_substrate=execution_substrate,
+            verdict=exc.code,
+            result=job_entry.result,
+        )
+        if binding:
+            finalize_http_run_receipt(
+                binding,
+                status="failed",
+                outcome=job_entry.result,
+                confidence=0.0,
+                persistence=stack,
+            )
+        dashboard.upsert_think_job(job_entry)
+        await dashboard.emit(
+            DashboardCategory.THINK_JOBS,
+            DashboardEvent.TASK_FAILED,
+            job_entry.model_dump(),
+            "governed_shell",
+        )
+        return
+
+    receipt = result.receipt
+    proof = result.public_proof
+    succeeded = receipt.status == "COMPLETED" and receipt.verified
+    job_entry.status = "completed" if succeeded else "failed"
+    job_entry.progress = 1.0 if succeeded else 0.0
+    job_entry.tasks_total = 1
+    job_entry.tasks_completed = 1 if succeeded else 0
+    job_entry.phase = "completed" if succeeded else "failed"
+    job_entry.result = {
+        "governed": True,
+        "governed_shell": True,
+        "execution_substrate": result.substrate,
+        "adapter_provider": result.adapter_provider,
+        "execution_proof": proof,
+        "capability": ctx.capability,
+        "agent_id": ctx.agent_id,
+    }
+    job_entry.evidence_label = "verified"
+    http_proof_path = ""
+    if binding:
+        proof_path, proof_sha = write_simple_http_run_proof(
+            binding,
+            job_entry.result,
+            persistence=stack,
+        )
+        http_proof_path = proof_path
+        finalize_http_run_receipt(
+            binding,
+            status="completed" if succeeded else "failed",
+            outcome=job_entry.result,
+            confidence=1.0 if succeeded else 0.0,
+            proof_path=proof_path,
+            proof_sha256=proof_sha,
+            persistence=stack,
+        )
+        job_entry.receipt_id = binding.receipt_id
+        job_entry.experiment_id = binding.experiment_id
+        job_entry.session_id = binding.session_id
+        await emit_receipt_dashboard(
+            binding,
+            status="completed" if succeeded else "failed",
+            proof_path=proof_path,
+        )
+    persist_http_run_lifecycle(
+        worktree,
+        job_entry,
+        PHASE_COMPLETED if succeeded else PHASE_FAILED,
+        execution_substrate=result.substrate,
+        adapter_provider=result.adapter_provider,
+        checkpoint_id=receipt.checkpoint_id,
+        artifact_path=receipt.artifact_path,
+        artifact_hash=receipt.artifact_hash,
+        verdict=receipt.status,
+        http_proof_path=http_proof_path,
+        result=job_entry.result,
+    )
+    job_entry.completed_at = datetime.now(timezone.utc).isoformat()
+    dashboard.upsert_think_job(job_entry)
+    await dashboard.emit(
+        DashboardCategory.THINK_JOBS,
+        DashboardEvent.TASK_COMPLETED if succeeded else DashboardEvent.TASK_FAILED,
+        job_entry.model_dump(),
+        "governed_shell",
+    )
+
+
 async def execute_governed_run_background(
     governed: GovernedEngine,
     ctx: RunAdmissionContext,
@@ -258,10 +453,31 @@ async def execute_governed_run_background(
     *,
     complete_async: CompleteAsyncFn | None = None,
     receipt_binding: HttpRunReceiptBinding | None = None,
+    execution_substrate: str | None = None,
+    exec_command: str | None = None,
+    worktree: str = ".",
 ) -> None:
     dashboard = get_dashboard_state()
     stack = get_http_run_persistence()
     binding = receipt_binding
+    persist_http_run_lifecycle(
+        worktree,
+        job_entry,
+        PHASE_RUNNING,
+        execution_substrate=execution_substrate or "",
+    )
+    job_entry.phase = PHASE_RUNNING
+    dashboard.upsert_think_job(job_entry)
+    if execution_substrate and exec_command:
+        await execute_governed_shell_background(
+            ctx,
+            job_entry,
+            execution_substrate=execution_substrate,
+            exec_command=exec_command,
+            receipt_binding=binding,
+            worktree=worktree,
+        )
+        return
     try:
         if ctx.verified and ctx.subtasks:
             if complete_async is None:
@@ -288,7 +504,15 @@ async def execute_governed_run_background(
             )
         if result.get("governed") is False:
             job_entry.status = "failed"
+            job_entry.phase = PHASE_FAILED
             job_entry.result = {"error": result.get("reason", "governance_denied")}
+            persist_http_run_lifecycle(
+                worktree,
+                job_entry,
+                PHASE_FAILED,
+                verdict=str(job_entry.result.get("error") or "governance_denied"),
+                result=job_entry.result,
+            )
             if binding:
                 try:
                     finalize_http_run_receipt(
@@ -361,6 +585,14 @@ async def execute_governed_run_background(
                 await apply_persist_failure(job_entry, binding, persist_exc)
                 return
         job_entry.completed_at = datetime.now(timezone.utc).isoformat()
+        persist_http_run_lifecycle(
+            worktree,
+            job_entry,
+            PHASE_COMPLETED,
+            http_proof_path=str((job_entry.result or {}).get("proof_artifact") or ""),
+            verdict="COMPLETED",
+            result=job_entry.result if isinstance(job_entry.result, dict) else {},
+        )
         dashboard.upsert_think_job(job_entry)
         completed_payload = job_entry.model_dump()
         if binding:
@@ -385,7 +617,15 @@ async def execute_governed_run_background(
         )
     except Exception as exc:
         job_entry.status = "failed"
+        job_entry.phase = PHASE_FAILED
         job_entry.result = {"error": str(exc)}
+        persist_http_run_lifecycle(
+            worktree,
+            job_entry,
+            PHASE_FAILED,
+            verdict="exception",
+            result=job_entry.result,
+        )
         if binding:
             try:
                 finalize_http_run_receipt(

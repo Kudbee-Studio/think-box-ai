@@ -603,7 +603,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Cloud execution substrate Phase 1 (10 foundation features) | **#197** (merged) | `thinkbox/cloud_execution/`, `thinkbox/kilo_pr197_cloud_execution_substrate.py`, `scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
 | Cloud execution durable queue Phase 2 (10 features) | **#198** (merged) | `thinkbox/cloud_execution/sqlite_store.py`, `thinkbox/kilo_pr198_cloud_execution_durable_queue.py`, `scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
 | Cloud execution worker orchestrator Phase 3 (10 features) | **#199** (merged) | `thinkbox/cloud_execution/worker_orchestrator.py`, `thinkbox/kilo_pr199_cloud_execution_worker_orchestrator.py`, `scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
-| Environmental variables pack (~25 features) | **#200** (draft) | `thinkbox/env_vars/`, `thinkbox/kilo_pr200_environmental_variables.py`, `scripts/verify_kilo_pr200_environmental_variables.py` |
+| Environmental variables pack (~25 features) | **#200** (merged) | `thinkbox/env_vars/`, `thinkbox/kilo_pr200_environmental_variables.py`, `scripts/verify_kilo_pr200_environmental_variables.py` |
+| Upstash Box access verification | **#201** (draft) | `thinkbox/upstash_box_access.py`, `thinkbox/kilo_pr201_upstash_box_access.py`, `scripts/verify_kilo_pr201_upstash_box_access.py` — this-run class **A** (`ENV_NOT_CONFIGURED`); **not LIVE VERIFIED** |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

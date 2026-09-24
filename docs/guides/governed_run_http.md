@@ -16,6 +16,58 @@ Branch contract for PR #132–#134. **Not LIVE VERIFIED. Not PRODUCTION READY.**
 - `goal` (required)
 - `governance_token` / `agent_id` / `capability`
 - `verified` + `subtasks` for F023 DAG path (`model=hermetic-mock` in tests)
+- `execution_substrate` + `exec_command` — **paired** governed shell path (see below)
+
+### Governed shell execution (`execution_substrate` + `exec_command`)
+
+Use these fields when the Think Job should run one **bounded shell command** through the
+execution adapter contract (receipt, hash-verified artifact, checkpoint) instead of the
+default model `execute_goal` path.
+
+| Field | Type | Required with shell | Purpose |
+|--------|------|-------------------|---------|
+| `execution_substrate` | string | Yes (with `exec_command`) | Explicit substrate id — **never inferred** from `detect_substrate()` |
+| `exec_command` | string | Yes (with `execution_substrate`) | Single `/bin/sh -c` command (bounded timeout; no interactive shell) |
+
+**Pairing rule:** If exactly one of the two fields is non-empty, the API returns **422**
+`exec_command_and_substrate_required_together` (fail-closed).
+
+**Supported substrates:**
+
+| `execution_substrate` | Adapter | Notes |
+|----------------------|---------|--------|
+| `local` | `LocalExecutionAdapter` | Runs in the API process worktree (`provider=local`). Hermetic proof only — **not LIVE VERIFIED**. |
+| `upstash-box` | `UpstashBoxExecutionAdapter` | Requires `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN`. **No silent fallback to `local`.** Misconfiguration fails the job with `remote_not_configured`. |
+
+**Flow (HTTP):** `POST /api/v1/run` → governance admission → background
+`execute_governed_shell_background` → adapter → `ExecutionReceipt` → HTTP run receipt +
+optional proof artifact under `THINKBOX_HTTP_RUN_ARTIFACTS` → Think Job status `result`
+includes `execution_substrate`, `adapter_provider`, and redacted `execution_proof`.
+
+**Job polling:** Same as model runs — `GET /api/v1/run/job/{engine_id}/status` until
+`poll.terminal` is true. Shell successes set `governed_shell: true` in `result`; failures
+include structured `error` codes (`unknown_substrate`, `remote_not_configured`, etc.).
+
+**Durable lifecycle:** Admission writes ADMISSION → QUEUED onto the existing Repository
+job (`.thinkbox/jobs/{engine_id}.json`). Background execution appends RUNNING then
+COMPLETED or FAILED, retaining HTTP receipt id, checkpoint id, artifact path/hash, and
+verdict. After a process reload, status polling recovers from that record (then SQLite
+receipt outcome), not from in-memory dashboard state. **Not LIVE VERIFIED.**
+
+**Example (local, hermetic):**
+
+```json
+{
+  "goal": "governed local shell proof",
+  "agent_id": "<registered-agent>",
+  "governance_token": "<token>",
+  "execution_substrate": "local",
+  "exec_command": "echo THINKBOX_GOVERNED_LOCAL_PROOF"
+}
+```
+
+Do **not** claim LIVE VERIFIED for `local` or for `upstash-box` unless founder-run
+external evidence exists outside CI.
 
 ## Immediate response (PR #133)
 
@@ -57,7 +109,12 @@ Background completion **fails the Think Job** if receipt persistence raises (`ru
 
 - `tests/e2e/test_f132_governed_run_admission.py`
 - `tests/e2e/test_f133_governed_run_receipts.py`
+- `tests/e2e/test_f135_governed_shell_local_http.py` — full HTTP shell path (`local` substrate)
+- `tests/e2e/test_f136_governed_lifecycle_durable.py` — durable lifecycle survives dashboard clear
+- `tests/unit/test_governed_execution_lifecycle.py`
 - `tests/unit/test_run_governed.py`
 - `tests/unit/test_run_receipts.py`
 - `tests/e2e/test_f134_think_job_status_poll.py`
 - `tests/unit/test_run_job_status.py`
+- `tests/unit/test_governed_job_execution.py`
+- `tests/unit/test_local_execution_adapter.py`

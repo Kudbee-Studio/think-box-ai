@@ -86,7 +86,11 @@ def hermetic_run_client(
     )
 
     app = FastAPI(title="hermetic-run-pr132")
-    with patch.dict(os.environ, {"THINKBOX_API_KEY": _HERMETIC_API_KEY}, clear=False):
+    with patch.dict(
+        os.environ,
+        {"THINKBOX_API_KEY": _HERMETIC_API_KEY, "THINKBOX_API_KEYS": _HERMETIC_API_KEY},
+        clear=False,
+    ):
         setup_security(app)
         app.include_router(router_mod.api_v1_router)
 
@@ -134,7 +138,11 @@ def hermetic_run_client_real_engine() -> Iterator[tuple[TestClient, Any]]:
     )
 
     app = FastAPI(title="hermetic-run-real-engine")
-    with patch.dict(os.environ, {"THINKBOX_API_KEY": _HERMETIC_API_KEY}, clear=False):
+    with patch.dict(
+        os.environ,
+        {"THINKBOX_API_KEY": _HERMETIC_API_KEY, "THINKBOX_API_KEYS": _HERMETIC_API_KEY},
+        clear=False,
+    ):
         setup_security(app)
         app.include_router(router_mod.api_v1_router)
 
