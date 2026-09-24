@@ -22,7 +22,7 @@
 |------|--------|
 | Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; ruff/mypy/bandit on **two** modules only (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`) |
 | Spine | `verify_kilo_spine.py` aggregates 28 blocks including #169 umbrella + #170 lint (static lint in spine unless `KILO_BEYOND_KILO_LINT_EXECUTE=1`) |
-| CI | `.github/workflows/test.yml` runs **unittest discover** + **spine** + **~35 duplicate** `verify_kilo_*` scripts + `verify_kilo_beyond_kilo_lint.py` after `pip install -e ".[lint]"` |
+| CI | **#172 draft:** `.github/workflows/test.yml` = unittest + **one** fast spine + beyond-KILO lint execute + secret scan (no duplicate per-gate scripts) |
 | Chronicle gap | `docs/CONTINUITY.md`, `AGENTS.md` KILO table still label **#170 draft** (should read **merged**) |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
