@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 3,
+  "lane_count": 4,
   "lanes": [
     {
       "id": "ENT01",
@@ -19,6 +19,11 @@
       "id": "ENT03",
       "name": "rbac_policy_matrix",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/rbac_policy_matrix.py"
+    },
+    {
+      "id": "ENT04",
+      "name": "sla_tier_contract",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/sla_tier_contract.py"
     }
   ]
 }
