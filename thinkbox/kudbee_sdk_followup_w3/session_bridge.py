@@ -22,6 +22,10 @@ class SessionBridgeW3:
         self.twin_linked = True
         self.session.touch_metadata("twin_id", twin_id)
 
+    def set_tag(self, key: str, value: str) -> None:
+        self.tags[key] = value
+        self.session.touch_metadata(f"tag:{key}", value)
+
     def summary(self) -> dict[str, Any]:
         return {
             "session_id": self.session.session_id,
