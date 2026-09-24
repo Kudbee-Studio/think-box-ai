@@ -1,0 +1,14 @@
+{
+  "gate_id": "kudbee-sdk-enterprise-lr-energy-lanes",
+  "pr_number": 195,
+  "live_verified": false,
+  "tier": "enterprise",
+  "lane_count": 1,
+  "lanes": [
+    {
+      "id": "ENT01",
+      "name": "pr194_major_fixes_gate",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/pr194_major_fixes_gate.py"
+    }
+  ]
+}
