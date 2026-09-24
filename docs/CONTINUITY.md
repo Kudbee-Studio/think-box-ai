@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #193 (draft): Kudbee SDK long-range + energy loops (~25 features)
+### 2026-09-24 — PR #194 (draft): Kudbee SDK lr-energy major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_longrange_energy_major_fixes/`; gate `kudbee-sdk-longrange-energy-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
+| **Commits** | 25 fix commits FIX01–FIX25 |
+| **Tests** | `test_kudbee_sdk_longrange_energy_major_fixes`, `test_kilo_live_proof_readiness_pr194` |
+
+### 2026-09-24 — PR #193 (merged): Kudbee SDK long-range + energy loops (~25 features)
 
 | Field | Value |
 |---|---|
