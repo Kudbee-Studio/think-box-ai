@@ -6,6 +6,7 @@
   "required_artifacts": [
     "data/think_job_post_run/pr184_features.json",
     "data/think_job_post_run/pr184_checklist.json",
+    "data/think_job_post_run/pr184_enhancements.json",
     "docs/audit/passes/2026-09-24-pr184.json"
   ],
   "paired_pr": 183,

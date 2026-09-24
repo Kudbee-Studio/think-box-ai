@@ -9,6 +9,8 @@ from thinkbox.think_job_post_run_deepen.response_envelope import success_envelop
 def run_feature_demo(feature_id: str) -> dict[str, Any]:
     if feature_id == "cassette":
         return replay_cassette("post_run_flow.json")
+    if feature_id == "cassette_auth":
+        return replay_cassette("post_run_auth_flow.json")
     if feature_id == "dry_run":
         return dry_run_post_run()
     if feature_id == "envelope":
@@ -17,7 +19,7 @@ def run_feature_demo(feature_id: str) -> dict[str, Any]:
 
 
 def list_registered_features() -> tuple[str, ...]:
-    return ("cassette", "dry_run", "envelope")
+    return ("cassette", "cassette_auth", "dry_run", "envelope")
 
 
 def integration_summary() -> dict[str, Any]:

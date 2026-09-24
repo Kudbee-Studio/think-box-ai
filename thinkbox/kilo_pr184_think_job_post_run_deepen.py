@@ -13,7 +13,9 @@ from thinkbox.think_job_post_run_deepen.negotiation import THINK_JOB_POST_RUN_DE
 
 __all__ = (
     "EXPECTED_FEATURE_COUNT",
+    "EXPECTED_ENHANCEMENT_COUNT",
     "EXPECTED_FIX_COUNT",
+    "ENHANCEMENTS_MANIFEST_REL",
     "FEATURES_MANIFEST_REL",
     "FIXES_MANIFEST_REL",
     "GATE_ID",
@@ -21,8 +23,10 @@ __all__ = (
     "PR_NUMBER",
     "ThinkJobPostRunDeepenViolation",
     "load_features_manifest",
+    "load_enhancements_manifest",
     "load_fixes_manifest",
     "think_job_post_run_deepen_contract_summary",
+    "validate_enhancements_manifest",
     "validate_features_manifest",
     "validate_fixes_manifest",
 )
@@ -31,9 +35,11 @@ GATE_ID = "think-job-post-run-deepen"
 PR_NUMBER = 184
 EXPECTED_FEATURE_COUNT = 25
 EXPECTED_FIX_COUNT = 10
+EXPECTED_ENHANCEMENT_COUNT = 10
 
 FEATURES_MANIFEST_REL = Path("data/think_job_post_run/pr184_features.json")
 FIXES_MANIFEST_REL = Path("data/think_job_post_run/pr184_fixes.json")
+ENHANCEMENTS_MANIFEST_REL = Path("data/think_job_post_run/pr184_enhancements.json")
 PR184_PASS_REL = Path("docs/audit/passes/2026-09-24-pr184.json")
 
 
@@ -52,6 +58,11 @@ def load_features_manifest(repo_root: Path | None = None) -> dict[str, Any]:
 def load_fixes_manifest(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     return json.loads((root / FIXES_MANIFEST_REL).read_text(encoding="utf-8"))
+
+
+def load_enhancements_manifest(repo_root: Path | None = None) -> dict[str, Any]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    return json.loads((root / ENHANCEMENTS_MANIFEST_REL).read_text(encoding="utf-8"))
 
 
 def validate_features_manifest(
@@ -125,12 +136,31 @@ def validate_fixes_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+def validate_enhancements_manifest(
+    doc: Mapping[str, Any] | None = None,
+    repo_root: Path | None = None,
+) -> tuple[bool, tuple[ThinkJobPostRunDeepenViolation, ...]]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    violations: list[ThinkJobPostRunDeepenViolation] = []
+    if doc is None:
+        doc = load_enhancements_manifest(root)
+    items = list(doc.get("enhancements") or [])
+    if len(items) != EXPECTED_ENHANCEMENT_COUNT:
+        violations.append(ThinkJobPostRunDeepenViolation("enhancement_count", "enhancement count mismatch"))
+    for item in items:
+        rel = item.get("module")
+        if not rel or not (root / str(rel)).is_file():
+            violations.append(ThinkJobPostRunDeepenViolation("enhancement_module_missing", str(rel)))
+    return (len(violations) == 0, tuple(violations))
+
+
 def think_job_post_run_deepen_contract_summary(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     features_ok, feature_violations = validate_features_manifest(repo_root=root)
     fixes_ok, fix_violations = validate_fixes_manifest(repo_root=root)
-    ok = features_ok and fixes_ok
-    violations = (*feature_violations, *fix_violations)
+    enhancements_ok, enhancement_violations = validate_enhancements_manifest(repo_root=root)
+    ok = features_ok and fixes_ok and enhancements_ok
+    violations = (*feature_violations, *fix_violations, *enhancement_violations)
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,
@@ -143,10 +173,13 @@ def think_job_post_run_deepen_contract_summary(repo_root: Path | None = None) ->
         "feature_count": EXPECTED_FEATURE_COUNT,
         "fix_count": EXPECTED_FIX_COUNT,
         "fixes_manifest_ok": fixes_ok,
+        "enhancement_count": EXPECTED_ENHANCEMENT_COUNT,
+        "enhancements_manifest_ok": enhancements_ok,
         "think_job_post_run_deepen_version": THINK_JOB_POST_RUN_DEEPEN_VERSION,
         "primary_surface": "thinkbox/think_job_post_run_deepen + POST /api/v1/run (F131)",
         "features_manifest_rel": str(FEATURES_MANIFEST_REL),
         "fixes_manifest_rel": str(FIXES_MANIFEST_REL),
+        "enhancements_manifest_rel": str(ENHANCEMENTS_MANIFEST_REL),
         "violation_count": len(violations),
         "violation_codes": [v.code for v in violations],
     }

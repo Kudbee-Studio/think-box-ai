@@ -56,7 +56,7 @@ Before declaring completion, every agent MUST verify:
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
 | **Tests** | `test_think_job_post_run_deepen`, `test_kilo_live_proof_readiness_pr184` |
 | **Audit** | `docs/audit/passes/2026-09-24-pr184.json` |
-| **Notes** | Deepens POST `/api/v1/run` + F131 harness after merged #183; **10 major fixes** in `fixes/` |
+| **Notes** | POST `/api/v1/run` deepen; **10 fixes** + **10 enhancements** (wave 2) after #183 |
 
 ### 2026-09-24 — PR #183 merged: Think Job hermetic e2e deepen (~25 features)
 

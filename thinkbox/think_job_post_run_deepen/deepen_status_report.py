@@ -8,6 +8,13 @@ from thinkbox.think_job_post_run_deepen.error_catalog import error_catalog
 from thinkbox.think_job_post_run_deepen.status_catalog import status_catalog
 from thinkbox.think_job_post_run_deepen.think_job_e2e_bridge import bridge_summary
 
+def _enhancement_probes() -> dict[str, Any]:
+    from thinkbox.think_job_post_run_deepen.enhancements.enhancement_registry import (
+        run_enhancement_probes,
+    )
+    return run_enhancement_probes()
+
+
 def think_job_post_run_deepen_status_report() -> dict[str, Any]:
     from thinkbox.think_job_post_run_deepen.fixes.fix_registry import run_all_fixes
     from thinkbox.think_job_post_run_deepen.gate_summary import gate_summary
@@ -20,6 +27,7 @@ def think_job_post_run_deepen_status_report() -> dict[str, Any]:
         "think_job_e2e_bridge": bridge_summary(),
         "gate_summary": gate_summary(),
         "major_fixes": run_all_fixes(),
+        "enhancements": _enhancement_probes(),
         "live_verified": False,
         "live_api_called": False,
         "four_state_max": "TEST_VERIFIED",

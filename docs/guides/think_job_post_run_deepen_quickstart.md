@@ -8,7 +8,7 @@ TEST VERIFIED only — not LIVE VERIFIED.
 
 ```bash
 python3 scripts/verify_kilo_pr184_think_job_post_run_deepen.py
-python3 -m unittest tests.unit.test_think_job_post_run_deepen tests.unit.test_think_job_post_run_major_fixes tests.unit.test_kilo_live_proof_readiness_pr184 -v
+python3 -m unittest tests.unit.test_think_job_post_run_deepen tests.unit.test_think_job_post_run_major_fixes tests.unit.test_think_job_post_run_enhancements tests.unit.test_kilo_live_proof_readiness_pr184 -v
 ```
 
 ## Example
