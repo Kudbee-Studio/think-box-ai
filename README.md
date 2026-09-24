@@ -19,7 +19,8 @@ wraps side effects so draft/simulate stays the default without a governance toke
 | Lint scope wave 1 (25 spine modules + enterprise editing commitments) | **#174** | **Merged** |
 | Lint scope wave 2 (live-proof readiness spine, 38 modules total) | **#175** | **Merged** |
 | Chronicle honesty post-#175 | **#176** | **Merged** |
-| Kudbee SDK app (~25 features, kudbEE web shell) | **#177** | **Draft** — `docs/guides/kudbee_sdk_quickstart.md` |
+| Kudbee SDK app (~25 features, kudbEE web shell) | **#177** | **Merged** — `docs/guides/kudbee_sdk_quickstart.md` |
+| KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** | **Draft** — `docs/guides/kudbee_cli_phase2_quickstart.md` |
 
 **Four-state honesty:** Hermetic PR work stops at **CODE COMPLETE / TEST VERIFIED**.
 Do not claim **KILO LIVE VERIFIED**, **KILO PRODUCTION READY**, or earned Live proof
@@ -37,6 +38,7 @@ PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
 pip install -e ".[lint]"
 KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
 python3 scripts/verify_kilo_pr177_kudbee_sdk_app.py
+python3 scripts/verify_kilo_pr178_kudbee_cli_phase2.py
 python3 scripts/scan_doc_secrets.py
 ```
 

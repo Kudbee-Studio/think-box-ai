@@ -580,7 +580,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Lint scope wave 1 (25-module beyond-KILO lint + enterprise editing guide) | **#174** (merged) | `thinkbox/kilo_pr174_lint_scope_wave1.py`, `scripts/verify_kilo_pr174_lint_scope_wave1.py` |
 | Lint scope wave 2 (live-proof readiness spine +12 modules, 38 total) | **#175** (merged) | `thinkbox/kilo_pr175_lint_scope_wave2.py`, `scripts/verify_kilo_pr175_lint_scope_wave2.py` |
 | Chronicle honesty post-#175 | **#176** (merged) | Spine Markdown sync; next-slot pointers |
-| Kudbee SDK app (~25 features, kudbEE web shell) | **#177** (draft) | `thinkbox/kudbee_sdk/`, `apps/web/sdk/`, `thinkbox/kilo_pr177_kudbee_sdk_app.py`, `scripts/verify_kilo_pr177_kudbee_sdk_app.py` |
+| Kudbee SDK app (~25 features, kudbEE web shell) | **#177** (merged) | `thinkbox/kudbee_sdk/`, `apps/web/sdk/`, `thinkbox/kilo_pr177_kudbee_sdk_app.py`, `scripts/verify_kilo_pr177_kudbee_sdk_app.py` |
+| KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** (draft) | `thinkbox/cli_phase2/`, `thinkbox/kilo_pr178_kudbee_cli_phase2.py`, `scripts/verify_kilo_pr178_kudbee_cli_phase2.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
@@ -632,7 +633,9 @@ Hermetic / read-only inspection surface (no live provider execution in these sub
 
 Evidence: `thinkbox/cli.py`, `thinkbox/cli_inspect.py`, `tests/unit/test_cli.py`, `tests/unit/test_cli_inspect.py` (PR **#128** on `main`).
 
-### Phase 2 — persistence, REPL, dashboard (`feat/pr129-cli-phase2-25`, draft PR **#129**)
+### Phase 2 — persistence, REPL, dashboard (on `main`; deepen **#178** draft)
+
+**PR #178** adds `thinkbox/cli_phase2/` (~25 hermetic toolkit features) and `thinkbox cli` subcommands (`health`, `dry-run`, `receipt-bind`, `envelope`). Gate: `kudbee-cli-phase2`. Historical branch `feat/pr129-cli-phase2-25` / draft PR **#129** preceded merge of persist/shell/dashboard to main.
 
 | Command | Purpose |
 |---------|---------|

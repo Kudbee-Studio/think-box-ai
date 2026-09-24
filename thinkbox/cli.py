@@ -46,11 +46,12 @@ from thinkbox.cli_persist import (
     sync_identity_ledger_to_sqlite,
     sync_traces_to_sqlite,
 )
+from thinkbox.cli_phase2.integrate import dispatch_phase2, register_phase2_parser
 from thinkbox.cli_shell import CliShell
 from thinkbox.identity import IdentityLedger
 from thinkbox.thinktrace import ThinkTraceCapture
 
-__version__ = "0.129.0"
+__version__ = "0.178.0"
 
 
 def _emit(payload: dict, args: argparse.Namespace, title: str) -> None:
@@ -617,6 +618,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stop REPL after N input lines (0 = unlimited)",
     )
 
+    register_phase2_parser(subparsers)
+
     return parser
 
 
@@ -681,6 +684,10 @@ def dispatch(args: argparse.Namespace) -> int:
         return CLI_EXIT_USAGE
     if args.command == "shell":
         return cmd_shell(args)
+    if args.command == "cli":
+        if not getattr(args, "cli_command", None):
+            return CLI_EXIT_USAGE
+        return dispatch_phase2(args)
     return CLI_EXIT_USAGE
 
 
