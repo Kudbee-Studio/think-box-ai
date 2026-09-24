@@ -36,12 +36,12 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#169 on main** (#169 = combined post-#168 lane). **PR #170 (draft):** beyond-KILO lint lane (ruff/mypy/bandit scoped; single theme, not combined umbrella). |
+| **Latest completed work** | **PR #141–#170 on main** (#170 = beyond-KILO lint lane, merged). Sequenced follow-ons: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#169 merged; PR #170 draft (`beyond-kilo-lint-readiness`) |
+| **PR status** | PR #141–#170 merged on main; next planned **#171** CI spine-trust (see roadmap doc) |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
