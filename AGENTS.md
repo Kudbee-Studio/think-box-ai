@@ -574,7 +574,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Combined post-#166 lane (audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/gov post166) | **#167** (merged) | `thinkbox/kilo_pr167_combined_post166_lane.py`, `scripts/verify_kilo_pr167_combined_post166_lane.py` |
 | Combined post-#167 lane (audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/gov post167) | **#168** (merged) | `thinkbox/kilo_pr168_combined_post167_lane.py`, `scripts/verify_kilo_pr168_combined_post167_lane.py` |
 | Combined post-#168 lane (audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/gov post168) | **#169** (merged) | `thinkbox/kilo_pr169_combined_post168_lane.py`, `scripts/verify_kilo_pr169_combined_post168_lane.py` |
-| Beyond-KILO lint readiness (ruff + mypy + bandit scoped; not combined umbrella) | **#170** (draft) | `thinkbox/kilo_beyond_kilo_lint.py`, `scripts/verify_kilo_beyond_kilo_lint.py` |
+| Beyond-KILO lint readiness (ruff + mypy + bandit scoped; not combined umbrella) | **#170** (merged) | `thinkbox/kilo_beyond_kilo_lint.py`, `scripts/verify_kilo_beyond_kilo_lint.py` |
+| CI spine-trust slimming (PR CI trusts fast spine + explicit lint execute) | **#172** (draft) | `thinkbox/kilo_pr172_ci_spine_trust.py`, `.github/workflows/test.yml` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
