@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 2,
+  "fix_count": 3,
   "fixes": [
     {
       "id": "FIX01",
@@ -13,6 +13,11 @@
       "id": "FIX02",
       "name": "lr_config_fail_closed",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_config_fail_closed.py"
+    },
+    {
+      "id": "FIX03",
+      "name": "lr_dry_run_transport",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_dry_run_transport.py"
     }
   ]
 }
