@@ -48,6 +48,27 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-24 — Governed Think Job explicit local substrate routing
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_job_execution.py` — explicit `substrate=local` → `LocalExecutionAdapter`; `upstash-box` only when configured (no fallback) |
+| **HTTP** | Optional `RunRequest.execution_substrate` + `exec_command` → `execute_governed_shell_background` |
+| **Evidence** | `data/local_execution/governed_local_proof_20260924.json` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Governed `POST /api/v1/run` handled model goals only; shell execution existed via adapters/CLI but was not routed through governed Think Job admission/receipt path with explicit substrate.
+
+**IMPLEMENTATION:** Substrate router + governed shell background task; paired request fields fail-closed when only one is set.
+
+**TEST_VERIFIED:** `tests.unit.test_governed_job_execution` + local/execution adapter unit tests green.
+
+**LIVE_VERIFIED:** **No** — local substrate only; remote requires explicit `upstash-box` + credentials.
+
+**DECISION:** Never infer local from `detect_substrate()` for this path; never fall back to local when remote is misconfigured.
+
+**NEXT ACTION:** Document `execution_substrate` / `exec_command` in `docs/guides/governed_run_http.md`; optional e2e hermetic POST /run shell path test.
+
 ### 2026-09-24 — Local execution proof lane (provider-independent)
 
 | Field | Value |

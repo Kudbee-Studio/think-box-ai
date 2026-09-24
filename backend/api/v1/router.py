@@ -92,6 +92,8 @@ class RunRequest(BaseModel):
     capability: str | None = None
     verified: bool = False
     subtasks: list[dict[str, Any]] | None = None
+    execution_substrate: str | None = None
+    exec_command: str | None = None
 
 
 class RunResponse(BaseModel):
@@ -127,6 +129,14 @@ async def run_goal(
         from backend.api.v1.run_governed import validate_verified_subtasks
 
         validate_verified_subtasks(list(request.subtasks or []))
+
+    has_substrate = bool((request.execution_substrate or "").strip())
+    has_exec = bool((request.exec_command or "").strip())
+    if has_substrate ^ has_exec:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "exec_command_and_substrate_required_together"},
+        )
 
     admission_ctx = parse_run_admission(
         agent_id=x_agent_id or request.agent_id,
@@ -185,6 +195,9 @@ async def run_goal(
             job_entry,
             complete_async=complete_async,
             receipt_binding=receipt_binding,
+            execution_substrate=request.execution_substrate,
+            exec_command=request.exec_command,
+            worktree=".",
         )
     )
 

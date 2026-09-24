@@ -1,0 +1,31 @@
+{
+  "adapter_selected": "local",
+  "artifact_hash": "fb3591225c6557545964702cb55f3d2b2c710f0a6a941ef948dd3b05ed5b7d7d",
+  "artifact_name": "governed_exec.json",
+  "artifact_path_empty": false,
+  "checkpoint_id": "chk_6de526c4ba8a",
+  "duration_ms": 1,
+  "end_time": "2026-09-24T20:50:46.325052+00:00",
+  "error_empty": true,
+  "evidence_label": "verified",
+  "execution_id": "exec_ec2cccda6679",
+  "execution_substrate": "local",
+  "exit_code": 0,
+  "governed_shell": true,
+  "job_id": "governed_local_exec_proof",
+  "live_api_called": false,
+  "live_verified": false,
+  "provenance": [
+    "discover_local",
+    "execute_subprocess",
+    "checkpoint_created",
+    "hash_verified"
+  ],
+  "provider": "local",
+  "receipt_path_empty": false,
+  "start_time": "2026-09-24T20:50:46.323813+00:00",
+  "status": "COMPLETED",
+  "timestamp": "2026-09-24T20:50:46.325493+00:00",
+  "verdict": "COMPLETED",
+  "verified": true
+}

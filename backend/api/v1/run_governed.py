@@ -250,6 +250,105 @@ def build_complete_async_for_run(
     return None
 
 
+async def execute_governed_shell_background(
+    ctx: RunAdmissionContext,
+    job_entry: ThinkJobEntry,
+    *,
+    execution_substrate: str,
+    exec_command: str,
+    receipt_binding: HttpRunReceiptBinding | None = None,
+    worktree: str = ".",
+) -> None:
+    """Explicit substrate shell execution (local or configured remote only)."""
+    from pathlib import Path
+
+    from thinkbox.governed_job_execution import (
+        GovernedJobExecutionError,
+        execute_governed_job_command,
+    )
+    from thinkbox.repository import Repository
+
+    dashboard = get_dashboard_state()
+    stack = get_http_run_persistence()
+    binding = receipt_binding
+    try:
+        result = execute_governed_job_command(
+            substrate=execution_substrate,
+            job_id=job_entry.job_id,
+            command=exec_command,
+            repo=Repository(Path(worktree)),
+        )
+    except GovernedJobExecutionError as exc:
+        job_entry.status = "failed"
+        job_entry.result = {"error": exc.code, "message": str(exc)}
+        if binding:
+            finalize_http_run_receipt(
+                binding,
+                status="failed",
+                outcome=job_entry.result,
+                confidence=0.0,
+                persistence=stack,
+            )
+        dashboard.upsert_think_job(job_entry)
+        await dashboard.emit(
+            DashboardCategory.THINK_JOBS,
+            DashboardEvent.TASK_FAILED,
+            job_entry.model_dump(),
+            "governed_shell",
+        )
+        return
+
+    receipt = result.receipt
+    proof = result.public_proof
+    succeeded = receipt.status == "COMPLETED" and receipt.verified
+    job_entry.status = "completed" if succeeded else "failed"
+    job_entry.progress = 1.0 if succeeded else 0.0
+    job_entry.tasks_total = 1
+    job_entry.tasks_completed = 1 if succeeded else 0
+    job_entry.phase = "completed" if succeeded else "failed"
+    job_entry.result = {
+        "governed": True,
+        "governed_shell": True,
+        "execution_substrate": result.substrate,
+        "adapter_provider": result.adapter_provider,
+        "execution_proof": proof,
+        "capability": ctx.capability,
+        "agent_id": ctx.agent_id,
+    }
+    job_entry.evidence_label = "verified"
+    if binding:
+        proof_path, proof_sha = write_simple_http_run_proof(
+            binding,
+            job_entry.result,
+            persistence=stack,
+        )
+        finalize_http_run_receipt(
+            binding,
+            status="completed" if succeeded else "failed",
+            outcome=job_entry.result,
+            confidence=1.0 if succeeded else 0.0,
+            proof_path=proof_path,
+            proof_sha256=proof_sha,
+            persistence=stack,
+        )
+        job_entry.receipt_id = binding.receipt_id
+        job_entry.experiment_id = binding.experiment_id
+        job_entry.session_id = binding.session_id
+        await emit_receipt_dashboard(
+            binding,
+            status="completed" if succeeded else "failed",
+            proof_path=proof_path,
+        )
+    job_entry.completed_at = datetime.now(timezone.utc).isoformat()
+    dashboard.upsert_think_job(job_entry)
+    await dashboard.emit(
+        DashboardCategory.THINK_JOBS,
+        DashboardEvent.TASK_COMPLETED if succeeded else DashboardEvent.TASK_FAILED,
+        job_entry.model_dump(),
+        "governed_shell",
+    )
+
+
 async def execute_governed_run_background(
     governed: GovernedEngine,
     ctx: RunAdmissionContext,
@@ -258,10 +357,23 @@ async def execute_governed_run_background(
     *,
     complete_async: CompleteAsyncFn | None = None,
     receipt_binding: HttpRunReceiptBinding | None = None,
+    execution_substrate: str | None = None,
+    exec_command: str | None = None,
+    worktree: str = ".",
 ) -> None:
     dashboard = get_dashboard_state()
     stack = get_http_run_persistence()
     binding = receipt_binding
+    if execution_substrate and exec_command:
+        await execute_governed_shell_background(
+            ctx,
+            job_entry,
+            execution_substrate=execution_substrate,
+            exec_command=exec_command,
+            receipt_binding=binding,
+            worktree=worktree,
+        )
+        return
     try:
         if ctx.verified and ctx.subtasks:
             if complete_async is None:
