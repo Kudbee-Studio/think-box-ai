@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 10,
+  "fix_count": 11,
   "fixes": [
     {
       "id": "FIX01",
@@ -53,6 +53,11 @@
       "id": "FIX10",
       "name": "lr_fixture_library",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_fixture_library.py"
+    },
+    {
+      "id": "FIX11",
+      "name": "lr_observability_reset",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_observability_reset.py"
     }
   ]
 }
