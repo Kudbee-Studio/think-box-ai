@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 8,
+  "fix_count": 9,
   "fixes": [
     {
       "id": "FIX01",
@@ -43,6 +43,11 @@
       "id": "FIX08",
       "name": "lr_hop_cursor_roundtrip",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_hop_cursor_roundtrip.py"
+    },
+    {
+      "id": "FIX09",
+      "name": "lr_cassette_replay",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/lr_cassette_replay.py"
     }
   ]
 }
