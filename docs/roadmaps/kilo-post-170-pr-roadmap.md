@@ -1,9 +1,9 @@
 # KILO post-#170 PR roadmap (implementation slots)
 
-**GitHub #171** (draft) is **this planning PR** only. The table below uses **implementation slots**; the next coding PR is expected as **GitHub #172** (CI spine-trust).
+**GitHub #171** (merged) was the **planning PR** for this table. Implementation slots map to GitHub PR numbers from **#172** onward.
 
 **Status:** Planning artifact (not an implementation gate).  
-**Baseline:** `main` after GitHub **#170** (beyond-KILO lint readiness, merged).  
+**Baseline:** `main` after GitHub **#170** (beyond-KILO lint readiness, merged), **#172** (CI spine-trust, merged).  
 **Four-state cap:** Hermetic work stays **CODE COMPLETE / TEST VERIFIED** only until founder-run Live proof + artifacts (`#152`/`#153` path).
 
 **Founder constraints (summary):**
@@ -11,19 +11,19 @@
 - One open **implementation** PR at a time; sequence below accordingly.
 - No new combined post-#N **A–D umbrella** lanes (cost: nested evaluators, multi-minute CI hangs seen in #165–#169).
 - Spine **fast-by-default** (`verify_kilo_spine.py`; nested e2e opt-in via `--e2e`, from #168).
-- Lint: widen `LINT_SCOPE_REL_PATHS` in **single-theme** follow-ons (#170 operator guide).
+- Lint: widen `LINT_SCOPE_REL_PATHS` in **single-theme** follow-ons (#170 operator guide; slots #174–#175).
 - Live proof: optional later lane; requires Box URL + token + `THINKBOX_SWARM_LIVE_ACK` — never fake `live_verified: true`.
 
 ---
 
-## Current snapshot (post-#170)
+## Current snapshot (post-#172)
 
 | Area | State |
 |------|--------|
-| Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; ruff/mypy/bandit on **two** modules only (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`) |
+| Beyond-KILO lint | Gate `beyond-kilo-lint-readiness`; ruff/mypy/bandit on **two** modules only (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`) — **#170 merged** |
 | Spine | `verify_kilo_spine.py` aggregates 28 blocks including #169 umbrella + #170 lint (static lint in spine unless `KILO_BEYOND_KILO_LINT_EXECUTE=1`) |
-| CI | **#172 draft:** `.github/workflows/test.yml` = unittest + **one** fast spine + beyond-KILO lint execute + secret scan (no duplicate per-gate scripts) |
-| Chronicle gap | `docs/CONTINUITY.md`, `AGENTS.md` KILO table still label **#170 draft** (should read **merged**) |
+| CI | **#172** (merged): `.github/workflows/test.yml` = unittest + **one** fast spine + beyond-KILO lint execute + secret scan (no duplicate per-gate scripts) |
+| Chronicle | **#173** (draft): AGENTS / CONTINUITY / README / runbook honesty — no stale #170/#172 draft labels |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -34,7 +34,7 @@
 | Slot | Theme (one line) | Why now | Size | Out of scope | Risks |
 |------|------------------|---------|------|--------------|-------|
 | **Slot 1 (→ GH #172)** | CI spine-trust slimming (dedupe workflow verify scripts) | CI runs spine **and** nearly every gate script twice; wall-clock + flake surface; aligns with (a) spine health | ~8–15 commits; `test.yml`, `kilo_post_season_harden` checklist/docs, `test_kilo_live_proof_readiness_pr172` | Removing gate modules; combined umbrellas; live smoke | Must keep `verify_kilo_beyond_kilo_lint.py` with `EXECUTE=1` in CI; post_season checklist drift |
-| **Slot 2 (→ GH #173)** | Chronicle honesty sync (#170 merged + post-170 era) | AGENTS/CONTINUITY/runbook H30 vs “draft”; audit index; (c) docs honesty | ~5–10 commits; docs + hermetic spine-doc tests only | Production code except test fixtures for doc paths | Low; avoid affirmative LIVE claims |
+| **Slot 2 (→ GH #173)** | Chronicle honesty sync (#170 merged + post-170 era) | AGENTS/CONTINUITY/runbook H30–H32 vs stale “draft”; README for new readers; audit index | ~5–10 commits; docs + hermetic spine-doc tests only | Production code except test fixtures for doc paths | Low; avoid affirmative LIVE claims |
 | **Slot 3 (→ GH #174)** | Lint scope wave 1 (spine + hermetic subprocess helpers) | #170 explicitly deferred widening; (b) gradual lint | ~6–12 commits; `LINT_SCOPE_REL_PATHS` + ruff/mypy fixes on new files | Whole `thinkbox/` tree; `core/` runtime | Mypy time; keep `--follow-imports=skip` |
 | **Slot 4 (→ GH #175)** | Lint scope wave 2 (live-proof readiness spine modules) | Next bounded slice: `kilo_live_proof_readiness`, `kilo_env_matrix`, `kilo_hermetic_gate_memo` | ~8–15 commits | Combined lanes; importing provider SDKs | Same as slot 3 |
 | **Slot 5 (→ GH #176)** | Control-plane receipt-chain single deepen (412/precondition only) | Mature receipt/ETag stack (#155–#161); one HTTP edge theme | ~10–18 commits; `receipt_chain_query` / conditional GET tests | END_LINK UX; dashboard bind; api_ops combined | No live Mercury; hermetic e2e only if scoped |
@@ -48,49 +48,47 @@
 
 ---
 
-## Recommended default next **implementation** PR: **GitHub #172** (slot 1)
+## Recommended default next **implementation** PR: **GitHub #174** (slot 3)
 
-See launch brief below (coordinator handoff).
+Lint scope wave 1 — see slot 3 row. Do not start until **#173** chronicle honesty merges.
 
 ---
 
-## Launch brief — GitHub #172 / slot 1: CI spine-trust slimming
+## Launch brief — GitHub #173 / slot 2: chronicle honesty
 
-**Branch:** `cursor/pr172-ci-spine-trust-slim-8f6c`  
-**Title:** `chore(ci): dedupe KILO gate invocations; trust fast spine verify`
+**Branch:** `cursor/pr173-chronicle-honesty-0660`  
+**Title:** `docs(kilo): chronicle honesty after #170–#172 merge`
 
-**Goal:** Make PR CI match the intended operator model: full unittest suite + **one** fast spine pass + explicit lint execute + secret scan. Remove redundant per-gate `python3 scripts/verify_kilo_*` lines that only repeat `spine_contract_summary` / `hermetic_operator_ok` already enforced by `verify_kilo_spine.py`.
+**Goal:** New readers and agents see one truthful story: #170 beyond-KILO lint merged, #171 roadmap docs merged, #172 CI trusts fast spine; hermetic work caps at **TEST VERIFIED**; no combined A–D umbrellas as default next work.
 
 **In scope:**
 
-1. Edit `.github/workflows/test.yml` KILO step to approximately:
-   - `PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py` (default fast)
-   - `pip install -e ".[lint]"` + `KILO_BEYOND_KILO_LINT_EXECUTE=1` + `python3 scripts/verify_kilo_beyond_kilo_lint.py`
-   - Keep `python3 -m unittest discover -s tests -t .` and `scan_doc_secrets.py`
-2. Update `data/kilo_post_season_harden/checklist.json` + `thinkbox/kilo_post_season_harden.py` **only if** checklist asserts per-script CI lines (today validates spine + unittest + secrets; extend with `beyond_kilo_lint` snippet if needed).
-3. Add `tests/unit/test_kilo_live_proof_readiness_pr172.py` asserting CI manifest contract (no combined umbrella).
-4. Audit pass `docs/audit/passes/2026-09-24-pr172.json` with `live_verified: false`.
-5. Touch `docs/runbooks/kilo-live-proof-readiness.md` § Hermetic prerequisites with **H31** CI-trust note (optional one paragraph).
+1. Refresh root `README.md` (what Think Box AI is, post-#170 status, verify commands).
+2. Align `AGENTS.md`, `docs/CONTINUITY.md`, `docs/STATUS.md`, runbook H30–H32, operator guides.
+3. `thinkbox/kilo_pr173_chronicle_honesty.py` + `scripts/verify_kilo_pr173_chronicle_honesty.py` + `test_kilo_live_proof_readiness_pr173.py`.
+4. Audit pass `docs/audit/passes/2026-09-24-pr173.json` with `live_verified: false`.
 
-**Out of scope:** Deleting `scripts/verify_kilo_*.py` (operators still run them locally). Changing spine block list. Lint scope widen (slot 3). Live proof. Chronicle honesty (slot 2) unless founder batches.
+**Out of scope:** Lint widen (#174), CI redesign, live smoke, combined umbrellas.
 
 **Verification:**
 
 ```bash
-python3 -m unittest discover -s tests -t .
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr173 -v
+python3 scripts/verify_kilo_pr173_chronicle_honesty.py
 PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
-pip install -e ".[lint]"
-KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
 python3 scripts/scan_doc_secrets.py
-python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr172 -v
 ```
 
 **Four-state:** CODE COMPLETE / TEST VERIFIED only.
 
-**Risk notes:** Prove equivalence — before merge, run old and new CI step lists once on branch and compare spine JSON `hermetic_operator_ok` fields. Watch PR170 lint job still executes tools in CI.
+---
+
+## Launch brief — GitHub #172 / slot 1: CI spine-trust slimming (merged)
+
+See git history / `docs/audit/passes/2026-09-24-pr172.json`. PR CI = unittest + fast spine + explicit beyond-KILO lint execute + secret scan.
 
 ---
 
 ## CONTINUITY pointer
 
-When **GitHub #172** (slot 1) merges, update `docs/CONTINUITY.md` CURRENT STATE and CI notes in this roadmap.
+When **GitHub #173** (slot 2) merges, update this roadmap snapshot and root README “Project status” date.
