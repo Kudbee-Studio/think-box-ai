@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -13,6 +15,19 @@ T = TypeVar("T")
 class Page(Generic[T]):
     items: tuple[T, ...]
     next_cursor: str | None
+
+
+def encode_cursor(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii")
+
+
+def decode_cursor(cursor: str) -> dict[str, Any]:
+    raw = base64.urlsafe_b64decode(cursor.encode("ascii"))
+    doc = json.loads(raw.decode("utf-8"))
+    if not isinstance(doc, dict):
+        raise ValueError("cursor payload must be an object")
+    return doc
 
 
 def iter_pages(
