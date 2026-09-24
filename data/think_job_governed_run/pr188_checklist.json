@@ -1,0 +1,11 @@
+{
+  "gate_id": "think-job-governed-run-major-fixes",
+  "pr_number": 188,
+  "live_verified": false,
+  "artifacts": [
+    "data/think_job_governed_run/pr188_fixes.json",
+    "data/think_job_governed_run/pr188_checklist.json",
+    "data/think_job_governed_run/cassettes/governed_run_fix_flow.json",
+    "docs/audit/passes/2026-09-24-pr188.json"
+  ]
+}
