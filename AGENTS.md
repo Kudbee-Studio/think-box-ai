@@ -589,7 +589,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Think Job hermetic e2e deepen (~25 hermetic features) | **#183** (merged) | `thinkbox/think_job_e2e_deepen/`, `thinkbox/kilo_pr183_think_job_hermetic_e2e.py`, `scripts/verify_kilo_pr183_think_job_hermetic_e2e.py` |
 | Think Job POST /run contract deepen (~25 hermetic features) | **#184** (merged) | `thinkbox/think_job_post_run_deepen/`, `thinkbox/kilo_pr184_think_job_post_run_deepen.py`, `scripts/verify_kilo_pr184_think_job_post_run_deepen.py` |
 | Think Job lifecycle integration fix pack (25 fixes) | **#185** (merged) | `thinkbox/think_job_lifecycle_fixes/`, `thinkbox/kilo_pr185_think_job_lifecycle_fixes.py`, `scripts/verify_kilo_pr185_think_job_lifecycle_fixes.py` |
-| Think Job governed run receipt deepen (~25 features) | **#186** (draft) | `thinkbox/think_job_run_receipt_deepen/`, `thinkbox/kilo_pr186_think_job_run_receipt_deepen.py`, `scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py` |
+| Think Job governed run receipt deepen (~25 features) | **#186** (merged) | `thinkbox/think_job_run_receipt_deepen/`, `thinkbox/kilo_pr186_think_job_run_receipt_deepen.py`, `scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py` |
+| Think Job receipt major fixes (25 fixes) | **#187** (draft) | `thinkbox/think_job_run_receipt_deepen/fixes/`, `thinkbox/kilo_pr187_think_job_receipt_major_fixes.py`, `scripts/verify_kilo_pr187_think_job_receipt_major_fixes.py` |
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 
