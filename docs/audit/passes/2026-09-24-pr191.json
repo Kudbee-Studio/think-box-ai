@@ -1,0 +1,20 @@
+{
+  "audit_pass_id": "pr191-kudbee-sdk-followup-w3",
+  "pr_number": 191,
+  "gate_id": "kudbee-sdk-followup-w3",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "primary_surface": "thinkbox/kudbee_sdk_followup_w3 + apps/web/sdk",
+  "themes": [
+    "sdk_followup_w3_toolkit",
+    "cassette_fixture_replay",
+    "webhook_signature_dry_run",
+    "occupancy_twin_stubs",
+    "capability_negotiation_v4",
+    "typescript_followup_w3_parity"
+  ],
+  "notes": "Twenty-five Kudbee SDK follow-up wave 3 features after merged #181; hermetic only; no live Box/Mercury calls."
+}

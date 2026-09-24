@@ -116,6 +116,7 @@ python3 scripts/verify_kilo_pr178_kudbee_cli_phase2.py
 python3 scripts/verify_kilo_pr179_kudbee_sdk_followup.py
 python3 scripts/verify_kilo_pr180_kudbee_cli_phase3.py
 python3 scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py
+python3 scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py
 python3 scripts/verify_kilo_pr182_receipt_chain_deepen.py
 python3 scripts/verify_kilo_pr183_think_job_hermetic_e2e.py
 python3 scripts/verify_kilo_pr184_think_job_post_run_deepen.py

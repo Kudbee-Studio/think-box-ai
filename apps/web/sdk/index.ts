@@ -17,3 +17,10 @@ export {
   sdkRouteCatalogV2,
   verifyWebhookDryRun,
 } from './followup_w2.ts';
+export {
+  SDK_FOLLOWUP_W3_VERSION,
+  collectPagesV3,
+  fetchCapabilitiesV3,
+  sdkRouteCatalogV3,
+  verifyWebhookDryRunV3,
+} from './followup_w3.ts';
