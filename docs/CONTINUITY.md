@@ -54,7 +54,7 @@ Before declaring completion, every agent MUST verify:
 |---|---|
 | **Scope** | `.github/workflows/test.yml` dedupes per-gate `verify_kilo_*`; PR CI = unittest + fast spine + `KILO_BEYOND_KILO_LINT_EXECUTE=1` + secret scan; `kilo_pr172_ci_spine_trust` contract |
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
-| **Tests** | `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr172 -v`; spine fast verify |
+| **Tests** | `python3 scripts/verify_kilo_pr172_ci_spine_trust.py`; `tests.unit.test_kilo_ci_spine_trust`; `test_kilo_live_proof_readiness_pr172`; spine fast verify |
 | **Audit** | `docs/audit/passes/2026-09-24-pr172.json` (`live_verified: false`) |
 
 ### 2026-09-24 — Post-#170 planning roadmap (docs only)
