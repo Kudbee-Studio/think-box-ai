@@ -24,7 +24,11 @@ export function parseSseChunk(buffer: string): { events: { event?: string; data:
         if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
       }
       if (!dataLines.length && !event) return null;
-      return { event, data: dataLines.join('\n') };
+      const data = dataLines.join('\n');
+      if (event !== undefined) {
+        return { event, data };
+      }
+      return { data };
     })
     .filter((ev): ev is { event?: string; data: string } => ev !== null);
   return { events, remainder };

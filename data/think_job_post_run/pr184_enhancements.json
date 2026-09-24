@@ -1,0 +1,18 @@
+{
+  "gate_id": "think-job-post-run-deepen",
+  "pr_number": 184,
+  "live_verified": false,
+  "enhancement_count": 10,
+  "enhancements": [
+    {"id": "E01", "module": "thinkbox/think_job_post_run_deepen/enhancements/payload_size_guard.py"},
+    {"id": "E02", "module": "thinkbox/think_job_post_run_deepen/enhancements/api_key_query_stub.py"},
+    {"id": "E03", "module": "thinkbox/think_job_post_run_deepen/enhancements/content_type_stub.py"},
+    {"id": "E04", "module": "thinkbox/think_job_post_run_deepen/enhancements/ops_timing_stub.py"},
+    {"id": "E05", "module": "thinkbox/think_job_post_run_deepen/enhancements/stream_handoff_stub.py"},
+    {"id": "E06", "module": "thinkbox/think_job_post_run_deepen/enhancements/receipt_handoff_stub.py"},
+    {"id": "E07", "module": "thinkbox/think_job_post_run_deepen/enhancements/governance_fields_catalog.py"},
+    {"id": "E08", "module": "thinkbox/think_job_post_run_deepen/enhancements/pr183_pairing.py"},
+    {"id": "E09", "module": "thinkbox/think_job_post_run_deepen/enhancements/f131_harness_probe.py"},
+    {"id": "E10", "module": "thinkbox/think_job_post_run_deepen/enhancements/enhancement_registry.py"}
+  ]
+}
