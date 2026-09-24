@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
   "pr_number": 194,
   "live_verified": false,
-  "fix_count": 23,
+  "fix_count": 24,
   "fixes": [
     {
       "id": "FIX01",
@@ -118,6 +118,11 @@
       "id": "FIX23",
       "name": "four_state_integrate",
       "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/four_state_integrate.py"
+    },
+    {
+      "id": "FIX24",
+      "name": "fix_count_honesty",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_major_fixes/fixes/fix_count_honesty.py"
     }
   ]
 }
