@@ -48,6 +48,27 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-24 — Local execution proof lane (provider-independent)
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded local subprocess execution via existing ``ExecutionReceipt`` + checkpoint contract |
+| **Surface** | `thinkbox/local_execution_adapter.py`, `scripts/local_execution_proof.py`, `thinkbox repository_cli job execute-local` |
+| **Evidence** | `data/local_execution/proof_20260924.json` (redacted; `live_verified: false`) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (local only; no external service) |
+
+**DISCOVERY:** Remote path is `UpstashBoxExecutionAdapter` + `ExecutionReceipt`; local hermetic tests used HTTP stubs but no first-class local adapter for operator proof without cloud credentials.
+
+**IMPLEMENTATION:** `LocalExecutionAdapter` (`provider=local`) runs one bounded `/bin/sh -c` command, writes hash-verified artifact under `.thinkbox/artifacts/`, creates checkpoint metadata with intent fingerprint (not full secret-bearing env). Public proof helper sets `evidence_label=verified` and explicitly `live_verified: false`.
+
+**TEST_VERIFIED:** `tests/unit/test_local_execution_adapter.py` + existing `tests/unit/test_execution_adapter.py` green; proof script exit 0 on workspace.
+
+**LIVE_VERIFIED:** **No** — by design; local lane does not call Upstash/UpCloud/AWS.
+
+**DECISION:** Keep PR #201 Upstash registration gate unchanged; local proof is parallel lane for Think Box contract exercise.
+
+**NEXT ACTION:** Wire Think Job governed-run path to select local adapter when substrate is `local` and remote is unconfigured (optional); keep remote live proof on PR #201 separate.
+
 ### 2026-09-24 — PR #201 (draft): Upstash Box access verification
 
 | Field | Value |
