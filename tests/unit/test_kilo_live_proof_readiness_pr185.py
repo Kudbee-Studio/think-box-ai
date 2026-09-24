@@ -20,6 +20,10 @@ class TestPr185ThinkJobLifecycleFixesLane(unittest.TestCase):
         ok, violations = pr185.validate_fixes_manifest()
         self.assertTrue(ok, violations)
 
+    def test_local_setup_manifest(self) -> None:
+        ok, violations = pr185.validate_local_setup_manifest()
+        self.assertTrue(ok, violations)
+
     def test_honesty_flags(self) -> None:
         summary = pr185.think_job_lifecycle_fixes_contract_summary()
         self.assertFalse(summary["live_verified"])

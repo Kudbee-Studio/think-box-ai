@@ -6,6 +6,9 @@
     "data/think_job/pr185_fixes.json",
     "data/think_job/pr185_checklist.json",
     "data/think_job/cassettes/lifecycle_fix_flow.json",
-    "docs/audit/passes/2026-09-24-pr185.json"
+    "docs/audit/passes/2026-09-24-pr185.json",
+    "data/think_job/pr185_local_setup.json",
+    "docs/runbooks/think-job-pr185-local-environment.md",
+
   ]
 }

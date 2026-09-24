@@ -8,5 +8,8 @@
   "live_api_called": false,
   "four_state_max": "TEST_VERIFIED",
   "combined_umbrella_nested": false,
-  "primary_surface": "thinkbox/think_job_lifecycle_fixes"
+  "primary_surface": "thinkbox/think_job_lifecycle_fixes",
+  "local_step_count": 8,
+  "local_runbook": "docs/runbooks/think-job-pr185-local-environment.md",
+
 }

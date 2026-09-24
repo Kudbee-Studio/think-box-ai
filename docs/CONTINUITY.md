@@ -54,9 +54,10 @@ Before declaring completion, every agent MUST verify:
 |---|---|
 | **Scope** | `thinkbox/think_job_lifecycle_fixes/`; gate `think-job-lifecycle-fixes` |
 | **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
-| **Tests** | `test_think_job_pr185_fixes`, `test_kilo_live_proof_readiness_pr185` |
+| **Tests** | `test_think_job_pr185_fixes`, `test_kilo_live_proof_readiness_pr185`, `test_think_job_pr185_local_env` |
 | **Audit** | `docs/audit/passes/2026-09-24-pr185.json` |
-| **Notes** | Glue #183/#184 with F131–F140; fixes-only lane (no 25-feature matrix) |
+| **Notes** | Glue #183/#184 with F131–F140; **25 fixes** + **local env** (`./scripts/run_pr185_local.sh`, 8 steps) |
+
 
 ### 2026-09-24 — PR #184 merged: Think Job POST /run contract deepen (~25 features)
 
