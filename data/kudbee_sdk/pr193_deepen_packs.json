@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 11,
+  "pack_count": 12,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -59,6 +59,11 @@
       "id": "DEP11",
       "name": "connection_mesh_gradient",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/connection_mesh_gradient.py"
+    },
+    {
+      "id": "DEP12",
+      "name": "twin_energy_path_bind",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/twin_energy_path_bind.py"
     }
   ]
 }
