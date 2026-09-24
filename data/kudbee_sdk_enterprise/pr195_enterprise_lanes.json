@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 15,
+  "lane_count": 16,
   "lanes": [
     {
       "id": "ENT01",
@@ -79,6 +79,11 @@
       "id": "ENT15",
       "name": "change_advisory_board_stub",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/change_advisory_board_stub.py"
+    },
+    {
+      "id": "ENT16",
+      "name": "dr_rpo_rto_envelope",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/dr_rpo_rto_envelope.py"
     }
   ]
 }
