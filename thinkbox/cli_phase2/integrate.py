@@ -13,6 +13,7 @@ from thinkbox.cli_phase2.inspect_status import cli_health_report
 from thinkbox.cli_phase2.receipt_bind import bind_receipt_hermetic
 from thinkbox.cli_phase2.streaming import parse_sse_chunk
 from thinkbox.cli_phase2.websocket_envelope import validate_ws_message
+from thinkbox.cli_phase3.integrate import dispatch_phase3, register_phase3_subcommands
 
 
 def cmd_cli_health(args: argparse.Namespace) -> int:
@@ -102,7 +103,10 @@ def cmd_cli_envelope(args: argparse.Namespace) -> int:
 
 def register_phase2_parser(subparsers: Any) -> None:
     """Attach ``cli`` subcommand group to the root thinkbox parser."""
-    cli_parser = subparsers.add_parser("cli", help="KUDBEECLI Phase 2 deepen (hermetic)")
+    cli_parser = subparsers.add_parser(
+        "cli",
+        help="KUDBEECLI Phase 2+3 deepen (hermetic)",
+    )
     cli_sub = cli_parser.add_subparsers(dest="cli_command")
 
     health_p = cli_sub.add_parser("health", help="Redacted env + toolkit health (hermetic)")
@@ -125,8 +129,13 @@ def register_phase2_parser(subparsers: Any) -> None:
     env_p.add_argument("--raw", action="store_true", help="Treat json_body as raw SSE chunk")
     env_p.add_argument("--json", action="store_true", help="Emit JSON")
 
+    register_phase3_subcommands(cli_sub)
+
 
 def dispatch_phase2(args: argparse.Namespace) -> int:
+    phase3_code = dispatch_phase3(args)
+    if phase3_code is not None:
+        return phase3_code
     if args.cli_command == "health":
         return cmd_cli_health(args)
     if args.cli_command == "dry-run":
