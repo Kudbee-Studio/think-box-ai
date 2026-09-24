@@ -15,6 +15,10 @@ def load_fixture(name: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def fixture_exists(name: str) -> bool:
+    return (_FIXTURE_DIR / name).is_file()
+
+
 def list_fixture_names() -> tuple[str, ...]:
     if not _FIXTURE_DIR.is_dir():
         return ()
