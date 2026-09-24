@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 3,
+  "pack_count": 4,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -19,6 +19,11 @@
       "id": "DEP03",
       "name": "mesh_loop_coupling",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/mesh_loop_coupling.py"
+    },
+    {
+      "id": "DEP04",
+      "name": "federated_path_budget",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federated_path_budget.py"
     }
   ]
 }
