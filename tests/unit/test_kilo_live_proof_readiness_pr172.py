@@ -34,11 +34,19 @@ class TestPr172CiSpineTrustLane(unittest.TestCase):
         for script in pr172.FORBIDDEN_REDUNDANT_CI_VERIFY_SCRIPTS:
             self.assertNotIn(script, text, msg=f"redundant CI invocation: {script}")
 
+    def test_spine_includes_pr172_block(self) -> None:
+        summary = spine_contract_summary(fast=True)
+        block = summary.get("ci_spine_trust_readiness") or {}
+        self.assertEqual(block.get("gate_id"), pr172.GATE_ID)
+        self.assertTrue(block.get("hermetic_operator_ok"))
+        self.assertEqual(summary.get("pr172_gate_id"), pr172.GATE_ID)
+
     def test_spine_fast_still_hermetic_operator_ok(self) -> None:
         summary = spine_contract_summary(fast=True)
         for block_key, field in (
             ("post_season_harden", "hermetic_operator_ok"),
             ("beyond_kilo_lint_readiness", "hermetic_operator_ok"),
+            ("ci_spine_trust_readiness", "hermetic_operator_ok"),
             ("pr169_combined_post168_lane", "hermetic_operator_ok"),
         ):
             block = summary.get(block_key) or {}
@@ -54,6 +62,16 @@ class TestPr172CiSpineTrustLane(unittest.TestCase):
         summary = pr172.ci_spine_trust_contract_summary(text)
         self.assertFalse(summary.get("combined_umbrella_nested"))
         self.assertTrue(summary.get("hermetic_operator_ok"))
+
+    def test_verify_pr172_operator_script_exit_zero(self) -> None:
+        proc = subprocess.run(
+            ["python3", "scripts/verify_kilo_pr172_ci_spine_trust.py"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stdout + proc.stderr)
 
     def test_verify_spine_script_exit_zero(self) -> None:
         proc = subprocess.run(
