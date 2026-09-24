@@ -20,7 +20,9 @@ export {
 export {
   SDK_FOLLOWUP_W3_VERSION,
   collectPagesV3,
+  emptyTwinFederationSnapshotV3,
   fetchCapabilitiesV3,
   sdkRouteCatalogV3,
   verifyWebhookDryRunV3,
+  type TwinFederationSnapshotV3,
 } from './followup_w3.ts';

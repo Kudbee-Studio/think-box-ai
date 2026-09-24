@@ -44,6 +44,16 @@ export function collectPagesV3<T>(
   return out;
 }
 
+export type TwinFederationSnapshotV3 = {
+  peerCount: number;
+  peers: Array<Record<string, unknown>>;
+  liveApiCalled: false;
+};
+
+export function emptyTwinFederationSnapshotV3(): TwinFederationSnapshotV3 {
+  return { peerCount: 0, peers: [], liveApiCalled: false };
+}
+
 export const sdkRouteCatalogV3 = (): string[] => [
   '/api/health',
   '/api/sdk/v3/capabilities',
