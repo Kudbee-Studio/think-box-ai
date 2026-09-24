@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 4,
+  "lane_count": 5,
   "lanes": [
     {
       "id": "ENT01",
@@ -24,6 +24,11 @@
       "id": "ENT04",
       "name": "sla_tier_contract",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/sla_tier_contract.py"
+    },
+    {
+      "id": "ENT05",
+      "name": "compliance_evidence_bundle",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/compliance_evidence_bundle.py"
     }
   ]
 }
