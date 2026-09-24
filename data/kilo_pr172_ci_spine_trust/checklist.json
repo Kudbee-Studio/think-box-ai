@@ -1,0 +1,20 @@
+{
+  "gate_id": "ci-spine-trust",
+  "pr_number": 172,
+  "trust_model": "spine-fast-plus-beyond-kilo-lint-execute",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "ci_workflow_rel": ".github/workflows/test.yml",
+  "required_ci_snippets": [
+    "python3 -m unittest discover",
+    "verify_kilo_spine.py",
+    "pip install -e \".[lint]\"",
+    "KILO_BEYOND_KILO_LINT_EXECUTE=1",
+    "verify_kilo_beyond_kilo_lint.py",
+    "scan_doc_secrets.py"
+  ],
+  "forbidden_in_pr_ci": "per-gate verify_kilo_* duplicates covered by verify_kilo_spine.py",
+  "prior_gate_ids": ["beyond-kilo-lint-readiness"],
+  "scope_note": "Single-theme CI trust lane; not a combined post-#169 umbrella."
+}
