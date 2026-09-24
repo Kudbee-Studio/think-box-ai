@@ -13,7 +13,10 @@ data/thinkboxmd/db
 data/logs
 *.md
 !README.md
-docs/
+docs/**
+!docs/audit/passes/**
+!docs/guides/kudbee_sdk_followup_w2_quickstart.md
+!docs/guides/kudbee_cli_phase3_quickstart.md
 experiments/
 tests/
 agents/
