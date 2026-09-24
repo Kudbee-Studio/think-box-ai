@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 2,
+  "lane_count": 3,
   "lanes": [
     {
       "id": "ENT01",
@@ -14,6 +14,11 @@
       "id": "ENT02",
       "name": "tenant_isolation_envelope",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/tenant_isolation_envelope.py"
+    },
+    {
+      "id": "ENT03",
+      "name": "rbac_policy_matrix",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/rbac_policy_matrix.py"
     }
   ]
 }
