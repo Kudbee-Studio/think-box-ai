@@ -1,3 +1,13 @@
+## KILO spine — post-#170 era (2026-09-24)
+
+- **#170 merged:** beyond-KILO lint (`scripts/verify_kilo_beyond_kilo_lint.py`)
+- **#171 merged:** `docs/roadmaps/kilo-post-170-pr-roadmap.md`
+- **#172 merged:** PR CI trusts fast `scripts/verify_kilo_spine.py` + explicit lint execute (H31)
+- **#173 draft:** chronicle honesty — README + AGENTS/CONTINUITY/runbook sync
+- **Four-state cap:** TEST VERIFIED for hermetic work; `live_verified: false` on spine audits until founder Live proof
+
+---
+
 ## PR #125 — Audit ledger (draft)
 
 - **Artifacts:** `docs/audit/` (index, pass `passes/2026-09-22-pr125.json`, checklists, checked areas)

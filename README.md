@@ -1,13 +1,49 @@
 # Think Box AI — Agent Execution Environment
 
-**Think Box AI** is an agent execution environment that decomposes goals,
-executes bounded reasoning loops, uses tools, records outcomes, and improves
-over time.
+**Think Box AI** (`think-box-ai`) is a governed agent execution environment:
+goals decompose into tasks, tools run behind permission checks, outcomes land in
+memory and audit ledgers, and experiments are replayable with honest evidence
+labels. The KUDBEE control fabric (admission gates, Think Boxes, ActionLedger)
+wraps side effects so draft/simulate stays the default without a governance token.
+
+---
+
+## Project status (2026-09-24)
+
+| Milestone | GitHub PR | State on `main` |
+|-----------|-----------|-----------------|
+| Beyond-KILO lint readiness (scoped ruff/mypy/bandit) | **#170** | **Merged** — hermetic gate only |
+| Post-#170 implementation roadmap (planning doc) | **#171** | **Merged** — `docs/roadmaps/kilo-post-170-pr-roadmap.md` |
+| CI spine-trust (fast spine + explicit lint in PR CI) | **#172** | **Merged** — see H31 in live-proof runbook |
+| Chronicle honesty (README + spine Markdown sync) | **#173** | **Draft** — this docs wave |
+
+**Four-state honesty:** Hermetic PR work stops at **CODE COMPLETE / TEST VERIFIED**.
+Do not claim **KILO LIVE VERIFIED**, **KILO PRODUCTION READY**, or earned Live proof
+without founder-run artifacts (`live_verified: false` on spine audit passes until then).
+
+**How we ship:** One implementation PR at a time; **single-theme** PRs only
+(no combined post-#N A–D umbrella lanes by default). Spine verify is **fast-by-default**.
+See the [post-#170 roadmap](docs/roadmaps/kilo-post-170-pr-roadmap.md).
+
+**Fast checks (operators):**
+
+```bash
+python3 -m unittest discover -s tests -t .
+PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
+pip install -e ".[lint]"
+KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
+python3 scripts/scan_doc_secrets.py
+```
+
+Nested control-plane e2e is **opt-in** on the spine (`python3 -u scripts/verify_kilo_spine.py --e2e`), not default PR CI.
+
+Canonical agent rules: [AGENTS.md](AGENTS.md). Chronicle: [docs/CONTINUITY.md](docs/CONTINUITY.md).
 
 ---
 
 ## Table of Contents
 
+- [Project status (2026-09-24)](#project-status-2026-09-24)
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Phase Progress](#phase-progress)
@@ -175,7 +211,7 @@ and learned parameters.
 **Learning loop**: Intent → Hypothesis → Parameters → Plan → Execute → Test →
 Artifact → Proof → Outcome → Learn → Updated Parameters → Next Experiment.
 
-**Four-state classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY.
+**Four-state classification**: CODE_COMPLETE, TEST_VERIFIED, LIVE_VERIFIED, PRODUCTION_READY — ladder labels only; hermetic repo work caps at **TEST VERIFIED** unless Live proof artifacts exist.
 
 **Key features**:
 - SQLite persistence (stdlib, zero-dollar)
@@ -282,17 +318,25 @@ think-box-ai/
 ## Testing
 
 ```bash
-# Run all tests
-python3 -m unittest discover tests/
+# Full unit/integration/e2e discovery (canonical CI)
+python3 -m unittest discover -s tests -t .
 
-# Run specific test modules
-python3 -m unittest tests.unit.test_session_tracker
-python3 -m unittest tests.unit.test_phase1_2_security
-python3 -m unittest tests.unit.test_whip_protocol
-python3 -m unittest tests.integration.test_e2e_engine
+# KILO spine (fast default; add --e2e for nested control-plane e2e)
+PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
+
+# Beyond-KILO lint execute (CI runs this with KILO_BEYOND_KILO_LINT_EXECUTE=1)
+pip install -e ".[lint]"
+KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
+
+# Doc secret scan
+python3 scripts/scan_doc_secrets.py
+
+# Examples
+python3 -m unittest tests.unit.test_session_tracker -v
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr173 -v
 ```
 
-Current test count: **1275 tests** (6 skipped, 3 pre-existing failures). Scheduler: 689 tests.
+See [docs/STATUS.md](docs/STATUS.md) and [docs/CONTINUITY.md](docs/CONTINUITY.md) for current counts and blockers. Do not treat README test numbers as authoritative if they drift from CONTINUITY.
 
 ---
 

@@ -79,9 +79,10 @@ Hermetic tests in `tests/unit/test_kilo_live_proof_readiness_pr141.py` enforce t
 | H28 | KILO PR #168 combined post-#167 lane (`scripts/verify_kilo_pr168_combined_post167_lane.py` exit 0) | PR #168 tests |
 | H29 | KILO PR #169 combined post-#168 lane (`scripts/verify_kilo_pr169_combined_post168_lane.py` exit 0) | PR #169 tests |
 | H30 | Beyond-KILO lint readiness (`scripts/verify_kilo_beyond_kilo_lint.py` exit 0; ruff/mypy/bandit scoped) | PR #170 tests |
-| H31 | PR CI spine-trust (#172): one fast `verify_kilo_spine.py` + `KILO_BEYOND_KILO_LINT_EXECUTE=1` lint step; no duplicate per-gate `verify_kilo_*` in `.github/workflows/test.yml` | PR #172 tests |
+| H31 | PR CI spine-trust (#172 merged): one fast `verify_kilo_spine.py` + `KILO_BEYOND_KILO_LINT_EXECUTE=1` lint step; no duplicate per-gate `verify_kilo_*` in `.github/workflows/test.yml` | PR #172 tests |
+| H32 | Chronicle honesty (#173): spine Markdown agrees #170–#172 **merged**; no affirmative KILO LIVE in spine docs; README points to post-#170 roadmap | PR #173 tests |
 
-No `INCEPTION_API_KEY` consumption is required for #141–#170 hermetic gates.
+No `INCEPTION_API_KEY` consumption is required for #141–#173 hermetic gates.
 
 **PR CI model (#172):** GitHub workflow runs `unittest discover`, fast spine only, explicit beyond-KILO lint execute, and `scan_doc_secrets.py`. Individual `scripts/verify_kilo_*` remain for operators locally; spine aggregates their hermetic contracts.
 
@@ -390,8 +391,10 @@ python3 -m unittest discover -s tests -t .
 
 Gate ID: **`post-season-harden`**. Hermetic only — layers on **`live-proof-exec`**
 (`hermetic_live_proof_exec_operator_check` first). Not an arc #141–#150 gate. Validates
-CI workflow snippets (`verify_kilo_spine.py`, `verify_kilo_post_season_harden.py`,
-`scan_doc_secrets.py`), presence of spine operator scripts, frozen checklist
+PR CI workflow (see H31): `verify_kilo_spine.py` (fast), explicit
+`verify_kilo_beyond_kilo_lint.py` with execute flag, and `scan_doc_secrets.py`.
+Operators may still run `verify_kilo_post_season_harden.py` locally; spine
+aggregates post-season contracts. Frozen checklist
 `data/kilo_post_season_harden/checklist.json`, and branch hygiene tooling
 (`scripts/cleanup_merged_cursor_branches.py` + `docs/runbooks/branch-hygiene.md`).
 Dry-run is the default for remote branch deletes; protected branches never removed.

@@ -25,6 +25,7 @@ PR #168 adds ``pr168_combined_post167_lane`` (operator audit-flip post167 + api 
 PR #169 adds ``pr169_combined_post168_lane`` (operator audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/governance post168; not Live proof).
 PR #170 adds ``beyond_kilo_lint_readiness`` (ruff + mypy + bandit scoped lint lane; not Live proof; not a combined umbrella).
 PR #172 documents CI spine-trust (workflow manifest only; not a spine block).
+PR #173 documents chronicle honesty (spine Markdown contracts; not a spine block).
 PR #146 adds ``mercury_hermetic`` summary layered on governance-evidence.
 PR #147 adds ``swarm_instrumentation`` summary layered on mercury-hermetic.
 PR #148 adds ``proof_schema`` summary layered on swarm-instrumentation.

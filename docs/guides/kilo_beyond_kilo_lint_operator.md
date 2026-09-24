@@ -1,4 +1,4 @@
-# Beyond-KILO lint operator guide (PR #170)
+# Beyond-KILO lint operator guide (PR #170, merged on main)
 
 Hermetic readiness lane for **ruff**, **mypy**, and **bandit** on a **scoped** path set
 (`thinkbox/beyond_kilo_lint.py`, `thinkbox/kilo_beyond_kilo_lint.py`). This is **not**
