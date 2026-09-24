@@ -47,7 +47,10 @@ def lifecycle_worktree_path(worktree: str | Path | None = None) -> Path:
 
 def open_lifecycle_repo(worktree: str | Path | None = None) -> Repository:
     """Open the existing Think Repository without requiring a clean git tree."""
-    return Repository(lifecycle_worktree_path(worktree), enforce_git=False)
+    from thinkbox.lifecycle_harden import worktree_must_be_directory
+
+    path = worktree_must_be_directory(lifecycle_worktree_path(worktree))
+    return Repository(path, enforce_git=False)
 
 
 def http_status_for_phase(phase: str) -> str:
@@ -82,8 +85,33 @@ def persist_lifecycle_phase(
     result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Append one durable lifecycle transition onto the Repository job."""
-    if phase not in LIFECYCLE_PHASES:
-        raise ValueError(f"unknown lifecycle phase: {phase!r}")
+    from thinkbox.lifecycle_harden import (
+        admission_must_be_first,
+        bound_goal,
+        bound_transitions,
+        completed_requires_receipt,
+        failed_requires_error,
+        force_live_flags_false,
+        recover_corrupt_lifecycle_blob,
+        redact_lifecycle_result,
+        reject_remote_local_fallback,
+        reject_terminal_regression,
+        reject_unknown_phase,
+        resume_eligibility,
+        skip_duplicate_consecutive_phase,
+        validate_artifact_hash,
+        validate_job_id,
+        validate_substrate,
+    )
+
+    job_id = validate_job_id(job_id)
+    phase = reject_unknown_phase(phase)
+    execution_substrate = validate_substrate(execution_substrate)
+    adapter_provider = (adapter_provider or "").strip()
+    reject_remote_local_fallback(execution_substrate, adapter_provider)
+    artifact_hash = validate_artifact_hash(artifact_hash)
+    goal = bound_goal(goal)
+    result = redact_lifecycle_result(result)
     existing = repo.job_status(job_id)
     if existing is None:
         repo.create_job(
@@ -93,14 +121,10 @@ def persist_lifecycle_phase(
         )
     snap = repo.job_status(job_id) or {}
     meta = dict(snap.get("metadata") or {})
-    life = dict(meta.get(LIFECYCLE_META_KEY) or {})
-    if not life:
-        life = {
-            "schema": SCHEMA_ID,
-            "live_verified": False,
-            "live_api_called": False,
-            "transitions": [],
-        }
+    life = recover_corrupt_lifecycle_blob(meta.get(LIFECYCLE_META_KEY))
+    current_phase = str(life.get("phase") or "")
+    if current_phase:
+        reject_terminal_regression(current_phase, phase)
     if phase == PHASE_ADMISSION:
         # Reused engine ids must not inherit a prior run's provider/verdict.
         for stale in (
@@ -114,9 +138,23 @@ def persist_lifecycle_phase(
         ):
             life.pop(stale, None)
     transitions = list(life.get("transitions") or [])
+    admission_must_be_first(transitions, phase)
+    completed_requires_receipt(phase, receipt_id, life)
+    failed_requires_error(phase, result, verdict)
+    if skip_duplicate_consecutive_phase(transitions, phase):
+        life["phase"] = phase
+        life["resume_eligible"] = resume_eligibility(phase)
+        force_live_flags_false(life)
+        updated = repo.update_job(
+            job_id,
+            status=http_status_for_phase(phase),
+            metadata={LIFECYCLE_META_KEY: life},
+        )
+        return updated or {}
     transitions.append({"phase": phase, "at": _now()})
-    life["transitions"] = transitions
+    life["transitions"] = bound_transitions(transitions)
     life["phase"] = phase
+    life["resume_eligible"] = resume_eligibility(phase)
     if goal:
         life["goal"] = goal
     optional = {
@@ -136,7 +174,7 @@ def persist_lifecycle_phase(
             life[key] = value
     if result is not None:
         life["result"] = result
-    life["live_verified"] = False
+    force_live_flags_false(life)
     http_status = http_status_for_phase(phase)
     updated = repo.update_job(
         job_id,
@@ -156,11 +194,16 @@ def load_lifecycle(repo: Repository, job_id: str) -> dict[str, Any] | None:
     life = (snap.get("metadata") or {}).get(LIFECYCLE_META_KEY)
     if not isinstance(life, dict) or not life.get("phase"):
         return None
+    from thinkbox.lifecycle_harden import timestamps_from_transitions
+
+    started_at, completed_at = timestamps_from_transitions(list(life.get("transitions") or []))
     return {
         "job_id": job_id,
         "http_status": snap.get("status") or http_status_for_phase(str(life.get("phase"))),
         "checkpoint_ids": list(snap.get("checkpoint_ids") or []),
         "intent": snap.get("intent") or "",
+        "started_at": started_at,
+        "completed_at": completed_at,
         **life,
     }
 
@@ -172,7 +215,14 @@ def lifecycle_to_status_record(loaded: dict[str, Any]) -> dict[str, Any]:
     result = loaded.get("result") if isinstance(loaded.get("result"), dict) else {}
     if status not in {"completed", "failed"}:
         result = {}
-    return {
+    from thinkbox.lifecycle_harden import (
+        resume_eligibility,
+        status_includes_lifecycle_phase,
+        timestamps_from_transitions,
+    )
+
+    started_at, completed_at = timestamps_from_transitions(list(loaded.get("transitions") or []))
+    record = {
         "job_id": loaded.get("job_id") or "",
         "goal": loaded.get("goal") or loaded.get("intent") or "",
         "engine_id": loaded.get("job_id") or "",
@@ -187,11 +237,13 @@ def lifecycle_to_status_record(loaded: dict[str, Any]) -> dict[str, Any]:
         ),
         "tasks_total": int((result or {}).get("tasks_total") or (1 if status in {"completed", "failed"} else 0)),
         "tasks_completed": 1 if status == "completed" else 0,
-        "started_at": "",
-        "completed_at": "",
+        "started_at": loaded.get("started_at") or started_at,
+        "completed_at": loaded.get("completed_at") or completed_at,
         "result": result,
         "source": "repository_lifecycle",
+        "resume_eligible": resume_eligibility(phase),
     }
+    return status_includes_lifecycle_phase(record)
 
 
 @dataclass(frozen=True)

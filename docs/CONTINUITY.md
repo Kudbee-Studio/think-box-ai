@@ -48,6 +48,24 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-24 — PR #202 draft: 25 durable lifecycle hardens
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_harden.py` — 25 fail-closed checks on the existing Repository lifecycle |
+| **Gate** | `durable-lifecycle-harden` / `scripts/verify_kilo_pr202_lifecycle_harden.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Durable phases landed, but job ids, phase order, terminal immutability, secret fields, hash/substrate allowlists, and reload listing were unchecked.
+
+**IMPLEMENTATION:** One harden module (no second job system). Wired into persist/load/status. Resume eligibility is recorded for QUEUED only; resume itself is not implemented.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_harden` + existing lifecycle/HTTP suites + verify script + secret scan.
+
+**DECISION:** Keep the pack small — typed errors and bounds, not a worker/orchestrator. Upstash LIVE proof still blocked on REGISTRATION.
+
+**NEXT ACTION:** Founder review of draft PR #202. Next product commitment remains durable **resume** of QUEUED jobs after process death.
+
 ### 2026-09-24 — Durable governed execution lifecycle
 
 | Field | Value |

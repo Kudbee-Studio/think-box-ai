@@ -54,6 +54,12 @@ COMPLETED or FAILED, retaining HTTP receipt id, checkpoint id, artifact path/has
 verdict. After a process reload, status polling recovers from that record (then SQLite
 receipt outcome), not from in-memory dashboard state. **Not LIVE VERIFIED.**
 
+**PR #202 hardens (hermetic):** fail-closed job id / phase / substrate; no terminal
+regression; no remote→local provider write; redacted result; receipt required on
+COMPLETED; honest error on FAILED; bounded transitions; artifact hash re-verify.
+Status may include additive `lifecycle_phase` and `resume_eligible` (QUEUED only;
+resume is not implemented).
+
 **Example (local, hermetic):**
 
 ```json

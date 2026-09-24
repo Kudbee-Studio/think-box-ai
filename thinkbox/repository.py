@@ -445,6 +445,14 @@ class Repository:
             self._save(self._worktree)
             return replace(job)
 
+    def list_job_ids(self) -> list[str]:
+        """Return persisted job ids (H14 list surface)."""
+        with self._lock:
+            jobs_dir = self._jobs_dir()
+            if not jobs_dir.exists():
+                return []
+            return sorted(path.stem for path in jobs_dir.glob("*.json"))
+
     def job_status(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)

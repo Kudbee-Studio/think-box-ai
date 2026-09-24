@@ -152,8 +152,16 @@ class TestGovernedExecutionLifecycle(unittest.TestCase):
             with self.assertRaises(GovernedJobExecutionError) as ctx:
                 select_execution_adapter(SUBSTRATE_UPSTASH_BOX, repo)
         self.assertEqual(ctx.exception.code, "remote_not_configured")
+        repo_life = open_lifecycle_repo(self._repo_path)
         persist_lifecycle_phase(
-            open_lifecycle_repo(self._repo_path),
+            repo_life,
+            "job_remote_fail",
+            PHASE_ADMISSION,
+            goal="remote fail",
+            execution_substrate=SUBSTRATE_UPSTASH_BOX,
+        )
+        persist_lifecycle_phase(
+            repo_life,
             "job_remote_fail",
             PHASE_FAILED,
             execution_substrate=SUBSTRATE_UPSTASH_BOX,

@@ -1,0 +1,13 @@
+{
+  "audit_pass_id": "pr202-durable-lifecycle-harden",
+  "date": "2026-09-24",
+  "gate_id": "durable-lifecycle-harden",
+  "pr_number": 202,
+  "harden_count": 25,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "combined_umbrella_nested": false,
+  "primary_surface": "thinkbox/lifecycle_harden",
+  "notes": "Hardens durable Repository lifecycle only. Not Upstash LIVE proof. Resume of QUEUED jobs is marked eligible, not implemented."
+}
