@@ -48,7 +48,16 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #196 (draft): KUDBEECLI enterprise upgrade (Phase 4, 25 features)
+### 2026-09-24 — PR #197 (draft): Cloud execution substrate Phase 1 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cloud_execution/`; gate `cloud-execution-substrate` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/002-cloud-execution-substrate.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
+
+### 2026-09-24 — PR #196 (merged): KUDBEECLI enterprise upgrade (Phase 4, 25 features)
 
 | Field | Value |
 |---|---|
