@@ -2,7 +2,7 @@
   "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
   "pr_number": 193,
   "live_verified": false,
-  "pack_count": 2,
+  "pack_count": 3,
   "theme": "long_range_energy_deepen",
   "packs": [
     {
@@ -14,6 +14,11 @@
       "id": "DEP02",
       "name": "conservation_tick_sync",
       "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/conservation_tick_sync.py"
+    },
+    {
+      "id": "DEP03",
+      "name": "mesh_loop_coupling",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/mesh_loop_coupling.py"
     }
   ]
 }
