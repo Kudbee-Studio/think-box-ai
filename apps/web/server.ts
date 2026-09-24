@@ -21,6 +21,7 @@ import type {
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
+import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -428,7 +429,23 @@ wss.on('connection', (ws: WebSocket) => {
 
 // ─── REST API ──────────────────────────────────────────────────
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', sessions: sessions.size, plugins: plugins.size });
+  const sdkConfig = loadConfigFromEnv();
+  res.json({
+    status: 'ok',
+    ready: true,
+    sessions: sessions.size,
+    plugins: plugins.size,
+    sdk_version: SDK_VERSION,
+    dry_run: sdkConfig.dryRun,
+  });
+});
+
+app.get('/api/sdk/capabilities', (_req: Request, res: Response) => {
+  res.json({
+    sdk_version: SDK_VERSION,
+    api_version: 1,
+    capabilities: ['sessions', 'tasks', 'plugins', 'websocket', 'health'],
+  });
 });
 
 app.get('/api/models', async (_req: Request, res: Response) => {

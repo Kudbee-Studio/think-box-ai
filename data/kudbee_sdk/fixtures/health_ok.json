@@ -1,0 +1,5 @@
+{
+  "ready": true,
+  "mode": "hermetic-fixture",
+  "sdk_version": "0.1.0"
+}

@@ -36,17 +36,33 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#175 on main** (#175 lint wave 2, 38-module scope). Next slot: **#176** receipt-chain 412 deepen. Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
+| **Latest completed work** | **PR #141–#176 on main** (#176 chronicle post-#175; #175 lint wave 2, 38-module scope). **Open draft:** **#177** Kudbee SDK app (~25 features). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#175 merged on main. **Default next implementation:** **#176** receipt-chain 412/precondition deepen (roadmap slot 5). |
+| **PR status** | PR #141–#176 merged on main. **Open implementation (draft):** **#177** Kudbee SDK app (`thinkbox/kudbee_sdk`, `apps/web/sdk`). **Next after #177 merge:** roadmap slot 7 (Think Job hermetic e2e deepen → GH #178). |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-24 — PR #177 (draft): Kudbee SDK app (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | Python `thinkbox/kudbee_sdk/` (config, HTTP, lifecycle, hermetic fixtures) + TypeScript `apps/web/sdk/` + browser wiring; gate `kudbee-sdk-app` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kudbee_sdk`, `test_kilo_live_proof_readiness_pr177`; `verify_kilo_pr177_kudbee_sdk_app.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr177.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #176 merged: chronicle honesty post-#175
+
+| Field | Value |
+|---|---|
+| **Scope** | Spine Markdown sync after #175 merge; next-slot pointers |
+| **FourState** | Docs only — TEST VERIFIED hermetic chronicle gates unchanged |
 
 ### 2026-09-24 — PR #175 merged: lint scope wave 2 (live-proof readiness spine)
 
