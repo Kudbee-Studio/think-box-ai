@@ -12,14 +12,18 @@ from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kudbee_sdk_followup_w3_major_fixes.negotiation import KUDBEE_SDK_FOLLOWUP_W3_MAJOR_FIXES_VERSION
 
 __all__ = (
+    "EXPECTED_EXPANSION_PACK_COUNT",
     "EXPECTED_FIX_COUNT",
+    "EXPANSION_MANIFEST_REL",
     "FIXES_MANIFEST_REL",
     "GATE_ID",
     "PR192_PASS_REL",
     "PR_NUMBER",
     "KudbeeSdkFollowupW3MajorFixViolation",
     "kudbee_sdk_followup_w3_major_fixes_contract_summary",
+    "load_expansion_manifest",
     "load_fixes_manifest",
+    "validate_expansion_manifest",
     "validate_fixes_manifest",
 )
 
@@ -28,7 +32,9 @@ PR_NUMBER = 192
 EXPECTED_FIX_COUNT = 35
 
 FIXES_MANIFEST_REL = Path("data/kudbee_sdk_followup_w3_major/pr192_fixes.json")
+EXPANSION_MANIFEST_REL = Path("data/kudbee_sdk_followup_w3_major/pr192_expansion_packs.json")
 PR192_PASS_REL = Path("docs/audit/passes/2026-09-24-pr192.json")
+EXPECTED_EXPANSION_PACK_COUNT = 26
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,33 @@ class KudbeeSdkFollowupW3MajorFixViolation:
 def load_fixes_manifest(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     return json.loads((root / FIXES_MANIFEST_REL).read_text(encoding="utf-8"))
+
+
+def load_expansion_manifest(repo_root: Path | None = None) -> dict[str, Any]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    return json.loads((root / EXPANSION_MANIFEST_REL).read_text(encoding="utf-8"))
+
+
+def validate_expansion_manifest(
+    doc: Mapping[str, Any] | None = None,
+    repo_root: Path | None = None,
+) -> tuple[bool, tuple[KudbeeSdkFollowupW3MajorFixViolation, ...]]:
+    root = repo_root if repo_root is not None else REPO_ROOT
+    violations: list[KudbeeSdkFollowupW3MajorFixViolation] = []
+    if doc is None:
+        doc = load_expansion_manifest(root)
+    if doc.get("gate_id") != "kudbee-sdk-followup-w3-expansion-packs":
+        violations.append(KudbeeSdkFollowupW3MajorFixViolation("expansion_gate_id", "gate_id mismatch"))
+    packs = list(doc.get("packs") or [])
+    if len(packs) != EXPECTED_EXPANSION_PACK_COUNT:
+        violations.append(KudbeeSdkFollowupW3MajorFixViolation("expansion_pack_count", "pack count mismatch"))
+    for pack in packs:
+        rel = pack.get("module")
+        if not rel or not (root / str(rel)).is_file():
+            violations.append(
+                KudbeeSdkFollowupW3MajorFixViolation("expansion_module_missing", str(rel), path=str(rel)),
+            )
+    return (len(violations) == 0, tuple(violations))
 
 
 def validate_fixes_manifest(
@@ -95,6 +128,10 @@ def validate_fixes_manifest(
     if not features_ok:
         violations.append(KudbeeSdkFollowupW3MajorFixViolation("pr191_features", "pr191 features invalid"))
 
+    expansion_ok, _ = validate_expansion_manifest(repo_root=root)
+    if not expansion_ok:
+        violations.append(KudbeeSdkFollowupW3MajorFixViolation("expansion_packs", "expansion packs invalid"))
+
     return (len(violations) == 0, tuple(violations))
 
 
@@ -118,4 +155,7 @@ def kudbee_sdk_followup_w3_major_fixes_contract_summary(repo_root: Path | None =
         "violation_count": len(violations),
         "violation_codes": [v.code for v in violations],
         "upstream_pr": 191,
+        "expansion_pack_count": EXPECTED_EXPANSION_PACK_COUNT,
+        "expansion_theme": "long_range_connections_quantitative_energy_loops",
+        "expansion_manifest_rel": str(EXPANSION_MANIFEST_REL),
     }

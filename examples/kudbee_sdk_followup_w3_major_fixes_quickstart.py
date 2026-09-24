@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 
+from thinkbox.kudbee_sdk_followup_w3_expansion.packs.pack_registry import run_all_packs
 from thinkbox.kudbee_sdk_followup_w3_major_fixes.fixes.fix_registry import run_all_fixes
 from thinkbox.kudbee_sdk_followup_w3_major_fixes.w3_major_status_report import w3_major_fixes_status_report
 from thinkbox.kilo_pr192_kudbee_sdk_followup_w3_major_fixes import kudbee_sdk_followup_w3_major_fixes_contract_summary
@@ -13,6 +14,7 @@ from thinkbox.kilo_pr192_kudbee_sdk_followup_w3_major_fixes import kudbee_sdk_fo
 def main() -> None:
     contract = kudbee_sdk_followup_w3_major_fixes_contract_summary()
     fixes = run_all_fixes()
+    packs = run_all_packs()
     report = w3_major_fixes_status_report()
     print(
         json.dumps(
@@ -20,6 +22,8 @@ def main() -> None:
                 "contract_ok": contract["hermetic_operator_ok"],
                 "fix_count": fixes["fix_count"],
                 "all_hermetic": fixes["all_hermetic"],
+                "expansion_pack_count": packs["pack_count"],
+                "expansion_theme": packs.get("theme"),
                 "report_gate": report["gate_id"],
                 "live_api_called": False,
             },

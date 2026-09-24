@@ -8,11 +8,14 @@
   "live_api_called": false,
   "fix_count": 35,
   "primary_surface": "thinkbox/kudbee_sdk_followup_w3_major_fixes",
+  "expansion_pack_count": 26,
   "themes": [
     "sdk_followup_w3_major_fixes",
     "pr191_upstream_validation",
     "hermetic_fix_registry",
-    "twin_federation_hardening"
+    "twin_federation_hardening",
+    "long_range_connections",
+    "quantitative_energy_loops"
   ],
   "notes": "Thirty-five Kudbee SDK wave 3 major fixes after merged #191; hermetic only."
 }

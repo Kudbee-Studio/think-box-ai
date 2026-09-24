@@ -4,6 +4,7 @@
   "live_verified": false,
   "artifacts": [
     "data/kudbee_sdk_followup_w3_major/pr192_fixes.json",
+    "data/kudbee_sdk_followup_w3_major/pr192_expansion_packs.json",
     "data/kudbee_sdk_followup_w3_major/pr192_checklist.json",
     "data/kudbee_sdk_followup_w3_major/cassettes/w3_major_flow.json",
     "docs/audit/passes/2026-09-24-pr192.json"
