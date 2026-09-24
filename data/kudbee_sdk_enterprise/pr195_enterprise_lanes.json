@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 23,
+  "lane_count": 24,
   "lanes": [
     {
       "id": "ENT01",
@@ -119,6 +119,11 @@
       "id": "ENT23",
       "name": "enterprise_lane_honesty",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/enterprise_lane_honesty.py"
+    },
+    {
+      "id": "ENT24",
+      "name": "pr195_gate_bind",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/pr195_gate_bind.py"
     }
   ]
 }
