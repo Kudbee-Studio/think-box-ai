@@ -17,6 +17,7 @@ docs/**
 !docs/audit/passes/**
 !docs/guides/kudbee_sdk_followup_w2_quickstart.md
 !docs/guides/kudbee_cli_phase3_quickstart.md
+!docs/runbooks/**
 experiments/
 tests/
 agents/
