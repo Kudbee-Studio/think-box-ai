@@ -1,0 +1,134 @@
+{
+  "gate_id": "think-job-run-receipt-deepen",
+  "pr_number": 186,
+  "live_verified": false,
+  "feature_count": 25,
+  "primary_surface": "thinkbox/think_job_run_receipt_deepen + GET /api/v1/run/receipt (F133)",
+  "features": [
+    {
+      "id": "F01",
+      "name": "stable_exports",
+      "module": "thinkbox/think_job_run_receipt_deepen/__init__.py"
+    },
+    {
+      "id": "F02",
+      "name": "structured_errors",
+      "module": "thinkbox/think_job_run_receipt_deepen/errors.py"
+    },
+    {
+      "id": "F03",
+      "name": "capability_negotiation",
+      "module": "thinkbox/think_job_run_receipt_deepen/negotiation.py"
+    },
+    {
+      "id": "F04",
+      "name": "fail_closed_config",
+      "module": "thinkbox/think_job_run_receipt_deepen/config.py"
+    },
+    {
+      "id": "F05",
+      "name": "receipt_schema",
+      "module": "thinkbox/think_job_run_receipt_deepen/receipt_schema.py"
+    },
+    {
+      "id": "F06",
+      "name": "governance_bind",
+      "module": "thinkbox/think_job_run_receipt_deepen/governance_bind.py"
+    },
+    {
+      "id": "F07",
+      "name": "sqlite_path_stub",
+      "module": "thinkbox/think_job_run_receipt_deepen/sqlite_path_stub.py"
+    },
+    {
+      "id": "F08",
+      "name": "artifact_path_stub",
+      "module": "thinkbox/think_job_run_receipt_deepen/artifact_path_stub.py"
+    },
+    {
+      "id": "F09",
+      "name": "redact_export",
+      "module": "thinkbox/think_job_run_receipt_deepen/redact_export.py"
+    },
+    {
+      "id": "F10",
+      "name": "cassette_replay",
+      "module": "thinkbox/think_job_run_receipt_deepen/cassette.py"
+    },
+    {
+      "id": "F11",
+      "name": "fixture_library",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixtures.py"
+    },
+    {
+      "id": "F12",
+      "name": "idempotency_bind",
+      "module": "thinkbox/think_job_run_receipt_deepen/idempotency_bind.py"
+    },
+    {
+      "id": "F13",
+      "name": "run_job_bridge",
+      "module": "thinkbox/think_job_run_receipt_deepen/run_job_bridge.py"
+    },
+    {
+      "id": "F14",
+      "name": "status_receipt_link",
+      "module": "thinkbox/think_job_run_receipt_deepen/status_receipt_link.py"
+    },
+    {
+      "id": "F15",
+      "name": "stream_receipt_link",
+      "module": "thinkbox/think_job_run_receipt_deepen/stream_receipt_link.py"
+    },
+    {
+      "id": "F16",
+      "name": "dashboard_bridge",
+      "module": "thinkbox/think_job_run_receipt_deepen/dashboard_bridge.py"
+    },
+    {
+      "id": "F17",
+      "name": "dry_run",
+      "module": "thinkbox/think_job_run_receipt_deepen/dry_run.py"
+    },
+    {
+      "id": "F18",
+      "name": "etag_stub",
+      "module": "thinkbox/think_job_run_receipt_deepen/etag_stub.py"
+    },
+    {
+      "id": "F19",
+      "name": "pagination_stub",
+      "module": "thinkbox/think_job_run_receipt_deepen/pagination_stub.py"
+    },
+    {
+      "id": "F20",
+      "name": "deterministic_replay",
+      "module": "thinkbox/think_job_run_receipt_deepen/replay.py"
+    },
+    {
+      "id": "F21",
+      "name": "f133_harness",
+      "module": "thinkbox/think_job_run_receipt_deepen/f133_harness.py"
+    },
+    {
+      "id": "F22",
+      "name": "f185_pairing",
+      "module": "thinkbox/think_job_run_receipt_deepen/f185_pairing.py"
+    },
+    {
+      "id": "F23",
+      "name": "export_secret_scan",
+      "module": "thinkbox/think_job_run_receipt_deepen/secrets.py"
+    },
+    {
+      "id": "F24",
+      "name": "integrate_registry",
+      "module": "thinkbox/think_job_run_receipt_deepen/integrate.py"
+    },
+    {
+      "id": "F25",
+      "name": "deepen_status_report",
+      "module": "thinkbox/think_job_run_receipt_deepen/deepen_status_report.py"
+    }
+  ]
+}

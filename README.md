@@ -122,6 +122,7 @@ python3 scripts/verify_kilo_pr184_think_job_post_run_deepen.py
 python3 scripts/verify_kilo_pr185_think_job_lifecycle_fixes.py
 ./scripts/run_pr185_local.sh
 python3 scripts/verify_pr185_local_environment.py
+python3 scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py
 python3 scripts/scan_doc_secrets.py
 ```
 
