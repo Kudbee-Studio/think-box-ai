@@ -4,6 +4,7 @@ from typing import Any
 from thinkbox.think_job_post_run_deepen.e2e_bridge import e2e_bridge
 from thinkbox.think_job_post_run_deepen.integrate import integration_summary
 from thinkbox.think_job_post_run_deepen.negotiation import THINK_JOB_POST_RUN_DEEPEN_VERSION
+from thinkbox.think_job_post_run_deepen.error_catalog import error_catalog
 from thinkbox.think_job_post_run_deepen.status_catalog import status_catalog
 from thinkbox.think_job_post_run_deepen.think_job_e2e_bridge import bridge_summary
 
