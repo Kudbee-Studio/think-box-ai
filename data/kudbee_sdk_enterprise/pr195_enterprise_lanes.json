@@ -3,7 +3,7 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 16,
+  "lane_count": 17,
   "lanes": [
     {
       "id": "ENT01",
@@ -84,6 +84,11 @@
       "id": "ENT16",
       "name": "dr_rpo_rto_envelope",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/dr_rpo_rto_envelope.py"
+    },
+    {
+      "id": "ENT17",
+      "name": "bcp_checkpoint_ledger",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/bcp_checkpoint_ledger.py"
     }
   ]
 }
