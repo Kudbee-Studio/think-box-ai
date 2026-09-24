@@ -3,12 +3,17 @@
   "pr_number": 195,
   "live_verified": false,
   "tier": "enterprise",
-  "lane_count": 1,
+  "lane_count": 2,
   "lanes": [
     {
       "id": "ENT01",
       "name": "pr194_major_fixes_gate",
       "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/pr194_major_fixes_gate.py"
+    },
+    {
+      "id": "ENT02",
+      "name": "tenant_isolation_envelope",
+      "module": "thinkbox/kudbee_sdk_enterprise_lr_energy/lanes/tenant_isolation_envelope.py"
     }
   ]
 }
