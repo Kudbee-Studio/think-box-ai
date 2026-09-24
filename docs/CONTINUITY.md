@@ -48,6 +48,24 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-24 — Durable governed execution lifecycle
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_execution_lifecycle.py` on existing Repository jobs + HTTP status recovery |
+| **Phases** | ADMISSION → QUEUED → RUNNING → COMPLETED / FAILED (receipt / artifact / verdict retained) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Think Job status lived in in-memory `ThinkJobEntry`. HTTP receipts persisted to SQLite but `_receipt_status_from_sqlite` dropped `result`. Process reload could not recover queued/running/terminal proof without rerunning.
+
+**IMPLEMENTATION:** Lifecycle transitions write to `.thinkbox/jobs/{job_id}.json` (existing Repository store — not a second job system). Router persists ADMISSION+QUEUED; background appends RUNNING then terminal refs. Status resolver: dashboard → repository lifecycle → SQLite outcome.
+
+**TEST_VERIFIED:** Unit lifecycle + f136 HTTP e2e + existing governed/local/HTTP suites + `scan_doc_secrets.py`.
+
+**DECISION:** No remote→local fallback; Upstash adapter unchanged; PR #201 registration gate untouched. Local durability is not LIVE VERIFIED.
+
+**NEXT ACTION:** Durable **resume** of QUEUED jobs after process death (pickup without re-admit). Do not implement in this commitment. Upstash LIVE proof still blocked on Cursor secret REGISTRATION.
+
 ### 2026-09-24 — Governed shell HTTP guide + hermetic e2e (local substrate)
 
 | Field | Value |

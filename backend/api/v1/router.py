@@ -19,6 +19,7 @@ from thinkbox.governed import GovernedEngine
 from thinkbox.model_client import ModelConfig
 
 from backend.api.v1.run_governed import (
+    admit_and_queue_http_run,
     build_complete_async_for_run,
     execute_governed_run_background,
     get_api_run_governance,
@@ -26,6 +27,7 @@ from backend.api.v1.run_governed import (
     parse_run_admission,
     require_http_admission,
 )
+from thinkbox.governed_execution_lifecycle import lifecycle_worktree_path
 from backend.api.v1.run_receipts import read_run_receipt, read_run_receipt_by_engine
 from backend.api.v1.http_conditional import conditional_json_response
 from backend.api.v1.run_job_status import (
@@ -183,6 +185,12 @@ async def run_goal(
         evidence_label="verified",
     )
     _dashboard_state.upsert_think_job(job_entry)
+    worktree = str(lifecycle_worktree_path())
+    admit_and_queue_http_run(
+        job_entry,
+        worktree=worktree,
+        execution_substrate=(request.execution_substrate or "").strip(),
+    )
     await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
                                job_entry.model_dump(), "api_v1")
 
@@ -197,7 +205,7 @@ async def run_goal(
             receipt_binding=receipt_binding,
             execution_substrate=request.execution_substrate,
             exec_command=request.exec_command,
-            worktree=".",
+            worktree=worktree,
         )
     )
 

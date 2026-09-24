@@ -48,6 +48,12 @@ includes `execution_substrate`, `adapter_provider`, and redacted `execution_proo
 `poll.terminal` is true. Shell successes set `governed_shell: true` in `result`; failures
 include structured `error` codes (`unknown_substrate`, `remote_not_configured`, etc.).
 
+**Durable lifecycle:** Admission writes ADMISSION → QUEUED onto the existing Repository
+job (`.thinkbox/jobs/{engine_id}.json`). Background execution appends RUNNING then
+COMPLETED or FAILED, retaining HTTP receipt id, checkpoint id, artifact path/hash, and
+verdict. After a process reload, status polling recovers from that record (then SQLite
+receipt outcome), not from in-memory dashboard state. **Not LIVE VERIFIED.**
+
 **Example (local, hermetic):**
 
 ```json
@@ -104,6 +110,8 @@ Background completion **fails the Think Job** if receipt persistence raises (`ru
 - `tests/e2e/test_f132_governed_run_admission.py`
 - `tests/e2e/test_f133_governed_run_receipts.py`
 - `tests/e2e/test_f135_governed_shell_local_http.py` — full HTTP shell path (`local` substrate)
+- `tests/e2e/test_f136_governed_lifecycle_durable.py` — durable lifecycle survives dashboard clear
+- `tests/unit/test_governed_execution_lifecycle.py`
 - `tests/unit/test_run_governed.py`
 - `tests/unit/test_run_receipts.py`
 - `tests/e2e/test_f134_think_job_status_poll.py`

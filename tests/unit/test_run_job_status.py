@@ -103,6 +103,7 @@ class TestResolveThinkJob(unittest.TestCase):
         finalize_http_run_receipt(binding, status="completed", outcome={"ok": True})
         record = resolve_think_job_record("eng_sql")
         self.assertEqual(record["source"], "receipt_sqlite")
+        self.assertTrue(record["result"].get("ok"))
 
     def test_unknown_job_raises(self) -> None:
         with self.assertRaises(ThinkJobNotFoundError):

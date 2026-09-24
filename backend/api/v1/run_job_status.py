@@ -5,6 +5,7 @@ Hermetic read surfaces only — no live Mercury. Fail-closed on unknown jobs.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from backend.api.v1.run_receipts import (
@@ -119,10 +120,9 @@ def _receipt_status_from_sqlite(engine_id: str) -> dict[str, Any] | None:
     if isinstance(exp, dict):
         status = str(exp.get("status") or "completed")
     outcome = receipt.get("outcome")
-    if outcome and isinstance(outcome, list) and outcome:
-        last = outcome[-1]
-        if isinstance(last, dict) and last.get("outcome", {}).get("error"):
-            status = "failed"
+    result = _result_from_receipt_outcome(outcome)
+    if result.get("error"):
+        status = "failed"
     return {
         "job_id": engine_id,
         "engine_id": engine_id,
@@ -134,9 +134,42 @@ def _receipt_status_from_sqlite(engine_id: str) -> dict[str, Any] | None:
         "proof_artifact": _proof_from_receipt(receipt),
         "tasks_total": 0,
         "tasks_completed": 0,
-        "result": {},
+        "result": result,
         "source": "receipt_sqlite",
     }
+
+
+def _result_from_receipt_outcome(outcome: Any) -> dict[str, Any]:
+    """Recover the stored terminal result from an ExperimentManager outcome row."""
+    if isinstance(outcome, list) and outcome:
+        return _result_from_receipt_outcome(outcome[-1])
+    if not isinstance(outcome, dict):
+        return {}
+    raw = outcome.get("outcome_data", outcome.get("outcome", outcome))
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    if isinstance(raw, dict):
+        if "outcome_data" in raw and raw is outcome:
+            return {}
+        return raw
+    return {}
+
+
+def _lifecycle_status_from_repository(job_id: str) -> dict[str, Any] | None:
+    from thinkbox.governed_execution_lifecycle import (
+        lifecycle_to_status_record,
+        load_lifecycle,
+        open_lifecycle_repo,
+    )
+
+    loaded = load_lifecycle(open_lifecycle_repo(), job_id)
+    if loaded is None:
+        return None
+    return lifecycle_to_status_record(loaded)
 
 
 def _session_from_receipt(receipt: dict[str, Any]) -> str:
@@ -162,6 +195,9 @@ def resolve_think_job_record(job_id: str) -> dict[str, Any]:
     entry = dashboard.think_jobs.get(job_id)
     if entry is not None:
         return _entry_to_record(entry, source="dashboard")
+    durable = _lifecycle_status_from_repository(job_id)
+    if durable is not None:
+        return durable
     sqlite_row = _receipt_status_from_sqlite(job_id)
     if sqlite_row:
         return sqlite_row

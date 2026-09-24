@@ -457,6 +457,8 @@ class Repository:
         job_id: str,
         status: str | None = None,
         next_action: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        provenance_event: str | None = None,
     ) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)
@@ -466,6 +468,10 @@ class Repository:
                 job.status = status
             if next_action is not None:
                 job.next_action = next_action
+            if metadata:
+                job.metadata.update(metadata)
+            if provenance_event:
+                job.provenance.append(provenance_event)
             self._save_job(job)
             return job.snapshot()
 
