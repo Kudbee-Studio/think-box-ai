@@ -1,0 +1,18 @@
+{
+  "gate_id": "upstash-box-access-verification",
+  "pr_number": 201,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "this_run_classification": "A",
+  "feature_count": 5,
+  "primary_surface": "thinkbox/upstash_box_access",
+  "upstream_gate_id": "environmental-variables",
+  "features": [
+    {"id": "F01", "name": "presence_inventory", "module": "thinkbox/upstash_box_access.py"},
+    {"id": "F02", "name": "endpoint_identity", "module": "thinkbox/upstash_box_access.py"},
+    {"id": "F03", "name": "access_classification", "module": "thinkbox/upstash_box_access.py"},
+    {"id": "F04", "name": "fail_closed_adapter_probe", "module": "thinkbox/upstash_box_access.py"},
+    {"id": "F05", "name": "redacted_evidence", "module": "thinkbox/upstash_box_access.py"}
+  ]
+}

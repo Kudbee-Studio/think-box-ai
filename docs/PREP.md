@@ -2,6 +2,12 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
+>
+> **Scope:** Bounded access test via existing `UpstashBoxExecutionAdapter`. Official vars `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` were **absent** in the agent process. Classification **A**. No HTTP. No live receipt. `UPSTASH_BOX_API_KEY` present and unused.
+> **Test gate:** `python3 -m unittest tests.unit.test_upstash_box_access tests.unit.test_kilo_live_proof_readiness_pr201 -v` + `verify_kilo_pr201_upstash_box_access.py`.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
 > ## ADDENDUM — 2026-09-23 (PR #151 draft, post-season harden)
 >
 > **Scope:** Ops gate **`post-season-harden`**: CI spine alignment, `cleanup_merged_cursor_branches.py`, docs/STATUS sync — **not** Live proof, **not** arc gate #141–#150 extension.  

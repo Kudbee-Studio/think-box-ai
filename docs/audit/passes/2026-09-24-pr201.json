@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr201-upstash-box-access-verification",
+  "pr_number": 201,
+  "date": "2026-09-24",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "gate_id": "upstash-box-access-verification",
+  "this_run_classification": "A",
+  "classification_name": "ENV_NOT_CONFIGURED",
+  "notes": "Official adapter vars UPSTASH_PUBLIC_BOX_URL and UPSTASH_PUBLIC_BOX_TOKEN were absent in this Cursor agent process. Adapter fail-closed with NOT_CONFIGURED. No HTTP. UPSTASH_BOX_API_KEY was present and unused."
+}

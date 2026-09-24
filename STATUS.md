@@ -1,3 +1,10 @@
+## PR #201 — Upstash Box access verification (draft)
+
+- **Gate:** `upstash-box-access-verification`
+- **This-run class:** A `ENV_NOT_CONFIGURED` (`UPSTASH_PUBLIC_BOX_URL` / `UPSTASH_PUBLIC_BOX_TOKEN` absent)
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 scripts/verify_kilo_pr201_upstash_box_access.py`
+
 ## KILO spine — post-#170 era (2026-09-24)
 
 - **#170 merged:** beyond-KILO lint (`scripts/verify_kilo_beyond_kilo_lint.py`)

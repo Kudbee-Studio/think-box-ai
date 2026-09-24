@@ -36,19 +36,30 @@ Before declaring completion, every agent MUST verify:
 | Field | Value |
 |---|---|
 | **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#195 on main** (#195 enterprise lr-energy lanes merged). **Open draft:** **#196** KUDBEECLI enterprise upgrade (`thinkbox/cli_phase4`). Roadmap: `docs/roadmaps/kilo-post-170-pr-roadmap.md`. |
+| **Latest completed work** | **PR #141–#200 on main** (#200 environmental variables merged). **Open draft:** **#201** Upstash Box access verification (`thinkbox/upstash_box_access.py`). |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
 | **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
-| **PR status** | PR #141–#195 merged on main. **Open implementation (draft):** **#196** KUDBEECLI enterprise upgrade (`thinkbox/cli_phase4`). **Next:** founder-directed (see roadmap). |
+| **PR status** | PR #141–#200 merged on main. **Open implementation (draft):** **#201** Upstash Box access verification. **Next:** inject official Box URL+token into the agent runtime, then retry one bounded `POST /run`. |
 | **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-24 — PR #200 (draft): Environmental variables pack (~25 features)
+### 2026-09-24 — PR #201 (draft): Upstash Box access verification
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (`UPSTASH_PUBLIC_BOX_URL` absent, `UPSTASH_PUBLIC_BOX_TOKEN` absent). `UPSTASH_BOX_API_KEY` present and unused. No HTTP. Adapter receipt `NOT_CONFIGURED`. |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
+| **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
+| **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json` |
+| **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
+
+### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
 
 | Field | Value |
 |---|---|
