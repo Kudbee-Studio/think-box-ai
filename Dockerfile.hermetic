@@ -22,9 +22,11 @@ COPY backend/ ./backend/
 COPY scripts/ ./scripts/
 COPY data/kudbee_sdk/ ./data/kudbee_sdk/
 COPY docs/audit/passes/ ./docs/audit/passes/
+COPY docs/runbooks/ ./docs/runbooks/
 COPY docs/guides/kudbee_sdk_followup_w2_quickstart.md ./docs/guides/kudbee_sdk_followup_w2_quickstart.md
 COPY docs/guides/kudbee_cli_phase3_quickstart.md ./docs/guides/kudbee_cli_phase3_quickstart.md
 
 RUN pip install --no-cache-dir -e . --no-deps
 
-CMD ["python3", "scripts/verify_kilo_spine.py"]
+# Full spine needs the complete repo tree; this image runs bounded hermetic gates only.
+CMD ["python3", "scripts/verify_docker_contract.py"]

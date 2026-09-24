@@ -25,7 +25,10 @@ docker compose --profile full up -d --build
 open http://127.0.0.1:8080/control-plane/think_job_status.html
 ```
 
-### Hermetic spine inside a container
+### Hermetic gates inside a container
+
+The slim `Dockerfile.hermetic` image runs `scripts/verify_docker_contract.py` (file contract).
+For the full KILO spine, run on the host: `python3 scripts/verify_kilo_spine.py`.
 
 ```bash
 docker compose --profile hermetic run --rm spine-verify

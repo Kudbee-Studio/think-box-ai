@@ -59,7 +59,7 @@ docker-build-hermetic: ## Build hermetic spine-verify image
 docker-up: ## Start API via compose
 	docker compose up api -d --build
 
-docker-hermetic: ## Run spine verify inside container
+docker-hermetic: ## Run docker contract verify inside container
 	docker compose --profile hermetic run --rm spine-verify
 
 all: init dev test ## Full setup: init, install, test

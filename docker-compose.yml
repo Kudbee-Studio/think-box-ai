@@ -47,6 +47,7 @@ services:
       dockerfile: Dockerfile.hermetic
     environment:
       PYTHONPATH: /app
+    command: ["python3", "scripts/verify_docker_contract.py"]
     profiles:
       - hermetic
 
