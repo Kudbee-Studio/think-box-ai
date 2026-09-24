@@ -1,0 +1,14 @@
+{
+  "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
+  "pr_number": 193,
+  "live_verified": false,
+  "pack_count": 1,
+  "theme": "long_range_energy_deepen",
+  "packs": [
+    {
+      "id": "DEP01",
+      "name": "lr_energy_hop_ledger_stub",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_hop_ledger_stub.py"
+    }
+  ]
+}
