@@ -31,11 +31,36 @@ __all__ = (
 )
 
 BEYOND_KILO_LINT_LABEL = "beyond-kilo-lint-readiness"
-BEYOND_KILO_LINT_VERSION = "1"
+BEYOND_KILO_LINT_VERSION = "2"
 
+# PR #174 wave 1: spine + hermetic helpers (25 modules). Manifest:
+# data/kilo_beyond_kilo_lint/wave1_scope.json
 LINT_SCOPE_REL_PATHS: tuple[str, ...] = (
     "thinkbox/beyond_kilo_lint.py",
     "thinkbox/kilo_beyond_kilo_lint.py",
+    "thinkbox/kilo_hermetic_subprocess.py",
+    "thinkbox/kilo_hermetic_gate_memo.py",
+    "thinkbox/kilo_live_proof_readiness.py",
+    "thinkbox/kilo_env_matrix.py",
+    "thinkbox/kilo_substrate_checklist.py",
+    "thinkbox/kilo_governance_evidence.py",
+    "thinkbox/kilo_mercury_hermetic.py",
+    "thinkbox/kilo_swarm_instrumentation.py",
+    "thinkbox/kilo_proof_schema.py",
+    "thinkbox/kilo_dashboard_slots.py",
+    "thinkbox/kilo_live_proof_exec.py",
+    "thinkbox/kilo_post_season_harden.py",
+    "thinkbox/kilo_live_smoke_evidence.py",
+    "thinkbox/kilo_live_smoke_operator.py",
+    "thinkbox/kilo_control_plane_api.py",
+    "thinkbox/kilo_receipt_chain_etag.py",
+    "thinkbox/kilo_governance_evidence_live_proof_readiness.py",
+    "thinkbox/kilo_control_plane_e2e_deepen.py",
+    "thinkbox/kilo_end_link_deepen.py",
+    "thinkbox/kilo_api_ops_harden.py",
+    "thinkbox/kilo_pr172_ci_spine_trust.py",
+    "thinkbox/kilo_pr173_chronicle_honesty.py",
+    "thinkbox/kilo_pr174_lint_scope_wave1.py",
 )
 
 _LINT_TIMEOUT_SECONDS = 120
