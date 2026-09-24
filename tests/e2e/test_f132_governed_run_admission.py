@@ -100,7 +100,14 @@ class TestPostRunGovernanceFailClosed(unittest.TestCase):
         router_mod.active_engines.clear()
         router_mod.active_governed_engines.clear()
         app = FastAPI()
-        with patch.dict(os.environ, {"THINKBOX_API_KEY": "tb_hermetic_pr131_contract_key"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "THINKBOX_API_KEY": "tb_hermetic_pr131_contract_key",
+                "THINKBOX_API_KEYS": "tb_hermetic_pr131_contract_key",
+            },
+            clear=False,
+        ):
             from backend.security import setup_security
 
             setup_security(app)
@@ -236,7 +243,14 @@ class TestPostRunGovernedSuccess(unittest.TestCase):
         from backend.api.v1 import router as router_mod
 
         app = FastAPI()
-        with patch.dict(os.environ, {"THINKBOX_API_KEY": "tb_hermetic_pr131_contract_key"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "THINKBOX_API_KEY": "tb_hermetic_pr131_contract_key",
+                "THINKBOX_API_KEYS": "tb_hermetic_pr131_contract_key",
+            },
+            clear=False,
+        ):
             from backend.security import setup_security
 
             setup_security(app)

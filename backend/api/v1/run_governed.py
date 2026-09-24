@@ -38,7 +38,6 @@ from thinkbox.governed_execution_lifecycle import (
     open_lifecycle_repo,
     persist_lifecycle_phase,
 )
-)
 from thinkbox.engine import EngineConfig, ThinkBoxEngine
 from thinkbox.governed import GovernedEngine, GovernedEngineConfig
 from thinkbox.governance_token import GovernanceTokenService, TokenRequest

@@ -101,6 +101,18 @@ def persist_lifecycle_phase(
             "live_api_called": False,
             "transitions": [],
         }
+    if phase == PHASE_ADMISSION:
+        # Reused engine ids must not inherit a prior run's provider/verdict.
+        for stale in (
+            "adapter_provider",
+            "checkpoint_id",
+            "artifact_path",
+            "artifact_hash",
+            "verdict",
+            "http_proof_path",
+            "result",
+        ):
+            life.pop(stale, None)
     transitions = list(life.get("transitions") or [])
     transitions.append({"phase": phase, "at": _now()})
     life["transitions"] = transitions
