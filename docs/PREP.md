@@ -2,6 +2,12 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #215 merged; GitHub #216 autonomous A01–A15 draft)
+>
+> **GitHub #215 merged** at `ce6a82c` — operator session S01–S25. Not LIVE VERIFIED.
+> **GitHub #216 draft:** A01–A15 autonomous workflow on `cursor/memory-trait-lab-autonomous-workflow-25-723f`. Plan/sign + receipt gates only; A16–A25 follow. **Not merged.**
+> **Test gate:** autonomous 5 OK; memory 218 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #214 merged — lifecycle + Trait Lab operator session)
 >
 > **GitHub forge #214 merged** at `110c7b5` — durable lifecycle harden H01–H25. Not LIVE VERIFIED.

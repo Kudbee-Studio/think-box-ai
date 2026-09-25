@@ -637,9 +637,10 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Trait Lab catalog pin bind workflow (W01–W25) | **#212** (merged) | signed plan / dry-run / run / receipt |
 | Trait Lab local environment prep (E01–E25) | **#213** (merged) | `thinkbox/local_env_prep.py` — Python/SQLite probe, redact, workflow dry-run, prep receipt |
 | Durable lifecycle harden (H01–H25) | **#214** (merged) | `thinkbox/lifecycle_harden.py` — fail-closed Repository lifecycle; not LIVE VERIFIED |
-| Trait Lab operator session (S01–S25) | **#214** (merged) | `thinkbox/operator_session.py` — prep-gated rematch dry-run + session receipt (Trait Lab lane; same forge # as lifecycle — use branch name) |
+| Trait Lab operator session (S01–S25) | **#215** (merged) | `thinkbox/operator_session.py` — prep-gated rematch dry-run + session receipt |
+| Trait Lab autonomous workflow (A01–A15) | **#216** (draft) | `thinkbox/autonomous_workflow.py` — plan/sign prep→session→workflow chain; A16–A25 follow |
 
-Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#214** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session majors.
+Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#216** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors.
 
 **Do not claim** LIVE VERIFIED on any Trait Lab / memory path. Four-state cap: **CODE COMPLETE / TEST VERIFIED** only.
 
