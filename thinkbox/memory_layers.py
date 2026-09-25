@@ -2061,8 +2061,27 @@ def _require_catalog_sha(catalog_sha256: Any) -> str:
     return sha
 
 
+_CATALOG_PIN_FACT_PREFIX = "trait-lab-catalog-"
+
+
 def _catalog_pin_fact_id(catalog_sha256: str) -> str:
-    return f"trait-lab-catalog-{catalog_sha256[:16]}"
+    return f"{_CATALOG_PIN_FACT_PREFIX}{catalog_sha256[:16]}"
+
+
+def _require_catalog_pin_fact_id(fact_id: Any) -> str:
+    wanted = str(fact_id or "").strip()
+    suffix = wanted[len(_CATALOG_PIN_FACT_PREFIX) :] if wanted.startswith(_CATALOG_PIN_FACT_PREFIX) else ""
+    if (
+        not wanted.startswith(_CATALOG_PIN_FACT_PREFIX)
+        or len(suffix) != 16
+        or any(ch not in "0123456789abcdef" for ch in suffix)
+    ):
+        raise MemoryLayerError("missing_pin", "pin select requires fact_id")
+    return wanted
+
+
+def _pin_ids_key(ids: list[str]) -> frozenset[str]:
+    return frozenset(str(item) for item in ids)
 
 
 def _catalog_pin_row(entry: MemoryEntry) -> dict[str, Any] | None:
@@ -2578,9 +2597,7 @@ def list_trait_lab_catalog_pin_ids_for_pack(
 
 def get_trait_lab_catalog_pin_by_fact_id(store: MemoryStore, fact_id: str) -> dict[str, Any]:
     """P21 — select one pin by fact_id."""
-    wanted = str(fact_id or "").strip()
-    if not wanted.startswith("trait-lab-catalog-") or len(wanted) != 34:
-        raise MemoryLayerError("missing_pin", "pin select requires fact_id")
+    wanted = _require_catalog_pin_fact_id(fact_id)
     entry = store.get(f"verified:{wanted}")
     if entry is None:
         raise MemoryLayerError("missing_pin", f"no pinned catalog {wanted}")
@@ -2632,7 +2649,9 @@ def _public_pin_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         sha = str(public["catalog_sha256"])
         prior = found.get(sha)
         if prior is not None:
-            if int(prior["count"]) != int(public["count"]) or list(prior["ids"]) != list(public["ids"]):
+            if int(prior["count"]) != int(public["count"]) or _pin_ids_key(prior["ids"]) != _pin_ids_key(
+                public["ids"]
+            ):
                 raise MemoryLayerError("pin_conflict", f"pin {sha[:12]} disagrees")
             continue
         found[sha] = public
@@ -2645,7 +2664,7 @@ def _compose_trait_lab_catalog_pin_indexes(
     *,
     mode: str,
 ) -> dict[str, Any]:
-    if mode not in {"merge", "intersect", "subtract"}:
+    if mode not in {"merge", "intersect", "subtract", "xor"}:
         raise MemoryLayerError("invalid_compose", f"unknown compose mode {mode}")
     left = verify_trait_lab_catalog_pins(index_a)
     right = verify_trait_lab_catalog_pins(index_b)
@@ -2656,15 +2675,21 @@ def _compose_trait_lab_catalog_pin_indexes(
     for sha, row in map_b.items():
         prior = map_a.get(sha)
         if prior is not None and (
-            int(prior["count"]) != int(row["count"]) or list(prior["ids"]) != list(row["ids"])
+            int(prior["count"]) != int(row["count"])
+            or _pin_ids_key(prior["ids"]) != _pin_ids_key(row["ids"])
         ):
             raise MemoryLayerError("pin_conflict", f"pin {sha[:12]} disagrees across indexes")
     if mode == "merge":
         selected = {**map_a, **map_b}
     elif mode == "intersect":
         selected = {sha: map_a[sha] for sha in map_a if sha in map_b}
-    else:
+    elif mode == "subtract":
         selected = {sha: map_a[sha] for sha in map_a if sha not in map_b}
+    else:
+        selected = {
+            **{sha: map_a[sha] for sha in map_a if sha not in map_b},
+            **{sha: map_b[sha] for sha in map_b if sha not in map_a},
+        }
     rows = sorted(selected.values(), key=lambda row: str(row["catalog_sha256"]))
     body = _pin_index_body(rows)
     refuse_trait_lab_catalog_pin_live(body)
@@ -2692,3 +2717,30 @@ def intersect_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[
 def subtract_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
     """Pins in A that are not in B. Not a live ranking."""
     return _compose_trait_lab_catalog_pin_indexes(index_a, index_b, mode="subtract")
+
+
+def symmetric_diff_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """Pins in exactly one rematched index. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_indexes(index_a, index_b, mode="xor")
+
+
+def retain_trait_lab_catalog_pin_index(index: Any, *, keep: int = 1) -> dict[str, Any]:
+    """Keep the highest-count pins from a rematched index. Not a live ranking."""
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+        raise MemoryLayerError("invalid_keep", "keep must be >= 1")
+    verified = verify_trait_lab_catalog_pins(index)
+    rows = [_pin_public_row(row) for row in verified["pins"]]
+    if not rows:
+        raise MemoryLayerError("missing_pin", "retain requires at least one pin")
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["catalog_sha256"])))
+    selected = rows[:keep]
+    body = _pin_index_body(selected)
+    refuse_trait_lab_catalog_pin_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "pin_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "kept": len(selected),
+        "keep": keep,
+        "live_verified": False,
+    }

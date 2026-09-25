@@ -2505,4 +2505,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #207 catalog pin compose merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-compose-723f` → `main` at **`8a120d2`**.
+- **TEST_VERIFIED:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#208** pin-index follow-through as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #208 Trait Lab catalog pin follow-through
+
+- **DISCOVERY:** Review of #207: compose has no xor, merge cannot collapse to the best pin, fact_id used a magic length 34, and pin conflict compared id lists in order so equivalent pins false-conflicted.
+- **IMPLEMENTATION:** `symmetric_diff_trait_lab_catalog_pin_indexes` (xor), `retain_trait_lab_catalog_pin_index` (highest count, hash tiebreak). `_require_catalog_pin_fact_id` checks prefix + 16 hex. `_pin_ids_key` compares pack ids as a set. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---
