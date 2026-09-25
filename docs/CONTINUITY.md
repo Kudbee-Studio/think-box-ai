@@ -2437,4 +2437,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Open #225 seed pack catalog by seed.
 
+### 2026-09-25 — PR #225 Trait Lab seed pack catalog by seed
+
+- **DISCOVERY:** #224 listed every cataloged pack. There was no seed-scoped catalog.
+- **IMPLEMENTATION:** `catalog_trait_lab_seed_packs_for_seed` keeps packs for one seed, ordered by `pack_sha256`. Fail-closed on missing seed, invalid seed, and invalid limit. `live_verified` stays false. Not a live ranking. Not merged.
+- **TEST_VERIFIED:** memory suite **102 OK**; engine harden **61 OK** (163 combined). Catalog-by-seed file: 3 OK. #224 catalog file: 4 OK.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch after the gate. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Founder review. Do not merge until asked.
+
 ---

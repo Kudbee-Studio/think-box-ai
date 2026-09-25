@@ -1,5 +1,17 @@
 # STATUS — Think Box AI
 
+## PR #225 — Trait Lab seed pack catalog by seed (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-pack-catalog-seed` |
+| **Scope** | `catalog_trait_lab_seed_packs_for_seed` — catalog packs for one seed |
+| **Write policy** | Missing seed and invalid seed/limit fail-closed; not a live ranking |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-seed-pack-catalog-seed-723f` |
+| **Merge** | not merged |
+| **Verify** | memory suite **102 OK**; engine harden **61 OK** (163 combined) |
+
 ## PR #224 — Trait Lab seed pack catalog (MERGED)
 
 | Field | Value |

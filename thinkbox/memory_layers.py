@@ -1572,6 +1572,43 @@ def catalog_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict
     }
 
 
+def catalog_trait_lab_seed_packs_for_seed(
+    store: MemoryStore,
+    seed: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Catalog imported or applied packs for one seed. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    key = _seed_key(seed)
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-pack-",
+        limit=max(limit * 4, 200),
+    ):
+        row = _pack_catalog_row(entry)
+        if row is None or int(row["seed"]) != key:
+            continue
+        if row["pack_sha256"] in seen:
+            continue
+        seen.add(row["pack_sha256"])
+        found.append(row)
+    if not found:
+        raise MemoryLayerError("missing_seed", f"no cataloged seed pack for seed {key}")
+    found.sort(key=lambda row: str(row["pack_sha256"]))
+    return {
+        "kind": "trait-lab-seed-pack-catalog",
+        "seed": key,
+        "packs": found[:limit],
+        "count": len(found),
+        "live_verified": False,
+    }
+
+
 def get_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> dict[str, Any]:
     """Select one cataloged pack by pack_sha256. Does not execute the pack."""
     sha = str(pack_sha256 or "").strip().lower()
