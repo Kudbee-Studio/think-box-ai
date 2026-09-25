@@ -1,3 +1,11 @@
+## PR #219 — Trait Lab seed XP band (draft)
+
+- **Gate:** `memory-trait-lab-seed-xp-band`
+- **Scope:** Seed history rows between a stored XP floor and ceiling
+- **Write policy:** Missing seed/band match and inverted/invalid bounds fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **83 OK**
+
 ## PR #218 — Trait Lab seed XP ceiling (merged)
 
 - **Merge:** `528ac80` — seed history rows at or below a stored XP threshold

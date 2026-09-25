@@ -1199,3 +1199,50 @@ def trait_lab_seed_history_by_xp_ceiling(
         "best": runs[0],
         "live_verified": False,
     }
+
+
+def _xp_bound(value: Any, *, code: str, label: str) -> int:
+    try:
+        threshold = int(value)
+    except (TypeError, ValueError) as exc:
+        raise MemoryLayerError(code, f"{label} must be an integer") from exc
+    if isinstance(value, bool) or threshold < 0:
+        raise MemoryLayerError(code, f"{label} must be an integer >= 0")
+    return threshold
+
+
+def trait_lab_seed_history_by_xp_band(
+    store: MemoryStore,
+    seed: int,
+    floor: int,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows between a stored XP floor and ceiling. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    if low > high:
+        raise MemoryLayerError("invalid_band", "floor must be <= ceiling")
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [
+        row
+        for row in history["runs"]
+        if low <= int(row.get("xp") or 0) <= high
+    ]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_band",
+            f"no stored Trait Lab run for seed {history['seed']} xp {low}-{high}",
+        )
+    return {
+        "seed": history["seed"],
+        "floor": low,
+        "ceiling": high,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
