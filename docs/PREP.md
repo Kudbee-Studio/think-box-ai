@@ -26,8 +26,9 @@
 > **#221 merged** at `a05b31d` — seed pack verify/import. `live_verified` false.
 > **#222 merged** at `2cfa121` — seed pack apply into a destination store. `live_verified` false.
 > **#223 merged** at `29e4ff9` — seed pack diff for one seed. `live_verified` false.
-> **#224 open:** seed pack catalog on `cursor/memory-trait-lab-seed-pack-catalog-723f`. Not merged. `live_verified` false.
-> **Test gate:** memory suite 99 OK; engine harden 61 OK (160 combined). Not merged.
+> **#224 merged** at `5db0c37` — seed pack catalog. `live_verified` false.
+> **#225 next:** seed pack catalog by seed.
+> **Test gate:** memory suite 99 OK; engine harden 61 OK (160 combined).
 
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >

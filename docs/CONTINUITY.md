@@ -2430,4 +2430,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. Not merged.
 - **NEXT ACTION:** Do not merge until founder asks. Next larger improvement: catalog filter by seed.
 
+### 2026-09-25 — PR #224 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-catalog-723f` → `main` at **`5db0c37`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory suite **99 OK**; engine harden **61 OK** (160 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open #225 seed pack catalog by seed.
+
 ---
