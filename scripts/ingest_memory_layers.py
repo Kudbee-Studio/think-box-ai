@@ -34,9 +34,16 @@ def main() -> int:
         )
     finally:
         store.close()
+    snap = summary.get("snapshot") or {}
     print(
         f"markdown_files={summary['markdown_files']} "
-        f"bytes={summary['markdown_bytes']} live_verified={summary['live_verified']}"
+        f"bytes={summary['markdown_bytes']} "
+        f"patterns={len(summary.get('patterns') or [])} "
+        f"session={snap.get('session', 0)} "
+        f"task={snap.get('task', 0)} "
+        f"organizational={snap.get('organizational', 0)} "
+        f"verified={snap.get('verified_knowledge', 0)} "
+        f"live_verified={summary['live_verified']}"
     )
     return 0
 

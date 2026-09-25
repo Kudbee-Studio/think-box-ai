@@ -2107,4 +2107,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** Markdown ingest is a catalog plus fail-closed writes, not a chat dump and not a live proof.
 - **NEXT ACTION:** Founder review of the PR for `cursor/memory-layers-723f` against `main`. Do not merge from this record.
 
+### 2026-09-25 — PR #203 memory layers deepen (fail-closed writes)
+
+- **DISCOVERY:** Session could accept transient UI keys. Verified rows could overwrite a different fact silently. Chronicle patterns were hardcoded even when evidence files were absent.
+- **IMPLEMENTATION:** `TRANSIENT_KEYS` rejected on session writes. Verified writes require fact + confidence in `[0,1]` and raise `contradiction` unless `corrects` is set. `chronicle_patterns()` writes only when every evidence path exists; ingest falls back to catalog-evidenced `md-ingest-catalog`. `record_task_step` / `record_task_error` / `snapshot_layers` added. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` (deepen suite).
+- **DECISION:** Four-layer ingest remains a catalog plus fail-closed writes. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-layers-723f` into `main` after the deepen suite is green.
+
 ---

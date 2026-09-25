@@ -1,7 +1,8 @@
-## PR #203 — Memory layers ingest (draft)
+## PR #203 — Memory layers ingest (deepen)
 
 - **Gate:** `memory-layers`
 - **Scope:** Session / Task / Organizational / Verified Knowledge writes via `MemoryStore`
+- **Write policy:** Session rejects transient UI; org needs evidence; verified needs how + fact + confidence `[0,1]`; contradictions require `corrects`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
 - **Verify:** `python3 -m unittest tests.unit.test_memory_layers -v`
 
