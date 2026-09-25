@@ -2227,4 +2227,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #211. At most one open PR.
 
+### 2026-09-25 — PR #211 Trait Lab seed history
+
+- **DISCOVERY:** Best-per-seed hid every other stored run for that seed.
+- **IMPLEMENTATION:** `trait_lab_seed_history` lists stored runs for one seed, highest XP first, and exposes `best`. Fail-closed on missing seed or invalid limit. `live_verified` stays false.
+- **TEST_VERIFIED:** memory + trait-lab suites → **58 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-history-723f` into `main`.
+
 ---
