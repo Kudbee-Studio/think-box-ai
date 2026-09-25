@@ -94,7 +94,8 @@
 | Trait Lab autonomous flow workflow compose | **GitHub #224** (merged `3eb4d03`) — P01–P25 merge/intersect/subtract/xor flow-receipt indexes; not LIVE VERIFIED |
 | Trait Lab autonomous stack harness | **GitHub #225** (merged `bc8ca28`) — U01–U25 dry/run/full smoke for app integration tests; not LIVE VERIFIED |
 | Trait Lab autonomous stack suite | **GitHub #226** (merged `67b0304`) — V01–V25 dry+run+full CI suite + suite artifact; not LIVE VERIFIED |
-| Trait Lab autonomous app gate | **GitHub #227 draft** — G01–G25 stack_suite gate for application CI; not LIVE VERIFIED |
+| Trait Lab autonomous app gate | **GitHub #227** (merged `6c3dd6c`) — G01–G25 stack_suite gate for application CI; not LIVE VERIFIED |
+| Trait Lab autonomous app regression | **GitHub #228 draft** — J01–J25 baseline vs candidate gate compare; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

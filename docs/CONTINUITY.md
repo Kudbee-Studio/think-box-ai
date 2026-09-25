@@ -2812,4 +2812,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** app-gate **4 OK**; memory suite **260 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #227 merged (Trait Lab autonomous app gate)
+
+- **MERGE:** `6c3dd6c` on `main` — https://github.com/Kudbee-Studio/think-box-ai/pull/227
+- **TEST_VERIFIED:** app-gate **4 OK**; memory **260 OK**.
+
+### 2026-09-25 — Draft GitHub PR #228 Trait Lab autonomous app regression
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-app-regression-723f`
+- **DISCOVERY:** After #227, app CI needs baseline vs candidate gate comparison for drift detection.
+- **IMPLEMENTATION:** J01–J25 in `thinkbox/autonomous_app_regression.py`; `scripts/verify_trait_lab_autonomous_app_regression.py`.
+- **TEST_VERIFIED:** app-regression **3 OK**; memory suite **263 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---

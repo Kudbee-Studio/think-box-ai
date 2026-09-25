@@ -2,12 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #227 merged; #228 app regression draft)
+>
+> **GitHub #227 merged** at `6c3dd6c` — PR https://github.com/Kudbee-Studio/think-box-ai/pull/227
+> **GitHub #228 draft:** J01–J25 on `cursor/memory-trait-lab-autonomous-app-regression-723f`.
+> **Test gate:** app-regression 3 OK; memory 263 OK.
+> **Regression CI:** capture baseline with `open_trait_lab_autonomous_app_regression(...)` then compare with `baseline=captured["baseline"]`.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #226 merged; #227 autonomous app gate draft)
 >
-> **GitHub #226 merged** at `67b0304` — stack suite V01–V25. Not LIVE VERIFIED.
-> **GitHub #227 draft:** G01–G25 app gate on `cursor/memory-trait-lab-autonomous-app-gate-723f`. **Not merged.**
-> **Test gate:** app-gate 4 OK; memory 260 OK; `python3 scripts/verify_trait_lab_autonomous_app_gate.py` exit 0.
-> **Application CI:** `open_trait_lab_autonomous_app_gate(agent_id=..., task_id=...)` — one call to run suite + emit signed gate pass report.
+> **Superseded:** app gate shipped as **#227** (`6c3dd6c`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #225 merged; #226 autonomous stack suite draft)
 >
