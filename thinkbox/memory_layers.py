@@ -914,3 +914,30 @@ def best_trait_lab_seed(store: MemoryStore, seed: int) -> dict[str, Any]:
     if run is None:
         raise MemoryLayerError("missing_seed", f"no stored Trait Lab run for seed {key}")
     return {**run, "live_verified": False}
+
+
+def trait_lab_seed_history(
+    store: MemoryStore,
+    seed: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """All stored runs for one seed, highest XP first. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    key = _seed_key(seed)
+    runs = [
+        run
+        for run in list_trait_lab_runs(store, limit=200)
+        if run.get("seed") is not None and _seed_key(run["seed"]) == key
+    ]
+    runs.sort(key=lambda row: int(row.get("xp") or 0), reverse=True)
+    if not runs:
+        raise MemoryLayerError("missing_seed", f"no stored Trait Lab run for seed {key}")
+    return {
+        "seed": key,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }

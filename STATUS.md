@@ -1,3 +1,11 @@
+## PR #211 — Trait Lab seed history (draft)
+
+- **Gate:** `memory-trait-lab-seed-history`
+- **Scope:** All stored runs for one seed, highest XP first
+- **Write policy:** Missing seed fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **58 OK**
+
 ## PR #210 — Trait Lab best per seed (merged)
 
 - **Merge:** `7b0e0df` — highest stored XP per seed

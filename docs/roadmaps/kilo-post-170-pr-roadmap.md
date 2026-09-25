@@ -58,6 +58,7 @@
 | Trait Lab run compare | **#208** (merged `b9074c6`) — list/compare proofs; not LIVE VERIFIED |
 | Trait Lab local board | **#209** (merged `abdf325`) — rank_board over memory; not LIVE VERIFIED |
 | Trait Lab best per seed | **#210** (merged `7b0e0df`) — highest XP per seed; not LIVE VERIFIED |
+| Trait Lab seed history | **#211** (draft `cursor/memory-trait-lab-seed-history-723f`) — all runs for one seed; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
