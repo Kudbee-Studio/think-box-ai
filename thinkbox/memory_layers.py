@@ -2623,3 +2623,72 @@ def list_trait_lab_catalog_pin_ids_for_agent(
 ) -> list[str]:
     """P25 — catalog_sha256 values written by one agent."""
     return [row["catalog_sha256"] for row in catalog_trait_lab_pins_by_agent(store, agent_id, limit=limit)["pins"]]
+
+
+def _public_pin_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    found: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        public = _pin_public_row(row)
+        sha = str(public["catalog_sha256"])
+        prior = found.get(sha)
+        if prior is not None:
+            if int(prior["count"]) != int(public["count"]) or list(prior["ids"]) != list(public["ids"]):
+                raise MemoryLayerError("pin_conflict", f"pin {sha[:12]} disagrees")
+            continue
+        found[sha] = public
+    return found
+
+
+def _compose_trait_lab_catalog_pin_indexes(
+    index_a: Any,
+    index_b: Any,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    if mode not in {"merge", "intersect", "subtract"}:
+        raise MemoryLayerError("invalid_compose", f"unknown compose mode {mode}")
+    left = verify_trait_lab_catalog_pins(index_a)
+    right = verify_trait_lab_catalog_pins(index_b)
+    if left["pin_index_sha256"] == right["pin_index_sha256"]:
+        raise MemoryLayerError("same_pin_index", f"{mode} requires two different pin-index hashes")
+    map_a = _public_pin_map(left["pins"])
+    map_b = _public_pin_map(right["pins"])
+    for sha, row in map_b.items():
+        prior = map_a.get(sha)
+        if prior is not None and (
+            int(prior["count"]) != int(row["count"]) or list(prior["ids"]) != list(row["ids"])
+        ):
+            raise MemoryLayerError("pin_conflict", f"pin {sha[:12]} disagrees across indexes")
+    if mode == "merge":
+        selected = {**map_a, **map_b}
+    elif mode == "intersect":
+        selected = {sha: map_a[sha] for sha in map_a if sha in map_b}
+    else:
+        selected = {sha: map_a[sha] for sha in map_a if sha not in map_b}
+    rows = sorted(selected.values(), key=lambda row: str(row["catalog_sha256"]))
+    body = _pin_index_body(rows)
+    refuse_trait_lab_catalog_pin_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "pin_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "mode": mode,
+        "a": left["pin_index_sha256"],
+        "b": right["pin_index_sha256"],
+        "live_verified": False,
+    }
+
+
+def merge_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """Union two rematched pin-index snapshots. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_indexes(index_a, index_b, mode="merge")
+
+
+def intersect_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """Shared pins of two rematched pin indexes. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_indexes(index_a, index_b, mode="intersect")
+
+
+def subtract_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """Pins in A that are not in B. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_indexes(index_a, index_b, mode="subtract")
