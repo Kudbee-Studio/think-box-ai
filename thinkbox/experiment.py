@@ -583,6 +583,53 @@ class ExperimentDB:
             finally:
                 conn.close()
 
+    def get_events_by_experiment(self, experiment_id: str) -> list[dict[str, Any]]:
+        """Query all events for an experiment (ordered by insertion order)."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT * FROM experiment_events WHERE experiment_id = ? ORDER BY id", (experiment_id,)
+                )
+                return [dict(row) for row in cursor.fetchall()]
+            finally:
+                conn.close()
+
+    def get_next_action_event(self, experiment_id: str) -> Optional[dict[str, Any]]:
+        """Retrieve the next_action_generated event for an experiment."""
+        events = self.get_events_by_experiment(experiment_id)
+        for evt in reversed(events):
+            if evt.get("event_type") == "next_action_generated":
+                data = evt.get("data")
+                if isinstance(data, str):
+                    data = json.loads(data)
+                return data
+        return None
+
+    def get_last_next_action(self, limit: int = 50) -> Optional[dict[str, Any]]:
+        """Retrieve the most recent next_action_generated event across all experiments."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT experiment_id, data FROM experiment_events "
+                    "WHERE event_type = 'next_action_generated' "
+                    "ORDER BY experiment_id DESC LIMIT ?", (limit,)
+                )
+                for row in cursor.fetchall():
+                    data = row["data"]
+                    if isinstance(data, str):
+                        data = json.loads(data)
+                    if data and "recommended_next_experiment" in data:
+                        return data["recommended_next_experiment"]
+                return None
+            except (json.JSONDecodeError, KeyError):
+                return None
+            finally:
+                conn.close()
+
     def get_dashboard_aggregates(self) -> dict[str, Any]:
         with self._lock:
             conn = self._connect()
@@ -759,6 +806,16 @@ class ExperimentManager:
             self.add_parameter(experiment.experiment_id, name, value, classification=ParameterClassification.OBSERVED.value, confidence=1.0)
         self.db.save_event(experiment.experiment_id, "execution_complete", {"mode": "local"})
         return experiment.model_dump()
+
+    def get_last_next_action(self, limit: int = 50) -> Optional[dict[str, Any]]:
+        """Retrieve the most recent recommended_next_experiment from persisted next_action events.
+
+        Returns the ``recommended_next_experiment`` dict (with ``type``,
+        ``rationale``, ``adjustments``, ``max_retries``) from the most recent
+        ``next_action_generated`` event, or ``None`` if no prior recommendation
+        exists.
+        """
+        return self.db.get_last_next_action(limit)
 
     def get_dashboard_data(self, *, use_cache: bool = True) -> dict[str, Any]:
         cache = experiment_dashboard_cache()
