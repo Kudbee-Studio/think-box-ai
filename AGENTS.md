@@ -190,6 +190,23 @@ We chose Option X because...
 What changes as a result?
 ```
 
+### 4.3 Always Update Markdown (Standing Rule)
+
+**Every meaningful product change updates Markdown in the same PR. No exceptions.**
+
+Do not ship code, tests, or a draft PR while `AGENTS.md` or the chronicle files are a PR behind the lane.
+
+| File | What to update |
+|------|----------------|
+| `AGENTS.md` | PR attribution table (merged vs draft), plus any new standing rule |
+| `STATUS.md` | Top-of-file current draft / merge block and verified test counts |
+| `docs/STATUS.md` | Matching top-of-file block |
+| `docs/PREP.md` | Dated addendum: gate, branch, merge SHA, test counts |
+| `docs/CONTINUITY.md` | Append-only chronicle entry (never rewrite history) |
+| `docs/roadmaps/kilo-post-170-pr-roadmap.md` | GitHub PR row for the current slot |
+
+Founder-edited PR bodies stay untouched. Never commit `.thinkbox/`. Never claim LIVE VERIFIED from these docs.
+
 ---
 
 ## 5. Decision Recording Process
@@ -381,6 +398,7 @@ Every new agent session must:
 4. **Check git state** — branch, working tree, last commits
 5. **Run tests** — `python3 -m unittest discover tests/`
 6. **Report** — current branch, test count, blockers
+7. **Always update MD** on any product change (see §4.3) — `AGENTS.md` table + STATUS / PREP / CONTINUITY / roadmap in the same PR
 
 ---
 
@@ -407,11 +425,12 @@ Full workflow (see skill: `pr-workflow`):
 1. Sync to main: `git checkout main && git pull`
 2. Branch: `git checkout -b feat/descriptive-name`
 3. Make changes following AGENTS.md coding rules
-4. Run tests — all must pass
-5. Commit with conventional message: `type(scope): description`
-6. Push and create ONE PR targeting main
-7. **STOP** — wait for founder review. Do not create another PR.
-8. After approval: merge with `--no-ff`, push main, stop.
+4. **Update Markdown** — `AGENTS.md` PR table + `STATUS.md` + `docs/STATUS.md` + `docs/PREP.md` + `docs/CONTINUITY.md` + roadmap (§4.3)
+5. Run tests — all must pass; write verified counts back into the MD files
+6. Commit with conventional message: `type(scope): description`
+7. Push and create ONE PR targeting main
+8. **STOP** — wait for founder review. Do not create another PR.
+9. After approval: merge with `--no-ff`, push main, stop.
 
 ---
 
@@ -604,7 +623,23 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Cloud execution durable queue Phase 2 (10 features) | **#198** (merged) | `thinkbox/cloud_execution/sqlite_store.py`, `thinkbox/kilo_pr198_cloud_execution_durable_queue.py`, `scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
 | Cloud execution worker orchestrator Phase 3 (10 features) | **#199** (merged) | `thinkbox/cloud_execution/worker_orchestrator.py`, `thinkbox/kilo_pr199_cloud_execution_worker_orchestrator.py`, `scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
 | Environmental variables pack (~25 features) | **#200** (merged) | `thinkbox/env_vars/`, `thinkbox/kilo_pr200_environmental_variables.py`, `scripts/verify_kilo_pr200_environmental_variables.py` |
-| Upstash Box access verification | **#201** (draft) | `thinkbox/upstash_box_access.py`, `thinkbox/kilo_pr201_upstash_box_access.py`, `scripts/verify_kilo_pr201_upstash_box_access.py` — this-run class **A** (`ENV_NOT_CONFIGURED`); **not LIVE VERIFIED** |
+| Upstash Box access verification | **#201** (merged on main as of later merge train) | `thinkbox/upstash_box_access.py` — this-run class **A** `ENV_NOT_CONFIGURED`; **not LIVE VERIFIED**. Do not reopen or claim LIVE. |
+| Trait Lab seeded game (U01–U50 + harden) | **#202** (merged) | `thinkbox/trait_game/` — not LIVE VERIFIED |
+| Trait Lab catalog operator pack (C01–C25) | **#203** (merged) | `thinkbox/memory_layers.py` — filter/page/purge/export/verify/import catalog |
+| Trait Lab catalog compose | **#204** (merged) | merge / intersect / subtract rematched catalogs |
+| Trait Lab catalog pin | **#205** (merged) | pin / get / list / unpin rematched catalog snapshots |
+| Trait Lab catalog pin operators (P01–P25) | **#206** (merged) | pin-index filter/page/export/verify/import |
+| Trait Lab catalog pin compose | **#207** (merged) | merge / intersect / subtract rematched pin indexes |
+| Trait Lab catalog pin follow-through | **#208** (merged) | xor + retain-best; fact_id / id-set harden |
+| Trait Lab catalog follow-through | **#209** (merged) | xor + retain-best on rematched pack catalogs |
+| Trait Lab catalog↔pin bind (B01–B25) | **#210** (merged) | rematch pin pack hashes against store packs |
+| Trait Lab catalog pin bind lane (D01–D25) | **#211** (merged) | bind filters, compose, rematch index, drop unbound |
+| Trait Lab catalog pin bind workflow (W01–W25) | **#212** (merged) | signed plan / dry-run / run / receipt |
+| Trait Lab local environment prep (E01–E25) | **#213** (draft) | `thinkbox/local_env_prep.py` — Python/SQLite probe, redact, workflow dry-run, prep receipt |
+
+Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#213** above are the later catalog/pin/bind/workflow/env-prep majors.
+
+**Do not claim** LIVE VERIFIED on any Trait Lab / memory path. Four-state cap: **CODE COMPLETE / TEST VERIFIED** only.
 
 **Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
 

@@ -1,11 +1,21 @@
-## Draft — GitHub PR #212 Trait Lab catalog pin bind workflow (not merged)
+## Draft — GitHub PR #213 Trait Lab local environment prep (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f`
-- **Gate:** `memory-trait-lab-catalog-pin-bind-workflow-25`
-- **Scope:** W01–W25 hermetic plan/dry-run/run/receipt over catalog → pin → bind
-- **Write policy:** Hash-only except pin_catalog, drop_unbound, and receipt persist; no pack/run apply; dry-run skips writes; live claim fail-closed
+- **Branch:** `cursor/memory-trait-lab-local-env-prep-25-723f`
+- **Gate:** `memory-trait-lab-local-env-prep-25`
+- **Scope:** E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt
+- **Write policy:** Hash-only except prep receipt persist; no pack/run apply; refuses live ack; `live_verified: false`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined) — **not merged**
+- **Verify:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined) — **not merged**
+- **AGENTS.md:** GitHub #202–#213 Trait Lab / memory lane rows added; §4.3 standing rule **Always update MD** (this draft)
+
+## GitHub PR #212 — Trait Lab catalog pin bind workflow (merged)
+
+- **Merge:** `581fab3` — W01–W25 hermetic plan/dry-run/run/receipt
+- **Gate:** `memory-trait-lab-catalog-pin-bind-workflow-25`
+- **Scope:** Signed plan, dry-run skips writes, run pins/drops unbound, persist receipt
+- **Write policy:** Hash-only except pin_catalog, drop_unbound, and receipt persist; no pack/run apply; live claim fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined)
 
 ## GitHub PR #211 — Trait Lab catalog pin bind lane (merged)
 

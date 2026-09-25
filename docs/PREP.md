@@ -2,10 +2,18 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #212 merged; GitHub #213 local env prep draft)
+>
+> **GitHub #212 merged** at `581fab3` — bind workflow W01–W25. Not LIVE VERIFIED.
+> **GitHub #213 draft:** 25-operator local environment prep on `cursor/memory-trait-lab-local-env-prep-25-723f`. **Not merged.**
+> **Test gate:** prep file 8 OK; memory suite 204 OK; engine harden 61 OK (265 combined).
+> **AGENTS.md:** GitHub #202–#213 Trait Lab rows recorded; standing rule §4.3 Always update MD.
+> Product-label #213 (`690979c` seed grade) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #211 merged; GitHub #212 bind workflow draft)
 >
 > **GitHub #211 merged** at `e416bd7` — bind lane D01–D25. Not LIVE VERIFIED.
-> **GitHub #212 draft:** 25-operator hermetic catalog→pin→bind workflow on `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f`. **Not merged.**
+> **GitHub #212 bind workflow** merged at `581fab3`. **Not LIVE VERIFIED.**
 > **Test gate:** workflow file 10 OK; memory suite 196 OK; engine harden 61 OK (257 combined).
 > Product-label #212 (`413c28a` seed index) stays on main as an earlier memory-lane merge. Do not reopen it.
 >
