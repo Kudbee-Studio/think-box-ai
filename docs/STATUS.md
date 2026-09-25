@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #220 — Trait Lab seed pack export (DRAFT)
+## PR #220 — Trait Lab seed pack export (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-pack` |
 | **Scope** | `export_trait_lab_seed_pack` — portable snapshot of stored runs for one seed |
 | **Write policy** | Missing seed fail-closed; pack is not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `d66cc4a` |
 | **Verify** | memory + trait-lab suites → **86 OK** |
 
 ## PR #219 — Trait Lab seed XP band (MERGED)

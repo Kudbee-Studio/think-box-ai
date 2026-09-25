@@ -1,5 +1,6 @@
-## PR #220 — Trait Lab seed pack export (draft)
+## PR #220 — Trait Lab seed pack export (merged)
 
+- **Merge:** `d66cc4a` — portable snapshot of stored runs for one seed
 - **Gate:** `memory-trait-lab-seed-pack`
 - **Scope:** Portable snapshot of stored runs for one seed
 - **Write policy:** Missing seed fail-closed; pack is not a live ranking
