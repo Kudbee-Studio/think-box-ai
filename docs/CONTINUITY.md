@@ -2786,4 +2786,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** stack-harness **5 OK**; memory suite **251 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #225 merged (Trait Lab autonomous stack harness)
+
+- **MERGE:** `bc8ca28` on `main`.
+- **TEST_VERIFIED:** stack-harness **5 OK**; memory **251 OK**.
+
+### 2026-09-25 — Draft GitHub PR #226 Trait Lab autonomous stack suite
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-stack-suite-723f`
+- **DISCOVERY:** After #225, CI and app regression need one signed plan that runs dry, run, and full smoke and persists a suite report.
+- **IMPLEMENTATION:** V01–V25 in `thinkbox/autonomous_stack_suite.py` (`open_stack_suite`, `bundle_for_ci`, suite + smoke artifact on full store).
+- **TEST_VERIFIED:** stack-suite **5 OK**; memory suite **256 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---
