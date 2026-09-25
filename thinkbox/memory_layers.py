@@ -1,7 +1,8 @@
 """Four memory layers — Session, Task, Organizational, Verified Knowledge.
 
-Markdown ingest is a catalog plus fail-closed writes. Organizational rows
-need evidence. Nothing in these layers may claim LIVE VERIFIED.
+Markdown ingest is a catalog plus fail-closed writes. Reads, query, and
+retention sit on the same store. Organizational rows are append-only.
+Verified confidence decays. Nothing here may claim LIVE VERIFIED.
 """
 
 from __future__ import annotations
@@ -324,5 +325,155 @@ def ingest_markdown(
         "catalog": catalog,
         "patterns": [item["pattern_id"] for item in patterns],
         "snapshot": snap,
+        "live_verified": False,
+    }
+
+
+def _parse_utc(stamp: str) -> datetime:
+    moment = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment
+
+
+def _require(store: MemoryStore, key: str, code: str) -> MemoryEntry:
+    entry = store.get(key)
+    if entry is None:
+        raise MemoryLayerError(code, f"missing memory key {key}")
+    return entry
+
+
+def read_session(store: MemoryStore, session_id: str) -> MemoryEntry:
+    """Read one session row. Fail-closed if it is gone."""
+    return _require(store, f"session:{session_id}", "missing_session")
+
+
+def read_task(store: MemoryStore, task_id: str) -> MemoryEntry:
+    """Read one task goal-state row."""
+    return _require(store, f"task:{task_id}", "missing_task")
+
+
+def read_organizational(store: MemoryStore, pattern_id: str) -> MemoryEntry:
+    """Read one evidenced organizational pattern."""
+    return _require(store, f"org:pattern:{pattern_id}", "missing_org")
+
+
+def effective_confidence(
+    entry: MemoryEntry,
+    *,
+    now: datetime | None = None,
+    half_life_hours: float = 168.0,
+) -> float:
+    """Decay stored confidence by age. Half-life default is one week."""
+    if half_life_hours <= 0:
+        raise MemoryLayerError("invalid_half_life", "half_life_hours must be > 0")
+    moment = now or datetime.now(timezone.utc)
+    age_hours = max(0.0, (moment - _parse_utc(entry.created_at)).total_seconds() / 3600.0)
+    decayed = float(entry.confidence) * (0.5 ** (age_hours / half_life_hours))
+    return max(0.0, min(1.0, decayed))
+
+
+def read_verified(
+    store: MemoryStore,
+    fact_id: str,
+    *,
+    now: datetime | None = None,
+    half_life_hours: float = 168.0,
+) -> dict[str, Any]:
+    """Read a verified fact with stored and decayed confidence. Never live."""
+    entry = _require(store, f"verified:{fact_id}", "missing_verified")
+    return {
+        "entry": entry,
+        "fact": entry.value.get("fact"),
+        "how": entry.value.get("how"),
+        "stored_confidence": float(entry.confidence),
+        "effective_confidence": effective_confidence(
+            entry, now=now, half_life_hours=half_life_hours
+        ),
+        "live_verified": False,
+    }
+
+
+def query_layer(
+    store: MemoryStore,
+    layer: MemoryLayer,
+    *,
+    prefix: str | None = None,
+    limit: int = 100,
+) -> list[MemoryEntry]:
+    """List rows in one layer. Optional key prefix."""
+    rows = store.query(layer=layer, limit=limit)
+    if prefix:
+        rows = [row for row in rows if row.key.startswith(prefix)]
+    return rows
+
+
+def end_session(store: MemoryStore, session_id: str) -> dict[str, Any]:
+    """Session lifetime ends. Org and verified rows stay."""
+    key = f"session:{session_id}"
+    deleted = store.delete(key)
+    if not deleted:
+        raise MemoryLayerError("missing_session", f"session {session_id} not found")
+    return {"deleted": [key], "live_verified": False}
+
+
+def end_task(store: MemoryStore, task_id: str) -> dict[str, Any]:
+    """Task lifetime ends. Delete the goal row and its steps/errors."""
+    prefix = f"task:{task_id}"
+    deleted: list[str] = []
+    for key in list(store.keys(MemoryLayer.TASK)):
+        if key == prefix or key.startswith(prefix + ":"):
+            if store.delete(key):
+                deleted.append(key)
+    if not deleted:
+        raise MemoryLayerError("missing_task", f"task {task_id} not found")
+    return {"deleted": deleted, "live_verified": False}
+
+
+def delete_organizational(store: MemoryStore, pattern_id: str) -> None:
+    """Organizational memory is append-only."""
+    raise MemoryLayerError(
+        "append_only", f"organizational pattern {pattern_id} cannot be deleted"
+    )
+
+
+def delete_verified(store: MemoryStore, fact_id: str) -> None:
+    """Verified knowledge decays; it is not deleted."""
+    raise MemoryLayerError("no_delete", f"verified fact {fact_id} cannot be deleted")
+
+
+def apply_retention(
+    store: MemoryStore,
+    *,
+    now: datetime | None = None,
+    session_max_age_hours: float = 24.0,
+) -> dict[str, Any]:
+    """Expire stale sessions and ended tasks. Never drop org or verified."""
+    if session_max_age_hours < 0:
+        raise MemoryLayerError("invalid_retention", "session_max_age_hours must be >= 0")
+    moment = now or datetime.now(timezone.utc)
+    expired_sessions: list[str] = []
+    for key in list(store.keys(MemoryLayer.SESSION)):
+        entry = store.get(key)
+        if entry is None:
+            continue
+        age_hours = (moment - _parse_utc(entry.created_at)).total_seconds() / 3600.0
+        if age_hours > session_max_age_hours:
+            store.delete(key)
+            expired_sessions.append(key)
+    expired_tasks: list[str] = []
+    for entry in list(store.query(layer=MemoryLayer.TASK, limit=500)):
+        if entry.key.count(":") != 1:
+            continue
+        status = str(entry.value.get("status") or "")
+        if status in {"ended", "completed", "failed"}:
+            task_id = str(entry.value.get("task_id") or entry.key.split(":", 1)[1])
+            result = end_task(store, task_id)
+            expired_tasks.extend(result["deleted"])
+    return {
+        "expired_sessions": expired_sessions,
+        "expired_tasks": expired_tasks,
+        "organizational": store.count(MemoryLayer.ORGANIZATIONAL),
+        "verified_knowledge": store.count(MemoryLayer.VERIFIED_KNOWLEDGE),
         "live_verified": False,
     }

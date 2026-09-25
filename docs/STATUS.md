@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #204 — Memory query + retention (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-query-retention` |
+| **Scope** | Read / query / end-session / end-task / verified decay / retention |
+| **Write policy** | Org append-only; verified decays; session/task may expire; `live_verified` false |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK** |
+
 ## PR #203 — Memory layers ingest (MERGED)
 
 | Field | Value |

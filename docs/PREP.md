@@ -5,9 +5,10 @@
 > ## ADDENDUM — 2026-09-25 (PR #202 merged; PR #203 memory layers)
 >
 > **#202 merged** at `75a36c5` — Trait Lab (seeded local game). Not LIVE VERIFIED.
-> **#203 merged** at `3976930` — fail-closed four-layer ingest (no transient UI, org evidence, verified how/fact/confidence, contradiction unless `corrects`). `live_verified` false.
-> **Test gate:** `python3 -m unittest tests.unit.test_memory_layers -v` → 16 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
+> **#203 merged** at `3976930` — fail-closed four-layer ingest.
+> **#204 draft:** read / query / retention — session/task expire; org append-only; verified decays. `live_verified` false.
+> **Test gate:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → 24 OK.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
