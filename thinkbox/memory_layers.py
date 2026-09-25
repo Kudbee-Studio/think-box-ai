@@ -2776,3 +2776,342 @@ def retain_trait_lab_catalog_pin_index(index: Any, *, keep: int = 1) -> dict[str
         "keep": keep,
         "live_verified": False,
     }
+
+
+_TRAIT_LAB_CATALOG_PIN_BIND_KIND = "trait-lab-seed-pack-catalog-pin-bind"
+_TRAIT_LAB_CATALOG_PIN_BIND_INDEX_KIND = "trait-lab-seed-pack-catalog-pin-bind-index"
+TRAIT_LAB_CATALOG_PIN_BIND_OPS: tuple[str, ...] = (
+    "rematch",
+    "is_bound",
+    "list_unbound_packs",
+    "list_bound_packs",
+    "count_bound_packs",
+    "count_unbound_packs",
+    "list_bound_pin_ids",
+    "list_unbound_pin_ids",
+    "count_bound_pins",
+    "has_unbound_pin",
+    "report",
+    "export",
+    "verify",
+    "refuse_live",
+    "pin_retained",
+    "pin_xor",
+    "pin_merged",
+    "catalog_from_pin",
+    "public_row",
+    "digest",
+    "etag",
+    "page",
+    "best_bound",
+    "import_retained_index",
+    "binds_by_agent",
+)
+
+
+def _store_pack_ids(store: MemoryStore) -> set[str]:
+    return {str(row["pack_sha256"]) for row in _collect_trait_lab_seed_pack_rows(store)}
+
+
+def _bind_public_row(row: dict[str, Any]) -> dict[str, Any]:
+    sha = _require_catalog_sha(row.get("catalog_sha256"))
+    raw_bound = row.get("bound_ids")
+    raw_unbound = row.get("unbound_ids")
+    if not isinstance(raw_bound, list) or not isinstance(raw_unbound, list):
+        raise MemoryLayerError("invalid_bind", "bind row requires bound_ids and unbound_ids")
+    bound_ids = [str(item).strip().lower() for item in raw_bound]
+    unbound_ids = [str(item).strip().lower() for item in raw_unbound]
+    if any(len(item) != 64 or any(ch not in "0123456789abcdef" for ch in item) for item in bound_ids + unbound_ids):
+        raise MemoryLayerError("invalid_bind", "bind ids must be pack hashes")
+    count = row.get("count")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise MemoryLayerError("invalid_bind", "bind row requires count")
+    bound_count = int(row.get("bound_count", len(bound_ids)))
+    unbound_count = int(row.get("unbound_count", len(unbound_ids)))
+    if bound_count != len(bound_ids) or unbound_count != len(unbound_ids):
+        raise MemoryLayerError("invalid_bind", "bind counts must match id lists")
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_BIND_KIND,
+        "catalog_sha256": sha,
+        "fact_id": _catalog_pin_fact_id(sha),
+        "bound": bool(row.get("bound")) and unbound_count == 0 and bound_count > 0,
+        "count": count,
+        "bound_ids": bound_ids,
+        "unbound_ids": unbound_ids,
+        "bound_count": bound_count,
+        "unbound_count": unbound_count,
+        "live_verified": False,
+    }
+
+
+def _bind_report_from_pin(store: MemoryStore, pin: dict[str, Any]) -> dict[str, Any]:
+    store_ids = _store_pack_ids(store)
+    pin_ids = [str(item) for item in pin["ids"]]
+    bound_ids = [sha for sha in pin_ids if sha in store_ids]
+    unbound_ids = [sha for sha in pin_ids if sha not in store_ids]
+    return _bind_public_row(
+        {
+            "catalog_sha256": pin["catalog_sha256"],
+            "fact_id": pin["fact_id"],
+            "bound": len(unbound_ids) == 0 and len(bound_ids) > 0,
+            "count": pin["count"],
+            "bound_ids": bound_ids,
+            "unbound_ids": unbound_ids,
+            "bound_count": len(bound_ids),
+            "unbound_count": len(unbound_ids),
+        }
+    )
+
+
+def _collect_trait_lab_catalog_pin_binds(store: MemoryStore) -> list[dict[str, Any]]:
+    return [_bind_report_from_pin(store, pin) for pin in _collect_trait_lab_catalog_pins(store)]
+
+
+def _bind_index_body(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    public = [_bind_public_row(row) for row in rows]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_BIND_INDEX_KIND,
+        "binds": public,
+        "count": len(public),
+        "live_verified": False,
+    }
+
+
+def rematch_trait_lab_catalog_pin_against_store(
+    store: MemoryStore,
+    catalog_sha256: str,
+) -> dict[str, Any]:
+    """B01 — rematch one pin's pack hashes against cataloged store packs."""
+    pin = get_trait_lab_catalog_pin(store, catalog_sha256)
+    return _bind_report_from_pin(store, pin)
+
+
+def trait_lab_catalog_pin_is_bound(store: MemoryStore, catalog_sha256: str) -> bool:
+    """B02 — true when every pinned pack hash exists in the store."""
+    return bool(rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)["bound"])
+
+
+def list_unbound_packs_for_pin(store: MemoryStore, catalog_sha256: str) -> list[str]:
+    """B03 — pack hashes listed by the pin but missing from the store."""
+    return list(rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)["unbound_ids"])
+
+
+def list_bound_packs_for_pin(store: MemoryStore, catalog_sha256: str) -> list[str]:
+    """B04 — pack hashes listed by the pin and present in the store."""
+    return list(rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)["bound_ids"])
+
+
+def count_bound_packs_for_pin(store: MemoryStore, catalog_sha256: str) -> int:
+    """B05 — how many pinned pack hashes exist in the store."""
+    return int(rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)["bound_count"])
+
+
+def count_unbound_packs_for_pin(store: MemoryStore, catalog_sha256: str) -> int:
+    """B06 — how many pinned pack hashes are missing from the store."""
+    return int(rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)["unbound_count"])
+
+
+def list_bound_trait_lab_catalog_pin_ids(store: MemoryStore, *, limit: int = 50) -> list[str]:
+    """B07 — catalog_sha256 values of fully bound pins, sorted."""
+    limit = _require_catalog_limit(limit)
+    return [row["catalog_sha256"] for row in _collect_trait_lab_catalog_pin_binds(store) if row["bound"]][:limit]
+
+
+def list_unbound_trait_lab_catalog_pin_ids(store: MemoryStore, *, limit: int = 50) -> list[str]:
+    """B08 — catalog_sha256 values of pins with at least one missing pack."""
+    limit = _require_catalog_limit(limit)
+    return [row["catalog_sha256"] for row in _collect_trait_lab_catalog_pin_binds(store) if not row["bound"]][:limit]
+
+
+def count_bound_trait_lab_catalog_pins(store: MemoryStore) -> int:
+    """B09 — number of fully bound pins."""
+    return len(list_bound_trait_lab_catalog_pin_ids(store, limit=200))
+
+
+def has_unbound_trait_lab_catalog_pin(store: MemoryStore) -> bool:
+    """B10 — true when any pin is missing at least one store pack."""
+    return any(not row["bound"] for row in _collect_trait_lab_catalog_pin_binds(store))
+
+
+def report_trait_lab_catalog_pin_bind(store: MemoryStore, catalog_sha256: str) -> dict[str, Any]:
+    """B11 — public bind report for one pin. Not a live ranking."""
+    return rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)
+
+
+def export_trait_lab_catalog_pin_binds(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """B12 — portable bind-index snapshot. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    rows = _collect_trait_lab_catalog_pin_binds(store)[:limit]
+    body = _bind_index_body(rows)
+    refuse_trait_lab_catalog_pin_bind_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "bind_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "exported_at": _utc(),
+    }
+
+
+def verify_trait_lab_catalog_pin_binds(index: Any) -> dict[str, Any]:
+    """B13 — rematch bind_index_sha256 over the stable bind-index body."""
+    if not isinstance(index, dict):
+        raise MemoryLayerError("invalid_bind", "bind index must be an object")
+    if index.get("kind") != _TRAIT_LAB_CATALOG_PIN_BIND_INDEX_KIND:
+        raise MemoryLayerError("invalid_bind", "kind must be trait-lab-seed-pack-catalog-pin-bind-index")
+    refuse_trait_lab_catalog_pin_bind_live(index)
+    if not isinstance(index.get("binds"), list):
+        raise MemoryLayerError("invalid_bind", "binds must be a list")
+    sha = str(index.get("bind_index_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_bind_hash", "verify requires bind_index_sha256")
+    public = [_bind_public_row(row) for row in index["binds"] if isinstance(row, dict)]
+    if len(public) != len(index["binds"]):
+        raise MemoryLayerError("invalid_bind", "every bind row must be an object")
+    body = _bind_index_body(public)
+    got = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if got != sha:
+        raise MemoryLayerError("bind_mismatch", f"bind index hashed {got[:12]} not {sha[:12]}")
+    return {**body, "matched": True, "bind_index_sha256": sha, "live_verified": False}
+
+
+def refuse_trait_lab_catalog_pin_bind_live(payload: Any) -> None:
+    """B14 — bind payloads may not claim LIVE VERIFIED."""
+    if isinstance(payload, dict) and payload.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "catalog pin bind may not claim LIVE VERIFIED")
+
+
+def pin_retained_trait_lab_seed_pack_catalog(
+    store: MemoryStore,
+    catalog: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+    keep: int = 1,
+) -> dict[str, Any]:
+    """B15 — retain the highest-count packs, then pin. Does not apply runs."""
+    retained = retain_trait_lab_seed_pack_catalog(catalog, keep=keep)
+    return pin_trait_lab_seed_pack_catalog(store, retained, agent_id=agent_id, task_id=task_id)
+
+
+def pin_xor_trait_lab_seed_pack_catalogs(
+    store: MemoryStore,
+    catalog_a: Any,
+    catalog_b: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """B16 — xor two rematched catalogs, then pin. Does not apply runs."""
+    composed = symmetric_diff_trait_lab_seed_pack_catalogs(catalog_a, catalog_b)
+    if int(composed["count"]) < 1:
+        raise MemoryLayerError("missing_pack", "xor pin requires at least one pack")
+    return pin_trait_lab_seed_pack_catalog(store, composed, agent_id=agent_id, task_id=task_id)
+
+
+def pin_merged_trait_lab_seed_pack_catalogs(
+    store: MemoryStore,
+    catalog_a: Any,
+    catalog_b: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """B17 — merge two rematched catalogs, then pin. Does not apply runs."""
+    composed = merge_trait_lab_seed_pack_catalogs(catalog_a, catalog_b)
+    if int(composed["count"]) < 1:
+        raise MemoryLayerError("missing_pack", "merge pin requires at least one pack")
+    return pin_trait_lab_seed_pack_catalog(store, composed, agent_id=agent_id, task_id=task_id)
+
+
+def catalog_from_trait_lab_catalog_pin(store: MemoryStore, catalog_sha256: str) -> dict[str, Any]:
+    """B18 — rebuild a rematched catalog from a fully bound pin."""
+    report = rematch_trait_lab_catalog_pin_against_store(store, catalog_sha256)
+    if not report["bound"]:
+        raise MemoryLayerError("unbound_pin", f"pin {report['catalog_sha256'][:12]} is not bound")
+    rows = [get_trait_lab_seed_pack(store, sha) for sha in report["bound_ids"]]
+    body = _catalog_export_body(rows)
+    refuse_trait_lab_catalog_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    sha = hashlib.sha256(encoded).hexdigest()
+    if sha != report["catalog_sha256"]:
+        raise MemoryLayerError("catalog_mismatch", f"rebuilt catalog {sha[:12]} not {report['catalog_sha256'][:12]}")
+    return {**body, "catalog_sha256": sha, "matched": True, "live_verified": False}
+
+
+def public_trait_lab_catalog_pin_bind_row(row: dict[str, Any]) -> dict[str, Any]:
+    """B19 — stable bind selector row without agent/task fields."""
+    if not isinstance(row, dict) or not row.get("catalog_sha256"):
+        raise MemoryLayerError("invalid_bind", "public row requires a bind")
+    return _bind_public_row(row)
+
+
+def trait_lab_catalog_pin_binds_digest(store: MemoryStore) -> str:
+    """B20 — SHA-256 over the stable public bind-index body."""
+    return str(export_trait_lab_catalog_pin_binds(store)["bind_index_sha256"])
+
+
+def trait_lab_catalog_pin_binds_etag(store: MemoryStore) -> str:
+    """B21 — short digest for bind-index identity."""
+    return trait_lab_catalog_pin_binds_digest(store)[:16]
+
+
+def page_trait_lab_catalog_pin_binds(
+    store: MemoryStore,
+    *,
+    offset: int = 0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """B22 — deterministic bind-report page. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    start = _require_catalog_offset(offset)
+    rows = _collect_trait_lab_catalog_pin_binds(store)
+    selected = rows[start : start + limit]
+    return {
+        **_bind_index_body(selected),
+        "count": len(rows),
+        "offset": start,
+        "limit": limit,
+        "live_verified": False,
+    }
+
+
+def best_bound_trait_lab_catalog_pin(store: MemoryStore) -> dict[str, Any]:
+    """B23 — highest-count fully bound pin; hash breaks ties. Not a live ranking."""
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if row["bound"]]
+    if not rows:
+        raise MemoryLayerError("missing_pin", "no bound catalog pin")
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["catalog_sha256"])))
+    return {**rows[0], "live_verified": False}
+
+
+def import_retained_trait_lab_catalog_pin_index(
+    store: MemoryStore,
+    index: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+    keep: int = 1,
+) -> dict[str, Any]:
+    """B24 — retain the highest-count pins, then import pin facts. No pack/run writes."""
+    retained = retain_trait_lab_catalog_pin_index(index, keep=keep)
+    return import_trait_lab_catalog_pins(store, retained, agent_id=agent_id, task_id=task_id)
+
+
+def list_trait_lab_catalog_pin_binds_by_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """B25 — bind reports for pins written by one agent."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(agent_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_agent", "bind by agent requires agent_id")
+    pins = [pin for pin in _collect_trait_lab_catalog_pins(store) if pin.get("agent_id") == wanted]
+    if not pins:
+        raise MemoryLayerError("missing_agent", f"no pinned catalog for agent {wanted}")
+    rows = [_bind_report_from_pin(store, pin) for pin in pins][:limit]
+    return {**_bind_index_body(rows), "agent_id": wanted, "live_verified": False}

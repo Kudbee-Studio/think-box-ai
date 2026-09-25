@@ -1,11 +1,20 @@
-## Draft — GitHub PR #209 Trait Lab catalog follow-through (not merged)
+## Draft — GitHub PR #210 Trait Lab catalog↔pin bind (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-follow-723f`
+- **Branch:** `cursor/memory-trait-lab-catalog-pin-bind-25-723f`
+- **Gate:** `memory-trait-lab-catalog-pin-bind-25`
+- **Scope:** B01–B25 rematch pins against store packs; bound/unbound reports; pin retain/xor/merge; catalog_from_pin
+- **Write policy:** Hash-only except pin/import writes of pin facts; no pack/run apply; live claim, unbound pin, and missing pin fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined) — **not merged**
+
+## GitHub PR #209 — Trait Lab catalog follow-through (merged)
+
+- **Merge:** `415acb0` — xor + retain-best on rematched pack catalogs
 - **Gate:** `memory-trait-lab-catalog-follow`
 - **Scope:** Symmetric diff + retain-best after catalog compose (parity with #208 pin follow-through)
 - **Write policy:** Hash-only; no pack/run writes; live claim, empty retain, invalid keep, and same catalog fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined) — **not merged**
+- **Verify:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined)
 
 ## GitHub PR #208 — Trait Lab catalog pin follow-through (merged)
 

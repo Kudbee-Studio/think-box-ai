@@ -1,15 +1,26 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #209 Trait Lab catalog follow-through (OPEN)
+## Draft — GitHub PR #210 Trait Lab catalog↔pin bind (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-catalog-pin-bind-25` |
+| **Scope** | B01–B25 rematch pins against store packs; bound/unbound reports; pin retain/xor/merge |
+| **Write policy** | Hash-only except pin/import writes of pin facts; no pack/run apply; live claim, unbound pin fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-catalog-pin-bind-25-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined) |
+
+## GitHub PR #209 — Trait Lab catalog follow-through (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-catalog-follow` |
 | **Scope** | Symmetric diff + retain-best after catalog compose |
 | **Write policy** | Hash-only; no pack/run writes; live claim, empty retain, invalid keep, same catalog fail-closed |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-catalog-follow-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `415acb0` |
 | **Verify** | catalog-follow **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined) |
 
 ## GitHub PR #208 — Trait Lab catalog pin follow-through (MERGED)
