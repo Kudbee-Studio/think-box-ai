@@ -261,7 +261,12 @@ def _default_metric_runs() -> list[dict[str, Any]]:
 class PRLifecycleOrchestrator:
     """Smallest autonomous orchestrator: one transition per step, explicit failures."""
 
-    def __init__(self, config: PRLifecycleConfig) -> None:
+    def __init__(
+        self,
+        config: PRLifecycleConfig,
+        manager: Optional[ExperimentManager] = None,
+        analytics: Optional[ExperimentAnalytics] = None,
+    ) -> None:
         self._config = config
         self._state = PRLifecycleState.PR_CREATED.value
         self._run_id = f"pr_run_{uuid.uuid4().hex[:12]}"
@@ -273,8 +278,8 @@ class PRLifecycleOrchestrator:
             "branch": config.branch,
         }
         self._provisioner: Optional[PRDatabaseProvisioner] = None
-        self._manager: Optional[ExperimentManager] = None
-        self._analytics: Optional[ExperimentAnalytics] = None
+        self._manager: Optional[ExperimentManager] = manager
+        self._analytics: Optional[ExperimentAnalytics] = analytics
         self._boundary = ApprovalBoundary(ExperimentManager(db_path=":memory:"))
 
     @property
@@ -465,6 +470,25 @@ class PRLifecycleOrchestrator:
             )
         elif stage == PRLifecycleState.PROVISION_PERSISTENCE.value:
             try:
+                if self._manager is not None and self._context.get("db_id"):
+                    self._advance(
+                        PRLifecycleState.HEALTH_CHECK.value,
+                        "provision_persistence_idempotent",
+                        {"db_id": self._context["db_id"], "idempotent": True},
+                    )
+                    return self._receipts[-1]
+                if self._manager is not None:
+                    self._context["db_id"] = "injected"
+                    self._context["provisioner_state_path"] = ""
+                    if self._analytics is None:
+                        self._analytics = ExperimentAnalytics(self._manager)
+                    self._boundary = ApprovalBoundary(self._manager)
+                    self._advance(
+                        PRLifecycleState.HEALTH_CHECK.value,
+                        "provision_persistence_injected",
+                        {"db_id": "injected", "source": "injected_manager"},
+                    )
+                    return self._receipts[-1]
                 if self._context.get("db_id") and self._context.get("provisioner_state_path"):
                     self._rehydrate_runtime()
                     record_db = self._context["db_id"]
@@ -505,7 +529,10 @@ class PRLifecycleOrchestrator:
                 self._fail(stage, "provision_persistence", str(exc), {})
         elif stage == PRLifecycleState.HEALTH_CHECK.value:
             db_id = self._context.get("db_id", "")
-            health = self._provisioner.health_check(db_id) if self._provisioner else {"healthy": False}
+            if self._manager is not None:
+                health = {"healthy": True, "db_id": db_id}
+            else:
+                health = self._provisioner.health_check(db_id) if self._provisioner else {"healthy": False}
             if not health.get("healthy"):
                 self._fail(stage, "health_check", "health_check_failed", health)
             else:
@@ -621,8 +648,11 @@ class PRLifecycleOrchestrator:
                 self._record_experiment_learned()
                 self._advance(PRLifecycleState.CLEANUP.value, "ready_for_close", {"evidence_complete": True})
         elif stage == PRLifecycleState.CLEANUP.value:
-            if self._config.skip_cleanup:
-                self._advance(PRLifecycleState.LEARN.value, "cleanup_skipped", {"skip_cleanup": True})
+            if self._config.skip_cleanup or self._provisioner is None:
+                if self._provisioner is None:
+                    self._advance(PRLifecycleState.LEARN.value, "cleanup_skipped_injected", {"injected": True})
+                else:
+                    self._advance(PRLifecycleState.LEARN.value, "cleanup_skipped", {"skip_cleanup": True})
             else:
                 try:
                     db_id = self._context["db_id"]
@@ -677,10 +707,34 @@ class PRLifecycleOrchestrator:
             return self._execute_override(self._manager, self._analytics)
 
         assert self._manager is not None and self._analytics is not None
+        recommendation = self._manager.get_last_next_action()
+
+        if recommendation:
+            rec_type = recommendation.get("type", "validation_run")
+            rationale = recommendation.get("rationale", "follow-up")
+            parameters = {
+                "prior_recommendation_type": rec_type,
+                "prior_recommendation_rationale": rationale,
+                "prior_recommendation_adjustments": recommendation.get("adjustments", []),
+                "prior_recommendation_max_retries": recommendation.get("max_retries", 1),
+            }
+            intent = f"pr-{self._config.pr_number}-lifecycle ({rec_type})"
+            hypothesis = f"Follow-up experiment: {rationale}"
+            self._context["prior_recommendation"] = recommendation
+        else:
+            parameters = None
+            intent = f"pr-{self._config.pr_number}-lifecycle"
+            hypothesis = "Local deterministic PR lifecycle experiment"
+
         exp = self._manager.create_experiment(
-            intent=f"pr-{self._config.pr_number}-lifecycle",
-            hypothesis="Local deterministic PR lifecycle experiment",
+            intent=intent,
+            hypothesis=hypothesis,
+            parameters=parameters,
             agent_id="pr_lifecycle_orchestrator",
+        )
+        self._manager.db.save_event(
+            exp.experiment_id, "recommendation_consumed",
+            {"recommendation_source": "prior_next_action", "consumed": recommendation is not None},
         )
         runs = self._config.deterministic_metrics or _default_metric_runs()
         for run in runs:

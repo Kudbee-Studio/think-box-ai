@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-24
+**Last updated:** 2026-09-25
 
 ---
 
@@ -2867,3 +2867,49 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED.
 
 ---
+
+### 2026-09-25 — PR224 Memory → Next Experiment Binding (Implementation Complete)
+
+- **BRANCH:** `pr/224/memory-next-experiment-binding`
+- **BASE SHA:** `7c599a86a014ae87c2d6dcc48a88b196bf87bb0b` (origin/main)
+- **BINDING CLOSED:** Learning → Memory → Next Experiment
+- **GAP ADDRESSED:** `NextActionGenerator.generate()` produced `recommended_next_experiment` (with `type`, `rationale`, `adjustments`, `max_retries`) and persisted it via `ExperimentManager.record_outcome()` + `ExperimentDB.save_event("next_action_generated", ...)`, but no consumer read it back to seed the next experiment's parameters.
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/experiment.py:ExperimentDB.get_events_by_experiment(experiment_id)` — new read method for event queries
+  - `thinkbox/experiment.py:ExperimentDB.get_next_action_event(experiment_id)` — retrieves `next_action_generated` event for an experiment
+  - `thinkbox/experiment.py:ExperimentDB.get_last_next_action()` — retrieves most recent `recommended_next_experiment` across all experiments
+  - `thinkbox/experiment.py:ExperimentManager.get_last_next_action()` — delegate to db layer
+  - `thinkbox/pr_lifecycle.py:PRLifecycleOrchestrator.__init__` — accepts optional `manager` and `analytics` for testability
+  - `thinkbox/pr_lifecycle.py:_execute_local_experiment()` — calls `self._manager.get_last_next_action()`; if prior recommendation exists, seeds new experiment's `parameters` dict with `prior_recommendation_type`, `prior_recommendation_rationale`, `prior_recommendation_adjustments`, `prior_recommendation_max_retries`; records `recommendation_consumed` event for audit trail; preserves default behavior when no prior evidence exists
+  - `thinkbox/pr_lifecycle.py:PROVISION_PERSISTENCE` step — skips provisioning when injected manager present
+  - `thinkbox/pr_lifecycle.py:HEALTH_CHECK` step — treats injected manager as healthy
+  - `thinkbox/pr_lifecycle.py:CLEANUP` step — skips provisioner cleanup when manager is injected
+- **EVIDENCE:** No external artifacts. All persistence via existing SQLite schema (`experiment_events` table).
+- **PRODUCER:** `NextActionGenerator.generate()` at `thinkbox/experiment_analytics.py:456`
+- **CONSUMER:** `PRLifecycleOrchestrator._execute_local_experiment()` at `thinkbox/pr_lifecycle.py:675`
+- **CALL CHAIN:**
+  1. Prior experiment completes → `GENERATE_NEXT_ACTION` step calls `NextActionGenerator.generate()` → persists `next_action_generated` event with `recommended_next_experiment`
+  2. Next `PRLifecycleOrchestrator` run → `PROVISION_PERSISTENCE` → `HEALTH_CHECK` → `EXECUTE` → `_execute_local_experiment()` → `ExperimentManager.get_last_next_action()` → seeds new experiment parameters
+  3. Persists `recommendation_consumed` event for audit trail
+- **TESTS:** 5 focused tests in `tests/unit/test_memory_to_next_experiment.py`:
+  - `test_recommended_next_experiment_persisted` — verifies event persistence
+  - `test_get_last_next_action_retrieves_recommendation` — verifies retrieval
+  - `test_orchestrator_seeds_params_from_prior_recommendation` — verifies param seeding in orchestrator
+  - `test_orchestrator_no_prior_recommendation_uses_default` — verifies default behavior preserved
+  - `test_two_runs_binding` — end-to-end two-run loop
+- **BROADER TESTS:** 142/142 pass (137 existing + 5 new):
+  - `tests.unit.test_memory_to_next_experiment` — 5 OK
+  - `tests.unit.test_pr_lifecycle` — 23 OK
+  - `tests.unit.test_experiment` — 46 OK
+  - `tests.unit.byoc.test_experiment_analytics` — 37 OK
+  - `tests.unit.test_self_improvement` — 31 OK
+- **Command:** `python3 -m unittest tests.unit.test_memory_to_next_experiment tests.unit.test_pr_lifecycle tests.unit.test_experiment tests.unit.byoc.test_experiment_analytics tests.unit.test_self_improvement`
+- **REMAINING BINDING GAPS:**
+  - Learning → Memory → Planning: `TaskDecomposer.decompose()` does not read prior lessons/recommendations to influence task graph generation
+  - Memory → Opportunity (direct): `PRLifecycleConfig` does not accept `prior_recommendation` as constructor input for founder-driven next-PR configuration
+- **NEXT LARGER IMPROVEMENT:** Wire `recommended_next_experiment` recommendations into `TaskDecomposer.decompose()` so DAG task graphs are parameterized by prior experiment outcomes (close Memory → Planning gap).
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES — all symbols implemented in `thinkbox/experiment.py` and `thinkbox/pr_lifecycle.py`
+  - TEST VERIFIED: YES — 142/142 tests pass
+  - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite
+  - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved
