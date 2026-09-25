@@ -1,5 +1,23 @@
 # STATUS — Think Box AI
 
+## PR #203 — Memory layers ingest (DEEPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-layers` |
+| **Scope** | Catalog markdown; write Session / Task / Organizational / Verified Knowledge via `MemoryStore` |
+| **Write policy** | Session rejects transient UI; org requires evidence; verified requires how + fact + confidence `[0,1]`; contradiction unless `corrects`; chronicle only with evidence files |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK** |
+
+## PR #202 — Trait Lab (MERGED)
+
+| Field | Value |
+|-------|-------|
+| **Scope** | Seeded Trait Lab U01–U50 + harden (`thinkbox/trait_game`) |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `75a36c5` |
+
 ## PR #201 — Upstash Box access verification (DRAFT)
 
 | Field | Value |
