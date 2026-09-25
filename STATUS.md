@@ -1,12 +1,21 @@
-## Draft — GitHub PR #213 Trait Lab local environment prep (not merged)
+## Draft — GitHub PR #214 Trait Lab operator session (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-local-env-prep-25-723f`
-- **Gate:** `memory-trait-lab-local-env-prep-25`
-- **Scope:** E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt
-- **Write policy:** Hash-only except prep receipt persist; no pack/run apply; refuses live ack; `live_verified: false`
+- **Branch:** `cursor/memory-trait-lab-operator-session-25-723f`
+- **Gate:** `memory-trait-lab-operator-session-25`
+- **Scope:** S01–S25 prep-gated rematch dry-run, signed session, persist session receipt
+- **Write policy:** Hash-only except prep + session receipt persist; no pack/run apply; no pin/drop writes; refuses live ack; `live_verified: false`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined) — **not merged**
-- **AGENTS.md:** GitHub #202–#213 Trait Lab / memory lane rows added; §4.3 standing rule **Always update MD** (this draft)
+- **Verify:** session file **9 OK**; memory suite pending full run — **not merged**
+- **AGENTS.md:** GitHub #213 marked merged; #214 draft row added
+
+## GitHub PR #213 — Trait Lab local environment prep (merged)
+
+- **Merge:** `257aca3` — E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt
+- **Gate:** `memory-trait-lab-local-env-prep-25`
+- **Scope:** Python/SQLite probe, secret redact, refuse live ack, rematch dry-run, persist prep receipt
+- **Write policy:** Hash-only except prep receipt persist; no pack/run apply; live claim fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined)
 
 ## GitHub PR #212 — Trait Lab catalog pin bind workflow (merged)
 

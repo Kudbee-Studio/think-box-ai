@@ -1,17 +1,28 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #213 Trait Lab local environment prep (OPEN)
+## Draft — GitHub PR #214 Trait Lab operator session (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-operator-session-25` |
+| **Scope** | S01–S25 prep-gated rematch dry-run + session receipt |
+| **Write policy** | Hash-only except prep + session receipt persist; no pin/drop writes; refuses live ack |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-operator-session-25-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | session file **9 OK**; memory suite pending full run |
+| **AGENTS.md** | GitHub #213 merged; #214 draft |
+
+## GitHub PR #213 — Trait Lab local environment prep (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-local-env-prep-25` |
 | **Scope** | E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt |
 | **Write policy** | Hash-only except prep receipt persist; refuses live ack; no pack/run apply |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-local-env-prep-25-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `257aca3` |
 | **Verify** | prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined) |
-| **AGENTS.md** | GitHub #202–#213 rows + §4.3 Always update MD (this draft) |
 
 ## GitHub PR #212 — Trait Lab catalog pin bind workflow (MERGED)
 

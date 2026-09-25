@@ -2596,4 +2596,20 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #213 local environment prep merged
+
+- **MERGED:** `cursor/memory-trait-lab-local-env-prep-25-723f` → `main` at **`257aca3`**.
+- **TEST_VERIFIED:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#214** operator session (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #214 Trait Lab operator session
+
+- **DISCOVERY:** After #213 prep and #212 workflow exist separately. Autonomous workflow still needs a signed session that refuses to dry-run rematch unless local env prep is green, then persist a receipt chaining `prep_sha256` + `session_sha256`.
+- **IMPLEMENTATION:** S01–S25 in `thinkbox/operator_session.py`: refuse live, require prep ok / prep receipt, plan/validate/sign/verify, step list/page, digest/etag, dry-run (no writes), persist/get/list receipts, canned prep+dry-run, open_session. No pin/drop writes. No live APIs. `live_verified` stays false.
+- **TEST_VERIFIED:** session file **9 OK**. Full memory suite pending this draft.
+- **DOCS:** `AGENTS.md` marks #213 merged and #214 draft. STATUS / PREP / CONTINUITY / roadmap updated in the same PR (§4.3).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---
