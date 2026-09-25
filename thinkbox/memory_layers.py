@@ -878,3 +878,39 @@ def board_trait_lab_runs(store: MemoryStore, *, limit: int = 10) -> dict[str, An
         "count": len(runs),
         "live_verified": False,
     }
+
+
+def _seed_key(seed: Any) -> int:
+    try:
+        return int(seed)
+    except (TypeError, ValueError) as exc:
+        raise MemoryLayerError("invalid_seed", "seed must be an integer") from exc
+
+
+def best_trait_lab_by_seed(store: MemoryStore, *, limit: int = 200) -> dict[str, Any]:
+    """Highest stored XP per seed. Local only. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    best: dict[int, dict[str, Any]] = {}
+    for run in list_trait_lab_runs(store, limit=limit):
+        if run.get("seed") is None:
+            continue
+        key = _seed_key(run["seed"])
+        current = best.get(key)
+        if current is None or int(run.get("xp") or 0) > int(current.get("xp") or 0):
+            best[key] = run
+    return {
+        "by_seed": best,
+        "seeds": len(best),
+        "live_verified": False,
+    }
+
+
+def best_trait_lab_seed(store: MemoryStore, seed: int) -> dict[str, Any]:
+    """Best stored run for one seed. Fail-closed if none."""
+    key = _seed_key(seed)
+    bundle = best_trait_lab_by_seed(store)
+    run = bundle["by_seed"].get(key)
+    if run is None:
+        raise MemoryLayerError("missing_seed", f"no stored Trait Lab run for seed {key}")
+    return {**run, "live_verified": False}

@@ -2212,4 +2212,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #210. At most one open PR.
 
+### 2026-09-25 — PR #210 Trait Lab best per seed
+
+- **DISCOVERY:** The local board ranked every stored proof. There was no per-seed best.
+- **IMPLEMENTATION:** `best_trait_lab_by_seed` keeps the highest XP row per seed. `best_trait_lab_seed` fail-closes on a missing seed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare/board/best-seed suites → **55 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-best-seed-723f` into `main`.
+
 ---

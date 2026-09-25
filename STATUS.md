@@ -1,3 +1,11 @@
+## PR #210 — Trait Lab best per seed (draft)
+
+- **Gate:** `memory-trait-lab-best-seed`
+- **Scope:** Highest stored XP per seed
+- **Write policy:** Missing seed fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare/board/best-seed suites → **55 OK**
+
 ## PR #209 — Trait Lab local board (merged)
 
 - **Merge:** `abdf325` — local board from stored proofs
