@@ -1,5 +1,6 @@
-## PR #214 — Trait Lab seed difficulty filter (draft)
+## PR #214 — Trait Lab seed difficulty filter (merged)
 
+- **Merge:** `77eb188` — seed history rows filtered by difficulty tier
 - **Gate:** `memory-trait-lab-seed-difficulty`
 - **Scope:** Seed history rows filtered by difficulty tier
 - **Write policy:** Missing seed/difficulty and invalid difficulty fail-closed; not a live ranking
