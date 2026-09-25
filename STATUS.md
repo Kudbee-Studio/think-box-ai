@@ -1,3 +1,11 @@
+## PR #207 — Trait Lab replay verify (draft)
+
+- **Gate:** `memory-trait-lab-replay`
+- **Scope:** Store `encode_replay` and verify it matches `proof_sha256`
+- **Write policy:** Replay must rematch the stored proof; live claims rejected
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger + replay suites → **42 OK**
+
 ## PR #206 — Trait Lab memory ledger (merged)
 
 - **Merge:** `1c8294f` — Trait Lab proof → four layers
