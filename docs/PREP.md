@@ -2,12 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #226 merged; #227 autonomous app gate draft)
+>
+> **GitHub #226 merged** at `67b0304` — stack suite V01–V25. Not LIVE VERIFIED.
+> **GitHub #227 draft:** G01–G25 app gate on `cursor/memory-trait-lab-autonomous-app-gate-723f`. **Not merged.**
+> **Test gate:** app-gate 4 OK; memory 260 OK; `python3 scripts/verify_trait_lab_autonomous_app_gate.py` exit 0.
+> **Application CI:** `open_trait_lab_autonomous_app_gate(agent_id=..., task_id=...)` — one call to run suite + emit signed gate pass report.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #225 merged; #226 autonomous stack suite draft)
 >
-> **GitHub #225 merged** at `bc8ca28` — stack harness U01–U25. Not LIVE VERIFIED.
-> **GitHub #226 draft:** V01–V25 stack suite on `cursor/memory-trait-lab-autonomous-stack-suite-723f`. **Not merged.**
-> **Test gate:** stack-suite 5 OK; memory 256 OK.
-> **CI / app regression:** `open_trait_lab_autonomous_stack_suite(agent_id=..., task_id=..., persist_artifact=True)` runs dry+run+full and persists suite report on the full-mode store.
+> **Superseded:** stack suite shipped as **#226** (`67b0304`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #224 merged; #225 autonomous stack harness draft)
 >

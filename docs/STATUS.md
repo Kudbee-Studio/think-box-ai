@@ -1,15 +1,23 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #226 Trait Lab autonomous stack suite (OPEN)
+## Draft — GitHub PR #227 Trait Lab autonomous app gate (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-app-gate-25` |
+| **Scope** | G01–G25 `open_app_gate`, stack_suite check, gate report persist, verify script |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-app-gate-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | app-gate **4 OK**; memory suite **260 OK** |
+
+## GitHub PR #226 — Trait Lab autonomous stack suite (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-stack-suite-25` |
-| **Scope** | V01–V25 dry+run+full suite, `open_stack_suite`, `bundle_for_ci`, suite artifact persist |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-stack-suite-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | stack-suite **5 OK**; memory suite **256 OK** |
+| **Merge** | `67b0304` |
+| **Verify** | stack-suite **5 OK**; memory **256 OK** |
 
 ## GitHub PR #225 — Trait Lab autonomous stack harness (MERGED)
 

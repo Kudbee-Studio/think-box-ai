@@ -2799,4 +2799,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** stack-suite **5 OK**; memory suite **256 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #226 merged (Trait Lab autonomous stack suite)
+
+- **MERGE:** `67b0304` on `main`.
+- **TEST_VERIFIED:** stack-suite **5 OK**; memory **256 OK**.
+
+### 2026-09-25 — Draft GitHub PR #227 Trait Lab autonomous app gate
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-app-gate-723f`
+- **DISCOVERY:** After #226, application CI needs one fail-closed gate that runs the stack suite and emits a signed pass report.
+- **IMPLEMENTATION:** G01–G25 in `thinkbox/autonomous_app_gate.py`; `scripts/verify_trait_lab_autonomous_app_gate.py`.
+- **TEST_VERIFIED:** app-gate **4 OK**; memory suite **260 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---
