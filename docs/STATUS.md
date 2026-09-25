@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #206 — Trait Lab memory ledger (DRAFT)
+## PR #206 — Trait Lab memory ledger (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-ledger` |
 | **Scope** | Bind Trait Lab `proof_scorecard` into four layers with provenance |
 | **Write policy** | agent_id + task_id + proof_sha256 required; live claims rejected |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `1c8294f` |
 | **Verify** | memory + trait-lab ledger suites → **37 OK** |
 
 ## PR #205 — Organizational versioning + snapshot (MERGED)

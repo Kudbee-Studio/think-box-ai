@@ -1,5 +1,6 @@
-## PR #206 — Trait Lab memory ledger (draft)
+## PR #206 — Trait Lab memory ledger (merged)
 
+- **Merge:** `1c8294f` — Trait Lab proof → four layers
 - **Gate:** `memory-trait-lab-ledger`
 - **Scope:** Bind Trait Lab proofs into four layers with provenance
 - **Write policy:** Requires agent_id + task_id + proof_sha256; rejects live claims
