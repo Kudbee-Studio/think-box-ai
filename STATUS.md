@@ -5,7 +5,7 @@
 - **Scope:** Merge / intersect / subtract rematched pin-index snapshots
 - **Write policy:** Hash-only compose; no pin/pack/run writes; same index, live claim, pin conflict, and invalid index fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** pin-compose file + memory suite on branch — **not merged**
+- **Verify:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined) — **not merged**
 
 ## GitHub PR #206 — Trait Lab catalog pin operators (merged)
 

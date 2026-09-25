@@ -6,6 +6,7 @@
 >
 > **GitHub #206 merged** at `50211b4` — 25 pin-index operators. Not LIVE VERIFIED.
 > **GitHub #207 draft:** pin-index compose (merge / intersect / subtract) on `cursor/memory-trait-lab-catalog-pin-compose-723f`. **Not merged.**
+> **Test gate:** pin-compose 6 OK; memory suite 154 OK; engine harden 61 OK (215 combined).
 > Product-label #207 (`d989255` replay rematch) stays on main as an earlier memory-lane merge.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #205 merged; GitHub #206 pin operators draft)

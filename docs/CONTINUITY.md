@@ -2501,7 +2501,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** P16 diffs two rematched pin indexes but cannot form a third index from their union, intersection, or remainder.
 - **IMPLEMENTATION:** `merge_trait_lab_catalog_pin_indexes`, `intersect_trait_lab_catalog_pin_indexes`, `subtract_trait_lab_catalog_pin_indexes`. Rematch both inputs; same hash, live claim, pin conflict, and invalid index fail-closed. Result is a rematched portable pin index. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** pin-compose tests on branch. Memory suite + engine harden still required before merge.
+- **TEST_VERIFIED:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
