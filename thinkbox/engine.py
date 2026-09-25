@@ -65,6 +65,7 @@ class ThinkBoxEngine:
         self._opportunity_manager: Any = None
         self._loop_tracer: Any = None
         self._auto_tuner: Any = None
+        self._generalizer: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -124,6 +125,15 @@ class ThinkBoxEngine:
         With no tuner injected, behavior is identical to legacy.
         """
         self._auto_tuner = tuner
+
+    def set_generalizer(self, generalizer: Any | None) -> None:
+        """Inject a CrossExperimentGeneralizer for pattern generalization (DI).
+
+        When set, execute_goal() periodically analyzes cross-experiment
+        patterns from loop iterations. With no generalizer injected,
+        behavior is identical to legacy.
+        """
+        self._generalizer = generalizer
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -528,5 +538,27 @@ class ThinkBoxEngine:
             if decisions:
                 self.emit("root", TaskState.SUCCESS, "Auto-tuning applied",
                           tuning_decisions=len(decisions))
+        except Exception:
+            pass
+
+        if self._generalizer is not None and self._loop_tracer is not None:
+            metrics = self._loop_tracer.get_metrics()
+            if metrics.total_iterations >= 3:
+                self._generalize_patterns()
+
+    def _generalize_patterns(self) -> None:
+        """Run cross-experiment generalization analysis (Observability -> Learning).
+
+        Identifies generalizable patterns across loop iterations and
+        stores them as organizational knowledge. Only runs when >=3
+        iterations exist and a generalizer is injected.
+        Fail-closed: errors are swallowed.
+        """
+        try:
+            result = self._generalizer.generalize()
+            if result.patterns_identified:
+                self.emit("root", TaskState.SUCCESS, "Patterns generalized",
+                          patterns_identified=len(result.patterns_identified),
+                          generalization_confidence=result.generalization_confidence)
         except Exception:
             pass
