@@ -1,11 +1,11 @@
-## PR #221 — Trait Lab seed pack import (open)
+## PR #221 — Trait Lab seed pack import (merged)
 
-- **Branch:** `cursor/memory-trait-lab-seed-pack-import-723f`
+- **Merge:** `a05b31d` — rematch seed pack SHA and write a verified import fact
 - **Gate:** `memory-trait-lab-seed-pack-import`
 - **Scope:** Verify `pack_sha256` and write a verified import fact
 - **Write policy:** Live claim, invalid pack, missing hash, rematch fail, and missing provenance fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** memory + trait-lab suites pending merge
+- **Verify:** memory + trait-lab suites → **89 OK** (150 with engine harden)
 
 ## PR #220 — Trait Lab seed pack export (merged)
 
