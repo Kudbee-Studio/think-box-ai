@@ -468,17 +468,20 @@ class Repository:
         metadata: dict[str, Any] | None = None,
         provenance_event: str | None = None,
         require_lifecycle_phase: str | None = None,
+        require_lease_id: str | None = None,
     ) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)
             if job is None:
                 return None
+            life = job.metadata.get("governed_lifecycle")
+            if not isinstance(life, dict):
+                life = {}
             if require_lifecycle_phase is not None:
-                life = job.metadata.get("governed_lifecycle")
-                current = ""
-                if isinstance(life, dict):
-                    current = str(life.get("phase") or "")
-                if current != require_lifecycle_phase:
+                if str(life.get("phase") or "") != require_lifecycle_phase:
+                    return None
+            if require_lease_id is not None:
+                if str(life.get("lease_id") or "") != require_lease_id:
                     return None
             if status is not None:
                 job.status = status

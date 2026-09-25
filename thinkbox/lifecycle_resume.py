@@ -6,7 +6,6 @@ Never mints receipts, never recovers corrupt blobs, never reclaims RUNNING.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -34,6 +33,7 @@ from thinkbox.lifecycle_harden import (
     validate_job_id,
     validate_substrate,
 )
+from thinkbox.lifecycle_lease import issue_lease
 from thinkbox.repository import Repository
 
 RESUME_CLAIM_KIND = "resume_claim"
@@ -128,7 +128,8 @@ def resume_queued_job(
     if substrate not in _SHELL_SUBSTRATES:
         return _persist_incomplete(repo, job_id, loaded, reason="missing_command")
 
-    lease_id = uuid.uuid4().hex
+    lease = issue_lease()
+    lease_id = lease.lease_id
     try:
         persist_lifecycle_phase(
             repo,
@@ -141,7 +142,10 @@ def resume_queued_job(
             execution_substrate=substrate,
             require_phase=PHASE_QUEUED,
             transition_kind=RESUME_CLAIM_KIND,
-            lease_id=lease_id,
+            lease_id=lease.lease_id,
+            lease_started_at=lease.started_at,
+            lease_expires_at=lease.expires_at,
+            lease_timeout_seconds=lease.timeout_seconds,
         )
     except LifecycleError as exc:
         if exc.code == "cas_phase_mismatch":
@@ -178,6 +182,7 @@ def _execute_claimed_shell(
     command: str,
     lease_id: str,
     goal: str,
+    result_flags: dict[str, Any] | None = None,
 ) -> QueuedResumeResult:
     try:
         result = execute_governed_job_command(
@@ -220,7 +225,7 @@ def _execute_claimed_shell(
             "execution_substrate": result.substrate,
             "adapter_provider": result.adapter_provider,
             "execution_proof": result.public_proof,
-            "resumed": True,
+            **(result_flags if result_flags is not None else {"resumed": True}),
         }
     )
     persist_lifecycle_phase(

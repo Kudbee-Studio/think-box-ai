@@ -61,7 +61,9 @@ Status may include additive `lifecycle_phase` and `resume_eligible` (QUEUED only
 After process death, `POST /api/v1/run/job/{id}/resume` claims a QUEUED job
 (CAS → RUNNING with `resume_claim`) and continues the existing governed path.
 Operator may re-supply `exec_command` for the shell path. The existing receipt is
-reused. ADMISSION / RUNNING / terminal jobs are not resumed. **Not LIVE VERIFIED.**
+reused. ADMISSION / RUNNING / terminal jobs are not resumed. A RUNNING job whose
+persisted ownership lease is expired can be reclaimed (`kind=orphan_reclaim`)
+on the same shell path; a fresh lease is not replayed. **Not LIVE VERIFIED.**
 
 **Example (local, hermetic):**
 
