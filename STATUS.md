@@ -1,3 +1,15 @@
+## PR #203 — Memory layers ingest (draft)
+
+- **Gate:** `memory-layers`
+- **Scope:** Session / Task / Organizational / Verified Knowledge writes via `MemoryStore`
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers -v`
+
+## PR #202 — Trait Lab (merged)
+
+- **Merge:** `75a36c5` — seeded game U01–U50 + harden
+- **Four-state cap:** TEST VERIFIED only — not LIVE VERIFIED
+
 ## PR #201 — Upstash Box access verification (draft)
 
 - **Gate:** `upstash-box-access-verification`

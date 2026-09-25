@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (PR #202 merged; PR #203 memory layers)
+>
+> **#202 merged** at `75a36c5` — Trait Lab (seeded local game). Not LIVE VERIFIED.
+> **#203 draft:** `thinkbox/memory_layers.py` — four-layer ingest (Session / Task / Organizational / Verified Knowledge). Org needs evidence. Verified needs a how. `live_verified` false.
+> **Test gate:** `python3 -m unittest tests.unit.test_memory_layers -v`.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
 > **Scope:** Bounded access test via existing `UpstashBoxExecutionAdapter`. Official vars `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` were **absent** in the agent process. Classification **A**. No HTTP. No live receipt. `UPSTASH_BOX_API_KEY` present and unused.

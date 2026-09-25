@@ -2099,4 +2099,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
 - **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
 
+### 2026-09-25 — PR #202 merged; PR #203 memory layers
+
+- **MERGED:** GitHub PR **#202** → `main` at **`75a36c5`** (Trait Lab U01–U50 + harden). Four-state on merge: **CODE COMPLETE / TEST VERIFIED** — not LIVE VERIFIED.
+- **NEXT:** Branch `cursor/memory-layers-723f` — `thinkbox/memory_layers.py` writes Session / Task / Organizational / Verified Knowledge through `MemoryStore`. Org rows require evidence. Verified rows require a how. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` → **8 OK**.
+- **DECISION:** Markdown ingest is a catalog plus fail-closed writes, not a chat dump and not a live proof.
+- **NEXT ACTION:** Founder review of the PR for `cursor/memory-layers-723f` against `main`. Do not merge from this record.
+
 ---
