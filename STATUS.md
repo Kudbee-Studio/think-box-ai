@@ -5,7 +5,7 @@
 - **Scope:** Merge / intersect / subtract rematched catalog snapshots
 - **Write policy:** Compose is hash-only; no run writes; same catalog, live claim, pack conflict, and invalid catalog fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** compose file + memory suite on branch — **not merged**
+- **Verify:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined) — **not merged**
 
 ## GitHub PR #203 — Trait Lab catalog operator pack (merged)
 

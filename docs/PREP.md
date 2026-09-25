@@ -6,6 +6,7 @@
 >
 > **GitHub #203 merged** at `595dbb5` — 25 Trait Lab catalog operators. Not LIVE VERIFIED.
 > **GitHub #204 draft:** catalog compose (merge / intersect / subtract) on `cursor/memory-trait-lab-catalog-compose-723f`. **Not merged.**
+> **Test gate:** compose 6 OK; memory suite 129 OK; engine harden 61 OK (190 combined).
 > Product-label #203 (`3976930` ingest) and product-label #204 (`0b3fc87` query/retention) stay on main as earlier memory-lane merges.
 > **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
 >

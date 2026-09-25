@@ -2456,7 +2456,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** C20 diffs two rematched catalogs but cannot form a third catalog from their union, intersection, or remainder.
 - **IMPLEMENTATION:** `merge_trait_lab_seed_pack_catalogs`, `intersect_trait_lab_seed_pack_catalogs`, `subtract_trait_lab_seed_pack_catalogs`. Rematch both inputs; same hash, live claim, pack conflict, and invalid catalog fail-closed. Result is a rematched portable catalog. No run writes. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** compose tests on branch. Memory suite + engine harden still required before merge.
+- **TEST_VERIFIED:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
