@@ -1,11 +1,20 @@
-## Draft — Trait Lab catalog operator pack (25 features, not merged)
+## Draft — GitHub PR #204 Trait Lab catalog compose (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-ops-25-723f`
+- **Branch:** `cursor/memory-trait-lab-catalog-compose-723f`
+- **Gate:** `memory-trait-lab-catalog-compose`
+- **Scope:** Merge / intersect / subtract rematched catalog snapshots
+- **Write policy:** Compose is hash-only; no run writes; same catalog, live claim, pack conflict, and invalid catalog fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** compose file + memory suite on branch — **not merged**
+
+## GitHub PR #203 — Trait Lab catalog operator pack (merged)
+
+- **Merge:** `595dbb5` — C01–C25 seed-pack catalog operators
 - **Gate:** `memory-trait-lab-catalog-ops-25`
-- **Scope:** C01–C25 seed-pack catalog operators (filter, page, purge, export/verify/import index, digest/etag)
+- **Scope:** Filter, page, purge, export/verify/import index, digest/etag
 - **Write policy:** Catalog facts only; purge does not delete run rows; live claims fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** memory suite **123 OK**; engine harden **61 OK** (184 combined) — **not merged**
+- **Verify:** memory suite **123 OK**; engine harden **61 OK** (184 combined)
 
 ## PR #224 — Trait Lab seed pack catalog (merged)
 

@@ -1964,6 +1964,75 @@ def diff_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[st
     }
 
 
+def _public_pack_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    found: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        public = _catalog_public_row(row)
+        sha = str(public["pack_sha256"])
+        prior = found.get(sha)
+        if prior is not None:
+            if int(prior["seed"]) != int(public["seed"]) or int(prior["count"]) != int(public["count"]):
+                raise MemoryLayerError("pack_conflict", f"pack {sha[:12]} disagrees")
+            continue
+        found[sha] = public
+    return found
+
+
+def _compose_trait_lab_seed_pack_catalogs(
+    catalog_a: Any,
+    catalog_b: Any,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    if mode not in {"merge", "intersect", "subtract"}:
+        raise MemoryLayerError("invalid_compose", f"unknown compose mode {mode}")
+    left = verify_trait_lab_seed_pack_catalog(catalog_a)
+    right = verify_trait_lab_seed_pack_catalog(catalog_b)
+    if left["catalog_sha256"] == right["catalog_sha256"]:
+        raise MemoryLayerError("same_catalog", f"{mode} requires two different catalog hashes")
+    map_a = _public_pack_map(left["packs"])
+    map_b = _public_pack_map(right["packs"])
+    for sha, row in map_b.items():
+        prior = map_a.get(sha)
+        if prior is not None and (
+            int(prior["seed"]) != int(row["seed"]) or int(prior["count"]) != int(row["count"])
+        ):
+            raise MemoryLayerError("pack_conflict", f"pack {sha[:12]} disagrees across catalogs")
+    if mode == "merge":
+        selected = {**map_a, **map_b}
+    elif mode == "intersect":
+        selected = {sha: map_a[sha] for sha in map_a if sha in map_b}
+    else:
+        selected = {sha: map_a[sha] for sha in map_a if sha not in map_b}
+    rows = sorted(selected.values(), key=lambda row: (int(row["seed"]), str(row["pack_sha256"])))
+    body = _catalog_export_body(rows)
+    refuse_trait_lab_catalog_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "catalog_sha256": hashlib.sha256(encoded).hexdigest(),
+        "mode": mode,
+        "a": left["catalog_sha256"],
+        "b": right["catalog_sha256"],
+        "live_verified": False,
+    }
+
+
+def merge_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
+    """Union two rematched catalog snapshots. Not a live ranking."""
+    return _compose_trait_lab_seed_pack_catalogs(catalog_a, catalog_b, mode="merge")
+
+
+def intersect_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
+    """Shared packs of two rematched catalogs. Not a live ranking."""
+    return _compose_trait_lab_seed_pack_catalogs(catalog_a, catalog_b, mode="intersect")
+
+
+def subtract_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
+    """Packs in A that are not in B. Not a live ranking."""
+    return _compose_trait_lab_seed_pack_catalogs(catalog_a, catalog_b, mode="subtract")
+
+
 def list_trait_lab_seed_pack_ids_for_seed(store: MemoryStore, seed: int, *, limit: int = 50) -> list[str]:
     """C21 — pack_sha256 values for one seed, sorted."""
     catalog = catalog_trait_lab_seed_packs_for_seed(store, seed, limit=limit)
