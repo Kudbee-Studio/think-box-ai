@@ -2197,4 +2197,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #209. At most one open PR.
 
+### 2026-09-25 — PR #209 Trait Lab local board
+
+- **DISCOVERY:** Compare could delta two proofs, but there was no local board over the stored index.
+- **IMPLEMENTATION:** `board_trait_lab_runs` maps stored proofs through `rank_board`. Empty board is honest. Limit fail-closed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare/board suites → **51 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-board-723f` into `main`.
+
 ---

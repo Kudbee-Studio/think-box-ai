@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #209 — Trait Lab local board (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-board` |
+| **Scope** | `board_trait_lab_runs` via engine `rank_board` |
+| **Write policy** | Local only; not a live ranking; `live_verified` false |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab ledger/replay/compare/board → **51 OK** |
+
 ## PR #208 — Trait Lab run compare (MERGED)
 
 | Field | Value |
