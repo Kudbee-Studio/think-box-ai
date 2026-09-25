@@ -2137,4 +2137,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #205. At most one open PR.
 
+### 2026-09-25 — PR #205 organizational versioning + snapshot
+
+- **DISCOVERY:** Architecture §5.3 says organizational memory is versioned. Writes overwrote `org:pattern:{id}` with no history. No portable four-layer snapshot.
+- **IMPLEMENTATION:** `write_organizational` archives the previous row as `:vN` when description or evidence changes. Identical writes stay put. `org_history` returns oldest-first. `export_snapshot` / `import_snapshot` replay through write policy and reject `live_verified`.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-org-version-723f` into `main`.
+
 ---
