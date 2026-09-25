@@ -1,10 +1,16 @@
-## Draft — GitHub PR #225 Trait Lab autonomous stack harness (not merged)
+## Draft — GitHub PR #226 Trait Lab autonomous stack suite (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-stack-harness-723f`
-- **Gate:** `memory-trait-lab-autonomous-stack-harness-25` (U01–U25)
-- **Scope:** `open_smoke_harness` dry/run/full modes; phase report + app bundle for integration tests
+- **Branch:** `cursor/memory-trait-lab-autonomous-stack-suite-723f`
+- **Gate:** `memory-trait-lab-autonomous-stack-suite-25` (V01–V25)
+- **Scope:** Default dry+run+full suite; `open_stack_suite`, `bundle_for_ci`, suite + smoke artifact persist
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** stack-harness file **5 OK**; memory suite **251 OK** — **not merged**
+- **Verify:** stack-suite file **5 OK**; memory suite **256 OK** — **not merged**
+
+## GitHub PR #225 — Trait Lab autonomous stack harness (merged)
+
+- **Merge:** `bc8ca28` — U01–U25 stack smoke harness
+- **Gate:** `memory-trait-lab-autonomous-stack-harness-25`
+- **Verify:** stack-harness **5 OK** at merge; memory **251 OK**
 
 ## GitHub PR #224 — Trait Lab autonomous flow workflow compose (merged)
 

@@ -92,7 +92,8 @@
 | Trait Lab autonomous workflow chain bind | **GitHub #222** (merged `27d64b6`) — F01–F25 run_chained + bind persist; not LIVE VERIFIED |
 | Trait Lab autonomous flow workflow major | **GitHub #223** (merged `3fdaa32`) — O01–O25 flow orchestration + receipt; not LIVE VERIFIED |
 | Trait Lab autonomous flow workflow compose | **GitHub #224** (merged `3eb4d03`) — P01–P25 merge/intersect/subtract/xor flow-receipt indexes; not LIVE VERIFIED |
-| Trait Lab autonomous stack harness | **GitHub #225 draft** — U01–U25 dry/run/full smoke for app integration tests; not LIVE VERIFIED |
+| Trait Lab autonomous stack harness | **GitHub #225** (merged `bc8ca28`) — U01–U25 dry/run/full smoke for app integration tests; not LIVE VERIFIED |
+| Trait Lab autonomous stack suite | **GitHub #226 draft** — V01–V25 dry+run+full CI suite + suite artifact; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

@@ -2,12 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #225 merged; #226 autonomous stack suite draft)
+>
+> **GitHub #225 merged** at `bc8ca28` — stack harness U01–U25. Not LIVE VERIFIED.
+> **GitHub #226 draft:** V01–V25 stack suite on `cursor/memory-trait-lab-autonomous-stack-suite-723f`. **Not merged.**
+> **Test gate:** stack-suite 5 OK; memory 256 OK.
+> **CI / app regression:** `open_trait_lab_autonomous_stack_suite(agent_id=..., task_id=..., persist_artifact=True)` runs dry+run+full and persists suite report on the full-mode store.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #224 merged; #225 autonomous stack harness draft)
 >
-> **GitHub #224 merged** at `3eb4d03` — flow compose P01–P25. Not LIVE VERIFIED.
-> **GitHub #225 draft:** U01–U25 stack harness on `cursor/memory-trait-lab-autonomous-stack-harness-723f`. **Not merged.**
-> **Test gate:** stack-harness 5 OK; memory 251 OK.
-> **App testing:** `open_trait_lab_autonomous_stack_harness(mode="full", ...)` returns phase report + optional persisted smoke artifact.
+> **Superseded:** stack harness shipped as **#225** (`bc8ca28`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #223 merged; #224 autonomous flow compose draft)
 >
