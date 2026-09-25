@@ -1,10 +1,16 @@
-## Draft — GitHub PR #226 Trait Lab autonomous stack suite (not merged)
+## Draft — GitHub PR #227 Trait Lab autonomous app gate (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-stack-suite-723f`
-- **Gate:** `memory-trait-lab-autonomous-stack-suite-25` (V01–V25)
-- **Scope:** Default dry+run+full suite; `open_stack_suite`, `bundle_for_ci`, suite + smoke artifact persist
+- **Branch:** `cursor/memory-trait-lab-autonomous-app-gate-723f`
+- **Gate:** `memory-trait-lab-autonomous-app-gate-25` (G01–G25)
+- **Scope:** `open_app_gate` runs stack suite; signed pass report + CI bundle; verify script
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** stack-suite file **5 OK**; memory suite **256 OK** — **not merged**
+- **Verify:** app-gate file **4 OK**; memory suite **260 OK** — **not merged**
+
+## GitHub PR #226 — Trait Lab autonomous stack suite (merged)
+
+- **Merge:** `67b0304` — V01–V25 stack suite
+- **Gate:** `memory-trait-lab-autonomous-stack-suite-25`
+- **Verify:** stack-suite **5 OK** at merge; memory **256 OK**
 
 ## GitHub PR #225 — Trait Lab autonomous stack harness (merged)
 
