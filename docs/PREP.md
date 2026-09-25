@@ -2,11 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #217 merged; autonomous A16–A25 draft)
+>
+> **GitHub #217 merged** at `ef6950f` — autonomous workflow A01–A15. Not LIVE VERIFIED. (Forge #216 = lifecycle queued resume.)
+> **Draft:** A16–A25 on `cursor/memory-trait-lab-autonomous-workflow-a16-723f` — dry-run, receipt persist, `run_autonomous`. **Not merged.**
+> **Test gate:** autonomous 11 OK; memory 224 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #215 merged; GitHub #216 autonomous A01–A15 draft)
 >
 > **GitHub #215 merged** at `ce6a82c` — operator session S01–S25. Not LIVE VERIFIED.
-> **GitHub #216 draft:** A01–A15 autonomous workflow on `cursor/memory-trait-lab-autonomous-workflow-25-723f`. Plan/sign + receipt gates only; A16–A25 follow. **Not merged.**
-> **Test gate:** autonomous 5 OK; memory 218 OK.
+> **Superseded:** first autonomous slice shipped as **#217**, not forge #216.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #214 merged — lifecycle + Trait Lab operator session)
 >

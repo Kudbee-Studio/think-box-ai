@@ -1,11 +1,17 @@
-## Draft — GitHub PR #216 Trait Lab autonomous workflow (not merged)
+## Draft — GitHub PR Trait Lab autonomous workflow A16–A25 (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-workflow-25-723f`
-- **Gate:** `memory-trait-lab-autonomous-workflow-15` (A01–A15 of 25)
-- **Scope:** Plan/sign/verify autonomous prep → session → workflow_dry_run; receipt gates A02–A03
-- **Write policy:** Hash-only; no dry-run execution or receipt persist in this slice (A16–A25)
+- **Branch:** `cursor/memory-trait-lab-autonomous-workflow-a16-723f`
+- **Gate:** `memory-trait-lab-autonomous-workflow-25` (A01–A25 complete)
+- **Scope:** Dry-run prep → session → workflow_dry_run; green-session gate; autonomous receipt persist; `run_autonomous`
+- **Write policy:** Prep/session/autonomous receipts only on `run_autonomous`; dry-run paths must not write
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined) — **not merged**
+- **Verify:** autonomous **11 OK** (15-file 5 + 25-file 6); memory suite **224 OK** — **not merged**
+
+## GitHub PR #217 — Trait Lab autonomous workflow A01–A15 (merged)
+
+- **Merge:** `ef6950f` — plan/sign/verify + prep/session receipt gates
+- **Gate:** `memory-trait-lab-autonomous-workflow-15`
+- **Verify:** autonomous slice **5 OK** at merge; memory suite **218 OK**
 
 ## GitHub PR #215 — Trait Lab operator session (merged)
 

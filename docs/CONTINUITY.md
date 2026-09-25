@@ -2677,4 +2677,16 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. **Not merged.**
 - **NEXT ACTION:** Commit A16–A25 on same branch or follow-up; one visible draft. Do not merge until founder asks.
 
+### 2026-09-25 — GitHub PR #217 merged (Trait Lab autonomous A01–A15)
+
+- **MERGE:** `ef6950f` on `main`. Forge **#216** is durable queued resume (lifecycle), not Trait Lab autonomous.
+- **TEST_VERIFIED:** autonomous **5 OK**; memory **218 OK**.
+
+### 2026-09-25 — Draft Trait Lab autonomous workflow A16–A25
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-workflow-a16-723f`
+- **IMPLEMENTATION:** A16–A25 — dry-run chain, receipt persist, `run_autonomous`.
+- **TEST_VERIFIED:** autonomous **11 OK**; memory **224 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---
