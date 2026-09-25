@@ -2591,7 +2591,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** After #212 the autonomous workflow can plan/dry-run/run, but a local machine still has no hermetic prep gate: Python/SQLite probe, secret redaction, live-ack refuse, and a persistable prep receipt.
 - **IMPLEMENTATION:** E01–E25 in `thinkbox/local_env_prep.py`: require Python 3.10+, redact environ, probe MemoryStore, refuse THINKBOX_SWARM_LIVE_ACK, run/export/verify prep report, prepare workspace, dry-run rematch workflow, persist/get/list receipts, prepare_and_dry_run. No live APIs. `live_verified` stays false.
-- **TEST_VERIFIED:** prep file **8 OK**. Full memory suite pending this draft.
+- **TEST_VERIFIED:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined).
 - **DOCS:** `AGENTS.md` PR table now includes GitHub #202–#213. Standing rule §4.3 **Always update MD** — every product change updates `AGENTS.md`, `STATUS.md`, `docs/STATUS.md`, `docs/PREP.md`, `docs/CONTINUITY.md`, and the post-170 roadmap in the same PR.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.

@@ -10,7 +10,7 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
 | **Branch** | `cursor/memory-trait-lab-local-env-prep-25-723f` |
 | **Merge** | not merged — draft PR only |
-| **Verify** | prep file **8 OK**; memory suite pending full run |
+| **Verify** | prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined) |
 | **AGENTS.md** | GitHub #202–#213 rows + §4.3 Always update MD (this draft) |
 
 ## GitHub PR #212 — Trait Lab catalog pin bind workflow (MERGED)

@@ -5,7 +5,7 @@
 - **Scope:** E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt
 - **Write policy:** Hash-only except prep receipt persist; no pack/run apply; refuses live ack; `live_verified: false`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** prep file **8 OK**; memory suite pending full run — **not merged**
+- **Verify:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined) — **not merged**
 - **AGENTS.md:** GitHub #202–#213 Trait Lab / memory lane rows added; §4.3 standing rule **Always update MD** (this draft)
 
 ## GitHub PR #212 — Trait Lab catalog pin bind workflow (merged)

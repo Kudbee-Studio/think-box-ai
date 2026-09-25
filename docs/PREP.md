@@ -6,7 +6,7 @@
 >
 > **GitHub #212 merged** at `581fab3` — bind workflow W01–W25. Not LIVE VERIFIED.
 > **GitHub #213 draft:** 25-operator local environment prep on `cursor/memory-trait-lab-local-env-prep-25-723f`. **Not merged.**
-> **Test gate:** prep file 8 OK; full memory suite pending this draft.
+> **Test gate:** prep file 8 OK; memory suite 204 OK; engine harden 61 OK (265 combined).
 > **AGENTS.md:** GitHub #202–#213 Trait Lab rows recorded; standing rule §4.3 Always update MD.
 > Product-label #213 (`690979c` seed grade) stays on main as an earlier memory-lane merge. Do not reopen it.
 >
