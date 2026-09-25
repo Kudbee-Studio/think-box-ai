@@ -69,14 +69,56 @@ class TaskDecomposer:
     def estimate_tokens(self, text: str) -> int:
         return estimate_tokens(text)
 
-    def decompose(self, goal: str) -> TaskGraph:
+    def decompose(self, goal: str, prior_recommendation: dict[str, Any] | None = None) -> TaskGraph:
         task_id = f"task_{uuid.uuid4().hex[:8]}"
         root = TaskNode(
             id=task_id,
             description=goal[:self.max_tokens * TOKEN_CHAR_RATIO],
             token_count=self.estimate_tokens(goal),
         )
-        return TaskGraph(root_id=task_id, tasks={task_id: root})
+        tasks = {task_id: root}
+
+        if prior_recommendation is not None:
+            rec_type = prior_recommendation.get("type", "")
+            adjustments = prior_recommendation.get("adjustments", [])
+            if rec_type == "regression_followup":
+                for adj in adjustments:
+                    metric = adj.get("metric", "unknown")
+                    action = adj.get("action", "investigate")
+                    sub_id = f"task_{uuid.uuid4().hex[:8]}"
+                    node = TaskNode(
+                        id=sub_id,
+                        description=f"Investigate root cause for {metric}: {action}",
+                        dependencies=[task_id],
+                        token_count=self.estimate_tokens(f"Investigate {metric}"),
+                        metadata={
+                            "generated_from": "prior_recommendation",
+                            "recommendation_type": rec_type,
+                            "target_metric": metric,
+                            "recommended_action": action,
+                        },
+                    )
+                    tasks[sub_id] = node
+            elif rec_type == "anomaly_followup":
+                for adj in adjustments:
+                    anomaly = adj.get("type", "unknown")
+                    action = adj.get("action", "investigate")
+                    sub_id = f"task_{uuid.uuid4().hex[:8]}"
+                    node = TaskNode(
+                        id=sub_id,
+                        description=f"Investigate anomaly: {anomaly} ({action})",
+                        dependencies=[task_id],
+                        token_count=self.estimate_tokens(f"Investigate {anomaly}"),
+                        metadata={
+                            "generated_from": "prior_recommendation",
+                            "recommendation_type": rec_type,
+                            "anomaly_type": anomaly,
+                            "recommended_action": action,
+                        },
+                    )
+                    tasks[sub_id] = node
+
+        return TaskGraph(root_id=task_id, tasks=tasks)
 
     def decompose_with_subtasks(self, goal: str, subtasks: list[str]) -> TaskGraph:
         root_id = f"task_{uuid.uuid4().hex[:8]}"
