@@ -2520,4 +2520,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #208 catalog pin follow-through merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-follow-723f` → `main` at **`eb622d5`**.
+- **TEST_VERIFIED:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#209** catalog follow-through as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #209 Trait Lab catalog follow-through
+
+- **DISCOVERY:** Pin indexes gained xor and retain in #208. Pack catalogs still stopped at merge/intersect/subtract, so the two compose surfaces were uneven.
+- **IMPLEMENTATION:** `symmetric_diff_trait_lab_seed_pack_catalogs` (xor) and `retain_trait_lab_seed_pack_catalog` (highest count, hash tiebreak). Hash-only. Fail-closed on same catalog, live claim, empty retain, and invalid keep. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** catalog-follow tests on branch. Memory suite + engine harden still required before merge.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---

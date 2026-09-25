@@ -1984,7 +1984,7 @@ def _compose_trait_lab_seed_pack_catalogs(
     *,
     mode: str,
 ) -> dict[str, Any]:
-    if mode not in {"merge", "intersect", "subtract"}:
+    if mode not in {"merge", "intersect", "subtract", "xor"}:
         raise MemoryLayerError("invalid_compose", f"unknown compose mode {mode}")
     left = verify_trait_lab_seed_pack_catalog(catalog_a)
     right = verify_trait_lab_seed_pack_catalog(catalog_b)
@@ -2002,8 +2002,13 @@ def _compose_trait_lab_seed_pack_catalogs(
         selected = {**map_a, **map_b}
     elif mode == "intersect":
         selected = {sha: map_a[sha] for sha in map_a if sha in map_b}
-    else:
+    elif mode == "subtract":
         selected = {sha: map_a[sha] for sha in map_a if sha not in map_b}
+    else:
+        selected = {
+            **{sha: map_a[sha] for sha in map_a if sha not in map_b},
+            **{sha: map_b[sha] for sha in map_b if sha not in map_a},
+        }
     rows = sorted(selected.values(), key=lambda row: (int(row["seed"]), str(row["pack_sha256"])))
     body = _catalog_export_body(rows)
     refuse_trait_lab_catalog_live(body)
@@ -2031,6 +2036,33 @@ def intersect_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> di
 def subtract_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
     """Packs in A that are not in B. Not a live ranking."""
     return _compose_trait_lab_seed_pack_catalogs(catalog_a, catalog_b, mode="subtract")
+
+
+def symmetric_diff_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
+    """Packs in exactly one rematched catalog. Not a live ranking."""
+    return _compose_trait_lab_seed_pack_catalogs(catalog_a, catalog_b, mode="xor")
+
+
+def retain_trait_lab_seed_pack_catalog(catalog: Any, *, keep: int = 1) -> dict[str, Any]:
+    """Keep the highest-count packs from a rematched catalog. Not a live ranking."""
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+        raise MemoryLayerError("invalid_keep", "keep must be >= 1")
+    verified = verify_trait_lab_seed_pack_catalog(catalog)
+    rows = [_catalog_public_row(row) for row in verified["packs"]]
+    if not rows:
+        raise MemoryLayerError("missing_pack", "retain requires at least one pack")
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["pack_sha256"])))
+    selected = rows[:keep]
+    body = _catalog_export_body(selected)
+    refuse_trait_lab_catalog_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "catalog_sha256": hashlib.sha256(encoded).hexdigest(),
+        "kept": len(selected),
+        "keep": keep,
+        "live_verified": False,
+    }
 
 
 def list_trait_lab_seed_pack_ids_for_seed(store: MemoryStore, seed: int, *, limit: int = 50) -> list[str]:
