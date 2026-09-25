@@ -1726,3 +1726,258 @@ class CrossExperimentGeneralizer:
             ))
         except Exception:
             pass
+
+
+@dataclass
+class LoopSession:
+    """A closed autonomous loop session with summary metrics."""
+
+    session_id: str
+    loop_id: str
+    started_at: str
+    closed_at: str
+    iterations_count: int
+    avg_throughput: float
+    avg_p50_latency: float
+    avg_error_rate: float
+    total_cycle_time_s: float
+    patterns_identified: int
+    summary: dict[str, Any]
+
+
+@dataclass
+class SessionComparison:
+    """Comparison of two loop sessions."""
+
+    baseline_session_id: str
+    candidate_session_id: str
+    throughput_delta: float
+    throughput_pct_change: float
+    latency_delta: float
+    latency_pct_change: float
+    error_rate_delta: float
+    improved: bool
+    summary: dict[str, Any]
+
+
+class LoopSessionManager:
+    """Manages loop sessions for cross-cycle learning (Session -> Organizational Memory binding).
+
+    A loop session represents a complete autonomous decision cycle:
+    start -> multiple executions -> feedback -> opportunities -> generalization -> close.
+
+    Sessions enable measuring improvement across loop cycles, not just within
+    a single cycle. Closed sessions are compared to drive the next session's
+    configuration.
+    """
+
+    MIN_ITERATIONS_TO_CLOSE = 3
+
+    def __init__(self, tracer: LoopTracer, generalizer: CrossExperimentGeneralizer,
+                 db_path: str = ":memory:") -> None:
+        self._tracer = tracer
+        self._generalizer = generalizer
+        self._db_path = db_path
+        self._current_session: Optional[LoopSession] = None
+        self._init_db()
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS loop_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    loop_id TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    closed_at TEXT NOT NULL,
+                    iterations_count INTEGER NOT NULL,
+                    avg_throughput REAL NOT NULL,
+                    avg_p50_latency REAL NOT NULL,
+                    avg_error_rate REAL NOT NULL,
+                    total_cycle_time_s REAL NOT NULL,
+                    patterns_identified INTEGER NOT NULL,
+                    summary TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def start_session(self) -> str:
+        """Start a new loop session. Returns the session_id."""
+        self._tracer.start_loop()
+        session_id = f"sess_{uuid.uuid4().hex[:12]}"
+        self._current_session = None
+        return session_id
+
+    def close_session(self) -> Optional[LoopSession]:
+        """Close the current session and persist summary metrics.
+
+        Requires at least MIN_ITERATIONS_TO_CLOSE iterations in the current loop.
+        Returns the closed LoopSession, or None if insufficient iterations.
+        """
+        metrics = self._tracer.get_metrics()
+        if metrics.total_iterations < self.MIN_ITERATIONS_TO_CLOSE:
+            return None
+
+        loop_id = self._tracer.get_current_loop_id()
+        session_id = f"sess_{uuid.uuid4().hex[:12]}"
+        iterations = self._tracer.list_iterations(limit=1000)
+
+        throughputs = [it.metrics.get("throughput", 0.0) for it in iterations]
+        latencies = [it.metrics.get("p50_latency", 0.0) for it in iterations]
+        error_rates = [it.metrics.get("error_rate", 0.0) for it in iterations]
+        cycle_times = [it.cycle_time_s for it in iterations]
+
+        pattern_count = self._generalizer.get_pattern_count()
+
+        session = LoopSession(
+            session_id=session_id,
+            loop_id=loop_id,
+            started_at=iterations[-1].started_at if iterations else datetime.now(timezone.utc).isoformat(),
+            closed_at=datetime.now(timezone.utc).isoformat(),
+            iterations_count=len(iterations),
+            avg_throughput=round(sum(throughputs) / len(throughputs), 6) if throughputs else 0.0,
+            avg_p50_latency=round(sum(latencies) / len(latencies), 6) if latencies else 0.0,
+            avg_error_rate=round(sum(error_rates) / len(error_rates), 6) if error_rates else 0.0,
+            total_cycle_time_s=round(sum(cycle_times), 6),
+            patterns_identified=pattern_count,
+            summary={
+                "min_throughput": min(throughputs) if throughputs else 0.0,
+                "max_throughput": max(throughputs) if throughputs else 0.0,
+                "min_latency": min(latencies) if latencies else 0.0,
+                "max_latency": max(latencies) if latencies else 0.0,
+            },
+        )
+
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT INTO loop_sessions "
+                "(session_id, loop_id, started_at, closed_at, iterations_count, "
+                "avg_throughput, avg_p50_latency, avg_error_rate, total_cycle_time_s, "
+                "patterns_identified, summary) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    session.session_id, session.loop_id, session.started_at, session.closed_at,
+                    session.iterations_count, session.avg_throughput, session.avg_p50_latency,
+                    session.avg_error_rate, session.total_cycle_time_s, session.patterns_identified,
+                    json.dumps(session.summary, default=str),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        self._current_session = session
+        return session
+
+    def list_sessions(self, limit: int = 50) -> list[LoopSession]:
+        """List closed loop sessions ordered by recency."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM loop_sessions ORDER BY closed_at DESC LIMIT ?",
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            return [
+                LoopSession(
+                    session_id=row["session_id"],
+                    loop_id=row["loop_id"],
+                    started_at=row["started_at"],
+                    closed_at=row["closed_at"],
+                    iterations_count=row["iterations_count"],
+                    avg_throughput=row["avg_throughput"],
+                    avg_p50_latency=row["avg_p50_latency"],
+                    avg_error_rate=row["avg_error_rate"],
+                    total_cycle_time_s=row["total_cycle_time_s"],
+                    patterns_identified=row["patterns_identified"],
+                    summary=json.loads(row["summary"]),
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_session(self, session_id: str) -> Optional[LoopSession]:
+        """Retrieve a specific session by ID."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM loop_sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return LoopSession(
+                session_id=row["session_id"],
+                loop_id=row["loop_id"],
+                started_at=row["started_at"],
+                closed_at=row["closed_at"],
+                iterations_count=row["iterations_count"],
+                avg_throughput=row["avg_throughput"],
+                avg_p50_latency=row["avg_p50_latency"],
+                avg_error_rate=row["avg_error_rate"],
+                total_cycle_time_s=row["total_cycle_time_s"],
+                patterns_identified=row["patterns_identified"],
+                summary=json.loads(row["summary"]),
+            )
+        finally:
+            conn.close()
+
+    def get_session_count(self) -> int:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM loop_sessions")
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+    def compare_sessions(self, baseline_id: str, candidate_id: str) -> SessionComparison:
+        """Compare two closed sessions for improvement."""
+        baseline = self.get_session(baseline_id)
+        candidate = self.get_session(candidate_id)
+        if baseline is None or candidate is None:
+            raise ValueError("Both sessions must exist")
+
+        throughput_delta = candidate.avg_throughput - baseline.avg_throughput
+        latency_delta = candidate.avg_p50_latency - baseline.avg_p50_latency
+        error_rate_delta = candidate.avg_error_rate - baseline.avg_error_rate
+
+        throughput_pct = (throughput_delta / baseline.avg_throughput * 100) if baseline.avg_throughput != 0 else 0.0
+        latency_pct = (latency_delta / baseline.avg_p50_latency * 100) if baseline.avg_p50_latency != 0 else 0.0
+
+        improved = (
+            (throughput_delta > 0 or error_rate_delta < 0)
+            and not (throughput_delta < 0 and error_rate_delta > 0)
+        )
+
+        summary = {
+            "baseline_throughput": baseline.avg_throughput,
+            "candidate_throughput": candidate.avg_throughput,
+            "baseline_latency": baseline.avg_p50_latency,
+            "candidate_latency": candidate.avg_p50_latency,
+            "baseline_error_rate": baseline.avg_error_rate,
+            "candidate_error_rate": candidate.avg_error_rate,
+            "baseline_patterns": baseline.patterns_identified,
+            "candidate_patterns": candidate.patterns_identified,
+        }
+
+        return SessionComparison(
+            baseline_session_id=baseline_id,
+            candidate_session_id=candidate_id,
+            throughput_delta=round(throughput_delta, 6),
+            throughput_pct_change=round(throughput_pct, 4),
+            latency_delta=round(latency_delta, 6),
+            latency_pct_change=round(latency_pct, 4),
+            error_rate_delta=round(error_rate_delta, 6),
+            improved=improved,
+            summary=summary,
+        )
+
+    def get_current_session(self) -> Optional[LoopSession]:
+        return self._current_session
