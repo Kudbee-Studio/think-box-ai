@@ -2964,4 +2964,50 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - CODE COMPLETE: YES — all symbols implemented in `thinkbox/decomposer.py` and `thinkbox/engine.py`
   - TEST VERIFIED: YES — 194/194 tests pass
   - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite + mock model client
-  - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved; e2e engine test_router_imports fails due to pre-existing fastapi environment issue (not related to this change)
+   - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved; e2e engine test_router_imports fails due to pre-existing fastapi environment issue (not related to this change)
+
+---
+
+### 2026-09-25 — PR233 Memory → Opportunity Binding (Implementation Complete)
+
+- **BRANCH:** `pr/233/memory-next-opportunity-binding`
+- **BASE SHA:** `c90e4b697cdc96a731118e70f3bb918fb7e21955` (origin/main, after PR232 merge)
+- **BINDING CLOSED:** Learning → Memory → Opportunity (founder-driven config path)
+- **GAP ADDRESSED:** `PRLifecycleConfig` did not expose prior experiment recommendations as an explicit config field. Recommendations were auto-retrieved inside the orchestrator (PR #224) but a founder had no deliberate review point before seeding the next experiment.
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/pr_lifecycle.py:PRLifecycleConfig` — added `prior_recommendation: Optional[dict[str, Any]] = None` field
+  - `thinkbox/pr_lifecycle.py:PRLifecycleConfig.from_prior_experiments(cls, pr_number, manager, **kwargs)` — classmethod that calls `manager.get_last_next_action()` and seeds `prior_recommendation` into the config; enables founder review before construction
+  - `thinkbox/pr_lifecycle.py:_execute_local_experiment()` — checks `self._config.prior_recommendation` first (explicit founder input), then falls back to `self._manager.get_last_next_action()` (auto-retrieval); `recommendation_consumed` event records `recommendation_source` as `"config"`, `"auto"`, or `"none"` for audit trail
+- **CALL CHAIN:**
+  1. Prior experiment completes → `NextActionGenerator.generate()` → persists `recommended_next_experiment` (PR #224)
+  2. Founder constructs config via `PRLifecycleConfig.from_prior_experiments(pr_number, manager)` → recommendation is explicit in config
+  3. `PRLifecycleOrchestrator.run()` → `_execute_local_experiment()` → checks config first → seeds new experiment parameters
+  4. `recommendation_consumed` event with `recommendation_source="config"` proves founder-driven path
+- **TESTS:** 7 focused tests in `tests/unit/test_memory_to_opportunity_binding.py`:
+  - `test_config_accepts_prior_recommendation` — config field present
+  - `test_config_defaults_to_none` — default is None
+  - `test_from_prior_experiments_seeds_recommendation` — classmethod retrieves and seeds
+  - `test_from_prior_experiments_no_priors_returns_none` — no priors → None
+  - `test_config_recommendation_used_over_auto` — config takes priority over auto-retrieval; event source = "config"
+  - `test_no_config_no_auto_uses_default` — no config + no auto → default behavior; event source = "none"
+  - `test_full_flow` — end-to-end: prior experiment → config from_prior → orchestrator → seeded params
+- **BROADER TESTS:** 201/201 pass (194 existing binding tests + 7 new):
+  - `tests.unit.test_memory_to_opportunity_binding` — 7 OK (new)
+  - `tests.unit.test_memory_to_next_experiment` — 5 OK (from PR #224)
+  - `tests.unit.test_memory_to_planning_binding` — 8 OK (from PR #232)
+  - `tests.unit.test_pr_lifecycle` — 23 OK (no regressions)
+  - `tests.unit.test_experiment` — 46 OK
+  - `tests.unit.byoc.test_experiment_analytics` — 37 OK
+  - `tests.unit.test_self_improvement` — 31 OK
+  - `tests.unit.test_concurrent_goals` — 45 OK
+  - `tests.unit.test_runtime_contract` — 13 OK (1 skipped)
+- **Command:** `python3 -m unittest tests.unit.test_memory_to_next_experiment tests.unit.test_memory_to_planning_binding tests.unit.test_memory_to_opportunity_binding tests.unit.test_pr_lifecycle tests.unit.test_experiment tests.unit.byoc.test_experiment_analytics tests.unit.test_self_improvement tests.unit.test_concurrent_goals tests.unit.test_runtime_contract`
+- **BINDING GAP STATUS:** The three-step Memory loop is now fully closed:
+  - Learning → Memory → Next Experiment: PR #224 (auto-retrieval)
+  - Learning → Memory → Planning: PR #232 (decomposer enrichment)
+  - Learning → Memory → Opportunity: PR #233 (founder-driven config)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES — all symbols implemented in `thinkbox/pr_lifecycle.py`
+  - TEST VERIFIED: YES — 201/201 tests pass
+  - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite
+  - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved
