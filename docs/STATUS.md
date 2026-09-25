@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #216 — Trait Lab seed daily filter (DRAFT)
+## PR #216 — Trait Lab seed daily filter (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-daily` |
 | **Scope** | `trait_lab_seed_history_by_daily` — seed history filtered by daily-seed flag |
 | **Write policy** | Missing seed/daily match and invalid daily fail-closed; not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `f99af45` |
 | **Verify** | memory + trait-lab suites → **74 OK** |
 
 ## PR #215 — Trait Lab seed operator filter (MERGED)

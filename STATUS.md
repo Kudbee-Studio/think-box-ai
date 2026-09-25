@@ -1,5 +1,6 @@
-## PR #216 — Trait Lab seed daily filter (draft)
+## PR #216 — Trait Lab seed daily filter (merged)
 
+- **Merge:** `f99af45` — seed history rows filtered by daily-seed flag
 - **Gate:** `memory-trait-lab-seed-daily`
 - **Scope:** Seed history rows filtered by daily-seed flag
 - **Write policy:** Missing seed/daily match and invalid daily fail-closed; not a live ranking
