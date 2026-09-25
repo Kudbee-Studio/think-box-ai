@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #218 — Trait Lab seed XP ceiling (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-xp-ceiling` |
+| **Scope** | `trait_lab_seed_history_by_xp_ceiling` — seed history at or below XP |
+| **Write policy** | Missing seed/ceiling match and invalid ceiling fail-closed; not a live ranking |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab suites → **80 OK** |
+
 ## PR #217 — Trait Lab seed XP floor (MERGED)
 
 | Field | Value |
