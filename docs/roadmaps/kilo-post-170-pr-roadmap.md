@@ -73,7 +73,8 @@
 | Trait Lab seed pack diff | **#223** (merged `29e4ff9`) — compare two rematched packs for one seed; not LIVE VERIFIED |
 | Trait Lab seed pack catalog | **#224** (merged `5db0c37`) — index imported/applied packs by `pack_sha256`; not LIVE VERIFIED |
 | Trait Lab catalog operator pack | **GitHub #203** (merged `595dbb5`) — 25 catalog operators C01–C25; not LIVE VERIFIED |
-| Trait Lab catalog compose | **GitHub #204 draft** — merge / intersect / subtract rematched catalogs; not LIVE VERIFIED |
+| Trait Lab catalog compose | **GitHub #204** (merged `388fde8`) — merge / intersect / subtract rematched catalogs; not LIVE VERIFIED |
+| Trait Lab catalog pin | **GitHub #205 draft** — pin / get / list / unpin rematched catalog snapshots; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

@@ -1,15 +1,26 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #204 Trait Lab catalog compose (OPEN)
+## Draft — GitHub PR #205 Trait Lab catalog pin (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-catalog-pin` |
+| **Scope** | `pin` / `get` / `list` / `unpin` rematched catalog snapshots |
+| **Write policy** | Pin fact only; unpin leaves pack facts and run rows; live claim, missing pin, missing provenance fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-catalog-pin-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | pin file + memory suite on branch |
+
+## GitHub PR #204 — Trait Lab catalog compose (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-catalog-compose` |
 | **Scope** | `merge` / `intersect` / `subtract` rematched catalog snapshots |
 | **Write policy** | Hash-only compose; no run writes; same catalog, live claim, pack conflict, invalid catalog fail-closed |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-catalog-compose-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `388fde8` |
 | **Verify** | compose **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined) |
 
 ## GitHub PR #203 — Trait Lab catalog operator pack (MERGED)
