@@ -10,7 +10,7 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
 | **Branch** | `cursor/memory-trait-lab-operator-session-25-723f` |
 | **Merge** | not merged — draft PR only |
-| **Verify** | session file **9 OK**; memory suite pending full run |
+| **Verify** | session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined) |
 | **AGENTS.md** | GitHub #213 merged; #214 draft |
 
 ## GitHub PR #213 — Trait Lab local environment prep (MERGED)

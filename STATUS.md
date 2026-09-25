@@ -5,7 +5,7 @@
 - **Scope:** S01–S25 prep-gated rematch dry-run, signed session, persist session receipt
 - **Write policy:** Hash-only except prep + session receipt persist; no pack/run apply; no pin/drop writes; refuses live ack; `live_verified: false`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** session file **9 OK**; memory suite pending full run — **not merged**
+- **Verify:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined) — **not merged**
 - **AGENTS.md:** GitHub #213 marked merged; #214 draft row added
 
 ## GitHub PR #213 — Trait Lab local environment prep (merged)

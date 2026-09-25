@@ -6,7 +6,7 @@
 >
 > **GitHub #213 merged** at `257aca3` — local env prep E01–E25. Not LIVE VERIFIED.
 > **GitHub #214 draft:** 25-operator session on `cursor/memory-trait-lab-operator-session-25-723f`. Prep-gated rematch dry-run + session receipt. **Not merged.**
-> **Test gate:** session file 9 OK; full memory suite pending this draft.
+> **Test gate:** session file 9 OK; memory suite 213 OK; engine harden 61 OK (274 combined).
 > **AGENTS.md:** GitHub #213 marked merged; #214 draft row added.
 > Product-label #214 (`77eb188` seed difficulty) stays on main as an earlier memory-lane merge. Do not reopen it.
 >

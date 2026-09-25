@@ -2607,7 +2607,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** After #213 prep and #212 workflow exist separately. Autonomous workflow still needs a signed session that refuses to dry-run rematch unless local env prep is green, then persist a receipt chaining `prep_sha256` + `session_sha256`.
 - **IMPLEMENTATION:** S01–S25 in `thinkbox/operator_session.py`: refuse live, require prep ok / prep receipt, plan/validate/sign/verify, step list/page, digest/etag, dry-run (no writes), persist/get/list receipts, canned prep+dry-run, open_session. No pin/drop writes. No live APIs. `live_verified` stays false.
-- **TEST_VERIFIED:** session file **9 OK**. Full memory suite pending this draft.
+- **TEST_VERIFIED:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined).
 - **DOCS:** `AGENTS.md` marks #213 merged and #214 draft. STATUS / PREP / CONTINUITY / roadmap updated in the same PR (§4.3).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
