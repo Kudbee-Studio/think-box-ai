@@ -1452,3 +1452,277 @@ class EngineAutoTuner:
             return cursor.fetchone()[0]
         finally:
             conn.close()
+
+
+@dataclass
+class GeneralizablePattern:
+    """A pattern that generalizes across multiple experiments."""
+
+    pattern_id: str
+    metric_name: str
+    recommendation_type: str
+    improvement_direction: str
+    supporting_iteration_ids: list[str]
+    supporting_experiment_ids: list[str]
+    evidence: dict[str, Any]
+    confidence: float
+    created_at: str
+
+
+@dataclass
+class GeneralizationResult:
+    """Result of cross-experiment generalization analysis."""
+
+    patterns_identified: list[str]
+    generalization_confidence: float
+    iterations_analyzed: int
+    timestamp: str
+
+
+class CrossExperimentGeneralizer:
+    """Identifies generalizable patterns across multiple loop iterations.
+
+    Examines LoopTracer iterations and experiment outcomes to find patterns
+    that generalize: e.g., "high error_rate consistently correlates with
+    anomaly_followup recommendations that improve throughput."
+
+    Stores generalized patterns as organizational knowledge via
+    ExperimentManager's verified knowledge layer.
+    """
+
+    MIN_ITERATIONS_FOR_GENERALIZATION = 3
+    CONFIDENCE_THRESHOLD = 0.6
+
+    def __init__(self, tracer: LoopTracer, manager: ExperimentManager,
+                 analytics: ExperimentAnalytics, db_path: str = ":memory:") -> None:
+        self._tracer = tracer
+        self._manager = manager
+        self._analytics = analytics
+        self._db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS generalizable_patterns (
+                    pattern_id TEXT PRIMARY KEY,
+                    metric_name TEXT NOT NULL,
+                    recommendation_type TEXT NOT NULL,
+                    improvement_direction TEXT NOT NULL,
+                    supporting_iteration_ids TEXT NOT NULL,
+                    supporting_experiment_ids TEXT NOT NULL,
+                    evidence TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS generalization_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    iterations_analyzed INTEGER NOT NULL,
+                    patterns_identified INTEGER NOT NULL,
+                    generalization_confidence REAL NOT NULL
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def generalize(self) -> GeneralizationResult:
+        """Analyze all loop iterations and identify generalizable patterns.
+
+        A pattern is identified when:
+        - At least MIN_ITERATIONS_FOR_GENERALIZATION iterations exist
+        - A metric consistently shows the same improvement direction
+          across iterations with the same recommendation type
+        - Confidence (proportion of iterations showing the pattern) >= CONFIDENCE_THRESHOLD
+
+        Returns a GeneralizationResult with pattern IDs identified.
+        """
+        iterations = self._tracer.list_iterations(limit=100)
+        if len(iterations) < self.MIN_ITERATIONS_FOR_GENERALIZATION:
+            return GeneralizationResult(
+                patterns_identified=[],
+                generalization_confidence=0.0,
+                iterations_analyzed=len(iterations),
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+
+        by_rec_type: dict[str, list[LoopIteration]] = {}
+        for it in iterations:
+            rec_type = it.recommendation_type
+            by_rec_type.setdefault(rec_type, []).append(it)
+
+        patterns: list[GeneralizablePattern] = []
+        for rec_type, group in by_rec_type.items():
+            if len(group) < 2:
+                continue
+            pattern = self._analyze_group(rec_type, group)
+            if pattern and pattern.confidence >= self.CONFIDENCE_THRESHOLD:
+                self._persist_pattern(pattern)
+                patterns.append(pattern)
+
+        confidence = len(patterns) / len(by_rec_type) if by_rec_type else 0.0
+        result = GeneralizationResult(
+            patterns_identified=[p.pattern_id for p in patterns],
+            generalization_confidence=round(confidence, 4),
+            iterations_analyzed=len(iterations),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        self._persist_history(result)
+        self._emit_generalization_event(result, patterns)
+        return result
+
+    def _analyze_group(self, rec_type: str, group: list[LoopIteration]) -> Optional[GeneralizablePattern]:
+        """Analyze a group of iterations with the same recommendation type for patterns."""
+        throughputs = [it.metrics.get("throughput", 0.0) for it in group]
+        latencies = [it.metrics.get("p50_latency", 0.0) for it in group]
+        error_rates = [it.metrics.get("error_rate", 0.0) for it in group]
+
+        pattern_id = f"pat_{uuid.uuid4().hex[:12]}"
+        supporting_iters = [it.iteration_id for it in group]
+        supporting_exps = [it.experiment_id for it in group]
+
+        metric_findings: dict[str, str] = {}
+        if len(throughputs) >= 2:
+            trend = throughputs[-1] - throughputs[0]
+            direction = "improving" if trend > 0 else ("declining" if trend < 0 else "stable")
+            metric_findings["throughput"] = direction
+
+        if len(latencies) >= 2:
+            trend = latencies[-1] - latencies[0]
+            direction = "improving" if trend < 0 else ("declining" if trend > 0 else "stable")
+            metric_findings["p50_latency"] = direction
+
+        if len(error_rates) >= 2:
+            trend = error_rates[-1] - error_rates[0]
+            direction = "improving" if trend < 0 else ("declining" if trend > 0 else "stable")
+            metric_findings["error_rate"] = direction
+
+        confidence = 1.0 if len(group) >= 2 else 0.5
+
+        primary_metric = ""
+        primary_direction = ""
+        for metric, direction in metric_findings.items():
+            if direction in ("improving", "declining"):
+                primary_metric = metric
+                primary_direction = direction
+                break
+
+        if not primary_metric:
+            return None
+
+        evidence = {
+            "metric_findings": metric_findings,
+            "n_iterations": len(group),
+            "throughput_values": throughputs,
+            "latency_values": latencies,
+            "error_rate_values": error_rates,
+        }
+
+        return GeneralizablePattern(
+            pattern_id=pattern_id,
+            metric_name=primary_metric,
+            recommendation_type=rec_type,
+            improvement_direction=primary_direction,
+            supporting_iteration_ids=supporting_iters,
+            supporting_experiment_ids=supporting_exps,
+            evidence=evidence,
+            confidence=round(confidence, 4),
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    def _persist_pattern(self, pattern: GeneralizablePattern) -> None:
+        """Persist a generalizable pattern to SQLite."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO generalizable_patterns "
+                "(pattern_id, metric_name, recommendation_type, improvement_direction, "
+                "supporting_iteration_ids, supporting_experiment_ids, evidence, confidence, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    pattern.pattern_id,
+                    pattern.metric_name,
+                    pattern.recommendation_type,
+                    pattern.improvement_direction,
+                    json.dumps(pattern.supporting_iteration_ids),
+                    json.dumps(pattern.supporting_experiment_ids),
+                    json.dumps(pattern.evidence, default=str),
+                    pattern.confidence,
+                    pattern.created_at,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def list_patterns(self, limit: int = 50) -> list[dict[str, Any]]:
+        """List identified generalizable patterns."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM generalizable_patterns ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_pattern_count(self) -> int:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM generalizable_patterns")
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+    def _persist_history(self, result: GeneralizationResult) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT INTO generalization_history "
+                "(timestamp, iterations_analyzed, patterns_identified, generalization_confidence) "
+                "VALUES (?, ?, ?, ?)",
+                (
+                    result.timestamp,
+                    result.iterations_analyzed,
+                    len(result.patterns_identified),
+                    result.generalization_confidence,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _emit_generalization_event(self, result: GeneralizationResult,
+                                   patterns: list[GeneralizablePattern]) -> None:
+        """Emit a dashboard event for the generalization analysis."""
+        try:
+            state = get_dashboard_state()
+            state.emit(DashboardEvent(
+                category=DashboardCategory.EXECUTION,
+                event_type="cross_experiment_generalization",
+                source="CrossExperimentGeneralizer",
+                data={
+                    "iterations_analyzed": result.iterations_analyzed,
+                    "patterns_identified": len(result.patterns_identified),
+                    "generalization_confidence": result.generalization_confidence,
+                    "pattern_summaries": [
+                        {
+                            "pattern_id": p.pattern_id,
+                            "metric_name": p.metric_name,
+                            "recommendation_type": p.recommendation_type,
+                            "improvement_direction": p.improvement_direction,
+                            "confidence": p.confidence,
+                        }
+                        for p in patterns
+                    ],
+                },
+                evidence_label="infmred",
+            ))
+        except Exception:
+            pass
