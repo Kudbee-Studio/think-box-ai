@@ -1,5 +1,6 @@
-## PR #210 — Trait Lab best per seed (draft)
+## PR #210 — Trait Lab best per seed (merged)
 
+- **Merge:** `7b0e0df` — highest stored XP per seed
 - **Gate:** `memory-trait-lab-best-seed`
 - **Scope:** Highest stored XP per seed
 - **Write policy:** Missing seed fail-closed; not a live ranking

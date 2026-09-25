@@ -12,9 +12,9 @@
 > **#207 merged** at `d989255` — replay rematch.
 > **#208 merged** at `b9074c6` — list/compare stored Trait Lab proofs.
 > **#209 merged** at `abdf325` — local board from stored proofs.
-> **#210 draft:** best stored XP per seed. `live_verified` false.
+> **#210 merged** at `7b0e0df` — best stored XP per seed. `live_verified` false.
 > **Test gate:** memory + trait-lab suites → 55 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
