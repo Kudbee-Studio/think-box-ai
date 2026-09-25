@@ -1,11 +1,20 @@
-## Draft — GitHub PR #211 Trait Lab catalog pin bind lane (not merged)
+## Draft — GitHub PR #212 Trait Lab catalog pin bind workflow (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-pin-bind-ops-25-723f`
+- **Branch:** `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f`
+- **Gate:** `memory-trait-lab-catalog-pin-bind-workflow-25`
+- **Scope:** W01–W25 hermetic plan/dry-run/run/receipt over catalog → pin → bind
+- **Write policy:** Hash-only except pin_catalog, drop_unbound, and receipt persist; no pack/run apply; dry-run skips writes; live claim fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** workflow file **10 OK**; memory suite pending full run — **not merged**
+
+## GitHub PR #211 — Trait Lab catalog pin bind lane (merged)
+
+- **Merge:** `e416bd7` — D01–D25 bind filters, compose, rematch index, drop unbound
 - **Gate:** `memory-trait-lab-catalog-pin-bind-ops-25`
-- **Scope:** D01–D25 bind filters, compose (merge/intersect/subtract/xor/retain), rematch index, drop unbound, catalogs from bound
+- **Scope:** Bind filters, compose (merge/intersect/subtract/xor/retain), rematch index, drop unbound, catalogs from bound
 - **Write policy:** Hash-only except drop_unbound (unpin facts only); no pack/run apply; live claim, same index, bind conflict, missing pin fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined) — **not merged**
+- **Verify:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined)
 
 ## GitHub PR #210 — Trait Lab catalog↔pin bind (merged)
 
