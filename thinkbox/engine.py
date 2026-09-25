@@ -63,6 +63,7 @@ class ThinkBoxEngine:
         self._experiment_manager: Any = None
         self._experiment_analytics: Any = None
         self._opportunity_manager: Any = None
+        self._loop_tracer: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -103,6 +104,17 @@ class ThinkBoxEngine:
         self._experiment_analytics = analytics
         self._opportunity_manager = opportunity_manager
 
+    def set_loop_tracer(self, tracer: Any | None) -> None:
+        """Inject a LoopTracer for autonomous loop observability (DI).
+
+        When set, execute_goal() traces each loop iteration:
+        start_iteration at goal execution -> complete_iteration after
+        feedback registers an opportunity. Proves the closed loop
+        is functioning via measurable cycle times and recommendation traceability.
+        With no tracer injected, behavior is identical to legacy.
+        """
+        self._loop_tracer = tracer
+
     @property
     def events(self) -> list[TaskEvent]:
         return self._events.copy()
@@ -135,6 +147,10 @@ class ThinkBoxEngine:
         goal_run_id = f"goal_{uuid.uuid4().hex[:8]}"
 
         self.emit("root", TaskState.RUNNING, f"Starting goal: {goal[:100]}", goal_run_id=goal_run_id)
+
+        iteration_id = None
+        if self._loop_tracer is not None:
+            iteration_id = self._loop_tracer.start_iteration(goal_run_id)
 
         if graph is None:
             recommendation = None
@@ -325,11 +341,12 @@ class ThinkBoxEngine:
                 self._post_run_callback(summary)
             except Exception:
                 pass
-        self._record_execution_feedback(summary, goal_run_id)
+        self._record_execution_feedback(summary, goal_run_id, iteration_id)
         self._running = False
         return summary
 
-    def _record_execution_feedback(self, summary: dict[str, Any], goal_run_id: str) -> None:
+    def _record_execution_feedback(self, summary: dict[str, Any], goal_run_id: str,
+                                   iteration_id: Optional[str] = None) -> None:
         """Persist execution summary as experiment outcome and generate next-action recommendation.
 
         This closes the Planning -> Execution -> Verification -> Feedback -> Memory loop:
@@ -380,6 +397,7 @@ class ThinkBoxEngine:
             next_action = generator.generate(exp.experiment_id, {"status": "completed"}, confidence=0.9)
             recommendation = next_action.get("recommended_next_experiment", next_action)
             self._register_opportunity(exp.experiment_id, goal_run_id, recommendation, metrics_run)
+            self._complete_loop_iteration(exp.experiment_id, recommendation, metrics_run, iteration_id)
             self.emit("root", TaskState.SUCCESS, "Feedback recorded",
                       feedback_experiment_id=exp.experiment_id, goal_run_id=goal_run_id)
         except Exception:
@@ -409,6 +427,36 @@ class ThinkBoxEngine:
                       opportunity_id=opportunity.opportunity_id,
                       goal_run_id=goal_run_id,
                       recommendation_type=recommendation.get("type", "unknown"))
+        except Exception:
+            pass
+
+    def _complete_loop_iteration(self, experiment_id: str, recommendation: dict[str, Any],
+                                 metrics: dict[str, Any], iteration_id: Optional[str]) -> None:
+        """Complete a loop iteration in the LoopTracer (Observability -> Learning binding).
+
+        Records the full cycle: goal execution -> feedback -> opportunity registration.
+        No-ops when no LoopTracer is set or when no in-flight iteration exists.
+        Fail-closed: errors are swallowed.
+        """
+        if self._loop_tracer is None or iteration_id is None:
+            return
+        try:
+            opp_id = ""
+            if self._opportunity_manager is not None:
+                opp = self._opportunity_manager.get_current_opportunity()
+                if opp is not None:
+                    opp_id = opp.opportunity_id
+            self._loop_tracer.complete_iteration(
+                iteration_id=iteration_id,
+                experiment_id=experiment_id,
+                opportunity_id=opp_id,
+                recommendation_type=recommendation.get("type", "unknown"),
+                priority="high" if recommendation.get("type") == "regression_followup" else "medium",
+                metrics=metrics,
+            )
+            self.emit("root", TaskState.SUCCESS, "Loop iteration traced",
+                      iteration_id=iteration_id, goal_run_id=metrics.get("goal_run_id", ""),
+                      experiment_id=experiment_id)
         except Exception:
             pass
 
