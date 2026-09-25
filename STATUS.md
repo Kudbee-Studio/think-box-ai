@@ -1,3 +1,11 @@
+## PR #216 — Trait Lab seed daily filter (draft)
+
+- **Gate:** `memory-trait-lab-seed-daily`
+- **Scope:** Seed history rows filtered by daily-seed flag
+- **Write policy:** Missing seed/daily match and invalid daily fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **74 OK**
+
 ## PR #215 — Trait Lab seed operator filter (merged)
 
 - **Merge:** `88d9c45` — seed history rows filtered by operator name

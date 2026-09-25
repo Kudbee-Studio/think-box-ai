@@ -687,7 +687,8 @@ def record_trait_lab_run(
                 f"seed {proof.get('seed')} xp={proof.get('xp')} "
                 f"grade={proof.get('grade') or '-'} "
                 f"difficulty={proof.get('difficulty') or '-'} "
-                f"operator={proof.get('operator') or '-'}"
+                f"operator={proof.get('operator') or '-'} "
+                f"daily={'1' if proof.get('daily') else '0'}"
             ),
             "how": f"proof_scorecard {sha}",
             "confidence": 1.0,
@@ -697,6 +698,7 @@ def record_trait_lab_run(
             "seed": proof.get("seed"),
             "difficulty": proof.get("difficulty") or "",
             "operator": proof.get("operator") or "",
+            "daily": bool(proof.get("daily")),
         },
     )
     record_task_step(
@@ -803,6 +805,7 @@ _GRADE_IN_FACT = re.compile(r"grade=([A-Za-z+\-]+)")
 _DIFFICULTY_IN_FACT = re.compile(r"difficulty=([A-Za-z]+)")
 _OPERATOR_IN_FACT = re.compile(r"operator=([A-Za-z0-9._-]+)")
 _OPERATOR_OK = re.compile(r"^[A-Za-z0-9._-]{1,24}$")
+_DAILY_IN_FACT = re.compile(r"daily=([01])")
 
 
 def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
@@ -818,6 +821,11 @@ def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
         operator_match = _OPERATOR_IN_FACT.search(fact)
         parsed = operator_match.group(1) if operator_match else ""
         operator = "" if parsed == "-" else parsed
+    if "daily" in entry.value:
+        daily = bool(entry.value.get("daily"))
+    else:
+        daily_match = _DAILY_IN_FACT.search(fact)
+        daily = bool(daily_match and daily_match.group(1) == "1")
     return {
         "proof_sha256": str(entry.value.get("source") or entry.metadata.get("source") or ""),
         "seed": entry.value.get("seed"),
@@ -826,6 +834,7 @@ def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
         "grade": grade_match.group(1) if grade_match else "",
         "difficulty": difficulty,
         "operator": operator,
+        "daily": daily,
         "agent_id": entry.agent_id,
         "task_id": entry.task_id,
         "live_verified": False,
@@ -1090,6 +1099,35 @@ def trait_lab_seed_history_by_operator(
     return {
         "seed": history["seed"],
         "operator": wanted,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
+
+
+def trait_lab_seed_history_by_daily(
+    store: MemoryStore,
+    seed: int,
+    daily: bool,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows filtered by daily-seed flag. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    if not isinstance(daily, bool):
+        raise MemoryLayerError("invalid_daily", "daily must be a boolean")
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [row for row in history["runs"] if bool(row.get("daily")) is daily]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_daily",
+            f"no stored Trait Lab run for seed {history['seed']} daily={daily}",
+        )
+    return {
+        "seed": history["seed"],
+        "daily": daily,
         "runs": runs[:limit],
         "count": len(runs),
         "best": runs[0],

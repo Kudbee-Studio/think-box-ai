@@ -2302,4 +2302,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #216. At most one open PR.
 
+### 2026-09-25 — PR #216 Trait Lab seed daily filter
+
+- **DISCOVERY:** Seed history did not filter by the daily-seed flag. Daily was also missing from the stored fact.
+- **IMPLEMENTATION:** `record_trait_lab_run` persists `daily`. `trait_lab_seed_history_by_daily` keeps rows whose daily flag matches. Fail-closed on missing seed, missing daily match, invalid daily, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **74 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-daily-723f` into `main`.
+
 ---
