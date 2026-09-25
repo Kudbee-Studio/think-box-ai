@@ -1,5 +1,6 @@
-## PR #212 — Trait Lab seed index (draft)
+## PR #212 — Trait Lab seed index (merged)
 
+- **Merge:** `413c28a` — seeds with stored runs: count + best XP
 - **Gate:** `memory-trait-lab-seed-index`
 - **Scope:** Seeds with stored runs: count + best XP
 - **Write policy:** Empty index is empty; invalid limit fail-closed; not a live ranking

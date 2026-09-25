@@ -14,9 +14,10 @@
 > **#209 merged** at `abdf325` — local board from stored proofs.
 > **#210 merged** at `7b0e0df` — best stored XP per seed.
 > **#211 merged** at `8536fa4` — seed history (all stored runs, highest XP first). `live_verified` false.
-> **#212 draft:** seed index (count + best XP per stored seed). `live_verified` false.
+> **#212 merged** at `413c28a` — seed index (count + best XP per stored seed). `live_verified` false.
+> **#213 next:** wait for 1800s cadence timer. At most one open PR.
 > **Test gate:** memory + trait-lab suites → 62 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
