@@ -1,5 +1,6 @@
-## PR #215 — Trait Lab seed operator filter (draft)
+## PR #215 — Trait Lab seed operator filter (merged)
 
+- **Merge:** `88d9c45` — seed history rows filtered by operator name
 - **Gate:** `memory-trait-lab-seed-operator`
 - **Scope:** Seed history rows filtered by operator name
 - **Write policy:** Missing seed/operator and invalid operator fail-closed; not a live ranking

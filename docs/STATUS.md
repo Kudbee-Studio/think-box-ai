@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #215 — Trait Lab seed operator filter (DRAFT)
+## PR #215 — Trait Lab seed operator filter (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-operator` |
 | **Scope** | `trait_lab_seed_history_by_operator` — seed history filtered by operator name |
 | **Write policy** | Missing seed/operator and invalid operator fail-closed; not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `88d9c45` |
 | **Verify** | memory + trait-lab suites → **71 OK** |
 
 ## PR #214 — Trait Lab seed difficulty filter (MERGED)
