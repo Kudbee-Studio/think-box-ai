@@ -2,11 +2,15 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #223 merged; #224 autonomous flow compose draft)
+>
+> **GitHub #223 merged** at `3fdaa32` — flow workflow O01–O25. Not LIVE VERIFIED.
+> **GitHub #224 draft:** P01–P25 flow compose on `cursor/memory-trait-lab-autonomous-flow-compose-723f`. **Not merged.**
+> **Test gate:** flow-compose 4 OK; memory 246 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #222 merged; #223 autonomous flow workflow major draft)
 >
-> **GitHub #222 merged** at `27d64b6` — workflow chain bind F01–F25. Not LIVE VERIFIED.
-> **GitHub #223 draft:** O01–O25 flow workflow on `cursor/memory-trait-lab-autonomous-flow-workflow-723f`. **Not merged.**
-> **Test gate:** flow-workflow 5 OK; memory 242 OK.
+> **Superseded:** flow workflow shipped as **#223** (`3fdaa32`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #221 merged; #222 workflow chain bind draft)
 >

@@ -1,11 +1,16 @@
-## Draft — GitHub PR #223 Trait Lab autonomous flow workflow major (not merged)
+## Draft — GitHub PR #224 Trait Lab autonomous flow workflow compose (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-flow-workflow-723f`
-- **Gate:** `memory-trait-lab-autonomous-flow-workflow-25` (O01–O25)
-- **Scope:** Signed flow plan; dry-run vs run-chained orchestration; flow receipt persist; ``open_flow``
-- **Write policy:** Flow + bind receipts on run path; dry-run must not write
+- **Branch:** `cursor/memory-trait-lab-autonomous-flow-compose-723f`
+- **Gate:** `memory-trait-lab-autonomous-flow-workflow-compose-25` (P01–P25)
+- **Scope:** Merge/intersect/subtract/xor signed flow-receipt indexes; compose snapshot + index export persist
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** flow-workflow file **5 OK**; memory suite **242 OK** — **not merged**
+- **Verify:** flow-compose file **4 OK**; memory suite **246 OK** — **not merged**
+
+## GitHub PR #223 — Trait Lab autonomous flow workflow major (merged)
+
+- **Merge:** `3fdaa32` — O01–O25 flow orchestration + flow receipt + `open_flow`
+- **Gate:** `memory-trait-lab-autonomous-flow-workflow-25`
+- **Verify:** flow-workflow **5 OK** at merge; memory **242 OK**
 
 ## GitHub PR #222 — Trait Lab autonomous workflow chain bind (merged)
 

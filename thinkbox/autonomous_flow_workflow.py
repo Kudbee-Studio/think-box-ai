@@ -476,6 +476,166 @@ def has_trait_lab_autonomous_flow_workflow_receipt(store: MemoryStore, flow_sha2
     return any(row["flow_sha256"] == sha for row in _collect_flow_receipts(store))
 
 
+_FLOW_RECEIPT_INDEX_KIND = "trait-lab-autonomous-flow-workflow-receipt-index"
+
+
+def _flow_index_public_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "flow_sha256": row["flow_sha256"],
+        "bind_sha256": row["bind_sha256"],
+        "chain_index_sha256": row["chain_index_sha256"],
+        "autonomous_sha256": row["autonomous_sha256"],
+        "status": row["status"],
+        "live_verified": False,
+    }
+
+
+def _flow_index_body(flows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "kind": _FLOW_RECEIPT_INDEX_KIND,
+        "flows": flows,
+        "count": len(flows),
+        "live_verified": False,
+    }
+
+
+def export_trait_lab_autonomous_flow_workflow_receipt_index(
+    store: MemoryStore,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Portable flow-receipt index from persisted flow receipts."""
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    rows = _collect_flow_receipts(store)[:limit]
+    flows: list[dict[str, Any]] = []
+    for receipt in rows:
+        flow = str(receipt.get("flow_sha256") or "").strip().lower()
+        bind = str(receipt.get("bind_sha256") or "").strip().lower()
+        auto = str(receipt.get("autonomous_sha256") or "").strip().lower()
+        chain = str(receipt.get("chain_index_sha256") or "").strip().lower()
+        if len(flow) != 64 or len(bind) != 64 or len(auto) != 64 or len(chain) != 64:
+            continue
+        flows.append(
+            _flow_index_public_row(
+                {
+                    "flow_sha256": flow,
+                    "bind_sha256": bind,
+                    "chain_index_sha256": chain,
+                    "autonomous_sha256": auto,
+                    "status": str(receipt.get("status") or "dry_run"),
+                }
+            )
+        )
+    flows.sort(key=lambda row: str(row["flow_sha256"]))
+    body = _flow_index_body(flows)
+    refuse_trait_lab_autonomous_flow_workflow_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "flow_receipt_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "exported_at": _utc(),
+        "live_verified": False,
+    }
+
+
+def verify_trait_lab_autonomous_flow_workflow_receipt_index(index: Any) -> dict[str, Any]:
+    """Rematch flow_receipt_index_sha256 over the stable index body."""
+    if not isinstance(index, dict):
+        raise MemoryLayerError("invalid_flow", "flow receipt index must be an object")
+    if index.get("kind") != _FLOW_RECEIPT_INDEX_KIND:
+        raise MemoryLayerError("invalid_flow", "kind must be trait-lab-autonomous-flow-workflow-receipt-index")
+    refuse_trait_lab_autonomous_flow_workflow_live(index)
+    if not isinstance(index.get("flows"), list):
+        raise MemoryLayerError("invalid_flow", "flows must be a list")
+    sha = str(index.get("flow_receipt_index_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_index_hash", "verify requires flow_receipt_index_sha256")
+    public: list[dict[str, Any]] = []
+    for row in index["flows"]:
+        if not isinstance(row, dict):
+            raise MemoryLayerError("invalid_flow", "every flow row must be an object")
+        flow = str(row.get("flow_sha256") or "").strip().lower()
+        bind = str(row.get("bind_sha256") or "").strip().lower()
+        chain = str(row.get("chain_index_sha256") or "").strip().lower()
+        auto = str(row.get("autonomous_sha256") or "").strip().lower()
+        status = str(row.get("status") or "")
+        if len(flow) != 64 or len(bind) != 64 or len(chain) != 64 or len(auto) != 64:
+            raise MemoryLayerError("invalid_flow", "flow row requires 64-char hashes")
+        if status not in {"dry_run", "ready", "blocked", "planned"}:
+            raise MemoryLayerError("invalid_status", f"unknown status {status or '<empty>'}")
+        public.append(
+            _flow_index_public_row(
+                {
+                    "flow_sha256": flow,
+                    "bind_sha256": bind,
+                    "chain_index_sha256": chain,
+                    "autonomous_sha256": auto,
+                    "status": status,
+                }
+            )
+        )
+    public.sort(key=lambda row: str(row["flow_sha256"]))
+    body = _flow_index_body(public)
+    got = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if got != sha:
+        raise MemoryLayerError("flow_index_mismatch", f"index hashed {got[:12]} not {sha[:12]}")
+    return {**body, "matched": True, "flow_receipt_index_sha256": sha, "live_verified": False}
+
+
+def list_trait_lab_autonomous_flow_workflow_receipt_index_flows(index: Any) -> list[dict[str, Any]]:
+    """Flow rows from a verified flow-receipt index."""
+    verified = verify_trait_lab_autonomous_flow_workflow_receipt_index(index)
+    return list(verified["flows"])
+
+
+def _flow_receipt_index_fact_id(flow_receipt_index_sha256: str) -> str:
+    return f"trait-lab-auto-flow-index-{flow_receipt_index_sha256[:16]}"
+
+
+def persist_trait_lab_autonomous_flow_workflow_receipt_index(
+    store: MemoryStore,
+    index: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """Persist a signed flow-receipt index snapshot."""
+    require_trait_lab_autonomous_flow_workflow_provenance(agent_id=agent_id, task_id=task_id)
+    verified = verify_trait_lab_autonomous_flow_workflow_receipt_index(index)
+    sha = str(verified["flow_receipt_index_sha256"])
+    write_verified(
+        store,
+        {
+            "id": _flow_receipt_index_fact_id(sha),
+            "fact": f"autonomous flow receipt index {sha}",
+            "how": f"persist_trait_lab_autonomous_flow_workflow_receipt_index {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": _FLOW_RECEIPT_INDEX_KIND,
+            "count": verified["count"],
+            "flow_receipt_index_sha256": sha,
+        },
+    )
+    record_task_step(
+        store,
+        task_id,
+        "autonomous-flow-workflow-receipt-index",
+        {"flow_receipt_index_sha256": sha},
+        agent_id=agent_id,
+    )
+    return {
+        "persisted": True,
+        "flow_receipt_index_sha256": sha,
+        "fact_id": _flow_receipt_index_fact_id(sha),
+        "live_verified": False,
+    }
+
+
 def list_trait_lab_autonomous_flow_workflow_receipts_by_agent(
     store: MemoryStore,
     agent_id: str,
