@@ -2,10 +2,19 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #214 merged — lifecycle + Trait Lab operator session)
+>
+> **GitHub forge #214 merged** at `110c7b5` — durable lifecycle harden H01–H25. Not LIVE VERIFIED.
+> **Trait Lab operator session (lane #214) merged** on `cursor/memory-trait-lab-operator-session-25-723f`. Prep-gated rematch dry-run + session receipt. Not LIVE VERIFIED.
+> **GitHub #213 merged** at `257aca3` — local env prep E01–E25.
+> **Test gate:** session 9 OK; memory 213 OK; engine harden 61 OK (274 combined).
+> Product-label #214 (`77eb188` seed difficulty) stays on main as an earlier memory-lane merge. Do not reopen it.
+> **Next:** GitHub **#215** autonomous workflow major (one visible draft).
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #212 merged; GitHub #213 local env prep draft)
 >
 > **GitHub #212 merged** at `581fab3` — bind workflow W01–W25. Not LIVE VERIFIED.
-> **GitHub #213 draft:** 25-operator local environment prep on `cursor/memory-trait-lab-local-env-prep-25-723f`. **Not merged.**
+> **GitHub #213 local env prep** merged at `257aca3`. **Not LIVE VERIFIED.**
 > **Test gate:** prep file 8 OK; memory suite 204 OK; engine harden 61 OK (265 combined).
 > **AGENTS.md:** GitHub #202–#213 Trait Lab rows recorded; standing rule §4.3 Always update MD.
 > Product-label #213 (`690979c` seed grade) stays on main as an earlier memory-lane merge. Do not reopen it.
