@@ -2,12 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #228 merged; #229 integration major draft)
+>
+> **GitHub #228 merged** at `449beda` — PR https://github.com/Kudbee-Studio/think-box-ai/pull/228
+> **GitHub #229 draft:** K01–K25 on `cursor/memory-trait-lab-autonomous-integration-major-723f`.
+> **Test gate:** integration-major 4 OK; memory 267 OK.
+> **App CI:** `open_trait_lab_autonomous_integration_major(mode="gate"|"gate_regression")` bundles gate + optional regression.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #227 merged; #228 app regression draft)
 >
-> **GitHub #227 merged** at `6c3dd6c` — PR https://github.com/Kudbee-Studio/think-box-ai/pull/227
-> **GitHub #228 draft:** J01–J25 on `cursor/memory-trait-lab-autonomous-app-regression-723f`.
-> **Test gate:** app-regression 3 OK; memory 263 OK.
-> **Regression CI:** capture baseline with `open_trait_lab_autonomous_app_regression(...)` then compare with `baseline=captured["baseline"]`.
+> **Superseded:** app regression shipped as **#228** (`449beda`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #226 merged; #227 autonomous app gate draft)
 >
