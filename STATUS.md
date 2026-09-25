@@ -1,3 +1,11 @@
+## PR #208 — Trait Lab run compare (draft)
+
+- **Gate:** `memory-trait-lab-compare`
+- **Scope:** List stored Trait Lab proofs; compare two hashes
+- **Write policy:** Same-run and missing proofs fail closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare suites → **47 OK**
+
 ## PR #207 — Trait Lab replay verify (merged)
 
 - **Merge:** `d989255` — replay rematch against stored proof
