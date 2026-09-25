@@ -2689,4 +2689,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** autonomous **11 OK**; memory **224 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #218 merged (Trait Lab autonomous A16–A25)
+
+- **MERGE:** `897c06b` on `main`.
+- **TEST_VERIFIED:** autonomous **11 OK**; memory **224 OK**.
+
+### 2026-09-25 — Draft GitHub PR #219 Trait Lab autonomous receipt chain
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-follow-723f`
+- **DISCOVERY:** After #218, operators need a rematchable index tying prep, session, and autonomous receipt SHA256 triples.
+- **IMPLEMENTATION:** R01–R25 in `thinkbox/autonomous_receipt_chain.py`.
+- **TEST_VERIFIED:** chain **4 OK**; memory suite **228 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---
