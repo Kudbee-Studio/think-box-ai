@@ -2475,4 +2475,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #205 catalog pin merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-723f` → `main` at **`8367f5a`**.
+- **TEST_VERIFIED:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#206** as a visible 25-operator pin draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #206 Trait Lab catalog pin operators (25 features)
+
+- **DISCOVERY:** #205 pins a rematched catalog, but operators could not page, filter, export, or rematch a pin index.
+- **IMPLEMENTATION:** P01–P25 on pin facts: list/count/page, agent/task filters, count floor/ceiling/band, digest/etag, export/verify/import pin index, malformed report, best pin, pin-index diff, public row, refuse live, pack membership, get-by-fact-id, pin-from-store, has-count, count-for-pack, ids-for-agent. Import writes pin facts only. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** pin-ops tests on branch. Memory suite + engine harden still required before merge.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---
