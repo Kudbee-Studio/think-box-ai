@@ -64,6 +64,7 @@ class ThinkBoxEngine:
         self._experiment_analytics: Any = None
         self._opportunity_manager: Any = None
         self._loop_tracer: Any = None
+        self._auto_tuner: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -114,6 +115,15 @@ class ThinkBoxEngine:
         With no tracer injected, behavior is identical to legacy.
         """
         self._loop_tracer = tracer
+
+    def set_auto_tuner(self, tuner: Any | None) -> None:
+        """Inject an EngineAutoTuner for self-tuning (DI).
+
+        The auto-tuner reviews LoopTracer measurements and adjusts engine
+        config (max_retries, worker counts) based on observed performance.
+        With no tuner injected, behavior is identical to legacy.
+        """
+        self._auto_tuner = tuner
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -342,6 +352,7 @@ class ThinkBoxEngine:
             except Exception:
                 pass
         self._record_execution_feedback(summary, goal_run_id, iteration_id)
+        self._auto_tune()
         self._running = False
         return summary
 
@@ -502,3 +513,20 @@ class ThinkBoxEngine:
             runner.run_cycle("", baseline_index, components)
 
         self.on_run_complete(_on_complete)
+
+    def _auto_tune(self) -> None:
+        """Review LoopTracer measurements and adjust engine config (Self-Tuning).
+
+        When both LoopTracer and EngineAutoTuner are injected, executes
+        tuning decisions after each goal. No-op without them.
+        Fail-closed: errors are swallowed.
+        """
+        if self._auto_tuner is None or self._loop_tracer is None:
+            return
+        try:
+            decisions = self._auto_tuner.review_and_tune(self)
+            if decisions:
+                self.emit("root", TaskState.SUCCESS, "Auto-tuning applied",
+                          tuning_decisions=len(decisions))
+        except Exception:
+            pass
