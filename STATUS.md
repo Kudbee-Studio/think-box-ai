@@ -1,10 +1,16 @@
-## Draft — GitHub PR #229 Trait Lab autonomous integration major (not merged)
+## Draft — GitHub PR #230 Trait Lab autonomous worker executor (in progress)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-integration-major-723f`
-- **Gate:** `memory-trait-lab-autonomous-integration-major-25` (K01–K25)
-- **Scope:** App gate + regression layers; `open_integration_major` for CI manifests
-- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** integration-major **4 OK**; memory suite **267 OK** — **not merged**
+- **Branch:** `feat/trait-lab-autonomous-worker-executor-pr230`
+- **Gate:** `memory-trait-lab-autonomous-worker-executor-25` (L01–L25)
+- **Scope:** Governance layer composing CloudExecutionWorker + K01–K25 Integration Major gate
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED only — `live_verified: false`
+- **Verify:** worker-executor **4 OK**; memory **267 OK**
+
+## GitHub PR #229 — Trait Lab autonomous integration major (MERGED)
+
+- **Merge:** `2a2fa3e` — K01–K25 integration major
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/229
+- **Verify:** integration-major **4 OK**; memory **267 OK**
 
 ## GitHub PR #228 — Trait Lab autonomous app regression (merged)
 

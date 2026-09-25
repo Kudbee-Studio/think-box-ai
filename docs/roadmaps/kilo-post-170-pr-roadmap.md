@@ -96,7 +96,8 @@
 | Trait Lab autonomous stack suite | **GitHub #226** (merged `67b0304`) — V01–V25 dry+run+full CI suite + suite artifact; not LIVE VERIFIED |
 | Trait Lab autonomous app gate | **GitHub #227** (merged `6c3dd6c`) — G01–G25 stack_suite gate for application CI; not LIVE VERIFIED |
 | Trait Lab autonomous app regression | **GitHub #228** (merged `449beda`) — J01–J25 baseline vs candidate gate compare; not LIVE VERIFIED |
-| Trait Lab autonomous integration major | **GitHub #229 draft** — K01–K25 gate + regression CI manifest; not LIVE VERIFIED |
+| Trait Lab autonomous integration major | **GitHub #229** (merged `2a2fa3e`) — K01–K25 gate + regression CI manifest; not LIVE VERIFIED |
+| Trait Lab Autonomous Worker Executor | **GitHub #230** (founder-directed, decision recorded) — governance layer composing CloudExecutionWorker + K01–K25 gate; namespace/architecture/layer pending |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
@@ -119,7 +120,12 @@
 | **Slot 11 (→ GH #182)** | Receipt-chain deepen (~25 hermetic features) | **Merged** after #181; gate `receipt-chain-deepen` | ~20–30 commits; `thinkbox/receipt_chain_deepen` | Kudbee SDK/CLI lanes; combined umbrellas; live Mercury/Box | Scope creep beyond receipt-chain theme |
 | **Slot 12 (→ GH #183)** | Think Job hermetic e2e deepen (~25 hermetic features) | **Merged** after #182; gate `think-job-hermetic-e2e` | ~20–30 commits; `thinkbox/think_job_e2e_deepen` | SDK/CLI/receipt-chain lanes; combined umbrellas; live Mercury/Box | Scope creep beyond Think Job theme |
 | **Slot 13 (→ GH #184)** | Think Job POST /run contract deepen (~25 hermetic features) | **In flight (draft)** after #183; gate `think-job-post-run-deepen` | ~20–30 commits; `thinkbox/think_job_post_run_deepen` | SDK/CLI/receipt-chain; live Mercury/Box | Scope creep beyond POST /run theme |
-| **Slot 14+** | Founder-directed | Next implementation PR after #184 merge is **not** fixed in this doc | — | Auto-sequencing without founder sign-off | — |
+| **Slot 14+** | Founder-directed | **PR230 implementation in progress** — Trait Lab Autonomous Worker Executor governance layer (L01–L25); hermetic implementation complete on branch | — | Auto-sequencing without founder sign-off | — |
+| **Decisions resolved for PR230 implementation:** | | | | | |
+| 1. Composition pattern | **A — Wrap/compose `CloudExecutionWorker`** | — | — | — | — |
+| 2. Architecture layer | **A — Layer 4 (orchestration)** | — | — | — | — |
+| 3. Feature namespace | **A — L01–L25** | — | — | — | — |
+| 4. Documentation sync | **Done** — CONTINUITY.md/STATUS.md updated for #229; ADR #025 Accepted | — | — | — | — |
 | **Slot 11 (optional)** | Nightly / manual `spine --e2e` workflow | Keeps deep control-plane e2e without blocking every PR | ~4–8 commits; new workflow `workflow_dispatch` + schedule | Making `--e2e` default on PR CI | Runner cost if scheduled too often |
 | **Slot 11 (optional)** | Founder optional: bounded live-smoke **runbook + operator dry-run** only | When Box URL/token/LIVE_ACK exist; documents #153 path | ~6–10 commits; runbook + hermetic operator tests | Executing live proof in CI; `live_verified: true` in repo | Credential leakage in docs; cost |
 
