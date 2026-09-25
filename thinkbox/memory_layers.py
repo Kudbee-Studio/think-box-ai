@@ -2049,3 +2049,164 @@ def public_trait_lab_seed_pack_row(row: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(row, dict) or not row.get("pack_sha256"):
         raise MemoryLayerError("invalid_pack", "public row requires a pack")
     return _catalog_public_row(row)
+
+
+_TRAIT_LAB_CATALOG_PIN_KIND = "trait-lab-seed-pack-catalog-pin"
+
+
+def _require_catalog_sha(catalog_sha256: Any) -> str:
+    sha = str(catalog_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_catalog_hash", "catalog pin requires catalog_sha256")
+    return sha
+
+
+def _catalog_pin_fact_id(catalog_sha256: str) -> str:
+    return f"trait-lab-catalog-{catalog_sha256[:16]}"
+
+
+def _catalog_pin_row(entry: MemoryEntry) -> dict[str, Any] | None:
+    if not entry.key.startswith("verified:trait-lab-catalog-"):
+        return None
+    if entry.value.get("live_verified") is True:
+        return None
+    sha = str(entry.value.get("source") or entry.metadata.get("source") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        return None
+    count = entry.value.get("count")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        return None
+    raw_ids = entry.value.get("ids")
+    if not isinstance(raw_ids, list):
+        return None
+    ids = [str(item).strip().lower() for item in raw_ids]
+    if any(len(item) != 64 or any(ch not in "0123456789abcdef" for ch in item) for item in ids):
+        return None
+    return {
+        "catalog_sha256": sha,
+        "fact_id": _catalog_pin_fact_id(sha),
+        "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+        "count": count,
+        "ids": ids,
+        "agent_id": entry.agent_id,
+        "task_id": entry.task_id,
+        "live_verified": False,
+    }
+
+
+def _collect_trait_lab_catalog_pins(store: MemoryStore, *, scan: int = 200) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-catalog-",
+        limit=scan,
+    ):
+        row = _catalog_pin_row(entry)
+        if row is None or row["catalog_sha256"] in seen:
+            continue
+        seen.add(row["catalog_sha256"])
+        found.append(row)
+    found.sort(key=lambda row: str(row["catalog_sha256"]))
+    return found
+
+
+def pin_trait_lab_seed_pack_catalog(
+    store: MemoryStore,
+    catalog: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """Persist a rematched catalog snapshot. Does not apply runs."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "catalog pin requires agent_id and task_id")
+    verified = verify_trait_lab_seed_pack_catalog(catalog)
+    sha = str(verified["catalog_sha256"])
+    ids = [str(row["pack_sha256"]) for row in verified["packs"]]
+    write_verified(
+        store,
+        {
+            "id": _catalog_pin_fact_id(sha),
+            "fact": f"catalog {sha} count={verified['count']}",
+            "how": f"pin_trait_lab_seed_pack_catalog {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+            "count": verified["count"],
+            "ids": ids,
+        },
+    )
+    record_task_step(
+        store,
+        task_id,
+        "catalog-pin",
+        {"catalog_sha256": sha, "count": verified["count"]},
+        agent_id=agent_id,
+    )
+    return {
+        "pinned": True,
+        "catalog_sha256": sha,
+        "fact_id": _catalog_pin_fact_id(sha),
+        "count": verified["count"],
+        "ids": ids,
+        "live_verified": False,
+    }
+
+
+def get_trait_lab_catalog_pin(store: MemoryStore, catalog_sha256: str) -> dict[str, Any]:
+    """Select one pinned catalog by catalog_sha256. Does not execute packs."""
+    sha = _require_catalog_sha(catalog_sha256)
+    entry = store.get(f"verified:{_catalog_pin_fact_id(sha)}")
+    if entry is None:
+        raise MemoryLayerError("missing_pin", f"no pinned catalog {sha[:12]}")
+    row = _catalog_pin_row(entry)
+    if row is None:
+        raise MemoryLayerError("invalid_pin", f"pinned catalog {sha[:12]} is malformed")
+    return {**row, "live_verified": False}
+
+
+def has_trait_lab_catalog_pin(store: MemoryStore, catalog_sha256: str) -> bool:
+    """True when a pin fact exists for catalog_sha256."""
+    sha = _require_catalog_sha(catalog_sha256)
+    return any(row["catalog_sha256"] == sha for row in _collect_trait_lab_catalog_pins(store))
+
+
+def list_trait_lab_catalog_pins(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """Index pinned catalog snapshots. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    rows = _collect_trait_lab_catalog_pins(store, scan=max(limit * 4, 200))
+    public = [
+        {
+            "catalog_sha256": row["catalog_sha256"],
+            "fact_id": row["fact_id"],
+            "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+            "count": row["count"],
+            "ids": row["ids"],
+            "live_verified": False,
+        }
+        for row in rows[:limit]
+    ]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+        "pins": public,
+        "count": len(rows),
+        "live_verified": False,
+    }
+
+
+def unpin_trait_lab_catalog_pin(store: MemoryStore, catalog_sha256: str) -> dict[str, Any]:
+    """Drop the pin fact only. Pack facts and run rows stay."""
+    row = get_trait_lab_catalog_pin(store, catalog_sha256)
+    key = f"verified:{row['fact_id']}"
+    if not store.delete(key):
+        raise MemoryLayerError("missing_pin", f"no pinned catalog {row['catalog_sha256'][:12]}")
+    return {
+        "unpinned": True,
+        "catalog_sha256": row["catalog_sha256"],
+        "fact_id": row["fact_id"],
+        "live_verified": False,
+    }

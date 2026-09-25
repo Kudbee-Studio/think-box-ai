@@ -1,11 +1,20 @@
-## Draft — GitHub PR #204 Trait Lab catalog compose (not merged)
+## Draft — GitHub PR #205 Trait Lab catalog pin (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-compose-723f`
-- **Gate:** `memory-trait-lab-catalog-compose`
-- **Scope:** Merge / intersect / subtract rematched catalog snapshots
-- **Write policy:** Compose is hash-only; no run writes; same catalog, live claim, pack conflict, and invalid catalog fail-closed
+- **Branch:** `cursor/memory-trait-lab-catalog-pin-723f`
+- **Gate:** `memory-trait-lab-catalog-pin`
+- **Scope:** Pin / get / list / unpin rematched catalog snapshots
+- **Write policy:** Pin fact only; unpin does not delete pack facts or run rows; live claim, missing pin, and missing provenance fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined) — **not merged**
+- **Verify:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined) — **not merged**
+
+## GitHub PR #204 — Trait Lab catalog compose (merged)
+
+- **Merge:** `388fde8` — merge / intersect / subtract rematched catalogs
+- **Gate:** `memory-trait-lab-catalog-compose`
+- **Scope:** Compose two rematched catalog snapshots
+- **Write policy:** Hash-only compose; no run writes; same catalog, live claim, pack conflict, and invalid catalog fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined)
 
 ## GitHub PR #203 — Trait Lab catalog operator pack (merged)
 

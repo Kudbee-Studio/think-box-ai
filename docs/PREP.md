@@ -2,10 +2,17 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #204 merged; GitHub #205 catalog pin draft)
+>
+> **GitHub #204 merged** at `388fde8` — catalog compose (merge / intersect / subtract). Not LIVE VERIFIED.
+> **GitHub #205 draft:** catalog pin (pin / get / list / unpin) on `cursor/memory-trait-lab-catalog-pin-723f`. **Not merged.**
+> **Test gate:** pin 5 OK; memory suite 134 OK; engine harden 61 OK (195 combined).
+> Product-label #205 (`01f46c6` org versioning) stays on main as an earlier memory-lane merge.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #203 merged; GitHub #204 catalog compose draft)
 >
 > **GitHub #203 merged** at `595dbb5` — 25 Trait Lab catalog operators. Not LIVE VERIFIED.
-> **GitHub #204 draft:** catalog compose (merge / intersect / subtract) on `cursor/memory-trait-lab-catalog-compose-723f`. **Not merged.**
+> **GitHub #204 catalog compose** merged at `388fde8`. **Not LIVE VERIFIED.**
 > **Test gate:** compose 6 OK; memory suite 129 OK; engine harden 61 OK (190 combined).
 > Product-label #203 (`3976930` ingest) and product-label #204 (`0b3fc87` query/retention) stay on main as earlier memory-lane merges.
 > **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
