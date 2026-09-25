@@ -685,7 +685,8 @@ def record_trait_lab_run(
             "id": f"trait-lab-{sha[:16]}",
             "fact": (
                 f"seed {proof.get('seed')} xp={proof.get('xp')} "
-                f"grade={proof.get('grade') or '-'}"
+                f"grade={proof.get('grade') or '-'} "
+                f"difficulty={proof.get('difficulty') or '-'}"
             ),
             "how": f"proof_scorecard {sha}",
             "confidence": 1.0,
@@ -693,6 +694,7 @@ def record_trait_lab_run(
             "agent_id": agent_id,
             "task_id": task_id,
             "seed": proof.get("seed"),
+            "difficulty": proof.get("difficulty") or "",
         },
     )
     record_task_step(
@@ -796,18 +798,24 @@ def verify_trait_lab_replay(
 
 _XP_IN_FACT = re.compile(r"xp=(-?\d+)")
 _GRADE_IN_FACT = re.compile(r"grade=([A-Za-z+\-]+)")
+_DIFFICULTY_IN_FACT = re.compile(r"difficulty=([A-Za-z]+)")
 
 
 def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
     fact = str(entry.value.get("fact") or "")
     xp_match = _XP_IN_FACT.search(fact)
     grade_match = _GRADE_IN_FACT.search(fact)
+    difficulty = str(entry.value.get("difficulty") or "")
+    if not difficulty:
+        difficulty_match = _DIFFICULTY_IN_FACT.search(fact)
+        difficulty = difficulty_match.group(1) if difficulty_match else ""
     return {
         "proof_sha256": str(entry.value.get("source") or entry.metadata.get("source") or ""),
         "seed": entry.value.get("seed"),
         "fact": fact,
         "xp": int(xp_match.group(1)) if xp_match else None,
         "grade": grade_match.group(1) if grade_match else "",
+        "difficulty": difficulty,
         "agent_id": entry.agent_id,
         "task_id": entry.task_id,
         "live_verified": False,
@@ -1002,6 +1010,43 @@ def trait_lab_seed_history_by_grade(
     return {
         "seed": history["seed"],
         "grade": wanted,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
+
+
+_TRAIT_LAB_DIFFICULTIES = frozenset({"survey", "lab", "thesis"})
+
+
+def trait_lab_seed_history_by_difficulty(
+    store: MemoryStore,
+    seed: int,
+    difficulty: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows filtered by difficulty tier. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    wanted = str(difficulty or "").strip().lower()
+    if wanted not in _TRAIT_LAB_DIFFICULTIES:
+        raise MemoryLayerError("invalid_difficulty", "difficulty must be survey, lab, or thesis")
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [
+        row
+        for row in history["runs"]
+        if str(row.get("difficulty") or "").lower() == wanted
+    ]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_difficulty",
+            f"no stored Trait Lab run for seed {history['seed']} difficulty {wanted}",
+        )
+    return {
+        "seed": history["seed"],
+        "difficulty": wanted,
         "runs": runs[:limit],
         "count": len(runs),
         "best": runs[0],
