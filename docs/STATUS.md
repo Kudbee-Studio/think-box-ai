@@ -1,16 +1,24 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #219 Trait Lab autonomous receipt chain (OPEN)
+## Draft — GitHub PR #221 Trait Lab autonomous receipt chain compose (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-receipt-chain-compose-25` |
+| **Scope** | M01–M25 merge/intersect/subtract/xor + export/persist snapshot |
+| **Write policy** | Compose + chain index facts only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-chain-compose-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | compose **4 OK**; memory suite **232 OK** |
+
+## GitHub PR #220 — Trait Lab autonomous receipt chain (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-receipt-chain-25` |
-| **Scope** | R01–R25 signed chain rows + index export/verify/green-chain/persist |
-| **Write policy** | Chain index fact persist only |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-follow-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | chain **4 OK**; memory suite **228 OK** |
+| **Merge** | `9d57050` |
+| **Verify** | chain **4 OK**; memory **228 OK** |
 
 ## GitHub PR #218 — Trait Lab autonomous workflow A16–A25 (MERGED)
 

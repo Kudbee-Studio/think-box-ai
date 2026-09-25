@@ -640,9 +640,10 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Trait Lab operator session (S01–S25) | **#215** (merged) | `thinkbox/operator_session.py` — prep-gated rematch dry-run + session receipt |
 | Trait Lab autonomous workflow (A01–A15) | **#217** (merged) | `thinkbox/autonomous_workflow.py` — plan/sign + receipt gates; merge `ef6950f` |
 | Trait Lab autonomous workflow (A16–A25) | **#218** (merged) | same module — dry-run chain, persist autonomous receipt, `run_autonomous`; merge `897c06b` |
-| Trait Lab autonomous receipt chain (R01–R25) | **#219** (draft) | `thinkbox/autonomous_receipt_chain.py` — prep/session/autonomous triple index; not LIVE VERIFIED |
+| Trait Lab autonomous receipt chain (R01–R25) | **#220** (merged) | `thinkbox/autonomous_receipt_chain.py` — triple index; merge `9d57050` |
+| Trait Lab autonomous receipt chain compose (M01–M25) | **#221** (draft) | `thinkbox/autonomous_receipt_chain_compose.py` — merge/intersect/subtract/xor; not LIVE VERIFIED |
 
-Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#219** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors. **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
+Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#221** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors. **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 
 **Do not claim** LIVE VERIFIED on any Trait Lab / memory path. Four-state cap: **CODE COMPLETE / TEST VERIFIED** only.
 
