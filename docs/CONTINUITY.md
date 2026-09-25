@@ -2257,4 +2257,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #213. At most one open PR.
 
+### 2026-09-25 — PR #213 Trait Lab seed grade filter
+
+- **DISCOVERY:** Seed history returned every stored run for a seed. There was no letter-grade filter.
+- **IMPLEMENTATION:** `trait_lab_seed_history_by_grade` keeps history rows whose grade is S/A/B/C/D. Fail-closed on missing seed, missing grade, invalid grade, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **65 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-grade-723f` into `main`.
+
 ---

@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #213 — Trait Lab seed grade filter (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-grade` |
+| **Scope** | `trait_lab_seed_history_by_grade` — seed history filtered by S/A/B/C/D |
+| **Write policy** | Missing seed/grade and invalid grade fail-closed; not a live ranking |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab suites → **65 OK** |
+
 ## PR #212 — Trait Lab seed index (MERGED)
 
 | Field | Value |
