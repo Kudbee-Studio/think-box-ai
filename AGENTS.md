@@ -647,9 +647,10 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Trait Lab autonomous flow workflow compose (P01–P25) | **#224** (merged) | `thinkbox/autonomous_flow_workflow_compose.py` — merge/intersect/subtract/xor flow-receipt indexes; merge `3eb4d03` |
 | Trait Lab autonomous stack harness (U01–U25) | **#225** (merged) | `thinkbox/autonomous_stack_harness.py` — dry/run/full smoke + app test bundle; merge `bc8ca28` |
 | Trait Lab autonomous stack suite (V01–V25) | **#226** (merged) | `thinkbox/autonomous_stack_suite.py` — dry+run+full CI suite + suite artifact; merge `67b0304` |
-| Trait Lab autonomous app gate (G01–G25) | **#227** (draft) | `thinkbox/autonomous_app_gate.py` — stack_suite gate + CI bundle; not LIVE VERIFIED |
+| Trait Lab autonomous app gate (G01–G25) | **#227** (merged) | `thinkbox/autonomous_app_gate.py` — stack_suite gate + CI bundle; merge `6c3dd6c` |
+| Trait Lab autonomous app regression (J01–J25) | **#228** (draft) | `thinkbox/autonomous_app_regression.py` — baseline vs candidate gate compare; not LIVE VERIFIED |
 
-Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#227** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#227** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
+Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#228** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#228** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 
 **Do not claim** LIVE VERIFIED on any Trait Lab / memory path. Four-state cap: **CODE COMPLETE / TEST VERIFIED** only.
 
