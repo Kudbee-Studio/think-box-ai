@@ -1,11 +1,11 @@
-## PR #223 — Trait Lab seed pack diff (open)
+## PR #223 — Trait Lab seed pack diff (merged)
 
-- **Branch:** `cursor/memory-trait-lab-seed-pack-diff-723f`
+- **Merge:** `29e4ff9` — compare two rematched packs for one seed
 - **Gate:** `memory-trait-lab-seed-pack-diff`
 - **Scope:** Compare two rematched packs for one seed
 - **Write policy:** Rematch both packs; seed mismatch, same pack, live claim, and invalid pack fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** memory + trait-lab suites pending merge
+- **Verify:** memory + trait-lab suites → **95 OK** (156 with engine harden)
 
 ## PR #222 — Trait Lab seed pack apply (merged)
 

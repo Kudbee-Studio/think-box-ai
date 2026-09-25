@@ -25,8 +25,9 @@
 > **#220 merged** at `d66cc4a` — portable seed pack export. `live_verified` false.
 > **#221 merged** at `a05b31d` — seed pack verify/import. `live_verified` false.
 > **#222 merged** at `2cfa121` — seed pack apply into a destination store. `live_verified` false.
-> **#223 open:** seed pack diff on `cursor/memory-trait-lab-seed-pack-diff-723f`. `live_verified` false.
-> **Test gate:** memory + trait-lab suites pending merge.
+> **#223 merged** at `29e4ff9` — seed pack diff for one seed. `live_verified` false.
+> **#224 next:** wait for 1800s cadence timer. At most one open PR.
+> **Test gate:** memory + trait-lab suites → 95 OK (156 with engine harden).
 
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >
