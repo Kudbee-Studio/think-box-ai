@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #214 — Trait Lab seed difficulty filter (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-difficulty` |
+| **Scope** | `trait_lab_seed_history_by_difficulty` — seed history filtered by survey/lab/thesis |
+| **Write policy** | Missing seed/difficulty and invalid difficulty fail-closed; not a live ranking |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab suites → **68 OK** |
+
 ## PR #213 — Trait Lab seed grade filter (MERGED)
 
 | Field | Value |

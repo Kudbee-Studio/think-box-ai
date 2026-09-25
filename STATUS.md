@@ -1,3 +1,11 @@
+## PR #214 — Trait Lab seed difficulty filter (draft)
+
+- **Gate:** `memory-trait-lab-seed-difficulty`
+- **Scope:** Seed history rows filtered by difficulty tier
+- **Write policy:** Missing seed/difficulty and invalid difficulty fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **68 OK**
+
 ## PR #213 — Trait Lab seed grade filter (merged)
 
 - **Merge:** `690979c` — seed history rows filtered by letter grade
