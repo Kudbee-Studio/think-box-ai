@@ -269,12 +269,14 @@ class TestTraitGame(unittest.TestCase):
         self.assertEqual(card["proof_sha256"], proof_scorecard(state)["proof_sha256"])
         self.assertEqual(len(card["proof_sha256"]), 64)
 
-    def test_update_catalog_has_25(self) -> None:
-        self.assertEqual(len(UPDATES), 25)
+    def test_update_catalog_has_50(self) -> None:
+        self.assertEqual(len(UPDATES), 50)
         self.assertEqual(updates(self.rules), UPDATES)
         text = (ROOT / "public/nfts/trait_game.js").read_text(encoding="utf-8")
         self.assertIn("1664525", text)
         self.assertIn("trait-lab", text)
+        self.assertIn("focus_duration", text)
+        self.assertIn("invalid_replay", text)
 
 
 if __name__ == "__main__":

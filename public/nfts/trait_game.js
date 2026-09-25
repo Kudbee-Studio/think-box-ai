@@ -77,14 +77,26 @@
   function bagWeights(rules, state, risk) {
     var focus = state.focus || "";
     var multiplier = rules.focus_multiplier;
+    var locked = state.locked || [];
+    var pin = state.pin || null;
+    var pity = (rules.pity_step || 0) * (state.turn || 0);
     var items = [];
     traits(rules).forEach(function (row) {
+      if (locked.indexOf(row.collection) !== -1) return;
       if (risk && row.rarity === "common") return;
       var weight = rules.weights[row.rarity];
       if (focus && row.collection === focus) weight *= multiplier;
+      if (!owned(state, row.collection, row.name)) weight += pity;
+      if (pin && pin.collection === row.collection && pin.trait === row.name) {
+        weight *= (rules.pin_multiplier || 1);
+      }
       items.push([row, weight]);
     });
     return items;
+  }
+
+  function peek(rules, state, risk) {
+    return pick(rules, cloneState(state), !!risk);
   }
 
   function pick(rules, state, risk) {
@@ -104,14 +116,24 @@
     return items[items.length - 1][0];
   }
 
-  function comboMultiplier(rules, combo) {
-    var capped = Math.min(Math.max(combo, 0), rules.combo_cap);
+  function inLastStand(rules, state) {
+    return state.turns_max - state.turn <= (rules.last_stand_turns || 0);
+  }
+
+  function comboMultiplier(rules, state, combo) {
+    var cap = rules.combo_cap + (inLastStand(rules, state) ? (rules.last_stand_combo || 0) : 0);
+    var capped = Math.min(Math.max(combo, 0), cap);
     return 1 + rules.combo_step * capped;
   }
 
   function refreshRival(rules, state) {
     var pace = rules.difficulties[state.difficulty].rival_per_turn;
-    state.rival_xp = state.turn * pace;
+    var lateN = rules.last_stand_turns || 0;
+    var lateMult = rules.rival_last_mult || 1;
+    var normalUntil = Math.max(0, state.turns_max - lateN);
+    var normal = Math.min(state.turn, normalUntil);
+    var late = Math.max(0, state.turn - normalUntil);
+    state.rival_xp = normal * pace + late * pace * lateMult;
   }
 
   function gradeOf(state) {
@@ -141,6 +163,9 @@
     if (state.difficulty === "thesis" && state.over && (gradeOf(state) === "S" || gradeOf(state) === "A")) {
       addAchievement(state, "thesis");
     }
+    if (state.scout) addAchievement(state, "lens");
+    if (state.daily && state.over) addAchievement(state, "daily");
+    if (state.defended) addAchievement(state, "defense");
   }
 
   function maybeClose(rules, state) {
@@ -194,7 +219,7 @@
       if (!state.inventory[collection]) state.inventory[collection] = [];
       state.inventory[collection].push(name);
       state.combo = comboBefore + 1;
-      var gained = Math.trunc(rules.xp_by_rarity[row.rarity] * comboMultiplier(rules, state.combo));
+      var gained = Math.trunc(rules.xp_by_rarity[row.rarity] * comboMultiplier(rules, state, state.combo));
       if (state.shield_armed) {
         gained = Math.trunc(gained * rules.shield_multiplier);
         state.shield_armed = false;
@@ -212,6 +237,12 @@
         event.xp_delta += bonus;
         event.set_completed = true;
         state.completed.push(collection);
+        if (inLastStand(rules, state) || state.turns_max - state.turn <= (rules.late_set_turns || 0)) {
+          var late = rules.late_set_bonus || 0;
+          state.xp += late;
+          event.xp_delta += late;
+          event.late_set = true;
+        }
         if (state.combo >= rules.jackpot_combo) {
           state.xp += rules.jackpot_xp;
           event.xp_delta += rules.jackpot_xp;
@@ -232,7 +263,8 @@
     return event;
   }
 
-  function newRun(rules, seed, difficulty) {
+  function newRun(rules, seed, difficulty, extras) {
+    extras = extras || {};
     difficulty = difficulty || "lab";
     if (!rules.difficulties[difficulty]) {
       throw new TraitGameError("unknown_difficulty", "unknown difficulty " + difficulty);
@@ -241,6 +273,7 @@
     var profile = rules.difficulties[difficulty];
     var inventory = {};
     Object.keys(rules.collections).forEach(function (name) { inventory[name] = []; });
+    var operator = String(extras.operator || "").replace(/[^A-Za-z0-9._-]/g, "").slice(0, 24);
     return {
       game_id: rules.game_id || GAME_ID,
       version: rules.version,
@@ -256,8 +289,17 @@
       rival_xp: 0,
       combo: 0,
       focus: "",
+      focus_left: 0,
       shield_armed: false,
       mulligan_used: false,
+      risk_blocked: false,
+      scout: null,
+      pin: null,
+      locked: [],
+      operator: operator,
+      daily: !!extras.daily,
+      defended: false,
+      leftover_xp: 0,
       inventory: inventory,
       completed: [],
       synergies: [],
@@ -298,8 +340,17 @@
       rival_xp: state.rival_xp,
       combo: state.combo,
       focus: state.focus,
+      focus_left: state.focus_left || 0,
       shield_armed: state.shield_armed,
       mulligan_used: state.mulligan_used,
+      risk_blocked: !!state.risk_blocked,
+      scout: state.scout ? { collection: state.scout.collection, trait: state.scout.trait, rarity: state.scout.rarity } : null,
+      pin: state.pin ? { collection: state.pin.collection, trait: state.pin.trait } : null,
+      locked: (state.locked || []).slice(),
+      operator: state.operator || "",
+      daily: !!state.daily,
+      defended: !!state.defended,
+      leftover_xp: state.leftover_xp || 0,
       inventory: inventory,
       completed: state.completed.slice(),
       synergies: state.synergies.slice(),
@@ -327,10 +378,23 @@
     if (state.over) throw new TraitGameError("run_complete", "the run is already over");
   }
 
+  function tickFocus(state) {
+    if ((state.focus_left || 0) <= 0) return;
+    state.focus_left -= 1;
+    if (state.focus_left <= 0) {
+      state.focus = "";
+      state.focus_left = 0;
+    }
+  }
+
   function acquire(rules, state, action, risk) {
+    if (risk && state.risk_blocked) throw new TraitGameError("risk_cooldown", "risk draw needs another action first");
     var cost = rules.energy_cost[action];
     spendEnergy(state, cost);
-    return grant(rules, state, pick(rules, state, risk), action, cost);
+    var event = grant(rules, state, pick(rules, state, risk), action, cost);
+    tickFocus(state);
+    state.risk_blocked = !!risk;
+    return event;
   }
 
   function forge(rules, state, collection, name) {
@@ -346,6 +410,8 @@
     state.dust -= cost;
     var event = grant(rules, state, row, "forge", 0);
     event.dust_delta -= cost;
+    tickFocus(state);
+    state.risk_blocked = false;
     return event;
   }
 
@@ -381,6 +447,7 @@
     state.over = false;
     state.grade = "";
     refreshRival(rules, state);
+    state.risk_blocked = false;
     var note = { action: "mulligan", collection: last.collection || "", trait: last.trait || "" };
     state.log.push(note);
     achievements(state);
@@ -409,7 +476,16 @@
           throw new TraitGameError("unknown_collection", "unknown collection " + collection);
         }
         working.focus = collection;
+        working.focus_left = rules.focus_duration || 2;
+        working.risk_blocked = false;
         event = { action: "focus", collection: collection, trait: "" };
+        working.log.push(event);
+      } else if (action === "unfocus") {
+        if (!working.focus) throw new TraitGameError("unknown_collection", "no focus is set");
+        working.focus = "";
+        working.focus_left = 0;
+        working.risk_blocked = false;
+        event = { action: "unfocus", collection: "", trait: "" };
         working.log.push(event);
       } else if (action === "forge") {
         event = forge(rules, working, String(args.collection || ""), String(args.trait || ""));
@@ -418,14 +494,111 @@
         if (working.shield_armed) throw new TraitGameError("shield_armed", "a shield is already armed");
         spendEnergy(working, rules.energy_cost.arm_shield);
         working.shield_armed = true;
+        working.risk_blocked = false;
         event = { action: "arm_shield", collection: "", trait: "" };
         working.log.push(event);
+      } else if (action === "scout") {
+        spendEnergy(working, rules.energy_cost.scout);
+        var row = peek(rules, working, false);
+        working.scout = { collection: row.collection, trait: row.name, rarity: row.rarity };
+        working.risk_blocked = false;
+        event = { action: "scout", collection: row.collection, trait: row.name, rarity: row.rarity };
+        working.log.push(event);
+        achievements(working);
+      } else if (action === "rest") {
+        var gain = rules.rest_energy || 1;
+        working.energy = Math.min(working.energy_max, working.energy + gain);
+        working.turn += 1;
+        refreshRival(rules, working);
+        tickFocus(working);
+        working.risk_blocked = false;
+        event = { action: "rest", collection: "", trait: "", energy: gain };
+        working.log.push(event);
+        maybeClose(rules, working);
+      } else if (action === "convert_energy") {
+        spendEnergy(working, rules.convert_energy_in || 3);
+        working.dust += rules.convert_dust_out || 2;
+        working.risk_blocked = false;
+        event = { action: "convert_energy", collection: "", trait: "", dust_delta: rules.convert_dust_out || 2 };
+        working.log.push(event);
+      } else if (action === "convert_dust") {
+        var need = rules.convert_dust_in || 4;
+        if (working.dust < need) throw new TraitGameError("insufficient_dust", "not enough dust to convert");
+        working.dust -= need;
+        working.energy = Math.min(working.energy_max, working.energy + (rules.convert_energy_out || 1));
+        working.risk_blocked = false;
+        event = { action: "convert_dust", collection: "", trait: "", dust_delta: -need };
+        working.log.push(event);
+      } else if (action === "pin") {
+        collection = String(args.collection || "");
+        var trait = String(args.trait || "");
+        if (!rules.collections[collection]) throw new TraitGameError("unknown_collection", "unknown collection " + collection);
+        findTrait(rules, collection, trait);
+        if (owned(working, collection, trait)) throw new TraitGameError("already_owned", "pin an unowned trait");
+        working.pin = { collection: collection, trait: trait };
+        working.risk_blocked = false;
+        event = { action: "pin", collection: collection, trait: trait };
+        working.log.push(event);
+      } else if (action === "unpin") {
+        if (!working.pin) throw new TraitGameError("unknown_trait", "nothing is pinned");
+        working.pin = null;
+        working.risk_blocked = false;
+        event = { action: "unpin", collection: "", trait: "" };
+        working.log.push(event);
+      } else if (action === "lock") {
+        collection = String(args.collection || "");
+        if (!rules.collections[collection]) throw new TraitGameError("unknown_collection", "unknown collection " + collection);
+        if ((working.locked || []).indexOf(collection) !== -1) throw new TraitGameError("unknown_collection", "that collection is already locked");
+        spendEnergy(working, rules.energy_cost.lock);
+        working.locked = working.locked || [];
+        working.locked.push(collection);
+        working.risk_blocked = false;
+        event = { action: "lock", collection: collection, trait: "" };
+        working.log.push(event);
+      } else if (action === "unlock") {
+        collection = String(args.collection || "");
+        if ((working.locked || []).indexOf(collection) === -1) throw new TraitGameError("unknown_collection", "that collection is not locked");
+        working.locked.splice(working.locked.indexOf(collection), 1);
+        working.risk_blocked = false;
+        event = { action: "unlock", collection: collection, trait: "" };
+        working.log.push(event);
+      } else if (action === "unbind") {
+        collection = String(args.collection || "");
+        trait = String(args.trait || "");
+        if (!rules.collections[collection]) throw new TraitGameError("unknown_collection", "unknown collection " + collection);
+        findTrait(rules, collection, trait);
+        if (!owned(working, collection, trait)) throw new TraitGameError("unknown_trait", "that trait is not in the lab");
+        var unbindCost = rules.unbind_dust || 0;
+        if (working.dust < unbindCost) throw new TraitGameError("insufficient_dust", "not enough dust to unbind");
+        working.dust -= unbindCost;
+        working.inventory[collection].splice(working.inventory[collection].indexOf(trait), 1);
+        if (working.completed.indexOf(collection) !== -1) working.completed.splice(working.completed.indexOf(collection), 1);
+        rules.synergies.forEach(function (item) {
+          var still = owned(working, item.a[0], item.a[1]) && owned(working, item.b[0], item.b[1]);
+          var at = working.synergies.indexOf(item.id);
+          if (!still && at !== -1) working.synergies.splice(at, 1);
+        });
+        working.turn += 1;
+        refreshRival(rules, working);
+        tickFocus(working);
+        working.risk_blocked = false;
+        event = { action: "unbind", collection: collection, trait: trait, dust_delta: -unbindCost };
+        working.log.push(event);
+        maybeClose(rules, working);
       } else if (action === "finish") {
+        var leftover = (working.dust || 0) * (rules.dust_interest || 0);
+        if (working.shield_armed) leftover += rules.shield_bank_xp || 0;
+        if (working.difficulty === "thesis" && working.synergies.length >= rules.synergies.length) {
+          leftover += rules.thesis_defense_xp || 0;
+          working.defended = true;
+        }
+        working.xp += leftover;
+        working.leftover_xp = leftover;
         working.over = true;
         refreshRival(rules, working);
         working.grade = gradeOf(working);
         achievements(working);
-        event = { action: "finish", collection: "", trait: "" };
+        event = { action: "finish", collection: "", trait: "", leftover_xp: leftover };
         working.log.push(event);
       } else {
         throw new TraitGameError("unknown_action", "unknown action " + action);
@@ -450,8 +623,59 @@
       synergies: state.synergies.slice(),
       grade: state.grade || (state.over ? gradeOf(state) : ""),
       log_actions: state.log.map(function (entry) { return entry.action; }),
+      operator: state.operator || "",
+      daily: !!state.daily,
+      leftover_xp: state.leftover_xp || 0,
       live_verified: false,
     };
+  }
+
+  function encodeReplay(state) {
+    var parts = [];
+    (state.log || []).forEach(function (entry) {
+      var action = entry.action || "";
+      if ((action === "focus" || action === "lock" || action === "unlock") && entry.collection) {
+        parts.push(action + ":" + entry.collection);
+      } else if ((action === "forge" || action === "pin" || action === "unbind" || action === "scout") && entry.collection && entry.trait) {
+        parts.push(action + ":" + entry.collection + ":" + entry.trait);
+      } else if (action) parts.push(action);
+    });
+    return [state.seed, state.difficulty, state.daily ? "1" : "0", state.operator || "-", parts.join(",")].join("|");
+  }
+
+  function playReplay(rules, code) {
+    var bits = String(code || "").split("|");
+    if (bits.length < 5) throw new TraitGameError("invalid_replay", "replay code is incomplete");
+    var seed = parseInt(bits[0], 10);
+    if (!(seed > 0)) throw new TraitGameError("invalid_replay", "replay seed must be an integer");
+    var state = newRun(rules, seed, bits[1], { daily: bits[2] === "1", operator: bits[3] === "-" ? "" : bits[3] });
+    if (!bits[4]) return state;
+    bits[4].split(",").forEach(function (spec) {
+      var chunks = spec.split(":");
+      var result = act(rules, state, chunks[0], { collection: chunks[1] || "", trait: chunks[2] || "" });
+      if (!result.ok) throw new TraitGameError("replay_rejected", result.error);
+      state = result.state;
+    });
+    return state;
+  }
+
+  function hint(rules, state) {
+    if (state.over) return "run closed";
+    if ((state.energy || 0) <= 0 && (state.dust || 0) >= (rules.convert_dust_in || 4)) return "convert_dust";
+    if ((state.energy || 0) <= 0) return "rest";
+    var collections = Object.keys(rules.collections);
+    for (var i = 0; i < collections.length; i += 1) {
+      var collection = collections[i];
+      var missing = rules.collections[collection].filter(function (name) {
+        return (state.inventory[collection] || []).indexOf(name) === -1;
+      });
+      if (missing.length !== 1) continue;
+      var row = findTrait(rules, collection, missing[0]);
+      if ((state.dust || 0) >= forgeCost(rules, row.rarity)) return "forge:" + collection + ":" + missing[0];
+    }
+    if (!state.scout && (state.energy || 0) >= (rules.energy_cost.scout || 1) + 1) return "scout";
+    if ((state.dust || 0) < 2 && (state.energy || 0) >= (rules.convert_energy_in || 3)) return "convert_energy";
+    return "draw";
   }
 
   function canonical(value) {
@@ -508,6 +732,9 @@
     unknown_difficulty: "Pick survey, lab, or thesis.",
     invalid_seed: "Seed must be a positive integer.",
     invalid_day: "Daily seed needs a real calendar day.",
+    risk_cooldown: "Risk needs another action before it can fire again.",
+    invalid_replay: "That replay code is incomplete.",
+    replay_rejected: "That replay code does not play under these rules.",
   };
 
   function esc(value) {
@@ -551,10 +778,20 @@
   function describe(event) {
     if (!event) return "";
     if (event.action === "undo") return "Undid the previous action.";
-    if (event.action === "focus") return "Focus lens locked on " + event.collection + ".";
+    if (event.action === "focus") return "Focus lens locked on " + event.collection + " for two grants.";
+    if (event.action === "unfocus") return "Focus cleared.";
     if (event.action === "arm_shield") return "Shield armed. The next new trait scores ×1.5.";
-    if (event.action === "finish") return "Run filed. Grade " + state.grade + ".";
+    if (event.action === "finish") return "Run filed. Grade " + state.grade + (event.leftover_xp ? " · leftover +" + event.leftover_xp : "") + ".";
     if (event.action === "mulligan") return "Mulligan returned " + event.trait + ".";
+    if (event.action === "scout") return "Scout: next draw is " + event.rarity + " " + event.trait + ".";
+    if (event.action === "rest") return "Rested. The rival still advanced.";
+    if (event.action === "convert_energy") return "Converted energy into dust.";
+    if (event.action === "convert_dust") return "Converted dust into energy.";
+    if (event.action === "pin") return "Pinned " + event.trait + ".";
+    if (event.action === "unpin") return "Pin cleared.";
+    if (event.action === "lock") return "Locked " + event.collection + " out of the bag.";
+    if (event.action === "unlock") return "Unlocked " + event.collection + ".";
+    if (event.action === "unbind") return "Unbound " + event.trait + ".";
     var bits = [event.rarity + " " + event.trait];
     if (event.duplicate) bits.push("duplicate → " + event.dust_delta + " dust, combo reset");
     else bits.push("+" + event.xp_delta + " XP");
@@ -612,9 +849,14 @@
       "<p class=\"lab-note\" role=\"status\">" + esc(ui.note) + "</p>" +
       "<div class=\"lab-flags\">" +
       "<span>Standing " + esc(standing()) + "</span>" +
-      "<span>Focus " + esc(state.focus || "none") + "</span>" +
+      "<span>Focus " + esc(state.focus || "none") + (state.focus_left ? " · " + state.focus_left : "") + "</span>" +
       "<span>Shield " + (state.shield_armed ? "armed" : "down") + "</span>" +
       "<span>Mulligan " + (state.mulligan_used ? "spent" : "ready") + "</span>" +
+      "<span>Coach " + esc(hint(rules, state)) + "</span>" +
+      (state.scout ? "<span>Scout " + esc(state.scout.trait) + "</span>" : "") +
+      (state.pin ? "<span>Pin " + esc(state.pin.trait) + "</span>" : "") +
+      ((state.locked || []).length ? "<span>Lock " + esc(state.locked.join(" · ")) + "</span>" : "") +
+      (state.risk_blocked ? "<span>Risk cooling</span>" : "") +
       (state.achievements.length ? "<span>" + esc(state.achievements.join(" · ")) + "</span>" : "") +
       (state.synergies.length ? "<span>Synergy " + esc(state.synergies.join(" · ")) + "</span>" : "") +
       "</div>";
@@ -623,7 +865,16 @@
       "<button type=\"button\" class=\"btn btn-primary\" data-act=\"draw\"" + (state.over || state.energy < 1 ? " disabled" : "") + ">Draw · 1</button>" +
       "<button type=\"button\" class=\"btn btn-secondary\" data-act=\"risk_draw\"" + (state.over || state.energy < 2 ? " disabled" : "") + ">Risk · 2</button>" +
       "<button type=\"button\" class=\"btn btn-secondary\" data-act=\"focus\"" + (state.over ? " disabled" : "") + ">Focus " + esc(ui.collection) + "</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"unfocus\"" + (state.over || !state.focus ? " disabled" : "") + ">Unfocus</button>" +
       "<button type=\"button\" class=\"btn btn-secondary\" data-act=\"forge\"" + (state.over || !row || owned(state, ui.collection, ui.trait) || state.dust < cost ? " disabled" : "") + ">Forge" + (row ? " · " + cost + " dust" : "") + "</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"scout\"" + (state.over || state.energy < 1 ? " disabled" : "") + ">Scout · 1</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"rest\"" + (state.over ? " disabled" : "") + ">Rest</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"convert_energy\"" + (state.over || state.energy < 3 ? " disabled" : "") + ">Energy → dust</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"convert_dust\"" + (state.over || state.dust < 4 ? " disabled" : "") + ">Dust → energy</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"pin\"" + (state.over || !row || owned(state, ui.collection, ui.trait) ? " disabled" : "") + ">Pin</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"lock\"" + (state.over || state.energy < 1 ? " disabled" : "") + ">Lock " + esc(ui.collection) + "</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"unlock\"" + (state.over || (state.locked || []).indexOf(ui.collection) === -1 ? " disabled" : "") + ">Unlock</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"unbind\"" + (state.over || !row || !owned(state, ui.collection, ui.trait) || state.dust < (rules.unbind_dust || 0) ? " disabled" : "") + ">Unbind</button>" +
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"arm_shield\"" + (state.over || state.shield_armed || state.energy < 1 ? " disabled" : "") + ">Shield · 1</button>" +
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"mulligan\"" + (canMulligan ? "" : " disabled") + ">Mulligan</button>" +
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"undo\"" + (!state.over && state.undo ? "" : " disabled") + ">Undo</button>" +
@@ -634,7 +885,7 @@
       var held = state.inventory[collection] || [];
       var complete = state.completed.indexOf(collection) !== -1;
       var width = Math.round((held.length / names.length) * 100);
-      return "<article class=\"card challenge-card" + (complete ? " is-complete" : "") + (state.focus === collection ? " is-focus" : "") + "\">" +
+      return "<article class=\"card challenge-card" + (complete ? " is-complete" : "") + (state.focus === collection ? " is-focus" : "") + ((state.locked || []).indexOf(collection) !== -1 ? " is-locked" : "") + "\">" +
         "<div class=\"challenge-header\"><button type=\"button\" class=\"challenge-title\" data-focus=\"" + esc(collection) + "\">" + esc(collection) + "</button>" +
         "<span class=\"challenge-reward\">+" + esc(rules.set_bonus[collection]) + " set</span></div>" +
         "<div class=\"challenge-progress\"><div class=\"challenge-bar\"><div class=\"challenge-bar-fill\" style=\"width:" + width + "%\"></div></div>" +
@@ -643,7 +894,8 @@
           var meta = findTrait(rules, collection, name);
           var have = held.indexOf(name) !== -1;
           var selected = ui.collection === collection && ui.trait === name;
-          return "<button type=\"button\" class=\"trait rarity-" + esc(meta.rarity) + (have ? " owned" : "") + (selected ? " is-selected" : "") + "\" data-collection=\"" + esc(collection) + "\" data-trait=\"" + esc(name) + "\">" +
+          var pinned = state.pin && state.pin.collection === collection && state.pin.trait === name;
+          return "<button type=\"button\" class=\"trait rarity-" + esc(meta.rarity) + (have ? " owned" : "") + (selected ? " is-selected" : "") + (pinned ? " is-pinned" : "") + "\" data-collection=\"" + esc(collection) + "\" data-trait=\"" + esc(name) + "\">" +
             esc(name) + "<small>" + esc(meta.rarity) + " · " + forgeCost(rules, meta.rarity) + "</small></button>";
         }).join("") + "</div></article>";
     }).join("");
@@ -659,7 +911,8 @@
 
     proof.innerHTML = "<h3>Scorecard</h3><p>Canonical record for this seed. The hash is local. It is not a live proof.</p>" +
       "<code>" + esc(ui.proof || "scoring…") + "</code>" +
-      "<p class=\"text-muted\">" + esc(state.game_id) + " v" + esc(state.version) + " · " + esc(state.difficulty) + " · seed " + esc(state.seed) + "</p>";
+      "<p class=\"text-muted\">" + esc(state.game_id) + " v" + esc(state.version) + " · " + esc(state.difficulty) + " · seed " + esc(state.seed) + (state.operator ? " · " + esc(state.operator) : "") + "</p>" +
+      "<label class=\"lab-field\"><span>Replay code</span><input id=\"lab-replay\" type=\"text\" value=\"" + esc(encodeReplay(state)) + "\" readonly></label>";
 
     var ranked = rankBoard(readJson(BOARD_KEY, []), 8);
     board.innerHTML = "<h3>This browser</h3><p>Names you choose. Sorted by XP, then grade, then fewer turns.</p>" +
@@ -670,7 +923,7 @@
       }).join("") + "</div>" : "<p class=\"text-muted\">No filed runs on this browser yet.</p>") +
       "<button type=\"button\" class=\"btn btn-ghost\" id=\"lab-clear-board\">Clear local board</button>";
 
-    systems.innerHTML = "<h3>25 systems</h3><ul>" + rules.updates.map(function (item) {
+    systems.innerHTML = "<h3>50 systems</h3><ul>" + rules.updates.map(function (item) {
       return "<li><strong>" + esc(item.id) + "</strong> " + esc(item.name.replace(/_/g, " ")) + "</li>";
     }).join("") + "</ul>";
   }
@@ -725,8 +978,10 @@
     refreshProof();
   }
 
-  function start(seed, difficulty) {
-    state = newRun(rules, seed, difficulty);
+  function start(seed, difficulty, extras) {
+    extras = extras || {};
+    extras.operator = extras.operator || ui.name || "";
+    state = newRun(rules, seed, difficulty, extras);
     ui.note = "Run open. Seed " + seed + " on " + difficulty + ". Same seed replays the same draws.";
     ui.proof = "";
     if (!rules.collections[ui.collection]) ui.collection = Object.keys(rules.collections)[0];
@@ -748,8 +1003,8 @@
       var actButton = event.target.closest("[data-act]");
       if (actButton && !actButton.disabled) {
         var action = actButton.getAttribute("data-act");
-        if (action === "focus") apply("focus", { collection: ui.collection });
-        else if (action === "forge") apply("forge", { collection: ui.collection, trait: ui.trait });
+        if (action === "focus" || action === "lock" || action === "unlock") apply(action, { collection: ui.collection });
+        else if (action === "forge" || action === "pin" || action === "unbind") apply(action, { collection: ui.collection, trait: ui.trait });
         else apply(action);
         return;
       }
@@ -779,9 +1034,24 @@
       var difficulty = document.getElementById("lab-difficulty").value;
       ui.name = document.getElementById("lab-name").value;
       try {
-        start(seed, difficulty);
+        var day = todayUtc();
+        start(seed, difficulty, { operator: ui.name, daily: seed === dailySeed(day) });
       } catch (exc) {
         ui.note = isGameError(exc) ? (ERROR_TEXT[exc.code] || exc.message) : "Could not open a run.";
+        render();
+      }
+    });
+
+    document.getElementById("lab-replay-load").addEventListener("click", function () {
+      try {
+        state = playReplay(rules, document.getElementById("lab-replay-in").value);
+        state.live_verified = false;
+        ui.note = "Replay loaded. Same code, same run. Not live-verified.";
+        remember();
+        render();
+        refreshProof();
+      } catch (exc) {
+        ui.note = isGameError(exc) ? (ERROR_TEXT[exc.code] || exc.message) : "Replay rejected.";
         render();
       }
     });
@@ -798,7 +1068,7 @@
       var tag = (event.target.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       var key = event.key.toLowerCase();
-      var map = { d: "draw", r: "risk_draw", f: "arm_shield", m: "mulligan", u: "undo", enter: "finish" };
+      var map = { d: "draw", r: "risk_draw", s: "scout", f: "arm_shield", m: "mulligan", u: "undo", enter: "finish" };
       if (key === "enter") {
         event.preventDefault();
         apply("finish");
@@ -842,7 +1112,7 @@
         return;
       }
       bind();
-      start(dailySeed(todayUtc()), "lab");
+      start(dailySeed(todayUtc()), "lab", { daily: true, operator: ui.name });
       document.getElementById("lab-seed").value = String(state.seed);
     }).catch(function () {
       var banner = document.getElementById("lab-banner");
@@ -857,6 +1127,10 @@
     newRun: newRun,
     act: act,
     bagWeights: bagWeights,
+    peek: peek,
+    hint: hint,
+    encodeReplay: encodeReplay,
+    playReplay: playReplay,
     proofBody: proofBody,
     canonical: canonical,
     rankBoard: rankBoard,

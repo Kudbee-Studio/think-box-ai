@@ -151,6 +151,8 @@
 
 .lab .challenge-card.is-complete { border-color: var(--color-success); }
 .lab .challenge-card.is-focus { box-shadow: inset 0 0 0 1px var(--color-accent); }
+.lab .challenge-card.is-locked { opacity: 0.55; }
+.lab .trait.is-pinned { outline: 1px dashed var(--color-warning); }
 .lab .challenge-title {
   background: none;
   border: 0;

@@ -41,7 +41,7 @@
   <main id="main">
     <section class="hero grid-bg lab-hero"><div class="orb orb-1"></div><div class="orb orb-2"></div>
       <div class="container"><div class="hero-content">
-        <div class="hero-badge"><span class="badge badge-nft">Trait Lab</span><span class="text-muted" style="margin-left:12px;">25 systems · seeded · local</span></div>
+        <div class="hero-badge"><span class="badge badge-nft">Trait Lab</span><span class="text-muted" style="margin-left:12px;">50 systems · seeded · local</span></div>
         <h1 class="hero-title">Five collections.<br><span class="gradient-text">One thesis.</span></h1>
         <p class="hero-subtitle">Draw under a public seed, spend dust to forge the missing plate, and file a grade before the rival’s pace closes the clock. The rules are the same in Python and in this page.</p>
         <div class="hero-cta"><a href="#lab" class="btn btn-primary btn-lg">Play the lab</a><a href="#lab-board" class="btn btn-secondary btn-lg">Local board</a></div>
@@ -70,6 +70,10 @@
           <button type="button" class="btn btn-primary" id="lab-start">New run</button>
           <button type="button" class="btn btn-secondary" id="lab-daily">Daily seed</button>
         </form>
+        <form class="lab-setup" id="lab-replay-form" onsubmit="return false;">
+          <label class="lab-field"><span>Load replay</span><input id="lab-replay-in" type="text" placeholder="42|lab|0|operator|draw,scout" aria-label="Replay code"></label>
+          <button type="button" class="btn btn-ghost" id="lab-replay-load">Play code</button>
+        </form>
         <div class="lab-banner" id="lab-banner">Loading rules…</div>
         <div class="lab-metrics" id="lab-metrics"></div>
         <div class="lab-actions" id="lab-actions" aria-label="Actions"></div>
@@ -82,7 +86,7 @@
             <div class="lab-panel lab-systems" id="lab-systems"></div>
           </aside>
         </div>
-        <p class="lab-keys">Grade: <strong>S</strong> five sets · <strong>A</strong> ahead with three · <strong>B</strong> ahead with one · <strong>C</strong> a set behind · <strong>D</strong> no set. Keys: <kbd>D</kbd> draw · <kbd>R</kbd> risk · <kbd>F</kbd> shield · <kbd>M</kbd> mulligan · <kbd>U</kbd> undo · <kbd>Enter</kbd> file grade. Undo is refused once the clock closes the run.</p>
+        <p class="lab-keys">Grade: <strong>S</strong> five sets · <strong>A</strong> ahead with three · <strong>B</strong> ahead with one · <strong>C</strong> a set behind · <strong>D</strong> no set. Last two turns are last stand. Unused dust and an unused shield score when you file. Keys: <kbd>D</kbd> draw · <kbd>R</kbd> risk · <kbd>S</kbd> scout · <kbd>F</kbd> shield · <kbd>M</kbd> mulligan · <kbd>U</kbd> undo · <kbd>Enter</kbd> file grade.</p>
       </div>
     </section>
 
