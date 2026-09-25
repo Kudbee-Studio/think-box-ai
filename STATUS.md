@@ -1,3 +1,11 @@
+## PR #215 — Trait Lab seed operator filter (draft)
+
+- **Gate:** `memory-trait-lab-seed-operator`
+- **Scope:** Seed history rows filtered by operator name
+- **Write policy:** Missing seed/operator and invalid operator fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **71 OK**
+
 ## PR #214 — Trait Lab seed difficulty filter (merged)
 
 - **Merge:** `77eb188` — seed history rows filtered by difficulty tier

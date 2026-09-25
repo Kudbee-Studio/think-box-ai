@@ -686,7 +686,8 @@ def record_trait_lab_run(
             "fact": (
                 f"seed {proof.get('seed')} xp={proof.get('xp')} "
                 f"grade={proof.get('grade') or '-'} "
-                f"difficulty={proof.get('difficulty') or '-'}"
+                f"difficulty={proof.get('difficulty') or '-'} "
+                f"operator={proof.get('operator') or '-'}"
             ),
             "how": f"proof_scorecard {sha}",
             "confidence": 1.0,
@@ -695,6 +696,7 @@ def record_trait_lab_run(
             "task_id": task_id,
             "seed": proof.get("seed"),
             "difficulty": proof.get("difficulty") or "",
+            "operator": proof.get("operator") or "",
         },
     )
     record_task_step(
@@ -799,6 +801,8 @@ def verify_trait_lab_replay(
 _XP_IN_FACT = re.compile(r"xp=(-?\d+)")
 _GRADE_IN_FACT = re.compile(r"grade=([A-Za-z+\-]+)")
 _DIFFICULTY_IN_FACT = re.compile(r"difficulty=([A-Za-z]+)")
+_OPERATOR_IN_FACT = re.compile(r"operator=([A-Za-z0-9._-]+)")
+_OPERATOR_OK = re.compile(r"^[A-Za-z0-9._-]{1,24}$")
 
 
 def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
@@ -809,6 +813,11 @@ def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
     if not difficulty:
         difficulty_match = _DIFFICULTY_IN_FACT.search(fact)
         difficulty = difficulty_match.group(1) if difficulty_match else ""
+    operator = str(entry.value.get("operator") or "")
+    if not operator:
+        operator_match = _OPERATOR_IN_FACT.search(fact)
+        parsed = operator_match.group(1) if operator_match else ""
+        operator = "" if parsed == "-" else parsed
     return {
         "proof_sha256": str(entry.value.get("source") or entry.metadata.get("source") or ""),
         "seed": entry.value.get("seed"),
@@ -816,6 +825,7 @@ def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
         "xp": int(xp_match.group(1)) if xp_match else None,
         "grade": grade_match.group(1) if grade_match else "",
         "difficulty": difficulty,
+        "operator": operator,
         "agent_id": entry.agent_id,
         "task_id": entry.task_id,
         "live_verified": False,
@@ -1047,6 +1057,39 @@ def trait_lab_seed_history_by_difficulty(
     return {
         "seed": history["seed"],
         "difficulty": wanted,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
+
+
+def trait_lab_seed_history_by_operator(
+    store: MemoryStore,
+    seed: int,
+    operator: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows filtered by operator name. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    wanted = str(operator or "").strip()
+    if not _OPERATOR_OK.fullmatch(wanted):
+        raise MemoryLayerError(
+            "invalid_operator",
+            "operator must be 1-24 ASCII letters, digits, '.', '_', or '-'",
+        )
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [row for row in history["runs"] if str(row.get("operator") or "") == wanted]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_operator",
+            f"no stored Trait Lab run for seed {history['seed']} operator {wanted}",
+        )
+    return {
+        "seed": history["seed"],
+        "operator": wanted,
         "runs": runs[:limit],
         "count": len(runs),
         "best": runs[0],
