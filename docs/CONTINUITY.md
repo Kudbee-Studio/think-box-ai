@@ -2182,4 +2182,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #208. At most one open PR.
 
+### 2026-09-25 — PR #208 Trait Lab run compare
+
+- **DISCOVERY:** Ledger rows could be stored and replay-checked, but there was no index or honest delta between two proofs.
+- **IMPLEMENTATION:** `list_trait_lab_runs` indexes verified Trait Lab proofs and skips replay rows. `compare_trait_lab_runs` returns xp_delta and same_seed. Fail-closed on short hashes, the same proof twice, or a missing row. `live_verified` stays false.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare suites → **47 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-compare-723f` into `main`.
+
 ---

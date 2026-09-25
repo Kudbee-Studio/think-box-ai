@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #208 — Trait Lab run compare (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-compare` |
+| **Scope** | `list_trait_lab_runs` + `compare_trait_lab_runs` |
+| **Write policy** | Same-run / missing proofs fail closed; not a live ranking |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab ledger/replay/compare → **47 OK** |
+
 ## PR #207 — Trait Lab replay verify (MERGED)
 
 | Field | Value |

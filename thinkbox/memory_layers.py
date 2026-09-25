@@ -7,6 +7,7 @@ Verified confidence decays. Nothing here may claim LIVE VERIFIED.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -789,5 +790,66 @@ def verify_trait_lab_replay(
         "replay": replay,
         "xp": card.get("xp"),
         "grade": card.get("grade") or "",
+        "live_verified": False,
+    }
+
+
+_XP_IN_FACT = re.compile(r"xp=(-?\d+)")
+_GRADE_IN_FACT = re.compile(r"grade=([A-Za-z+\-]+)")
+
+
+def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
+    fact = str(entry.value.get("fact") or "")
+    xp_match = _XP_IN_FACT.search(fact)
+    grade_match = _GRADE_IN_FACT.search(fact)
+    return {
+        "proof_sha256": str(entry.value.get("source") or entry.metadata.get("source") or ""),
+        "seed": entry.value.get("seed"),
+        "fact": fact,
+        "xp": int(xp_match.group(1)) if xp_match else None,
+        "grade": grade_match.group(1) if grade_match else "",
+        "agent_id": entry.agent_id,
+        "task_id": entry.task_id,
+        "live_verified": False,
+    }
+
+
+def list_trait_lab_runs(store: MemoryStore, *, limit: int = 50) -> list[dict[str, Any]]:
+    """Index stored Trait Lab proofs. Skips replay rows."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    runs: list[dict[str, Any]] = []
+    for entry in query_layer(store, MemoryLayer.VERIFIED_KNOWLEDGE, prefix="verified:trait-lab-", limit=limit * 2):
+        if entry.key.startswith("verified:trait-lab-replay-"):
+            continue
+        if not entry.key.startswith("verified:trait-lab-"):
+            continue
+        runs.append(_trait_lab_run_from_entry(entry))
+        if len(runs) >= limit:
+            break
+    return runs
+
+
+def compare_trait_lab_runs(
+    store: MemoryStore,
+    proof_a: str,
+    proof_b: str,
+) -> dict[str, Any]:
+    """Compare two stored Trait Lab proofs. Not a live ranking."""
+    sha_a = str(proof_a or "").strip().lower()
+    sha_b = str(proof_b or "").strip().lower()
+    if len(sha_a) != 64 or len(sha_b) != 64:
+        raise MemoryLayerError("missing_proof", "compare requires two proof_sha256 values")
+    if sha_a == sha_b:
+        raise MemoryLayerError("same_run", "compare requires two different proofs")
+    left = _trait_lab_run_from_entry(read_verified(store, f"trait-lab-{sha_a[:16]}")["entry"])
+    right = _trait_lab_run_from_entry(read_verified(store, f"trait-lab-{sha_b[:16]}")["entry"])
+    xp_a = int(left["xp"] or 0)
+    xp_b = int(right["xp"] or 0)
+    return {
+        "a": left,
+        "b": right,
+        "xp_delta": xp_a - xp_b,
+        "same_seed": left.get("seed") == right.get("seed"),
         "live_verified": False,
     }

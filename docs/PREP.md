@@ -9,9 +9,10 @@
 > **#204 merged** at `0b3fc87` — read / query / retention.
 > **#205 merged** at `01f46c6` — organizational versioning + portable snapshot.
 > **#206 merged** at `1c8294f` — Trait Lab proof → four-layer ledger.
-> **#207 merged** at `d989255` — store `encode_replay` and rematch `proof_sha256`. `live_verified` false.
-> **Test gate:** memory + trait-lab ledger + replay → 42 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
+> **#207 merged** at `d989255` — replay rematch.
+> **#208 draft:** list/compare stored Trait Lab proofs. `live_verified` false.
+> **Test gate:** memory + trait-lab ledger/replay/compare → 47 OK.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
