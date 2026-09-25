@@ -2083,4 +2083,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** This is a seeded lab. No wallet, no mint, no chain. `live_verified` stays false. Not LIVE VERIFIED. Not PRODUCTION READY. Four-state: **CODE COMPLETE** / **TEST VERIFIED** on this branch only.
 - **NEXT ACTION:** Founder review of the draft PR for `cursor/trait-game-25-723f` against `main`. Do not merge from this record. The GitHub number is the one that PR receives; it is not claimed here in advance.
 
+### 2026-09-25 — PR #202 Trait Lab deepen (U26–U50)
+
+- **DISCOVERY:** The first 25 systems were playable but the bench still trapped a run: empty energy, immortal focus, spam-risk, no peek, no local replay code.
+- **IMPLEMENTATION:** Rules version 2. Scout, rest, energy/dust convert, pin/unpin, lock/unlock, unfocus, unbind, two-grant focus, risk cooldown, pity weights, last-stand rival, late-set bonus, dust interest, unused-shield residue, thesis defense, daily mark, operator on the scorecard, encode/play replay, coach hint, rules checksum, leftover score applied once. Browser port stays on the same LCG and actions.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen -v` → **51 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
 ---
