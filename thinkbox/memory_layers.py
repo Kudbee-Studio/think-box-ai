@@ -851,6 +851,8 @@ def list_trait_lab_runs(store: MemoryStore, *, limit: int = 50) -> list[dict[str
     for entry in query_layer(store, MemoryLayer.VERIFIED_KNOWLEDGE, prefix="verified:trait-lab-", limit=limit * 2):
         if entry.key.startswith("verified:trait-lab-replay-"):
             continue
+        if entry.key.startswith("verified:trait-lab-pack-"):
+            continue
         if not entry.key.startswith("verified:trait-lab-"):
             continue
         runs.append(_trait_lab_run_from_entry(entry))
@@ -1378,5 +1380,74 @@ def import_trait_lab_seed_pack(
         "imported": True,
         "fact_id": f"trait-lab-pack-{sha[:16]}",
         "snapshot": snapshot_layers(store),
+        "live_verified": False,
+    }
+
+
+def apply_trait_lab_seed_pack(
+    store: MemoryStore,
+    pack: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """Write rematched pack runs into a destination store. Local only."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "seed pack apply requires agent_id and task_id")
+    verified = verify_trait_lab_seed_pack(pack)
+    pack_sha = str(verified["pack_sha256"])
+    written: list[str] = []
+    for index, raw in enumerate(verified["runs"]):
+        if not isinstance(raw, dict):
+            raise MemoryLayerError("invalid_run", f"run {index} must be an object")
+        if raw.get("live_verified") is True:
+            raise MemoryLayerError("live_claim", "seed pack run may not claim LIVE VERIFIED")
+        sha = str(raw.get("proof_sha256") or "").strip().lower()
+        if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+            raise MemoryLayerError("invalid_run", f"run {index} requires proof_sha256")
+        fact = str(raw.get("fact") or "").strip()
+        if not fact:
+            raise MemoryLayerError("invalid_run", f"run {index} requires a fact")
+        seed = raw.get("seed")
+        if seed is None:
+            seed = verified["seed"]
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise MemoryLayerError("invalid_run", f"run {index} seed must be an int")
+        if seed != verified["seed"]:
+            raise MemoryLayerError("invalid_run", f"run {index} seed {seed} != pack {verified['seed']}")
+        write_verified(
+            store,
+            {
+                "id": f"trait-lab-{sha[:16]}",
+                "fact": fact,
+                "how": f"apply_trait_lab_seed_pack {pack_sha}",
+                "confidence": 1.0,
+                "source": sha,
+                "agent_id": agent_id,
+                "task_id": task_id,
+                "seed": seed,
+                "difficulty": raw.get("difficulty") or "",
+                "operator": raw.get("operator") or "",
+                "daily": bool(raw.get("daily")),
+            },
+        )
+        written.append(sha)
+    if not written:
+        raise MemoryLayerError("missing_run", "seed pack has no runs to apply")
+    record_task_step(
+        store,
+        task_id,
+        "pack-apply",
+        {"pack_sha256": pack_sha, "seed": verified["seed"], "count": len(written)},
+        agent_id=agent_id,
+    )
+    history = trait_lab_seed_history(store, verified["seed"])
+    return {
+        "applied": True,
+        "seed": verified["seed"],
+        "count": len(written),
+        "proofs": written,
+        "pack_sha256": pack_sha,
+        "best": history["best"],
         "live_verified": False,
     }

@@ -1,3 +1,12 @@
+## PR #222 — Trait Lab seed pack apply (open)
+
+- **Branch:** `cursor/memory-trait-lab-seed-pack-apply-723f`
+- **Gate:** `memory-trait-lab-seed-pack-apply`
+- **Scope:** Write rematched pack runs into a destination store
+- **Write policy:** Rematch first; live claim, invalid run, missing run, and missing provenance fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites pending merge
+
 ## PR #221 — Trait Lab seed pack import (merged)
 
 - **Merge:** `a05b31d` — rematch seed pack SHA and write a verified import fact

@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #222 — Trait Lab seed pack apply (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-pack-apply` |
+| **Scope** | `apply_trait_lab_seed_pack` — write rematched pack runs into a destination store |
+| **Write policy** | Rematch first; live claim, invalid run, missing run, and missing provenance fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-seed-pack-apply-723f` |
+
 ## PR #221 — Trait Lab seed pack import (MERGED)
 
 | Field | Value |
