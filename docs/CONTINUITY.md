@@ -2362,4 +2362,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #220. At most one open PR.
 
+### 2026-09-25 — PR #220 Trait Lab seed pack export
+
+- **DISCOVERY:** Seed history was store-local. There was no portable pack for one seed.
+- **IMPLEMENTATION:** `export_trait_lab_seed_pack` snapshots stored runs for one seed with `pack_sha256` over the stable body. Fail-closed on missing seed or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **86 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-723f` into `main`.
+
 ---

@@ -1,3 +1,11 @@
+## PR #220 — Trait Lab seed pack export (draft)
+
+- **Gate:** `memory-trait-lab-seed-pack`
+- **Scope:** Portable snapshot of stored runs for one seed
+- **Write policy:** Missing seed fail-closed; pack is not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **86 OK**
+
 ## PR #219 — Trait Lab seed XP band (merged)
 
 - **Merge:** `e0d400c` — seed history rows between a stored XP floor and ceiling

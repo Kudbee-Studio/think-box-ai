@@ -7,6 +7,8 @@ Verified confidence decays. Nothing here may claim LIVE VERIFIED.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1245,4 +1247,28 @@ def trait_lab_seed_history_by_xp_band(
         "count": len(runs),
         "best": runs[0],
         "live_verified": False,
+    }
+
+
+def export_trait_lab_seed_pack(
+    store: MemoryStore,
+    seed: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Portable snapshot of stored runs for one seed. Not a live ranking."""
+    history = trait_lab_seed_history(store, seed, limit=limit)
+    body = {
+        "kind": "trait-lab-seed-pack",
+        "seed": history["seed"],
+        "count": history["count"],
+        "best": history["best"],
+        "runs": history["runs"],
+        "live_verified": False,
+    }
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "pack_sha256": hashlib.sha256(encoded).hexdigest(),
+        "exported_at": _utc(),
     }
