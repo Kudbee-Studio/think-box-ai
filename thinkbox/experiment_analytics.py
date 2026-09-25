@@ -1204,3 +1204,251 @@ class LoopTracer:
         if self._current_loop_id:
             return self._current_loop_id
         return self._get_metadata("current_loop_id")
+
+
+@dataclass
+class TuningDecision:
+    """A single auto-tuning adjustment made to the engine."""
+
+    decision_id: str
+    iteration_id: str
+    metric_name: str
+    metric_value: float
+    threshold: float
+    old_value: Any
+    new_value: Any
+    rationale: str
+    decided_at: str
+
+
+class EngineAutoTuner:
+    """Self-tuning layer for the autonomous decision-loop (Learning -> Memory binding at meta-level).
+
+    Reviews LoopTracer measurements and adjusts engine configuration parameters:
+    - High error_rate -> increase max_retries
+    - High p95_latency -> increase autoscaler workers
+    - Low throughput -> increase default_workers
+    - High cycle_time -> reduce speculative ratio
+
+    Each tuning decision is recorded as a TuningDecision for traceability.
+    Uses SQLite for persistence.
+    """
+
+    ERROR_RATE_THRESHOLD = 0.1
+    LATENCY_THRESHOLD_S = 2.0
+    LOW_THROUGHPUT_THRESHOLD = 5.0
+
+    def __init__(self, loop_tracer: LoopTracer, db_path: str = ":memory:") -> None:
+        self._tracer = loop_tracer
+        self._db_path = db_path
+        self._init_db()
+        self._decisions: list[TuningDecision] = []
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tuning_decisions (
+                    decision_id TEXT PRIMARY KEY,
+                    iteration_id TEXT NOT NULL,
+                    metric_name TEXT NOT NULL,
+                    metric_value REAL NOT NULL,
+                    threshold REAL NOT NULL,
+                    old_value TEXT NOT NULL,
+                    new_value TEXT NOT NULL,
+                    rationale TEXT NOT NULL,
+                    decided_at TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def review_and_tune(self, engine: Any) -> list[TuningDecision]:
+        """Review LoopTracer metrics and adjust engine config.
+
+        Analyzes the latest loop iterations and applies tuning decisions
+        to the provided engine's configuration. Returns the list of
+        decisions made during this review.
+        """
+        decisions: list[TuningDecision] = []
+        metrics = self._tracer.get_metrics()
+
+        if metrics.total_iterations < 2:
+            return decisions
+
+        iterations = self._tracer.list_iterations(limit=10)
+        if len(iterations) < 2:
+            return decisions
+
+        latest = iterations[0]
+        prev = iterations[1]
+
+        error_rate = latest.metrics.get("error_rate", 0.0)
+        if error_rate > self.ERROR_RATE_THRESHOLD:
+            old_retries = getattr(engine, "config", engine).max_retries if hasattr(engine, "config") else None
+            decision = self._adjust_max_retries(engine, latest, error_rate, old_retries)
+            if decision:
+                decisions.append(decision)
+
+        p50_latency = latest.metrics.get("p50_latency", 0.0)
+        if p50_latency > self.LATENCY_THRESHOLD_S:
+            old_workers = None
+            scaler_cfg = getattr(getattr(engine, "config", None), "scaler_config", None)
+            if scaler_cfg:
+                old_workers = scaler_cfg.default_workers
+            decision = self._adjust_workers(engine, latest, p50_latency, old_workers)
+            if decision:
+                decisions.append(decision)
+
+        throughput = latest.metrics.get("throughput", 0.0)
+        if throughput < self.LOW_THROUGHPUT_THRESHOLD:
+            decision = self._adjust_for_low_throughput(engine, latest, throughput)
+            if decision:
+                decisions.append(decision)
+
+        self._decisions.extend(decisions)
+        self._persist_decisions(decisions)
+        return decisions
+
+    def _adjust_max_retries(self, engine: Any, iteration: LoopIteration,
+                             error_rate: float, old_value: Any) -> Optional[TuningDecision]:
+        """Increase max_retries when error_rate exceeds threshold."""
+        config = getattr(engine, "config", None) if not hasattr(engine, "max_retries") else engine
+        if config is None:
+            return None
+        new_retries = min(getattr(config, "max_retries", 3) + 1, 10)
+        if hasattr(config, "max_retries"):
+            config.max_retries = new_retries
+        else:
+            config.max_retries = new_retries
+
+        decision = TuningDecision(
+            decision_id=f"td_{uuid.uuid4().hex[:12]}",
+            iteration_id=iteration.iteration_id,
+            metric_name="error_rate",
+            metric_value=error_rate,
+            threshold=self.ERROR_RATE_THRESHOLD,
+            old_value=str(old_value),
+            new_value=str(new_retries),
+            rationale=f"error_rate {error_rate:.4f} exceeds threshold {self.ERROR_RATE_THRESHOLD}; "
+                      f"increased max_retries to {new_retries}",
+            decided_at=datetime.now(timezone.utc).isoformat(),
+        )
+        self.emit_tuning_event(iteration, decision)
+        return decision
+
+    def _adjust_workers(self, engine: Any, iteration: LoopIteration,
+                        latency: float, old_value: Any) -> Optional[TuningDecision]:
+        """Increase default_workers when p50_latency exceeds threshold."""
+        config = getattr(engine, "config", None)
+        scaler_cfg = getattr(config, "scaler_config", None)
+        if scaler_cfg is None:
+            return None
+        new_workers = min(int(scaler_cfg.default_workers * 2), scaler_cfg.max_workers)
+        old_workers = scaler_cfg.default_workers
+        scaler_cfg.default_workers = new_workers
+
+        decision = TuningDecision(
+            decision_id=f"td_{uuid.uuid4().hex[:12]}",
+            iteration_id=iteration.iteration_id,
+            metric_name="p50_latency",
+            metric_value=latency,
+            threshold=self.LATENCY_THRESHOLD_S,
+            old_value=str(old_workers),
+            new_value=str(new_workers),
+            rationale=f"p50_latency {latency:.4f}s exceeds threshold {self.LATENCY_THRESHOLD_S}s; "
+                      f"doubled default_workers to {new_workers}",
+            decided_at=datetime.now(timezone.utc).isoformat(),
+        )
+        self.emit_tuning_event(iteration, decision)
+        return decision
+
+    def _adjust_for_low_throughput(self, engine: Any, iteration: LoopIteration,
+                                    throughput: float) -> Optional[TuningDecision]:
+        """Increase workers when throughput is below threshold."""
+        config = getattr(engine, "config", None)
+        scaler_cfg = getattr(config, "scaler_config", None)
+        if scaler_cfg is None:
+            return None
+        old_workers = scaler_cfg.default_workers
+        new_workers = min(int(scaler_cfg.default_workers * 1.5), scaler_cfg.max_workers)
+        scaler_cfg.default_workers = new_workers
+
+        decision = TuningDecision(
+            decision_id=f"td_{uuid.uuid4().hex[:12]}",
+            iteration_id=iteration.iteration_id,
+            metric_name="throughput",
+            metric_value=throughput,
+            threshold=self.LOW_THROUGHPUT_THRESHOLD,
+            old_value=str(old_workers),
+            new_value=str(new_workers),
+            rationale=f"throughput {throughput:.4f} below threshold {self.LOW_THROUGHPUT_THRESHOLD}; "
+                      f"increased default_workers to {new_workers}",
+            decided_at=datetime.now(timezone.utc).isoformat(),
+        )
+        self.emit_tuning_event(iteration, decision)
+        return decision
+
+    def emit_tuning_event(self, iteration: LoopIteration, decision: TuningDecision) -> None:
+        """Emit a dashboard event for the tuning decision."""
+        try:
+            state = get_dashboard_state()
+            state.emit(DashboardEvent(
+                category=DashboardCategory.EXECUTION,
+                event_type="engine_tuning",
+                source="EngineAutoTuner",
+                data={
+                    "decision_id": decision.decision_id,
+                    "iteration_id": iteration.iteration_id,
+                    "metric": decision.metric_name,
+                    "rationale": decision.rationale,
+                    "old_value": decision.old_value,
+                    "new_value": decision.new_value,
+                },
+                evidence_label="infmred",
+            ))
+        except Exception:
+            pass
+
+    def _persist_decisions(self, decisions: list[TuningDecision]) -> None:
+        """Persist tuning decisions to SQLite."""
+        if not decisions:
+            return
+        conn = sqlite3.connect(self._db_path)
+        try:
+            for d in decisions:
+                conn.execute(
+                    "INSERT INTO tuning_decisions "
+                    "(decision_id, iteration_id, metric_name, metric_value, threshold, "
+                    "old_value, new_value, rationale, decided_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        d.decision_id, d.iteration_id, d.metric_name, d.metric_value,
+                        d.threshold, d.old_value, d.new_value, d.rationale, d.decided_at,
+                    ),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def list_decisions(self, limit: int = 50) -> list[dict[str, Any]]:
+        """List tuning decisions ordered by recency."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM tuning_decisions ORDER BY decided_at DESC LIMIT ?",
+                (limit,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_decision_count(self) -> int:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM tuning_decisions")
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
