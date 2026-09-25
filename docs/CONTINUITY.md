@@ -2734,4 +2734,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** compose **4 OK**; memory suite **232 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #221 merged (Trait Lab autonomous receipt chain compose)
+
+- **MERGE:** `01ee6bf` on `main`.
+- **TEST_VERIFIED:** compose **4 OK**; memory **232 OK**.
+
+### 2026-09-25 — Draft GitHub PR #222 Trait Lab autonomous workflow chain bind
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-chain-follow-723f`
+- **DISCOVERY:** After #221, ``run_autonomous`` needs a green receipt-chain bind persisted for audit/rematch.
+- **IMPLEMENTATION:** F01–F25 in `thinkbox/autonomous_workflow_chain.py` (`run_chained`, `dry_run_chained`, bind CRUD).
+- **TEST_VERIFIED:** workflow-chain **5 OK**; memory suite **237 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---
