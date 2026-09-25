@@ -6,6 +6,7 @@
 >
 > **GitHub #207 merged** at `8a120d2` — pin-index compose. Not LIVE VERIFIED.
 > **GitHub #208 draft:** pin-index follow-through (xor + retain + review harden) on `cursor/memory-trait-lab-catalog-pin-follow-723f`. **Not merged.**
+> **Test gate:** follow 5 OK; memory suite 159 OK; engine harden 61 OK (220 combined).
 > Product-label #208 (`b9074c6` list/compare proofs) stays on main as an earlier memory-lane merge.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #206 merged; GitHub #207 pin compose draft)

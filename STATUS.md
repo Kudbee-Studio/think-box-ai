@@ -5,7 +5,7 @@
 - **Scope:** Symmetric diff + retain-best after pin compose; fact_id and id-set conflict harden
 - **Write policy:** Hash-only; no pin/pack/run writes; live claim, empty retain, invalid keep, and pin conflict fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** follow file + memory suite on branch — **not merged**
+- **Verify:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined) — **not merged**
 
 ## GitHub PR #207 — Trait Lab catalog pin compose (merged)
 

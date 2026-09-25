@@ -2516,7 +2516,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** Review of #207: compose has no xor, merge cannot collapse to the best pin, fact_id used a magic length 34, and pin conflict compared id lists in order so equivalent pins false-conflicted.
 - **IMPLEMENTATION:** `symmetric_diff_trait_lab_catalog_pin_indexes` (xor), `retain_trait_lab_catalog_pin_index` (highest count, hash tiebreak). `_require_catalog_pin_fact_id` checks prefix + 16 hex. `_pin_ids_key` compares pack ids as a set. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** follow tests on branch. Memory suite + engine harden still required before merge.
+- **TEST_VERIFIED:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
