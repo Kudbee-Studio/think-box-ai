@@ -1,3 +1,12 @@
+## PR #224 — Trait Lab seed pack catalog (open)
+
+- **Branch:** `cursor/memory-trait-lab-seed-pack-catalog-723f`
+- **Gate:** `memory-trait-lab-seed-pack-catalog`
+- **Scope:** Catalog imported/applied packs by `pack_sha256` without executing them
+- **Write policy:** Apply now writes the same pack fact as import; malformed pack rows are skipped; invalid limit and missing hash fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory suite **99 OK**; engine harden **61 OK** (160 combined) — not merged
+
 ## PR #223 — Trait Lab seed pack diff (merged)
 
 - **Merge:** `29e4ff9` — compare two rematched packs for one seed

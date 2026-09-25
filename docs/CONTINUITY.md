@@ -2422,4 +2422,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #224. At most one open PR.
 
+### 2026-09-25 — PR #224 Trait Lab seed pack catalog
+
+- **DISCOVERY:** #223 rematches and diffs packs, but imported/applied packs had no store index. Operators could not list or select a pack by `pack_sha256` without re-executing export.
+- **IMPLEMENTATION:** `catalog_trait_lab_seed_packs` indexes `verified:trait-lab-pack-*` facts. Stable id is the full `pack_sha256`. Order is seed, then hash. `get_trait_lab_seed_pack` selects one row without executing the pack. Apply writes the same pack fact as import. Malformed pack rows are skipped. Fail-closed on invalid limit, missing hash, and missing pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** `python3 -m unittest discover -s tests/unit -p 'test_memory*.py' -q` → **99 OK**. Engine harden → **61 OK** (160 combined). Catalog file: 4 OK. #223 diff file: 3 OK.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. Not merged.
+- **NEXT ACTION:** Do not merge until founder asks. Next larger improvement: catalog filter by seed.
+
 ---

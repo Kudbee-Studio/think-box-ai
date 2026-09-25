@@ -808,6 +808,7 @@ _DIFFICULTY_IN_FACT = re.compile(r"difficulty=([A-Za-z]+)")
 _OPERATOR_IN_FACT = re.compile(r"operator=([A-Za-z0-9._-]+)")
 _OPERATOR_OK = re.compile(r"^[A-Za-z0-9._-]{1,24}$")
 _DAILY_IN_FACT = re.compile(r"daily=([01])")
+_PACK_COUNT_IN_FACT = re.compile(r"count=(-?\d+)")
 
 
 def _trait_lab_run_from_entry(entry: MemoryEntry) -> dict[str, Any]:
@@ -1342,6 +1343,33 @@ def verify_trait_lab_seed_pack(pack: Any) -> dict[str, Any]:
     }
 
 
+def _write_trait_lab_seed_pack_fact(
+    store: MemoryStore,
+    verified: dict[str, Any],
+    *,
+    agent_id: str,
+    task_id: str,
+) -> str:
+    sha = str(verified["pack_sha256"])
+    fact_id = f"trait-lab-pack-{sha[:16]}"
+    write_verified(
+        store,
+        {
+            "id": fact_id,
+            "fact": f"seed {verified['seed']} pack={sha[:16]} count={verified['count']}",
+            "how": f"verify_trait_lab_seed_pack {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": _TRAIT_LAB_SEED_PACK_KIND,
+            "seed": verified["seed"],
+            "count": verified["count"],
+        },
+    )
+    return fact_id
+
+
 def import_trait_lab_seed_pack(
     store: MemoryStore,
     pack: Any,
@@ -1354,20 +1382,7 @@ def import_trait_lab_seed_pack(
         raise MemoryLayerError("missing_provenance", "seed pack import requires agent_id and task_id")
     verified = verify_trait_lab_seed_pack(pack)
     sha = str(verified["pack_sha256"])
-    write_verified(
-        store,
-        {
-            "id": f"trait-lab-pack-{sha[:16]}",
-            "fact": f"seed {verified['seed']} pack={sha[:16]} count={verified['count']}",
-            "how": f"verify_trait_lab_seed_pack {sha}",
-            "confidence": 1.0,
-            "source": sha,
-            "agent_id": agent_id,
-            "task_id": task_id,
-            "kind": _TRAIT_LAB_SEED_PACK_KIND,
-            "seed": verified["seed"],
-        },
-    )
+    _write_trait_lab_seed_pack_fact(store, verified, agent_id=agent_id, task_id=task_id)
     record_task_step(
         store,
         task_id,
@@ -1434,6 +1449,7 @@ def apply_trait_lab_seed_pack(
         written.append(sha)
     if not written:
         raise MemoryLayerError("missing_run", "seed pack has no runs to apply")
+    _write_trait_lab_seed_pack_fact(store, verified, agent_id=agent_id, task_id=task_id)
     record_task_step(
         store,
         task_id,
@@ -1503,51 +1519,71 @@ def diff_trait_lab_seed_packs(pack_a: Any, pack_b: Any) -> dict[str, Any]:
     }
 
 
-def _pack_run_proof(raw: Any, index: int) -> str:
-    if not isinstance(raw, dict):
-        raise MemoryLayerError("invalid_run", f"run {index} must be an object")
-    if raw.get("live_verified") is True:
-        raise MemoryLayerError("live_claim", "seed pack run may not claim LIVE VERIFIED")
-    sha = str(raw.get("proof_sha256") or "").strip().lower()
+def _pack_catalog_row(entry: MemoryEntry) -> dict[str, Any] | None:
+    if not entry.key.startswith("verified:trait-lab-pack-"):
+        return None
+    if entry.value.get("live_verified") is True:
+        return None
+    sha = str(entry.value.get("source") or entry.metadata.get("source") or "").strip().lower()
     if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
-        raise MemoryLayerError("invalid_run", f"run {index} requires proof_sha256")
-    return sha
-
-
-def diff_trait_lab_seed_packs(pack_a: Any, pack_b: Any) -> dict[str, Any]:
-    """Compare two rematched packs for one seed. Not a live ranking."""
-    left = verify_trait_lab_seed_pack(pack_a)
-    right = verify_trait_lab_seed_pack(pack_b)
-    if left["seed"] != right["seed"]:
-        raise MemoryLayerError(
-            "seed_mismatch",
-            f"pack seeds {left['seed']} != {right['seed']}",
-        )
-    if left["pack_sha256"] == right["pack_sha256"]:
-        raise MemoryLayerError("same_pack", "diff requires two different pack hashes")
-    proofs_a = [_pack_run_proof(raw, index) for index, raw in enumerate(left["runs"])]
-    proofs_b = [_pack_run_proof(raw, index) for index, raw in enumerate(right["runs"])]
-    set_b = set(proofs_b)
-    set_a = set(proofs_a)
-    best_a = left["best"] if isinstance(left["best"], dict) else {}
-    best_b = right["best"] if isinstance(right["best"], dict) else {}
+        return None
+    seed = entry.value.get("seed")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        return None
+    count = entry.value.get("count")
+    if isinstance(count, bool) or not isinstance(count, int):
+        match = _PACK_COUNT_IN_FACT.search(str(entry.value.get("fact") or ""))
+        if not match:
+            return None
+        count = int(match.group(1))
     return {
-        "seed": left["seed"],
-        "a": {
-            "pack_sha256": left["pack_sha256"],
-            "count": left["count"],
-            "best": best_a,
-        },
-        "b": {
-            "pack_sha256": right["pack_sha256"],
-            "count": right["count"],
-            "best": best_b,
-        },
-        "only_a": [sha for sha in proofs_a if sha not in set_b],
-        "only_b": [sha for sha in proofs_b if sha not in set_a],
-        "shared": [sha for sha in proofs_a if sha in set_b],
-        "count_delta": int(left["count"]) - int(right["count"]),
-        "xp_delta": int(best_a.get("xp") or 0) - int(best_b.get("xp") or 0),
-        "same_seed": True,
+        "pack_sha256": sha,
+        "fact_id": f"trait-lab-pack-{sha[:16]}",
+        "kind": _TRAIT_LAB_SEED_PACK_KIND,
+        "seed": seed,
+        "count": count,
         "live_verified": False,
     }
+
+
+def catalog_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """Index imported or applied seed packs. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-pack-",
+        limit=max(limit * 4, 200),
+    ):
+        row = _pack_catalog_row(entry)
+        if row is None or row["pack_sha256"] in seen:
+            continue
+        seen.add(row["pack_sha256"])
+        found.append(row)
+    found.sort(key=lambda row: (int(row["seed"]), str(row["pack_sha256"])))
+    return {
+        "kind": "trait-lab-seed-pack-catalog",
+        "packs": found[:limit],
+        "count": len(found),
+        "live_verified": False,
+    }
+
+
+def get_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> dict[str, Any]:
+    """Select one cataloged pack by pack_sha256. Does not execute the pack."""
+    sha = str(pack_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_pack_hash", "catalog select requires pack_sha256")
+    try:
+        viewed = read_verified(store, f"trait-lab-pack-{sha[:16]}")
+    except MemoryLayerError as exc:
+        if exc.code == "missing_verified":
+            raise MemoryLayerError("missing_pack", f"no cataloged seed pack {sha[:12]}") from exc
+        raise
+    row = _pack_catalog_row(viewed["entry"])
+    if row is None or row["pack_sha256"] != sha:
+        raise MemoryLayerError("missing_pack", f"no cataloged seed pack {sha[:12]}")
+    return row
