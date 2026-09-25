@@ -17,9 +17,9 @@
 > **#212 merged** at `413c28a` — seed index (count + best XP per stored seed). `live_verified` false.
 > **#213 merged** at `690979c` — seed history filtered by letter grade. `live_verified` false.
 > **#214 merged** at `77eb188` — seed history filtered by difficulty tier. `live_verified` false.
-> **#215 next:** wait for 1800s cadence timer. At most one open PR.
-> **Test gate:** memory + trait-lab suites → 68 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
+> **#215 draft:** seed history filtered by operator name. `live_verified` false.
+> **Test gate:** memory + trait-lab suites → 71 OK.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
