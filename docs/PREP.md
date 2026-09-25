@@ -2,11 +2,15 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #218 merged; #219 receipt chain draft)
+>
+> **GitHub #218 merged** at `897c06b` — autonomous workflow A16–A25 + `run_autonomous`. Not LIVE VERIFIED.
+> **GitHub #219 draft:** R01–R25 receipt chain on `cursor/memory-trait-lab-autonomous-follow-723f`. **Not merged.**
+> **Test gate:** chain 4 OK; memory 228 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #217 merged; autonomous A16–A25 draft)
 >
-> **GitHub #217 merged** at `ef6950f` — autonomous workflow A01–A15. Not LIVE VERIFIED. (Forge #216 = lifecycle queued resume.)
-> **Draft:** A16–A25 on `cursor/memory-trait-lab-autonomous-workflow-a16-723f` — dry-run, receipt persist, `run_autonomous`. **Not merged.**
-> **Test gate:** autonomous 11 OK; memory 224 OK.
+> **GitHub #217 merged** at `ef6950f` — autonomous workflow A01–A15. Superseded by #218 for A16–A25.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #215 merged; GitHub #216 autonomous A01–A15 draft)
 >

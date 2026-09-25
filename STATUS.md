@@ -1,11 +1,17 @@
-## Draft — GitHub PR Trait Lab autonomous workflow A16–A25 (not merged)
+## Draft — GitHub PR #219 Trait Lab autonomous receipt chain (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-workflow-a16-723f`
-- **Gate:** `memory-trait-lab-autonomous-workflow-25` (A01–A25 complete)
-- **Scope:** Dry-run prep → session → workflow_dry_run; green-session gate; autonomous receipt persist; `run_autonomous`
-- **Write policy:** Prep/session/autonomous receipts only on `run_autonomous`; dry-run paths must not write
+- **Branch:** `cursor/memory-trait-lab-autonomous-follow-723f`
+- **Gate:** `memory-trait-lab-autonomous-receipt-chain-25` (R01–R25)
+- **Scope:** Sign/verify prep→session→autonomous triples; export/rematch index; green-chain gate; persist index fact
+- **Write policy:** Chain index persist only; no pack/run apply
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** autonomous **11 OK** (15-file 5 + 25-file 6); memory suite **224 OK** — **not merged**
+- **Verify:** chain file **4 OK**; memory suite **228 OK** — **not merged**
+
+## GitHub PR #218 — Trait Lab autonomous workflow A16–A25 (merged)
+
+- **Merge:** `897c06b` — dry-run chain, receipt persist, `run_autonomous`
+- **Gate:** `memory-trait-lab-autonomous-workflow-25`
+- **Verify:** autonomous **11 OK** at merge; memory **224 OK**
 
 ## GitHub PR #217 — Trait Lab autonomous workflow A01–A15 (merged)
 
