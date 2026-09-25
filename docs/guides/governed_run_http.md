@@ -57,8 +57,11 @@ receipt outcome), not from in-memory dashboard state. **Not LIVE VERIFIED.**
 **PR #202 hardens (hermetic):** fail-closed job id / phase / substrate; no terminal
 regression; no remote→local provider write; redacted result; receipt required on
 COMPLETED; honest error on FAILED; bounded transitions; artifact hash re-verify.
-Status may include additive `lifecycle_phase` and `resume_eligible` (QUEUED only;
-resume is not implemented).
+Status may include additive `lifecycle_phase` and `resume_eligible` (QUEUED only).
+After process death, `POST /api/v1/run/job/{id}/resume` claims a QUEUED job
+(CAS → RUNNING with `resume_claim`) and continues the existing governed path.
+Operator may re-supply `exec_command` for the shell path. The existing receipt is
+reused. ADMISSION / RUNNING / terminal jobs are not resumed. **Not LIVE VERIFIED.**
 
 **Example (local, hermetic):**
 

@@ -467,11 +467,19 @@ class Repository:
         next_action: str | None = None,
         metadata: dict[str, Any] | None = None,
         provenance_event: str | None = None,
+        require_lifecycle_phase: str | None = None,
     ) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)
             if job is None:
                 return None
+            if require_lifecycle_phase is not None:
+                life = job.metadata.get("governed_lifecycle")
+                current = ""
+                if isinstance(life, dict):
+                    current = str(life.get("phase") or "")
+                if current != require_lifecycle_phase:
+                    return None
             if status is not None:
                 job.status = status
             if next_action is not None:
