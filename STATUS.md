@@ -1,3 +1,11 @@
+## PR #204 — Memory query + retention (draft)
+
+- **Gate:** `memory-query-retention`
+- **Scope:** Read / query / end-session / end-task / decay / retention on the four layers
+- **Write policy:** Org append-only; verified decays (no delete); session/task may expire
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK**
+
 ## PR #203 — Memory layers ingest (merged)
 
 - **Merge:** `3976930` — four-layer ingest + fail-closed deepen

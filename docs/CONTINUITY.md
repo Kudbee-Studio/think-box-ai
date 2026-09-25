@@ -2122,4 +2122,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY. Do not claim memory is a live proof.
 - **NEXT ACTION:** Founder review of `3976930` on `main`. Do not start a stacked game/memory PR on lifecycle branches.
 
+### 2026-09-25 — PR #204 memory query + retention
+
+- **DISCOVERY:** #203 wrote four layers but had no read path, no session/task lifetime end, and no verified confidence decay.
+- **IMPLEMENTATION:** `read_session` / `read_task` / `read_organizational` / `read_verified`. `query_layer` prefix filter. `end_session` and `end_task` drop only those layers. Organizational is append-only. Verified is not deleted; `effective_confidence` decays by half-life. `apply_retention` expires stale sessions and ended tasks. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-query-retention-723f` into `main` (`git merge --no-ff`).
+
 ---
