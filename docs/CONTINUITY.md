@@ -2115,4 +2115,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** Four-layer ingest remains a catalog plus fail-closed writes. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Merge `cursor/memory-layers-723f` into `main` (`git merge --no-ff`). GitHub PR create remains 403 from this PAT.
 
+### 2026-09-25 — PR #203 merged to main
+
+- **MERGED:** `cursor/memory-layers-723f` → `main` at **`3976930`** (four-layer ingest + fail-closed deepen). GitHub PR create stayed 403 from this PAT; merge is git `--no-ff` like #202.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY. Do not claim memory is a live proof.
+- **NEXT ACTION:** Founder review of `3976930` on `main`. Do not start a stacked game/memory PR on lifecycle branches.
+
 ---

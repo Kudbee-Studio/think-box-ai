@@ -50,7 +50,7 @@
 | Environmental variables pack | **#200** (merged) — `thinkbox/env_vars` (~25 features) |
 | Upstash Box access verification | **#201** (merged on main as of later merge train) — this-run class **A** `ENV_NOT_CONFIGURED`; not LIVE VERIFIED |
 | Trait Lab (seeded game) | **#202** (merged `75a36c5`) — U01–U50 + harden; not LIVE VERIFIED |
-| Memory layers ingest | **#203** (deepen on `cursor/memory-layers-723f`) — fail-closed Session / Task / Organizational / Verified Knowledge; not LIVE VERIFIED |
+| Memory layers ingest | **#203** (merged `3976930`) — fail-closed Session / Task / Organizational / Verified Knowledge; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

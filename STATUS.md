@@ -1,5 +1,6 @@
-## PR #203 — Memory layers ingest (deepen)
+## PR #203 — Memory layers ingest (merged)
 
+- **Merge:** `3976930` — four-layer ingest + fail-closed deepen
 - **Gate:** `memory-layers`
 - **Scope:** Session / Task / Organizational / Verified Knowledge writes via `MemoryStore`
 - **Write policy:** Session rejects transient UI; org needs evidence; verified needs how + fact + confidence `[0,1]`; contradictions require `corrects`

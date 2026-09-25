@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #203 — Memory layers ingest (DEEPEN)
+## PR #203 — Memory layers ingest (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-layers` |
 | **Scope** | Catalog markdown; write Session / Task / Organizational / Verified Knowledge via `MemoryStore` |
 | **Write policy** | Session rejects transient UI; org requires evidence; verified requires how + fact + confidence `[0,1]`; contradiction unless `corrects`; chronicle only with evidence files |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `3976930` |
 | **Verify** | `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK** |
 
 ## PR #202 — Trait Lab (MERGED)
