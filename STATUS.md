@@ -1,5 +1,6 @@
-## PR #209 — Trait Lab local board (draft)
+## PR #209 — Trait Lab local board (merged)
 
+- **Merge:** `abdf325` — local board from stored proofs
 - **Gate:** `memory-trait-lab-board`
 - **Scope:** Local `rank_board` over stored Trait Lab proofs
 - **Write policy:** Not a live ranking; `live_verified` false

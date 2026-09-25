@@ -11,9 +11,9 @@
 > **#206 merged** at `1c8294f` — Trait Lab proof → four-layer ledger.
 > **#207 merged** at `d989255` — replay rematch.
 > **#208 merged** at `b9074c6` — list/compare stored Trait Lab proofs.
-> **#209 draft:** local board from stored proofs via `rank_board`. `live_verified` false.
+> **#209 merged** at `abdf325` — local board from stored proofs via `rank_board`. `live_verified` false.
 > **Test gate:** memory + trait-lab ledger/replay/compare/board → 51 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >
