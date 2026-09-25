@@ -2561,7 +2561,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** After #210 pins rematch against store packs, but bind indexes cannot be filtered, composed, or rematched as a snapshot. Unbound pin facts had no drop path. Bound pins had no batch catalog rebuild.
 - **IMPLEMENTATION:** D01–D25 in `thinkbox/memory_layers.py`: list/count, by task, count floor/ceiling/band, bound-only/unbound-only, rematch index, diff, merge/intersect/subtract/xor, retain-best, drop unbound (unpin facts only), catalogs from bound, pack membership, get by fact_id, ids for agent, export bound-only. Hash-only except drop_unbound. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** bind-ops file **10 OK**. Full memory suite pending this draft.
+- **TEST_VERIFIED:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 

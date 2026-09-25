@@ -6,7 +6,7 @@
 >
 > **GitHub #210 merged** at `2846d02` — catalog↔pin bind B01–B25. Not LIVE VERIFIED.
 > **GitHub #211 draft:** 25-operator bind lane (filter/compose/drop) on `cursor/memory-trait-lab-catalog-pin-bind-ops-25-723f`. **Not merged.**
-> **Test gate:** bind-ops file 10 OK; full memory suite pending this draft.
+> **Test gate:** bind-ops file 10 OK; memory suite 186 OK; engine harden 61 OK (247 combined).
 > Product-label #211 (`8536fa4` seed history) stays on main as an earlier memory-lane merge. Do not reopen it.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #209 merged; GitHub #210 catalog↔pin bind draft)

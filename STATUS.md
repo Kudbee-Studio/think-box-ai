@@ -5,7 +5,7 @@
 - **Scope:** D01–D25 bind filters, compose (merge/intersect/subtract/xor/retain), rematch index, drop unbound, catalogs from bound
 - **Write policy:** Hash-only except drop_unbound (unpin facts only); no pack/run apply; live claim, same index, bind conflict, missing pin fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** bind-ops file **10 OK**; memory suite pending full run — **not merged**
+- **Verify:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined) — **not merged**
 
 ## GitHub PR #210 — Trait Lab catalog↔pin bind (merged)
 
