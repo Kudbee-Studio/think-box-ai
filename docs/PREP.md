@@ -2,10 +2,17 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #209 merged; GitHub #210 catalog↔pin bind draft)
+>
+> **GitHub #209 merged** at `415acb0` — catalog xor + retain. Not LIVE VERIFIED.
+> **GitHub #210 draft:** 25-operator catalog↔pin bind on `cursor/memory-trait-lab-catalog-pin-bind-25-723f`. **Not merged.**
+> **Test gate:** bind file 13 OK; full memory suite pending this draft.
+> Product-label #210 (`7b0e0df` best per seed) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #208 merged; GitHub #209 catalog follow-through draft)
 >
 > **GitHub #208 merged** at `eb622d5` — pin-index follow-through. Not LIVE VERIFIED.
-> **GitHub #209 draft:** catalog follow-through (xor + retain) on `cursor/memory-trait-lab-catalog-follow-723f`. **Not merged.**
+> **GitHub #209 catalog follow-through** merged at `415acb0`. **Not LIVE VERIFIED.**
 > **Test gate:** catalog-follow 4 OK; memory suite 163 OK; engine harden 61 OK (224 combined).
 > Product-label #209 (`abdf325` local board) stays on main as an earlier memory-lane merge.
 >
