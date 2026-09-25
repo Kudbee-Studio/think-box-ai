@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #223 — Trait Lab seed pack diff (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-pack-diff` |
+| **Scope** | `diff_trait_lab_seed_packs` — compare two rematched packs for one seed |
+| **Write policy** | Rematch both packs; seed mismatch, same pack, live claim, and invalid pack fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-seed-pack-diff-723f` |
+
 ## PR #222 — Trait Lab seed pack apply (MERGED)
 
 | Field | Value |

@@ -2407,4 +2407,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #223. At most one open PR.
 
+### 2026-09-25 — PR #223 Trait Lab seed pack diff
+
+- **DISCOVERY:** Packs could be rematched and applied, but two packs for one seed could not be compared.
+- **IMPLEMENTATION:** `diff_trait_lab_seed_packs` rematches both packs, requires the same seed and different hashes, then reports shared / only-a / only-b proofs plus count and XP deltas. Fail-closed on seed mismatch, same pack, live claim, and invalid pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-diff-723f` into `main`.
+
 ---

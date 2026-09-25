@@ -70,6 +70,7 @@
 | Trait Lab seed pack export | **#220** (merged `d66cc4a`) — portable snapshot of one seed; not LIVE VERIFIED |
 | Trait Lab seed pack import | **#221** (merged `a05b31d`) — verify `pack_sha256` and write import fact; not LIVE VERIFIED |
 | Trait Lab seed pack apply | **#222** (merged `2cfa121`) — write rematched pack runs into a destination store; not LIVE VERIFIED |
+| Trait Lab seed pack diff | **#223** (open) — compare two rematched packs for one seed; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
