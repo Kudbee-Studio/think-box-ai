@@ -2437,4 +2437,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Open #225 seed pack catalog by seed.
 
+### 2026-09-25 — Draft Trait Lab catalog operator pack (25 features)
+
+- **DISCOVERY:** Direct merges to `main` left GitHub PR numbers behind. Founder asked for a visible draft PR with 25 catalog features, not another main push.
+- **IMPLEMENTATION:** C01–C25 on imported/applied pack facts: seed filter, has/list/count/seeds, count floor/ceiling/band, page, purge (catalog fact only), digest, export/verify/import catalog index, agent/task filters, malformed report, has_seed, best-for-seed, catalog diff, ids-for-seed, etag, refuse live, public row, get pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory suite **123 OK**; engine harden **61 OK** (184 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Open a GitHub **draft** PR for `cursor/memory-trait-lab-catalog-ops-25-723f`. Do not merge from this record.
+
 ---
