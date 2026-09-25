@@ -76,7 +76,8 @@
 | Trait Lab catalog compose | **GitHub #204** (merged `388fde8`) — merge / intersect / subtract rematched catalogs; not LIVE VERIFIED |
 | Trait Lab catalog pin | **GitHub #205** (merged `8367f5a`) — pin / get / list / unpin rematched catalog snapshots; not LIVE VERIFIED |
 | Trait Lab catalog pin operators | **GitHub #206** (merged `50211b4`) — 25 pin-index operators P01–P25; not LIVE VERIFIED |
-| Trait Lab catalog pin compose | **GitHub #207 draft** — merge / intersect / subtract rematched pin indexes; not LIVE VERIFIED |
+| Trait Lab catalog pin compose | **GitHub #207** (merged `8a120d2`) — merge / intersect / subtract rematched pin indexes; not LIVE VERIFIED |
+| Trait Lab catalog pin follow-through | **GitHub #208 draft** — xor + retain-best + fact_id/id-set harden; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

@@ -2,10 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #207 merged; GitHub #208 pin follow-through draft)
+>
+> **GitHub #207 merged** at `8a120d2` — pin-index compose. Not LIVE VERIFIED.
+> **GitHub #208 draft:** pin-index follow-through (xor + retain + review harden) on `cursor/memory-trait-lab-catalog-pin-follow-723f`. **Not merged.**
+> Product-label #208 (`b9074c6` list/compare proofs) stays on main as an earlier memory-lane merge.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #206 merged; GitHub #207 pin compose draft)
 >
 > **GitHub #206 merged** at `50211b4` — 25 pin-index operators. Not LIVE VERIFIED.
-> **GitHub #207 draft:** pin-index compose (merge / intersect / subtract) on `cursor/memory-trait-lab-catalog-pin-compose-723f`. **Not merged.**
+> **GitHub #207 pin compose** merged at `8a120d2`. **Not LIVE VERIFIED.**
 > **Test gate:** pin-compose 6 OK; memory suite 154 OK; engine harden 61 OK (215 combined).
 > Product-label #207 (`d989255` replay rematch) stays on main as an earlier memory-lane merge.
 >
