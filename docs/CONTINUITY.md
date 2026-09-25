@@ -2445,4 +2445,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Open a GitHub **draft** PR for `cursor/memory-trait-lab-catalog-ops-25-723f`. Do not merge from this record.
 
+### 2026-09-25 — GitHub PR #203 catalog operator pack merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-ops-25-723f` → `main` at **`595dbb5`**.
+- **TEST_VERIFIED:** memory suite **123 OK**; engine harden **61 OK** (184 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#204** catalog compose as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #204 Trait Lab catalog compose
+
+- **DISCOVERY:** C20 diffs two rematched catalogs but cannot form a third catalog from their union, intersection, or remainder.
+- **IMPLEMENTATION:** `merge_trait_lab_seed_pack_catalogs`, `intersect_trait_lab_seed_pack_catalogs`, `subtract_trait_lab_seed_pack_catalogs`. Rematch both inputs; same hash, live claim, pack conflict, and invalid catalog fail-closed. Result is a rematched portable catalog. No run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---

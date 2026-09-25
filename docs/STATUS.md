@@ -1,15 +1,26 @@
 # STATUS — Think Box AI
 
-## Draft — Trait Lab catalog operator pack (OPEN, 25 features)
+## Draft — GitHub PR #204 Trait Lab catalog compose (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-catalog-compose` |
+| **Scope** | `merge` / `intersect` / `subtract` rematched catalog snapshots |
+| **Write policy** | Hash-only compose; no run writes; same catalog, live claim, pack conflict, invalid catalog fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-catalog-compose-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | compose **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined) |
+
+## GitHub PR #203 — Trait Lab catalog operator pack (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-catalog-ops-25` |
 | **Scope** | C01–C25 catalog operators on imported/applied `pack_sha256` facts |
 | **Write policy** | Catalog index only; purge leaves run rows; live claims fail-closed |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-catalog-ops-25-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `595dbb5` |
 | **Verify** | memory suite **123 OK**; engine harden **61 OK** (184 combined) |
 
 ## PR #224 — Trait Lab seed pack catalog (MERGED)

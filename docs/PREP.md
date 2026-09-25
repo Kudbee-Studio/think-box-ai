@@ -2,6 +2,14 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #203 merged; GitHub #204 catalog compose draft)
+>
+> **GitHub #203 merged** at `595dbb5` — 25 Trait Lab catalog operators. Not LIVE VERIFIED.
+> **GitHub #204 draft:** catalog compose (merge / intersect / subtract) on `cursor/memory-trait-lab-catalog-compose-723f`. **Not merged.**
+> **Test gate:** compose 6 OK; memory suite 129 OK; engine harden 61 OK (190 combined).
+> Product-label #203 (`3976930` ingest) and product-label #204 (`0b3fc87` query/retention) stay on main as earlier memory-lane merges.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+>
 > ## ADDENDUM — 2026-09-25 (PR #202 merged; PR #203 memory layers)
 >
 > **#202 merged** at `75a36c5` — Trait Lab (seeded local game). Not LIVE VERIFIED.
@@ -27,7 +35,7 @@
 > **#222 merged** at `2cfa121` — seed pack apply into a destination store. `live_verified` false.
 > **#223 merged** at `29e4ff9` — seed pack diff for one seed. `live_verified` false.
 > **#224 merged** at `5db0c37` — seed pack catalog. `live_verified` false.
-> **Draft open:** 25 catalog operators on `cursor/memory-trait-lab-catalog-ops-25-723f`. **Not merged.**
+> **GitHub #203 catalog ops** merged at `595dbb5`. **Not LIVE VERIFIED.**
 > **Test gate:** memory suite 123 OK; engine harden 61 OK (184 combined).
 
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
