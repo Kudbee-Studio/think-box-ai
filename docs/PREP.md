@@ -24,8 +24,8 @@
 > **#219 merged** at `e0d400c` — seed history between an XP floor and ceiling. `live_verified` false.
 > **#220 merged** at `d66cc4a` — portable seed pack export. `live_verified` false.
 > **#221 merged** at `a05b31d` — seed pack verify/import. `live_verified` false.
-> **#222 next:** wait for 1800s cadence timer. At most one open PR.
-> **Test gate:** memory + trait-lab suites → 89 OK (150 with engine harden).
+> **#222 open:** seed pack apply on `cursor/memory-trait-lab-seed-pack-apply-723f`. `live_verified` false.
+> **Test gate:** memory + trait-lab suites pending merge.
 
 > **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
 >

@@ -2392,4 +2392,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #222. At most one open PR.
 
+### 2026-09-25 — PR #222 Trait Lab seed pack apply
+
+- **DISCOVERY:** #221 rematched a pack and wrote one import fact. Destination stores still had no run rows.
+- **IMPLEMENTATION:** `apply_trait_lab_seed_pack` rematches first, then writes each run as verified knowledge. Fail-closed on live claim, invalid run, empty pack, and missing provenance. Pack meta rows stay out of seed history. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-apply-723f` into `main`.
+
 ---
