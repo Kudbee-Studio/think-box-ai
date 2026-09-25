@@ -191,6 +191,27 @@ class PRLifecycleConfig:
     skip_cleanup: bool = False
     deterministic_metrics: Optional[list[dict[str, Any]]] = None
     provisioner_state_path: Optional[str] = None
+    prior_recommendation: Optional[dict[str, Any]] = None
+
+    @classmethod
+    def from_prior_experiments(
+        cls,
+        pr_number: int,
+        manager: "ExperimentManager",
+        **kwargs: Any,
+    ) -> "PRLifecycleConfig":
+        """Create a config seeded from the most recent prior experiment recommendation.
+
+        Enables founder-driven review: the founder can inspect the recommendation
+        before constructing the next PR's lifecycle config, rather than relying
+        on automatic retrieval inside the orchestrator.
+        """
+        recommendation = manager.get_last_next_action()
+        return cls(
+            pr_number=pr_number,
+            prior_recommendation=recommendation,
+            **kwargs,
+        )
 
 
 @dataclass
@@ -707,7 +728,7 @@ class PRLifecycleOrchestrator:
             return self._execute_override(self._manager, self._analytics)
 
         assert self._manager is not None and self._analytics is not None
-        recommendation = self._manager.get_last_next_action()
+        recommendation = self._config.prior_recommendation or self._manager.get_last_next_action()
 
         if recommendation:
             rec_type = recommendation.get("type", "validation_run")
@@ -732,9 +753,10 @@ class PRLifecycleOrchestrator:
             parameters=parameters,
             agent_id="pr_lifecycle_orchestrator",
         )
+        recommendation_source = "config" if self._config.prior_recommendation else ("auto" if recommendation else "none")
         self._manager.db.save_event(
             exp.experiment_id, "recommendation_consumed",
-            {"recommendation_source": "prior_next_action", "consumed": recommendation is not None},
+            {"recommendation_source": recommendation_source, "consumed": recommendation is not None},
         )
         runs = self._config.deterministic_metrics or _default_metric_runs()
         for run in runs:
