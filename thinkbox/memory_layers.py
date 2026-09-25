@@ -853,3 +853,28 @@ def compare_trait_lab_runs(
         "same_seed": left.get("seed") == right.get("seed"),
         "live_verified": False,
     }
+
+
+def board_trait_lab_runs(store: MemoryStore, *, limit: int = 10) -> dict[str, Any]:
+    """Local board from stored proofs. Uses rank_board. Not live."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    from thinkbox.trait_game.engine import rank_board
+
+    runs = list_trait_lab_runs(store, limit=max(limit, 50))
+    entries = [
+        {
+            "xp": int(run.get("xp") or 0),
+            "grade": str(run.get("grade") or ""),
+            "turn": 0,
+            "name": str(run.get("proof_sha256") or "")[:8],
+            "seed": run.get("seed"),
+            "proof_sha256": run.get("proof_sha256"),
+        }
+        for run in runs
+    ]
+    return {
+        "board": rank_board(entries, limit=limit),
+        "count": len(runs),
+        "live_verified": False,
+    }

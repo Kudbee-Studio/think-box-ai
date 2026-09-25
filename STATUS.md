@@ -1,3 +1,11 @@
+## PR #209 — Trait Lab local board (draft)
+
+- **Gate:** `memory-trait-lab-board`
+- **Scope:** Local `rank_board` over stored Trait Lab proofs
+- **Write policy:** Not a live ranking; `live_verified` false
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare/board suites → **51 OK**
+
 ## PR #208 — Trait Lab run compare (merged)
 
 - **Merge:** `b9074c6` — list/compare stored Trait Lab proofs
