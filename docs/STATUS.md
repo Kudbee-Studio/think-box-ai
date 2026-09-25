@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #221 — Trait Lab seed pack import (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-seed-pack-import` |
+| **Scope** | `verify_trait_lab_seed_pack` / `import_trait_lab_seed_pack` — rematch SHA, refuse live claims |
+| **Write policy** | Live claim, invalid pack, missing hash, rematch fail, and missing provenance fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-seed-pack-import-723f` |
+
 ## PR #220 — Trait Lab seed pack export (MERGED)
 
 | Field | Value |
