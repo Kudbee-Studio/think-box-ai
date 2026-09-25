@@ -1,5 +1,6 @@
-## PR #204 — Memory query + retention (draft)
+## PR #204 — Memory query + retention (merged)
 
+- **Merge:** `0b3fc87` — read / query / decay / retention
 - **Gate:** `memory-query-retention`
 - **Scope:** Read / query / end-session / end-task / decay / retention on the four layers
 - **Write policy:** Org append-only; verified decays (no delete); session/task may expire
