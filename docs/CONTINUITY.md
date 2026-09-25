@@ -2550,4 +2550,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #210 catalog↔pin bind merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-bind-25-723f` → `main` at **`2846d02`**.
+- **TEST_VERIFIED:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#211** bind lane (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #211 Trait Lab catalog pin bind lane
+
+- **DISCOVERY:** After #210 pins rematch against store packs, but bind indexes cannot be filtered, composed, or rematched as a snapshot. Unbound pin facts had no drop path. Bound pins had no batch catalog rebuild.
+- **IMPLEMENTATION:** D01–D25 in `thinkbox/memory_layers.py`: list/count, by task, count floor/ceiling/band, bound-only/unbound-only, rematch index, diff, merge/intersect/subtract/xor, retain-best, drop unbound (unpin facts only), catalogs from bound, pack membership, get by fact_id, ids for agent, export bound-only. Hash-only except drop_unbound. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** bind-ops file **10 OK**. Full memory suite pending this draft.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---
