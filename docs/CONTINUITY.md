@@ -2747,4 +2747,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** workflow-chain **5 OK**; memory suite **237 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #222 merged (Trait Lab autonomous workflow chain bind)
+
+- **MERGE:** `27d64b6` on `main`.
+- **TEST_VERIFIED:** workflow-chain **5 OK**; memory **237 OK**.
+
+### 2026-09-25 — Draft GitHub PR #223 Trait Lab autonomous flow workflow major
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-flow-workflow-723f`
+- **DISCOVERY:** After #222, operators need one signed flow plan over dry-run vs run-chained with a flow receipt.
+- **IMPLEMENTATION:** O01–O25 in `thinkbox/autonomous_flow_workflow.py` (`open_flow`, artifact export, receipt index).
+- **TEST_VERIFIED:** flow-workflow **5 OK**; memory suite **242 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---

@@ -2,11 +2,15 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #222 merged; #223 autonomous flow workflow major draft)
+>
+> **GitHub #222 merged** at `27d64b6` — workflow chain bind F01–F25. Not LIVE VERIFIED.
+> **GitHub #223 draft:** O01–O25 flow workflow on `cursor/memory-trait-lab-autonomous-flow-workflow-723f`. **Not merged.**
+> **Test gate:** flow-workflow 5 OK; memory 242 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #221 merged; #222 workflow chain bind draft)
 >
-> **GitHub #221 merged** at `01ee6bf` — receipt chain compose M01–M25. Not LIVE VERIFIED.
-> **GitHub #222 draft:** F01–F25 workflow↔chain bind on `cursor/memory-trait-lab-autonomous-chain-follow-723f`. **Not merged.**
-> **Test gate:** workflow-chain 5 OK; memory 237 OK.
+> **Superseded:** chain bind shipped as **#222** (`27d64b6`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #220 merged; #221 chain compose draft)
 >

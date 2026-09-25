@@ -1,16 +1,24 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #222 Trait Lab autonomous workflow chain bind (OPEN)
+## Draft — GitHub PR #223 Trait Lab autonomous flow workflow major (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-flow-workflow-25` |
+| **Scope** | O01–O25 flow plan, dry-run/run-chained, flow receipt, `open_flow` |
+| **Write policy** | Flow receipt on run path; dry-run no writes |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-flow-workflow-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | flow-workflow **5 OK**; memory suite **242 OK** |
+
+## GitHub PR #222 — Trait Lab autonomous workflow chain bind (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-workflow-chain-25` |
-| **Scope** | F01–F25 run/dry-run chained + bind sign/verify/persist |
-| **Write policy** | Bind fact on chained run; dry-run no writes |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-chain-follow-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | workflow-chain **5 OK**; memory suite **237 OK** |
+| **Merge** | `27d64b6` |
+| **Verify** | workflow-chain **5 OK**; memory **237 OK** |
 
 ## GitHub PR #221 — Trait Lab autonomous receipt chain compose (MERGED)
 
