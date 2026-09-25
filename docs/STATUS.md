@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #211 — Trait Lab seed history (DRAFT)
+## PR #211 — Trait Lab seed history (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-history` |
 | **Scope** | `trait_lab_seed_history` — all stored runs for one seed |
 | **Write policy** | Missing seed fail-closed; not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `8536fa4` |
 | **Verify** | memory + trait-lab suites → **58 OK** |
 
 ## PR #210 — Trait Lab best per seed (MERGED)

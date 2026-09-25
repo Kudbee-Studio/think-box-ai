@@ -1,5 +1,6 @@
-## PR #211 — Trait Lab seed history (draft)
+## PR #211 — Trait Lab seed history (merged)
 
+- **Merge:** `8536fa4` — all stored runs for one seed, highest XP first
 - **Gate:** `memory-trait-lab-seed-history`
 - **Scope:** All stored runs for one seed, highest XP first
 - **Write policy:** Missing seed fail-closed; not a live ranking
