@@ -1,5 +1,6 @@
-## PR #213 — Trait Lab seed grade filter (draft)
+## PR #213 — Trait Lab seed grade filter (merged)
 
+- **Merge:** `690979c` — seed history rows filtered by letter grade
 - **Gate:** `memory-trait-lab-seed-grade`
 - **Scope:** Seed history rows filtered by letter grade
 - **Write policy:** Missing seed/grade and invalid grade fail-closed; not a live ranking
