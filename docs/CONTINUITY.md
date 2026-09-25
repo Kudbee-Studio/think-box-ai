@@ -2834,4 +2834,32 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** integration-major **4 OK**; memory suite **267 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #229 merged (Trait Lab autonomous integration major)
+
+- **MERGE:** `2a2fa3e` on `main` — https://github.com/Kudbee-Studio/think-box-ai/pull/229
+- **TEST_VERIFIED:** integration-major **4 OK**; memory **267 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. **live_verified: false**.
+
+---
+
+### 2026-09-25 — PR230 Architectural Direction Recorded (Founder-Directed)
+
+- **STATUS:** Decision recording only — no implementation, no branch, no PR.
+- **DIRECTION:** PR230 = "Trait Lab Autonomous Worker Executor" — governance/orchestration layer composing existing execution primitives with K01–K25 Integration Major quality gate.
+- **ARCHITECTURE:**
+  - Queue (ExecutionJobQueue)
+  - → CloudExecutionWorker (existing substrate)
+  - → Trait Lab Worker Executor (NEW governance layer)
+  - → K01–K25 Integration Major (quality gate)
+  - → Execution via existing provider
+  - → Verified Execution Receipt
+  - → Scheduler/Orchestrator Outcome
+- **NO DUPLICATE WORKER:** CloudExecutionWorker already exists (PR #199).
+- **LAYER DECISION PENDING:** Layer 4 orchestration vs Layer 5 Agent Runtime (architecture-v1.md) — not resolved.
+- **NAMESPACE PENDING:** L01–L25 proposed but not approved; founder to select.
+- **COMPOSITION PATTERN PENDING:** Wrap CloudExecutionWorker vs orchestrate via CloudExecutionEngine directly — not resolved.
+- **HERMETIC BOUNDARY:** live_verified=false; four-state ceiling = CODE COMPLETE / TEST VERIFIED; no live APIs; no synthetic LIVE receipts.
+- **ROADMAP:** Slot 14+ (founder-directed) updated with PR230 direction.
+- **ADR:** docs/decisions/NNN-trait-lab-autonomous-worker-executor.md to be created.
+
 ---
