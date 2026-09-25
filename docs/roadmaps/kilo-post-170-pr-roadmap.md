@@ -64,6 +64,7 @@
 | Trait Lab seed difficulty filter | **#214** (merged `77eb188`) — history by survey/lab/thesis; not LIVE VERIFIED |
 | Trait Lab seed operator filter | **#215** (merged `88d9c45`) — history by operator name; not LIVE VERIFIED |
 | Trait Lab seed daily filter | **#216** (merged `f99af45`) — history by daily flag; not LIVE VERIFIED |
+| Trait Lab seed XP floor | **#217** (draft `cursor/memory-trait-lab-seed-xp-floor-723f`) — history at or above XP; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
