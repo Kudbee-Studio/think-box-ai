@@ -10,7 +10,7 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
 | **Branch** | `cursor/memory-trait-lab-autonomous-workflow-25-723f` |
 | **Merge** | not merged — draft PR only |
-| **Verify** | autonomous file **5 OK**; memory suite **218 OK** |
+| **Verify** | autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined) |
 
 ## GitHub PR #215 — Trait Lab operator session (MERGED)
 

@@ -2654,7 +2654,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** After #215 session dry-run, autonomous workflow still needs a signed plan linking prep receipt, session receipt, and workflow dry-run steps before persist/run.
 - **IMPLEMENTATION:** A01–A15 in `thinkbox/autonomous_workflow.py`: refuse live, require prep/session receipts, provenance, plan/validate/sign/verify, step list/page, digest/etag. A16–A25 (dry-run, persist, run) deferred.
-- **TEST_VERIFIED:** autonomous file **5 OK**; memory suite **218 OK**.
+- **TEST_VERIFIED:** autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. **Not merged.**
 - **NEXT ACTION:** Commit A16–A25 on same branch or follow-up; one visible draft. Do not merge until founder asks.
 

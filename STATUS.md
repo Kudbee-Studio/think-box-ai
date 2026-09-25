@@ -5,7 +5,7 @@
 - **Scope:** Plan/sign/verify autonomous prep → session → workflow_dry_run; receipt gates A02–A03
 - **Write policy:** Hash-only; no dry-run execution or receipt persist in this slice (A16–A25)
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** autonomous file **5 OK**; memory suite **218 OK**; engine harden pending — **not merged**
+- **Verify:** autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined) — **not merged**
 
 ## GitHub PR #215 — Trait Lab operator session (merged)
 
