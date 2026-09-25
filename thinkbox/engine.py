@@ -62,6 +62,7 @@ class ThinkBoxEngine:
         self._verified_task_runner: Callable[..., Any] | None = None
         self._experiment_manager: Any = None
         self._experiment_analytics: Any = None
+        self._opportunity_manager: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -85,20 +86,22 @@ class ThinkBoxEngine:
         """
         self._experiment_manager = manager
 
-    def wire_experiment_feedback(self, manager: Any | None, analytics: Any | None) -> None:
-        """Wire Execution -> Memory -> Learning feedback loop (DI).
+    def wire_experiment_feedback(self, manager: Any | None, analytics: Any | None,
+                                 opportunity_manager: Any | None = None) -> None:
+        """Wire Execution -> Memory -> Learning -> Opportunity feedback loop (DI).
 
         When set, execute_goal() persists the run summary as experiment
         outcome data and generates a new recommendation via NextActionGenerator.
-        The recommendation is persisted and available for the next
-        execute_goal() call via get_last_next_action(). This closes the
-        Planning -> Execution -> Verification -> Feedback -> Memory loop.
+        The recommendation is registered as an Opportunity via OpportunityManager
+        for the next planning cycle. This closes the
+        Planning -> Execution -> Verification -> Feedback -> Memory -> Opportunity loop.
 
         With no manager/analytics injected, execute_goal() behaves identically
         to legacy (no feedback recording).
         """
         self._experiment_manager = manager
         self._experiment_analytics = analytics
+        self._opportunity_manager = opportunity_manager
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -364,9 +367,38 @@ class ThinkBoxEngine:
                 four_state="TEST_VERIFIED",
             )
             generator = NextActionGenerator(self._experiment_manager, self._experiment_analytics)
-            generator.generate(exp.experiment_id, {"status": "completed"}, confidence=0.9)
+            next_action = generator.generate(exp.experiment_id, {"status": "completed"}, confidence=0.9)
+            recommendation = next_action.get("recommended_next_experiment", next_action)
+            self._register_opportunity(exp.experiment_id, goal_run_id, recommendation, metrics_run)
             self.emit("root", TaskState.SUCCESS, "Feedback recorded",
                       feedback_experiment_id=exp.experiment_id, goal_run_id=goal_run_id)
+        except Exception:
+            pass
+
+    def _register_opportunity(self, experiment_id: str, goal_run_id: str,
+                              recommendation: dict[str, Any], metrics: dict[str, Any]) -> None:
+        """Register a Feedback -> Opportunity binding.
+
+        When an OpportunityManager is injected, the feedback-generated
+        recommendation is persisted as an opportunity for the next planning
+        cycle. No-ops when no OpportunityManager is set.
+        Fail-closed: errors are swallowed to avoid disrupting execution flow.
+        """
+        if self._opportunity_manager is None:
+            return
+        try:
+            priority = "high" if recommendation.get("type") == "regression_followup" else "medium"
+            opportunity = self._opportunity_manager.register_opportunity(
+                source_experiment_id=experiment_id,
+                source_goal_run_id=goal_run_id,
+                recommendation=recommendation,
+                metrics=metrics,
+                priority=priority,
+            )
+            self.emit("root", TaskState.SUCCESS, "Opportunity registered",
+                      opportunity_id=opportunity.opportunity_id,
+                      goal_run_id=goal_run_id,
+                      recommendation_type=recommendation.get("type", "unknown"))
         except Exception:
             pass
 

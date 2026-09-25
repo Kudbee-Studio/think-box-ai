@@ -22,8 +22,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import sqlite3
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
@@ -723,3 +725,187 @@ def _p95_from_latencies(latencies: list[float]) -> float:
     sorted_l = sorted(latencies)
     idx = math.ceil(len(sorted_l) * 0.95) - 1
     return sorted_l[max(0, min(idx, len(sorted_l) - 1))]
+
+
+@dataclass
+class Opportunity:
+    """An opportunity identified from execution feedback.
+
+    Represents what the engine should investigate or iterate on next,
+    derived from the analysis of a completed execution run.
+    """
+
+    opportunity_id: str
+    source_experiment_id: str
+    source_goal_run_id: str
+    recommendation: dict[str, Any]
+    metrics: dict[str, Any]
+    created_at: str
+    priority: str
+    rationale: str
+
+
+@dataclass
+class OpportunityManager:
+    """Tracks opportunities identified from execution feedback (Feedback -> Opportunity binding).
+
+    When execution feedback is recorded, the generated NextAction recommendation
+    is registered as an opportunity. The opportunity tracks what should be worked
+    on next, and is consumed by the next planning/experiment cycle.
+
+    Uses a MemoryStore-backed SQLite database for persistence so opportunities
+    survive engine restarts.
+    """
+
+    def __init__(self, manager: ExperimentManager, analytics: ExperimentAnalytics,
+                 db_path: str = ":memory:") -> None:
+        self._manager = manager
+        self._analytics = analytics
+        self._db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS opportunities (
+                    opportunity_id TEXT PRIMARY KEY,
+                    source_experiment_id TEXT NOT NULL,
+                    source_goal_run_id TEXT NOT NULL,
+                    recommendation TEXT NOT NULL,
+                    metrics TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    rationale TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def register_opportunity(self, source_experiment_id: str, source_goal_run_id: str,
+                             recommendation: dict[str, Any], metrics: dict[str, Any],
+                             priority: str = "medium") -> Opportunity:
+        """Register a new opportunity from a feedback-generated recommendation.
+
+        Returns the created Opportunity with a generated ID.
+        """
+        opportunity_id = f"opp_{uuid.uuid4().hex[:12]}"
+        created_at = datetime.now(timezone.utc).isoformat()
+        rationale = recommendation.get("rationale", "")
+
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT INTO opportunities (opportunity_id, source_experiment_id, source_goal_run_id, "
+                "recommendation, metrics, created_at, priority, rationale) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    opportunity_id,
+                    source_experiment_id,
+                    source_goal_run_id,
+                    json.dumps(recommendation, default=str),
+                    json.dumps(metrics, default=str),
+                    created_at,
+                    priority,
+                    rationale,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        return Opportunity(
+            opportunity_id=opportunity_id,
+            source_experiment_id=source_experiment_id,
+            source_goal_run_id=source_goal_run_id,
+            recommendation=recommendation,
+            metrics=metrics,
+            created_at=created_at,
+            priority=priority,
+            rationale=rationale,
+        )
+
+    def get_current_opportunity(self) -> Optional[Opportunity]:
+        """Retrieve the most recent unclaimed opportunity."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM opportunities ORDER BY created_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return Opportunity(
+                opportunity_id=row["opportunity_id"],
+                source_experiment_id=row["source_experiment_id"],
+                source_goal_run_id=row["source_goal_run_id"],
+                recommendation=json.loads(row["recommendation"]),
+                metrics=json.loads(row["metrics"]),
+                created_at=row["created_at"],
+                priority=row["priority"],
+                rationale=row["rationale"],
+            )
+        finally:
+            conn.close()
+
+    def list_opportunities(self, limit: int = 50) -> list[Opportunity]:
+        """List opportunities ordered by recency."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM opportunities ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            return [
+                Opportunity(
+                    opportunity_id=row["opportunity_id"],
+                    source_experiment_id=row["source_experiment_id"],
+                    source_goal_run_id=row["source_goal_run_id"],
+                    recommendation=json.loads(row["recommendation"]),
+                    metrics=json.loads(row["metrics"]),
+                    created_at=row["created_at"],
+                    priority=row["priority"],
+                    rationale=row["rationale"],
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_opportunity(self, opportunity_id: str) -> Optional[Opportunity]:
+        """Retrieve a specific opportunity by ID."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM opportunities WHERE opportunity_id = ?",
+                (opportunity_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return Opportunity(
+                opportunity_id=row["opportunity_id"],
+                source_experiment_id=row["source_experiment_id"],
+                source_goal_run_id=row["source_goal_run_id"],
+                recommendation=json.loads(row["recommendation"]),
+                metrics=json.loads(row["metrics"]),
+                created_at=row["created_at"],
+                priority=row["priority"],
+                rationale=row["rationale"],
+            )
+        finally:
+            conn.close()
+
+    def count_opportunities(self) -> int:
+        """Return the total number of registered opportunities."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM opportunities")
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
