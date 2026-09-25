@@ -1,5 +1,17 @@
 # STATUS — Think Box AI
 
+## Draft — Trait Lab catalog operator pack (OPEN, 25 features)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-catalog-ops-25` |
+| **Scope** | C01–C25 catalog operators on imported/applied `pack_sha256` facts |
+| **Write policy** | Catalog index only; purge leaves run rows; live claims fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-catalog-ops-25-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | memory suite **123 OK**; engine harden **61 OK** (184 combined) |
+
 ## PR #224 — Trait Lab seed pack catalog (MERGED)
 
 | Field | Value |

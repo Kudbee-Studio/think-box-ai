@@ -1542,21 +1542,62 @@ def _pack_catalog_row(entry: MemoryEntry) -> dict[str, Any] | None:
         "kind": _TRAIT_LAB_SEED_PACK_KIND,
         "seed": seed,
         "count": count,
+        "agent_id": entry.agent_id,
+        "task_id": entry.task_id,
         "live_verified": False,
     }
 
 
-def catalog_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
-    """Index imported or applied seed packs. Not a live ranking."""
-    if limit < 1:
+_TRAIT_LAB_CATALOG_KIND = "trait-lab-seed-pack-catalog"
+TRAIT_LAB_CATALOG_OPS: tuple[str, ...] = (
+    "catalog_for_seed",
+    "has_pack",
+    "list_ids",
+    "count_packs",
+    "list_seeds",
+    "by_count_floor",
+    "by_count_ceiling",
+    "by_count_band",
+    "page",
+    "purge_pack",
+    "digest",
+    "export_catalog",
+    "verify_catalog",
+    "import_catalog",
+    "by_agent",
+    "by_task",
+    "malformed_report",
+    "has_seed",
+    "best_for_seed",
+    "diff_catalogs",
+    "ids_for_seed",
+    "etag",
+    "refuse_live",
+    "public_row",
+    "get_pack",
+)
+
+
+def _require_catalog_limit(limit: int) -> int:
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
         raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    return limit
+
+
+def _require_catalog_offset(offset: int) -> int:
+    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+        raise MemoryLayerError("invalid_offset", "offset must be >= 0")
+    return offset
+
+
+def _collect_trait_lab_seed_pack_rows(store: MemoryStore, *, scan: int = 200) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     seen: set[str] = set()
     for entry in query_layer(
         store,
         MemoryLayer.VERIFIED_KNOWLEDGE,
         prefix="verified:trait-lab-pack-",
-        limit=max(limit * 4, 200),
+        limit=scan,
     ):
         row = _pack_catalog_row(entry)
         if row is None or row["pack_sha256"] in seen:
@@ -1564,12 +1605,41 @@ def catalog_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict
         seen.add(row["pack_sha256"])
         found.append(row)
     found.sort(key=lambda row: (int(row["seed"]), str(row["pack_sha256"])))
+    return found
+
+
+def _catalog_public_row(row: dict[str, Any]) -> dict[str, Any]:
     return {
-        "kind": "trait-lab-seed-pack-catalog",
-        "packs": found[:limit],
-        "count": len(found),
+        "pack_sha256": row["pack_sha256"],
+        "fact_id": row["fact_id"],
+        "kind": _TRAIT_LAB_SEED_PACK_KIND,
+        "seed": row["seed"],
+        "count": row["count"],
         "live_verified": False,
     }
+
+
+def _catalog_bundle(rows: list[dict[str, Any]], *, limit: int | None = None) -> dict[str, Any]:
+    selected = rows if limit is None else rows[:limit]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_KIND,
+        "packs": selected,
+        "count": len(rows),
+        "live_verified": False,
+    }
+
+
+def refuse_trait_lab_catalog_live(payload: Any) -> None:
+    """C23 — catalog payloads may not claim LIVE VERIFIED."""
+    if isinstance(payload, dict) and payload.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "seed pack catalog may not claim LIVE VERIFIED")
+
+
+def catalog_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """Index imported or applied seed packs. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    found = _collect_trait_lab_seed_pack_rows(store, scan=max(limit * 4, 200))
+    return _catalog_bundle(found, limit=limit)
 
 
 def get_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> dict[str, Any]:
@@ -1587,3 +1657,326 @@ def get_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> dict[str, A
     if row is None or row["pack_sha256"] != sha:
         raise MemoryLayerError("missing_pack", f"no cataloged seed pack {sha[:12]}")
     return row
+
+
+def catalog_trait_lab_seed_packs_for_seed(
+    store: MemoryStore,
+    seed: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C01 — catalog imported or applied packs for one seed."""
+    limit = _require_catalog_limit(limit)
+    key = _seed_key(seed)
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if int(row["seed"]) == key]
+    if not rows:
+        raise MemoryLayerError("missing_seed", f"no cataloged seed pack for seed {key}")
+    rows.sort(key=lambda row: str(row["pack_sha256"]))
+    return {**_catalog_bundle(rows, limit=limit), "seed": key}
+
+
+def has_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> bool:
+    """C02 — true when a catalog row exists for pack_sha256."""
+    sha = str(pack_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_pack_hash", "has_pack requires pack_sha256")
+    return any(row["pack_sha256"] == sha for row in _collect_trait_lab_seed_pack_rows(store))
+
+
+def list_trait_lab_seed_pack_ids(store: MemoryStore, *, limit: int = 50) -> list[str]:
+    """C03 — stable pack_sha256 identifiers."""
+    limit = _require_catalog_limit(limit)
+    return [row["pack_sha256"] for row in _collect_trait_lab_seed_pack_rows(store)[:limit]]
+
+
+def count_trait_lab_seed_packs(store: MemoryStore) -> int:
+    """C04 — number of cataloged packs."""
+    return len(_collect_trait_lab_seed_pack_rows(store))
+
+
+def list_trait_lab_seed_pack_seeds(store: MemoryStore, *, limit: int = 50) -> list[int]:
+    """C05 — distinct seeds that have cataloged packs, ascending."""
+    limit = _require_catalog_limit(limit)
+    seeds: list[int] = []
+    seen: set[int] = set()
+    for row in _collect_trait_lab_seed_pack_rows(store):
+        seed = int(row["seed"])
+        if seed in seen:
+            continue
+        seen.add(seed)
+        seeds.append(seed)
+    return seeds[:limit]
+
+
+def catalog_trait_lab_seed_packs_by_count_floor(
+    store: MemoryStore,
+    floor: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C06 — packs whose stored count is at or above floor."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if int(row["count"]) >= low]
+    if not rows:
+        raise MemoryLayerError("missing_floor", f"no cataloged pack with count >= {low}")
+    return {**_catalog_bundle(rows, limit=limit), "floor": low}
+
+
+def catalog_trait_lab_seed_packs_by_count_ceiling(
+    store: MemoryStore,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C07 — packs whose stored count is at or below ceiling."""
+    limit = _require_catalog_limit(limit)
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if int(row["count"]) <= high]
+    if not rows:
+        raise MemoryLayerError("missing_ceiling", f"no cataloged pack with count <= {high}")
+    return {**_catalog_bundle(rows, limit=limit), "ceiling": high}
+
+
+def catalog_trait_lab_seed_packs_by_count_band(
+    store: MemoryStore,
+    floor: int,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C08 — packs whose stored count is inside [floor, ceiling]."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    if low > high:
+        raise MemoryLayerError("invalid_band", "floor must be <= ceiling")
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if low <= int(row["count"]) <= high]
+    if not rows:
+        raise MemoryLayerError("missing_band", f"no cataloged pack with count {low}-{high}")
+    return {**_catalog_bundle(rows, limit=limit), "floor": low, "ceiling": high}
+
+
+def catalog_trait_lab_seed_packs_page(
+    store: MemoryStore,
+    *,
+    offset: int = 0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C09 — deterministic catalog page."""
+    limit = _require_catalog_limit(limit)
+    start = _require_catalog_offset(offset)
+    rows = _collect_trait_lab_seed_pack_rows(store)
+    page = rows[start : start + limit]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_KIND,
+        "packs": page,
+        "count": len(rows),
+        "offset": start,
+        "limit": limit,
+        "live_verified": False,
+    }
+
+
+def purge_trait_lab_seed_pack(store: MemoryStore, pack_sha256: str) -> dict[str, Any]:
+    """C10 — drop the catalog fact only. Run rows stay."""
+    row = get_trait_lab_seed_pack(store, pack_sha256)
+    key = f"verified:{row['fact_id']}"
+    if not store.delete(key):
+        raise MemoryLayerError("missing_pack", f"no cataloged seed pack {row['pack_sha256'][:12]}")
+    return {
+        "purged": True,
+        "pack_sha256": row["pack_sha256"],
+        "fact_id": row["fact_id"],
+        "live_verified": False,
+    }
+
+
+def catalog_trait_lab_seed_packs_digest(store: MemoryStore) -> str:
+    """C11 — SHA-256 over the stable public catalog body."""
+    exported = export_trait_lab_seed_pack_catalog(store)
+    return str(exported["catalog_sha256"])
+
+
+def _catalog_export_body(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    public = [_catalog_public_row(row) for row in rows]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_KIND,
+        "packs": public,
+        "count": len(public),
+        "live_verified": False,
+    }
+
+
+def export_trait_lab_seed_pack_catalog(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """C12 — portable catalog snapshot. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    rows = _collect_trait_lab_seed_pack_rows(store)[:limit]
+    body = _catalog_export_body(rows)
+    refuse_trait_lab_catalog_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "catalog_sha256": hashlib.sha256(encoded).hexdigest(),
+        "exported_at": _utc(),
+    }
+
+
+def verify_trait_lab_seed_pack_catalog(catalog: Any) -> dict[str, Any]:
+    """C13 — rematch catalog_sha256 over the stable catalog body."""
+    if not isinstance(catalog, dict):
+        raise MemoryLayerError("invalid_catalog", "catalog must be an object")
+    if catalog.get("kind") != _TRAIT_LAB_CATALOG_KIND:
+        raise MemoryLayerError("invalid_catalog", "kind must be trait-lab-seed-pack-catalog")
+    refuse_trait_lab_catalog_live(catalog)
+    if not isinstance(catalog.get("packs"), list):
+        raise MemoryLayerError("invalid_catalog", "packs must be a list")
+    sha = str(catalog.get("catalog_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_catalog_hash", "verify requires catalog_sha256")
+    public = [_catalog_public_row(row) for row in catalog["packs"] if isinstance(row, dict)]
+    if len(public) != len(catalog["packs"]):
+        raise MemoryLayerError("invalid_catalog", "every catalog pack must be an object")
+    body = _catalog_export_body(public)
+    got = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if got != sha:
+        raise MemoryLayerError("catalog_mismatch", f"catalog hashed {got[:12]} not {sha[:12]}")
+    return {**body, "matched": True, "catalog_sha256": sha, "live_verified": False}
+
+
+def import_trait_lab_seed_pack_catalog(
+    store: MemoryStore,
+    catalog: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """C14 — write rematched catalog facts. Does not apply runs."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "catalog import requires agent_id and task_id")
+    verified = verify_trait_lab_seed_pack_catalog(catalog)
+    written: list[str] = []
+    for row in verified["packs"]:
+        _write_trait_lab_seed_pack_fact(
+            store,
+            {
+                "pack_sha256": row["pack_sha256"],
+                "seed": row["seed"],
+                "count": row["count"],
+            },
+            agent_id=agent_id,
+            task_id=task_id,
+        )
+        written.append(row["pack_sha256"])
+    return {
+        "imported": True,
+        "count": len(written),
+        "ids": written,
+        "catalog_sha256": verified["catalog_sha256"],
+        "live_verified": False,
+    }
+
+
+def catalog_trait_lab_seed_packs_by_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C15 — catalog rows written by one agent."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(agent_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_agent", "catalog by agent requires agent_id")
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if row.get("agent_id") == wanted]
+    if not rows:
+        raise MemoryLayerError("missing_agent", f"no cataloged pack for agent {wanted}")
+    return {**_catalog_bundle(rows, limit=limit), "agent_id": wanted}
+
+
+def catalog_trait_lab_seed_packs_by_task(
+    store: MemoryStore,
+    task_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """C16 — catalog rows written by one task."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(task_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_task", "catalog by task requires task_id")
+    rows = [row for row in _collect_trait_lab_seed_pack_rows(store) if row.get("task_id") == wanted]
+    if not rows:
+        raise MemoryLayerError("missing_task", f"no cataloged pack for task {wanted}")
+    return {**_catalog_bundle(rows, limit=limit), "task_id": wanted}
+
+
+def report_malformed_trait_lab_seed_packs(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """C17 — keys that look like pack facts but fail the catalog row contract."""
+    limit = _require_catalog_limit(limit)
+    bad: list[str] = []
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-pack-",
+        limit=max(limit * 4, 200),
+    ):
+        if _pack_catalog_row(entry) is None:
+            bad.append(entry.key)
+        if len(bad) >= limit:
+            break
+    return {"kind": "trait-lab-seed-pack-malformed", "keys": bad, "count": len(bad), "live_verified": False}
+
+
+def catalog_has_seed(store: MemoryStore, seed: int) -> bool:
+    """C18 — true when any catalog row exists for the seed."""
+    key = _seed_key(seed)
+    return any(int(row["seed"]) == key for row in _collect_trait_lab_seed_pack_rows(store))
+
+
+def best_trait_lab_seed_pack_for_seed(store: MemoryStore, seed: int) -> dict[str, Any]:
+    """C19 — highest count for one seed; hash breaks ties. Not a live ranking."""
+    catalog = catalog_trait_lab_seed_packs_for_seed(store, seed, limit=200)
+    rows = list(catalog["packs"])
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["pack_sha256"])))
+    return {**rows[0], "live_verified": False}
+
+
+def diff_trait_lab_seed_pack_catalogs(catalog_a: Any, catalog_b: Any) -> dict[str, Any]:
+    """C20 — compare two rematched catalog snapshots."""
+    left = verify_trait_lab_seed_pack_catalog(catalog_a)
+    right = verify_trait_lab_seed_pack_catalog(catalog_b)
+    if left["catalog_sha256"] == right["catalog_sha256"]:
+        raise MemoryLayerError("same_catalog", "diff requires two different catalog hashes")
+    ids_a = [row["pack_sha256"] for row in left["packs"]]
+    ids_b = [row["pack_sha256"] for row in right["packs"]]
+    set_a = set(ids_a)
+    set_b = set(ids_b)
+    return {
+        "kind": _TRAIT_LAB_CATALOG_KIND,
+        "only_a": [sha for sha in ids_a if sha not in set_b],
+        "only_b": [sha for sha in ids_b if sha not in set_a],
+        "shared": [sha for sha in ids_a if sha in set_b],
+        "count_delta": int(left["count"]) - int(right["count"]),
+        "live_verified": False,
+    }
+
+
+def list_trait_lab_seed_pack_ids_for_seed(store: MemoryStore, seed: int, *, limit: int = 50) -> list[str]:
+    """C21 — pack_sha256 values for one seed, sorted."""
+    catalog = catalog_trait_lab_seed_packs_for_seed(store, seed, limit=limit)
+    return [row["pack_sha256"] for row in catalog["packs"]]
+
+
+def catalog_trait_lab_seed_pack_etag(store: MemoryStore) -> str:
+    """C22 — short digest for catalog identity."""
+    return catalog_trait_lab_seed_packs_digest(store)[:16]
+
+
+def public_trait_lab_seed_pack_row(row: dict[str, Any]) -> dict[str, Any]:
+    """C24 — stable selector row without agent/task fields."""
+    if not isinstance(row, dict) or not row.get("pack_sha256"):
+        raise MemoryLayerError("invalid_pack", "public row requires a pack")
+    return _catalog_public_row(row)

@@ -1,3 +1,12 @@
+## Draft — Trait Lab catalog operator pack (25 features, not merged)
+
+- **Branch:** `cursor/memory-trait-lab-catalog-ops-25-723f`
+- **Gate:** `memory-trait-lab-catalog-ops-25`
+- **Scope:** C01–C25 seed-pack catalog operators (filter, page, purge, export/verify/import index, digest/etag)
+- **Write policy:** Catalog facts only; purge does not delete run rows; live claims fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory suite **123 OK**; engine harden **61 OK** (184 combined) — **not merged**
+
 ## PR #224 — Trait Lab seed pack catalog (merged)
 
 - **Merge:** `5db0c37` — catalog imported/applied packs by `pack_sha256`
