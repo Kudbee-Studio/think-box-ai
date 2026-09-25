@@ -2,11 +2,15 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #220 merged; #221 chain compose draft)
+>
+> **GitHub #220 merged** at `9d57050` — autonomous receipt chain R01–R25. Not LIVE VERIFIED.
+> **GitHub #221 draft:** M01–M25 compose on `cursor/memory-trait-lab-autonomous-chain-compose-723f`. **Not merged.**
+> **Test gate:** compose 4 OK; memory 232 OK.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #218 merged; #219 receipt chain draft)
 >
-> **GitHub #218 merged** at `897c06b` — autonomous workflow A16–A25 + `run_autonomous`. Not LIVE VERIFIED.
-> **GitHub #219 draft:** R01–R25 receipt chain on `cursor/memory-trait-lab-autonomous-follow-723f`. **Not merged.**
-> **Test gate:** chain 4 OK; memory 228 OK.
+> **Superseded:** receipt chain shipped as **#220** (not forge seed-pack #220).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #217 merged; autonomous A16–A25 draft)
 >

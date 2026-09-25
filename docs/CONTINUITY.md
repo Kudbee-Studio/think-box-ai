@@ -2702,4 +2702,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** chain **4 OK**; memory suite **228 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #220 merged (Trait Lab autonomous receipt chain)
+
+- **MERGE:** `9d57050` on `main` (branch `cursor/memory-trait-lab-autonomous-follow-723f`).
+- **TEST_VERIFIED:** chain **4 OK**; memory **228 OK**.
+
+### 2026-09-25 — Draft GitHub PR #221 Trait Lab autonomous receipt chain compose
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-chain-compose-723f`
+- **DISCOVERY:** After #220, operators need merge/intersect/subtract/xor over signed chain indexes.
+- **IMPLEMENTATION:** M01–M25 in `thinkbox/autonomous_receipt_chain_compose.py`.
+- **TEST_VERIFIED:** compose **4 OK**; memory suite **232 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---

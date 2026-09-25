@@ -1,11 +1,17 @@
-## Draft — GitHub PR #219 Trait Lab autonomous receipt chain (not merged)
+## Draft — GitHub PR #221 Trait Lab autonomous receipt chain compose (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-follow-723f`
-- **Gate:** `memory-trait-lab-autonomous-receipt-chain-25` (R01–R25)
-- **Scope:** Sign/verify prep→session→autonomous triples; export/rematch index; green-chain gate; persist index fact
-- **Write policy:** Chain index persist only; no pack/run apply
+- **Branch:** `cursor/memory-trait-lab-autonomous-chain-compose-723f`
+- **Gate:** `memory-trait-lab-autonomous-receipt-chain-compose-25` (M01–M25)
+- **Scope:** Merge/intersect/subtract/xor chain indexes; export compose as chain index; persist snapshot
+- **Write policy:** Compose + chain index facts only; no pack/run apply
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** chain file **4 OK**; memory suite **228 OK** — **not merged**
+- **Verify:** compose file **4 OK**; memory suite **232 OK** — **not merged**
+
+## GitHub PR #220 — Trait Lab autonomous receipt chain (merged)
+
+- **Merge:** `9d57050` — R01–R25 prep/session/autonomous triple index
+- **Gate:** `memory-trait-lab-autonomous-receipt-chain-25`
+- **Verify:** chain **4 OK** at merge; memory **228 OK**
 
 ## GitHub PR #218 — Trait Lab autonomous workflow A16–A25 (merged)
 

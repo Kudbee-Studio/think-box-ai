@@ -87,7 +87,8 @@
 | Trait Lab operator session | **GitHub #215** (merged `ce6a82c`) — S01–S25 prep-gated rematch dry-run + session receipt; not LIVE VERIFIED |
 | Trait Lab autonomous workflow A01–A15 | **GitHub #217** (merged `ef6950f`) — plan/sign + receipt gates; not LIVE VERIFIED |
 | Trait Lab autonomous workflow A16–A25 | **GitHub #218** (merged `897c06b`) — dry-run chain + `run_autonomous`; not LIVE VERIFIED |
-| Trait Lab autonomous receipt chain | **GitHub #219 draft** — R01–R25 triple index + green-chain gate; not LIVE VERIFIED |
+| Trait Lab autonomous receipt chain | **GitHub #220** (merged `9d57050`) — R01–R25 triple index; not LIVE VERIFIED |
+| Trait Lab autonomous receipt chain compose | **GitHub #221 draft** — M01–M25 merge/intersect/subtract/xor; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
