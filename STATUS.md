@@ -1,10 +1,16 @@
-## Draft — GitHub PR #228 Trait Lab autonomous app regression (not merged)
+## Draft — GitHub PR #229 Trait Lab autonomous integration major (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-app-regression-723f`
-- **Gate:** `memory-trait-lab-autonomous-app-regression-25` (J01–J25)
-- **Scope:** Capture baseline gate report; compare candidate run; `open_app_regression`
+- **Branch:** `cursor/memory-trait-lab-autonomous-integration-major-723f`
+- **Gate:** `memory-trait-lab-autonomous-integration-major-25` (K01–K25)
+- **Scope:** App gate + regression layers; `open_integration_major` for CI manifests
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** app-regression **3 OK**; memory suite **263 OK** — **not merged**
+- **Verify:** integration-major **4 OK**; memory suite **267 OK** — **not merged**
+
+## GitHub PR #228 — Trait Lab autonomous app regression (merged)
+
+- **Merge:** `449beda` — J01–J25 app regression
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/228
+- **Verify:** app-regression **3 OK** at merge; memory **263 OK**
 
 ## GitHub PR #227 — Trait Lab autonomous app gate (merged)
 
