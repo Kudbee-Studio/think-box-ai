@@ -1,15 +1,26 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #212 Trait Lab catalog pin bind workflow (OPEN)
+## Draft — GitHub PR #213 Trait Lab local environment prep (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-local-env-prep-25` |
+| **Scope** | E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt |
+| **Write policy** | Hash-only except prep receipt persist; refuses live ack; no pack/run apply |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-local-env-prep-25-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | prep file **8 OK**; memory suite pending full run |
+
+## GitHub PR #212 — Trait Lab catalog pin bind workflow (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-catalog-pin-bind-workflow-25` |
 | **Scope** | W01–W25 hermetic plan/dry-run/run/receipt over catalog → pin → bind |
 | **Write policy** | Hash-only except pin_catalog, drop_unbound, receipt persist; dry-run skips writes |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `581fab3` |
 | **Verify** | workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined) |
 
 ## GitHub PR #211 — Trait Lab catalog pin bind lane (MERGED)
