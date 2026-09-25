@@ -2074,3 +2074,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **NEXT ACTION:** Founder review draft PR #132; PR #133 theme: persist governed run receipts + experiment manager wiring on HTTP path (hermetic SQLite).
 
 ---
+
+### 2026-09-25 — Trait Lab, 25 systems (seeded local game)
+
+- **DISCOVERY:** `public/nfts/game.html` was a static mock: invented challenge progress and a leaderboard of fake `0x` addresses. There was no rules engine and no playable action.
+- **IMPLEMENTATION:** `thinkbox/trait_game/engine.py` is the source of truth. `public/nfts/trait_game_rules.json` is the shared contract (five collections, weights, costs, synergies, U01–U25). `public/nfts/trait_game.js` ports the same LCG multiplier `1664525`, bag order, and actions. The page at `public/nfts/game.html` plays that port: draw, risk draw, focus, forge, shield, mulligan, undo, file grade, daily seed, and a browser-local board. Branch `cursor/trait-game-25-723f` is cut from `origin/main` at `f2c270c` (PR #201 merged). It is not stacked on the durable lifecycle branches.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game -v` → **26 OK**. A 9-action script (draw, risk, focus, shield, mulligan, forge) produced the same state in Python and in the browser port, including proof sha256 `202e19b982e65985a093a76c39520eb96adc849a5266a7ef4e81bf3f89b068d8`. Local browser play: draw, undo (energy and turn restored), mulligan (Ice returned), second draws, forge when dust allowed, and file grade onto a local name. `python3 scripts/scan_doc_secrets.py` clean.
+- **DECISION:** This is a seeded lab. No wallet, no mint, no chain. `live_verified` stays false. Not LIVE VERIFIED. Not PRODUCTION READY. Four-state: **CODE COMPLETE** / **TEST VERIFIED** on this branch only.
+- **NEXT ACTION:** Founder review of the draft PR for `cursor/trait-game-25-723f` against `main`. Do not merge from this record. The GitHub number is the one that PR receives; it is not claimed here in advance.
+
+---

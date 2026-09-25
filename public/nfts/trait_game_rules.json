@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "game_id": "trait-lab",
+  "live_verified": false,
+  "collections": {
+    "eyes": ["Laser", "Gold", "Cyborg", "Rainbow", "Void"],
+    "grounds": ["Fire", "Ice", "Galaxy", "Matrix", "Abyss"],
+    "accessories": ["Crown", "Sword", "Shield", "Wings", "Halo"],
+    "frames": ["Obsidian", "Prism", "Circuit", "Marble", "Aurora"],
+    "signals": ["Pulse", "Hash", "Beacon", "Echo", "Proof"]
+  },
+  "rarity_by_index": ["common", "rare", "epic", "legendary", "mythic"],
+  "weights": {"common": 46, "rare": 28, "epic": 16, "legendary": 8, "mythic": 2},
+  "xp_by_rarity": {"common": 40, "rare": 70, "epic": 120, "legendary": 200, "mythic": 320},
+  "set_bonus": {"eyes": 500, "grounds": 300, "accessories": 750, "frames": 400, "signals": 600},
+  "focus_multiplier": 3,
+  "combo_step": 0.25,
+  "combo_cap": 4,
+  "jackpot_combo": 3,
+  "jackpot_xp": 200,
+  "shield_multiplier": 1.5,
+  "forge_dust_base": 2,
+  "dust_per_duplicate_rank": 1,
+  "energy_cost": {"draw": 1, "risk_draw": 2, "arm_shield": 1},
+  "difficulties": {
+    "survey": {"turns": 16, "energy": 16, "rival_per_turn": 40},
+    "lab": {"turns": 12, "energy": 12, "rival_per_turn": 55},
+    "thesis": {"turns": 9, "energy": 9, "rival_per_turn": 70}
+  },
+  "synergies": [
+    {"id": "heat", "a": ["eyes", "Laser"], "b": ["grounds", "Fire"], "xp": 80},
+    {"id": "cold", "a": ["eyes", "Gold"], "b": ["grounds", "Ice"], "xp": 80},
+    {"id": "circuit", "a": ["frames", "Circuit"], "b": ["signals", "Hash"], "xp": 120},
+    {"id": "crownproof", "a": ["accessories", "Crown"], "b": ["signals", "Proof"], "xp": 100}
+  ],
+  "updates": [
+    {"id": "U01", "name": "seeded_run"},
+    {"id": "U02", "name": "energy_budget"},
+    {"id": "U03", "name": "weighted_rarity"},
+    {"id": "U04", "name": "five_collections"},
+    {"id": "U05", "name": "set_bonus"},
+    {"id": "U06", "name": "duplicate_dust"},
+    {"id": "U07", "name": "dust_forge"},
+    {"id": "U08", "name": "combo_chain"},
+    {"id": "U09", "name": "focus_lens"},
+    {"id": "U10", "name": "mulligan"},
+    {"id": "U11", "name": "turn_clock"},
+    {"id": "U12", "name": "jackpot_perfect_set"},
+    {"id": "U13", "name": "cross_set_synergy"},
+    {"id": "U14", "name": "risk_draw"},
+    {"id": "U15", "name": "shield_bank"},
+    {"id": "U16", "name": "rival_pace"},
+    {"id": "U17", "name": "letter_grade"},
+    {"id": "U18", "name": "achievements"},
+    {"id": "U19", "name": "one_step_undo"},
+    {"id": "U20", "name": "replay_log"},
+    {"id": "U21", "name": "local_leaderboard"},
+    {"id": "U22", "name": "daily_seed"},
+    {"id": "U23", "name": "difficulty_tiers"},
+    {"id": "U24", "name": "fail_closed_actions"},
+    {"id": "U25", "name": "proof_scorecard"}
+  ]
+}
