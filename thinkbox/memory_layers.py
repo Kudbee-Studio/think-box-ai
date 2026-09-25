@@ -970,3 +970,40 @@ def trait_lab_seed_index(store: MemoryStore, *, limit: int = 50) -> dict[str, An
         "count": len(rows),
         "live_verified": False,
     }
+
+
+_TRAIT_LAB_GRADES = frozenset({"S", "A", "B", "C", "D"})
+
+
+def trait_lab_seed_history_by_grade(
+    store: MemoryStore,
+    seed: int,
+    grade: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows filtered by letter grade. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    wanted = str(grade or "").strip().upper()
+    if wanted not in _TRAIT_LAB_GRADES:
+        raise MemoryLayerError("invalid_grade", "grade must be S, A, B, C, or D")
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [
+        row
+        for row in history["runs"]
+        if str(row.get("grade") or "").upper() == wanted
+    ]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_grade",
+            f"no stored Trait Lab run for seed {history['seed']} grade {wanted}",
+        )
+    return {
+        "seed": history["seed"],
+        "grade": wanted,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
