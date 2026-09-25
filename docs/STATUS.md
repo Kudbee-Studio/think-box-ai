@@ -1,15 +1,24 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #228 Trait Lab autonomous app regression (OPEN)
+## Draft — GitHub PR #229 Trait Lab autonomous integration major (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-integration-major-25` |
+| **Scope** | K01–K25 gate + regression layers, `open_integration_major` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-integration-major-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | integration-major **4 OK**; memory suite **267 OK** |
+
+## GitHub PR #228 — Trait Lab autonomous app regression (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-app-regression-25` |
-| **Scope** | J01–J25 baseline capture + candidate compare, `open_app_regression` |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-app-regression-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | app-regression **3 OK**; memory suite **263 OK** |
+| **Merge** | `449beda` |
+| **PR** | https://github.com/Kudbee-Studio/think-box-ai/pull/228 |
+| **Verify** | app-regression **3 OK**; memory **263 OK** |
 
 ## GitHub PR #227 — Trait Lab autonomous app gate (MERGED)
 
