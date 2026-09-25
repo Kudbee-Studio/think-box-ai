@@ -2531,7 +2531,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** Pin indexes gained xor and retain in #208. Pack catalogs still stopped at merge/intersect/subtract, so the two compose surfaces were uneven.
 - **IMPLEMENTATION:** `symmetric_diff_trait_lab_seed_pack_catalogs` (xor) and `retain_trait_lab_seed_pack_catalog` (highest count, hash tiebreak). Hash-only. Fail-closed on same catalog, live claim, empty retain, and invalid keep. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** catalog-follow tests on branch. Memory suite + engine harden still required before merge.
+- **TEST_VERIFIED:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 

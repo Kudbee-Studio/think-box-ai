@@ -5,7 +5,7 @@
 - **Scope:** Symmetric diff + retain-best after catalog compose (parity with #208 pin follow-through)
 - **Write policy:** Hash-only; no pack/run writes; live claim, empty retain, invalid keep, and same catalog fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** catalog-follow file + memory suite on branch — **not merged**
+- **Verify:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined) — **not merged**
 
 ## GitHub PR #208 — Trait Lab catalog pin follow-through (merged)
 

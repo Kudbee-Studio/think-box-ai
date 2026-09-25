@@ -6,6 +6,7 @@
 >
 > **GitHub #208 merged** at `eb622d5` — pin-index follow-through. Not LIVE VERIFIED.
 > **GitHub #209 draft:** catalog follow-through (xor + retain) on `cursor/memory-trait-lab-catalog-follow-723f`. **Not merged.**
+> **Test gate:** catalog-follow 4 OK; memory suite 163 OK; engine harden 61 OK (224 combined).
 > Product-label #209 (`abdf325` local board) stays on main as an earlier memory-lane merge.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #207 merged; GitHub #208 pin follow-through draft)

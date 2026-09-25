@@ -10,7 +10,7 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
 | **Branch** | `cursor/memory-trait-lab-catalog-follow-723f` |
 | **Merge** | not merged — draft PR only |
-| **Verify** | catalog-follow file + memory suite on branch |
+| **Verify** | catalog-follow **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined) |
 
 ## GitHub PR #208 — Trait Lab catalog pin follow-through (MERGED)
 
