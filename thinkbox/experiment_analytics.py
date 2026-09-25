@@ -909,3 +909,298 @@ class OpportunityManager:
             return cursor.fetchone()[0]
         finally:
             conn.close()
+
+
+@dataclass
+class LoopIteration:
+    """Record of one autonomous loop iteration."""
+
+    iteration_id: str
+    loop_id: str
+    started_at: str
+    goal_run_id: str
+    experiment_id: str
+    opportunity_id: str
+    completed_at: str
+    cycle_time_s: float
+    recommendation_type: str
+    priority: str
+    metrics: dict[str, Any]
+
+
+@dataclass
+class LoopMetrics:
+    """Aggregated metrics across autonomous loop iterations."""
+
+    total_iterations: int
+    total_cycle_time_s: float
+    avg_cycle_time_s: float
+    min_cycle_time_s: float
+    max_cycle_time_s: float
+    recommendation_types: dict[str, int]
+    priority_distribution: dict[str, int]
+    first_iteration_id: str
+    latest_iteration_id: str
+
+
+class LoopTracer:
+    """Observability layer for the autonomous decision-loop (Observability -> Learning binding).
+
+    Records each iteration of the closed loop:
+    Execution -> Feedback -> Opportunity -> Next Execution
+
+    Provides measurements proving the loop is functioning, including:
+    - Cycle time per iteration (execution -> feedback -> opportunity -> next execution)
+    - Recommendation traceability (which recommendation drove which goal)
+    - Loop iteration counts and statistics
+
+    Uses SQLite for persistence so measurements survive restarts.
+    """
+
+    def __init__(self, db_path: str = ":memory:") -> None:
+        self._db_path = db_path
+        self._init_db()
+        self._current_loop_id: Optional[str] = None
+        self._in_flight: dict[str, dict[str, Any]] = {}
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS loop_iterations (
+                    iteration_id TEXT PRIMARY KEY,
+                    loop_id TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT NOT NULL,
+                    cycle_time_s REAL NOT NULL,
+                    goal_run_id TEXT NOT NULL,
+                    experiment_id TEXT NOT NULL,
+                    opportunity_id TEXT NOT NULL,
+                    recommendation_type TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    metrics TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS loop_metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def start_loop(self) -> str:
+        """Start a new autonomous loop session. Returns the loop_id."""
+        loop_id = f"loop_{uuid.uuid4().hex[:12]}"
+        self._current_loop_id = loop_id
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO loop_metadata (key, value) VALUES (?, ?)",
+                ("current_loop_id", loop_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return loop_id
+
+    def start_iteration(self, goal_run_id: str, loop_id: Optional[str] = None) -> str:
+        """Begin tracing a loop iteration. Returns the iteration_id."""
+        iteration_id = f"iter_{uuid.uuid4().hex[:12]}"
+        lid = loop_id or self._current_loop_id or f"loop_{uuid.uuid4().hex[:12]}"
+        started_at = datetime.now(timezone.utc).isoformat()
+        self._in_flight[iteration_id] = {
+            "iteration_id": iteration_id,
+            "loop_id": lid,
+            "started_at": started_at,
+            "goal_run_id": goal_run_id,
+        }
+        return iteration_id
+
+    def complete_iteration(
+        self,
+        iteration_id: str,
+        experiment_id: str,
+        opportunity_id: str,
+        recommendation_type: str,
+        priority: str,
+        metrics: dict[str, Any],
+    ) -> LoopIteration:
+        """Complete a loop iteration and persist it.
+
+        Records the full cycle: when the iteration started (goal execution)
+        through when the feedback-generated opportunity was registered.
+        """
+        if iteration_id not in self._in_flight:
+            raise ValueError(f"No in-flight iteration with ID: {iteration_id}")
+        in_flight = self._in_flight.pop(iteration_id)
+        started_at = in_flight["started_at"]
+        completed_at = datetime.now(timezone.utc).isoformat()
+        started_dt = datetime.fromisoformat(started_at)
+        completed_dt = datetime.fromisoformat(completed_at)
+        cycle_time_s = round((completed_dt - started_dt).total_seconds(), 6)
+
+        iteration = LoopIteration(
+            iteration_id=iteration_id,
+            loop_id=in_flight["loop_id"],
+            started_at=started_at,
+            completed_at=completed_at,
+            cycle_time_s=cycle_time_s,
+            goal_run_id=in_flight["goal_run_id"],
+            experiment_id=experiment_id,
+            opportunity_id=opportunity_id,
+            recommendation_type=recommendation_type,
+            priority=priority,
+            metrics=metrics,
+        )
+
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT INTO loop_iterations "
+                "(iteration_id, loop_id, started_at, completed_at, cycle_time_s, "
+                "goal_run_id, experiment_id, opportunity_id, recommendation_type, priority, metrics) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    iteration.iteration_id,
+                    iteration.loop_id,
+                    iteration.started_at,
+                    iteration.completed_at,
+                    iteration.cycle_time_s,
+                    iteration.goal_run_id,
+                    iteration.experiment_id,
+                    iteration.opportunity_id,
+                    iteration.recommendation_type,
+                    iteration.priority,
+                    json.dumps(metrics, default=str),
+                ),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO loop_metadata (key, value) VALUES (?, ?)",
+                ("latest_iteration_id", iteration_id),
+            )
+            count = conn.execute("SELECT COUNT(*) FROM loop_iterations").fetchone()[0]
+            if count == 1:
+                conn.execute(
+                    "INSERT OR REPLACE INTO loop_metadata (key, value) VALUES (?, ?)",
+                    ("first_iteration_id", iteration_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return iteration
+
+    def get_iteration(self, iteration_id: str) -> Optional[LoopIteration]:
+        """Retrieve a specific loop iteration."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM loop_iterations WHERE iteration_id = ?",
+                (iteration_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return LoopIteration(
+                iteration_id=row["iteration_id"],
+                loop_id=row["loop_id"],
+                started_at=row["started_at"],
+                completed_at=row["completed_at"],
+                cycle_time_s=row["cycle_time_s"],
+                goal_run_id=row["goal_run_id"],
+                experiment_id=row["experiment_id"],
+                opportunity_id=row["opportunity_id"],
+                recommendation_type=row["recommendation_type"],
+                priority=row["priority"],
+                metrics=json.loads(row["metrics"]),
+            )
+        finally:
+            conn.close()
+
+    def list_iterations(self, loop_id: Optional[str] = None, limit: int = 50) -> list[LoopIteration]:
+        """List loop iterations, optionally filtered by loop_id."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            if loop_id:
+                cursor = conn.execute(
+                    "SELECT * FROM loop_iterations WHERE loop_id = ? ORDER BY started_at DESC LIMIT ?",
+                    (loop_id, limit),
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT * FROM loop_iterations ORDER BY started_at DESC LIMIT ?",
+                    (limit,),
+                )
+            rows = cursor.fetchall()
+            return [
+                LoopIteration(
+                    iteration_id=row["iteration_id"],
+                    loop_id=row["loop_id"],
+                    started_at=row["started_at"],
+                    completed_at=row["completed_at"],
+                    cycle_time_s=row["cycle_time_s"],
+                    goal_run_id=row["goal_run_id"],
+                    experiment_id=row["experiment_id"],
+                    opportunity_id=row["opportunity_id"],
+                    recommendation_type=row["recommendation_type"],
+                    priority=row["priority"],
+                    metrics=json.loads(row["metrics"]),
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_metrics(self) -> LoopMetrics:
+        """Aggregate measurements across all loop iterations."""
+        iterations = self.list_iterations(limit=10000)
+        if not iterations:
+            return LoopMetrics(
+                total_iterations=0,
+                total_cycle_time_s=0.0,
+                avg_cycle_time_s=0.0,
+                min_cycle_time_s=0.0,
+                max_cycle_time_s=0.0,
+                recommendation_types={},
+                priority_distribution={},
+                first_iteration_id="",
+                latest_iteration_id="",
+            )
+
+        cycle_times = [i.cycle_time_s for i in iterations]
+        rec_types: dict[str, int] = {}
+        priorities: dict[str, int] = {}
+        for it in iterations:
+            rec_types[it.recommendation_type] = rec_types.get(it.recommendation_type, 0) + 1
+            priorities[it.priority] = priorities.get(it.priority, 0) + 1
+
+        return LoopMetrics(
+            total_iterations=len(iterations),
+            total_cycle_time_s=round(sum(cycle_times), 6),
+            avg_cycle_time_s=round(sum(cycle_times) / len(cycle_times), 6),
+            min_cycle_time_s=round(min(cycle_times), 6),
+            max_cycle_time_s=round(max(cycle_times), 6),
+            recommendation_types=rec_types,
+            priority_distribution=priorities,
+            first_iteration_id=self._get_metadata("first_iteration_id"),
+            latest_iteration_id=self._get_metadata("latest_iteration_id"),
+        )
+
+    def _get_metadata(self, key: str) -> str:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT value FROM loop_metadata WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            return row[0] if row else ""
+        finally:
+            conn.close()
+
+    def get_current_loop_id(self) -> str:
+        """Return the current loop_id, or empty string if none started."""
+        if self._current_loop_id:
+            return self._current_loop_id
+        return self._get_metadata("current_loop_id")
