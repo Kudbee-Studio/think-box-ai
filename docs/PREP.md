@@ -6,7 +6,7 @@
 >
 > **GitHub #211 merged** at `e416bd7` — bind lane D01–D25. Not LIVE VERIFIED.
 > **GitHub #212 draft:** 25-operator hermetic catalog→pin→bind workflow on `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f`. **Not merged.**
-> **Test gate:** workflow file 10 OK; full memory suite pending this draft.
+> **Test gate:** workflow file 10 OK; memory suite 196 OK; engine harden 61 OK (257 combined).
 > Product-label #212 (`413c28a` seed index) stays on main as an earlier memory-lane merge. Do not reopen it.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #210 merged; GitHub #211 bind lane draft)

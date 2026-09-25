@@ -5,7 +5,7 @@
 - **Scope:** W01–W25 hermetic plan/dry-run/run/receipt over catalog → pin → bind
 - **Write policy:** Hash-only except pin_catalog, drop_unbound, and receipt persist; no pack/run apply; dry-run skips writes; live claim fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** workflow file **10 OK**; memory suite pending full run — **not merged**
+- **Verify:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined) — **not merged**
 
 ## GitHub PR #211 — Trait Lab catalog pin bind lane (merged)
 
