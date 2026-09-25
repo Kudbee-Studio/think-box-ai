@@ -1,5 +1,6 @@
-## PR #218 — Trait Lab seed XP ceiling (draft)
+## PR #218 — Trait Lab seed XP ceiling (merged)
 
+- **Merge:** `528ac80` — seed history rows at or below a stored XP threshold
 - **Gate:** `memory-trait-lab-seed-xp-ceiling`
 - **Scope:** Seed history rows at or below a stored XP threshold
 - **Write policy:** Missing seed/ceiling match and invalid ceiling fail-closed; not a live ranking
