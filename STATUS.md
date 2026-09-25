@@ -1,5 +1,6 @@
-## PR #219 — Trait Lab seed XP band (draft)
+## PR #219 — Trait Lab seed XP band (merged)
 
+- **Merge:** `e0d400c` — seed history rows between a stored XP floor and ceiling
 - **Gate:** `memory-trait-lab-seed-xp-band`
 - **Scope:** Seed history rows between a stored XP floor and ceiling
 - **Write policy:** Missing seed/band match and inverted/invalid bounds fail-closed; not a live ranking

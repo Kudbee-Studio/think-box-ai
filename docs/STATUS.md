@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #219 — Trait Lab seed XP band (DRAFT)
+## PR #219 — Trait Lab seed XP band (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-xp-band` |
 | **Scope** | `trait_lab_seed_history_by_xp_band` — seed history between XP floor and ceiling |
 | **Write policy** | Missing seed/band match and inverted/invalid bounds fail-closed; not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `e0d400c` |
 | **Verify** | memory + trait-lab suites → **83 OK** |
 
 ## PR #218 — Trait Lab seed XP ceiling (MERGED)
