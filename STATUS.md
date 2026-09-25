@@ -1,5 +1,6 @@
-## PR #217 — Trait Lab seed XP floor (draft)
+## PR #217 — Trait Lab seed XP floor (merged)
 
+- **Merge:** `50c5a9d` — seed history rows at or above a stored XP threshold
 - **Gate:** `memory-trait-lab-seed-xp-floor`
 - **Scope:** Seed history rows at or above a stored XP threshold
 - **Write policy:** Missing seed/floor match and invalid floor fail-closed; not a live ranking

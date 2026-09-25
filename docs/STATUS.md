@@ -1,13 +1,14 @@
 # STATUS — Think Box AI
 
-## PR #217 — Trait Lab seed XP floor (DRAFT)
+## PR #217 — Trait Lab seed XP floor (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-seed-xp-floor` |
 | **Scope** | `trait_lab_seed_history_by_xp_floor` — seed history at or above XP |
 | **Write policy** | Missing seed/floor match and invalid floor fail-closed; not a live ranking |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `50c5a9d` |
 | **Verify** | memory + trait-lab suites → **77 OK** |
 
 ## PR #216 — Trait Lab seed daily filter (MERGED)
