@@ -192,7 +192,9 @@ def write_organizational(store: MemoryStore, pattern: dict[str, Any]) -> MemoryE
         layer=MemoryLayer.ORGANIZATIONAL,
         entry_type=MemoryEntryType.PATTERN,
         value=body,
-        metadata={"evidence": evidence},
+        agent_id=str(body.get("agent_id") or ""),
+        task_id=str(body.get("task_id") or ""),
+        metadata={"evidence": evidence, "source": str(body.get("source") or "")},
     )
     store.put(entry)
     return entry
@@ -223,7 +225,10 @@ def write_verified(store: MemoryStore, fact: dict[str, Any]) -> MemoryEntry:
         layer=MemoryLayer.VERIFIED_KNOWLEDGE,
         entry_type=MemoryEntryType.FACT,
         value=body,
+        agent_id=str(body.get("agent_id") or ""),
+        task_id=str(body.get("task_id") or ""),
         confidence=confidence,
+        metadata={"source": str(body.get("source") or "")},
     )
     store.put(entry)
     return entry
@@ -599,3 +604,107 @@ def import_snapshot(store: MemoryStore, snapshot: dict[str, Any]) -> dict[str, A
     snap = snapshot_layers(store)
     snap["imported"] = imported
     return snap
+
+
+def query_by_provenance(
+    store: MemoryStore,
+    *,
+    agent_id: str | None = None,
+    task_id: str | None = None,
+    source: str | None = None,
+    limit: int = 100,
+) -> list[MemoryEntry]:
+    """Find rows by agent, task, or observation source."""
+    rows: list[MemoryEntry] = []
+    for layer in MemoryLayer:
+        for entry in store.query(layer=layer, agent_id=agent_id, task_id=task_id, limit=limit):
+            if source and str(entry.value.get("source") or entry.metadata.get("source") or "") != source:
+                continue
+            rows.append(entry)
+    return rows
+
+
+def record_trait_lab_run(
+    store: MemoryStore,
+    proof: dict[str, Any],
+    *,
+    agent_id: str,
+    task_id: str,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    """Bind a Trait Lab proof into all four layers. Never a live claim."""
+    if proof.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "trait lab ledger may not claim LIVE VERIFIED")
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "trait lab ledger requires agent_id and task_id")
+    sha = str(proof.get("proof_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_proof", "trait lab run requires proof_sha256")
+    if str(proof.get("game_id") or "") != "trait-lab":
+        raise MemoryLayerError("wrong_game", "ledger only accepts game_id trait-lab")
+    sid = session_id or f"trait-lab-{proof.get('seed')}-{sha[:8]}"
+    write_session(
+        store,
+        {
+            "session_id": sid,
+            "task_id": task_id,
+            "agent_id": agent_id,
+            "source": sha,
+            "goal": "record trait lab run",
+            "seed": proof.get("seed"),
+        },
+    )
+    write_task(
+        store,
+        {
+            "task_id": task_id,
+            "agent_id": agent_id,
+            "source": sha,
+            "status": "completed",
+            "game_id": "trait-lab",
+            "seed": proof.get("seed"),
+            "xp": proof.get("xp"),
+            "grade": proof.get("grade") or "",
+        },
+    )
+    write_organizational(
+        store,
+        {
+            "pattern_id": f"trait-lab-seed-{proof.get('seed')}",
+            "description": f"Trait Lab seed {proof.get('seed')} hashed {sha[:12]}",
+            "evidence": [sha, "thinkbox/trait_game/engine.py"],
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+        },
+    )
+    write_verified(
+        store,
+        {
+            "id": f"trait-lab-{sha[:16]}",
+            "fact": (
+                f"seed {proof.get('seed')} xp={proof.get('xp')} "
+                f"grade={proof.get('grade') or '-'}"
+            ),
+            "how": f"proof_scorecard {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "seed": proof.get("seed"),
+        },
+    )
+    record_task_step(
+        store,
+        task_id,
+        "proof",
+        {"proof_sha256": sha, "xp": proof.get("xp")},
+        agent_id=agent_id,
+    )
+    return {
+        "session_id": sid,
+        "task_id": task_id,
+        "proof_sha256": sha,
+        "snapshot": snapshot_layers(store),
+        "live_verified": False,
+    }
