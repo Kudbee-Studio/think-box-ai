@@ -1,5 +1,6 @@
-## PR #208 — Trait Lab run compare (draft)
+## PR #208 — Trait Lab run compare (merged)
 
+- **Merge:** `b9074c6` — list/compare stored Trait Lab proofs
 - **Gate:** `memory-trait-lab-compare`
 - **Scope:** List stored Trait Lab proofs; compare two hashes
 - **Write policy:** Same-run and missing proofs fail closed; not a live ranking

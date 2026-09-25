@@ -2190,4 +2190,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Merge `cursor/memory-trait-lab-compare-723f` into `main`.
 
+### 2026-09-25 — PR #208 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-compare-723f` → `main` at **`b9074c6`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare suites → **47 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #209. At most one open PR.
+
 ---

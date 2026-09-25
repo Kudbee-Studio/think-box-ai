@@ -55,7 +55,7 @@
 | Memory org version + snapshot | **#205** (merged `01f46c6`) — versioned org + export/import; not LIVE VERIFIED |
 | Trait Lab memory ledger | **#206** (merged `1c8294f`) — proof → four layers; not LIVE VERIFIED |
 | Trait Lab replay verify | **#207** (merged `d989255`) — replay rematch; not LIVE VERIFIED |
-| Trait Lab run compare | **#208** (draft `cursor/memory-trait-lab-compare-723f`) — list/compare proofs; not LIVE VERIFIED |
+| Trait Lab run compare | **#208** (merged `b9074c6`) — list/compare proofs; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
