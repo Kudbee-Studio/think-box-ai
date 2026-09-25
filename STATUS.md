@@ -1,5 +1,6 @@
-## PR #207 — Trait Lab replay verify (draft)
+## PR #207 — Trait Lab replay verify (merged)
 
+- **Merge:** `d989255` — replay rematch against stored proof
 - **Gate:** `memory-trait-lab-replay`
 - **Scope:** Store `encode_replay` and verify it matches `proof_sha256`
 - **Write policy:** Replay must rematch the stored proof; live claims rejected
