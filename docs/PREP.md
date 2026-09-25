@@ -2,10 +2,17 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #208 merged; GitHub #209 catalog follow-through draft)
+>
+> **GitHub #208 merged** at `eb622d5` — pin-index follow-through. Not LIVE VERIFIED.
+> **GitHub #209 draft:** catalog follow-through (xor + retain) on `cursor/memory-trait-lab-catalog-follow-723f`. **Not merged.**
+> **Test gate:** catalog-follow 4 OK; memory suite 163 OK; engine harden 61 OK (224 combined).
+> Product-label #209 (`abdf325` local board) stays on main as an earlier memory-lane merge.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #207 merged; GitHub #208 pin follow-through draft)
 >
 > **GitHub #207 merged** at `8a120d2` — pin-index compose. Not LIVE VERIFIED.
-> **GitHub #208 draft:** pin-index follow-through (xor + retain + review harden) on `cursor/memory-trait-lab-catalog-pin-follow-723f`. **Not merged.**
+> **GitHub #208 pin follow-through** merged at `eb622d5`. **Not LIVE VERIFIED.**
 > **Test gate:** follow 5 OK; memory suite 159 OK; engine harden 61 OK (220 combined).
 > Product-label #208 (`b9074c6` list/compare proofs) stays on main as an earlier memory-lane merge.
 >
