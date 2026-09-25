@@ -47,9 +47,9 @@ class TestMemoryTraitLabAutonomousWorkflow15(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def test_a00_ops_catalog_has_15(self) -> None:
-        self.assertEqual(len(TRAIT_LAB_AUTONOMOUS_WORKFLOW_OPS), 15)
-        self.assertEqual(len(set(TRAIT_LAB_AUTONOMOUS_WORKFLOW_OPS)), 15)
+    def test_a00_ops_catalog_has_25(self) -> None:
+        self.assertEqual(len(TRAIT_LAB_AUTONOMOUS_WORKFLOW_OPS), 25)
+        self.assertEqual(len(set(TRAIT_LAB_AUTONOMOUS_WORKFLOW_OPS)), 25)
         self.assertEqual(len(TRAIT_LAB_AUTONOMOUS_WORKFLOW_STEPS), 3)
 
     def test_a01_a05_live_ack_provenance(self) -> None:

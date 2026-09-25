@@ -1,16 +1,24 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #216 Trait Lab autonomous workflow (OPEN)
+## Draft — Trait Lab autonomous workflow A16–A25 (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-workflow-25` |
+| **Scope** | A16–A25 dry-run chain, receipt persist, `run_autonomous` |
+| **Write policy** | Receipt writes on `run_autonomous` only; dry-run must not write |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-workflow-a16-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | autonomous **11 OK**; memory suite **224 OK** |
+
+## GitHub PR #217 — Trait Lab autonomous workflow A01–A15 (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-workflow-15` |
-| **Scope** | A01–A15 plan/sign/verify + prep/session receipt gates |
-| **Write policy** | Hash-only; A16–A25 (dry-run, persist) not in this slice |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-workflow-25-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined) |
+| **Merge** | `ef6950f` |
+| **Verify** | autonomous **5 OK** at merge; memory **218 OK** |
 
 ## GitHub PR #215 — Trait Lab operator session (MERGED)
 
