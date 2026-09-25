@@ -60,6 +60,7 @@ class ThinkBoxEngine:
         self._running = False
         self._post_run_callback: Callable[[dict[str, Any]], None] | None = None
         self._verified_task_runner: Callable[..., Any] | None = None
+        self._experiment_manager: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -71,6 +72,17 @@ class ThinkBoxEngine:
         With no runner injected (default), behavior is identical to legacy.
         """
         self._verified_task_runner = runner
+
+    def set_experiment_manager(self, manager: Any | None) -> None:
+        """Inject an ExperimentManager for Memory -> Planning binding (DI).
+
+        When set, execute_goal() retrieves the prior experiment recommendation
+        via ExperimentManager.get_last_next_action() and passes it to
+        TaskDecomposer.decompose() so the task graph is parameterized by
+        prior experiment outcomes. With no manager injected, behavior is
+        identical to legacy (no prior recommendation, single root task).
+        """
+        self._experiment_manager = manager
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -106,7 +118,10 @@ class ThinkBoxEngine:
         self.emit("root", TaskState.RUNNING, f"Starting goal: {goal[:100]}", goal_run_id=goal_run_id)
 
         if graph is None:
-            graph = self.decomposer.decompose(goal)
+            recommendation = None
+            if self._experiment_manager is not None:
+                recommendation = self._experiment_manager.get_last_next_action()
+            graph = self.decomposer.decompose(goal, prior_recommendation=recommendation)
         self.emit("root", TaskState.RUNNING, f"Decomposed into {len(graph.tasks)} tasks", goal_run_id=goal_run_id)
 
         results: dict[str, Any] = {}
