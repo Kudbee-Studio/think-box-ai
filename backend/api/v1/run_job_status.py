@@ -354,6 +354,8 @@ def build_think_job_status_payload(
         "four_state": HTTP_RUN_FOUR_STATE,
         "live_verified": False,
         "production_ready": False,
+        "lifecycle_phase": str(record.get("lifecycle_phase") or record.get("phase") or ""),
+        "resume_eligible": bool(record.get("resume_eligible")),
     }
     if status in TERMINAL_STATUSES:
         raw_result = record.get("result")
