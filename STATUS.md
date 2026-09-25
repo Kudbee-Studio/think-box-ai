@@ -5,7 +5,7 @@
 - **Scope:** B01–B25 rematch pins against store packs; bound/unbound reports; pin retain/xor/merge; catalog_from_pin
 - **Write policy:** Hash-only except pin/import writes of pin facts; no pack/run apply; live claim, unbound pin, and missing pin fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** bind file **13 OK**; memory suite pending full run — **not merged**
+- **Verify:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined) — **not merged**
 
 ## GitHub PR #209 — Trait Lab catalog follow-through (merged)
 

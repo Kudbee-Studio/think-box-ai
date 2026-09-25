@@ -2546,7 +2546,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** After #209 both compose surfaces have merge/intersect/subtract/xor/retain. Pins still store pack hashes without proving those packs exist in the store. No rematch/bind report. No one-shot pin of a retained, xor, or merged catalog.
 - **IMPLEMENTATION:** B01–B25 in `thinkbox/memory_layers.py`: rematch pin vs store packs, bound/unbound lists and counts, bind export/verify/digest/etag/page, refuse live, pin retained/xor/merged catalogs, `catalog_from_pin` (fail-closed if unbound), public bind row, best bound pin, import retained pin index, binds by agent. Bind kind `trait-lab-seed-pack-catalog-pin-bind`. Hash-only except pin/import writes of pin facts. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** bind file **13 OK**. Full memory suite pending this draft.
+- **TEST_VERIFIED:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 

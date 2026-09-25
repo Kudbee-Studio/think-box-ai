@@ -6,7 +6,7 @@
 >
 > **GitHub #209 merged** at `415acb0` — catalog xor + retain. Not LIVE VERIFIED.
 > **GitHub #210 draft:** 25-operator catalog↔pin bind on `cursor/memory-trait-lab-catalog-pin-bind-25-723f`. **Not merged.**
-> **Test gate:** bind file 13 OK; full memory suite pending this draft.
+> **Test gate:** bind file 13 OK; memory suite 176 OK; engine harden 61 OK (237 combined).
 > Product-label #210 (`7b0e0df` best per seed) stays on main as an earlier memory-lane merge. Do not reopen it.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #208 merged; GitHub #209 catalog follow-through draft)

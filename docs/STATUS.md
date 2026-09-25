@@ -10,7 +10,7 @@
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
 | **Branch** | `cursor/memory-trait-lab-catalog-pin-bind-25-723f` |
 | **Merge** | not merged — draft PR only |
-| **Verify** | bind file **13 OK**; memory suite pending full run |
+| **Verify** | bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined) |
 
 ## GitHub PR #209 — Trait Lab catalog follow-through (MERGED)
 
