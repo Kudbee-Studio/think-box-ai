@@ -8,7 +8,7 @@
 | **Scope** | Catalog markdown; write Session / Task / Organizational / Verified Knowledge via `MemoryStore` |
 | **Write policy** | Session rejects transient UI; org requires evidence; verified requires how + fact + confidence `[0,1]`; contradiction unless `corrects`; chronicle only with evidence files |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Verify** | `python3 -m unittest tests.unit.test_memory_layers -v` |
+| **Verify** | `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK** |
 
 ## PR #202 — Trait Lab (MERGED)
 
