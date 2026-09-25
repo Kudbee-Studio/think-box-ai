@@ -1,3 +1,18 @@
+## Draft — GitHub PR #216 Trait Lab autonomous workflow (not merged)
+
+- **Branch:** `cursor/memory-trait-lab-autonomous-workflow-25-723f`
+- **Gate:** `memory-trait-lab-autonomous-workflow-15` (A01–A15 of 25)
+- **Scope:** Plan/sign/verify autonomous prep → session → workflow_dry_run; receipt gates A02–A03
+- **Write policy:** Hash-only; no dry-run execution or receipt persist in this slice (A16–A25)
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** autonomous file **5 OK**; memory suite **218 OK**; engine harden pending — **not merged**
+
+## GitHub PR #215 — Trait Lab operator session (merged)
+
+- **Merge:** `ce6a82c` — S01–S25 prep-gated rematch dry-run + session receipt
+- **Gate:** `memory-trait-lab-operator-session-25`
+- **Verify:** session file **9 OK**; memory suite **213 OK** at merge (274 with engine harden)
+
 ## GitHub PR #214 — Durable lifecycle harden (merged)
 
 - **Merge:** `110c7b5` — H01–H25 fail-closed Repository lifecycle hardens
@@ -5,15 +20,6 @@
 - **Scope:** Job id validation, phase bounds, terminal immutability, secret redaction, substrate allowlist
 - **Four-state cap:** TEST VERIFIED only — not LIVE VERIFIED
 - **Verify:** `tests.unit.test_lifecycle_harden` + lifecycle/HTTP suites
-
-## GitHub PR #214 — Trait Lab operator session (merged)
-
-- **Merge:** `cursor/memory-trait-lab-operator-session-25-723f` → `main` (founder merge train)
-- **Gate:** `memory-trait-lab-operator-session-25`
-- **Scope:** S01–S25 prep-gated rematch dry-run, signed session, persist session receipt
-- **Write policy:** Hash-only except prep + session receipt persist; no pin/drop writes; refuses live ack; `live_verified: false`
-- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined)
 
 ## GitHub PR #213 — Trait Lab local environment prep (merged)
 
