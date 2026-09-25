@@ -1,11 +1,20 @@
-## Draft — GitHub PR #205 Trait Lab catalog pin (not merged)
+## Draft — GitHub PR #206 Trait Lab catalog pin operators (25 features, not merged)
 
-- **Branch:** `cursor/memory-trait-lab-catalog-pin-723f`
+- **Branch:** `cursor/memory-trait-lab-catalog-pin-ops-25-723f`
+- **Gate:** `memory-trait-lab-catalog-pin-ops-25`
+- **Scope:** P01–P25 pin-index operators (filter, page, export/verify/import, digest/etag, pack membership)
+- **Write policy:** Pin facts only; import does not apply packs or runs; live claims fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** pin-ops file + memory suite on branch — **not merged**
+
+## GitHub PR #205 — Trait Lab catalog pin (merged)
+
+- **Merge:** `8367f5a` — pin / get / list / unpin rematched catalog snapshots
 - **Gate:** `memory-trait-lab-catalog-pin`
-- **Scope:** Pin / get / list / unpin rematched catalog snapshots
+- **Scope:** Persist a rematched catalog hash as `verified:trait-lab-catalog-{sha[:16]}`
 - **Write policy:** Pin fact only; unpin does not delete pack facts or run rows; live claim, missing pin, and missing provenance fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined) — **not merged**
+- **Verify:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined)
 
 ## GitHub PR #204 — Trait Lab catalog compose (merged)
 

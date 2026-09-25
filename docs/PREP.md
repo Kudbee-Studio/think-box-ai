@@ -2,10 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #205 merged; GitHub #206 pin operators draft)
+>
+> **GitHub #205 merged** at `8367f5a` — catalog pin (pin / get / list / unpin). Not LIVE VERIFIED.
+> **GitHub #206 draft:** 25 pin-index operators on `cursor/memory-trait-lab-catalog-pin-ops-25-723f`. **Not merged.**
+> Product-label #206 (`1c8294f` Trait Lab proof ledger) stays on main as an earlier memory-lane merge.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #204 merged; GitHub #205 catalog pin draft)
 >
 > **GitHub #204 merged** at `388fde8` — catalog compose (merge / intersect / subtract). Not LIVE VERIFIED.
-> **GitHub #205 draft:** catalog pin (pin / get / list / unpin) on `cursor/memory-trait-lab-catalog-pin-723f`. **Not merged.**
+> **GitHub #205 catalog pin** merged at `8367f5a`. **Not LIVE VERIFIED.**
 > **Test gate:** pin 5 OK; memory suite 134 OK; engine harden 61 OK (195 combined).
 > Product-label #205 (`01f46c6` org versioning) stays on main as an earlier memory-lane merge.
 >

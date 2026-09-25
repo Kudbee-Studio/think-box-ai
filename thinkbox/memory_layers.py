@@ -2210,3 +2210,416 @@ def unpin_trait_lab_catalog_pin(store: MemoryStore, catalog_sha256: str) -> dict
         "fact_id": row["fact_id"],
         "live_verified": False,
     }
+
+
+_TRAIT_LAB_CATALOG_PIN_INDEX_KIND = "trait-lab-seed-pack-catalog-pin-index"
+TRAIT_LAB_CATALOG_PIN_OPS: tuple[str, ...] = (
+    "list_ids",
+    "count_pins",
+    "page",
+    "by_agent",
+    "by_task",
+    "by_count_floor",
+    "by_count_ceiling",
+    "by_count_band",
+    "digest",
+    "etag",
+    "export_index",
+    "verify_index",
+    "import_index",
+    "malformed_report",
+    "best_pin",
+    "diff_indexes",
+    "public_row",
+    "refuse_live",
+    "has_pack",
+    "ids_for_pack",
+    "get_by_fact_id",
+    "pin_from_store",
+    "has_count",
+    "count_for_pack",
+    "ids_for_agent",
+)
+
+
+def _require_pack_sha(pack_sha256: Any) -> str:
+    sha = str(pack_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_pack_hash", "pin pack filter requires pack_sha256")
+    return sha
+
+
+def _pin_public_row(row: dict[str, Any]) -> dict[str, Any]:
+    sha = _require_catalog_sha(row.get("catalog_sha256"))
+    count = row.get("count")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise MemoryLayerError("invalid_pin", "public pin requires count")
+    raw_ids = row.get("ids")
+    if not isinstance(raw_ids, list):
+        raise MemoryLayerError("invalid_pin", "public pin requires ids")
+    ids = [str(item).strip().lower() for item in raw_ids]
+    if any(len(item) != 64 or any(ch not in "0123456789abcdef" for ch in item) for item in ids):
+        raise MemoryLayerError("invalid_pin", "public pin ids must be pack hashes")
+    return {
+        "catalog_sha256": sha,
+        "fact_id": _catalog_pin_fact_id(sha),
+        "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+        "count": count,
+        "ids": ids,
+        "live_verified": False,
+    }
+
+
+def _pin_bundle(rows: list[dict[str, Any]], *, limit: int | None = None) -> dict[str, Any]:
+    selected = rows if limit is None else rows[:limit]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+        "pins": [_pin_public_row(row) for row in selected],
+        "count": len(rows),
+        "live_verified": False,
+    }
+
+
+def _pin_index_body(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    public = [_pin_public_row(row) for row in rows]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_INDEX_KIND,
+        "pins": public,
+        "count": len(public),
+        "live_verified": False,
+    }
+
+
+def refuse_trait_lab_catalog_pin_live(payload: Any) -> None:
+    """P18 — pin payloads may not claim LIVE VERIFIED."""
+    if isinstance(payload, dict) and payload.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "catalog pin may not claim LIVE VERIFIED")
+
+
+def list_trait_lab_catalog_pin_ids(store: MemoryStore, *, limit: int = 50) -> list[str]:
+    """P01 — catalog_sha256 values, sorted."""
+    return [row["catalog_sha256"] for row in list_trait_lab_catalog_pins(store, limit=limit)["pins"]]
+
+
+def count_trait_lab_catalog_pins(store: MemoryStore) -> int:
+    """P02 — number of pinned catalogs."""
+    return len(_collect_trait_lab_catalog_pins(store))
+
+
+def catalog_trait_lab_pins_page(
+    store: MemoryStore,
+    *,
+    offset: int = 0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P03 — deterministic pin page."""
+    limit = _require_catalog_limit(limit)
+    start = _require_catalog_offset(offset)
+    rows = _collect_trait_lab_catalog_pins(store)
+    return {
+        **_pin_bundle(rows[start : start + limit]),
+        "count": len(rows),
+        "offset": start,
+        "limit": limit,
+    }
+
+
+def catalog_trait_lab_pins_by_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P04 — pins written by one agent."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(agent_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_agent", "pin by agent requires agent_id")
+    rows = [row for row in _collect_trait_lab_catalog_pins(store) if row.get("agent_id") == wanted]
+    if not rows:
+        raise MemoryLayerError("missing_agent", f"no pinned catalog for agent {wanted}")
+    return {**_pin_bundle(rows, limit=limit), "agent_id": wanted}
+
+
+def catalog_trait_lab_pins_by_task(
+    store: MemoryStore,
+    task_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P05 — pins written by one task."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(task_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_task", "pin by task requires task_id")
+    rows = [row for row in _collect_trait_lab_catalog_pins(store) if row.get("task_id") == wanted]
+    if not rows:
+        raise MemoryLayerError("missing_task", f"no pinned catalog for task {wanted}")
+    return {**_pin_bundle(rows, limit=limit), "task_id": wanted}
+
+
+def catalog_trait_lab_pins_by_count_floor(
+    store: MemoryStore,
+    floor: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P06 — pins whose stored count is at or above floor."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    rows = [row for row in _collect_trait_lab_catalog_pins(store) if int(row["count"]) >= low]
+    if not rows:
+        raise MemoryLayerError("missing_floor", f"no pinned catalog with count >= {low}")
+    return {**_pin_bundle(rows, limit=limit), "floor": low}
+
+
+def catalog_trait_lab_pins_by_count_ceiling(
+    store: MemoryStore,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P07 — pins whose stored count is at or below ceiling."""
+    limit = _require_catalog_limit(limit)
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    rows = [row for row in _collect_trait_lab_catalog_pins(store) if int(row["count"]) <= high]
+    if not rows:
+        raise MemoryLayerError("missing_ceiling", f"no pinned catalog with count <= {high}")
+    return {**_pin_bundle(rows, limit=limit), "ceiling": high}
+
+
+def catalog_trait_lab_pins_by_count_band(
+    store: MemoryStore,
+    floor: int,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P08 — pins whose stored count is inside [floor, ceiling]."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    if low > high:
+        raise MemoryLayerError("invalid_band", "floor must be <= ceiling")
+    rows = [
+        row for row in _collect_trait_lab_catalog_pins(store) if low <= int(row["count"]) <= high
+    ]
+    if not rows:
+        raise MemoryLayerError("missing_band", f"no pinned catalog with count {low}-{high}")
+    return {**_pin_bundle(rows, limit=limit), "floor": low, "ceiling": high}
+
+
+def catalog_trait_lab_pins_digest(store: MemoryStore) -> str:
+    """P09 — SHA-256 over the stable public pin index body."""
+    return str(export_trait_lab_catalog_pins(store)["pin_index_sha256"])
+
+
+def catalog_trait_lab_pin_etag(store: MemoryStore) -> str:
+    """P10 — short digest for pin-index identity."""
+    return catalog_trait_lab_pins_digest(store)[:16]
+
+
+def export_trait_lab_catalog_pins(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """P11 — portable pin-index snapshot. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    rows = _collect_trait_lab_catalog_pins(store)[:limit]
+    body = _pin_index_body(rows)
+    refuse_trait_lab_catalog_pin_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "pin_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "exported_at": _utc(),
+    }
+
+
+def verify_trait_lab_catalog_pins(index: Any) -> dict[str, Any]:
+    """P12 — rematch pin_index_sha256 over the stable pin-index body."""
+    if not isinstance(index, dict):
+        raise MemoryLayerError("invalid_pin_index", "pin index must be an object")
+    if index.get("kind") != _TRAIT_LAB_CATALOG_PIN_INDEX_KIND:
+        raise MemoryLayerError("invalid_pin_index", "kind must be trait-lab-seed-pack-catalog-pin-index")
+    refuse_trait_lab_catalog_pin_live(index)
+    if not isinstance(index.get("pins"), list):
+        raise MemoryLayerError("invalid_pin_index", "pins must be a list")
+    sha = str(index.get("pin_index_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_pin_index_hash", "verify requires pin_index_sha256")
+    public = [_pin_public_row(row) for row in index["pins"] if isinstance(row, dict)]
+    if len(public) != len(index["pins"]):
+        raise MemoryLayerError("invalid_pin_index", "every pin row must be an object")
+    body = _pin_index_body(public)
+    got = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if got != sha:
+        raise MemoryLayerError("pin_index_mismatch", f"pin index hashed {got[:12]} not {sha[:12]}")
+    return {**body, "matched": True, "pin_index_sha256": sha, "live_verified": False}
+
+
+def import_trait_lab_catalog_pins(
+    store: MemoryStore,
+    index: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """P13 — write rematched pin facts. Does not apply packs or runs."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "pin import requires agent_id and task_id")
+    verified = verify_trait_lab_catalog_pins(index)
+    written: list[str] = []
+    for row in verified["pins"]:
+        write_verified(
+            store,
+            {
+                "id": row["fact_id"],
+                "fact": f"catalog {row['catalog_sha256']} count={row['count']}",
+                "how": f"import_trait_lab_catalog_pins {verified['pin_index_sha256']}",
+                "confidence": 1.0,
+                "source": row["catalog_sha256"],
+                "agent_id": agent_id,
+                "task_id": task_id,
+                "kind": _TRAIT_LAB_CATALOG_PIN_KIND,
+                "count": row["count"],
+                "ids": row["ids"],
+            },
+        )
+        written.append(row["catalog_sha256"])
+    return {
+        "imported": True,
+        "count": len(written),
+        "ids": written,
+        "pin_index_sha256": verified["pin_index_sha256"],
+        "live_verified": False,
+    }
+
+
+def report_malformed_trait_lab_catalog_pins(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """P14 — keys that look like pin facts but fail the pin row contract."""
+    limit = _require_catalog_limit(limit)
+    bad: list[str] = []
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-catalog-",
+        limit=max(limit * 4, 200),
+    ):
+        if _catalog_pin_row(entry) is None:
+            bad.append(entry.key)
+        if len(bad) >= limit:
+            break
+    return {
+        "kind": "trait-lab-seed-pack-catalog-pin-malformed",
+        "keys": bad,
+        "count": len(bad),
+        "live_verified": False,
+    }
+
+
+def best_trait_lab_catalog_pin(store: MemoryStore) -> dict[str, Any]:
+    """P15 — highest pin count; hash breaks ties. Not a live ranking."""
+    rows = list(_collect_trait_lab_catalog_pins(store))
+    if not rows:
+        raise MemoryLayerError("missing_pin", "no pinned catalog")
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["catalog_sha256"])))
+    return {**_pin_public_row(rows[0]), "live_verified": False}
+
+
+def diff_trait_lab_catalog_pin_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """P16 — compare two rematched pin-index snapshots."""
+    left = verify_trait_lab_catalog_pins(index_a)
+    right = verify_trait_lab_catalog_pins(index_b)
+    if left["pin_index_sha256"] == right["pin_index_sha256"]:
+        raise MemoryLayerError("same_pin_index", "diff requires two different pin-index hashes")
+    ids_a = [row["catalog_sha256"] for row in left["pins"]]
+    ids_b = [row["catalog_sha256"] for row in right["pins"]]
+    set_a = set(ids_a)
+    set_b = set(ids_b)
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_INDEX_KIND,
+        "only_a": [sha for sha in ids_a if sha not in set_b],
+        "only_b": [sha for sha in ids_b if sha not in set_a],
+        "shared": [sha for sha in ids_a if sha in set_b],
+        "count_delta": int(left["count"]) - int(right["count"]),
+        "live_verified": False,
+    }
+
+
+def public_trait_lab_catalog_pin_row(row: dict[str, Any]) -> dict[str, Any]:
+    """P17 — stable selector row without agent/task fields."""
+    if not isinstance(row, dict) or not row.get("catalog_sha256"):
+        raise MemoryLayerError("invalid_pin", "public row requires a pin")
+    return _pin_public_row(row)
+
+
+def catalog_pin_has_pack(store: MemoryStore, pack_sha256: str) -> bool:
+    """P19 — true when any pin lists the pack hash."""
+    sha = _require_pack_sha(pack_sha256)
+    return any(sha in row["ids"] for row in _collect_trait_lab_catalog_pins(store))
+
+
+def list_trait_lab_catalog_pin_ids_for_pack(
+    store: MemoryStore,
+    pack_sha256: str,
+    *,
+    limit: int = 50,
+) -> list[str]:
+    """P20 — catalog_sha256 values that include one pack, sorted."""
+    sha = _require_pack_sha(pack_sha256)
+    limit = _require_catalog_limit(limit)
+    ids = [
+        row["catalog_sha256"]
+        for row in _collect_trait_lab_catalog_pins(store)
+        if sha in row["ids"]
+    ]
+    return ids[:limit]
+
+
+def get_trait_lab_catalog_pin_by_fact_id(store: MemoryStore, fact_id: str) -> dict[str, Any]:
+    """P21 — select one pin by fact_id."""
+    wanted = str(fact_id or "").strip()
+    if not wanted.startswith("trait-lab-catalog-") or len(wanted) != 34:
+        raise MemoryLayerError("missing_pin", "pin select requires fact_id")
+    entry = store.get(f"verified:{wanted}")
+    if entry is None:
+        raise MemoryLayerError("missing_pin", f"no pinned catalog {wanted}")
+    row = _catalog_pin_row(entry)
+    if row is None:
+        raise MemoryLayerError("invalid_pin", f"pinned catalog {wanted} is malformed")
+    return {**row, "live_verified": False}
+
+
+def pin_trait_lab_seed_pack_catalog_from_store(
+    store: MemoryStore,
+    *,
+    agent_id: str,
+    task_id: str,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """P22 — export the store catalog and pin it."""
+    catalog = export_trait_lab_seed_pack_catalog(store, limit=limit)
+    if int(catalog["count"]) < 1:
+        raise MemoryLayerError("missing_catalog", "store has no cataloged packs to pin")
+    return pin_trait_lab_seed_pack_catalog(store, catalog, agent_id=agent_id, task_id=task_id)
+
+
+def catalog_pin_has_count(store: MemoryStore, count: int) -> bool:
+    """P23 — true when any pin stores this pack count."""
+    wanted = _xp_bound(count, code="invalid_count", label="count")
+    return any(int(row["count"]) == wanted for row in _collect_trait_lab_catalog_pins(store))
+
+
+def count_trait_lab_catalog_pins_for_pack(store: MemoryStore, pack_sha256: str) -> int:
+    """P24 — how many pins include one pack hash."""
+    return len(list_trait_lab_catalog_pin_ids_for_pack(store, pack_sha256, limit=200))
+
+
+def list_trait_lab_catalog_pin_ids_for_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> list[str]:
+    """P25 — catalog_sha256 values written by one agent."""
+    return [row["catalog_sha256"] for row in catalog_trait_lab_pins_by_agent(store, agent_id, limit=limit)["pins"]]
