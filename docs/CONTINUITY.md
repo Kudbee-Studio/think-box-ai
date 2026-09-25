@@ -2760,4 +2760,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** flow-workflow **5 OK**; memory suite **242 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #223 merged (Trait Lab autonomous flow workflow major)
+
+- **MERGE:** `3fdaa32` on `main`.
+- **TEST_VERIFIED:** flow-workflow **5 OK**; memory **242 OK**.
+
+### 2026-09-25 — Draft GitHub PR #224 Trait Lab autonomous flow workflow compose
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-flow-compose-723f`
+- **DISCOVERY:** After #223, operators need merge/intersect/subtract/xor over two rematched flow-receipt indexes.
+- **IMPLEMENTATION:** P01–P25 in `thinkbox/autonomous_flow_workflow_compose.py`; flow-receipt index export/verify in `autonomous_flow_workflow.py`.
+- **TEST_VERIFIED:** flow-compose **4 OK**; memory suite **246 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---

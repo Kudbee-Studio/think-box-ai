@@ -90,7 +90,8 @@
 | Trait Lab autonomous receipt chain | **GitHub #220** (merged `9d57050`) — R01–R25 triple index; not LIVE VERIFIED |
 | Trait Lab autonomous receipt chain compose | **GitHub #221** (merged `01ee6bf`) — M01–M25 merge/intersect/subtract/xor; not LIVE VERIFIED |
 | Trait Lab autonomous workflow chain bind | **GitHub #222** (merged `27d64b6`) — F01–F25 run_chained + bind persist; not LIVE VERIFIED |
-| Trait Lab autonomous flow workflow major | **GitHub #223 draft** — O01–O25 flow orchestration + receipt; not LIVE VERIFIED |
+| Trait Lab autonomous flow workflow major | **GitHub #223** (merged `3fdaa32`) — O01–O25 flow orchestration + receipt; not LIVE VERIFIED |
+| Trait Lab autonomous flow workflow compose | **GitHub #224 draft** — P01–P25 merge/intersect/subtract/xor flow-receipt indexes; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
