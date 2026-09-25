@@ -2152,4 +2152,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #206. At most one open PR.
 
+### 2026-09-25 — PR #206 Trait Lab memory ledger
+
+- **DISCOVERY:** Trait Lab proofs lived only in the game engine. Four-layer memory had no provenance bind from a seeded run.
+- **IMPLEMENTATION:** `record_trait_lab_run` writes Session / Task / Organizational / Verified from `proof_scorecard`. Requires agent_id, task_id, and a 64-hex proof. Rejects live claims and non-`trait-lab` game ids. `query_by_provenance` finds rows by agent, task, or source hash. Org/verified entries now store agent_id, task_id, and source.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version tests.unit.test_memory_trait_lab -v` → **37 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-ledger-723f` into `main`.
+
 ---

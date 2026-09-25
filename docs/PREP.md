@@ -7,9 +7,10 @@
 > **#202 merged** at `75a36c5` — Trait Lab (seeded local game). Not LIVE VERIFIED.
 > **#203 merged** at `3976930` — fail-closed four-layer ingest.
 > **#204 merged** at `0b3fc87` — read / query / retention.
-> **#205 merged** at `01f46c6` — organizational versioning + portable snapshot export/import. `live_verified` false.
-> **Test gate:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → 32 OK.
-> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
+> **#205 merged** at `01f46c6` — organizational versioning + portable snapshot.
+> **#206 draft:** Trait Lab proof → four-layer ledger with provenance. `live_verified` false.
+> **Test gate:** memory + `test_memory_trait_lab` → 37 OK.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED.
 >
 > ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
 >

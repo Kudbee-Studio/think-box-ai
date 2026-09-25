@@ -1,3 +1,11 @@
+## PR #206 — Trait Lab memory ledger (draft)
+
+- **Gate:** `memory-trait-lab-ledger`
+- **Scope:** Bind Trait Lab proofs into four layers with provenance
+- **Write policy:** Requires agent_id + task_id + proof_sha256; rejects live claims
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version tests.unit.test_memory_trait_lab -v` → **37 OK**
+
 ## PR #205 — Organizational versioning + snapshot (merged)
 
 - **Merge:** `01f46c6` — versioned org history + portable snapshot
