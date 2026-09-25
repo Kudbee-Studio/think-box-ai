@@ -2471,7 +2471,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **DISCOVERY:** Compose can form a rematched catalog, but the snapshot had no store identity. Operators could not pin, list, or drop a catalog hash without re-exporting packs.
 - **IMPLEMENTATION:** `pin_trait_lab_seed_pack_catalog`, `get_trait_lab_catalog_pin`, `has_trait_lab_catalog_pin`, `list_trait_lab_catalog_pins`, `unpin_trait_lab_catalog_pin`. Pin writes `verified:trait-lab-catalog-{sha[:16]}` only. Unpin deletes that fact; pack facts and run rows stay. Fail-closed on live claim, missing pin, missing hash, missing provenance, and invalid catalog. `live_verified` stays false. Not a live ranking.
-- **TEST_VERIFIED:** pin tests on branch. Memory suite + engine harden still required before merge.
+- **TEST_VERIFIED:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined).
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 

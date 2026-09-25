@@ -6,6 +6,7 @@
 >
 > **GitHub #204 merged** at `388fde8` — catalog compose (merge / intersect / subtract). Not LIVE VERIFIED.
 > **GitHub #205 draft:** catalog pin (pin / get / list / unpin) on `cursor/memory-trait-lab-catalog-pin-723f`. **Not merged.**
+> **Test gate:** pin 5 OK; memory suite 134 OK; engine harden 61 OK (195 combined).
 > Product-label #205 (`01f46c6` org versioning) stays on main as an earlier memory-lane merge.
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #203 merged; GitHub #204 catalog compose draft)

@@ -5,7 +5,7 @@
 - **Scope:** Pin / get / list / unpin rematched catalog snapshots
 - **Write policy:** Pin fact only; unpin does not delete pack facts or run rows; live claim, missing pin, and missing provenance fail-closed
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** pin file + memory suite on branch — **not merged**
+- **Verify:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined) — **not merged**
 
 ## GitHub PR #204 — Trait Lab catalog compose (merged)
 
