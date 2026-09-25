@@ -1,3 +1,11 @@
+## PR #212 — Trait Lab seed index (draft)
+
+- **Gate:** `memory-trait-lab-seed-index`
+- **Scope:** Seeds with stored runs: count + best XP
+- **Write policy:** Empty index is empty; invalid limit fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **62 OK**
+
 ## PR #211 — Trait Lab seed history (merged)
 
 - **Merge:** `8536fa4` — all stored runs for one seed, highest XP first

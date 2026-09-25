@@ -2242,4 +2242,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #212. At most one open PR.
 
+### 2026-09-25 — PR #212 Trait Lab seed index
+
+- **DISCOVERY:** Best-per-seed and seed history did not expose a compact index of every stored seed with count + best XP.
+- **IMPLEMENTATION:** `trait_lab_seed_index` lists seeds that have stored runs (`count`, `best_xp`, `best`). Empty store is empty, not an error. Invalid limit fail-closed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **62 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-index-723f` into `main`.
+
 ---

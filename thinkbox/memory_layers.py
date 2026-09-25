@@ -941,3 +941,32 @@ def trait_lab_seed_history(
         "best": runs[0],
         "live_verified": False,
     }
+
+
+def trait_lab_seed_index(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """Seeds that have stored runs: count + best XP. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for run in list_trait_lab_runs(store, limit=200):
+        if run.get("seed") is None:
+            continue
+        key = _seed_key(run["seed"])
+        grouped.setdefault(key, []).append(run)
+    rows: list[dict[str, Any]] = []
+    for seed, runs in grouped.items():
+        runs.sort(key=lambda row: int(row.get("xp") or 0), reverse=True)
+        rows.append(
+            {
+                "seed": seed,
+                "count": len(runs),
+                "best_xp": int(runs[0].get("xp") or 0),
+                "best": runs[0],
+            }
+        )
+    rows.sort(key=lambda row: (-int(row["best_xp"]), int(row["seed"])))
+    return {
+        "seeds": rows[:limit],
+        "count": len(rows),
+        "live_verified": False,
+    }
