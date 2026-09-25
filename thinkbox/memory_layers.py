@@ -1451,3 +1451,103 @@ def apply_trait_lab_seed_pack(
         "best": history["best"],
         "live_verified": False,
     }
+
+
+def _pack_run_proof(raw: Any, index: int) -> str:
+    if not isinstance(raw, dict):
+        raise MemoryLayerError("invalid_run", f"run {index} must be an object")
+    if raw.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "seed pack run may not claim LIVE VERIFIED")
+    sha = str(raw.get("proof_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("invalid_run", f"run {index} requires proof_sha256")
+    return sha
+
+
+def diff_trait_lab_seed_packs(pack_a: Any, pack_b: Any) -> dict[str, Any]:
+    """Compare two rematched packs for one seed. Not a live ranking."""
+    left = verify_trait_lab_seed_pack(pack_a)
+    right = verify_trait_lab_seed_pack(pack_b)
+    if left["seed"] != right["seed"]:
+        raise MemoryLayerError(
+            "seed_mismatch",
+            f"pack seeds {left['seed']} != {right['seed']}",
+        )
+    if left["pack_sha256"] == right["pack_sha256"]:
+        raise MemoryLayerError("same_pack", "diff requires two different pack hashes")
+    proofs_a = [_pack_run_proof(raw, index) for index, raw in enumerate(left["runs"])]
+    proofs_b = [_pack_run_proof(raw, index) for index, raw in enumerate(right["runs"])]
+    set_b = set(proofs_b)
+    set_a = set(proofs_a)
+    best_a = left["best"] if isinstance(left["best"], dict) else {}
+    best_b = right["best"] if isinstance(right["best"], dict) else {}
+    return {
+        "seed": left["seed"],
+        "a": {
+            "pack_sha256": left["pack_sha256"],
+            "count": left["count"],
+            "best": best_a,
+        },
+        "b": {
+            "pack_sha256": right["pack_sha256"],
+            "count": right["count"],
+            "best": best_b,
+        },
+        "only_a": [sha for sha in proofs_a if sha not in set_b],
+        "only_b": [sha for sha in proofs_b if sha not in set_a],
+        "shared": [sha for sha in proofs_a if sha in set_b],
+        "count_delta": int(left["count"]) - int(right["count"]),
+        "xp_delta": int(best_a.get("xp") or 0) - int(best_b.get("xp") or 0),
+        "same_seed": True,
+        "live_verified": False,
+    }
+
+
+def _pack_run_proof(raw: Any, index: int) -> str:
+    if not isinstance(raw, dict):
+        raise MemoryLayerError("invalid_run", f"run {index} must be an object")
+    if raw.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "seed pack run may not claim LIVE VERIFIED")
+    sha = str(raw.get("proof_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("invalid_run", f"run {index} requires proof_sha256")
+    return sha
+
+
+def diff_trait_lab_seed_packs(pack_a: Any, pack_b: Any) -> dict[str, Any]:
+    """Compare two rematched packs for one seed. Not a live ranking."""
+    left = verify_trait_lab_seed_pack(pack_a)
+    right = verify_trait_lab_seed_pack(pack_b)
+    if left["seed"] != right["seed"]:
+        raise MemoryLayerError(
+            "seed_mismatch",
+            f"pack seeds {left['seed']} != {right['seed']}",
+        )
+    if left["pack_sha256"] == right["pack_sha256"]:
+        raise MemoryLayerError("same_pack", "diff requires two different pack hashes")
+    proofs_a = [_pack_run_proof(raw, index) for index, raw in enumerate(left["runs"])]
+    proofs_b = [_pack_run_proof(raw, index) for index, raw in enumerate(right["runs"])]
+    set_b = set(proofs_b)
+    set_a = set(proofs_a)
+    best_a = left["best"] if isinstance(left["best"], dict) else {}
+    best_b = right["best"] if isinstance(right["best"], dict) else {}
+    return {
+        "seed": left["seed"],
+        "a": {
+            "pack_sha256": left["pack_sha256"],
+            "count": left["count"],
+            "best": best_a,
+        },
+        "b": {
+            "pack_sha256": right["pack_sha256"],
+            "count": right["count"],
+            "best": best_b,
+        },
+        "only_a": [sha for sha in proofs_a if sha not in set_b],
+        "only_b": [sha for sha in proofs_b if sha not in set_a],
+        "shared": [sha for sha in proofs_a if sha in set_b],
+        "count_delta": int(left["count"]) - int(right["count"]),
+        "xp_delta": int(best_a.get("xp") or 0) - int(best_b.get("xp") or 0),
+        "same_seed": True,
+        "live_verified": False,
+    }
