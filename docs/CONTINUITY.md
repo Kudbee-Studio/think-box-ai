@@ -2565,4 +2565,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #211 catalog pin bind lane merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-bind-ops-25-723f` → `main` at **`e416bd7`**.
+- **TEST_VERIFIED:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#212** hermetic bind workflow (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #212 Trait Lab catalog pin bind workflow
+
+- **DISCOVERY:** After #211 bind reports can be filtered and composed, but catalog → pin → rematch → require-bound is still a manual sequence. Autonomous workflow needs a signed plan, dry-run that skips writes, and a persistable receipt.
+- **IMPLEMENTATION:** W01–W25 in `thinkbox/memory_layers.py`: plan/validate/sign/verify, dry-run/run, status, step list/page, digest/etag, require_bound, canned from_store / retain_pin / drop_unbound / catalogs_from_bound, persist/get/list/has receipt, receipts by agent. Writes only pin_catalog, drop_unbound, and receipt facts. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---

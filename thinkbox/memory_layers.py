@@ -3472,3 +3472,573 @@ def export_bound_trait_lab_catalog_pin_binds(store: MemoryStore, *, limit: int =
         raise MemoryLayerError("missing_pin", "no bound catalog pin")
     exported = _signed_bind_index(rows)
     return {**exported, "exported_at": _utc()}
+
+
+_TRAIT_LAB_WORKFLOW_KIND = "trait-lab-seed-pack-catalog-pin-bind-workflow"
+_TRAIT_LAB_WORKFLOW_RECEIPT_KIND = "trait-lab-seed-pack-catalog-pin-bind-workflow-receipt"
+_WORKFLOW_FACT_PREFIX = "trait-lab-workflow-"
+_WORKFLOW_WRITE_STEPS = frozenset({"pin_catalog", "drop_unbound"})
+TRAIT_LAB_CATALOG_PIN_BIND_WORKFLOW_STEPS: tuple[str, ...] = (
+    "export_catalog",
+    "pin_catalog",
+    "rematch",
+    "export_binds",
+    "retain_catalog",
+    "drop_unbound",
+    "catalogs_from_bound",
+    "export_bound",
+    "require_bound",
+)
+TRAIT_LAB_CATALOG_PIN_BIND_WORKFLOW_OPS: tuple[str, ...] = (
+    "plan",
+    "validate",
+    "refuse_live",
+    "sign",
+    "verify",
+    "dry_run",
+    "run",
+    "status",
+    "list_steps",
+    "count_steps",
+    "has_step",
+    "page_steps",
+    "public_row",
+    "digest",
+    "etag",
+    "require_bound",
+    "from_store",
+    "retain_pin",
+    "drop_unbound",
+    "catalogs_from_bound",
+    "persist_receipt",
+    "get_receipt",
+    "list_receipts",
+    "has_receipt",
+    "receipts_by_agent",
+)
+
+
+def _workflow_body(steps: list[str]) -> dict[str, Any]:
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_KIND,
+        "steps": list(steps),
+        "count": len(steps),
+        "live_verified": False,
+    }
+
+
+def _workflow_fact_id(workflow_sha256: str) -> str:
+    return f"{_WORKFLOW_FACT_PREFIX}{workflow_sha256[:16]}"
+
+
+def refuse_trait_lab_catalog_pin_bind_workflow_live(payload: Any) -> None:
+    """W03 — workflow payloads may not claim LIVE VERIFIED."""
+    if isinstance(payload, dict) and payload.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "catalog pin bind workflow may not claim LIVE VERIFIED")
+
+
+def _require_workflow_steps(steps: Any) -> list[str]:
+    if not isinstance(steps, list) or not steps:
+        raise MemoryLayerError("missing_step", "workflow requires at least one step")
+    names: list[str] = []
+    allowed = set(TRAIT_LAB_CATALOG_PIN_BIND_WORKFLOW_STEPS)
+    for item in steps:
+        name = str(item or "").strip()
+        if name not in allowed:
+            raise MemoryLayerError("invalid_step", f"unknown workflow step {name or '<empty>'}")
+        names.append(name)
+    return names
+
+
+def plan_trait_lab_catalog_pin_bind_workflow(steps: Any) -> dict[str, Any]:
+    """W01 — build an unsigned hermetic workflow plan."""
+    names = _require_workflow_steps(steps)
+    body = _workflow_body(names)
+    refuse_trait_lab_catalog_pin_bind_workflow_live(body)
+    return body
+
+
+def validate_trait_lab_catalog_pin_bind_workflow(plan: Any) -> dict[str, Any]:
+    """W02 — fail-closed check of a workflow plan."""
+    if not isinstance(plan, dict):
+        raise MemoryLayerError("invalid_workflow", "workflow must be an object")
+    refuse_trait_lab_catalog_pin_bind_workflow_live(plan)
+    if plan.get("kind") not in {None, _TRAIT_LAB_WORKFLOW_KIND}:
+        raise MemoryLayerError("invalid_workflow", "kind must be trait-lab-seed-pack-catalog-pin-bind-workflow")
+    names = _require_workflow_steps(plan.get("steps"))
+    return {**_workflow_body(names), "valid": True}
+
+
+def sign_trait_lab_catalog_pin_bind_workflow(plan: Any) -> dict[str, Any]:
+    """W04 — sign a validated plan. Not a live ranking."""
+    validated = validate_trait_lab_catalog_pin_bind_workflow(plan)
+    body = _workflow_body(validated["steps"])
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "workflow_sha256": hashlib.sha256(encoded).hexdigest(),
+        "live_verified": False,
+    }
+
+
+def verify_trait_lab_catalog_pin_bind_workflow(workflow: Any) -> dict[str, Any]:
+    """W05 — rematch workflow_sha256 over the stable plan body."""
+    if not isinstance(workflow, dict):
+        raise MemoryLayerError("invalid_workflow", "workflow must be an object")
+    if workflow.get("kind") != _TRAIT_LAB_WORKFLOW_KIND:
+        raise MemoryLayerError("invalid_workflow", "kind must be trait-lab-seed-pack-catalog-pin-bind-workflow")
+    refuse_trait_lab_catalog_pin_bind_workflow_live(workflow)
+    names = _require_workflow_steps(workflow.get("steps"))
+    sha = str(workflow.get("workflow_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_workflow_hash", "verify requires workflow_sha256")
+    body = _workflow_body(names)
+    got = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if got != sha:
+        raise MemoryLayerError("workflow_mismatch", f"workflow hashed {got[:12]} not {sha[:12]}")
+    return {**body, "matched": True, "workflow_sha256": sha, "live_verified": False}
+
+
+def list_trait_lab_catalog_pin_bind_workflow_steps(plan: Any) -> list[str]:
+    """W09 — step names from a plan or signed workflow."""
+    return list(validate_trait_lab_catalog_pin_bind_workflow(plan)["steps"])
+
+
+def count_trait_lab_catalog_pin_bind_workflow_steps(plan: Any) -> int:
+    """W10 — number of steps in a plan."""
+    return int(validate_trait_lab_catalog_pin_bind_workflow(plan)["count"])
+
+
+def trait_lab_catalog_pin_bind_workflow_has_step(plan: Any, step: str) -> bool:
+    """W11 — true when the plan lists the step name."""
+    name = str(step or "").strip()
+    if name not in TRAIT_LAB_CATALOG_PIN_BIND_WORKFLOW_STEPS:
+        raise MemoryLayerError("invalid_step", f"unknown workflow step {name or '<empty>'}")
+    return name in list_trait_lab_catalog_pin_bind_workflow_steps(plan)
+
+
+def page_trait_lab_catalog_pin_bind_workflow_steps(
+    plan: Any,
+    *,
+    offset: int = 0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """W12 — deterministic step page."""
+    limit = _require_catalog_limit(limit)
+    start = _require_catalog_offset(offset)
+    names = list_trait_lab_catalog_pin_bind_workflow_steps(plan)
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_KIND,
+        "steps": names[start : start + limit],
+        "count": len(names),
+        "offset": start,
+        "limit": limit,
+        "live_verified": False,
+    }
+
+
+def public_trait_lab_catalog_pin_bind_workflow_row(row: dict[str, Any]) -> dict[str, Any]:
+    """W13 — stable plan row without agent/task fields."""
+    validated = validate_trait_lab_catalog_pin_bind_workflow(row)
+    public = _workflow_body(validated["steps"])
+    sha = str(row.get("workflow_sha256") or "").strip().lower()
+    if sha:
+        public = {**sign_trait_lab_catalog_pin_bind_workflow(public), "live_verified": False}
+        if sha != public["workflow_sha256"]:
+            raise MemoryLayerError("workflow_mismatch", "public row hash disagrees")
+    return public
+
+
+def trait_lab_catalog_pin_bind_workflow_digest(plan: Any) -> str:
+    """W14 — SHA-256 over the stable signed plan body."""
+    return str(sign_trait_lab_catalog_pin_bind_workflow(plan)["workflow_sha256"])
+
+
+def trait_lab_catalog_pin_bind_workflow_etag(plan: Any) -> str:
+    """W15 — short digest for workflow identity."""
+    return trait_lab_catalog_pin_bind_workflow_digest(plan)[:16]
+
+
+def require_bound_trait_lab_catalog_pin_bind_workflow(store: MemoryStore) -> dict[str, Any]:
+    """W16 — fail-closed when any pin is unbound or none are bound."""
+    if has_unbound_trait_lab_catalog_pin(store) or not has_bound_trait_lab_catalog_pin(store):
+        raise MemoryLayerError("unbound_pin", "workflow require_bound needs every pin bound")
+    return {"required": True, "bound": True, "live_verified": False}
+
+
+def _execute_workflow_step(
+    store: MemoryStore,
+    step: str,
+    ctx: dict[str, Any],
+    *,
+    dry_run: bool,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    wrote = False
+    skipped = False
+    payload: Any = None
+    if step == "export_catalog":
+        catalog = export_trait_lab_seed_pack_catalog(store)
+        if int(catalog["count"]) < 1:
+            raise MemoryLayerError("missing_catalog", "workflow export_catalog requires cataloged packs")
+        ctx["catalog"] = catalog
+        payload = {"catalog_sha256": catalog["catalog_sha256"], "count": catalog["count"]}
+    elif step == "retain_catalog":
+        catalog = ctx.get("catalog")
+        if catalog is None:
+            catalog = export_trait_lab_seed_pack_catalog(store)
+        if int(catalog["count"]) < 1:
+            raise MemoryLayerError("missing_catalog", "workflow retain_catalog requires a catalog")
+        retained = retain_trait_lab_seed_pack_catalog(catalog, keep=1)
+        ctx["catalog"] = retained
+        payload = {"catalog_sha256": retained["catalog_sha256"], "count": retained["count"]}
+    elif step == "pin_catalog":
+        catalog = ctx.get("catalog")
+        if catalog is None:
+            catalog = export_trait_lab_seed_pack_catalog(store)
+        if int(catalog["count"]) < 1:
+            raise MemoryLayerError("missing_catalog", "workflow pin_catalog requires a catalog")
+        if dry_run:
+            skipped = True
+            payload = {"catalog_sha256": catalog["catalog_sha256"], "count": catalog["count"]}
+        else:
+            pinned = pin_trait_lab_seed_pack_catalog(store, catalog, agent_id=agent_id, task_id=task_id)
+            ctx["pin"] = pinned
+            wrote = True
+            payload = {"catalog_sha256": pinned["catalog_sha256"], "count": pinned["count"]}
+    elif step == "rematch":
+        binds = export_trait_lab_catalog_pin_binds(store)
+        ctx["binds"] = binds
+        payload = {"bind_index_sha256": binds["bind_index_sha256"], "count": binds["count"]}
+    elif step == "export_binds":
+        binds = export_trait_lab_catalog_pin_binds(store)
+        ctx["binds"] = binds
+        payload = {"bind_index_sha256": binds["bind_index_sha256"], "count": binds["count"]}
+    elif step == "drop_unbound":
+        ids = list_unbound_trait_lab_catalog_pin_ids(store, limit=200)
+        if dry_run:
+            skipped = True
+            payload = {"count": len(ids), "ids": ids}
+        else:
+            dropped = drop_unbound_trait_lab_catalog_pins(store)
+            wrote = True
+            payload = {"count": dropped["count"], "ids": dropped["ids"]}
+    elif step == "catalogs_from_bound":
+        catalogs = catalogs_from_bound_trait_lab_catalog_pins(store)
+        ctx["catalogs"] = catalogs
+        payload = {"count": catalogs["count"]}
+    elif step == "export_bound":
+        binds = export_bound_trait_lab_catalog_pin_binds(store)
+        ctx["binds"] = binds
+        payload = {"bind_index_sha256": binds["bind_index_sha256"], "count": binds["count"]}
+    else:
+        required = require_bound_trait_lab_catalog_pin_bind_workflow(store)
+        payload = {"bound": required["bound"]}
+    return {
+        "step": step,
+        "ok": True,
+        "wrote": wrote,
+        "skipped": skipped,
+        "result": payload,
+        "live_verified": False,
+    }
+
+
+def _run_workflow_steps(
+    store: MemoryStore,
+    plan: Any,
+    *,
+    dry_run: bool,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    signed = sign_trait_lab_catalog_pin_bind_workflow(plan)
+    if not dry_run and any(step in _WORKFLOW_WRITE_STEPS for step in signed["steps"]):
+        if not str(agent_id or "").strip() or not str(task_id or "").strip():
+            raise MemoryLayerError("missing_provenance", "workflow run requires agent_id and task_id")
+    ctx: dict[str, Any] = {}
+    results: list[dict[str, Any]] = []
+    for step in signed["steps"]:
+        results.append(
+            _execute_workflow_step(
+                store, step, ctx, dry_run=dry_run, agent_id=agent_id, task_id=task_id
+            )
+        )
+    status = "dry_run" if dry_run else "ran"
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_KIND,
+        "workflow_sha256": signed["workflow_sha256"],
+        "steps": signed["steps"],
+        "count": signed["count"],
+        "results": results,
+        "status": status,
+        "wrote": any(row["wrote"] for row in results),
+        "live_verified": False,
+    }
+
+
+def dry_run_trait_lab_catalog_pin_bind_workflow(
+    store: MemoryStore,
+    plan: Any,
+    *,
+    agent_id: str = "",
+    task_id: str = "",
+) -> dict[str, Any]:
+    """W06 — simulate a plan. Write steps are skipped."""
+    return _run_workflow_steps(store, plan, dry_run=True, agent_id=agent_id, task_id=task_id)
+
+
+def run_trait_lab_catalog_pin_bind_workflow(
+    store: MemoryStore,
+    plan: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W07 — execute a plan. Pin and drop_unbound are the only writes."""
+    executed = _run_workflow_steps(store, plan, dry_run=False, agent_id=agent_id, task_id=task_id)
+    record_task_step(
+        store,
+        task_id,
+        "catalog-pin-bind-workflow",
+        {"workflow_sha256": executed["workflow_sha256"], "status": executed["status"]},
+        agent_id=agent_id,
+    )
+    return executed
+
+
+def trait_lab_catalog_pin_bind_workflow_status(result: Any) -> str:
+    """W08 — planned, dry_run, ran, or blocked."""
+    if not isinstance(result, dict):
+        raise MemoryLayerError("invalid_workflow", "workflow status requires a result")
+    refuse_trait_lab_catalog_pin_bind_workflow_live(result)
+    status = str(result.get("status") or "").strip()
+    if status in {"dry_run", "ran", "blocked", "planned"}:
+        return status
+    if result.get("valid") is True:
+        return "planned"
+    raise MemoryLayerError("invalid_workflow", "workflow status is missing")
+
+
+def bind_workflow_from_store(
+    store: MemoryStore,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W17 — export catalog, pin, rematch, require bound, export binds."""
+    plan = plan_trait_lab_catalog_pin_bind_workflow(
+        ["export_catalog", "pin_catalog", "rematch", "require_bound", "export_binds"]
+    )
+    return run_trait_lab_catalog_pin_bind_workflow(store, plan, agent_id=agent_id, task_id=task_id)
+
+
+def bind_workflow_retain_and_pin(
+    store: MemoryStore,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W18 — retain highest-count pack, pin, rematch, require bound."""
+    plan = plan_trait_lab_catalog_pin_bind_workflow(
+        ["export_catalog", "retain_catalog", "pin_catalog", "rematch", "require_bound"]
+    )
+    return run_trait_lab_catalog_pin_bind_workflow(store, plan, agent_id=agent_id, task_id=task_id)
+
+
+def bind_workflow_drop_unbound(
+    store: MemoryStore,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W19 — rematch, drop unbound pin facts, export remaining binds."""
+    plan = plan_trait_lab_catalog_pin_bind_workflow(["rematch", "drop_unbound", "export_binds"])
+    return run_trait_lab_catalog_pin_bind_workflow(store, plan, agent_id=agent_id, task_id=task_id)
+
+
+def bind_workflow_catalogs_from_bound(
+    store: MemoryStore,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W20 — rematch, require bound, rebuild catalogs. No pin writes."""
+    plan = plan_trait_lab_catalog_pin_bind_workflow(["rematch", "require_bound", "catalogs_from_bound"])
+    return run_trait_lab_catalog_pin_bind_workflow(store, plan, agent_id=agent_id, task_id=task_id)
+
+
+def persist_trait_lab_catalog_pin_bind_workflow_receipt(
+    store: MemoryStore,
+    result: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """W21 — write a workflow receipt fact. Does not apply packs or runs."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "workflow receipt requires agent_id and task_id")
+    if not isinstance(result, dict) or not result.get("workflow_sha256"):
+        raise MemoryLayerError("invalid_workflow", "receipt requires a signed workflow result")
+    refuse_trait_lab_catalog_pin_bind_workflow_live(result)
+    status = trait_lab_catalog_pin_bind_workflow_status(result)
+    sha = str(result["workflow_sha256"])
+    write_verified(
+        store,
+        {
+            "id": _workflow_fact_id(sha),
+            "fact": f"workflow {sha} status={status}",
+            "how": f"persist_trait_lab_catalog_pin_bind_workflow_receipt {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+            "status": status,
+            "steps": result.get("steps") or [],
+            "count": result.get("count") or 0,
+        },
+    )
+    return {
+        "persisted": True,
+        "workflow_sha256": sha,
+        "fact_id": _workflow_fact_id(sha),
+        "status": status,
+        "live_verified": False,
+    }
+
+
+def _workflow_receipt_row(entry: MemoryEntry) -> dict[str, Any] | None:
+    if not entry.key.startswith("verified:trait-lab-workflow-"):
+        return None
+    if entry.value.get("live_verified") is True:
+        return None
+    sha = str(entry.value.get("source") or entry.metadata.get("source") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        return None
+    status = str(entry.value.get("status") or "").strip()
+    if status not in {"dry_run", "ran", "blocked", "planned"}:
+        return None
+    raw_steps = entry.value.get("steps")
+    if not isinstance(raw_steps, list):
+        return None
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+        "workflow_sha256": sha,
+        "fact_id": _workflow_fact_id(sha),
+        "status": status,
+        "steps": [str(item) for item in raw_steps],
+        "count": int(entry.value.get("count") or len(raw_steps)),
+        "agent_id": entry.agent_id,
+        "task_id": entry.task_id,
+        "live_verified": False,
+    }
+
+
+def _collect_trait_lab_workflow_receipts(store: MemoryStore, *, scan: int = 200) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in query_layer(
+        store,
+        MemoryLayer.VERIFIED_KNOWLEDGE,
+        prefix="verified:trait-lab-workflow-",
+        limit=scan,
+    ):
+        row = _workflow_receipt_row(entry)
+        if row is None or row["workflow_sha256"] in seen:
+            continue
+        seen.add(row["workflow_sha256"])
+        found.append(row)
+    found.sort(key=lambda row: str(row["workflow_sha256"]))
+    return found
+
+
+def get_trait_lab_catalog_pin_bind_workflow_receipt(
+    store: MemoryStore,
+    workflow_sha256: str,
+) -> dict[str, Any]:
+    """W22 — select one workflow receipt by workflow_sha256."""
+    sha = str(workflow_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_workflow_hash", "receipt select requires workflow_sha256")
+    entry = store.get(f"verified:{_workflow_fact_id(sha)}")
+    if entry is None:
+        raise MemoryLayerError("missing_workflow", f"no workflow receipt {sha[:12]}")
+    row = _workflow_receipt_row(entry)
+    if row is None:
+        raise MemoryLayerError("invalid_workflow", f"workflow receipt {sha[:12]} is malformed")
+    return {**row, "live_verified": False}
+
+
+def list_trait_lab_catalog_pin_bind_workflow_receipts(
+    store: MemoryStore,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """W23 — index persisted workflow receipts. Not a live ranking."""
+    limit = _require_catalog_limit(limit)
+    rows = _collect_trait_lab_workflow_receipts(store)[:limit]
+    public = [
+        {
+            "workflow_sha256": row["workflow_sha256"],
+            "fact_id": row["fact_id"],
+            "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+            "status": row["status"],
+            "steps": row["steps"],
+            "count": row["count"],
+            "live_verified": False,
+        }
+        for row in rows
+    ]
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+        "receipts": public,
+        "count": len(rows),
+        "live_verified": False,
+    }
+
+
+def has_trait_lab_catalog_pin_bind_workflow_receipt(store: MemoryStore, workflow_sha256: str) -> bool:
+    """W24 — true when a receipt fact exists for workflow_sha256."""
+    sha = str(workflow_sha256 or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_workflow_hash", "has_receipt requires workflow_sha256")
+    return any(row["workflow_sha256"] == sha for row in _collect_trait_lab_workflow_receipts(store))
+
+
+def list_trait_lab_catalog_pin_bind_workflow_receipts_by_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """W25 — receipts written by one agent."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(agent_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_agent", "workflow receipt by agent requires agent_id")
+    rows = [row for row in _collect_trait_lab_workflow_receipts(store) if row.get("agent_id") == wanted]
+    if not rows:
+        raise MemoryLayerError("missing_agent", f"no workflow receipt for agent {wanted}")
+    public = [
+        {
+            "workflow_sha256": row["workflow_sha256"],
+            "fact_id": row["fact_id"],
+            "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+            "status": row["status"],
+            "steps": row["steps"],
+            "count": row["count"],
+            "live_verified": False,
+        }
+        for row in rows[:limit]
+    ]
+    return {
+        "kind": _TRAIT_LAB_WORKFLOW_RECEIPT_KIND,
+        "receipts": public,
+        "count": len(rows),
+        "agent_id": wanted,
+        "live_verified": False,
+    }
