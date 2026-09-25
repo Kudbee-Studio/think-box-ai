@@ -3115,3 +3115,360 @@ def list_trait_lab_catalog_pin_binds_by_agent(
         raise MemoryLayerError("missing_agent", f"no pinned catalog for agent {wanted}")
     rows = [_bind_report_from_pin(store, pin) for pin in pins][:limit]
     return {**_bind_index_body(rows), "agent_id": wanted, "live_verified": False}
+
+
+TRAIT_LAB_CATALOG_PIN_BIND_LANE_OPS: tuple[str, ...] = (
+    "list_ids",
+    "count_binds",
+    "by_task",
+    "by_count_floor",
+    "by_count_ceiling",
+    "by_count_band",
+    "bound_only",
+    "unbound_only",
+    "count_unbound_pins",
+    "has_bound_pin",
+    "rematch_index",
+    "diff_indexes",
+    "merge",
+    "intersect",
+    "subtract",
+    "xor",
+    "retain",
+    "drop_unbound",
+    "catalogs_from_bound",
+    "has_pack",
+    "ids_for_pack",
+    "get_by_fact_id",
+    "ids_for_agent",
+    "count_for_pack",
+    "export_bound",
+)
+
+
+def _bind_conflict_key(row: dict[str, Any]) -> tuple[int, frozenset[str], frozenset[str], bool]:
+    return (
+        int(row["count"]),
+        frozenset(str(item) for item in row["bound_ids"]),
+        frozenset(str(item) for item in row["unbound_ids"]),
+        bool(row["bound"]),
+    )
+
+
+def _public_bind_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    found: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        public = _bind_public_row(row)
+        sha = str(public["catalog_sha256"])
+        prior = found.get(sha)
+        if prior is not None:
+            if _bind_conflict_key(prior) != _bind_conflict_key(public):
+                raise MemoryLayerError("bind_conflict", f"bind {sha[:12]} disagrees")
+            continue
+        found[sha] = public
+    return found
+
+
+def _signed_bind_index(rows: list[dict[str, Any]], **extra: Any) -> dict[str, Any]:
+    body = _bind_index_body(rows)
+    refuse_trait_lab_catalog_pin_bind_live(body)
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        **body,
+        "bind_index_sha256": hashlib.sha256(encoded).hexdigest(),
+        "live_verified": False,
+        **extra,
+    }
+
+
+def list_trait_lab_catalog_pin_bind_ids(store: MemoryStore, *, limit: int = 50) -> list[str]:
+    """D01 — catalog_sha256 values of bind reports, sorted."""
+    limit = _require_catalog_limit(limit)
+    return [row["catalog_sha256"] for row in _collect_trait_lab_catalog_pin_binds(store)][:limit]
+
+
+def count_trait_lab_catalog_pin_binds(store: MemoryStore) -> int:
+    """D02 — number of bind reports (one per pin)."""
+    return len(_collect_trait_lab_catalog_pin_binds(store))
+
+
+def list_trait_lab_catalog_pin_binds_by_task(
+    store: MemoryStore,
+    task_id: str,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """D03 — bind reports for pins written by one task."""
+    limit = _require_catalog_limit(limit)
+    wanted = str(task_id or "").strip()
+    if not wanted:
+        raise MemoryLayerError("missing_task", "bind by task requires task_id")
+    pins = [pin for pin in _collect_trait_lab_catalog_pins(store) if pin.get("task_id") == wanted]
+    if not pins:
+        raise MemoryLayerError("missing_task", f"no pinned catalog for task {wanted}")
+    rows = [_bind_report_from_pin(store, pin) for pin in pins][:limit]
+    return {**_bind_index_body(rows), "task_id": wanted, "live_verified": False}
+
+
+def catalog_pin_binds_by_count_floor(
+    store: MemoryStore,
+    floor: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """D04 — binds whose pin pack count is at or above floor."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if int(row["count"]) >= low]
+    if not rows:
+        raise MemoryLayerError("missing_floor", f"no catalog pin bind with count >= {low}")
+    return {**_bind_index_body(rows[:limit]), "floor": low, "live_verified": False}
+
+
+def catalog_pin_binds_by_count_ceiling(
+    store: MemoryStore,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """D05 — binds whose pin pack count is at or below ceiling."""
+    limit = _require_catalog_limit(limit)
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if int(row["count"]) <= high]
+    if not rows:
+        raise MemoryLayerError("missing_ceiling", f"no catalog pin bind with count <= {high}")
+    return {**_bind_index_body(rows[:limit]), "ceiling": high, "live_verified": False}
+
+
+def catalog_pin_binds_by_count_band(
+    store: MemoryStore,
+    floor: int,
+    ceiling: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """D06 — binds whose pin pack count is inside [floor, ceiling]."""
+    limit = _require_catalog_limit(limit)
+    low = _xp_bound(floor, code="invalid_floor", label="floor")
+    high = _xp_bound(ceiling, code="invalid_ceiling", label="ceiling")
+    if low > high:
+        raise MemoryLayerError("invalid_band", "floor must be <= ceiling")
+    rows = [
+        row for row in _collect_trait_lab_catalog_pin_binds(store) if low <= int(row["count"]) <= high
+    ]
+    if not rows:
+        raise MemoryLayerError("missing_band", f"no catalog pin bind with count {low}-{high}")
+    return {**_bind_index_body(rows[:limit]), "floor": low, "ceiling": high, "live_verified": False}
+
+
+def list_bound_only_trait_lab_catalog_pin_binds(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """D07 — bind reports that are fully bound."""
+    limit = _require_catalog_limit(limit)
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if row["bound"]]
+    if not rows:
+        raise MemoryLayerError("missing_pin", "no bound catalog pin")
+    return {**_bind_index_body(rows[:limit]), "live_verified": False}
+
+
+def list_unbound_only_trait_lab_catalog_pin_binds(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """D08 — bind reports that are missing at least one store pack."""
+    limit = _require_catalog_limit(limit)
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if not row["bound"]]
+    if not rows:
+        raise MemoryLayerError("missing_pin", "no unbound catalog pin")
+    return {**_bind_index_body(rows[:limit]), "live_verified": False}
+
+
+def count_unbound_trait_lab_catalog_pins(store: MemoryStore) -> int:
+    """D09 — number of pins that are not fully bound."""
+    return len(list_unbound_trait_lab_catalog_pin_ids(store, limit=200))
+
+
+def has_bound_trait_lab_catalog_pin(store: MemoryStore) -> bool:
+    """D10 — true when at least one pin is fully bound."""
+    return any(row["bound"] for row in _collect_trait_lab_catalog_pin_binds(store))
+
+
+def rematch_trait_lab_catalog_pin_bind_index(store: MemoryStore, index: Any) -> dict[str, Any]:
+    """D11 — rematch each bind row's pin against the current store."""
+    verified = verify_trait_lab_catalog_pin_binds(index)
+    rows = [
+        rematch_trait_lab_catalog_pin_against_store(store, str(row["catalog_sha256"]))
+        for row in verified["binds"]
+    ]
+    return _signed_bind_index(rows, rematched=True, source=verified["bind_index_sha256"])
+
+
+def diff_trait_lab_catalog_pin_bind_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """D12 — compare two rematched bind-index snapshots."""
+    left = verify_trait_lab_catalog_pin_binds(index_a)
+    right = verify_trait_lab_catalog_pin_binds(index_b)
+    if left["bind_index_sha256"] == right["bind_index_sha256"]:
+        raise MemoryLayerError("same_bind_index", "diff requires two different bind-index hashes")
+    ids_a = [row["catalog_sha256"] for row in left["binds"]]
+    ids_b = [row["catalog_sha256"] for row in right["binds"]]
+    set_a = set(ids_a)
+    set_b = set(ids_b)
+    return {
+        "kind": _TRAIT_LAB_CATALOG_PIN_BIND_INDEX_KIND,
+        "only_a": [sha for sha in ids_a if sha not in set_b],
+        "only_b": [sha for sha in ids_b if sha not in set_a],
+        "shared": [sha for sha in ids_a if sha in set_b],
+        "count_delta": int(left["count"]) - int(right["count"]),
+        "live_verified": False,
+    }
+
+
+def _compose_trait_lab_catalog_pin_bind_indexes(
+    index_a: Any,
+    index_b: Any,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    if mode not in {"merge", "intersect", "subtract", "xor"}:
+        raise MemoryLayerError("invalid_compose", f"unknown compose mode {mode}")
+    left = verify_trait_lab_catalog_pin_binds(index_a)
+    right = verify_trait_lab_catalog_pin_binds(index_b)
+    if left["bind_index_sha256"] == right["bind_index_sha256"]:
+        raise MemoryLayerError("same_bind_index", f"{mode} requires two different bind-index hashes")
+    map_a = _public_bind_map(left["binds"])
+    map_b = _public_bind_map(right["binds"])
+    for sha, row in map_b.items():
+        prior = map_a.get(sha)
+        if prior is not None and _bind_conflict_key(prior) != _bind_conflict_key(row):
+            raise MemoryLayerError("bind_conflict", f"bind {sha[:12]} disagrees across indexes")
+    if mode == "merge":
+        selected = {**map_a, **map_b}
+    elif mode == "intersect":
+        selected = {sha: map_a[sha] for sha in map_a if sha in map_b}
+    elif mode == "subtract":
+        selected = {sha: map_a[sha] for sha in map_a if sha not in map_b}
+    else:
+        selected = {
+            **{sha: map_a[sha] for sha in map_a if sha not in map_b},
+            **{sha: map_b[sha] for sha in map_b if sha not in map_a},
+        }
+    rows = sorted(selected.values(), key=lambda row: str(row["catalog_sha256"]))
+    return _signed_bind_index(rows, mode=mode, a=left["bind_index_sha256"], b=right["bind_index_sha256"])
+
+
+def merge_trait_lab_catalog_pin_bind_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """D13 — union two rematched bind-index snapshots. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_bind_indexes(index_a, index_b, mode="merge")
+
+
+def intersect_trait_lab_catalog_pin_bind_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """D14 — shared binds of two rematched bind indexes. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_bind_indexes(index_a, index_b, mode="intersect")
+
+
+def subtract_trait_lab_catalog_pin_bind_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """D15 — binds in A that are not in B. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_bind_indexes(index_a, index_b, mode="subtract")
+
+
+def symmetric_diff_trait_lab_catalog_pin_bind_indexes(index_a: Any, index_b: Any) -> dict[str, Any]:
+    """D16 — binds in exactly one rematched bind index. Not a live ranking."""
+    return _compose_trait_lab_catalog_pin_bind_indexes(index_a, index_b, mode="xor")
+
+
+def retain_trait_lab_catalog_pin_binds(index: Any, *, keep: int = 1) -> dict[str, Any]:
+    """D17 — keep the highest-count bind rows. Not a live ranking."""
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+        raise MemoryLayerError("invalid_keep", "keep must be >= 1")
+    verified = verify_trait_lab_catalog_pin_binds(index)
+    rows = [_bind_public_row(row) for row in verified["binds"]]
+    if not rows:
+        raise MemoryLayerError("missing_bind", "retain requires at least one bind")
+    rows.sort(key=lambda row: (-int(row["count"]), str(row["catalog_sha256"])))
+    selected = rows[:keep]
+    return _signed_bind_index(selected, kept=len(selected), keep=keep)
+
+
+def drop_unbound_trait_lab_catalog_pins(store: MemoryStore) -> dict[str, Any]:
+    """D18 — unpin facts that are not fully bound. Pack facts and runs stay."""
+    unbound = list_unbound_trait_lab_catalog_pin_ids(store, limit=200)
+    if not unbound:
+        raise MemoryLayerError("missing_pin", "no unbound catalog pin to drop")
+    dropped: list[str] = []
+    for sha in unbound:
+        unpin_trait_lab_catalog_pin(store, sha)
+        dropped.append(sha)
+    return {
+        "dropped": True,
+        "count": len(dropped),
+        "ids": dropped,
+        "live_verified": False,
+    }
+
+
+def catalogs_from_bound_trait_lab_catalog_pins(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """D19 — rebuild rematched catalogs for every fully bound pin."""
+    limit = _require_catalog_limit(limit)
+    ids = list_bound_trait_lab_catalog_pin_ids(store, limit=limit)
+    if not ids:
+        raise MemoryLayerError("missing_pin", "no bound catalog pin")
+    catalogs = [catalog_from_trait_lab_catalog_pin(store, sha) for sha in ids]
+    return {
+        "kind": _TRAIT_LAB_CATALOG_KIND,
+        "catalogs": catalogs,
+        "count": len(catalogs),
+        "live_verified": False,
+    }
+
+
+def catalog_pin_bind_has_pack(store: MemoryStore, pack_sha256: str) -> bool:
+    """D20 — true when any bound bind lists the pack hash."""
+    sha = _require_pack_sha(pack_sha256)
+    return any(sha in row["bound_ids"] for row in _collect_trait_lab_catalog_pin_binds(store))
+
+
+def list_trait_lab_catalog_pin_bind_ids_for_pack(
+    store: MemoryStore,
+    pack_sha256: str,
+    *,
+    limit: int = 50,
+) -> list[str]:
+    """D21 — catalog_sha256 values whose bound_ids include one pack."""
+    sha = _require_pack_sha(pack_sha256)
+    limit = _require_catalog_limit(limit)
+    ids = [
+        row["catalog_sha256"]
+        for row in _collect_trait_lab_catalog_pin_binds(store)
+        if sha in row["bound_ids"]
+    ]
+    return ids[:limit]
+
+
+def get_trait_lab_catalog_pin_bind_by_fact_id(store: MemoryStore, fact_id: str) -> dict[str, Any]:
+    """D22 — rematch one pin by fact_id."""
+    pin = get_trait_lab_catalog_pin_by_fact_id(store, fact_id)
+    return _bind_report_from_pin(store, pin)
+
+
+def list_trait_lab_catalog_pin_bind_ids_for_agent(
+    store: MemoryStore,
+    agent_id: str,
+    *,
+    limit: int = 50,
+) -> list[str]:
+    """D23 — catalog_sha256 values of bind reports written by one agent."""
+    return [
+        row["catalog_sha256"]
+        for row in list_trait_lab_catalog_pin_binds_by_agent(store, agent_id, limit=limit)["binds"]
+    ]
+
+
+def count_trait_lab_catalog_pin_binds_for_pack(store: MemoryStore, pack_sha256: str) -> int:
+    """D24 — how many bound binds include one pack hash."""
+    return len(list_trait_lab_catalog_pin_bind_ids_for_pack(store, pack_sha256, limit=200))
+
+
+def export_bound_trait_lab_catalog_pin_binds(store: MemoryStore, *, limit: int = 50) -> dict[str, Any]:
+    """D25 — portable bind-index of fully bound pins only."""
+    limit = _require_catalog_limit(limit)
+    rows = [row for row in _collect_trait_lab_catalog_pin_binds(store) if row["bound"]][:limit]
+    if not rows:
+        raise MemoryLayerError("missing_pin", "no bound catalog pin")
+    exported = _signed_bind_index(rows)
+    return {**exported, "exported_at": _utc()}

@@ -1,15 +1,26 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #210 Trait Lab catalog↔pin bind (OPEN)
+## Draft — GitHub PR #211 Trait Lab catalog pin bind lane (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-catalog-pin-bind-ops-25` |
+| **Scope** | D01–D25 bind filters, compose, rematch index, drop unbound, catalogs from bound |
+| **Write policy** | Hash-only except drop_unbound (unpin facts only); no pack/run apply; live claim fail-closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-catalog-pin-bind-ops-25-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined) |
+
+## GitHub PR #210 — Trait Lab catalog↔pin bind (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-catalog-pin-bind-25` |
 | **Scope** | B01–B25 rematch pins against store packs; bound/unbound reports; pin retain/xor/merge |
 | **Write policy** | Hash-only except pin/import writes of pin facts; no pack/run apply; live claim, unbound pin fail-closed |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-catalog-pin-bind-25-723f` |
-| **Merge** | not merged — draft PR only |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED |
+| **Merge** | `2846d02` |
 | **Verify** | bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined) |
 
 ## GitHub PR #209 — Trait Lab catalog follow-through (MERGED)
