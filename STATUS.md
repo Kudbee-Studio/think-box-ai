@@ -1,10 +1,16 @@
-## Draft — GitHub PR #224 Trait Lab autonomous flow workflow compose (not merged)
+## Draft — GitHub PR #225 Trait Lab autonomous stack harness (not merged)
 
-- **Branch:** `cursor/memory-trait-lab-autonomous-flow-compose-723f`
-- **Gate:** `memory-trait-lab-autonomous-flow-workflow-compose-25` (P01–P25)
-- **Scope:** Merge/intersect/subtract/xor signed flow-receipt indexes; compose snapshot + index export persist
+- **Branch:** `cursor/memory-trait-lab-autonomous-stack-harness-723f`
+- **Gate:** `memory-trait-lab-autonomous-stack-harness-25` (U01–U25)
+- **Scope:** `open_smoke_harness` dry/run/full modes; phase report + app bundle for integration tests
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** flow-compose file **4 OK**; memory suite **246 OK** — **not merged**
+- **Verify:** stack-harness file **5 OK**; memory suite **251 OK** — **not merged**
+
+## GitHub PR #224 — Trait Lab autonomous flow workflow compose (merged)
+
+- **Merge:** `3eb4d03` — P01–P25 flow-receipt index compose
+- **Gate:** `memory-trait-lab-autonomous-flow-workflow-compose-25`
+- **Verify:** flow-compose **4 OK** at merge; memory **246 OK**
 
 ## GitHub PR #223 — Trait Lab autonomous flow workflow major (merged)
 

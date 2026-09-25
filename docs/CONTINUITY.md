@@ -2773,4 +2773,17 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TEST_VERIFIED:** flow-compose **4 OK**; memory suite **246 OK**.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
 
+### 2026-09-25 — GitHub PR #224 merged (Trait Lab autonomous flow workflow compose)
+
+- **MERGE:** `3eb4d03` on `main`.
+- **TEST_VERIFIED:** flow-compose **4 OK**; memory **246 OK**.
+
+### 2026-09-25 — Draft GitHub PR #225 Trait Lab autonomous stack harness
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-stack-harness-723f`
+- **DISCOVERY:** Application builders need one hermetic entry to dry-run or run the full prep → flow stack and assert phase receipts.
+- **IMPLEMENTATION:** U01–U25 in `thinkbox/autonomous_stack_harness.py` (`open_smoke_harness`, `bundle_for_app`, persist smoke artifact).
+- **TEST_VERIFIED:** stack-harness **5 OK**; memory suite **251 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
 ---

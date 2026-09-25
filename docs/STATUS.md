@@ -1,15 +1,23 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #224 Trait Lab autonomous flow workflow compose (OPEN)
+## Draft — GitHub PR #225 Trait Lab autonomous stack harness (OPEN)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-autonomous-stack-harness-25` |
+| **Scope** | U01–U25 stack smoke (dry/run/full), phase report, `bundle_for_app`, `open_smoke_harness` |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Branch** | `cursor/memory-trait-lab-autonomous-stack-harness-723f` |
+| **Merge** | not merged — draft PR only |
+| **Verify** | stack-harness **5 OK**; memory suite **251 OK** |
+
+## GitHub PR #224 — Trait Lab autonomous flow workflow compose (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Gate** | `memory-trait-lab-autonomous-flow-workflow-compose-25` |
-| **Scope** | P01–P25 merge/intersect/subtract/xor flow-receipt indexes; compose snapshot persist |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
-| **Branch** | `cursor/memory-trait-lab-autonomous-flow-compose-723f` |
-| **Merge** | not merged — draft PR only |
-| **Verify** | flow-compose **4 OK**; memory suite **246 OK** |
+| **Merge** | `3eb4d03` |
+| **Verify** | flow-compose **4 OK**; memory **246 OK** |
 
 ## GitHub PR #223 — Trait Lab autonomous flow workflow major (MERGED)
 

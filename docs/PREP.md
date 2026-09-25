@@ -2,11 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-25 (GitHub #224 merged; #225 autonomous stack harness draft)
+>
+> **GitHub #224 merged** at `3eb4d03` — flow compose P01–P25. Not LIVE VERIFIED.
+> **GitHub #225 draft:** U01–U25 stack harness on `cursor/memory-trait-lab-autonomous-stack-harness-723f`. **Not merged.**
+> **Test gate:** stack-harness 5 OK; memory 251 OK.
+> **App testing:** `open_trait_lab_autonomous_stack_harness(mode="full", ...)` returns phase report + optional persisted smoke artifact.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #223 merged; #224 autonomous flow compose draft)
 >
-> **GitHub #223 merged** at `3fdaa32` — flow workflow O01–O25. Not LIVE VERIFIED.
-> **GitHub #224 draft:** P01–P25 flow compose on `cursor/memory-trait-lab-autonomous-flow-compose-723f`. **Not merged.**
-> **Test gate:** flow-compose 4 OK; memory 246 OK.
+> **Superseded:** flow compose shipped as **#224** (`3eb4d03`).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #222 merged; #223 autonomous flow workflow major draft)
 >
