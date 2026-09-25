@@ -1,3 +1,11 @@
+## PR #205 — Organizational versioning + snapshot (draft)
+
+- **Gate:** `memory-org-version`
+- **Scope:** Versioned org history; portable four-layer export/import
+- **Write policy:** Org append-only + versioned; import rejects live claims
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**
+
 ## PR #204 — Memory query + retention (merged)
 
 - **Merge:** `0b3fc87` — read / query / decay / retention

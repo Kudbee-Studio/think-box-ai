@@ -157,7 +157,7 @@ def write_task(store: MemoryStore, task: dict[str, Any]) -> MemoryEntry:
 
 
 def write_organizational(store: MemoryStore, pattern: dict[str, Any]) -> MemoryEntry:
-    """Organizational layer: evidenced patterns only. No speculation."""
+    """Organizational layer: evidenced, versioned, append-only history."""
     evidence = pattern.get("evidence") or []
     if not isinstance(evidence, list) or not evidence:
         raise MemoryLayerError("missing_evidence", "organizational writes require evidence")
@@ -165,8 +165,30 @@ def write_organizational(store: MemoryStore, pattern: dict[str, Any]) -> MemoryE
         raise MemoryLayerError("live_claim", "organizational memory may not claim live verification")
     body = _force_not_live(pattern)
     pattern_id = str(body.get("pattern_id") or "pattern")
+    key = f"org:pattern:{pattern_id}"
+    existing = store.get(key)
+    if existing is not None:
+        same_desc = existing.value.get("description") == body.get("description")
+        same_ev = list(existing.value.get("evidence") or []) == list(evidence)
+        if same_desc and same_ev:
+            return existing
+        version = int(existing.value.get("version") or 1)
+        archive_key = f"{key}:v{version}"
+        store.put(
+            MemoryEntry(
+                key=archive_key,
+                layer=MemoryLayer.ORGANIZATIONAL,
+                entry_type=MemoryEntryType.PATTERN,
+                value={**dict(existing.value), "version": version, "superseded_at": _utc()},
+                metadata=existing.metadata,
+            )
+        )
+        body["version"] = version + 1
+        body["supersedes"] = archive_key
+    else:
+        body["version"] = 1
     entry = MemoryEntry(
-        key=f"org:pattern:{pattern_id}",
+        key=key,
         layer=MemoryLayer.ORGANIZATIONAL,
         entry_type=MemoryEntryType.PATTERN,
         value=body,
@@ -477,3 +499,103 @@ def apply_retention(
         "verified_knowledge": store.count(MemoryLayer.VERIFIED_KNOWLEDGE),
         "live_verified": False,
     }
+
+
+def org_history(store: MemoryStore, pattern_id: str) -> list[MemoryEntry]:
+    """Version chain for one organizational pattern. Oldest first, current last."""
+    key = f"org:pattern:{pattern_id}"
+    rows = query_layer(store, MemoryLayer.ORGANIZATIONAL, prefix=key)
+    versions = [row for row in rows if row.key.startswith(f"{key}:v")]
+    versions.sort(key=lambda row: int(row.value.get("version") or 0))
+    current = store.get(key)
+    if current is not None:
+        versions.append(current)
+    if not versions:
+        raise MemoryLayerError("missing_org", f"organizational pattern {pattern_id} not found")
+    return versions
+
+
+def _entry_payload(entry: MemoryEntry) -> dict[str, Any]:
+    return {
+        "key": entry.key,
+        "layer": entry.layer.value,
+        "entry_type": entry.entry_type.value,
+        "value": dict(entry.value),
+        "agent_id": entry.agent_id,
+        "task_id": entry.task_id,
+        "created_at": entry.created_at,
+        "confidence": entry.confidence,
+        "metadata": dict(entry.metadata),
+    }
+
+
+def export_snapshot(store: MemoryStore) -> dict[str, Any]:
+    """Portable four-layer snapshot. Never a live proof."""
+    layers: dict[str, list[dict[str, Any]]] = {}
+    for layer in MemoryLayer:
+        layers[layer.value] = [_entry_payload(row) for row in store.query(layer=layer, limit=1000)]
+    return {
+        "layers": layers,
+        "exported_at": _utc(),
+        "live_verified": False,
+    }
+
+
+def import_snapshot(store: MemoryStore, snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Replay a snapshot through write policy. Rejects live claims."""
+    if snapshot.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "snapshot may not claim LIVE VERIFIED")
+    layers = snapshot.get("layers")
+    if not isinstance(layers, dict):
+        raise MemoryLayerError("invalid_snapshot", "snapshot requires a layers object")
+    imported = 0
+    for layer_name, rows in layers.items():
+        if not isinstance(rows, list):
+            raise MemoryLayerError("invalid_snapshot", f"layer {layer_name} must be a list")
+        for row in rows:
+            value = dict((row or {}).get("value") or {})
+            key = str((row or {}).get("key") or "")
+            if layer_name == MemoryLayer.SESSION.value:
+                write_session(store, value)
+            elif layer_name == MemoryLayer.TASK.value:
+                if key.count(":") == 1:
+                    write_task(store, value)
+                elif ":step:" in key:
+                    record_task_step(
+                        store,
+                        str(value.get("task_id") or key.split(":")[1]),
+                        str(value.get("step_id") or "step"),
+                        dict(value.get("result") or {}),
+                        agent_id=str(value.get("agent_id") or ""),
+                    )
+                elif ":error:" in key:
+                    record_task_error(
+                        store,
+                        str(value.get("task_id") or key.split(":")[1]),
+                        str(value.get("error") or "error"),
+                        dict(value.get("context") or {}),
+                    )
+            elif layer_name == MemoryLayer.ORGANIZATIONAL.value:
+                if key.startswith("org:pattern:") and ":v" in key[len("org:pattern:"):]:
+                    evidence = value.get("evidence") or []
+                    if not isinstance(evidence, list) or not evidence:
+                        raise MemoryLayerError("missing_evidence", "organizational writes require evidence")
+                    if value.get("live_verified") is True:
+                        raise MemoryLayerError("live_claim", "organizational memory may not claim live verification")
+                    store.put(
+                        MemoryEntry(
+                            key=key,
+                            layer=MemoryLayer.ORGANIZATIONAL,
+                            entry_type=MemoryEntryType.PATTERN,
+                            value=_force_not_live(value),
+                            metadata={"evidence": evidence},
+                        )
+                    )
+                else:
+                    write_organizational(store, value)
+            elif layer_name == MemoryLayer.VERIFIED_KNOWLEDGE.value:
+                write_verified(store, value)
+            imported += 1
+    snap = snapshot_layers(store)
+    snap["imported"] = imported
+    return snap

@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #205 — Organizational versioning + snapshot (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-org-version` |
+| **Scope** | Versioned organizational history; portable four-layer export/import |
+| **Write policy** | Org append-only + versioned; import rejects live claims; `live_verified` false |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK** |
+
 ## PR #204 — Memory query + retention (MERGED)
 
 | Field | Value |

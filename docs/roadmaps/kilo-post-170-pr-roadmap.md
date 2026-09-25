@@ -52,6 +52,7 @@
 | Trait Lab (seeded game) | **#202** (merged `75a36c5`) — U01–U50 + harden; not LIVE VERIFIED |
 | Memory layers ingest | **#203** (merged `3976930`) — fail-closed Session / Task / Organizational / Verified Knowledge; not LIVE VERIFIED |
 | Memory query + retention | **#204** (merged `0b3fc87`) — read/query/decay/retention; not LIVE VERIFIED |
+| Memory org version + snapshot | **#205** (draft `cursor/memory-org-version-723f`) — versioned org + export/import; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
