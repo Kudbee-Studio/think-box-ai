@@ -1,5 +1,6 @@
-## PR #205 — Organizational versioning + snapshot (draft)
+## PR #205 — Organizational versioning + snapshot (merged)
 
+- **Merge:** `01f46c6` — versioned org history + portable snapshot
 - **Gate:** `memory-org-version`
 - **Scope:** Versioned org history; portable four-layer export/import
 - **Write policy:** Org append-only + versioned; import rejects live claims

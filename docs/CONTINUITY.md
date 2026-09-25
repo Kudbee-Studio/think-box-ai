@@ -2145,4 +2145,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Merge `cursor/memory-org-version-723f` into `main`.
 
+### 2026-09-25 — PR #205 merged to main
+
+- **MERGED:** `cursor/memory-org-version-723f` → `main` at **`01f46c6`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #206. At most one open PR.
+
 ---
