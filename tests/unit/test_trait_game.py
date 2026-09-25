@@ -277,6 +277,8 @@ class TestTraitGame(unittest.TestCase):
         self.assertIn("trait-lab", text)
         self.assertIn("focus_duration", text)
         self.assertIn("invalid_replay", text)
+        self.assertIn("no_targets", text)
+        self.assertIn("leftover_applied", text)
 
 
 if __name__ == "__main__":

@@ -102,9 +102,11 @@
   function pick(rules, state, risk) {
     var items = bagWeights(rules, state, risk);
     if (!items.length) {
-      throw new TraitGameError("no_risk_targets", "risk draw has no rare-or-better traits");
+      if (risk) throw new TraitGameError("no_risk_targets", "risk draw has no rare-or-better traits");
+      throw new TraitGameError("no_targets", "the bag is empty");
     }
     var total = items.reduce(function (sum, item) { return sum + item[1]; }, 0);
+    if (total <= 0) throw new TraitGameError("no_targets", "the bag has no weight");
     var rng = step(state.rng >>> 0);
     state.rng = rng;
     var roll = rng % total;
@@ -168,9 +170,32 @@
     if (state.defended) addAchievement(state, "defense");
   }
 
+  function applyLeftovers(rules, state) {
+    if (state.leftover_applied) return state.leftover_xp || 0;
+    var leftover = (state.dust || 0) * (rules.dust_interest || 0);
+    if (state.shield_armed) leftover += rules.shield_bank_xp || 0;
+    if (state.difficulty === "thesis" && state.synergies.length >= rules.synergies.length) {
+      leftover += rules.thesis_defense_xp || 0;
+      state.defended = true;
+    }
+    state.xp += leftover;
+    state.leftover_xp = leftover;
+    state.leftover_applied = true;
+    return leftover;
+  }
+
+  function revertLeftovers(state) {
+    if (!state.leftover_applied) return;
+    state.xp -= state.leftover_xp || 0;
+    state.leftover_xp = 0;
+    state.leftover_applied = false;
+    state.defended = false;
+  }
+
   function maybeClose(rules, state) {
     var limit = rules.difficulties[state.difficulty].turns;
     if (state.turn >= limit) {
+      applyLeftovers(rules, state);
       state.over = true;
       state.grade = gradeOf(state);
     }
@@ -300,6 +325,7 @@
       daily: !!extras.daily,
       defended: false,
       leftover_xp: 0,
+      leftover_applied: false,
       inventory: inventory,
       completed: [],
       synergies: [],
@@ -351,6 +377,7 @@
       daily: !!state.daily,
       defended: !!state.defended,
       leftover_xp: state.leftover_xp || 0,
+      leftover_applied: !!state.leftover_applied,
       inventory: inventory,
       completed: state.completed.slice(),
       synergies: state.synergies.slice(),
@@ -444,6 +471,7 @@
     state.turn = Math.max(0, state.turn - 1);
     state.log.pop();
     state.mulligan_used = true;
+    revertLeftovers(state);
     state.over = false;
     state.grade = "";
     refreshRival(rules, state);
@@ -460,13 +488,13 @@
     var working = cloneState(state);
     var event = null;
     try {
-      requireOpen(working);
       if (action === "undo") {
         if (!working.undo) throw new TraitGameError("nothing_to_undo", "no action to undo");
         var restored = working.undo;
         restored.undo = null;
         return { ok: true, error: "", state: restored, event: { action: "undo" } };
       }
+      if (action !== "mulligan") requireOpen(working);
       working.undo = snapshot(working);
       if (action === "draw") event = acquire(rules, working, "draw", false);
       else if (action === "risk_draw") event = acquire(rules, working, "risk_draw", true);
@@ -481,7 +509,7 @@
         event = { action: "focus", collection: collection, trait: "" };
         working.log.push(event);
       } else if (action === "unfocus") {
-        if (!working.focus) throw new TraitGameError("unknown_collection", "no focus is set");
+        if (!working.focus) throw new TraitGameError("no_focus", "no focus is set");
         working.focus = "";
         working.focus_left = 0;
         working.risk_blocked = false;
@@ -510,7 +538,6 @@
         working.energy = Math.min(working.energy_max, working.energy + gain);
         working.turn += 1;
         refreshRival(rules, working);
-        tickFocus(working);
         working.risk_blocked = false;
         event = { action: "rest", collection: "", trait: "", energy: gain };
         working.log.push(event);
@@ -540,7 +567,7 @@
         event = { action: "pin", collection: collection, trait: trait };
         working.log.push(event);
       } else if (action === "unpin") {
-        if (!working.pin) throw new TraitGameError("unknown_trait", "nothing is pinned");
+        if (!working.pin) throw new TraitGameError("nothing_pinned", "nothing is pinned");
         working.pin = null;
         working.risk_blocked = false;
         event = { action: "unpin", collection: "", trait: "" };
@@ -548,7 +575,7 @@
       } else if (action === "lock") {
         collection = String(args.collection || "");
         if (!rules.collections[collection]) throw new TraitGameError("unknown_collection", "unknown collection " + collection);
-        if ((working.locked || []).indexOf(collection) !== -1) throw new TraitGameError("unknown_collection", "that collection is already locked");
+        if ((working.locked || []).indexOf(collection) !== -1) throw new TraitGameError("already_locked", "that collection is already locked");
         spendEnergy(working, rules.energy_cost.lock);
         working.locked = working.locked || [];
         working.locked.push(collection);
@@ -557,7 +584,7 @@
         working.log.push(event);
       } else if (action === "unlock") {
         collection = String(args.collection || "");
-        if ((working.locked || []).indexOf(collection) === -1) throw new TraitGameError("unknown_collection", "that collection is not locked");
+        if ((working.locked || []).indexOf(collection) === -1) throw new TraitGameError("not_locked", "that collection is not locked");
         working.locked.splice(working.locked.indexOf(collection), 1);
         working.risk_blocked = false;
         event = { action: "unlock", collection: collection, trait: "" };
@@ -580,20 +607,12 @@
         });
         working.turn += 1;
         refreshRival(rules, working);
-        tickFocus(working);
         working.risk_blocked = false;
         event = { action: "unbind", collection: collection, trait: trait, dust_delta: -unbindCost };
         working.log.push(event);
         maybeClose(rules, working);
       } else if (action === "finish") {
-        var leftover = (working.dust || 0) * (rules.dust_interest || 0);
-        if (working.shield_armed) leftover += rules.shield_bank_xp || 0;
-        if (working.difficulty === "thesis" && working.synergies.length >= rules.synergies.length) {
-          leftover += rules.thesis_defense_xp || 0;
-          working.defended = true;
-        }
-        working.xp += leftover;
-        working.leftover_xp = leftover;
+        var leftover = applyLeftovers(rules, working);
         working.over = true;
         refreshRival(rules, working);
         working.grade = gradeOf(working);
@@ -719,6 +738,12 @@
   var ERROR_TEXT = {
     insufficient_energy: "Not enough energy for that action.",
     no_risk_targets: "Risk draw has nothing above common.",
+    no_targets: "The bag is empty. Unlock a collection.",
+    no_focus: "No focus is set.",
+    nothing_pinned: "Nothing is pinned.",
+    already_locked: "That collection is already locked.",
+    not_locked: "That collection is not locked.",
+    invalid_rules: "The rules file is not a valid Trait Lab contract.",
     unknown_collection: "That collection is not in the lab.",
     unknown_trait: "That trait is not in the rules.",
     already_owned: "You already hold that trait. Draw it again for dust.",
@@ -827,7 +852,7 @@
     var row = selectedRow();
     var cost = row ? forgeCost(rules, row.rarity) : 0;
     var last = state.log[state.log.length - 1];
-    var canMulligan = !state.over && !state.mulligan_used && last && (last.action === "draw" || last.action === "risk_draw");
+    var canMulligan = !state.mulligan_used && last && (last.action === "draw" || last.action === "risk_draw");
 
     banner.innerHTML = state.over
       ? "<strong>Grade " + esc(state.grade) + "</strong> filed on seed " + esc(state.seed) + ". This scorecard is local and not live-verified."
@@ -856,6 +881,7 @@
       (state.scout ? "<span>Scout " + esc(state.scout.trait) + "</span>" : "") +
       (state.pin ? "<span>Pin " + esc(state.pin.trait) + "</span>" : "") +
       ((state.locked || []).length ? "<span>Lock " + esc(state.locked.join(" · ")) + "</span>" : "") +
+      (state.leftover_xp ? "<span>Leftover +" + esc(state.leftover_xp) + "</span>" : "") +
       (state.risk_blocked ? "<span>Risk cooling</span>" : "") +
       (state.achievements.length ? "<span>" + esc(state.achievements.join(" · ")) + "</span>" : "") +
       (state.synergies.length ? "<span>Synergy " + esc(state.synergies.join(" · ")) + "</span>" : "") +
@@ -877,7 +903,7 @@
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"unbind\"" + (state.over || !row || !owned(state, ui.collection, ui.trait) || state.dust < (rules.unbind_dust || 0) ? " disabled" : "") + ">Unbind</button>" +
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"arm_shield\"" + (state.over || state.shield_armed || state.energy < 1 ? " disabled" : "") + ">Shield · 1</button>" +
       "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"mulligan\"" + (canMulligan ? "" : " disabled") + ">Mulligan</button>" +
-      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"undo\"" + (!state.over && state.undo ? "" : " disabled") + ">Undo</button>" +
+      "<button type=\"button\" class=\"btn btn-ghost\" data-act=\"undo\"" + (state.undo ? "" : " disabled") + ">Undo</button>" +
       "<button type=\"button\" class=\"btn btn-primary\" data-act=\"finish\"" + (state.over ? " disabled" : "") + ">File grade</button>";
 
     boards.innerHTML = Object.keys(rules.collections).map(function (collection) {

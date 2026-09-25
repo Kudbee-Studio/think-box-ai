@@ -82,7 +82,7 @@ class TestTraitGameDeepen(unittest.TestCase):
         cleared = act(self.rules, pinned, "unpin")
         self.assertIsNone(cleared["state"]["pin"])
         empty = act(self.rules, cleared["state"], "unpin")
-        self.assertEqual(empty["error"], "unknown_trait")
+        self.assertEqual(empty["error"], "nothing_pinned")
 
     def test_u32_lock_skips_collection(self) -> None:
         state = new_run(self.rules, seed=3)

@@ -14,6 +14,7 @@ from thinkbox.trait_game.engine import (
     proof_scorecard,
     rank_board,
     rules_checksum,
+    validate_rules,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "proof_scorecard",
     "rank_board",
     "rules_checksum",
+    "validate_rules",
 ]

@@ -2091,4 +2091,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
 - **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
 
+### 2026-09-25 — PR #202 Trait Lab harden (clock leftovers, honest errors)
+
+- **DISCOVERY:** Clock close skipped leftover score. Undo and mulligan were blocked after file/clock. Rest ticked focus. An empty bag raised `no_risk_targets`. Pin/lock/focus misses reused `unknown_*`. Operator accepted Unicode letters the JS port strips. `load_rules` did not reject `live_verified: true`.
+- **IMPLEMENTATION:** Leftover XP applies once on clock or file (`leftover_applied`). Undo and mulligan remain legal after close; mulligan reverts leftovers. Rest and unbind do not spend focus grants. Empty bag is `no_targets`. Distinct codes: `no_focus`, `nothing_pinned`, `already_locked`, `not_locked`. Operator is ASCII `[A-Za-z0-9._-]`. `validate_rules` fail-closes a live claim. Proof body still hashes `live_verified: false`. Browser port and bench copy match.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen tests.unit.test_trait_game_harden -v` → **61 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
 ---

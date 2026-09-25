@@ -24,10 +24,30 @@ class TraitGameError(ValueError):
         self.code = code
 
 
+def validate_rules(rules: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed if the shared contract is not a Trait Lab document."""
+    if not isinstance(rules, dict):
+        raise TraitGameError("invalid_rules", "rules must be an object")
+    if rules.get("live_verified") is True:
+        raise TraitGameError("invalid_rules", "rules may not claim live verification")
+    if rules.get("game_id") != "trait-lab":
+        raise TraitGameError("invalid_rules", "game_id must be trait-lab")
+    collections = rules.get("collections")
+    weights = rules.get("weights")
+    difficulties = rules.get("difficulties")
+    if not isinstance(collections, dict) or not collections:
+        raise TraitGameError("invalid_rules", "collections must be a non-empty object")
+    if not isinstance(weights, dict) or not weights:
+        raise TraitGameError("invalid_rules", "weights must be a non-empty object")
+    if not isinstance(difficulties, dict) or not difficulties:
+        raise TraitGameError("invalid_rules", "difficulties must be a non-empty object")
+    return rules
+
+
 def load_rules(path: Path | None = None) -> dict[str, Any]:
     """Load the shared rules document used by the page."""
     target = path or Path(__file__).resolve().parents[2] / RULES_REL
-    return json.loads(target.read_text(encoding="utf-8"))
+    return validate_rules(json.loads(target.read_text(encoding="utf-8")))
 
 
 def updates(rules: dict[str, Any] | None = None) -> tuple[tuple[str, str], ...]:
@@ -164,8 +184,12 @@ def bag_weights(rules: dict[str, Any], state: dict[str, Any], *, risk: bool) -> 
 def _pick(rules: dict[str, Any], state: dict[str, Any], *, risk: bool) -> dict[str, Any]:
     items = bag_weights(rules, state, risk=risk)
     if not items:
-        raise TraitGameError("no_risk_targets", "risk draw has no rare-or-better traits")
+        if risk:
+            raise TraitGameError("no_risk_targets", "risk draw has no rare-or-better traits")
+        raise TraitGameError("no_targets", "the bag is empty")
     total = sum(weight for _, weight in items)
+    if total <= 0:
+        raise TraitGameError("no_targets", "the bag has no weight")
     rng, roll_src = _step(int(state["rng"]))
     state["rng"] = rng
     roll = roll_src % total
@@ -241,6 +265,7 @@ def _achievements(state: dict[str, Any]) -> None:
 def _maybe_close(rules: dict[str, Any], state: dict[str, Any]) -> None:
     limit = int(rules["difficulties"][state["difficulty"]]["turns"])
     if int(state["turn"]) >= limit:
+        _apply_leftovers(rules, state)
         state["over"] = True
         state["grade"] = _grade(state)
     _achievements(state)
@@ -344,7 +369,7 @@ def new_run(
         raise TraitGameError("invalid_seed", "seed must be a positive integer")
     profile = rules["difficulties"][difficulty]
     inventory = {name: [] for name in rules["collections"]}
-    name = "".join(ch for ch in operator if ch.isalnum() or ch in "._-")[:24]
+    name = "".join(ch for ch in operator if ch.isascii() and (ch.isalnum() or ch in "._-"))[:24]
     return {
         "game_id": rules["game_id"],
         "version": int(rules["version"]),
@@ -371,6 +396,7 @@ def new_run(
         "daily": bool(daily),
         "defended": False,
         "leftover_xp": 0,
+        "leftover_applied": False,
         "inventory": inventory,
         "completed": [],
         "synergies": [],
@@ -478,6 +504,7 @@ def _mulligan(rules: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     state["turn"] = max(0, int(state["turn"]) - 1)
     state["log"].pop()
     state["mulligan_used"] = True
+    _revert_leftovers(state)
     state["over"] = False
     state["grade"] = ""
     _refresh_rival(rules, state)
@@ -495,6 +522,8 @@ def _note(action: str, collection: str = "", trait: str = "", **extra: Any) -> d
 
 
 def _apply_leftovers(rules: dict[str, Any], state: dict[str, Any]) -> int:
+    if state.get("leftover_applied"):
+        return int(state.get("leftover_xp") or 0)
     gained = int(state.get("dust") or 0) * int(rules.get("dust_interest") or 0)
     if state.get("shield_armed"):
         gained += int(rules.get("shield_bank_xp") or 0)
@@ -503,7 +532,17 @@ def _apply_leftovers(rules: dict[str, Any], state: dict[str, Any]) -> int:
         state["defended"] = True
     state["xp"] = int(state["xp"]) + gained
     state["leftover_xp"] = gained
+    state["leftover_applied"] = True
     return gained
+
+
+def _revert_leftovers(state: dict[str, Any]) -> None:
+    if not state.get("leftover_applied"):
+        return
+    state["xp"] = int(state["xp"]) - int(state.get("leftover_xp") or 0)
+    state["leftover_xp"] = 0
+    state["leftover_applied"] = False
+    state["defended"] = False
 
 
 def _unbind(rules: dict[str, Any], state: dict[str, Any], collection: str, name: str) -> dict[str, Any]:
@@ -527,7 +566,6 @@ def _unbind(rules: dict[str, Any], state: dict[str, Any], collection: str, name:
             state["synergies"].remove(sid)
     state["turn"] = int(state["turn"]) + 1
     _refresh_rival(rules, state)
-    _tick_focus(state)
     _clear_risk_block(state)
     event = _note("unbind", collection, name, dust_delta=-cost)
     state["log"].append(event)
@@ -542,7 +580,6 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
     working = deepcopy(state)
     working["achievements"] = set(state["achievements"])
     try:
-        _require_open(working)
         if action == "undo":
             if not working.get("undo"):
                 raise TraitGameError("nothing_to_undo", "no action to undo")
@@ -550,6 +587,8 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
             restored["achievements"] = set(restored.get("achievements") or [])
             restored["undo"] = None
             return {"ok": True, "error": "", "state": restored, "event": {"action": "undo"}}
+        if action != "mulligan":
+            _require_open(working)
         working["undo"] = _snapshot(working)
         if action == "draw":
             event = _acquire(rules, working, action="draw", risk=False)
@@ -566,7 +605,7 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
             working["log"].append(event)
         elif action == "unfocus":
             if not working.get("focus"):
-                raise TraitGameError("unknown_collection", "no focus is set")
+                raise TraitGameError("no_focus", "no focus is set")
             working["focus"] = ""
             working["focus_left"] = 0
             _clear_risk_block(working)
@@ -597,7 +636,6 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
             working["energy"] = min(int(working["energy_max"]), int(working["energy"]) + gain)
             working["turn"] = int(working["turn"]) + 1
             _refresh_rival(rules, working)
-            _tick_focus(working)
             _clear_risk_block(working)
             event = _note("rest", energy=gain)
             working["log"].append(event)
@@ -632,7 +670,7 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
             working["log"].append(event)
         elif action == "unpin":
             if not working.get("pin"):
-                raise TraitGameError("unknown_trait", "nothing is pinned")
+                raise TraitGameError("nothing_pinned", "nothing is pinned")
             working["pin"] = None
             _clear_risk_block(working)
             event = _note("unpin")
@@ -642,7 +680,7 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
             if collection not in rules["collections"]:
                 raise TraitGameError("unknown_collection", f"unknown collection {collection}")
             if collection in working.get("locked", []):
-                raise TraitGameError("unknown_collection", "that collection is already locked")
+                raise TraitGameError("already_locked", "that collection is already locked")
             _spend_energy(working, int(rules["energy_cost"]["lock"]))
             working.setdefault("locked", []).append(collection)
             _clear_risk_block(working)
@@ -651,7 +689,7 @@ def act(rules: dict[str, Any], state: dict[str, Any], action: str, **args: str) 
         elif action == "unlock":
             collection = str(args.get("collection") or "")
             if collection not in (working.get("locked") or []):
-                raise TraitGameError("unknown_collection", "that collection is not locked")
+                raise TraitGameError("not_locked", "that collection is not locked")
             working["locked"].remove(collection)
             _clear_risk_block(working)
             event = _note("unlock", collection)
@@ -797,6 +835,8 @@ def rules_checksum(rules: dict[str, Any]) -> str:
         "weights": rules.get("weights"),
         "difficulties": rules.get("difficulties"),
         "synergies": rules.get("synergies"),
+        "energy_cost": rules.get("energy_cost"),
+        "set_bonus": rules.get("set_bonus"),
         "live_verified": False,
     }
     encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
