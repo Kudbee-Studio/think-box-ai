@@ -2490,4 +2490,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub PR #206 catalog pin operators merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-ops-25-723f` → `main` at **`50211b4`**.
+- **TEST_VERIFIED:** pin-ops file **14 OK**; memory suite **148 OK**; engine harden **61 OK** (209 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#207** pin-index compose as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #207 Trait Lab catalog pin compose
+
+- **DISCOVERY:** P16 diffs two rematched pin indexes but cannot form a third index from their union, intersection, or remainder.
+- **IMPLEMENTATION:** `merge_trait_lab_catalog_pin_indexes`, `intersect_trait_lab_catalog_pin_indexes`, `subtract_trait_lab_catalog_pin_indexes`. Rematch both inputs; same hash, live claim, pin conflict, and invalid index fail-closed. Result is a rematched portable pin index. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
 ---
