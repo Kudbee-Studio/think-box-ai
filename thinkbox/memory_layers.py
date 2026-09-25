@@ -708,3 +708,86 @@ def record_trait_lab_run(
         "snapshot": snapshot_layers(store),
         "live_verified": False,
     }
+
+
+def record_trait_lab_replay(
+    store: MemoryStore,
+    state: dict[str, Any],
+    *,
+    agent_id: str,
+    task_id: str,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    """Store a Trait Lab replay beside its proof. Never a live claim."""
+    from thinkbox.trait_game.engine import encode_replay, proof_scorecard
+
+    if state.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "trait lab replay may not claim LIVE VERIFIED")
+    proof = proof_scorecard(state)
+    result = record_trait_lab_run(
+        store,
+        proof,
+        agent_id=agent_id,
+        task_id=task_id,
+        session_id=session_id,
+    )
+    sha = str(result["proof_sha256"])
+    replay = encode_replay(state)
+    write_verified(
+        store,
+        {
+            "id": f"trait-lab-replay-{sha[:16]}",
+            "fact": replay,
+            "how": f"encode_replay {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": "replay",
+        },
+    )
+    record_task_step(
+        store,
+        task_id,
+        "replay",
+        {"replay": replay, "proof_sha256": sha},
+        agent_id=agent_id,
+    )
+    result["replay"] = replay
+    result["snapshot"] = snapshot_layers(store)
+    return result
+
+
+def verify_trait_lab_replay(
+    store: MemoryStore,
+    proof_sha256: str,
+    rules: dict[str, Any],
+) -> dict[str, Any]:
+    """Replay a stored code and require the proof hash to match."""
+    from thinkbox.trait_game.engine import TraitGameError, play_replay, proof_scorecard
+
+    sha = str(proof_sha256 or "").strip().lower()
+    if len(sha) != 64:
+        raise MemoryLayerError("missing_proof", "verify requires proof_sha256")
+    viewed = read_verified(store, f"trait-lab-replay-{sha[:16]}")
+    replay = str(viewed.get("fact") or "").strip()
+    if not replay:
+        raise MemoryLayerError("missing_replay", "no replay stored for this proof")
+    try:
+        state = play_replay(rules, replay)
+    except TraitGameError as exc:
+        raise MemoryLayerError("replay_rejected", str(exc)) from exc
+    card = proof_scorecard(state)
+    if card.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "replay proof may not claim LIVE VERIFIED")
+    got = str(card.get("proof_sha256") or "").lower()
+    if got != sha:
+        raise MemoryLayerError("proof_mismatch", f"replay hashed {got[:12]} not {sha[:12]}")
+    return {
+        "matched": True,
+        "proof_sha256": sha,
+        "replay": replay,
+        "xp": card.get("xp"),
+        "grade": card.get("grade") or "",
+        "live_verified": False,
+    }

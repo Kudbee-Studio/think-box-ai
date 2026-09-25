@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## PR #207 — Trait Lab replay verify (DRAFT)
+
+| Field | Value |
+|-------|-------|
+| **Gate** | `memory-trait-lab-replay` |
+| **Scope** | Store `encode_replay`; `verify_trait_lab_replay` rematches `proof_sha256` |
+| **Write policy** | Missing replay / rejected play / hash mismatch fail closed |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Verify** | memory + trait-lab ledger + replay suites → **42 OK** |
+
 ## PR #206 — Trait Lab memory ledger (MERGED)
 
 | Field | Value |
