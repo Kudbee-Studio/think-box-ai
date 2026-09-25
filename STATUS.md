@@ -1,3 +1,11 @@
+## PR #217 — Trait Lab seed XP floor (draft)
+
+- **Gate:** `memory-trait-lab-seed-xp-floor`
+- **Scope:** Seed history rows at or above a stored XP threshold
+- **Write policy:** Missing seed/floor match and invalid floor fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **77 OK**
+
 ## PR #216 — Trait Lab seed daily filter (merged)
 
 - **Merge:** `f99af45` — seed history rows filtered by daily-seed flag

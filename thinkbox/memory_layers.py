@@ -1133,3 +1133,36 @@ def trait_lab_seed_history_by_daily(
         "best": runs[0],
         "live_verified": False,
     }
+
+
+def trait_lab_seed_history_by_xp_floor(
+    store: MemoryStore,
+    seed: int,
+    floor: int,
+    *,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Seed history rows at or above a stored XP threshold. Not a live ranking."""
+    if limit < 1:
+        raise MemoryLayerError("invalid_limit", "limit must be >= 1")
+    try:
+        threshold = int(floor)
+    except (TypeError, ValueError) as exc:
+        raise MemoryLayerError("invalid_floor", "floor must be an integer") from exc
+    if isinstance(floor, bool) or threshold < 0:
+        raise MemoryLayerError("invalid_floor", "floor must be an integer >= 0")
+    history = trait_lab_seed_history(store, seed, limit=200)
+    runs = [row for row in history["runs"] if int(row.get("xp") or 0) >= threshold]
+    if not runs:
+        raise MemoryLayerError(
+            "missing_floor",
+            f"no stored Trait Lab run for seed {history['seed']} xp>={threshold}",
+        )
+    return {
+        "seed": history["seed"],
+        "floor": threshold,
+        "runs": runs[:limit],
+        "count": len(runs),
+        "best": runs[0],
+        "live_verified": False,
+    }
