@@ -2074,3 +2074,29 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **NEXT ACTION:** Founder review draft PR #132; PR #133 theme: persist governed run receipts + experiment manager wiring on HTTP path (hermetic SQLite).
 
 ---
+
+### 2026-09-25 — Trait Lab, 25 systems (seeded local game)
+
+- **DISCOVERY:** `public/nfts/game.html` was a static mock: invented challenge progress and a leaderboard of fake `0x` addresses. There was no rules engine and no playable action.
+- **IMPLEMENTATION:** `thinkbox/trait_game/engine.py` is the source of truth. `public/nfts/trait_game_rules.json` is the shared contract (five collections, weights, costs, synergies, U01–U25). `public/nfts/trait_game.js` ports the same LCG multiplier `1664525`, bag order, and actions. The page at `public/nfts/game.html` plays that port: draw, risk draw, focus, forge, shield, mulligan, undo, file grade, daily seed, and a browser-local board. Branch `cursor/trait-game-25-723f` is cut from `origin/main` at `f2c270c` (PR #201 merged). It is not stacked on the durable lifecycle branches.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game -v` → **26 OK**. A 9-action script (draw, risk, focus, shield, mulligan, forge) produced the same state in Python and in the browser port, including proof sha256 `202e19b982e65985a093a76c39520eb96adc849a5266a7ef4e81bf3f89b068d8`. Local browser play: draw, undo (energy and turn restored), mulligan (Ice returned), second draws, forge when dust allowed, and file grade onto a local name. `python3 scripts/scan_doc_secrets.py` clean.
+- **DECISION:** This is a seeded lab. No wallet, no mint, no chain. `live_verified` stays false. Not LIVE VERIFIED. Not PRODUCTION READY. Four-state: **CODE COMPLETE** / **TEST VERIFIED** on this branch only.
+- **NEXT ACTION:** Founder review of the draft PR for `cursor/trait-game-25-723f` against `main`. Do not merge from this record. The GitHub number is the one that PR receives; it is not claimed here in advance.
+
+### 2026-09-25 — PR #202 Trait Lab deepen (U26–U50)
+
+- **DISCOVERY:** The first 25 systems were playable but the bench still trapped a run: empty energy, immortal focus, spam-risk, no peek, no local replay code.
+- **IMPLEMENTATION:** Rules version 2. Scout, rest, energy/dust convert, pin/unpin, lock/unlock, unfocus, unbind, two-grant focus, risk cooldown, pity weights, last-stand rival, late-set bonus, dust interest, unused-shield residue, thesis defense, daily mark, operator on the scorecard, encode/play replay, coach hint, rules checksum, leftover score applied once. Browser port stays on the same LCG and actions.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen -v` → **51 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
+### 2026-09-25 — PR #202 Trait Lab harden (clock leftovers, honest errors)
+
+- **DISCOVERY:** Clock close skipped leftover score. Undo and mulligan were blocked after file/clock. Rest ticked focus. An empty bag raised `no_risk_targets`. Pin/lock/focus misses reused `unknown_*`. Operator accepted Unicode letters the JS port strips. `load_rules` did not reject `live_verified: true`.
+- **IMPLEMENTATION:** Leftover XP applies once on clock or file (`leftover_applied`). Undo and mulligan remain legal after close; mulligan reverts leftovers. Rest and unbind do not spend focus grants. Empty bag is `no_targets`. Distinct codes: `no_focus`, `nothing_pinned`, `already_locked`, `not_locked`. Operator is ASCII `[A-Za-z0-9._-]`. `validate_rules` fail-closes a live claim. Proof body still hashes `live_verified: false`. Browser port and bench copy match.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen tests.unit.test_trait_game_harden -v` → **61 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
+---
