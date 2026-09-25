@@ -1,12 +1,19 @@
-## Draft — GitHub PR #214 Trait Lab operator session (not merged)
+## GitHub PR #214 — Durable lifecycle harden (merged)
 
-- **Branch:** `cursor/memory-trait-lab-operator-session-25-723f`
+- **Merge:** `110c7b5` — H01–H25 fail-closed Repository lifecycle hardens
+- **Gate:** `durable-lifecycle-harden` / `scripts/verify_kilo_pr202_lifecycle_harden.py`
+- **Scope:** Job id validation, phase bounds, terminal immutability, secret redaction, substrate allowlist
+- **Four-state cap:** TEST VERIFIED only — not LIVE VERIFIED
+- **Verify:** `tests.unit.test_lifecycle_harden` + lifecycle/HTTP suites
+
+## GitHub PR #214 — Trait Lab operator session (merged)
+
+- **Merge:** `cursor/memory-trait-lab-operator-session-25-723f` → `main` (founder merge train)
 - **Gate:** `memory-trait-lab-operator-session-25`
 - **Scope:** S01–S25 prep-gated rematch dry-run, signed session, persist session receipt
-- **Write policy:** Hash-only except prep + session receipt persist; no pack/run apply; no pin/drop writes; refuses live ack; `live_verified: false`
+- **Write policy:** Hash-only except prep + session receipt persist; no pin/drop writes; refuses live ack; `live_verified: false`
 - **Four-state cap:** TEST VERIFIED only — `live_verified: false`
-- **Verify:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined) — **not merged**
-- **AGENTS.md:** GitHub #213 marked merged; #214 draft row added
+- **Verify:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined)
 
 ## GitHub PR #213 — Trait Lab local environment prep (merged)
 

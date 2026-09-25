@@ -2,13 +2,14 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-25 (GitHub #213 merged; GitHub #214 operator session draft)
+> ## ADDENDUM — 2026-09-25 (GitHub #214 merged — lifecycle + Trait Lab operator session)
 >
-> **GitHub #213 merged** at `257aca3` — local env prep E01–E25. Not LIVE VERIFIED.
-> **GitHub #214 draft:** 25-operator session on `cursor/memory-trait-lab-operator-session-25-723f`. Prep-gated rematch dry-run + session receipt. **Not merged.**
-> **Test gate:** session file 9 OK; memory suite 213 OK; engine harden 61 OK (274 combined).
-> **AGENTS.md:** GitHub #213 marked merged; #214 draft row added.
+> **GitHub forge #214 merged** at `110c7b5` — durable lifecycle harden H01–H25. Not LIVE VERIFIED.
+> **Trait Lab operator session (lane #214) merged** on `cursor/memory-trait-lab-operator-session-25-723f`. Prep-gated rematch dry-run + session receipt. Not LIVE VERIFIED.
+> **GitHub #213 merged** at `257aca3` — local env prep E01–E25.
+> **Test gate:** session 9 OK; memory 213 OK; engine harden 61 OK (274 combined).
 > Product-label #214 (`77eb188` seed difficulty) stays on main as an earlier memory-lane merge. Do not reopen it.
+> **Next:** GitHub **#215** autonomous workflow major (one visible draft).
 >
 > ## ADDENDUM — 2026-09-25 (GitHub #212 merged; GitHub #213 local env prep draft)
 >

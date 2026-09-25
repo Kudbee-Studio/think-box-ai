@@ -83,7 +83,8 @@
 | Trait Lab catalog pin bind lane | **GitHub #211** (merged `e416bd7`) — D01–D25 bind filters/compose/drop; not LIVE VERIFIED |
 | Trait Lab catalog pin bind workflow | **GitHub #212** (merged `581fab3`) — W01–W25 hermetic plan/dry-run/run/receipt; not LIVE VERIFIED |
 | Trait Lab local environment prep | **GitHub #213** (merged `257aca3`) — E01–E25 local Python/SQLite prep + workflow dry-run; not LIVE VERIFIED |
-| Trait Lab operator session | **GitHub #214 draft** — S01–S25 prep-gated rematch dry-run + session receipt; not LIVE VERIFIED |
+| Durable lifecycle harden | **GitHub #214** (merged `110c7b5`) — H01–H25 Repository lifecycle; not LIVE VERIFIED |
+| Trait Lab operator session | **GitHub #214** (merged — Trait Lab lane) — S01–S25 prep-gated rematch dry-run + session receipt; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

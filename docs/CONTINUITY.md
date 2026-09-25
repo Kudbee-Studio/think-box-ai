@@ -2630,4 +2630,18 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
 - **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
 
+### 2026-09-25 — GitHub forge PR #214 durable lifecycle harden merged
+
+- **MERGED:** `cursor/durable-lifecycle-harden-723f` → `main` at **`110c7b5`**.
+- **IMPLEMENTATION:** H01–H25 in `thinkbox/lifecycle_harden.py` — fail-closed Repository lifecycle checks; no Upstash live call.
+- **TEST_VERIFIED:** `tests.unit.test_lifecycle_harden` + existing lifecycle/HTTP suites.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+
+### 2026-09-25 — GitHub PR #214 Trait Lab operator session merged
+
+- **MERGED:** `cursor/memory-trait-lab-operator-session-25-723f` → `main` (founder merge train; Trait Lab lane #214).
+- **TEST_VERIFIED:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#215** next autonomous workflow major as a visible draft. Do not merge from this record.
+
 ---
