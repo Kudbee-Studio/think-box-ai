@@ -2377,4 +2377,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
 - **NEXT ACTION:** Wait for the 1800s cadence timer before opening #221. At most one open PR.
 
+### 2026-09-25 — PR #221 Trait Lab seed pack import
+
+- **DISCOVERY:** #220 exported a portable seed pack. There was no rematch or import path.
+- **IMPLEMENTATION:** `verify_trait_lab_seed_pack` rematches `pack_sha256` over the same six-key body and refuses live claims. `import_trait_lab_seed_pack` writes a verified fact. Fail-closed on invalid pack, missing hash, rematch fail, and missing provenance. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-import-723f` into `main`.
+
 ---

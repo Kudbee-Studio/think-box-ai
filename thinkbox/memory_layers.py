@@ -1250,6 +1250,31 @@ def trait_lab_seed_history_by_xp_band(
     }
 
 
+_TRAIT_LAB_SEED_PACK_KIND = "trait-lab-seed-pack"
+
+
+def _trait_lab_seed_pack_body(
+    *,
+    seed: Any,
+    count: Any,
+    best: Any,
+    runs: Any,
+) -> dict[str, Any]:
+    return {
+        "kind": _TRAIT_LAB_SEED_PACK_KIND,
+        "seed": seed,
+        "count": count,
+        "best": best,
+        "runs": runs,
+        "live_verified": False,
+    }
+
+
+def _trait_lab_seed_pack_sha256(body: dict[str, Any]) -> str:
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def export_trait_lab_seed_pack(
     store: MemoryStore,
     seed: int,
@@ -1258,17 +1283,100 @@ def export_trait_lab_seed_pack(
 ) -> dict[str, Any]:
     """Portable snapshot of stored runs for one seed. Not a live ranking."""
     history = trait_lab_seed_history(store, seed, limit=limit)
-    body = {
-        "kind": "trait-lab-seed-pack",
-        "seed": history["seed"],
-        "count": history["count"],
-        "best": history["best"],
-        "runs": history["runs"],
-        "live_verified": False,
-    }
-    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    body = _trait_lab_seed_pack_body(
+        seed=history["seed"],
+        count=history["count"],
+        best=history["best"],
+        runs=history["runs"],
+    )
     return {
         **body,
-        "pack_sha256": hashlib.sha256(encoded).hexdigest(),
+        "pack_sha256": _trait_lab_seed_pack_sha256(body),
         "exported_at": _utc(),
+    }
+
+
+def verify_trait_lab_seed_pack(pack: Any) -> dict[str, Any]:
+    """Rematch pack_sha256 over the stable six-key body. Refuse live claims."""
+    if not isinstance(pack, dict):
+        raise MemoryLayerError("invalid_pack", "seed pack must be an object")
+    if pack.get("kind") != _TRAIT_LAB_SEED_PACK_KIND:
+        raise MemoryLayerError("invalid_pack", "kind must be trait-lab-seed-pack")
+    if pack.get("live_verified") is True:
+        raise MemoryLayerError("live_claim", "seed pack may not claim LIVE VERIFIED")
+    if pack.get("seed") is None or pack.get("count") is None:
+        raise MemoryLayerError("invalid_pack", "seed pack missing seed or count")
+    if pack.get("best") is None or pack.get("runs") is None:
+        raise MemoryLayerError("invalid_pack", "seed pack missing best or runs")
+    if isinstance(pack.get("seed"), bool) or not isinstance(pack.get("seed"), int):
+        raise MemoryLayerError("invalid_pack", "seed must be an int")
+    if isinstance(pack.get("count"), bool) or not isinstance(pack.get("count"), int):
+        raise MemoryLayerError("invalid_pack", "count must be an int")
+    if pack["count"] < 0:
+        raise MemoryLayerError("invalid_pack", "count must be non-negative")
+    if not isinstance(pack.get("runs"), list):
+        raise MemoryLayerError("invalid_pack", "runs must be a list")
+    sha = str(pack.get("pack_sha256") or "").strip().lower()
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise MemoryLayerError("missing_pack_hash", "verify requires pack_sha256")
+    body = _trait_lab_seed_pack_body(
+        seed=pack["seed"],
+        count=pack["count"],
+        best=pack["best"],
+        runs=pack["runs"],
+    )
+    got = _trait_lab_seed_pack_sha256(body)
+    if got != sha:
+        raise MemoryLayerError("pack_mismatch", f"pack hashed {got[:12]} not {sha[:12]}")
+    return {
+        "matched": True,
+        "kind": body["kind"],
+        "seed": body["seed"],
+        "count": body["count"],
+        "best": body["best"],
+        "runs": body["runs"],
+        "pack_sha256": sha,
+        "live_verified": False,
+    }
+
+
+def import_trait_lab_seed_pack(
+    store: MemoryStore,
+    pack: Any,
+    *,
+    agent_id: str,
+    task_id: str,
+) -> dict[str, Any]:
+    """Verify a portable seed pack and write a verified fact. Local only."""
+    if not str(agent_id or "").strip() or not str(task_id or "").strip():
+        raise MemoryLayerError("missing_provenance", "seed pack import requires agent_id and task_id")
+    verified = verify_trait_lab_seed_pack(pack)
+    sha = str(verified["pack_sha256"])
+    write_verified(
+        store,
+        {
+            "id": f"trait-lab-pack-{sha[:16]}",
+            "fact": f"seed {verified['seed']} pack={sha[:16]} count={verified['count']}",
+            "how": f"verify_trait_lab_seed_pack {sha}",
+            "confidence": 1.0,
+            "source": sha,
+            "agent_id": agent_id,
+            "task_id": task_id,
+            "kind": _TRAIT_LAB_SEED_PACK_KIND,
+            "seed": verified["seed"],
+        },
+    )
+    record_task_step(
+        store,
+        task_id,
+        "pack-import",
+        {"pack_sha256": sha, "seed": verified["seed"], "count": verified["count"]},
+        agent_id=agent_id,
+    )
+    return {
+        **verified,
+        "imported": True,
+        "fact_id": f"trait-lab-pack-{sha[:16]}",
+        "snapshot": snapshot_layers(store),
+        "live_verified": False,
     }
