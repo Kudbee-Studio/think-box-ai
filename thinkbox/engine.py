@@ -138,8 +138,18 @@ class ThinkBoxEngine:
 
         if graph is None:
             recommendation = None
+            opportunity_rec = None
+            if self._opportunity_manager is not None:
+                opp = self._opportunity_manager.get_current_opportunity()
+                if opp is not None:
+                    opportunity_rec = opp.recommendation
+                    self.emit("root", TaskState.RUNNING,
+                              "Consuming current opportunity", goal_run_id=goal_run_id,
+                              opportunity_id=opp.opportunity_id,
+                              opportunity_priority=opp.priority)
             if self._experiment_manager is not None:
                 recommendation = self._experiment_manager.get_last_next_action()
+            recommendation = opportunity_rec or recommendation
             graph = self.decomposer.decompose(goal, prior_recommendation=recommendation)
         self.emit("root", TaskState.RUNNING, f"Decomposed into {len(graph.tasks)} tasks", goal_run_id=goal_run_id)
 
