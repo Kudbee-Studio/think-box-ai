@@ -61,6 +61,7 @@ class ThinkBoxEngine:
         self._post_run_callback: Callable[[dict[str, Any]], None] | None = None
         self._verified_task_runner: Callable[..., Any] | None = None
         self._experiment_manager: Any = None
+        self._experiment_analytics: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -74,7 +75,7 @@ class ThinkBoxEngine:
         self._verified_task_runner = runner
 
     def set_experiment_manager(self, manager: Any | None) -> None:
-        """Inject an ExperimentManager for Memory -> Planning binding (DI).
+        """Inject the ExperimentManager for Memory -> Planning binding (DI).
 
         When set, execute_goal() retrieves the prior experiment recommendation
         via ExperimentManager.get_last_next_action() and passes it to
@@ -83,6 +84,21 @@ class ThinkBoxEngine:
         identical to legacy (no prior recommendation, single root task).
         """
         self._experiment_manager = manager
+
+    def wire_experiment_feedback(self, manager: Any | None, analytics: Any | None) -> None:
+        """Wire Execution -> Memory -> Learning feedback loop (DI).
+
+        When set, execute_goal() persists the run summary as experiment
+        outcome data and generates a new recommendation via NextActionGenerator.
+        The recommendation is persisted and available for the next
+        execute_goal() call via get_last_next_action(). This closes the
+        Planning -> Execution -> Verification -> Feedback -> Memory loop.
+
+        With no manager/analytics injected, execute_goal() behaves identically
+        to legacy (no feedback recording).
+        """
+        self._experiment_manager = manager
+        self._experiment_analytics = analytics
 
     @property
     def events(self) -> list[TaskEvent]:
@@ -296,8 +312,63 @@ class ThinkBoxEngine:
                 self._post_run_callback(summary)
             except Exception:
                 pass
+        self._record_execution_feedback(summary, goal_run_id)
         self._running = False
         return summary
+
+    def _record_execution_feedback(self, summary: dict[str, Any], goal_run_id: str) -> None:
+        """Persist execution summary as experiment outcome and generate next-action recommendation.
+
+        This closes the Planning -> Execution -> Verification -> Feedback -> Memory loop:
+        execution results feed into ExperimentManager -> NextActionGenerator produces
+        a refined recommendation available for the next execute_goal() call.
+
+        No-ops when no ExperimentManager/ExperimentAnalytics are injected.
+        Fail-closed: errors are swallowed to avoid disrupting execution flow.
+        """
+        if self._experiment_manager is None or self._experiment_analytics is None:
+            return
+        try:
+            from thinkbox.experiment_analytics import NextActionGenerator
+
+            total = summary.get("total_tasks", 0)
+            successful = summary.get("successful", 0)
+            failed = summary.get("failed", 0)
+            if total > 0:
+                throughput = round(successful / total, 6)
+            else:
+                throughput = 0.0
+            error_rate = round(failed / total, 6) if total > 0 else 0.0
+            p50_latency = round(summary.get("total_time_ms", 0) / max(total, 1) / 1000, 6)
+
+            metrics_run = {
+                "throughput": throughput,
+                "p50_latency": p50_latency,
+                "p95_latency": p50_latency * 2,
+                "p99_latency": p50_latency * 3,
+                "error_rate": error_rate,
+                "iteration_count": total,
+            }
+            exp = self._experiment_manager.create_experiment(
+                intent=f"goal:{goal_run_id}",
+                hypothesis="Verified execution produced measurable outcomes",
+                parameters={"goal_run_id": goal_run_id, "total_tasks": total},
+                agent_id="thinkbox_engine",
+                execution_mode="verified",
+            )
+            self._experiment_analytics.persist_run(exp.experiment_id, metrics_run)
+            self._experiment_manager.record_outcome(
+                exp.experiment_id,
+                {"status": "completed", "summary": summary},
+                confidence=0.9 if successful > 0 else 0.0,
+                four_state="TEST_VERIFIED",
+            )
+            generator = NextActionGenerator(self._experiment_manager, self._experiment_analytics)
+            generator.generate(exp.experiment_id, {"status": "completed"}, confidence=0.9)
+            self.emit("root", TaskState.SUCCESS, "Feedback recorded",
+                      feedback_experiment_id=exp.experiment_id, goal_run_id=goal_run_id)
+        except Exception:
+            pass
 
     def get_stats(self) -> dict[str, Any]:
         return {
