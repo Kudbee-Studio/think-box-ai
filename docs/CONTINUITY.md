@@ -3040,3 +3040,22 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - TEST VERIFIED: YES — 154/154 pass
   - LIVE VERIFIED: NO — local unit/hermetic only
   - PRODUCTION READY: NO
+
+---
+
+### 2026-09-26 — PR245 Autonomous Decision Loop: Control Plane UI (Implementation Complete)
+
+- **BRANCH:** `feat/pr245-autonomous-loop-control-plane-ui`
+- **BASE SHA:** `b466a6c` (origin/main, after PR #244 merge)
+- **CAPABILITY:** Living browser control plane UI and interactive telemetry inspection surface for autonomous decision loops
+- **CONCRETE IMPLEMENTATION:**
+  - `public/control-plane/autonomous_loop.html`: Complete dashboard view with system status cards, 10/10 component health indicators, loop selection list, convergence metrics, and raw JSON explorer
+  - `public/control-plane/autonomous_loop_client.js`: Client fetcher & polling manager consuming `/api/v1/autonomous-loop` endpoints (`/status`, `/loops`, `/loops/{id}`, `/telemetry/{id}`)
+  - `public/control-plane/index.html`: Navigation link updated to include Autonomous Loop control plane
+- **TESTS:** 3 static asset & contract tests in `tests/unit/test_autonomous_loop_ui_static.py`
+- **BROADER TESTS:** 157/157 pass across all 14 related suites (154 existing + 3 new)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES
+  - TEST VERIFIED: YES — 157/157 pass
+  - LIVE VERIFIED: NO — static HTML/JS assets verified against hermetic API contracts
+  - PRODUCTION READY: NO

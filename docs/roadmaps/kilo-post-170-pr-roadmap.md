@@ -107,7 +107,8 @@
 | Autonomous decision loop: Bootstrap cold-start | **GitHub #241** (merged `77329f0`) — LoopBootstrap |
 | Autonomous decision loop: Dashboard state & tracking | **GitHub #242** (merged `7f427f9`) — AutonomousLoopEntry |
 | Autonomous decision loop: Telemetry & observability | **GitHub #243** (merged `0d4a90c`) — AutonomousLoopTelemetry, rate-limited tick |
-| Autonomous decision loop: Control plane REST API | **GitHub #244** (draft) — status, loops, telemetry endpoints |
+| Autonomous decision loop: Control plane REST API | **GitHub #244** (merged `b466a6c`) — status, loops, telemetry endpoints |
+| Autonomous decision loop: Control plane UI | **GitHub #245** (draft) — real-time telemetry, convergence tracking, component inspection |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
