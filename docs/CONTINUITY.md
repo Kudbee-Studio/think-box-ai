@@ -3074,3 +3074,18 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 - **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+### 2026-09-27 — GitHub PR #248: Autonomous Loop Actions Documentation & Verification (draft)
+
+- **BRANCH:** `feat/pr248-autonomous-loop-actions`
+- **SCOPE:** Documentation of LoopActionEntry model, POST/GET action endpoints, UI integration, and verification of implementation.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **DOCS:** `docs/guides/autonomous_loop_actions.md` added.
+- **STATUS:** Draft PR opened.
+
+
+- **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
+- **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.
+- **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247

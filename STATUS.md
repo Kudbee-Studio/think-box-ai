@@ -1428,3 +1428,16 @@ python3 -m unittest tests.unit.test_control_plane_etag_store \
   tests.unit.test_think_job_status_ui_pr140 \
   tests.e2e.test_f140_receipt_deep_link_etag -v
 ```
+
+## PR #248 — Autonomous Loop Actions Documentation & Verification (draft)
+
+**Branch:** `feat/pr248-autonomous-loop-actions`
+
+**Scope:** Documentation of LoopActionEntry model, POST/GET action endpoints, UI integration, and verification of implementation.
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — live_verified: false.
+
+**Docs:** `docs/guides/autonomous_loop_actions.md` added.
+
+**Status:** Draft PR opened.
+
