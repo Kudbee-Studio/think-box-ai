@@ -521,8 +521,36 @@ Test coverage:
 | State | Status |
 |-------|--------|
 | **CODE_COMPLETE** | ✅ |
-| **TEST_VERIFIED** | ✅ (22/22 tests pass) |
-| **LIVE_VERIFIED** | ⏳ (pending live provider integration) |
+| **TEST_VERIFIED** | ✅ (32/32 tests pass — see note below) |
+| **LIVE_VERIFIED** | ⏳ (pending live provider integration; inference is simulated) |
 | **PRODUCTION_READY** | ⏳ (pending production hardening) |
 
 Enterprise-grade system for intelligent multi-provider LLM routing, cost optimization, and reliability.
+
+### Fixed: strategy/constraint doc-code gap (post-merge follow-up)
+
+An external review of PR #260 correctly flagged that this document described four
+execution strategies and `max_latency_ms`/`max_cost` constraint handling that
+`execute()` didn't actually implement — `CHEAPEST`, `CONSENSUS`, and `PARALLEL`
+all silently behaved like `FASTEST`, `max_latency_ms` was read but never used to
+filter providers, and `execute()` didn't even accept a `constraints` argument
+(the constraint-based routing example above would have raised `TypeError`).
+
+All of the above is now implemented and covered by behavioral tests (not just
+constructor checks that the enum value was stored):
+
+- `CHEAPEST` re-ranks constraint-satisfying candidates by raw cost, not composite score
+- `CONSENSUS` polls up to 3 candidates concurrently and requires a strict majority
+  agreement on the normalized answer, honestly returning failure (not a fabricated
+  "success") when no majority is reached
+- `PARALLEL` executes every candidate concurrently, bills and records metrics for
+  all of them (not just the winner), and returns the fastest success
+- `max_latency_ms` filters out providers whose measured P95 latency exceeds it
+  before scoring; a provider with no measurements yet is never excluded on a
+  claim we have no evidence for
+- `execute(prompt, constraints={...})` now works exactly as documented above
+- When constraints eliminate every provider, routing/execution fails honestly
+  with a specific reason instead of silently substituting an unevaluated provider
+
+`OrchestratorMetrics.consensus_agreements` / `consensus_disagreements` are also
+now actually incremented (they existed as dead fields before).

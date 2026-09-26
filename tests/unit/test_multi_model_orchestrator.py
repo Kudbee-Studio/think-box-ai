@@ -321,5 +321,213 @@ class TestExecutionStrategies(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(orchestrator.strategy, ExecutionStrategy.CONSENSUS)
 
 
+class TestStrategyBehaviorNotJustConstructor(unittest.IsolatedAsyncioTestCase):
+    """The tests above only confirmed the strategy enum was stored. These
+    confirm CHEAPEST/CONSENSUS/PARALLEL actually change execution behavior,
+    closing the doc/code gap flagged on PR #260's review."""
+
+    async def test_cheapest_strategy_reorders_by_raw_cost(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},  # 0.015/1k - most expensive
+            ProviderName.GROQ: {},  # 0.0005/1k - cheapest
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.FASTEST
+        )
+        # Rig composite scoring so OPENAI wins on FASTEST despite being
+        # more expensive, then flip strategy and confirm CHEAPEST reorders.
+        orchestrator._metrics[ProviderName.OPENAI].quality_score = 1.0
+        orchestrator._metrics[ProviderName.OPENAI].availability_score = 1.0
+        orchestrator._metrics[ProviderName.GROQ].quality_score = 0.1
+        orchestrator._metrics[ProviderName.GROQ].availability_score = 0.1
+
+        fastest_routing = await orchestrator.route_request("hello")
+        self.assertEqual(fastest_routing.primary_provider, ProviderName.OPENAI)
+
+        orchestrator.strategy = ExecutionStrategy.CHEAPEST
+        cheapest_routing = await orchestrator.route_request("hello")
+        self.assertEqual(cheapest_routing.primary_provider, ProviderName.GROQ)
+
+    async def test_consensus_majority_agreement_succeeds(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},
+            ProviderName.ANTHROPIC: {},
+            ProviderName.GROQ: {},
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.CONSENSUS
+        )
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            # OPENAI and ANTHROPIC agree on the answer; GROQ dissents.
+            answer = "99" if provider == ProviderName.GROQ else "42"
+            return ExecutionResult(
+                success=True,
+                output=f"[{provider.value}] {answer}",
+                provider=provider,
+                latency_ms=10.0,
+                tokens_used=1,
+                cost_usd=0.001,
+            )
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            result = await orchestrator.execute("What is the answer?")
+
+        self.assertTrue(result.success)
+        metrics = orchestrator.get_metrics()
+        self.assertEqual(metrics.consensus_agreements, 1)
+        self.assertEqual(metrics.consensus_disagreements, 0)
+
+    async def test_consensus_no_majority_is_honest_failure(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},
+            ProviderName.ANTHROPIC: {},
+            ProviderName.GROQ: {},
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.CONSENSUS
+        )
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            # All three providers disagree — no majority possible.
+            return ExecutionResult(
+                success=True,
+                output=f"[{provider.value}] unique-{provider.value}",
+                provider=provider,
+                latency_ms=10.0,
+                tokens_used=1,
+                cost_usd=0.001,
+            )
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            result = await orchestrator.execute("What is the answer?")
+
+        self.assertFalse(result.success)
+        self.assertIn("No majority consensus", result.error)
+        metrics = orchestrator.get_metrics()
+        self.assertEqual(metrics.consensus_disagreements, 1)
+        self.assertEqual(metrics.consensus_agreements, 0)
+
+    async def test_parallel_runs_every_candidate_and_bills_each(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},
+            ProviderName.ANTHROPIC: {},
+            ProviderName.GROQ: {},
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.PARALLEL
+        )
+        call_log: list[ProviderName] = []
+        latencies = {
+            ProviderName.OPENAI: 300.0,
+            ProviderName.ANTHROPIC: 100.0,
+            ProviderName.GROQ: 50.0,
+        }
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            call_log.append(provider)
+            return ExecutionResult(
+                success=True,
+                output=f"[{provider.value}] ok",
+                provider=provider,
+                latency_ms=latencies[provider],
+                tokens_used=10,
+                cost_usd=1.0,
+            )
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            result = await orchestrator.execute("hello")
+
+        # All 3 candidates actually ran — this is what distinguishes
+        # PARALLEL from FASTEST (which would stop at the first success).
+        self.assertEqual(len(call_log), 3)
+        self.assertEqual(result.provider, ProviderName.GROQ)  # fastest wins
+        self.assertAlmostEqual(orchestrator.spent_usd, 3.0)  # every one billed
+
+    async def test_parallel_all_fail_is_honest_failure(self) -> None:
+        providers = {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.PARALLEL
+        )
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            return ExecutionResult(success=False, provider=provider, error="simulated failure")
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            result = await orchestrator.execute("hello")
+
+        self.assertFalse(result.success)
+        self.assertIn("All providers failed", result.error)
+
+
+class TestConstraintFiltering(unittest.IsolatedAsyncioTestCase):
+    """max_latency_ms was read but never applied; execute() didn't even
+    accept the constraints= kwarg the docs show — both fixed here."""
+
+    async def asyncSetUp(self) -> None:
+        self.providers = {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}
+        self.orchestrator = MultiModelOrchestrator(self.providers, budget_usd=1000.0)
+
+    async def test_max_latency_excludes_slow_providers(self) -> None:
+        self.orchestrator._metrics[ProviderName.OPENAI].latency_p95_ms = 500.0
+        self.orchestrator._metrics[ProviderName.GROQ].latency_p95_ms = 40.0
+
+        routing = await self.orchestrator.route_request(
+            "hello", constraints={"max_latency_ms": 100.0}
+        )
+
+        self.assertEqual(routing.primary_provider, ProviderName.GROQ)
+
+    async def test_max_latency_excluding_everyone_is_honest_failure(self) -> None:
+        self.orchestrator._metrics[ProviderName.OPENAI].latency_p95_ms = 500.0
+        self.orchestrator._metrics[ProviderName.GROQ].latency_p95_ms = 400.0
+
+        routing = await self.orchestrator.route_request(
+            "hello", constraints={"max_latency_ms": 100.0}
+        )
+        self.assertIsNone(routing.primary_provider)
+
+        result = await self.orchestrator.execute("hello", routing=routing)
+        self.assertFalse(result.success)
+        self.assertIn("constraints", result.error.lower())
+
+    async def test_execute_accepts_constraints_kwarg_directly(self) -> None:
+        # Exact usage documented in docs/guides/multi-model-orchestrator.md
+        # "Constraint-Based Routing" section — this previously raised
+        # TypeError since execute() had no constraints parameter at all.
+        result = await self.orchestrator.execute(
+            "Urgent task",
+            constraints={"max_latency_ms": 100_000, "max_cost": 1000.0},
+        )
+        self.assertTrue(result.success)
+
+    async def test_explicit_max_cost_excludes_too_expensive_provider(self) -> None:
+        orchestrator = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}}, budget_usd=1000.0
+        )
+        routing = await orchestrator.route_request(
+            "x" * 4000, constraints={"max_cost": 0.000001}
+        )
+        self.assertIsNone(routing.primary_provider)
+        self.assertIn("max_cost", routing.rationale)
+
+    async def test_no_explicit_max_cost_does_not_duplicate_budget_check(self) -> None:
+        # Regression guard: route_request must not silently reject routing
+        # using budget_usd - spent_usd as an implicit max_cost, since
+        # execute() already enforces that with its own "Budget exceeded"
+        # message. Only an *explicit* max_cost constraint should trigger
+        # the rationale in route_request.
+        routing = await self.orchestrator.route_request("hello")
+        self.assertIsNotNone(routing.primary_provider)
+
+
 if __name__ == "__main__":
     unittest.main()
