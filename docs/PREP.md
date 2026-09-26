@@ -2,11 +2,18 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #244 merged; #245 control plane UI draft)
+>
+> **GitHub #244 merged** at `b466a6c` — Autonomous loop control plane REST API.
+> **GitHub #245 draft:** Control plane UI on `feat/pr245-autonomous-loop-control-plane-ui`.
+> **Test gate:** ui-static 3 OK; autonomous decision-loop suite 157 OK.
+> **Assets:** `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js`.
+>
 > ## ADDENDUM — 2026-09-26 (GitHub #242, #243 merged; #244 control plane API draft)
 >
 > **GitHub #242 merged** at `7f427f9` — Autonomous loop dashboard state and tracking.
 > **GitHub #243 merged** at `0d4a90c` — Autonomous loop telemetry and rate-limited observability.
-> **GitHub #244 draft:** Control plane REST API on `feat/pr244-autonomous-loop-api`.
+> **GitHub #244 merged** at `b466a6c` — Control plane REST API.
 > **Test gate:** api-surface 12 OK; autonomous decision-loop suite 154 OK.
 > **Endpoints:** `/api/v1/autonomous-loop/status`, `/loops`, `/loops/{loop_id}`, `/telemetry`, `/telemetry/{loop_id}`.
 >

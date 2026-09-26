@@ -1,8 +1,14 @@
-## Draft — GitHub PR #244 Autonomous decision loop: Control plane REST API (in progress)
+## Draft — GitHub PR #245 Autonomous decision loop: Control plane UI (in progress)
 
-- **Branch:** `feat/pr244-autonomous-loop-api`
-- **Scope:** REST API endpoints (`/api/v1/autonomous-loop/status`, `/loops`, `/loops/{loop_id}`, `/telemetry`, `/telemetry/{loop_id}`) + `thinkbox.autonomous_loop_api_surface`
+- **Branch:** `feat/pr245-autonomous-loop-control-plane-ui`
+- **Scope:** Control plane UI (`public/control-plane/autonomous_loop.html`, `autonomous_loop_client.js`) + navigation integration + telemetry inspection
 - **Four-state cap:** CODE COMPLETE / TEST VERIFIED only — `live_verified: false`
+- **Verify:** ui-static **3 OK**; autonomous-loop suite **157 OK**
+
+## GitHub PR #244 — Autonomous decision loop: Control plane REST API (MERGED)
+
+- **Merge:** `b466a6c`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/244
 - **Verify:** api-surface **12 OK**; autonomous-loop suite **154 OK**
 
 ## GitHub PR #243 — Autonomous decision loop: Telemetry & observability (MERGED)

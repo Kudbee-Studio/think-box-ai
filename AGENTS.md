@@ -659,7 +659,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Autonomous decision loop: Bootstrap cold-start | **#241** (merged) | `thinkbox/experiment_analytics.py` — LoopBootstrap; merge `77329f0` |
 | Autonomous decision loop: Dashboard state & tracking | **#242** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopEntry; merge `7f427f9` |
 | Autonomous decision loop: Telemetry & observability | **#243** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopTelemetry, rate-limited tick; merge `0d4a90c` |
-| Autonomous decision loop: Control plane REST API | **#244** (draft) | `backend/api/v1/autonomous_loop.py`, `thinkbox/autonomous_loop_api_surface.py` — status, loops, telemetry endpoints |
+| Autonomous decision loop: Control plane REST API | **#244** (merged) | `backend/api/v1/autonomous_loop.py`, `thinkbox/autonomous_loop_api_surface.py` — status, loops, telemetry endpoints; merge `b466a6c` |
+| Autonomous decision loop: Control plane UI | **#245** (draft) | `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js` — real-time telemetry, convergence tracking, component inspection |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Decision Loop — Think Box AI</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .al-wrap { padding: var(--space-6); max-width: 1200px; margin: 0 auto; }
+    .al-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6); }
+    .al-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: var(--space-4); }
+    .al-label { font-size: var(--text-xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-2); font-family: var(--font-mono); }
+    .al-value { font-size: var(--text-2xl); font-weight: var(--font-bold); font-family: var(--font-mono); }
+    .al-status-ok { color: var(--color-success); }
+    .al-status-warn { color: var(--color-warning); }
+    .al-status-info { color: var(--color-accent, #5b9cff); }
+    .al-status-idle { color: var(--color-text-tertiary); }
+    .al-two-col { display: grid; grid-template-columns: 320px 1fr; gap: var(--space-4); }
+    @media (max-width: 900px) {
+      .al-two-col { grid-template-columns: 1fr; }
+    }
+    .al-panel {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: var(--space-4);
+    }
+    .al-list { list-style: none; margin: 0; padding: 0; max-height: 400px; overflow-y: auto; }
+    .al-list li {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .al-list li:hover { background: var(--color-bg-subtle, #1a202c); }
+    .al-list li.selected { background: var(--color-bg, #0b0d12); border-left: 3px solid var(--color-accent, #5b9cff); }
+    .al-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: var(--space-4); }
+    .al-toolbar button { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.4rem 0.8rem; cursor: pointer; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-bg-card); color: var(--color-text); }
+    .al-toolbar button:hover { background: var(--color-bg-subtle, #1a202c); }
+    pre.al-json {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.75rem;
+      overflow: auto;
+      max-height: 320px;
+      font-family: var(--font-mono);
+    }
+    .al-components-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .al-component-pill {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+      border: 1px solid var(--color-border);
+    }
+    .al-comp-active { background: #142e20; border-color: #276749; color: var(--color-success); }
+    .al-comp-inactive { background: #20242c; border-color: #2d3748; color: var(--color-text-tertiary); }
+    .al-badge {
+      font-size: var(--text-xs);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+        <li><a href="receipt_chain_dashboard.html">Chain + END LINK</a></li>
+        <li><a href="think_job_status.html">Think Jobs</a></li>
+        <li><a href="pipeline_dashboard.html">Pipeline</a></li>
+        <li><a href="autonomous_loop.html" class="active">Autonomous Loop</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="al-wrap" id="main">
+    <h1>Autonomous Decision Loop</h1>
+    <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">
+      PR #245: Real-time telemetry, convergence tracking, and loop component inspection surface.
+      <!-- gate marker: autonomous-loop-control-plane-ui -->
+      <!-- api marker: /api/v1/autonomous-loop/status -->
+      <!-- api marker: /api/v1/autonomous-loop/loops -->
+      <!-- api marker: /api/v1/autonomous-loop/telemetry -->
+    </p>
+
+    <div class="al-toolbar">
+      <button id="btnRefresh">Refresh</button>
+      <button id="btnTogglePolling">Auto-refresh (5s): <span id="pollStatus">ON</span></button>
+      <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); margin-left: auto;" id="lastUpdated">—</span>
+    </div>
+
+    <div class="al-grid">
+      <div class="al-card">
+        <div class="al-label">System Status</div>
+        <div class="al-value al-status-ok" id="statusVal">—</div>
+      </div>
+      <div class="al-card">
+        <div class="al-label">Total Loops</div>
+        <div class="al-value" id="totalLoopsVal">0</div>
+      </div>
+      <div class="al-card">
+        <div class="al-label">Active Loops</div>
+        <div class="al-value al-status-info" id="activeLoopsVal">0</div>
+      </div>
+      <div class="al-card">
+        <div class="al-label">Bootstrapped</div>
+        <div class="al-value al-status-ok" id="bootstrappedVal">0</div>
+      </div>
+      <div class="al-card">
+        <div class="al-label">Total Iterations</div>
+        <div class="al-value" id="totalIterationsVal">0</div>
+      </div>
+    </div>
+
+    <div class="al-two-col">
+      <div class="al-panel">
+        <div class="al-label">Registered Loops</div>
+        <ul class="al-list" id="loopList">
+          <li style="color: var(--color-text-tertiary); cursor: default;">No loops registered</li>
+        </ul>
+      </div>
+
+      <div class="al-panel">
+        <div class="al-label">Selected Loop Details</div>
+        <div id="selectedLoopHeader" style="margin-bottom: var(--space-3); font-family: var(--font-mono); font-size: var(--text-sm); font-weight: bold;">
+          Select a loop from the list
+        </div>
+
+        <div style="margin-bottom: var(--space-4);">
+          <div class="al-label">Wired Components (10/10)</div>
+          <div class="al-components-grid" id="componentsGrid">
+            <div class="al-component-pill al-comp-inactive">bootstrap</div>
+            <div class="al-component-pill al-comp-inactive">experiment_manager</div>
+            <div class="al-component-pill al-comp-inactive">decomposer</div>
+            <div class="al-component-pill al-comp-inactive">execution</div>
+            <div class="al-component-pill al-comp-inactive">feedback</div>
+            <div class="al-component-pill al-comp-inactive">opportunity</div>
+            <div class="al-component-pill al-comp-inactive">loop_tracer</div>
+            <div class="al-component-pill al-comp-inactive">auto_tuner</div>
+            <div class="al-component-pill al-comp-inactive">generalizer</div>
+            <div class="al-component-pill al-comp-inactive">session_manager</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: var(--space-4);">
+          <div class="al-label">Telemetry Metrics</div>
+          <div class="al-grid" style="margin-bottom: 0;">
+            <div class="al-card" style="padding: 0.75rem;">
+              <div class="al-label">Throughput (iter/s)</div>
+              <div class="al-value" style="font-size: var(--text-lg);" id="telThroughput">—</div>
+            </div>
+            <div class="al-card" style="padding: 0.75rem;">
+              <div class="al-label">Avg Cycle Time</div>
+              <div class="al-value" style="font-size: var(--text-lg);" id="telAvgCycle">—</div>
+            </div>
+            <div class="al-card" style="padding: 0.75rem;">
+              <div class="al-label">Convergence</div>
+              <div class="al-value" style="font-size: var(--text-lg);" id="telConvergence">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="al-label">Raw Telemetry &amp; State Payload</div>
+        <pre class="al-json" id="jsonPayload">{ "status": "No loop selected" }</pre>
+      </div>
+    </div>
+  </main>
+
+  <script src="load_perf.js"></script>
+  <script src="autonomous_loop_client.js"></script>
+</body>
+</html>
