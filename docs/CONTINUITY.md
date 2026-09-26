@@ -3011,3 +3011,32 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - TEST VERIFIED: YES — 201/201 tests pass
   - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite
   - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved
+
+---
+
+### 2026-09-26 — PR244 Autonomous Decision Loop: Control Plane REST API (Implementation Complete)
+
+- **BRANCH:** `feat/pr244-autonomous-loop-api`
+- **BASE SHA:** `0d4a90c` (origin/main, after PR #243 merge)
+- **CAPABILITY:** REST API & Control Plane endpoint layer for Autonomous Decision Loop and Telemetry
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/autonomous_loop_api_surface.py`: Core payload builders and contracts
+    - `get_autonomous_loop_status_payload(state)`: Overview status, active/bootstrapped counts, revision, versions
+    - `list_autonomous_loops_payload(state)`: Complete list of registered loop entries with 10 components
+    - `get_autonomous_loop_payload(loop_id, state)`: Detail for single loop or None
+    - `list_autonomous_loop_telemetry_payload(state)`: All loop telemetry
+    - `get_autonomous_loop_telemetry_payload(loop_id, state)`: Telemetry for specific loop or default fallback
+  - `backend/api/v1/autonomous_loop.py`: FastAPI endpoints with clean headless fallback
+    - `GET /api/v1/autonomous-loop/status`: Overall system loop status
+    - `GET /api/v1/autonomous-loop/loops`: List all loops
+    - `GET /api/v1/autonomous-loop/loops/{loop_id}`: Single loop detail (404 on missing)
+    - `GET /api/v1/autonomous-loop/telemetry`: All loops telemetry
+    - `GET /api/v1/autonomous-loop/telemetry/{loop_id}`: Loop telemetry (404 on missing loop)
+  - `backend/main.py`: Include `autonomous_loop_router` when FastAPI is available
+- **TESTS:** 12 tests in `tests/unit/test_autonomous_loop_api.py` covering all payloads, empty/populated states, 404s, defaults
+- **BROADER TESTS:** 154/154 pass across all 13 related suites (142 existing + 12 new)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES
+  - TEST VERIFIED: YES — 154/154 pass
+  - LIVE VERIFIED: NO — local unit/hermetic only
+  - PRODUCTION READY: NO

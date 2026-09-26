@@ -98,6 +98,16 @@
 | Trait Lab autonomous app regression | **GitHub #228** (merged `449beda`) — J01–J25 baseline vs candidate gate compare; not LIVE VERIFIED |
 | Trait Lab autonomous integration major | **GitHub #229** (merged `2a2fa3e`) — K01–K25 gate + regression CI manifest; not LIVE VERIFIED |
 | Trait Lab Autonomous Worker Executor | **GitHub #230** (founder-directed, decision recorded) — governance layer composing CloudExecutionWorker + K01–K25 gate; namespace/architecture/layer pending |
+| Autonomous decision loop: Feedback -> Opportunity | **GitHub #235** (merged `639ebaa`) — OpportunityManager |
+| Autonomous decision loop: Opportunity -> Execution | **GitHub #236** (merged `d9d83df`) — opportunity consumption in execute_goal |
+| Autonomous decision loop: Observability tracer | **GitHub #237** (merged `b1b593a`) — LoopTracer |
+| Autonomous decision loop: Auto-tuning engine | **GitHub #238** (merged `672da10`) — EngineAutoTuner |
+| Autonomous decision loop: Cross-experiment generalization | **GitHub #239** (merged `e5f4ef0`) — CrossExperimentGeneralizer |
+| Autonomous decision loop: Session management | **GitHub #240** (merged `8d53715`) — LoopSessionManager |
+| Autonomous decision loop: Bootstrap cold-start | **GitHub #241** (merged `77329f0`) — LoopBootstrap |
+| Autonomous decision loop: Dashboard state & tracking | **GitHub #242** (merged `7f427f9`) — AutonomousLoopEntry |
+| Autonomous decision loop: Telemetry & observability | **GitHub #243** (merged `0d4a90c`) — AutonomousLoopTelemetry, rate-limited tick |
+| Autonomous decision loop: Control plane REST API | **GitHub #244** (draft) — status, loops, telemetry endpoints |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

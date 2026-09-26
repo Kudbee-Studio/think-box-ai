@@ -650,6 +650,16 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Trait Lab autonomous app gate (G01–G25) | **#227** (merged) | `thinkbox/autonomous_app_gate.py` — stack_suite gate + CI bundle; merge `6c3dd6c` |
 | Trait Lab autonomous app regression (J01–J25) | **#228** (merged) | `thinkbox/autonomous_app_regression.py` — baseline vs candidate gate compare; merge `449beda` |
 | Trait Lab autonomous integration major (K01–K25) | **#229** (draft) | `thinkbox/autonomous_integration_major.py` — gate + regression CI manifest; not LIVE VERIFIED |
+| Autonomous decision loop: Feedback -> Opportunity | **#235** (merged) | `thinkbox/experiment_analytics.py` — OpportunityManager; merge `639ebaa` |
+| Autonomous decision loop: Opportunity -> Execution | **#236** (merged) | `thinkbox/engine.py` — opportunity consumption in execute_goal; merge `d9d83df` |
+| Autonomous decision loop: Observability tracer | **#237** (merged) | `thinkbox/experiment_analytics.py` — LoopTracer; merge `b1b593a` |
+| Autonomous decision loop: Auto-tuning engine | **#238** (merged) | `thinkbox/experiment_analytics.py` — EngineAutoTuner; merge `672da10` |
+| Autonomous decision loop: Cross-experiment generalization | **#239** (merged) | `thinkbox/experiment_analytics.py` — CrossExperimentGeneralizer; merge `e5f4ef0` |
+| Autonomous decision loop: Session management | **#240** (merged) | `thinkbox/experiment_analytics.py` — LoopSessionManager; merge `8d53715` |
+| Autonomous decision loop: Bootstrap cold-start | **#241** (merged) | `thinkbox/experiment_analytics.py` — LoopBootstrap; merge `77329f0` |
+| Autonomous decision loop: Dashboard state & tracking | **#242** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopEntry; merge `7f427f9` |
+| Autonomous decision loop: Telemetry & observability | **#243** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopTelemetry, rate-limited tick; merge `0d4a90c` |
+| Autonomous decision loop: Control plane REST API | **#244** (draft) | `backend/api/v1/autonomous_loop.py`, `thinkbox/autonomous_loop_api_surface.py` — status, loops, telemetry endpoints |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

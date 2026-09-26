@@ -2,6 +2,14 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #242, #243 merged; #244 control plane API draft)
+>
+> **GitHub #242 merged** at `7f427f9` — Autonomous loop dashboard state and tracking.
+> **GitHub #243 merged** at `0d4a90c` — Autonomous loop telemetry and rate-limited observability.
+> **GitHub #244 draft:** Control plane REST API on `feat/pr244-autonomous-loop-api`.
+> **Test gate:** api-surface 12 OK; autonomous decision-loop suite 154 OK.
+> **Endpoints:** `/api/v1/autonomous-loop/status`, `/loops`, `/loops/{loop_id}`, `/telemetry`, `/telemetry/{loop_id}`.
+>
 > ## ADDENDUM — 2026-09-25 (GitHub #228 merged; #229 integration major draft)
 >
 > **GitHub #228 merged** at `449beda` — PR https://github.com/Kudbee-Studio/think-box-ai/pull/228
