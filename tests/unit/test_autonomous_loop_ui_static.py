@@ -26,6 +26,7 @@ class TestAutonomousLoopStaticAssets(unittest.TestCase):
         self.assertIn("/api/v1/autonomous-loop/sessions/summary", html)
         self.assertIn("/api/v1/autonomous-loop/loops/{loop_id}/actions", html)
         self.assertIn("/api/v1/autonomous-loop/actions", html)
+        self.assertIn("/api/v1/autonomous-loop/actions/integrity", html)
         self.assertIn("Autonomous Decision Loop", html)
         self.assertIn("btnRefresh", html)
         self.assertIn("btnTogglePolling", html)
@@ -40,6 +41,9 @@ class TestAutonomousLoopStaticAssets(unittest.TestCase):
         self.assertIn("btnActionRun", html)
         self.assertIn("btnActionReset", html)
         self.assertIn("governanceTokenInput", html)
+        self.assertIn("integrityBadge", html)
+        self.assertIn("integrityDetail", html)
+        self.assertIn("Action Audit Chain", html)
 
     def test_client_js_exists_and_exports_helpers(self) -> None:
         js_path = self.root / "autonomous_loop_client.js"
@@ -55,6 +59,7 @@ class TestAutonomousLoopStaticAssets(unittest.TestCase):
         self.assertIn("/api/v1/autonomous-loop/sessions/summary", js)
         self.assertIn("/api/v1/autonomous-loop/loops/", js)
         self.assertIn("/api/v1/autonomous-loop/actions", js)
+        self.assertIn("/api/v1/autonomous-loop/actions/integrity", js)
         self.assertIn("bootstrap", js)
         self.assertIn("session_manager", js)
         self.assertIn("auto_tuner", js)
@@ -69,6 +74,9 @@ class TestAutonomousLoopStaticAssets(unittest.TestCase):
         self.assertIn("renderActionList", js)
         self.assertIn("showActionStatus", js)
         self.assertIn("sendLoopAction", js)
+        self.assertIn("fetchActionIntegrity", js)
+        self.assertIn("renderActionIntegrity", js)
+        self.assertIn("integrityBadge", js)
         self.assertIn("X-Governance-Token", js)
         self.assertIn("governanceTokenInput", js)
 
