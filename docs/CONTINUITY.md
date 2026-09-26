@@ -3144,6 +3144,6 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **CI:** GitHub Actions runners not assigned repo-wide since at least the #259 era (jobs ~3 s, `runner_id: 0`, empty logs, reproduces on `main`, persists after one re-run). Not fixable from agent sessions (Actions permission endpoints are proxy-blocked). Needs a repo/org admin to check Settings → Actions.
 - **NEW STANDING RULE:** AGENTS.md §13.11 pre-registered experiments.
 - **INCIDENT (agent error, recovered):** during #264 an agent ran `git checkout main -- .` and discarded uncommitted work; detected immediately, reconstructed from the session record, tests re-verified before commit. Lesson: run `git status` before any checkout that touches paths.
-- **VERIFY:** orchestrator 39 OK; multi-box 36 OK; calibration arena 39 OK; full suite FULL_SUITE_COUNT_PENDING.
+- **VERIFY:** orchestrator 41 OK; multi-box 36 OK; calibration arena 39 OK; full suite FULL_SUITE_COUNT_PENDING.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 

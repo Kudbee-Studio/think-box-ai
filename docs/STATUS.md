@@ -8,7 +8,7 @@
 | **Orchestrator** | CHEAPEST/CONSENSUS/PARALLEL + constraints implemented; budget, consensus-of-one, and failure-count defects fixed |
 | **Knowledge fabric** | `persist()` now actually writes (was a no-op that logged success); `load()` restores and refuses tampered nodes |
 | **Synthesis** | `agreement_fraction` added; pre-registered v2 **IMPROVED** (Brier 0.212 → 0.120, CI [−0.121, −0.065]) |
-| **Verify** | orchestrator 39 OK; multi-box 36 OK; calibration arena 39 OK; full suite: FULL_SUITE_COUNT_PENDING |
+| **Verify** | orchestrator 41 OK; multi-box 36 OK; calibration arena 39 OK; full suite: FULL_SUITE_COUNT_PENDING |
 | **CI** | Actions runners not assigned repo-wide (~3 s jobs, `runner_id: 0`); admin Settings check needed |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
 

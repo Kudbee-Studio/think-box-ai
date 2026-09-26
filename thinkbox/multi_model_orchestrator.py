@@ -173,6 +173,7 @@ class MultiModelOrchestrator:
         # defaulting max_cost to that same figure would just duplicate
         # that check under a different error message.
         explicit_max_cost = constraints.get("max_cost")
+        estimated_tokens = max(1, len(prompt) // 4)
 
         # Score all available providers that satisfy hard constraints.
         # A provider with no measured latency yet (latency_p95_ms == 0.0)
@@ -183,6 +184,10 @@ class MultiModelOrchestrator:
             if not metrics.available:
                 continue
             if metrics.latency_p95_ms > max_latency:
+                continue
+            if explicit_max_cost is not None and (
+                estimated_tokens * metrics.cost_per_1k_tokens / 1000 > explicit_max_cost
+            ):
                 continue
 
             # Multi-factor scoring
@@ -229,10 +234,9 @@ class MultiModelOrchestrator:
         primary = sorted_providers[0][0]
         fallbacks = [p[0] for p in sorted_providers[1:3]]  # Top 2 fallbacks
 
-        # Estimate cost (minimum 1 token). PARALLEL and CONSENSUS call every
-        # candidate, so the estimate must cover all of them — estimating
-        # only the primary would let those strategies spend past the budget.
-        estimated_tokens = max(1, len(prompt) // 4)
+        # Estimate cost. PARALLEL and CONSENSUS call every candidate, so the
+        # estimate must cover all of them — estimating only the primary
+        # would let those strategies spend past the budget.
         if self.strategy in (ExecutionStrategy.PARALLEL, ExecutionStrategy.CONSENSUS):
             billed = [primary] + fallbacks
         else:
@@ -248,9 +252,9 @@ class MultiModelOrchestrator:
                 fallback_providers=[],
                 strategy=self.strategy,
                 estimated_cost_usd=estimated_cost,
-                rationale=f"Cheapest constraint-satisfying provider "
-                          f"({primary.value}, ${estimated_cost:.6f}) still "
-                          f"exceeds max_cost=${explicit_max_cost:.6f}",
+                rationale=f"{self.strategy.value} would call {len(billed)} "
+                          f"provider(s) for an estimated ${estimated_cost:.6f}, "
+                          f"exceeding max_cost=${explicit_max_cost:.6f}",
             )
 
         rationale = (

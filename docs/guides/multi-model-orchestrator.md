@@ -521,7 +521,7 @@ Test coverage:
 | State | Status |
 |-------|--------|
 | **CODE_COMPLETE** | ✅ |
-| **TEST_VERIFIED** | ✅ (32/32 tests pass — see note below) |
+| **TEST_VERIFIED** | ✅ (41/41 tests pass — see note below) |
 | **LIVE_VERIFIED** | ⏳ (pending live provider integration; inference is simulated) |
 | **PRODUCTION_READY** | ⏳ (pending production hardening) |
 
@@ -548,6 +548,16 @@ constructor checks that the enum value was stored):
 - `max_latency_ms` filters out providers whose measured P95 latency exceeds it
   before scoring; a provider with no measurements yet is never excluded on a
   claim we have no evidence for
+- `max_cost` is a hard filter too: providers whose estimated cost for this
+  prompt exceeds it are excluded before ranking, so a cheaper provider is
+  chosen instead of refusing the request. For PARALLEL and CONSENSUS it also
+  bounds the *total* across every provider the strategy will call
+- Budget checks for PARALLEL and CONSENSUS estimate the cost of every
+  provider they call, not just the primary
+- CONSENSUS requires at least 2 successful responses; one provider agreeing
+  with itself is not reported as consensus
+- Failed provider calls (including raised exceptions) are recorded, so
+  `failed_executions` reflects reality instead of always reading 0
 - `execute(prompt, constraints={...})` now works exactly as documented above
 - When constraints eliminate every provider, routing/execution fails honestly
   with a specific reason instead of silently substituting an unevaluated provider

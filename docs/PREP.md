@@ -10,7 +10,7 @@
 > (was a no-op that logged success) with a verifying `load()`, `agreement_fraction` added to
 > `SynthesisEngine`, pre-registered calibration v2 `IMPROVED` (simulated).
 > **Gate:** CI runners unavailable repo-wide (jobs end in ~3 s with `runner_id: 0`; reproduces on
-> `main`). Admin action: Settings → Actions. Local verification: orchestrator 39 OK, multi-box 36 OK,
+> `main`). Admin action: Settings → Actions. Local verification: orchestrator 41 OK, multi-box 36 OK,
 > calibration arena 39 OK, full suite FULL_SUITE_COUNT_PENDING.
 > **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
 

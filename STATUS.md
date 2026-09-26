@@ -4,7 +4,7 @@
 - **Orchestrator:** CHEAPEST/CONSENSUS/PARALLEL and `max_latency_ms`/`max_cost` now implemented (were documented but not wired, per Bugbot review of #260); `execute(constraints=...)` works as documented. Self-review defects fixed: multi-provider budget under-estimate, consensus-of-one, `failed_executions` always 0.
 - **Knowledge fabric:** `persist()` never wrote to disk while logging that it had (a #263 defect); it now writes atomically, and `KnowledgeFabric.load()` restores the fabric and refuses tampered nodes.
 - **Synthesis:** `agreement_fraction` added to `SynthesisEngine`. Pre-registered v2 (committed `bd80cf8e` before the run): Brier 0.212 → 0.120, delta −0.093 CI [−0.121, −0.065] → **IMPROVED**. v1 proof hash still reproduces.
-- **Verify:** `test_multi_model_orchestrator` **39 OK**; `test_multi_box_orchestration` **36 OK**; `test_synthesis_calibration_arena` **39 OK**; full suite: FULL_SUITE_COUNT_PENDING.
+- **Verify:** `test_multi_model_orchestrator` **41 OK**; `test_multi_box_orchestration` **36 OK**; `test_synthesis_calibration_arena` **39 OK**; full suite: FULL_SUITE_COUNT_PENDING.
 - **CI:** GitHub Actions runners not being assigned repo-wide (every job ~3 s, `runner_id: 0`, empty logs; reproduces on `main`). Needs a Settings → Actions check by a repo/org admin. Documented on #263 and #264.
 - **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED (inference and agents simulated).
 

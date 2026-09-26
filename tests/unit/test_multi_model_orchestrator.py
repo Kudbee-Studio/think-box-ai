@@ -635,5 +635,38 @@ class TestSelfReviewDefects(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         self.assertEqual(orchestrator.get_metrics().failed_executions, 1)
 
+    async def test_max_cost_filters_instead_of_refusing_under_fastest(self) -> None:
+        """An explicit max_cost is a hard filter, like max_latency_ms: if the
+        best-scoring provider is too expensive but a cheaper one fits,
+        route to the cheaper one rather than refusing the request."""
+        orchestrator = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.GROQ: {}},
+            strategy=ExecutionStrategy.FASTEST,
+        )
+        orchestrator._metrics[ProviderName.OPENAI].quality_score = 1.0
+        orchestrator._metrics[ProviderName.GROQ].quality_score = 0.1
+        orchestrator._metrics[ProviderName.GROQ].availability_score = 0.1
+        # 1k tokens: OPENAI $0.015, GROQ $0.0005. Only GROQ fits $0.001.
+        unconstrained = await orchestrator.route_request("x" * 4000)
+        self.assertEqual(unconstrained.primary_provider, ProviderName.OPENAI)
+        routing = await orchestrator.route_request(
+            "x" * 4000, constraints={"max_cost": 0.001}
+        )
+        self.assertEqual(routing.primary_provider, ProviderName.GROQ)
+        self.assertLessEqual(routing.estimated_cost_usd, 0.001)
+
+    async def test_max_cost_applies_to_total_for_parallel(self) -> None:
+        orchestrator = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.ANTHROPIC: {}},
+            strategy=ExecutionStrategy.PARALLEL,
+        )
+        # 1k tokens: each fits $0.016 alone, together ($0.018) they do not.
+        routing = await orchestrator.route_request(
+            "x" * 4000, constraints={"max_cost": 0.016}
+        )
+        self.assertIsNone(routing.primary_provider)
+        self.assertIn("max_cost", routing.rationale)
+        self.assertNotIn("Cheapest", routing.rationale)
+
 if __name__ == "__main__":
     unittest.main()
