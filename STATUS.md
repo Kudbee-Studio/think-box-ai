@@ -1,3 +1,18 @@
+## MERGED (2026-09-26 19:25) — Autonomous workflow cloud environment setup + proof
+
+- **Branch:** `feat/neon-serverless-setup`
+- **Main SHA:** `493b6ca6e325441c18ca6dee0b85e1b103772b90`
+- **Commits:** 3561aee (Neon init) + a5e799d (skills) + 4db5f6b (proof)
+- **Scope:** Neon serverless Postgres configuration + end-to-end autonomous workflow proof script
+- **Proof verified:** 
+  - ✅ Mercury-2 model execution via Inception API
+  - ✅ Upstash Redis persistence
+  - ✅ Autonomous decision loop (Sense → Decide → Act → Learn)
+  - ✅ Dashboard state tracking
+- **Cloud env:** INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN preserved; no paid services added
+- **Four-state:** CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox)
+- **Next:** Reconcile Memory layer API; audit Dashboard state API; local development
+
 ## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
 
 - **Branch:** `claude/repo-audit-e4801s`

@@ -1,5 +1,17 @@
 # STATUS — Think Box AI
 
+## MERGED (2026-09-26 19:25) — Autonomous workflow cloud environment setup + proof
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `feat/neon-serverless-setup` |
+| **Main SHA** | `493b6ca6e325441c18ca6dee0b85e1b103772b90` |
+| **Scope** | Neon serverless Postgres configuration + autonomous workflow end-to-end proof script |
+| **Proof verified** | ✅ Mercury-2 model execution (Inception API); ✅ Upstash Redis persistence; ✅ Autonomous loop (Sense→Decide→Act→Learn); ✅ Dashboard state tracking |
+| **Cloud env** | INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN preserved |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox) |
+| **Next** | Reconcile Memory layer API; audit Dashboard state API; local development path |
+
 ## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
 
 | Field | Value |
