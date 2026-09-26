@@ -714,6 +714,13 @@ class TestDagVerifiedExecution(unittest.TestCase):
         return GovernedEngine(GovernedEngineConfig(engine=ThinkBoxEngine(), ledger_path=ledger_path))
 
     @staticmethod
+    def _vgoal(eng, goal: str, subtasks: list[dict], complete, **kwargs):
+        """Call execute_verified_goal with a real governance token (no-token is denied)."""
+        agent_id = kwargs.pop("agent_id", "dag-agent")
+        token = eng.register_agent(agent_id, ["goal:execute"])
+        return eng.execute_verified_goal(goal, subtasks, complete, token_value=token, agent_id=agent_id, **kwargs)
+
+    @staticmethod
     def _router(subtasks: list[dict], behaviors: dict[int, str]):
         """complete_async keyed by exact subtask prompt prefix; per-prompt call counts."""
         from thinkbox.pop_arena import deterministic_emission_v2
@@ -754,7 +761,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
                     self._sub("multifield", "double", depends_on=[0, 1])]
         complete, _ = self._router(subtasks, {})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("dag goal", subtasks, complete))
+        summary = self._run(self._vgoal(eng, "dag goal", subtasks, complete))
         v = summary["verified"]
         self.assertEqual(v["tasks"], 3)
         self.assertEqual(v["first_try_successes"], 3)
@@ -781,7 +788,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         subtasks = [self._sub("compute", "add_small")]
         complete, _ = self._router(subtasks, {})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("single", subtasks, complete))
+        summary = self._run(self._vgoal(eng, "single", subtasks, complete))
         tid = list(summary["task_experiment_ids"])[0]
         events = [e for e in eng._base.events if e.task_id == tid]
         self.assertTrue(any(e.state == TaskState.RUNNING for e in events))
@@ -798,7 +805,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         subtasks = [self._sub("distractor", "wrongkey")]
         complete, calls = self._router(subtasks, {0: "wrongkey_then_valid"})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("recover", subtasks, complete))
+        summary = self._run(self._vgoal(eng, "recover", subtasks, complete))
         v = summary["verified"]
         self.assertEqual(v["recovered_successes"], 1)
         self.assertEqual(v["first_try_successes"], 0)
@@ -818,7 +825,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         subtasks = [self._sub("compute", "add_small")]
         complete, calls = self._router(subtasks, {0: "arithmetic_always"})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("arith", subtasks, complete))
+        summary = self._run(self._vgoal(eng, "arith", subtasks, complete))
         v = summary["verified"]
         pt = list(v["per_task"].values())[0]
         self.assertEqual(pt["execution_status"], "FAILED_AFTER_RETRY")
@@ -835,7 +842,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
                     self._sub("distractor", "apology", depends_on=[0])]
         complete, _ = self._router(subtasks, {0: "wrongkey_always", 1: "valid"})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("budget", subtasks, complete, max_calls=2))
+        summary = self._run(self._vgoal(eng, "budget", subtasks, complete, max_calls=2))
         v = summary["verified"]
         statuses = sorted(pt["execution_status"] for pt in v["per_task"].values())
         self.assertEqual(statuses, ["BUDGET_EXHAUSTED", "FAILED_AFTER_RETRY"])
@@ -853,7 +860,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
                     self._sub("compute", "mul_small", depends_on=[0])]
         complete, _ = self._router(subtasks, {1: "wrongkey_then_valid", 2: "arithmetic_always"})
         eng = self._governed()
-        summary = self._run(eng.execute_verified_goal("agg", subtasks, complete))
+        summary = self._run(self._vgoal(eng, "agg", subtasks, complete))
         v = summary["verified"]
         self.assertEqual(v["tasks"], 3)
         self.assertEqual(v["first_try_successes"], 1)
@@ -863,10 +870,10 @@ class TestDagVerifiedExecution(unittest.TestCase):
         self.assertEqual(summary["successful"], 2)
         self.assertEqual(summary["failed"], 1)
         goal_entries = [e for e in eng.ledger.entries() if e["action"] == "execute_verified_goal"]
-        self.assertEqual(len(goal_entries), 1)
+        self.assertEqual(sorted(e["reason"] for e in goal_entries), ["DAG_COMPLETE", "admitted"])
         import sqlite3
         rows = eng.ledger._conn.execute(
-            "SELECT metadata FROM ledger WHERE action='execute_verified_goal'").fetchall()
+            "SELECT metadata FROM ledger WHERE action='execute_verified_goal' AND reason='DAG_COMPLETE'").fetchall()
         meta = _j.loads(rows[0][0])
         self.assertEqual(meta["tasks"], 3)
         self.assertEqual(meta["first_try_successes"], 1)
@@ -887,7 +894,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         complete, _ = self._router(subtasks, {1: "wrongkey_then_valid"})
         eng = self._governed()
         mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
-        summary = self._run(eng.execute_verified_goal(
+        summary = self._run(self._vgoal(eng, 
             "persist", subtasks, complete, manager=mgr))
         goal_exp = summary["goal_experiment_id"]
         task_exps = list(summary["task_experiment_ids"].values())
@@ -952,7 +959,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         complete, _ = self._router(subtasks, {0: "valid_with_usage", 1: "wrongkey_then_valid"})
         eng = self._governed(ledger_path=ledger_path)
         mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
-        summary = self._run(eng.execute_verified_goal(
+        summary = self._run(self._vgoal(eng, 
             "proof", subtasks, complete, manager=mgr, agent_id="dag-test"))
         proof_path = Path(summary["proof_artifact"])
         self.assertTrue(proof_path.exists())
@@ -972,10 +979,11 @@ class TestDagVerifiedExecution(unittest.TestCase):
         led = ActionLedger(ledger_path)
         self.assertTrue(led.verify())
         conn = sqlite3.connect(ledger_path)
-        rows = conn.execute("SELECT action, metadata FROM ledger").fetchall()
+        rows = conn.execute("SELECT action, metadata, reason FROM ledger").fetchall()
         conn.close()
-        task_actions = [r for r in rows if r[0].startswith("verified_task:")]
-        goal_actions = [r for r in rows if r[0] == "execute_verified_goal"]
+        task_actions = [r[:2] for r in rows if r[0].startswith("verified_task:")]
+        goal_actions = [r[:2] for r in rows if r[0] == "execute_verified_goal" and r[2] == "DAG_COMPLETE"]
+        self.assertEqual(len([r for r in rows if r[0] == "execute_verified_goal" and r[2] == "admitted"]), 1)
         self.assertEqual(len(task_actions), 2)
         self.assertEqual(len(goal_actions), 1)
         exp_ids = set(summary["task_experiment_ids"].values())
@@ -1003,7 +1011,7 @@ class TestDagVerifiedExecution(unittest.TestCase):
         complete, _ = self._router(subtasks, {0: "wrongkey_then_valid"})
         eng = self._governed(ledger_path=str(Path(tmp) / "ledger.db"))
         mgr = ExperimentManager(db_path=db, artifacts_dir=str(art))
-        summary = self._run(eng.execute_verified_goal(
+        summary = self._run(self._vgoal(eng, 
             "secrets", subtasks, complete, manager=mgr))
         blob = _j.dumps(summary)
         for p in Path(art).glob("*.json"):

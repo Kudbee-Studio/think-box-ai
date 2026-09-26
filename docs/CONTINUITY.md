@@ -3102,3 +3102,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 - **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+### 2026-09-26 — GitHub PR #252: Honest execution (draft)
+
+- **BRANCH:** `claude/repo-audit-e4801s`
+- **TRIGGER:** repo audit ran `thinkbox run` with no model available; it printed `successful: 1`. The stored output was `[Error: Connection refused]`.
+- **ROOT CAUSES:** `thinkbox/model_client.py` returned `f"[Error: {e}]"` as model text; `swarm.execute_task` treated any returned string as success; `GovernedEngine` only checked admission `if token_value:`.
+- **FIXES:** `ModelCallError` (retryable flag; no speculative retries on unreachable/401); Bearer auth; `/v1` URL normalisation; Ollama `options`; blocking I/O moved to `asyncio.to_thread`; `ModelConfig.from_env` (`ollama` / `openai_compat` / `inception`); `GovernedEngine._admit` denies missing tokens and ledgers the denial (`concurrent_goals` now mints a real token per goal); `thinkbox run` governed + prints outputs + non-zero exit on failure; `thinkbox model check`; `think_box_ai inception` real calls, no simulated/fabricated usage; embedder default `text-embedding-3-small` + 1536-dim check.
+- **LIVE (local only):** Ollama `qwen2.5:1.5b` on CPU: engine answered 17*23=391; governed run answered "Paris."; proof script 6/6 PASS. Mercury-2 endpoint reachable (HTTP 401 without key) — **not** live-verified.
+- **FINDINGS:** 14/38 swarm proof artifacts invalid (`data/findings/swarm_proof_artifacts_invalid.md`); Upstash Vector defect fixed in code, not live-verified; #245–#249 chronicle rows were stale.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` for hosted providers and Upstash.

@@ -180,8 +180,12 @@ class TestControlPlaneContracts(unittest.TestCase):
 
     def test_receipt_module_not_stubbed_in_sys_modules(self) -> None:
         """Guard: contract tests must never replace the real receipt module."""
+        import importlib
+
+        importlib.import_module("thinkbox.agent.control_plane.receipt")
         mod = sys.modules.get("thinkbox.agent.control_plane.receipt")
         self.assertIsNotNone(mod)
+        self.assertTrue(str(getattr(mod, "__file__", "")).endswith("receipt.py"))
         from thinkbox.agent.control_plane.receipt import ActionReceipt
 
         receipt = ActionReceipt("CAPACITY", "a1", "OK")

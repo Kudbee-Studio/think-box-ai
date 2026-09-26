@@ -68,7 +68,9 @@ class OpenAICompatEmbedder(Embedder):
 
     @staticmethod
     def _default_model() -> str:
-        return os.environ.get("THINKBOX_DEFAULT_MODEL", "gpt-4o-mini")
+        # Chat models (THINKBOX_DEFAULT_MODEL) are not embedding models; this
+        # default matches the 1536-dim Upstash dense index.
+        return "text-embedding-3-small"
 
     @property
     def dimension(self) -> int:
@@ -102,8 +104,7 @@ class OpenAICompatEmbedder(Embedder):
             try:
                 with urllib.request.urlopen(req, timeout=60) as resp:
                     body = json.loads(resp.read().decode("utf-8"))
-                    results = body.get("data", [])
-                    return [item["embedding"] for item in results]
+                    vectors = [item["embedding"] for item in body.get("data", [])]
             except urllib.error.HTTPError as e:
                 body = e.read().decode() if hasattr(e, "read") else ""
                 raise EmbeddingError(
@@ -113,6 +114,17 @@ class OpenAICompatEmbedder(Embedder):
                 raise EmbeddingError(
                     message=f"Embeddings endpoint unreachable: {e.reason}"
                 ) from e
+            if len(vectors) != len(texts):
+                raise EmbeddingError(
+                    message=f"Embeddings endpoint returned {len(vectors)} vectors for {len(texts)} inputs"
+                )
+            for vec in vectors:
+                if len(vec) != self._dimension:
+                    raise EmbeddingError(
+                        message=f"Embedding model {self._model!r} returned dimension {len(vec)}, "
+                        f"expected {self._dimension}; set THINKBOX_EMBED_MODEL to a {self._dimension}-dim model"
+                    )
+            return vectors
 
         return _fetch()
 

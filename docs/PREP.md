@@ -2,6 +2,22 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #252 draft — honest execution; chronicle drift corrected)
+>
+> **GitHub #252 draft** on `claude/repo-audit-e4801s`. Repo audit ran a real model (local Ollama
+> `qwen2.5:1.5b`) through the engine and found: (1) model failures returned as output and counted as
+> success; (2) `GovernedEngine` executed tokenless goals with no ledger row; (3) OpenAI-compatible path
+> sent no `Authorization` header and doubled `/v1`; (4) `thinkbox run` printed no model output;
+> (5) `think_box_ai inception run|usage` returned simulated/fabricated data. All fixed; see STATUS.md.
+> **Proof:** `python3 scripts/prove_think_box_local.py` 6/6 PASS (local model). Not live-verified:
+> Mercury-2, Upstash Vector, Upstash Box.
+> **Chronicle drift corrected:** #245–#249 listed as draft; git shows all on `main`
+> (`9201a42`, `a085e8d`, `8661b72`, `b128230`, `02bbbc4` via GitHub #250). GitHub marks #247/#248/#250
+> closed-not-merged although their merge commits are on `main`.
+> **New findings:** `data/findings/swarm_proof_artifacts_invalid.md` (14/38 committed swarm proofs fail
+> `validate_proof_document`). **Open concurrently:** GitHub #251 (another lane) — AGENTS.md §6.4 one-PR rule.
+> **Test gate:** `test_model_client_honest` 27 OK; affected + previously-failing modules (57 modules) 579 run, 578 OK + pr142 spine test fixed (OK in isolation), 3 expected failures. Full-suite per-module run in progress; count recorded in the next commit.
+
 > ## ADDENDUM — 2026-09-26 (GitHub #246, #247 autonomous loop deepen)
 >
 > **GitHub #246 merged** at `ad6d134` — Learning curve tracking + session lifecycle:

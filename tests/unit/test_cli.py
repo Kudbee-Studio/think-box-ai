@@ -93,14 +93,18 @@ class TestCliSwarm(unittest.TestCase):
     def test_swarm_agents_json(self) -> None:
         if not PROOF_SAMPLE.is_file():
             self.skipTest("proof artifact missing")
+        import shutil
+
         parser = build_parser()
-        proof_dir = str(PROOF_SAMPLE.parent)
-        args = parser.parse_args(
-            ["swarm", "agents", "--proof-dir", proof_dir, "--limit", "1", "--json"]
-        )
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            code = dispatch(args)
+        # Isolate the sample: newer committed artifacts in data/thinkboxmd may fail validation.
+        with tempfile.TemporaryDirectory() as proof_dir:
+            shutil.copy(PROOF_SAMPLE, proof_dir)
+            args = parser.parse_args(
+                ["swarm", "agents", "--proof-dir", proof_dir, "--limit", "1", "--json"]
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = dispatch(args)
         self.assertEqual(code, CLI_EXIT_OK)
         data = json.loads(buf.getvalue())
         self.assertGreaterEqual(data["proofs_considered"], 1)
