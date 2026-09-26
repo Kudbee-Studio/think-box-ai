@@ -109,6 +109,8 @@
 | Autonomous decision loop: Telemetry & observability | **GitHub #243** (merged `0d4a90c`) — AutonomousLoopTelemetry, rate-limited tick |
 | Autonomous decision loop: Control plane REST API | **GitHub #244** (merged `b466a6c`) — status, loops, telemetry endpoints |
 | Autonomous decision loop: Control plane UI | **GitHub #245** (draft) — real-time telemetry, convergence tracking, component inspection |
+| Autonomous decision loop: Learning curve + session lifecycle | **GitHub #246** (draft) — learning curve points, convergence history, LoopSessionEntry + `/sessions` API + UI |
+| Autonomous decision loop: Control-plane loop management | **GitHub #247** (draft) — POST/GET action endpoints (start/stop/run/reset) + LoopActionEntry audit trail |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 

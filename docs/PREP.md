@@ -2,6 +2,19 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #246, #247 autonomous loop deepen)
+>
+> **GitHub #246 merged** at `ad6d134` — Learning curve tracking + session lifecycle:
+> `LoopTracer` iteration data → `learning_curve_points`; `convergence_history` tracking;
+> `LoopSessionEntry` dashboard model + `/sessions` API + UI panels.
+> **Test gate:** learning-curve 16 OK; session-api 14 OK; ui-static 3 OK; autonomous-loop suite 63 OK; full suite 649 OK, 6 skipped.
+>
+> **GitHub #247 draft** on `feat/pr247-autonomous-loop-control-actions`:
+> POST/GET loop action endpoints (start/stop/run/reset) + `LoopActionEntry` audit trail
+> + action history panel in UI. Fixed `fetchSessionSummary` missing closing brace bug.
+> **Test gate:** control-actions 19 OK; ui-static 3 OK; autonomous-loop suite 82 OK.
+> **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
 > ## ADDENDUM — 2026-09-26 (GitHub #244 merged; #245 control plane UI draft)
 >
 > **GitHub #244 merged** at `b466a6c` — Autonomous loop control plane REST API.

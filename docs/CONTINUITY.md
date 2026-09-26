@@ -3059,3 +3059,18 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - TEST VERIFIED: YES — 157/157 pass
   - LIVE VERIFIED: NO — static HTML/JS assets verified against hermetic API contracts
   - PRODUCTION READY: NO
+
+### 2026-09-26 — GitHub PR #246: Learning curve + session lifecycle
+
+- **MERGE:** `ad6d134` on `feat/pr246-autonomous-loop-learning-curve-sessions`.
+- **SCOPE:** `LoopTracer` iteration data → `AutonomousLoopTelemetry.learning_curve_points`; `convergence_history` tracking (capped 100); `LoopSessionEntry` dashboard model; `LoopSessionManager` integration in `_update_loop_dashboard()`; closed-session persistence via `_record_closed_session()`; API `GET /sessions`, `/sessions/{id}`, `/sessions/summary`; UI learning curve canvas + convergence history panel + sessions panel.
+- **TESTS:** `test_autonomous_loop_learning_curve` 16 OK; `test_autonomous_loop_session_api` 14 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 63 OK; full suite 649 OK, 6 skipped.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+
+### 2026-09-26 — GitHub PR #247: Control-plane loop management
+
+- **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
+- **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.
+- **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
