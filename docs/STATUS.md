@@ -1,12 +1,21 @@
 # STATUS — Think Box AI
 
-## Draft — GitHub PR #252 Honest execution: real model path + governance no-token deny
+## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
+
+| Field | Value |
+|-------|-------|
+| **Scope** | 14 invalid swarm proof artifacts patched (`partial_run: true`, `validator_workers` corrected to 0); finding doc updated |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+| **Branch** | `claude/repo-audit-e4801s` |
+| **Verify** | 38/38 proofs validate; full suite 4134 discovered tests |
+| **Builds on** | PR #252 (merged) — honest execution |
+
+## GitHub PR #252 Honest execution: real model path + governance no-token deny (MERGED)
 
 | Field | Value |
 |-------|-------|
 | **Scope** | `thinkbox/model_client.py` (`ModelCallError`, auth, env providers), `thinkbox/governed.py` (no-token deny + ledger), governed `thinkbox run` + `thinkbox model check`, real `think_box_ai inception`, `scripts/prove_think_box_local.py` |
-| **Four-state** | CODE COMPLETE / TEST VERIFIED — live model path verified with local Ollama only; Mercury-2 / Upstash not live-verified |
-| **Branch** | `claude/repo-audit-e4801s` |
+| **Merge** | on `main` |
 | **Verify** | `test_model_client_honest` **27 OK**; `prove_think_box_local.py` **6/6 PASS** (local) |
 
 ## GitHub PR #245 — Autonomous decision loop: Control plane UI (on main `9201a42`)

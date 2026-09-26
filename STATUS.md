@@ -1,11 +1,18 @@
-## Draft — GitHub PR #252 Honest execution: real model path + governance no-token deny
+## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
 
 - **Branch:** `claude/repo-audit-e4801s`
-- **Why:** audit found `thinkbox run` reported `successful: 1` when the model was unreachable (error text returned as output), and `GovernedEngine.execute_goal` / `execute_verified_goal` executed with **no** token and wrote no ledger entry.
-- **Fixes:** `ModelCallError` (no error-as-output), Bearer auth + `/v1` URL fix + env provider selection (`ollama` / `openai_compat` / `inception`), no speculative retries on non-retryable errors; no-token = deny + ledger row; `thinkbox run` is governed, prints real output, exits non-zero on failure; `thinkbox model check`; `think_box_ai inception` no longer simulated; embedder defaults to a 1536-dim embedding model and rejects wrong dimensions.
-- **Proof:** `python3 scripts/prove_think_box_local.py` — 6/6 PASS against local Ollama `qwen2.5:1.5b` (random multiplication answered correctly, no-token + forged token denied, ledger verified, tamper detected). Guide: `docs/guides/local_think_box.md`.
-- **Four-state cap:** CODE COMPLETE / TEST VERIFIED; live model path verified with a **local** model only — Mercury-2, Upstash Vector, Upstash Box **not** live-verified (no credentials in the audit container).
-- **Verify:** `tests.unit.test_model_client_honest` **27 OK**; full suite: see PREP addendum.
+- **Why:** PR #252 audit found 14/38 committed swarm proof artifacts fail `validate_proof_document` — they declared 32 validator workers but ran 0 validator calls (224 total, not the declared 256).
+- **Fixes:** All 14 invalid swarm proof artifacts patched to honestly reflect partial execution (`partial_run: true`, `declared_validator_workers` preserves original 32, `validator_workers` corrected to 0). Finding doc `data/findings/swarm_proof_artifacts_invalid.md` updated to reflect fix. All 38 proof artifacts now pass `validate_proof_document`.
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+- **Verify:** 38/38 proofs validate; full suite 4134 discovered tests.
+- **Builds on:** PR #252 (merged) — honest execution: real model path + governance no-token deny.
+
+## GitHub PR #252 Honest execution: real model path + governance no-token deny (MERGED)
+
+- **Merge:** on `main`
+- **Fixes:** `ModelCallError` (no error-as-output), Bearer auth + `/v1` URL fix + env provider selection (`ollama` / `openai_compat` / `inception`), no speculative retries on non-retryable errors; no-token = deny + ledger row; `thinkbox run` is governed, prints real output, exits non-zero on failure; `thinkbox model check`; `think_box_ai inception` no longer simulated.
+- **Proof:** `python3 scripts/prove_think_box_local.py` — 6/6 PASS against local Ollama.
+- **Verify:** `tests.unit.test_model_client_honest` **27 OK**.
 
 ## GitHub PR #245 — Autonomous decision loop: Control plane UI (on main `9201a42`)
 

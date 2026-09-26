@@ -48,6 +48,17 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-26 — GitHub #253: swarm proof honesty + findings close (on claude/repo-audit-e4801s)
+
+| Field | Value |
+|---|---|
+| **Scope** | 14/38 committed swarm proof artifacts fail `validate_proof_document` (declared 32 validators, ran 0) |
+| **Fix** | All 14 patched: `partial_run: true`, `declared_validator_workers: 32` (preserved), `validator_workers: 0` (corrected), `partial_run_reason` explains the gap |
+| **Finding** | `data/findings/swarm_proof_artifacts_invalid.md` status updated to fixed |
+| **Validation** | 38/38 proofs now pass `validate_proof_document` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+| **Builds on** | PR #252 (merged) — honest execution: real model path + governance no-token deny |
+
 ### 2026-09-24 — RUNNING orphan reclaim via ownership lease (stacked on QUEUED resume)
 
 | Field | Value |
