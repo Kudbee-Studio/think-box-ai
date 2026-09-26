@@ -231,10 +231,17 @@ class MultiModelOrchestrator:
         primary = sorted_providers[0][0]
         fallbacks = [p[0] for p in sorted_providers[1:3]]  # Top 2 fallbacks
 
-        # Estimate cost (minimum 1 token)
+        # Estimate cost (minimum 1 token). PARALLEL and CONSENSUS call every
+        # candidate, so the estimate must cover all of them — estimating
+        # only the primary would let those strategies spend past the budget.
         estimated_tokens = max(1, len(prompt) // 4)
-        estimated_cost = (
-            estimated_tokens * self._metrics[primary].cost_per_1k_tokens / 1000
+        if self.strategy in (ExecutionStrategy.PARALLEL, ExecutionStrategy.CONSENSUS):
+            billed = [primary] + fallbacks
+        else:
+            billed = [primary]
+        estimated_cost = sum(
+            estimated_tokens * self._metrics[p].cost_per_1k_tokens / 1000
+            for p in billed
         )
 
         if explicit_max_cost is not None and estimated_cost > explicit_max_cost:
@@ -319,11 +326,11 @@ class MultiModelOrchestrator:
                     self._record_success(provider, result)
                     return result
                 else:
-                    self._record_failure(provider)
+                    self._record_failure(provider, error=result.error)
 
             except Exception as e:
                 logger.warning(f"Provider {provider.value} failed: {e}")
-                self._record_failure(provider)
+                self._record_failure(provider, error=str(e))
                 continue
 
         return ExecutionResult(
@@ -345,13 +352,13 @@ class MultiModelOrchestrator:
         for provider, outcome in zip(candidates, outcomes):
             if isinstance(outcome, Exception):
                 logger.warning(f"Provider {provider.value} failed: {outcome}")
-                self._record_failure(provider)
+                self._record_failure(provider, error=str(outcome))
                 continue
             if outcome.success:
                 self._record_success(provider, outcome)
                 successes.append(outcome)
             else:
-                self._record_failure(provider)
+                self._record_failure(provider, error=outcome.error)
 
         if not successes:
             return ExecutionResult(
@@ -377,7 +384,13 @@ class MultiModelOrchestrator:
         majority of successful responses to agree on the same normalized
         answer before returning success. This is deliberately stricter
         than FASTEST/PARALLEL: agreement, not speed, is the point."""
-        polled = candidates[:3] if len(candidates) >= 2 else candidates
+        polled = candidates[:3]
+        if len(polled) < 2:
+            return ExecutionResult(
+                success=False,
+                error=f"Consensus requires at least 2 providers; only "
+                      f"{len(polled)} available after constraints",
+            )
         tasks = [self._execute_with_provider(prompt, p) for p in polled]
         outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -385,19 +398,19 @@ class MultiModelOrchestrator:
         for provider, outcome in zip(polled, outcomes):
             if isinstance(outcome, Exception):
                 logger.warning(f"Provider {provider.value} failed: {outcome}")
-                self._record_failure(provider)
+                self._record_failure(provider, error=str(outcome))
                 continue
             if outcome.success:
                 self._record_success(provider, outcome)
                 successes.append(outcome)
             else:
-                self._record_failure(provider)
+                self._record_failure(provider, error=outcome.error)
 
-        if not successes:
-            self._consensus_disagreements += 1
+        if len(successes) < 2:
             return ExecutionResult(
                 success=False,
-                error=f"All providers failed: {polled}",
+                error=f"Consensus requires at least 2 successful responses; "
+                      f"got {len(successes)} of {len(polled)} polled",
             )
 
         buckets: dict[str, list[ExecutionResult]] = {}
@@ -487,8 +500,13 @@ class MultiModelOrchestrator:
         provider_name = provider.value
         self._execution_history[-1].provider = provider
 
-    def _record_failure(self, provider: ProviderName) -> None:
+    def _record_failure(
+        self, provider: ProviderName, error: Optional[str] = None
+    ) -> None:
         """Record failed execution."""
+        self._execution_history.append(
+            ExecutionResult(success=False, provider=provider, error=error)
+        )
         metrics = self._metrics[provider]
         metrics.consecutive_failures += 1
         metrics.last_failure_time = time.monotonic()

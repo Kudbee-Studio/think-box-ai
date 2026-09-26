@@ -576,5 +576,41 @@ class TestAsyncOrchestration(unittest.TestCase):
         self.assertIsNotNone(result)
 
 
+
+class TestAgreementFraction(unittest.TestCase):
+    """agreement_fraction is derived from the agreement structure, not from
+    boxes' self-reported confidence (see synthesis-calibration-v1 result)."""
+
+    def setUp(self):
+        self.fabric = KnowledgeFabric()
+        self.synthesis = SynthesisEngine(self.fabric)
+
+    def test_consensus_finding_has_agreement_fraction(self):
+        for box in ("a", "b"):
+            self.fabric.add_knowledge(
+                content={"answer": 1, "topic": "q1"}, source_boxes=[box], confidence=0.99
+            )
+        self.fabric.add_knowledge(
+            content={"answer": 2, "topic": "q1"}, source_boxes=["c"], confidence=0.99
+        )
+        result = self.synthesis.synthesize_findings(["a", "b", "c"], "q1")
+        self.assertAlmostEqual(result["consensus_findings"][0]["agreement_fraction"], 2 / 3)
+        self.assertAlmostEqual(result["conflicting_findings"][0]["agreement_fraction"], 1 / 3)
+
+    def test_average_confidence_unchanged(self):
+        for box, conf in (("a", 0.9), ("b", 0.7)):
+            self.fabric.add_knowledge(
+                content={"answer": 1, "topic": "q2"}, source_boxes=[box], confidence=conf
+            )
+        result = self.synthesis.synthesize_findings(["a", "b"], "q2")
+        finding = result["consensus_findings"][0]
+        self.assertAlmostEqual(finding["average_confidence"], 0.8)
+        self.assertAlmostEqual(finding["agreement_fraction"], 1.0)
+
+    def test_empty_synthesis_does_not_divide_by_zero(self):
+        result = self.synthesis.synthesize_findings(["nobody"], "no-such-topic")
+        self.assertEqual(result["consensus_findings"], [])
+        self.assertEqual(result["conflicting_findings"], [])
+
 if __name__ == "__main__":
     unittest.main()

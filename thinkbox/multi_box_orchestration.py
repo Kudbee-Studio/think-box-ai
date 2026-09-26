@@ -455,6 +455,12 @@ class SynthesisEngine:
                 seen_contents[content_hash] = []
             seen_contents[content_hash].append(finding)
 
+        # agreement_fraction is derived from the agreement structure itself,
+        # not from boxes' self-reported confidence. The pre-registered
+        # synthesis-calibration-v1 experiment showed average_confidence is
+        # poorly calibrated for exactly this reason; see
+        # docs/guides/synthesis-calibration-arena.md.
+        total_findings = len(all_findings)
         for content_hash, findings in seen_contents.items():
             if len(findings) >= 2:
                 consensus_findings.append({
@@ -462,10 +468,13 @@ class SynthesisEngine:
                     "agreements": len(findings),
                     "boxes": [f["source_box"] for f in findings],
                     "average_confidence": sum(f["confidence"] for f in findings) / len(findings),
+                    "agreement_fraction": len(findings) / total_findings,
                     "content": findings[0]["content"],
                 })
             else:
-                conflicting_findings.extend(findings)
+                conflicting_findings.extend(
+                    {**f, "agreement_fraction": 1 / total_findings} for f in findings
+                )
 
         synthesis = {
             "synthesis_id": str(uuid.uuid4())[:12],

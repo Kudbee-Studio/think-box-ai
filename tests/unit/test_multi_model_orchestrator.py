@@ -529,5 +529,111 @@ class TestConstraintFiltering(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(routing.primary_provider)
 
 
+
+class TestSelfReviewDefects(unittest.IsolatedAsyncioTestCase):
+    """Defects found in an adversarial self-review of the strategy fix."""
+
+    async def test_parallel_budget_accounts_for_every_candidate(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},
+            ProviderName.ANTHROPIC: {},
+            ProviderName.GROQ: {},
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, budget_usd=1.0, strategy=ExecutionStrategy.PARALLEL
+        )
+        prompt = "x" * 40_000  # 10k tokens
+        routing = await orchestrator.route_request(prompt)
+        # Primary alone may fit the budget; all three together must not.
+        per_provider = {
+            p: 10_000 * orchestrator._metrics[p].cost_per_1k_tokens / 1000
+            for p in providers
+        }
+        self.assertAlmostEqual(
+            routing.estimated_cost_usd, sum(per_provider.values()), places=9
+        )
+
+    async def test_consensus_budget_accounts_for_polled_candidates(self) -> None:
+        providers = {
+            ProviderName.OPENAI: {},
+            ProviderName.ANTHROPIC: {},
+            ProviderName.GROQ: {},
+        }
+        orchestrator = MultiModelOrchestrator(
+            providers, budget_usd=1000.0, strategy=ExecutionStrategy.CONSENSUS
+        )
+        routing = await orchestrator.route_request("x" * 4000)  # 1k tokens
+        expected = sum(orchestrator._metrics[p].cost_per_1k_tokens for p in providers)
+        self.assertAlmostEqual(routing.estimated_cost_usd, expected, places=9)
+
+    async def test_parallel_refuses_when_total_exceeds_budget(self) -> None:
+        providers = {ProviderName.OPENAI: {}, ProviderName.ANTHROPIC: {}}
+        orchestrator = MultiModelOrchestrator(
+            providers, budget_usd=0.016, strategy=ExecutionStrategy.PARALLEL
+        )
+        # 1k tokens: OPENAI 0.015 fits alone, OPENAI+ANTHROPIC 0.018 does not.
+        result = await orchestrator.execute("x" * 4000)
+        self.assertFalse(result.success)
+        self.assertIn("Budget", result.error)
+        self.assertEqual(orchestrator.spent_usd, 0.0)
+
+    async def test_consensus_of_one_provider_is_not_consensus(self) -> None:
+        orchestrator = MultiModelOrchestrator(
+            {ProviderName.GROQ: {}}, strategy=ExecutionStrategy.CONSENSUS
+        )
+        result = await orchestrator.execute("hello")
+        self.assertFalse(result.success)
+        self.assertIn("at least 2", result.error)
+        self.assertEqual(orchestrator.get_metrics().consensus_agreements, 0)
+
+    async def test_consensus_with_only_one_success_is_not_consensus(self) -> None:
+        providers = {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}
+        orchestrator = MultiModelOrchestrator(
+            providers, strategy=ExecutionStrategy.CONSENSUS
+        )
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            if provider == ProviderName.GROQ:
+                return ExecutionResult(success=False, provider=provider, error="down")
+            return ExecutionResult(
+                success=True, output=f"[{provider.value}] 42", provider=provider,
+                latency_ms=5.0, tokens_used=1, cost_usd=0.0,
+            )
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            result = await orchestrator.execute("q")
+
+        self.assertFalse(result.success)
+        self.assertIn("at least 2", result.error)
+
+    async def test_failed_provider_calls_are_counted(self) -> None:
+        providers = {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}
+        orchestrator = MultiModelOrchestrator(providers)
+
+        async def fake_execute(prompt: str, provider: ProviderName) -> ExecutionResult:
+            return ExecutionResult(success=False, provider=provider, error="down")
+
+        with patch.object(
+            orchestrator, "_execute_with_provider", new=AsyncMock(side_effect=fake_execute)
+        ):
+            await orchestrator.execute("q")
+
+        metrics = orchestrator.get_metrics()
+        self.assertEqual(metrics.failed_executions, 2)
+        self.assertEqual(metrics.successful_executions, 0)
+        self.assertEqual(metrics.total_executions, 2)
+
+    async def test_raised_exception_is_counted_as_failure(self) -> None:
+        orchestrator = MultiModelOrchestrator({ProviderName.OPENAI: {}})
+        with patch.object(
+            orchestrator, "_execute_with_provider",
+            new=AsyncMock(side_effect=RuntimeError("boom")),
+        ):
+            result = await orchestrator.execute("q")
+        self.assertFalse(result.success)
+        self.assertEqual(orchestrator.get_metrics().failed_executions, 1)
+
 if __name__ == "__main__":
     unittest.main()
