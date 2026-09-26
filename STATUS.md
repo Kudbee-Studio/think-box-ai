@@ -1,3 +1,22 @@
+## Draft — GitHub PR #244 Autonomous decision loop: Control plane REST API (in progress)
+
+- **Branch:** `feat/pr244-autonomous-loop-api`
+- **Scope:** REST API endpoints (`/api/v1/autonomous-loop/status`, `/loops`, `/loops/{loop_id}`, `/telemetry`, `/telemetry/{loop_id}`) + `thinkbox.autonomous_loop_api_surface`
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED only — `live_verified: false`
+- **Verify:** api-surface **12 OK**; autonomous-loop suite **154 OK**
+
+## GitHub PR #243 — Autonomous decision loop: Telemetry & observability (MERGED)
+
+- **Merge:** `0d4a90c`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/243
+- **Verify:** telemetry **12 OK**; autonomous-loop suite **142 OK**
+
+## GitHub PR #242 — Autonomous decision loop: Dashboard state & tracking (MERGED)
+
+- **Merge:** `7f427f9`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/242
+- **Verify:** dashboard **9 OK**; autonomous-loop suite **170 OK**
+
 ## Draft — GitHub PR #230 Trait Lab autonomous worker executor (in progress)
 
 - **Branch:** `feat/trait-lab-autonomous-worker-executor-pr230`
