@@ -1010,6 +1010,17 @@ class LoopTracer:
         """Begin tracing a loop iteration. Returns the iteration_id."""
         iteration_id = f"iter_{uuid.uuid4().hex[:12]}"
         lid = loop_id or self._current_loop_id or f"loop_{uuid.uuid4().hex[:12]}"
+        if not self._current_loop_id and not self._get_metadata("current_loop_id"):
+            conn = sqlite3.connect(self._db_path)
+            try:
+                conn.execute(
+                    "INSERT OR REPLACE INTO loop_metadata (key, value) VALUES (?, ?)",
+                    ("current_loop_id", lid),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        self._current_loop_id = lid
         started_at = datetime.now(timezone.utc).isoformat()
         self._in_flight[iteration_id] = {
             "iteration_id": iteration_id,
