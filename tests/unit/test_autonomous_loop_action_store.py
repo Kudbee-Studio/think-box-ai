@@ -356,6 +356,120 @@ class TestDashboardStatePersistence(unittest.TestCase, _TempDbMixin):
         self.assertIsNone(self.state.get_loop_action_store())
         store.close()
 
+    def test_all_receipts_oldest_first(self) -> None:
+        store = LoopActionStore()
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "start")
+        self.state.record_loop_action("loopA", "run")
+        self.assertEqual([r.action for r in store.all_receipts()], ["start", "run"])
+        self.assertEqual(len(store.all_receipts(limit=1)), 1)
+        store.close()
+
+
+class TestLoopActionHydration(unittest.TestCase, _TempDbMixin):
+    """Restart recovery: durable receipts must become visible again."""
+
+    def setUp(self) -> None:
+        _reset_dashboard()
+        self.state = DashboardState()
+        self.state.upsert_autonomous_loop(AutonomousLoopEntry(loop_id="loopA"))
+
+    def tearDown(self) -> None:
+        _reset_dashboard()
+
+    def test_hydrate_no_store_returns_zero(self) -> None:
+        self.assertEqual(self.state.hydrate_loop_actions_from_store(), 0)
+
+    def test_hydrate_with_empty_store_returns_zero(self) -> None:
+        store = LoopActionStore()
+        self.state.set_loop_action_store(store)
+        self.assertEqual(self.state.hydrate_loop_actions_from_store(), 0)
+        store.close()
+
+    def test_hydrate_restores_actions_after_simulated_restart(self) -> None:
+        path = self.make_path()
+        store = LoopActionStore(path)
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "start")
+        self.state.record_loop_action("loopA", "stop")
+        self.state.record_loop_action("loopA", "run")
+        store.close()
+
+        # Simulate a process restart: fresh state, fresh store on the same file.
+        _reset_dashboard()
+        restarted = DashboardState()
+        restarted.set_loop_action_store(LoopActionStore(path))
+
+        self.assertEqual(restarted.get_loop_actions("loopA"), [])
+        restored = restarted.hydrate_loop_actions_from_store()
+        self.assertEqual(restored, 3)
+        self.assertEqual(
+            [a.action for a in restarted.get_loop_actions("loopA")],
+            ["start", "stop", "run"],
+        )
+
+    def test_hydrate_restores_last_action(self) -> None:
+        path = self.make_path()
+        store = LoopActionStore(path)
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "start")
+        self.state.record_loop_action("loopA", "run")
+        store.close()
+
+        _reset_dashboard()
+        restarted = DashboardState()
+        restarted.set_loop_action_store(LoopActionStore(path))
+        restarted.hydrate_loop_actions_from_store()
+        self.assertEqual(restarted.autonomous_loops["loopA"].last_action, "run")
+
+    def test_hydrate_restores_result_and_source(self) -> None:
+        path = self.make_path()
+        store = LoopActionStore(path)
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "run", {"k": 5}, source="ui")
+        store.close()
+
+        _reset_dashboard()
+        restarted = DashboardState()
+        restarted.set_loop_action_store(LoopActionStore(path))
+        restarted.hydrate_loop_actions_from_store()
+        entry = restarted.get_loop_actions("loopA")[0]
+        self.assertEqual(entry.result, {"k": 5})
+        self.assertEqual(entry.source, "ui")
+        self.assertEqual(entry.evidence_label, "simulated")
+
+    def test_hydrate_is_idempotent(self) -> None:
+        path = self.make_path()
+        store = LoopActionStore(path)
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "start")
+        store.close()
+
+        _reset_dashboard()
+        restarted = DashboardState()
+        restarted.set_loop_action_store(LoopActionStore(path))
+        self.assertEqual(restarted.hydrate_loop_actions_from_store(), 1)
+        self.assertEqual(restarted.hydrate_loop_actions_from_store(), 0)
+        self.assertEqual(len(restarted.get_loop_actions("loopA")), 1)
+
+    def test_hydrate_does_not_duplicate_already_present_actions(self) -> None:
+        store = LoopActionStore()
+        self.state.set_loop_action_store(store)
+        self.state.record_loop_action("loopA", "start")
+        # Action recorded in this session is already in memory.
+        self.assertEqual(self.state.hydrate_loop_actions_from_store(), 0)
+        self.assertEqual(len(self.state.get_loop_actions("loopA")), 1)
+        store.close()
+
+    def test_hydrate_read_failure_returns_zero(self) -> None:
+        class BrokenStore:
+            def all_receipts(self, limit: int | None = None) -> Any:
+                raise RuntimeError("corrupt db")
+
+        self.state.set_loop_action_store(BrokenStore())
+        self.assertEqual(self.state.hydrate_loop_actions_from_store(), 0)
+        self.assertEqual(self.state.get_loop_actions("loopA"), [])
+
 
 class TestIntegrityPayload(unittest.TestCase):
     def setUp(self) -> None:

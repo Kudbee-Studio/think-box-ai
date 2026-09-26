@@ -215,6 +215,16 @@ class LoopActionStore:
             ).fetchone()
         return row[0] if row else GENESIS_HASH
 
+    def all_receipts(self, limit: int | None = None) -> list[LoopActionReceipt]:
+        """Return every receipt in insertion order (oldest first).
+
+        This is the read path used to rebuild in-memory state after a restart.
+        """
+        rows = self._rows()
+        if limit is not None:
+            rows = rows[:limit]
+        return [self._to_receipt(r) for r in rows]
+
     def latest(self, n: int = 10) -> list[LoopActionReceipt]:
         """Return the n most recent receipts, newest first."""
         rows = self._rows()
