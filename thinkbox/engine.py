@@ -67,6 +67,7 @@ class ThinkBoxEngine:
         self._auto_tuner: Any = None
         self._generalizer: Any = None
         self._session_manager: Any = None
+        self._loop_bootstrap: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -146,6 +147,16 @@ class ThinkBoxEngine:
         """
         self._session_manager = manager
 
+    def set_loop_bootstrap(self, bootstrap: Any | None) -> "ThinkBoxEngine":
+        """Inject a LoopBootstrap for cold-start initialization (DI).
+
+        When set, execute_goal() bootstraps the loop with seed data if
+        no prior recommendation exists. This enables the autonomous loop
+        to start from a clean system without manual priming.
+        """
+        self._loop_bootstrap = bootstrap
+        return self
+
     @property
     def events(self) -> list[TaskEvent]:
         return self._events.copy()
@@ -197,6 +208,17 @@ class ThinkBoxEngine:
             if self._experiment_manager is not None:
                 recommendation = self._experiment_manager.get_last_next_action()
             recommendation = opportunity_rec or recommendation
+
+            if recommendation is None and self._loop_bootstrap is not None:
+                boot_result = self._loop_bootstrap.bootstrap()
+                if boot_result.bootstrapped:
+                    recommendation = boot_result.recommendation
+                    self.emit("root", TaskState.RUNNING,
+                              "Loop bootstrapped from cold start",
+                              goal_run_id=goal_run_id,
+                              bootstrap_experiment_id=boot_result.experiment_id,
+                              source=boot_result.source)
+
             graph = self.decomposer.decompose(goal, prior_recommendation=recommendation)
         self.emit("root", TaskState.RUNNING, f"Decomposed into {len(graph.tasks)} tasks", goal_run_id=goal_run_id)
 
