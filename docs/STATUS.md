@@ -1,5 +1,14 @@
 # STATUS — Think Box AI
 
+## Draft — GitHub PR #246 Autonomous decision loop: Learning curve + session lifecycle (in progress)
+
+| Field | Value |
+|-------|-------|
+| **Scope** | `LoopTracer` iteration data → `learning_curve_points`; `convergence_history` tracking; `LoopSessionEntry` dashboard model + session lifecycle methods; `_update_loop_dashboard()` session wiring; API + UI for sessions |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — `live_verified: false` |
+| **Branch** | `feat/pr246-autonomous-loop-learning-curve-sessions` |
+| **Verify** | learning-curve **16 OK**; session-api **14 OK**; ui-static **3 OK**; autonomous-loop suite **63 OK**; full suite **649 OK**, 6 skipped |
+
 ## Draft — GitHub PR #245 Autonomous decision loop: Control plane UI (in progress)
 
 | Field | Value |
