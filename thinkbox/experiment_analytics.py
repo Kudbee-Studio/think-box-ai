@@ -1981,3 +1981,202 @@ class LoopSessionManager:
 
     def get_current_session(self) -> Optional[LoopSession]:
         return self._current_session
+
+
+@dataclass
+class BootstrapConfig:
+    """Initial configuration for bootstrapping the autonomous loop.
+
+    When no prior experiment data exists, these defaults seed the first
+    execution cycle. Values can be overridden by founder configuration.
+    """
+
+    default_intent: str = "autonomous_loop_bootstrap"
+    seed_recommendation: dict[str, Any] = field(default_factory=lambda: {
+        "type": "validation_run",
+        "rationale": "Cold-start: no prior recommendations available",
+        "max_retries": 1,
+        "adjustments": [],
+    })
+    seed_metrics: dict[str, Any] = field(default_factory=lambda: {
+        "throughput": 1.0,
+        "p50_latency": 1.0,
+        "p95_latency": 1.5,
+        "p99_latency": 2.0,
+        "error_rate": 0.0,
+        "iteration_count": 1,
+    })
+    seed_hypothesis: str = "Baseline performance with default configuration"
+    confidence: float = 0.5
+    four_state: str = "TEST_VERIFIED"
+
+
+@dataclass
+class BootstrapResult:
+    """Result of bootstrapping the autonomous loop."""
+
+    bootstrapped: bool
+    experiment_id: str
+    recommendation: dict[str, Any]
+    seed_metrics: dict[str, Any]
+    source: str
+    confidence: float
+    four_state: str
+
+
+class LoopBootstrap:
+    """Bootstraps the autonomous loop from cold start (Initialization -> Learning binding).
+
+    When no prior experiment data exists, generates an initial recommendation
+    and seed metrics so execute_goal can start with a meaningful first iteration
+    rather than a blank default. This closes the gap between system startup
+    and the first autonomous cycle.
+
+    The bootstrap is fail-closed: if prior experiment data exists, it returns
+    unbootstrapped (source="existing_data") so the normal feedback loop takes over.
+    """
+
+    def __init__(self, manager: ExperimentManager, analytics: ExperimentAnalytics,
+                 config: BootstrapConfig | None = None, db_path: str = ":memory:") -> None:
+        self._manager = manager
+        self._analytics = analytics
+        self._config = config or BootstrapConfig()
+        self._db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS bootstrap_events (
+                    bootstrap_id TEXT PRIMARY KEY,
+                    experiment_id TEXT NOT NULL,
+                    recommendation TEXT NOT NULL,
+                    seed_metrics TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    four_state TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    was_consumed INTEGER DEFAULT 0
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def needs_bootstrap(self) -> bool:
+        """Check if the loop needs bootstrapping (no prior recommendations)."""
+        recommendation = self._manager.get_last_next_action()
+        return recommendation is None
+
+    def bootstrap(self) -> BootstrapResult:
+        """Bootstrap the autonomous loop with seed data.
+
+        Creates an initial experiment with seed metrics and a default
+        recommendation. Returns the BootstrapResult containing the
+        experiment_id and recommendation that can be consumed by the
+        next execute_goal call.
+
+        If prior data exists (needs_bootstrap is False), returns
+        unbootstrapped with source="existing_data".
+        """
+        if not self.needs_bootstrap():
+            return BootstrapResult(
+                bootstrapped=False,
+                experiment_id="",
+                recommendation={},
+                seed_metrics={},
+                source="existing_data",
+                confidence=0.0,
+                four_state="TEST_VERIFIED",
+            )
+
+        config = self._config
+        exp = self._manager.create_experiment(
+            intent=config.default_intent,
+            hypothesis=config.seed_hypothesis,
+            parameters={"source": "bootstrap", "seed": True},
+            agent_id="loop_bootstrap",
+            execution_mode="verified",
+        )
+
+        for _ in range(2):
+            self._analytics.persist_run(exp.experiment_id, dict(config.seed_metrics))
+
+        self._manager.record_outcome(
+            exp.experiment_id,
+            {"status": "bootstrap_completed", "source": "bootstrap"},
+            confidence=config.confidence,
+            four_state=config.four_state,
+        )
+
+        generator = NextActionGenerator(self._manager, self._analytics)
+        next_action = generator.generate(exp.experiment_id, {"status": "bootstrap"}, confidence=0.3)
+        recommendation = next_action.get("recommended_next_experiment", next_action)
+
+        bootstrap_id = f"bs_{uuid.uuid4().hex[:12]}"
+        created_at = datetime.now(timezone.utc).isoformat()
+
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "INSERT INTO bootstrap_events "
+                "(bootstrap_id, experiment_id, recommendation, seed_metrics, source, "
+                "confidence, four_state, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    bootstrap_id, exp.experiment_id,
+                    json.dumps(recommendation, default=str),
+                    json.dumps(config.seed_metrics, default=str),
+                    "bootstrap",
+                    config.confidence,
+                    config.four_state,
+                    created_at,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        return BootstrapResult(
+            bootstrapped=True,
+            experiment_id=exp.experiment_id,
+            recommendation=recommendation,
+            seed_metrics=dict(config.seed_metrics),
+            source="bootstrap",
+            confidence=config.confidence,
+            four_state=config.four_state,
+        )
+
+    def mark_consumed(self, experiment_id: str) -> None:
+        """Mark a bootstrap experiment as consumed by the main loop."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.execute(
+                "UPDATE bootstrap_events SET was_consumed = 1 WHERE experiment_id = ?",
+                (experiment_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_bootstrap_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        """List bootstrap events."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM bootstrap_events ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def get_bootstrap_count(self) -> int:
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cursor = conn.execute("SELECT COUNT(*) FROM bootstrap_events")
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
