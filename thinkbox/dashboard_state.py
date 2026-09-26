@@ -27,6 +27,7 @@ class DashboardCategory(str, Enum):
     PROVIDERS = "providers"
     TESTS = "tests"
     EXECUTION = "execution"
+    AUTONOMOUS_LOOP = "autonomous_loop"
 
 
 class DashboardEvent(str, Enum):
@@ -49,6 +50,12 @@ class DashboardEvent(str, Enum):
     UPLOAD_STARTED = "upload_started"
     UPLOAD_COMPLETED = "upload_completed"
     ERROR = "error"
+    LOOP_STARTED = "loop_started"
+    LOOP_ITERATION_COMPLETED = "loop_iteration_completed"
+    LOOP_BOOTSTRAPPED = "loop_bootstrapped"
+    SESSION_CLOSED = "session_closed"
+    TUNING_APPLIED = "tuning_applied"
+    PATTERN_GENERALIZED = "pattern_generalized"
 
 
 @dataclass
@@ -267,6 +274,56 @@ class TestMilestoneEntry:
         }
 
 
+@dataclass
+class AutonomousLoopEntry:
+    """Canonical state for the autonomous decision-loop dashboard."""
+    loop_id: str
+    status: str = "idle"
+    started_at: str = ""
+    current_session_id: str = ""
+    iterations_count: int = 0
+    patterns_identified: int = 0
+    tuning_decisions: int = 0
+    bootstrapped: bool = False
+    latest_recommendation: dict[str, Any] = field(default_factory=dict)
+    latest_metrics: dict[str, Any] = field(default_factory=dict)
+    components: dict[str, bool] = field(
+        default_factory=lambda: {
+            "bootstrap": False,
+            "experiment_manager": False,
+            "decomposer": False,
+            "execution": False,
+            "feedback": False,
+            "opportunity": False,
+            "loop_tracer": False,
+            "auto_tuner": False,
+            "generalizer": False,
+            "session_manager": False,
+        }
+    )
+    evidence_label: str = "infmred"
+
+    def __post_init__(self) -> None:
+        if not self.started_at:
+            self.started_at = datetime.now(timezone.utc).isoformat()
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "loop_id": self.loop_id,
+            "status": self.status,
+            "started_at": self.started_at,
+            "current_session_id": self.current_session_id,
+            "iterations_count": self.iterations_count,
+            "patterns_identified": self.patterns_identified,
+            "tuning_decisions": self.tuning_decisions,
+            "bootstrapped": self.bootstrapped,
+            "latest_recommendation": self.latest_recommendation,
+            "latest_metrics": self.latest_metrics,
+            "components": self.components,
+            "evidence_label": self.evidence_label,
+        }
+
+
 class DashboardState:
     """Canonical, mutable dashboard state singleton."""
 
@@ -288,6 +345,7 @@ class DashboardState:
         self.infrastructure: dict[str, InfrastructureEntry] = {}
         self.providers: dict[str, ProviderEntry] = {}
         self.test_milestones: dict[str, TestMilestoneEntry] = {}
+        self.autonomous_loops: dict[str, AutonomousLoopEntry] = {}
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
         self._revision = RevisionCounter()
@@ -355,6 +413,10 @@ class DashboardState:
         self.test_milestones[milestone.test_name] = milestone
         self._revision.bump()
 
+    def upsert_autonomous_loop(self, entry: AutonomousLoopEntry) -> None:
+        self.autonomous_loops[entry.loop_id] = entry
+        self._revision.bump()
+
     def get_state_summary(self) -> dict[str, Any]:
         """Lightweight counts for polls and WebSocket (no full job payloads)."""
         receipt_linked = sum(
@@ -371,6 +433,7 @@ class DashboardState:
                 "total_infrastructure": len(self.infrastructure),
                 "total_providers": len(self.providers),
                 "total_events": len(self.events),
+                "total_autonomous_loops": len(self.autonomous_loops),
             },
             "think_job_receipt_summary": {
                 "tracked": len(self.think_jobs),
@@ -392,6 +455,7 @@ class DashboardState:
             "infrastructure": [i.model_dump() for i in self.infrastructure.values()],
             "providers": [p.model_dump() for p in self.providers.values()],
             "test_milestones": [t.model_dump() for t in self.test_milestones.values()],
+            "autonomous_loops": [l.model_dump() for l in self.autonomous_loops.values()],
             "events": [e.model_dump() for e in self.events[-100:]],
             "think_job_receipt_summary": {
                 "tracked": len(self.think_jobs),
@@ -404,6 +468,7 @@ class DashboardState:
                 "total_infrastructure": len(self.infrastructure),
                 "total_providers": len(self.providers),
                 "total_events": len(self.events),
+                "total_autonomous_loops": len(self.autonomous_loops),
             },
         }
 

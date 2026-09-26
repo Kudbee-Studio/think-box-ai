@@ -579,6 +579,50 @@ class ThinkBoxEngine:
             if metrics.total_iterations >= 3:
                 self._generalize_patterns()
 
+        self._update_loop_dashboard()
+
+    def _update_loop_dashboard(self) -> None:
+        """Update the autonomous loop dashboard entry with current state."""
+        try:
+            from thinkbox.dashboard_state import get_dashboard_state, AutonomousLoopEntry
+
+            state = get_dashboard_state()
+            loop_id = ""
+            if self._loop_tracer is not None:
+                loop_id = self._loop_tracer.get_current_loop_id()
+                if not loop_id:
+                    return
+
+            metrics = self._loop_tracer.get_metrics() if self._loop_tracer else None
+            patterns_count = self._generalizer.get_pattern_count() if self._generalizer else 0
+            tuning_count = self._auto_tuner.get_decision_count() if self._auto_tuner else 0
+            bootstrapped = not self._loop_bootstrap.needs_bootstrap() if self._loop_bootstrap else False
+
+            entry = AutonomousLoopEntry(
+                loop_id=loop_id,
+                status="running",
+                current_session_id="",
+                iterations_count=metrics.total_iterations if metrics else 0,
+                patterns_identified=patterns_count,
+                tuning_decisions=tuning_count,
+                bootstrapped=bootstrapped,
+                components={
+                    "bootstrap": self._loop_bootstrap is not None,
+                    "experiment_manager": self._experiment_manager is not None,
+                    "decomposer": True,
+                    "execution": True,
+                    "feedback": self._experiment_analytics is not None,
+                    "opportunity": self._opportunity_manager is not None,
+                    "loop_tracer": self._loop_tracer is not None,
+                    "auto_tuner": self._auto_tuner is not None,
+                    "generalizer": self._generalizer is not None,
+                    "session_manager": self._session_manager is not None,
+                },
+            )
+            state.upsert_autonomous_loop(entry)
+        except Exception:
+            pass
+
     def _generalize_patterns(self) -> None:
         """Run cross-experiment generalization analysis (Observability -> Learning).
 
