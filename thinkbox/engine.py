@@ -66,6 +66,7 @@ class ThinkBoxEngine:
         self._loop_tracer: Any = None
         self._auto_tuner: Any = None
         self._generalizer: Any = None
+        self._session_manager: Any = None
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -126,7 +127,7 @@ class ThinkBoxEngine:
         """
         self._auto_tuner = tuner
 
-    def set_generalizer(self, generalizer: Any | None) -> None:
+    def set_generalizer(self, generalizer: Any | None) -> "ThinkBoxEngine":
         """Inject a CrossExperimentGeneralizer for pattern generalization (DI).
 
         When set, execute_goal() periodically analyzes cross-experiment
@@ -134,6 +135,16 @@ class ThinkBoxEngine:
         behavior is identical to legacy.
         """
         self._generalizer = generalizer
+        return self
+
+    def set_session_manager(self, manager: Any | None) -> None:
+        """Inject a LoopSessionManager for cross-cycle session management (DI).
+
+        When set, the engine can close the current session and start a new one,
+        enabling comparison of performance across loop cycles.
+        With no manager injected, behavior is identical to legacy.
+        """
+        self._session_manager = manager
 
     @property
     def events(self) -> list[TaskEvent]:
