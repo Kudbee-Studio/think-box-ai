@@ -17,8 +17,36 @@ from thinkbox.autonomous_loop_api_surface import (
     list_autonomous_loop_telemetry_payload,
 )
 
+# Allowed actions for autonomous loop control actions.
+ALLOWED_LOOP_ACTIONS = {"start", "stop", "run", "reset"}
+
+# Token requirement message used when governance token is absent.
+MISSING_TOKEN_DETAIL = "Missing governance token"
+
+
+def extract_governance_token(
+    authorization: str | None,
+    x_governance_token: str | None,
+) -> str:
+    """Extract a governance token from Authorization or X-Governance-Token headers.
+
+    Returns empty string when no token is present. This is a pure helper so it
+    can be verified hermetically without FastAPI installed.
+    """
+    if x_governance_token:
+        return x_governance_token.strip()
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return ""
+
+
+def validate_loop_action(action: str) -> bool:
+    """Return True when the action is one of the allowed loop actions."""
+    return action in ALLOWED_LOOP_ACTIONS
+
+
 try:
-    from fastapi import APIRouter, HTTPException, Query
+    from fastapi import APIRouter, HTTPException, Query, Header
 
     autonomous_loop_router = APIRouter(prefix="/api/v1/autonomous-loop", tags=["autonomous-loop"])
 
@@ -78,13 +106,23 @@ try:
         return get_autonomous_loop_session_summary_payload()
 
     @autonomous_loop_router.post("/loops/{loop_id}/actions/{action}")
-    async def post_loop_action(loop_id: str, action: str, payload: dict[str, Any] = {} ) -> dict[str, Any]:
+    async def post_loop_action(
+        loop_id: str,
+        action: str,
+        payload: dict[str, Any] = {},
+        authorization: str | None = Header(default=None),
+        x_governance_token: str | None = Header(default=None),
+    ) -> dict[str, Any]:
         """Record an action (start/stop/run/reset) on a loop.
         Returns the created LoopActionEntry payload.
+        Requires a governance token for side-effect protection.
         """
-        allowed = {"start", "stop", "run", "reset"}
+        allowed = ALLOWED_LOOP_ACTIONS
         if action not in allowed:
             raise HTTPException(status_code=400, detail=f"Invalid action '{action}'. Allowed: {allowed}")
+        token = extract_governance_token(authorization, x_governance_token)
+        if not token:
+            raise HTTPException(status_code=401, detail=MISSING_TOKEN_DETAIL)
         state = get_dashboard_state()
         entry = state.record_loop_action(loop_id, action, result=payload)
         return entry.model_dump()

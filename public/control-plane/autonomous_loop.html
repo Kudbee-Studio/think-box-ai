@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- UI panel for autonomous loop actions -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -97,16 +98,29 @@
       PR #246: Learning curve tracking, convergence history, and session lifecycle
       control plane.
       <!-- gate marker: autonomous-loop-learning-curve-sessions -->
+      <!-- gate marker: autonomous-loop-actions-ui -->
       <!-- api marker: /api/v1/autonomous-loop/status -->
       <!-- api marker: /api/v1/autonomous-loop/loops -->
       <!-- api marker: /api/v1/autonomous-loop/telemetry -->
       <!-- api marker: /api/v1/autonomous-loop/sessions -->
       <!-- api marker: /api/v1/autonomous-loop/sessions/summary -->
+      <!-- api marker: /api/v1/autonomous-loop/loops/{loop_id}/actions -->
+      <!-- api marker: /api/v1/autonomous-loop/actions -->
 
     <div class="al-toolbar">
       <button id="btnRefresh">Refresh</button>
       <button id="btnTogglePolling">Auto-refresh (5s): <span id="pollStatus">ON</span></button>
       <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); margin-left: auto;" id="lastUpdated">—</span>
+    </div>
+
+    <div class="al-toolbar" id="actionControls" style="display: none;">
+      <span style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary);">Loop Actions:</span>
+      <button id="btnActionStart" data-action="start">Start</button>
+      <button id="btnActionStop" data-action="stop">Stop</button>
+      <button id="btnActionRun" data-action="run">Run</button>
+      <button id="btnActionReset" data-action="reset">Reset</button>
+      <input type="password" id="governanceTokenInput" placeholder="Governance token" style="font-family: var(--font-mono); font-size: var(--text-xs); padding: 0.25rem 0.5rem; width: 200px;">
+      <span id="actionStatus" style="font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary);"></span>
     </div>
 
     <div class="al-grid">
@@ -200,6 +214,13 @@
         <div class="al-label">Raw Telemetry &amp; State Payload</div>
         <pre class="al-json" id="jsonPayload">{ "status": "No loop selected" }</pre>
       </div>
+    </div>
+
+    <div class="al-panel" style="margin-top: var(--space-4);">
+      <div class="al-label">Recent Loop Actions</div>
+      <ul class="al-list" id="actionList" style="max-height: 320px;">
+        <li style="color: var(--color-text-tertiary); cursor: default;">No actions recorded</li>
+      </ul>
     </div>
 
     <div class="al-panel" style="margin-top: var(--space-4);">

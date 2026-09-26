@@ -1441,3 +1441,48 @@ python3 -m unittest tests.unit.test_control_plane_etag_store \
 
 **Status:** Draft PR opened.
 
+## PR #249 — Autonomous Loop Actions UI panel (draft)
+
+**Branch:** `feat/pr249-autonomous-loop-actions-ui`
+
+**Scope:** UI panel in `autonomous_loop.html` to display recent actions per loop, plus
+action controls to trigger `start/stop/run/reset` with a governance token, wired to the
+`/api/v1/autonomous-loop/loops/{loop_id}/actions` endpoints.
+
+### What changed
+
+| Layer | File | Change |
+|-------|------|--------|
+| UI | `public/control-plane/autonomous_loop.html` | `Recent Loop Actions` panel (`#actionList`); hidden action toolbar (`#actionControls`) with Start/Stop/Run/Reset buttons, `#governanceTokenInput` password field, `#actionStatus` line; actions gate + API markers |
+| UI | `public/control-plane/autonomous_loop_client.js` | `fetchLoopActions`, `fetchAllActions`, `postLoopAction`, `renderActionList`, `showActionStatus`, `sendLoopAction`; actions fetched in `refreshSelectedDetail()`; buttons wired in `setupControls()`; all helpers exported on `window.TBAutonomousLoopClient` |
+| API | `backend/api/v1/autonomous_loop.py` | Governance token gate on `POST /loops/{loop_id}/actions/{action}` (401 when absent); pure helpers `extract_governance_token()` and `validate_loop_action()` extracted so the gate is testable without FastAPI |
+| Docs | `docs/guides/autonomous_loop_actions.md` | Token requirement section, control-plane UI panel section, client API table, testing notes |
+| Tests | `tests/unit/test_autonomous_loop_action_api.py` (**new**) | Token extraction (header / Bearer / precedence / whitespace / absent), action validation, state persistence, module surface — hermetic, no FastAPI |
+| Tests | `tests/unit/test_autonomous_loop_ui_static.py` | Asserts action panel, controls, buttons, token input, API markers in HTML; action helpers + `X-Governance-Token` in JS |
+
+### Safety
+
+Fail-closed in the browser: clicking an action with no loop selected, or with an empty
+token, sets a status message and sends **no** request — so no unauthenticated side
+effect can leave the UI. Server side, the endpoint rejects tokenless requests with 401.
+
+### Verify
+
+```bash
+node --check public/control-plane/autonomous_loop_client.js
+python3 -m unittest \
+  tests.unit.test_autonomous_loop_action_api \
+  tests.unit.test_autonomous_loop_ui_static \
+  tests.unit.autonomous_loop.test_control_actions \
+  tests.unit.test_autonomous_loop_api \
+  tests.unit.test_autonomous_loop_session_api \
+  tests.unit.test_autonomous_loop_telemetry \
+  tests.unit.test_autonomous_loop_dashboard \
+  tests.unit.test_autonomous_loop_learning_curve -v
+```
+
+Autonomous-loop suite: **82 OK** (was 63; +19 new).
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (no live backend
+exercised; UI and token gate verified hermetically only).
+

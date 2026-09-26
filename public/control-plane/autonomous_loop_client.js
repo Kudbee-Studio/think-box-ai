@@ -85,6 +85,108 @@
     } catch (e) {
       return null;
     }
+  }
+
+  async function fetchLoopActions(loopId) {
+    if (!loopId) return [];
+    try {
+      const res = await fetch(`/api/v1/autonomous-loop/loops/${encodeURIComponent(loopId)}/actions`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function fetchAllActions() {
+    try {
+      const res = await fetch("/api/v1/autonomous-loop/actions");
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function postLoopAction(loopId, action, payload, token) {
+    if (!loopId) return null;
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["X-Governance-Token"] = token;
+    }
+    try {
+      const res = await fetch(`/api/v1/autonomous-loop/loops/${encodeURIComponent(loopId)}/actions/${encodeURIComponent(action)}`, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(payload || {}),
+      });
+      if (!res.ok) {
+        const err = await res.text().catch(function() { return ""; });
+        return { ok: false, status: res.status, error: err };
+      }
+      return { ok: true, data: await res.json() };
+    } catch (e) {
+      return { ok: false, status: 0, error: String(e) };
+    }
+  }
+
+  function renderActionList(actions) {
+    const listEl = document.getElementById("actionList");
+    if (!listEl) return;
+    if (!actions || actions.length === 0) {
+      listEl.innerHTML = '<li style="color: var(--color-text-tertiary); cursor: default;">No actions recorded</li>';
+      return;
+    }
+    listEl.innerHTML = "";
+    actions.slice(0, 10).forEach(function(act) {
+      const li = document.createElement("li");
+      li.style.display = "flex";
+      li.style.justifyContent = "space-between";
+      li.style.alignItems = "center";
+
+      const info = document.createElement("div");
+      info.style.fontFamily = "var(--font-mono)";
+      info.style.fontSize = "var(--text-sm)";
+      const nameSpan = document.createElement("span");
+      nameSpan.style.fontWeight = "bold";
+      nameSpan.textContent = act.action;
+      const tsSpan = document.createElement("span");
+      tsSpan.style.display = "block";
+      tsSpan.style.fontSize = "var(--text-xs)";
+      tsSpan.style.color = "var(--color-text-tertiary)";
+      tsSpan.textContent = new Date(act.timestamp).toLocaleTimeString();
+      const idSpan = document.createElement("span");
+      idSpan.style.display = "block";
+      idSpan.style.fontSize = "var(--text-xs)";
+      idSpan.style.color = "var(--color-text-tertiary)";
+      idSpan.textContent = act.action_id;
+      info.appendChild(nameSpan);
+      info.appendChild(tsSpan);
+      info.appendChild(idSpan);
+
+      const badge = document.createElement("span");
+      badge.className = "al-badge";
+      badge.style.background = "#142e20";
+      badge.style.borderColor = "#276749";
+      badge.style.color = "var(--color-success)";
+      badge.textContent = "recorded";
+
+      li.appendChild(info);
+      li.appendChild(badge);
+      listEl.appendChild(li);
+    });
+  }
+
+  function showActionStatus(message, isError) {
+    const el = document.getElementById("actionStatus");
+    if (!el) return;
+    el.textContent = message || "";
+    if (isError) {
+      el.style.color = "var(--color-warning)";
+    } else {
+      el.style.color = "var(--color-success)";
+    }
+  }
 
   function renderStatusOverview(statusData) {
     if (!statusData) {
@@ -293,6 +395,7 @@
     const telThroughput = document.getElementById("telThroughput");
     const telAvgCycle = document.getElementById("telAvgCycle");
     const telConvergence = document.getElementById("telConvergence");
+    const actionControlsEl = document.getElementById("actionControls");
 
     if (!loopData) {
       headerEl.textContent = "Select a loop from the list";
@@ -301,6 +404,9 @@
       telAvgCycle.textContent = "—";
       telConvergence.textContent = "—";
       jsonEl.textContent = '{ "status": "No loop selected" }';
+      if (actionControlsEl) {
+        actionControlsEl.style.display = "none";
+      }
       return;
     }
 
@@ -324,6 +430,10 @@
     renderLearningCurve(tel);
     renderConvergenceHistory(tel);
 
+    if (actionControlsEl) {
+      actionControlsEl.style.display = "flex";
+    }
+
     jsonEl.textContent = JSON.stringify({
       loop: loopData,
       telemetry: tel
@@ -333,13 +443,17 @@
   async function refreshSelectedDetail() {
     if (!selectedLoopId) {
       renderSelectedLoop(null, null);
+      renderActionList([]);
+      showActionStatus("", false);
       return;
     }
-    const [detail, telemetry] = await Promise.all([
+    const [detail, telemetry, actions] = await Promise.all([
       fetchLoopDetail(selectedLoopId),
-      fetchLoopTelemetry(selectedLoopId)
+      fetchLoopTelemetry(selectedLoopId),
+      fetchLoopActions(selectedLoopId)
     ]);
     renderSelectedLoop(detail, telemetry);
+    renderActionList(actions);
   }
 
   async function refreshAll() {
@@ -377,6 +491,46 @@
         }
       });
     }
+
+    ["btnActionStart", "btnActionStop", "btnActionRun", "btnActionReset"].forEach(function(btnId) {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.addEventListener("click", function() {
+          const action = btn.getAttribute("data-action");
+          sendLoopAction(action);
+        });
+      }
+    });
+  }
+
+  async function sendLoopAction(action) {
+    if (!selectedLoopId) {
+      showActionStatus("Select a loop first", true);
+      return;
+    }
+    const tokenEl = document.getElementById("governanceTokenInput");
+    const token = tokenEl ? tokenEl.value || null : null;
+    if (!token) {
+      showActionStatus("Governance token required", true);
+      return;
+    }
+    const btnEl = document.querySelector('[data-action="' + action + '"]');
+    if (btnEl) {
+      btnEl.disabled = true;
+    }
+    showActionStatus("Sending " + action + "...", false);
+    const result = await postLoopAction(selectedLoopId, action, {}, token);
+    if (result && result.ok) {
+      showActionStatus(action + " sent", false);
+      const actions = await fetchLoopActions(selectedLoopId);
+      renderActionList(actions);
+    } else {
+      const detail = (result && result.error) ? result.error : "unknown error";
+      showActionStatus(action + " failed: " + detail, true);
+    }
+    if (btnEl) {
+      btnEl.disabled = false;
+    }
   }
 
   function startPolling() {
@@ -410,6 +564,14 @@
       renderSessions,
       fetchSessions,
       fetchSessionSummary,
+      fetchLoopActions,
+      fetchAllActions,
+      postLoopAction,
+      renderActionList,
+      showActionStatus,
+      renderSelectedLoop,
+      refreshSelectedDetail,
+      sendLoopAction,
       ALL_COMPONENTS
     };
   }
