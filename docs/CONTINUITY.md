@@ -3096,6 +3096,32 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only; no live backend exercised).
 - **STATUS:** Draft.
 
+### 2026-09-26 — PR #251 follow-up commits (same PR)
+
+- **GAP CLOSED (hydration):** durable receipts were not *observable*. After a
+  restart the in-memory dict was empty, so the API and the #249 panel reported
+  "no actions recorded" while receipts sat safely on disk.
+- **CORE:** `LoopActionStore.all_receipts(limit=None)` (oldest-first read path) and
+  `DashboardState.hydrate_loop_actions_from_store()` — replays receipts into
+  `loop_actions`, restores `last_action`, idempotent via `action_id` matching,
+  returns count restored. Storage read/write fail soft.
+- **CONFIG:** `THINKBOX_LOOP_ACTION_DB` — unset → default durable path;
+  off/0/false/none/disabled → disabled (returns `None` so callers can distinguish
+  'disabled' from 'use the default'); `:memory:` → ephemeral; else that path.
+- **WIRING:** `attach_durable_loop_actions(state, path, hydrate=True)` →
+  `(store, restored)` opens + attaches + recovers in one call;
+  `maybe_attach_loop_action_store(state, env)` honours the config and returns None
+  when disabled rather than silently creating an audit trail. Startup call site
+  remains explicit (one line now) — auto-wiring still tracked as future work.
+- **UI:** `Action Audit Chain (durable)` strip with four distinct states — OFFLINE,
+  NOT ATTACHED, VALID, TAMPERED — via `/actions/integrity`, refreshed each poll
+  cycle. Inline warning styles reset on recovery. Verified by 16 Node runtime
+  assertions against the real client file (skipped cleanly when node absent).
+- **TESTS:** store/config/hydration suite **52 OK**; integrity UI **6 OK**;
+  autonomous-loop total **140 OK**. Verified no test writes the default
+  `data/thinkboxmd/db/loop_actions.db`.
+- **FOUR-STATE:** unchanged — CODE COMPLETE / TEST VERIFIED, `live_verified: false`.
+
 ### 2026-09-26 — GitHub PR #251: Autonomous Loop Durable Action Receipts (draft)
 
 - **BRANCH:** `feat/pr251-autonomous-loop-action-receipts`

@@ -1549,6 +1549,42 @@ python3 -m unittest \
 
 Autonomous-loop suite: **116 OK** (was 82; +34 new).
 
+### Follow-up commits (same PR)
+
+Durability was only half usable: receipts survived restart but the in-memory state
+feeding the API and the #249 panel came back empty. Three follow-ups close that.
+
+**1. Hydration — receipts become visible again**
+- `LoopActionStore.all_receipts(limit=None)`: oldest-first read path.
+- `DashboardState.hydrate_loop_actions_from_store()`: replays receipts into
+  `loop_actions`, restores each loop's `last_action`. Idempotent (matched on
+  `action_id`, so repeated calls never duplicate). Returns count restored.
+- Storage read/write both fail soft — corrupt store logged, reported as 0, never
+  breaks control flow.
+
+**2. Configurable durability + one-call wiring**
+- `THINKBOX_LOOP_ACTION_DB`: unset → default durable path; `off`/`0`/`false`/`none`/
+  `disabled` → disabled (`None`, distinguishable from "use default"); `:memory:` →
+  ephemeral; otherwise that path.
+- `attach_durable_loop_actions(state, path, hydrate=True)` → `(store, restored)`:
+  open + attach + recover in one line.
+- `maybe_attach_loop_action_store(state, env)` honours that config; returns `None`
+  when disabled rather than silently creating an audit trail.
+
+**3. UI integrity indicator**
+- `Action Audit Chain (durable)` strip on the autonomous loop page with four
+  distinct states: `OFFLINE`, `NOT ATTACHED`, `VALID`, `TAMPERED`.
+- `fetchActionIntegrity()` / `renderActionIntegrity()`, refreshed every poll cycle
+  and when no loop is selected. Inline warning styles reset on recovery so the
+  badge cannot stay stuck red.
+- `tests/unit/test_autonomous_loop_integrity_ui.py` + Node fixture
+  `tests/js/autonomous_loop_client_integrity.test.js` (16 runtime assertions).
+  The runtime half skips cleanly when `node` is unavailable.
+
+Autonomous-loop suite after follow-ups: **140 OK** (52 store/config/hydration +
+6 integrity UI + the pre-existing 82). Verified no test writes the default
+`data/thinkboxmd/db/loop_actions.db`. `node --check` clean.
+
 **Four-State:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only;
 no live backend and no live restart of a running server exercised — "restart survival"
 is proven by reopening the SQLite file in a fresh store instance).
