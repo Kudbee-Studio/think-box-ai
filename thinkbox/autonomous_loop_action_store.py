@@ -20,8 +20,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -282,6 +284,79 @@ class LoopActionStore:
 def default_loop_action_db_path() -> Path:
     """Return the default SQLite path for durable loop action receipts."""
     return Path("data/thinkboxmd/db/loop_actions.db")
+
+
+LOOP_ACTION_DB_ENV = "THINKBOX_LOOP_ACTION_DB"
+
+_DISABLED_VALUES = {"off", "0", "false", "none", "disabled"}
+
+
+def resolve_loop_action_db_path(env: Mapping[str, str] | None = None) -> str | None:
+    """Resolve the loop action DB path from configuration.
+
+    Reads ``THINKBOX_LOOP_ACTION_DB``:
+      * unset/empty        -> the default durable path
+      * off/0/false/none   -> ``None`` (durability explicitly disabled)
+      * ``:memory:``       -> in-memory (ephemeral, for tests)
+      * anything else      -> that filesystem path
+
+    Returning ``None`` for the disabled case is deliberate: callers must be able
+    to distinguish "disabled" from "use the default".
+    """
+    source = os.environ if env is None else env
+    raw = (source.get(LOOP_ACTION_DB_ENV) or "").strip()
+    if not raw:
+        return str(default_loop_action_db_path())
+    if raw.lower() in _DISABLED_VALUES:
+        return None
+    return raw
+
+
+def attach_durable_loop_actions(
+    state: Any,
+    db_path: str | Path | None = None,
+    *,
+    hydrate: bool = True,
+) -> tuple[Any, int]:
+    """Attach a durable loop action store to dashboard state and recover history.
+
+    Convenience wrapper for startup wiring: it opens the store, attaches it so
+    future ``record_loop_action`` calls persist, and by default replays existing
+    receipts back into memory so history recorded before a restart is visible.
+
+    Returns ``(store, restored_count)``. Raises nothing for storage problems on
+    hydration (handled internally and reported as a count of 0).
+    """
+    target = db_path if db_path is not None else default_loop_action_db_path()
+    store = open_loop_action_store(target)
+    state.set_loop_action_store(store)
+    restored = state.hydrate_loop_actions_from_store() if hydrate else 0
+    return store, restored
+
+
+def maybe_attach_loop_action_store(
+    state: Any,
+    env: Mapping[str, str] | None = None,
+    *,
+    hydrate: bool = True,
+) -> Any:
+    """Attach a durable store only when durability is enabled by configuration.
+
+    Honours :func:`resolve_loop_action_db_path`. Returns the attached store, or
+    ``None`` when ``THINKBOX_LOOP_ACTION_DB`` disables durability — letting the
+    caller continue without an audit trail rather than silently creating one.
+    """
+    resolved = resolve_loop_action_db_path(env)
+    if resolved is None:
+        logger.info("Loop action durability disabled via %s", LOOP_ACTION_DB_ENV)
+        return None
+    store, restored = attach_durable_loop_actions(state, resolved, hydrate=hydrate)
+    logger.info(
+        "Loop action durability enabled at %s (%d action(s) recovered)",
+        resolved,
+        restored,
+    )
+    return store
 
 
 def open_loop_action_store(db_path: str | Path | None = None) -> LoopActionStore:

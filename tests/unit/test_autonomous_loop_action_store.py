@@ -28,10 +28,14 @@ from typing import Any
 
 from thinkbox.autonomous_loop_action_store import (
     GENESIS_HASH,
+    LOOP_ACTION_DB_ENV,
     LoopActionReceipt,
     LoopActionStore,
+    attach_durable_loop_actions,
     default_loop_action_db_path,
+    maybe_attach_loop_action_store,
     open_loop_action_store,
+    resolve_loop_action_db_path,
 )
 from thinkbox.dashboard_state import (
     AutonomousLoopEntry,
@@ -469,6 +473,87 @@ class TestLoopActionHydration(unittest.TestCase, _TempDbMixin):
         self.state.set_loop_action_store(BrokenStore())
         self.assertEqual(self.state.hydrate_loop_actions_from_store(), 0)
         self.assertEqual(self.state.get_loop_actions("loopA"), [])
+
+
+class TestDurabilityConfiguration(unittest.TestCase, _TempDbMixin):
+    """Env-driven enable/disable + one-call startup wiring."""
+
+    def setUp(self) -> None:
+        _reset_dashboard()
+
+    def tearDown(self) -> None:
+        _reset_dashboard()
+
+    def test_resolve_unset_returns_default_path(self) -> None:
+        self.assertEqual(resolve_loop_action_db_path({}), str(default_loop_action_db_path()))
+
+    def test_resolve_disabled_values_return_none(self) -> None:
+        for raw in ("off", "0", "false", "none", "disabled", "OFF", " Off "):
+            with self.subTest(raw=raw):
+                self.assertIsNone(resolve_loop_action_db_path({LOOP_ACTION_DB_ENV: raw}))
+
+    def test_resolve_memory(self) -> None:
+        self.assertEqual(resolve_loop_action_db_path({LOOP_ACTION_DB_ENV: ":memory:"}), ":memory:")
+
+    def test_resolve_explicit_path(self) -> None:
+        self.assertEqual(resolve_loop_action_db_path({LOOP_ACTION_DB_ENV: "/tmp/x.db"}), "/tmp/x.db")
+
+    def test_maybe_attach_disabled_returns_none(self) -> None:
+        state = DashboardState()
+        store = maybe_attach_loop_action_store(state, {LOOP_ACTION_DB_ENV: "off"})
+        self.assertIsNone(store)
+        self.assertIsNone(state.get_loop_action_store())
+
+    def test_maybe_attach_enabled_attaches_store(self) -> None:
+        path = self.make_path()
+        state = DashboardState()
+        store = maybe_attach_loop_action_store(state, {LOOP_ACTION_DB_ENV: path})
+        self.assertIsNotNone(store)
+        self.assertIs(state.get_loop_action_store(), store)
+        store.close()
+
+    def test_attach_recovers_history_in_one_call(self) -> None:
+        path = self.make_path()
+        first = DashboardState()
+        first_store, first_restored = attach_durable_loop_actions(first, path)
+        self.assertEqual(first_restored, 0)
+        first.record_loop_action("loopA", "start")
+        first.record_loop_action("loopA", "run")
+        first_store.close()
+
+        _reset_dashboard()
+        restarted = DashboardState()
+        store, restored = attach_durable_loop_actions(restarted, path)
+        self.assertEqual(restored, 2)
+        self.assertEqual(
+            [a.action for a in restarted.get_loop_actions("loopA")], ["start", "run"]
+        )
+        self.assertEqual(restarted.autonomous_loops["loopA"].last_action, "run")
+        store.close()
+
+    def test_attach_without_hydration_skips_recovery(self) -> None:
+        path = self.make_path()
+        first = DashboardState()
+        first_store, _ = attach_durable_loop_actions(first, path)
+        first.record_loop_action("loopA", "start")
+        first_store.close()
+
+        _reset_dashboard()
+        restarted = DashboardState()
+        store, restored = attach_durable_loop_actions(restarted, path, hydrate=False)
+        self.assertEqual(restored, 0)
+        self.assertEqual(restarted.get_loop_actions("loopA"), [])
+        self.assertEqual(store.count(), 1)
+        store.close()
+
+    def test_actions_recorded_after_attach_are_persisted(self) -> None:
+        path = self.make_path()
+        state = DashboardState()
+        store, _ = attach_durable_loop_actions(state, path)
+        state.record_loop_action("loopA", "start")
+        self.assertEqual(store.count(), 1)
+        self.assertTrue(store.verify())
+        store.close()
 
 
 class TestIntegrityPayload(unittest.TestCase):
