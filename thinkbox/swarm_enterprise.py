@@ -64,6 +64,7 @@ class ExecutionMetrics:
     error_type: Optional[str] = None
     retry_count: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    output: Optional[str] = None  # Model output or task result
 
 
 @dataclass
