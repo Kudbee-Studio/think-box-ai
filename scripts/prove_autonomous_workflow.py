@@ -107,14 +107,20 @@ async def test_autonomous_loop():
         await client.close()
 
         # Step 3: Act (persist decision)
-        memory.write_session(
-            session_id="autonomous_proof_001",
-            data={
+        from core.memory.schema import MemoryEntry, MemoryLayer, MemoryEntryType
+
+        memory.put(MemoryEntry(
+            key="autonomous_proof_001_session",
+            layer=MemoryLayer.SESSION,
+            entry_type=MemoryEntryType.REASONING_STEP,
+            value={
                 "observation": observation,
                 "decision": decision,
                 "timestamp": datetime.now().isoformat()
-            }
-        )
+            },
+            agent_id="autonomous_proof",
+            task_id="loop_test"
+        ))
         print(f"  3️⃣  Act: persisted to memory")
 
         # Step 4: Learn (extract lesson)
@@ -124,11 +130,14 @@ async def test_autonomous_loop():
             "outcome": "success",
             "confidence": 0.95
         }
-        memory.write_organizational(
+        memory.put(MemoryEntry(
+            key="autonomous_proof_001_lesson",
+            layer=MemoryLayer.ORGANIZATIONAL,
+            entry_type=MemoryEntryType.PATTERN,
+            value=lesson,
             agent_id="autonomous_proof",
-            task_id="loop_test",
-            data=lesson
-        )
+            task_id="loop_test"
+        ))
         print(f"  4️⃣  Learn: {lesson}")
 
         print("✅ Autonomous loop: complete cycle")
@@ -143,15 +152,16 @@ async def test_autonomous_loop():
 
 async def test_dashboard_state():
     """Test dashboard state tracking."""
-    from thinkbox.dashboard_state import DashboardState
+    from thinkbox.dashboard_state import DashboardState, DashboardCategory, DashboardEvent
 
     try:
         state = DashboardState()
 
-        # Emit an event
-        state.emit_event(
-            category="AUTONOMOUS_LOOP",
-            event_type="LOOP_STARTED",
+        # Emit an event (async method, but we'll call it directly in this sync context)
+        # In production this would be awaited, but for proof script we test the API exists
+        await state.emit(
+            category=DashboardCategory.AUTONOMOUS_LOOP,
+            event_type=DashboardEvent.LOOP_STARTED,
             data={"loop_id": "proof_001", "timestamp": datetime.now().isoformat()},
             evidence_label="verified"
         )
@@ -175,6 +185,8 @@ async def main():
         "autonomous_loop": await test_autonomous_loop(),
         "dashboard": await test_dashboard_state(),
     }
+
+    return results
 
     print("\n" + "=" * 60)
     print("SUMMARY")
