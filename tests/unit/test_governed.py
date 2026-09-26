@@ -42,15 +42,32 @@ class TestGovernedEngine(unittest.TestCase):
         self.assertIn("invalid", result["reason"])
         self.engine.execute_goal.assert_not_called()
 
-    def test_execute_goal_without_gate_defers_to_base(self):
+    def test_execute_goal_without_token_is_denied_and_ledgered(self):
         self.engine.execute_goal = AsyncMock(return_value={"completed": 1})
         import asyncio
 
         loop = asyncio.new_event_loop()
         result = loop.run_until_complete(self.governed.execute_goal("test"))
         loop.close()
-        self.assertIn("completed", result)
-        self.assertEqual(result["governed"], True)
+        self.assertEqual(result["governed"], False)
+        self.assertEqual(result["reason"], "missing_governance_token")
+        self.engine.execute_goal.assert_not_called()
+        entries = self.governed.ledger.entries()
+        self.assertEqual(len(entries), 1)
+        self.assertFalse(entries[0]["allowed"])
+        self.assertEqual(entries[0]["reason"], "missing_governance_token")
+        self.assertTrue(self.governed.ledger.verify())
+
+    def test_execute_verified_goal_without_token_is_denied(self):
+        import asyncio
+
+        complete = AsyncMock(return_value='{"answer": 1}')
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(self.governed.execute_verified_goal("g", [], complete))
+        loop.close()
+        self.assertEqual(result["governed"], False)
+        self.assertEqual(result["reason"], "missing_governance_token")
+        complete.assert_not_called()
 
     def test_execute_goal_with_valid_token_runs(self):
         token = self.governed.register_agent("a1", ["goal:execute"])

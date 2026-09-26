@@ -7,6 +7,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from thinkbox.concurrent_goals import (
     BudgetContentionPolicy,
@@ -17,7 +18,7 @@ from thinkbox.concurrent_goals import (
 )
 from thinkbox.engine import EngineConfig, ThinkBoxEngine
 from thinkbox.model_client import ModelConfig
-from thinkbox.session import create_session, get_session_sync
+from thinkbox.session import create_session
 
 from backend.audit_storage import list_audits, list_sessions
 from thinkbox.cli_dashboard import dashboard_status_report
@@ -39,6 +40,7 @@ from thinkbox.cli_live_gate import require_swarm_live_authorization
 from thinkbox.cli_persist import (
     SQLiteIdentityStore,
     SQLiteTraceStore,
+    default_db_dir,
     init_persist_files,
     persist_paths_report,
     resolve_identity_db_path,
@@ -62,36 +64,102 @@ def _emit(payload: dict, args: argparse.Namespace, title: str) -> None:
         print(format_human(payload, title))
 
 
-def cmd_run(args: argparse.Namespace) -> int:
-    session = create_session()
-    sync = get_session_sync()
-
-    config = EngineConfig(
-        model_config=ModelConfig(
-            model=args.model or "llama3.1:8b",
-            temperature=args.temperature or 0.1,
-        ),
-        speculative=not args.no_speculation,
+def _model_config_from_args(args: argparse.Namespace, **extra: Any) -> ModelConfig:
+    """Resolve provider/model from env (``THINKBOX_*``) with CLI flags winning."""
+    return ModelConfig.from_env(
+        api_type=getattr(args, "provider", None),
+        model=getattr(args, "model", None),
+        base_url=getattr(args, "base_url", None),
+        temperature=getattr(args, "temperature", None),
+        max_tokens=getattr(args, "max_tokens", None),
+        **extra,
     )
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    """Run a goal through the governed engine and print real model output."""
+    from thinkbox.governed import GovernedEngine, GovernedEngineConfig
+
+    try:
+        model_config = _model_config_from_args(args)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return CLI_EXIT_USAGE
+
+    session = create_session()
+    config = EngineConfig(model_config=model_config, speculative=not args.no_speculation)
     engine = ThinkBoxEngine(config)
+    ledger_path = Path(args.ledger) if args.ledger else default_db_dir() / "run_ledger.db"
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    governed = GovernedEngine(GovernedEngineConfig(engine=engine, ledger_path=str(ledger_path)))
+    agent_id = args.agent_id
+    token = governed.register_agent(agent_id, ["goal:execute"])
 
     print(f"ThinkBox Engine [{engine.engine_id}]")
-    print(f"Session: {session.session_id}")
-    print(f"Environment: {session.environment}")
-    print(f"Model Backend: {session.model_backend}")
-    print(f"Upstash Vector: {'connected' if sync.enabled else 'disabled'}")
-    print(f"Goal: {args.goal}")
+    print(f"Session:  {session.session_id}")
+    print(f"Provider: {model_config.api_type} @ {model_config.base_url}")
+    print(f"Model:    {model_config.model}")
+    print(f"Ledger:   {ledger_path}")
+    print(f"Goal:     {args.goal}")
     print("-" * 50)
 
-    async def run():
-        result = await engine.execute_goal(args.goal)
-        print("\n" + "=" * 50)
-        print("Execution Complete")
-        for key, value in result.items():
-            print(f"  {key}: {value}")
+    result = asyncio.run(governed.execute_goal(args.goal, token_value=token, agent_id=agent_id))
+    ledger_ok = governed.ledger.verify()
 
-    asyncio.run(run())
+    if args.json:
+        result["ledger_path"] = str(ledger_path)
+        result["ledger_verified"] = ledger_ok
+        print(json.dumps(result, indent=2, default=str))
+    else:
+        if result.get("governed") is False:
+            print(f"DENIED by governance: {result.get('reason')}")
+        for task in result.get("tasks", []):
+            mark = "OK  " if task["success"] else "FAIL"
+            print(f"[{mark}] {task['task_id']}: {task['description'][:80]}")
+            label = "output" if task["success"] else f"error ({task.get('error_type') or 'unknown'})"
+            print(f"  {label}: {task['output']}")
+        print("=" * 50)
+        print(f"tasks: {result.get('total_tasks', 0)}  ok: {result.get('successful', 0)}  "
+              f"failed: {result.get('failed', 0)}  time_ms: {result.get('total_time_ms', 0)}")
+        print(f"ledger verified: {ledger_ok}")
+
+    if result.get("governed") is False or result.get("failed", 0) or not result.get("successful", 0):
+        return CLI_EXIT_FAIL
     return CLI_EXIT_OK
+
+
+def cmd_model_check(args: argparse.Namespace) -> int:
+    """Make one real model call and report provider, latency and reply."""
+    import time as _time
+
+    from thinkbox.model_client import AsyncModelClient, ModelCallError
+
+    try:
+        model_config = _model_config_from_args(args)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return CLI_EXIT_USAGE
+    client = AsyncModelClient(model_config)
+    print(f"Provider: {model_config.api_type} @ {model_config.base_url}")
+    print(f"Model:    {model_config.model}")
+    print(f"API key:  {'set' if model_config.api_key else 'not set'}")
+    t0 = _time.monotonic()
+    try:
+        reply = asyncio.run(client.generate("Reply with exactly: OK", max_tokens=model_config.max_tokens))
+    except ModelCallError as exc:
+        print(f"FAIL ({_time.monotonic() - t0:.2f}s): {exc}")
+        return CLI_EXIT_FAIL
+    print(f"OK   ({_time.monotonic() - t0:.2f}s): {reply.strip()[:200]}")
+    return CLI_EXIT_OK
+
+
+def _add_model_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--provider", choices=["ollama", "openai_compat", "inception"], default=None,
+                        help="Model provider (default: $THINKBOX_DEFAULT_PROVIDER or ollama)")
+    parser.add_argument("--model", default=None, help="Model name (default: $THINKBOX_DEFAULT_MODEL)")
+    parser.add_argument("--base-url", default=None, help="Provider base URL override")
+    parser.add_argument("--temperature", type=float, default=None, help="Temperature")
+    parser.add_argument("--max-tokens", type=int, default=None, help="Max completion tokens")
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -485,9 +553,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="Execute a goal")
     run_parser.add_argument("--goal", required=True, help="Goal string to execute")
-    run_parser.add_argument("--model", default="llama3.1:8b", help="Model name")
-    run_parser.add_argument("--temperature", type=float, default=0.1, help="Temperature")
+    _add_model_args(run_parser)
     run_parser.add_argument("--no-speculation", action="store_true", help="Disable speculative execution")
+    run_parser.add_argument("--agent-id", default="cli-operator", help="Agent id recorded in the ledger")
+    run_parser.add_argument("--ledger", default="", help="Ledger SQLite path (default: $THINKBOX_CLI_DB_DIR/run_ledger.db)")
+    run_parser.add_argument("--json", action="store_true", help="Print the full result as JSON")
+
+    model_parser = subparsers.add_parser("model", help="Model provider checks")
+    model_sub = model_parser.add_subparsers(dest="model_command", required=True)
+    model_check = model_sub.add_parser("check", help="Make one real call to the configured model")
+    _add_model_args(model_check)
 
     serve_parser = subparsers.add_parser("serve", help="Run the API server")
     serve_parser.add_argument("--host", default="0.0.0.0", help="Host")
@@ -627,6 +702,8 @@ def build_parser() -> argparse.ArgumentParser:
 def dispatch(args: argparse.Namespace) -> int:
     if args.command == "run":
         return cmd_run(args)
+    if args.command == "model":
+        return cmd_model_check(args)
     if args.command == "serve":
         return cmd_serve(args)
     if args.command == "benchmark":

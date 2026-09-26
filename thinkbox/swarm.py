@@ -8,13 +8,16 @@ altered prompt contexts, adopting the first that succeeds.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .model_client import AsyncModelClient, ModelConfig
+from .model_client import AsyncModelClient, ModelCallError
 from .session import get_current_session
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,6 +31,8 @@ class ExecutionResult:
     speculative: bool = False
     attempts: int = 1
     session_id: str = ""
+    error_type: str = ""
+    retryable: bool = True
 
 
 @dataclass
@@ -87,6 +92,8 @@ class AsyncWorkerPool:
                     output=str(e),
                     execution_time_ms=elapsed,
                     tokens_used=0,
+                    error_type=type(e).__name__,
+                    retryable=e.retryable if isinstance(e, ModelCallError) else True,
                 )
 
             self._results[task_id] = result
@@ -97,7 +104,7 @@ class AsyncWorkerPool:
                     else:
                         cb(result)
                 except Exception:
-                    pass
+                    logger.exception("result callback failed for task %s", task_id)
 
             return result
 
@@ -113,6 +120,8 @@ class AsyncWorkerPool:
             return SpeculativeResult(parent_task_id=task_id, attempts=[result], winner=result)
 
         speculative_result = SpeculativeResult(parent_task_id=task_id, attempts=[result])
+        if not result.retryable:
+            return speculative_result
 
         async def _speculative_attempt(attempt_id: int, modified_prompt: str) -> ExecutionResult:
             spec_id = f"{task_id}_spec_{attempt_id}"

@@ -1,4 +1,13 @@
-## Draft — GitHub PR #245 Autonomous decision loop: Control plane UI (in progress)
+## Draft — GitHub PR #252 Honest execution: real model path + governance no-token deny
+
+- **Branch:** `claude/repo-audit-e4801s`
+- **Why:** audit found `thinkbox run` reported `successful: 1` when the model was unreachable (error text returned as output), and `GovernedEngine.execute_goal` / `execute_verified_goal` executed with **no** token and wrote no ledger entry.
+- **Fixes:** `ModelCallError` (no error-as-output), Bearer auth + `/v1` URL fix + env provider selection (`ollama` / `openai_compat` / `inception`), no speculative retries on non-retryable errors; no-token = deny + ledger row; `thinkbox run` is governed, prints real output, exits non-zero on failure; `thinkbox model check`; `think_box_ai inception` no longer simulated; embedder defaults to a 1536-dim embedding model and rejects wrong dimensions.
+- **Proof:** `python3 scripts/prove_think_box_local.py` — 6/6 PASS against local Ollama `qwen2.5:1.5b` (random multiplication answered correctly, no-token + forged token denied, ledger verified, tamper detected). Guide: `docs/guides/local_think_box.md`.
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED; live model path verified with a **local** model only — Mercury-2, Upstash Vector, Upstash Box **not** live-verified (no credentials in the audit container).
+- **Verify:** `tests.unit.test_model_client_honest` **27 OK**; full suite: see PREP addendum.
+
+## GitHub PR #245 — Autonomous decision loop: Control plane UI (on main `9201a42`)
 
 - **Branch:** `feat/pr245-autonomous-loop-control-plane-ui`
 - **Scope:** Control plane UI (`public/control-plane/autonomous_loop.html`, `autonomous_loop_client.js`) + navigation integration + telemetry inspection

@@ -207,6 +207,14 @@ Do not ship code, tests, or a draft PR while `AGENTS.md` or the chronicle files 
 
 Founder-edited PR bodies stay untouched. Never commit `.thinkbox/`. Never claim LIVE VERIFIED from these docs.
 
+### 4.4 No Fake Success (Standing Rule)
+
+A failed model call, tool call, or network call is **never** returned as output
+or counted as success. Raise a typed error (e.g. `ModelCallError`), mark the task
+failed, and exit non-zero. No command prints "simulated" results as if they were
+real; if a capability needs credentials that are absent, say so and fail.
+Proof of a working Think Box = `python3 scripts/prove_think_box_local.py` exit 0.
+
 ---
 
 ## 5. Decision Recording Process
@@ -660,11 +668,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Autonomous decision loop: Dashboard state & tracking | **#242** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopEntry; merge `7f427f9` |
 | Autonomous decision loop: Telemetry & observability | **#243** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopTelemetry, rate-limited tick; merge `0d4a90c` |
 | Autonomous decision loop: Control plane REST API | **#244** (merged) | `backend/api/v1/autonomous_loop.py`, `thinkbox/autonomous_loop_api_surface.py` — status, loops, telemetry endpoints; merge `b466a6c` |
- | Autonomous decision loop: Control plane UI | **#245** (draft) | `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js` — real-time telemetry, convergence tracking, component inspection |
-| Autonomous decision loop: Learning curve + session lifecycle | **#246** (draft) | `thinkbox/engine.py` — learning_curve_points + convergence_history; `thinkbox/dashboard_state.py` — LoopSessionEntry; `backend/api/v1/autonomous_loop.py` — `/sessions` endpoints |
-| Autonomous decision loop: Control-plane loop management | **#247** (merged) | `thinkbox/dashboard_state.py` — LoopActionEntry; `backend/api/v1/autonomous_loop.py` — POST/GET `/actions` endpoints |
-| Autonomous decision loop: Action audit documentation | **#248** (draft) | Documentation and verification of LoopActionEntry, API endpoints, and UI integration |
-| Autonomous decision loop: Action UI panel | **#249** (draft) | UI panel displaying recent loop actions; integrates with action API — `public/control-plane/autonomous_loop.html` (`#actionList` panel + `#actionControls` toolbar with Start/Stop/Run/Reset, `#governanceTokenInput`, `#actionStatus`), `autonomous_loop_client.js` (`fetchLoopActions`/`postLoopAction`/`renderActionList`/`sendLoopAction`), governance-token gate on `POST /actions/{action}` in `backend/api/v1/autonomous_loop.py`; tests `tests/unit/test_autonomous_loop_action_api.py` |
+| Autonomous decision loop: Control plane UI | **#245** (on main `9201a42`) | `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js` — real-time telemetry, convergence tracking, component inspection |
+| Autonomous decision loop: Learning curve + session lifecycle | **#246** (on main `a085e8d`) | `thinkbox/engine.py` — learning_curve_points + convergence_history; `thinkbox/dashboard_state.py` — LoopSessionEntry; `backend/api/v1/autonomous_loop.py` — `/sessions` endpoints |
+| Autonomous decision loop: Control-plane loop management | **#247** (on main `8661b72`) | `thinkbox/dashboard_state.py` — LoopActionEntry; `backend/api/v1/autonomous_loop.py` — POST/GET `/actions` endpoints |
+| Autonomous decision loop: Action audit documentation | **#248** (on main `b128230`) | Documentation and verification of LoopActionEntry, API endpoints, and UI integration |
+| Autonomous decision loop: Action UI panel | **#249** (on main via GitHub #250, `02bbbc4`) | UI panel displaying recent loop actions; integrates with action API — `public/control-plane/autonomous_loop.html` (`#actionList` panel + `#actionControls` toolbar with Start/Stop/Run/Reset, `#governanceTokenInput`, `#actionStatus`), `autonomous_loop_client.js` (`fetchLoopActions`/`postLoopAction`/`renderActionList`/`sendLoopAction`), governance-token gate on `POST /actions/{action}` in `backend/api/v1/autonomous_loop.py`; tests `tests/unit/test_autonomous_loop_action_api.py` |
+| Honest execution: real model path + governance no-token deny | **#252** (draft) | `thinkbox/model_client.py` (`ModelCallError`, auth header, env providers), `thinkbox/governed.py` (`_admit`: no token = deny + ledger), `thinkbox/cli.py` (`run` prints output + governed ledger, `model check`), `think_box_ai/commands/inception.py` (no simulated output), `scripts/prove_think_box_local.py`, `docs/guides/local_think_box.md`; tests `tests/unit/test_model_client_honest.py` |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

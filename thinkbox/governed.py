@@ -64,12 +64,33 @@ class GovernedEngine:
         )
         return decision
 
+    def _admit(self, token_value: str, agent_id: str, capability: str, action: str) -> dict[str, Any] | None:
+        """Return a denial summary, or None when the call is admitted.
+
+        A missing token is a denial (AGENTS.md Phase 12: no token means
+        draft/simulate only, never execute) and is recorded in the ledger.
+        """
+        if not token_value:
+            reason = "missing_governance_token"
+            self._ledger.append(
+                agent_id=agent_id or "anonymous",
+                capability=capability,
+                action=action,
+                allowed=False,
+                reason=reason,
+            )
+        else:
+            decision = self.authorize(token_value, agent_id, capability, action)
+            if decision.allowed:
+                return None
+            reason = decision.reason
+        self._base.emit("root", TaskState.FAILED, f"Governance denied: {reason}")
+        return {"governed": False, "reason": reason, "events": len(self._base.events)}
+
     async def execute_goal(self, goal: str, token_value: str = "", agent_id: str = "", capability: str = "goal:execute") -> dict[str, Any]:
-        if token_value:
-            decision = self.authorize(token_value, agent_id, capability, "execute_goal")
-            if not decision.allowed:
-                self._base.emit("root", TaskState.FAILED, f"Governance denied: {decision.reason}")
-                return {"governed": False, "reason": decision.reason, "events": len(self._base.events)}
+        denied = self._admit(token_value, agent_id, capability, "execute_goal")
+        if denied is not None:
+            return denied
         summary = await self._base.execute_goal(goal)
         summary["governed"] = True
         return summary
@@ -258,11 +279,9 @@ class GovernedEngine:
             extract_json, retry_prompt_for, verify_v2,
         )
 
-        if token_value:
-            decision = self.authorize(token_value, agent_id, capability, "execute_verified_goal")
-            if not decision.allowed:
-                self._base.emit("root", TaskState.FAILED, f"Governance denied: {decision.reason}")
-                return {"governed": False, "reason": decision.reason, "events": len(self._base.events)}
+        denied = self._admit(token_value, agent_id, capability, "execute_verified_goal")
+        if denied is not None:
+            return denied
 
         now = datetime.now(timezone.utc)
         session_id = session_id_override or f"tb_sess_{now.strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:4]}"

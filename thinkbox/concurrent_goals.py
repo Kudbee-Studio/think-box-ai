@@ -569,14 +569,6 @@ class ConcurrentGoalsRunner:
             engine=ThinkBoxEngine(), ledger_path=ledger_path,
         ))
 
-    def cancel_all(self, reason: str = "cancelled") -> None:
-        """Cancel all running goals."""
-        self._cancelled = True
-        for goal_id, task in self._active_goals.items():
-            if not task.done():
-                task.cancel()
-            self._update_goal_status(spec.goal, GoalLifecycleState.CANCELLED, {"reason": reason})
-
     def shutdown(self, graceful: bool = True, timeout: float = 30.0) -> dict[str, Any]:
         """Graceful shutdown of all running goals."""
         results = {
@@ -656,10 +648,12 @@ class ConcurrentGoalsRunner:
             else:
                 session_for_goal = VerifiedRetrySession(spec.budget_config) if spec.budget_config else VerifiedRetrySession()
 
+            goal_token = eng.register_agent(agent_id, ["goal:execute"])
             result = await eng.execute_verified_goal(
                 goal=spec.goal,
                 subtasks=spec.subtasks,
                 complete_async=_counted_complete,
+                token_value=goal_token,
                 agent_id=agent_id,
                 session=session_for_goal,
                 manager=manager,

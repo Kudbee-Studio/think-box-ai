@@ -3,7 +3,7 @@
 **Date:** 2026-09-15
 **Discovered by:** `experiments/thinkboxmd_research.py` (THINKBOXMD-RESEARCH run)
 **Severity:** Medium — distributed/vector memory silently fails
-**Status:** Open
+**Status:** Fixed in code (fail-closed upsert + 1536-dim embedder check); **not live-verified** — no Upstash Vector credentials in the 2026-09-26 audit environment
 
 ## Summary
 
@@ -52,3 +52,17 @@ So even a corrected client has nothing to embed with today.
 
 Deliberately **not** implemented as part of the THINKBOXMD test — recorded here
 as the next integration boundary rather than fixed ad hoc.
+
+## Update — 2026-09-26 audit
+
+- `UpstashVectorSync.upsert()` now sends `vector`, raises `EmbeddingError` on
+  missing embedder / HTTP errors / network errors (no silent `False`), and is
+  covered by `tests.unit.test_session_tracker`.
+- Remaining gap fixed: `OpenAICompatEmbedder` defaulted its model to the chat
+  model (`THINKBOX_DEFAULT_MODEL`, e.g. `mercury-2`), which is not an embedding
+  model. Default is now `text-embedding-3-small` (1536-dim, matches the index)
+  and any vector whose dimension is not 1536 is rejected before upsert.
+- Live verification still required: set `UPSTASH_VECTOR_REST_URL`,
+  `UPSTASH_VECTOR_REST_TOKEN`, `THINKBOX_OPENAI_COMPAT_API_KEY` and
+  `THINKBOX_OPENAI_COMPAT_BASE_URL` for an embeddings-capable provider, then
+  upsert one session and read it back.

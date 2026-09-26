@@ -10,7 +10,9 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-if "fastapi" not in sys.modules:
+import importlib.util
+
+if importlib.util.find_spec("fastapi") is None and "fastapi" not in sys.modules:
     sys.modules["fastapi"] = MagicMock()
     sys.modules["fastapi.middleware"] = MagicMock()
     sys.modules["fastapi.middleware.cors"] = MagicMock()
@@ -114,11 +116,8 @@ class TestE2EEnginePipeline(unittest.TestCase):
 class TestAPIv1Router(unittest.TestCase):
     """Test the API v1 router endpoints."""
 
+    @unittest.skipIf(importlib.util.find_spec("fastapi") is None, "fastapi not installed")
     def test_router_imports(self):
-        import sys
-        from unittest.mock import MagicMock
-        sys.modules["fastapi"] = MagicMock()
-        sys.modules["pydantic"] = MagicMock()
         from backend.api.v1.router import api_v1_router
         self.assertIsNotNone(api_v1_router)
 
