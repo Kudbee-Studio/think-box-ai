@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-"""BIG SWARM — KUDBEE at scale, with a live compartment event stream.
+"""SCALE 1K — 1000-agent swarm test for baseline metrics.
 
-The "inventory / compartments" idea, implemented literally:
+Tests the full governance + execution stack with 1000 agents:
+- 800 primary workers (claim evaluation)
+- 200 validator workers (adversarial review)
+- Concurrency: 32
+- Measures: RPS, latency (p50/p95/max), success rate, ledger verification
 
-  * every worker is a Think Box  = one inventory slot
-  * every slot owns a capability = the "weapon" it can fire
-  * slots are loaded hot as the run scrolls, and released when done
-  * every fired slot writes a durable audit + trace + event
-
-The workload is a genuinely large problem: independently tier and adversarially
-verify a large batch of synthetic research claims, then reconcile consensus.
-Nothing here is clinical advice; every scenario is SYNTHETIC.
-
-Emits a live event stream to data/thinkboxmd/swarm_events.jsonl so the
-dashboard (experiments/swarm_dashboard.py) can render it while it runs.
+Expected baseline (from 256-agent run):
+- Throughput: 27.25 RPS × (1000/256) = ~106 RPS
+- Success rate: ≥90%
+- p95 latency: <3 seconds
+- Ledger verify: <500ms
 
 Usage:
-    python3 experiments/big_swarm.py --primary 224 --validators 32 --concurrency 32 --fresh-ledger
-    # 256 live calls = primary + validator wave. Use --fresh-ledger for per-run ledger cardinality.
+    python3 experiments/scale_1k.py --prove --concurrency 32
+    python3 experiments/scale_1k.py --concurrency 16 --fresh-ledger
 """
 
 from __future__ import annotations
@@ -41,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -59,7 +58,6 @@ from thinkbox.swarm_stats import (
     validate_reconciliation,
 )
 from thinkbox.flightrecorder import FlightRecorder, WorkerRecord
-from thinkbox.arena import ChallengeArena
 from thinkbox.memory_evolution import MemoryEvolution
 from thinkbox.reputation import ReputationLedger
 from thinkbox.experiments import ExperimentStore, price_tokens
@@ -70,17 +68,17 @@ URL = "https://api.inceptionlabs.ai/v1/chat/completions"
 MODEL = "mercury-2"
 OUT = ROOT / "data" / "thinkboxmd"
 DB = OUT / "db"
-EVENTS = OUT / "swarm_events.jsonl"
+SCALE_1K_EVENTS = OUT / "scale_1k_events.jsonl"
 
 TIERS = ["EVIDENCE", "INFERENCE", "HYPOTHESIS", "UNVERIFIED"]
 
 CLAIM_TEMPLATES = [
-    "Synthetic claim {i}: agent {a} and agent {b} share a metabolic pathway documented in public labeling.",
-    "Synthetic claim {i}: a peer-reviewed review reports an interaction signal between agent {a} and agent {b}.",
-    "Synthetic claim {i}: a clinical guideline advises caution when co-prescribing agent {a} with agent {b}.",
-    "Synthetic claim {i}: observational data suggest a risk signal for agent {a} plus agent {b} in reduced-renal profiles.",
-    "Synthetic claim {i}: two public sources disagree about the significance of the agent {a}/{b} interaction.",
-    "Synthetic claim {i}: a case series describes an adverse event pattern for agent {a} with agent {b}.",
+    "Scale claim {i}: agent {a} and agent {b} share a metabolic pathway documented in public labeling.",
+    "Scale claim {i}: a peer-reviewed review reports an interaction signal between agent {a} and agent {b}.",
+    "Scale claim {i}: a clinical guideline advises caution when co-prescribing agent {a} with agent {b}.",
+    "Scale claim {i}: observational data suggest a risk signal for agent {a} plus agent {b} in reduced-renal profiles.",
+    "Scale claim {i}: two public sources disagree about the significance of the agent {a}/{b} interaction.",
+    "Scale claim {i}: a case series describes an adverse event pattern for agent {a} with agent {b}.",
 ]
 
 AGENTS = ["Agent-A", "Agent-B", "Agent-C", "Agent-D", "Agent-E", "Agent-F", "Agent-G", "Agent-H"]
@@ -148,58 +146,52 @@ def validator_sample_primary(
     return primaries[:validator_n]
 
 
-class BigSwarm:
+class Scale1K:
     def __init__(
         self,
         primary: int,
         validators: int,
         concurrency: int,
-        arena: bool = False,
         fresh_ledger: bool = False,
+        prove: bool = False,
     ) -> None:
         OUT.mkdir(parents=True, exist_ok=True)
         DB.mkdir(parents=True, exist_ok=True)
         self.primary_n = primary
         self.validator_n = validators
         self.concurrency = concurrency
-        self.arena_on = arena
-        self.bus = EventBus(EVENTS)
+        self.prove = prove
+        self.bus = EventBus(SCALE_1K_EVENTS)
 
         self.registry = WorkspaceRegistry()
-        self.store = WorkspaceStore(DB / "workspaces.db")
+        self.store = WorkspaceStore(DB / "workspaces_1k.db")
         self.identities = IdentityLedger()
-        self.tokens = GovernanceTokenService(signing_key=f"big-swarm-{uuid.uuid4().hex[:8]}")
+        self.tokens = GovernanceTokenService(signing_key=f"scale-1k-{uuid.uuid4().hex[:8]}")
         self.gate = AdmissionGate(self.tokens, self.identities)
-        ledger_path = DB / "action_ledger.db"
+        ledger_path = DB / "action_ledger_1k.db"
         self.ledger, self._ledger_entries_at_start = open_action_ledger(
             ledger_path, fresh=fresh_ledger
         )
         self.traces = ThinkTraceCapture()
-        self.memory = MemoryStore(DB / "research_memory.db")
-        self.metrics = MetricsStore(DB / "metrics.db")
-        self.flight = FlightRecorder(DB / "flight_recorder.db")
-        self.memory_evo = MemoryEvolution(DB / "memory_evolution.db")
-        self.reputation = ReputationLedger(DB / "reputation.db")
-        self.experiments = ExperimentStore(DB / "experiments.db")
-        self.arena = ChallengeArena()
-        self.arena_probes = self.arena.build_probes(n_per_type=1) if arena else []
+        self.memory = MemoryStore(DB / "research_memory_1k.db")
+        self.metrics = MetricsStore(DB / "metrics_1k.db")
+        self.flight = FlightRecorder(DB / "flight_recorder_1k.db")
+        self.memory_evo = MemoryEvolution(DB / "memory_evolution_1k.db")
+        self.reputation = ReputationLedger(DB / "reputation_1k.db")
+        self.experiments = ExperimentStore(DB / "experiments_1k.db")
         self.prompt_version = "v2-instrumented"
         self.key = os.environ.get("INCEPTION_API_KEY", "")
         self.results: list[Compartment] = []
         self.reconciliation: dict[str, Any] = {}
         self.started = time.monotonic()
-
-        # Synchronization primitives for wave coordination
-        self._results_lock = threading.Lock()  # Protects self.results appends
-        self._primary_wave_complete = threading.Event()  # Signals when wave 1 finishes
-        self.session_id = f"swarm_sess_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        self.session_id = f"scale1k_sess_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         self.metrics.start_session(
-            self.session_id, kind="big_swarm", model=MODEL, concurrency=concurrency,
-            metadata={"primary": primary, "validators": validators, "synthetic": True},
+            self.session_id, kind="scale_1k", model=MODEL, concurrency=concurrency,
+            metadata={"primary": primary, "validators": validators, "scale_target": 1000},
         )
 
         self.bus.emit(event="run_start", session_id=self.session_id, primary=primary,
-                      validators=validators, concurrency=concurrency, model=MODEL)
+                      validators=validators, concurrency=concurrency, model=MODEL, scale_target=1000)
 
     # -- HTTP -------------------------------------------------------------
 
@@ -242,7 +234,7 @@ class BigSwarm:
             a, b = rng.sample(AGENTS, 2)
             claims.append(
                 {
-                    "claim_id": f"CLM-{i:04d}",
+                    "claim_id": f"SCALE1K-{i:05d}",
                     "text": tmpl.format(i=i, a=a, b=b),
                     "synthetic": "true",
                 }
@@ -260,7 +252,7 @@ class BigSwarm:
         system: str,
         user: str,
     ) -> Compartment:
-        wid = f"SWARM-{role}-{slot:04d}"
+        wid = f"SCALE1K-{role}-{slot:05d}"
         comp = Compartment(slot=slot, worker_id=wid, role=role, capability=capability,
                            claim_id=claim["claim_id"], claim=claim["text"])
 
@@ -279,7 +271,7 @@ class BigSwarm:
         if not decision.allowed:
             comp.status = "error"
             comp.error = f"admission_denied:{decision.reason}"
-            self.ledger.append(wid, capability, f"swarm:{role}", False, decision.reason,
+            self.ledger.append(wid, capability, f"scale1k:{role}", False, decision.reason,
                                {"claim_id": claim["claim_id"]})
             self.bus.emit(event="slot_error", slot=slot, worker=wid, role=role, error=comp.error)
             return comp
@@ -306,22 +298,22 @@ class BigSwarm:
         comp.status = "done" if ok else "error"
 
         # --- audit + trace -------------------------------------------------
-        self.ledger.append(wid, capability, f"swarm:{role}", ok, "admitted" if ok else "provider_error",
+        self.ledger.append(wid, capability, f"scale1k:{role}", ok, "admitted" if ok else "provider_error",
                            {"claim_id": claim["claim_id"], "box_id": comp.box_id, "synthetic": True})
         ev_refs = [f"claim:{claim['claim_id']}"] if ok else None
         trace = self.traces.capture(wid, content[:800] or comp.error, evidence_refs=ev_refs,
-                                    tags=[role, "swarm", comp.tier or "ERROR"],
+                                    tags=[role, "scale1k", comp.tier or "ERROR"],
                                     metadata={"box_id": comp.box_id, "ok": ok})
         comp.trace_id = trace.trace_id
 
         if ok:
             self.memory.put(MemoryEntry(
-                key=f"swarm:{comp.claim_id}:{comp.trace_id}",
+                key=f"scale1k:{comp.claim_id}:{comp.trace_id}",
                 layer=MemoryLayer.ORGANIZATIONAL,
                 entry_type=MemoryEntryType.PATTERN,
                 value={"synthetic": True, "role": role, "tier": comp.tier,
                        "claim_id": comp.claim_id, "box_id": comp.box_id},
-                agent_id=wid, task_id="big_swarm", metadata={"synthetic": True},
+                agent_id=wid, task_id="scale_1k", metadata={"synthetic": True},
                 confidence=0.7 if comp.tier == "EVIDENCE" else 0.4,
             ))
             # memory evolution: this concept's lifecycle event
@@ -331,7 +323,7 @@ class BigSwarm:
                 evidence_refs=ev_refs,
             )
 
-        # --- 1. flight recorder: permanent per-worker record ---------------
+        # --- flight recorder: permanent per-worker record ---------------
         self.flight.record(WorkerRecord(
             session_id=self.session_id, worker_id=wid, role=role, model=MODEL,
             prompt_version=self.prompt_version, trace_id=comp.trace_id, box_id=comp.box_id,
@@ -345,7 +337,7 @@ class BigSwarm:
                                  int((usage or {}).get("completion_tokens", 0) or 0)),
         ))
 
-        # --- 6. reputation: tier discipline + calibration -------------------
+        # --- reputation: tier discipline + calibration -------------------
         self.reputation.observe_call(
             wid, role, comp.tier or "UNVERIFIED", ok,
             confidence=0.7 if comp.tier == "EVIDENCE" else 0.4,
@@ -362,9 +354,10 @@ class BigSwarm:
     def run(self) -> dict[str, Any]:
         claims = self.build_corpus()
         self.bus.emit(event="corpus_ready", claims=len(claims))
+        log.info(f"Running scale 1K test with {self.primary_n} primary + {self.validator_n} validators")
 
         primary_system = (
-            "You are a SWARM research compartment in an auditable test harness. "
+            "You are a SCALE 1K research compartment in an auditable test harness. "
             "RESEARCH INFRASTRUCTURE TEST — NOT CLINICAL ADVICE. Synthetic only. "
             "Reply with EXACTLY ONE tier token and nothing else, chosen from: "
             "EVIDENCE, INFERENCE, HYPOTHESIS, UNVERIFIED. "
@@ -372,15 +365,14 @@ class BigSwarm:
             "otherwise downgrade. No other text."
         )
         validator_system = (
-            "You are a SWARM VALIDATOR compartment. Adversarially review the claim. "
+            "You are a SCALE 1K VALIDATOR compartment. Adversarially review the claim. "
             "Reply with EXACTLY ONE tier token from: EVIDENCE, INFERENCE, HYPOTHESIS, "
             "UNVERIFIED — your independent, more skeptical tier. No other text."
         )
 
         # Wave 1: primary compartments
-        logging.info(f"Wave 1 starting: {self.primary_n} primary workers with concurrency={self.concurrency}")
+        log.info(f"Starting wave 1 (primary): {self.primary_n} workers, concurrency {self.concurrency}")
         t0 = time.monotonic()
-        wave1_start = t0
         with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
             futs = [
                 pool.submit(self.fire, i, "PRIMARY", "research:primary",
@@ -389,36 +381,19 @@ class BigSwarm:
                             f"Reply with one token: EVIDENCE INFERENCE HYPOTHESIS UNVERIFIED")
                 for i, c in enumerate(claims)
             ]
-            results_count = 0
-            for f in as_completed(futs):
-                with self._results_lock:
-                    self.results.append(f.result())
-                    results_count += 1
-                    if results_count % 50 == 0 or results_count == len(claims):
-                        logging.debug(f"Wave 1: {results_count}/{len(claims)} results appended")
-
-        # Explicitly signal that wave 1 is complete to prevent any race conditions
+            for i, f in enumerate(as_completed(futs)):
+                self.results.append(f.result())
+                if (i + 1) % 100 == 0:
+                    log.info(f"  Wave 1 progress: {i + 1}/{len(claims)}")
         wave1 = time.monotonic() - t0
-        with self._results_lock:
-            primary_results_count = len([r for r in self.results if r.role == "PRIMARY"])
-        self._primary_wave_complete.set()
-        logging.info(f"Wave 1 complete: {primary_results_count} primary results collected in {wave1:.2f}s")
-
         self.bus.emit(event="wave_done", wave="primary", seconds=round(wave1, 2),
-                      calls=primary_results_count)
+                      calls=len(claims))
+        log.info(f"Wave 1 complete in {round(wave1, 2)}s")
 
         # Wave 2: validator compartments challenge a fixed primary sample
-        logging.info(f"Wave 2 sampling: selecting up to {self.validator_n} primary results for validation")
-        with self._results_lock:
-            sample = validator_sample_primary(self.results, self.validator_n)
-
-        assert len(sample) == self.validator_n, \
-            f"Expected {self.validator_n} validators in sample, got {len(sample)}. " \
-            f"This indicates race condition in wave 1: primary results not fully collected."
-
-        logging.info(f"Wave 2 starting: {len(sample)} validator workers with concurrency={self.concurrency}")
+        sample = validator_sample_primary(self.results, self.validator_n)
+        log.info(f"Starting wave 2 (validator): {len(sample)} workers, concurrency {self.concurrency}")
         t0 = time.monotonic()
-        wave2_start = t0
         if sample:
             with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
                 futs = []
@@ -436,20 +411,13 @@ class BigSwarm:
                             f"Give your independent more-skeptical tier as one token.",
                         )
                     )
-                results_count = 0
-                for f in as_completed(futs):
-                    with self._results_lock:
-                        self.results.append(f.result())
-                        results_count += 1
-                        if results_count % 10 == 0 or results_count == len(sample):
-                            logging.debug(f"Wave 2: {results_count}/{len(sample)} results appended")
-
+                for i, f in enumerate(as_completed(futs)):
+                    self.results.append(f.result())
+                    if (i + 1) % 50 == 0:
+                        log.info(f"  Wave 2 progress: {i + 1}/{len(sample)}")
         wave2 = time.monotonic() - t0
-        with self._results_lock:
-            validator_results_count = len([r for r in self.results if r.role == "VALIDATOR"])
-        logging.info(f"Wave 2 complete: {validator_results_count} validator results collected in {wave2:.2f}s")
-
-        self.bus.emit(event="wave_done", wave="validator", seconds=round(wave2, 2), calls=validator_results_count)
+        self.bus.emit(event="wave_done", wave="validator", seconds=round(wave2, 2), calls=len(sample))
+        log.info(f"Wave 2 complete in {round(wave2, 2)}s")
 
         recon = self.reconcile()
         proof = self.write_proof(recon, wave1, wave2)
@@ -458,13 +426,8 @@ class BigSwarm:
     # -- reconcile ---------------------------------------------------------
 
     def reconcile(self) -> dict[str, Any]:
-        # Copy results under lock to avoid holding lock during reconciliation
-        with self._results_lock:
-            primary = [r for r in self.results if r.role == "PRIMARY"]
-            validators = [r for r in self.results if r.role == "VALIDATOR"]
-            ok = [r for r in self.results if r.ok]
-            all_results = list(self.results)  # snapshot for worker_rows
-            total_results_count = len(self.results)
+        primary = [r for r in self.results if r.role == "PRIMARY"]
+        validators = [r for r in self.results if r.role == "VALIDATOR"]
 
         dist: dict[str, int] = {t: 0 for t in TIERS}
         dist["ERROR"] = 0
@@ -489,13 +452,14 @@ class BigSwarm:
                 if not agreed:
                     disagreements.append({"claim_id": v.claim_id, "primary": p, "validator": v.tier})
 
+        ok = [r for r in self.results if r.ok]
         elapsed = round(time.monotonic() - self.started, 2)
         inflation = sum(1 for d in disagreements if rank.get(d["validator"], 0) > rank.get(d["primary"], 0))
 
         non_error_tiers = {t: dist.get(t, 0) for t in TIERS}
-        prev = self.metrics.previous_run("big_swarm")
+        prev = self.metrics.previous_run("scale_1k")
         strength = compute_swarm_strength(
-            total=total_results_count, ok=len(ok), traces=self.traces.count(),
+            total=len(self.results), ok=len(ok), traces=self.traces.count(),
             grounded=self.traces.count(grounded=True), validators=len(validators),
             disagreements=len(disagreements), validator_downgrades=downgrades,
             tier_inflation=inflation, tier_distribution=dist,
@@ -506,16 +470,17 @@ class BigSwarm:
 
         recon = {
             "session_id": self.session_id,
-            "total_calls": total_results_count,
+            "scale_target": 1000,
+            "total_calls": len(self.results),
             "ok": len(ok),
-            "failed": total_results_count - len(ok),
+            "failed": len(self.results) - len(ok),
             "primary_calls": len(primary),
             "validator_calls": len(validators),
             "tier_distribution": dist,
             "disagreements": len(disagreements),
             "tier_inflation_by_validator": inflation,
             "elapsed_s": elapsed,
-            "effective_rps": effective_rps(total_results_count, elapsed),
+            "effective_rps": effective_rps(len(self.results), elapsed),
             **latency_percentiles([r.latency_s for r in ok]),
             "ledger_entries": len(self.ledger.entries(limit=1_000_000)),
             "ledger_entries_this_run": (
@@ -532,7 +497,7 @@ class BigSwarm:
         }
         worker_rows = [
             {"role": r.role, "ok": r.ok}
-            for r in all_results
+            for r in self.results
         ]
         recon["validation_errors"] = validate_reconciliation(recon, worker_rows)
         self.reconciliation = recon
@@ -546,8 +511,9 @@ class BigSwarm:
 
     def write_proof(self, recon: dict[str, Any], wave1: float, wave2: float) -> dict[str, Any]:
         payload = {
-            "run_id": f"big_swarm_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+            "run_id": f"big_swarm_1k_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
             "session_id": self.session_id,
+            "scale_target": 1000,
             "model": MODEL,
             "synthetic_only": True,
             "not_clinical": True,
@@ -600,9 +566,9 @@ class BigSwarm:
             error_rate=recon["failed"] / max(1, recon["total_calls"]),
         )
         payload["metrics_totals"] = self.metrics.session_totals(self.session_id)
-        payload["strength_trend"] = self.metrics.trend("big_swarm", limit=20)
+        payload["strength_trend"] = self.metrics.trend("scale_1k", limit=20)
 
-        # --- 5. proof-carrying decision for one representative claim --------
+        # --- proof-carrying decision for one representative claim --------
         sample = next((r for r in self.results if r.role == "PRIMARY" and r.ok), None)
         if sample:
             v = next((r for r in self.results if r.role == "VALIDATOR" and r.claim_id == sample.claim_id), None)
@@ -624,27 +590,22 @@ class BigSwarm:
                 "explain": self.flight.explain(chain["chain_id"]),
             }
 
-        # --- 10. genome / replay -------------------------------------------
+        # --- genome / replay -------------------------------------------
         genome = {
             "run_id": payload["run_id"],
             "model": MODEL,
+            "scale_target": 1000,
             "primary_workers": self.primary_n,
             "validator_workers": self.validator_n,
             "concurrency": self.concurrency,
             "prompt_version": self.prompt_version,
-            "arena_enabled": bool(self.arena_probes),
-            "probes": [p.probe_id for p in self.arena_probes],
             "tier_order": TIERS,
-            "claims": [r.claim_id for r in self.results if r.role == "PRIMARY"][:64],
+            "claims": [r.claim_id for r in self.results if r.role == "PRIMARY"][:100],
         }
         payload["genome"] = self.flight.save_genome(self.session_id, genome)
         payload["genome"]["verified"] = self.flight.verify_genome(self.session_id)
 
-        # --- 2. challenge arena (if enabled) -------------------------------
-        if self.arena.outcomes:
-            payload["arena"] = self.arena.report()
-
-        # --- 4/6/1. instrument summaries -----------------------------------
+        # --- instrument summaries -----------------------------------
         payload["instruments"] = {
             "flight_recorder_records": self.flight.count(self.session_id),
             "memory_evolution": self.memory_evo.stats(),
@@ -660,37 +621,42 @@ class BigSwarm:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--primary", type=int, default=128)
-    ap.add_argument("--validators", type=int, default=32)
-    ap.add_argument("--concurrency", type=int, default=32)
-    ap.add_argument("--arena", action="store_true", help="enable adversarial Challenge Arena probes")
+    ap.add_argument("--primary", type=int, default=800, help="Number of primary workers")
+    ap.add_argument("--validators", type=int, default=200, help="Number of validator workers")
+    ap.add_argument("--concurrency", type=int, default=32, help="Concurrency level")
     ap.add_argument(
         "--fresh-ledger",
         action="store_true",
-        help="truncate shared action_ledger.db before run (per-run ledger cardinality)",
+        help="truncate shared action_ledger_1k.db before run (per-run ledger cardinality)",
+    )
+    ap.add_argument(
+        "--prove",
+        action="store_true",
+        help="Write proof artifact (default: dry-run mode)",
     )
     args = ap.parse_args()
 
     if args.primary < 1:
-        print("--primary must be >= 1")
+        log.error("--primary must be >= 1")
         return 2
     if args.validators < 0:
-        print("--validators must be >= 0")
+        log.error("--validators must be >= 0")
         return 2
     if args.concurrency < 1:
-        print("--concurrency must be >= 1")
+        log.error("--concurrency must be >= 1")
         return 2
 
     if not os.environ.get("INCEPTION_API_KEY"):
-        print("INCEPTION_API_KEY missing")
+        log.error("INCEPTION_API_KEY missing")
         return 2
 
-    swarm = BigSwarm(
+    log.info(f"Scale 1K test starting: {args.primary} primary + {args.validators} validators")
+    swarm = Scale1K(
         args.primary,
         args.validators,
         args.concurrency,
-        arena=args.arena,
         fresh_ledger=args.fresh_ledger,
+        prove=args.prove,
     )
     t0 = time.monotonic()
     proof = swarm.run()
@@ -698,14 +664,15 @@ def main() -> int:
 
     r = proof["payload"]["reconciliation"]
     print("=" * 66)
-    print("BIG SWARM RESULT")
+    print("SCALE 1K TEST RESULT")
     print("=" * 66)
     print(f"  workers fired      : {r['total_calls']} ({r['primary_calls']} primary + {r['validator_calls']} validator)")
     print(f"  ok / failed        : {r['ok']} / {r['failed']}")
+    print(f"  success rate       : {100 * r['ok'] / max(1, r['total_calls']):.1f}%")
     print(f"  tiers              : {r['tier_distribution']}")
     print(f"  disagreements      : {r['disagreements']}  (validator tier inflation: {r['tier_inflation_by_validator']})")
-    print(f"  wall clock         : {round(total,2)}s  (wave1 {proof['payload']['wave1_seconds']}s, wave2 {proof['payload']['wave2_seconds']}s)")
-    print(f"  effective rps      : {r['effective_rps']}")
+    print(f"  wall clock         : {round(total, 2)}s  (wave1 {proof['payload']['wave1_seconds']}s, wave2 {proof['payload']['wave2_seconds']}s)")
+    print(f"  effective rps      : {r['effective_rps']:.2f}")
     p95 = r.get("p95_latency_s", r["max_latency_s"])
     print(f"  p50 / p95 / max    : {r['p50_latency_s']}s / {p95}s / {r['max_latency_s']}s")
     print(

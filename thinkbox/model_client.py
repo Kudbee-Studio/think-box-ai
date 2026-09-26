@@ -3,17 +3,23 @@
 Supports Ollama native and OpenAI-compatible endpoints (OpenAI, Groq,
 Inception Mercury-2, vLLM). Failures raise ``ModelCallError``; a failed call
 is never returned as if it were model output.
+
+Uses httpx with connection pooling and exponential backoff for resilience.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
-import urllib.error
-import urllib.request
+import random
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator
+
+import httpx
+
+logger = logging.getLogger(__name__)
 
 INCEPTION_BASE_URL = "https://api.inceptionlabs.ai/v1"
 INCEPTION_DEFAULT_MODEL = "mercury-2"
@@ -102,6 +108,22 @@ class ModelConfig:
 class AsyncModelClient:
     def __init__(self, config: ModelConfig | None = None):
         self.config = config or ModelConfig()
+        # Connection pool: max 500 connections, 20 keepalive
+        self._client: httpx.AsyncClient | None = None
+        self._use_pool = os.environ.get("ASYNC_PROVIDER_POOL", "true").lower() != "false"
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create async client with pooling."""
+        if self._client is None and self._use_pool:
+            limits = httpx.Limits(max_connections=500, max_keepalive_connections=20)
+            self._client = httpx.AsyncClient(limits=limits, timeout=self.config.timeout)
+        return self._client or httpx.AsyncClient(timeout=self.config.timeout)
+
+    async def close(self) -> None:
+        """Close the client connection pool."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
     async def generate(self, prompt: str, **kwargs: Any) -> str:
         """Return the model's text. Raises ``ModelCallError`` on any failure."""
@@ -131,23 +153,57 @@ class AsyncModelClient:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers
 
-    def _open(self, url: str, payload: dict[str, Any]) -> Any:
-        req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=self._headers())
-        try:
-            return urllib.request.urlopen(req, timeout=self.config.timeout)
-        except urllib.error.HTTPError as e:
-            body = e.read()[:300].decode("utf-8", "replace")
-            raise self._error(f"HTTP {e.code}: {body}", retryable=e.code in (408, 429) or e.code >= 500) from e
-        except (urllib.error.URLError, OSError) as e:
-            raise self._error(f"unreachable at {url}: {e}", retryable=False) from e
+    async def _post_json_with_backoff(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """POST JSON with exponential backoff on transient errors."""
+        backoff = 2.0  # Start at 2s
+        max_backoff = 32.0
+        max_attempts = 5
+        attempt = 0
 
-    def _post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
-        with self._open(url, payload) as resp:
-            raw = resp.read()
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise self._error(f"non-JSON response: {raw[:200]!r}", retryable=True) from e
+        while attempt < max_attempts:
+            try:
+                client = await self._get_client()
+                resp = await client.post(url, json=payload, headers=self._headers())
+                resp.raise_for_status()
+                try:
+                    return resp.json()
+                except json.JSONDecodeError as e:
+                    raise self._error(f"non-JSON response: {resp.text[:200]!r}", retryable=True) from e
+            except httpx.HTTPStatusError as e:
+                is_transient = e.response.status_code in (408, 429) or e.response.status_code >= 500
+                body = e.response.text[:300]
+                error_msg = f"HTTP {e.response.status_code}: {body}"
+
+                if is_transient and attempt < max_attempts - 1:
+                    # Apply jitter: ±20%
+                    jitter = backoff * 0.2 * (2 * random.random() - 1)
+                    sleep_time = max(0.1, backoff + jitter)
+                    logger.warning(
+                        f"[{self.config.api_type}] transient error {e.response.status_code}; "
+                        f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
+                    )
+                    await asyncio.sleep(sleep_time)
+                    backoff = min(backoff * 2, max_backoff)
+                    attempt += 1
+                    continue
+
+                raise self._error(error_msg, retryable=is_transient) from e
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+                if attempt < max_attempts - 1:
+                    jitter = backoff * 0.2 * (2 * random.random() - 1)
+                    sleep_time = max(0.1, backoff + jitter)
+                    logger.warning(
+                        f"[{self.config.api_type}] network error ({type(e).__name__}); "
+                        f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
+                    )
+                    await asyncio.sleep(sleep_time)
+                    backoff = min(backoff * 2, max_backoff)
+                    attempt += 1
+                    continue
+
+                raise self._error(f"unreachable at {url}: {e}", retryable=True) from e
+
+        raise self._error(f"max retries exceeded for {url}", retryable=True)
 
     def _ollama_payload(self, prompt: str, stream: bool, **kwargs: Any) -> dict[str, Any]:
         return {
@@ -173,7 +229,7 @@ class AsyncModelClient:
 
     async def _ollama_generate(self, prompt: str, **kwargs: Any) -> str:
         url = f"{self.config.base_url.rstrip('/')}/api/generate"
-        result = await asyncio.to_thread(self._post_json, url, self._ollama_payload(prompt, False, **kwargs))
+        result = await self._post_json_with_backoff(url, self._ollama_payload(prompt, False, **kwargs))
         if result.get("error"):
             raise self._error(f"error: {result['error']}", retryable=False)
         text = result.get("response") or ""
@@ -183,7 +239,7 @@ class AsyncModelClient:
 
     async def _openai_generate(self, prompt: str, **kwargs: Any) -> str:
         url = self.config.chat_completions_url()
-        result = await asyncio.to_thread(self._post_json, url, self._openai_payload(prompt, False, **kwargs))
+        result = await self._post_json_with_backoff(url, self._openai_payload(prompt, False, **kwargs))
         choices = result.get("choices") or []
         message = (choices[0] or {}).get("message", {}) if choices else {}
         text = message.get("content") or ""
@@ -193,15 +249,20 @@ class AsyncModelClient:
         return text
 
     async def _iter_lines(self, url: str, payload: dict[str, Any]) -> AsyncGenerator[bytes, None]:
-        resp = await asyncio.to_thread(self._open, url, payload)
+        """Stream lines from provider with httpx."""
+        client = await self._get_client()
         try:
-            while True:
-                line = await asyncio.to_thread(resp.readline)
-                if not line:
-                    break
-                yield line
-        finally:
-            resp.close()
+            async with client.stream("POST", url, json=payload, headers=self._headers()) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if line:
+                        yield line.encode() if isinstance(line, str) else line
+        except httpx.HTTPStatusError as e:
+            is_transient = e.response.status_code in (408, 429) or e.response.status_code >= 500
+            body = e.response.text[:300]
+            raise self._error(f"HTTP {e.response.status_code}: {body}", retryable=is_transient) from e
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+            raise self._error(f"stream error: {e}", retryable=True) from e
 
     async def _ollama_stream(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:
         url = f"{self.config.base_url.rstrip('/')}/api/generate"

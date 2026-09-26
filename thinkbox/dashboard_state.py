@@ -374,34 +374,6 @@ class AutonomousLoopEntry:
     evidence_label: str = "infmred"
     last_action: str = ""
 
-    """Canonical state for the autonomous decision-loop dashboard."""
-    loop_id: str
-    status: str = "idle"
-    started_at: str = ""
-    current_session_id: str = ""
-    iterations_count: int = 0
-    patterns_identified: int = 0
-    tuning_decisions: int = 0
-    bootstrapped: bool = False
-    latest_recommendation: dict[str, Any] = field(default_factory=dict)
-    latest_metrics: dict[str, Any] = field(default_factory=dict)
-    telemetry: AutonomousLoopTelemetry = field(default_factory=AutonomousLoopTelemetry)
-    components: dict[str, bool] = field(
-        default_factory=lambda: {
-            "bootstrap": False,
-            "experiment_manager": False,
-            "decomposer": False,
-            "execution": False,
-            "feedback": False,
-            "opportunity": False,
-            "loop_tracer": False,
-            "auto_tuner": False,
-            "generalizer": False,
-            "session_manager": False,
-        }
-    )
-    evidence_label: str = "infmred"
-
     def __post_init__(self) -> None:
         if not self.started_at:
             self.started_at = datetime.now(timezone.utc).isoformat()
@@ -466,6 +438,8 @@ class DashboardState:
     """Canonical, mutable dashboard state singleton."""
 
     _instance: DashboardState | None = None
+    _DEFAULT_EVENT_LIMIT = 100
+    _SUBSCRIBER_QUEUE_SIZE = 100
 
     def __new__(cls) -> DashboardState:
         if cls._instance is None:
@@ -489,16 +463,41 @@ class DashboardState:
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
         self._revision = RevisionCounter()
+        self._event_drops_count: int = 0
 
-    async def register_subscriber(self, queue: asyncio.Queue) -> None:
+    async def register_subscriber(
+        self, queue: asyncio.Queue | None = None, maxsize: int = _SUBSCRIBER_QUEUE_SIZE
+    ) -> asyncio.Queue:
+        """Register a subscriber queue with bounded size (maxsize). If queue is None, creates a new one."""
+        if queue is None:
+            queue = asyncio.Queue(maxsize=maxsize)
         self._subscribers.append(queue)
+        return queue
 
     async def _notify(self, event: DashboardEventEntry) -> None:
-        for queue in self._subscribers:
+        """Notify all subscribers of event, dropping oldest events on backpressure."""
+        dead_subscribers = []
+        for idx, queue in enumerate(self._subscribers):
             try:
-                await queue.put(event)
+                if queue.full():
+                    # Queue is full: drop oldest event (fail-open)
+                    try:
+                        queue.get_nowait()
+                        self._event_drops_count += 1
+                    except asyncio.QueueEmpty:
+                        pass
+                queue.put_nowait(event)
+            except asyncio.QueueFull:
+                # This shouldn't happen after get_nowait, but handle it gracefully
+                self._event_drops_count += 1
             except Exception:
-                pass
+                # Mark dead subscribers for cleanup
+                dead_subscribers.append(idx)
+
+        # Clean up dead subscribers (iterate in reverse to preserve indices)
+        for idx in reversed(dead_subscribers):
+            if idx < len(self._subscribers):
+                self._subscribers.pop(idx)
 
     async def emit(self, category: DashboardCategory, event_type: DashboardEvent,
                    data: dict[str, Any], source: str = "",
@@ -602,14 +601,43 @@ class DashboardState:
         for lst in self.loop_actions.values():
             actions.extend(lst)
         return actions
-        """Record telemetry metrics for an autonomous loop.
 
-        Updates the loop's entry with the latest telemetry payload. If the
-        loop_id is not tracked, creates a placeholder entry.
+    def get_events_paginated(
+        self, limit: int = _DEFAULT_EVENT_LIMIT, offset: int = 0
+    ) -> dict[str, Any]:
+        """Get paginated events with cursor support.
+
+        Returns:
+            {
+                "events": [...],
+                "total": int,
+                "offset": int,
+                "limit": int,
+                "has_more": bool,
+                "next_offset": int | None,
+            }
         """
-        if loop_id in self.autonomous_loops:
-            self.autonomous_loops[loop_id].telemetry = telemetry
-        self._revision.bump()
+        # Clamp limit to reasonable bounds
+        limit = max(1, min(limit, 1000))
+        offset = max(0, offset)
+
+        total = len(self.events)
+        events = self.events[offset : offset + limit]
+        has_more = offset + limit < total
+        next_offset = offset + limit if has_more else None
+
+        return {
+            "events": [e.model_dump() for e in events],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": has_more,
+            "next_offset": next_offset,
+        }
+
+    def get_events_drops_count(self) -> int:
+        """Return the count of events dropped due to subscriber queue backpressure."""
+        return self._event_drops_count
 
     def record_autonomous_loop_session(self, session: LoopSessionEntry) -> None:
         """Record a closed autonomous loop session in dashboard state."""
@@ -737,12 +765,15 @@ def get_dashboard_state() -> DashboardState:
 
 async def dashboard_event_stream() -> AsyncGenerator[DashboardEventEntry, None]:
     state = get_dashboard_state()
-    queue: asyncio.Queue[DashboardEventEntry] = asyncio.Queue()
-    await state.register_subscriber(queue)
+    queue = await state.register_subscriber()  # Creates bounded queue with default size
     try:
         while True:
             event = await queue.get()
             yield event
     except asyncio.CancelledError:
-        state._subscribers.remove(queue)
+        # Clean up disconnected subscriber
+        try:
+            state._subscribers.remove(queue)
+        except ValueError:
+            pass
         raise
