@@ -582,15 +582,51 @@ class ThinkBoxEngine:
             if metrics.total_iterations >= 3:
                 self._generalize_patterns()
 
+        self._record_closed_session()
+
         self._update_loop_dashboard()
         self._telemetry_tick()
+
+    def _record_closed_session(self) -> None:
+        """Record a closed loop session into dashboard state.
+
+        When the session manager has closed a session, mirrors the
+        resulting LoopSession into DashboardState.loop_sessions for
+        real-time UI consumption. Fail-closed: errors are swallowed.
+        """
+        if self._session_manager is None:
+            return
+        try:
+            from thinkbox.dashboard_state import get_dashboard_state, LoopSessionEntry
+
+            state = get_dashboard_state()
+            current = self._session_manager.get_current_session()
+            if current is not None and current.session_id not in state.loop_sessions:
+                entry = LoopSessionEntry(
+                    session_id=current.session_id,
+                    loop_id=current.loop_id,
+                    started_at=current.started_at,
+                    closed_at=current.closed_at,
+                    iterations_count=current.iterations_count,
+                    avg_throughput=current.avg_throughput,
+                    avg_p50_latency=current.avg_p50_latency,
+                    avg_error_rate=current.avg_error_rate,
+                    total_cycle_time_s=current.total_cycle_time_s,
+                    patterns_identified=current.patterns_identified,
+                    improved_over_baseline=False,
+                    summary=current.summary,
+                )
+                state.record_autonomous_loop_session(entry)
+        except Exception:
+            pass
 
     def _telemetry_tick(self) -> None:
         """Capture detailed telemetry for the autonomous loop dashboard.
 
         Called after _update_loop_dashboard(). Builds an AutonomousLoopTelemetry
         from LoopTracer metrics and EngineAutoTuner decision count, records
-        convergence status, and updates the dashboard entry. Rate-limited by
+        convergence status, populates learning curve points from iteration
+        history, and tracks convergence history. Rate-limited by
         telemetry_interval_s to avoid excessive writes.
 
         No-op when no LoopTracer is injected. Fail-closed: errors are swallowed.
@@ -607,6 +643,24 @@ class ThinkBoxEngine:
             state = get_dashboard_state()
             loop_id = self._loop_tracer.get_current_loop_id()
             metrics = self._loop_tracer.get_metrics()
+            convergence = self._assess_convergence(metrics)
+
+            learning_curve = self._build_learning_curve_points(loop_id)
+
+            existing_telemetry = state.get_loop_telemetry(loop_id)
+            convergence_history = []
+            if existing_telemetry is not None:
+                convergence_history = list(existing_telemetry.convergence_history)
+            convergence_history.append({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "iteration": metrics.total_iterations,
+                "status": convergence,
+                "avg_cycle_time_s": metrics.avg_cycle_time_s,
+                "throughput": round(metrics.total_iterations / metrics.total_cycle_time_s, 6)
+                    if metrics.total_cycle_time_s > 0 else 0.0,
+            })
+            convergence_history = convergence_history[-100:]
+
             telemetry = AutonomousLoopTelemetry(
                 total_iterations=metrics.total_iterations,
                 total_cycle_time_s=metrics.total_cycle_time_s,
@@ -617,14 +671,36 @@ class ThinkBoxEngine:
                     if metrics.total_cycle_time_s > 0 else 0.0,
                 recommendation_types=metrics.recommendation_types,
                 priority_distribution=metrics.priority_distribution,
-                learning_curve_points=[],
-                convergence_status=self._assess_convergence(metrics),
+                learning_curve_points=learning_curve,
+                convergence_status=convergence,
+                convergence_history=convergence_history,
                 last_iteration_id=metrics.latest_iteration_id,
                 first_iteration_id=metrics.first_iteration_id,
             )
             state.record_loop_telemetry(loop_id, telemetry)
         except Exception:
             pass
+
+    def _build_learning_curve_points(self, loop_id: str) -> list[dict[str, Any]]:
+        """Build learning curve points from LoopTracer iteration history.
+
+        Each point captures throughput and cycle time per iteration to enable
+        convergence visualization on the control-plane UI.
+        """
+        iterations = self._loop_tracer.list_iterations(loop_id=loop_id, limit=100)
+        points: list[dict[str, Any]] = []
+        for i, it in enumerate(reversed(iterations)):
+            points.append({
+                "iteration": i + 1,
+                "iteration_id": it.iteration_id,
+                "throughput": it.metrics.get("throughput", 0.0),
+                "avg_cycle_time_s": it.cycle_time_s,
+                "avg_p50_latency": it.metrics.get("p50_latency", 0.0),
+                "error_rate": it.metrics.get("error_rate", 0.0),
+                "recommendation_type": it.recommendation_type,
+                "timestamp": it.completed_at,
+            })
+        return points
 
     def _assess_convergence(self, metrics: Any) -> str:
         """Assess loop convergence status from metrics (Learning -> Observability binding).
@@ -661,10 +737,16 @@ class ThinkBoxEngine:
             tuning_count = self._auto_tuner.get_decision_count() if self._auto_tuner else 0
             bootstrapped = not self._loop_bootstrap.needs_bootstrap() if self._loop_bootstrap else False
 
+            current_session_id = ""
+            if self._session_manager is not None:
+                current = self._session_manager.get_current_session()
+                if current is not None:
+                    current_session_id = current.session_id
+
             entry = AutonomousLoopEntry(
                 loop_id=loop_id,
                 status="running",
-                current_session_id="",
+                current_session_id=current_session_id,
                 iterations_count=metrics.total_iterations if metrics else 0,
                 patterns_identified=patterns_count,
                 tuning_decisions=tuning_count,

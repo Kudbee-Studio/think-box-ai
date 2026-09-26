@@ -8,6 +8,7 @@ from thinkbox.dashboard_state import (
     AutonomousLoopEntry,
     AutonomousLoopTelemetry,
     DashboardState,
+    LoopSessionEntry,
     get_dashboard_state,
 )
 
@@ -73,3 +74,45 @@ def get_autonomous_loop_telemetry_payload(loop_id: str, state: DashboardState | 
     if telemetry is None:
         return AutonomousLoopTelemetry().model_dump()
     return telemetry.model_dump()
+
+
+def list_autonomous_loop_sessions_payload(state: DashboardState | None = None,
+                                          limit: int = 50) -> list[dict[str, Any]]:
+    """List closed autonomous loop sessions ordered by recency."""
+    if state is None:
+        state = get_dashboard_state()
+    sessions = state.list_loop_sessions(limit=limit)
+    return [s.model_dump() for s in sessions]
+
+
+def get_autonomous_loop_session_payload(session_id: str,
+                                          state: DashboardState | None = None) -> dict[str, Any] | None:
+    """Retrieve a specific closed session by ID, or None if not found."""
+    if state is None:
+        state = get_dashboard_state()
+    session = state.get_loop_session(session_id)
+    if session is None:
+        return None
+    return session.model_dump()
+
+
+def get_autonomous_loop_session_summary_payload(state: DashboardState | None = None) -> dict[str, Any]:
+    """Build a lightweight summary of loop sessions for status/polls."""
+    if state is None:
+        state = get_dashboard_state()
+    sessions = state.list_loop_sessions(limit=100)
+    total = len(sessions)
+    sessions_with_patterns = sum(1 for s in sessions if s.patterns_identified > 0)
+    improved_count = sum(1 for s in sessions if s.improved_over_baseline)
+    avg_throughput = round(sum(s.avg_throughput for s in sessions) / total, 6) if total else 0.0
+    avg_cycle = round(sum(s.total_cycle_time_s for s in sessions) / total, 6) if total else 0.0
+    return {
+        "total_sessions": total,
+        "sessions_with_patterns": sessions_with_patterns,
+        "improved_sessions": improved_count,
+        "avg_throughput": avg_throughput,
+        "avg_total_cycle_time_s": avg_cycle,
+        "revision": state.revision(),
+        "api_version": AUTONOMOUS_LOOP_API_VERSION,
+        "schema_version": AUTONOMOUS_LOOP_SCHEMA_VERSION,
+    }

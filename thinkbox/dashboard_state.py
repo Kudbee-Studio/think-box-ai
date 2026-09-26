@@ -293,6 +293,7 @@ class AutonomousLoopTelemetry:
     priority_distribution: dict[str, int] = field(default_factory=dict)
     learning_curve_points: list[dict[str, Any]] = field(default_factory=list)
     convergence_status: str = "pending"
+    convergence_history: list[dict[str, Any]] = field(default_factory=list)
     last_iteration_id: str = ""
     first_iteration_id: str = ""
 
@@ -308,6 +309,7 @@ class AutonomousLoopTelemetry:
             "priority_distribution": self.priority_distribution,
             "learning_curve_points": self.learning_curve_points,
             "convergence_status": self.convergence_status,
+            "convergence_history": self.convergence_history,
             "last_iteration_id": self.last_iteration_id,
             "first_iteration_id": self.first_iteration_id,
         }
@@ -365,6 +367,44 @@ class AutonomousLoopEntry:
         }
 
 
+@dataclass
+class LoopSessionEntry:
+    """Lightweight session summary tracked in dashboard state.
+
+    Mirrors the key fields of LoopSession from ExperimentAnalytics for
+    real-time display without coupling the dashboard to the session manager.
+    """
+
+    session_id: str
+    loop_id: str
+    started_at: str = ""
+    closed_at: str = ""
+    iterations_count: int = 0
+    avg_throughput: float = 0.0
+    avg_p50_latency: float = 0.0
+    avg_error_rate: float = 0.0
+    total_cycle_time_s: float = 0.0
+    patterns_identified: int = 0
+    improved_over_baseline: bool = False
+    summary: dict[str, Any] = field(default_factory=dict)
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "loop_id": self.loop_id,
+            "started_at": self.started_at,
+            "closed_at": self.closed_at,
+            "iterations_count": self.iterations_count,
+            "avg_throughput": self.avg_throughput,
+            "avg_p50_latency": self.avg_p50_latency,
+            "avg_error_rate": self.avg_error_rate,
+            "total_cycle_time_s": self.total_cycle_time_s,
+            "patterns_identified": self.patterns_identified,
+            "improved_over_baseline": self.improved_over_baseline,
+            "summary": self.summary,
+        }
+
+
 class DashboardState:
     """Canonical, mutable dashboard state singleton."""
 
@@ -387,6 +427,7 @@ class DashboardState:
         self.providers: dict[str, ProviderEntry] = {}
         self.test_milestones: dict[str, TestMilestoneEntry] = {}
         self.autonomous_loops: dict[str, AutonomousLoopEntry] = {}
+        self.loop_sessions: dict[str, LoopSessionEntry] = {}
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
         self._revision = RevisionCounter()
@@ -468,6 +509,28 @@ class DashboardState:
             self.autonomous_loops[loop_id].telemetry = telemetry
         self._revision.bump()
 
+    def record_autonomous_loop_session(self, session: LoopSessionEntry) -> None:
+        """Record a closed autonomous loop session in dashboard state."""
+        self.loop_sessions[session.session_id] = session
+        self._revision.bump()
+
+    def get_current_session_id(self, loop_id: str) -> str:
+        """Return the current session_id for a loop, or empty string."""
+        entry = self.autonomous_loops.get(loop_id)
+        if entry is None:
+            return ""
+        return entry.current_session_id
+
+    def list_loop_sessions(self, limit: int = 50) -> list[LoopSessionEntry]:
+        """List recorded loop sessions ordered by recency."""
+        sessions = list(self.loop_sessions.values())
+        sessions.sort(key=lambda s: s.closed_at or s.started_at, reverse=True)
+        return sessions[:limit]
+
+    def get_loop_session(self, session_id: str) -> LoopSessionEntry | None:
+        """Retrieve a specific loop session by ID."""
+        return self.loop_sessions.get(session_id)
+
     def get_loop_telemetry(self, loop_id: str) -> AutonomousLoopTelemetry | None:
         """Retrieve telemetry for a specific loop by loop_id."""
         entry = self.autonomous_loops.get(loop_id)
@@ -504,6 +567,7 @@ class DashboardState:
                     e.telemetry.total_iterations if isinstance(e.telemetry, AutonomousLoopTelemetry) else 0
                     for e in self.autonomous_loops.values()
                 ),
+                "total_loop_sessions": len(self.loop_sessions),
             },
             "think_job_receipt_summary": {
                 "tracked": len(self.think_jobs),
@@ -514,6 +578,9 @@ class DashboardState:
                     1 for e in self.autonomous_loops.values()
                     if isinstance(e.telemetry, AutonomousLoopTelemetry) and e.telemetry.total_iterations > 0
                 ),
+            },
+            "loop_session_summary": {
+                "total_sessions": len(self.loop_sessions),
             },
         }
 
@@ -549,8 +616,10 @@ class DashboardState:
                     e.telemetry.total_iterations if isinstance(e.telemetry, AutonomousLoopTelemetry) else 0
                     for e in self.autonomous_loops.values()
                 ),
+                "total_loop_sessions": len(self.loop_sessions),
             },
             "loop_telemetry": self.get_all_loop_telemetry(),
+            "loop_sessions": [s.model_dump() for s in self.list_loop_sessions()],
         }
 
 
