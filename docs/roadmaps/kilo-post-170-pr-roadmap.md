@@ -117,6 +117,10 @@
 | Repo audit: swarm proof honesty + findings close | **GitHub #253** (draft) — 14 invalid swarm proofs patched (`partial_run: true`); finding doc closed; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
+| Autonomous swarm + orchestrator | **GitHub #259** (merged `5b844ea`), **#260** (merged `7880c4b`); inference simulated; not LIVE VERIFIED |
+| Governance layer + governed execution | **GitHub #261** (merged `d03b5eb`), **#262** (merged `07f813e`); not LIVE VERIFIED |
+| Multi-box orchestration + calibration v1 | **GitHub #263** (merged `d1eccd2`) — pre-registered v1 `WORSE`; not LIVE VERIFIED |
+| Orchestrator strategy fix + calibration v2 | **GitHub #264** (open) — strategies/constraints implemented; pre-registered v2 `IMPROVED` (simulated); not LIVE VERIFIED |
 
 ---
 

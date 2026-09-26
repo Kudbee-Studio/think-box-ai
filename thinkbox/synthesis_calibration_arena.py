@@ -51,13 +51,12 @@ A LIVE variant (real model calls) is a separate, explicitly gated future step
 import hashlib
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from thinkbox.multi_box_orchestration import KnowledgeFabric, SynthesisEngine
-
 
 # ============================================================================
 # PRE-REGISTERED CONSTANTS — fixed before any run; changing these after
@@ -528,7 +527,7 @@ class SynthesisCalibrationArena:
         for condition in Condition:
             brier_stats[condition.value] = round(brier_score(results[condition]), 4)
 
-        pairs = list(zip(results[Condition.NAIVE_MAJORITY_VOTE], results[Condition.CONFIDENCE_WEIGHTED_SYNTHESIS]))
+        pairs = list(zip(results[Condition.NAIVE_MAJORITY_VOTE], results[Condition.CONFIDENCE_WEIGHTED_SYNTHESIS], strict=True))
         observed_delta, ci_lo, ci_hi = bootstrap_paired_difference(
             pairs, brier_score, n_resamples=2000, seed=self.seed
         )
@@ -600,7 +599,7 @@ class SynthesisCalibrationArena:
 
         # Answers are identical between v1 and v2 by construction; assert it
         # rather than assume it, since the comparison is only valid if true.
-        for a, b in zip(v1_synth, v2_synth):
+        for a, b in zip(v1_synth, v2_synth, strict=True):
             if a.predicted_answer != b.predicted_answer:
                 raise RuntimeError(
                     f"v1/v2 predicted different answers for {a.task_id}; "
@@ -608,10 +607,10 @@ class SynthesisCalibrationArena:
                 )
 
         primary = bootstrap_paired_difference(
-            list(zip(v1_synth, v2_synth)), brier_score, n_resamples=2000, seed=self.seed
+            list(zip(v1_synth, v2_synth, strict=True)), brier_score, n_resamples=2000, seed=self.seed
         )
         secondary = bootstrap_paired_difference(
-            list(zip(majority, v2_synth)), brier_score, n_resamples=2000, seed=self.seed
+            list(zip(majority, v2_synth, strict=True)), brier_score, n_resamples=2000, seed=self.seed
         )
 
         delta, lo, hi = primary

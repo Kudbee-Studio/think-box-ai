@@ -2,6 +2,18 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #264 open; #259–#263 merged)
+>
+> **Merged:** #259 `5b844ea`, #260 `7880c4b`, #261 `d03b5eb`, #262 `07f813e`, #263 `d1eccd2`.
+> **Open:** #264 on `feat/pr264-orchestrator-strategy-constraint-fix` — orchestrator strategies and
+> constraints implemented (gap from #260), self-review defects fixed, `KnowledgeFabric.persist()` made real
+> (was a no-op that logged success) with a verifying `load()`, `agreement_fraction` added to
+> `SynthesisEngine`, pre-registered calibration v2 `IMPROVED` (simulated).
+> **Gate:** CI runners unavailable repo-wide (jobs end in ~3 s with `runner_id: 0`; reproduces on
+> `main`). Admin action: Settings → Actions. Local verification: orchestrator 39 OK, multi-box 36 OK,
+> calibration arena 39 OK, full suite FULL_SUITE_COUNT_PENDING.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
 > ## ADDENDUM — 2026-09-26 (GitHub #253 draft — swarm proof honesty + findings close)
 >
 > **GitHub #253 draft** on `claude/repo-audit-e4801s` (builds on merged #252). Audit finding

@@ -541,6 +541,27 @@ Before claiming progress on the **#141–#150** arc:
 5. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
 6. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
 
+### 13.11 Pre-registered experiments (Standing Rule)
+
+Any claim that a change improves a measured quality goes through a
+pre-registered experiment:
+
+1. Write the hypothesis, pass/fail threshold, and expected outcome as code
+   constants, and **commit them before the headline run**. The commit
+   timestamp is the proof of pre-registration.
+2. Tests use a small `n` and non-headline seeds, so they never preview the
+   headline result.
+3. A failed hypothesis is reported as `WORSE` or `NO_MEASURABLE_IMPROVEMENT`,
+   never softened. A fix for it gets a **new** hypothesis, not a re-run of
+   the old one on the same data.
+4. A result that looks unusually clean gets checked for artifacts in the
+   experiment itself before it is reported (see the simulator confound
+   caught in `docs/guides/synthesis-calibration-arena.md`).
+5. Published proofs must stay reproducible: later changes must not alter a
+   committed proof hash, and a test asserts it.
+
+Reference: `thinkbox/synthesis_calibration_arena.py` (v1 and v2).
+
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
@@ -675,6 +696,12 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Autonomous decision loop: Action UI panel | **#249** (on main via GitHub #250, `02bbbc4`) | UI panel displaying recent loop actions; integrates with action API — `public/control-plane/autonomous_loop.html` (`#actionList` panel + `#actionControls` toolbar with Start/Stop/Run/Reset, `#governanceTokenInput`, `#actionStatus`), `autonomous_loop_client.js` (`fetchLoopActions`/`postLoopAction`/`renderActionList`/`sendLoopAction`), governance-token gate on `POST /actions/{action}` in `backend/api/v1/autonomous_loop.py`; tests `tests/unit/test_autonomous_loop_action_api.py` |
 | Honest execution: real model path + governance no-token deny | **#252** (merged) | `thinkbox/model_client.py` (`ModelCallError`, auth header, env providers), `thinkbox/governed.py` (`_admit`: no token = deny + ledger), `thinkbox/cli.py` (`run` prints output + governed ledger, `model check`), `think_box_ai/commands/inception.py` (no simulated output), `scripts/prove_think_box_local.py`, `docs/guides/local_think_box.md`; tests `tests/unit/test_model_client_honest.py` |
 | Repo audit: swarm proof honesty + findings close | **#253** (draft) | 14/38 invalid swarm proof artifacts patched (`partial_run: true`, `validator_workers` corrected to 0); `data/findings/swarm_proof_artifacts_invalid.md` finding closed; all 38 proofs now pass `validate_proof_document` |
+| Autonomous swarm pool integration | **#259** (merged `5b844ea`) | `thinkbox/autonomous_swarm_integration.py` — `AutonomousSwarmPool` over `EnterpriseSwarmPool`; 14 mocked tests; not LIVE VERIFIED |
+| Multi-model orchestrator | **#260** (merged `7880c4b`) | `thinkbox/multi_model_orchestrator.py` — provider scoring, budget, circuit breaker; inference simulated. Shipped with a doc/code gap (strategies and constraints documented but not implemented), fixed in #264 |
+| Auditable governance layer | **#261** (merged `d03b5eb`) | `thinkbox/governance_ledger.py` — value signals, conflict detection, SHA-256 proof chain, audit trail; 17 tests. Accountability infrastructure, not an alignment claim |
+| Governed execution integration | **#262** (merged `07f813e`) | `thinkbox/governed_execution.py` — ALLOW/DENY/ESCALATE gate in the task loop; 10 integration tests |
+| Multi-box orchestration + calibration v1 | **#263** (merged `d1eccd2`) | `thinkbox/multi_box_orchestration.py` (knowledge fabric, synthesis) + `thinkbox/synthesis_calibration_arena.py`; pre-registered v1 result `WORSE` (honest negative) |
+| Orchestrator strategy fix + calibration v2 | **#264** (open) | CHEAPEST/CONSENSUS/PARALLEL + constraints actually implemented; budget/consensus/failure-count defects fixed; `KnowledgeFabric.persist()` made real + verifying `load()`; `agreement_fraction` added; pre-registered v2 result `IMPROVED` (simulated) |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

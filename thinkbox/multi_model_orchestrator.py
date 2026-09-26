@@ -23,9 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -349,7 +347,7 @@ class MultiModelOrchestrator:
         outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
         successes = []
-        for provider, outcome in zip(candidates, outcomes):
+        for provider, outcome in zip(candidates, outcomes, strict=True):
             if isinstance(outcome, Exception):
                 logger.warning(f"Provider {provider.value} failed: {outcome}")
                 self._record_failure(provider, error=str(outcome))
@@ -395,7 +393,7 @@ class MultiModelOrchestrator:
         outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
         successes: list[ExecutionResult] = []
-        for provider, outcome in zip(polled, outcomes):
+        for provider, outcome in zip(polled, outcomes, strict=True):
             if isinstance(outcome, Exception):
                 logger.warning(f"Provider {provider.value} failed: {outcome}")
                 self._record_failure(provider, error=str(outcome))
@@ -496,9 +494,6 @@ class MultiModelOrchestrator:
                 0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3
             )
 
-        # Aggregate metrics
-        provider_name = provider.value
-        self._execution_history[-1].provider = provider
 
     def _record_failure(
         self, provider: ProviderName, error: Optional[str] = None

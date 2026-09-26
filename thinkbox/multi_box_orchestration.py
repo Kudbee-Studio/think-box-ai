@@ -25,12 +25,13 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
-from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -243,18 +244,48 @@ class KnowledgeFabric:
                 invalid += 1
         return valid, invalid
 
-    def persist(self):
-        """Persist knowledge fabric to disk."""
+    def persist(self) -> str:
+        """Write the fabric to ``persistence_path`` atomically and return the path.
+
+        The file is written to a temporary sibling and then renamed over the
+        target, so a crash mid-write never leaves a truncated fabric behind.
+        """
+        path = Path(self.persistence_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
         data = {
+            "format_version": 1,
             "timestamp": datetime.utcnow().isoformat(),
-            "nodes": {
-                nid: {**asdict(n), "edges_to": n.edges_to}
-                for nid, n in self.nodes.items()
-            },
+            "nodes": {nid: asdict(n) for nid, n in self.nodes.items()},
+            "edges": self.edges,
             "write_log": self.write_log,
         }
-        # In real implementation, write to persistence_path
-        logger.info(f"Knowledge fabric persisted: {len(self.nodes)} nodes")
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(data, sort_keys=True, indent=2))
+        os.replace(tmp, path)
+        logger.info(f"Knowledge fabric persisted: {len(self.nodes)} nodes -> {path}")
+        return str(path)
+
+    @classmethod
+    def load(cls, path: str) -> "KnowledgeFabric":
+        """Restore a fabric written by persist().
+
+        Every node's proof hash is re-verified; a fabric containing any node
+        whose content no longer matches its proof is refused rather than
+        loaded, since silently accepting tampered knowledge would defeat the
+        point of the proof hashes.
+        """
+        data = json.loads(Path(path).read_text())
+        fabric = cls(persistence_path=path)
+        for nid, raw in data["nodes"].items():
+            node = KnowledgeNode(**raw)
+            if not node.verify_integrity():
+                raise ValueError(
+                    f"Knowledge node {nid} failed integrity verification in {path}"
+                )
+            fabric.nodes[nid] = node
+        fabric.edges = {k: list(v) for k, v in data.get("edges", {}).items()}
+        fabric.write_log = list(data.get("write_log", []))
+        return fabric
 
 
 # ============================================================================
@@ -461,7 +492,7 @@ class SynthesisEngine:
         # poorly calibrated for exactly this reason; see
         # docs/guides/synthesis-calibration-arena.md.
         total_findings = len(all_findings)
-        for content_hash, findings in seen_contents.items():
+        for findings in seen_contents.values():
             if len(findings) >= 2:
                 consensus_findings.append({
                     "consensus": True,
@@ -522,7 +553,7 @@ class MultiBoxOrchestrationEngine:
             await asyncio.sleep(0.1)
 
         # Simulate collaboration: boxes request findings from each other
-        for i, box in enumerate(boxes):
+        for box in boxes:
             for other_box in boxes:
                 if box.box_id != other_box.box_id:
                     msg = InterBoxMessage(

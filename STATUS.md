@@ -1,3 +1,19 @@
+## OPEN (2026-09-26) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
+
+- **Branch:** `feat/pr264-orchestrator-strategy-constraint-fix`
+- **Orchestrator:** CHEAPEST/CONSENSUS/PARALLEL and `max_latency_ms`/`max_cost` now implemented (were documented but not wired, per Bugbot review of #260); `execute(constraints=...)` works as documented. Self-review defects fixed: multi-provider budget under-estimate, consensus-of-one, `failed_executions` always 0.
+- **Knowledge fabric:** `persist()` never wrote to disk while logging that it had (a #263 defect); it now writes atomically, and `KnowledgeFabric.load()` restores the fabric and refuses tampered nodes.
+- **Synthesis:** `agreement_fraction` added to `SynthesisEngine`. Pre-registered v2 (committed `bd80cf8e` before the run): Brier 0.212 → 0.120, delta −0.093 CI [−0.121, −0.065] → **IMPROVED**. v1 proof hash still reproduces.
+- **Verify:** `test_multi_model_orchestrator` **39 OK**; `test_multi_box_orchestration` **36 OK**; `test_synthesis_calibration_arena` **39 OK**; full suite: FULL_SUITE_COUNT_PENDING.
+- **CI:** GitHub Actions runners not being assigned repo-wide (every job ~3 s, `runner_id: 0`, empty logs; reproduces on `main`). Needs a Settings → Actions check by a repo/org admin. Documented on #263 and #264.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED (inference and agents simulated).
+
+## MERGED (2026-09-26) — GitHub PRs #259–#263
+
+- **#259** `5b844ea` autonomous swarm pool · **#260** `7880c4b` multi-model orchestrator · **#261** `d03b5eb` auditable governance layer · **#262** `07f813e` governed execution integration · **#263** `d1eccd2` multi-box orchestration + pre-registered calibration v1 (`WORSE`, honest negative).
+- Merged while CI runners were unavailable (see above); verified by local test runs.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
 ## MERGED (2026-09-26 19:25) — Autonomous workflow cloud environment setup + proof
 
 - **Branch:** `feat/neon-serverless-setup`
