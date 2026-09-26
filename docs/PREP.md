@@ -2,6 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-26 (GitHub #253 draft — swarm proof honesty + findings close)
+>
+> **GitHub #253 draft** on `claude/repo-audit-e4801s` (builds on merged #252). Audit finding
+> `data/findings/swarm_proof_artifacts_invalid.md`: 14/38 committed swarm proof artifacts declared
+> 32 validator workers but ran 0 validator calls (224 total, not 256). All 14 patched to mark
+> `partial_run: true` with `declared_validator_workers` preserving the original 32 and
+> `validator_workers` corrected to 0. Finding status updated to fixed. All 38 proofs now pass
+> `validate_proof_document`. Full suite: 4134 discovered test cases.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
 > ## ADDENDUM — 2026-09-26 (GitHub #252 draft — honest execution; chronicle drift corrected)
 >
 > **GitHub #252 draft** on `claude/repo-audit-e4801s`. Repo audit ran a real model (local Ollama

@@ -3,7 +3,7 @@
 **Date:** 2026-09-26
 **Discovered by:** repo audit (`thinkbox.cli_inspect.validate_proof_document`)
 **Severity:** Low — none of these files are cited as evidence in AGENTS.md
-**Status:** Open (artifacts left untouched; evidence is not rewritten)
+**Status:** Fixed in PR #253 (artifacts patched to mark partial runs honestly)
 
 ## Evidence
 
@@ -27,7 +27,11 @@ The artifacts AGENTS.md §13.7 cites (`_135102`, `_135330`, `_152452`,
 - `tests.unit.test_cli.TestCliSwarm.test_swarm_agents_json` failed on `main`
   because it read the newest (invalid) file; it now isolates its sample.
 
-## Next step
+## Resolution (PR #253)
 
-Decide per file: regenerate from the run's raw data if it exists, or mark the
-file as a partial run (224 of 256 calls) rather than a 256-call proof.
+All 14 files patched to honestly reflect partial execution:
+- `partial_run: true` and `partial_run_reason` added
+- `declared_validator_workers` preserves the original 32
+- `validator_workers` corrected to 0 (no validator calls were made)
+- `reconciliation.total_calls` left at 224 (the actual call count)
+- All 38 proof artifacts now pass `validate_proof_document`

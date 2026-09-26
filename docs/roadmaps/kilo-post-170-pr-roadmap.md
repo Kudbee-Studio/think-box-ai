@@ -113,7 +113,8 @@
 | Autonomous decision loop: Control-plane loop management | **GitHub #247** (on main `8661b72`) — POST/GET action endpoints (start/stop/run/reset) + LoopActionEntry audit trail |
 | Autonomous decision loop: Action audit docs | **GitHub #248** (on main `b128230`) — LoopActionEntry docs |
 | Autonomous decision loop: Action UI panel | **GitHub #249** (on main via GitHub #250, `02bbbc4`) — action list + governance-token gate |
-| Honest execution: real model path + no-token deny | **GitHub #252** (draft) — `ModelCallError`, governed `thinkbox run`, `model check`, `scripts/prove_think_box_local.py` |
+| Honest execution: real model path + no-token deny | **GitHub #252** (merged) — `ModelCallError`, governed `thinkbox run`, `model check`, `scripts/prove_think_box_local.py` |
+| Repo audit: swarm proof honesty + findings close | **GitHub #253** (draft) — 14 invalid swarm proofs patched (`partial_run: true`); finding doc closed; not LIVE VERIFIED |
 | Live proof | Season #141–#150 closed hermetically; `live_verified: false` on all spine audit passes including `docs/audit/passes/2026-09-23-pr170.json` |
 | Deferred product lanes | KUDBEECLI Phase 2 (**#129** draft), control-plane x10 (**#97**), PR **#103** Box Mercury v2 draft — **out of this spine sequence** unless founder reprioritizes |
 
