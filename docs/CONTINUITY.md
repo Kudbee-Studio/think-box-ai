@@ -3083,6 +3083,19 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **DOCS:** `docs/guides/autonomous_loop_actions.md` added.
 - **STATUS:** Draft PR opened.
 
+### 2026-09-26 — GitHub PR #249: Autonomous Loop Actions UI panel (draft)
+
+- **BRANCH:** `feat/pr249-autonomous-loop-actions-ui`
+- **SCOPE:** UI panel in `autonomous_loop.html` to display recent actions per loop using `/api/v1/autonomous-loop/loops/{loop_id}/actions`, plus action controls to trigger `start/stop/run/reset` with a governance token.
+- **UI:** `#actionList` Recent Loop Actions panel; hidden `#actionControls` toolbar (Start/Stop/Run/Reset buttons, `#governanceTokenInput` password field, `#actionStatus`) revealed only when a loop is selected; actions API gate + endpoint markers added to the page markers block.
+- **CLIENT:** `fetchLoopActions`, `fetchAllActions`, `postLoopAction`, `renderActionList`, `showActionStatus`, `sendLoopAction`; actions fetched alongside detail + telemetry in `refreshSelectedDetail()`; buttons wired in `setupControls()`; all helpers exported on `window.TBAutonomousLoopClient`.
+- **SAFETY (fail-closed):** no request leaves the browser when no loop is selected or the token is empty — status message shown instead. Server rejects tokenless `POST` with **401**.
+- **API:** `POST /loops/{loop_id}/actions/{action}` now requires a governance token (`X-Governance-Token` or `Authorization: Bearer`); pure helpers `extract_governance_token()` / `validate_loop_action()` extracted so the gate is unit-testable without FastAPI installed.
+- **TESTS:** new `tests/unit/test_autonomous_loop_action_api.py` (token extraction incl. precedence + whitespace, action validation, state persistence, module surface); extended `tests/unit/test_autonomous_loop_ui_static.py`.
+- **VERIFY:** `node --check public/control-plane/autonomous_loop_client.js`; autonomous-loop suite **82 OK** (+19 new).
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only; no live backend exercised).
+- **STATUS:** Draft.
+
 
 - **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
 - **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.
