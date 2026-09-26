@@ -8,6 +8,7 @@ canonical dashboard state via this module.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,8 @@ from typing import Any, AsyncGenerator
 
 from thinkbox.org_memory_receipts import redact_mapping
 from thinkbox.read_cache import RevisionCounter
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardCategory(str, Enum):
@@ -489,6 +492,20 @@ class DashboardState:
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
         self._revision = RevisionCounter()
+        self._loop_action_store: Any = None
+        self._loop_action_store_path: str | None = None
+
+    def set_loop_action_store(self, store: Any) -> None:
+        """Attach a durable loop action store (see autonomous_loop_action_store).
+
+        Once attached, every ``record_loop_action`` call persists a receipt so
+        the audit trail survives a process restart. Passing ``None`` detaches it.
+        """
+        self._loop_action_store = store
+
+    def get_loop_action_store(self) -> Any:
+        """Return the attached durable loop action store, or None."""
+        return self._loop_action_store
 
     async def register_subscriber(self, queue: asyncio.Queue) -> None:
         self._subscribers.append(queue)
@@ -590,7 +607,35 @@ class DashboardState:
         # Store action
         self.loop_actions.setdefault(loop_id, []).append(entry)
         self._revision.bump()
+        self._persist_loop_action(entry)
         return entry
+
+    def _persist_loop_action(self, entry: LoopActionEntry) -> Any:
+        """Append a durable receipt for the action when a store is attached.
+
+        Persistence is best-effort for observability only: a storage failure must
+        never break the in-memory control flow, but it is logged so it is visible.
+        """
+        store = self._loop_action_store
+        if store is None:
+            return None
+        try:
+            return store.append(
+                loop_id=entry.loop_id,
+                action=entry.action,
+                result=entry.result,
+                source=entry.source,
+                evidence_label=entry.evidence_label,
+                loop_action_id=entry.action_id,
+            )
+        except Exception as exc:  # pragma: no cover - defensive, storage-only
+            logger.warning(
+                "Failed to persist loop action receipt for %s/%s: %s",
+                entry.loop_id,
+                entry.action,
+                exc,
+            )
+            return None
 
     def get_loop_actions(self, loop_id: str) -> list[LoopActionEntry]:
         """Return the list of recorded actions for a specific loop."""

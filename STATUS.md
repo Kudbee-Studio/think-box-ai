@@ -1486,3 +1486,70 @@ Autonomous-loop suite: **82 OK** (was 63; +19 new).
 **Four-State:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (no live backend
 exercised; UI and token gate verified hermetically only).
 
+## PR #251 — Autonomous Loop Durable Action Receipts (draft)
+
+**Branch:** `feat/pr251-autonomous-loop-action-receipts`
+
+**Scope:** Persist autonomous-loop actions to SQLite in an append-only, tamper-evident
+hash chain so the operator audit trail survives a process restart, and expose a
+chain-integrity endpoint.
+
+### Problem
+
+`DashboardState.loop_actions` is a plain in-memory dict. Every recorded action
+(start/stop/run/reset) was lost on restart, so despite #247–#249 building an actions
+API, panel, and token gate, the audit trail was ephemeral and unauditable after the
+fact.
+
+### What changed
+
+| Layer | File | Change |
+|-------|------|--------|
+| Core | `thinkbox/autonomous_loop_action_store.py` (**new**) | `LoopActionReceipt` dataclass + `LoopActionStore` (SQLite `loop_action_receipts` table, hash chain via SHA-256 over payload incl. previous hash, `GENESIS` head); `append()`, `verify()`, `latest(n)`, `by_loop()`, `count()`, `close()`; `open_loop_action_store()` + `default_loop_action_db_path()` |
+| Core | `thinkbox/dashboard_state.py` | `set_loop_action_store()` / `get_loop_action_store()`; `record_loop_action()` now also appends a durable receipt; persistence failure is logged and swallowed so it can never break control flow; added module `logger` |
+| API | `backend/api/v1/autonomous_loop.py` | `GET /actions/integrity` → `{attached, count, valid, latest, api_version}`; pure helper `build_chain_integrity_payload(state)` testable without FastAPI |
+| Docs | `docs/guides/autonomous_loop_actions.md` | Durable receipts section (store API, wiring, endpoint, evidence note); future work now explicitly tracks auto-attaching the store at startup |
+| Tests | `tests/unit/test_autonomous_loop_action_store.py` (**new**) | 34 tests |
+
+### Verified claims
+
+- **Restart survival:** append → `close()` → reopen same path with a fresh store →
+  count preserved and `verify()` still `True`.
+- **Tamper detection:** raw `sqlite3` edits (change `action`, change `result` payload,
+  delete a row, rewrite `entry_hash`) each make `verify()` return `False`.
+- **Chain linkage:** first `prev_hash == "GENESIS"`, each subsequent `prev_hash` equals
+  the prior `entry_hash`.
+- **No regression:** existing 82 autonomous-loop tests unchanged and passing.
+
+### Honest scope notes
+
+- The store is **not** auto-attached at application startup — callers must call
+  `set_loop_action_store()`. Wiring it into startup is tracked as future work rather
+  than silently changing runtime behaviour for every existing consumer.
+- Receipts are `evidence_label: "simulated"`. They prove an action was *requested and
+  recorded* via the control plane; they do **not** prove an observable side effect
+  occurred in the loop.
+- Default path `data/thinkboxmd/db/loop_actions.db` is not written to by any existing
+  test; all store tests use `:memory:` or temp dirs.
+
+### Verify
+
+```bash
+python3 -m unittest \
+  tests.unit.test_autonomous_loop_action_store \
+  tests.unit.test_autonomous_loop_action_api \
+  tests.unit.test_autonomous_loop_ui_static \
+  tests.unit.autonomous_loop.test_control_actions \
+  tests.unit.test_autonomous_loop_api \
+  tests.unit.test_autonomous_loop_session_api \
+  tests.unit.test_autonomous_loop_telemetry \
+  tests.unit.test_autonomous_loop_dashboard \
+  tests.unit.test_autonomous_loop_learning_curve -v
+```
+
+Autonomous-loop suite: **116 OK** (was 82; +34 new).
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only;
+no live backend and no live restart of a running server exercised — "restart survival"
+is proven by reopening the SQLite file in a fresh store instance).
+

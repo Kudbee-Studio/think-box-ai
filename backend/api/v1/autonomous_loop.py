@@ -45,6 +45,32 @@ def validate_loop_action(action: str) -> bool:
     return action in ALLOWED_LOOP_ACTIONS
 
 
+def build_chain_integrity_payload(state: Any) -> dict[str, Any]:
+    """Build a persisted-action chain integrity payload from dashboard state.
+
+    Pure helper (no FastAPI) so it can be verified hermetically. When no durable
+    store is attached the payload reports ``attached: False`` rather than
+    claiming a chain exists.
+    """
+    store = getattr(state, "get_loop_action_store", lambda: None)()
+    if store is None:
+        return {
+            "attached": False,
+            "count": 0,
+            "valid": None,
+            "latest": [],
+            "api_version": AUTONOMOUS_LOOP_API_VERSION,
+        }
+    receipts = store.latest(10)
+    return {
+        "attached": True,
+        "count": store.count(),
+        "valid": store.verify(),
+        "latest": [r.to_dict() for r in receipts],
+        "api_version": AUTONOMOUS_LOOP_API_VERSION,
+    }
+
+
 try:
     from fastapi import APIRouter, HTTPException, Query, Header
 
@@ -140,6 +166,16 @@ try:
         state = get_dashboard_state()
         actions = state.get_all_loop_actions()
         return [a.model_dump() for a in actions]
+
+    @autonomous_loop_router.get("/actions/integrity")
+    async def get_action_chain_integrity() -> dict[str, Any]:
+        """Report persisted loop-action chain integrity (count + hash-chain validity).
+
+        Reads the durable store attached to dashboard state. ``attached: false``
+        means no durable store is configured; ``valid: false`` means tampering.
+        """
+        state = get_dashboard_state()
+        return build_chain_integrity_payload(state)
 
     @autonomous_loop_router.get("/sessions/summary")
     async def get_autonomous_loop_session_summary() -> dict[str, Any]:
