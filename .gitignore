@@ -71,3 +71,4 @@ backend/instance/
 data/proofs/
 data/cnc/safety/
 data/cnc/
+.copilot-specs-cache/
