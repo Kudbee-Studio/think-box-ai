@@ -3096,6 +3096,69 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only; no live backend exercised).
 - **STATUS:** Draft.
 
+### 2026-09-26 — PR #251 follow-up commits (same PR)
+
+- **GAP CLOSED (hydration):** durable receipts were not *observable*. After a
+  restart the in-memory dict was empty, so the API and the #249 panel reported
+  "no actions recorded" while receipts sat safely on disk.
+- **CORE:** `LoopActionStore.all_receipts(limit=None)` (oldest-first read path) and
+  `DashboardState.hydrate_loop_actions_from_store()` — replays receipts into
+  `loop_actions`, restores `last_action`, idempotent via `action_id` matching,
+  returns count restored. Storage read/write fail soft.
+- **CONFIG:** `THINKBOX_LOOP_ACTION_DB` — unset → default durable path;
+  off/0/false/none/disabled → disabled (returns `None` so callers can distinguish
+  'disabled' from 'use the default'); `:memory:` → ephemeral; else that path.
+- **WIRING:** `attach_durable_loop_actions(state, path, hydrate=True)` →
+  `(store, restored)` opens + attaches + recovers in one call;
+  `maybe_attach_loop_action_store(state, env)` honours the config and returns None
+  when disabled rather than silently creating an audit trail. Startup call site
+  remains explicit (one line now) — auto-wiring still tracked as future work.
+- **UI:** `Action Audit Chain (durable)` strip with four distinct states — OFFLINE,
+  NOT ATTACHED, VALID, TAMPERED — via `/actions/integrity`, refreshed each poll
+  cycle. Inline warning styles reset on recovery. Verified by 16 Node runtime
+  assertions against the real client file (skipped cleanly when node absent).
+- **TESTS:** store/config/hydration suite **52 OK**; integrity UI **6 OK**;
+  autonomous-loop total **140 OK**. Verified no test writes the default
+  `data/thinkboxmd/db/loop_actions.db`.
+- **FOUR-STATE:** unchanged — CODE COMPLETE / TEST VERIFIED, `live_verified: false`.
+
+### 2026-09-26 — GitHub PR #251: Autonomous Loop Durable Action Receipts (draft)
+
+- **BRANCH:** `feat/pr251-autonomous-loop-action-receipts`
+- **PROBLEM:** `DashboardState.loop_actions` was an in-memory dict — every recorded
+  loop action was lost on restart, so the operator audit trail built in #247–#249 was
+  ephemeral and could not be inspected after the fact.
+- **SCOPE:** Persist loop actions to SQLite in an append-only tamper-evident chain and
+  expose chain integrity.
+- **CORE:** new `thinkbox/autonomous_loop_action_store.py` — `LoopActionReceipt` +
+  `LoopActionStore` (table `loop_action_receipts`); each row's `entry_hash` = SHA-256
+  over payload incl. previous hash, first head = `GENESIS`; `append()`, `verify()`,
+  `latest(n)`, `by_loop()`, `count()`, `close()`; helpers `open_loop_action_store()`,
+  `default_loop_action_db_path()` (`data/thinkboxmd/db/loop_actions.db`). Follows the
+  existing `ActionReceiptStore` pattern and `open_sqlite` (WAL + busy_timeout).
+- **WIRING:** `DashboardState.set_loop_action_store()` / `get_loop_action_store()`;
+  `record_loop_action()` additionally appends a receipt, so existing callers become
+  durable unchanged. Persistence failure logged and swallowed — never breaks control
+  flow. Module `logger` added to `dashboard_state.py`.
+- **API:** `GET /api/v1/autonomous-loop/actions/integrity` → `{attached, count, valid,
+  latest, api_version}`; `attached:false` when unset (no false claim of a chain),
+  `valid:false` on tamper. Pure `build_chain_integrity_payload(state)` is testable
+  without FastAPI.
+- **TESTS:** new `tests/unit/test_autonomous_loop_action_store.py` (34). Verified:
+  genesis linkage + `prev_hash` chaining; `verify()` detects edited action, edited
+  result payload, deleted row, rewritten hash (all via raw `sqlite3` mutation);
+  reopen-same-file survival (count + `verify()` intact); storage failure does not
+  break `record_loop_action()`; graceful behaviour with no store attached.
+- **VERIFY:** autonomous-loop suite **116 OK** (was 82; +34 new).
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`. "Restart
+  survival" is proven by reopening the SQLite file in a fresh store instance, NOT by
+  restarting a live server.
+- **NOT DONE (honest):** store not auto-attached at startup (explicit
+  `set_loop_action_store()` still required — future work); receipts carry
+  `evidence_label: simulated`, proving the action was requested/recorded, not that an
+  observable side effect occurred.
+- **STATUS:** Draft.
+
 
 - **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
 - **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.

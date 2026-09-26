@@ -8,6 +8,7 @@ canonical dashboard state via this module.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,8 @@ from typing import Any, AsyncGenerator
 
 from thinkbox.org_memory_receipts import redact_mapping
 from thinkbox.read_cache import RevisionCounter
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardCategory(str, Enum):
@@ -489,6 +492,20 @@ class DashboardState:
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
         self._revision = RevisionCounter()
+        self._loop_action_store: Any = None
+        self._loop_action_store_path: str | None = None
+
+    def set_loop_action_store(self, store: Any) -> None:
+        """Attach a durable loop action store (see autonomous_loop_action_store).
+
+        Once attached, every ``record_loop_action`` call persists a receipt so
+        the audit trail survives a process restart. Passing ``None`` detaches it.
+        """
+        self._loop_action_store = store
+
+    def get_loop_action_store(self) -> Any:
+        """Return the attached durable loop action store, or None."""
+        return self._loop_action_store
 
     async def register_subscriber(self, queue: asyncio.Queue) -> None:
         self._subscribers.append(queue)
@@ -590,7 +607,84 @@ class DashboardState:
         # Store action
         self.loop_actions.setdefault(loop_id, []).append(entry)
         self._revision.bump()
+        self._persist_loop_action(entry)
         return entry
+
+    def _persist_loop_action(self, entry: LoopActionEntry) -> Any:
+        """Append a durable receipt for the action when a store is attached.
+
+        Persistence is best-effort for observability only: a storage failure must
+        never break the in-memory control flow, but it is logged so it is visible.
+        """
+        store = self._loop_action_store
+        if store is None:
+            return None
+        try:
+            return store.append(
+                loop_id=entry.loop_id,
+                action=entry.action,
+                result=entry.result,
+                source=entry.source,
+                evidence_label=entry.evidence_label,
+                loop_action_id=entry.action_id,
+            )
+        except Exception as exc:  # pragma: no cover - defensive, storage-only
+            logger.warning(
+                "Failed to persist loop action receipt for %s/%s: %s",
+                entry.loop_id,
+                entry.action,
+                exc,
+            )
+            return None
+
+    def hydrate_loop_actions_from_store(self) -> int:
+        """Rebuild in-memory loop actions from the durable store (restart recovery).
+
+        Persistence alone is not enough: after a restart the in-memory dict is
+        empty, so the API and UI would report "no actions recorded" despite the
+        receipts being durable. This replays the receipts into `loop_actions`
+        and restores each loop's `last_action`.
+
+        Idempotent: actions already present (matched on ``action_id``) are skipped,
+        so calling it repeatedly never duplicates entries. Returns the number of
+        actions restored.
+        """
+        store = self._loop_action_store
+        if store is None:
+            return 0
+        try:
+            receipts = store.all_receipts()
+        except Exception as exc:  # pragma: no cover - defensive, storage-only
+            logger.warning("Failed to read loop action receipts for hydration: %s", exc)
+            return 0
+
+        restored = 0
+        for receipt in receipts:
+            if not receipt.loop_id:
+                continue
+            existing = self.loop_actions.get(receipt.loop_id, [])
+            if any(a.action_id == receipt.loop_action_id for a in existing):
+                continue
+            entry = LoopActionEntry(
+                action_id=receipt.loop_action_id or "",
+                loop_id=receipt.loop_id,
+                action=receipt.action,
+                timestamp=receipt.timestamp,
+                result=receipt.result,
+                source=receipt.source,
+                evidence_label=receipt.evidence_label,
+            )
+            if receipt.loop_id not in self.autonomous_loops:
+                self.autonomous_loops[receipt.loop_id] = AutonomousLoopEntry(
+                    loop_id=receipt.loop_id
+                )
+            self.loop_actions.setdefault(receipt.loop_id, []).append(entry)
+            self.autonomous_loops[receipt.loop_id].last_action = receipt.action
+            restored += 1
+        if restored:
+            self._revision.bump()
+            logger.info("Hydrated %d loop action(s) from durable store", restored)
+        return restored
 
     def get_loop_actions(self, loop_id: str) -> list[LoopActionEntry]:
         """Return the list of recorded actions for a specific loop."""

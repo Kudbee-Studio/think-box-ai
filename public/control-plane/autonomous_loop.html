@@ -106,6 +106,7 @@
       <!-- api marker: /api/v1/autonomous-loop/sessions/summary -->
       <!-- api marker: /api/v1/autonomous-loop/loops/{loop_id}/actions -->
       <!-- api marker: /api/v1/autonomous-loop/actions -->
+      <!-- api marker: /api/v1/autonomous-loop/actions/integrity -->
 
     <div class="al-toolbar">
       <button id="btnRefresh">Refresh</button>
@@ -221,6 +222,16 @@
       <ul class="al-list" id="actionList" style="max-height: 320px;">
         <li style="color: var(--color-text-tertiary); cursor: default;">No actions recorded</li>
       </ul>
+    </div>
+
+    <div class="al-panel" style="margin-top: var(--space-4);">
+      <div class="al-label">Action Audit Chain (durable)</div>
+      <div id="actionIntegrity" style="font-family: var(--font-mono); font-size: var(--text-sm);">
+        <span id="integrityBadge" class="al-badge al-comp-inactive">—</span>
+        <span id="integrityDetail" style="margin-left: 0.5rem; color: var(--color-text-tertiary); font-size: var(--text-xs);">
+          Waiting for chain status
+        </span>
+      </div>
     </div>
 
     <div class="al-panel" style="margin-top: var(--space-4);">
