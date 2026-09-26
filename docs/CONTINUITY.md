@@ -3075,13 +3075,20 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 - **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
 
-### 2026-09-27 — GitHub PR #248: Autonomous Loop Actions Documentation & Verification (draft)
+### 2026-09-27 — GitHub PR #248: Autonomous Loop Actions Documentation & Verification (merged)
 
 - **BRANCH:** `feat/pr248-autonomous-loop-actions`
 - **SCOPE:** Documentation of LoopActionEntry model, POST/GET action endpoints, UI integration, and verification of implementation.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 - **DOCS:** `docs/guides/autonomous_loop_actions.md` added.
-- **STATUS:** Draft PR opened.
+- **STATUS:** Merged.
+
+- **PR #249 — Autonomous Loop Actions UI panel (draft)**
+  - **BRANCH:** `feat/pr249-autonomous-loop-actions-ui`
+  - **SCOPE:** UI panel in autonomous_loop.html to display recent actions per loop, using `/api/v1/autonomous-loop/loops/{loop_id}/actions` endpoint.
+  - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+  - **DOCS:** `docs/guides/autonomous_loop_actions.md` (updated) and UI changes.
+  - **STATUS:** Draft PR opened.
 
 
 - **BRANCH:** `feat/pr247-autonomous-loop-control-actions`

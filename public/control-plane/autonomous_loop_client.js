@@ -67,6 +67,55 @@
     }
   }
 
+  async function fetchLoopActions(loopId) {
+    if (!loopId) return [];
+    try {
+      const res = await fetch(`/api/v1/autonomous-loop/loops/${encodeURIComponent(loopId)}/actions`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function renderActionList(actions) {
+    const listEl = document.getElementById("actionList");
+    if (!listEl) return;
+    if (!actions || actions.length === 0) {
+      listEl.innerHTML = '<li style="color: var(--color-text-tertiary); cursor: default;">No actions recorded</li>';
+      return;
+    }
+    listEl.innerHTML = "";
+    actions.slice(0, 10).forEach(function(act) {
+      const li = document.createElement("li");
+      li.style.display = "flex";
+      li.style.justifyContent = "space-between";
+      li.style.alignItems = "center";
+
+      const info = document.createElement("div");
+      info.style.fontFamily = "var(--font-mono)";
+      info.style.fontSize = "var(--text-sm)";
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = act.action;
+      const tsSpan = document.createElement("span");
+      tsSpan.style.display = "block";
+      tsSpan.style.fontSize = "var(--text-xs)";
+      tsSpan.style.color = "var(--color-text-tertiary)";
+      tsSpan.textContent = new Date(act.timestamp).toLocaleTimeString();
+
+      info.appendChild(nameSpan);
+      info.appendChild(tsSpan);
+
+      const badge = document.createElement("span");
+      badge.className = "al-badge";
+      badge.textContent = act.action_id.slice(0,8);
+
+      li.appendChild(info);
+      li.appendChild(badge);
+      listEl.appendChild(li);
+    });
+  }
+
   async function fetchSessions() {
     try {
       const res = await fetch("/api/v1/autonomous-loop/sessions");
@@ -333,13 +382,16 @@
   async function refreshSelectedDetail() {
     if (!selectedLoopId) {
       renderSelectedLoop(null, null);
+      renderActionList([]);
       return;
     }
-    const [detail, telemetry] = await Promise.all([
+    const [detail, telemetry, actions] = await Promise.all([
       fetchLoopDetail(selectedLoopId),
-      fetchLoopTelemetry(selectedLoopId)
+      fetchLoopTelemetry(selectedLoopId),
+      fetchLoopActions(selectedLoopId)
     ]);
     renderSelectedLoop(detail, telemetry);
+    renderActionList(actions);
   }
 
   async function refreshAll() {

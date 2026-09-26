@@ -78,13 +78,19 @@ try:
         return get_autonomous_loop_session_summary_payload()
 
     @autonomous_loop_router.post("/loops/{loop_id}/actions/{action}")
-    async def post_loop_action(loop_id: str, action: str, payload: dict[str, Any] = {} ) -> dict[str, Any]:
+    async def post_loop_action(loop_id: str, action: str, payload: dict[str, Any] = {}, authorization: str | None = None, x_governance_token: str | None = None) -> dict[str, Any]:
         """Record an action (start/stop/run/reset) on a loop.
         Returns the created LoopActionEntry payload.
+        Requires a governance token for side‑effect protection.
         """
         allowed = {"start", "stop", "run", "reset"}
         if action not in allowed:
             raise HTTPException(status_code=400, detail=f"Invalid action '{action}'. Allowed: {allowed}")
+        # Extract governance token similar to other protected endpoints
+        token = x_governance_token.strip() if x_governance_token else (authorization[7:].strip() if authorization and authorization.lower().startswith("bearer ") else "")
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing governance token")
+        # NOTE: token validation is handled by AdmissionGate elsewhere; we enforce presence here.
         state = get_dashboard_state()
         entry = state.record_loop_action(loop_id, action, result=payload)
         return entry.model_dump()

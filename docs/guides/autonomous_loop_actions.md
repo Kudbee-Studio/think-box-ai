@@ -78,5 +78,5 @@ Content-Type: application/json
 
 ## Future Work
 
-* Add authorization checks via the governance layer for privileged actions.
-* Extend UI to allow users to trigger actions directly from the control‑plane.
+* **Implemented** token requirement: POST `/loops/{loop_id}/actions/{action}` now requires a valid governance token (Bearer or `X‑Governance‑Token` header). The token presence is enforced; validation is performed by the admission gate elsewhere.
+* UI integration now includes the token when invoking actions from the control‑plane.

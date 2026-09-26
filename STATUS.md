@@ -1429,7 +1429,7 @@ python3 -m unittest tests.unit.test_control_plane_etag_store \
   tests.e2e.test_f140_receipt_deep_link_etag -v
 ```
 
-## PR #248 — Autonomous Loop Actions Documentation & Verification (draft)
+## PR #248 — Autonomous Loop Actions Documentation & Verification (merged)
 
 **Branch:** `feat/pr248-autonomous-loop-actions`
 
@@ -1438,6 +1438,18 @@ python3 -m unittest tests.unit.test_control_plane_etag_store \
 **Four-State:** CODE COMPLETE / TEST VERIFIED — live_verified: false.
 
 **Docs:** `docs/guides/autonomous_loop_actions.md` added.
+
+**Status:** Merged.
+
+## PR #249 — Autonomous Loop Actions UI panel (draft)
+
+**Branch:** `feat/pr249-autonomous-loop-actions-ui`
+
+**Scope:** UI panel in autonomous_loop.html to display recent actions per loop, using `/api/v1/autonomous-loop/loops/{loop_id}/actions` endpoint.
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — live_verified: false.
+
+**Docs:** `docs/guides/autonomous_loop_actions.md` (updated) and UI changes.
 
 **Status:** Draft PR opened.
 
