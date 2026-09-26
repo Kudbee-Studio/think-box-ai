@@ -43,6 +43,7 @@ class EngineConfig:
     repo_path: str = "."
     speculative: bool = True
     max_retries: int = 3
+    telemetry_interval_s: float = 5.0
 
 
 class ThinkBoxEngine:
@@ -68,6 +69,8 @@ class ThinkBoxEngine:
         self._generalizer: Any = None
         self._session_manager: Any = None
         self._loop_bootstrap: Any = None
+        self._telemetry_interval: float = self.config.telemetry_interval_s
+        self._last_telemetry_time: float = 0.0
 
     def set_verified_task_runner(self, runner: Callable[..., Any] | None) -> None:
         """Inject the governed verified-execution runner (dependency injection).
@@ -580,6 +583,66 @@ class ThinkBoxEngine:
                 self._generalize_patterns()
 
         self._update_loop_dashboard()
+        self._telemetry_tick()
+
+    def _telemetry_tick(self) -> None:
+        """Capture detailed telemetry for the autonomous loop dashboard.
+
+        Called after _update_loop_dashboard(). Builds an AutonomousLoopTelemetry
+        from LoopTracer metrics and EngineAutoTuner decision count, records
+        convergence status, and updates the dashboard entry. Rate-limited by
+        telemetry_interval_s to avoid excessive writes.
+
+        No-op when no LoopTracer is injected. Fail-closed: errors are swallowed.
+        """
+        if self._loop_tracer is None or not self._loop_tracer.get_current_loop_id():
+            return
+        now = time.monotonic()
+        if now - self._last_telemetry_time < self._telemetry_interval:
+            return
+        self._last_telemetry_time = now
+        try:
+            from thinkbox.dashboard_state import get_dashboard_state, AutonomousLoopTelemetry
+
+            state = get_dashboard_state()
+            loop_id = self._loop_tracer.get_current_loop_id()
+            metrics = self._loop_tracer.get_metrics()
+            telemetry = AutonomousLoopTelemetry(
+                total_iterations=metrics.total_iterations,
+                total_cycle_time_s=metrics.total_cycle_time_s,
+                avg_cycle_time_s=metrics.avg_cycle_time_s,
+                min_cycle_time_s=metrics.min_cycle_time_s,
+                max_cycle_time_s=metrics.max_cycle_time_s,
+                throughput=round(metrics.total_iterations / metrics.total_cycle_time_s, 6)
+                    if metrics.total_cycle_time_s > 0 else 0.0,
+                recommendation_types=metrics.recommendation_types,
+                priority_distribution=metrics.priority_distribution,
+                learning_curve_points=[],
+                convergence_status=self._assess_convergence(metrics),
+                last_iteration_id=metrics.latest_iteration_id,
+                first_iteration_id=metrics.first_iteration_id,
+            )
+            state.record_loop_telemetry(loop_id, telemetry)
+        except Exception:
+            pass
+
+    def _assess_convergence(self, metrics: Any) -> str:
+        """Assess loop convergence status from metrics (Learning -> Observability binding).
+
+        Returns 'converged' if >=5 iterations with low cycle-time spread (< 0.3),
+        'improving' if iterations exist but spread is higher, 'pending' otherwise.
+        """
+        try:
+            if metrics.total_iterations >= 5 and metrics.avg_cycle_time_s > 0:
+                spread = (metrics.max_cycle_time_s - metrics.min_cycle_time_s) / metrics.avg_cycle_time_s
+                if spread < 0.3:
+                    return "converged"
+                return "improving"
+            if metrics.total_iterations > 0:
+                return "improving"
+            return "pending"
+        except Exception:
+            return "pending"
 
     def _update_loop_dashboard(self) -> None:
         """Update the autonomous loop dashboard entry with current state."""

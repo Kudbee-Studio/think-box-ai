@@ -275,6 +275,45 @@ class TestMilestoneEntry:
 
 
 @dataclass
+class AutonomousLoopTelemetry:
+    """Detailed telemetry metrics for the autonomous decision-loop.
+
+    Populated by Engine._telemetry_tick() from LoopTracer.get_metrics()
+    and EngineAutoTuner.get_decision_count(). Enables dashboard convergence
+    visualization and learning-curve tracking across loop iterations.
+    """
+
+    total_iterations: int = 0
+    total_cycle_time_s: float = 0.0
+    avg_cycle_time_s: float = 0.0
+    min_cycle_time_s: float = 0.0
+    max_cycle_time_s: float = 0.0
+    throughput: float = 0.0
+    recommendation_types: dict[str, int] = field(default_factory=dict)
+    priority_distribution: dict[str, int] = field(default_factory=dict)
+    learning_curve_points: list[dict[str, Any]] = field(default_factory=list)
+    convergence_status: str = "pending"
+    last_iteration_id: str = ""
+    first_iteration_id: str = ""
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "total_iterations": self.total_iterations,
+            "total_cycle_time_s": self.total_cycle_time_s,
+            "avg_cycle_time_s": self.avg_cycle_time_s,
+            "min_cycle_time_s": self.min_cycle_time_s,
+            "max_cycle_time_s": self.max_cycle_time_s,
+            "throughput": self.throughput,
+            "recommendation_types": self.recommendation_types,
+            "priority_distribution": self.priority_distribution,
+            "learning_curve_points": self.learning_curve_points,
+            "convergence_status": self.convergence_status,
+            "last_iteration_id": self.last_iteration_id,
+            "first_iteration_id": self.first_iteration_id,
+        }
+
+
+@dataclass
 class AutonomousLoopEntry:
     """Canonical state for the autonomous decision-loop dashboard."""
     loop_id: str
@@ -287,6 +326,7 @@ class AutonomousLoopEntry:
     bootstrapped: bool = False
     latest_recommendation: dict[str, Any] = field(default_factory=dict)
     latest_metrics: dict[str, Any] = field(default_factory=dict)
+    telemetry: AutonomousLoopTelemetry = field(default_factory=AutonomousLoopTelemetry)
     components: dict[str, bool] = field(
         default_factory=lambda: {
             "bootstrap": False,
@@ -319,6 +359,7 @@ class AutonomousLoopEntry:
             "bootstrapped": self.bootstrapped,
             "latest_recommendation": self.latest_recommendation,
             "latest_metrics": self.latest_metrics,
+            "telemetry": self.telemetry.model_dump() if isinstance(self.telemetry, AutonomousLoopTelemetry) else self.telemetry,
             "components": self.components,
             "evidence_label": self.evidence_label,
         }
@@ -417,6 +458,31 @@ class DashboardState:
         self.autonomous_loops[entry.loop_id] = entry
         self._revision.bump()
 
+    def record_loop_telemetry(self, loop_id: str, telemetry: AutonomousLoopTelemetry) -> None:
+        """Record telemetry metrics for an autonomous loop.
+
+        Updates the loop's entry with the latest telemetry payload. If the
+        loop_id is not tracked, creates a placeholder entry.
+        """
+        if loop_id in self.autonomous_loops:
+            self.autonomous_loops[loop_id].telemetry = telemetry
+        self._revision.bump()
+
+    def get_loop_telemetry(self, loop_id: str) -> AutonomousLoopTelemetry | None:
+        """Retrieve telemetry for a specific loop by loop_id."""
+        entry = self.autonomous_loops.get(loop_id)
+        if entry is None:
+            return None
+        return entry.telemetry if isinstance(entry.telemetry, AutonomousLoopTelemetry) else None
+
+    def get_all_loop_telemetry(self) -> list[dict[str, Any]]:
+        """Retrieve telemetry for all tracked autonomous loops."""
+        return [
+            entry.telemetry.model_dump() if isinstance(entry.telemetry, AutonomousLoopTelemetry)
+            else entry.telemetry
+            for entry in self.autonomous_loops.values()
+        ]
+
     def get_state_summary(self) -> dict[str, Any]:
         """Lightweight counts for polls and WebSocket (no full job payloads)."""
         receipt_linked = sum(
@@ -434,10 +500,20 @@ class DashboardState:
                 "total_providers": len(self.providers),
                 "total_events": len(self.events),
                 "total_autonomous_loops": len(self.autonomous_loops),
+                "total_loop_iterations": sum(
+                    e.telemetry.total_iterations if isinstance(e.telemetry, AutonomousLoopTelemetry) else 0
+                    for e in self.autonomous_loops.values()
+                ),
             },
             "think_job_receipt_summary": {
                 "tracked": len(self.think_jobs),
                 "receipt_linked": receipt_linked,
+            },
+            "loop_telemetry_summary": {
+                "loops_with_telemetry": sum(
+                    1 for e in self.autonomous_loops.values()
+                    if isinstance(e.telemetry, AutonomousLoopTelemetry) and e.telemetry.total_iterations > 0
+                ),
             },
         }
 
@@ -469,7 +545,12 @@ class DashboardState:
                 "total_providers": len(self.providers),
                 "total_events": len(self.events),
                 "total_autonomous_loops": len(self.autonomous_loops),
+                "total_loop_iterations": sum(
+                    e.telemetry.total_iterations if isinstance(e.telemetry, AutonomousLoopTelemetry) else 0
+                    for e in self.autonomous_loops.values()
+                ),
             },
+            "loop_telemetry": self.get_all_loop_telemetry(),
         }
 
 
