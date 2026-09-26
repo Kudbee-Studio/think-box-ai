@@ -77,6 +77,37 @@ try:
         """Lightweight summary of all closed sessions for status polling."""
         return get_autonomous_loop_session_summary_payload()
 
+    @autonomous_loop_router.post("/loops/{loop_id}/actions/{action}")
+    async def post_loop_action(loop_id: str, action: str, payload: dict[str, Any] = {} ) -> dict[str, Any]:
+        """Record an action (start/stop/run/reset) on a loop.
+        Returns the created LoopActionEntry payload.
+        """
+        allowed = {"start", "stop", "run", "reset"}
+        if action not in allowed:
+            raise HTTPException(status_code=400, detail=f"Invalid action '{action}'. Allowed: {allowed}")
+        state = get_dashboard_state()
+        entry = state.record_loop_action(loop_id, action, result=payload)
+        return entry.model_dump()
+
+    @autonomous_loop_router.get("/loops/{loop_id}/actions")
+    async def get_loop_actions(loop_id: str) -> list[dict[str, Any]]:
+        """Retrieve recorded actions for a specific loop."""
+        state = get_dashboard_state()
+        actions = state.get_loop_actions(loop_id)
+        return [a.model_dump() for a in actions]
+
+    @autonomous_loop_router.get("/actions")
+    async def list_all_actions() -> list[dict[str, Any]]:
+        """List all loop actions across all loops."""
+        state = get_dashboard_state()
+        actions = state.get_all_loop_actions()
+        return [a.model_dump() for a in actions]
+
+    @autonomous_loop_router.get("/sessions/summary")
+    async def get_autonomous_loop_session_summary() -> dict[str, Any]:
+        """Lightweight summary of all closed sessions for status polling."""
+        return get_autonomous_loop_session_summary_payload()
+
 except ImportError:
     # Fail-closed / headless fallback when FastAPI is not installed in runtime environment
     autonomous_loop_router = None  # type: ignore[assignment]

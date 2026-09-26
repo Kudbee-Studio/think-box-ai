@@ -316,7 +316,64 @@ class AutonomousLoopTelemetry:
 
 
 @dataclass
+class LoopActionEntry:
+    """Audit record for an action performed on an autonomous loop."""
+    action_id: str
+    loop_id: str
+    action: str  # start, stop, run, reset
+    timestamp: str = ""
+    result: Any = None
+    source: str = ""
+    evidence_label: str = "simulated"
+
+    def __post_init__(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
+        if not self.action_id:
+            self.action_id = f"act_{uuid.uuid4().hex[:12]}"
+
+    def model_dump(self) -> dict[str, Any]:
+        return {
+            "action_id": self.action_id,
+            "loop_id": self.loop_id,
+            "action": self.action,
+            "timestamp": self.timestamp,
+            "result": self.result,
+            "source": self.source,
+            "evidence_label": self.evidence_label,
+        }
+
+@dataclass
 class AutonomousLoopEntry:
+    """Canonical state for the autonomous decision-loop dashboard."""
+    loop_id: str
+    status: str = "idle"
+    started_at: str = ""
+    current_session_id: str = ""
+    iterations_count: int = 0
+    patterns_identified: int = 0
+    tuning_decisions: int = 0
+    bootstrapped: bool = False
+    latest_recommendation: dict[str, Any] = field(default_factory=dict)
+    latest_metrics: dict[str, Any] = field(default_factory=dict)
+    telemetry: AutonomousLoopTelemetry = field(default_factory=AutonomousLoopTelemetry)
+    components: dict[str, bool] = field(
+        default_factory=lambda: {
+            "bootstrap": False,
+            "experiment_manager": False,
+            "decomposer": False,
+            "execution": False,
+            "feedback": False,
+            "opportunity": False,
+            "loop_tracer": False,
+            "auto_tuner": False,
+            "generalizer": False,
+            "session_manager": False,
+        }
+    )
+    evidence_label: str = "infmred"
+    last_action: str = ""
+
     """Canonical state for the autonomous decision-loop dashboard."""
     loop_id: str
     status: str = "idle"
@@ -427,6 +484,7 @@ class DashboardState:
         self.providers: dict[str, ProviderEntry] = {}
         self.test_milestones: dict[str, TestMilestoneEntry] = {}
         self.autonomous_loops: dict[str, AutonomousLoopEntry] = {}
+        self.loop_actions: dict[str, list[LoopActionEntry]] = {}
         self.loop_sessions: dict[str, LoopSessionEntry] = {}
         self.events: list[DashboardEventEntry] = []
         self._subscribers: list[asyncio.Queue] = []
@@ -500,6 +558,50 @@ class DashboardState:
         self._revision.bump()
 
     def record_loop_telemetry(self, loop_id: str, telemetry: AutonomousLoopTelemetry) -> None:
+        """Record telemetry metrics for an autonomous loop.
+
+        Updates the loop's entry with the latest telemetry payload. If the
+        loop_id is not tracked, creates a placeholder entry.
+        """
+        if loop_id in self.autonomous_loops:
+            self.autonomous_loops[loop_id].telemetry = telemetry
+        self._revision.bump()
+
+    def record_loop_action(self, loop_id: str, action: str, result: Any = None, source: str = "") -> LoopActionEntry:
+        """Record an action (start/stop/run/reset) performed on a loop.
+
+        Updates the loop's `last_action` field and stores the action in an
+        audit trail. Returns the created LoopActionEntry.
+        """
+        entry = LoopActionEntry(
+            action_id="",
+            loop_id=loop_id,
+            action=action,
+            timestamp="",
+            result=result,
+            source=source,
+            evidence_label="simulated",
+        )
+        # Ensure loop entry exists
+        if loop_id not in self.autonomous_loops:
+            self.autonomous_loops[loop_id] = AutonomousLoopEntry(loop_id=loop_id)
+        # Update last_action on loop entry
+        self.autonomous_loops[loop_id].last_action = action
+        # Store action
+        self.loop_actions.setdefault(loop_id, []).append(entry)
+        self._revision.bump()
+        return entry
+
+    def get_loop_actions(self, loop_id: str) -> list[LoopActionEntry]:
+        """Return the list of recorded actions for a specific loop."""
+        return list(self.loop_actions.get(loop_id, []))
+
+    def get_all_loop_actions(self) -> list[LoopActionEntry]:
+        """Return a flat list of all LoopActionEntry records."""
+        actions: list[LoopActionEntry] = []
+        for lst in self.loop_actions.values():
+            actions.extend(lst)
+        return actions
         """Record telemetry metrics for an autonomous loop.
 
         Updates the loop's entry with the latest telemetry payload. If the
