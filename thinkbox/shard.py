@@ -40,6 +40,7 @@ from thinkbox.concurrent_goals import (
     ConcurrentGoalsConfig,
     ConcurrentGoalsResult,
     ConcurrentGoalsRunner,
+    aggregate_layer_telemetry,
 )
 from thinkbox.pop_arena import BudgetExhausted, VerifiedRetryConfig
 
@@ -195,7 +196,9 @@ class ShardedBudgetManager:
         return list(self._slices.keys())
 
     def slice_for(self, shard_id: str) -> int:
-        return self._slices.get(shard_id, 0)
+        """Live per-shard allocation (may differ from the initial slice after
+        :meth:`reallocate`). This is the cap the real runner enforces."""
+        return self._allocations.get(shard_id, 0)
 
     def reserve(self, shard_id: str, n: int) -> bool:
         """Atomically reserve ``n`` calls against a shard's remaining slice.
@@ -203,8 +206,7 @@ class ShardedBudgetManager:
         Returns ``False`` when the slice cannot satisfy the request (callers
         treat this as ``BudgetExhausted`` at the engine boundary).
         """
-        remaining = self._allocations.get(shard_id, 0) - self._spent.get(shard_id, 0)
-        if n > remaining:
+        if n > self.remaining_for(shard_id):
             return False
         self._spent[shard_id] = self._spent.get(shard_id, 0) + n
         return True
@@ -221,6 +223,18 @@ class ShardedBudgetManager:
                 f"(spent={self._spent.get(shard_id, 0)}, alloc={self._allocations.get(shard_id, 0)})"
             )
 
+    def commit_spent(self, shard_id: str, n: int) -> None:
+        """Sync the manager's spent counter with the runner's actual spend.
+
+        The real runner enforces its own ``max_calls_global`` slice, so this
+        method just records how many calls that slice actually consumed (never
+        exceeding the allocation) so ``remaining``/``total_spent`` stay honest.
+        """
+        self._spent[shard_id] = min(
+            self._allocations.get(shard_id, 0) + self._spent.get(shard_id, 0),
+            self._spent.get(shard_id, 0) + n,
+        )
+
     def remaining(self) -> int:
         used = sum(self._spent.values())
         return max(0, self.total_calls - used)
@@ -230,17 +244,18 @@ class ShardedBudgetManager:
         return max(0, alloc - self._spent.get(shard_id, 0))
 
     def reallocate(self, from_shard: str, to_shard: str, n: int) -> bool:
-        """Move ``n`` budget units from one shard to another.
+        """Move ``n`` budget units from one shard's allocation to another.
 
-        Only surplus budget (reserved-but-unused) can be moved, and a shard
-        never drops below what it has already spent — so reallocation can never
-        let total spend exceed ``total_calls``.
+        Only surplus budget (allocation minus spend) can be moved, and a
+        shard never drops below what it has already spent — so total spend
+        can never exceed ``total_calls``. Allocations are moved (not spent
+        deltas), keeping ``sum(allocations) == total_calls``.
         """
         surplus = self.remaining_for(from_shard)
         if n > surplus or n <= 0:
             return False
-        self._spent[from_shard] = self._spent.get(from_shard, 0) + n
-        self._spent[to_shard] = max(0, self._spent.get(to_shard, 0) - n)
+        self._allocations[from_shard] -= n
+        self._allocations[to_shard] += n
         self._redistributed += n
         return True
 
@@ -387,8 +402,6 @@ class ShardTelemetryAggregator:
         global_calls = 0
         global_retries = 0
         shared = False
-        layer_agg: list[dict[str, Any]] = []
-
         for res in results:
             goal_results.update(res.goal_results)
             per_goal_accounting.update(res.per_goal_accounting)
@@ -396,7 +409,9 @@ class ShardTelemetryAggregator:
             global_calls += res.global_calls_spent
             global_retries += res.global_retries_fired
             shared = shared or res.shared_session_used
-            layer_agg.extend(res.layer_telemetry_aggregate)
+        layer_agg = aggregate_layer_telemetry(
+            [{"layers_telemetry": r.layer_telemetry_aggregate} for r in results]
+        )
 
         # Cross-shard accounting cross-check (see AGENTS.md §9).
         sum_per_goal = sum(
@@ -737,7 +752,7 @@ class ShardCheckpointStore:
         ).hexdigest()[:32]
 
     def save(self, checkpoint: ShardCheckpoint, timestamp: str | None = None) -> ShardCheckpoint:
-        ts = timestamp or datetime.now(timezone.utc).isoformat()
+        ts = checkpoint.timestamp or timestamp or datetime.now(timezone.utc).isoformat()
         checksum = self._compute_checksum(checkpoint)
         signed = ShardCheckpoint(
             shard_id=checkpoint.shard_id,
@@ -844,11 +859,17 @@ class ShardReplay:
                 node = self.hasher.node_for(gid)
                 recomputed.setdefault(node, []).append(gid)
         latest = {sid: cp for sid, cp in latest.items()}
-        replay_info = {"expected_shards": sorted(self.hasher.nodes), "recomputed": recomputed}
-        for cp in latest.values():
-            cp.metadata = getattr(cp, "metadata", {})
-            cp.metadata["replay_info"] = replay_info
-        return latest
+        # Recompute the expected assignment under the current hasher to detect
+        # topology drift (node set changes) — the values are returned alongside
+        # rather than mutating the immutable ShardCheckpoint.
+        recomputed: dict[str, list[str]] = defaultdict(list)
+        for sid, cp in latest.items():
+            for gid in cp.goal_ids:
+                recomputed[self.hasher.node_for(gid)].append(gid)
+        return latest, {
+            "expected_shards": sorted(self.hasher.nodes),
+            "recomputed": dict(recomputed),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -891,8 +912,8 @@ class ArenaRetryScaleVerification:
         )
         retries = result.global_retries_fired
         budget_exhausted = sum(
-            1 for ga in accounting.values()
-            if ga.get("execution_status") == "BUDGET_EXHAUSTED"
+            int(ga.get("budget_exhausted", 0) or 0)
+            for ga in accounting.values()
         )
         verification_rate = 0.0
         verified = [ga for ga in accounting.values() if ga.get("execution_status") == "verified"]
@@ -994,7 +1015,6 @@ class ShardedGoalExecutor:
         ledger_writer: ShardLedgerWriter | None = None,
         checkpoint_store: ShardCheckpointStore | None = None,
         runner_factory: Callable[[], ConcurrentGoalsRunner] = _default_runner,
-        global_budget_calls: int = 0,
         contention_policy: BudgetContentionPolicy = BudgetContentionPolicy.FAIR_SHARE,
     ) -> None:
         if num_shards <= 0:
@@ -1003,16 +1023,12 @@ class ShardedGoalExecutor:
         shard_ids = [f"shard-{i:03d}" for i in range(num_shards)]
         self.hasher = hasher or RendezvousHasher(shard_ids)
         self.runner_factory = runner_factory
-        self.has_shard_budget = global_budget_calls > 0
-        self.budget_manager = budget_manager or (
-            ShardedBudgetManager(
-                total_calls=global_budget_calls,
-                num_shards=num_shards,
-                contention_policy=contention_policy,
-            )
-            if self.has_shard_budget
-            else None
-        )
+        # An injected budget_manager is used as-is (for tests/direct control).
+        # Otherwise the budget is derived from the run-time config inside
+        # run_concurrent, so a stale constructor-level budget can never drift
+        # from the actual run config.
+        self.budget_manager = budget_manager
+        self.contention_policy = contention_policy
         self.failure_detector = failure_detector or ShardFailureDetector()
         self.backpressure = backpressure or ShardBackpressureController()
         self.ledger_writer = ledger_writer
@@ -1026,7 +1042,7 @@ class ShardedGoalExecutor:
             status=status, metadata=metadata or {},
         ))
 
-    def _snapshot_shards(self, assignment: ShardAssignment) -> None:
+    def _snapshot_shards(self, assignment: ShardAssignment, budget: ShardedBudgetManager | None) -> None:
         if self.checkpoint_store is None:
             return
         for sid in self.hasher.nodes:
@@ -1034,7 +1050,7 @@ class ShardedGoalExecutor:
             cp = ShardCheckpoint(
                 shard_id=sid,
                 goal_ids=[s.goal for s in specs],
-                budget_allocated=self.budget_manager.slice_for(sid) if self.budget_manager else 0,
+                budget_allocated=budget.slice_for(sid) if budget else 0,
                 budget_spent=0,
                 state=ShardState.STAGING.value,
             )
@@ -1056,8 +1072,18 @@ class ShardedGoalExecutor:
         rebalancing via :class:`ShardRecovery`.
         """
         cfg = config or ConcurrentGoalsConfig()
+        # Derive the sharded budget from THIS run's config (or use an injected
+        # manager). Shared-session budget only applies when per-goal isolation
+        # is off and a positive global cap is set; otherwise shards run free.
+        budget = self.budget_manager
+        if budget is None and not cfg.independent_goals and cfg.max_calls_global > 0:
+            budget = ShardedBudgetManager(
+                total_calls=cfg.max_calls_global,
+                num_shards=self.num_shards,
+                contention_policy=cfg.contention_policy,
+            )
         assignment = ShardAssignment(self.hasher, specs)
-        self._snapshot_shards(assignment)
+        self._snapshot_shards(assignment, budget)
         start = time.monotonic()
 
         shard_ids = assignment.active_shards or self.hasher.nodes
@@ -1070,11 +1096,10 @@ class ShardedGoalExecutor:
             if not bp.admitted:
                 self._emit(sid, "admission_denied", "*", "denied",
                            {"reason": bp.reason, "queue_depth": bp.queue_depth})
-                # No budget consumed; record and skip.
                 continue
             self._emit(sid, "shard_started", ",".join(s.goal for s in shard_specs), "running")
             runner = self.runner_factory()
-            shard_cfg = _config_for_shard(cfg, self.budget_manager, sid)
+            shard_cfg = _config_for_shard(cfg, budget, sid)
 
             async def _run_one(sid: str = sid, scfg: ConcurrentGoalsConfig = shard_cfg, sspecs: list[ConcurrentGoalSpec] = shard_specs) -> ConcurrentGoalsResult:
                 self.backpressure.observe(sid, 0.0, enqueued=True)
@@ -1106,6 +1131,8 @@ class ShardedGoalExecutor:
                                {"error_type": type(out).__name__, "error": repr(out)})
                 elif isinstance(out, ConcurrentGoalsResult):
                     shard_results.append(out)
+                    if budget is not None:
+                        budget.commit_spent(sid, out.global_calls_spent)
                     self._record_outcomes(sid, out)
                 else:
                     self._emit(sid, "shard_unknown", "*", "unknown", {"type": type(out).__name__})
@@ -1114,10 +1141,10 @@ class ShardedGoalExecutor:
         duration_ms = (time.monotonic() - start) * 1000.0
         aggregated.cross_goal_summary["duration_ms"] = round(duration_ms, 4)
         aggregated.cross_goal_summary["shard_budget_spent"] = (
-            self.budget_manager.total_spent() if self.budget_manager else 0
+            budget.total_spent() if budget else 0
         )
         aggregated.cross_goal_summary["shard_budget_remaining"] = (
-            self.budget_manager.remaining() if self.budget_manager else None
+            budget.remaining() if budget else None
         )
         if shard_results and self.checkpoint_store is not None:
             for sid in shard_ids:
@@ -1125,8 +1152,8 @@ class ShardedGoalExecutor:
                 cp = ShardCheckpoint(
                     shard_id=sid,
                     goal_ids=[s.goal for s in specs],
-                    budget_allocated=self.budget_manager.slice_for(sid) if self.budget_manager else 0,
-                    budget_spent=self.budget_manager._spent.get(sid, 0) if self.budget_manager else 0,
+                    budget_allocated=budget.slice_for(sid) if budget else 0,
+                    budget_spent=budget._spent.get(sid, 0) if budget else 0,
                     state=ShardState.ACTIVE.value,
                 )
                 self.checkpoint_store.save(cp)
@@ -1141,10 +1168,6 @@ class ShardedGoalExecutor:
                     self.failure_detector.record_success(shard_id)
                 if ga.get("failures", 0) > 0:
                     self.failure_detector.record_failure(shard_id)
-
-    @property
-    def summary(self) -> ShardedRunSummary:
-        raise NotImplementedError("use .run_concurrent() then ShardedRunSummary.from_result()")
 
     @staticmethod
     def from_result(result: ConcurrentGoalsResult, shard_count: int, duration_ms: float) -> ShardedRunSummary:
