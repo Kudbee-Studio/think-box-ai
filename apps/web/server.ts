@@ -28,6 +28,7 @@ import { errorMessage } from './types.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
+import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,7 +66,10 @@ const monitorAgent = {
   last_check: null as string | null,
 };
 const serverStartedAt = Date.now();
-const runStore = new RunStore(path.join(process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data'), 'runs.json'));
+const dataDir = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
+const runStore = new RunStore(path.join(dataDir, 'runs.json'));
+const memoryStore = new MemoryStore(process.env.KUDBEE_MEMORY_DIR || path.join(dataDir, 'memory'));
+void memoryStore.syncVectors();
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -767,6 +771,18 @@ class AgentSession {
     const record = this.newRun(goal, task.id);
     this.broadcast({ type: 'run_update', data: record });
     try {
+      // Knowledge and episodes are recalled separately so repeated goals cannot crowd out notes.
+      const knowledge = await memoryStore.search(goal, { layers: ['verified', 'org'], topK: 3 });
+      const episodes = await memoryStore.search(goal, { layers: ['task'], topK: 2 });
+      const recalled = { hits: [...knowledge.hits, ...episodes.hits], backend: knowledge.backend };
+      record.recalled = recalled.hits.map((hit) => hit.item.id);
+      if (recalled.hits.length) {
+        this.addThought({
+          type: 'memory',
+          content: `Recalled ${recalled.hits.length} memor${recalled.hits.length === 1 ? 'y' : 'ies'} (${recalled.backend}): ${recalled.hits.map((hit) => hit.item.title).join(' · ')}`,
+          status: 'info',
+        });
+      }
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
         workspace: sessionWorkspace(this.id),
         resolvePath: (relativePath) => safeWorkspacePath(this.id, relativePath),
@@ -783,6 +799,18 @@ class AgentSession {
             : null,
         approvedDomains: this.approvedDomains,
         requestApproval: (tool, args, reason) => this.requestApproval(record.id, tool, args, reason),
+        remember: async (title, content, tags) => {
+          const item = await memoryStore.write('org', { title, content, tags, source: `agent run:${record.id.slice(0, 8)}` });
+          this.broadcast({ type: 'memory_changed', data: { id: item.id } });
+          return { id: item.id, layer: item.layer, path: item.path, note: 'Saved as unverified org memory; a human can promote it.' };
+        },
+        recall: async (query, limit) => {
+          const { hits, backend } = await memoryStore.search(query, { topK: limit });
+          return {
+            backend,
+            results: hits.map(({ item, score }) => ({ id: item.id, layer: item.layer, title: item.title, score: Math.round(score * 1000) / 1000, content: item.content.slice(0, 800) })),
+          };
+        },
         rssFeed: async (url, limit) => {
           const rss = plugins.get('rss_feed');
           if (!rss) throw new Error('rss_feed plugin missing');
@@ -790,9 +818,10 @@ class AgentSession {
           if (!result.success) throw new Error(String(result.error));
           return result as Record<string, unknown>;
         },
-      });
+      }, MemoryStore.formatForPrompt(recalled.hits));
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
+      await this.recordEpisode(record);
       this.memory.push({ timestamp: Date.now(), type: 'agent_run', run_id: record.id, goal, status, cost_usd: record.cost_usd } as MemoryEntry);
       if (run.success) {
         this.history.push({ goal, result: run.result ?? '' });
@@ -824,6 +853,40 @@ class AgentSession {
     } finally {
       this.status = 'idle';
       this.abort = null;
+    }
+  }
+
+  /** Task-layer memory: one Markdown episode per finished agent run, so later runs can learn from it. */
+  async recordEpisode(run: RunRecord): Promise<void> {
+    const tools = run.steps.filter((step) => step.kind === 'tool').map((step) => (step.kind === 'tool' ? `${step.name}${step.ok ? '' : ' ✗'}` : ''));
+    const observed = run.steps.flatMap((step) =>
+      step.kind === 'tool' && step.ok && ['fetch_url', 'read_rss', 'read_file'].includes(step.name) ? [step.name] : [],
+    );
+    const outcome = run.status === 'completed' ? 'completed' : `${run.status}${run.failure_kind ? ` (${run.failure_kind})` : ''}`;
+    const content = [
+      `Goal: ${run.goal}`,
+      `Outcome: ${outcome}`,
+      `When: ${new Date(run.started_at).toISOString()} · Model: ${run.model} · Steps: ${run.current_step} · Cost: $${run.cost_usd.toFixed(5)} · Duration: ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`,
+      `Tools: ${tools.join(' → ') || 'none'}`,
+      `Evidence gathered: ${observed.length ? `yes (${[...new Set(observed)].join(', ')})` : "none — any answer came from the model's own knowledge"}`,
+      run.approvals.approved || run.approvals.denied ? `Approvals: ${run.approvals.approved} approved, ${run.approvals.denied} denied` : '',
+      run.files.length ? `Files: ${run.files.join(', ')} (workspace ${run.session_id})` : '',
+      run.recalled?.length ? `Recalled: ${run.recalled.join(', ')}` : '',
+      '',
+      run.error ? `Error: ${run.error}` : `Answer given (unverified):\n${(run.result ?? '').slice(0, 1500)}`,
+    ].filter((line, i, all) => line !== '' || (i > 0 && all[i - 1] !== '')).join('\n');
+    try {
+      const item = await memoryStore.write('task', {
+        title: run.goal.slice(0, 90),
+        content,
+        tags: [run.status, run.model],
+        source: `run:${run.id}`,
+        slug: `${new Date(run.started_at).toISOString().slice(0, 10)}-${run.id.slice(0, 8)}`,
+      });
+      this.addThought({ type: 'memory', content: `Saved episode to task memory: ${item.path}`, status: 'success' });
+      this.broadcast({ type: 'memory_changed', data: { id: item.id } });
+    } catch (err) {
+      this.addThought({ type: 'memory', content: `Could not save episode: ${errorMessage(err)}`, status: 'error' });
     }
   }
 
@@ -991,6 +1054,9 @@ app.get('/api/monitor', async (_req: Request, res: Response) => {
     monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
     monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
     monitorEndpoint('Janus image service', `${janusBaseUrl}/health`),
+    ...(process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
+      ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
+      : []),
     ...(inceptionConfigured()
       ? [monitorEndpoint('Inception Mercury 2', 'https://api.inceptionlabs.ai/v1/models', { Authorization: `Bearer ${process.env.INCEPTION_API_KEY}` })]
       : []),
@@ -1042,6 +1108,7 @@ app.get('/api/stats', (_req: Request, res: Response) => {
   res.json({
     ...runStore.stats(),
     budget_usd: dailyBudgetUsd || null,
+    memory: { counts: memoryStore.counts(), vector: memoryStore.vectorStatus },
     capacity: {
       running_agents: running,
       connected_sessions: sessions.size,
@@ -1065,6 +1132,62 @@ app.get('/api/runs/:id', (req: Request, res: Response) => {
   const run = runStore.get(req.params.id);
   if (!run) return res.status(404).json({ error: 'Run not found' });
   res.json(run);
+});
+
+// ─── Memory layers (files + vector index) ──────────────────────
+function memoryLayerParam(value: unknown): MemoryLayer | undefined {
+  return MEMORY_LAYERS.includes(value as MemoryLayer) ? (value as MemoryLayer) : undefined;
+}
+
+app.get('/api/memory/status', (_req: Request, res: Response) => {
+  res.json({ root: memoryStore.root, namespace: memoryStore.namespace, counts: memoryStore.counts(), vector: memoryStore.vectorStatus });
+});
+
+app.get('/api/memory', async (req: Request, res: Response) => {
+  const layer = memoryLayerParam(req.query.layer);
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const preview = (item: { content: string }) => item.content.replace(/\s+/g, ' ').slice(0, 240);
+  if (query) {
+    const { hits, backend } = await memoryStore.search(query, { layers: layer ? [layer] : undefined, topK: Math.min(limit, 25) });
+    return res.json({ backend, items: hits.map(({ item, score }) => ({ ...item, content: preview(item), score })) });
+  }
+  res.json({ backend: 'list', items: memoryStore.list(layer, limit).map((item) => ({ ...item, content: preview(item) })) });
+});
+
+app.get('/api/memory/item', (req: Request, res: Response) => {
+  const item = memoryStore.get(String(req.query.id ?? ''));
+  if (!item) return res.status(404).json({ error: 'Memory not found' });
+  res.json(item);
+});
+
+app.post('/api/memory', async (req: Request, res: Response) => {
+  const layer = memoryLayerParam(req.body?.layer) ?? 'org';
+  const title = String(req.body?.title ?? '').trim();
+  const content = String(req.body?.content ?? '').trim();
+  if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+  if (layer === 'task') return res.status(400).json({ error: 'Task memory is written automatically by runs' });
+  const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(String) : String(req.body?.tags ?? '').split(',');
+  const item = await memoryStore.write(layer, { title, content, tags, source: 'human' });
+  for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: { id: item.id } });
+  res.status(201).json(item);
+});
+
+app.post('/api/memory/promote', async (req: Request, res: Response) => {
+  try {
+    const item = await memoryStore.promote(String(req.body?.id ?? ''));
+    for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: { id: item.id } });
+    res.json(item);
+  } catch (err) {
+    res.status(400).json({ error: errorMessage(err) });
+  }
+});
+
+app.delete('/api/memory/item', async (req: Request, res: Response) => {
+  const removed = await memoryStore.remove(String(req.query.id ?? ''));
+  if (!removed) return res.status(404).json({ error: 'Memory not found' });
+  for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: {} });
+  res.json({ success: true });
 });
 
 app.get('/api/sdk/capabilities', (_req: Request, res: Response) => {

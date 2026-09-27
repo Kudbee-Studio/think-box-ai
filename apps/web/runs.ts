@@ -25,6 +25,8 @@ export interface RunRecord {
   cost_usd: number;
   approvals: { approved: number; denied: number };
   files: string[];
+  /** Memory ids injected into the prompt at run start. */
+  recalled?: string[];
   result?: string;
   error?: string;
   failure_kind?: string;

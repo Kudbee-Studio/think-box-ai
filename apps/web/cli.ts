@@ -202,6 +202,8 @@ const HELP = `${c.bold('kudbEE CLI')} — type a goal for the worker agent, or a
   /plugins           list plugins       /files        list workspace files
   /runs              run history        /run ID       step-by-step timeline
   /metrics           agent metrics      /cat PATH     print a file
+  /memory [QUERY]    memory / search    /remember TITLE - TEXT   save org note
+  /promote org/ID    promote a note to verified knowledge
   /status            server health
   /open              dashboard URL      /stop         stop the running goal
   /help              this help          /quit         exit
@@ -241,6 +243,42 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/runs':
       await showRuns();
       break;
+    case '/memory': {
+      const query = args.join(' ').trim();
+      const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
+      const { items, backend } = (await (await fetch(`${HOST}/api/memory?${params}`)).json()) as { items: any[]; backend: string };
+      if (!items.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
+      if (query && items.length) console.log(c.dim(`  search backend: ${backend}`));
+      const color: Record<string, (s: string) => string> = { verified: c.green, org: c.yellow, task: c.cyan };
+      for (const item of items) {
+        console.log(`  ${(color[item.layer] ?? c.dim)(item.layer.padEnd(8))} ${item.title}${item.score !== undefined ? c.dim(` · ${Number(item.score).toFixed(2)}`) : ''}`);
+        console.log(c.dim(`           ${item.id} — ${item.content.slice(0, 110)}`));
+      }
+      break;
+    }
+    case '/remember': {
+      const text = args.join(' ').trim();
+      if (!text) {
+        console.log(c.red('Usage: /remember TITLE - TEXT'));
+        break;
+      }
+      const [title, ...rest] = text.split(/\s+[-—:]\s+/);
+      const res = await fetch(`${HOST}/api/memory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layer: 'org', title, content: rest.join(' - ') || text }),
+      });
+      const item = (await res.json()) as any;
+      console.log(res.ok ? c.green(`  saved ${item.id} (${item.path})`) : c.red(`  ${item.error}`));
+      break;
+    }
+    case '/promote': {
+      const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
+      const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      const item = (await res.json()) as any;
+      console.log(res.ok ? c.green(`  promoted → ${item.id}`) : c.red(`  ${item.error}`));
+      break;
+    }
     case '/run':
       await showRun(args[0] ?? '');
       break;

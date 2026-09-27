@@ -71,6 +71,24 @@
 
         <div class="panel">
           <div class="panel-header">
+            <h3>🧠 Memory</h3>
+            <span id="memory-backend" class="badge" title="Vector backend">…</span>
+          </div>
+          <input id="memory-search" class="panel-search" type="search" placeholder="Search memory (vector)...">
+          <div class="memory-filters" role="tablist">
+            <button class="thought-filter active" data-memory-layer="">All <span id="memory-count-all">0</span></button>
+            <button class="thought-filter" data-memory-layer="verified">Verified <span id="memory-count-verified">0</span></button>
+            <button class="thought-filter" data-memory-layer="org">Org <span id="memory-count-org">0</span></button>
+            <button class="thought-filter" data-memory-layer="task">Tasks <span id="memory-count-task">0</span></button>
+          </div>
+          <div id="memory-list" class="memory-list">
+            <div class="empty-state">No memories yet</div>
+          </div>
+          <button id="add-memory" class="btn-secondary memory-add" type="button">+ Add note</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
             <h3>🔌 Plugins</h3>
           </div>
           <input id="plugin-search" class="panel-search" type="search" placeholder="Search plugins...">
@@ -292,6 +310,38 @@
       <div class="modal-actions">
         <button id="deny-approval" class="btn-danger">✗ Deny</button>
         <button id="approve-approval" class="btn-primary">✓ Approve</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="memory-modal" class="modal-backdrop" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="memory-modal-title">
+      <div class="modal-header">
+        <div>
+          <span id="memory-modal-layer" class="modal-eyebrow">MEMORY</span>
+          <h2 id="memory-modal-title">Memory</h2>
+        </div>
+        <button id="close-memory-modal" class="btn-icon" title="Close">×</button>
+      </div>
+      <div id="memory-modal-meta" class="memory-meta"></div>
+      <div id="memory-view">
+        <pre id="memory-modal-content" class="memory-content"></pre>
+      </div>
+      <form id="memory-form" class="memory-form" hidden>
+        <label>Layer
+          <select id="memory-form-layer">
+            <option value="org">Org — note, unverified</option>
+            <option value="verified">Verified — trusted knowledge</option>
+          </select>
+        </label>
+        <label>Title <input id="memory-form-title" type="text" maxlength="200" required></label>
+        <label>Tags <input id="memory-form-tags" type="text" placeholder="comma, separated"></label>
+        <label>Content <textarea id="memory-form-content" rows="8" required></textarea></label>
+      </form>
+      <div class="modal-actions">
+        <button id="delete-memory" class="btn-danger" type="button">Delete</button>
+        <button id="promote-memory" class="btn-secondary" type="button">✓ Promote to verified</button>
+        <button id="save-memory" class="btn-primary" type="button" hidden>Save</button>
       </div>
     </section>
   </div>

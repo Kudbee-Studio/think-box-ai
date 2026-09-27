@@ -73,6 +73,8 @@ export interface AgentHooks {
   checkBudget: () => string | null;
   approvedDomains: Set<string>;
   requestApproval: (tool: string, args: Record<string, unknown>, reason: string) => Promise<boolean>;
+  remember: (title: string, content: string, tags: string[]) => Promise<Record<string, unknown>>;
+  recall: (query: string, limit: number) => Promise<Record<string, unknown>>;
   rssFeed: (url: string, limit: number) => Promise<Record<string, unknown>>;
 }
 
@@ -149,6 +151,36 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'recall',
+      description: 'Search long-term memory (verified knowledge, organizational notes, past runs) for anything relevant.',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string' }, limit: { type: 'number', description: 'Max results, default 5' } },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remember',
+      description:
+        'Save a durable, reusable lesson or fact to organizational memory (e.g. a reliable data source, a user preference, a pitfall to avoid). Only store things you observed or were told — never guesses. A human reviews and may promote it to verified knowledge.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short, specific title' },
+          content: { type: 'string', description: 'The lesson or fact' },
+          evidence: { type: 'string', description: 'Where you observed it in this run (URL, file, tool result) or "user said"' },
+          tags: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['title', 'content', 'evidence'],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are kudbEE Worker, an autonomous agent inside kudbEE Agent OS.
@@ -157,6 +189,11 @@ You complete the user's goal by calling tools, not by describing what you would 
 - Use fetch_url and read_rss to gather real, current information from the web. Never invent facts or URLs.
 - When the goal asks for a report, summary, code or data, save it to a file with write_file.
 - A human may deny a tool call. If denied, do not retry the same call; adapt or explain.
+- You have long-term memory. Relevant memories may be listed below; use recall to search for more.
+  VERIFIED items are trusted; ORG items are unverified notes with evidence. PAST RUN items only record what an
+  earlier run did — an earlier answer is NOT evidence and may have been wrong. Prefer VERIFIED, then ORG.
+  If memory does not settle the question, say so instead of guessing.
+- When you learn something reusable (a reliable source, a user preference, a mistake to avoid), save it with remember.
 - Work in small steps. When finished, reply with a short summary of what you did and which files you created.`;
 
 function truncate(text: string, max: number): string {
@@ -219,7 +256,26 @@ function approvalReason(name: string, args: Record<string, unknown>, hooks: Agen
   return null;
 }
 
-async function executeTool(name: string, args: Record<string, unknown>, hooks: AgentHooks): Promise<Record<string, unknown>> {
+interface RunContext {
+  /** True once the run has read external data or a file that existed before the run. */
+  observed: boolean;
+  userAskedToRemember: boolean;
+  /** Files this run wrote; reading them back is not evidence of anything. */
+  written: Set<string>;
+  rememberRefusals: number;
+}
+
+function normalizePath(value: unknown): string {
+  return String(value ?? '').replaceAll('\\', '/').replace(/^\.?\/+/, '');
+}
+
+function isObservation(name: string, args: Record<string, unknown>, context: RunContext): boolean {
+  if (name === 'fetch_url' || name === 'read_rss') return true;
+  if (name === 'read_file') return !context.written.has(normalizePath(args.path));
+  return false;
+}
+
+async function executeTool(name: string, args: Record<string, unknown>, hooks: AgentHooks, context: RunContext): Promise<Record<string, unknown>> {
   switch (name) {
     case 'list_files':
       return { files: await listWorkspace(hooks.workspace) };
@@ -251,6 +307,28 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
     case 'read_rss': {
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
       return hooks.rssFeed(String(args.url ?? ''), limit);
+    }
+    case 'recall':
+      return hooks.recall(String(args.query ?? ''), Math.min(Math.max(Number(args.limit) || 5, 1), 10));
+    case 'remember': {
+      const title = String(args.title ?? '').trim();
+      const content = String(args.content ?? '').trim();
+      const evidence = String(args.evidence ?? '').trim();
+      if (!title || !content || !evidence) throw new Error('remember needs title, content and evidence');
+      // Governance (AGENTS.md §1.3): no speculative claims in org memory. A memory must rest on something
+      // this run observed, or on an explicit instruction from the user in the goal.
+      if (context.rememberRefusals >= 2) {
+        throw new Error('remember is disabled for the rest of this run. Stop trying to store this; tell the user it was not saved and why.');
+      }
+      if (!context.observed && !context.userAskedToRemember) {
+        context.rememberRefusals += 1;
+        throw new Error(
+          'Refused: this run has not observed any external evidence (fetch_url, read_rss, or reading a file that existed before this run). ' +
+            'Files you wrote yourself and recall results do not count. Do not work around this — either fetch a real source or tell the user the fact was not stored.',
+        );
+      }
+      const tags = Array.isArray(args.tags) ? args.tags.map(String) : [];
+      return hooks.remember(title, `${content}\n\nEvidence: ${evidence}`, tags);
     }
     default:
       throw new Error(`Unknown tool: ${name}`);
@@ -293,13 +371,16 @@ export async function runToolAgent(
   temperature: number,
   history: Array<{ goal: string; result: string }>,
   hooks: AgentHooks,
+  memoryContext = '',
 ): Promise<AgentRunResult> {
   const totals = { steps: 0, tool_calls: 0, prompt_tokens: 0, completion_tokens: 0, tokens: 0, cost_usd: 0 };
   const finish = (extra: Partial<AgentRunResult> & { success: boolean }): AgentRunResult => ({ ...totals, ...extra });
 
   if (!inceptionConfigured()) return finish({ success: false, error: 'INCEPTION_API_KEY is not set in .env' });
 
-  const messages: AgentMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }];
+  const context: RunContext = { observed: false, written: new Set(), rememberRefusals: 0, userAskedToRemember: /\b(remember (that|this|to)|memori[sz]e|note that|(save|add|store) (this|that|it) (to|in) memory)\b/i.test(goal) };
+  const system = memoryContext ? `${SYSTEM_PROMPT}\n\nRelevant memories:\n${memoryContext}` : SYSTEM_PROMPT;
+  const messages: AgentMessage[] = [{ role: 'system', content: system }];
   for (const turn of history.slice(-5)) {
     messages.push({ role: 'user', content: turn.goal });
     messages.push({ role: 'assistant', content: turn.result });
@@ -368,7 +449,9 @@ export async function runToolAgent(
             const host = hostOf(args.url);
             if (host) hooks.approvedDomains.add(host);
           }
-          output = { ok: true, ...(await executeTool(call.function.name, args, hooks)) };
+          output = { ok: true, ...(await executeTool(call.function.name, args, hooks, context)) };
+          if (isObservation(call.function.name, args, context)) context.observed = true;
+          if (call.function.name === 'write_file') context.written.add(normalizePath(args.path));
           hooks.onThought({ type: 'tool_result', plugin: call.function.name, content: `${call.function.name} ✓ ${truncate(JSON.stringify(output), 200)}`, status: 'success' });
         } catch (err) {
           if (hooks.signal.aborted) return finish({ success: false, stopped: true, error: 'Stopped by user' });

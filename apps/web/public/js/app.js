@@ -17,6 +17,9 @@ const state = {
   runProgress: {},
   approvals: [],
   openRunId: null,
+  memoryLayer: '',
+  memoryQuery: '',
+  openMemoryId: null,
   config: {
     model: '',
     provider: '',
@@ -127,6 +130,10 @@ function handleMessage(msg) {
       renderTasks();
       scheduleRunsRefresh();
       if (state.openRunId === msg.data.id) openRun(msg.data.id);
+      break;
+
+    case 'memory_changed':
+      scheduleMemoryRefresh();
       break;
 
     case 'approval_request':
@@ -617,6 +624,11 @@ async function runSlashCommand(command) {
         '  /plugins           List installed plugins',
         '  /plugin NAME JSON  Execute a plugin with JSON input',
         '',
+        '🧠 Memory (Markdown files + vector index):',
+        '  /memory [QUERY]    Recent memories, or vector search',
+        '  /remember TITLE - TEXT   Save an org note (no args opens the form)',
+        '  /promote org/ID    Promote an org note to verified knowledge',
+        '',
         '📊 Agent Tracking:',
         '  /metrics           Runs, success rate, latency, tokens, cost, per-tool stats',
         '  /runs              Recent runs (saved on the server)',
@@ -717,6 +729,39 @@ async function runSlashCommand(command) {
       const match = state.runs.find(r => r.id.startsWith(prefix));
       if (!prefix || !match) appendTerminalMessage('system', 'Usage: /run ID (first 8 characters from /runs)');
       else openRun(match.id);
+      return true;
+    }
+
+    case '/memory': {
+      const query = args.join(' ').trim();
+      const params = new URLSearchParams({ limit: '10' });
+      if (query) params.set('q', query);
+      const { items, backend } = await (await fetch(`/api/memory?${params}`, { cache: 'no-store' })).json();
+      appendTerminalMessage('system', items.length
+        ? [`🧠 ${query ? `Memory search "${query}" (${backend})` : 'Recent memories'}:`, ...items.map(item =>
+          `  [${item.layer}] ${item.title}${item.score !== undefined ? ` · ${Number(item.score).toFixed(2)}` : ''}\n      ${item.id}`)].join('\n')
+        : `🧠 No memories${query ? ` match "${query}"` : ' yet'}.`);
+      return true;
+    }
+
+    case '/remember': {
+      const text = args.join(' ').trim();
+      if (!text) {
+        openMemoryForm();
+        return true;
+      }
+      const [title, ...rest] = text.split(/\s+[-—:]\s+/);
+      try {
+        await saveMemory({ layer: 'org', title: title.slice(0, 120), content: rest.join(' - ') || text, tags: [] });
+      } catch (error) {
+        appendTerminalMessage('error', `Could not save memory: ${error.message}`);
+      }
+      return true;
+    }
+
+    case '/promote': {
+      if (!args[0]) appendTerminalMessage('system', 'Usage: /promote org/<memory-id>  (see /memory)');
+      else await promoteMemory(args[0].startsWith('org/') ? args[0] : `org/${args[0]}`);
       return true;
     }
 
@@ -1140,6 +1185,7 @@ async function openRun(runId) {
   document.getElementById('run-summary').innerHTML = kpis
     .map(([label, value]) => `<div class="kpi"><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`).join('')
     + (run.files.length ? `<div class="run-answer">📁 Files: ${run.files.map(escapeHtml).join(', ')}</div>` : '')
+    + (run.recalled?.length ? `<div class="run-answer">🧠 Recalled: ${run.recalled.map(escapeHtml).join(', ')}</div>` : '')
     + (answer ? `<div class="run-answer ${run.error ? 'error' : ''}">${escapeHtml(answer)}</div>` : '');
 
   document.getElementById('run-timeline').innerHTML = run.steps.length ? run.steps.map(step => {
@@ -1195,6 +1241,140 @@ function answerApproval(approved) {
     Enterprise.auditLog.log('approval', `${approved ? 'approved' : 'denied'} ${next.tool} — ${next.reason}`, approved ? 'info' : 'warning');
   }
   showNextApproval();
+}
+
+// ─── Memory layers ─────────────────────────────────────────────
+let memoryRefreshTimer = null;
+function scheduleMemoryRefresh() {
+  clearTimeout(memoryRefreshTimer);
+  memoryRefreshTimer = setTimeout(refreshMemory, 300);
+}
+
+let memoryRequestSeq = 0;
+async function refreshMemory() {
+  // Several refreshes can overlap (tab click, search, memory_changed); only the newest may render.
+  const seq = ++memoryRequestSeq;
+  try {
+    const params = new URLSearchParams({ limit: '60' });
+    if (state.memoryLayer) params.set('layer', state.memoryLayer);
+    if (state.memoryQuery) params.set('q', state.memoryQuery);
+    const [listResponse, statusResponse] = await Promise.all([
+      fetch(`/api/memory?${params}`, { cache: 'no-store' }),
+      fetch('/api/memory/status', { cache: 'no-store' }),
+    ]);
+    const { items, backend } = await listResponse.json();
+    const status = await statusResponse.json();
+    if (seq !== memoryRequestSeq) return;
+    const counts = status.counts;
+    document.getElementById('memory-count-all').textContent = counts.task + counts.org + counts.verified;
+    ['verified', 'org', 'task'].forEach(layer => { document.getElementById(`memory-count-${layer}`).textContent = counts[layer]; });
+    const badge = document.getElementById('memory-backend');
+    const vector = status.vector;
+    badge.textContent = vector.backend === 'upstash-sparse' ? (vector.ok ? 'Upstash vector' : 'Vector offline') : 'Local index';
+    badge.className = `badge ${vector.backend === 'upstash-sparse' && !vector.ok ? 'health-warn' : ''}`;
+    badge.title = vector.error || `${vector.backend} · ${vector.synced} synced · namespace ${status.namespace}`;
+    const container = document.getElementById('memory-list');
+    container.innerHTML = items.length
+      ? items.map(item => `
+        <button type="button" class="memory-item" data-memory-id="${escapeHtml(item.id)}" title="${escapeHtml(item.path)}">
+          <strong><span class="memory-layer ${item.layer}">${item.layer}</span>${escapeHtml(item.title)}</strong>
+          <small>${item.score !== undefined ? `score ${Number(item.score).toFixed(2)} · ` : ''}${escapeHtml(item.content)}</small>
+        </button>`).join('')
+      : `<div class="empty-state">${state.memoryQuery ? `No matches (${escapeHtml(backend)})` : 'No memories yet — finished runs are saved here automatically'}</div>`;
+  } catch (error) {
+    document.getElementById('memory-backend').textContent = 'Offline';
+  }
+}
+
+function setMemoryModalMode(mode) {
+  document.getElementById('memory-view').hidden = mode !== 'view';
+  document.getElementById('memory-form').hidden = mode !== 'add';
+  document.getElementById('save-memory').hidden = mode !== 'add';
+  document.getElementById('delete-memory').hidden = mode !== 'view';
+  document.getElementById('memory-modal').hidden = false;
+}
+
+async function openMemory(id) {
+  const response = await fetch(`/api/memory/item?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+  if (!response.ok) {
+    appendTerminalMessage('error', `Memory not found: ${id}`);
+    return;
+  }
+  const item = await response.json();
+  state.openMemoryId = item.id;
+  document.getElementById('memory-modal-layer').textContent = `${item.layer.toUpperCase()} MEMORY`;
+  document.getElementById('memory-modal-title').textContent = item.title;
+  document.getElementById('memory-modal-meta').innerHTML = [
+    `id ${escapeHtml(item.id)}`,
+    `source ${escapeHtml(item.source)}`,
+    `updated ${escapeHtml(new Date(item.updated).toLocaleString())}`,
+    item.tags.length ? `tags ${escapeHtml(item.tags.join(', '))}` : '',
+    `file data/memory/${escapeHtml(item.path)}`,
+  ].filter(Boolean).map(part => `<span>${part}</span>`).join('');
+  document.getElementById('memory-modal-content').textContent = item.content;
+  document.getElementById('promote-memory').hidden = item.layer !== 'org';
+  setMemoryModalMode('view');
+}
+
+function openMemoryForm(prefill = {}) {
+  state.openMemoryId = null;
+  document.getElementById('memory-modal-layer').textContent = 'NEW MEMORY';
+  document.getElementById('memory-modal-title').textContent = 'Add a note to memory';
+  document.getElementById('memory-modal-meta').innerHTML = '<span>Saved as a Markdown file and indexed for vector recall. The agent sees it on related goals.</span>';
+  document.getElementById('memory-form-layer').value = prefill.layer || 'org';
+  document.getElementById('memory-form-title').value = prefill.title || '';
+  document.getElementById('memory-form-tags').value = prefill.tags || '';
+  document.getElementById('memory-form-content').value = prefill.content || '';
+  document.getElementById('promote-memory').hidden = true;
+  setMemoryModalMode('add');
+  document.getElementById('memory-form-title').focus();
+}
+
+function closeMemoryModal() {
+  document.getElementById('memory-modal').hidden = true;
+  state.openMemoryId = null;
+}
+
+async function saveMemory(body) {
+  const response = await fetch('/api/memory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || response.statusText);
+  appendTerminalMessage('system', `🧠 Saved ${result.layer} memory: ${result.title} (${result.path})`);
+  Enterprise.auditLog.log('memory', `saved ${result.id}`, 'info');
+  await refreshMemory();
+  return result;
+}
+
+async function promoteMemory(id) {
+  const response = await fetch('/api/memory/promote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    appendTerminalMessage('error', `Promote failed: ${result.error}`);
+    return null;
+  }
+  appendTerminalMessage('system', `✓ Promoted to verified knowledge: ${result.title}`);
+  Enterprise.auditLog.log('memory', `promoted ${id} → ${result.id}`, 'info');
+  await refreshMemory();
+  return result;
+}
+
+async function deleteMemory(id) {
+  const response = await fetch(`/api/memory/item?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!response.ok) {
+    appendTerminalMessage('error', `Delete failed: ${(await response.json()).error}`);
+    return;
+  }
+  appendTerminalMessage('system', `🗑 Deleted memory ${id}`);
+  Enterprise.auditLog.log('memory', `deleted ${id}`, 'warning');
+  await refreshMemory();
 }
 
 // ─── Models ────────────────────────────────────────────────────
@@ -1396,10 +1576,61 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('goal-input').value = goal;
     runGoal();
   });
+  refreshMemory();
+  setInterval(refreshMemory, 30000);
+  let memorySearchTimer = null;
+  document.getElementById('memory-search').addEventListener('input', event => {
+    clearTimeout(memorySearchTimer);
+    memorySearchTimer = setTimeout(() => {
+      state.memoryQuery = event.target.value.trim();
+      refreshMemory();
+    }, 250);
+  });
+  document.querySelectorAll('[data-memory-layer]').forEach(button => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-memory-layer]').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+    state.memoryLayer = button.dataset.memoryLayer;
+    refreshMemory();
+  }));
+  document.getElementById('memory-list').addEventListener('click', event => {
+    const item = event.target.closest('.memory-item');
+    if (item) openMemory(item.dataset.memoryId);
+  });
+  document.getElementById('add-memory').addEventListener('click', () => openMemoryForm());
+  document.getElementById('close-memory-modal').addEventListener('click', closeMemoryModal);
+  document.getElementById('promote-memory').addEventListener('click', async () => {
+    if (state.openMemoryId && await promoteMemory(state.openMemoryId)) closeMemoryModal();
+  });
+  document.getElementById('delete-memory').addEventListener('click', async () => {
+    if (state.openMemoryId && confirm(`Delete memory ${state.openMemoryId}? The Markdown file is removed.`)) {
+      await deleteMemory(state.openMemoryId);
+      closeMemoryModal();
+    }
+  });
+  document.getElementById('save-memory').addEventListener('click', async () => {
+    const title = document.getElementById('memory-form-title').value.trim();
+    const content = document.getElementById('memory-form-content').value.trim();
+    if (!title || !content) {
+      appendTerminalMessage('error', 'A memory needs a title and content.');
+      return;
+    }
+    try {
+      await saveMemory({
+        layer: document.getElementById('memory-form-layer').value,
+        title,
+        content,
+        tags: document.getElementById('memory-form-tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
+      });
+      closeMemoryModal();
+    } catch (error) {
+      appendTerminalMessage('error', `Could not save memory: ${error.message}`);
+    }
+  });
   document.getElementById('approve-approval').addEventListener('click', () => answerApproval(true));
   document.getElementById('deny-approval').addEventListener('click', () => answerApproval(false));
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !document.getElementById('run-modal').hidden) closeRunModal();
+    if (event.key === 'Escape' && !document.getElementById('memory-modal').hidden) closeMemoryModal();
   });
 
   // Setup enterprise keyboard shortcuts
