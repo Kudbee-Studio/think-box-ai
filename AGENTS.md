@@ -570,6 +570,11 @@ Reference: `thinkbox/synthesis_calibration_arena.py` (v1 and v2).
 
 Reference: `docs/guides/flight-readiness.md`.
 
+### 13.13 Power of 10 ratchet (Standing Rule)
+
+1. `python3 scripts/power_of_ten_audit.py` must exit 0: no new recursion (P1), unbounded `while True` (P2), function over 60 lines (P4), or silently swallowed broad exception (P7) in `thinkbox/`, `core/`, `backend/`. `TestRepoRatchet` enforces it in the test suite.
+2. Never add entries to `data/thinkboxmd/artifacts/power_of_ten_baseline.json` to get green. Regenerate it only after fixing findings, so the count only goes down.
+
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
@@ -712,7 +717,8 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Multi-box orchestration + calibration v1 | **#263** (merged `d1eccd2`) | `thinkbox/multi_box_orchestration.py` (knowledge fabric, synthesis) + `thinkbox/synthesis_calibration_arena.py`; pre-registered v1 result `WORSE` (honest negative) |
 | Orchestrator strategy fix + calibration v2 | **#264** (merged `b42e5c7`) | CHEAPEST/CONSENSUS/PARALLEL + constraints actually implemented; budget/consensus/failure-count defects fixed; `KnowledgeFabric.persist()` made real + verifying `load()`; memory seeds (7 patterns, 3 proof-pinned facts); `agreement_fraction` added; pre-registered v2 result `IMPROVED` (simulated) |
 | Sharded concurrent-goal executor | **#255** (merged `1719655`) | `thinkbox/shard.py` — rendezvous-hash sharding over `concurrent_goals`, sharded budgets, failure detection, ledger, checkpoints; 93 tests. Branch was 1603 commits behind main (stale base files dropped in favor of main); review fixed a closure bug where every shard ran on the last shard's runner; not LIVE VERIFIED |
-| Flight readiness: mutation testing (IV&V) | **#266** (open) | `thinkbox/mutation_testing.py`, `scripts/mutation_test.py`; orchestrator mutation score 55.2% → 92.0% (48 → 80 of 87 killed); success-rate reset bug fixed; `docs/guides/flight-readiness.md` (10-item roadmap) |
+| Flight readiness: mutation testing (IV&V) | **#266** (merged `d940160`) | `thinkbox/mutation_testing.py`, `scripts/mutation_test.py`; orchestrator mutation score 55.2% → 92.0% (48 → 80 of 87 killed); success-rate reset bug fixed; `docs/guides/flight-readiness.md` (10-item roadmap) |
+| Flight readiness: JPL Power of 10 audit + ratchet | **#267** (open) | `thinkbox/power_of_ten.py`, `scripts/power_of_ten_audit.py`; P1/P2/P4/P7 enforced, other rules mapped N/A; 184 existing findings baselined (31 swallowed exceptions), new ones fail `TestRepoRatchet`; auditor mutation score 39/40 |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

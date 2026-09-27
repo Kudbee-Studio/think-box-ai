@@ -3234,3 +3234,11 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **STANDING RULE:** AGENTS.md §13.12 mutation testing before claiming a module is well tested. Memory seed `mutation-test-before-trusting-tests`.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 
+### 2026-09-27 — GitHub PR #266 merged; #267 (open): flight readiness item 2, JPL Power of 10 audit
+
+- **#266** merged `d940160` on founder approval. Main's `test` run for it ended in 6 s (runner outage continues).
+- **SCOPE (#267):** `thinkbox/power_of_ten.py` + `scripts/power_of_ten_audit.py`. Stdlib AST audit of `thinkbox/`, `core/`, `backend/`: P1 direct recursion, P2 `while True` without break/return/raise, P4 functions over 60 lines, P7 bare `except:` or silently swallowed `Exception`/`BaseException`. JPL rules 3, 5, 6, 8, 9 recorded as N/A with reasons; 10 is the existing lint step.
+- **FINDING:** 184 violations on `main`: P1 20, P2 5, P4 128, P7 31. The 31 swallowed exceptions (10 in `thinkbox/engine.py`, one in `core/runtime/loop.py` `AgentLoop.run`) contradict AGENTS.md §2.5 and are the next burn-down. None fixed in this PR.
+- **RATCHET:** baseline keyed by rule/file/function (not line); `TestRepoRatchet` fails on anything new. Standing rule AGENTS.md §13.13.
+- **SELF-CHECK:** mutation testing (item 1) on the auditor's tests: 31/40 → 39/40; the survivor (`sort_keys`) is effectively equivalent. The auditor passes its own audit.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.

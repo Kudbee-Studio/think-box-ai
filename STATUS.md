@@ -1,4 +1,15 @@
-## OPEN (2026-09-27) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
+## OPEN (2026-09-27) — GitHub PR #267 Flight readiness: JPL Power of 10 audit + ratchet
+
+- **Branch:** `feat/pr267-power-of-ten-audit`
+- **Auditor:** `thinkbox/power_of_ten.py` (stdlib AST) + `scripts/power_of_ten_audit.py`. Enforces P1 no recursion, P2 bounded `while True`, P4 ≤60-line functions, P7 no silently swallowed broad exceptions; JPL rules 3, 5, 6, 8, 9 mapped N/A, 10 covered by CI lint.
+- **First audit on `main` `d940160`:** 184 findings (P1 20, P2 5, P4 128, P7 31), baselined in `data/thinkboxmd/artifacts/power_of_ten_baseline.json`. None fixed in this PR; P7 burn-down is next.
+- **Ratchet:** `TestRepoRatchet` fails on any finding beyond the baseline.
+- **Auditor mutation score:** 31/40 → 39/40 after closing test gaps.
+- **Verify:** `test_power_of_ten` **23 OK**; audit script exit 0.
+- **CI:** GitHub Actions runners still unavailable (main `test` run for `d940160` ended in 6 s); verification local.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
+## MERGED (2026-09-27, `d940160`) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
 
 - **Branch:** `feat/pr266-mutation-testing`
 - **Harness:** `thinkbox/mutation_testing.py` (stdlib; one mutant per subprocess; timeout = killed; refuses a red baseline) + `scripts/mutation_test.py`.
