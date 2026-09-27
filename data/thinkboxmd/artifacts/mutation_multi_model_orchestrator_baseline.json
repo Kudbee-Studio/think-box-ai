@@ -1,0 +1,366 @@
+{
+  "evidence_level": "MEASURED",
+  "killed": 48,
+  "killed_by_timeout": 2,
+  "module": "thinkbox.multi_model_orchestrator",
+  "module_sha256": "aeed1a4ba4a7297d9523514c46fc957fa940695c44981c0256bce165c240d3bd",
+  "note": "A survivor is an untested behavior or an equivalent mutant. Each needs a human verdict; the score alone does not decide.",
+  "score": 0.5517,
+  "survived": 39,
+  "survivors": [
+    {
+      "col": 11,
+      "kind": "compare",
+      "line": "if routing.estimated_cost_usd > self.budget_usd - self.spent_usd:",
+      "lineno": 300,
+      "mutant_id": "m0008",
+      "original": ">",
+      "replacement": ">="
+    },
+    {
+      "col": 11,
+      "kind": "compare",
+      "line": "if len(polled) < 2:",
+      "lineno": 390,
+      "mutant_id": "m0013",
+      "original": "<",
+      "replacement": "<="
+    },
+    {
+      "col": 11,
+      "kind": "compare",
+      "line": "if len(successes) < 2:",
+      "lineno": 411,
+      "mutant_id": "m0014",
+      "original": "<",
+      "replacement": "<="
+    },
+    {
+      "col": 11,
+      "kind": "compare",
+      "line": "if len(best_group) > total / 2:",
+      "lineno": 426,
+      "mutant_id": "m0015",
+      "original": ">",
+      "replacement": ">="
+    },
+    {
+      "col": 15,
+      "kind": "arithmetic",
+      "line": "cost = tokens * self._metrics[provider].cost_per_1k_tokens / 1000",
+      "lineno": 448,
+      "mutant_id": "m0016",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 15,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0017",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 31,
+      "kind": "arithmetic",
+      "line": "metrics.success_rate = 0.99 + 0.01 * metrics.success_rate",
+      "lineno": 486,
+      "mutant_id": "m0018",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 11,
+      "kind": "compare",
+      "line": "if metrics.latency_p50_ms == 0:",
+      "lineno": 489,
+      "mutant_id": "m0019",
+      "original": "==",
+      "replacement": "!="
+    },
+    {
+      "col": 15,
+      "kind": "compare",
+      "line": "if metrics.latency_p95_ms > max_latency:",
+      "lineno": 186,
+      "mutant_id": "m0023",
+      "original": ">",
+      "replacement": ">="
+    },
+    {
+      "col": 28,
+      "kind": "arithmetic",
+      "line": "latency_score = 1.0 / (1.0 + metrics.latency_p95_ms / 1000.0)",
+      "lineno": 194,
+      "mutant_id": "m0025",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 45,
+      "kind": "compare",
+      "line": "if explicit_max_cost is not None and estimated_cost > explicit_max_cost:",
+      "lineno": 249,
+      "mutant_id": "m0030",
+      "original": ">",
+      "replacement": ">="
+    },
+    {
+      "col": 40,
+      "kind": "arithmetic",
+      "line": "if routing.estimated_cost_usd > self.budget_usd - self.spent_usd:",
+      "lineno": 300,
+      "mutant_id": "m0031",
+      "original": "-",
+      "replacement": "+"
+    },
+    {
+      "col": 23,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0035",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 38,
+      "kind": "arithmetic",
+      "line": "metrics.success_rate = 0.99 + 0.01 * metrics.success_rate",
+      "lineno": 486,
+      "mutant_id": "m0036",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 37,
+      "kind": "arithmetic",
+      "line": "metrics.latency_p95_ms = result.latency_ms * 1.3",
+      "lineno": 491,
+      "mutant_id": "m0037",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 37,
+      "kind": "arithmetic",
+      "line": "metrics.latency_p99_ms = result.latency_ms * 1.5",
+      "lineno": 492,
+      "mutant_id": "m0038",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 16,
+      "kind": "arithmetic",
+      "line": "0.7 * metrics.latency_p50_ms + 0.3 * result.latency_ms",
+      "lineno": 495,
+      "mutant_id": "m0039",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 16,
+      "kind": "arithmetic",
+      "line": "0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3",
+      "lineno": 498,
+      "mutant_id": "m0040",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 12,
+      "kind": "arithmetic",
+      "line": "sum(r.latency_ms for r in successful) / len(successful)",
+      "lineno": 535,
+      "mutant_id": "m0042",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 16,
+      "kind": "compare",
+      "line": "estimated_tokens * metrics.cost_per_1k_tokens / 1000 > explicit_max_cost",
+      "lineno": 189,
+      "mutant_id": "m0044",
+      "original": ">",
+      "replacement": ">="
+    },
+    {
+      "col": 35,
+      "kind": "arithmetic",
+      "line": "latency_score = 1.0 / (1.0 + metrics.latency_p95_ms / 1000.0)",
+      "lineno": 194,
+      "mutant_id": "m0045",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 66,
+      "kind": "constant",
+      "line": "for provider, outcome in zip(candidates, outcomes, strict=True):",
+      "lineno": 354,
+      "mutant_id": "m0052",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 62,
+      "kind": "constant",
+      "line": "for provider, outcome in zip(polled, outcomes, strict=True):",
+      "lineno": 400,
+      "mutant_id": "m0053",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 23,
+      "kind": "arithmetic",
+      "line": "latency_ms=(time.monotonic() - start) * 1000,",
+      "lineno": 456,
+      "mutant_id": "m0056",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 16,
+      "kind": "arithmetic",
+      "line": "0.7 * metrics.latency_p50_ms + 0.3 * result.latency_ms",
+      "lineno": 495,
+      "mutant_id": "m0058",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 47,
+      "kind": "arithmetic",
+      "line": "0.7 * metrics.latency_p50_ms + 0.3 * result.latency_ms",
+      "lineno": 495,
+      "mutant_id": "m0059",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 16,
+      "kind": "arithmetic",
+      "line": "0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3",
+      "lineno": 498,
+      "mutant_id": "m0060",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 47,
+      "kind": "arithmetic",
+      "line": "0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3",
+      "lineno": 498,
+      "mutant_id": "m0061",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 30,
+      "kind": "arithmetic",
+      "line": "failed_executions=len(self._execution_history) - len(successful),",
+      "lineno": 543,
+      "mutant_id": "m0063",
+      "original": "-",
+      "replacement": "+"
+    },
+    {
+      "col": 41,
+      "kind": "arithmetic",
+      "line": "latency_score = 1.0 / (1.0 + metrics.latency_p95_ms / 1000.0)",
+      "lineno": 194,
+      "mutant_id": "m0065",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 38,
+      "kind": "arithmetic",
+      "line": "cost_score = 1.0 / (1.0 + metrics.cost_per_1k_tokens * 1000.0)",
+      "lineno": 195,
+      "mutant_id": "m0066",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 66,
+      "kind": "constant",
+      "line": "outcomes = await asyncio.gather(*tasks, return_exceptions=True)",
+      "lineno": 351,
+      "mutant_id": "m0072",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 66,
+      "kind": "constant",
+      "line": "outcomes = await asyncio.gather(*tasks, return_exceptions=True)",
+      "lineno": 397,
+      "mutant_id": "m0075",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 24,
+      "kind": "arithmetic",
+      "line": "latency_ms=(time.monotonic() - start) * 1000,",
+      "lineno": 456,
+      "mutant_id": "m0078",
+      "original": "-",
+      "replacement": "+"
+    },
+    {
+      "col": 29,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0079",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 47,
+      "kind": "arithmetic",
+      "line": "0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3",
+      "lineno": 498,
+      "mutant_id": "m0080",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 31,
+      "kind": "arithmetic",
+      "line": "cost_per_execution=self.spent_usd / len(self._execution_history)",
+      "lineno": 548,
+      "mutant_id": "m0082",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 16,
+      "kind": "arithmetic",
+      "line": "0.3 * latency_score",
+      "lineno": 201,
+      "mutant_id": "m0084",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 79,
+      "kind": "arithmetic",
+      "line": "error=f\"Budget exceeded: ${routing.estimated_cost_usd:.2f} > ${self.budget_usd - self.spent_usd:.2f} remaining\",",
+      "lineno": 303,
+      "mutant_id": "m0086",
+      "original": "-",
+      "replacement": "+"
+    }
+  ],
+  "tests": "tests.unit.test_multi_model_orchestrator",
+  "tests_sha256": "66c1869b06cfff79e8fda73d9778b8648aad09cafbfcd918ed79f3fe8792aa75",
+  "total": 87
+}

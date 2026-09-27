@@ -483,7 +483,10 @@ class MultiModelOrchestrator:
 
         metrics = self._metrics[provider]
         metrics.consecutive_failures = 0
-        metrics.success_rate = 0.99 + 0.01 * metrics.success_rate
+        # Moving average toward 1.0, mirroring _record_failure's decay toward
+        # 0. The old form (0.99 + 0.01 * rate) reset any rate to >= 0.99 after
+        # a single success, erasing the provider's failure history.
+        metrics.success_rate = 0.99 * metrics.success_rate + 0.01
 
         # Update latency metrics
         if metrics.latency_p50_ms == 0:

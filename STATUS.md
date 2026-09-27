@@ -1,3 +1,12 @@
+## OPEN (2026-09-27) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
+
+- **Branch:** `feat/pr266-mutation-testing`
+- **Harness:** `thinkbox/mutation_testing.py` (stdlib; one mutant per subprocess; timeout = killed; refuses a red baseline) + `scripts/mutation_test.py`.
+- **Result on `thinkbox/multi_model_orchestrator.py`:** baseline **48/87 (55.2%)** on `main`'s code → **80/87 (92.0%)**. 15 tests added; success-rate update bug fixed (one success reset any rate to ≥0.99). 7 survivors, each with a verdict (3 simulation-only, 2 equivalent, 2 unspecified design).
+- **Verify:** `test_multi_model_orchestrator` **56 OK**; `test_mutation_testing` **9 OK**; `test_memory_layers` OK.
+- **CI:** GitHub Actions runners still unavailable repo-wide; verification local.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
 ## MERGED (2026-09-27) — GitHub PRs #251 and #255 (bot PRs, reviewed)
 
 - **#251** `1ee9171` durable autonomous-loop action receipts + integrity endpoint. `main` merged in with 2 conflicts resolved (`dashboard_state.py`: kept both sides' independent state; AGENTS.md rows). Merged tree: autonomous-loop + dashboard suites 174 OK; JS integrity test 1/1.

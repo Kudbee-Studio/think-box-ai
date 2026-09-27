@@ -3225,3 +3225,12 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **Open gate:** GitHub Actions runners still not assigned (jobs end in ~2-4 s, `runner_id: 0`). `main` is not claimed CI-green until runners return and CI actually runs.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 
+### 2026-09-27 — GitHub PR #266 (open): flight readiness item 1, mutation testing
+
+- **SCOPE:** `thinkbox/mutation_testing.py` + `scripts/mutation_test.py` (stdlib mutation testing: boundary/arithmetic/boolean/negation/constant mutants, one subprocess each, timeout counts as killed, red baseline refused). `docs/guides/flight-readiness.md` lists 10 NASA/JPL-style verification items with honest status.
+- **FINDING:** the orchestrator's 41 passing tests (after #264) killed only 48/87 mutants (55.2%, on `main`'s exact file per sha256). Gaps: consensus with exactly 2 providers, 1-to-1 split counted as majority, budget never checked to shrink, `failed_executions` only tested with 0 successes, raising providers under PARALLEL/CONSENSUS, boundaries, cost/latency formulas.
+- **BUG FIXED:** `success_rate = 0.99 + 0.01 * rate` reset any rate to ≥0.99 after one success; now `0.99 * rate + 0.01`.
+- **RESULT:** 80/87 (92.0%); 7 survivors with verdicts (3 simulation-only, 2 equivalent, 2 unspecified design).
+- **STANDING RULE:** AGENTS.md §13.12 mutation testing before claiming a module is well tested. Memory seed `mutation-test-before-trusting-tests`.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+
