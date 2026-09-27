@@ -15,7 +15,7 @@
         <div class="logo">🐝</div>
         <div class="title">
           <h1>kudbEE</h1>
-          <span class="subtitle">Agent OS</span>
+          <span class="subtitle">Agent OS <span class="live-mark">LIVE</span></span>
         </div>
       </div>
       <div class="header-center">
@@ -28,6 +28,9 @@
         </div>
       </div>
       <div class="header-right">
+        <span id="header-connection" class="connection-pill"><span class="connection-dot"></span> Connected</span>
+        <button id="copy-session" class="btn-icon" title="Copy session ID">⧉</button>
+        <button id="command-help" class="btn-icon" title="Show commands">?</button>
         <div class="status-indicator">
           <span id="status-dot" class="status-dot idle"></span>
           <span id="status-text">Idle</span>
@@ -45,6 +48,13 @@
             <h3>📁 Files</h3>
             <button id="refresh-files" class="btn-icon" title="Refresh">🔄</button>
           </div>
+          <input id="file-search" class="panel-search" type="search" placeholder="Filter files...">
+          <div class="file-actions">
+            <button id="upload-files" class="btn-secondary">Upload files</button>
+            <button id="upload-repo" class="btn-secondary">Upload repo</button>
+            <input id="file-upload-input" type="file" multiple hidden>
+            <input id="repo-upload-input" type="file" webkitdirectory multiple hidden>
+          </div>
           <div id="file-tree" class="file-tree">
             <div class="file-tree-empty">No files yet</div>
           </div>
@@ -54,8 +64,20 @@
           <div class="panel-header">
             <h3>🔌 Plugins</h3>
           </div>
+          <input id="plugin-search" class="panel-search" type="search" placeholder="Search plugins...">
           <div id="plugin-list" class="plugin-list">
             <!-- Plugins injected here -->
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📡 Connections</h3>
+            <span id="monitor-updated" class="badge">Waiting</span>
+          </div>
+          <button id="test-middleware" class="btn-secondary">Test middleware</button>
+          <div id="connection-monitor" class="plugin-list">
+            <div class="empty-state">Checking APIs...</div>
           </div>
         </div>
       </aside>
@@ -66,6 +88,7 @@
           <div class="panel-header">
             <h3>💬 Terminal</h3>
             <div class="terminal-actions">
+              <button id="quick-help" class="btn-quiet" title="Show command help">/help</button>
               <button id="run-goal" class="btn-primary" disabled>▶ Run</button>
               <button id="stop-goal" class="btn-danger" disabled>⏹ Stop</button>
             </div>
@@ -74,18 +97,31 @@
             <div class="terminal-welcome">
               <div class="welcome-line">THINK BOX AI — Devin-like Interface</div>
               <div class="welcome-line">Type a goal and press Run to start.</div>
-              <div class="welcome-line">Make sure Ollama is running: <code>ollama serve</code></div>
+              <div class="welcome-line welcome-note">Model ready · plugins armed · session connected</div>
+              <div class="quick-actions">
+                <button class="quick-action" data-command="/help">Browse commands</button>
+                <button class="quick-action" data-command="/status">Run health check</button>
+                <button class="quick-action" data-command="/plugins">Inspect plugins</button>
+              </div>
               <div class="welcome-line"></div>
             </div>
           </div>
           <div class="terminal-input-area">
-            <input
-              type="text"
-              id="goal-input"
-              placeholder="Enter your goal... (e.g., 'Create a hello world Python script')"
-              disabled
-            />
-            <button id="submit-goal" class="btn-primary" disabled>Run</button>
+            <div class="terminal-input-row">
+              <input
+                type="text"
+                id="goal-input"
+                placeholder="Enter a goal or image prompt..."
+                disabled
+              />
+              <button id="submit-goal" class="btn-primary" disabled>Run</button>
+            </div>
+            <div class="terminal-media-actions">
+              <button id="analyze-image" class="btn-secondary" type="button">Analyze image</button>
+              <button id="generate-image" class="btn-secondary" type="button">Generate image</button>
+              <input id="analyze-image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+              <span>Janus-Pro CPU</span>
+            </div>
           </div>
         </div>
       </section>
@@ -106,12 +142,46 @@
             <h3>💭 Thoughts</h3>
             <span id="thought-count" class="badge">0</span>
           </div>
+          <div class="thought-filters">
+            <button class="thought-filter active" data-filter="all">All</button>
+            <button class="thought-filter" data-filter="thinking">Thinking</button>
+            <button class="thought-filter" data-filter="error">Errors</button>
+          </div>
           <div id="thought-list" class="thought-list">
             <div class="empty-state">No thoughts yet</div>
           </div>
         </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>💚 System Health</h3>
+            <span id="system-health-status" class="badge">Checking</span>
+          </div>
+          <div id="system-health" class="health-list">
+            <div class="empty-state">Loading system health...</div>
+          </div>
+        </div>
       </aside>
     </main>
+  </div>
+
+  <div id="plugin-modal" class="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="plugin-modal-title">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">PLUGIN TEST</span>
+          <h2 id="plugin-modal-title">Test plugin</h2>
+        </div>
+        <button id="close-plugin-modal" class="btn-icon" title="Close">×</button>
+      </div>
+      <label for="plugin-input">JSON input</label>
+      <div id="plugin-permission-note" class="permission-note"></div>
+      <textarea id="plugin-input" spellcheck="false">{}</textarea>
+      <div class="modal-actions">
+        <button id="cancel-plugin-modal" class="btn-secondary">Cancel</button>
+        <button id="submit-plugin-test" class="btn-primary">Run test</button>
+      </div>
+    </section>
   </div>
 
   <script src="/js/app.js"></script>

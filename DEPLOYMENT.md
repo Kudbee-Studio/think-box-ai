@@ -2,6 +2,23 @@
 
 ## Quick Start (Local Machine)
 
+### Agent OS Web Runtime
+
+The Agent OS web runtime is separate from the Python API and listens on port
+`3000`. For the supported Docker deployment, run:
+
+```bash
+docker compose --profile agent-os up -d --build
+docker compose --profile agent-os exec ollama ollama pull smollm2:135m
+```
+
+Open `http://localhost:3000/`. The Agent OS container connects to Ollama over
+the private Compose network using `OLLAMA_BASE_URL=http://ollama:11434` and
+persists runtime data in the `agent_os_data` volume.
+
+For the feature contract and production limitations, see
+[docs/guides/agent_os.md](docs/guides/agent_os.md).
+
 ```bash
 # 1. Clone and branch
 git clone https://github.com/Kudbee-Studio/think-box-ai.git

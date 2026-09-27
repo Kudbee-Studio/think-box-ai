@@ -49,6 +49,21 @@ Approval gates are opt-out, not opt-in.
 **Rule:** A tool without an explicit `permission` level is `RESTRICTED` and
 requires approval.
 
+### 1.4.1 Agent OS Web Surface
+
+The interactive `apps/web` runtime is a Node/TypeScript WebSocket service on
+port `3000`. It owns live sessions, thoughts, tasks, plugins, model discovery,
+RSS/Atom ingestion, middleware checks, uploads, and system-health telemetry.
+Keep this surface separate from the Python API on port `8000`.
+
+**Rules:**
+- Plugin tests and middleware checks must emit a thought and a session-memory
+  record, including failures.
+- Network plugins use bounded timeouts and must validate URL schemes.
+- Uploaded files are session-scoped and must remain inside the workspace.
+- Do not expose the web runtime publicly without authentication, egress policy,
+  approval gates, and a reverse proxy.
+
 ### 1.5 Evidence Over Assumptions
 
 Claims about model performance, tool reliability, or system behavior must be

@@ -47,6 +47,21 @@ the project maintainers. Please do not open a public issue for security vulnerab
 - All configuration is via environment variables
 - Infrastructure details (IPs, UUIDs) are excluded from version control
 
+### Agent OS Web Runtime
+
+The Agent OS web runtime is a development-oriented surface until authentication
+and approval enforcement are added to its WebSocket and plugin routes. Do not
+expose port `3000` directly to the internet. In particular:
+
+- `shell_exec` can execute commands and must be sandboxed before production use.
+- `file_write` is limited to an approved workspace in production deployments.
+- `http_request` and `rss_feed` require network allowlists and egress controls.
+- Uploads must retain the 50 MB per-file and 500-file limits, reject traversal,
+	and be scanned before agent access.
+- Ollama should remain on a private network and must not be publicly exposed.
+- Plugin and middleware results are session memory and should be retained only
+	according to the deployment's data-retention policy.
+
 ## Production Deployment Checklist
 
 - [ ] Change default API key
