@@ -668,5 +668,174 @@ class TestSelfReviewDefects(unittest.IsolatedAsyncioTestCase):
         self.assertIn("max_cost", routing.rationale)
         self.assertNotIn("Cheapest", routing.rationale)
 
+
+def _ok(provider: ProviderName, answer: str = "ok", cost: float = 0.0, latency: float = 10.0) -> ExecutionResult:
+    return ExecutionResult(
+        success=True, output=f"[{provider.value}] {answer}", provider=provider,
+        latency_ms=latency, tokens_used=1, cost_usd=cost,
+    )
+
+
+class TestMutationSurvivorsKilled(unittest.IsolatedAsyncioTestCase):
+    """Each test here kills a mutant that survived the first mutation-testing
+    campaign (data/thinkboxmd/artifacts/mutation_multi_model_orchestrator.json).
+    The survivor it targets is named in the docstring."""
+
+    async def test_cost_is_tokens_times_rate_per_thousand(self) -> None:
+        """Kills L448 `/ 1000` -> `* 1000`."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}})
+        with patch.object(o, "_simulate_latency", return_value=0.0):
+            r = await o._execute_with_provider("x" * 4000, ProviderName.OPENAI)
+        self.assertEqual(r.tokens_used, 1000)
+        self.assertAlmostEqual(r.cost_usd, 0.015)
+
+    async def test_measured_latency_reflects_elapsed_time(self) -> None:
+        """Kills L456 `monotonic() - start` and `* 1000` mutants."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}})
+        with patch.object(o, "_simulate_latency", return_value=50.0):
+            r = await o._execute_with_provider("q", ProviderName.OPENAI)
+        self.assertGreaterEqual(r.latency_ms, 45.0)
+        self.assertLess(r.latency_ms, 5000.0)
+
+    async def test_budget_shrinks_as_spending_accumulates(self) -> None:
+        """Kills L300 `budget - spent` -> `budget + spent` (and L303's message)."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}}, budget_usd=0.02)
+        fake = AsyncMock(side_effect=lambda prompt, p: _ok(p, cost=0.015))
+        with patch.object(o, "_execute_with_provider", new=fake):
+            first = await o.execute("x" * 4000)
+            second = await o.execute("x" * 4000)
+        self.assertTrue(first.success)
+        self.assertFalse(second.success)
+        self.assertIn(f"${0.02 - 0.015:.2f} remaining", second.error)
+
+    async def test_estimate_exactly_equal_to_remaining_budget_is_allowed(self) -> None:
+        """Kills L300 `>` -> `>=`."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}}, budget_usd=0.015)
+        fake = AsyncMock(side_effect=lambda prompt, p: _ok(p))
+        with patch.object(o, "_execute_with_provider", new=fake):
+            r = await o.execute("x" * 4000)  # estimate exactly $0.015
+        self.assertTrue(r.success)
+
+    async def test_consensus_of_exactly_two_agreeing_providers_succeeds(self) -> None:
+        """Kills L390 and L411 `< 2` -> `<= 2`."""
+        o = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}, strategy=ExecutionStrategy.CONSENSUS
+        )
+        fake = AsyncMock(side_effect=lambda prompt, p: _ok(p, "42"))
+        with patch.object(o, "_execute_with_provider", new=fake):
+            r = await o.execute("q")
+        self.assertTrue(r.success)
+        self.assertEqual(o.get_metrics().consensus_agreements, 1)
+
+    async def test_one_to_one_split_is_not_a_majority(self) -> None:
+        """Kills L426 `>` -> `>=` (1 of 2 is not a strict majority)."""
+        o = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}, strategy=ExecutionStrategy.CONSENSUS
+        )
+        fake = AsyncMock(side_effect=lambda prompt, p: _ok(p, p.value))
+        with patch.object(o, "_execute_with_provider", new=fake):
+            r = await o.execute("q")
+        self.assertFalse(r.success)
+        self.assertIn("No majority consensus", r.error)
+
+    async def test_parallel_survives_a_provider_that_raises(self) -> None:
+        """Kills L351 `return_exceptions=True` -> False."""
+        o = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.GROQ: {}}, strategy=ExecutionStrategy.PARALLEL
+        )
+
+        async def fake(prompt: str, p: ProviderName) -> ExecutionResult:
+            if p == ProviderName.OPENAI:
+                raise RuntimeError("provider crashed")
+            return _ok(p)
+
+        with patch.object(o, "_execute_with_provider", new=AsyncMock(side_effect=fake)):
+            r = await o.execute("q")
+        self.assertTrue(r.success)
+        self.assertEqual(r.provider, ProviderName.GROQ)
+        self.assertEqual(o.get_metrics().failed_executions, 1)
+
+    async def test_consensus_survives_a_provider_that_raises(self) -> None:
+        """Kills L397 `return_exceptions=True` -> False."""
+        o = MultiModelOrchestrator(
+            {ProviderName.OPENAI: {}, ProviderName.ANTHROPIC: {}, ProviderName.GROQ: {}},
+            strategy=ExecutionStrategy.CONSENSUS,
+        )
+
+        async def fake(prompt: str, p: ProviderName) -> ExecutionResult:
+            if p == ProviderName.OPENAI:
+                raise RuntimeError("provider crashed")
+            return _ok(p, "42")
+
+        with patch.object(o, "_execute_with_provider", new=AsyncMock(side_effect=fake)):
+            r = await o.execute("q")
+        self.assertTrue(r.success)
+
+    async def test_latency_exactly_at_limit_is_allowed(self) -> None:
+        """Kills L186 `>` -> `>=`."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}, ProviderName.GROQ: {}})
+        o._metrics[ProviderName.OPENAI].latency_p95_ms = 100.0
+        o._metrics[ProviderName.GROQ].latency_p95_ms = 500.0
+        routing = await o.route_request("q", constraints={"max_latency_ms": 100.0})
+        self.assertEqual(routing.primary_provider, ProviderName.OPENAI)
+
+    async def test_cost_exactly_at_limit_is_allowed(self) -> None:
+        """Kills L189 and L249 `>` -> `>=`."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}})
+        routing = await o.route_request("x" * 4000, constraints={"max_cost": 0.015})
+        self.assertEqual(routing.primary_provider, ProviderName.OPENAI)
+
+    async def test_faster_provider_wins_when_all_else_is_equal(self) -> None:
+        """Kills L201 `0.3 * latency_score` -> `/` and L194 `+` -> `-`."""
+        o = MultiModelOrchestrator({ProviderName.OPENAI: {}, ProviderName.ANTHROPIC: {}})
+        for p, p95 in ((ProviderName.OPENAI, 10.0), (ProviderName.ANTHROPIC, 500.0)):
+            o._metrics[p].cost_per_1k_tokens = 0.01
+            o._metrics[p].latency_p95_ms = p95
+        routing = await o.route_request("q")
+        self.assertEqual(routing.primary_provider, ProviderName.OPENAI)
+
+
+class TestMetricArithmetic(unittest.TestCase):
+    """Pins the metric formulas the mutation campaign showed were unchecked."""
+
+    def setUp(self) -> None:
+        self.o = MultiModelOrchestrator({ProviderName.OPENAI: {}, ProviderName.GROQ: {}})
+
+    def test_first_sample_sets_latency_percentiles(self) -> None:
+        """Kills L489 `== 0` -> `!= 0` and the L491/L492 multiplier mutants."""
+        self.o._record_success(ProviderName.OPENAI, _ok(ProviderName.OPENAI, latency=100.0))
+        m = self.o._metrics[ProviderName.OPENAI]
+        self.assertAlmostEqual(m.latency_p50_ms, 100.0)
+        self.assertAlmostEqual(m.latency_p95_ms, 130.0)
+        self.assertAlmostEqual(m.latency_p99_ms, 150.0)
+
+    def test_later_samples_use_weighted_averages(self) -> None:
+        """Kills the L495/L498 moving-average mutants."""
+        self.o._record_success(ProviderName.OPENAI, _ok(ProviderName.OPENAI, latency=100.0))
+        self.o._record_success(ProviderName.OPENAI, _ok(ProviderName.OPENAI, latency=200.0))
+        m = self.o._metrics[ProviderName.OPENAI]
+        self.assertAlmostEqual(m.latency_p50_ms, 0.7 * 100.0 + 0.3 * 200.0)
+        self.assertAlmostEqual(m.latency_p95_ms, 0.9 * 130.0 + 0.1 * 200.0 * 1.3)
+
+    def test_one_success_does_not_erase_failure_history(self) -> None:
+        """Kills L486 mutants, and fixes the bug they exposed: the old update
+        `0.99 + 0.01 * rate` reset any rate to >= 0.99 after one success."""
+        m = self.o._metrics[ProviderName.OPENAI]
+        m.success_rate = 0.5
+        self.o._record_success(ProviderName.OPENAI, _ok(ProviderName.OPENAI))
+        self.assertAlmostEqual(m.success_rate, 0.505)
+
+    def test_aggregate_metrics_with_mixed_outcomes(self) -> None:
+        """Kills L543 `total - successful` -> `+`, L548, and L535 mutants."""
+        self.o._record_failure(ProviderName.OPENAI, error="down")
+        self.o._record_success(ProviderName.GROQ, _ok(ProviderName.GROQ, cost=0.5, latency=10.0))
+        self.o._record_success(ProviderName.GROQ, _ok(ProviderName.GROQ, cost=0.5, latency=30.0))
+        metrics = self.o.get_metrics()
+        self.assertEqual(metrics.total_executions, 3)
+        self.assertEqual(metrics.successful_executions, 2)
+        self.assertEqual(metrics.failed_executions, 1)
+        self.assertAlmostEqual(metrics.avg_latency_ms, 20.0)
+        self.assertAlmostEqual(metrics.cost_per_execution, 1.0 / 3)
+
 if __name__ == "__main__":
     unittest.main()

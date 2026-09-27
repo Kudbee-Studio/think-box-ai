@@ -123,6 +123,7 @@
 | Orchestrator strategy fix + calibration v2 | **GitHub #264** (merged `b42e5c7`) — strategies/constraints implemented; pre-registered v2 `IMPROVED` (simulated); not LIVE VERIFIED |
 | Durable loop-action receipts | **GitHub #251** (merged `1ee9171`); not LIVE VERIFIED |
 | Sharded concurrent-goal executor | **GitHub #255** (merged `1719655`); not LIVE VERIFIED |
+| Flight readiness: mutation testing | **GitHub #266** (open) — orchestrator score 55.2% → 92.0%; not LIVE VERIFIED |
 
 ---
 

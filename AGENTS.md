@@ -562,6 +562,14 @@ pre-registered experiment:
 
 Reference: `thinkbox/synthesis_calibration_arena.py` (v1 and v2).
 
+### 13.12 Mutation testing before claiming a module is well tested (Standing Rule)
+
+1. Run `python3 scripts/mutation_test.py <module.py> <tests.module> --out data/thinkboxmd/artifacts/mutation_<name>.json`.
+2. Record the score in the PR. A passing suite alone is not evidence of good tests.
+3. Give every surviving mutant a verdict: untested behavior (add a test), bug (fix it with a failing test first), equivalent, or simulation-only. Report the raw score; never drop survivors to raise it.
+
+Reference: `docs/guides/flight-readiness.md`.
+
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
@@ -704,6 +712,7 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Multi-box orchestration + calibration v1 | **#263** (merged `d1eccd2`) | `thinkbox/multi_box_orchestration.py` (knowledge fabric, synthesis) + `thinkbox/synthesis_calibration_arena.py`; pre-registered v1 result `WORSE` (honest negative) |
 | Orchestrator strategy fix + calibration v2 | **#264** (merged `b42e5c7`) | CHEAPEST/CONSENSUS/PARALLEL + constraints actually implemented; budget/consensus/failure-count defects fixed; `KnowledgeFabric.persist()` made real + verifying `load()`; memory seeds (7 patterns, 3 proof-pinned facts); `agreement_fraction` added; pre-registered v2 result `IMPROVED` (simulated) |
 | Sharded concurrent-goal executor | **#255** (merged `1719655`) | `thinkbox/shard.py` — rendezvous-hash sharding over `concurrent_goals`, sharded budgets, failure detection, ledger, checkpoints; 93 tests. Branch was 1603 commits behind main (stale base files dropped in favor of main); review fixed a closure bug where every shard ran on the last shard's runner; not LIVE VERIFIED |
+| Flight readiness: mutation testing (IV&V) | **#266** (open) | `thinkbox/mutation_testing.py`, `scripts/mutation_test.py`; orchestrator mutation score 55.2% → 92.0% (48 → 80 of 87 killed); success-rate reset bug fixed; `docs/guides/flight-readiness.md` (10-item roadmap) |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

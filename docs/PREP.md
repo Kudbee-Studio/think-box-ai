@@ -2,6 +2,12 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-27 (GitHub #266 open — mutation testing)
+>
+> **#266** on `feat/pr266-mutation-testing`: mutation-testing harness; orchestrator score 55.2% → 92.0%;
+> success-rate reset bug fixed; `docs/guides/flight-readiness.md` lists the 10 flight-readiness items.
+> **Gate:** CI runners unavailable. **Four-state:** CODE COMPLETE / TEST VERIFIED.
+
 > ## ADDENDUM — 2026-09-27 (GitHub #264 merged; zero open PRs)
 >
 > **#264** merged `b42e5c7` after #251 (`1ee9171`) and #255 (`1719655`). Zero open PRs. `main` tree is

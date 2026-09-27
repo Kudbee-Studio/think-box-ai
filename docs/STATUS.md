@@ -1,5 +1,15 @@
 # STATUS — Think Box AI
 
+## OPEN (2026-09-27) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `feat/pr266-mutation-testing` |
+| **Result** | orchestrator mutation score 55.2% → 92.0% (48 → 80 of 87); success-rate reset bug fixed |
+| **Verify** | orchestrator 56 OK; mutation harness 9 OK |
+| **CI** | Actions runners unavailable; local verification |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+
 ## MERGED (2026-09-27) — GitHub PRs #251 and #255 (bot PRs, reviewed)
 
 | PR | Merge | Review outcome |

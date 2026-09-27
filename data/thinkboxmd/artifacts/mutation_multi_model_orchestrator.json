@@ -1,0 +1,78 @@
+{
+  "evidence_level": "MEASURED",
+  "killed": 80,
+  "killed_by_timeout": 2,
+  "module": "thinkbox.multi_model_orchestrator",
+  "module_sha256": "4a80cd2e23bcb41e567afd60851e7efa91c6ed2f5d6f5abdc2c17f0ac44e69ba",
+  "note": "A survivor is an untested behavior or an equivalent mutant. Each needs a human verdict; the score alone does not decide.",
+  "score": 0.9195,
+  "survived": 7,
+  "survivors": [
+    {
+      "col": 15,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0017",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 23,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0035",
+      "original": "+",
+      "replacement": "-"
+    },
+    {
+      "col": 66,
+      "kind": "constant",
+      "line": "for provider, outcome in zip(candidates, outcomes, strict=True):",
+      "lineno": 354,
+      "mutant_id": "m0052",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 62,
+      "kind": "constant",
+      "line": "for provider, outcome in zip(polled, outcomes, strict=True):",
+      "lineno": 400,
+      "mutant_id": "m0053",
+      "original": "True",
+      "replacement": "False"
+    },
+    {
+      "col": 41,
+      "kind": "arithmetic",
+      "line": "latency_score = 1.0 / (1.0 + metrics.latency_p95_ms / 1000.0)",
+      "lineno": 194,
+      "mutant_id": "m0065",
+      "original": "/",
+      "replacement": "*"
+    },
+    {
+      "col": 38,
+      "kind": "arithmetic",
+      "line": "cost_score = 1.0 / (1.0 + metrics.cost_per_1k_tokens * 1000.0)",
+      "lineno": 195,
+      "mutant_id": "m0066",
+      "original": "*",
+      "replacement": "/"
+    },
+    {
+      "col": 29,
+      "kind": "arithmetic",
+      "line": "return base * (0.8 + 0.4 * (hash(str(time.time())) % 100) / 100)",
+      "lineno": 473,
+      "mutant_id": "m0079",
+      "original": "*",
+      "replacement": "/"
+    }
+  ],
+  "tests": "tests.unit.test_multi_model_orchestrator",
+  "tests_sha256": "dc5bcc7f99376a888dd1f3894a0fd35d03e4f7a96c811dbbfb934606998b5a3f",
+  "total": 87
+}

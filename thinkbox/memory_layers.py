@@ -84,6 +84,13 @@ CHRONICLE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("docs/CONTINUITY.md",),
     ),
     (
+        "mutation-test-before-trusting-tests",
+        "A passing suite is not evidence the tests catch bugs; measure it with mutation testing and "
+        "give every surviving mutant a verdict. 41 passing orchestrator tests killed only 55% of "
+        "injected bugs.",
+        ("docs/guides/flight-readiness.md", "thinkbox/mutation_testing.py"),
+    ),
+    (
         "git-status-before-checkout",
         "Run git status before any checkout, restore, or reset that touches paths. Uncommitted work is "
         "not recoverable from git.",
