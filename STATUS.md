@@ -9,6 +9,18 @@
 - **CI:** GitHub Actions runners still unavailable (main `test` run for `d940160` ended in 6 s); verification local.
 - **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
 
+## OPEN (2026-09-27) — GitHub PR #268 Flight readiness: fault-injection (chaos) harness
+
+- **Branch:** `feat/pr268-fault-injection-campaign`
+- **Harness:** `thinkbox/fault_injection.py` drives a real `VerifiedRetrySession` (Arena v3) against a scripted lying provider across 8 fault kinds; judges every outcome against independently-derived ground truth, never the system's own `valid` boolean.
+- **Result:** 22 trials, **0 silent successes, 0 crashes, 0 under-recovered, 0 unexpected.** 3 recovered (transient wrong-key), 19 loud failures.
+- **Self-caught bug:** `BUDGET_STARVE` originally had no scripted response and raised a bare `ValueError`; the harness's own judge flagged it `CRASHED` rather than passing quietly. Fixed.
+- **Mutation score:** 31/31 (100%) on the harness's own tests.
+- **Docs:** `docs/guides/flight-readiness.md` §3 + a "Ten Ideas for the Next Arc" brainstorm (items 4–10 plus 3 new ones: counterfactual DENY explanations, reproducible-build proof attestation, differential provider fuzzing).
+- **Verify:** `test_fault_injection` **40 OK**; `power_of_ten_audit.py` exit 0 (184, unchanged); full affected-suite run 205 OK (3 expected failures, pre-existing).
+- **CI:** GitHub Actions runners still unavailable; verification local.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
 ## MERGED (2026-09-27, `d940160`) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
 
 - **Branch:** `feat/pr266-mutation-testing`

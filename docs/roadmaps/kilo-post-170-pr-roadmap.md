@@ -124,7 +124,8 @@
 | Durable loop-action receipts | **GitHub #251** (merged `1ee9171`); not LIVE VERIFIED |
 | Sharded concurrent-goal executor | **GitHub #255** (merged `1719655`); not LIVE VERIFIED |
 | Flight readiness: mutation testing | **GitHub #266** (merged `d940160`) — orchestrator score 55.2% → 92.0%; not LIVE VERIFIED |
-| Flight readiness: JPL Power of 10 audit | **GitHub #267** (open) — 184 findings baselined, ratchet blocks new ones; not LIVE VERIFIED |
+| Flight readiness: JPL Power of 10 audit | **GitHub #267** (merged `c2af3ce`) — 184 findings baselined, ratchet blocks new ones; not LIVE VERIFIED |
+| Flight readiness: fault-injection chaos harness | **GitHub #268** (open) — 22 adversarial trials vs real VerifiedRetrySession, 0 silent successes; not LIVE VERIFIED |
 
 ---
 

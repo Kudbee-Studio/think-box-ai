@@ -10,6 +10,17 @@
 | **CI** | Actions runners unavailable; local verification |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
 
+## OPEN (2026-09-27) — GitHub PR #268 Flight readiness: fault-injection (chaos) harness
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `feat/pr268-fault-injection-campaign` |
+| **Result** | 22 adversarial trials vs a real VerifiedRetrySession; 0 silent successes, 0 crashes, 0 under-recovered |
+| **Self-caught bug** | BUDGET_STARVE raised bare ValueError before a scripted-response fix |
+| **Verify** | test_fault_injection 40 OK; mutation score 31/31; Power of 10 audit unchanged (184) |
+| **CI** | Actions runners unavailable; local verification |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+
 ## MERGED (2026-09-27, `d940160`) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
 
 | Field | Value |

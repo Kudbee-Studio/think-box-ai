@@ -91,6 +91,14 @@ CHRONICLE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("docs/guides/flight-readiness.md", "thinkbox/mutation_testing.py"),
     ),
     (
+        "fault-campaign-judge-independent-ground-truth",
+        "A fault-injection campaign's judge must never classify an outcome by trusting the system's own "
+        "success flag. Derive ground truth independently from how the fault was constructed, then compare "
+        "-- a fixed budget_starve bug in the harness itself (a bare ValueError instead of the real "
+        "BudgetExhausted path) was caught this way, not by the campaign quietly passing.",
+        ("docs/guides/flight-readiness.md", "thinkbox/fault_injection.py"),
+    ),
+    (
         "ratchet-legacy-violations",
         "When a new rule finds many existing violations, record them in a baseline and fail only on new "
         "ones, so the count can only go down. Never add to the baseline to get green. The Power of 10 "

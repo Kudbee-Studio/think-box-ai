@@ -9,7 +9,7 @@ marked done when it exists as code with tests.
 |---|----------|--------------------|--------|
 | 1 | **Mutation testing (IV&V)** | Do the tests actually catch bugs? | **Done (PR #266)** — see below |
 | 2 | **JPL "Power of 10" audit** | Does the code follow flight coding rules (no swallowed exceptions, bounded loops, short functions, no recursion)? | **Audit + ratchet (PR #267)**: 184 existing findings recorded, new ones blocked. Burn-down pending |
-| 3 | Fault-injection campaign | Under timeouts, garbage and crashes, does anything report false success? | Planned |
+| 3 | **Fault-injection campaign** | Under timeouts, garbage and crashes, does anything report false success? | **Chaos harness (PR #268)**: 22 adversarial trials, 0 silent successes |
 | 4 | 2-of-3 majority voting (TMR) | Are critical decisions voted, with disagreement reported? | Partial: CONSENSUS strategy (#264) |
 | 5 | FMEA from code | What are the failure modes, how is each detected, which test proves it? | Planned |
 | 6 | Requirements traceability | Which test enforces each AGENTS.md standing rule? | Planned |
@@ -131,3 +131,136 @@ adding tests: **39/40 (97.5%)**. The survivor is `sort_keys=True` →
 summary. It is effectively equivalent.
 Artifact: `data/thinkboxmd/artifacts/mutation_power_of_ten.json`. The
 auditor also passes its own audit (a test asserts it).
+
+---
+
+## 3. Fault-Injection Campaign
+
+Item 1 asks whether the tests catch bugs in the code. Item 2 asks whether
+the code follows safe coding rules. Neither asks the question a flight
+reviewer actually cares about: with the system *running*, under a provider
+that is actively lying, does anything ever come back looking like success
+when it was not?
+
+`thinkbox/fault_injection.py` drives a real `VerifiedRetrySession`
+end-to-end against a scripted, deterministically corrupted provider — never
+a mock of the verifier, the real `verify_v2` and the real retry mechanism
+from Arena v3. Eight fault kinds, each mapped onto a taxonomy branch the
+production verifier already classifies:
+
+| Fault | What the "provider" does | Ground truth |
+|-------|---------------------------|--------------|
+| Malformed JSON | Returns text that isn't JSON | Must never validate |
+| Truncated JSON | Cuts the closing brace | Must never validate |
+| Wrong key, transient | Wrong key once, correct on retry | Must recover (Arena v3) |
+| Wrong key, persistent | Wrong key on every attempt | Must exhaust the retry and fail honestly |
+| Off-by-one | Schema-perfect, numeric answer wrong by 1 | The near-miss case: must never validate |
+| Multifield-inconsistent | Correct answer, `double` field doesn't match it | Must never validate |
+| Timeout | Raises instead of returning | Must propagate the exception, never be swallowed |
+| Budget-starve | A retryable fault with a 1-call budget | Must raise `BudgetExhausted`, not fabricate a result |
+
+**The judge never trusts the system's own boolean.** For each trial the
+harness independently knows, from how the fault was constructed, whether a
+genuine success was possible; it compares the observed outcome against
+that, not against `result.valid`. Five verdicts: `RECOVERED_SUCCESS` (the
+genuinely correct retried answer), `LOUD_FAILURE` (correctly refused or
+raised), `UNDER_RECOVERED` (a fixable fault the retry mechanism failed to
+fix — safe, but a real regression), `SILENT_SUCCESS` (accepted a response
+that should never validate — the bug this harness exists to hunt), and
+`CRASHED` (an unrecognized exception escaped). The campaign passes only if
+`silent_successes == crashed == under_recovered == unexpected == 0`.
+
+**Result:** 22 trials (8 fault kinds × applicable families), run against
+`main`. **0 silent successes, 0 crashes, 0 under-recovered, 0 unexpected.**
+3 recovered (the transient wrong-key cases, matching Arena v3), 19 loud
+failures. Artifact: `data/thinkboxmd/artifacts/fault_injection_campaign.json`.
+
+**A bug the harness caught in itself.** The first `BUDGET_STARVE` draft had
+no scripted first-call response, so it raised a bare `ValueError` instead of
+exercising the real budget-exhaustion path — the harness's own judge flagged
+it as `CRASHED` rather than silently reporting a clean campaign. Fixed by
+giving it the same retryable wrong-key response as the transient case, so
+the retry attempt is the one that starves.
+
+**Mutation score:** 31/31 (100%) on `thinkbox/fault_injection.py`'s own
+tests — the harness that hunts silent successes has none of its own logic
+untested. Artifact: `data/thinkboxmd/artifacts/mutation_fault_injection.json`.
+
+**What this does not cover.** Every trial is a scripted, one-shot
+transcript — a single lying response, not sustained adversarial pressure
+across a long-running swarm, and not a real network timeout (it is a raised
+Python exception standing in for one). It exercises the sync `run()` path,
+not `run_async` or the DAG-level engine integration. Extending the
+taxonomy to `run_async`, to the concurrent-goals budget-contention paths,
+and to genuinely randomized (not just scripted) adversarial inputs is the
+natural next campaign.
+
+```bash
+python3 scripts/fault_injection_campaign.py
+python3 scripts/fault_injection_campaign.py --out data/thinkboxmd/artifacts/fault_injection_campaign.json
+```
+
+---
+
+## Ten Ideas for the Next Arc
+
+Requested checkpoint: ten "outside the box" capabilities picked for the
+reaction a fifty-year flight-software engineer would have, not for
+marketing value. Seven are the remaining flight-readiness items above
+(4–10); three go beyond that list into territory this repo hasn't touched
+yet. None of these are built by this PR — this is the brainstorm the PR
+was asked to ship alongside item 3, so the next slot is chosen honestly
+rather than by momentum.
+
+1. **2-of-3 majority voting with disagreement reported as data, not noise**
+   (item 4). The orchestrator's CONSENSUS strategy exists; what's missing
+   is a hermetic campaign, in the fault-injection style, where the three
+   voters are seeded to disagree on purpose and the system's job is to
+   report *why*, not just which answer won.
+2. **FMEA generated from the code, not written by hand** (item 5). Walk
+   every `except` clause, every `raise`, every state-machine transition in
+   `thinkbox/governed.py` / `agent/kernel.py`, and mechanically produce a
+   failure-modes table with a column linking each mode to the test that
+   proves it's caught — a living document that goes stale the moment a
+   test is deleted, and a test can flag it.
+3. **Requirements traceability matrix** (item 6). Every numbered rule in
+   this file and every AGENTS.md standing rule gets a machine-checked link
+   to the test(s) that enforce it. A rule with no linked test is a finding,
+   the same way an untested function is.
+4. **Watchdog + safe mode** (item 7). A stalled component (an agent that
+   stops heartbeating, a scheduler task that never completes) should trip
+   an explicit `SAFE_MODE`, not hang silently. Directly extends this PR's
+   fault-injection taxonomy with a "never returns at all" fault class.
+5. **Checksummed telemetry frames** (item 8). Every dashboard/ledger event
+   already has a hash chain for the ledger; extend the same idea to the
+   telemetry stream itself, so a dropped or corrupted event over
+   WebSocket/SSE is detectable by the client, not just assumed complete.
+6. **Deterministic byte-for-byte replay, generalized** (item 9). The
+   ReplayDriver and proof hashes already prove single decisions replay
+   exactly; the freak-out version replays an entire multi-goal DAG run
+   from its ledger alone, on a machine that never saw the original run,
+   and gets bit-identical outcomes.
+7. **Nominal → degraded → safe-mode ladder, explicitly tested** (item 10).
+   Each downgrade trigger (budget near-exhaustion, ledger verify failure,
+   repeated fault-campaign regressions) is simulated and the system must
+   land in the *correct* named state, never a silent partial failure.
+8. **Counterfactual explanations for governance DENY decisions.** Given
+   any `AdmissionGate` denial, compute the *minimal* change to the request
+   that would have flipped it to ALLOW — turning a black-box gate into one
+   that can answer "what would it have taken?" This is mutation testing's
+   idea (systematic near-miss perturbation) applied to governance rules
+   instead of code.
+9. **Reproducible-build attestation for proof artifacts.** Every proof
+   JSON already carries a `module_sha256` / `artifact_hash`; extend that
+   to a full source-tree + lockfile hash recorded at proof-generation
+   time, so a proof can be traced back to the *exact* commit that produced
+   it — protecting against "the proof still says passed, but the code has
+   since silently changed" (this PR's own artifacts would gain this for
+   free once built).
+10. **Differential fuzzing across provider implementations.** AGENTS.md
+    §1.2 requires the runtime work identically with any OpenAI-compatible
+    or Anthropic-compatible provider; today that's enforced by review, not
+    by a test. A stdlib fuzzer that generates adversarial payloads and
+    asserts both provider code paths handle errors, timeouts and malformed
+    responses the *same* way would make "provider independence" a tested
+    property instead of a promise.

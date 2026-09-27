@@ -570,6 +570,12 @@ Reference: `thinkbox/synthesis_calibration_arena.py` (v1 and v2).
 
 Reference: `docs/guides/flight-readiness.md`.
 
+### 13.14 Fault-injection campaigns judge outcomes, not booleans (Standing Rule)
+
+1. A fault-injection / chaos campaign must never classify an outcome by trusting the system's own success flag alone. The judge derives ground truth independently from how the fault was constructed (what a genuinely correct outcome would have to look like), then compares.
+2. A "recovered" verdict requires the *retried* response to be the one that validated, never the originally-faulted one — `valid=True` on the first (faulted) attempt is always a silent success, not a pass.
+3. Reference: `thinkbox/fault_injection.py`, `docs/guides/flight-readiness.md` §3.
+
 ### 13.13 Power of 10 ratchet (Standing Rule)
 
 1. `python3 scripts/power_of_ten_audit.py` must exit 0: no new recursion (P1), unbounded `while True` (P2), function over 60 lines (P4), or silently swallowed broad exception (P7) in `thinkbox/`, `core/`, `backend/`. `TestRepoRatchet` enforces it in the test suite.
@@ -719,6 +725,7 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Sharded concurrent-goal executor | **#255** (merged `1719655`) | `thinkbox/shard.py` — rendezvous-hash sharding over `concurrent_goals`, sharded budgets, failure detection, ledger, checkpoints; 93 tests. Branch was 1603 commits behind main (stale base files dropped in favor of main); review fixed a closure bug where every shard ran on the last shard's runner; not LIVE VERIFIED |
 | Flight readiness: mutation testing (IV&V) | **#266** (merged `d940160`) | `thinkbox/mutation_testing.py`, `scripts/mutation_test.py`; orchestrator mutation score 55.2% → 92.0% (48 → 80 of 87 killed); success-rate reset bug fixed; `docs/guides/flight-readiness.md` (10-item roadmap) |
 | Flight readiness: JPL Power of 10 audit + ratchet | **#267** (open) | `thinkbox/power_of_ten.py`, `scripts/power_of_ten_audit.py`; P1/P2/P4/P7 enforced, other rules mapped N/A; 184 existing findings baselined (31 swallowed exceptions), new ones fail `TestRepoRatchet`; auditor mutation score 39/40 |
+| Flight readiness: fault-injection (chaos) harness | **#268** (open) | `thinkbox/fault_injection.py`, `scripts/fault_injection_campaign.py`; 8 fault kinds, 22 adversarial trials against a real VerifiedRetrySession, 0 silent successes; found and fixed a real bug in the harness itself (BUDGET_STARVE had no scripted response); auditor mutation score 31/31; `docs/guides/flight-readiness.md` "Ten Ideas for the Next Arc" |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

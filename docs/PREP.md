@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-27 (GitHub #268 open — fault-injection chaos harness)
+>
+> **#267** merged `c2af3ce`. **#268** on `feat/pr268-fault-injection-campaign`: fault-injection harness
+> drives a real VerifiedRetrySession against 8 lying-provider fault kinds; 22 trials, 0 silent successes.
+> Found and fixed a real bug in the harness itself. `test_fault_injection` 40 OK, mutation score 31/31.
+> **Gate:** CI runners unavailable. **Four-state:** CODE COMPLETE / TEST VERIFIED.
+
 > ## ADDENDUM — 2026-09-27 (GitHub #267 open — JPL Power of 10 audit)
 >
 > **#266** merged `d940160`. **#267** on `feat/pr267-power-of-ten-audit`: Power of 10 auditor + ratchet;
