@@ -1,6 +1,16 @@
 # STATUS — Think Box AI
 
-## OPEN (2026-09-27) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
+## OPEN (2026-09-27) — GitHub PR #267 Flight readiness: JPL Power of 10 audit + ratchet
+
+| Field | Value |
+|-------|-------|
+| **Branch** | `feat/pr267-power-of-ten-audit` |
+| **Result** | 184 existing findings baselined (P1 20, P2 5, P4 128, P7 31); new findings fail the ratchet test |
+| **Verify** | `test_power_of_ten` 23 OK; auditor mutation score 39/40 |
+| **CI** | Actions runners unavailable; local verification |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+
+## MERGED (2026-09-27, `d940160`) — GitHub PR #266 Flight readiness: mutation testing (IV&V)
 
 | Field | Value |
 |-------|-------|

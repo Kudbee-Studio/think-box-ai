@@ -2,6 +2,12 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-27 (GitHub #267 open — JPL Power of 10 audit)
+>
+> **#266** merged `d940160`. **#267** on `feat/pr267-power-of-ten-audit`: Power of 10 auditor + ratchet;
+> 184 findings baselined (31 swallowed exceptions to burn down next); `test_power_of_ten` 23 OK.
+> **Gate:** CI runners unavailable. **Four-state:** CODE COMPLETE / TEST VERIFIED.
+
 > ## ADDENDUM — 2026-09-27 (GitHub #266 open — mutation testing)
 >
 > **#266** on `feat/pr266-mutation-testing`: mutation-testing harness; orchestrator score 55.2% → 92.0%;

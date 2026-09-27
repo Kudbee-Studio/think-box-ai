@@ -1,0 +1,24 @@
+{
+  "evidence_level": "MEASURED",
+  "killed": 39,
+  "killed_by_timeout": 0,
+  "module": "thinkbox.power_of_ten",
+  "module_sha256": "fbe3341c7beee9e7ce24e94b5a94839cd0b8559bc43fcfcee1a29beeaf4f0a1e",
+  "note": "A survivor is an untested behavior or an equivalent mutant. Each needs a human verdict; the score alone does not decide.",
+  "score": 0.975,
+  "survived": 1,
+  "survivors": [
+    {
+      "col": 60,
+      "kind": "constant",
+      "line": "path.write_text(json.dumps(payload, indent=2, sort_keys=True) + \"\\n\", encoding=\"utf-8\")",
+      "lineno": 225,
+      "mutant_id": "m0038",
+      "original": "True",
+      "replacement": "False"
+    }
+  ],
+  "tests": "tests.unit.test_power_of_ten",
+  "tests_sha256": "abef7ed5944d7d6638a0ef83ac4d36df1467678269f6e175753e56b7ac21f11c",
+  "total": 40
+}

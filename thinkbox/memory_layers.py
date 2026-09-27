@@ -91,6 +91,13 @@ CHRONICLE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("docs/guides/flight-readiness.md", "thinkbox/mutation_testing.py"),
     ),
     (
+        "ratchet-legacy-violations",
+        "When a new rule finds many existing violations, record them in a baseline and fail only on new "
+        "ones, so the count can only go down. Never add to the baseline to get green. The Power of 10 "
+        "audit found 184, including 31 silently swallowed exceptions.",
+        ("docs/guides/flight-readiness.md", "thinkbox/power_of_ten.py"),
+    ),
+    (
         "git-status-before-checkout",
         "Run git status before any checkout, restore, or reset that touches paths. Uncommitted work is "
         "not recoverable from git.",
