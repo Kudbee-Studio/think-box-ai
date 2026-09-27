@@ -1,5 +1,6 @@
-// THINK BOX AI — kudbEE Devin-like Interface
-// Connects to FastAPI backend on port 8000
+// THINK BOX AI — kudbEE Agent OS (Enterprise Edition)
+
+// `Enterprise` is declared globally by enterprise.js (loaded first); redeclaring it here is a SyntaxError.
 
 const state = {
   ws: null,
@@ -8,22 +9,33 @@ const state = {
   models: [],
   plugins: [],
   tasks: [],
+  taskFilters: { query: '', status: 'all', priority: 'all' },
   thoughts: [],
+  thoughtFilter: 'all',
+  pluginQuery: '',
+  runs: [],
+  runProgress: {},
+  approvals: [],
+  openRunId: null,
   config: {
-    model: 'deepseek-coder:6.7b',
-    provider: 'ollama',
+    model: '',
+    provider: '',
   }
 };
 
 function connectWebSocket() {
   const sdk = window.KudbeeSdkBrowser?.loadConfig?.() ?? null;
   const wsUrl = sdk?.wsUrl ?? `ws://${window.location.hostname}:${window.location.port || 3000}/ws`;
+  const backendUrl = wsUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
   state.correlationId = sdk?.newCorrelationId?.() ?? null;
   state.ws = new WebSocket(wsUrl);
 
   state.ws.onopen = () => {
     console.log('kudbEE WebSocket connected');
+    document.getElementById('header-connection').innerHTML = '<span class="connection-dot"></span> Connected';
     appendTerminalMessage('system', '🐝 Connected to kudbEE backend');
+    setStatus('idle', 'Ready');
+    enableInput(true);
   };
 
   state.ws.onmessage = (event) => {
@@ -36,10 +48,11 @@ function connectWebSocket() {
   };
 
   state.ws.onerror = () => {
-    appendTerminalMessage('error', 'WebSocket connection error — is the backend running on port 8000?');
+    appendTerminalMessage('error', `WebSocket connection error — check ${backendUrl}/api/health`);
   };
 
   state.ws.onclose = () => {
+    document.getElementById('header-connection').innerHTML = '<span class="connection-dot offline"></span> Reconnecting';
     setStatus('error', 'Disconnected');
     appendTerminalMessage('system', 'Disconnected — retrying in 3s...');
     setTimeout(connectWebSocket, 3000);
@@ -52,41 +65,52 @@ function handleMessage(msg) {
       state.sessionId = msg.data.sessionId;
       state.plugins = msg.data.plugins || [];
       state.models = msg.data.models || [];
+      state.config = { ...state.config, ...(msg.data.config || {}) };
+      state.tasks = msg.data.tasks || [];
+      state.thoughts = [];
+      renderTasks();
+      renderThoughts();
       renderPlugins();
+      renderTasks();
       renderModels();
       setStatus('idle', 'Ready');
       appendTerminalMessage('system', `Session: ${state.sessionId.slice(0, 8)}`);
+      refreshFiles();
       break;
 
-    case 'STATUS':
-      setStatus(msg.data.status, msg.data.status === 'running' ? 'Running' : 'Idle');
+    case 'status':
+      setStatus(msg.data, msg.data === 'running' ? 'Running' : 'Idle');
       break;
 
-    case 'TOKEN':
-      appendTerminalStream(msg.data.value);
+    case 'stream':
+      appendTerminalStream(msg.data);
       break;
 
-    case 'THOUGHT':
+    case 'thought':
       addThought({ ...msg.data, timestamp: msg.timestamp });
       break;
 
-    case 'TASK_UPDATE':
+    case 'task':
       addTask({ ...msg.data, timestamp: msg.timestamp });
       break;
 
-    case 'TOOL_CALL':
-      appendTerminalMessage('plugin', `🔧 [${msg.data.tool}] ${JSON.stringify(msg.data.args)}`);
+    case 'task_update':
+      updateTask(msg.data);
       break;
 
-    case 'TOOL_RESULT': {
-      const result = msg.data.result;
-      const icon = result?.error ? '✗' : '✓';
-      appendTerminalMessage('plugin', `${icon} [${msg.data.tool}] ${result?.data?.content || result?.error || JSON.stringify(result)}`);
+    case 'task_action_result':
+      renderTaskActionResult(msg.data);
       break;
-    }
+
+    case 'git_action_result':
+      appendTerminalMessage(msg.data.success ? 'system' : 'error', msg.data.success
+        ? `Git ${msg.data.action || 'action'}${msg.data.path ? ` · ${msg.data.path}` : ''}\n${msg.data.output || ''}`
+        : `Git failed: ${msg.data.error || 'unknown error'}`);
+      if (msg.data.success && msg.data.action === 'clone') refreshFiles();
+      break;
 
     case 'plugin_result':
-      appendTerminalMessage('plugin', `[${msg.data.plugin}] ${msg.data.result.success ? '✓' : '✗'} ${msg.data.result.content || msg.data.result.error || ''}`);
+      appendTerminalMessage('plugin', `[${msg.data.plugin}] ${msg.data.result.success ? '✓' : '✗'}\n${JSON.stringify(msg.data.result, null, 2)}`);
       break;
 
     case 'models':
@@ -94,11 +118,46 @@ function handleMessage(msg) {
       renderModels();
       break;
 
-    case 'result':
-      setStatus('idle', 'Completed');
-      appendTerminalMessage('assistant', `\n✓ Goal completed\n${msg.data.result || ''}`);
+    case 'files_changed':
+      refreshFiles();
+      break;
+
+    case 'run_update':
+      state.runProgress[msg.data.id] = msg.data;
+      renderTasks();
+      scheduleRunsRefresh();
+      if (state.openRunId === msg.data.id) openRun(msg.data.id);
+      break;
+
+    case 'approval_request':
+      state.approvals.push({ ...msg.data, received_at: Date.now() });
+      showNextApproval();
+      break;
+
+    case 'approval_resolved':
+      state.approvals = state.approvals.filter(a => a.id !== msg.data.id);
+      showNextApproval();
+      break;
+
+    case 'result': {
+      const r = msg.data || {};
+      document.querySelector('.terminal-stream')?.classList.remove('terminal-stream');
+      const stats = r.steps !== undefined
+        ? `\n— ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${formatUsd(r.cost_usd)} · ${((r.duration_ms || 0) / 1000).toFixed(1)}s`
+        : '';
+      if (r.success) {
+        setStatus('idle', 'Completed');
+        appendTerminalMessage('assistant', `✓ ${r.result || 'Done'}${stats}`);
+      } else {
+        setStatus('error', 'Failed');
+        appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}`);
+      }
+      refreshFiles();
+      refreshStats();
+      refreshRuns();
       enableInput(true);
       break;
+    }
 
     case 'error':
       appendTerminalMessage('error', `Error: ${msg.data}`);
@@ -147,6 +206,80 @@ function appendTerminalStream(token) {
   terminal.scrollTop = terminal.scrollHeight;
 }
 
+function appendTerminalImage(role, content, imageUrl, alt) {
+  const terminal = document.getElementById('terminal');
+  const welcome = terminal.querySelector('.terminal-welcome');
+  if (welcome) welcome.remove();
+  const message = document.createElement('div');
+  message.className = `terminal-message ${role}`;
+  const header = document.createElement('div');
+  header.className = 'message-header';
+  header.innerHTML = `<span class="message-role">${escapeHtml(role)}</span><span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+  const body = document.createElement('div');
+  body.className = 'message-content';
+  body.textContent = content;
+  const image = document.createElement('img');
+  image.className = 'terminal-image';
+  image.src = imageUrl;
+  image.alt = alt;
+  message.append(header, body, image);
+  terminal.appendChild(message);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function analyzeImage(file) {
+  if (!file || !state.sessionId) return;
+  if (file.size > 12 * 1024 * 1024) {
+    appendTerminalMessage('error', 'Image is larger than the 12 MB limit.');
+    return;
+  }
+  const form = new FormData();
+  form.append('image', file);
+  appendTerminalMessage('user', `Analyze image: ${file.name}`);
+  setStatus('running', 'Analyzing image');
+  try {
+    const response = await fetch(`/api/sessions/${state.sessionId}/images/analyze`, { method: 'POST', body: form });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || response.statusText);
+    appendTerminalImage('assistant', result.answer, result.imageUrl, file.name);
+    await refreshFiles();
+  } catch (error) {
+    appendTerminalMessage('error', `Image analysis failed: ${error.message}. Start the Janus image service to enable image tools.`);
+  } finally {
+    setStatus('idle', 'Ready');
+    document.getElementById('analyze-image-input').value = '';
+  }
+}
+
+async function generateImage() {
+  const input = document.getElementById('goal-input');
+  const prompt = input.value.trim();
+  if (!prompt) {
+    appendTerminalMessage('system', 'Enter an image prompt before generating.');
+    input.focus();
+    return;
+  }
+  if (!state.sessionId) return;
+  appendTerminalMessage('user', `Generate image: ${prompt}`);
+  setStatus('running', 'Generating image');
+  try {
+    const response = await fetch(`/api/sessions/${state.sessionId}/images/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || response.statusText);
+    appendTerminalImage('assistant', `Generated from: ${prompt}`, result.imageUrl, prompt);
+    input.value = '';
+    await refreshFiles();
+  } catch (error) {
+    appendTerminalMessage('error', `Image generation failed: ${error.message}. Start the Janus image service to enable image tools.`);
+  } finally {
+    setStatus('idle', 'Ready');
+  }
+}
+
 function clearTerminal() {
   const terminal = document.getElementById('terminal');
   terminal.innerHTML = `
@@ -154,12 +287,10 @@ function clearTerminal() {
       <div class="welcome-line">🐝 kudbEE — Agent OS</div>
       <div class="welcome-line">Type a goal and press Run to start.</div>
       <div class="welcome-line">Make sure Ollama is running: <code>ollama serve</code></div>
-      <div class="welcome-line">Backend: ws://localhost:8000/ws</div>
+      <div class="welcome-line">Backend: ${window.location.origin}/ws</div>
     </div>
   `;
   state.thoughts = [];
-  state.tasks = [];
-  renderTasks();
   renderThoughts();
 }
 
@@ -176,26 +307,26 @@ function setStatus(status, text) {
   const stopBtn = document.getElementById('stop-goal');
   const input = document.getElementById('goal-input');
 
-  if (status === 'running') {
-    runBtn.disabled = true;
-    stopBtn.disabled = false;
-    input.disabled = true;
-  } else {
-    runBtn.disabled = false;
-    stopBtn.disabled = true;
-    input.disabled = false;
-  }
+  const submitBtn = document.getElementById('submit-goal');
+  const running = status === 'running';
+  runBtn.disabled = running;
+  submitBtn.disabled = running;
+  stopBtn.disabled = !running;
+  input.disabled = running;
 }
 
 function enableInput(enabled) {
   document.getElementById('goal-input').disabled = !enabled;
   document.getElementById('run-goal').disabled = !enabled;
+  document.getElementById('submit-goal').disabled = !enabled;
   document.getElementById('stop-goal').disabled = enabled;
 }
 
 // ─── Tasks ─────────────────────────────────────────────────────
 function addTask(task) {
-  state.tasks.push(task);
+  const index = state.tasks.findIndex(existing => existing.id === task.id);
+  if (index === -1) state.tasks.push(task);
+  else state.tasks[index] = { ...state.tasks[index], ...task };
   renderTasks();
 }
 
@@ -209,20 +340,122 @@ function updateTask(updated) {
 
 function renderTasks() {
   const container = document.getElementById('task-list');
+  const count = document.getElementById('task-count');
+  const summary = document.getElementById('task-summary');
+  const openTasks = state.tasks.filter(task => ['pending', 'running', 'blocked'].includes(task.status));
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = openTasks.filter(task => task.dueDate && task.dueDate < today);
+  count.textContent = state.tasks.length;
+  summary.innerHTML = `
+    <span><strong>${openTasks.length}</strong> open</span>
+    <span><strong>${state.tasks.filter(task => task.status === 'blocked').length}</strong> blocked</span>
+    <span class="${overdue.length ? 'overdue' : ''}"><strong>${overdue.length}</strong> overdue</span>
+  `;
   if (state.tasks.length === 0) {
     container.innerHTML = '<div class="empty-state">No tasks yet</div>';
     return;
   }
 
-  container.innerHTML = state.tasks.map(task => `
-    <div class="task-item ${task.status}">
-      <div class="task-header">
-        <span class="task-status ${task.status}">${task.status}</span>
-      </div>
-      <div class="task-description">${escapeHtml(task.description)}</div>
-      <div class="task-time">${new Date(task.timestamp).toLocaleTimeString()}</div>
-    </div>
-  `).join('');
+  const visible = state.tasks.filter(task => {
+    const query = state.taskFilters.query;
+    const text = `${task.title || ''} ${task.description || ''} ${task.id} ${task.assignee || ''} ${(task.tags || []).join(' ')}`.toLowerCase();
+    const queryMatches = !query || text.includes(query);
+    const statusMatches = state.taskFilters.status === 'all'
+      || (state.taskFilters.status === 'open' ? ['pending', 'running', 'blocked'].includes(task.status) : state.taskFilters.status === 'overdue'
+        ? Boolean(task.dueDate && task.dueDate < today && ['pending', 'running', 'blocked'].includes(task.status))
+        : task.status === state.taskFilters.status);
+    const priorityMatches = state.taskFilters.priority === 'all' || task.priority === state.taskFilters.priority;
+    return queryMatches && statusMatches && priorityMatches;
+  }).sort((left, right) => {
+    const rank = { critical: 0, high: 1, medium: 2, low: 3 };
+    return (rank[left.priority] ?? 2) - (rank[right.priority] ?? 2) || right.timestamp - left.timestamp;
+  });
+  if (!visible.length) {
+    container.innerHTML = '<div class="empty-state">No tasks match these filters</div>';
+    return;
+  }
+  container.innerHTML = visible.map(task => {
+    const overdueTask = task.dueDate && task.dueDate < today && ['pending', 'running', 'blocked'].includes(task.status);
+    const actions = task.status === 'completed' ? '' : `
+      <button type="button" class="task-action" data-task-action="${task.status === 'running' ? 'done' : 'start'}" data-task-id="${task.id}">${task.status === 'running' ? 'Complete' : 'Start'}</button>
+      <button type="button" class="task-action" data-task-action="block" data-task-id="${task.id}">Block</button>
+    `;
+    const attachments = (task.attachments || []).map(image => `<img class="task-attachment" src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.filename)}" loading="lazy">`).join('');
+    const activity = (task.activity || []).slice(-5).reverse().map(item => `<div class="task-activity-row"><span>${escapeHtml(item.action)}</span><small>${escapeHtml(item.actor)} · ${new Date(item.timestamp).toLocaleString()}</small>${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}</div>`).join('');
+    return `
+      <article class="task-item ${task.status} priority-${task.priority || 'medium'}"${state.runProgress[task.id] ? ` data-run="${escapeHtml(task.id)}" title="Click to open run timeline"` : ''}>
+        <div class="task-header">
+          <span class="task-status ${task.status}">${escapeHtml(task.status.replace('_', ' '))}</span>
+          <span class="task-priority ${task.priority || 'medium'}">${escapeHtml(task.priority || 'medium')}</span>
+          <code title="${task.id}">${escapeHtml(task.id.slice(0, 8))}</code>
+        </div>
+        <div class="task-description">${escapeHtml(task.title || task.description || 'Untitled task')}</div>
+        ${runProgressLine(task)}
+        ${task.blockedReason ? `<div class="task-blocked-reason">${escapeHtml(task.blockedReason)}</div>` : ''}
+        <div class="task-meta">
+          ${task.assignee ? `<span>Owner: ${escapeHtml(task.assignee)}</span>` : '<span>Unassigned</span>'}
+          ${task.dueDate ? `<span class="${overdueTask ? 'overdue' : ''}">Due ${escapeHtml(task.dueDate)}</span>` : ''}
+        </div>
+        ${(task.tags || []).length ? `<div class="task-tags">${task.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+        ${attachments ? `<div class="task-attachments">${attachments}</div>` : ''}
+        <div class="task-card-actions">
+          ${actions}
+          <button type="button" class="task-action" data-task-attach="${task.id}">Attach image</button>
+        </div>
+        <details class="task-activity"><summary>Activity (${(task.activity || []).length})</summary>${activity || '<div class="task-activity-row">No activity recorded</div>'}</details>
+      </article>
+    `;
+  }).join('');
+}
+
+/** Live step progress (running) or run summary (finished) for tasks created by the worker agent. */
+function runProgressLine(task) {
+  const run = state.runProgress[task.id];
+  if (!run) return '';
+  if (task.status === 'running' && !run.ended_at) {
+    const elapsed = ((Date.now() - run.started_at) / 1000).toFixed(0);
+    return `<div class="task-progress">Step ${run.current_step || 1} · ${escapeHtml(run.current_action || 'thinking')} · ${elapsed}s</div>`;
+  }
+  if (run.ended_at) {
+    return `<div class="task-progress">${run.current_step} step(s) · ${run.tool_calls} tool(s) · ${formatUsd(run.cost_usd)} · ${((run.duration_ms || 0) / 1000).toFixed(1)}s · timeline ›</div>`;
+  }
+  return '';
+}
+
+function renderTaskActionResult(result) {
+  if (!result?.success) {
+    appendTerminalMessage('error', `Task command failed: ${result?.error || 'unknown error'}`);
+    return;
+  }
+  if (result.action === 'list') {
+    const tasks = result.tasks || [];
+    appendTerminalMessage('system', tasks.length
+      ? tasks.map(task => `${task.id.slice(0, 8)} [${task.status}/${task.priority}] ${task.title}${task.assignee ? ` · ${task.assignee}` : ''}${task.dueDate ? ` · due ${task.dueDate}` : ''}`).join('\n')
+      : 'No tasks match that query.');
+    return;
+  }
+  if (result.action === 'show') {
+    appendTerminalMessage('system', JSON.stringify(result.task, null, 2));
+    return;
+  }
+  const task = result.task;
+  appendTerminalMessage('system', `Task ${task.id.slice(0, 8)} ${result.action}: ${task.title} [${task.status}/${task.priority}]`);
+}
+
+function sendTaskAction(action, payload = {}) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', 'Connect to the Agent OS backend before managing tasks.');
+    return;
+  }
+  state.ws.send(JSON.stringify({ type: 'task_action', action, payload }));
+}
+
+function sendGitAction(action, payload = {}) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', 'Connect to the Agent OS backend before running Git actions.');
+    return;
+  }
+  state.ws.send(JSON.stringify({ type: 'git_action', action, payload }));
 }
 
 // ─── Thoughts ──────────────────────────────────────────────────
@@ -241,7 +474,8 @@ function renderThoughts() {
     return;
   }
 
-  container.innerHTML = state.thoughts.slice(-50).reverse().map(thought => `
+  const visibleThoughts = state.thoughts.filter(thought => state.thoughtFilter === 'all' || thought.status === state.thoughtFilter);
+  container.innerHTML = visibleThoughts.slice(-50).reverse().map(thought => `
     <div class="thought-item ${thought.status || 'info'}">
       <div class="thought-header">
         <span class="thought-type">${thought.type || 'thought'}</span>
@@ -260,7 +494,9 @@ function renderPlugins() {
     return;
   }
 
-  container.innerHTML = state.plugins.map(plugin => `
+  const query = state.pluginQuery.toLowerCase();
+  const visiblePlugins = state.plugins.filter(plugin => !query || `${plugin.name} ${plugin.description} ${plugin.permission}`.toLowerCase().includes(query));
+  container.innerHTML = visiblePlugins.map(plugin => `
     <div class="plugin-item">
       <span class="plugin-icon">${plugin.icon || '🔌'}</span>
       <div class="plugin-info">
@@ -268,8 +504,697 @@ function renderPlugins() {
         <div class="plugin-desc">${plugin.description}</div>
       </div>
       <span class="plugin-badge ${plugin.permission}">${plugin.permission}</span>
+      <button type="button" class="plugin-test" data-plugin="${plugin.name}">Test</button>
     </div>
   `).join('');
+}
+
+function testPlugin(pluginName) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', 'Connect to the Agent OS backend before testing a plugin.');
+    return;
+  }
+  state.pendingPlugin = pluginName;
+  const plugin = state.plugins.find(item => item.name === pluginName);
+  document.getElementById('plugin-modal-title').textContent = `Test ${pluginName}`;
+  document.getElementById('plugin-permission-note').textContent = plugin && plugin.permission !== 'read_only'
+    ? `This test uses ${plugin.permission} permission. Review the input before running.`
+    : 'Read-only test. No workspace changes are expected.';
+  document.getElementById('plugin-permission-note').className = `permission-note ${plugin?.permission || 'read_only'}`;
+  document.getElementById('plugin-input').value = '{}';
+  document.getElementById('plugin-modal').hidden = false;
+  document.getElementById('plugin-input').focus();
+}
+
+function closePluginModal() {
+  document.getElementById('plugin-modal').hidden = true;
+  state.pendingPlugin = null;
+}
+
+function submitPluginTest() {
+  try {
+    const input = JSON.parse(document.getElementById('plugin-input').value);
+    state.ws.send(JSON.stringify({ type: 'plugin_execute', plugin: state.pendingPlugin, input }));
+    appendTerminalMessage('system', `Testing plugin: ${state.pendingPlugin}`);
+    closePluginModal();
+  } catch {
+    appendTerminalMessage('error', 'Plugin input must be valid JSON.');
+  }
+}
+
+async function refreshFiles() {
+  if (!state.sessionId) return;
+  const response = await fetch(`/api/sessions/${state.sessionId}/files`, { cache: 'no-store' });
+  if (!response.ok) return;
+  const data = await response.json();
+  const tree = document.getElementById('file-tree');
+  renderGitRepositories(data.files);
+  tree.innerHTML = data.files.length
+    ? data.files.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${formatBytes(file.size)}</small></button>`).join('')
+    : '<div class="file-tree-empty">No files in workspace</div>';
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+async function uploadFiles(fileList) {
+  if (!state.sessionId || !fileList.length) return;
+  const form = new FormData();
+  Array.from(fileList).forEach(file => form.append('files', file, file.webkitRelativePath || file.name));
+  const response = await fetch(`/api/sessions/${state.sessionId}/files`, { method: 'POST', body: form });
+  const result = await response.json();
+  if (!response.ok) {
+    appendTerminalMessage('error', `Upload failed: ${result.error || response.statusText}`);
+    return;
+  }
+  appendTerminalMessage('system', `Uploaded ${result.uploaded.length} file(s) into the session workspace.`);
+  await refreshFiles();
+}
+
+async function previewFile(filePath) {
+  const extension = filePath.split('.').pop().toLowerCase();
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension)) {
+    const imageUrl = `/api/sessions/${state.sessionId}/files/raw?path=${encodeURIComponent(filePath)}`;
+    appendTerminalImage('system', filePath, imageUrl, filePath);
+    return;
+  }
+  const response = await fetch(`/api/sessions/${state.sessionId}/files/content?path=${encodeURIComponent(filePath)}`);
+  const result = await response.json();
+  if (!response.ok) {
+    appendTerminalMessage('error', `Preview failed: ${result.error}`);
+    return;
+  }
+  appendTerminalMessage('system', `${filePath}\n\n${result.content}`);
+}
+
+function showHelp() {
+  document.getElementById('goal-input').value = '/help';
+  runGoal();
+}
+
+async function runSlashCommand(command) {
+  const tokens = tokenizeTerminalCommand(command);
+  const [name, ...args] = tokens;
+  if (name?.toLowerCase() === '/task' || name?.toLowerCase() === '/tasks') return runTaskCommand(args);
+  if (name?.toLowerCase() === '/git') return runGitCommand(args);
+  switch (name.toLowerCase()) {
+    case '/help':
+      appendTerminalMessage('system', [
+        '╔═══════════════════════════════════════════════════════════════╗',
+        '║ kudbEE Agent OS CLI — Command Reference                       ║',
+        '╚═══════════════════════════════════════════════════════════════╝',
+        '',
+        '📋 Core Commands:',
+        '  /help              Show this help message',
+        '  /clear             Clear the terminal',
+        '  /status            Check the Agent OS API health',
+        '  /models            List available AI models',
+        '',
+        '🔌 Plugins & Integration:',
+        '  /plugins           List installed plugins',
+        '  /plugin NAME JSON  Execute a plugin with JSON input',
+        '',
+        '📊 Agent Tracking:',
+        '  /metrics           Runs, success rate, latency, tokens, cost, per-tool stats',
+        '  /runs              Recent runs (saved on the server)',
+        '  /run ID            Open the step-by-step timeline of a run',
+        '  /capacity          Running agents, approvals, CPU and memory',
+        '  /logs [LIMIT]      Show audit logs (default: 10)',
+        '  /export            Export current session data',
+        '',
+        '',
+        '🗂  Tasks & Git:',
+        '  /task add "title" [priority=high] [assignee=name] [due=YYYY-MM-DD] [tags=a,b]',
+        '  /task list [status=open] [priority=high] [q=keyword]',
+        '  /task show|start|done ID · /task block ID reason',
+        '  /task priority|assign|due|tag ID value · /task note ID text',
+        '  /git clone HTTPS_URL · /git status|log|diff|branch PATH',
+        '',
+        '⚙️  Configuration:',
+        '  /theme dark|light  Change theme',
+        '  /theme toggle      Toggle dark/light theme',
+        '  /config            Show current configuration',
+        '  /shortcuts         Show keyboard shortcuts',
+        '',
+        '⚖️  Approvals: the agent asks before overwriting a file or',
+        '   contacting a new domain. Approve/Deny in the popup (auto-deny 120s).',
+        '',
+        '💡 Examples:',
+        '  /runs                           List recent runs',
+        '  /logs 20                        Show last 20 audit logs',
+        '  /export                         Export session as JSON',
+      ].join('\n'));
+      Enterprise.auditLog.log('cli', 'Help command executed', 'info');
+      return true;
+
+    case '/plugins':
+      Enterprise.capacity.update({ activeAgents: Math.min(10, state.plugins.length) });
+      appendTerminalMessage('system', state.plugins.length
+        ? ['📦 Installed Plugins:', ...state.plugins.map(p => `  ${p.name} [${p.permission}] — ${p.description}`)].join('\n')
+        : '📦 No plugins are registered.');
+      Enterprise.auditLog.log('cli', 'Plugins listed', 'info');
+      return true;
+
+    case '/models':
+      await loadModels();
+      Enterprise.auditLog.log('cli', 'Models refreshed', 'info');
+      appendTerminalMessage('system', state.models.length
+        ? ['🤖 Available Models:', ...state.models.map(m => `  ${m.name} [${m.provider || 'ollama'}]${m.agent ? ' — tool-using worker agent' : ''}`)].join('\n')
+        : '🤖 No models found. Start Ollama and pull a model.');
+      return true;
+
+    case '/status': {
+      try {
+        const response = await fetch('/api/health', { cache: 'no-store' });
+        const data = await response.json();
+        Enterprise.auditLog.log('cli', 'Status check', 'info');
+        appendTerminalMessage('system', `✅ System Status:\n${JSON.stringify(data, null, 2)}`);
+      } catch (error) {
+        Enterprise.auditLog.log('cli', 'Status check failed', 'error');
+        appendTerminalMessage('error', `Status check failed: ${error.message}`);
+      }
+      return true;
+    }
+
+    case '/metrics': {
+      await refreshStats();
+      const m = state.stats;
+      if (!m) {
+        appendTerminalMessage('error', 'Stats unavailable — is the backend running?');
+        return true;
+      }
+      const tools = Object.entries(m.tools).map(([name, t]) => `  ${name.padEnd(12)} ${String(t.calls).padStart(4)} calls · ${t.success_rate}% ok · ${formatMs(t.avg_ms)} avg${t.denied ? ` · ${t.denied} denied` : ''}`);
+      appendTerminalMessage('system', [
+        '📊 Agent Metrics (server):',
+        `  Runs: ${m.runs_today} today · ${m.runs_total} total · ${m.running} running`,
+        `  Success rate: ${m.success_rate === null ? '—' : `${m.success_rate}%`} · failures: ${JSON.stringify(m.failures)}`,
+        `  Duration p50/p95: ${formatMs(m.p50_ms)} / ${formatMs(m.p95_ms)} · avg ${m.avg_steps} steps`,
+        `  Tokens today: ${m.tokens_today.toLocaleString()} · cost today ${formatUsd(m.cost_today_usd)} · all-time ${formatUsd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${formatUsd(m.budget_usd)}` : ''}`,
+        '',
+        '🔧 Tools:',
+        ...(tools.length ? tools : ['  (no tool calls yet)']),
+      ].join('\n'));
+      Enterprise.auditLog.log('cli', 'Metrics displayed', 'info');
+      return true;
+    }
+
+    case '/runs':
+    case '/sessions': {
+      await refreshRuns();
+      appendTerminalMessage('system', state.runs.length
+        ? ['🕑 Recent runs (click one in Run History, or /run ID):', ...state.runs.slice(0, 15).map(r =>
+          `  ${r.id.slice(0, 8)}  ${r.status.padEnd(9)} ${formatUsd(r.cost_usd).padStart(8)}  ${r.goal.slice(0, 60)}`)].join('\n')
+        : '🕑 No runs yet.');
+      return true;
+    }
+
+    case '/run': {
+      const prefix = (args[0] || '').toLowerCase();
+      await refreshRuns();
+      const match = state.runs.find(r => r.id.startsWith(prefix));
+      if (!prefix || !match) appendTerminalMessage('system', 'Usage: /run ID (first 8 characters from /runs)');
+      else openRun(match.id);
+      return true;
+    }
+
+    case '/capacity': {
+      await refreshStats();
+      const c = state.stats?.capacity;
+      if (!c) {
+        appendTerminalMessage('error', 'Capacity unavailable — is the backend running?');
+        return true;
+      }
+      appendTerminalMessage('system', [
+        '⚙️  Capacity (server):',
+        `  Agents running: ${c.running_agents} of ${c.connected_sessions} connected session(s)`,
+        `  Pending approvals: ${c.pending_approvals}`,
+        `  Server CPU: ${c.server_cpu_pct}% · RSS ${c.server_rss_mb} MB`,
+        `  System memory: ${c.system_mem_used_pct}% of ${c.system_mem_total_gb} GB · load ${c.load_avg.join(' / ')} · ${c.cores} cores`,
+      ].join('\n'));
+      Enterprise.auditLog.log('cli', 'Capacity displayed', 'info');
+      return true;
+    }
+
+    case '/logs': {
+      const limit = parseInt(args[0]) || 10;
+      const logs = Enterprise.auditLog.getRecent(limit);
+      const msg = logs.length
+        ? ['🔐 Recent Audit Logs:', ...logs.map(l => `  [${new Date(l.timestamp).toLocaleTimeString()}] ${l.action} (${l.severity}) — ${l.details}`)].join('\n')
+        : '🔐 No audit logs.';
+      appendTerminalMessage('system', msg);
+      return true;
+    }
+
+    case '/export': {
+      Enterprise.export.exportSession();
+      appendTerminalMessage('system', '✅ Session exported as JSON (check downloads)');
+      Enterprise.auditLog.log('cli', 'Session exported', 'info');
+      return true;
+    }
+
+    case '/theme': {
+      const theme = args[0]?.toLowerCase();
+      if (theme === 'toggle') {
+        Enterprise.theme.toggle();
+        appendTerminalMessage('system', `🎨 Theme toggled to: ${Enterprise.theme.current}`);
+      } else if (theme === 'dark' || theme === 'light') {
+        Enterprise.theme.set(theme);
+        appendTerminalMessage('system', `🎨 Theme changed to: ${theme}`);
+      } else {
+        appendTerminalMessage('system', `Current theme: ${Enterprise.theme.current}. Usage: /theme dark|light|toggle`);
+      }
+      Enterprise.auditLog.log('cli', `Theme: ${Enterprise.theme.current}`, 'info');
+      return true;
+    }
+
+    case '/config': {
+      const config = {
+        model: state.config.model,
+        provider: state.config.provider,
+        theme: Enterprise.theme.current,
+        sessionId: state.sessionId,
+        wsConnected: state.ws?.readyState === WebSocket.OPEN,
+      };
+      appendTerminalMessage('system', `⚙️  Configuration:\n${JSON.stringify(config, null, 2)}`);
+      Enterprise.auditLog.log('cli', 'Config displayed', 'info');
+      return true;
+    }
+
+    case '/shortcuts': {
+      appendTerminalMessage('system', [
+        '⌨️  Keyboard Shortcuts:',
+        '  Ctrl+Shift+M       Toggle metrics display',
+        '  Ctrl+Shift+C       Show capacity status',
+        '  Ctrl+Shift+L       Show recent logs',
+        '  Ctrl+Shift+E       Export session',
+        '  Ctrl+K             Open command palette',
+        '  Alt+D              Toggle dark theme',
+      ].join('\n'));
+      Enterprise.auditLog.log('cli', 'Shortcuts displayed', 'info');
+      return true;
+    }
+
+    case '/clear':
+      clearTerminal();
+      Enterprise.auditLog.log('cli', 'Terminal cleared', 'info');
+      return true;
+
+    case '/plugin': {
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        appendTerminalMessage('error', 'Connect to the Agent OS backend before running a plugin.');
+        return true;
+      }
+      const pluginName = args.shift();
+      if (!pluginName || !args.length) {
+        appendTerminalMessage('system', 'Usage: /plugin NAME JSON');
+        return true;
+      }
+      try {
+        state.ws.send(JSON.stringify({
+          type: 'plugin_execute',
+          plugin: pluginName,
+          input: JSON.parse(args.join(' ')),
+        }));
+        appendTerminalMessage('system', `Running plugin: ${pluginName}`);
+        Enterprise.auditLog.log('cli', `Plugin executed: ${pluginName}`, 'info');
+      } catch {
+        appendTerminalMessage('error', 'Plugin input must be valid JSON.');
+        Enterprise.auditLog.log('cli', `Plugin failed: ${pluginName}`, 'error');
+      }
+      return true;
+    }
+
+    default:
+      return false;
+  }
+}
+
+function tokenizeTerminalCommand(command) {
+  return (command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [])
+    .map(token => token.replace(/^("|')|("|')$/g, ''));
+}
+
+function runTaskCommand(args) {
+  const rawAction = String(args.shift() || 'help').toLowerCase();
+  const action = ({ create: 'add', complete: 'done', tags: 'tag' })[rawAction] || rawAction;
+  const positional = [];
+  const options = {};
+  args.forEach(argument => {
+    const option = argument.match(/^([a-z]+)=(.*)$/i);
+    if (option) options[option[1].toLowerCase()] = option[2];
+    else positional.push(argument);
+  });
+  const usage = 'Use /task add "title" [priority=] [assignee=] [due=] [tags=], list [status=] [priority=] [q=], show ID, start ID, done ID, block ID reason, priority ID value, assign ID name, due ID YYYY-MM-DD, tag ID a,b, note ID text';
+  if (action === 'help') {
+    appendTerminalMessage('system', usage);
+    return true;
+  }
+  if (action === 'add') {
+    const title = positional.join(' ').trim();
+    if (!title) appendTerminalMessage('error', 'Usage: /task add "title" [priority=high] [assignee=name] [due=YYYY-MM-DD] [tags=a,b]');
+    else sendTaskAction('create', { title, priority: options.priority, assignee: options.assignee, dueDate: options.due, tags: options.tags });
+    return true;
+  }
+  if (action === 'list') {
+    sendTaskAction('list', { status: options.status, priority: options.priority, query: options.q || positional.join(' ') });
+    return true;
+  }
+  if (action === 'show') {
+    if (!positional[0]) appendTerminalMessage('error', 'Usage: /task show ID');
+    else sendTaskAction('show', { id: positional[0] });
+    return true;
+  }
+  if (['start', 'done'].includes(action)) {
+    if (!positional[0]) appendTerminalMessage('error', `Usage: /task ${action} ID`);
+    else sendTaskAction(action, { id: positional[0] });
+    return true;
+  }
+  if (['block', 'priority', 'assign', 'due', 'tag', 'note'].includes(action)) {
+    const id = positional.shift();
+    const value = positional.join(' ').trim();
+    if (!id || !value) appendTerminalMessage('error', `Usage: /task ${action} ID value`);
+    else sendTaskAction(action, action === 'block' ? { id, reason: value } : { id, value });
+    return true;
+  }
+  appendTerminalMessage('error', usage);
+  return true;
+}
+
+function runGitCommand(args) {
+  const action = String(args.shift() || 'help').toLowerCase();
+  if (action === 'help') {
+    appendTerminalMessage('system', 'Git commands: /git clone HTTPS_URL · /git status|log|diff|branch repositories/NAME');
+    return true;
+  }
+  if (action === 'clone') {
+    if (!args[0]) appendTerminalMessage('error', 'Usage: /git clone https://github.com/org/repo.git');
+    else sendGitAction('clone', { url: args[0] });
+    return true;
+  }
+  if (['status', 'log', 'diff', 'branch'].includes(action)) {
+    if (!args[0]) appendTerminalMessage('error', `Usage: /git ${action} repositories/NAME`);
+    else sendGitAction(action, { path: args[0] });
+    return true;
+  }
+  appendTerminalMessage('error', 'Allowed Git commands: clone, status, log, diff, branch');
+  return true;
+}
+
+async function uploadTaskImage(file, taskId) {
+  if (!file || !state.sessionId) return;
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const response = await fetch(`/api/sessions/${state.sessionId}/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || response.statusText);
+    appendTerminalMessage('system', `Attached ${file.name} to task ${taskId.slice(0, 8)}.`);
+  } catch (error) {
+    appendTerminalMessage('error', `Image attachment failed: ${error.message}`);
+  }
+}
+
+async function cloneRepository() {
+  const input = document.getElementById('git-url-input');
+  const url = input.value.trim();
+  if (!url) {
+    input.focus();
+    return;
+  }
+  sendGitAction('clone', { url });
+}
+
+function renderGitRepositories(files) {
+  const container = document.getElementById('git-repository-list');
+  const repositories = Array.from(new Set(files
+    .map(file => file.path.split('/'))
+    .filter(parts => parts[0] === 'repositories' && parts[1])
+    .map(parts => parts[1])));
+  if (!repositories.length) {
+    container.innerHTML = '<div class="file-tree-empty">No Git repositories connected</div>';
+    return;
+  }
+  container.innerHTML = repositories.map(repository => `
+    <div class="git-repository-item">
+      <strong>${escapeHtml(repository)}</strong>
+      <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}</div>
+    </div>
+  `).join('');
+}
+
+async function refreshConnectionMonitor() {
+  const container = document.getElementById('connection-monitor');
+  const updated = document.getElementById('monitor-updated');
+  try {
+    const response = await fetch('/api/monitor', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const snapshot = await response.json();
+    container.innerHTML = snapshot.checks.map(check => `
+      <div class="plugin-item">
+        <span class="plugin-icon">${check.status === 'ok' ? '✓' : '!'}</span>
+        <div class="plugin-info">
+          <div class="plugin-name">${escapeHtml(check.name)}</div>
+          <div class="plugin-desc">${escapeHtml(check.error || `${check.latency_ms}ms`)}</div>
+        </div>
+        <span class="plugin-badge ${check.status}">${escapeHtml(check.status)}</span>
+      </div>
+    `).join('');
+    updated.textContent = `Agent ${snapshot.agent.id.slice(0, 8)}`;
+    updated.title = `${snapshot.agent.name}: ${snapshot.agent.checks} checks; last check ${snapshot.agent.last_check}`;
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state">Monitor unavailable: ${escapeHtml(error.message)}</div>`;
+    updated.textContent = 'Offline';
+  }
+}
+
+async function testMiddleware() {
+  try {
+    const query = state.sessionId ? `?session_id=${encodeURIComponent(state.sessionId)}` : '';
+    const response = await fetch(`/api/middleware/test${query}`, { cache: 'no-store' });
+    const result = await response.json();
+    appendTerminalMessage(result.passed ? 'system' : 'error', [
+      `Middleware test: ${result.passed ? 'PASSED' : 'FAILED'}`,
+      ...result.checks.map(check => `${check.status === 'ok' ? '✓' : '✗'} ${check.name}: ${check.error || `${check.http_status} (${check.latency_ms}ms)`}`),
+    ].join('\n'));
+    await refreshConnectionMonitor();
+  } catch (error) {
+    appendTerminalMessage('error', `Middleware test failed: ${error.message}`);
+  }
+}
+
+async function refreshSystemHealth() {
+  const container = document.getElementById('system-health');
+  const badge = document.getElementById('system-health-status');
+  try {
+    const [healthResponse, modelsResponse] = await Promise.all([
+      fetch('/api/health', { cache: 'no-store' }),
+      fetch('/api/models', { cache: 'no-store' }),
+    ]);
+    if (!healthResponse.ok) throw new Error(`Health HTTP ${healthResponse.status}`);
+    const health = await healthResponse.json();
+    const models = modelsResponse.ok ? await modelsResponse.json() : [];
+    const connected = state.ws?.readyState === WebSocket.OPEN;
+    const rows = [
+      ['Runtime', health.ready ? 'Running' : 'Degraded'],
+      ['WebSocket', connected ? 'Connected' : 'Disconnected'],
+      ['Session', state.sessionId ? state.sessionId.slice(0, 8) : 'None'],
+      ['Models', `${models.length} available`],
+      ['Plugins', String(health.plugins)],
+      ['Uptime', `${health.uptime_seconds}s`],
+      ['Memory', `${health.memory_mb} MB`],
+    ];
+    container.innerHTML = rows.map(([label, value]) => `
+      <div class="health-row"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>
+    `).join('');
+    badge.textContent = health.ready && connected ? 'Healthy' : 'Degraded';
+    badge.className = `badge ${health.ready && connected ? 'health-ok' : 'health-warn'}`;
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state">Health unavailable: ${escapeHtml(error.message)}</div>`;
+    badge.textContent = 'Offline';
+    badge.className = 'badge health-error';
+  }
+}
+
+// ─── Agent tracking: stats, run history, timeline, approvals ───
+function formatUsd(value) {
+  const v = Number(value) || 0;
+  return v >= 0.01 ? `$${v.toFixed(2)}` : `$${v.toFixed(4)}`;
+}
+
+function formatMs(ms) {
+  if (!ms) return '0s';
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+function setMeter(id, pct) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const clamped = Math.max(0, Math.min(100, pct || 0));
+  el.style.width = `${clamped}%`;
+  el.classList.toggle('danger', clamped >= 90);
+}
+
+async function refreshStats() {
+  try {
+    const response = await fetch('/api/stats', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const s = await response.json();
+    state.stats = s;
+    document.getElementById('metric-runs').textContent = s.runs_today;
+    document.getElementById('metric-suc').textContent = s.success_rate === null ? '—' : `${s.success_rate}%`;
+    document.getElementById('metric-lat').textContent = s.runs_total ? `${formatMs(s.p50_ms)} / ${formatMs(s.p95_ms)}` : '—';
+    document.getElementById('metric-cost').textContent = formatUsd(s.cost_today_usd);
+    document.getElementById('metric-tokens').textContent = `${s.tokens_today.toLocaleString()} tokens today · ${formatUsd(s.cost_total_usd)} all-time`;
+
+    const budgetRow = document.getElementById('budget-row');
+    budgetRow.hidden = !s.budget_usd;
+    if (s.budget_usd) {
+      const pct = (s.cost_today_usd / s.budget_usd) * 100;
+      setMeter('budget-bar', pct);
+      document.getElementById('budget-text').textContent = `Daily budget ${formatUsd(s.cost_today_usd)} / ${formatUsd(s.budget_usd)} (${pct.toFixed(0)}%)`;
+    }
+
+    const max = Math.max(1, ...s.hourly.map(h => h.runs));
+    document.getElementById('sparkline').innerHTML = s.hourly.map((h, i) => {
+      const hoursAgo = 23 - i;
+      const title = `${hoursAgo === 0 ? 'This hour' : `${hoursAgo}h ago`}: ${h.runs} run(s), ${h.failed} failed, ${formatUsd(h.cost_usd)}`;
+      if (!h.runs) return `<div class="bar empty" title="${title}"></div>`;
+      const fail = h.failed ? ` has-fail" style="height:${(h.runs / max) * 100}%;--fail:${(h.failed / h.runs) * 100}%` : `" style="height:${(h.runs / max) * 100}%`;
+      return `<div class="bar${fail}" title="${title}"></div>`;
+    }).join('');
+
+    document.getElementById('metric-failures').innerHTML = Object.entries(s.failures || {})
+      .map(([kind, count]) => `<span title="Failure type">${escapeHtml(kind)} × ${count}</span>`).join('');
+
+    const c = s.capacity;
+    document.getElementById('cap-agents-text').textContent = `${c.running_agents} running · ${c.connected_sessions} session(s)`;
+    setMeter('cap-agents', c.connected_sessions ? (c.running_agents / c.connected_sessions) * 100 : 0);
+    document.getElementById('cap-cpu-text').textContent = `${c.server_cpu_pct}% · ${c.server_rss_mb} MB RSS`;
+    setMeter('cap-cpu', c.server_cpu_pct);
+    document.getElementById('cap-mem-text').textContent = `${c.system_mem_used_pct}% of ${c.system_mem_total_gb} GB`;
+    setMeter('cap-mem', c.system_mem_used_pct);
+    document.getElementById('cap-load-text').textContent = `${c.load_avg.join(' / ')} (${c.cores} cores)`;
+    const approvalBadge = document.getElementById('approval-badge');
+    approvalBadge.textContent = `${c.pending_approvals} approval${c.pending_approvals === 1 ? '' : 's'}`;
+    approvalBadge.className = `badge ${c.pending_approvals ? 'health-warn' : ''}`;
+    document.getElementById('metrics-badge').textContent = s.running ? `${s.running} running` : 'Live';
+  } catch (error) {
+    document.getElementById('metrics-badge').textContent = 'Offline';
+  }
+}
+
+let runsRefreshTimer = null;
+function scheduleRunsRefresh() {
+  if (runsRefreshTimer) return;
+  runsRefreshTimer = setTimeout(() => {
+    runsRefreshTimer = null;
+    refreshRuns();
+  }, 800);
+}
+
+async function refreshRuns() {
+  try {
+    const response = await fetch('/api/runs?limit=30', { cache: 'no-store' });
+    if (!response.ok) return;
+    const { runs } = await response.json();
+    state.runs = runs;
+    document.getElementById('run-count').textContent = runs.length;
+    const container = document.getElementById('run-history');
+    container.innerHTML = runs.length
+      ? runs.map(run => `
+        <button type="button" class="run-item" data-run="${escapeHtml(run.id)}" title="${escapeHtml(run.goal)}">
+          <span class="run-dot ${run.status}"></span>
+          <span class="goal">${escapeHtml(run.goal)}</span>
+          <small>${formatUsd(run.cost_usd)} · ${run.status === 'running' ? 'live' : formatMs(run.duration_ms)}</small>
+        </button>`).join('')
+      : '<div class="empty-state">No runs yet</div>';
+  } catch {
+    // Stats badge already reports the backend as offline.
+  }
+}
+
+async function openRun(runId) {
+  const response = await fetch(`/api/runs/${encodeURIComponent(runId)}`, { cache: 'no-store' });
+  if (!response.ok) {
+    appendTerminalMessage('error', `Run ${runId.slice(0, 8)} not found`);
+    return;
+  }
+  const run = await response.json();
+  state.openRunId = run.id;
+  state.openRun = run;
+  document.getElementById('run-modal-title').textContent = run.goal;
+  const kpis = [
+    ['Status', run.status],
+    ['Model', run.model],
+    ['Duration', run.status === 'running' ? `${((Date.now() - run.started_at) / 1000).toFixed(0)}s…` : formatMs(run.duration_ms)],
+    ['Steps', run.current_step],
+    ['Tool calls', run.tool_calls],
+    ['Tokens', (run.prompt_tokens + run.completion_tokens).toLocaleString()],
+    ['Cost', formatUsd(run.cost_usd)],
+    ['Approvals', `${run.approvals.approved}✓ ${run.approvals.denied}✗`],
+  ];
+  const answer = run.result || run.error;
+  document.getElementById('run-summary').innerHTML = kpis
+    .map(([label, value]) => `<div class="kpi"><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`).join('')
+    + (run.files.length ? `<div class="run-answer">📁 Files: ${run.files.map(escapeHtml).join(', ')}</div>` : '')
+    + (answer ? `<div class="run-answer ${run.error ? 'error' : ''}">${escapeHtml(answer)}</div>` : '');
+
+  document.getElementById('run-timeline').innerHTML = run.steps.length ? run.steps.map(step => {
+    if (step.kind === 'model') {
+      const calls = step.tool_calls.length ? `→ ${step.tool_calls.join(', ')}` : '→ final answer';
+      return `<div class="tl-item model">
+        <div class="tl-head"><span>🧠 Step ${step.step} · ${escapeHtml(run.model)} ${escapeHtml(calls)}</span><small>${formatMs(step.latency_ms)} · ${step.prompt_tokens}+${step.completion_tokens} tok · ${formatUsd(step.cost_usd)}</small></div>
+        ${step.content ? `<div class="tl-body">${escapeHtml(step.content)}</div>` : ''}
+      </div>`;
+    }
+    const cls = step.approval === 'denied' ? 'denied' : step.ok ? '' : 'fail';
+    const tag = step.approval ? `<span class="tl-tag ${step.approval}">${step.approval}</span>` : '';
+    return `<div class="tl-item tool ${cls}">
+      <div class="tl-head"><span>${step.ok ? '✓' : '✗'} ${escapeHtml(step.name)}${tag}</span><small>${formatMs(step.latency_ms)}</small></div>
+      <div class="tl-body">${escapeHtml(JSON.stringify(step.args))}${step.approval_reason ? `\n⚖ ${escapeHtml(step.approval_reason)}` : ''}\n→ ${escapeHtml(step.error || step.output)}</div>
+    </div>`;
+  }).join('') : '<div class="empty-state">No steps recorded yet</div>';
+  document.getElementById('run-modal').hidden = false;
+}
+
+function closeRunModal() {
+  document.getElementById('run-modal').hidden = true;
+  state.openRunId = null;
+}
+
+let approvalTicker = null;
+function showNextApproval() {
+  const modal = document.getElementById('approval-modal');
+  const next = state.approvals[0];
+  clearInterval(approvalTicker);
+  if (!next) {
+    modal.hidden = true;
+    return;
+  }
+  document.getElementById('approval-title').textContent = `Agent wants to run ${next.tool}`;
+  document.getElementById('approval-reason').textContent = `⚖ ${next.reason}`;
+  document.getElementById('approval-args').textContent = JSON.stringify(next.args, null, 2);
+  const tick = () => {
+    const left = Math.max(0, Math.round((next.timeout_ms - (Date.now() - next.received_at)) / 1000));
+    document.getElementById('approval-countdown').textContent = `auto-deny in ${left}s${state.approvals.length > 1 ? ` · ${state.approvals.length - 1} more` : ''}`;
+  };
+  tick();
+  approvalTicker = setInterval(tick, 1000);
+  modal.hidden = false;
+  document.getElementById('approve-approval').focus();
+}
+
+function answerApproval(approved) {
+  const next = state.approvals.shift();
+  if (next && state.ws?.readyState === WebSocket.OPEN) {
+    state.ws.send(JSON.stringify({ type: 'approval_response', id: next.id, approved }));
+    appendTerminalMessage('system', `${approved ? '✓ Approved' : '✗ Denied'} ${next.tool}: ${next.reason}`);
+    Enterprise.auditLog.log('approval', `${approved ? 'approved' : 'denied'} ${next.tool} — ${next.reason}`, approved ? 'info' : 'warning');
+  }
+  showNextApproval();
 }
 
 // ─── Models ────────────────────────────────────────────────────
@@ -281,22 +1206,39 @@ async function loadModels() {
 function renderModels() {
   const select = document.getElementById('model-select');
   if (!state.models.length) {
-    select.innerHTML = '<option value="">No models found (start Ollama)</option>';
+    select.innerHTML = '<option value="">No models (set INCEPTION_API_KEY or start Ollama)</option>';
     return;
   }
-
-  select.innerHTML = state.models.map(m =>
-    `<option value="${m.name}">${m.name} (${(m.size / 1e9).toFixed(1)}GB)</option>`
-  ).join('');
+  const previous = select.value || state.config.model;
+  select.innerHTML = state.models.map(m => {
+    const label = m.provider === 'inception'
+      ? `⚡ ${m.name} — Worker Agent (Inception)`
+      : `${m.name} — local (${((m.size || 0) / 1e9).toFixed(1)}GB)`;
+    return `<option value="${escapeHtml(m.name)}">${escapeHtml(label)}</option>`;
+  }).join('');
+  if (state.models.some(m => m.name === previous)) select.value = previous;
 }
 
 // ─── Actions ───────────────────────────────────────────────────
 function runGoal() {
   const input = document.getElementById('goal-input');
   const goal = input.value.trim();
-  if (!goal) return;
+  if (!goal) {
+    appendTerminalMessage('system', 'Enter a goal before pressing Run.');
+    input.focus();
+    return;
+  }
+  if (goal.startsWith('/')) {
+    void runSlashCommand(goal);
+    input.value = '';
+    return;
+  }
+  if (!state.models.length) {
+    appendTerminalMessage('error', 'No model is available. Set INCEPTION_API_KEY in .env or start Ollama, then refresh models.');
+    return;
+  }
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-    appendTerminalMessage('error', 'Not connected to kudbEE backend (port 8000)');
+    appendTerminalMessage('error', `Not connected to kudbEE backend at ${window.location.origin}`);
     return;
   }
 
@@ -338,9 +1280,172 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('clear-chat').addEventListener('click', clearTerminal);
   document.getElementById('refresh-models').addEventListener('click', loadModels);
-  document.getElementById('refresh-files').addEventListener('click', () => {
-    appendTerminalMessage('system', 'File refresh triggered');
+  document.getElementById('refresh-files').addEventListener('click', refreshFiles);
+  document.getElementById('upload-files').addEventListener('click', () => document.getElementById('file-upload-input').click());
+  document.getElementById('upload-repo').addEventListener('click', () => document.getElementById('repo-upload-input').click());
+  document.getElementById('file-upload-input').addEventListener('change', event => uploadFiles(event.target.files));
+  document.getElementById('repo-upload-input').addEventListener('change', event => uploadFiles(event.target.files));
+  document.getElementById('analyze-image').addEventListener('click', () => document.getElementById('analyze-image-input').click());
+  document.getElementById('analyze-image-input').addEventListener('change', event => analyzeImage(event.target.files[0]));
+  document.getElementById('generate-image').addEventListener('click', generateImage);
+  document.getElementById('git-clone').addEventListener('click', cloneRepository);
+  document.getElementById('git-url-input').addEventListener('keypress', event => {
+    if (event.key === 'Enter') cloneRepository();
   });
+  document.getElementById('git-repository-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-git-action]');
+    if (button) sendGitAction(button.dataset.gitAction, { path: button.dataset.gitPath });
+  });
+  document.getElementById('file-tree').addEventListener('click', event => {
+    const file = event.target.closest('.file-tree-item');
+    if (file) previewFile(file.dataset.path);
+  });
+  document.getElementById('task-list').addEventListener('click', event => {
+    const action = event.target.closest('[data-task-action]');
+    if (action) {
+      const payload = action.dataset.taskAction === 'block'
+        ? { id: action.dataset.taskId, reason: 'Blocked via dashboard' }
+        : { id: action.dataset.taskId };
+      sendTaskAction(action.dataset.taskAction, payload);
+      return;
+    }
+    const attach = event.target.closest('[data-task-attach]');
+    if (attach) {
+      const input = document.getElementById('task-attachment-input');
+      input.dataset.taskId = attach.dataset.taskAttach;
+      input.click();
+    }
+  });
+  document.getElementById('task-attachment-input').addEventListener('change', event => {
+    void uploadTaskImage(event.target.files[0], event.target.dataset.taskId);
+    event.target.value = '';
+  });
+  document.getElementById('task-search').addEventListener('input', event => {
+    state.taskFilters.query = event.target.value.trim().toLowerCase();
+    renderTasks();
+  });
+  document.getElementById('task-status-filter').addEventListener('change', event => {
+    state.taskFilters.status = event.target.value;
+    renderTasks();
+  });
+  document.getElementById('task-priority-filter').addEventListener('change', event => {
+    state.taskFilters.priority = event.target.value;
+    renderTasks();
+  });
+  document.getElementById('plugin-list').addEventListener('click', (event) => {
+    const button = event.target.closest('.plugin-test');
+    if (button) testPlugin(button.dataset.plugin);
+  });
+  document.getElementById('test-middleware').addEventListener('click', testMiddleware);
+  document.getElementById('close-plugin-modal').addEventListener('click', closePluginModal);
+  document.getElementById('cancel-plugin-modal').addEventListener('click', closePluginModal);
+  document.getElementById('submit-plugin-test').addEventListener('click', submitPluginTest);
+  document.getElementById('quick-help').addEventListener('click', showHelp);
+  document.getElementById('command-help').addEventListener('click', showHelp);
+  document.getElementById('copy-session').addEventListener('click', async () => {
+    if (!state.sessionId) return;
+    await navigator.clipboard.writeText(state.sessionId);
+    appendTerminalMessage('system', 'Session ID copied to clipboard.');
+  });
+  document.getElementById('plugin-search').addEventListener('input', (event) => {
+    state.pluginQuery = event.target.value;
+    renderPlugins();
+  });
+  document.getElementById('file-search').addEventListener('input', (event) => {
+    const query = event.target.value.toLowerCase();
+    document.querySelectorAll('.file-tree-item').forEach(item => {
+      item.hidden = query && !item.textContent.toLowerCase().includes(query);
+    });
+  });
+  document.querySelectorAll('.thought-filter').forEach(button => button.addEventListener('click', () => {
+    document.querySelectorAll('.thought-filter').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+    state.thoughtFilter = button.dataset.filter;
+    renderThoughts();
+  }));
+  document.querySelectorAll('.quick-action').forEach(button => button.addEventListener('click', () => {
+    document.getElementById('goal-input').value = button.dataset.command;
+    runGoal();
+  }));
+  refreshConnectionMonitor();
+  setInterval(refreshConnectionMonitor, 10000);
+  refreshSystemHealth();
+  setInterval(refreshSystemHealth, 5000);
+
+  // ─── Agent tracking panels (server is the source of truth) ───
+  refreshStats();
+  refreshRuns();
+  setInterval(refreshStats, 3000);
+  setInterval(refreshRuns, 10000);
+  setInterval(() => { if (state.isRunning) renderTasks(); }, 1000);
+  document.getElementById('run-history').addEventListener('click', event => {
+    const item = event.target.closest('.run-item');
+    if (item) openRun(item.dataset.run);
+  });
+  document.getElementById('task-list').addEventListener('click', event => {
+    if (event.target.closest('button, details, img, a, input, select')) return;
+    const item = event.target.closest('.task-item[data-run]');
+    if (item) openRun(item.dataset.run);
+  });
+  document.getElementById('close-run-modal').addEventListener('click', closeRunModal);
+  document.getElementById('close-run-modal-2').addEventListener('click', closeRunModal);
+  document.getElementById('rerun-goal').addEventListener('click', () => {
+    const goal = state.openRun?.goal;
+    closeRunModal();
+    if (!goal) return;
+    document.getElementById('goal-input').value = goal;
+    runGoal();
+  });
+  document.getElementById('approve-approval').addEventListener('click', () => answerApproval(true));
+  document.getElementById('deny-approval').addEventListener('click', () => answerApproval(false));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !document.getElementById('run-modal').hidden) closeRunModal();
+  });
+
+  // Setup enterprise keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey) {
+      switch (e.key.toUpperCase()) {
+        case 'M': // Ctrl+Shift+M: Show metrics
+          e.preventDefault();
+          document.getElementById('goal-input').value = '/metrics';
+          runGoal();
+          break;
+        case 'C': // Ctrl+Shift+C: Show capacity
+          e.preventDefault();
+          document.getElementById('goal-input').value = '/capacity';
+          runGoal();
+          break;
+        case 'L': // Ctrl+Shift+L: Show logs
+          e.preventDefault();
+          document.getElementById('goal-input').value = '/logs 10';
+          runGoal();
+          break;
+        case 'E': // Ctrl+Shift+E: Export
+          e.preventDefault();
+          document.getElementById('goal-input').value = '/export';
+          runGoal();
+          break;
+      }
+    }
+  });
+
+  Enterprise.auditLog.log('system', 'kudbEE Agent OS started', 'info');
+
+  appendTerminalMessage('system', [
+    '╔══════════════════════════════════════════════════════════════╗',
+    '║  🐝 kudbEE Agent OS — Enterprise Edition                     ║',
+    '╚══════════════════════════════════════════════════════════════╝',
+    '',
+    '✨ Agent tracking:',
+    '  🕑 Run history + step timeline (click any task or run)',
+    '  💲 Live token & cost tracking   ⚖️  Approval gates',
+    '  📊 Server metrics & capacity    🔐 Audit logging',
+    '',
+    'Pick ⚡ mercury-2 and give the Worker Agent a real goal, e.g.:',
+    '  Read https://hnrss.org/frontpage and write top5.md with the 5 top stories',
+    'Type /help for CLI commands.',
+  ].join('\n'));
 
   // Load models periodically
   setInterval(loadModels, 10000);

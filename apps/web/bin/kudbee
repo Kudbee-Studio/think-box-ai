@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# kudbEE CLI launcher — terminal client for kudbEE Agent OS (apps/web/cli.ts).
+# Install: ln -s "$(pwd)/apps/web/bin/kudbee" ~/.local/bin/kudbee
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+node_bin="$(command -v node || ls -d "$HOME"/.vscode-server/bin/*/node 2>/dev/null | tail -1 || true)"
+[ -x "${node_bin:-}" ] || { echo "kudbee: node >= 22.6 not found" >&2; exit 1; }
+exec "$node_bin" --experimental-strip-types --no-warnings "$here/../cli.ts" "$@"
