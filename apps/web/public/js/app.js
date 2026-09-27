@@ -7,6 +7,7 @@ const state = {
   models: [],
   plugins: [],
   tasks: [],
+  taskFilters: { query: '', status: 'all', priority: 'all' },
   thoughts: [],
   thoughtFilter: 'all',
   pluginQuery: '',
@@ -56,7 +57,9 @@ function handleMessage(msg) {
       state.sessionId = msg.data.sessionId;
       state.plugins = msg.data.plugins || [];
       state.models = msg.data.models || [];
+      state.tasks = msg.data.tasks || [];
       renderPlugins();
+      renderTasks();
       renderModels();
       setStatus('idle', 'Ready');
       appendTerminalMessage('system', `Session: ${state.sessionId.slice(0, 8)}`);
@@ -81,6 +84,17 @@ function handleMessage(msg) {
 
     case 'task_update':
       updateTask(msg.data);
+      break;
+
+    case 'task_action_result':
+      renderTaskActionResult(msg.data);
+      break;
+
+    case 'git_action_result':
+      appendTerminalMessage(msg.data.success ? 'system' : 'error', msg.data.success
+        ? `Git ${msg.data.action || 'action'}${msg.data.path ? ` · ${msg.data.path}` : ''}\n${msg.data.output || ''}`
+        : `Git failed: ${msg.data.error || 'unknown error'}`);
+      if (msg.data.success && msg.data.action === 'clone') refreshFiles();
       break;
 
     case 'plugin_result':
@@ -234,8 +248,6 @@ function clearTerminal() {
     </div>
   `;
   state.thoughts = [];
-  state.tasks = [];
-  renderTasks();
   renderThoughts();
 }
 
@@ -271,7 +283,9 @@ function enableInput(enabled) {
 
 // ─── Tasks ─────────────────────────────────────────────────────
 function addTask(task) {
-  state.tasks.push(task);
+  const index = state.tasks.findIndex(existing => existing.id === task.id);
+  if (index === -1) state.tasks.push(task);
+  else state.tasks[index] = { ...state.tasks[index], ...task };
   renderTasks();
 }
 
@@ -285,20 +299,107 @@ function updateTask(updated) {
 
 function renderTasks() {
   const container = document.getElementById('task-list');
+  const count = document.getElementById('task-count');
+  const summary = document.getElementById('task-summary');
+  const openTasks = state.tasks.filter(task => ['pending', 'running', 'blocked'].includes(task.status));
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = openTasks.filter(task => task.dueDate && task.dueDate < today);
+  count.textContent = state.tasks.length;
+  summary.innerHTML = `
+    <span><strong>${openTasks.length}</strong> open</span>
+    <span><strong>${state.tasks.filter(task => task.status === 'blocked').length}</strong> blocked</span>
+    <span class="${overdue.length ? 'overdue' : ''}"><strong>${overdue.length}</strong> overdue</span>
+  `;
   if (state.tasks.length === 0) {
     container.innerHTML = '<div class="empty-state">No tasks yet</div>';
     return;
   }
 
-  container.innerHTML = state.tasks.map(task => `
-    <div class="task-item ${task.status}">
-      <div class="task-header">
-        <span class="task-status ${task.status}">${task.status}</span>
-      </div>
-      <div class="task-description">${escapeHtml(task.description)}</div>
-      <div class="task-time">${new Date(task.timestamp).toLocaleTimeString()}</div>
-    </div>
-  `).join('');
+  const visible = state.tasks.filter(task => {
+    const query = state.taskFilters.query;
+    const text = `${task.title || ''} ${task.description || ''} ${task.id} ${task.assignee || ''} ${(task.tags || []).join(' ')}`.toLowerCase();
+    const queryMatches = !query || text.includes(query);
+    const statusMatches = state.taskFilters.status === 'all'
+      || (state.taskFilters.status === 'open' ? ['pending', 'running', 'blocked'].includes(task.status) : state.taskFilters.status === 'overdue'
+        ? Boolean(task.dueDate && task.dueDate < today && ['pending', 'running', 'blocked'].includes(task.status))
+        : task.status === state.taskFilters.status);
+    const priorityMatches = state.taskFilters.priority === 'all' || task.priority === state.taskFilters.priority;
+    return queryMatches && statusMatches && priorityMatches;
+  }).sort((left, right) => {
+    const rank = { critical: 0, high: 1, medium: 2, low: 3 };
+    return (rank[left.priority] ?? 2) - (rank[right.priority] ?? 2) || right.timestamp - left.timestamp;
+  });
+  if (!visible.length) {
+    container.innerHTML = '<div class="empty-state">No tasks match these filters</div>';
+    return;
+  }
+  container.innerHTML = visible.map(task => {
+    const overdueTask = task.dueDate && task.dueDate < today && ['pending', 'running', 'blocked'].includes(task.status);
+    const actions = task.status === 'completed' ? '' : `
+      <button type="button" class="task-action" data-task-action="${task.status === 'running' ? 'done' : 'start'}" data-task-id="${task.id}">${task.status === 'running' ? 'Complete' : 'Start'}</button>
+      <button type="button" class="task-action" data-task-action="block" data-task-id="${task.id}">Block</button>
+    `;
+    const attachments = (task.attachments || []).map(image => `<img class="task-attachment" src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.filename)}" loading="lazy">`).join('');
+    const activity = (task.activity || []).slice(-5).reverse().map(item => `<div class="task-activity-row"><span>${escapeHtml(item.action)}</span><small>${escapeHtml(item.actor)} · ${new Date(item.timestamp).toLocaleString()}</small>${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}</div>`).join('');
+    return `
+      <article class="task-item ${task.status} priority-${task.priority || 'medium'}">
+        <div class="task-header">
+          <span class="task-status ${task.status}">${escapeHtml(task.status.replace('_', ' '))}</span>
+          <span class="task-priority ${task.priority || 'medium'}">${escapeHtml(task.priority || 'medium')}</span>
+          <code title="${task.id}">${escapeHtml(task.id.slice(0, 8))}</code>
+        </div>
+        <div class="task-description">${escapeHtml(task.title || task.description || 'Untitled task')}</div>
+        ${task.blockedReason ? `<div class="task-blocked-reason">${escapeHtml(task.blockedReason)}</div>` : ''}
+        <div class="task-meta">
+          ${task.assignee ? `<span>Owner: ${escapeHtml(task.assignee)}</span>` : '<span>Unassigned</span>'}
+          ${task.dueDate ? `<span class="${overdueTask ? 'overdue' : ''}">Due ${escapeHtml(task.dueDate)}</span>` : ''}
+        </div>
+        ${(task.tags || []).length ? `<div class="task-tags">${task.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+        ${attachments ? `<div class="task-attachments">${attachments}</div>` : ''}
+        <div class="task-card-actions">
+          ${actions}
+          <button type="button" class="task-action" data-task-attach="${task.id}">Attach image</button>
+        </div>
+        <details class="task-activity"><summary>Activity (${(task.activity || []).length})</summary>${activity || '<div class="task-activity-row">No activity recorded</div>'}</details>
+      </article>
+    `;
+  }).join('');
+}
+
+function renderTaskActionResult(result) {
+  if (!result?.success) {
+    appendTerminalMessage('error', `Task command failed: ${result?.error || 'unknown error'}`);
+    return;
+  }
+  if (result.action === 'list') {
+    const tasks = result.tasks || [];
+    appendTerminalMessage('system', tasks.length
+      ? tasks.map(task => `${task.id.slice(0, 8)} [${task.status}/${task.priority}] ${task.title}${task.assignee ? ` · ${task.assignee}` : ''}${task.dueDate ? ` · due ${task.dueDate}` : ''}`).join('\n')
+      : 'No tasks match that query.');
+    return;
+  }
+  if (result.action === 'show') {
+    appendTerminalMessage('system', JSON.stringify(result.task, null, 2));
+    return;
+  }
+  const task = result.task;
+  appendTerminalMessage('system', `Task ${task.id.slice(0, 8)} ${result.action}: ${task.title} [${task.status}/${task.priority}]`);
+}
+
+function sendTaskAction(action, payload = {}) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', 'Connect to the Agent OS backend before managing tasks.');
+    return;
+  }
+  state.ws.send(JSON.stringify({ type: 'task_action', action, payload }));
+}
+
+function sendGitAction(action, payload = {}) {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', 'Connect to the Agent OS backend before running Git actions.');
+    return;
+  }
+  state.ws.send(JSON.stringify({ type: 'git_action', action, payload }));
 }
 
 // ─── Thoughts ──────────────────────────────────────────────────
@@ -411,6 +512,7 @@ async function refreshFiles() {
   if (!response.ok) return;
   const data = await response.json();
   const tree = document.getElementById('file-tree');
+  renderGitRepositories(data.files);
   tree.innerHTML = data.files.length
     ? data.files.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${formatBytes(file.size)}</small></button>`).join('')
     : '<div class="file-tree-empty">No files in workspace</div>';
@@ -437,6 +539,12 @@ async function uploadFiles(fileList) {
 }
 
 async function previewFile(filePath) {
+  const extension = filePath.split('.').pop().toLowerCase();
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension)) {
+    const imageUrl = `/api/sessions/${state.sessionId}/files/raw?path=${encodeURIComponent(filePath)}`;
+    appendTerminalImage('system', filePath, imageUrl, filePath);
+    return;
+  }
   const response = await fetch(`/api/sessions/${state.sessionId}/files/content?path=${encodeURIComponent(filePath)}`);
   const result = await response.json();
   if (!response.ok) {
@@ -452,7 +560,10 @@ function showHelp() {
 }
 
 async function runSlashCommand(command) {
-  const [name, ...args] = command.trim().split(/\s+/);
+  const tokens = tokenizeTerminalCommand(command);
+  const [name, ...args] = tokens;
+  if (name?.toLowerCase() === '/task' || name?.toLowerCase() === '/tasks') return runTaskCommand(args);
+  if (name?.toLowerCase() === '/git') return runGitCommand(args);
   switch (name.toLowerCase()) {
     case '/help':
       appendTerminalMessage('system', [
@@ -462,6 +573,11 @@ async function runSlashCommand(command) {
         '/status            Check the Agent OS API',
         '/clear             Clear the terminal',
         '/plugin NAME JSON  Execute a plugin with JSON input',
+        '/task add "title" [priority=high] [assignee=name] [due=YYYY-MM-DD] [tags=a,b]',
+        '/task list [status=open] [priority=high] [q=keyword]',
+        '/task show|start|done ID · /task block ID reason',
+        '/task priority|assign|due|tag ID value · /task note ID text',
+        '/git clone HTTPS_URL · /git status|log|diff|branch PATH',
       ].join('\n'));
       return true;
     case '/plugins':
@@ -515,6 +631,120 @@ async function runSlashCommand(command) {
 }
 
 async function refreshConnectionMonitor() {
+  function tokenizeTerminalCommand(command) {
+    return (command.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [])
+      .map(token => token.replace(/^("|')|("|')$/g, ''));
+  }
+
+  function runTaskCommand(args) {
+    const rawAction = String(args.shift() || 'help').toLowerCase();
+    const action = ({ create: 'add', complete: 'done', tags: 'tag' })[rawAction] || rawAction;
+    const positional = [];
+    const options = {};
+    args.forEach(argument => {
+      const option = argument.match(/^([a-z]+)=(.*)$/i);
+      if (option) options[option[1].toLowerCase()] = option[2];
+      else positional.push(argument);
+    });
+    const usage = 'Use /task add "title" [priority=] [assignee=] [due=] [tags=], list [status=] [priority=] [q=], show ID, start ID, done ID, block ID reason, priority ID value, assign ID name, due ID YYYY-MM-DD, tag ID a,b, note ID text';
+    if (action === 'help') {
+      appendTerminalMessage('system', usage);
+      return true;
+    }
+    if (action === 'add') {
+      const title = positional.join(' ').trim();
+      if (!title) appendTerminalMessage('error', 'Usage: /task add "title" [priority=high] [assignee=name] [due=YYYY-MM-DD] [tags=a,b]');
+      else sendTaskAction('create', { title, priority: options.priority, assignee: options.assignee, dueDate: options.due, tags: options.tags });
+      return true;
+    }
+    if (action === 'list') {
+      sendTaskAction('list', { status: options.status, priority: options.priority, query: options.q || positional.join(' ') });
+      return true;
+    }
+    if (action === 'show') {
+      if (!positional[0]) appendTerminalMessage('error', 'Usage: /task show ID');
+      else sendTaskAction('show', { id: positional[0] });
+      return true;
+    }
+    if (['start', 'done'].includes(action)) {
+      if (!positional[0]) appendTerminalMessage('error', `Usage: /task ${action} ID`);
+      else sendTaskAction(action, { id: positional[0] });
+      return true;
+    }
+    if (['block', 'priority', 'assign', 'due', 'tag', 'note'].includes(action)) {
+      const id = positional.shift();
+      const value = positional.join(' ').trim();
+      if (!id || !value) appendTerminalMessage('error', `Usage: /task ${action} ID value`);
+      else sendTaskAction(action, action === 'block' ? { id, reason: value } : { id, value });
+      return true;
+    }
+    appendTerminalMessage('error', usage);
+    return true;
+  }
+
+  function runGitCommand(args) {
+    const action = String(args.shift() || 'help').toLowerCase();
+    if (action === 'help') {
+      appendTerminalMessage('system', 'Git commands: /git clone HTTPS_URL · /git status|log|diff|branch repositories/NAME');
+      return true;
+    }
+    if (action === 'clone') {
+      if (!args[0]) appendTerminalMessage('error', 'Usage: /git clone https://github.com/org/repo.git');
+      else sendGitAction('clone', { url: args[0] });
+      return true;
+    }
+    if (['status', 'log', 'diff', 'branch'].includes(action)) {
+      if (!args[0]) appendTerminalMessage('error', `Usage: /git ${action} repositories/NAME`);
+      else sendGitAction(action, { path: args[0] });
+      return true;
+    }
+    appendTerminalMessage('error', 'Allowed Git commands: clone, status, log, diff, branch');
+    return true;
+  }
+
+  async function uploadTaskImage(file, taskId) {
+    if (!file || !state.sessionId) return;
+    const form = new FormData();
+    form.append('image', file);
+    try {
+      const response = await fetch(`/api/sessions/${state.sessionId}/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || response.statusText);
+      appendTerminalMessage('system', `Attached ${file.name} to task ${taskId.slice(0, 8)}.`);
+    } catch (error) {
+      appendTerminalMessage('error', `Image attachment failed: ${error.message}`);
+    }
+  }
+
+  async function cloneRepository() {
+    const input = document.getElementById('git-url-input');
+    const url = input.value.trim();
+    if (!url) {
+      input.focus();
+      return;
+    }
+    sendGitAction('clone', { url });
+  }
+
+  function renderGitRepositories(files) {
+    const container = document.getElementById('git-repository-list');
+    const repositories = Array.from(new Set(files
+      .map(file => file.path.split('/'))
+      .filter(parts => parts[0] === 'repositories' && parts[1])
+      .map(parts => parts[1])));
+    if (!repositories.length) {
+      container.innerHTML = '<div class="file-tree-empty">No Git repositories connected</div>';
+      return;
+    }
+    container.innerHTML = repositories.map(repository => `
+      <div class="git-repository-item">
+        <strong>${escapeHtml(repository)}</strong>
+        <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}</div>
+      </div>
+    `).join('');
+  }
+
+  async function refreshConnectionMonitor() {
   const container = document.getElementById('connection-monitor');
   const updated = document.getElementById('monitor-updated');
   try {
@@ -674,9 +904,49 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('upload-repo').addEventListener('click', () => document.getElementById('repo-upload-input').click());
   document.getElementById('file-upload-input').addEventListener('change', event => uploadFiles(event.target.files));
   document.getElementById('repo-upload-input').addEventListener('change', event => uploadFiles(event.target.files));
+  document.getElementById('git-clone').addEventListener('click', cloneRepository);
+  document.getElementById('git-url-input').addEventListener('keypress', event => {
+    if (event.key === 'Enter') cloneRepository();
+  });
+  document.getElementById('git-repository-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-git-action]');
+    if (button) sendGitAction(button.dataset.gitAction, { path: button.dataset.gitPath });
+  });
   document.getElementById('file-tree').addEventListener('click', event => {
     const file = event.target.closest('.file-tree-item');
     if (file) previewFile(file.dataset.path);
+  });
+  document.getElementById('task-list').addEventListener('click', event => {
+    const action = event.target.closest('[data-task-action]');
+    if (action) {
+      const payload = action.dataset.taskAction === 'block'
+        ? { id: action.dataset.taskId, reason: 'Blocked via dashboard' }
+        : { id: action.dataset.taskId };
+      sendTaskAction(action.dataset.taskAction, payload);
+      return;
+    }
+    const attach = event.target.closest('[data-task-attach]');
+    if (attach) {
+      const input = document.getElementById('task-attachment-input');
+      input.dataset.taskId = attach.dataset.taskAttach;
+      input.click();
+    }
+  });
+  document.getElementById('task-attachment-input').addEventListener('change', event => {
+    void uploadTaskImage(event.target.files[0], event.target.dataset.taskId);
+    event.target.value = '';
+  });
+  document.getElementById('task-search').addEventListener('input', event => {
+    state.taskFilters.query = event.target.value.trim().toLowerCase();
+    renderTasks();
+  });
+  document.getElementById('task-status-filter').addEventListener('change', event => {
+    state.taskFilters.status = event.target.value;
+    renderTasks();
+  });
+  document.getElementById('task-priority-filter').addEventListener('change', event => {
+    state.taskFilters.priority = event.target.value;
+    renderTasks();
   });
   document.getElementById('plugin-list').addEventListener('click', (event) => {
     const button = event.target.closest('.plugin-test');

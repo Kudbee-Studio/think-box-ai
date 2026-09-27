@@ -655,9 +655,40 @@ body {
   .sidebar-left, .sidebar-right { display: block; }
   .quick-actions { flex-direction: column; align-items: flex-start; }
   .terminal-actions .btn-quiet { display: none; }
+  .task-filters { grid-template-columns: 1fr; }
 }
 
 /* Task List */
+.git-connect {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.git-connect input, .task-filters input, .task-filters select {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.git-connect input { flex: 1; }
+.git-repository-list { padding: 0 8px 8px; }
+.git-repository-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); }
+.git-repository-item + .git-repository-item { border-top: 0; }
+.git-repository-item strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.git-repository-item > div { display: flex; gap: 3px; }
+.git-repository-item button { padding: 4px 5px; border: 1px solid var(--border-color); border-radius: 3px; background: var(--bg-primary); color: var(--text-secondary); font-size: 9px; cursor: pointer; }
+.git-repository-item button:hover { color: var(--accent-light); border-color: var(--accent); }
+
+.task-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px; border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 10px; }
+.task-summary strong { color: var(--text-primary); font-size: 12px; }
+.task-filters { display: grid; grid-template-columns: 1fr 110px 105px; gap: 5px; padding: 8px; }
+.task-filters input:focus, .task-filters select:focus, .git-connect input:focus { outline: none; border-color: var(--accent); }
+
 .task-list {
   padding: 8px;
 }
@@ -675,6 +706,7 @@ body {
 .task-item.running { border-left-color: var(--info); }
 .task-item.completed { border-left-color: var(--success); }
 .task-item.failed { border-left-color: var(--error); }
+.task-item.blocked { border-left-color: var(--warning); }
 
 .task-header {
   display: flex;
@@ -695,6 +727,14 @@ body {
 .task-status.running { background: var(--info); color: white; }
 .task-status.completed { background: var(--success); color: white; }
 .task-status.failed { background: var(--error); color: white; }
+.task-status.blocked { background: var(--warning); color: #111827; }
+
+.task-priority { font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.task-priority.critical { color: #ff7777; }
+.task-priority.high { color: #f5a45d; }
+.task-priority.medium { color: #82cfc4; }
+.task-priority.low { color: var(--text-muted); }
+.task-header code { color: var(--text-muted); font-size: 9px; }
 
 .task-description {
   font-size: 12px;
@@ -706,6 +746,22 @@ body {
   font-size: 10px;
   color: var(--text-muted);
 }
+
+.task-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 7px 0; color: var(--text-muted); font-size: 10px; }
+.overdue { color: #ff7777 !important; }
+.task-blocked-reason { padding: 6px 8px; border-left: 2px solid var(--warning); color: #f5c16c; background: rgba(245, 158, 11, 0.08); font-size: 10px; }
+.task-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 7px 0; }
+.task-tags span { padding: 2px 5px; border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-secondary); font-size: 9px; }
+.task-attachments { display: flex; gap: 6px; overflow-x: auto; margin: 8px 0; }
+.task-attachment { width: 64px; height: 54px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 3px; background: var(--bg-primary); }
+.task-card-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.task-action { padding: 4px 7px; border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); background: var(--bg-secondary); font-size: 10px; cursor: pointer; }
+.task-action:hover { color: var(--accent-light); border-color: var(--accent); }
+.task-activity { margin-top: 8px; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 10px; }
+.task-activity summary { padding: 7px 0 2px; cursor: pointer; }
+.task-activity-row { padding: 4px 0; color: var(--text-secondary); }
+.task-activity-row small { display: block; color: var(--text-muted); font-size: 9px; }
+.task-activity-row p { margin-top: 3px; overflow-wrap: anywhere; }
 
 /* Thought List */
 .thought-list {

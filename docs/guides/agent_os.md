@@ -88,6 +88,47 @@ Plugin results are rendered in the terminal and emitted as `plugin_call` and
 `plugin_result` thoughts. Successful and failed executions are recorded in the
 active session memory with the plugin name, input, result, and timestamp.
 
+## Tasks, Images, and Git
+
+Tasks are session-scoped and shared between terminal commands and the dashboard.
+The workflow adds ten operator improvements: create/list/show/search, lifecycle
+status, priority, assignee, due dates with overdue tracking, tags, blocked
+reasons, notes, a per-task activity timeline, and task image attachments. Use
+terminal keywords such as:
+
+```text
+/task add "Review launch readiness" priority=high assignee=maya due=2026-10-01 tags=release,ops
+/task list status=open priority=high q=launch
+/task show TASK_ID
+/task start TASK_ID
+/task done TASK_ID
+/task block TASK_ID Waiting for security review
+/task priority TASK_ID critical
+/task assign TASK_ID maya
+/task due TASK_ID 2026-10-01
+/task tag TASK_ID release,ops
+/task note TASK_ID Confirmed with security
+```
+
+Use the dashboard filters and task-card actions to search, start, complete, or
+block the same tasks. Attach raster images from a task card; they are stored in
+the session workspace and shown in the task activity.
+
+Connect public repositories from the Files panel or terminal:
+
+```text
+/git clone https://github.com/org/repo.git
+/git status repositories/repo
+/git log repositories/repo
+/git diff repositories/repo
+/git branch repositories/repo
+```
+
+Git clone is limited to credential-free public HTTPS URLs on GitHub, GitLab,
+Bitbucket, and Codeberg. Status, log, diff summary, and branch are read-only and
+restricted to repositories inside the active session workspace. Private-repo
+credentials, push, commit, and arbitrary Git arguments are not accepted.
+
 ## Middleware Testing
 
 `Test middleware` calls:

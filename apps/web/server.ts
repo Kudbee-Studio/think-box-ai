@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { XMLParser } from 'fast-xml-parser';
 import multer from 'multer';
@@ -65,6 +66,80 @@ function safeWorkspacePath(sessionId: string, relativePath: string): string {
   const destination = path.resolve(root, normalized);
   if (destination !== root && !destination.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
   return destination;
+}
+
+function runGit(args: string[], cwd?: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile('git', args, { cwd, encoding: 'utf8', timeout: 120000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) reject(err);
+      else resolve({ stdout, stderr });
+    });
+  });
+}
+
+async function runGitAction(sessionId: string, action: string, input: PluginInput): Promise<PluginResult> {
+  if (!sessions.has(sessionId)) return { success: false, error: 'Session not found' };
+  const root = await fs.promises.realpath(sessionWorkspace(sessionId));
+  if (action === 'clone') {
+    let repositoryUrl: URL;
+    try {
+      repositoryUrl = new URL(String(input.url ?? ''));
+    } catch {
+      return { success: false, error: 'Provide a valid public Git HTTPS URL' };
+    }
+    const allowedHosts = new Set(['github.com', 'gitlab.com', 'bitbucket.org', 'codeberg.org']);
+    if (repositoryUrl.protocol !== 'https:' || !allowedHosts.has(repositoryUrl.hostname.toLowerCase())
+      || (repositoryUrl.port && repositoryUrl.port !== '443') || repositoryUrl.username || repositoryUrl.password) {
+      return { success: false, error: 'Clone is limited to credential-free HTTPS repositories on GitHub, GitLab, Bitbucket, or Codeberg' };
+    }
+    const repositoryName = decodeURIComponent(repositoryUrl.pathname.split('/').filter(Boolean).at(-1) || '').replace(/\.git$/i, '');
+    if (!/^[a-zA-Z0-9._-]{1,100}$/.test(repositoryName) || repositoryName === '.' || repositoryName === '..') {
+      return { success: false, error: 'Repository URL must end in a valid repository name' };
+    }
+    const relativePath = `repositories/${repositoryName}`;
+    const destination = safeWorkspacePath(sessionId, relativePath);
+    try {
+      await fs.promises.access(destination);
+      return { success: false, error: `Repository already exists at ${relativePath}` };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+    try {
+      const result = await runGit(['clone', '--depth', '1', '--', repositoryUrl.toString(), destination], root);
+      return { success: true, action, path: relativePath, output: result.stdout.trim() || `Cloned ${repositoryUrl.host}/${repositoryName}` };
+    } catch (err) {
+      await fs.promises.rm(destination, { recursive: true, force: true });
+      return { success: false, error: errorMessage(err) };
+    }
+  }
+
+  if (!['status', 'log', 'diff', 'branch'].includes(action)) {
+    return { success: false, error: 'Allowed Git actions: clone, status, log, diff, branch' };
+  }
+  try {
+    const relativePath = String(input.path ?? '').trim();
+    const requestedPath = safeWorkspacePath(sessionId, relativePath);
+    const repositoryRoot = await fs.promises.realpath(requestedPath);
+    if (repositoryRoot !== root && !repositoryRoot.startsWith(`${root}${path.sep}`)) {
+      return { success: false, error: 'Repository path escapes the session workspace' };
+    }
+    const topLevel = (await runGit(['rev-parse', '--show-toplevel'], repositoryRoot)).stdout.trim();
+    const canonicalTopLevel = await fs.promises.realpath(topLevel);
+    if (canonicalTopLevel !== root && !canonicalTopLevel.startsWith(`${root}${path.sep}`)) {
+      return { success: false, error: 'Git repository is outside the session workspace' };
+    }
+    const commandArgs: Record<string, string[]> = {
+      status: ['status', '--short', '--branch'],
+      log: ['log', '-5', '--oneline'],
+      diff: ['diff', '--stat'],
+      branch: ['branch', '--show-current'],
+    };
+    const result = await runGit(commandArgs[action], canonicalTopLevel);
+    return { success: true, action, path: path.relative(root, canonicalTopLevel).replaceAll(path.sep, '/'), output: result.stdout.trim() || '(no changes)' };
+  } catch (err) {
+    return { success: false, error: errorMessage(err) };
+  }
 }
 
 // ─── Ollama integration ────────────────────────────────────────
@@ -289,6 +364,14 @@ registerPlugin('memory_query', {
   },
 });
 
+registerPlugin('git_repository', {
+  type: 'tool',
+  permission: 'network',
+  description: 'Clone public HTTPS repositories and inspect session-workspace Git status, recent commits, diff summary, or current branch',
+  icon: '⑂',
+  execute: async (input: PluginInput): Promise<PluginResult> => runGitAction(String(input.sessionId ?? ''), String(input.action ?? ''), input),
+});
+
 registerPlugin('image_analyze', {
   type: 'tool',
   permission: 'read_only',
@@ -355,10 +438,16 @@ class AgentSession {
   }
 
   addTask(task: Record<string, unknown>): Task {
+    const timestamp = Date.now();
     this.tasks.push({
       id: randomUUID(),
-      timestamp: Date.now(),
+      timestamp,
       status: 'pending',
+      title: String(task.title || task.description || 'Untitled task'),
+      priority: 'medium',
+      tags: [],
+      attachments: [],
+      activity: [{ timestamp, actor: 'agent', action: 'created' }],
       ...task,
     } as Task);
     const created = this.tasks[this.tasks.length - 1] as Task;
@@ -366,13 +455,110 @@ class AgentSession {
     return created;
   }
 
-  updateTask(id: string, updates: Partial<Task>): Task | undefined {
+  updateTask(id: string, updates: Partial<Task>, actor = 'agent'): Task | undefined {
     const task = this.tasks.find((t) => t.id === id);
     if (task) {
       Object.assign(task, updates);
+      task.activity = [
+        ...(task.activity ?? []),
+        { timestamp: Date.now(), actor, action: Object.keys(updates).join(', ') || 'updated' },
+      ].slice(-50);
       this.broadcast({ type: 'task_update', data: task });
     }
     return task;
+  }
+
+  executeTaskAction(action: string, payload: Record<string, unknown>): Record<string, unknown> {
+    const normalizedAction = action.toLowerCase();
+    const reference = String(payload.id ?? '').trim();
+    const matches = reference
+      ? this.tasks.filter((task) => task.id === reference || task.id.startsWith(reference))
+      : [];
+    const task = matches.length === 1 ? matches[0] : undefined;
+    const resolveTask = (): Task => {
+      if (matches.length > 1) throw new Error('Task ID prefix is ambiguous; use more characters');
+      if (!task) throw new Error(`Task not found: ${reference || '(missing ID)'}`);
+      return task;
+    };
+    const priority = (value: unknown): Task['priority'] => {
+      const normalized = String(value ?? '').toLowerCase();
+      if (!['low', 'medium', 'high', 'critical'].includes(normalized)) throw new Error('Priority must be low, medium, high, or critical');
+      return normalized as Task['priority'];
+    };
+    const dueDate = (value: unknown): string | undefined => {
+      const date = String(value ?? '').trim();
+      if (!date || date.toLowerCase() === 'none') return undefined;
+      const parsed = new Date(`${date}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+        throw new Error('Due date must be a real date in YYYY-MM-DD format');
+      }
+      return date;
+    };
+    const tags = (value: unknown): string[] => {
+      const values = Array.isArray(value) ? value : String(value ?? '').split(',');
+      return Array.from(new Set(values.map((tag) => String(tag).trim().toLowerCase()).filter(Boolean))).slice(0, 12);
+    };
+
+    switch (normalizedAction) {
+      case 'create': {
+        const title = String(payload.title ?? '').trim();
+        if (!title || title.length > 300) throw new Error('Task title must contain 1 to 300 characters');
+        const created = this.addTask({
+          title,
+          description: title,
+          priority: payload.priority ? priority(payload.priority) : 'medium',
+          assignee: String(payload.assignee ?? '').trim() || undefined,
+          dueDate: dueDate(payload.dueDate),
+          tags: tags(payload.tags),
+        });
+        created.activity = [{ timestamp: created.timestamp, actor: 'terminal', action: 'created' }];
+        this.broadcast({ type: 'task_update', data: created });
+        return { success: true, action: normalizedAction, task: created };
+      }
+      case 'list': {
+        const statusFilter = String(payload.status ?? '').toLowerCase();
+        const priorityFilter = String(payload.priority ?? '').toLowerCase();
+        const query = String(payload.query ?? '').toLowerCase();
+        const items = this.tasks.filter((item) => {
+          const statusMatches = !statusFilter || statusFilter === 'all'
+            || (statusFilter === 'open' ? ['pending', 'running', 'blocked'].includes(item.status) : item.status === statusFilter);
+          const priorityMatches = !priorityFilter || item.priority === priorityFilter;
+          const textMatches = !query || `${item.title} ${item.description} ${item.assignee} ${(item.tags ?? []).join(' ')}`.toLowerCase().includes(query);
+          return statusMatches && priorityMatches && textMatches;
+        });
+        return { success: true, action: normalizedAction, tasks: items };
+      }
+      case 'show':
+        return { success: true, action: normalizedAction, task: resolveTask() };
+      case 'start':
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { status: 'running', blockedReason: undefined }, 'terminal') };
+      case 'done':
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { status: 'completed', blockedReason: undefined }, 'terminal') };
+      case 'block': {
+        const reason = String(payload.reason ?? '').trim();
+        if (!reason) throw new Error('Add a reason after the task ID');
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { status: 'blocked', blockedReason: reason }, 'terminal') };
+      }
+      case 'priority':
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { priority: priority(payload.value) }, 'terminal') };
+      case 'assign': {
+        const assignee = String(payload.value ?? '').trim();
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { assignee: !assignee || assignee.toLowerCase() === 'none' ? undefined : assignee }, 'terminal') };
+      }
+      case 'due':
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { dueDate: dueDate(payload.value) }, 'terminal') };
+      case 'tag':
+        return { success: true, action: normalizedAction, task: this.updateTask(resolveTask().id, { tags: tags(payload.value) }, 'terminal') };
+      case 'note': {
+        const note = String(payload.value ?? '').trim();
+        if (!note || note.length > 1000) throw new Error('Task note must contain 1 to 1000 characters');
+        const updated = this.updateTask(resolveTask().id, { lastNote: note }, 'terminal');
+        if (updated?.activity?.length) updated.activity[updated.activity.length - 1].note = note;
+        return { success: true, action: normalizedAction, task: updated };
+      }
+      default:
+        throw new Error(`Unknown task action: ${normalizedAction}`);
+    }
   }
 
   broadcast(message: unknown): void {
@@ -391,13 +577,14 @@ class AgentSession {
     }
 
     const recordedInput = { ...input };
+    if (name === 'git_repository') recordedInput.sessionId = this.id;
     if (typeof recordedInput.image_base64 === 'string') {
       recordedInput.image_base64 = `[omitted image payload: ${Math.floor(recordedInput.image_base64.length * 0.75)} bytes]`;
     }
     this.addThought({ type: 'plugin_call', plugin: name, input: recordedInput, status: 'running' });
 
     try {
-      let result = await plugin.execute(input);
+      let result = await plugin.execute(name === 'git_repository' ? { ...input, sessionId: this.id } : input);
       if (name === 'image_generate' && typeof result.image_base64 === 'string') {
         const relativePath = `images/plugin-generated-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
         const destination = safeWorkspacePath(this.id, relativePath);
@@ -543,6 +730,24 @@ wss.on('connection', (ws: WebSocket) => {
         case 'plugin_execute': {
           const result = await session.executePlugin(String(msg.plugin), msg.input as PluginInput);
           ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, result } }));
+          break;
+        }
+
+        case 'task_action': {
+          const result = session.executeTaskAction(
+            String(msg.action ?? ''),
+            msg.payload && typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {},
+          );
+          ws.send(JSON.stringify({ type: 'task_action_result', data: result }));
+          break;
+        }
+
+        case 'git_action': {
+          const result = await session.executePlugin('git_repository', {
+            action: String(msg.action ?? ''),
+            ...(msg.payload && typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {}),
+          });
+          ws.send(JSON.stringify({ type: 'git_action_result', data: result }));
           break;
         }
 
@@ -704,7 +909,7 @@ app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {
   async function walk(directory: string): Promise<void> {
     for (const entry of await fs.promises.readdir(directory, { withFileTypes: true })) {
       const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) await walk(absolute);
+      if (entry.isDirectory() && entry.name !== '.git') await walk(absolute);
       else {
         const stat = await fs.promises.stat(absolute);
         files.push({ path: path.relative(root, absolute).replaceAll(path.sep, '/'), size: stat.size, modified_at: stat.mtime.toISOString() });
@@ -793,6 +998,42 @@ app.post('/api/sessions/:id/images/generate', async (req: Request, res: Response
     const message = errorMessage(err);
     session.addThought({ type: 'image_generation', content: message, status: 'error' });
     res.status(503).json({ error: message });
+  }
+});
+
+app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('image'), async (req: Request, res: Response) => {
+  const session = sessions.get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const task = session.tasks.find((item) => item.id === req.params.taskId || item.id.startsWith(req.params.taskId));
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  const image = req.file;
+  if (!image) return res.status(400).json({ error: 'Choose an image to attach' });
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(image.mimetype)) {
+    return res.status(415).json({ error: 'Use a PNG, JPEG, WebP, or GIF image' });
+  }
+  const extension = ({
+    'image/png': '.png',
+    'image/jpeg': '.jpg',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+  } as Record<string, string>)[image.mimetype];
+  const filename = `${randomUUID()}${extension}`;
+  const relativePath = `images/tasks/${task.id}/${filename}`;
+  try {
+    const destination = safeWorkspacePath(session.id, relativePath);
+    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+    await fs.promises.writeFile(destination, image.buffer);
+    const attachment = {
+      path: relativePath,
+      filename: path.basename(image.originalname),
+      imageUrl: `/api/sessions/${session.id}/files/raw?path=${encodeURIComponent(relativePath)}`,
+      timestamp: Date.now(),
+    };
+    session.updateTask(task.id, { attachments: [...(task.attachments ?? []), attachment] }, 'terminal');
+    session.addThought({ type: 'task_attachment', content: `Attached image to ${task.title}`, image: relativePath, status: 'success' });
+    res.status(201).json({ success: true, attachment });
+  } catch (err) {
+    res.status(400).json({ error: errorMessage(err) });
   }
 });
 

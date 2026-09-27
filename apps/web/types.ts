@@ -52,9 +52,17 @@ export interface Task {
   id: string;
   timestamp: number;
   status: string;
+  title?: string;
   description?: string;
   result?: string;
   error?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  assignee?: string;
+  dueDate?: string;
+  tags?: string[];
+  blockedReason?: string;
+  attachments?: Array<{ path: string; filename: string; imageUrl: string; timestamp: number }>;
+  activity?: Array<{ timestamp: number; actor: string; action: string; note?: string }>;
   [key: string]: unknown;
 }
 

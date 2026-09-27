@@ -55,6 +55,13 @@
             <input id="file-upload-input" type="file" multiple hidden>
             <input id="repo-upload-input" type="file" webkitdirectory multiple hidden>
           </div>
+          <div class="git-connect">
+            <input id="git-url-input" type="url" placeholder="https://github.com/org/repo.git" aria-label="Public Git repository URL">
+            <button id="git-clone" class="btn-secondary" type="button">Clone</button>
+          </div>
+          <div id="git-repository-list" class="git-repository-list">
+            <div class="file-tree-empty">No Git repositories connected</div>
+          </div>
           <div id="file-tree" class="file-tree">
             <div class="file-tree-empty">No files yet</div>
           </div>
@@ -131,10 +138,31 @@
         <div class="panel">
           <div class="panel-header">
             <h3>📋 Tasks</h3>
+            <span id="task-count" class="badge">0</span>
+          </div>
+          <div id="task-summary" class="task-summary"></div>
+          <div class="task-filters">
+            <input id="task-search" type="search" placeholder="Search title, owner, tag, ID..." aria-label="Search tasks">
+            <select id="task-status-filter" aria-label="Filter tasks by status">
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="running">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="completed">Completed</option>
+              <option value="overdue">Overdue</option>
+            </select>
+            <select id="task-priority-filter" aria-label="Filter tasks by priority">
+              <option value="all">All priorities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
           </div>
           <div id="task-list" class="task-list">
             <div class="empty-state">No tasks yet</div>
           </div>
+          <input id="task-attachment-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
         </div>
 
         <div class="panel">
