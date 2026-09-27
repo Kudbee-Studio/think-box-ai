@@ -1,0 +1,65 @@
+{
+  "arena": "synthesis-calibration-v2",
+  "hypothesis": "Synthesis confidence derived from the agreement structure (SynthesisEngine agreement_fraction) achieves a lower Brier score than synthesis confidence derived from boxes' self-reported confidence (average_confidence), on the same underlying agent responses and the same predicted answers.",
+  "improvement_threshold": "Brier reduction > 0.05 AND paired bootstrap 95% CI excludes zero (pre-registered)",
+  "pre_run_expectation": "Primary (v2 vs v1 synthesis): expected IMPROVED if agreement structure is the better confidence signal. Secondary (v2 vs naive majority): expected near-zero calibration difference, since both use vote share; any difference comes only from answer tie-breaks on 3-way splits.",
+  "n_tasks": 300,
+  "seed": 20260926,
+  "total_agent_calls": 900,
+  "accuracy": {
+    "v1_synthesis_self_reported": {
+      "correct": 236,
+      "total": 300,
+      "rate": 0.7867,
+      "ci95": [
+        0.7368,
+        0.8292
+      ]
+    },
+    "v2_synthesis_agreement_fraction": {
+      "correct": 236,
+      "total": 300,
+      "rate": 0.7867,
+      "ci95": [
+        0.7368,
+        0.8292
+      ]
+    },
+    "naive_majority_vote": {
+      "correct": 224,
+      "total": 300,
+      "rate": 0.7467,
+      "ci95": [
+        0.6945,
+        0.7926
+      ]
+    }
+  },
+  "brier": {
+    "v1_synthesis_self_reported": 0.2124,
+    "v2_synthesis_agreement_fraction": 0.1196,
+    "naive_majority_vote": 0.1063
+  },
+  "primary_brier_delta_v2_minus_v1": {
+    "observed": -0.0927,
+    "ci95_lo": -0.1205,
+    "ci95_hi": -0.0645
+  },
+  "secondary_brier_delta_v2_minus_majority_descriptive_only": {
+    "observed": 0.0133,
+    "ci95_lo": 0.0,
+    "ci95_hi": 0.0267
+  },
+  "classification": "IMPROVED",
+  "classification_reason": "Brier(v2) - Brier(v1) = -0.0927, 95% CI [-0.1205, -0.0645]; pre-registered bar: <= -0.05 with CI excluding zero",
+  "evidence_level": "SIMULATED",
+  "no_claims": [
+    "no claim about real model intelligence or capability",
+    "no live model calls in the hermetic run",
+    "no claim of novelty over cited prior work",
+    "no claim this generalizes beyond the synthetic task families below",
+    "no claim that v2 beats naive majority voting \u2014 by construction it uses the same confidence values"
+  ],
+  "timestamp": "2026-09-26T22:53:10.478517",
+  "proof_hash": "7c072a7b1f8d2be0e35ea0b1a129a29dd31165557d46448aa919a4356178092c"
+}

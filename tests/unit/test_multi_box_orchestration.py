@@ -12,6 +12,7 @@ Tests validate:
 import asyncio
 import json
 import unittest
+from pathlib import Path
 from datetime import datetime
 
 from thinkbox.multi_box_orchestration import (
@@ -575,6 +576,112 @@ class TestAsyncOrchestration(unittest.TestCase):
         result = asyncio.run(run_test())
         self.assertIsNotNone(result)
 
+
+
+class TestAgreementFraction(unittest.TestCase):
+    """agreement_fraction is derived from the agreement structure, not from
+    boxes' self-reported confidence (see synthesis-calibration-v1 result)."""
+
+    def setUp(self):
+        self.fabric = KnowledgeFabric()
+        self.synthesis = SynthesisEngine(self.fabric)
+
+    def test_consensus_finding_has_agreement_fraction(self):
+        for box in ("a", "b"):
+            self.fabric.add_knowledge(
+                content={"answer": 1, "topic": "q1"}, source_boxes=[box], confidence=0.99
+            )
+        self.fabric.add_knowledge(
+            content={"answer": 2, "topic": "q1"}, source_boxes=["c"], confidence=0.99
+        )
+        result = self.synthesis.synthesize_findings(["a", "b", "c"], "q1")
+        self.assertAlmostEqual(result["consensus_findings"][0]["agreement_fraction"], 2 / 3)
+        self.assertAlmostEqual(result["conflicting_findings"][0]["agreement_fraction"], 1 / 3)
+
+    def test_average_confidence_unchanged(self):
+        for box, conf in (("a", 0.9), ("b", 0.7)):
+            self.fabric.add_knowledge(
+                content={"answer": 1, "topic": "q2"}, source_boxes=[box], confidence=conf
+            )
+        result = self.synthesis.synthesize_findings(["a", "b"], "q2")
+        finding = result["consensus_findings"][0]
+        self.assertAlmostEqual(finding["average_confidence"], 0.8)
+        self.assertAlmostEqual(finding["agreement_fraction"], 1.0)
+
+    def test_empty_synthesis_does_not_divide_by_zero(self):
+        result = self.synthesis.synthesize_findings(["nobody"], "no-such-topic")
+        self.assertEqual(result["consensus_findings"], [])
+        self.assertEqual(result["conflicting_findings"], [])
+
+
+class TestKnowledgeFabricDurability(unittest.TestCase):
+    """persist() previously built a payload, wrote nothing, and logged
+    'persisted'. These tests hold the fabric to its actual claim: knowledge
+    survives the process, not just the box."""
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.path = str(Path(self._tmp.name) / "nested" / "fabric.json")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_persist_writes_file_and_load_restores(self):
+        fabric = KnowledgeFabric(persistence_path=self.path)
+        a = fabric.add_knowledge({"finding": "A"}, ["box_1"], "VERIFIED", 0.9)
+        b = fabric.add_knowledge({"finding": "B"}, ["box_2"])
+        fabric.link_nodes(a.node_id, b.node_id)
+        written = fabric.persist()
+        self.assertEqual(written, self.path)
+        self.assertTrue(Path(self.path).exists())
+
+        restored = KnowledgeFabric.load(self.path)
+        self.assertEqual(set(restored.nodes), {a.node_id, b.node_id})
+        self.assertEqual(restored.nodes[a.node_id].content, {"finding": "A"})
+        self.assertEqual(restored.nodes[a.node_id].evidence_level, "VERIFIED")
+        self.assertEqual(restored.edges[a.node_id], [b.node_id])
+        self.assertEqual(len(restored.write_log), len(fabric.write_log))
+        self.assertEqual(restored.verify_all_integrity(), (2, 0))
+
+    def test_knowledge_outlives_box_and_process(self):
+        coordinator = SwarmCoordinator()
+        coordinator.knowledge_fabric.persistence_path = self.path
+        box = coordinator.launch_box(BoxRole.PHARMACIST, ["interactions"])
+        box.add_finding({"drug": "A", "interaction": "B"})
+        box_id = box.box_id
+        coordinator.shutdown_box(box_id)
+        coordinator.knowledge_fabric.persist()
+        del coordinator  # the box, the coordinator, and the in-memory fabric are gone
+
+        fresh = KnowledgeFabric.load(self.path)
+        findings = fresh.query_by_source(box_id)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].content["drug"], "A")
+
+    def test_load_refuses_tampered_file(self):
+        import json
+        fabric = KnowledgeFabric(persistence_path=self.path)
+        fabric.add_knowledge({"finding": "original"}, ["box_1"])
+        fabric.persist()
+        data = json.loads(Path(self.path).read_text())
+        node_id = next(iter(data["nodes"]))
+        data["nodes"][node_id]["content"]["finding"] = "forged"
+        Path(self.path).write_text(json.dumps(data))
+        with self.assertRaises(ValueError) as ctx:
+            KnowledgeFabric.load(self.path)
+        self.assertIn(node_id, str(ctx.exception))
+
+    def test_persist_leaves_no_temp_file(self):
+        fabric = KnowledgeFabric(persistence_path=self.path)
+        fabric.add_knowledge({"x": 1}, ["b"])
+        fabric.persist()
+        leftovers = [p.name for p in Path(self.path).parent.iterdir() if p.name != "fabric.json"]
+        self.assertEqual(leftovers, [])
+
+    def test_load_missing_file_raises(self):
+        with self.assertRaises(FileNotFoundError):
+            KnowledgeFabric.load(self.path)
 
 if __name__ == "__main__":
     unittest.main()

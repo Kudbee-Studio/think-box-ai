@@ -3198,3 +3198,23 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **LIVE (local only):** Ollama `qwen2.5:1.5b` on CPU: engine answered 17*23=391; governed run answered "Paris."; proof script 6/6 PASS. Mercury-2 endpoint reachable (HTTP 401 without key) — **not** live-verified.
 - **FINDINGS:** 14/38 swarm proof artifacts invalid (`data/findings/swarm_proof_artifacts_invalid.md`); Upstash Vector defect fixed in code, not live-verified; #245–#249 chronicle rows were stale.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` for hosted providers and Upstash.
+
+### 2026-09-26 — GitHub PRs #259–#263 (merged) and #264 (open)
+
+- **MERGED:** #259 `5b844ea` (autonomous swarm pool), #260 `7880c4b` (multi-model orchestrator), #261 `d03b5eb` (auditable governance layer), #262 `07f813e` (governed execution integration), #263 `d1eccd2` (multi-box orchestration + synthesis calibration v1).
+- **#263 RESULT:** pre-registered calibration v1 → `WORSE` (synthesis more accurate than majority vote, but worse calibrated; cause: averaged self-reported confidence). A simulator confound (wrong answers always above the truth) was caught and fixed before reporting.
+- **#264 SCOPE:** orchestrator CHEAPEST/CONSENSUS/PARALLEL and constraints implemented (documented-but-missing in #260, flagged by Bugbot); `execute(constraints=...)` added; self-review fixes (multi-provider budget estimate, consensus requires ≥2 successes, failures recorded); `KnowledgeFabric.persist()` made real — it was a no-op that logged success, so #263's "information outlives the box" held only in-process — plus a `load()` that refuses tampered nodes; `SynthesisEngine.agreement_fraction`; pre-registered v2 committed in `bd80cf8e` before the run → `IMPROVED` (Brier 0.212 → 0.120, CI [−0.121, −0.065]); v2 vs majority descriptive only, CI includes zero.
+- **CI:** GitHub Actions runners not assigned repo-wide since at least the #259 era (jobs ~3 s, `runner_id: 0`, empty logs, reproduces on `main`, persists after one re-run). Not fixable from agent sessions (Actions permission endpoints are proxy-blocked). Needs a repo/org admin to check Settings → Actions.
+- **NEW STANDING RULE:** AGENTS.md §13.11 pre-registered experiments.
+- **MEMORY LAYERS:** session lessons committed as `CHRONICLE_PATTERNS` (pre-registered-experiments, suspect-clean-results, docs-need-behavioral-tests, persistence-means-round-trip, calibrate-from-agreement, ci-instant-fail-is-infra, git-status-before-checkout) and new `CHRONICLE_FACTS` (calibration v1/v2 results pinned to proof hashes; CI outage at 0.9 confidence). Ingest verified: 12 organizational, 4 verified, `live_verified=False`.
+- **INCIDENT (agent error, recovered):** during #264 an agent ran `git checkout main -- .` and discarded uncommitted work; detected immediately, reconstructed from the session record, tests re-verified before commit. Lesson: run `git status` before any checkout that touches paths.
+- **VERIFY:** orchestrator 41 OK; multi-box 36 OK; calibration arena 39 OK; full `unittest discover` not completed in-session (it runs >2 h locally because of real network-backoff tests, and CI runners are down); verified instead: the targeted suites above, `test_memory_layers*` 42 OK, `test_kilo_live_proof_readiness_pr141` 28 OK, #251 merged tree 174 OK, `test_shard` 93 OK.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+
+### 2026-09-27 — GitHub PRs #251 and #255 merged after review
+
+- **#251** `1ee9171`: durable autonomous-loop action receipts (SQLite hash chain) + integrity endpoint. Merged `main` in; resolved `dashboard_state.py` (both sides added independent `__init__` state, kept both) and AGENTS.md rows. Autonomous-loop + dashboard suites 174 OK on the merged tree; JS integrity test 1/1.
+- **#255** `1719655`: sharded concurrent-goal executor. The branch was 1603 commits behind `main` and carried stale early versions of 23 files (KILO spine, CLI, identity, thinktrace, chronicle docs) that `main` had evolved. Resolution kept `main` for all 23, so the merge adds only `thinkbox/shard.py` + `tests/unit/test_shard.py`. Review found a closure bug (ruff B023): `_run_one` did not bind `runner`, so every shard ran on the last shard's runner; fixed with a regression test (fails before, passes after). `test_shard` 93 OK.
+- **LESSON:** a local shallow clone reported "no merge base" for #255; `git fetch --unshallow` showed the real one. Unshallow before concluding branches are unrelated.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`. CI runners unavailable; verification local.
+

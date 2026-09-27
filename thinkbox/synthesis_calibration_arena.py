@@ -51,13 +51,12 @@ A LIVE variant (real model calls) is a separate, explicitly gated future step
 import hashlib
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from thinkbox.multi_box_orchestration import KnowledgeFabric, SynthesisEngine
-
 
 # ============================================================================
 # PRE-REGISTERED CONSTANTS — fixed before any run; changing these after
@@ -72,6 +71,37 @@ PRE_REGISTERED_HYPOTHESIS = (
 
 # Brier score reduction required to call it IMPROVED, plus non-overlapping CI.
 IMPROVEMENT_THRESHOLD_BRIER_DELTA = 0.05
+
+# ----------------------------------------------------------------------------
+# v2 PRE-REGISTRATION — written and committed BEFORE the v2 headline run.
+# v1 constants above are frozen; v2 is a new, separate hypothesis about the
+# fix v1 identified, not a re-test of H1 on the same data.
+# ----------------------------------------------------------------------------
+
+PRE_REGISTERED_HYPOTHESIS_V2 = (
+    "Synthesis confidence derived from the agreement structure "
+    "(SynthesisEngine agreement_fraction) achieves a lower Brier score than "
+    "synthesis confidence derived from boxes' self-reported confidence "
+    "(average_confidence), on the same underlying agent responses and the "
+    "same predicted answers."
+)
+
+# Same bar as v1, fixed before the run.
+IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2 = 0.05
+
+# Stated before the run: with 3 responses per task, agreement_fraction takes
+# the values 1/3, 2/3, or 1 — the same values as naive majority vote's
+# vote share. So v2's confidence signal is, by construction, the one the
+# majority-vote baseline already uses. v2 tests whether the engine now
+# exposes a calibrated signal; it is not expected to beat the baseline on
+# calibration, and the secondary v2-vs-majority comparison is descriptive
+# only (it carries no classification).
+V2_PRE_RUN_EXPECTATION = (
+    "Primary (v2 vs v1 synthesis): expected IMPROVED if agreement structure "
+    "is the better confidence signal. Secondary (v2 vs naive majority): "
+    "expected near-zero calibration difference, since both use vote share; "
+    "any difference comes only from answer tie-breaks on 3-way splits."
+)
 
 NO_CLAIMS = [
     "no claim about real model intelligence or capability",
@@ -287,6 +317,45 @@ def evaluate_confidence_weighted_synthesis(
     )
 
 
+def evaluate_agreement_calibrated_synthesis(
+    responses: List[AgentResponse], task: SyntheticTask
+) -> ConditionResult:
+    """
+    Same shipped SynthesisEngine, same answer-selection rule as
+    evaluate_confidence_weighted_synthesis — the ONLY difference is that the
+    reported confidence is agreement_fraction instead of average_confidence.
+    Holding the answer fixed isolates confidence calibration as the variable.
+    """
+    fabric = KnowledgeFabric()
+    box_ids = []
+    for i, r in enumerate(responses):
+        box_id = f"{task.task_id}_agent_{i}"
+        box_ids.append(box_id)
+        fabric.add_knowledge(
+            content={"answer": r.answer, "topic": task.task_id},
+            source_boxes=[box_id],
+            evidence_level="SIMULATED",
+            confidence=r.confidence,
+        )
+
+    result = SynthesisEngine(fabric).synthesize_findings(box_ids, task.task_id)
+
+    if result["consensus_findings"]:
+        best = max(result["consensus_findings"], key=lambda f: f["agreements"])
+    elif result["conflicting_findings"]:
+        best = max(result["conflicting_findings"], key=lambda f: f["confidence"])
+    else:
+        raise RuntimeError(f"Synthesis produced no findings for {task.task_id}")
+
+    predicted_answer = best["content"]["answer"]
+    return ConditionResult(
+        task_id=task.task_id,
+        predicted_answer=predicted_answer,
+        predicted_confidence=best["agreement_fraction"],
+        correct=predicted_answer == task.ground_truth,
+    )
+
+
 CONDITION_EVALUATORS: Dict[Condition, Callable] = {
     Condition.SINGLE_AGENT: evaluate_single_agent,
     Condition.NAIVE_MAJORITY_VOTE: evaluate_naive_majority_vote,
@@ -458,7 +527,7 @@ class SynthesisCalibrationArena:
         for condition in Condition:
             brier_stats[condition.value] = round(brier_score(results[condition]), 4)
 
-        pairs = list(zip(results[Condition.NAIVE_MAJORITY_VOTE], results[Condition.CONFIDENCE_WEIGHTED_SYNTHESIS]))
+        pairs = list(zip(results[Condition.NAIVE_MAJORITY_VOTE], results[Condition.CONFIDENCE_WEIGHTED_SYNTHESIS], strict=True))
         observed_delta, ci_lo, ci_hi = bootstrap_paired_difference(
             pairs, brier_score, n_resamples=2000, seed=self.seed
         )
@@ -507,6 +576,109 @@ class SynthesisCalibrationArena:
             classification_reason=reason,
             no_claims=NO_CLAIMS,
         )
+
+    def run_hermetic_v2(self) -> Dict[str, Any]:
+        """
+        Pre-registered v2 test of the calibration fix. Uses the identical
+        seeded responses as v1 (same seed, same tasks), so every condition
+        is paired against the same data. Returns a proof dict in the same
+        convention as v1 (SHA-256 proof_hash over the result payload,
+        excluding the timestamp).
+        """
+        v1_synth: List[ConditionResult] = []
+        v2_synth: List[ConditionResult] = []
+        majority: List[ConditionResult] = []
+
+        for task in self.tasks:
+            responses = [
+                self.simulator.respond(task, i) for i in range(self.N_RESPONSES_PER_TASK)
+            ]
+            v1_synth.append(evaluate_confidence_weighted_synthesis(responses, task))
+            v2_synth.append(evaluate_agreement_calibrated_synthesis(responses, task))
+            majority.append(evaluate_naive_majority_vote(responses, task))
+
+        # Answers are identical between v1 and v2 by construction; assert it
+        # rather than assume it, since the comparison is only valid if true.
+        for a, b in zip(v1_synth, v2_synth, strict=True):
+            if a.predicted_answer != b.predicted_answer:
+                raise RuntimeError(
+                    f"v1/v2 predicted different answers for {a.task_id}; "
+                    "calibration comparison would be confounded"
+                )
+
+        primary = bootstrap_paired_difference(
+            list(zip(v1_synth, v2_synth, strict=True)), brier_score, n_resamples=2000, seed=self.seed
+        )
+        secondary = bootstrap_paired_difference(
+            list(zip(majority, v2_synth, strict=True)), brier_score, n_resamples=2000, seed=self.seed
+        )
+
+        delta, lo, hi = primary
+        ci_excludes_zero = (lo > 0) or (hi < 0)
+        if delta <= -IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2 and ci_excludes_zero:
+            classification = "IMPROVED"
+        elif delta >= IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2 and ci_excludes_zero:
+            classification = "WORSE"
+        else:
+            classification = "NO_MEASURABLE_IMPROVEMENT"
+        reason = (
+            f"Brier(v2) - Brier(v1) = {delta:.4f}, 95% CI [{lo:.4f}, {hi:.4f}]; "
+            f"pre-registered bar: <= -{IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2} "
+            f"with CI excluding zero"
+        )
+
+        def acc(results: List[ConditionResult]) -> Dict[str, Any]:
+            correct = sum(1 for r in results if r.correct)
+            lo_, hi_ = wilson_confidence_interval(correct, len(results))
+            return {
+                "correct": correct,
+                "total": len(results),
+                "rate": round(correct / len(results), 4) if results else 0.0,
+                "ci95": [round(lo_, 4), round(hi_, 4)],
+            }
+
+        payload = {
+            "arena": "synthesis-calibration-v2",
+            "hypothesis": PRE_REGISTERED_HYPOTHESIS_V2,
+            "improvement_threshold": (
+                f"Brier reduction > {IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2} AND paired "
+                f"bootstrap 95% CI excludes zero (pre-registered)"
+            ),
+            "pre_run_expectation": V2_PRE_RUN_EXPECTATION,
+            "n_tasks": self.n_tasks,
+            "seed": self.seed,
+            "total_agent_calls": self.n_tasks * self.N_RESPONSES_PER_TASK,
+            "accuracy": {
+                "v1_synthesis_self_reported": acc(v1_synth),
+                "v2_synthesis_agreement_fraction": acc(v2_synth),
+                "naive_majority_vote": acc(majority),
+            },
+            "brier": {
+                "v1_synthesis_self_reported": round(brier_score(v1_synth), 4),
+                "v2_synthesis_agreement_fraction": round(brier_score(v2_synth), 4),
+                "naive_majority_vote": round(brier_score(majority), 4),
+            },
+            "primary_brier_delta_v2_minus_v1": {
+                "observed": round(delta, 4), "ci95_lo": round(lo, 4), "ci95_hi": round(hi, 4),
+            },
+            "secondary_brier_delta_v2_minus_majority_descriptive_only": {
+                "observed": round(secondary[0], 4),
+                "ci95_lo": round(secondary[1], 4),
+                "ci95_hi": round(secondary[2], 4),
+            },
+            "classification": classification,
+            "classification_reason": reason,
+            "evidence_level": "SIMULATED",
+            "no_claims": NO_CLAIMS + [
+                "no claim that v2 beats naive majority voting — by construction "
+                "it uses the same confidence values",
+            ],
+        }
+        import json
+        proof_hash = hashlib.sha256(
+            json.dumps(payload, sort_keys=True).encode()
+        ).hexdigest()
+        return {**payload, "timestamp": datetime.utcnow().isoformat(), "proof_hash": proof_hash}
 
     def run_live(self, provider: Optional[Any] = None):
         """

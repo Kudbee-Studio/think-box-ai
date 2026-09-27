@@ -25,6 +25,9 @@ from thinkbox.synthesis_calibration_arena import (
     SynthesisCalibrationArena,
     PRE_REGISTERED_HYPOTHESIS,
     IMPROVEMENT_THRESHOLD_BRIER_DELTA,
+    PRE_REGISTERED_HYPOTHESIS_V2,
+    IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2,
+    evaluate_agreement_calibrated_synthesis,
 )
 
 
@@ -262,6 +265,88 @@ class TestSynthesisCalibrationArena(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             arena.run_live()
 
+
+
+class TestV1Reproducibility(unittest.TestCase):
+    def test_committed_v1_proof_reproduces_exactly(self):
+        """Regression guard: later changes (e.g. the agreement_fraction
+        field) must not alter the published v1 result."""
+        import json
+        from pathlib import Path
+        artifact = Path(__file__).resolve().parents[2] / "data" / "thinkboxmd" / "artifacts" / "synthesis_calibration_v1_proof.json"
+        committed = json.loads(artifact.read_text())
+        rerun = SynthesisCalibrationArena(
+            n_tasks=committed["n_tasks"], seed=20260926
+        ).run_hermetic().to_dict()
+        self.assertEqual(rerun["proof_hash"], committed["proof_hash"])
+
+
+class TestAgreementCalibratedSynthesis(unittest.TestCase):
+    def setUp(self):
+        self.task = SyntheticTask(task_id="t1", family=TaskFamily.COMPUTE, ground_truth=100)
+
+    def test_two_of_three_agree_reports_two_thirds(self):
+        responses = [
+            AgentResponse(task_id="t1", answer=100, confidence=0.95, correct=True),
+            AgentResponse(task_id="t1", answer=100, confidence=0.90, correct=True),
+            AgentResponse(task_id="t1", answer=7, confidence=0.99, correct=False),
+        ]
+        v2 = evaluate_agreement_calibrated_synthesis(responses, self.task)
+        v1 = evaluate_confidence_weighted_synthesis(responses, self.task)
+        self.assertEqual(v2.predicted_answer, v1.predicted_answer)
+        self.assertAlmostEqual(v2.predicted_confidence, 2 / 3)
+        self.assertAlmostEqual(v1.predicted_confidence, 0.925)
+
+    def test_unanimous_reports_one(self):
+        responses = [
+            AgentResponse(task_id="t1", answer=100, confidence=0.4, correct=True)
+            for _ in range(3)
+        ]
+        v2 = evaluate_agreement_calibrated_synthesis(responses, self.task)
+        self.assertAlmostEqual(v2.predicted_confidence, 1.0)
+
+    def test_three_way_split_reports_one_third_same_answer_as_v1(self):
+        responses = [
+            AgentResponse(task_id="t1", answer=100, confidence=0.9, correct=True),
+            AgentResponse(task_id="t1", answer=200, confidence=0.4, correct=False),
+            AgentResponse(task_id="t1", answer=300, confidence=0.3, correct=False),
+        ]
+        v2 = evaluate_agreement_calibrated_synthesis(responses, self.task)
+        v1 = evaluate_confidence_weighted_synthesis(responses, self.task)
+        self.assertEqual(v2.predicted_answer, v1.predicted_answer)
+        self.assertAlmostEqual(v2.predicted_confidence, 1 / 3)
+
+
+class TestRunHermeticV2(unittest.TestCase):
+    # Small n and a non-headline seed: tests never touch the registered
+    # headline configuration (n=300, seed=20260926).
+    def test_reproducible(self):
+        a = SynthesisCalibrationArena(n_tasks=30, seed=11).run_hermetic_v2()
+        b = SynthesisCalibrationArena(n_tasks=30, seed=11).run_hermetic_v2()
+        self.assertEqual(a["proof_hash"], b["proof_hash"])
+
+    def test_structure_and_pre_registration(self):
+        proof = SynthesisCalibrationArena(n_tasks=30, seed=12).run_hermetic_v2()
+        self.assertEqual(proof["hypothesis"], PRE_REGISTERED_HYPOTHESIS_V2)
+        self.assertIn(str(IMPROVEMENT_THRESHOLD_BRIER_DELTA_V2), proof["improvement_threshold"])
+        self.assertIn(proof["classification"], ("IMPROVED", "NO_MEASURABLE_IMPROVEMENT", "WORSE"))
+        self.assertEqual(proof["evidence_level"], "SIMULATED")
+        self.assertEqual(proof["total_agent_calls"], 90)
+        self.assertEqual(len(proof["proof_hash"]), 64)
+
+    def test_v1_and_v2_share_accuracy(self):
+        """Answers are identical by construction; only confidence differs."""
+        proof = SynthesisCalibrationArena(n_tasks=30, seed=13).run_hermetic_v2()
+        acc = proof["accuracy"]
+        self.assertEqual(
+            acc["v1_synthesis_self_reported"]["correct"],
+            acc["v2_synthesis_agreement_fraction"]["correct"],
+        )
+
+    def test_secondary_comparison_carries_no_classification(self):
+        proof = SynthesisCalibrationArena(n_tasks=30, seed=14).run_hermetic_v2()
+        self.assertIn("secondary_brier_delta_v2_minus_majority_descriptive_only", proof)
+        self.assertTrue(any("naive majority" in c for c in proof["no_claims"]))
 
 if __name__ == "__main__":
     unittest.main()

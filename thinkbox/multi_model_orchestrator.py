@@ -23,9 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -66,8 +64,13 @@ class ProviderMetrics:
 
 @dataclass
 class RoutingDecision:
-    """Decision about which provider(s) to use."""
-    primary_provider: ProviderName
+    """Decision about which provider(s) to use.
+
+    primary_provider is None when no configured provider satisfies the
+    given constraints (e.g. max_latency_ms) — callers must check for this
+    rather than assume a provider is always chosen.
+    """
+    primary_provider: Optional[ProviderName]
     fallback_providers: list[ProviderName] = field(default_factory=list)
     strategy: ExecutionStrategy = ExecutionStrategy.FASTEST
     estimated_cost_usd: float = 0.0
@@ -126,6 +129,8 @@ class MultiModelOrchestrator:
         self._quality_scores: dict[ProviderName, list[float]] = {
             p: [] for p in ProviderName
         }
+        self._consensus_agreements = 0
+        self._consensus_disagreements = 0
         self._initialize_providers()
 
     def _initialize_providers(self) -> None:
@@ -162,12 +167,27 @@ class MultiModelOrchestrator:
         """
         constraints = constraints or {}
         max_latency = constraints.get("max_latency_ms", float("inf"))
-        max_cost = constraints.get("max_cost", self.budget_usd - self.spent_usd)
+        # Only an explicitly-passed max_cost is enforced here. There is no
+        # honest default to synthesize: the orchestrator's remaining
+        # monthly budget is already enforced separately in execute(), and
+        # defaulting max_cost to that same figure would just duplicate
+        # that check under a different error message.
+        explicit_max_cost = constraints.get("max_cost")
+        estimated_tokens = max(1, len(prompt) // 4)
 
-        # Score all available providers
+        # Score all available providers that satisfy hard constraints.
+        # A provider with no measured latency yet (latency_p95_ms == 0.0)
+        # always passes the max_latency filter — we have no evidence it
+        # violates the constraint, so excluding it would be a false claim.
         scores = {}
         for provider_name, metrics in self._metrics.items():
             if not metrics.available:
+                continue
+            if metrics.latency_p95_ms > max_latency:
+                continue
+            if explicit_max_cost is not None and (
+                estimated_tokens * metrics.cost_per_1k_tokens / 1000 > explicit_max_cost
+            ):
                 continue
 
             # Multi-factor scoring
@@ -192,17 +212,50 @@ class MultiModelOrchestrator:
         )
 
         if not sorted_providers:
-            primary = ProviderName.LOCAL
-            fallbacks = []
-        else:
-            primary = sorted_providers[0][0]
-            fallbacks = [p[0] for p in sorted_providers[1:3]]  # Top 2 fallbacks
+            # No configured provider satisfies the constraints (or none are
+            # configured at all). Say so honestly rather than silently
+            # picking a provider that wasn't actually evaluated.
+            return RoutingDecision(
+                primary_provider=None,
+                fallback_providers=[],
+                strategy=self.strategy,
+                estimated_cost_usd=0.0,
+                rationale="No provider satisfies the given constraints "
+                          f"(max_latency_ms={max_latency}, max_cost={explicit_max_cost})",
+            )
 
-        # Estimate cost (minimum 1 token)
-        estimated_tokens = max(1, len(prompt) // 4)
-        estimated_cost = (
-            estimated_tokens * self._metrics[primary].cost_per_1k_tokens / 1000
+        if self.strategy == ExecutionStrategy.CHEAPEST:
+            # Re-rank the constraint-satisfying candidates purely by cost.
+            sorted_providers = sorted(
+                sorted_providers,
+                key=lambda item: self._metrics[item[0]].cost_per_1k_tokens,
+            )
+
+        primary = sorted_providers[0][0]
+        fallbacks = [p[0] for p in sorted_providers[1:3]]  # Top 2 fallbacks
+
+        # Estimate cost. PARALLEL and CONSENSUS call every candidate, so the
+        # estimate must cover all of them — estimating only the primary
+        # would let those strategies spend past the budget.
+        if self.strategy in (ExecutionStrategy.PARALLEL, ExecutionStrategy.CONSENSUS):
+            billed = [primary] + fallbacks
+        else:
+            billed = [primary]
+        estimated_cost = sum(
+            estimated_tokens * self._metrics[p].cost_per_1k_tokens / 1000
+            for p in billed
         )
+
+        if explicit_max_cost is not None and estimated_cost > explicit_max_cost:
+            return RoutingDecision(
+                primary_provider=None,
+                fallback_providers=[],
+                strategy=self.strategy,
+                estimated_cost_usd=estimated_cost,
+                rationale=f"{self.strategy.value} would call {len(billed)} "
+                          f"provider(s) for an estimated ${estimated_cost:.6f}, "
+                          f"exceeding max_cost=${explicit_max_cost:.6f}",
+            )
 
         rationale = (
             f"Selected {primary.value} based on:"
@@ -223,18 +276,25 @@ class MultiModelOrchestrator:
         self,
         prompt: str,
         routing: Optional[RoutingDecision] = None,
+        constraints: Optional[dict[str, Any]] = None,
     ) -> ExecutionResult:
         """Execute prompt using orchestrator's routing decision.
 
         Args:
             prompt: The prompt to execute
-            routing: Optional pre-computed routing decision
+            routing: Optional pre-computed routing decision. When given,
+                `constraints` is ignored (the routing was already decided).
+            constraints: Optional constraints (max_latency_ms, max_cost),
+                forwarded to route_request() when routing is not supplied.
 
         Returns:
             ExecutionResult from best available provider
         """
         if routing is None:
-            routing = await self.route_request(prompt)
+            routing = await self.route_request(prompt, constraints=constraints)
+
+        if routing.primary_provider is None:
+            return ExecutionResult(success=False, error=routing.rationale)
 
         # Check budget
         if routing.estimated_cost_usd > self.budget_usd - self.spent_usd:
@@ -243,30 +303,136 @@ class MultiModelOrchestrator:
                 error=f"Budget exceeded: ${routing.estimated_cost_usd:.2f} > ${self.budget_usd - self.spent_usd:.2f} remaining",
             )
 
-        # Try execution with primary and fallbacks
-        providers_to_try = [routing.primary_provider] + routing.fallback_providers
+        candidates = [routing.primary_provider] + routing.fallback_providers
 
-        for provider in providers_to_try:
+        if routing.strategy == ExecutionStrategy.CONSENSUS:
+            return await self._execute_consensus(prompt, candidates)
+        elif routing.strategy == ExecutionStrategy.PARALLEL:
+            return await self._execute_parallel(prompt, candidates)
+        else:
+            # FASTEST and CHEAPEST both try candidates in the order
+            # route_request already ranked them in (composite score for
+            # FASTEST, ascending cost for CHEAPEST) and return the first
+            # success — they differ in *ranking*, not in execution shape.
+            return await self._execute_sequential(prompt, candidates)
+
+    async def _execute_sequential(
+        self, prompt: str, candidates: list[ProviderName]
+    ) -> ExecutionResult:
+        """Try candidates in order, returning the first success."""
+        for provider in candidates:
             try:
                 result = await self._execute_with_provider(prompt, provider)
 
                 if result.success:
-                    # Update metrics
                     self._record_success(provider, result)
                     return result
                 else:
-                    self._record_failure(provider)
+                    self._record_failure(provider, error=result.error)
 
             except Exception as e:
                 logger.warning(f"Provider {provider.value} failed: {e}")
-                self._record_failure(provider)
+                self._record_failure(provider, error=str(e))
                 continue
 
-        # All providers failed
         return ExecutionResult(
             success=False,
-            error=f"All providers failed: {providers_to_try}",
+            error=f"All providers failed: {candidates}",
         )
+
+    async def _execute_parallel(
+        self, prompt: str, candidates: list[ProviderName]
+    ) -> ExecutionResult:
+        """Execute every candidate concurrently; record cost/metrics for
+        each one that actually ran (the "aggregation"), and return the
+        fastest success. Unlike _execute_sequential, every candidate is
+        billed and metriced, not just the one that wins."""
+        tasks = [self._execute_with_provider(prompt, p) for p in candidates]
+        outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+
+        successes = []
+        for provider, outcome in zip(candidates, outcomes, strict=True):
+            if isinstance(outcome, Exception):
+                logger.warning(f"Provider {provider.value} failed: {outcome}")
+                self._record_failure(provider, error=str(outcome))
+                continue
+            if outcome.success:
+                self._record_success(provider, outcome)
+                successes.append(outcome)
+            else:
+                self._record_failure(provider, error=outcome.error)
+
+        if not successes:
+            return ExecutionResult(
+                success=False,
+                error=f"All providers failed: {candidates}",
+            )
+
+        return min(successes, key=lambda r: r.latency_ms)
+
+    @staticmethod
+    def _normalize_output(output: Optional[str], provider: ProviderName) -> str:
+        """Strip the provider-identifying prefix so consensus compares
+        *answers*, not which provider produced them."""
+        if output is None:
+            return ""
+        prefix = f"[{provider.value}] "
+        return output[len(prefix):] if output.startswith(prefix) else output
+
+    async def _execute_consensus(
+        self, prompt: str, candidates: list[ProviderName]
+    ) -> ExecutionResult:
+        """Execute up to 3 candidates concurrently and require a strict
+        majority of successful responses to agree on the same normalized
+        answer before returning success. This is deliberately stricter
+        than FASTEST/PARALLEL: agreement, not speed, is the point."""
+        polled = candidates[:3]
+        if len(polled) < 2:
+            return ExecutionResult(
+                success=False,
+                error=f"Consensus requires at least 2 providers; only "
+                      f"{len(polled)} available after constraints",
+            )
+        tasks = [self._execute_with_provider(prompt, p) for p in polled]
+        outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+
+        successes: list[ExecutionResult] = []
+        for provider, outcome in zip(polled, outcomes, strict=True):
+            if isinstance(outcome, Exception):
+                logger.warning(f"Provider {provider.value} failed: {outcome}")
+                self._record_failure(provider, error=str(outcome))
+                continue
+            if outcome.success:
+                self._record_success(provider, outcome)
+                successes.append(outcome)
+            else:
+                self._record_failure(provider, error=outcome.error)
+
+        if len(successes) < 2:
+            return ExecutionResult(
+                success=False,
+                error=f"Consensus requires at least 2 successful responses; "
+                      f"got {len(successes)} of {len(polled)} polled",
+            )
+
+        buckets: dict[str, list[ExecutionResult]] = {}
+        for r in successes:
+            key = self._normalize_output(r.output, r.provider)
+            buckets.setdefault(key, []).append(r)
+
+        best_key, best_group = max(buckets.items(), key=lambda kv: len(kv[1]))
+        total = len(successes)
+
+        if len(best_group) > total / 2:
+            self._consensus_agreements += 1
+            return best_group[0]
+        else:
+            self._consensus_disagreements += 1
+            return ExecutionResult(
+                success=False,
+                error=f"No majority consensus among {total} providers "
+                      f"({len(best_group)}/{total} agreed on the top answer)",
+            )
 
     async def _execute_with_provider(
         self,
@@ -332,12 +498,14 @@ class MultiModelOrchestrator:
                 0.9 * metrics.latency_p95_ms + 0.1 * result.latency_ms * 1.3
             )
 
-        # Aggregate metrics
-        provider_name = provider.value
-        self._execution_history[-1].provider = provider
 
-    def _record_failure(self, provider: ProviderName) -> None:
+    def _record_failure(
+        self, provider: ProviderName, error: Optional[str] = None
+    ) -> None:
         """Record failed execution."""
+        self._execution_history.append(
+            ExecutionResult(success=False, provider=provider, error=error)
+        )
         metrics = self._metrics[provider]
         metrics.consecutive_failures += 1
         metrics.last_failure_time = time.monotonic()
@@ -380,6 +548,8 @@ class MultiModelOrchestrator:
             cost_per_execution=self.spent_usd / len(self._execution_history)
             if self._execution_history
             else 0,
+            consensus_agreements=self._consensus_agreements,
+            consensus_disagreements=self._consensus_disagreements,
         )
 
     async def shutdown(self) -> None:

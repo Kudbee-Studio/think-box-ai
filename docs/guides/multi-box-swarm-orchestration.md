@@ -270,6 +270,24 @@ fabric = coordinator.knowledge_fabric
 findings = fabric.query_by_source(box.box_id)  # Still there!
 ```
 
+Knowledge also survives the process, once written to disk:
+```python
+path = coordinator.knowledge_fabric.persist()   # atomic write, returns the path
+
+# Later, in a different process:
+fabric = KnowledgeFabric.load(path)             # re-verifies every proof hash
+findings = fabric.query_by_source(box_id)
+```
+
+`load()` refuses a file in which any node's content no longer matches its
+proof hash, rather than loading tampered knowledge. Persistence is to a
+local JSON file; there is no multi-writer or database backend yet.
+
+> **Correction (PR #264):** as first merged in #263, `persist()` built its
+> payload but never wrote it, while logging that it had. Knowledge survived
+> box shutdown but not the process. That is fixed and covered by
+> round-trip, tamper, and atomic-write tests.
+
 ### Integrity
 
 Every node has cryptographic proof:

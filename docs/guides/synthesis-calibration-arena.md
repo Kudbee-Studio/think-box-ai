@@ -92,7 +92,7 @@ high self-confidence, and the synthesis engine faithfully reports that high
 number — decoupled from the one piece of information it actually has and
 isn't using: how many agents agreed.
 
-## Concrete, Scoped Fix (not yet applied)
+## Concrete, Scoped Fix (applied in v2, see below)
 
 `SynthesisEngine.synthesize_findings` should compute (or at minimum expose
 alongside `average_confidence`) an **agreement-fraction-derived confidence**
@@ -133,6 +133,66 @@ print(arena.run_hermetic().to_dict())
 Same seed, same machine or a different one, identical proof hash. Anyone
 can independently verify this without trusting the report above.
 
+## v2: Testing the Fix (separately pre-registered)
+
+The v1 result identified a fix: derive consensus confidence from the
+agreement structure instead of averaging boxes' self-reported confidence.
+`SynthesisEngine.synthesize_findings` now exposes `agreement_fraction`
+(agreements ÷ findings synthesized) on every consensus and conflicting
+finding, alongside the unchanged `average_confidence`. The change is
+additive: the committed v1 proof hash still reproduces exactly, and a test
+now asserts that.
+
+Re-running H1 on the same data after seeing why it failed would be
+p-hacking, so v2 is a **new hypothesis**, committed in `bd80cf8e` before
+the headline run:
+
+- **H2:** Synthesis confidence derived from `agreement_fraction` achieves a
+  lower Brier score than confidence derived from `average_confidence`, on
+  the same responses and the same predicted answers.
+- **Threshold:** Brier reduction > 0.05 and the paired bootstrap 95% CI
+  excludes zero (same bar as v1).
+- **Stated expectation, before the run:** with 3 responses per task,
+  `agreement_fraction` takes the values 1/3, 2/3 or 1, the same values as
+  naive majority vote's vote share. v2 is not expected to beat the
+  majority-vote baseline on calibration, so that comparison is reported as
+  descriptive only and carries no classification.
+
+The design holds the predicted answer fixed (the run raises an error if v1
+and v2 ever pick different answers), so confidence is the only variable.
+
+### v2 Result (n=300 tasks, 900 simulated agent calls, seed=20260926)
+
+| Condition | Accuracy | Brier score |
+|---|---|---|
+| Synthesis, self-reported confidence (v1) | 78.7% [73.7%, 82.9%] | 0.212 |
+| Synthesis, agreement-derived confidence (v2) | 78.7% [73.7%, 82.9%] | **0.120** |
+| Naive majority vote | 74.7% [69.5%, 79.3%] | 0.106 |
+
+**Primary, Brier(v2) − Brier(v1):** −0.093, 95% CI [−0.121, −0.065].
+**Classification: `IMPROVED`**, which clears the pre-registered bar.
+
+**Secondary, Brier(v2) − Brier(majority), descriptive only:** +0.013,
+95% CI [0.000, 0.027]. The CI includes zero, which matches the stated
+expectation. The fix brings the engine's confidence to roughly the
+baseline's calibration. It does not beat the baseline, and this document
+does not claim it does.
+
+What this shows: the calibration problem v1 found was in how confidence
+was reported, not in which answer was picked, and the fix addresses it.
+What it doesn't show: anything about real models. Every number here is
+SIMULATED (seeded synthetic agents), the same as v1.
+
+Proof: `data/thinkboxmd/artifacts/synthesis_calibration_v2_proof.json`
+(SHA-256 `7c072a7b1f8d2be0e35ea0b1a129a29dd31165557d46448aa919a4356178092c`).
+
+```bash
+python3 -c "
+from thinkbox.synthesis_calibration_arena import SynthesisCalibrationArena
+print(SynthesisCalibrationArena(n_tasks=300, seed=20260926).run_hermetic_v2()['proof_hash'])
+"
+```
+
 ## Four-State Classification
 
 | State | Status |
@@ -140,4 +200,4 @@ can independently verify this without trusting the report above.
 | **CODE_COMPLETE** | ✅ Experiment harness, 3 conditions, statistics |
 | **TEST_VERIFIED** | ✅ 31/31 tests, deterministic reproducibility verified |
 | **LIVE_VERIFIED** | ⏳ Not attempted — `run_live()` explicitly refuses to fabricate a result (AGENTS.md §4.4) pending real provider wiring and an explicit compute budget decision |
-| **PRODUCTION_READY** | ⏳ Pending the scoped fix above and a second, separately pre-registered re-test |
+| **PRODUCTION_READY** | ⏳ Fix applied and re-tested under a separate pre-registration (v2, `IMPROVED`); still simulated-only, so pending a live run |
