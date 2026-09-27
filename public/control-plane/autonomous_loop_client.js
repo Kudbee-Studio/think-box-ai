@@ -188,6 +188,51 @@
     }
   }
 
+  async function fetchActionIntegrity() {
+    try {
+      const res = await fetch("/api/v1/autonomous-loop/actions/integrity");
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function renderActionIntegrity(data) {
+    const badge = document.getElementById("integrityBadge");
+    const detail = document.getElementById("integrityDetail");
+    if (!badge) return;
+    if (!data) {
+      badge.textContent = "OFFLINE";
+      badge.className = "al-badge al-comp-inactive";
+      if (detail) detail.textContent = "Integrity endpoint unavailable";
+      return;
+    }
+    if (!data.attached) {
+      badge.textContent = "NOT ATTACHED";
+      badge.className = "al-badge al-comp-inactive";
+      if (detail) detail.textContent = "Durability disabled; actions are in-memory only";
+      return;
+    }
+    const valid = data.valid === true;
+    badge.textContent = valid ? "VALID" : "TAMPERED";
+    badge.className = "al-badge " + (valid ? "al-comp-active" : "al-comp-inactive");
+    if (!valid) {
+      badge.style.background = "#2d1a1a";
+      badge.style.borderColor = "#9b2c2c";
+      badge.style.color = "var(--color-warning)";
+    } else {
+      badge.style.background = "";
+      badge.style.borderColor = "";
+      badge.style.color = "";
+    }
+    if (detail) {
+      detail.textContent =
+        data.count + " persisted receipt(s), hash chain " +
+        (valid ? "intact" : "BROKEN");
+    }
+  }
+
   function renderStatusOverview(statusData) {
     if (!statusData) {
       document.getElementById("statusVal").textContent = "OFFLINE";
@@ -445,6 +490,8 @@
       renderSelectedLoop(null, null);
       renderActionList([]);
       showActionStatus("", false);
+      const emptyIntegrity = await fetchActionIntegrity();
+      renderActionIntegrity(emptyIntegrity);
       return;
     }
     const [detail, telemetry, actions] = await Promise.all([
@@ -454,6 +501,8 @@
     ]);
     renderSelectedLoop(detail, telemetry);
     renderActionList(actions);
+    const integrity = await fetchActionIntegrity();
+    renderActionIntegrity(integrity);
   }
 
   async function refreshAll() {
@@ -569,6 +618,8 @@
       postLoopAction,
       renderActionList,
       showActionStatus,
+      fetchActionIntegrity,
+      renderActionIntegrity,
       renderSelectedLoop,
       refreshSelectedDetail,
       sendLoopAction,
