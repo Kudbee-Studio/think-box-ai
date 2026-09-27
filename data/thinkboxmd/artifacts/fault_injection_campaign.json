@@ -1,0 +1,232 @@
+{
+  "crashed": 0,
+  "loud_failures": 19,
+  "passed": true,
+  "recovered_successes": 3,
+  "silent_successes": 0,
+  "total": 22,
+  "trials": [
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "compute",
+      "kind": "malformed_json",
+      "task_id": "fault-malformed_json-compute-add_small",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "distractor",
+      "kind": "malformed_json",
+      "task_id": "fault-malformed_json-distractor-wrongkey",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "multifield",
+      "kind": "malformed_json",
+      "task_id": "fault-malformed_json-multifield-parity",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "compute",
+      "kind": "truncated_json",
+      "task_id": "fault-truncated_json-compute-add_small",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "distractor",
+      "kind": "truncated_json",
+      "task_id": "fault-truncated_json-distractor-wrongkey",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "multifield",
+      "kind": "truncated_json",
+      "task_id": "fault-truncated_json-multifield-parity",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": true,
+      "exception_type": null,
+      "expected": "recovers",
+      "family": "compute",
+      "kind": "wrong_key_transient",
+      "task_id": "fault-wrong_key_transient-compute-add_small",
+      "valid": true,
+      "verdict": "recovered_success"
+    },
+    {
+      "converted": true,
+      "exception_type": null,
+      "expected": "recovers",
+      "family": "distractor",
+      "kind": "wrong_key_transient",
+      "task_id": "fault-wrong_key_transient-distractor-wrongkey",
+      "valid": true,
+      "verdict": "recovered_success"
+    },
+    {
+      "converted": true,
+      "exception_type": null,
+      "expected": "recovers",
+      "family": "multifield",
+      "kind": "wrong_key_transient",
+      "task_id": "fault-wrong_key_transient-multifield-parity",
+      "valid": true,
+      "verdict": "recovered_success"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "compute",
+      "kind": "wrong_key_persistent",
+      "task_id": "fault-wrong_key_persistent-compute-add_small",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "distractor",
+      "kind": "wrong_key_persistent",
+      "task_id": "fault-wrong_key_persistent-distractor-wrongkey",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "multifield",
+      "kind": "wrong_key_persistent",
+      "task_id": "fault-wrong_key_persistent-multifield-parity",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "compute",
+      "kind": "off_by_one",
+      "task_id": "fault-off_by_one-compute-add_small",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "distractor",
+      "kind": "off_by_one",
+      "task_id": "fault-off_by_one-distractor-wrongkey",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "multifield",
+      "kind": "off_by_one",
+      "task_id": "fault-off_by_one-multifield-parity",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": false,
+      "exception_type": null,
+      "expected": "never_succeeds",
+      "family": "multifield",
+      "kind": "multifield_inconsistent",
+      "task_id": "fault-multifield_inconsistent-multifield-parity",
+      "valid": false,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "TimeoutFault",
+      "expected": "raises_timeout",
+      "family": "compute",
+      "kind": "timeout",
+      "task_id": "fault-timeout-compute-add_small",
+      "valid": null,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "TimeoutFault",
+      "expected": "raises_timeout",
+      "family": "distractor",
+      "kind": "timeout",
+      "task_id": "fault-timeout-distractor-wrongkey",
+      "valid": null,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "TimeoutFault",
+      "expected": "raises_timeout",
+      "family": "multifield",
+      "kind": "timeout",
+      "task_id": "fault-timeout-multifield-parity",
+      "valid": null,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "BudgetExhausted",
+      "expected": "raises_budget_exhausted",
+      "family": "compute",
+      "kind": "budget_starve",
+      "task_id": "fault-budget_starve-compute-add_small",
+      "valid": null,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "BudgetExhausted",
+      "expected": "raises_budget_exhausted",
+      "family": "distractor",
+      "kind": "budget_starve",
+      "task_id": "fault-budget_starve-distractor-wrongkey",
+      "valid": null,
+      "verdict": "loud_failure"
+    },
+    {
+      "converted": null,
+      "exception_type": "BudgetExhausted",
+      "expected": "raises_budget_exhausted",
+      "family": "multifield",
+      "kind": "budget_starve",
+      "task_id": "fault-budget_starve-multifield-parity",
+      "valid": null,
+      "verdict": "loud_failure"
+    }
+  ],
+  "under_recovered": 0,
+  "unexpected": 0
+}

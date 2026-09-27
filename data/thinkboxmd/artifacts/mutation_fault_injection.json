@@ -1,0 +1,14 @@
+{
+  "evidence_level": "MEASURED",
+  "killed": 31,
+  "killed_by_timeout": 0,
+  "module": "thinkbox.fault_injection",
+  "module_sha256": "efd7f9dc9f2395bdde414ed01b7f27b45e9260d6199571569ba3edd5f89162ec",
+  "note": "A survivor is an untested behavior or an equivalent mutant. Each needs a human verdict; the score alone does not decide.",
+  "score": 1.0,
+  "survived": 0,
+  "survivors": [],
+  "tests": "tests.unit.test_fault_injection",
+  "tests_sha256": "98f52e3631bda077e60c4bac53f8ebc542c0c32c7e773237de8c6f5ee74752a7",
+  "total": 31
+}

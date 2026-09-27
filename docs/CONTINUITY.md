@@ -3242,3 +3242,15 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **RATCHET:** baseline keyed by rule/file/function (not line); `TestRepoRatchet` fails on anything new. Standing rule AGENTS.md §13.13.
 - **SELF-CHECK:** mutation testing (item 1) on the auditor's tests: 31/40 → 39/40; the survivor (`sort_keys`) is effectively equivalent. The auditor passes its own audit.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+
+### 2026-09-27 — GitHub PR #267 merged; #268 (open): flight readiness item 3, fault-injection chaos harness
+
+- **#267** merged `c2af3ce`. Main's `test` run for it ended in ~4s (runner outage continues; checked again at 08:10 and 12:30 UTC, still down).
+- **SCOPE (#268):** `thinkbox/fault_injection.py` + `scripts/fault_injection_campaign.py`. Drives a real `VerifiedRetrySession` (Arena v3, not a mock of it) against a scripted lying provider across 8 fault kinds (malformed/truncated JSON, wrong-key transient/persistent, off-by-one, multifield-inconsistent, timeout, budget-starve), each mapped onto a taxonomy branch `verify_v2` already classifies.
+- **THE INVARIANT:** the judge never trusts `result.valid`; for each trial it independently derives, from how the fault was constructed, whether a genuine success was possible, then compares. A verdict of SILENT_SUCCESS means the system accepted a response ground truth says can never be correct -- the "fake success" AGENTS.md §4.4 forbids, caught adversarially rather than by code review.
+- **RESULT:** 22 trials, 0 silent successes, 0 crashes, 0 under-recovered (a new, distinctly-labeled verdict for a fixable fault the retry mechanism failed to fix -- safe but a real regression), 0 unexpected. 3 recovered (transient wrong-key, matching the Arena v3 finding), 19 loud failures.
+- **SELF-CAUGHT BUG:** the first BUDGET_STARVE draft had no scripted first-call response and raised a bare ValueError; the harness's own judge classified it CRASHED instead of silently passing. Fixed by giving it the same retryable wrong-key response as the transient case.
+- **MUTATION SCORE:** 31/31 (100%) on the harness's own tests -- 4 initial survivors (frozen-dataclass mutability, an `and`->`or` flip in the exception-path judge branch, the same flip in the `passed` property's AND-chain, and the exact +2 offset in the multifield-inconsistent fault) each closed with a targeted test.
+- **STANDING RULE:** AGENTS.md §13.14 -- a fault campaign's judge must derive ground truth independently, never trust the system's own success flag.
+- **NEXT ARC:** `docs/guides/flight-readiness.md` "Ten Ideas for the Next Arc" -- items 4-10 from the existing table plus 3 new: counterfactual DENY explanations, reproducible-build proof attestation, differential provider fuzzing. None built yet; the next PR picks one honestly rather than by momentum.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED -- `live_verified: false`.
