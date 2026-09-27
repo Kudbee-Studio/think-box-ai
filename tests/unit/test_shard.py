@@ -960,5 +960,36 @@ class TestShardedGoalExecutorLedgerAndCheckpoint(unittest.IsolatedAsyncioTestCas
         self.assertEqual(summary.first_try_successes, 4)
 
 
+
+class TestPerShardRunnerIsolation(unittest.TestCase):
+    """Each shard must run on its own runner_factory() instance. A closure
+    that reads the loop variable `runner` late would run every shard on the
+    last shard's runner (flagged by ruff B023)."""
+
+    def test_each_shard_uses_its_own_runner(self) -> None:
+        calls: list[tuple[int, tuple[str, ...]]] = []
+        made: list[int] = []
+
+        class RecordingRunner:
+            def __init__(self) -> None:
+                self.n = len(made)
+                made.append(self.n)
+
+            async def run_concurrent(self, specs, complete_async, **kwargs):
+                calls.append((self.n, tuple(s.goal for s in specs)))
+                raise RuntimeError(f"recording runner {self.n}")
+
+        ex = ShardedGoalExecutor(num_shards=4, runner_factory=RecordingRunner)
+        specs = [ConcurrentGoalSpec(goal=f"g{i}", subtasks=[]) for i in range(24)]
+        try:
+            asyncio.run(ex.run_concurrent(specs, lambda prompt: prompt))
+        except Exception:
+            pass  # failures are expected; only runner assignment is under test
+
+        self.assertGreater(len(calls), 1, "test needs goals spread over several shards")
+        runner_ids = [n for n, _goals in calls]
+        self.assertEqual(len(set(runner_ids)), len(calls),
+                         f"shards shared a runner: {calls}")
+
 if __name__ == "__main__":
     unittest.main()

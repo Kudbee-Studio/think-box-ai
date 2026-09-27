@@ -1101,7 +1101,7 @@ class ShardedGoalExecutor:
             runner = self.runner_factory()
             shard_cfg = _config_for_shard(cfg, budget, sid)
 
-            async def _run_one(sid: str = sid, scfg: ConcurrentGoalsConfig = shard_cfg, sspecs: list[ConcurrentGoalSpec] = shard_specs) -> ConcurrentGoalsResult:
+            async def _run_one(sid: str = sid, scfg: ConcurrentGoalsConfig = shard_cfg, sspecs: list[ConcurrentGoalSpec] = shard_specs, runner: ConcurrentGoalsRunner = runner) -> ConcurrentGoalsResult:
                 self.backpressure.observe(sid, 0.0, enqueued=True)
                 try:
                     local = await runner.run_concurrent(
