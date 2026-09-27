@@ -1,0 +1,3 @@
+'''Unified library for autonomous governance and verification.
+Provides reusable functions for governance checks and end-to-end proof generation.
+'''\n\nfrom thinkbox.governance import check_admission, record_audit\n\ndef verify_and_record(task_id: str, context: dict) -> bool:\n    """Run governance admission and record audit for a task.\n    Returns True if admission passed and audit recorded successfully."""\n    if not check_admission(task_id, context):\n        return False\n    record_audit(task_id, context)\n    return True\n
