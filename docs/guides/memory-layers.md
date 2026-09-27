@@ -350,3 +350,38 @@ print(f"Total entries: {memory.count()}")  # Safe to read while others write
    "task_id": task_id  # Which task discovered this?
    ```
 
+---
+
+## Committed Memory Seeds (rehydrate on any machine)
+
+The SQLite memory store (`data/thinkboxmd/db/memory_layers.db`) is gitignored
+and local to one machine. What makes lessons outlive a machine or a session
+is two committed tables in `thinkbox/memory_layers.py`, loaded by
+`ingest_markdown()`:
+
+| Seed | Layer | Written when |
+|------|-------|--------------|
+| `CHRONICLE_PATTERNS` | Organizational | every listed evidence file exists |
+| `CHRONICLE_FACTS` | Verified Knowledge | every evidence file exists **and** each JSON artifact still carries the `proof_hash` the fact was recorded against |
+
+The proof-hash rule fails closed: if an artifact changes, ingest raises
+`MemoryLayerError("fact_evidence_mismatch")` instead of quietly keeping or
+dropping the fact. Update the fact deliberately, or don't claim it.
+
+```bash
+python3 scripts/ingest_memory_layers.py \
+  --session-id <session> --task-id <task> --agent-id <agent>
+# markdown_files=… patterns=12 … organizational=12 verified=4 live_verified=False
+```
+
+Two tests keep the seeds honest against the real repository:
+`TestRepoChronicle.test_all_chronicle_patterns_have_evidence_in_repo` and
+`test_all_chronicle_facts_verify_in_repo`. A seed whose evidence goes missing
+fails CI instead of silently disappearing from memory.
+
+**Adding a lesson:** add a `(pattern_id, description, evidence_paths)` row to
+`CHRONICLE_PATTERNS`, citing the committed files that prove it. **Adding a
+fact:** add an entry to `CHRONICLE_FACTS` with `fact`, `how`, `evidence`,
+`confidence`, and `proof_hash` when the evidence is a proof artifact. Nothing
+seeded may set `live_verified: true`.
+

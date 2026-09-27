@@ -701,7 +701,7 @@ Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be
 | Auditable governance layer | **#261** (merged `d03b5eb`) | `thinkbox/governance_ledger.py` — value signals, conflict detection, SHA-256 proof chain, audit trail; 17 tests. Accountability infrastructure, not an alignment claim |
 | Governed execution integration | **#262** (merged `07f813e`) | `thinkbox/governed_execution.py` — ALLOW/DENY/ESCALATE gate in the task loop; 10 integration tests |
 | Multi-box orchestration + calibration v1 | **#263** (merged `d1eccd2`) | `thinkbox/multi_box_orchestration.py` (knowledge fabric, synthesis) + `thinkbox/synthesis_calibration_arena.py`; pre-registered v1 result `WORSE` (honest negative) |
-| Orchestrator strategy fix + calibration v2 | **#264** (open) | CHEAPEST/CONSENSUS/PARALLEL + constraints actually implemented; budget/consensus/failure-count defects fixed; `KnowledgeFabric.persist()` made real + verifying `load()`; `agreement_fraction` added; pre-registered v2 result `IMPROVED` (simulated) |
+| Orchestrator strategy fix + calibration v2 | **#264** (open) | CHEAPEST/CONSENSUS/PARALLEL + constraints actually implemented; budget/consensus/failure-count defects fixed; `KnowledgeFabric.persist()` made real + verifying `load()`; memory seeds (7 patterns, 3 proof-pinned facts); `agreement_fraction` added; pre-registered v2 result `IMPROVED` (simulated) |
 
 Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
 

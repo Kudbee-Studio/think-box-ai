@@ -9,6 +9,8 @@
 > constraints implemented (gap from #260), self-review defects fixed, `KnowledgeFabric.persist()` made real
 > (was a no-op that logged success) with a verifying `load()`, `agreement_fraction` added to
 > `SynthesisEngine`, pre-registered calibration v2 `IMPROVED` (simulated).
+> **Memory layers:** 7 organizational patterns + 3 verified facts seeded in `thinkbox/memory_layers.py`; rehydrate with
+> `scripts/ingest_memory_layers.py` (DB is local/gitignored).
 > **Gate:** CI runners unavailable repo-wide (jobs end in ~3 s with `runner_id: 0`; reproduces on
 > `main`). Admin action: Settings → Actions. Local verification: orchestrator 41 OK, multi-box 36 OK,
 > calibration arena 39 OK, full suite FULL_SUITE_COUNT_PENDING.

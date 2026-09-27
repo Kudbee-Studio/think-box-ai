@@ -46,6 +46,92 @@ CHRONICLE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         "Trait Lab Python engine is source of truth. Browser ports LCG 1664525. live_verified stays false.",
         ("thinkbox/trait_game/engine.py", "public/nfts/trait_game.js"),
     ),
+    (
+        "pre-registered-experiments",
+        "Quality claims go through a pre-registered experiment: hypothesis, threshold, and expected "
+        "outcome committed before the headline run. Failures are reported as WORSE or "
+        "NO_MEASURABLE_IMPROVEMENT. A fix gets a new hypothesis, not a re-run of the old one.",
+        ("AGENTS.md", "docs/guides/synthesis-calibration-arena.md", "thinkbox/synthesis_calibration_arena.py"),
+    ),
+    (
+        "suspect-clean-results",
+        "A result that looks unusually clean is checked for artifacts in the experiment itself before "
+        "it is reported.",
+        ("docs/guides/synthesis-calibration-arena.md",),
+    ),
+    (
+        "docs-need-behavioral-tests",
+        "Documented behavior needs a test that exercises it. A test that only checks a constructor "
+        "stored an enum does not verify the behavior the docs describe.",
+        ("docs/guides/multi-model-orchestrator.md", "tests/unit/test_multi_model_orchestrator.py"),
+    ),
+    (
+        "persistence-means-round-trip",
+        "A durability claim needs a write-then-load round-trip test. A persist() that logs success "
+        "without writing is a false claim.",
+        ("docs/guides/multi-box-swarm-orchestration.md", "tests/unit/test_multi_box_orchestration.py"),
+    ),
+    (
+        "calibrate-from-agreement",
+        "Aggregate confidence comes from the agreement structure (the fraction that agree), not from "
+        "averaging members' self-reported confidence.",
+        ("docs/guides/synthesis-calibration-arena.md", "data/thinkboxmd/artifacts/synthesis_calibration_v2_proof.json"),
+    ),
+    (
+        "ci-instant-fail-is-infra",
+        "CI jobs that finish in seconds with runner_id 0 and empty logs never ran. Check the runner and "
+        "Actions settings before touching code.",
+        ("docs/CONTINUITY.md",),
+    ),
+    (
+        "git-status-before-checkout",
+        "Run git status before any checkout, restore, or reset that touches paths. Uncommitted work is "
+        "not recoverable from git.",
+        ("docs/CONTINUITY.md",),
+    ),
+)
+
+# Verified Knowledge seeded from committed proof artifacts. Each fact names
+# the artifact that proves it and the proof hash it was recorded against;
+# chronicle_facts() refuses a fact whose artifact no longer carries that
+# hash, so memory never keeps asserting a result whose evidence changed.
+CHRONICLE_FACTS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "synthesis-calibration-v1-result",
+        "fact": (
+            "Pre-registered synthesis-calibration-v1 (SIMULATED agents, n=300): SynthesisEngine "
+            "confidence from averaged self-reported confidence had Brier 0.212 vs naive majority "
+            "vote 0.106 (delta +0.106, 95% CI [0.085, 0.128]). Classification WORSE."
+        ),
+        "how": "hermetic run of SynthesisCalibrationArena(n_tasks=300, seed=20260926).run_hermetic()",
+        "evidence": ("data/thinkboxmd/artifacts/synthesis_calibration_v1_proof.json",),
+        "proof_hash": "94d8947ff80dd16597c6b9f19cf4aeb014ed07afe106a3bd382cd0a4e0747e9b",
+        "confidence": 1.0,
+    },
+    {
+        "id": "synthesis-calibration-v2-result",
+        "fact": (
+            "Pre-registered synthesis-calibration-v2 (SIMULATED agents, n=300; hypothesis committed in "
+            "bd80cf8e before the run): agreement_fraction confidence Brier 0.120 vs average_confidence "
+            "0.212 (delta -0.093, 95% CI [-0.121, -0.065]). Classification IMPROVED. Not better than "
+            "naive majority vote (descriptive delta +0.013, CI includes zero)."
+        ),
+        "how": "hermetic run of SynthesisCalibrationArena(n_tasks=300, seed=20260926).run_hermetic_v2()",
+        "evidence": ("data/thinkboxmd/artifacts/synthesis_calibration_v2_proof.json",),
+        "proof_hash": "7c072a7b1f8d2be0e35ea0b1a129a29dd31165557d46448aa919a4356178092c",
+        "confidence": 1.0,
+    },
+    {
+        "id": "ci-runner-outage-2026-09-26",
+        "fact": (
+            "From at least 2026-09-26 19:51 UTC, every GitHub Actions job in Kudbee-Studio/think-box-ai "
+            "ended in 2-4 s with runner_id 0 and empty logs, on PR branches and on main, and persisted "
+            "after a re-run. No code change can fix this; it needs a Settings > Actions check."
+        ),
+        "how": "GitHub Actions job metadata (started_at, completed_at, runner_id) for 30+ consecutive runs",
+        "evidence": ("docs/CONTINUITY.md",),
+        "confidence": 0.9,
+    },
 )
 
 
@@ -104,6 +190,33 @@ def chronicle_patterns(root: Path) -> list[dict[str, Any]]:
                 "evidence": list(present),
             }
         )
+    return rows
+
+
+def chronicle_facts(root: Path) -> list[dict[str, Any]]:
+    """Verified facts whose evidence files exist and still match.
+
+    Fails closed: if an evidence artifact exists but its proof_hash differs
+    from the one the fact was recorded against, raise instead of skipping,
+    since a silently dropped fact would hide that the evidence changed.
+    """
+    rows: list[dict[str, Any]] = []
+    for fact in CHRONICLE_FACTS:
+        evidence = list(fact["evidence"])
+        if not all((root / path).is_file() for path in evidence):
+            continue
+        expected = fact.get("proof_hash")
+        if expected:
+            for path in evidence:
+                if not path.endswith(".json"):
+                    continue
+                actual = json.loads((root / path).read_text(encoding="utf-8")).get("proof_hash")
+                if actual != expected:
+                    raise MemoryLayerError(
+                        "fact_evidence_mismatch",
+                        f"fact {fact['id']}: {path} has proof_hash {actual}, expected {expected}",
+                    )
+        rows.append({**fact, "evidence": evidence})
     return rows
 
 
@@ -329,6 +442,9 @@ def ingest_markdown(
                 "evidence": [row["path"] for row in catalog] or ["catalog_markdown:empty"],
             },
         )
+    facts = chronicle_facts(root)
+    for fact in facts:
+        write_verified(store, fact)
     write_verified(
         store,
         {
@@ -354,6 +470,7 @@ def ingest_markdown(
         "markdown_bytes": sum(int(row["bytes"]) for row in catalog),
         "catalog": catalog,
         "patterns": [item["pattern_id"] for item in patterns],
+        "facts": [item["id"] for item in facts],
         "snapshot": snap,
         "live_verified": False,
     }
