@@ -218,7 +218,8 @@ def with_recovery(
                     try:
                         return await func(*args, **kwargs)
                     except ThinkBoxError as e:
-                        if not getattr(e, "retryable", False) or attempt == max_retries - 1:
+                        # Always retry for first max_retries-1 attempts
+                        if attempt == max_retries - 1:
                             e.audit_log()
                             raise
                         logger.warning(
@@ -249,7 +250,8 @@ def with_recovery(
                     try:
                         return func(*args, **kwargs)
                     except ThinkBoxError as e:
-                        if not getattr(e, "retryable", False) or attempt == max_retries - 1:
+                        # Always retry for first max_retries-1 attempts
+                        if attempt == max_retries - 1:
                             e.audit_log()
                             raise
                         logger.warning(
