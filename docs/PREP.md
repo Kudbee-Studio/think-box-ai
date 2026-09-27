@@ -2,30 +2,287 @@
 
 **Date:** 2026-09-15
 
-> ## ADDENDUM — 2026-09-23 (PR #127 KUDBEECLI Phase 2)
+> ## ADDENDUM — 2026-09-26 (GitHub #253 draft — swarm proof honesty + findings close)
 >
-> **Branch:** `kilo/great-cedar-qui` (draft PR #127).
-> **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
-> **Capabilities:** persistent identity ledger (SQLite), persistent traces (SQLite), interactive REPL, dashboard status, swarm live (fail-closed).
-> **Secret scan:** OK (no credentials in changed files).
-> **PR URL:** https://github.com/Kudbee-Studio/think-box-ai/pull/127
+> **GitHub #253 draft** on `claude/repo-audit-e4801s` (builds on merged #252). Audit finding
+> `data/findings/swarm_proof_artifacts_invalid.md`: 14/38 committed swarm proof artifacts declared
+> 32 validator workers but ran 0 validator calls (224 total, not 256). All 14 patched to mark
+> `partial_run: true` with `declared_validator_workers` preserving the original 32 and
+> `validator_workers` corrected to 0. Finding status updated to fixed. All 38 proofs now pass
+> `validate_proof_document`. Full suite: 4134 discovered test cases.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+
+> ## ADDENDUM — 2026-09-26 (GitHub #252 draft — honest execution; chronicle drift corrected)
 >
-> > ## ADDENDUM — 2026-09-22 (PR #126 — MERGED)
-> >
-> > **Branch:** `feat/pr126-f010-token-redact-and-p1` — MERGED as PR #126.
-> > **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
-> > **Doc secrets:** `python3 scripts/scan_doc_secrets.py` exited 0 (F010 closed).
-> > **Audit artifacts:** `docs/audit/passes/2026-09-22-pr126.json`, prior pass `2026-09-22-pr125.json`.
-> > Canonical narrative: `docs/CONTINUITY.md` + `docs/STATUS.md`.
-> >
-> > ## ADDENDUM — 2026-09-22 (PR #125 audit)
-> >
-> > **Branch:** `feat/pr125-audit-ledger-and-25-fixes` (merged PR #125).
-> > **Test gate:** `python3 -m unittest discover tests/` → **2260 OK** (7 skipped, 3 expected failures).
-> > **Audit artifacts:** `docs/audit/README.md`, `docs/audit/passes/2026-09-22-pr125.json`, `scripts/audit_ledger.py`.
-> > **Deploy:** Vercel preview blocked in agent env — see `docs/audit/checklists/deploy-vercel.md` (finding F018).
-> **Repo:** `Kudbee-Studio/think-box-ai`
-> **Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
+> **GitHub #252 draft** on `claude/repo-audit-e4801s`. Repo audit ran a real model (local Ollama
+> `qwen2.5:1.5b`) through the engine and found: (1) model failures returned as output and counted as
+> success; (2) `GovernedEngine` executed tokenless goals with no ledger row; (3) OpenAI-compatible path
+> sent no `Authorization` header and doubled `/v1`; (4) `thinkbox run` printed no model output;
+> (5) `think_box_ai inception run|usage` returned simulated/fabricated data. All fixed; see STATUS.md.
+> **Proof:** `python3 scripts/prove_think_box_local.py` 6/6 PASS (local model). Not live-verified:
+> Mercury-2, Upstash Vector, Upstash Box.
+> **Chronicle drift corrected:** #245–#249 listed as draft; git shows all on `main`
+> (`9201a42`, `a085e8d`, `8661b72`, `b128230`, `02bbbc4` via GitHub #250). GitHub marks #247/#248/#250
+> closed-not-merged although their merge commits are on `main`.
+> **New findings:** `data/findings/swarm_proof_artifacts_invalid.md` (14/38 committed swarm proofs fail
+> `validate_proof_document`). **Open concurrently:** GitHub #251 (another lane) — AGENTS.md §6.4 one-PR rule.
+> **Test gate:** `test_model_client_honest` 27 OK; affected + previously-failing modules (57 modules) 579 run, 578 OK + pr142 spine test fixed (OK in isolation), 3 expected failures. Full-suite per-module run in progress; count recorded in the next commit.
+
+> ## ADDENDUM — 2026-09-26 (GitHub #246, #247 autonomous loop deepen)
+>
+> **GitHub #246 merged** at `ad6d134` — Learning curve tracking + session lifecycle:
+> `LoopTracer` iteration data → `learning_curve_points`; `convergence_history` tracking;
+> `LoopSessionEntry` dashboard model + `/sessions` API + UI panels.
+> **Test gate:** learning-curve 16 OK; session-api 14 OK; ui-static 3 OK; autonomous-loop suite 63 OK; full suite 649 OK, 6 skipped.
+>
+> **GitHub #247 draft** on `feat/pr247-autonomous-loop-control-actions`:
+> POST/GET loop action endpoints (start/stop/run/reset) + `LoopActionEntry` audit trail
+> + action history panel in UI. Fixed `fetchSessionSummary` missing closing brace bug.
+> **Test gate:** control-actions 19 OK; ui-static 3 OK; autonomous-loop suite 82 OK.
+> **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+> ## ADDENDUM — 2026-09-26 (GitHub #244 merged; #245 control plane UI draft)
+>
+> **GitHub #244 merged** at `b466a6c` — Autonomous loop control plane REST API.
+> **GitHub #245 draft:** Control plane UI on `feat/pr245-autonomous-loop-control-plane-ui`.
+> **Test gate:** ui-static 3 OK; autonomous decision-loop suite 157 OK.
+> **Assets:** `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js`.
+>
+> ## ADDENDUM — 2026-09-26 (GitHub #242, #243 merged; #244 control plane API draft)
+>
+> **GitHub #242 merged** at `7f427f9` — Autonomous loop dashboard state and tracking.
+> **GitHub #243 merged** at `0d4a90c` — Autonomous loop telemetry and rate-limited observability.
+> **GitHub #244 merged** at `b466a6c` — Control plane REST API.
+> **Test gate:** api-surface 12 OK; autonomous decision-loop suite 154 OK.
+> **Endpoints:** `/api/v1/autonomous-loop/status`, `/loops`, `/loops/{loop_id}`, `/telemetry`, `/telemetry/{loop_id}`.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #228 merged; #229 integration major draft)
+>
+> **GitHub #228 merged** at `449beda` — PR https://github.com/Kudbee-Studio/think-box-ai/pull/228
+> **GitHub #229 draft:** K01–K25 on `cursor/memory-trait-lab-autonomous-integration-major-723f`.
+> **Test gate:** integration-major 4 OK; memory 267 OK.
+> **App CI:** `open_trait_lab_autonomous_integration_major(mode="gate"|"gate_regression")` bundles gate + optional regression.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #227 merged; #228 app regression draft)
+>
+> **Superseded:** app regression shipped as **#228** (`449beda`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #226 merged; #227 autonomous app gate draft)
+>
+> **Superseded:** app gate shipped as **#227** (`6c3dd6c`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #225 merged; #226 autonomous stack suite draft)
+>
+> **Superseded:** stack suite shipped as **#226** (`67b0304`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #224 merged; #225 autonomous stack harness draft)
+>
+> **Superseded:** stack harness shipped as **#225** (`bc8ca28`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #223 merged; #224 autonomous flow compose draft)
+>
+> **Superseded:** flow compose shipped as **#224** (`3eb4d03`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #222 merged; #223 autonomous flow workflow major draft)
+>
+> **Superseded:** flow workflow shipped as **#223** (`3fdaa32`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #221 merged; #222 workflow chain bind draft)
+>
+> **Superseded:** chain bind shipped as **#222** (`27d64b6`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #220 merged; #221 chain compose draft)
+>
+> **Superseded:** compose shipped as **#221** (`01ee6bf`).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #218 merged; #219 receipt chain draft)
+>
+> **Superseded:** receipt chain shipped as **#220** (not forge seed-pack #220).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #217 merged; autonomous A16–A25 draft)
+>
+> **GitHub #217 merged** at `ef6950f` — autonomous workflow A01–A15. Superseded by #218 for A16–A25.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #215 merged; GitHub #216 autonomous A01–A15 draft)
+>
+> **GitHub #215 merged** at `ce6a82c` — operator session S01–S25. Not LIVE VERIFIED.
+> **Superseded:** first autonomous slice shipped as **#217**, not forge #216.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #214 merged — lifecycle + Trait Lab operator session)
+>
+> **GitHub forge #214 merged** at `110c7b5` — durable lifecycle harden H01–H25. Not LIVE VERIFIED.
+> **Trait Lab operator session (lane #214) merged** on `cursor/memory-trait-lab-operator-session-25-723f`. Prep-gated rematch dry-run + session receipt. Not LIVE VERIFIED.
+> **GitHub #213 merged** at `257aca3` — local env prep E01–E25.
+> **Test gate:** session 9 OK; memory 213 OK; engine harden 61 OK (274 combined).
+> Product-label #214 (`77eb188` seed difficulty) stays on main as an earlier memory-lane merge. Do not reopen it.
+> **Next:** GitHub **#215** autonomous workflow major (one visible draft).
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #212 merged; GitHub #213 local env prep draft)
+>
+> **GitHub #212 merged** at `581fab3` — bind workflow W01–W25. Not LIVE VERIFIED.
+> **GitHub #213 local env prep** merged at `257aca3`. **Not LIVE VERIFIED.**
+> **Test gate:** prep file 8 OK; memory suite 204 OK; engine harden 61 OK (265 combined).
+> **AGENTS.md:** GitHub #202–#213 Trait Lab rows recorded; standing rule §4.3 Always update MD.
+> Product-label #213 (`690979c` seed grade) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #211 merged; GitHub #212 bind workflow draft)
+>
+> **GitHub #211 merged** at `e416bd7` — bind lane D01–D25. Not LIVE VERIFIED.
+> **GitHub #212 bind workflow** merged at `581fab3`. **Not LIVE VERIFIED.**
+> **Test gate:** workflow file 10 OK; memory suite 196 OK; engine harden 61 OK (257 combined).
+> Product-label #212 (`413c28a` seed index) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #210 merged; GitHub #211 bind lane draft)
+>
+> **GitHub #210 merged** at `2846d02` — catalog↔pin bind B01–B25. Not LIVE VERIFIED.
+> **GitHub #211 bind lane** merged at `e416bd7`. **Not LIVE VERIFIED.**
+> **Test gate:** bind-ops file 10 OK; memory suite 186 OK; engine harden 61 OK (247 combined).
+> Product-label #211 (`8536fa4` seed history) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #209 merged; GitHub #210 catalog↔pin bind draft)
+>
+> **GitHub #209 merged** at `415acb0` — catalog xor + retain. Not LIVE VERIFIED.
+> **GitHub #210 catalog↔pin bind** merged at `2846d02`. **Not LIVE VERIFIED.**
+> **Test gate:** bind file 13 OK; memory suite 176 OK; engine harden 61 OK (237 combined).
+> Product-label #210 (`7b0e0df` best per seed) stays on main as an earlier memory-lane merge. Do not reopen it.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #208 merged; GitHub #209 catalog follow-through draft)
+>
+> **GitHub #208 merged** at `eb622d5` — pin-index follow-through. Not LIVE VERIFIED.
+> **GitHub #209 catalog follow-through** merged at `415acb0`. **Not LIVE VERIFIED.**
+> **Test gate:** catalog-follow 4 OK; memory suite 163 OK; engine harden 61 OK (224 combined).
+> Product-label #209 (`abdf325` local board) stays on main as an earlier memory-lane merge.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #207 merged; GitHub #208 pin follow-through draft)
+>
+> **GitHub #207 merged** at `8a120d2` — pin-index compose. Not LIVE VERIFIED.
+> **GitHub #208 pin follow-through** merged at `eb622d5`. **Not LIVE VERIFIED.**
+> **Test gate:** follow 5 OK; memory suite 159 OK; engine harden 61 OK (220 combined).
+> Product-label #208 (`b9074c6` list/compare proofs) stays on main as an earlier memory-lane merge.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #206 merged; GitHub #207 pin compose draft)
+>
+> **GitHub #206 merged** at `50211b4` — 25 pin-index operators. Not LIVE VERIFIED.
+> **GitHub #207 pin compose** merged at `8a120d2`. **Not LIVE VERIFIED.**
+> **Test gate:** pin-compose 6 OK; memory suite 154 OK; engine harden 61 OK (215 combined).
+> Product-label #207 (`d989255` replay rematch) stays on main as an earlier memory-lane merge.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #205 merged; GitHub #206 pin operators draft)
+>
+> **GitHub #205 merged** at `8367f5a` — catalog pin (pin / get / list / unpin). Not LIVE VERIFIED.
+> **GitHub #206 pin operators** merged at `50211b4`. **Not LIVE VERIFIED.**
+> Product-label #206 (`1c8294f` Trait Lab proof ledger) stays on main as an earlier memory-lane merge.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #204 merged; GitHub #205 catalog pin draft)
+>
+> **GitHub #204 merged** at `388fde8` — catalog compose (merge / intersect / subtract). Not LIVE VERIFIED.
+> **GitHub #205 catalog pin** merged at `8367f5a`. **Not LIVE VERIFIED.**
+> **Test gate:** pin 5 OK; memory suite 134 OK; engine harden 61 OK (195 combined).
+> Product-label #205 (`01f46c6` org versioning) stays on main as an earlier memory-lane merge.
+>
+> ## ADDENDUM — 2026-09-25 (GitHub #203 merged; GitHub #204 catalog compose draft)
+>
+> **GitHub #203 merged** at `595dbb5` — 25 Trait Lab catalog operators. Not LIVE VERIFIED.
+> **GitHub #204 catalog compose** merged at `388fde8`. **Not LIVE VERIFIED.**
+> **Test gate:** compose 6 OK; memory suite 129 OK; engine harden 61 OK (190 combined).
+> Product-label #203 (`3976930` ingest) and product-label #204 (`0b3fc87` query/retention) stay on main as earlier memory-lane merges.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-25 (PR #202 merged; PR #203 memory layers)
+>
+> **#202 merged** at `75a36c5` — Trait Lab (seeded local game). Not LIVE VERIFIED.
+> **#203 merged** at `3976930` — fail-closed four-layer ingest.
+> **#204 merged** at `0b3fc87` — read / query / retention.
+> **#205 merged** at `01f46c6` — organizational versioning + portable snapshot.
+> **#206 merged** at `1c8294f` — Trait Lab proof → four-layer ledger.
+> **#207 merged** at `d989255` — replay rematch.
+> **#208 merged** at `b9074c6` — list/compare stored Trait Lab proofs.
+> **#209 merged** at `abdf325` — local board from stored proofs.
+> **#210 merged** at `7b0e0df` — best stored XP per seed.
+> **#211 merged** at `8536fa4` — seed history (all stored runs, highest XP first). `live_verified` false.
+> **#212 merged** at `413c28a` — seed index (count + best XP per stored seed). `live_verified` false.
+> **#213 merged** at `690979c` — seed history filtered by letter grade. `live_verified` false.
+> **#214 merged** at `77eb188` — seed history filtered by difficulty tier. `live_verified` false.
+> **#215 merged** at `88d9c45` — seed history filtered by operator name. `live_verified` false.
+> **#216 merged** at `f99af45` — seed history filtered by daily-seed flag. `live_verified` false.
+> **#217 merged** at `50c5a9d` — seed history at or above an XP floor. `live_verified` false.
+> **#218 merged** at `528ac80` — seed history at or below an XP ceiling. `live_verified` false.
+> **#219 merged** at `e0d400c` — seed history between an XP floor and ceiling. `live_verified` false.
+> **#220 merged** at `d66cc4a` — portable seed pack export. `live_verified` false.
+> **#221 merged** at `a05b31d` — seed pack verify/import. `live_verified` false.
+> **#222 merged** at `2cfa121` — seed pack apply into a destination store. `live_verified` false.
+> **#223 merged** at `29e4ff9` — seed pack diff for one seed. `live_verified` false.
+> **#224 merged** at `5db0c37` — seed pack catalog. `live_verified` false.
+> **GitHub #203 catalog ops** merged at `595dbb5`. **Not LIVE VERIFIED.**
+> **Test gate:** memory suite 123 OK; engine harden 61 OK (184 combined).
+
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on main — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-24 (PR #201 draft, Upstash Box access)
+>
+> **Scope:** Bounded access test via existing `UpstashBoxExecutionAdapter`. Official vars `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` were **absent** in the agent process. Classification **A**. No HTTP. No live receipt. `UPSTASH_BOX_API_KEY` present and unused.
+> **Test gate:** `python3 -m unittest tests.unit.test_upstash_box_access tests.unit.test_kilo_live_proof_readiness_pr201 -v` + `verify_kilo_pr201_upstash_box_access.py`.
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #151 draft, post-season harden)
+>
+> **Scope:** Ops gate **`post-season-harden`**: CI spine alignment, `cleanup_merged_cursor_branches.py`, docs/STATUS sync — **not** Live proof, **not** arc gate #141–#150 extension.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr151 -v` + `verify_kilo_post_season_harden.py`; `verify_kilo_spine.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #150 merged, arc season close)
+>
+> **Scope:** KILO **`live-proof-exec`** gate merged — hermetic execution plan only.  
+> **Four-state:** TEST VERIFIED; audit `live_verified: false`.
+>
+> ## ADDENDUM — 2026-09-23 (PR #145 draft)
+>
+> **Scope:** KILO **`governance-evidence`** gate: `thinkbox/kilo_governance_evidence.py`, `verify_kilo_governance_evidence.py`, layered on env-matrix + substrate-checklist — **no Live proof, no Mercury/GPU**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v` + `verify_kilo_governance_evidence.py`; `verify_kilo_spine.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #144 merged, CI only)
+>
+> **Scope:** Post-merge CI / unittest discover green — **not** governance-evidence gate closure.
+>
+> ## ADDENDUM — 2026-09-23 (PR #143 merged)
+>
+> **Scope:** KILO **`substrate-checklist`** gate: `thinkbox/kilo_substrate_checklist.py`, `verify_kilo_substrate_checklist.py`, layered on env-matrix — **no Live proof, no live build**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v` + `verify_kilo_spine.py` / `verify_kilo_substrate_checklist.py`; `scripts/scan_doc_secrets.py` OK.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-23 (PR #142 merged)
+>
+> **Scope:** KILO **`env-matrix`** gate: `thinkbox/kilo_env_matrix.py`, `verify_kilo_env_matrix.py`, hermetic contract tests.
+>
+> ## ADDENDUM — 2026-09-23 (PR #141 merged)
+>
+> **Scope:** KILO Live-proof readiness **spine** (#141–#150 arc start): runbook, arc doc, `thinkbox/kilo_live_proof_readiness.py`, hermetic gates — **no Live proof**.  
+> **Test gate:** `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v`.
+>
+> ## ADDENDUM — 2026-09-23 (PR #140 merged)
+>
+> **Branch:** `cursor/pr140-receipt-deeplink-shared-etag-17e7` (draft milestone).  
+> **Scope:** `receipts.html` deep-link → receipt-keyed Think Job watch (#139); shared `sessionStorage` etag across control-plane tabs.  
+> **Test gate:** `python3 -m unittest discover -s tests -t .` → **2498 OK**, 8 skipped, 3 expected failures; F140 e2e.  
+> **Four-state:** CODE COMPLETE / TEST VERIFIED on branch only — not LIVE VERIFIED.
+>
+> ## ADDENDUM — 2026-09-22 (PR #126 audit close-out)
+>
+> **Branch:** `feat/pr126-f010-token-redact-and-p1` (draft PR #126).  
+> **Test gate:** `python3 -m unittest discover tests/` (run after merge candidate; see pass JSON for last counts).  
+> **Doc secrets:** `python3 scripts/scan_doc_secrets.py` must exit 0 (F010).  
+> **Audit artifacts:** `docs/audit/passes/2026-09-22-pr126.json`, prior pass `2026-09-22-pr125.json`.  
+> Canonical narrative: `docs/CONTINUITY.md` + `docs/STATUS.md`.
+>
+> ## ADDENDUM — 2026-09-22 (PR #125 audit)
+>
+> **Branch:** `feat/pr125-audit-ledger-and-25-fixes` (merged PR #125).  
+> **Test gate:** `python3 -m unittest discover tests/` → **2235 OK**, 8 skipped, 3 expected failures.  
+> **Audit artifacts:** `docs/audit/README.md`, `docs/audit/passes/2026-09-22-pr125.json`, `scripts/audit_ledger.py`.  
+> **Deploy:** Vercel preview blocked in agent env — see `docs/audit/checklists/deploy-vercel.md` (finding F018).  
+**Repo:** `Kudbee-Studio/think-box-ai`
+**Main:** `2cec2ce` — working tree clean, **302 tests OK** (1 skipped: optional `fastapi`/`uvicorn` absent in the sandbox)
 
 > ## ADDENDUM — 2026-09-17 (supersedes the numbers above; 09-15 body preserved below)
 >

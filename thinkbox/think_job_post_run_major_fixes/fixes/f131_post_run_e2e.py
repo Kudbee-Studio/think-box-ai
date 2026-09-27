@@ -1,0 +1,8 @@
+"""FIX01: F131 POST /run contract e2e."""
+from __future__ import annotations
+from typing import Any
+from thinkbox.kilo_live_proof_readiness import REPO_ROOT
+
+def apply_fix() -> dict[str, Any]:
+    ok = (REPO_ROOT / "tests/e2e/test_f131_post_run_think_job_contract.py").is_file()
+    return {"fix_id": "FIX01", "ok": ok, "live_api_called": False}

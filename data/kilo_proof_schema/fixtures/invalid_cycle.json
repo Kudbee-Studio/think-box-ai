@@ -1,0 +1,29 @@
+{
+  "_expect": "invalid",
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_cycle",
+  "gate_id": "proof-schema",
+  "pr_number": 148,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "receipt_key": "rcpt_cycle_invalid",
+  "etag": "etag_cycle_invalid",
+  "prior_gate_ids": ["swarm-instrumentation"],
+  "gates": [
+    {
+      "node_id": "a",
+      "gate_id": "mercury-hermetic",
+      "depends_on": ["b"],
+      "hermetic_operator_ok": true
+    },
+    {
+      "node_id": "b",
+      "gate_id": "swarm-instrumentation",
+      "depends_on": ["a"],
+      "hermetic_operator_ok": true
+    }
+  ],
+  "cues": []
+}

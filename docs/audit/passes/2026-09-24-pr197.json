@@ -1,0 +1,10 @@
+{
+  "audit_pass_id": "pr197-cloud-execution-substrate",
+  "pr_number": 197,
+  "gate_id": "cloud-execution-substrate",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 10,
+  "default_provider": "hermetic_local",
+  "notes": "Phase 1 cloud execution substrate; TEST VERIFIED hermetic provider only."
+}

@@ -1,0 +1,14 @@
+{
+  "gate_id": "swarm-governance-post167-deepen",
+  "pr_number": 168,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "swarm-instrumentation",
+    "governance-evidence",
+    "governance-evidence-live-proof-readiness",
+    "swarm-governance-post166-deepen",
+    "pr167-combined-post166-lane"
+  ]
+}

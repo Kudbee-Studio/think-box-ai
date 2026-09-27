@@ -1,0 +1,11 @@
+{
+  "audit_pass_id": "pr203-durable-queued-resume",
+  "date": "2026-09-24",
+  "gate_id": "durable-queued-resume",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "stacked_on": "pr202-durable-lifecycle-harden",
+  "primary_surface": "thinkbox/lifecycle_resume",
+  "notes": "QUEUED resume only. No RUNNING orphan reclaim. Not Upstash LIVE proof."
+}

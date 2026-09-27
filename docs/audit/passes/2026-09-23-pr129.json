@@ -1,0 +1,54 @@
+{
+  "base_commit": "bfa067d",
+  "checker": "cursor-cloud-pr129",
+  "completed_at": "2026-09-23T02:40:00Z",
+  "findings": [
+    {
+      "id": "F129-PERSIST",
+      "rank": 1,
+      "severity": "P1",
+      "title": "KUDBEECLI Phase 2 SQLite persistence paths",
+      "status": "done",
+      "paths": [
+        "thinkbox/cli_persist.py",
+        "thinkbox/cli.py"
+      ],
+      "notes": "THINKBOX_IDENTITY_LEDGER_PATH, THINKBOX_TRACE_DB_PATH, THINKBOX_CLI_DB_DIR; persist status|init|sync"
+    },
+    {
+      "id": "F129-LIVE-GATE",
+      "rank": 2,
+      "severity": "P1",
+      "title": "swarm live fail-closed authorization (no HTTP)",
+      "status": "done",
+      "paths": [
+        "thinkbox/cli_live_gate.py",
+        "thinkbox/cli.py"
+      ],
+      "notes": "INCEPTION_API_KEY + THINKBOX_SWARM_LIVE_ACK; live_api_called always false"
+    },
+    {
+      "id": "F129-SHELL",
+      "rank": 3,
+      "severity": "P2",
+      "title": "thinkbox shell local REPL",
+      "status": "done",
+      "paths": [
+        "thinkbox/cli_shell.py",
+        "thinkbox/cli.py",
+        "tests/unit/test_cli_phase2.py"
+      ],
+      "notes": "-c one-shot; hermetic inspect routing only"
+    }
+  ],
+  "pass_id": "pr129",
+  "prior_pass": "passes/2026-09-23-pr128.json",
+  "started_at": "2026-09-23T02:32:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2285,
+    "skipped": 8
+  },
+  "title": "PR129 — KUDBEECLI Phase 2 persistence, shell, dashboard, live gate (~25 improvements)"
+}

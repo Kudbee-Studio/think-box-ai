@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, HTTPException
 
 LOCAL_DEV_TOKEN = "dev-only-local-token"
 
@@ -32,6 +32,7 @@ async def list_receipts(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "signature": "a" * 64,
                 "previous_hash": "0" * 64,
+                "think_job_receipt_id": "",
             },
         ],
         "total": 1,

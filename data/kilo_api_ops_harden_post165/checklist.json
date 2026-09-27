@@ -1,0 +1,13 @@
+{
+  "gate_id": "api-ops-harden-post165",
+  "pr_number": 166,
+  "theme": "B",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "api-ops-harden",
+    "pr165-combined-harden-era-chronicle"
+  ],
+  "post165_label": "api-ops-harden-post165"
+}

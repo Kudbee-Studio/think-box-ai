@@ -1,0 +1,11 @@
+{
+  "gate_id": "kudbee-sdk-longrange-energy-major-fixes",
+  "pr_number": 194,
+  "live_verified": false,
+  "artifacts": [
+    "data/kudbee_sdk_lr_energy_major/pr194_fixes.json",
+    "data/kudbee_sdk_lr_energy_major/pr194_checklist.json",
+    "data/kudbee_sdk_lr_energy_major/cassettes/lr_energy_major_flow.json",
+    "docs/audit/passes/2026-09-24-pr194.json"
+  ]
+}

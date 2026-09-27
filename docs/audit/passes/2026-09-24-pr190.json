@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr190-think-job-post-run-major-fixes",
+  "date": "2026-09-24",
+  "gate_id": "think-job-post-run-major-fixes",
+  "pr_number": 190,
+  "fix_count": 25,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "combined_umbrella_nested": false,
+  "primary_surface": "thinkbox/think_job_post_run_major_fixes"
+}

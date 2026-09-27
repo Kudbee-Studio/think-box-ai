@@ -1,0 +1,17 @@
+{
+  "audit_pass_id": "pr175-lint-scope-wave2",
+  "pr_number": 175,
+  "gate_id": "lint-scope-wave2",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "scope_count": 38,
+  "additive_scope_count": 12,
+  "themes": [
+    "lint_scope_wave2_live_proof_spine",
+    "end_link_receipt_chain_operator_modules",
+    "wave1_frozen_subset"
+  ],
+  "notes": "Adds 12 live-proof readiness modules to beyond-KILO lint scope; wave1 manifest unchanged; beyond_kilo_lint version 3."
+}

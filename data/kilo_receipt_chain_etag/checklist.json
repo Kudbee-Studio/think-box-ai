@@ -1,0 +1,16 @@
+{
+  "schema_version": "kilo-receipt-chain-etag-v1",
+  "gate_id": "receipt-chain-etag",
+  "pr_number": 155,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "prior_gate_ids": ["control-plane-api"],
+  "notes": "Receipt chain pagination + ETag deepen — hermetic only",
+  "verify_script": "scripts/verify_kilo_receipt_chain_etag.py",
+  "modules": [
+    "thinkbox/receipt_chain_query.py",
+    "thinkbox/control_plane_conditional.py",
+    "backend/api/v1/control_plane.py"
+  ]
+}

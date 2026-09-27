@@ -1,0 +1,10 @@
+{
+  "audit_pass_id": "pr198-cloud-execution-durable-queue",
+  "pr_number": 198,
+  "gate_id": "cloud-execution-durable-queue",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 10,
+  "persistence": "sqlite",
+  "notes": "Durable queue Phase 2; hermetic provider only; workspace registry remains in-memory per process."
+}

@@ -1,0 +1,11 @@
+{
+  "expect_valid": true,
+  "gate_id": "api-ops-harden-post166",
+  "detail": "fixture",
+  "prior_gate_id": "pr165-combined-harden-era-chronicle",
+  "post166_prior_gate_id": "pr166-combined-post165-lane",
+  "post166_label": "api-ops-harden-post166",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED"
+}

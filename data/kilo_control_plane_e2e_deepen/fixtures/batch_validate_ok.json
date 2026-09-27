@@ -1,0 +1,5 @@
+{
+  "fixture_id": "batch_validate_ok",
+  "expect_ok": true,
+  "notes": "batch validate returns 200 envelope with per-item fail-closed"
+}

@@ -1,0 +1,14 @@
+{
+  "gate_id": "dashboard-pr165-gates-bind",
+  "pr_number": 166,
+  "theme": "C",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "dashboard-slots",
+    "pr165-combined-harden-era-chronicle"
+  ],
+  "bind_label": "dashboard-pr165-gates-bind",
+  "status_html": "public/control-plane/pr165_gates_status.html"
+}

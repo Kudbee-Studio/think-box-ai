@@ -1,0 +1,33 @@
+{
+  "gate_id": "think-job-lifecycle-fixes",
+  "pr_number": 185,
+  "live_verified": false,
+  "fix_count": 25,
+  "fixes": [
+    {"id": "FIX01", "name": "lifecycle_status_mapping", "module": "thinkbox/think_job_lifecycle_fixes/fixes/lifecycle_status_mapping.py"},
+    {"id": "FIX02", "name": "started_status_alias", "module": "thinkbox/think_job_lifecycle_fixes/fixes/started_status_alias.py"},
+    {"id": "FIX03", "name": "canonical_job_id_field", "module": "thinkbox/think_job_lifecycle_fixes/fixes/canonical_job_id_field.py"},
+    {"id": "FIX04", "name": "receipt_id_bridge", "module": "thinkbox/think_job_lifecycle_fixes/fixes/receipt_id_bridge.py"},
+    {"id": "FIX05", "name": "pr183_pairing_gate_check", "module": "thinkbox/think_job_lifecycle_fixes/fixes/pr183_pairing_gate_check.py"},
+    {"id": "FIX06", "name": "goal_whitespace_guard", "module": "thinkbox/think_job_lifecycle_fixes/fixes/goal_whitespace_guard.py"},
+    {"id": "FIX07", "name": "dry_run_no_receipt", "module": "thinkbox/think_job_lifecycle_fixes/fixes/dry_run_no_receipt.py"},
+    {"id": "FIX08", "name": "if_match_precondition_stub", "module": "thinkbox/think_job_lifecycle_fixes/fixes/if_match_precondition_stub.py"},
+    {"id": "FIX09", "name": "admission_governance_error_split", "module": "thinkbox/think_job_lifecycle_fixes/fixes/admission_governance_error_split.py"},
+    {"id": "FIX10", "name": "cassette_401_replay", "module": "thinkbox/think_job_lifecycle_fixes/fixes/cassette_401_replay.py"},
+    {"id": "FIX11", "name": "whitespace_admission_token", "module": "thinkbox/think_job_lifecycle_fixes/fixes/whitespace_admission_token.py"},
+    {"id": "FIX12", "name": "ledger_think_job_id", "module": "thinkbox/think_job_lifecycle_fixes/fixes/ledger_think_job_id.py"},
+    {"id": "FIX13", "name": "background_pending_count", "module": "thinkbox/think_job_lifecycle_fixes/fixes/background_pending_count.py"},
+    {"id": "FIX14", "name": "receipt_db_fail_closed", "module": "thinkbox/think_job_lifecycle_fixes/fixes/receipt_db_fail_closed.py"},
+    {"id": "FIX15", "name": "poll_interval_crossref", "module": "thinkbox/think_job_lifecycle_fixes/fixes/poll_interval_crossref.py"},
+    {"id": "FIX16", "name": "stream_schema_version", "module": "thinkbox/think_job_lifecycle_fixes/fixes/stream_schema_version.py"},
+    {"id": "FIX17", "name": "digest_sorted_keys", "module": "thinkbox/think_job_lifecycle_fixes/fixes/digest_sorted_keys.py"},
+    {"id": "FIX18", "name": "not_found_envelope", "module": "thinkbox/think_job_lifecycle_fixes/fixes/not_found_envelope.py"},
+    {"id": "FIX19", "name": "sse_frame_bound_replay", "module": "thinkbox/think_job_lifecycle_fixes/fixes/sse_frame_bound_replay.py"},
+    {"id": "FIX20", "name": "auth_fragment_secret_scan", "module": "thinkbox/think_job_lifecycle_fixes/fixes/auth_fragment_secret_scan.py"},
+    {"id": "FIX21", "name": "query_key_no_leak", "module": "thinkbox/think_job_lifecycle_fixes/fixes/query_key_no_leak.py"},
+    {"id": "FIX22", "name": "dashboard_redact_synonyms", "module": "thinkbox/think_job_lifecycle_fixes/fixes/dashboard_redact_synonyms.py"},
+    {"id": "FIX23", "name": "spine_lazy_hook", "module": "thinkbox/think_job_lifecycle_fixes/fixes/spine_lazy_hook.py"},
+    {"id": "FIX24", "name": "audit_pass_shape", "module": "thinkbox/think_job_lifecycle_fixes/fixes/audit_pass_shape.py"},
+    {"id": "FIX25", "name": "fix_registry", "module": "thinkbox/think_job_lifecycle_fixes/fixes/fix_registry.py"}
+  ]
+}

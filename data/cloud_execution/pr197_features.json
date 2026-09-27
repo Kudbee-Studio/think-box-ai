@@ -1,0 +1,20 @@
+{
+  "gate_id": "cloud-execution-substrate",
+  "pr_number": 197,
+  "live_verified": false,
+  "feature_count": 10,
+  "primary_surface": "thinkbox/cloud_execution",
+  "upstream_gate_id": "kudbee-cli-enterprise-upgrade",
+  "features": [
+    {"id": "F01", "name": "cloud_execution_substrate_interface", "module": "thinkbox/cloud_execution/provider.py"},
+    {"id": "F02", "name": "execution_provider_abstraction", "module": "thinkbox/cloud_execution/providers/hermetic.py"},
+    {"id": "F03", "name": "persistent_execution_job_model", "module": "thinkbox/cloud_execution/job.py"},
+    {"id": "F04", "name": "job_lifecycle_state_machine", "module": "thinkbox/cloud_execution/lifecycle.py"},
+    {"id": "F05", "name": "workspace_worktree_contract", "module": "thinkbox/cloud_execution/workspace.py"},
+    {"id": "F06", "name": "execution_resource_limits", "module": "thinkbox/cloud_execution/resources.py"},
+    {"id": "F07", "name": "worker_heartbeat_contract", "module": "thinkbox/cloud_execution/heartbeat.py"},
+    {"id": "F08", "name": "fail_closed_admission", "module": "thinkbox/cloud_execution/admission.py"},
+    {"id": "F09", "name": "structured_execution_receipts", "module": "thinkbox/cloud_execution/receipt.py"},
+    {"id": "F10", "name": "hermetic_test_provider", "module": "thinkbox/cloud_execution/engine.py"}
+  ]
+}

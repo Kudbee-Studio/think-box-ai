@@ -1,0 +1,16 @@
+{
+  "audit_pass": "pr166",
+  "date": "2026-09-23",
+  "pr_number": 166,
+  "gate_id": "pr166-combined-post165-lane",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "live_proof_operator_prep_deepen",
+    "api_ops_harden_post165",
+    "dashboard_pr165_gates_bind",
+    "swarm_governance_post165_deepen",
+    "pr166_combined_post165_lane_umbrella"
+  ]
+}

@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import random
 import sys
@@ -38,6 +39,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -185,6 +188,10 @@ class BigSwarm:
         self.results: list[Compartment] = []
         self.reconciliation: dict[str, Any] = {}
         self.started = time.monotonic()
+
+        # Synchronization primitives for wave coordination
+        self._results_lock = threading.Lock()  # Protects self.results appends
+        self._primary_wave_complete = threading.Event()  # Signals when wave 1 finishes
         self.session_id = f"swarm_sess_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         self.metrics.start_session(
             self.session_id, kind="big_swarm", model=MODEL, concurrency=concurrency,
@@ -371,7 +378,9 @@ class BigSwarm:
         )
 
         # Wave 1: primary compartments
+        logging.info(f"Wave 1 starting: {self.primary_n} primary workers with concurrency={self.concurrency}")
         t0 = time.monotonic()
+        wave1_start = t0
         with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
             futs = [
                 pool.submit(self.fire, i, "PRIMARY", "research:primary",
@@ -380,15 +389,36 @@ class BigSwarm:
                             f"Reply with one token: EVIDENCE INFERENCE HYPOTHESIS UNVERIFIED")
                 for i, c in enumerate(claims)
             ]
+            results_count = 0
             for f in as_completed(futs):
-                self.results.append(f.result())
+                with self._results_lock:
+                    self.results.append(f.result())
+                    results_count += 1
+                    if results_count % 50 == 0 or results_count == len(claims):
+                        logging.debug(f"Wave 1: {results_count}/{len(claims)} results appended")
+
+        # Explicitly signal that wave 1 is complete to prevent any race conditions
         wave1 = time.monotonic() - t0
+        with self._results_lock:
+            primary_results_count = len([r for r in self.results if r.role == "PRIMARY"])
+        self._primary_wave_complete.set()
+        logging.info(f"Wave 1 complete: {primary_results_count} primary results collected in {wave1:.2f}s")
+
         self.bus.emit(event="wave_done", wave="primary", seconds=round(wave1, 2),
-                      calls=len(claims))
+                      calls=primary_results_count)
 
         # Wave 2: validator compartments challenge a fixed primary sample
-        sample = validator_sample_primary(self.results, self.validator_n)
+        logging.info(f"Wave 2 sampling: selecting up to {self.validator_n} primary results for validation")
+        with self._results_lock:
+            sample = validator_sample_primary(self.results, self.validator_n)
+
+        assert len(sample) == self.validator_n, \
+            f"Expected {self.validator_n} validators in sample, got {len(sample)}. " \
+            f"This indicates race condition in wave 1: primary results not fully collected."
+
+        logging.info(f"Wave 2 starting: {len(sample)} validator workers with concurrency={self.concurrency}")
         t0 = time.monotonic()
+        wave2_start = t0
         if sample:
             with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
                 futs = []
@@ -406,10 +436,20 @@ class BigSwarm:
                             f"Give your independent more-skeptical tier as one token.",
                         )
                     )
+                results_count = 0
                 for f in as_completed(futs):
-                    self.results.append(f.result())
+                    with self._results_lock:
+                        self.results.append(f.result())
+                        results_count += 1
+                        if results_count % 10 == 0 or results_count == len(sample):
+                            logging.debug(f"Wave 2: {results_count}/{len(sample)} results appended")
+
         wave2 = time.monotonic() - t0
-        self.bus.emit(event="wave_done", wave="validator", seconds=round(wave2, 2), calls=len(sample))
+        with self._results_lock:
+            validator_results_count = len([r for r in self.results if r.role == "VALIDATOR"])
+        logging.info(f"Wave 2 complete: {validator_results_count} validator results collected in {wave2:.2f}s")
+
+        self.bus.emit(event="wave_done", wave="validator", seconds=round(wave2, 2), calls=validator_results_count)
 
         recon = self.reconcile()
         proof = self.write_proof(recon, wave1, wave2)
@@ -418,8 +458,13 @@ class BigSwarm:
     # -- reconcile ---------------------------------------------------------
 
     def reconcile(self) -> dict[str, Any]:
-        primary = [r for r in self.results if r.role == "PRIMARY"]
-        validators = [r for r in self.results if r.role == "VALIDATOR"]
+        # Copy results under lock to avoid holding lock during reconciliation
+        with self._results_lock:
+            primary = [r for r in self.results if r.role == "PRIMARY"]
+            validators = [r for r in self.results if r.role == "VALIDATOR"]
+            ok = [r for r in self.results if r.ok]
+            all_results = list(self.results)  # snapshot for worker_rows
+            total_results_count = len(self.results)
 
         dist: dict[str, int] = {t: 0 for t in TIERS}
         dist["ERROR"] = 0
@@ -444,14 +489,13 @@ class BigSwarm:
                 if not agreed:
                     disagreements.append({"claim_id": v.claim_id, "primary": p, "validator": v.tier})
 
-        ok = [r for r in self.results if r.ok]
         elapsed = round(time.monotonic() - self.started, 2)
         inflation = sum(1 for d in disagreements if rank.get(d["validator"], 0) > rank.get(d["primary"], 0))
 
         non_error_tiers = {t: dist.get(t, 0) for t in TIERS}
         prev = self.metrics.previous_run("big_swarm")
         strength = compute_swarm_strength(
-            total=len(self.results), ok=len(ok), traces=self.traces.count(),
+            total=total_results_count, ok=len(ok), traces=self.traces.count(),
             grounded=self.traces.count(grounded=True), validators=len(validators),
             disagreements=len(disagreements), validator_downgrades=downgrades,
             tier_inflation=inflation, tier_distribution=dist,
@@ -462,16 +506,16 @@ class BigSwarm:
 
         recon = {
             "session_id": self.session_id,
-            "total_calls": len(self.results),
+            "total_calls": total_results_count,
             "ok": len(ok),
-            "failed": len(self.results) - len(ok),
+            "failed": total_results_count - len(ok),
             "primary_calls": len(primary),
             "validator_calls": len(validators),
             "tier_distribution": dist,
             "disagreements": len(disagreements),
             "tier_inflation_by_validator": inflation,
             "elapsed_s": elapsed,
-            "effective_rps": effective_rps(len(self.results), elapsed),
+            "effective_rps": effective_rps(total_results_count, elapsed),
             **latency_percentiles([r.latency_s for r in ok]),
             "ledger_entries": len(self.ledger.entries(limit=1_000_000)),
             "ledger_entries_this_run": (
@@ -488,7 +532,7 @@ class BigSwarm:
         }
         worker_rows = [
             {"role": r.role, "ok": r.ok}
-            for r in self.results
+            for r in all_results
         ]
         recon["validation_errors"] = validate_reconciliation(recon, worker_rows)
         self.reconciliation = recon

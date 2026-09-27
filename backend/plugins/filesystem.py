@@ -6,35 +6,19 @@ Prevents directory traversal attacks.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
 from backend.plugins.base import Tool, ToolResult
+from thinkbox.path_safe import default_data_roots, repo_root, resolve_under_roots
 
-# backend/plugins/filesystem.py → repo root is three parents up (not four; four resolves to /).
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_ALLOWED_ROOTS = [_REPO_ROOT, _REPO_ROOT / "data"]
+_REPO_ROOT = repo_root()
+_ALLOWED_ROOTS = default_data_roots()
 
 
 def _jail_path(path_str: str) -> Path:
     """Resolve path ensuring it stays within allowed roots."""
-    path = Path(path_str)
-    if path.is_absolute():
-        resolved = path.resolve()
-    else:
-        resolved = (_REPO_ROOT / path).resolve()
-
-    for allowed in _ALLOWED_ROOTS:
-        try:
-            resolved.relative_to(allowed.resolve())
-            return resolved
-        except ValueError:
-            continue
-    raise PermissionError(
-        f"Path '{path_str}' is outside allowed directories. "
-        f"Allowed roots: {[str(r) for r in _ALLOWED_ROOTS]}"
-    )
+    return resolve_under_roots(path_str, _ALLOWED_ROOTS)
 
 
 class FileReadTool(Tool):

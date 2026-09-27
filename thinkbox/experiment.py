@@ -15,6 +15,8 @@ import json
 import os
 import sqlite3
 import threading
+
+from thinkbox.sqlite_pragmas import open_sqlite
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -26,6 +28,8 @@ from thinkbox.dashboard_state import (
     get_dashboard_state, DashboardCategory, DashboardEvent,
     InfrastructureEntry, ProviderEntry, TestMilestoneEntry,
 )
+from thinkbox.path_safe import reject_path_traversal
+from thinkbox.read_cache import experiment_dashboard_cache, weak_etag_from_payload
 
 DEFAULT_DB = "data/thinkboxmd/db/experiments.db"
 DEFAULT_ARTIFACTS_DIR = "data/thinkboxmd/artifacts"
@@ -199,9 +203,13 @@ class ExperimentDB:
     def _ensure_dir(self) -> None:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
+    def _connect(self) -> sqlite3.Connection:
+        # Legacy experiment rows may exist before session FK targets; WAL + busy_timeout still apply.
+        return open_sqlite(self.db_path, foreign_keys=False)
+
     def _init_schema(self) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS agent_sessions (
@@ -344,7 +352,7 @@ class ExperimentDB:
 
     def save_session(self, session: AgentSessionRecord) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT OR REPLACE INTO agent_sessions
@@ -365,7 +373,7 @@ class ExperimentDB:
 
     def get_session(self, session_id: str) -> Optional[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -380,7 +388,7 @@ class ExperimentDB:
 
     def save_experiment(self, experiment: ExperimentRecord) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT OR REPLACE INTO experiments
@@ -408,12 +416,13 @@ class ExperimentDB:
                 for param in experiment.parameters.values() if isinstance(experiment.parameters, dict) else []:
                     pass
                 conn.commit()
+                experiment_dashboard_cache().invalidate_prefix("experiment_dashboard:")
             finally:
                 conn.close()
 
     def save_parameter(self, experiment_id: str, param: ParameterProvenance) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO experiment_parameters
@@ -430,7 +439,7 @@ class ExperimentDB:
 
     def save_event(self, experiment_id: str, event_type: str, data: dict[str, Any]) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO experiment_events (experiment_id, event_type, data, timestamp)
@@ -443,7 +452,7 @@ class ExperimentDB:
     def save_artifact(self, experiment_id: str, artifact_id: str, artifact_type: str,
                       path: str, hash_val: str, metadata: dict[str, Any]) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO artifacts (experiment_id, artifact_id, artifact_type, path, hash, metadata, timestamp)
@@ -455,7 +464,7 @@ class ExperimentDB:
 
     def save_proof(self, experiment_id: str, proof: dict[str, Any]) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO proof_records (experiment_id, proof_id, evidence_label, decisions, validations, approvals, hash, timestamp)
@@ -473,7 +482,7 @@ class ExperimentDB:
     def save_outcome(self, experiment_id: str, outcome: dict[str, Any],
                      confidence: float, four_state: str) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO outcomes (experiment_id, outcome_data, confidence, four_state, timestamp)
@@ -486,7 +495,7 @@ class ExperimentDB:
     def save_lesson(self, experiment_id: str, lesson: str,
                     parameter_updates: list[dict[str, Any]], next_experiment: str) -> None:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.execute("""
                     INSERT INTO lessons (experiment_id, lesson, parameter_updates, next_experiment, timestamp)
@@ -498,7 +507,7 @@ class ExperimentDB:
 
     def get_experiment(self, experiment_id: str) -> Optional[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -513,7 +522,7 @@ class ExperimentDB:
 
     def get_experiments_by_session(self, session_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -525,7 +534,7 @@ class ExperimentDB:
 
     def get_all_experiments(self, limit: int = 50) -> list[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -537,7 +546,7 @@ class ExperimentDB:
 
     def get_parameters_by_experiment(self, experiment_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -549,7 +558,7 @@ class ExperimentDB:
 
     def get_outcomes_by_experiment(self, experiment_id: str) -> Optional[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -564,7 +573,7 @@ class ExperimentDB:
 
     def get_lessons_by_experiment(self, experiment_id: str) -> list[dict[str, Any]]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
@@ -574,9 +583,56 @@ class ExperimentDB:
             finally:
                 conn.close()
 
+    def get_events_by_experiment(self, experiment_id: str) -> list[dict[str, Any]]:
+        """Query all events for an experiment (ordered by insertion order)."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT * FROM experiment_events WHERE experiment_id = ? ORDER BY id", (experiment_id,)
+                )
+                return [dict(row) for row in cursor.fetchall()]
+            finally:
+                conn.close()
+
+    def get_next_action_event(self, experiment_id: str) -> Optional[dict[str, Any]]:
+        """Retrieve the next_action_generated event for an experiment."""
+        events = self.get_events_by_experiment(experiment_id)
+        for evt in reversed(events):
+            if evt.get("event_type") == "next_action_generated":
+                data = evt.get("data")
+                if isinstance(data, str):
+                    data = json.loads(data)
+                return data
+        return None
+
+    def get_last_next_action(self, limit: int = 50) -> Optional[dict[str, Any]]:
+        """Retrieve the most recent next_action_generated event across all experiments."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT experiment_id, data FROM experiment_events "
+                    "WHERE event_type = 'next_action_generated' "
+                    "ORDER BY experiment_id DESC LIMIT ?", (limit,)
+                )
+                for row in cursor.fetchall():
+                    data = row["data"]
+                    if isinstance(data, str):
+                        data = json.loads(data)
+                    if data and "recommended_next_experiment" in data:
+                        return data["recommended_next_experiment"]
+                return None
+            except (json.JSONDecodeError, KeyError):
+                return None
+            finally:
+                conn.close()
+
     def get_dashboard_aggregates(self) -> dict[str, Any]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 result: dict[str, Any] = {}
@@ -605,7 +661,7 @@ class ExperimentDB:
 
     def restart_recovery(self) -> dict[str, Any]:
         with self._lock:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             try:
                 conn.row_factory = sqlite3.Row
                 result: dict[str, Any] = {}
@@ -692,6 +748,10 @@ class ExperimentManager:
 
     def add_artifact(self, experiment_id: str, artifact_type: str,
                      path: str, metadata: dict[str, Any] = None) -> str:
+        try:
+            path = reject_path_traversal(path)
+        except PermissionError as exc:
+            raise ValueError(str(exc)) from exc
         artifact_id = f"art_{uuid.uuid4().hex[:8]}"
         hash_val = hashlib.sha256(f"{artifact_id}{path}{datetime.now(timezone.utc).isoformat()}".encode()).hexdigest()
         self.db.save_artifact(experiment_id, artifact_id, artifact_type, path, hash_val, metadata or {})
@@ -747,16 +807,34 @@ class ExperimentManager:
         self.db.save_event(experiment.experiment_id, "execution_complete", {"mode": "local"})
         return experiment.model_dump()
 
-    def get_dashboard_data(self) -> dict[str, Any]:
+    def get_last_next_action(self, limit: int = 50) -> Optional[dict[str, Any]]:
+        """Retrieve the most recent recommended_next_experiment from persisted next_action events.
+
+        Returns the ``recommended_next_experiment`` dict (with ``type``,
+        ``rationale``, ``adjustments``, ``max_retries``) from the most recent
+        ``next_action_generated`` event, or ``None`` if no prior recommendation
+        exists.
+        """
+        return self.db.get_last_next_action(limit)
+
+    def get_dashboard_data(self, *, use_cache: bool = True) -> dict[str, Any]:
+        cache = experiment_dashboard_cache()
+        key = f"experiment_dashboard:{getattr(self.db, 'db_path', DEFAULT_DB)}"
+        if use_cache:
+            hit = cache.get(key)
+            if hit is not None:
+                return dict(hit.value)
         aggregates = self.db.get_dashboard_aggregates()
         state = get_dashboard_state()
-        state_data = state.get_state()
-        return {
+        payload = {
             **aggregates,
-            "dashboard_state": state_data,
+            "dashboard_state": state.get_state_summary(),
+            "dashboard_revision": state.revision(),
             "current_session": self._current_session.model_dump() if self._current_session else None,
             "active_experiments": self.db.restart_recovery().get("active_experiments", []),
         }
+        cache.set(key, payload, etag=weak_etag_from_payload(payload))
+        return payload
 
     def restart(self) -> dict[str, Any]:
         return self.db.restart_recovery()

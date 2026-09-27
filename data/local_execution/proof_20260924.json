@@ -1,0 +1,28 @@
+{
+  "artifact_hash": "31e2092d10c5094ec222580f965dc0bb4534a32646adf24391e20312a655d450",
+  "artifact_name": "local_proof.json",
+  "artifact_path_empty": false,
+  "checkpoint_id": "chk_5088656702a7",
+  "duration_ms": 1,
+  "end_time": "2026-09-24T20:46:22.161240+00:00",
+  "error_empty": true,
+  "evidence_label": "verified",
+  "execution_id": "exec_06aab5b45390",
+  "exit_code": 0,
+  "gate_id": "local-execution-proof",
+  "job_id": "local_exec_proof",
+  "live_api_called": false,
+  "live_verified": false,
+  "provenance": [
+    "discover_local",
+    "execute_subprocess",
+    "checkpoint_created",
+    "hash_verified"
+  ],
+  "provider": "local",
+  "receipt_path_empty": false,
+  "start_time": "2026-09-24T20:46:22.160116+00:00",
+  "status": "COMPLETED",
+  "timestamp": "2026-09-24T20:46:22.161714+00:00",
+  "verified": true
+}

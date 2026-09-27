@@ -1,0 +1,15 @@
+{
+  "gate_id": "swarm-governance-post165-deepen",
+  "pr_number": 166,
+  "theme": "D",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "swarm-instrumentation",
+    "governance-evidence",
+    "governance-evidence-live-proof-readiness",
+    "pr165-combined-harden-era-chronicle"
+  ],
+  "swarm_gov_label": "swarm-governance-post165-deepen"
+}

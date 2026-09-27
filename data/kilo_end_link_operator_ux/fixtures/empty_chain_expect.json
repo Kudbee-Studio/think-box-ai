@@ -1,0 +1,4 @@
+{
+  "expect_fail": false,
+  "description": "Empty chain page should surface operator empty state in bind_state"
+}

@@ -1,0 +1,19 @@
+{
+  "gate_id": "dashboard-receipt-chain-bind",
+  "pr_number": 156,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "end_link_api": "END_LINK",
+  "prior_gate_ids": [
+    "receipt-chain-etag",
+    "dashboard-slots",
+    "control-plane-api"
+  ],
+  "scope": [
+    "receipt_chain_dashboard UI",
+    "END_LINK validate bind",
+    "cursor pagination",
+    "ETag 304 and If-Match 412 indicators"
+  ]
+}

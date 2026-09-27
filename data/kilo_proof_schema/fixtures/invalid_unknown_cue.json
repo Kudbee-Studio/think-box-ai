@@ -1,0 +1,29 @@
+{
+  "_expect": "invalid",
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_bad_cue",
+  "gate_id": "proof-schema",
+  "pr_number": 148,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "receipt_key": "rcpt_bad_cue_type",
+  "etag": "etag_bad_cue_type",
+  "prior_gate_ids": ["swarm-instrumentation"],
+  "gates": [
+    {
+      "node_id": "n1",
+      "gate_id": "swarm-instrumentation",
+      "depends_on": [],
+      "hermetic_operator_ok": true
+    }
+  ],
+  "cues": [
+    {
+      "cue_id": "cue-bad",
+      "cue_type": "unknown_cue_kind",
+      "counts_as_user_intent": false
+    }
+  ]
+}

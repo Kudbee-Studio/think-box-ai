@@ -1,0 +1,6 @@
+{
+  "status": "started",
+  "job_id": "tb_job_hermetic_post_run",
+  "receipt_id": "rcpt-post-run-demo",
+  "evidence_label": "simulated"
+}

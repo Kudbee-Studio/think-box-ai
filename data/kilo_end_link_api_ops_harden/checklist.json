@@ -1,0 +1,15 @@
+{
+  "gate_id": "end-link-api-ops-harden",
+  "pr_number": 161,
+  "end_link_api_ops_harden": "end-link-api-ops-harden",
+  "end_link_api_ops_harden_version": "1.0.0",
+  "prior_gate_ids": [
+    "receipt-chain-end-link-docs",
+    "end-link-operator-ux",
+    "end-link-deepen",
+    "api-ops-harden"
+  ],
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false
+}

@@ -1,0 +1,40 @@
+{
+  "pass_id": "pr153",
+  "title": "PR153 — KILO live-smoke operator path (hermetic CLI + audit flip candidate)",
+  "prior_pass": "passes/2026-09-23-pr152.json",
+  "started_at": "2026-09-23T20:00:00Z",
+  "completed_at": "2026-09-23T21:00:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr153",
+  "base_commit": "pending-merge",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr153 -v",
+    "pr153_tests": 26,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "live_smoke_operator_verify": "python3 scripts/verify_kilo_live_smoke_operator.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "cleaned": [
+    "Hermetic operator CLI write + audit-flip candidate file helpers",
+    "Spine + post-season checklist wiring for verify_kilo_live_smoke_operator.py",
+    "Operator fixtures for write ok/fail and secret leakage",
+    "Runbook section for founder smoke → artifact → flip candidate"
+  ],
+  "improvements": [
+    "thinkbox/kilo_live_smoke_operator.py",
+    "scripts/kilo_live_smoke_operator.py",
+    "scripts/verify_kilo_live_smoke_operator.py",
+    "live_smoke_operator in spine_contract_summary + pr153_gate_id",
+    "tests/unit/test_kilo_live_proof_readiness_pr153",
+    "docs/guides/kilo_live_smoke_operator.md",
+    "ADR 012 live smoke operator"
+  ],
+  "pr153_gate_id": "live-smoke-operator",
+  "note": "LIVE VERIFIED still requires founder ack + Box URL + real recorded smoke after merge"
+}

@@ -1,0 +1,356 @@
+"""Durable governed execution lifecycle on the existing Repository job store.
+
+Persists ADMISSION → QUEUED → RUNNING → COMPLETED/FAILED plus terminal
+receipt/artifact/verdict references so status can be recovered after a
+process reload. This is not a second job system and is not LIVE VERIFIED.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from thinkbox.repository import Repository
+
+SCHEMA_ID = "governed_execution_lifecycle_v1"
+LIFECYCLE_META_KEY = "governed_lifecycle"
+
+PHASE_ADMISSION = "admission"
+PHASE_QUEUED = "queued"
+PHASE_RUNNING = "running"
+PHASE_COMPLETED = "completed"
+PHASE_FAILED = "failed"
+
+LIFECYCLE_PHASES = frozenset(
+    {
+        PHASE_ADMISSION,
+        PHASE_QUEUED,
+        PHASE_RUNNING,
+        PHASE_COMPLETED,
+        PHASE_FAILED,
+    }
+)
+TERMINAL_PHASES = frozenset({PHASE_COMPLETED, PHASE_FAILED})
+
+WORKTREE_ENV = "THINKBOX_LIFECYCLE_WORKTREE"
+
+
+def lifecycle_worktree_path(worktree: str | Path | None = None) -> Path:
+    """Resolve the worktree used for durable Repository job files."""
+    if worktree is not None:
+        return Path(worktree).resolve()
+    return Path(os.environ.get(WORKTREE_ENV, ".")).resolve()
+
+
+def open_lifecycle_repo(worktree: str | Path | None = None) -> Repository:
+    """Open the existing Think Repository without requiring a clean git tree."""
+    from thinkbox.lifecycle_harden import worktree_must_be_directory
+
+    path = worktree_must_be_directory(lifecycle_worktree_path(worktree))
+    return Repository(path, enforce_git=False)
+
+
+def http_status_for_phase(phase: str) -> str:
+    """Map lifecycle phase to the existing Think Job HTTP status vocabulary."""
+    if phase == PHASE_FAILED:
+        return "failed"
+    if phase == PHASE_COMPLETED:
+        return "completed"
+    return "running"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def persist_lifecycle_phase(
+    repo: Repository,
+    job_id: str,
+    phase: str,
+    *,
+    goal: str = "",
+    receipt_id: str = "",
+    experiment_id: str = "",
+    session_id: str = "",
+    execution_substrate: str = "",
+    adapter_provider: str = "",
+    checkpoint_id: str = "",
+    artifact_path: str = "",
+    artifact_hash: str = "",
+    verdict: str = "",
+    http_proof_path: str = "",
+    result: dict[str, Any] | None = None,
+    require_phase: str = "",
+    require_lease_id: str = "",
+    transition_kind: str = "",
+    lease_id: str = "",
+    lease_started_at: str = "",
+    lease_expires_at: str = "",
+    lease_timeout_seconds: int = 0,
+    prior_lease_id: str = "",
+    prior_lease_started_at: str = "",
+    timeout_reason: str = "",
+    transition_at: str = "",
+) -> dict[str, Any]:
+    """Append one durable lifecycle transition onto the Repository job."""
+    from thinkbox.lifecycle_harden import (
+        LifecycleError,
+        admission_must_be_first,
+        bound_goal,
+        bound_transitions,
+        completed_requires_receipt,
+        failed_requires_error,
+        force_live_flags_false,
+        recover_corrupt_lifecycle_blob,
+        redact_lifecycle_result,
+        reject_remote_local_fallback,
+        reject_terminal_regression,
+        reject_unknown_phase,
+        resume_eligibility,
+        skip_duplicate_consecutive_phase,
+        validate_artifact_hash,
+        validate_job_id,
+        validate_substrate,
+    )
+
+    job_id = validate_job_id(job_id)
+    phase = reject_unknown_phase(phase)
+    execution_substrate = validate_substrate(execution_substrate)
+    adapter_provider = (adapter_provider or "").strip()
+    reject_remote_local_fallback(execution_substrate, adapter_provider)
+    artifact_hash = validate_artifact_hash(artifact_hash)
+    goal = bound_goal(goal)
+    result = redact_lifecycle_result(result)
+    existing = repo.job_status(job_id)
+    if existing is None:
+        repo.create_job(
+            job_id=job_id,
+            intent=(goal or "governed-execution")[:120],
+            name="governed-lifecycle",
+        )
+    snap = repo.job_status(job_id) or {}
+    meta = dict(snap.get("metadata") or {})
+    life = recover_corrupt_lifecycle_blob(meta.get(LIFECYCLE_META_KEY))
+    current_phase = str(life.get("phase") or "")
+    if require_phase and current_phase != require_phase:
+        raise LifecycleError(
+            "cas_phase_mismatch",
+            f"expected phase {require_phase}, have {current_phase or 'none'}",
+        )
+    if current_phase:
+        reject_terminal_regression(current_phase, phase)
+    if phase == PHASE_ADMISSION:
+        # Reused engine ids must not inherit a prior run's provider/verdict.
+        for stale in (
+            "adapter_provider",
+            "checkpoint_id",
+            "artifact_path",
+            "artifact_hash",
+            "verdict",
+            "http_proof_path",
+            "result",
+            "lease_id",
+            "lease_started_at",
+            "lease_expires_at",
+            "lease_timeout_seconds",
+        ):
+            life.pop(stale, None)
+    transitions = list(life.get("transitions") or [])
+    current_lease = str(life.get("lease_id") or "")
+    if require_lease_id and current_lease != require_lease_id:
+        raise LifecycleError(
+            "cas_lease_mismatch",
+            f"expected lease {require_lease_id}, have {current_lease or 'none'}",
+        )
+    admission_must_be_first(transitions, phase)
+    completed_requires_receipt(phase, receipt_id, life)
+    failed_requires_error(phase, result, verdict)
+    if skip_duplicate_consecutive_phase(transitions, phase) and not transition_kind:
+        life["phase"] = phase
+        life["resume_eligible"] = resume_eligibility(phase)
+        force_live_flags_false(life)
+        updated = repo.update_job(
+            job_id,
+            status=http_status_for_phase(phase),
+            metadata={LIFECYCLE_META_KEY: life},
+            require_lifecycle_phase=require_phase or None,
+            require_lease_id=require_lease_id or None,
+        )
+        if (require_phase or require_lease_id) and not updated:
+            _raise_cas_rejected(repo, job_id, require_phase, require_lease_id, current_phase)
+        return updated or {}
+    entry: dict[str, Any] = {"phase": phase, "at": transition_at or _now()}
+    if transition_kind:
+        entry["kind"] = transition_kind
+    if lease_id:
+        entry["lease_id"] = lease_id
+        life["lease_id"] = lease_id
+    if lease_started_at:
+        entry["lease_started_at"] = lease_started_at
+        life["lease_started_at"] = lease_started_at
+    if lease_expires_at:
+        entry["lease_expires_at"] = lease_expires_at
+        life["lease_expires_at"] = lease_expires_at
+    if lease_id and lease_timeout_seconds >= 0:
+        entry["lease_timeout_seconds"] = lease_timeout_seconds
+        life["lease_timeout_seconds"] = lease_timeout_seconds
+    if prior_lease_id:
+        entry["prior_lease_id"] = prior_lease_id
+    if prior_lease_started_at:
+        entry["prior_lease_started_at"] = prior_lease_started_at
+    if timeout_reason:
+        entry["timeout_reason"] = timeout_reason
+    transitions.append(entry)
+    life["transitions"] = bound_transitions(transitions)
+    life["phase"] = phase
+    life["resume_eligible"] = resume_eligibility(phase)
+    if goal:
+        life["goal"] = goal
+    optional = {
+        "receipt_id": receipt_id,
+        "experiment_id": experiment_id,
+        "session_id": session_id,
+        "execution_substrate": execution_substrate,
+        "adapter_provider": adapter_provider,
+        "checkpoint_id": checkpoint_id,
+        "artifact_path": artifact_path,
+        "artifact_hash": artifact_hash,
+        "verdict": verdict,
+        "http_proof_path": http_proof_path,
+    }
+    for key, value in optional.items():
+        if value:
+            life[key] = value
+    if result is not None:
+        life["result"] = result
+    force_live_flags_false(life)
+    http_status = http_status_for_phase(phase)
+    updated = repo.update_job(
+        job_id,
+        status=http_status,
+        next_action="inspect" if phase in TERMINAL_PHASES else "run",
+        metadata={LIFECYCLE_META_KEY: life},
+        provenance_event=f"lifecycle:{phase}",
+        require_lifecycle_phase=require_phase or None,
+        require_lease_id=require_lease_id or None,
+    )
+    if (require_phase or require_lease_id) and not updated:
+        _raise_cas_rejected(repo, job_id, require_phase, require_lease_id, current_phase)
+    return updated or {}
+
+
+def _raise_cas_rejected(
+    repo: Repository,
+    job_id: str,
+    require_phase: str,
+    require_lease_id: str,
+    current_phase: str,
+) -> None:
+    from thinkbox.lifecycle_harden import LifecycleError
+
+    snap = repo.job_status(job_id) or {}
+    life = (snap.get("metadata") or {}).get(LIFECYCLE_META_KEY)
+    if not isinstance(life, dict):
+        life = {}
+    held = str(life.get("lease_id") or "")
+    if require_lease_id and held != require_lease_id:
+        raise LifecycleError(
+            "cas_lease_mismatch",
+            f"expected lease {require_lease_id}, have {held or 'none'}",
+        )
+    phase_now = str(life.get("phase") or current_phase or "none")
+    raise LifecycleError(
+        "cas_phase_mismatch",
+        f"expected phase {require_phase or '?'}, have {phase_now}",
+    )
+
+
+def load_lifecycle(repo: Repository, job_id: str) -> dict[str, Any] | None:
+    """Load a durable lifecycle record after a fresh Repository open."""
+    snap = repo.job_status(job_id)
+    if snap is None:
+        return None
+    life = (snap.get("metadata") or {}).get(LIFECYCLE_META_KEY)
+    if not isinstance(life, dict) or not life.get("phase"):
+        return None
+    from thinkbox.lifecycle_harden import timestamps_from_transitions
+
+    started_at, completed_at = timestamps_from_transitions(list(life.get("transitions") or []))
+    return {
+        "job_id": job_id,
+        "http_status": snap.get("status") or http_status_for_phase(str(life.get("phase"))),
+        "checkpoint_ids": list(snap.get("checkpoint_ids") or []),
+        "intent": snap.get("intent") or "",
+        "started_at": started_at,
+        "completed_at": completed_at,
+        **life,
+    }
+
+
+def lifecycle_to_status_record(loaded: dict[str, Any]) -> dict[str, Any]:
+    """Shape a lifecycle record like a Think Job status resolver row."""
+    phase = str(loaded.get("phase") or "")
+    status = http_status_for_phase(phase) if phase else str(loaded.get("http_status") or "unknown")
+    result = loaded.get("result") if isinstance(loaded.get("result"), dict) else {}
+    if status not in {"completed", "failed"}:
+        result = {}
+    from thinkbox.lifecycle_harden import (
+        resume_eligibility,
+        status_includes_lifecycle_phase,
+        timestamps_from_transitions,
+    )
+
+    started_at, completed_at = timestamps_from_transitions(list(loaded.get("transitions") or []))
+    record = {
+        "job_id": loaded.get("job_id") or "",
+        "goal": loaded.get("goal") or loaded.get("intent") or "",
+        "engine_id": loaded.get("job_id") or "",
+        "status": status,
+        "phase": phase or status,
+        "progress": 1.0 if status == "completed" else 0.0,
+        "receipt_id": loaded.get("receipt_id") or "",
+        "experiment_id": loaded.get("experiment_id") or "",
+        "session_id": loaded.get("session_id") or "",
+        "proof_artifact": str(
+            (result or {}).get("proof_artifact") or loaded.get("http_proof_path") or ""
+        ),
+        "tasks_total": int((result or {}).get("tasks_total") or (1 if status in {"completed", "failed"} else 0)),
+        "tasks_completed": 1 if status == "completed" else 0,
+        "started_at": loaded.get("started_at") or started_at,
+        "completed_at": loaded.get("completed_at") or completed_at,
+        "result": result,
+        "source": "repository_lifecycle",
+        "resume_eligible": resume_eligibility(phase),
+    }
+    return status_includes_lifecycle_phase(record)
+
+
+@dataclass(frozen=True)
+class LifecycleEvidence:
+    """Terminal references retained so a job need not be rerun."""
+
+    receipt_id: str
+    checkpoint_id: str
+    artifact_path: str
+    artifact_hash: str
+    verdict: str
+
+
+def terminal_evidence(loaded: dict[str, Any]) -> LifecycleEvidence:
+    """Extract receipt/artifact/verdict pointers from a loaded record."""
+    proof = loaded.get("result") if isinstance(loaded.get("result"), dict) else {}
+    exec_proof = proof.get("execution_proof") if isinstance(proof.get("execution_proof"), dict) else {}
+    return LifecycleEvidence(
+        receipt_id=str(loaded.get("receipt_id") or ""),
+        checkpoint_id=str(
+            loaded.get("checkpoint_id") or exec_proof.get("checkpoint_id") or ""
+        ),
+        artifact_path=str(loaded.get("artifact_path") or ""),
+        artifact_hash=str(
+            loaded.get("artifact_hash") or exec_proof.get("artifact_hash") or ""
+        ),
+        verdict=str(loaded.get("verdict") or exec_proof.get("status") or loaded.get("phase") or ""),
+    )

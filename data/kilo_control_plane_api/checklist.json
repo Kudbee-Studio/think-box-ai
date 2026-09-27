@@ -1,0 +1,16 @@
+{
+  "schema_version": "kilo-control-plane-api-v1",
+  "gate_id": "control-plane-api",
+  "pr_number": 154,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "prior_gate_ids": ["live-smoke-operator"],
+  "notes": "HTTP control-plane surface upgrade — hermetic only",
+  "verify_script": "scripts/verify_kilo_control_plane_api.py",
+  "modules": [
+    "thinkbox/control_plane_api_contract.py",
+    "thinkbox/control_plane_api_surface.py",
+    "backend/api/v1/control_plane.py"
+  ]
+}

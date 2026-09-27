@@ -1,0 +1,134 @@
+{
+  "gate_id": "think-job-receipt-major-fixes",
+  "pr_number": 187,
+  "live_verified": false,
+  "fix_count": 25,
+  "features_manifest": "data/think_job_run_receipt/pr186_features.json",
+  "fixes": [
+    {
+      "id": "FIX01",
+      "name": "receipt_id_format_guard",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/receipt_id_format_guard.py"
+    },
+    {
+      "id": "FIX02",
+      "name": "session_experiment_required",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/session_experiment_required.py"
+    },
+    {
+      "id": "FIX03",
+      "name": "governance_nonempty_guard",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/governance_nonempty_guard.py"
+    },
+    {
+      "id": "FIX04",
+      "name": "sqlite_path_fail_closed",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/sqlite_path_fail_closed.py"
+    },
+    {
+      "id": "FIX05",
+      "name": "artifact_dir_default",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/artifact_dir_default.py"
+    },
+    {
+      "id": "FIX06",
+      "name": "redact_token_fields",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/redact_token_fields.py"
+    },
+    {
+      "id": "FIX07",
+      "name": "idempotency_header_case",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/idempotency_header_case.py"
+    },
+    {
+      "id": "FIX08",
+      "name": "etag_weak_prefix",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/etag_weak_prefix.py"
+    },
+    {
+      "id": "FIX09",
+      "name": "pagination_cap",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/pagination_cap.py"
+    },
+    {
+      "id": "FIX10",
+      "name": "cassette_receipt_steps",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/cassette_receipt_steps.py"
+    },
+    {
+      "id": "FIX11",
+      "name": "replay_shape_valid",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/replay_shape_valid.py"
+    },
+    {
+      "id": "FIX12",
+      "name": "f133_harness_present",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/f133_harness_present.py"
+    },
+    {
+      "id": "FIX13",
+      "name": "f185_pairing_check",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/f185_pairing_check.py"
+    },
+    {
+      "id": "FIX14",
+      "name": "f184_receipt_handoff",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/f184_receipt_handoff.py"
+    },
+    {
+      "id": "FIX15",
+      "name": "status_path_prefix",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/status_path_prefix.py"
+    },
+    {
+      "id": "FIX16",
+      "name": "stream_path_prefix",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/stream_path_prefix.py"
+    },
+    {
+      "id": "FIX17",
+      "name": "dry_run_skips_persist",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/dry_run_skips_persist.py"
+    },
+    {
+      "id": "FIX18",
+      "name": "dashboard_think_jobs",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/dashboard_think_jobs.py"
+    },
+    {
+      "id": "FIX19",
+      "name": "secret_scan_helper",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/secret_scan_helper.py"
+    },
+    {
+      "id": "FIX20",
+      "name": "run_job_bridge_engine",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/run_job_bridge_engine.py"
+    },
+    {
+      "id": "FIX21",
+      "name": "pr186_features_manifest",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/pr186_features_manifest.py"
+    },
+    {
+      "id": "FIX22",
+      "name": "four_state_honesty",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/four_state_honesty.py"
+    },
+    {
+      "id": "FIX23",
+      "name": "validate_receipt_shape_fix",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/validate_receipt_shape_fix.py"
+    },
+    {
+      "id": "FIX24",
+      "name": "audit_pr187_shape",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/audit_pr187_shape.py"
+    },
+    {
+      "id": "FIX25",
+      "name": "fix_registry",
+      "module": "thinkbox/think_job_run_receipt_deepen/fixes/fix_registry.py"
+    }
+  ]
+}

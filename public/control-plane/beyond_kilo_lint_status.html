@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Beyond-KILO lint readiness (PR #170)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    .chip { display: inline-block; padding: 0.25rem 0.5rem; margin: 0.25rem; border-radius: 4px; background: #eef; }
+  </style>
+</head>
+<body>
+  <h1>Beyond-KILO lint readiness</h1>
+  <p>Hermetic gate: ruff, mypy, bandit (scoped). Four-state cap: <strong>TEST_VERIFIED</strong> only.</p>
+  <div>
+    <span class="chip">live_verified: false</span>
+    <span class="chip">live_api_called: false</span>
+    <span class="chip">gate_id: beyond-kilo-lint-readiness</span>
+  </div>
+  <p>Verify: <code>python3 scripts/verify_kilo_beyond_kilo_lint.py</code> (set
+    <code>KILO_BEYOND_KILO_LINT_EXECUTE=1</code> locally).</p>
+</body>
+</html>

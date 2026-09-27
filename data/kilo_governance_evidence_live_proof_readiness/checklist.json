@@ -1,0 +1,22 @@
+{
+  "gate_id": "governance-evidence-live-proof-readiness",
+  "pr_number": 164,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "governance_evidence_live_proof_readiness_version": "1",
+  "founder_ack_env_key": "THINKBOX_SWARM_LIVE_ACK",
+  "box_url_env_key": "UPSTASH_PUBLIC_BOX_URL",
+  "layers": [
+    "control-plane-e2e-deepen",
+    "governance-evidence",
+    "governance-evidence-live-proof-readiness"
+  ],
+  "prior_gate_ids": [
+    "control-plane-e2e-deepen",
+    "governance-evidence",
+    "live-smoke-evidence",
+    "live-proof-exec"
+  ],
+  "verify_script": "scripts/verify_kilo_governance_evidence_live_proof_readiness.py"
+}

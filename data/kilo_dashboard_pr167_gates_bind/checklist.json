@@ -1,0 +1,11 @@
+{
+  "gate_id": "dashboard-pr167-gates-bind",
+  "pr_number": 168,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "prior_gate_ids": [
+    "dashboard-slots",
+    "pr167-combined-post166-lane"
+  ]
+}

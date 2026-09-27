@@ -1,0 +1,18 @@
+{
+  "name": "receipt_deepen_flow",
+  "steps": [
+    {
+      "method": "POST",
+      "path": "/api/v1/run",
+      "receipt": {
+        "receipt_id": "r1",
+        "session_id": "s1",
+        "experiment_id": "e1"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/run/receipt/r1"
+    }
+  ]
+}

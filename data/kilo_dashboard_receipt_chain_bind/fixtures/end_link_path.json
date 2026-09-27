@@ -1,0 +1,6 @@
+{
+  "expect_ok": true,
+  "receipt_id": "rcpt_fixture_end_link",
+  "path": "/api/v1/control-plane/receipts/rcpt_fixture_end_link/validate",
+  "api": "END_LINK"
+}

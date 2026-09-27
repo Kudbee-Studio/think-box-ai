@@ -9,6 +9,7 @@ from pathlib import Path
 
 from thinkbox.repository import Repository
 from thinkbox.execution_adapter import UpstashBoxExecutionAdapter
+from thinkbox.local_execution_adapter import LocalExecutionAdapter
 
 
 def _repository(args: argparse.Namespace) -> Repository:
@@ -107,6 +108,30 @@ def cmd_job_receipt(args: argparse.Namespace) -> None:
     print(f"verified: {bool(receipt.get('content'))}")
 
 
+def cmd_job_execute_local(args: argparse.Namespace) -> None:
+    repo = _repository(args)
+    adapter = LocalExecutionAdapter(repo=repo)
+    print("local_execution: configured (no cloud credentials required)")
+    receipt = adapter.execute(
+        job_id=args.job_id,
+        command=args.exec_command,
+        artifact_name=args.artifact,
+    )
+    print(f"job_id: {receipt.job_id}")
+    print(f"execution_id: {receipt.execution_id}")
+    print(f"status: {receipt.status}")
+    print(f"provider: {receipt.provider}")
+    print(f"exit_code: {receipt.exit_code}")
+    print(f"artifact_name: {receipt.artifact_name}")
+    print(f"artifact_path: {receipt.artifact_path}")
+    print(f"artifact_hash: {receipt.artifact_hash}")
+    print(f"checkpoint_id: {receipt.checkpoint_id}")
+    print(f"receipt_path: {receipt.receipt_path}")
+    print(f"verified: {receipt.verified}")
+    print(f"error: {receipt.error}")
+    print("live_verified: False")
+
+
 def cmd_job_execute(args: argparse.Namespace) -> None:
     repo = _repository(args)
     adapter = UpstashBoxExecutionAdapter(repo=repo)
@@ -174,6 +199,14 @@ def main() -> None:
     job_execute.add_argument("--exec-command", default="", help="Command to execute")
     job_execute.add_argument("--artifact", default="artifact.json", help="Artifact name")
 
+    job_execute_local = job_sub.add_parser(
+        "execute-local",
+        help="Execute a bounded command locally (receipt contract; not live remote)",
+    )
+    job_execute_local.add_argument("--job-id", required=True)
+    job_execute_local.add_argument("--exec-command", default="", help="Shell command")
+    job_execute_local.add_argument("--artifact", default="artifact.json", help="Artifact name")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -188,6 +221,7 @@ def main() -> None:
         ("job", "checkpoint"): cmd_job_checkpoint,
         ("job", "receipt"): cmd_job_receipt,
         ("job", "execute"): cmd_job_execute,
+        ("job", "execute-local"): cmd_job_execute_local,
     }
     handler = commands.get((args.command, sub_key))
     if handler is None:

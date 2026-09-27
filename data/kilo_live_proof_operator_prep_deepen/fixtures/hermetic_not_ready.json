@@ -1,0 +1,10 @@
+{
+  "expect_ready": false,
+  "live_verified": false,
+  "live_api_called": false,
+  "missing_env_keys": [
+    "UPSTASH_PUBLIC_BOX_URL",
+    "UPSTASH_PUBLIC_BOX_TOKEN",
+    "THINKBOX_SWARM_LIVE_ACK"
+  ]
+}

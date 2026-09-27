@@ -1,0 +1,79 @@
+{
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_fixture_cues_deps",
+  "gate_id": "proof-schema",
+  "pr_number": 148,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "simulated",
+  "receipt_key": "rcpt_fixture_cues_deps",
+  "etag": "etag_fixture_cues_deps_v2",
+  "north_star_ref": "logical://north-star/kilo-live-proof",
+  "roadmap_ref": "logical://roadmap/arc-141-150",
+  "tasks_ref": "logical://tasks/proof-schema-gate",
+  "idle_secs": 120,
+  "max_cycles": 3,
+  "stop_sentinel": false,
+  "halt_reason": "user_stop",
+  "prior_gate_ids": [
+    "spine-docs",
+    "env-matrix",
+    "substrate-checklist",
+    "governance-evidence",
+    "mercury-hermetic",
+    "swarm-instrumentation"
+  ],
+  "gates": [
+    {
+      "node_id": "g-spine",
+      "gate_id": "spine-docs",
+      "depends_on": [],
+      "hermetic_operator_ok": true
+    },
+    {
+      "node_id": "g-swarm",
+      "gate_id": "swarm-instrumentation",
+      "depends_on": ["g-spine"],
+      "hermetic_operator_ok": true
+    },
+    {
+      "node_id": "g-proof",
+      "gate_id": "proof-schema",
+      "depends_on": ["g-swarm"],
+      "hermetic_operator_ok": true
+    }
+  ],
+  "cues": [
+    {
+      "cue_id": "cue-user",
+      "cue_type": "user",
+      "counts_as_user_intent": true,
+      "text_ref": "logical://user/directive-ack"
+    },
+    {
+      "cue_id": "cue-nudge",
+      "cue_type": "injected_nudge",
+      "counts_as_user_intent": false,
+      "text_ref": "logical://autonudge/resume"
+    },
+    {
+      "cue_id": "cue-subagent",
+      "cue_type": "subagent_completion",
+      "counts_as_user_intent": false,
+      "text_ref": "logical://subagent/done"
+    }
+  ],
+  "definition_of_done": [
+    {
+      "id": "dod-deps",
+      "predicate": "dependency graph acyclic",
+      "met": true
+    },
+    {
+      "id": "dod-cues",
+      "predicate": "injected cues not user intent",
+      "met": true
+    }
+  ]
+}

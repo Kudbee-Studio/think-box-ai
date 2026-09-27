@@ -1,0 +1,9 @@
+{
+  "name": "enterprise_lr_energy_flow",
+  "tier": "enterprise",
+  "steps": [
+    {"action": "activate_lanes", "count": 25, "dry_run": true},
+    {"action": "enterprise_hub_snapshot", "live_api_called": false},
+    {"action": "gate_verify", "gate": "kudbee-sdk-enterprise-lr-energy-lanes"}
+  ]
+}

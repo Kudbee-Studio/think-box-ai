@@ -1,0 +1,16 @@
+{
+  "audit_pass": "pr162",
+  "date": "2026-09-23",
+  "pr_number": 162,
+  "gate_id": "control-plane-e2e-deepen",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "hermetic_e2e_harness_control_plane_hermetic",
+    "f162_validate_batch_chain_integrity_ops_fail_closed",
+    "kilo_control_plane_e2e_deepen_gate_and_verify_script",
+    "spine_control_plane_e2e_deepen_after_161",
+    "audit_pass_pr162_live_verified_false"
+  ]
+}

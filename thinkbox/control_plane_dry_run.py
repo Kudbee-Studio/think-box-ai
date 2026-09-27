@@ -393,7 +393,14 @@ def _run_api_handler_steps(
         "backend.api.v1.github_webhook._cached_service",
         lambda: ctx.webhook_service,
     ):
-        overview = asyncio.run(pipeline_overview())
+        overview_req = MagicMock(spec=Request)
+        overview_req.headers = {}
+        overview_raw = asyncio.run(pipeline_overview(overview_req))
+        overview = (
+            json.loads(overview_raw.body.decode("utf-8"))
+            if isinstance(overview_raw, JSONResponse)
+            else overview_raw
+        )
         denials = asyncio.run(pipeline_admission_denials())
         integrity = asyncio.run(pipeline_pr_integrity(pr_number))
         merge_raw = asyncio.run(_merge_request())

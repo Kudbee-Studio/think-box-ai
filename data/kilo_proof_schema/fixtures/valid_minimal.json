@@ -1,0 +1,55 @@
+{
+  "schema_version": "kilo-proof-v1",
+  "proof_id": "kilo_proof_fixture_minimal",
+  "gate_id": "proof-schema",
+  "pr_number": 148,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "receipt_key": "rcpt_fixture_minimal_001",
+  "etag": "etag_fixture_minimal_001",
+  "prior_gate_ids": [
+    "spine-docs",
+    "env-matrix",
+    "substrate-checklist",
+    "governance-evidence",
+    "mercury-hermetic",
+    "swarm-instrumentation"
+  ],
+  "gates": [
+    {
+      "node_id": "n-mercury",
+      "gate_id": "mercury-hermetic",
+      "depends_on": [],
+      "hermetic_operator_ok": true
+    },
+    {
+      "node_id": "n-swarm",
+      "gate_id": "swarm-instrumentation",
+      "depends_on": ["n-mercury"],
+      "hermetic_operator_ok": true
+    },
+    {
+      "node_id": "n-proof",
+      "gate_id": "proof-schema",
+      "depends_on": ["n-swarm"],
+      "hermetic_operator_ok": true
+    }
+  ],
+  "cues": [
+    {
+      "cue_id": "cue-1",
+      "cue_type": "gate_ready",
+      "counts_as_user_intent": false,
+      "text_ref": "logical://fixtures/minimal"
+    }
+  ],
+  "definition_of_done": [
+    {
+      "id": "dod-1",
+      "predicate": "fixture validates",
+      "met": true
+    }
+  ]
+}

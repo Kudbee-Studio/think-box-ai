@@ -1,0 +1,33 @@
+{
+  "gate_id": "durable-lifecycle-harden",
+  "pr_number": 202,
+  "live_verified": false,
+  "harden_count": 25,
+  "hardens": [
+    {"id": "H01", "name": "validate_job_id", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H02", "name": "lifecycle_error", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H03", "name": "reject_unknown_phase", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H04", "name": "reject_terminal_regression", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H05", "name": "bound_transitions", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H06", "name": "redact_lifecycle_result", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H07", "name": "validate_artifact_hash", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H08", "name": "validate_substrate", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H09", "name": "reject_remote_local_fallback", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H10", "name": "force_live_flags_false", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H11", "name": "timestamps_from_transitions", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H12", "name": "skip_duplicate_consecutive_phase", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H13", "name": "recover_corrupt_lifecycle_blob", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H14", "name": "list_durable_jobs", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H15", "name": "verify_terminal_artifact_hash", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H16", "name": "completed_requires_receipt", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H17", "name": "admission_must_be_first", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H18", "name": "json_safe_result", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H19", "name": "bound_goal", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H20", "name": "resume_eligibility", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H21", "name": "failed_requires_error", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H22", "name": "worktree_must_be_directory", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H23", "name": "strip_command_from_public_result", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H24", "name": "status_includes_lifecycle_phase", "module": "thinkbox/lifecycle_harden.py"},
+    {"id": "H25", "name": "redacted_audit_snapshot", "module": "thinkbox/lifecycle_harden.py"}
+  ]
+}

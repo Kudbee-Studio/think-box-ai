@@ -1,0 +1,45 @@
+{
+  "pass_id": "pr149",
+  "title": "PR149 — KILO dashboard-slots gate (#141–#150 arc)",
+  "prior_pass": "passes/2026-09-23-pr148.json",
+  "started_at": "2026-09-23T23:00:00Z",
+  "completed_at": "2026-09-23T23:30:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr149",
+  "base_commit": "68cdb6d",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr149 -v",
+    "pr149_tests": 31,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "dashboard_slots_verify": "python3 scripts/verify_kilo_dashboard_slots.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "improvements": [
+    "thinkbox/kilo_dashboard_slots slot registry contract",
+    "multiplex digest identity aligned with think_job_status_ui",
+    "exclusive vs shared_explicit receipt bind policy",
+    "proof-schema layer in evaluate_dashboard_slots",
+    "prior_gate_ids and dod display-only metadata",
+    "cue attribution injected vs user",
+    "dashboard_slots_contract_summary JSON",
+    "spine_contract_summary dashboard_slots block",
+    "pr149_gate_id in spine summary",
+    "scripts/verify_kilo_dashboard_slots.py operator",
+    "verify_kilo_spine dashboard_slots gate",
+    "hermetic fixtures valid and invalid",
+    "unit tests pr149 hermetic and deny paths",
+    "runbook dashboard-slots section H13",
+    "ADR 008 dashboard slot bindings",
+    "audit checklist and pass pr149",
+    "hermetic only live_api_called false",
+    "four-state cap TEST_VERIFIED",
+    "optional non-binding #150 live-proof-exec next"
+  ]
+}

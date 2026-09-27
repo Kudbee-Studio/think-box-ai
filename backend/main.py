@@ -96,6 +96,13 @@ app.include_router(github_webhook_router)
 from backend.api.v1.pipeline_dashboard import pipeline_dashboard_router
 app.include_router(pipeline_dashboard_router)
 
+from backend.api.v1.control_plane import control_plane_api
+app.include_router(control_plane_api)
+
+from backend.api.v1.autonomous_loop import autonomous_loop_router
+if autonomous_loop_router is not None:
+    app.include_router(autonomous_loop_router)
+
 
 @app.on_event("startup")
 async def startup() -> None:

@@ -1,0 +1,15 @@
+{
+  "gate_id": "live-proof-operator-audit-flip-deepen",
+  "pr_number": 167,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "audit_flip_label": "live-proof-operator-audit-flip-deepen",
+  "required_checklist_items": 16,
+  "prior_gate_ids": [
+    "live-proof-operator-prep-deepen",
+    "live-smoke-audit-flip-harden",
+    "live-smoke-operator",
+    "live-smoke-evidence"
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "request": {"method": "GET", "path": "/api/health"},
+  "response": {"status": "ok", "ready": true, "mode": "cassette"}
+}

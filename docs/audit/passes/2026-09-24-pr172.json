@@ -1,0 +1,15 @@
+{
+  "audit_pass_id": "pr172-ci-spine-trust",
+  "pr_number": 172,
+  "gate_id": "ci-spine-trust",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "themes": [
+    "ci_workflow_dedupe",
+    "fast_spine_trust",
+    "beyond_kilo_lint_execute_explicit"
+  ],
+  "notes": "PR CI trusts verify_kilo_spine.py (fast default) plus KILO_BEYOND_KILO_LINT_EXECUTE=1; no per-gate duplicate verify_kilo_* in workflow."
+}

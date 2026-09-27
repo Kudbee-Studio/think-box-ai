@@ -1,0 +1,93 @@
+{
+  "audit_pass": "pr164-evidence-audit",
+  "date": "2026-09-23",
+  "pr_number": 164,
+  "gate_id": "governance-evidence-live-proof-readiness",
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "auditor": "cursor-cloud-pr164",
+  "scope": "strict evidence audit for #164 hermetic governance-evidence Live-proof readiness",
+  "claims": [
+    {
+      "claim": "Hermetic gate has no live Box/Mercury/Inception HTTP",
+      "implementation": [
+        "thinkbox/governance_evidence_live_proof_readiness.py",
+        "thinkbox/kilo_governance_evidence_live_proof_readiness.py"
+      ],
+      "tests": [
+        "tests/unit/test_governance_evidence_live_proof_readiness.py",
+        "tests/unit/test_kilo_governance_evidence_live_proof_readiness_gate.py"
+      ],
+      "evidence": "static grep: no http/urllib/requests imports in #164 modules",
+      "state": "TEST_VERIFIED"
+    },
+    {
+      "claim": "live_verified and live_api_called remain false in hermetic paths",
+      "implementation": [
+        "scripts/verify_kilo_governance_evidence_live_proof_readiness.py",
+        "docs/audit/passes/2026-09-23-pr164.json"
+      ],
+      "tests": [
+        "tests/unit/test_kilo_live_proof_readiness_pr164.py"
+      ],
+      "evidence": "verify script exit 0; audit pass JSON fields",
+      "state": "TEST_VERIFIED"
+    },
+    {
+      "claim": "Governance-evidence admission shape reproducible under hermetic_unit",
+      "implementation": [
+        "thinkbox/governance_evidence_live_proof_readiness.py:evaluate_governance_evidence_hermetic_unit",
+        "thinkbox/kilo_governance_evidence.py"
+      ],
+      "tests": [
+        "tests/unit/test_governance_evidence_live_proof_readiness.py::test_hermetic_unit_governance_evidence_passes"
+      ],
+      "evidence": "in-memory GovernanceTokenService + IdentityLedger; not live Mercury",
+      "state": "TEST_VERIFIED"
+    },
+    {
+      "claim": "Founder ack + Box URL documented as live prereqs only",
+      "implementation": [
+        "docs/guides/kilo_governance_evidence_live_proof_readiness.md",
+        "data/kilo_governance_evidence_live_proof_readiness/fixtures/prereq_documented_expect.json"
+      ],
+      "tests": [
+        "tests/unit/test_governance_evidence_live_proof_readiness.py::test_live_prereqs_not_satisfied_in_hermetic_env"
+      ],
+      "evidence": "readiness document requires founder_ack_documented/box_url_documented true",
+      "state": "TEST_VERIFIED"
+    },
+    {
+      "claim": "Live-proof readiness separated from LIVE_VERIFIED",
+      "implementation": [
+        "thinkbox/kilo_governance_evidence_live_proof_readiness.py",
+        "docs/runbooks/kilo-live-proof-readiness.md H24"
+      ],
+      "tests": [
+        "tests/unit/test_kilo_live_proof_readiness_pr164.py::test_pr164_audit_pass_honesty"
+      ],
+      "evidence": "four_state_max TEST_VERIFIED; validate_readiness_document rejects live_verified true",
+      "state": "TEST_VERIFIED"
+    },
+    {
+      "claim": "Receipt-chain / END_LINK authoritative live provenance",
+      "implementation": "N/A for #164 scope",
+      "tests": [],
+      "evidence": "not claimed by #164; prior gates #155–#163 remain hermetic TEST_VERIFIED on main",
+      "state": "CODE_COMPLETE"
+    },
+    {
+      "claim": "Founder-run KILO Live proof executed",
+      "implementation": null,
+      "tests": [],
+      "evidence": "no live artifact bound to #164",
+      "state": "not claimed"
+    }
+  ],
+  "remaining_blockers": [
+    "Founder-run bounded Live proof still required for any future LIVE_VERIFIED flip",
+    "UPSTASH_PUBLIC_BOX_URL/TOKEN absent in CI — live_proof_prep_ok false by design in hermetic env"
+  ],
+  "next_larger_improvement": "Founder-run KILO Live proof per docs/runbooks/kilo-live-proof-readiness.md after #164 merge"
+}

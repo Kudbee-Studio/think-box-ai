@@ -33,6 +33,8 @@ from thinkbox.pipeline_fleet_checkpoint import DEFAULT_FLEET_CHECKPOINT_KEY, Fle
 from thinkbox.pipeline_readiness import evaluate_merge_readiness
 from thinkbox.pipeline_waiver import PIPELINE_POLICY_WAIVER_CAPABILITY, PolicyWaiverService
 from thinkbox.pr_lifecycle_event_hooks import PRLifecycleEventCoordinator
+from thinkbox.read_cache import TtlSnapshotCache, weak_etag_from_payload
+from backend.api.v1.http_conditional import conditional_json_response
 
 pipeline_dashboard_router = APIRouter(
     prefix="/api/v1/control-plane/pipeline",
@@ -113,6 +115,7 @@ def _cached_bundle() -> PipelineDashboardBundle:
 
 
 _delta_tracker: Optional[PipelineDeltaTracker] = None
+_overview_cache: TtlSnapshotCache[dict[str, Any]] = TtlSnapshotCache(ttl_seconds=1.0, max_entries=4)
 
 
 def _get_delta_tracker() -> PipelineDeltaTracker:
@@ -127,6 +130,25 @@ def reset_pipeline_dashboard_cache() -> None:
     global _delta_tracker
     _delta_tracker = None
     _cached_bundle.cache_clear()
+    _overview_cache.clear()
+
+
+def _pipeline_overview_payload() -> dict[str, Any]:
+    bundle = _cached_bundle()
+    overview = bundle.aggregator.overview()
+    q = bundle.quarantine.read()
+    overview["quarantine"] = q
+    overview["ops_scorecard"] = pipeline_ops_scorecard(overview, quarantine=q)
+    return overview
+
+
+def _cached_pipeline_overview() -> dict[str, Any]:
+    entry = _overview_cache.get("overview")
+    if entry is not None:
+        return dict(entry.value)
+    payload = _pipeline_overview_payload()
+    _overview_cache.set("overview", payload, etag=weak_etag_from_payload(payload))
+    return payload
 
 
 def _extract_governance_token(
@@ -141,14 +163,10 @@ def _extract_governance_token(
 
 
 @pipeline_dashboard_router.get("")
-async def pipeline_overview() -> dict[str, Any]:
+async def pipeline_overview(request: Request) -> Any:
     """All PR pipeline rows with evidence and admission rollups."""
-    bundle = _cached_bundle()
-    overview = bundle.aggregator.overview()
-    q = bundle.quarantine.read()
-    overview["quarantine"] = q
-    overview["ops_scorecard"] = pipeline_ops_scorecard(overview, quarantine=q)
-    return overview
+    body = _cached_pipeline_overview()
+    return conditional_json_response(request, body)
 
 
 @pipeline_dashboard_router.get("/pr/{pr_number}")
@@ -260,8 +278,19 @@ async def pipeline_checkpoint_verify() -> dict[str, Any]:
 
 
 @pipeline_dashboard_router.get("/poll/deltas")
-async def pipeline_poll_deltas() -> dict[str, Any]:
-    return _get_delta_tracker().snapshot()
+async def pipeline_poll_deltas(request: Request) -> Any:
+    delta = _get_delta_tracker().snapshot()
+    digest = (delta.get("current") or {}).get("overview_digest") or weak_etag_from_payload(delta)
+    etag = f'W/"pipe-{digest}"'
+    if not delta.get("changed"):
+        inm = request.headers.get("if-none-match")
+        from thinkbox.read_cache import etag_matches
+
+        if etag_matches(inm, etag):
+            from fastapi.responses import Response
+
+            return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "private, max-age=0"})
+    return conditional_json_response(request, delta, etag=etag)
 
 
 @pipeline_dashboard_router.get("/stream/deltas")

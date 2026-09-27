@@ -1,0 +1,14 @@
+{
+  "gate_id": "receipt-chain-end-link-season-harden",
+  "pr_number": 165,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "season_harden_label": "receipt-chain-end-link-season-harden",
+  "season_harden_version": "1.0.0",
+  "prior_gate_ids": [
+    "receipt-chain-end-link-era-close",
+    "governance-evidence-live-proof-readiness"
+  ],
+  "verify_script": "scripts/verify_kilo_receipt_chain_end_link_season_harden.py"
+}

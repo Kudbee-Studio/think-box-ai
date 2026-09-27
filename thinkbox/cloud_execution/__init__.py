@@ -1,0 +1,35 @@
+"""Cloud execution substrate — provider-neutral job execution foundation (PR #197).
+
+Hermetic default provider only. Caps at TEST_VERIFIED unless real external
+execution evidence exists elsewhere.
+"""
+
+from thinkbox.cloud_execution.admission import ExecutionAdmissionGate
+from thinkbox.cloud_execution.durable_engine import DurableCloudExecutionEngine
+from thinkbox.cloud_execution.engine import CloudExecutionEngine
+from thinkbox.cloud_execution.queue import ExecutionJobQueue
+from thinkbox.cloud_execution.sqlite_store import DurableExecutionJobStore
+from thinkbox.cloud_execution.job import ExecutionJob, ExecutionJobState
+from thinkbox.cloud_execution.provider import CloudExecutionProvider
+from thinkbox.cloud_execution.receipt import ExecutionAttemptReceipt
+from thinkbox.cloud_execution.resources import ResourceLimits
+from thinkbox.cloud_execution.worker_config import WorkerConfig
+from thinkbox.cloud_execution.worker_orchestrator import CloudExecutionWorker
+from thinkbox.cloud_execution.workspace import WorkspaceBinding, WorkspaceRegistry
+
+__all__ = (
+    "CloudExecutionEngine",
+    "DurableCloudExecutionEngine",
+    "DurableExecutionJobStore",
+    "ExecutionJobQueue",
+    "CloudExecutionProvider",
+    "ExecutionAdmissionGate",
+    "ExecutionAttemptReceipt",
+    "ExecutionJob",
+    "ExecutionJobState",
+    "ResourceLimits",
+    "CloudExecutionWorker",
+    "WorkerConfig",
+    "WorkspaceBinding",
+    "WorkspaceRegistry",
+)

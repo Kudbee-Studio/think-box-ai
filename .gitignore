@@ -71,3 +71,6 @@ backend/instance/
 data/proofs/
 data/cnc/safety/
 data/cnc/
+
+# Local runtime job state (AGENTS.md: never commit .thinkbox/)
+.thinkbox/

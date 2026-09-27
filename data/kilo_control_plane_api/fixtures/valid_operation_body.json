@@ -1,0 +1,8 @@
+{
+  "description": "valid create operation body",
+  "body": {
+    "action_type": "control_plane.demo",
+    "operation_id": "op_fixture_valid"
+  },
+  "expect_violations": false
+}

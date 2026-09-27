@@ -445,6 +445,14 @@ class Repository:
             self._save(self._worktree)
             return replace(job)
 
+    def list_job_ids(self) -> list[str]:
+        """Return persisted job ids (H14 list surface)."""
+        with self._lock:
+            jobs_dir = self._jobs_dir()
+            if not jobs_dir.exists():
+                return []
+            return sorted(path.stem for path in jobs_dir.glob("*.json"))
+
     def job_status(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)
@@ -457,15 +465,32 @@ class Repository:
         job_id: str,
         status: str | None = None,
         next_action: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        provenance_event: str | None = None,
+        require_lifecycle_phase: str | None = None,
+        require_lease_id: str | None = None,
     ) -> dict[str, Any] | None:
         with self._lock:
             job = self._load_job(job_id)
             if job is None:
                 return None
+            life = job.metadata.get("governed_lifecycle")
+            if not isinstance(life, dict):
+                life = {}
+            if require_lifecycle_phase is not None:
+                if str(life.get("phase") or "") != require_lifecycle_phase:
+                    return None
+            if require_lease_id is not None:
+                if str(life.get("lease_id") or "") != require_lease_id:
+                    return None
             if status is not None:
                 job.status = status
             if next_action is not None:
                 job.next_action = next_action
+            if metadata:
+                job.metadata.update(metadata)
+            if provenance_event:
+                job.provenance.append(provenance_event)
             self._save_job(job)
             return job.snapshot()
 

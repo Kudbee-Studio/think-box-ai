@@ -10,15 +10,49 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from thinkbox.engine import ThinkBoxEngine, EngineConfig
+from thinkbox.governed import GovernedEngine
 from thinkbox.model_client import ModelConfig
+
+from backend.api.v1.run_governed import (
+    admit_and_queue_http_run,
+    build_complete_async_for_run,
+    execute_governed_run_background,
+    get_api_run_governance,
+    open_http_run_receipt,
+    parse_run_admission,
+    require_http_admission,
+    resume_http_queued_job,
+)
+from thinkbox.governed_execution_lifecycle import lifecycle_worktree_path
+from backend.api.v1.run_receipts import read_run_receipt, read_run_receipt_by_engine
+from backend.api.v1.http_conditional import conditional_json_response
+from backend.api.v1.run_job_status import (
+    STATUS_SCHEMA_VERSION,
+    ThinkJobNotFoundError,
+    build_receipt_link_card,
+    build_think_job_status_payload,
+    build_think_job_status_summary,
+    list_recent_think_job_statuses,
+    list_think_job_status_digest,
+    resolve_think_job_by_receipt,
+    resolve_think_job_record,
+    status_payload_etag,
+)
+from backend.api.v1.run_job_status_stream import (
+    clamp_stream_query_params,
+    iter_jobs_status_stream,
+    iter_think_job_status_stream,
+    iter_think_job_status_stream_by_receipt,
+)
+from thinkbox.read_cache import weak_etag_from_payload
 from thinkbox.session import create_session, get_current_session, sync_session, clear_session
 from backend.security import get_api_keys, validate_ws_token
 
-from thinkbox.cnc import CNCManufacturingEngine, DemoMode, ROIDashboard, SafetyGateStore, TenantStore, ProofStore
 from thinkbox.experiment import (
     ExperimentManager,
     ExperimentRecord,
@@ -28,13 +62,22 @@ from thinkbox.experiment import (
     FourState,
     ProvenanceSource,
 )
-from thinkbox.dashboard_state import get_dashboard_state, DashboardCategory, DashboardEvent
+from thinkbox.dashboard_state import (
+    CNCJobEntry,
+    DashboardCategory,
+    DashboardEvent,
+    ThinkBoxEntry,
+    ThinkJobEntry,
+    get_dashboard_state,
+)
 
 
 api_v1_router = APIRouter(prefix="/api/v1")
+THINK_JOB_NOT_FOUND_DETAIL = "think_job_not_found"
 
 active_engines: dict[str, ThinkBoxEngine] = {}
-active_cnc_engines: dict[str, CNCManufacturingEngine] = {}
+active_governed_engines: dict[str, GovernedEngine] = {}
+active_cnc_engines: dict[str, Any] = {}
 _dashboard_state = get_dashboard_state()
 
 
@@ -47,6 +90,13 @@ class RunRequest(BaseModel):
     speculative: bool = True
     model: str | None = None
     temperature: float | None = None
+    agent_id: str | None = None
+    governance_token: str | None = None
+    capability: str | None = None
+    verified: bool = False
+    subtasks: list[dict[str, Any]] | None = None
+    execution_substrate: str | None = None
+    exec_command: str | None = None
 
 
 class RunResponse(BaseModel):
@@ -56,8 +106,58 @@ class RunResponse(BaseModel):
     summary: dict[str, Any]
 
 
+class ResumeRequest(BaseModel):
+    """Operator re-supply of a shell command after process death (QUEUED only)."""
+
+    exec_command: str | None = None
+
+
+@api_v1_router.get("/run/governance/status")
+async def run_governance_status() -> dict[str, Any]:
+    """Read-only governed-run admission surface (no secrets)."""
+    from backend.api.v1.run_governed import governance_status_snapshot
+
+    return governance_status_snapshot()
+
+
 @api_v1_router.post("/run", response_model=RunResponse)
-async def run_goal(request: RunRequest) -> RunResponse:
+async def run_goal(
+    request: RunRequest,
+    x_governance_token: str | None = Header(None, alias="X-Governance-Token"),
+    x_agent_id: str | None = Header(None, alias="X-Agent-Id"),
+    x_capability: str | None = Header(None, alias="X-Capability"),
+) -> RunResponse:
+    from backend.validation import validate_goal
+
+    ok, goal_or_err = validate_goal(request.goal)
+    if not ok:
+        raise HTTPException(status_code=422, detail=goal_or_err)
+    request.goal = goal_or_err
+
+    if request.verified:
+        from backend.api.v1.run_governed import validate_verified_subtasks
+
+        validate_verified_subtasks(list(request.subtasks or []))
+
+    has_substrate = bool((request.execution_substrate or "").strip())
+    has_exec = bool((request.exec_command or "").strip())
+    if has_substrate ^ has_exec:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "exec_command_and_substrate_required_together"},
+        )
+
+    admission_ctx = parse_run_admission(
+        agent_id=x_agent_id or request.agent_id,
+        governance_token=request.governance_token,
+        header_token=x_governance_token,
+        header_capability=x_capability,
+        capability=request.capability,
+        verified=request.verified,
+        subtasks=request.subtasks,
+    )
+    admission_decision = require_http_admission(admission_ctx)
+
     model_config = ModelConfig()
     if request.model:
         model_config.model = request.model
@@ -69,44 +169,270 @@ async def run_goal(request: RunRequest) -> RunResponse:
         speculative=request.speculative,
     )
     engine = ThinkBoxEngine(engine_config)
+    governed = get_api_run_governance().build_governed_engine(engine)
     active_engines[engine.engine_id] = engine
+    active_governed_engines[engine.engine_id] = governed
+
+    receipt_binding = open_http_run_receipt(
+        engine_id=engine.engine_id,
+        goal=request.goal,
+        agent_id=admission_ctx.agent_id,
+        verified=request.verified,
+        capability=admission_ctx.capability,
+        admission_reason=admission_decision.reason,
+    )
 
     job_entry = ThinkJobEntry(
         job_id=engine.engine_id, goal=request.goal,
         status="running", engine_id=engine.engine_id,
         phase="started", tasks_total=0, tasks_completed=0,
+        receipt_id=receipt_binding.receipt_id,
+        experiment_id=receipt_binding.experiment_id,
+        session_id=receipt_binding.session_id,
+        evidence_label="verified",
     )
     _dashboard_state.upsert_think_job(job_entry)
+    worktree = str(lifecycle_worktree_path())
+    admit_and_queue_http_run(
+        job_entry,
+        worktree=worktree,
+        execution_substrate=(request.execution_substrate or "").strip(),
+    )
     await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
                                job_entry.model_dump(), "api_v1")
 
-    asyncio.create_task(_execute_and_track(engine, request.goal, job_entry))
+    complete_async = build_complete_async_for_run(request.model, admission_ctx.subtasks)
+    asyncio.create_task(
+        execute_governed_run_background(
+            governed,
+            admission_ctx,
+            request.goal,
+            job_entry,
+            complete_async=complete_async,
+            receipt_binding=receipt_binding,
+            execution_substrate=request.execution_substrate,
+            exec_command=request.exec_command,
+            worktree=worktree,
+        )
+    )
 
     return RunResponse(
         engine_id=engine.engine_id,
-        session_id="",
+        session_id=receipt_binding.session_id,
         status="started",
-        summary={"goal": request.goal[:100]},
+        summary={
+            "goal": request.goal[:100],
+            "governed": True,
+            "verified": request.verified,
+            "agent_id": admission_ctx.agent_id,
+            "admission_reason": admission_decision.reason,
+            "capability": admission_ctx.capability,
+            "receipt_id": receipt_binding.receipt_id,
+            "experiment_id": receipt_binding.experiment_id,
+            "session_id": receipt_binding.session_id,
+        },
     )
 
 
-async def _execute_and_track(engine: ThinkBoxEngine, goal: str, job_entry: ThinkJobEntry) -> None:
+@api_v1_router.get("/run/receipt/{receipt_id}")
+async def get_run_receipt(receipt_id: str, request: Request) -> Any:
+    """Redacted governed-run receipt (hermetic SQLite)."""
+    payload = read_run_receipt(receipt_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="run_receipt_not_found")
+    return conditional_json_response(request, payload)
+
+
+@api_v1_router.get("/run/receipt/by-engine/{engine_id}")
+async def get_run_receipt_for_engine(engine_id: str, request: Request) -> Any:
+    payload = read_run_receipt_by_engine(engine_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="run_receipt_not_found")
+    return conditional_json_response(request, payload)
+
+
+@api_v1_router.post("/run/job/{engine_id}/resume")
+async def resume_queued_think_job(
+    engine_id: str,
+    request: ResumeRequest | None = None,
+) -> dict[str, Any]:
+    """Resume a durable QUEUED job. Reuses the existing receipt; no second open."""
+    from thinkbox.governed_execution_lifecycle import open_lifecycle_repo, lifecycle_worktree_path
+    from thinkbox.lifecycle_resume import OUTCOME_SKIPPED
+
+    body = request or ResumeRequest()
+    repo = open_lifecycle_repo(lifecycle_worktree_path())
+    if repo.job_status(engine_id) is None:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    result = resume_http_queued_job(
+        engine_id,
+        exec_command=body.exec_command,
+    )
+    if result.outcome == OUTCOME_SKIPPED:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": result.error or "not_resume_eligible",
+                "job_id": result.job_id,
+                "phase": result.phase,
+            },
+        )
+    return {
+        "job_id": result.job_id,
+        "outcome": result.outcome,
+        "claimed": result.claimed,
+        "executed": result.executed,
+        "receipt_id": result.receipt_id,
+        "phase": result.phase,
+        "verdict": result.verdict,
+        "error": result.error,
+        "lease_id": result.lease_id,
+        "live_verified": False,
+        "live_api_called": False,
+        "production_ready": False,
+    }
+
+
+@api_v1_router.get("/run/job/{engine_id}/status")
+async def get_think_job_poll_status(
+    engine_id: str,
+    request: Request,
+    detail: str = "full",
+) -> Any:
+    """Poll-friendly Think Job status with receipt linkage (hermetic)."""
     try:
-        result = await engine.execute_goal(goal)
-        job_entry.status = "completed"
-        job_entry.progress = 1.0
-        job_entry.tasks_total = result.get("total_tasks", 0)
-        job_entry.tasks_completed = result.get("completed", 0)
-        job_entry.result = result
-        _dashboard_state.upsert_think_job(job_entry)
-        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_COMPLETED,
-                               job_entry.model_dump(), "engine")
-    except Exception as e:
-        job_entry.status = "failed"
-        job_entry.result = {"error": str(e)}
-        _dashboard_state.upsert_think_job(job_entry)
-        await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_FAILED,
-                               job_entry.model_dump(), "engine")
+        record = resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    if detail == "summary":
+        payload = build_think_job_status_summary(record)
+    else:
+        payload = build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
+    return conditional_json_response(request, payload, etag=status_payload_etag(payload))
+
+
+@api_v1_router.get("/run/job/by-receipt/{receipt_id}/status")
+async def get_think_job_status_by_receipt(
+    receipt_id: str,
+    request: Request,
+    detail: str = "full",
+) -> Any:
+    try:
+        record = resolve_think_job_by_receipt(receipt_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    if detail == "summary":
+        payload = build_think_job_status_summary(record)
+    else:
+        payload = build_think_job_status_payload(record, goal_hint=str(record.get("goal") or ""))
+    return conditional_json_response(request, payload, etag=status_payload_etag(payload))
+
+
+@api_v1_router.get("/run/jobs/status")
+async def list_think_job_poll_statuses(
+    request: Request,
+    limit: int = 50,
+    detail: str = "full",
+) -> Any:
+    limit = max(1, min(limit, 200))
+    jobs = list_recent_think_job_statuses(limit=limit, detail=detail)
+    body = {
+        "jobs": jobs,
+        "count": len(jobs),
+        "poll_schema_version": STATUS_SCHEMA_VERSION,
+        "dashboard_revision": _dashboard_state.revision(),
+        "live_verified": False,
+        "production_ready": False,
+    }
+    return conditional_json_response(request, body, etag=weak_etag_from_payload(body))
+
+
+@api_v1_router.get("/run/jobs/status/digest")
+async def think_job_status_digest(request: Request, limit: int = 50) -> Any:
+    limit = max(1, min(limit, 200))
+    body = list_think_job_status_digest(limit=limit)
+    return conditional_json_response(request, body, etag=_dashboard_state.revision_etag())
+
+
+@api_v1_router.get("/run/job/{engine_id}/status/stream")
+async def stream_think_job_poll_status(
+    engine_id: str,
+    max_events: int = 64,
+    timeout_s: float = 120.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    """Hermetic SSE: incremental Think Job status deltas (poll → push)."""
+    try:
+        resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_think_job_status_stream(engine_id, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@api_v1_router.get("/run/job/by-receipt/{receipt_id}/status/stream")
+async def stream_think_job_status_by_receipt(
+    receipt_id: str,
+    max_events: int = 64,
+    timeout_s: float = 120.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    try:
+        resolve_think_job_by_receipt(receipt_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_think_job_status_stream_by_receipt(receipt_id, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@api_v1_router.get("/run/jobs/status/stream")
+async def stream_think_jobs_poll_status(
+    limit: int = 50,
+    max_events: int = 32,
+    timeout_s: float = 60.0,
+    heartbeat_s: float = 15.0,
+) -> StreamingResponse:
+    limit = max(1, min(limit, 200))
+    limits = clamp_stream_query_params(max_events, timeout_s, heartbeat_s)
+    return StreamingResponse(
+        iter_jobs_status_stream(limit=limit, limits=limits),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@api_v1_router.get("/dashboard/state/summary")
+async def dashboard_state_summary(request: Request) -> Any:
+    body = _dashboard_state.get_state_summary()
+    return conditional_json_response(request, body, etag=_dashboard_state.revision_etag())
+
+
+@api_v1_router.get("/dashboard/think-job/{engine_id}/receipt-card")
+async def get_think_job_receipt_card(engine_id: str) -> dict[str, Any]:
+    try:
+        record = resolve_think_job_record(engine_id)
+    except ThinkJobNotFoundError:
+        raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+    status = str(record.get("status") or "unknown")
+    return build_receipt_link_card(
+        job_id=str(record.get("job_id") or engine_id),
+        status=status,
+        phase=str(record.get("phase") or ""),
+        receipt_id=str(record.get("receipt_id") or ""),
+        experiment_id=str(record.get("experiment_id") or ""),
+        session_id=str(record.get("session_id") or ""),
+        proof_artifact=str(record.get("proof_artifact") or ""),
+        tasks_total=int(record.get("tasks_total") or 0),
+        tasks_completed=int(record.get("tasks_completed") or 0),
+    )
 
 
 @api_v1_router.get("/engine/{engine_id}")
@@ -121,8 +447,6 @@ async def get_engine_status(engine_id: str) -> dict[str, Any]:
         metadata=stats,
     )
     _dashboard_state.upsert_think_box(tb_entry)
-    await _emit_dashboard(DashboardCategory.THINK_BOXES, DashboardEvent.TASK_COMPLETED,
-                             tb_entry.model_dump(), "engine_api")
     return stats
 
 
@@ -144,8 +468,9 @@ class CNCJobResponse(BaseModel):
 
 @api_v1_router.post("/cnc/job", response_model=CNCJobResponse)
 async def create_cnc_job(request: CNCJobCreateRequest) -> CNCJobResponse:
+    from thinkbox.cnc import CNCManufacturingEngine, CNCJob, Material, MachineProfile, Operation, Tool
+
     engine = CNCManufacturingEngine()
-    from thinkbox.cnc import CNCJob, Material, MachineProfile, Operation, Tool
     material = Material(name=request.material, grade=request.material)
     machine = MachineProfile(name=request.machine, control_system="Fanuc")
     tool = Tool(name="End Mill", tool_type="end_mill", diameter_mm=10.0)
@@ -164,6 +489,8 @@ async def create_cnc_job(request: CNCJobCreateRequest) -> CNCJobResponse:
 
 @api_v1_router.post("/cnc/demo")
 async def run_cnc_demo() -> dict[str, Any]:
+    from thinkbox.cnc import DemoMode
+
     demo = DemoMode()
     result = demo.run()
     cnc_entry = CNCJobEntry(
@@ -179,16 +506,22 @@ async def run_cnc_demo() -> dict[str, Any]:
 
 
 @api_v1_router.get("/cnc/dashboard")
-async def get_cnc_dashboard() -> dict[str, Any]:
+async def get_cnc_dashboard(request: Request) -> Any:
+    from thinkbox.cnc import ROIDashboard
+
     dashboard = ROIDashboard()
     stats = dashboard.compute_stats()
-    full_state = _dashboard_state.get_state()
-    full_state["cnc_roi"] = stats.model_dump()
-    return full_state
+    body = {
+        **_dashboard_state.get_state_summary(),
+        "cnc_roi": stats.model_dump(),
+    }
+    return conditional_json_response(request, body, etag=_dashboard_state.revision_etag())
 
 
 @api_v1_router.post("/cnc/safety/approve")
 async def approve_cnc_job(job_id: str, reason: str = "") -> dict[str, Any]:
+    from thinkbox.cnc import SafetyGateStore
+
     store = SafetyGateStore()
     approval = store.approve(job_id=job_id, approver_id="operator", reason=reason or "Approved")
     if job_id in _dashboard_state.cnc_jobs:
@@ -200,6 +533,8 @@ async def approve_cnc_job(job_id: str, reason: str = "") -> dict[str, Any]:
 
 @api_v1_router.get("/cnc/tenant")
 async def list_tenants() -> dict[str, Any]:
+    from thinkbox.cnc import TenantStore
+
     store = TenantStore()
     tenants = store.list_tenants()
     return {"tenants": [t.model_dump() for t in tenants]}
@@ -228,18 +563,24 @@ async def websocket_telemetry(websocket: WebSocket) -> None:
 
     await websocket.accept()
 
+    last_revision = -1
     try:
         while True:
-            data = {
+            revision = _dashboard_state.revision()
+            compact = {
                 "type": "system_status",
                 "active_engines": len(active_engines),
-                "dashboard_state": _dashboard_state.get_state(),
+                "dashboard_revision": revision,
+                "dashboard_summary": _dashboard_state.get_state_summary(),
                 "engines": {
                     eid: e.get_stats()
                     for eid, e in active_engines.items()
                 },
             }
-            await websocket.send_json(data)
+            if revision != last_revision:
+                compact["dashboard_state"] = _dashboard_state.get_state()
+                last_revision = revision
+            await websocket.send_json(compact)
             await asyncio.sleep(2)
     except WebSocketDisconnect:
         pass
@@ -324,8 +665,9 @@ async def record_outcome(experiment_id: str, request: dict[str, Any]) -> dict[st
 
 
 @api_v1_router.get("/experiment/dashboard")
-async def experiment_dashboard() -> dict[str, Any]:
-    return _experiment_manager.get_dashboard_data()
+async def experiment_dashboard(request: Request) -> Any:
+    body = _experiment_manager.get_dashboard_data()
+    return conditional_json_response(request, body)
 
 
 @api_v1_router.post("/experiment/zero-server")

@@ -67,12 +67,17 @@ class ActionReceiptStore:
     ) -> Receipt:
         with self._lock:
             prev_row = self._conn.execute(
-                "SELECT entry_hash FROM receipts ORDER BY rowid DESC LIMIT 1"
+                "SELECT receipt_id, entry_hash FROM receipts ORDER BY rowid DESC LIMIT 1"
             ).fetchone()
-            prev_hash = prev_row[0] if prev_row else "GENESIS"
+            if prev_row:
+                prev_receipt_id, prev_hash = prev_row[0], prev_row[1]
+            else:
+                prev_receipt_id, prev_hash = None, "GENESIS"
+            meta = dict(metadata or {})
+            if prev_receipt_id:
+                meta.setdefault("prev_receipt_id", prev_receipt_id)
             receipt_id = f"rcpt_{uuid.uuid4().hex[:12]}"
             timestamp = datetime.now(timezone.utc).isoformat()
-            meta = metadata or {}
             payload = {
                 "receipt_id": receipt_id,
                 "action": action,

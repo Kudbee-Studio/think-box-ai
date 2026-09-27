@@ -1,0 +1,4 @@
+{
+  "expect_ok": true,
+  "notes": "hermetic batch validate returns mixed valid/invalid items"
+}

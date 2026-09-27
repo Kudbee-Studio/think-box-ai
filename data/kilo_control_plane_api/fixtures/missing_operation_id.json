@@ -1,0 +1,7 @@
+{
+  "description": "missing operation_id",
+  "body": {
+    "action_type": "control_plane.demo"
+  },
+  "expect_violations": true
+}

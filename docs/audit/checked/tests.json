@@ -2,9 +2,72 @@
   "area": "tests",
   "items": [
     {
+      "checked_at": "2026-09-23T18:00:00Z",
+      "checker": "cursor-cloud-pr134",
+      "commit_sha": "pending",
+      "finding_ids": ["F134-STATUS-MODULE", "F134-GET-STATUS", "F134-E2E-POLL"],
+      "notes": "test_f134_think_job_status_poll + test_run_job_status; suite 2381 OK",
+      "path": "tests/e2e/test_f134_think_job_status_poll.py",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T06:15:00Z",
+      "checker": "cursor-cloud-pr132",
+      "commit_sha": "pending",
+      "finding_ids": ["F132-GOVERNED-RUN", "F132-ADMISSION", "F132-LEDGER", "F132-VERIFIED-HTTP"],
+      "notes": "test_f132_governed_run_admission + run_governed; suite 2343 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T03:55:00Z",
+      "checker": "cursor-cloud-pr131",
+      "commit_sha": "pending",
+      "finding_ids": ["F131-HTTP-RUN", "F131-DASHBOARD", "F131-AUTH", "F131-SCHEMA"],
+      "notes": "test_f131_post_run_think_job_contract + api_run_hermetic; suite 2323 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T03:10:00Z",
+      "checker": "cursor-cloud-pr130",
+      "commit_sha": "pending",
+      "finding_ids": ["F023-PROVIDER", "F023-LIFECYCLE", "F023-DASHBOARD", "F023-EDGE"],
+      "notes": "test_f023_think_job_lifecycle + scaffold; suite 2298 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T02:40:00Z",
+      "checker": "cursor-cloud-pr129",
+      "commit_sha": "pending",
+      "finding_ids": ["F129-PERSIST", "F129-LIVE-GATE", "F129-SHELL"],
+      "notes": "test_cli_phase2; suite 2285 OK",
+      "path": "tests/unit/test_cli_phase2.py",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-23T02:45:00Z",
+      "checker": "cursor-cloud-pr128",
+      "commit_sha": "f260de6",
+      "finding_ids": ["F128-CLI", "F023-prep"],
+      "notes": "test_cli + test_cli_inspect + test_f023_prep; suite 2272 OK",
+      "path": "tests/",
+      "status": "pass"
+    },
+    {
+      "checked_at": "2026-09-22T18:30:00Z",
+      "checker": "cursor-cloud-pr127",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
+      "finding_ids": ["F009"],
+      "notes": "11 hermetic e2e tests + scaffold; full suite 2249 OK",
+      "path": "tests/e2e/",
+      "status": "pass"
+    },
+    {
       "checked_at": "2026-09-22T15:05:00Z",
       "checker": "cursor-cloud-pr126",
-      "commit_sha": "f034d4ebf72ec341fd7afbcb3ed5e14bbd18b89f",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F009", "F010"],
       "notes": "e2e governed loop + test_doc_secrets_scan",
       "path": "tests/e2e/",
@@ -13,7 +76,7 @@
     {
       "checked_at": "2026-09-22T14:35:00Z",
       "checker": "cursor-cloud-pr125",
-      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F002", "F003"],
       "notes": "Full suite 2235 OK locally (incl. test_audit_ledger)",
       "path": "tests/",
@@ -22,7 +85,7 @@
     {
       "checked_at": "2026-09-22T14:35:00Z",
       "checker": "cursor-cloud-pr125",
-      "commit_sha": "60f27dfa096f952c8c10bbb3464ff945afface21",
+      "commit_sha": "cb7c95c1e4b9990f389c10f8b91633f580a4e1c8",
       "finding_ids": ["F009"],
       "notes": "e2e directory empty except README scaffold",
       "path": "tests/e2e/",

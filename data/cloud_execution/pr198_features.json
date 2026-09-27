@@ -1,0 +1,20 @@
+{
+  "gate_id": "cloud-execution-durable-queue",
+  "pr_number": 198,
+  "live_verified": false,
+  "feature_count": 10,
+  "primary_surface": "thinkbox/cloud_execution (durable queue Phase 2)",
+  "upstream_gate_id": "cloud-execution-substrate",
+  "features": [
+    {"id": "F01", "name": "durable_sqlite_job_store", "module": "thinkbox/cloud_execution/sqlite_store.py"},
+    {"id": "F02", "name": "queue_model_enqueue_claim", "module": "thinkbox/cloud_execution/queue.py"},
+    {"id": "F03", "name": "deterministic_job_ids", "module": "thinkbox/cloud_execution/sqlite_store.py"},
+    {"id": "F04", "name": "worker_claim_lease", "module": "thinkbox/cloud_execution/queue.py"},
+    {"id": "F05", "name": "restart_recovery", "module": "thinkbox/cloud_execution/recovery.py"},
+    {"id": "F06", "name": "retry_policy", "module": "thinkbox/cloud_execution/retry_policy.py"},
+    {"id": "F07", "name": "durable_engine_integration", "module": "thinkbox/cloud_execution/durable_engine.py"},
+    {"id": "F08", "name": "repository_workspace_binding", "module": "thinkbox/cloud_execution/repository_bridge.py"},
+    {"id": "F09", "name": "admission_token_hook", "module": "thinkbox/cloud_execution/admission_token.py"},
+    {"id": "F10", "name": "queue_inspection_api", "module": "thinkbox/cloud_execution/inspection.py"}
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "base_commit": "f2ab98a",
+  "checker": "cursor-cloud-pr130",
+  "completed_at": "2026-09-23T03:10:00Z",
+  "findings": [
+    {
+      "id": "F023-PROVIDER",
+      "rank": 1,
+      "severity": "P1",
+      "title": "Hermetic ModelProvider wired through verified goal path",
+      "status": "done",
+      "paths": [
+        "tests/e2e/hermetic_scaffold.py",
+        "tests/e2e/test_f023_think_job_lifecycle.py"
+      ],
+      "notes": "HermeticModelProvider + provider_complete_async; no HTTP"
+    },
+    {
+      "id": "F023-LIFECYCLE",
+      "rank": 2,
+      "severity": "P1",
+      "title": "Submit → admit → execute → proof → verify on disk",
+      "status": "done",
+      "paths": [
+        "tests/e2e/test_f023_think_job_lifecycle.py"
+      ],
+      "notes": "ExperimentManager persistence + dagpath_proof SHA256 + proof_records"
+    },
+    {
+      "id": "F023-DASHBOARD",
+      "rank": 3,
+      "severity": "P2",
+      "title": "Dashboard JOB_COMPLETED emission (hermetic)",
+      "status": "done",
+      "paths": [
+        "tests/e2e/test_f023_think_job_lifecycle.py",
+        "thinkbox/governed.py"
+      ],
+      "notes": "emit_dashboard=True; isolated_dashboard_state helper"
+    },
+    {
+      "id": "F023-EDGE",
+      "rank": 4,
+      "severity": "P2",
+      "title": "Governance edge cases (revoke, capability, budget, partial DAG)",
+      "status": "done",
+      "paths": [
+        "tests/e2e/test_f023_think_job_lifecycle.py"
+      ],
+      "notes": "Uses real AdmissionGate hooks only"
+    }
+  ],
+  "pass_id": "pr130",
+  "prior_pass": "passes/2026-09-23-pr129.json",
+  "started_at": "2026-09-23T02:50:00Z",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2298,
+    "skipped": 8
+  },
+  "title": "PR130 — F023 Think Job hermetic lifecycle e2e (~25 improvements)"
+}

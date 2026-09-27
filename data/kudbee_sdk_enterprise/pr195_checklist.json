@@ -1,0 +1,12 @@
+{
+  "gate_id": "kudbee-sdk-enterprise-lr-energy-lanes",
+  "pr_number": 195,
+  "live_verified": false,
+  "tier": "enterprise",
+  "artifacts": [
+    "data/kudbee_sdk_enterprise/pr195_enterprise_lanes.json",
+    "data/kudbee_sdk_enterprise/pr195_checklist.json",
+    "data/kudbee_sdk_enterprise/cassettes/enterprise_lr_energy_flow.json",
+    "docs/audit/passes/2026-09-24-pr195.json"
+  ]
+}

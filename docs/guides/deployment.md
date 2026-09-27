@@ -2,18 +2,22 @@
 
 ## Quick Start with Docker
 
+See the dedicated [Docker enterprise guide](docker_enterprise.md) for profiles, hermetic spine images, and security notes.
+
 ```bash
 # 1. Clone and configure
 git clone https://github.com/Kudbee-Studio/think-box-ai.git
 cd think-box-ai
-cp .env.example .env
-# Edit .env and set your API keys
+export THINKBOX_API_KEY="$(python3 -c "import secrets; print('tb_' + secrets.token_urlsafe(24))")"
 
-# 2. Run with Docker Compose
-docker-compose up -d
+# 2. Verify contract (no daemon)
+python3 scripts/verify_docker_contract.py
 
-# 3. Check health
-curl http://localhost:8000/health
+# 3. Run API with Docker Compose v2
+docker compose up api -d --build
+
+# 4. Check health
+curl http://127.0.0.1:8000/health
 ```
 
 ## Production Deployment Options

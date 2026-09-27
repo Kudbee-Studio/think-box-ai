@@ -1,0 +1,21 @@
+{
+  "gate_id": "think-job-lifecycle-fixes",
+  "pr_number": 185,
+  "live_verified": false,
+  "local_step_count": 8,
+  "steps": [
+    {"id": "L01", "name": "python_version", "module": "thinkbox/think_job_lifecycle_fixes/local/python_version.py"},
+    {"id": "L02", "name": "venv_detect", "module": "thinkbox/think_job_lifecycle_fixes/local/venv_detect.py"},
+    {"id": "L03", "name": "editable_install", "module": "thinkbox/think_job_lifecycle_fixes/local/editable_install.py"},
+    {"id": "L04", "name": "env_matrix", "module": "thinkbox/think_job_lifecycle_fixes/local/env_matrix.py"},
+    {"id": "L05", "name": "run_all_fixes", "module": "thinkbox/think_job_lifecycle_fixes/local/run_all_fixes.py"},
+    {"id": "L06", "name": "run_verify_gate", "module": "thinkbox/think_job_lifecycle_fixes/local/run_verify_gate.py"},
+    {"id": "L07", "name": "run_unit_tests", "module": "thinkbox/think_job_lifecycle_fixes/local/run_unit_tests.py"},
+    {"id": "L08", "name": "run_quickstart", "module": "thinkbox/think_job_lifecycle_fixes/local/run_quickstart.py"}
+  ],
+  "scripts": [
+    "scripts/run_pr185_local.sh",
+    "scripts/verify_pr185_local_environment.py"
+  ],
+  "runbook": "docs/runbooks/think-job-pr185-local-environment.md"
+}

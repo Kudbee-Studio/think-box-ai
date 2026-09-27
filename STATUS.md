@@ -1,3 +1,474 @@
+## MERGED (2026-09-26 19:25) — Autonomous workflow cloud environment setup + proof
+
+- **Branch:** `feat/neon-serverless-setup`
+- **Main SHA:** `493b6ca6e325441c18ca6dee0b85e1b103772b90`
+- **Commits:** 3561aee (Neon init) + a5e799d (skills) + 4db5f6b (proof)
+- **Scope:** Neon serverless Postgres configuration + end-to-end autonomous workflow proof script
+- **Proof verified:** 
+  - ✅ Mercury-2 model execution via Inception API
+  - ✅ Upstash Redis persistence
+  - ✅ Autonomous decision loop (Sense → Decide → Act → Learn)
+  - ✅ Dashboard state tracking
+- **Cloud env:** INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN preserved; no paid services added
+- **Four-state:** CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox)
+- **Next:** Reconcile Memory layer API; audit Dashboard state API; local development
+
+## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
+
+- **Branch:** `claude/repo-audit-e4801s`
+- **Why:** PR #252 audit found 14/38 committed swarm proof artifacts fail `validate_proof_document` — they declared 32 validator workers but ran 0 validator calls (224 total, not the declared 256).
+- **Fixes:** All 14 invalid swarm proof artifacts patched to honestly reflect partial execution (`partial_run: true`, `declared_validator_workers` preserves original 32, `validator_workers` corrected to 0). Finding doc `data/findings/swarm_proof_artifacts_invalid.md` updated to reflect fix. All 38 proof artifacts now pass `validate_proof_document`.
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+- **Verify:** 38/38 proofs validate; full suite 4134 discovered tests.
+- **Builds on:** PR #252 (merged) — honest execution: real model path + governance no-token deny.
+
+## GitHub PR #252 Honest execution: real model path + governance no-token deny (MERGED)
+
+- **Merge:** on `main`
+- **Fixes:** `ModelCallError` (no error-as-output), Bearer auth + `/v1` URL fix + env provider selection (`ollama` / `openai_compat` / `inception`), no speculative retries on non-retryable errors; no-token = deny + ledger row; `thinkbox run` is governed, prints real output, exits non-zero on failure; `thinkbox model check`; `think_box_ai inception` no longer simulated.
+- **Proof:** `python3 scripts/prove_think_box_local.py` — 6/6 PASS against local Ollama.
+- **Verify:** `tests.unit.test_model_client_honest` **27 OK**.
+
+## GitHub PR #245 — Autonomous decision loop: Control plane UI (on main `9201a42`)
+
+- **Branch:** `feat/pr245-autonomous-loop-control-plane-ui`
+- **Scope:** Control plane UI (`public/control-plane/autonomous_loop.html`, `autonomous_loop_client.js`) + navigation integration + telemetry inspection
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED only — `live_verified: false`
+- **Verify:** ui-static **3 OK**; autonomous-loop suite **157 OK**
+
+## GitHub PR #244 — Autonomous decision loop: Control plane REST API (MERGED)
+
+- **Merge:** `b466a6c`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/244
+- **Verify:** api-surface **12 OK**; autonomous-loop suite **154 OK**
+
+## GitHub PR #243 — Autonomous decision loop: Telemetry & observability (MERGED)
+
+- **Merge:** `0d4a90c`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/243
+- **Verify:** telemetry **12 OK**; autonomous-loop suite **142 OK**
+
+## GitHub PR #242 — Autonomous decision loop: Dashboard state & tracking (MERGED)
+
+- **Merge:** `7f427f9`
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/242
+- **Verify:** dashboard **9 OK**; autonomous-loop suite **170 OK**
+
+## Draft — GitHub PR #230 Trait Lab autonomous worker executor (in progress)
+
+- **Branch:** `feat/trait-lab-autonomous-worker-executor-pr230`
+- **Gate:** `memory-trait-lab-autonomous-worker-executor-25` (L01–L25)
+- **Scope:** Governance layer composing CloudExecutionWorker + K01–K25 Integration Major gate
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED only — `live_verified: false`
+- **Verify:** worker-executor **4 OK**; memory **267 OK**
+
+## GitHub PR #229 — Trait Lab autonomous integration major (MERGED)
+
+- **Merge:** `2a2fa3e` — K01–K25 integration major
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/229
+- **Verify:** integration-major **4 OK**; memory **267 OK**
+
+## GitHub PR #228 — Trait Lab autonomous app regression (merged)
+
+- **Merge:** `449beda` — J01–J25 app regression
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/228
+- **Verify:** app-regression **3 OK** at merge; memory **263 OK**
+
+## GitHub PR #227 — Trait Lab autonomous app gate (merged)
+
+- **Merge:** `6c3dd6c` — G01–G25 app gate
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/227
+- **Verify:** app-gate **4 OK** at merge; memory **260 OK**
+
+## GitHub PR #226 — Trait Lab autonomous stack suite (merged)
+
+- **Merge:** `67b0304` — V01–V25 stack suite
+- **Gate:** `memory-trait-lab-autonomous-stack-suite-25`
+- **Verify:** stack-suite **5 OK** at merge; memory **256 OK**
+
+## GitHub PR #225 — Trait Lab autonomous stack harness (merged)
+
+- **Merge:** `bc8ca28` — U01–U25 stack smoke harness
+- **Gate:** `memory-trait-lab-autonomous-stack-harness-25`
+- **Verify:** stack-harness **5 OK** at merge; memory **251 OK**
+
+## GitHub PR #224 — Trait Lab autonomous flow workflow compose (merged)
+
+- **Merge:** `3eb4d03` — P01–P25 flow-receipt index compose
+- **Gate:** `memory-trait-lab-autonomous-flow-workflow-compose-25`
+- **Verify:** flow-compose **4 OK** at merge; memory **246 OK**
+
+## GitHub PR #223 — Trait Lab autonomous flow workflow major (merged)
+
+- **Merge:** `3fdaa32` — O01–O25 flow orchestration + flow receipt + `open_flow`
+- **Gate:** `memory-trait-lab-autonomous-flow-workflow-25`
+- **Verify:** flow-workflow **5 OK** at merge; memory **242 OK**
+
+## GitHub PR #222 — Trait Lab autonomous workflow chain bind (merged)
+
+- **Merge:** `27d64b6` — F01–F25 run/dry-run chained + bind persist
+- **Gate:** `memory-trait-lab-autonomous-workflow-chain-25`
+- **Verify:** workflow-chain **5 OK** at merge; memory **237 OK**
+
+## GitHub PR #221 — Trait Lab autonomous receipt chain compose (merged)
+
+- **Merge:** `01ee6bf` — M01–M25 merge/intersect/subtract/xor chain indexes
+- **Gate:** `memory-trait-lab-autonomous-receipt-chain-compose-25`
+- **Verify:** compose **4 OK** at merge; memory **232 OK**
+
+## GitHub PR #220 — Trait Lab autonomous receipt chain (merged)
+
+- **Merge:** `9d57050` — R01–R25 prep/session/autonomous triple index
+- **Gate:** `memory-trait-lab-autonomous-receipt-chain-25`
+- **Verify:** chain **4 OK** at merge; memory **228 OK**
+
+## GitHub PR #218 — Trait Lab autonomous workflow A16–A25 (merged)
+
+- **Merge:** `897c06b` — dry-run chain, receipt persist, `run_autonomous`
+- **Gate:** `memory-trait-lab-autonomous-workflow-25`
+- **Verify:** autonomous **11 OK** at merge; memory **224 OK**
+
+## GitHub PR #217 — Trait Lab autonomous workflow A01–A15 (merged)
+
+- **Merge:** `ef6950f` — plan/sign/verify + prep/session receipt gates
+- **Gate:** `memory-trait-lab-autonomous-workflow-15`
+- **Verify:** autonomous slice **5 OK** at merge; memory suite **218 OK**
+
+## GitHub PR #215 — Trait Lab operator session (merged)
+
+- **Merge:** `ce6a82c` — S01–S25 prep-gated rematch dry-run + session receipt
+- **Gate:** `memory-trait-lab-operator-session-25`
+- **Verify:** session file **9 OK**; memory suite **213 OK** at merge (274 with engine harden)
+
+## GitHub PR #214 — Durable lifecycle harden (merged)
+
+- **Merge:** `110c7b5` — H01–H25 fail-closed Repository lifecycle hardens
+- **Gate:** `durable-lifecycle-harden` / `scripts/verify_kilo_pr202_lifecycle_harden.py`
+- **Scope:** Job id validation, phase bounds, terminal immutability, secret redaction, substrate allowlist
+- **Four-state cap:** TEST VERIFIED only — not LIVE VERIFIED
+- **Verify:** `tests.unit.test_lifecycle_harden` + lifecycle/HTTP suites
+
+## GitHub PR #213 — Trait Lab local environment prep (merged)
+
+- **Merge:** `257aca3` — E01–E25 local Python/SQLite prep, redact, workflow dry-run, prep receipt
+- **Gate:** `memory-trait-lab-local-env-prep-25`
+- **Scope:** Python/SQLite probe, secret redact, refuse live ack, rematch dry-run, persist prep receipt
+- **Write policy:** Hash-only except prep receipt persist; no pack/run apply; live claim fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined)
+
+## GitHub PR #212 — Trait Lab catalog pin bind workflow (merged)
+
+- **Merge:** `581fab3` — W01–W25 hermetic plan/dry-run/run/receipt
+- **Gate:** `memory-trait-lab-catalog-pin-bind-workflow-25`
+- **Scope:** Signed plan, dry-run skips writes, run pins/drops unbound, persist receipt
+- **Write policy:** Hash-only except pin_catalog, drop_unbound, and receipt persist; no pack/run apply; live claim fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined)
+
+## GitHub PR #211 — Trait Lab catalog pin bind lane (merged)
+
+- **Merge:** `e416bd7` — D01–D25 bind filters, compose, rematch index, drop unbound
+- **Gate:** `memory-trait-lab-catalog-pin-bind-ops-25`
+- **Scope:** Bind filters, compose (merge/intersect/subtract/xor/retain), rematch index, drop unbound, catalogs from bound
+- **Write policy:** Hash-only except drop_unbound (unpin facts only); no pack/run apply; live claim, same index, bind conflict, missing pin fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined)
+
+## GitHub PR #210 — Trait Lab catalog↔pin bind (merged)
+
+- **Merge:** `2846d02` — B01–B25 rematch pins against store packs
+- **Gate:** `memory-trait-lab-catalog-pin-bind-25`
+- **Scope:** Rematch pin pack hashes; bound/unbound reports; pin retain/xor/merge; catalog_from_pin
+- **Write policy:** Hash-only except pin/import writes of pin facts; no pack/run apply; live claim, unbound pin, and missing pin fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined)
+
+## GitHub PR #209 — Trait Lab catalog follow-through (merged)
+
+- **Merge:** `415acb0` — xor + retain-best on rematched pack catalogs
+- **Gate:** `memory-trait-lab-catalog-follow`
+- **Scope:** Symmetric diff + retain-best after catalog compose (parity with #208 pin follow-through)
+- **Write policy:** Hash-only; no pack/run writes; live claim, empty retain, invalid keep, and same catalog fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined)
+
+## GitHub PR #208 — Trait Lab catalog pin follow-through (merged)
+
+- **Merge:** `eb622d5` — xor + retain-best + fact_id/id-set harden
+- **Gate:** `memory-trait-lab-catalog-pin-follow`
+- **Scope:** Symmetric diff + retain-best after pin compose
+- **Write policy:** Hash-only; no pin/pack/run writes; live claim, empty retain, invalid keep, and pin conflict fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined)
+
+## GitHub PR #207 — Trait Lab catalog pin compose (merged)
+
+- **Merge:** `8a120d2` — merge / intersect / subtract rematched pin indexes
+- **Gate:** `memory-trait-lab-catalog-pin-compose`
+- **Scope:** Compose two rematched pin-index snapshots
+- **Write policy:** Hash-only compose; no pin/pack/run writes; same index, live claim, pin conflict, and invalid index fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined)
+
+## GitHub PR #206 — Trait Lab catalog pin operators (merged)
+
+- **Merge:** `50211b4` — P01–P25 pin-index operators
+- **Gate:** `memory-trait-lab-catalog-pin-ops-25`
+- **Scope:** Filter, page, export/verify/import, digest/etag, pack membership
+- **Write policy:** Pin facts only; import does not apply packs or runs; live claims fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** pin-ops file **14 OK**; memory suite **148 OK**; engine harden **61 OK** (209 combined)
+
+## GitHub PR #205 — Trait Lab catalog pin (merged)
+
+- **Merge:** `8367f5a` — pin / get / list / unpin rematched catalog snapshots
+- **Gate:** `memory-trait-lab-catalog-pin`
+- **Scope:** Persist a rematched catalog hash as `verified:trait-lab-catalog-{sha[:16]}`
+- **Write policy:** Pin fact only; unpin does not delete pack facts or run rows; live claim, missing pin, and missing provenance fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined)
+
+## GitHub PR #204 — Trait Lab catalog compose (merged)
+
+- **Merge:** `388fde8` — merge / intersect / subtract rematched catalogs
+- **Gate:** `memory-trait-lab-catalog-compose`
+- **Scope:** Compose two rematched catalog snapshots
+- **Write policy:** Hash-only compose; no run writes; same catalog, live claim, pack conflict, and invalid catalog fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined)
+
+## GitHub PR #203 — Trait Lab catalog operator pack (merged)
+
+- **Merge:** `595dbb5` — C01–C25 seed-pack catalog operators
+- **Gate:** `memory-trait-lab-catalog-ops-25`
+- **Scope:** Filter, page, purge, export/verify/import index, digest/etag
+- **Write policy:** Catalog facts only; purge does not delete run rows; live claims fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory suite **123 OK**; engine harden **61 OK** (184 combined)
+
+## PR #224 — Trait Lab seed pack catalog (merged)
+
+- **Merge:** `5db0c37` — catalog imported/applied packs by `pack_sha256`
+- **Gate:** `memory-trait-lab-seed-pack-catalog`
+- **Scope:** Catalog imported/applied packs by `pack_sha256` without executing them
+- **Write policy:** Apply now writes the same pack fact as import; malformed pack rows are skipped; invalid limit and missing hash fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory suite **99 OK**; engine harden **61 OK** (160 combined)
+
+## PR #223 — Trait Lab seed pack diff (merged)
+
+- **Merge:** `29e4ff9` — compare two rematched packs for one seed
+- **Gate:** `memory-trait-lab-seed-pack-diff`
+- **Scope:** Compare two rematched packs for one seed
+- **Write policy:** Rematch both packs; seed mismatch, same pack, live claim, and invalid pack fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **95 OK** (156 with engine harden)
+
+## PR #222 — Trait Lab seed pack apply (merged)
+
+- **Merge:** `2cfa121` — write rematched pack runs into a destination store
+- **Gate:** `memory-trait-lab-seed-pack-apply`
+- **Scope:** Write rematched pack runs into a destination store
+- **Write policy:** Rematch first; live claim, invalid run, missing run, and missing provenance fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **92 OK** (153 with engine harden)
+
+## PR #221 — Trait Lab seed pack import (merged)
+
+- **Merge:** `a05b31d` — rematch seed pack SHA and write a verified import fact
+- **Gate:** `memory-trait-lab-seed-pack-import`
+- **Scope:** Verify `pack_sha256` and write a verified import fact
+- **Write policy:** Live claim, invalid pack, missing hash, rematch fail, and missing provenance fail-closed
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **89 OK** (150 with engine harden)
+
+## PR #220 — Trait Lab seed pack export (merged)
+
+- **Merge:** `d66cc4a` — portable snapshot of stored runs for one seed
+- **Gate:** `memory-trait-lab-seed-pack`
+- **Scope:** Portable snapshot of stored runs for one seed
+- **Write policy:** Missing seed fail-closed; pack is not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **86 OK**
+
+## PR #219 — Trait Lab seed XP band (merged)
+
+- **Merge:** `e0d400c` — seed history rows between a stored XP floor and ceiling
+- **Gate:** `memory-trait-lab-seed-xp-band`
+- **Scope:** Seed history rows between a stored XP floor and ceiling
+- **Write policy:** Missing seed/band match and inverted/invalid bounds fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **83 OK**
+
+## PR #218 — Trait Lab seed XP ceiling (merged)
+
+- **Merge:** `528ac80` — seed history rows at or below a stored XP threshold
+- **Gate:** `memory-trait-lab-seed-xp-ceiling`
+- **Scope:** Seed history rows at or below a stored XP threshold
+- **Write policy:** Missing seed/ceiling match and invalid ceiling fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **80 OK**
+
+## PR #217 — Trait Lab seed XP floor (merged)
+
+- **Merge:** `50c5a9d` — seed history rows at or above a stored XP threshold
+- **Gate:** `memory-trait-lab-seed-xp-floor`
+- **Scope:** Seed history rows at or above a stored XP threshold
+- **Write policy:** Missing seed/floor match and invalid floor fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **77 OK**
+
+## PR #216 — Trait Lab seed daily filter (merged)
+
+- **Merge:** `f99af45` — seed history rows filtered by daily-seed flag
+- **Gate:** `memory-trait-lab-seed-daily`
+- **Scope:** Seed history rows filtered by daily-seed flag
+- **Write policy:** Missing seed/daily match and invalid daily fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **74 OK**
+
+## PR #215 — Trait Lab seed operator filter (merged)
+
+- **Merge:** `88d9c45` — seed history rows filtered by operator name
+- **Gate:** `memory-trait-lab-seed-operator`
+- **Scope:** Seed history rows filtered by operator name
+- **Write policy:** Missing seed/operator and invalid operator fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **71 OK**
+
+## PR #214 — Trait Lab seed difficulty filter (merged)
+
+- **Merge:** `77eb188` — seed history rows filtered by difficulty tier
+- **Gate:** `memory-trait-lab-seed-difficulty`
+- **Scope:** Seed history rows filtered by difficulty tier
+- **Write policy:** Missing seed/difficulty and invalid difficulty fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **68 OK**
+
+## PR #213 — Trait Lab seed grade filter (merged)
+
+- **Merge:** `690979c` — seed history rows filtered by letter grade
+- **Gate:** `memory-trait-lab-seed-grade`
+- **Scope:** Seed history rows filtered by letter grade
+- **Write policy:** Missing seed/grade and invalid grade fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **65 OK**
+
+## PR #212 — Trait Lab seed index (merged)
+
+- **Merge:** `413c28a` — seeds with stored runs: count + best XP
+- **Gate:** `memory-trait-lab-seed-index`
+- **Scope:** Seeds with stored runs: count + best XP
+- **Write policy:** Empty index is empty; invalid limit fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **62 OK**
+
+## PR #211 — Trait Lab seed history (merged)
+
+- **Merge:** `8536fa4` — all stored runs for one seed, highest XP first
+- **Gate:** `memory-trait-lab-seed-history`
+- **Scope:** All stored runs for one seed, highest XP first
+- **Write policy:** Missing seed fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab suites → **58 OK**
+
+## PR #210 — Trait Lab best per seed (merged)
+
+- **Merge:** `7b0e0df` — highest stored XP per seed
+- **Gate:** `memory-trait-lab-best-seed`
+- **Scope:** Highest stored XP per seed
+- **Write policy:** Missing seed fail-closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare/board/best-seed suites → **55 OK**
+
+## PR #209 — Trait Lab local board (merged)
+
+- **Merge:** `abdf325` — local board from stored proofs
+- **Gate:** `memory-trait-lab-board`
+- **Scope:** Local `rank_board` over stored Trait Lab proofs
+- **Write policy:** Not a live ranking; `live_verified` false
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare/board suites → **51 OK**
+
+## PR #208 — Trait Lab run compare (merged)
+
+- **Merge:** `b9074c6` — list/compare stored Trait Lab proofs
+- **Gate:** `memory-trait-lab-compare`
+- **Scope:** List stored Trait Lab proofs; compare two hashes
+- **Write policy:** Same-run and missing proofs fail closed; not a live ranking
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger/replay/compare suites → **47 OK**
+
+## PR #207 — Trait Lab replay verify (merged)
+
+- **Merge:** `d989255` — replay rematch against stored proof
+- **Gate:** `memory-trait-lab-replay`
+- **Scope:** Store `encode_replay` and verify it matches `proof_sha256`
+- **Write policy:** Replay must rematch the stored proof; live claims rejected
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** memory + trait-lab ledger + replay suites → **42 OK**
+
+## PR #206 — Trait Lab memory ledger (merged)
+
+- **Merge:** `1c8294f` — Trait Lab proof → four layers
+- **Gate:** `memory-trait-lab-ledger`
+- **Scope:** Bind Trait Lab proofs into four layers with provenance
+- **Write policy:** Requires agent_id + task_id + proof_sha256; rejects live claims
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version tests.unit.test_memory_trait_lab -v` → **37 OK**
+
+## PR #205 — Organizational versioning + snapshot (merged)
+
+- **Merge:** `01f46c6` — versioned org history + portable snapshot
+- **Gate:** `memory-org-version`
+- **Scope:** Versioned org history; portable four-layer export/import
+- **Write policy:** Org append-only + versioned; import rejects live claims
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**
+
+## PR #204 — Memory query + retention (merged)
+
+- **Merge:** `0b3fc87` — read / query / decay / retention
+- **Gate:** `memory-query-retention`
+- **Scope:** Read / query / end-session / end-task / decay / retention on the four layers
+- **Write policy:** Org append-only; verified decays (no delete); session/task may expire
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK**
+
+## PR #203 — Memory layers ingest (merged)
+
+- **Merge:** `3976930` — four-layer ingest + fail-closed deepen
+- **Gate:** `memory-layers`
+- **Scope:** Session / Task / Organizational / Verified Knowledge writes via `MemoryStore`
+- **Write policy:** Session rejects transient UI; org needs evidence; verified needs how + fact + confidence `[0,1]`; contradictions require `corrects`
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK**
+
+## PR #202 — Trait Lab (merged)
+
+- **Merge:** `75a36c5` — seeded game U01–U50 + harden
+- **Four-state cap:** TEST VERIFIED only — not LIVE VERIFIED
+
+## PR #201 — Upstash Box access verification (draft)
+
+- **Gate:** `upstash-box-access-verification`
+- **This-run class:** A `ENV_NOT_CONFIGURED` (`UPSTASH_PUBLIC_BOX_URL` / `UPSTASH_PUBLIC_BOX_TOKEN` absent)
+- **Four-state cap:** TEST VERIFIED only — `live_verified: false`
+- **Verify:** `python3 scripts/verify_kilo_pr201_upstash_box_access.py`
+
+## KILO spine — post-#170 era (2026-09-24)
+
+- **#170 merged:** beyond-KILO lint (`scripts/verify_kilo_beyond_kilo_lint.py`)
+- **#171 merged:** `docs/roadmaps/kilo-post-170-pr-roadmap.md`
+- **#172 merged:** PR CI trusts fast `scripts/verify_kilo_spine.py` + explicit lint execute (H31)
+- **#173 merged:** chronicle honesty — README + AGENTS/CONTINUITY/runbook sync
+- **#174 merged:** lint scope wave 1 — 25 modules + enterprise editing commitments
+- **#175 merged:** lint scope wave 2 — 38 modules (`beyond_kilo_lint` v3)
+- **Four-state cap:** TEST VERIFIED for hermetic work; `live_verified: false` on spine audits until founder Live proof
+
+---
+
 ## PR #125 — Audit ledger (draft)
 
 - **Artifacts:** `docs/audit/` (index, pass `passes/2026-09-22-pr125.json`, checklists, checked areas)
@@ -851,3 +1322,198 @@ python3 -m unittest \
 | Fleet checkpoint attest/verify | `POST .../checkpoint/attest`, `GET .../checkpoint/verify` |
 
 Extended unittest: **38 run, 37 OK, 1 skipped** (pipeline + webhook + org-memory).
+
+## PR #146 — KILO mercury-hermetic gate (DRAFT)
+
+**Status:** Draft — closes **`mercury-hermetic`** in **#141–#150** arc (bounded Mercury mocks + live-gate stub; no Live proof)  
+**Scope:** `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py`, PR #146 hermetic tests  
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr146 -v
+python3 scripts/verify_kilo_mercury_hermetic.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #145 — KILO governance-evidence gate (MERGED)
+
+**Status:** Merged — closes **`governance-evidence`** in **#141–#150** arc (admission token + live-burst evidence shape; no Live proof)  
+**Scope:** `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py`, PR #145 hermetic tests  
+**Note:** PR **#144** was CI/post-merge unittest green only — not governance-evidence.
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr145 -v
+python3 scripts/verify_kilo_governance_evidence.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #143 — KILO substrate-checklist gate (MERGED)
+
+**Status:** Merged — closes **`substrate-checklist`** in **#141–#150** arc (Box URL/token readiness on env-matrix; no Live proof)  
+**Scope:** `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py`, PR #143 hermetic tests
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr143 -v
+python3 scripts/verify_kilo_substrate_checklist.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+## PR #142 — KILO env-matrix gate (MERGED)
+
+**Status:** Merged — **`env-matrix`** in **#141–#150** arc  
+**Scope:** `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`
+
+## PR #153 — KILO live-smoke operator path (DRAFT)
+
+**Status:** Draft — gate **`live-smoke-operator`** (hermetic CLI write + audit flip candidate; no live HTTP in CI)  
+**Scope:** `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, `scripts/verify_kilo_live_smoke_operator.py`
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr153 -v
+python3 scripts/verify_kilo_live_smoke_operator.py
+python3 scripts/verify_kilo_spine.py
+python3 scripts/scan_doc_secrets.py
+```
+
+**LIVE VERIFIED** still requires founder ack + Box URL + real recorded smoke after merge.
+
+## PR #152 — KILO bounded live smoke evidence (MERGED)
+
+**Status:** Merged — gate **`live-smoke-evidence`** (evidence binder + audit flip helper; hermetic CI, no live HTTP)  
+**Scope:** `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py`, `data/kilo_live_smoke_evidence/fixtures/`
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr152 -v
+python3 scripts/verify_kilo_live_smoke_evidence.py
+```
+
+## PR #151 — KILO post-season harden (MERGED)
+
+**Status:** Merged — ops gate **`post-season-harden`** (CI, branch hygiene, docs sync; not Live proof)  
+**Scope:** `thinkbox/kilo_post_season_harden.py`, `scripts/verify_kilo_post_season_harden.py`, `scripts/cleanup_merged_cursor_branches.py`
+
+## PR #150 — KILO live-proof-exec (MERGED, season close)
+
+**Status:** Merged — closes **`live-proof-exec`**; arc #141–#150 season complete at TEST VERIFIED (not LIVE VERIFIED)  
+**Scope:** `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py`  
+**Next:** Founder-run bounded smoke per runbook; **PR #153** operator path in flight
+
+## PR #141 — KILO Live-proof readiness spine (MERGED)
+
+**Status:** Merged — start of **#141–#150** arc (docs + hermetic gates; no Live proof)  
+**Scope:** Runbook, arc map, `thinkbox/kilo_live_proof_readiness.py`, PR #141 hermetic tests
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v
+```
+
+## PR #140 — Receipt deep-link + shared etag (MERGED)
+
+**Status:** Merged — control-plane deep-link + tab-shared conditional GET cache  
+**Scope:** `receipts.html` → `think_job_status.html` receipt watch; `control_plane_etag_store.js` across tabs
+
+### Four-State
+
+| CODE_COMPLETE | TEST_VERIFIED | LIVE_VERIFIED | PRODUCTION_READY |
+|---------------|---------------|---------------|------------------|
+| Yes | Yes (branch gate) | **No** | **No** |
+
+### Tests
+
+```bash
+python3 -m unittest tests.unit.test_control_plane_etag_store \
+  tests.unit.test_control_plane_deep_link \
+  tests.unit.test_control_plane_think_job_static_pr140 \
+  tests.unit.test_think_job_status_ui_pr140 \
+  tests.e2e.test_f140_receipt_deep_link_etag -v
+```
+
+## PR #248 — Autonomous Loop Actions Documentation & Verification (draft)
+
+**Branch:** `feat/pr248-autonomous-loop-actions`
+
+**Scope:** Documentation of LoopActionEntry model, POST/GET action endpoints, UI integration, and verification of implementation.
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — live_verified: false.
+
+**Docs:** `docs/guides/autonomous_loop_actions.md` added.
+
+**Status:** Draft PR opened.
+
+## PR #249 — Autonomous Loop Actions UI panel (draft)
+
+**Branch:** `feat/pr249-autonomous-loop-actions-ui`
+
+**Scope:** UI panel in `autonomous_loop.html` to display recent actions per loop, plus
+action controls to trigger `start/stop/run/reset` with a governance token, wired to the
+`/api/v1/autonomous-loop/loops/{loop_id}/actions` endpoints.
+
+### What changed
+
+| Layer | File | Change |
+|-------|------|--------|
+| UI | `public/control-plane/autonomous_loop.html` | `Recent Loop Actions` panel (`#actionList`); hidden action toolbar (`#actionControls`) with Start/Stop/Run/Reset buttons, `#governanceTokenInput` password field, `#actionStatus` line; actions gate + API markers |
+| UI | `public/control-plane/autonomous_loop_client.js` | `fetchLoopActions`, `fetchAllActions`, `postLoopAction`, `renderActionList`, `showActionStatus`, `sendLoopAction`; actions fetched in `refreshSelectedDetail()`; buttons wired in `setupControls()`; all helpers exported on `window.TBAutonomousLoopClient` |
+| API | `backend/api/v1/autonomous_loop.py` | Governance token gate on `POST /loops/{loop_id}/actions/{action}` (401 when absent); pure helpers `extract_governance_token()` and `validate_loop_action()` extracted so the gate is testable without FastAPI |
+| Docs | `docs/guides/autonomous_loop_actions.md` | Token requirement section, control-plane UI panel section, client API table, testing notes |
+| Tests | `tests/unit/test_autonomous_loop_action_api.py` (**new**) | Token extraction (header / Bearer / precedence / whitespace / absent), action validation, state persistence, module surface — hermetic, no FastAPI |
+| Tests | `tests/unit/test_autonomous_loop_ui_static.py` | Asserts action panel, controls, buttons, token input, API markers in HTML; action helpers + `X-Governance-Token` in JS |
+
+### Safety
+
+Fail-closed in the browser: clicking an action with no loop selected, or with an empty
+token, sets a status message and sends **no** request — so no unauthenticated side
+effect can leave the UI. Server side, the endpoint rejects tokenless requests with 401.
+
+### Verify
+
+```bash
+node --check public/control-plane/autonomous_loop_client.js
+python3 -m unittest \
+  tests.unit.test_autonomous_loop_action_api \
+  tests.unit.test_autonomous_loop_ui_static \
+  tests.unit.autonomous_loop.test_control_actions \
+  tests.unit.test_autonomous_loop_api \
+  tests.unit.test_autonomous_loop_session_api \
+  tests.unit.test_autonomous_loop_telemetry \
+  tests.unit.test_autonomous_loop_dashboard \
+  tests.unit.test_autonomous_loop_learning_curve -v
+```
+
+Autonomous-loop suite: **82 OK** (was 63; +19 new).
+
+**Four-State:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (no live backend
+exercised; UI and token gate verified hermetically only).
+

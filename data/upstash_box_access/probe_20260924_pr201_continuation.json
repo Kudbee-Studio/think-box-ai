@@ -1,0 +1,54 @@
+{
+  "adapter_configured": false,
+  "adapter_required_keys": [
+    "UPSTASH_PUBLIC_BOX_URL",
+    "UPSTASH_PUBLIC_BOX_TOKEN"
+  ],
+  "auth_mechanism": "HTTP Authorization header from env UPSTASH_PUBLIC_BOX_TOKEN on POST {url}/run",
+  "blocker": "absent: UPSTASH_PUBLIC_BOX_URL, UPSTASH_PUBLIC_BOX_TOKEN",
+  "classification": "A",
+  "classification_name": "ENV_NOT_CONFIGURED",
+  "detect_substrate": "local",
+  "document_only_unused_keys": [
+    "UPSTASH_BOX_API_KEY"
+  ],
+  "endpoint": null,
+  "execute_attempted": true,
+  "four_state_max": "TEST_VERIFIED",
+  "gate_id": "upstash-box-access-verification",
+  "http_called": false,
+  "http_reason_class": null,
+  "http_status": null,
+  "live_api_called": false,
+  "live_http_used": false,
+  "live_verified": false,
+  "pr_number": 201,
+  "presence": {
+    "UPSTASH_BOX_API_KEY": true,
+    "UPSTASH_PUBLIC_BOX_TOKEN": false,
+    "UPSTASH_PUBLIC_BOX_URL": false
+  },
+  "receipt": {
+    "artifact_path_empty": true,
+    "checkpoint_id": null,
+    "checkpoint_id_empty": true,
+    "end_time": "2026-09-24T20:21:09.286895+00:00",
+    "error_is_config_absent": true,
+    "execution_id": "exec_b843294eb72f",
+    "exit_code": -1,
+    "job_id": "pr201_upstash_access_probe",
+    "provenance": [
+      "discover_env",
+      "execute_remote",
+      "fail_closed_no_config"
+    ],
+    "provider": "upstash_box",
+    "start_time": "2026-09-24T20:21:09.286884+00:00",
+    "status": "NOT_CONFIGURED",
+    "verified": false
+  },
+  "timestamp": "2026-09-24T20:21:09.287615+00:00",
+  "unused_document_only_present": {
+    "UPSTASH_BOX_API_KEY": true
+  }
+}

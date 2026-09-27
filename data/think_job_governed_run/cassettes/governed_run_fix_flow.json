@@ -1,0 +1,14 @@
+{
+  "name": "governed_run_fix_flow",
+  "steps": [
+    {
+      "method": "POST",
+      "path": "/api/v1/run",
+      "admission": "hermetic"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/run/governance/status"
+    }
+  ]
+}

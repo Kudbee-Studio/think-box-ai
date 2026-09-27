@@ -1,0 +1,8 @@
+{
+  "expect_ready": false,
+  "live_verified": false,
+  "live_api_called": false,
+  "founder_ack_marker": false,
+  "box_url_present": false,
+  "evidence_artifact_path": ""
+}

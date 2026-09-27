@@ -12,7 +12,6 @@ from enum import Enum
 from typing import Any
 
 from thinkbox.session import get_current_session, sync_session
-from backend.audit_storage import record_audit
 
 STANDARD_TOKEN_ALLOWANCE = 500
 MAX_TOKEN_CEILING = 600
@@ -274,6 +273,8 @@ class TokenWhipProtocol:
         return None
 
     def record_to_audit(self, receipt: WhipReceipt) -> None:
+        from backend.audit_storage import record_audit
+
         record_audit(
             action="whip_evaluation",
             actor="TokenWhipProtocol",

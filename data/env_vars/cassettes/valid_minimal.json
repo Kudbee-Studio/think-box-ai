@@ -1,0 +1,12 @@
+{
+  "cassette_id": "valid_minimal",
+  "live_verified": false,
+  "environ": {
+    "CI": "true",
+    "THINKBOX_KILO_HERMETIC_MODE": "true",
+    "THINKBOX_CLOUD_EXEC_HERMETIC": "true",
+    "THINKBOX_CLOUD_EXEC_WORKER_ID": "worker-cassette-001",
+    "THINKBOX_CLOUD_EXEC_MAX_ACTIVE_JOBS": "1",
+    "THINKBOX_LOG_LEVEL": "INFO"
+  }
+}

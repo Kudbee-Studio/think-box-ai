@@ -1,0 +1,159 @@
+{
+  "gate_id": "kudbee-sdk-longrange-energy-deepen-packs",
+  "pr_number": 193,
+  "live_verified": false,
+  "pack_count": 30,
+  "theme": "long_range_energy_deepen",
+  "packs": [
+    {
+      "id": "DEP01",
+      "name": "lr_energy_hop_ledger_stub",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_hop_ledger_stub.py"
+    },
+    {
+      "id": "DEP02",
+      "name": "conservation_tick_sync",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/conservation_tick_sync.py"
+    },
+    {
+      "id": "DEP03",
+      "name": "mesh_loop_coupling",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/mesh_loop_coupling.py"
+    },
+    {
+      "id": "DEP04",
+      "name": "federated_path_budget",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federated_path_budget.py"
+    },
+    {
+      "id": "DEP05",
+      "name": "long_range_session_correlation",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/long_range_session_correlation.py"
+    },
+    {
+      "id": "DEP06",
+      "name": "energy_mesh_snapshot_digest",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/energy_mesh_snapshot_digest.py"
+    },
+    {
+      "id": "DEP07",
+      "name": "hop_scheduler_fairness_stub",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/hop_scheduler_fairness_stub.py"
+    },
+    {
+      "id": "DEP08",
+      "name": "lr_link_latency_model",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_link_latency_model.py"
+    },
+    {
+      "id": "DEP09",
+      "name": "loop_transfer_envelope",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/loop_transfer_envelope.py"
+    },
+    {
+      "id": "DEP10",
+      "name": "conservation_chain_verify",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/conservation_chain_verify.py"
+    },
+    {
+      "id": "DEP11",
+      "name": "connection_mesh_gradient",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/connection_mesh_gradient.py"
+    },
+    {
+      "id": "DEP12",
+      "name": "twin_energy_path_bind",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/twin_energy_path_bind.py"
+    },
+    {
+      "id": "DEP13",
+      "name": "quantitative_free_flow_index",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/quantitative_free_flow_index.py"
+    },
+    {
+      "id": "DEP14",
+      "name": "lr_energy_dry_run_seal",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_dry_run_seal.py"
+    },
+    {
+      "id": "DEP15",
+      "name": "mesh_attachment_guard",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/mesh_attachment_guard.py"
+    },
+    {
+      "id": "DEP16",
+      "name": "ledger_append_only_check",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/ledger_append_only_check.py"
+    },
+    {
+      "id": "DEP17",
+      "name": "hop_cursor_energy_bind",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/hop_cursor_energy_bind.py"
+    },
+    {
+      "id": "DEP18",
+      "name": "federation_router_snapshot",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/federation_router_snapshot.py"
+    },
+    {
+      "id": "DEP19",
+      "name": "task_budget_energy_tax",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/task_budget_energy_tax.py"
+    },
+    {
+      "id": "DEP20",
+      "name": "session_bind_long_path",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/session_bind_long_path.py"
+    },
+    {
+      "id": "DEP21",
+      "name": "http_client_hop_header",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/http_client_hop_header.py"
+    },
+    {
+      "id": "DEP22",
+      "name": "observability_energy_counter",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/observability_energy_counter.py"
+    },
+    {
+      "id": "DEP23",
+      "name": "cassette_energy_replay_tag",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/cassette_energy_replay_tag.py"
+    },
+    {
+      "id": "DEP24",
+      "name": "fixture_conservation_sample",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/fixture_conservation_sample.py"
+    },
+    {
+      "id": "DEP25",
+      "name": "integrate_deepen_hook",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/integrate_deepen_hook.py"
+    },
+    {
+      "id": "DEP26",
+      "name": "no_live_lr_energy_claim",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/no_live_lr_energy_claim.py"
+    },
+    {
+      "id": "DEP27",
+      "name": "deepen_count_honesty",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/deepen_count_honesty.py"
+    },
+    {
+      "id": "DEP28",
+      "name": "pr193_deepen_gate_bind",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/pr193_deepen_gate_bind.py"
+    },
+    {
+      "id": "DEP29",
+      "name": "lr_energy_bridge_v2",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/lr_energy_bridge_v2.py"
+    },
+    {
+      "id": "DEP30",
+      "name": "pack_registry",
+      "module": "thinkbox/kudbee_sdk_longrange_energy_deepen/packs/pack_registry.py"
+    }
+  ]
+}

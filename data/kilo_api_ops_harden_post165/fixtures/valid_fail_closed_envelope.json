@@ -1,0 +1,8 @@
+{
+  "gate_id": "api-ops-harden-post165",
+  "detail": "hermetic gate closed",
+  "prior_gate_id": "pr165-combined-harden-era-chronicle",
+  "live_verified": false,
+  "live_api_called": false,
+  "expect_valid": true
+}

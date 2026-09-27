@@ -1,0 +1,46 @@
+{
+  "pass_id": "pr150",
+  "title": "PR150 — KILO live-proof-exec gate (#141–#150 arc season close)",
+  "prior_pass": "passes/2026-09-23-pr149.json",
+  "started_at": "2026-09-23T23:45:00Z",
+  "completed_at": "2026-09-23T23:59:00Z",
+  "code_review_completed_at": null,
+  "checker": "cursor-cloud-pr150",
+  "base_commit": "bbaee0d",
+  "suite": {
+    "command": "python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr150 -v",
+    "pr150_tests": 33,
+    "spine_verify": "python3 scripts/verify_kilo_spine.py OK",
+    "live_proof_exec_verify": "python3 scripts/verify_kilo_live_proof_exec.py OK",
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK",
+    "full_suite_note": "Founder CI canonical for full discover; cloud snapshot may lack optional deps"
+  },
+  "four_state": {
+    "code_complete": true,
+    "test_verified": true,
+    "live_verified": false,
+    "production_ready": false
+  },
+  "arc_season": {
+    "marker": "kilo-live-proof-arc-141-150-season-closed",
+    "cloud_bot_standby": true,
+    "no_pr151_unless_founder": true
+  },
+  "improvements": [
+    "thinkbox/kilo_live_proof_exec execution plan contract",
+    "prior_gate_ids chain through dashboard-slots",
+    "founder ack and Box URL env canonical keys",
+    "bounded smoke step catalog and audit flip procedure",
+    "live_proof_exec_contract_summary JSON",
+    "spine_contract_summary live_proof_exec block and pr150_gate_id",
+    "scripts/verify_kilo_live_proof_exec.py hermetic and --live fail-closed",
+    "verify_kilo_spine live_proof_exec gate",
+    "hermetic fixtures valid and invalid",
+    "unit tests pr150 hermetic and deny paths",
+    "runbook live-proof-exec section H14 season close",
+    "ADR 009 live-proof-exec",
+    "audit checklist and pass pr150 live_verified false",
+    "docs guides kilo_live_proof_exec",
+    "CONTINUITY STATUS arc season complete"
+  ]
+}

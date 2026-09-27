@@ -1,0 +1,228 @@
+{
+  "base_commit": "8a176e8",
+  "checker": "cursor-cloud-pr133",
+  "commit_rollup": [
+    "fix(receipts): persist engine_id parameter for durable receipt lookup",
+    "fix(receipts): SQLite-backed receipt and engine_id resolution helpers",
+    "fix(receipts): preserve session started_at when closing HTTP run receipt",
+    "fix(run): pass HTTP agent_id into verified persist_profile",
+    "fix(api): expose receipt_persistence_snapshot on governance status",
+    "fix(run): import receipt_persistence_snapshot for governance status",
+    "fix(run): sync ThinkJobEntry receipt fields after successful persist",
+    "test(receipts): engine lookup works without in-memory index"
+  ],
+  "completed_at": "2026-09-23T16:00:00Z",
+  "pass_id": "pr133",
+  "prior_pass": "passes/2026-09-23-pr132.json",
+  "started_at": "2026-09-23T14:00:00Z",
+  "title": "PR133 — governed HTTP run receipts + ExperimentManager (~25 improvements)",
+  "suite": {
+    "command": "python3 -m unittest discover tests/",
+    "expected_failures": 3,
+    "ok": 2364,
+    "skipped": 7,
+    "secret_scan": "python3 scripts/scan_doc_secrets.py OK"
+  },
+  "findings": [
+    {
+      "id": "F133-RECEIPTS-MODULE",
+      "rank": 1,
+      "severity": "P1",
+      "title": "backend/api/v1/run_receipts.py HTTP receipt persistence",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F133-BIND-POST",
+      "rank": 2,
+      "severity": "P1",
+      "title": "begin_http_run_receipt at POST admission",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py", "backend/api/v1/run_governed.py"]
+    },
+    {
+      "id": "F133-EM-MANAGER",
+      "rank": 3,
+      "severity": "P1",
+      "title": "ExperimentManager wired into execute_governed_run_background",
+      "status": "done",
+      "paths": ["backend/api/v1/run_governed.py"]
+    },
+    {
+      "id": "F133-VERIFIED-PERSIST",
+      "rank": 4,
+      "severity": "P1",
+      "title": "Verified HTTP runs persist DAG + dagpath proof via manager",
+      "status": "done",
+      "paths": ["thinkbox/governed.py", "backend/api/v1/run_governed.py"]
+    },
+    {
+      "id": "F133-SIMPLE-PROOF",
+      "rank": 5,
+      "severity": "P2",
+      "title": "http_run_proof JSON for non-DAG / receipt closure",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F133-GET-RECEIPT",
+      "rank": 6,
+      "severity": "P1",
+      "title": "GET /run/receipt/{id} redacted read surface",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py"]
+    },
+    {
+      "id": "F133-GET-BY-ENGINE",
+      "rank": 7,
+      "severity": "P2",
+      "title": "GET /run/receipt/by-engine/{engine_id}",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py"]
+    },
+    {
+      "id": "F133-RESPONSE-IDS",
+      "rank": 8,
+      "severity": "P1",
+      "title": "POST summary returns receipt_id experiment_id session_id",
+      "status": "done",
+      "paths": ["backend/api/v1/router.py"]
+    },
+    {
+      "id": "F133-FAIL-CLOSED",
+      "rank": 9,
+      "severity": "P1",
+      "title": "RunReceiptPersistError marks job receipt_persist_failed",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py", "tests/e2e/test_f133_governed_run_receipts.py"]
+    },
+    {
+      "id": "F133-DENIED-RECEIPT",
+      "rank": 10,
+      "severity": "P2",
+      "title": "Background governance denial closes receipt failed",
+      "status": "done",
+      "paths": ["backend/api/v1/run_governed.py"]
+    },
+    {
+      "id": "F133-DASHBOARD-LINK",
+      "rank": 11,
+      "severity": "P2",
+      "title": "ThinkJobEntry receipt_id experiment_id session_id fields",
+      "status": "done",
+      "paths": ["thinkbox/dashboard_state.py"]
+    },
+    {
+      "id": "F133-DASHBOARD-EVENT",
+      "rank": 12,
+      "severity": "P2",
+      "title": "emit_receipt_dashboard JOB_COMPLETED with receipt linkage",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F133-PERSIST-PROFILE",
+      "rank": 13,
+      "severity": "P1",
+      "title": "persist_profile hermetic TEST_VERIFIED honesty in _persist_verified_goal",
+      "status": "done",
+      "paths": ["thinkbox/governed.py"]
+    },
+    {
+      "id": "F133-GOAL-ID-BIND",
+      "rank": 14,
+      "severity": "P2",
+      "title": "Optional goal_experiment_id/session_id_override on execute_verified_goal",
+      "status": "done",
+      "paths": ["thinkbox/governed.py"]
+    },
+    {
+      "id": "F133-ENV-PATHS",
+      "rank": 15,
+      "severity": "P2",
+      "title": "THINKBOX_HTTP_RUN_DB / ARTIFACTS env overrides",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F133-REDACT",
+      "rank": 16,
+      "severity": "P1",
+      "title": "redact_receipt_payload strips token-like fields",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py"]
+    },
+    {
+      "id": "F133-STATUS-SNAPSHOT",
+      "rank": 17,
+      "severity": "P2",
+      "title": "governance_status_snapshot receipt counters",
+      "status": "done",
+      "paths": ["backend/api/v1/run_governed.py"]
+    },
+    {
+      "id": "F133-TEST-RESET",
+      "rank": 18,
+      "severity": "P2",
+      "title": "reset_http_run_persistence_for_tests isolation hook",
+      "status": "done",
+      "paths": ["backend/api/v1/run_receipts.py", "tests/e2e/api_run_hermetic.py"]
+    },
+    {
+      "id": "F133-UNIT-RECEIPTS",
+      "rank": 19,
+      "severity": "P2",
+      "title": "tests/unit/test_run_receipts.py lifecycle + redaction",
+      "status": "done",
+      "paths": ["tests/unit/test_run_receipts.py"]
+    },
+    {
+      "id": "F133-E2E-RECEIPTS",
+      "rank": 20,
+      "severity": "P1",
+      "title": "tests/e2e/test_f133_governed_run_receipts.py persist + fail-closed",
+      "status": "done",
+      "paths": ["tests/e2e/test_f133_governed_run_receipts.py"]
+    },
+    {
+      "id": "F133-F131-CONTRACT",
+      "rank": 21,
+      "severity": "P2",
+      "title": "PR #131 contract updated for non-empty session_id + receipt summary",
+      "status": "done",
+      "paths": ["tests/e2e/test_f131_post_run_think_job_contract.py"]
+    },
+    {
+      "id": "F133-GUIDE",
+      "rank": 22,
+      "severity": "P2",
+      "title": "docs/guides/governed_run_http.md receipt surfaces",
+      "status": "done",
+      "paths": ["docs/guides/governed_run_http.md"]
+    },
+    {
+      "id": "F133-CONTINUITY",
+      "rank": 23,
+      "severity": "P2",
+      "title": "CONTINUITY + STATUS four-state honesty for PR133",
+      "status": "done",
+      "paths": ["docs/CONTINUITY.md", "docs/STATUS.md"]
+    },
+    {
+      "id": "F133-AUDIT-PASS",
+      "rank": 24,
+      "severity": "P2",
+      "title": "Audit pass JSON pr133 registered",
+      "status": "done",
+      "paths": ["docs/audit/passes/2026-09-23-pr133.json", "docs/audit/AUDIT_INDEX.json"]
+    },
+    {
+      "id": "F133-OPEN-HTTP-RECEIPT",
+      "rank": 25,
+      "severity": "P2",
+      "title": "open_http_run_receipt helper + unit coverage",
+      "status": "done",
+      "paths": ["backend/api/v1/run_governed.py", "tests/unit/test_run_governed.py"]
+    }
+  ]
+}

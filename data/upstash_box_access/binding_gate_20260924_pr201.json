@@ -1,0 +1,29 @@
+{
+  "adapter_required_keys": [
+    "UPSTASH_PUBLIC_BOX_URL",
+    "UPSTASH_PUBLIC_BOX_TOKEN"
+  ],
+  "cursor_secret_catalog_available": true,
+  "cursor_secret_catalog_count": 17,
+  "cursor_secret_catalog_listed": {
+    "UPSTASH_PUBLIC_BOX_TOKEN": false,
+    "UPSTASH_PUBLIC_BOX_URL": false
+  },
+  "failure_stage": "REGISTRATION",
+  "gate_ready": false,
+  "per_key_gate": {
+    "UPSTASH_PUBLIC_BOX_TOKEN": {
+      "listed": false,
+      "present": false
+    },
+    "UPSTASH_PUBLIC_BOX_URL": {
+      "listed": false,
+      "present": false
+    }
+  },
+  "presence": {
+    "UPSTASH_BOX_API_KEY": true,
+    "UPSTASH_PUBLIC_BOX_TOKEN": false,
+    "UPSTASH_PUBLIC_BOX_URL": false
+  }
+}

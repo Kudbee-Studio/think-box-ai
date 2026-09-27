@@ -190,6 +190,31 @@ We chose Option X because...
 What changes as a result?
 ```
 
+### 4.3 Always Update Markdown (Standing Rule)
+
+**Every meaningful product change updates Markdown in the same PR. No exceptions.**
+
+Do not ship code, tests, or a draft PR while `AGENTS.md` or the chronicle files are a PR behind the lane.
+
+| File | What to update |
+|------|----------------|
+| `AGENTS.md` | PR attribution table (merged vs draft), plus any new standing rule |
+| `STATUS.md` | Top-of-file current draft / merge block and verified test counts |
+| `docs/STATUS.md` | Matching top-of-file block |
+| `docs/PREP.md` | Dated addendum: gate, branch, merge SHA, test counts |
+| `docs/CONTINUITY.md` | Append-only chronicle entry (never rewrite history) |
+| `docs/roadmaps/kilo-post-170-pr-roadmap.md` | GitHub PR row for the current slot |
+
+Founder-edited PR bodies stay untouched. Never commit `.thinkbox/`. Never claim LIVE VERIFIED from these docs.
+
+### 4.4 No Fake Success (Standing Rule)
+
+A failed model call, tool call, or network call is **never** returned as output
+or counted as success. Raise a typed error (e.g. `ModelCallError`), mark the task
+failed, and exit non-zero. No command prints "simulated" results as if they were
+real; if a capability needs credentials that are absent, say so and fail.
+Proof of a working Think Box = `python3 scripts/prove_think_box_local.py` exit 0.
+
 ---
 
 ## 5. Decision Recording Process
@@ -381,6 +406,7 @@ Every new agent session must:
 4. **Check git state** — branch, working tree, last commits
 5. **Run tests** — `python3 -m unittest discover tests/`
 6. **Report** — current branch, test count, blockers
+7. **Always update MD** on any product change (see §4.3) — `AGENTS.md` table + STATUS / PREP / CONTINUITY / roadmap in the same PR
 
 ---
 
@@ -407,11 +433,12 @@ Full workflow (see skill: `pr-workflow`):
 1. Sync to main: `git checkout main && git pull`
 2. Branch: `git checkout -b feat/descriptive-name`
 3. Make changes following AGENTS.md coding rules
-4. Run tests — all must pass
-5. Commit with conventional message: `type(scope): description`
-6. Push and create ONE PR targeting main
-7. **STOP** — wait for founder review. Do not create another PR.
-8. After approval: merge with `--no-ff`, push main, stop.
+4. **Update Markdown** — `AGENTS.md` PR table + `STATUS.md` + `docs/STATUS.md` + `docs/PREP.md` + `docs/CONTINUITY.md` + roadmap (§4.3)
+5. Run tests — all must pass; write verified counts back into the MD files
+6. Commit with conventional message: `type(scope): description`
+7. Push and create ONE PR targeting main
+8. **STOP** — wait for founder review. Do not create another PR.
+9. After approval: merge with `--no-ff`, push main, stop.
 
 ---
 
@@ -509,17 +536,223 @@ Before claiming progress on the **#141–#150** arc:
 
 1. Read `docs/runbooks/kilo-live-proof-readiness.md`
 2. Run `python3 scripts/verify_kilo_spine.py` (exit 0)
-3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` and PR-specific gates (e.g. `test_kilo_live_proof_readiness_pr142` for #142)
-4. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
-5. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
-
-**KILO Live-proof readiness arc** **#141–#150** is documented separately (not part of Think Job UI scope).
+3. Run `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr141 -v` and PR-specific gates (e.g. `test_kilo_live_proof_readiness_pr142` for #142, `test_kilo_live_proof_readiness_pr143` for #143)
+4. Run `python3 scripts/verify_kilo_substrate_checklist.py` (exit 0) before claiming #143 progress
+5. Update `docs/CONTINUITY.md`, `docs/STATUS.md`, root `STATUS.md`, and audit pass on checkpoint
+6. **Never** mark KILO LIVE VERIFIED / PRODUCTION READY on spine until Live proof artifacts exist
 
 Known failures to track:
 - Upstash Vector writes (422 dense index, no embedder) — FIXED in PR #67
 - UpCloud access (401 token, no SSH key, CF 1003) — PANEL WORK
-- `tests/e2e/` empty — TODO
+- `tests/e2e/` F023 hermetic Think Job lifecycle (PR #130 draft); live API/Mercury path not e2e-covered
 - Solana CLI not installed — environment issue
+
+---
+
+## Think Job control-plane UI (PR #138–#140)
+
+Hermetic static UI at `public/control-plane/think_job_status.html` — **not LIVE VERIFIED**.
+
+| Work | GitHub PR | Notes |
+|------|-----------|--------|
+| SSE subscribe + poll fallback on #137 routes | **#138** (merged) | `think_job_status_client.js`, `thinkbox/think_job_status_ui.py` |
+| Receipt-keyed watch + jobs digest multiplex panel | **#139** (merged) | `watchReceipt`, `JobsDigestMultiplexer`, F139 e2e |
+| Deep-link from `receipts.html` + shared etag across tabs | **#140** (merged) | `control_plane_deep_link.js`, `control_plane_etag_store.js`, F140 e2e |
+
+KILO Live-proof readiness arc **#141–#150** is documented separately (not part of Think Job UI scope).
+
+Four-state on branch: **CODE COMPLETE / TEST VERIFIED** only. No live Mercury claims.
+
+---
+
+## KILO Live-proof readiness arc (PR #141–#150)
+
+Founder-directed arc (2026-09-23): prepare KILO so a later **Live proof** can be earned honestly. **PR #141–#152 merged** (arc season closed + smoke evidence binder). **PR #153** (draft): live-smoke **operator** CLI + runbook — **not** Live proof executed in CI.
+
+| Work | GitHub PR | Notes |
+|------|-----------|--------|
+| Env docs + runbook spine + hermetic gates | **#141** (merged) | `docs/runbooks/kilo-live-proof-readiness.md`, `thinkbox/kilo_live_proof_readiness.py` |
+| Hermetic KILO env matrix + contract tests | **#142** (merged) | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py` |
+| Box URL/token substrate checklist | **#143** (merged) | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py` |
+| CI/post-merge unittest discover green | **#144** (merged) | Not governance-evidence; gate id `ci-post-merge` |
+| Governance admission evidence shape | **#145** (merged) | `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py` |
+| Mercury hermetic mocks + live-gate stub | **#146** (merged) | `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py` |
+| Swarm instrumentation hermetic catalog | **#147** (merged) | `thinkbox/kilo_swarm_instrumentation.py`, `scripts/verify_kilo_swarm_instrumentation.py` |
+| Proof JSON schema + cue/dependency contract | **#148** (merged) | `thinkbox/kilo_proof_schema.py`, `scripts/verify_kilo_proof_schema.py` |
+| Dashboard Live-proof slots (hermetic) | **#149** (merged) | `thinkbox/kilo_dashboard_slots.py`, `scripts/verify_kilo_dashboard_slots.py` |
+| Live proof execution plan (hermetic) | **#150** (merged) | `thinkbox/kilo_live_proof_exec.py`, `scripts/verify_kilo_live_proof_exec.py` |
+| Post-season harden (ops) | **#151** (merged) | `thinkbox/kilo_post_season_harden.py`, `scripts/verify_kilo_post_season_harden.py` |
+| Bounded live smoke evidence + audit flip | **#152** (merged) | `thinkbox/kilo_live_smoke_evidence.py`, `scripts/verify_kilo_live_smoke_evidence.py` |
+| Live-smoke operator path (write artifact + flip candidate) | **#153** (merged) | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py` |
+| Control-plane API surface upgrade (HTTP routes + contract) | **#154** (merged) | `thinkbox/kilo_control_plane_api.py`, `backend/api/v1/control_plane.py`, `scripts/verify_kilo_control_plane_api.py` |
+| Receipt-chain / ETag deepen (pagination, 304/412) | **#155** (merged) | `thinkbox/kilo_receipt_chain_etag.py`, `thinkbox/receipt_chain_query.py`, `scripts/verify_kilo_receipt_chain_etag.py` |
+| Dashboard bind receipt-chain / END_LINK | **#156** (merged) | `thinkbox/kilo_dashboard_receipt_chain_bind.py`, `public/control-plane/receipt_chain_dashboard.html`, `scripts/verify_kilo_dashboard_receipt_chain_bind.py` |
+| API / ops harden after #156 | **#157** (merged) | `thinkbox/kilo_api_ops_harden.py`, `thinkbox/control_plane_ops_harden.py`, `scripts/verify_kilo_api_ops_harden.py` |
+| END LINK / control-plane deepen after #157 | **#158** (merged) | `thinkbox/kilo_end_link_deepen.py`, `thinkbox/end_link_deepen.py`, `scripts/verify_kilo_end_link_deepen.py` |
+| END LINK operator dashboard UX after #158 | **#159** (merged) | `thinkbox/kilo_end_link_operator_ux.py`, `thinkbox/end_link_operator_ux.py`, `scripts/verify_kilo_end_link_operator_ux.py` |
+| Receipt-chain / END_LINK docs + audit pack after #159 | **#160** (merged) | `thinkbox/kilo_receipt_chain_end_link_docs.py`, `docs/guides/kilo_receipt_chain_end_link_operator.md`, `scripts/verify_kilo_receipt_chain_end_link_docs.py` |
+| API / ops harden after END_LINK UX + docs (#159–#160) | **#161** (merged) | `thinkbox/kilo_end_link_api_ops_harden.py`, `thinkbox/end_link_api_ops_harden.py`, `scripts/verify_kilo_end_link_api_ops_harden.py` |
+| Control-plane E2E hermetic suite deepen after #161 | **#162** (merged) | `tests/e2e/control_plane_hermetic.py`, `tests/e2e/test_f162_cp_*`, `thinkbox/kilo_control_plane_e2e_deepen.py`, `scripts/verify_kilo_control_plane_e2e_deepen.py` |
+| Control-plane E2E deepen merge checkpoint | **#163** (merged) | Same as #162 on `main` |
+| Receipt-chain / END_LINK era audit close (#154–#161) | merged on main | `thinkbox/kilo_receipt_chain_end_link_era_close.py`, `scripts/verify_kilo_receipt_chain_end_link_era_close.py` |
+| Governance-evidence Live-proof readiness (hermetic) | **#164** (merged) | `thinkbox/kilo_governance_evidence_live_proof_readiness.py`, `thinkbox/governance_evidence_live_proof_readiness.py`, `scripts/verify_kilo_governance_evidence_live_proof_readiness.py` |
+| Combined harden + #154–#164 era chronicle (hermetic) | **#165** (merged) | `thinkbox/kilo_pr165_combined_harden_era_chronicle.py`, `thinkbox/live_smoke_audit_flip_correlation.py`, `scripts/verify_kilo_pr165_combined_harden.py` |
+| Combined post-#165 lane (operator prep + api ops + dashboard bind + swarm/gov) | **#166** (merged) | `thinkbox/kilo_pr166_combined_post165_lane.py`, `scripts/verify_kilo_pr166_combined_post165_lane.py` |
+| Combined post-#166 lane (audit-flip deepen + api ops post166 + dashboard PR166 bind + swarm/gov post166) | **#167** (merged) | `thinkbox/kilo_pr167_combined_post166_lane.py`, `scripts/verify_kilo_pr167_combined_post166_lane.py` |
+| Combined post-#167 lane (audit-flip post167 + api ops post167 + dashboard PR167 bind + swarm/gov post167) | **#168** (merged) | `thinkbox/kilo_pr168_combined_post167_lane.py`, `scripts/verify_kilo_pr168_combined_post167_lane.py` |
+| Combined post-#168 lane (audit-flip post168 + api ops post168 + dashboard PR168 bind + swarm/gov post168) | **#169** (merged) | `thinkbox/kilo_pr169_combined_post168_lane.py`, `scripts/verify_kilo_pr169_combined_post168_lane.py` |
+| Beyond-KILO lint readiness (ruff + mypy + bandit scoped; not combined umbrella) | **#170** (merged) | `thinkbox/kilo_beyond_kilo_lint.py`, `scripts/verify_kilo_beyond_kilo_lint.py` |
+| CI spine-trust slimming (PR CI trusts fast spine + explicit lint execute) | **#172** (merged) | `thinkbox/kilo_pr172_ci_spine_trust.py`, `.github/workflows/test.yml` |
+| Chronicle honesty sync (post-#170 era docs; README + spine Markdown) | **#173** (merged) | `thinkbox/kilo_pr173_chronicle_honesty.py`, `scripts/verify_kilo_pr173_chronicle_honesty.py` |
+| Lint scope wave 1 (25-module beyond-KILO lint + enterprise editing guide) | **#174** (merged) | `thinkbox/kilo_pr174_lint_scope_wave1.py`, `scripts/verify_kilo_pr174_lint_scope_wave1.py` |
+| Lint scope wave 2 (live-proof readiness spine +12 modules, 38 total) | **#175** (merged) | `thinkbox/kilo_pr175_lint_scope_wave2.py`, `scripts/verify_kilo_pr175_lint_scope_wave2.py` |
+| Chronicle honesty post-#175 | **#176** (merged) | Spine Markdown sync; next-slot pointers |
+| Kudbee SDK app (~25 features, kudbEE web shell) | **#177** (merged) | `thinkbox/kudbee_sdk/`, `apps/web/sdk/`, `thinkbox/kilo_pr177_kudbee_sdk_app.py`, `scripts/verify_kilo_pr177_kudbee_sdk_app.py` |
+| KUDBEECLI Phase 2 (~25 hermetic CLI deepen features) | **#178** (merged) | `thinkbox/cli_phase2/`, `thinkbox/kilo_pr178_kudbee_cli_phase2.py`, `scripts/verify_kilo_pr178_kudbee_cli_phase2.py` |
+| Kudbee SDK follow-up (~25 hermetic deepen features) | **#179** (merged) | `thinkbox/kudbee_sdk_followup/`, `apps/web/sdk/followup.ts`, `thinkbox/kilo_pr179_kudbee_sdk_followup.py`, `scripts/verify_kilo_pr179_kudbee_sdk_followup.py` |
+| KUDBEECLI Phase 3 (~25 hermetic CLI deepen features) | **#180** (merged) | `thinkbox/cli_phase3/`, `thinkbox/kilo_pr180_kudbee_cli_phase3.py`, `scripts/verify_kilo_pr180_kudbee_cli_phase3.py` |
+| Kudbee SDK follow-up wave 2 (~25 hermetic deepen features) | **#181** (merged) | `thinkbox/kudbee_sdk_followup_w2/`, `apps/web/sdk/followup_w2.ts`, `thinkbox/kilo_pr181_kudbee_sdk_followup_w2.py`, `scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py` |
+| Receipt-chain deepen (~25 hermetic features) | **#182** (merged) | `thinkbox/receipt_chain_deepen/`, `thinkbox/kilo_pr182_receipt_chain_deepen.py`, `scripts/verify_kilo_pr182_receipt_chain_deepen.py` |
+| Think Job hermetic e2e deepen (~25 hermetic features) | **#183** (merged) | `thinkbox/think_job_e2e_deepen/`, `thinkbox/kilo_pr183_think_job_hermetic_e2e.py`, `scripts/verify_kilo_pr183_think_job_hermetic_e2e.py` |
+| Think Job POST /run contract deepen (~25 hermetic features) | **#184** (merged) | `thinkbox/think_job_post_run_deepen/`, `thinkbox/kilo_pr184_think_job_post_run_deepen.py`, `scripts/verify_kilo_pr184_think_job_post_run_deepen.py` |
+| Think Job lifecycle integration fix pack (25 fixes) | **#185** (merged) | `thinkbox/think_job_lifecycle_fixes/`, `thinkbox/kilo_pr185_think_job_lifecycle_fixes.py`, `scripts/verify_kilo_pr185_think_job_lifecycle_fixes.py` |
+| Think Job governed run receipt deepen (~25 features) | **#186** (merged) | `thinkbox/think_job_run_receipt_deepen/`, `thinkbox/kilo_pr186_think_job_run_receipt_deepen.py`, `scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py` |
+| Think Job receipt major fixes (25 fixes) | **#187** (merged) | `thinkbox/think_job_run_receipt_deepen/fixes/`, `thinkbox/kilo_pr187_think_job_receipt_major_fixes.py`, `scripts/verify_kilo_pr187_think_job_receipt_major_fixes.py` |
+| Think Job governed run major fixes (25 fixes) | **#188** (merged) | `thinkbox/think_job_governed_run_fixes/`, `thinkbox/kilo_pr188_think_job_governed_run_major_fixes.py`, `scripts/verify_kilo_pr188_think_job_governed_run_major_fixes.py` |
+| Think Job lifecycle major fixes (25 fixes) | **#189** (merged) | `thinkbox/think_job_lifecycle_major_fixes/`, `thinkbox/kilo_pr189_think_job_lifecycle_major_fixes.py`, `scripts/verify_kilo_pr189_think_job_lifecycle_major_fixes.py` |
+| Think Job POST /run major fixes (25 fixes) | **#190** (merged) | `thinkbox/think_job_post_run_major_fixes/`, `thinkbox/kilo_pr190_think_job_post_run_major_fixes.py`, `scripts/verify_kilo_pr190_think_job_post_run_major_fixes.py` |
+| Kudbee SDK follow-up wave 3 (~25 hermetic deepen features) | **#191** (merged) | `thinkbox/kudbee_sdk_followup_w3/`, `apps/web/sdk/followup_w3.ts`, `thinkbox/kilo_pr191_kudbee_sdk_followup_w3.py`, `scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py` |
+| Kudbee SDK follow-up wave 3 major fixes (35 fixes) + expansion packs (26) | **#192** (merged) | `thinkbox/kudbee_sdk_followup_w3_major_fixes/`, `thinkbox/kudbee_sdk_followup_w3_expansion/`, `thinkbox/kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py`, `scripts/verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py` |
+| Kudbee SDK long-range + energy loops deepen (~25 features) | **#193** (merged) | `thinkbox/kudbee_sdk_longrange_energy/`, `apps/web/sdk/longrange_energy.ts`, `thinkbox/kilo_pr193_kudbee_sdk_longrange_energy.py`, `scripts/verify_kilo_pr193_kudbee_sdk_longrange_energy.py` |
+| Kudbee SDK long-range energy major fixes (25 fixes) | **#194** (merged) | `thinkbox/kudbee_sdk_longrange_energy_major_fixes/`, `thinkbox/kilo_pr194_kudbee_sdk_longrange_energy_major_fixes.py`, `scripts/verify_kilo_pr194_kudbee_sdk_longrange_energy_major_fixes.py` |
+| Kudbee SDK enterprise lr-energy lanes (25 lanes) | **#195** (merged) | `thinkbox/kudbee_sdk_enterprise_lr_energy/`, `apps/web/sdk/enterprise_lr_energy.ts`, `thinkbox/kilo_pr195_kudbee_sdk_enterprise_lr_energy.py`, `scripts/verify_kilo_pr195_kudbee_sdk_enterprise_lr_energy.py` |
+| KUDBEECLI enterprise upgrade (Phase 4, ~25 features) | **#196** (merged) | `thinkbox/cli_phase4/`, `thinkbox/kilo_pr196_kudbee_cli_enterprise_upgrade.py`, `scripts/verify_kilo_pr196_kudbee_cli_enterprise_upgrade.py` |
+| Cloud execution substrate Phase 1 (10 foundation features) | **#197** (merged) | `thinkbox/cloud_execution/`, `thinkbox/kilo_pr197_cloud_execution_substrate.py`, `scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
+| Cloud execution durable queue Phase 2 (10 features) | **#198** (merged) | `thinkbox/cloud_execution/sqlite_store.py`, `thinkbox/kilo_pr198_cloud_execution_durable_queue.py`, `scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
+| Cloud execution worker orchestrator Phase 3 (10 features) | **#199** (merged) | `thinkbox/cloud_execution/worker_orchestrator.py`, `thinkbox/kilo_pr199_cloud_execution_worker_orchestrator.py`, `scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
+| Environmental variables pack (~25 features) | **#200** (merged) | `thinkbox/env_vars/`, `thinkbox/kilo_pr200_environmental_variables.py`, `scripts/verify_kilo_pr200_environmental_variables.py` |
+| Upstash Box access verification | **#201** (merged on main as of later merge train) | `thinkbox/upstash_box_access.py` — this-run class **A** `ENV_NOT_CONFIGURED`; **not LIVE VERIFIED**. Do not reopen or claim LIVE. |
+| Trait Lab seeded game (U01–U50 + harden) | **#202** (merged) | `thinkbox/trait_game/` — not LIVE VERIFIED |
+| Trait Lab catalog operator pack (C01–C25) | **#203** (merged) | `thinkbox/memory_layers.py` — filter/page/purge/export/verify/import catalog |
+| Trait Lab catalog compose | **#204** (merged) | merge / intersect / subtract rematched catalogs |
+| Trait Lab catalog pin | **#205** (merged) | pin / get / list / unpin rematched catalog snapshots |
+| Trait Lab catalog pin operators (P01–P25) | **#206** (merged) | pin-index filter/page/export/verify/import |
+| Trait Lab catalog pin compose | **#207** (merged) | merge / intersect / subtract rematched pin indexes |
+| Trait Lab catalog pin follow-through | **#208** (merged) | xor + retain-best; fact_id / id-set harden |
+| Trait Lab catalog follow-through | **#209** (merged) | xor + retain-best on rematched pack catalogs |
+| Trait Lab catalog↔pin bind (B01–B25) | **#210** (merged) | rematch pin pack hashes against store packs |
+| Trait Lab catalog pin bind lane (D01–D25) | **#211** (merged) | bind filters, compose, rematch index, drop unbound |
+| Trait Lab catalog pin bind workflow (W01–W25) | **#212** (merged) | signed plan / dry-run / run / receipt |
+| Trait Lab local environment prep (E01–E25) | **#213** (merged) | `thinkbox/local_env_prep.py` — Python/SQLite probe, redact, workflow dry-run, prep receipt |
+| Durable lifecycle harden (H01–H25) | **#214** (merged) | `thinkbox/lifecycle_harden.py` — fail-closed Repository lifecycle; not LIVE VERIFIED |
+| Trait Lab operator session (S01–S25) | **#215** (merged) | `thinkbox/operator_session.py` — prep-gated rematch dry-run + session receipt |
+| Trait Lab autonomous workflow (A01–A15) | **#217** (merged) | `thinkbox/autonomous_workflow.py` — plan/sign + receipt gates; merge `ef6950f` |
+| Trait Lab autonomous workflow (A16–A25) | **#218** (merged) | same module — dry-run chain, persist autonomous receipt, `run_autonomous`; merge `897c06b` |
+| Trait Lab autonomous receipt chain (R01–R25) | **#220** (merged) | `thinkbox/autonomous_receipt_chain.py` — triple index; merge `9d57050` |
+| Trait Lab autonomous receipt chain compose (M01–M25) | **#221** (merged) | `thinkbox/autonomous_receipt_chain_compose.py` — merge/intersect/subtract/xor; merge `01ee6bf` |
+| Trait Lab autonomous workflow chain bind (F01–F25) | **#222** (merged) | `thinkbox/autonomous_workflow_chain.py` — run/dry-run chained + bind; merge `27d64b6` |
+| Trait Lab autonomous flow workflow major (O01–O25) | **#223** (merged) | `thinkbox/autonomous_flow_workflow.py` — orchestrates dry-run/run-chained + flow receipt; merge `3fdaa32` |
+| Trait Lab autonomous flow workflow compose (P01–P25) | **#224** (merged) | `thinkbox/autonomous_flow_workflow_compose.py` — merge/intersect/subtract/xor flow-receipt indexes; merge `3eb4d03` |
+| Trait Lab autonomous stack harness (U01–U25) | **#225** (merged) | `thinkbox/autonomous_stack_harness.py` — dry/run/full smoke + app test bundle; merge `bc8ca28` |
+| Trait Lab autonomous stack suite (V01–V25) | **#226** (merged) | `thinkbox/autonomous_stack_suite.py` — dry+run+full CI suite + suite artifact; merge `67b0304` |
+| Trait Lab autonomous app gate (G01–G25) | **#227** (merged) | `thinkbox/autonomous_app_gate.py` — stack_suite gate + CI bundle; merge `6c3dd6c` |
+| Trait Lab autonomous app regression (J01–J25) | **#228** (merged) | `thinkbox/autonomous_app_regression.py` — baseline vs candidate gate compare; merge `449beda` |
+| Trait Lab autonomous integration major (K01–K25) | **#229** (draft) | `thinkbox/autonomous_integration_major.py` — gate + regression CI manifest; not LIVE VERIFIED |
+| Autonomous decision loop: Feedback -> Opportunity | **#235** (merged) | `thinkbox/experiment_analytics.py` — OpportunityManager; merge `639ebaa` |
+| Autonomous decision loop: Opportunity -> Execution | **#236** (merged) | `thinkbox/engine.py` — opportunity consumption in execute_goal; merge `d9d83df` |
+| Autonomous decision loop: Observability tracer | **#237** (merged) | `thinkbox/experiment_analytics.py` — LoopTracer; merge `b1b593a` |
+| Autonomous decision loop: Auto-tuning engine | **#238** (merged) | `thinkbox/experiment_analytics.py` — EngineAutoTuner; merge `672da10` |
+| Autonomous decision loop: Cross-experiment generalization | **#239** (merged) | `thinkbox/experiment_analytics.py` — CrossExperimentGeneralizer; merge `e5f4ef0` |
+| Autonomous decision loop: Session management | **#240** (merged) | `thinkbox/experiment_analytics.py` — LoopSessionManager; merge `8d53715` |
+| Autonomous decision loop: Bootstrap cold-start | **#241** (merged) | `thinkbox/experiment_analytics.py` — LoopBootstrap; merge `77329f0` |
+| Autonomous decision loop: Dashboard state & tracking | **#242** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopEntry; merge `7f427f9` |
+| Autonomous decision loop: Telemetry & observability | **#243** (merged) | `thinkbox/dashboard_state.py` — AutonomousLoopTelemetry, rate-limited tick; merge `0d4a90c` |
+| Autonomous decision loop: Control plane REST API | **#244** (merged) | `backend/api/v1/autonomous_loop.py`, `thinkbox/autonomous_loop_api_surface.py` — status, loops, telemetry endpoints; merge `b466a6c` |
+| Autonomous decision loop: Control plane UI | **#245** (on main `9201a42`) | `public/control-plane/autonomous_loop.html`, `public/control-plane/autonomous_loop_client.js` — real-time telemetry, convergence tracking, component inspection |
+| Autonomous decision loop: Learning curve + session lifecycle | **#246** (on main `a085e8d`) | `thinkbox/engine.py` — learning_curve_points + convergence_history; `thinkbox/dashboard_state.py` — LoopSessionEntry; `backend/api/v1/autonomous_loop.py` — `/sessions` endpoints |
+| Autonomous decision loop: Control-plane loop management | **#247** (on main `8661b72`) | `thinkbox/dashboard_state.py` — LoopActionEntry; `backend/api/v1/autonomous_loop.py` — POST/GET `/actions` endpoints |
+| Autonomous decision loop: Action audit documentation | **#248** (on main `b128230`) | Documentation and verification of LoopActionEntry, API endpoints, and UI integration |
+| Autonomous decision loop: Action UI panel | **#249** (on main via GitHub #250, `02bbbc4`) | UI panel displaying recent loop actions; integrates with action API — `public/control-plane/autonomous_loop.html` (`#actionList` panel + `#actionControls` toolbar with Start/Stop/Run/Reset, `#governanceTokenInput`, `#actionStatus`), `autonomous_loop_client.js` (`fetchLoopActions`/`postLoopAction`/`renderActionList`/`sendLoopAction`), governance-token gate on `POST /actions/{action}` in `backend/api/v1/autonomous_loop.py`; tests `tests/unit/test_autonomous_loop_action_api.py` |
+| Honest execution: real model path + governance no-token deny | **#252** (merged) | `thinkbox/model_client.py` (`ModelCallError`, auth header, env providers), `thinkbox/governed.py` (`_admit`: no token = deny + ledger), `thinkbox/cli.py` (`run` prints output + governed ledger, `model check`), `think_box_ai/commands/inception.py` (no simulated output), `scripts/prove_think_box_local.py`, `docs/guides/local_think_box.md`; tests `tests/unit/test_model_client_honest.py` |
+| Repo audit: swarm proof honesty + findings close | **#253** (draft) | 14/38 invalid swarm proof artifacts patched (`partial_run: true`, `validator_workers` corrected to 0); `data/findings/swarm_proof_artifacts_invalid.md` finding closed; all 38 proofs now pass `validate_proof_document` |
+
+Product-label **#203–#224** (memory ingest through seed-pack catalog) are already on `main`. Do not redo them. GitHub **#203–#229** above are the later catalog/pin/bind/workflow/env-prep/lifecycle/session/autonomous majors (GitHub **#224–#229** are not seed-pack labels). **Forge #216** is durable queued resume (lifecycle), not Trait Lab autonomous.
+
+**Do not claim** LIVE VERIFIED on any Trait Lab / memory path. Four-state cap: **CODE COMPLETE / TEST VERIFIED** only.
+
+**Do not claim** `KILO LIVE VERIFIED`, `KILO PRODUCTION READY`, or `KILO live build verified` on spine paths until founder-run proof + audit + artifacts say otherwise.
+
+Four-state on #169 branch: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr169` (`pr169-combined-post168-lane`) ships `live_verified: false` and `live_api_called: false`. Post168 theme gates deepen **prior theme gates only** (not prior combined umbrella ×4).
+
+Four-state on #168 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr168` (`pr168-combined-post167-lane`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #167 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr167` (`pr167-combined-post166-lane`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #166 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr166` (`pr166-combined-post165-lane`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #165 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr165` (`pr165-combined-harden-era-chronicle`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #164 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr164` (`governance-evidence-live-proof-readiness`) ships `live_verified: false` and `live_api_called: false`.
+
+Four-state on #162/#163 on main: **CODE COMPLETE / TEST VERIFIED** only — not KILO LIVE VERIFIED. Audit pass `pr162` (`control-plane-e2e-deepen`) ships `live_verified: false`.
+
+---
+
+## KUDBEECLI — Interactive Terminal (`thinkbox/cli.py`)
+
+Unified CLI for hermetic inspection of swarm evidence, ledger integrity, proofs, and environment status. **Do not claim LIVE VERIFIED or PRODUCTION READY** for CLI paths without earned gates.
+
+### PR attribution (canonical)
+
+| Work | GitHub PR | Notes |
+|------|-----------|--------|
+| Doc redaction + audit P1 close-outs + minimal e2e scaffold | **#126** (merged `866a408`) | Not KUDBEECLI |
+| **Phase 1 hermetic e2e** (F009 governed runtime loop) | **#127** (merged `8abc574`) | `tests/e2e/` — on `main` |
+| **KUDBEECLI Phase 1** (six inspection commands) | **#128** (merged `bfa067d`) | `thinkbox/cli_inspect.py` + `thinkbox/cli.py` on `main` |
+| **KUDBEECLI Phase 2** (persistence, REPL, dashboard, `swarm live` gate) | **#129** (draft) | `thinkbox/cli_persist.py`, `cli_shell.py`, `cli_dashboard.py`, `cli_live_gate.py` |
+
+**PR #126 is not the Phase 1 CLI PR.** Do not attribute `agent register`, `trace capture`, or other unimplemented commands to any merged PR.
+
+### Phase 1 — implemented commands (`d54b797`)
+
+Hermetic / read-only inspection surface (no live provider execution in these subcommands):
+
+| Command | Purpose |
+|---------|---------|
+| `thinkbox swarm agents` | Population / task statistics |
+| `thinkbox swarm status` | Swarm convergence / evidence summary |
+| `thinkbox ledger verify` | `ActionLedger` hash-chain verification |
+| `thinkbox proof check` | Validate a proof JSON artifact |
+| `thinkbox env status` | Redacted environment status |
+| `thinkbox session list` | List recent sessions |
+
+**Not implemented (do not document as shipped):** `agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture`.
+
+Evidence: `thinkbox/cli.py`, `thinkbox/cli_inspect.py`, `tests/unit/test_cli.py`, `tests/unit/test_cli_inspect.py` (PR **#128** on `main`).
+
+### Phase 2 — persistence, REPL, dashboard (on `main`; deepen **#178** draft)
+
+**PR #178** adds `thinkbox/cli_phase2/` (~25 hermetic toolkit features) and `thinkbox cli` subcommands (`health`, `dry-run`, `receipt-bind`, `envelope`). Gate: `kudbee-cli-phase2`. Historical branch `feat/pr129-cli-phase2-25` / draft PR **#129** preceded merge of persist/shell/dashboard to main.
+
+| Command | Purpose |
+|---------|---------|
+| `thinkbox persist status\|init\|sync` | SQLite paths (`THINKBOX_IDENTITY_LEDGER_PATH`, `THINKBOX_TRACE_DB_PATH`, `THINKBOX_CLI_DB_DIR`) |
+| `thinkbox identity list\|path` | Read-only identity SQLite inspection |
+| `thinkbox trace list\|stats` | Read-only think-trace SQLite inspection |
+| `thinkbox shell` | Local REPL (`-c` one-shot); no network |
+| `thinkbox dashboard status` | In-process `DashboardState` summary; no live Mercury |
+| `thinkbox swarm live` | Founder-gated credential check only (`THINKBOX_SWARM_LIVE_ACK` + provider key); **no HTTP** |
+
+Tests: `tests/unit/test_cli_phase2.py`. Still **not** implemented: `agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture` as CLI subcommands.
+
+### Four-state (KUDBEECLI)
+
+| Scope | State |
+|-------|--------|
+| Phase 1 e2e (F009, PR #127 merged) | **CODE COMPLETE** / **TEST VERIFIED** on `main` |
+| Phase 1 CLI (six commands, PR #128 merged) | **CODE COMPLETE** / **TEST VERIFIED** on `main` |
+| Phase 2 CLI (PR #129 draft) | **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED** |
+| Any live Mercury / Inception execution via CLI | **Not claimed** — `swarm live` is authorization check only, fail-closed |
 
 ---
 
@@ -709,66 +942,10 @@ The connection path used:
 
 SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
 
----
-
-## KUDBEECLI — Interactive Terminal (CLI)
-
-The `thinkbox/cli.py` module provides a unified CLI for agent operations, persistence, REPL, dashboard inspection, and swarm governance.
-
-### Module Structure
-
-- `thinkbox/cli.py` — Main CLI with 17 commands (Phase 1 + Phase 2):
-  - **Phase 1 (PR #126, 10 commands + 16 tests):** agent list, agent register, agent grant, agent revoke, agent show, trace capture, trace show, proof check, swarm status, ledger verify
-  - **Phase 2 (PR #127, 10 commands + 20 tests):** swarm live (fail-closed), shell (REPL), dashboard status, agent list (--db persistent), trace show (--db persistent)
-
-### Phase 1 — PR #126 (Merged)
-
-- 10 CLI commands
-- 16 tests (`tests/unit/test_cli.py`)
-- Commands cover agent management, trace capture/inspection, proof validation, swarm status, ledger verification
-
-### Phase 2 — PR #127 (Open, Draft)
-
-- **SQLite persistence:**
-  - `IdentityLedger` (`thinkbox/identity.py`) — register/get/grant/revoke/list persist to `data/thinkboxmd/db/identities.db`
-  - `ThinkTraceCapture` (`thinkbox/thinktrace.py`) — capture/find_by_id persist to `data/thinkboxmd/db/traces.db`
-- **Interactive REPL:** `thinkbox shell` — readline + history at `~/.kudbee_cli_history`
-- **Dashboard integration:** `thinkbox dashboard status` — reads SQLite + `swarm_events.jsonl`, no live API
-- **Swarm live path:** `thinkbox swarm live` — checks `INCEPTION_API_KEY`, FAILS CLOSED when absent, never executes live API
-- 20 tests (`tests/unit/test_cli.py`)
-
-### Test Counts
-
-| Phase | CLI Tests | Full Suite |
-|-------|-----------|------------|
-| Phase 1 | 16 | — |
-| Phase 2 | 20 | — |
-| Full suite | — | **2260 OK** (7 skipped, 3 expected failures) |
-
-### Four-State Classification
-
-| Capability | State |
-|------------|-------|
-| Phase 1 CLI | CODE COMPLETE / TEST VERIFIED |
-| Phase 2 CLI | CODE COMPLETE / TEST VERIFIED |
-| `swarm live` | CODE COMPLETE / TEST VERIFIED / **fail closed** |
-| All commands | PRODUCTION NOT CLAIMED (awaiting founder review) |
-
-### PR Status
-
-- PR #126 (Phase 1): ✅ Merged
-- PR #127 (Phase 2): 🔨 Open (draft, do not merge)
-
----
-
-### PR Status (2026-09-23)
+### PR Status (2026-09-19)
 
 > **⚠️ GitHub PR numbering is offset from KILO PR labels.** See the GitHub↔KILO PR Map below for the complete mapping. KILO PRs without a GitHub # were pushed directly to `main` (no PR process was followed at the time — not repeated).
 
-- **GitHub PR #127** = KILO PR127 — KUDBEECLI Phase 2 (persistence + REPL + dashboard + live path) — 🔨 OPEN (draft)
-  - URL: https://github.com/Kudbee-Studio/think-box-ai/pull/127
-- **GitHub PR #126** = KILO PR126 — PR126 doc redaction + P1 fixes — ✅ **MERGED**
-- **GitHub PR #125** = KILO PR125 — Audit ledger — ✅ **MERGED**
 - **GitHub PR #92** = KILO PR94 — Orchestration Client — ✅ **MERGED** (2026-09-19)
 - **GitHub PR #91** = KILO PR93 — Agent Telemetry & Observability — ✅ MERGED
 - **GitHub PR #90** = KILO PR90 — Multi-Agent Clustering — ✅ MERGED
@@ -777,17 +954,14 @@ The `thinkbox/cli.py` module provides a unified CLI for agent operations, persis
 - **KILO PR91** (Distributed Governance) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
 - **KILO PR92** (Agent Marketplace) — pushed directly to `main`, **no GitHub PR** (debt — must not repeat) — ✅ MERGED
 - **All other PRs closed**: #68, #67, #65, #32, #28 all CLOSED (superseded by main merge)
-- **1 open PR**: #127 (draft, do not merge — awaiting founder review)
+- **Zero open PRs**
 
 #### GitHub↔KILO PR Map
 
 | GitHub PR # | KILO PR | Status |
 |-------------|---------|--------|
-| #127 | PR127 | 🔨 OPEN (draft) |
-| #126 | PR126 | ✅ **MERGED** |
-| #125 | PR125 | ✅ MERGED |
-| #97 | control-plane x10 | 🔨 READY |
 | #96 | integration suite | ✅ **MERGED** |
+| #97 | control-plane x10 | 🔨 READY |
 | #94 | PR95 | ✅ **MERGED** |
 | #93 | docs process lock | ✅ MERGED |
 | #92 | PR94 | ✅ MERGED |
@@ -1067,4 +1241,3 @@ or execution event MUST update canonical dashboard state in real-time.
 - Self-improvement status must update dashboard
 - Provider state must update dashboard
 - UpCloud unverified state must be reflected
-`.

@@ -1,0 +1,14 @@
+{
+  "name": "Think Box AI",
+  "install": "pip install -e \".[dev]\" && (cd apps/web && npm install)",
+  "terminals": [
+    {
+      "name": "api",
+      "command": "python3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000"
+    },
+    {
+      "name": "web",
+      "command": "cd apps/web && npm start"
+    }
+  ]
+}

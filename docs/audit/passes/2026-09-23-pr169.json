@@ -1,0 +1,16 @@
+{
+  "audit_pass": "pr169",
+  "date": "2026-09-23",
+  "pr_number": 169,
+  "gate_id": "pr169-combined-post168-lane",
+  "live_verified": false,
+  "four_state_max": "TEST_VERIFIED",
+  "live_api_called": false,
+  "scope": [
+    "live_proof_operator_audit_flip_post168",
+    "api_ops_harden_post168",
+    "dashboard_pr168_gates_bind",
+    "swarm_governance_post168_deepen",
+    "pr169_combined_post168_lane_umbrella"
+  ]
+}

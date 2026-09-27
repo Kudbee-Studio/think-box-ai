@@ -1,0 +1,5 @@
+{
+  "fixture_id": "chain_filter_fail",
+  "expect_fail": true,
+  "notes": "invalid status filter returns 400 fail-closed"
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": "kilo-dashboard-slots-v1",
+  "registry_id": "kilo_slots_invalid_cycle",
+  "gate_id": "dashboard-slots",
+  "pr_number": 149,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "slots": [
+    {
+      "slot_id": "slot-x",
+      "kind": "gate_status",
+      "depends_on": ["slot-y"],
+      "bind": {
+        "receipt_key": "rcpt_cycle_x",
+        "etag": "etag_cycle",
+        "multiplex_digest_id": "35d07d527a7955cc4c8867df2bd3df26"
+      }
+    },
+    {
+      "slot_id": "slot-y",
+      "kind": "gate_status",
+      "depends_on": ["slot-x"],
+      "bind": {
+        "receipt_key": "rcpt_cycle_y",
+        "etag": "etag_cycle",
+        "multiplex_digest_id": "75070c8775c9309d271bc73a015863f3"
+      }
+    }
+  ]
+}

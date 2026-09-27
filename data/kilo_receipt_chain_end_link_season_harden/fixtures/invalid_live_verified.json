@@ -1,0 +1,11 @@
+{
+  "expect_fail": true,
+  "season_harden_label": "receipt-chain-end-link-season-harden",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": true,
+  "live_api_called": false,
+  "receipt_chain_gate_id": "receipt-chain-etag",
+  "era_close_label": "receipt-chain-end-link-era-close",
+  "end_link_deepen_label": "end-link-deepen",
+  "receipt_etag_pairs": []
+}

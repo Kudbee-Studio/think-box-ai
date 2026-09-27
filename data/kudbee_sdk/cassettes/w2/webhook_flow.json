@@ -1,0 +1,8 @@
+{
+  "name": "webhook_flow",
+  "steps": [
+    {"action": "sign", "event": "ping"},
+    {"action": "verify", "dry_run": true},
+    {"action": "accept", "status": "simulated"}
+  ]
+}

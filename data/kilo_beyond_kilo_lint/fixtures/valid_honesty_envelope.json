@@ -1,0 +1,8 @@
+{
+  "gate_id": "beyond-kilo-lint-readiness",
+  "pr_number": 170,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "expect_valid": true
+}

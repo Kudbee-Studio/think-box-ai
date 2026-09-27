@@ -1,0 +1,11 @@
+{
+  "gate_id": "think-job-lifecycle-major-fixes",
+  "pr_number": 189,
+  "live_verified": false,
+  "artifacts": [
+    "data/think_job_lifecycle_major/pr189_fixes.json",
+    "data/think_job_lifecycle_major/pr189_checklist.json",
+    "data/think_job_lifecycle_major/cassettes/lifecycle_major_flow.json",
+    "docs/audit/passes/2026-09-24-pr189.json"
+  ]
+}

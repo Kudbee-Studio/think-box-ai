@@ -1,0 +1,12 @@
+{
+  "audit_pass_id": "pr186-think-job-run-receipt-deepen",
+  "date": "2026-09-24",
+  "gate_id": "think-job-run-receipt-deepen",
+  "pr_number": 186,
+  "feature_count": 25,
+  "live_verified": false,
+  "live_api_called": false,
+  "four_state_max": "TEST_VERIFIED",
+  "combined_umbrella_nested": false,
+  "primary_surface": "thinkbox/think_job_run_receipt_deepen"
+}

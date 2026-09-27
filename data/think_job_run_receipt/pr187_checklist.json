@@ -1,0 +1,10 @@
+{
+  "gate_id": "think-job-receipt-major-fixes",
+  "pr_number": 187,
+  "live_verified": false,
+  "artifacts": [
+    "data/think_job_run_receipt/pr187_fixes.json",
+    "data/think_job_run_receipt/pr187_checklist.json",
+    "docs/audit/passes/2026-09-24-pr187.json"
+  ]
+}

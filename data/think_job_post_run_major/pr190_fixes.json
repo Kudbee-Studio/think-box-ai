@@ -1,0 +1,133 @@
+{
+  "gate_id": "think-job-post-run-major-fixes",
+  "pr_number": 190,
+  "live_verified": false,
+  "fix_count": 25,
+  "fixes": [
+    {
+      "id": "FIX01",
+      "name": "f131_post_run_e2e",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/f131_post_run_e2e.py"
+    },
+    {
+      "id": "FIX02",
+      "name": "post_run_deepen_status_module",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/post_run_deepen_status_module.py"
+    },
+    {
+      "id": "FIX03",
+      "name": "payload_required_fields",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/payload_required_fields.py"
+    },
+    {
+      "id": "FIX04",
+      "name": "governance_empty_guard",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/governance_empty_guard.py"
+    },
+    {
+      "id": "FIX05",
+      "name": "run_governed_bridge",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/run_governed_bridge.py"
+    },
+    {
+      "id": "FIX06",
+      "name": "pr184_post_run_deepen_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr184_post_run_deepen_gate.py"
+    },
+    {
+      "id": "FIX07",
+      "name": "pr185_lifecycle_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr185_lifecycle_gate.py"
+    },
+    {
+      "id": "FIX08",
+      "name": "pr186_receipt_deepen_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr186_receipt_deepen_gate.py"
+    },
+    {
+      "id": "FIX09",
+      "name": "pr187_receipt_fixes_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr187_receipt_fixes_gate.py"
+    },
+    {
+      "id": "FIX10",
+      "name": "pr188_governed_run_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr188_governed_run_gate.py"
+    },
+    {
+      "id": "FIX11",
+      "name": "pr189_lifecycle_major_gate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr189_lifecycle_major_gate.py"
+    },
+    {
+      "id": "FIX12",
+      "name": "dry_run_post_run",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/dry_run_post_run.py"
+    },
+    {
+      "id": "FIX13",
+      "name": "payload_schema_validate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/payload_schema_validate.py"
+    },
+    {
+      "id": "FIX14",
+      "name": "route_catalog_present",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/route_catalog_present.py"
+    },
+    {
+      "id": "FIX15",
+      "name": "cassette_post_run_flow",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/cassette_post_run_flow.py"
+    },
+    {
+      "id": "FIX16",
+      "name": "receipt_stub_module",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/receipt_stub_module.py"
+    },
+    {
+      "id": "FIX17",
+      "name": "no_live_mercury_claim",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/no_live_mercury_claim.py"
+    },
+    {
+      "id": "FIX18",
+      "name": "secret_bearer_scan",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/secret_bearer_scan.py"
+    },
+    {
+      "id": "FIX19",
+      "name": "post_run_run_all_fixes",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/post_run_run_all_fixes.py"
+    },
+    {
+      "id": "FIX20",
+      "name": "run_governed_api_module",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/run_governed_api_module.py"
+    },
+    {
+      "id": "FIX21",
+      "name": "four_state_integrate",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/four_state_integrate.py"
+    },
+    {
+      "id": "FIX22",
+      "name": "pr190_gate_lazy",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/pr190_gate_lazy.py"
+    },
+    {
+      "id": "FIX23",
+      "name": "audit_pr190_shape",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/audit_pr190_shape.py"
+    },
+    {
+      "id": "FIX24",
+      "name": "fix_count_honesty",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/fix_count_honesty.py"
+    },
+    {
+      "id": "FIX25",
+      "name": "fix_registry",
+      "module": "thinkbox/think_job_post_run_major_fixes/fixes/fix_registry.py"
+    }
+  ]
+}

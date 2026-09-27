@@ -1,0 +1,58 @@
+{
+  "gate_id": "think-job-post-run-deepen",
+  "pr_number": 184,
+  "live_verified": false,
+  "fix_count": 10,
+  "fixes": [
+    {
+      "id": "FIX01",
+      "name": "payload_required_fields",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/payload_required_fields.py"
+    },
+    {
+      "id": "FIX02",
+      "name": "governance_empty_guard",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/governance_empty_guard.py"
+    },
+    {
+      "id": "FIX03",
+      "name": "auth_prefix_guard",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/auth_prefix_guard.py"
+    },
+    {
+      "id": "FIX04",
+      "name": "admission_token_guard",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/admission_token_guard.py"
+    },
+    {
+      "id": "FIX05",
+      "name": "envelope_shape",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/envelope_shape.py"
+    },
+    {
+      "id": "FIX06",
+      "name": "idempotency_duplicate",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/idempotency_duplicate.py"
+    },
+    {
+      "id": "FIX07",
+      "name": "rate_limit_cap",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/rate_limit_cap.py"
+    },
+    {
+      "id": "FIX08",
+      "name": "redact_token_field",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/redact_token_field.py"
+    },
+    {
+      "id": "FIX09",
+      "name": "f131_paths_exist",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/f131_paths_exist.py"
+    },
+    {
+      "id": "FIX10",
+      "name": "fix_registry",
+      "module": "thinkbox/think_job_post_run_deepen/fixes/fix_registry.py"
+    }
+  ]
+}

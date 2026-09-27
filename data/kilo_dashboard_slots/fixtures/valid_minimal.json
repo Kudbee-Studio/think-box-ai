@@ -1,0 +1,49 @@
+{
+  "schema_version": "kilo-dashboard-slots-v1",
+  "registry_id": "kilo_slots_fixture_minimal",
+  "gate_id": "dashboard-slots",
+  "pr_number": 149,
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "evidence_label": "inferred",
+  "prior_gate_ids": [
+    "spine-docs",
+    "env-matrix",
+    "substrate-checklist",
+    "governance-evidence",
+    "mercury-hermetic",
+    "swarm-instrumentation",
+    "proof-schema"
+  ],
+  "slots": [
+    {
+      "slot_id": "slot-proof-receipt",
+      "kind": "proof_receipt",
+      "share_policy": "exclusive",
+      "prior_gate_ids": ["proof-schema"],
+      "depends_on": [],
+      "bind": {
+        "receipt_key": "rcpt_fixture_slots_minimal",
+        "etag": "etag_fixture_slots_minimal",
+        "dashboard_revision": 1,
+        "multiplex_digest_id": "6710ba859c8d6111adbe2f4f2fe87925"
+      },
+      "definition_of_done_display": [
+        {
+          "id": "dod-1",
+          "predicate": "display-only checklist item",
+          "met": true
+        }
+      ],
+      "cues": [
+        {
+          "cue_id": "cue-1",
+          "cue_type": "gate_ready",
+          "counts_as_user_intent": false,
+          "text_ref": "logical://fixtures/slots"
+        }
+      ]
+    }
+  ]
+}

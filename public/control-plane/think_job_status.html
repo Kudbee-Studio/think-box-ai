@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Think Jobs — status stream</title>
+  <link rel="stylesheet" href="../assets/css/design-system.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .tj-wrap { padding: var(--space-6); max-width: 1200px; margin: 0 auto; }
+    .tj-banner {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      margin-bottom: var(--space-4);
+      font-size: var(--text-sm);
+      font-family: var(--font-mono);
+      display: none;
+    }
+    .tj-banner.degraded { display: block; background: #2a2410; border: 1px solid #5c5030; color: var(--color-warning); }
+    .tj-banner.error { display: block; background: #2a1820; border: 1px solid #5c3040; color: var(--color-danger); }
+    .tj-grid { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); }
+    .tj-multiplex { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4); }
+    @media (max-width: 900px) {
+      .tj-grid { grid-template-columns: 1fr; }
+      .tj-multiplex { grid-template-columns: 1fr; }
+    }
+    .tj-panel {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: var(--space-4);
+    }
+    .tj-list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; }
+    .tj-list li {
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+    .tj-list li.selected { background: var(--color-bg); }
+    .tj-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: var(--space-4); }
+    .tj-toolbar input { font-family: var(--font-mono); font-size: var(--text-sm); padding: 0.35rem 0.5rem; }
+    .tj-mode { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); }
+    .tj-mode.sse { color: var(--color-success); }
+    .tj-mode.poll { color: var(--color-warning); }
+    .tj-digest-stats { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-secondary); }
+    pre.tj-json {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.72rem;
+      overflow: auto;
+      max-height: 280px;
+    }
+    .tj-events { max-height: 160px; overflow: auto; font-family: var(--font-mono); font-size: 0.68rem; color: var(--color-text-secondary); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo"><div class="nav-logo-icon">TB</div><span>Think Box</span></a>
+      <ul class="nav-links">
+        <li><a href="index.html">Control Plane</a></li>
+        <li><a href="think_job_status.html">Think Jobs</a></li>
+        <li><a href="pipeline_dashboard.html">Pipeline</a></li>
+        <li><a href="receipts.html">Receipts</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main class="tj-wrap">
+    <h1>Think Job status</h1>
+    <p style="color: var(--color-text-secondary);">
+      PR #140: deep-link receipt watch + shared ETag across tabs. Multiplex (#139), SSE (#137), poll (#138).
+      Evidence: simulated — not LIVE VERIFIED.
+    </p>
+    <div id="degradedBanner" class="tj-banner degraded"></div>
+    <div id="errorBanner" class="tj-banner error"></div>
+    <div class="tj-toolbar">
+      <label>X-API-Key <input id="apiKey" type="password" placeholder="required for /api/v1" /></label>
+      <label>Receipt id <input id="receiptId" type="text" placeholder="from POST /run summary" style="min-width:180px" /></label>
+      <label>Engine id <input id="engineId" type="text" placeholder="optional if receipt set" style="min-width:160px" /></label>
+      <button id="btnWatch" style="padding:0.4rem 0.75rem;border-radius:4px;border:1px solid var(--color-border);cursor:pointer">Watch</button>
+      <button id="btnWatchReceipt" style="padding:0.4rem 0.75rem">Watch receipt</button>
+      <button id="btnStop" style="margin-left:0.25rem">Stop watch</button>
+      <button id="btnRefreshList">Refresh list</button>
+      <span class="tj-mode" id="modeChip">watch: idle</span>
+      <span class="tj-mode" id="multiplexChip">multiplex: idle</span>
+    </div>
+    <div class="tj-multiplex">
+      <section class="tj-panel">
+        <h2 style="font-size:var(--text-base);margin-top:0">Jobs digest</h2>
+        <div class="tj-digest-stats" id="digestStats">Starting multiplex…</div>
+        <span class="tj-mode" id="digestModeChip">digest: idle</span>
+      </section>
+      <section class="tj-panel">
+        <h2 style="font-size:var(--text-base);margin-top:0">Active watch</h2>
+        <pre class="tj-json" id="watchMeta">No active watch.</pre>
+      </section>
+    </div>
+    <div class="tj-grid">
+      <aside class="tj-panel">
+        <h2 style="font-size:var(--text-base);margin-top:0">Recent jobs</h2>
+        <ul class="tj-list" id="jobList"></ul>
+      </aside>
+      <section class="tj-panel">
+        <h2 style="font-size:var(--text-base);margin-top:0">Status</h2>
+        <pre class="tj-json" id="statusOut">Select a job, receipt, or enter ids.</pre>
+        <h3 style="font-size:var(--text-sm)">Stream events</h3>
+        <div class="tj-events" id="eventLog"></div>
+      </section>
+    </div>
+  </main>
+  <script src="load_perf.js"></script>
+  <script src="control_plane_etag_store.js"></script>
+  <script src="think_job_status_client.js"></script>
+  <script src="control_plane_deep_link.js"></script>
+  <script>
+    var watcher = null;
+    var multiplexer = null;
+    var etagStore = TBControlPlaneEtag.getSharedEtagStore();
+    var selectedEngine = null;
+    var selectedReceipt = null;
+
+    function headers() {
+      return TBThinkJobStatus.apiHeaders(document.getElementById("apiKey").value, "");
+    }
+
+    function logEvent(line) {
+      var el = document.getElementById("eventLog");
+      var row = document.createElement("div");
+      row.textContent = new Date().toISOString() + " " + line;
+      el.prepend(row);
+      while (el.childNodes.length > 40) el.removeChild(el.lastChild);
+    }
+
+    function setMode(mode) {
+      var chip = document.getElementById("modeChip");
+      chip.textContent = "watch: " + mode;
+      chip.className = "tj-mode" + (mode === "sse" ? " sse" : mode.indexOf("poll") >= 0 ? " poll" : "");
+      var deg = document.getElementById("degradedBanner");
+      if (mode === "degraded_poll" || mode === "poll") {
+        deg.style.display = "block";
+        deg.textContent = mode === "degraded_poll"
+          ? "Degraded: SSE unavailable — polling GET /status (fail-closed on errors)."
+          : "Poll fallback active (SSE ended or reconnecting).";
+      } else if (mode === "sse") {
+        deg.style.display = "none";
+      } else {
+        deg.style.display = "none";
+      }
+      if (multiplexer) {
+        multiplexer.setActiveWatch(
+          multiplexer.panel.activeTarget,
+          mode
+        );
+        document.getElementById("multiplexChip").textContent =
+          "multiplex: " + TBThinkJobStatus.multiplexChipLabel(multiplexer.panel);
+      }
+    }
+
+    function setDigestMode(mode) {
+      var chip = document.getElementById("digestModeChip");
+      chip.textContent = "digest: " + mode;
+      chip.className = "tj-mode" + (mode === "sse" ? " sse" : mode.indexOf("poll") >= 0 ? " poll" : "");
+      document.getElementById("multiplexChip").textContent =
+        multiplexer ? "multiplex: " + TBThinkJobStatus.multiplexChipLabel(multiplexer.panel) : "multiplex: idle";
+    }
+
+    function renderDigestPanel(panel) {
+      var doc = panel.digestDocument || {};
+      var lines = [
+        "revision=" + (panel.dashboardRevision || doc.dashboard_revision || "?"),
+        "count=" + (doc.count != null ? doc.count : panel.digestJobs.length),
+        "running=" + (doc.running != null ? doc.running : "—"),
+        "terminal=" + (doc.terminal != null ? doc.terminal : "—"),
+      ];
+      document.getElementById("digestStats").textContent = lines.join(" · ");
+      renderJobListFromPanel(panel);
+    }
+
+    function renderWatchMeta(watch, target) {
+      var meta = {
+        watch_kind: watch ? watch.watchKind : null,
+        watch_key: watch ? watch.watchKey : null,
+        engine_id: watch ? watch.engineId : null,
+        receipt_id: watch ? watch.receiptId : null,
+        transport: watch ? watch.telemetry.mode : "idle",
+        target: target || null,
+      };
+      document.getElementById("watchMeta").textContent = JSON.stringify(meta, null, 2);
+    }
+
+    function showError(msg) {
+      var el = document.getElementById("errorBanner");
+      if (!msg) { el.style.display = "none"; return; }
+      el.style.display = "block";
+      el.textContent = msg;
+    }
+
+    function renderStatus(watch) {
+      document.getElementById("statusOut").textContent = JSON.stringify(watch.summary, null, 2);
+    }
+
+    function renderJobListFromPanel(panel) {
+      var list = document.getElementById("jobList");
+      var jobs = panel.digestJobs || [];
+      list.innerHTML = "";
+      jobs.forEach(function (row) {
+        var li = document.createElement("li");
+        var eid = row.engine_id || row.job_id;
+        var rid = row.receipt && row.receipt.receipt_id ? row.receipt.receipt_id : "";
+        li.textContent = (eid || "?") + " — " + (row.status || "?") + (rid ? " · rcpt" : "");
+        if (eid === selectedEngine) li.classList.add("selected");
+        li.onclick = function () {
+          document.getElementById("engineId").value = eid || "";
+          if (rid) document.getElementById("receiptId").value = rid;
+          startWatch(eid, rid);
+        };
+        list.appendChild(li);
+      });
+      if (!jobs.length) list.innerHTML = "<li>No jobs in dashboard state</li>";
+    }
+
+    async function refreshJobList() {
+      if (multiplexer) {
+        try {
+          await multiplexer._refreshList();
+          await multiplexer._refreshDigestCounts();
+          renderDigestPanel(multiplexer.panel);
+        } catch (e) {
+          showError(String(e));
+        }
+        return;
+      }
+      renderJobListFromPanel({ digestJobs: [] });
+    }
+
+    function startWatch(engineId, receiptId) {
+      var eng = (engineId || document.getElementById("engineId").value || "").trim();
+      var rec = (receiptId || document.getElementById("receiptId").value || "").trim();
+      showError("");
+      var target;
+      try {
+        target = TBThinkJobStatus.resolveWatchTarget(eng, rec);
+      } catch (e) {
+        showError(String(e));
+        return;
+      }
+      selectedEngine = eng;
+      selectedReceipt = rec;
+      if (watcher) watcher.stop();
+      watcher = new TBThinkJobStatus.ThinkJobStatusWatcher({
+        apiKey: document.getElementById("apiKey").value,
+        etagStore: etagStore,
+        onUpdate: function (watch, ev) {
+          renderStatus(watch);
+          renderWatchMeta(watch, target);
+          logEvent((ev.kind || "update") + " seq=" + (watch.lastSequence || 0));
+        },
+        onModeChange: function (mode) { setMode(mode); },
+        onError: function (err) {
+          logEvent("error: " + err);
+          showError(String(err));
+        },
+      });
+      if (multiplexer) {
+        multiplexer.panel.activeTarget = target;
+        multiplexer.setActiveWatch(target, "starting");
+      }
+      watcher.watchTarget(eng, rec).then(function (watch) {
+        renderWatchMeta(watch, target);
+        if (multiplexer) multiplexer.setActiveWatch(target, watch.telemetry.mode);
+      }).catch(function (e) {
+        showError(String(e));
+      });
+    }
+
+    function startMultiplex() {
+      if (multiplexer) multiplexer.stop();
+      multiplexer = new TBThinkJobStatus.JobsDigestMultiplexer({
+        apiKey: document.getElementById("apiKey").value,
+        etagStore: etagStore,
+        onPanelUpdate: function (panel) { renderDigestPanel(panel); },
+        onDigestMode: function (mode) { setDigestMode(mode); },
+        onError: function (err) {
+          logEvent("digest error: " + err);
+        },
+      });
+      multiplexer.start().catch(function (e) {
+        showError(String(e));
+      });
+    }
+
+    document.getElementById("btnWatch").onclick = function () {
+      startWatch(document.getElementById("engineId").value.trim(), document.getElementById("receiptId").value.trim());
+    };
+    document.getElementById("btnWatchReceipt").onclick = function () {
+      var rec = document.getElementById("receiptId").value.trim();
+      if (!rec) {
+        showError("receipt_key_required");
+        return;
+      }
+      startWatch("", rec);
+    };
+    document.getElementById("btnStop").onclick = function () {
+      if (watcher) watcher.stop();
+      setMode("idle");
+      renderWatchMeta(null, null);
+      logEvent("watch stopped");
+      if (multiplexer) multiplexer.setActiveWatch(null, "idle");
+    };
+    document.getElementById("btnRefreshList").onclick = refreshJobList;
+
+    function applyDeepLinkFromLocation() {
+      var link = TBControlPlaneDeepLink.parseLocation(window.location);
+      if (link.error) {
+        showError(link.error);
+        return;
+      }
+      if (link.receipt_id) {
+        document.getElementById("receiptId").value = link.receipt_id;
+      }
+      if (link.engine_id) {
+        document.getElementById("engineId").value = link.engine_id;
+      }
+      if (link.from === "receipts") {
+        logEvent("deep-link from receipts.html");
+      }
+      if (link.auto_watch && (link.receipt_id || link.engine_id)) {
+        startWatch(link.engine_id || "", link.receipt_id || "");
+      }
+    }
+
+    startMultiplex();
+    applyDeepLinkFromLocation();
+  </script>
+</body>
+</html>

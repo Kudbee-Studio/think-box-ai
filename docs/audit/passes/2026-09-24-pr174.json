@@ -1,0 +1,17 @@
+{
+  "audit_pass_id": "pr174-lint-scope-wave1",
+  "pr_number": 174,
+  "gate_id": "lint-scope-wave1",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "scope_count": 25,
+  "enterprise_editing_guide": "docs/guides/kilo_enterprise_editing.md",
+  "themes": [
+    "lint_scope_wave1_25_modules",
+    "enterprise_editing_25_commitments",
+    "ruff_mypy_bandit_scoped"
+  ],
+  "notes": "LINT_SCOPE_REL_PATHS expanded to 25 spine/hermetic helpers; beyond_kilo_lint version 2; mypy follow-imports=skip."
+}

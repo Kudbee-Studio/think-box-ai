@@ -1,0 +1,7 @@
+{
+  "fixture_kind": "build_expect_fail",
+  "build": {
+    "live_api_called": true,
+    "live_verified": false
+  }
+}

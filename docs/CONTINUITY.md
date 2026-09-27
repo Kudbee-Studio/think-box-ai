@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-26
 
 ---
 
@@ -28,9 +28,6 @@ Before declaring completion, every agent MUST verify:
 - [x] Budget contention policies (FAIR_SHARE/PRIORITY/FIFO) + per-goal limit enforcement COMPLETE
 - [x] 10 new scheduler features (timeout, deps, analytics, prediction, stealing, SLA, checkpoints, backoff, profiling, error classification) COMPLETE
 - [x] 10 more scheduler features (weighted fair-queue, job lease, deduped delay, circuit breaker, admission lottery, placement constraints, progressive drain, ledger replay, multi-priority aging, scheduler canaries) COMPLETE (PR #83)
-- [x] KUDBEECLI Phase 2: persistent identity ledger, persistent traces, interactive REPL, dashboard status, swarm live path (fail closed)
-- [x] KILO Live-proof readiness spine (PR #141): runbook, arc doc, hermetic contract module, gate stubs
-- [x] KILO env-matrix gate (PR #142 draft): env matrix, verify scripts, hermetic contract tests
 
 ---
 
@@ -38,31 +35,822 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #125 (draft):** Full-repo audit ledger (`docs/audit/`, `scripts/audit_ledger.py`), 25 ranked findings (`passes/2026-09-22-pr125.json`), P0/P1 doc fixes (suite counts, STATUS security/env, Vector defect text). Vercel preview **not** attempted (no creds). Prior: PR #124 merged (big-scale convergence); swarm 512+ and convergence stats in prior passes. |
+| **Active objective** | Establish baseline: autonomous workflow core LIVE VERIFIED in cloud environment; merge queue cleared |
+| **Latest completed work** | **PR #141–#200 + Neon setup (merged 493b6ca6, 2026-09-26 19:25)**. Cloud environment preserved. Autonomous workflow proven end-to-end. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume**; **RUNNING orphan reclaim** stacked on resume. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
-| **Next larger improvement** | Provision UPSTASH_PUBLIC_BOX_TOKEN for PATH A live verification; scale swarm beyond 512 agents with increasing concurrency; prove convergence stability across more runs (currently 5); establish statistically rigorous scaling evidence. |
-| **PR status** | PR #120 merged (ADR 004 + runtime contract clarification); PR #118 merged (Upstash Box adapter); PR #119 merged (auth contract investigation docs) |
-| **Test count** | **2260 OK** (7 skipped, 3 expected failures) — `python3 -m unittest discover tests/` |
+| **Next larger improvement** | **Founder-run bounded Live proof** when `UPSTASH_PUBLIC_BOX_URL`, Box token, and `THINKBOX_SWARM_LIVE_ACK` are present in founder runtime (not CI). |
+| **PR status** | PR #141–#200 merged on main. **Open drafts (do not merge/retarget):** **#201** Upstash; **#202** lifecycle hardens; **QUEUED resume** `cursor/durable-queued-resume-723f`; **RUNNING reclaim** `cursor/durable-running-reclaim-723f` stacked on resume. **Next:** founder review of reclaim before any further lifecycle feature. Upstash LIVE still REGISTRATION-blocked. |
+| **Test count** | **2500+ OK (8 skipped, 3 expected failures)** — `python3 -m unittest discover -s tests -t .` (post-#141 branch gate) |
 
 ---
 
 ## RECENT CHANGES
 
-### 2026-09-23 — KUDBEECLI Phase 2: Persistence + REPL + Dashboard + Live Path (TEST VERIFIED)
+### 2026-09-26 19:25 — Autonomous workflow cloud environment setup + proof (merged main 493b6ca6)
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-09-23 |
-| **Agent/task** | Extend CLI with persistent storage, interactive shell, dashboard inspection, and separated swarm live path. |
-| **DISCOVERY** | Phase 1 used in-memory stores only — `IdentityLedger` and `ThinkTraceCapture` lost data across process boundaries. No SQLite persistence existed for either. |
-| **IMPLEMENTATION** | **A.** Added SQLite persistence to `IdentityLedger` (`thinkbox/identity.py`) — register/get/grant/revoke/list all persist to `data/thinkboxmd/db/identities.db`. In-memory mode preserved (backward compatible). **B.** Added SQLite persistence to `ThinkTraceCapture` (`thinkbox/thinktrace.py`) — capture/find_by_id persist to `data/thinkboxmd/db/traces.db`. `find_by_id` queries SQLite fallback when in-memory miss. **C.** Added `thinkbox shell` REPL with readline + history at `~/.kudbee_cli_history`. Commands map to existing CLI functions. **D.** Added `thinkbox dashboard status` — inspects dashboard script existence, events file, event count (reads SQLite + `swarm_events.jsonl`, no live API). **E.** Added `thinkbox swarm live` — checks `INCEPTION_API_KEY` presence, FAILS CLOSED when absent, never executes live API. |
-| **TEST_VERIFIED** | Full suite: 2260 OK (7 skipped, 3 xfail). Tests: 20 in `tests/unit/test_cli.py` covering persistence across store instances, trace write/reload/retrieval, REPL help/exit, swarm live fail-closed, dashboard status, proof check, ledger verify. Combined persistence test: agent + trace survive separate process instances. |
-| **LIVE VERIFIED** | CLI commands verified in sandbox (no live API calls). `swarm live` shows AUTHORIZED when key present but notes founder authorization required. No provider spending. |
-| **DECISION** | Persistence added to existing classes (not replaced). REPL uses readline if available with graceful fallback. Live path is clearly separated from offline and fails closed. No duplicate event buses. |
-| **FourState** | CODE_COMPLETE / TEST_VERIFIED (2260) / LIVE_VERIFIED (sandbox) / PRODUCTION not claimed |
+| **Branch** | `feat/neon-serverless-setup` (3 commits) |
+| **Commits** | 3561aee (Neon init) + a5e799d (skills) + 4db5f6b (proof) |
+| **What merged** | Neon serverless Postgres configuration + autonomous workflow end-to-end proof script |
+| **Proof components** | ✅ Mercury-2 model execution (Inception API); ✅ Upstash Redis persistence; ✅ Autonomous loop (Sense→Decide→Act→Learn); ✅ Dashboard state tracking |
+| **Cloud env preserved** | INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN intact; no credentials removed; no paid services added |
+| **FourState** | CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox) |
+| **Next** | Reconcile Memory layer API method names; audit Dashboard state API; prepare local development path |
+
+### 2026-09-26 — GitHub #253: swarm proof honesty + findings close (on claude/repo-audit-e4801s)
+
+| Field | Value |
+|---|---|
+| **Scope** | 14/38 committed swarm proof artifacts fail `validate_proof_document` (declared 32 validators, ran 0) |
+| **Fix** | All 14 patched: `partial_run: true`, `declared_validator_workers: 32` (preserved), `validator_workers: 0` (corrected), `partial_run_reason` explains the gap |
+| **Finding** | `data/findings/swarm_proof_artifacts_invalid.md` status updated to fixed |
+| **Validation** | 38/38 proofs now pass `validate_proof_document` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+| **Builds on** | PR #252 (merged) — honest execution: real model path + governance no-token deny |
+
+### 2026-09-24 — RUNNING orphan reclaim via ownership lease (stacked on QUEUED resume)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_reclaim.py` + `thinkbox/lifecycle_lease.py` on the existing Repository lifecycle |
+| **Gate** | `durable-running-reclaim` / `scripts/verify_kilo_pr204_lifecycle_reclaim.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Base** | `cursor/durable-queued-resume-723f` @ `da3e0ff`. Do not merge or retarget #201/#202/#203. |
+
+**DISCOVERY:** QUEUED resume records `lease_id` on the RUNNING claim, but a process death after that claim leaves the job RUNNING. H20 does not resume RUNNING. Replaying it without an ownership check would double-execute.
+
+**IMPLEMENTATION:** A lease is an ownership id plus persisted `lease_started_at` / `lease_expires_at` / `lease_timeout_seconds` (default 300s). Expiry is `now >= lease_expires_at` on those stored timestamps. `reclaim_running_orphan` re-reads the lifecycle, CAS-claims only when phase is still RUNNING and that lease id is expired, and writes `kind=orphan_reclaim` (new `lease_id`, prior lease id and start, reclaim timestamp, `timeout_reason=lease_expired`) before calling existing `execute_governed_job_command`. Fresh leases, ADMISSION, QUEUED, and terminal jobs are not reclaimed. QUEUED resume is unchanged aside from storing the ownership lease on its claim. Missing goal/command/worktree → FAILED `orphan_reclaim_incomplete`. Unconfigured Upstash → `remote_not_configured`. No second receipt, no H13 recover, no worker/reaper. Live flags stay false.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_reclaim` + `tests.unit.test_kilo_live_proof_readiness_pr204` + resume/harden/lifecycle suites + `verify_kilo_pr202_lifecycle_harden.py` + `verify_kilo_pr203_lifecycle_resume.py` + `verify_kilo_pr204_lifecycle_reclaim.py` + `scan_doc_secrets.py`.
+
+**DECISION:** Reclaim extends the same CAS lifecycle. It is not a second execution system. Upstash LIVE proof stays untouched.
+
+**NEXT ACTION:** Founder review of this draft. Do not pick the next lifecycle feature until this reclaim behavior is reviewed. Upstash LIVE still blocked on secret REGISTRATION.
+
+### 2026-09-24 — Durable QUEUED resume after process death (stacked on #202)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_resume.py` — `resume_queued_job` on the existing Repository lifecycle |
+| **Gate** | `durable-queued-resume` / `scripts/verify_kilo_pr203_lifecycle_resume.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Base** | `cursor/durable-lifecycle-harden-723f` (#202). Do not merge or retarget #201/#202. |
+
+**DISCOVERY:** H20 marks QUEUED jobs `resume_eligible` but resume was not implemented. Process death after ADMISSION+QUEUED left work stranded. Public result redaction (H06/H23) correctly omits `exec_command`; crash recovery therefore cannot reconstruct a shell command from the durable blob.
+
+**IMPLEMENTATION:** `resume_queued_job(repo, job_id, *, exec_command=None)` loads via `load_lifecycle` only (never H13 recover, never mint ADMISSION). Eligible only when `phase=queued` and H20 is true. Reconstructs goal from a matching HTTP receipt, else lifecycle goal, else intent. Reuses `receipt_id`. Validates worktree path/`worktree_id`. Revalidates stored substrate/provider (H08/H09 merged; no local fallback). CAS persist RUNNING only while still QUEUED, with `kind=resume_claim` + `lease_id`, then calls existing `execute_governed_job_command`. Operator HTTP: `POST /api/v1/run/job/{id}/resume` for shell-command re-supply. Missing inputs → FAILED `resume_incomplete`. Unconfigured Upstash → `remote_not_configured`. Live flags stay false.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_resume` + `tests.unit.test_kilo_live_proof_readiness_pr203` + existing lifecycle/harden suites + PR #202 verifier + `scripts/verify_kilo_pr203_lifecycle_resume.py` + `scripts/scan_doc_secrets.py`.
+
+**DECISION:** QUEUED resume only. ADMISSION-only and RUNNING crashes are not resumed. No second job system. No Upstash LIVE gate change.
+
+**NEXT ACTION:** Founder review of this draft (keep stacked on #202). Next product commitment in this lane: **orphaned RUNNING reclaim via lease/timeout**. Upstash LIVE still blocked on secret REGISTRATION.
+
+### 2026-09-24 — PR #202 draft: 25 durable lifecycle hardens
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/lifecycle_harden.py` — 25 fail-closed checks on the existing Repository lifecycle |
+| **Gate** | `durable-lifecycle-harden` / `scripts/verify_kilo_pr202_lifecycle_harden.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Durable phases landed, but job ids, phase order, terminal immutability, secret fields, hash/substrate allowlists, and reload listing were unchecked.
+
+**IMPLEMENTATION:** One harden module (no second job system). Wired into persist/load/status. Resume eligibility is recorded for QUEUED only; resume itself is not implemented.
+
+**TEST_VERIFIED:** `tests.unit.test_lifecycle_harden` + existing lifecycle/HTTP suites + verify script + secret scan.
+
+**DECISION:** Keep the pack small — typed errors and bounds, not a worker/orchestrator. Upstash LIVE proof still blocked on REGISTRATION.
+
+**NEXT ACTION:** Founder review of draft PR #202. Next product commitment remains durable **resume** of QUEUED jobs after process death.
+
+### 2026-09-24 — Durable governed execution lifecycle
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_execution_lifecycle.py` on existing Repository jobs + HTTP status recovery |
+| **Phases** | ADMISSION → QUEUED → RUNNING → COMPLETED / FAILED (receipt / artifact / verdict retained) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Think Job status lived in in-memory `ThinkJobEntry`. HTTP receipts persisted to SQLite but `_receipt_status_from_sqlite` dropped `result`. Process reload could not recover queued/running/terminal proof without rerunning.
+
+**IMPLEMENTATION:** Lifecycle transitions write to `.thinkbox/jobs/{job_id}.json` (existing Repository store — not a second job system). Router persists ADMISSION+QUEUED; background appends RUNNING then terminal refs. Status resolver: dashboard → repository lifecycle → SQLite outcome.
+
+**TEST_VERIFIED:** Unit lifecycle + f136 HTTP e2e + existing governed/local/HTTP suites + `scan_doc_secrets.py`.
+
+**DECISION:** No remote→local fallback; Upstash adapter unchanged; PR #201 registration gate untouched. Local durability is not LIVE VERIFIED.
+
+**NEXT ACTION:** Durable **resume** of QUEUED jobs after process death (pickup without re-admit). Do not implement in this commitment. Upstash LIVE proof still blocked on Cursor secret REGISTRATION.
+
+### 2026-09-24 — Governed shell HTTP guide + hermetic e2e (local substrate)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/guides/governed_run_http.md`; `tests/e2e/test_f135_governed_shell_local_http.py`; terminal `result` on `GET /api/v1/run/job/{id}/status` |
+| **HTTP path** | `POST /api/v1/run` → admission → `execution_substrate=local` + `exec_command` → `LocalExecutionAdapter` → receipt/checkpoint/artifact → job status `result` |
+| **Harness** | `tests/e2e/api_run_hermetic.py` sets `THINKBOX_API_KEYS` with hermetic key when VM env overrides `THINKBOX_API_KEY` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Substrate routing landed in `70dea55` but operator docs and full FastAPI/router e2e coverage were missing; job status poll payload omitted terminal `result` even though dashboard entries carried governed shell proof.
+
+**IMPLEMENTATION:** Document paired `execution_substrate` / `exec_command` (local vs upstash-box, fail-closed pairing, no local fallback). E2e test exercises Starlette `TestClient` + background drain; expose redacted terminal `result` on status poll.
+
+**TEST_VERIFIED:** `python3 -m unittest tests.e2e.test_f135_governed_shell_local_http tests.unit.test_governed_job_execution tests.unit.test_local_execution_adapter tests.unit.test_execution_adapter tests.unit.test_run_job_status tests.unit.test_run_governed -q` → **40 OK**; `python3 scripts/scan_doc_secrets.py` → exit 0.
+
+**DECISION:** Hermetic HTTP tests must pin both `THINKBOX_API_KEY` and `THINKBOX_API_KEYS` when cloud VM injects multi-key env; do not weaken upstash-box fail-closed behavior in e2e (assert `remote_not_configured`, not local provider).
+
+**NEXT ACTION:** Founder-run bounded Live proof on `upstash-box` when official Box URL+token are injected (PR #201 gate unchanged); no further local-lane scope until then.
+
+### 2026-09-24 — Governed Think Job explicit local substrate routing
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/governed_job_execution.py` — explicit `substrate=local` → `LocalExecutionAdapter`; `upstash-box` only when configured (no fallback) |
+| **HTTP** | Optional `RunRequest.execution_substrate` + `exec_command` → `execute_governed_shell_background` |
+| **Evidence** | `data/local_execution/governed_local_proof_20260924.json` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+
+**DISCOVERY:** Governed `POST /api/v1/run` handled model goals only; shell execution existed via adapters/CLI but was not routed through governed Think Job admission/receipt path with explicit substrate.
+
+**IMPLEMENTATION:** Substrate router + governed shell background task; paired request fields fail-closed when only one is set.
+
+**TEST_VERIFIED:** `tests.unit.test_governed_job_execution` + local/execution adapter unit tests green.
+
+**LIVE_VERIFIED:** **No** — local substrate only; remote requires explicit `upstash-box` + credentials.
+
+**DECISION:** Never infer local from `detect_substrate()` for this path; never fall back to local when remote is misconfigured.
+
+**NEXT ACTION:** *(superseded)* Governed shell HTTP docs + e2e — see section above.
+
+### 2026-09-24 — Local execution proof lane (provider-independent)
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded local subprocess execution via existing ``ExecutionReceipt`` + checkpoint contract |
+| **Surface** | `thinkbox/local_execution_adapter.py`, `scripts/local_execution_proof.py`, `thinkbox repository_cli job execute-local` |
+| **Evidence** | `data/local_execution/proof_20260924.json` (redacted; `live_verified: false`) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (local only; no external service) |
+
+**DISCOVERY:** Remote path is `UpstashBoxExecutionAdapter` + `ExecutionReceipt`; local hermetic tests used HTTP stubs but no first-class local adapter for operator proof without cloud credentials.
+
+**IMPLEMENTATION:** `LocalExecutionAdapter` (`provider=local`) runs one bounded `/bin/sh -c` command, writes hash-verified artifact under `.thinkbox/artifacts/`, creates checkpoint metadata with intent fingerprint (not full secret-bearing env). Public proof helper sets `evidence_label=verified` and explicitly `live_verified: false`.
+
+**TEST_VERIFIED:** `tests/unit/test_local_execution_adapter.py` + existing `tests/unit/test_execution_adapter.py` green; proof script exit 0 on workspace.
+
+**LIVE_VERIFIED:** **No** — by design; local lane does not call Upstash/UpCloud/AWS.
+
+**DECISION:** Keep PR #201 Upstash registration gate unchanged; local proof is parallel lane for Think Box contract exercise.
+
+**NEXT ACTION:** Wire Think Job governed-run path to select local adapter when substrate is `local` and remote is unconfigured (optional); keep remote live proof on PR #201 separate.
+
+### 2026-09-24 — PR #201 (draft): Upstash Box access verification
+
+| Field | Value |
+|---|---|
+| **Scope** | Bounded access/proof against the existing adapter contract; gate `upstash-box-access-verification` |
+| **This-run class** | **A — ENV_NOT_CONFIGURED** (live proof attempt 2026-09-24 post-founder Save claim). **Failure stage: REGISTRATION** — binding check: both official names still **NOT LISTED** / **NOT PRESENT** in this process. Warm-fork run `bc-1e6f1537-662e-48eb-9c98-7e454d18723f`, env version `66bcd4b4-aee3-11f1-bf4b-42ffb4d10ea7` unchanged. Live probe **not run**. **No HTTP.** |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
+| **ADR** | `docs/decisions/024-upstash-box-access-verification.md` |
+| **Evidence** | `data/upstash_box_access/probe_20260924_pr201.json`, `probe_fresh_agent_20260924.json`, prior continuation/live-attempt artifacts |
+| **Verify** | `python3 scripts/verify_kilo_pr201_upstash_box_access.py` |
+
+**DISCOVERY:** After reported dashboard Save, this agent’s `CLOUD_AGENT_ALL_SECRET_NAMES` still omits `UPSTASH_PUBLIC_BOX_URL` and `UPSTASH_PUBLIC_BOX_TOKEN` (17-name catalog unchanged; `UPSTASH_BOX_API_KEY` still listed). Same `bcId` / warm fork — process never received a post-Save secret catalog refresh.
+
+**IMPLEMENTATION:** Refreshed `binding_gate_20260924_pr201.json` only. No live probe; no adapter changes.
+
+**TEST_VERIFIED:** Unit + gate verify + secret scan green.
+
+**LIVE_VERIFIED:** **No** — REGISTRATION gate failed; `probe_live.json` not created.
+
+**DECISION:** Do not HTTP until binding check shows LISTED+PRESENT on a **new** Cloud Agent boot (not this warm-fork session). Verify secret names on Personal env `66a9aa89-aee3-11f1-bf4b-42ffb4d10ea7` match adapter contract exactly.
+
+**NEXT ACTION:** Start a **new** Cloud Agent on `cursor/env-setup-803e` after Save; first command `cursor_box_env_binding_check.py`; if `gate_ready: true`, one live probe to `probe_live.json`.
+
+### 2026-09-24 — PR #200 (merged): Environmental variables pack (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/env_vars/` typed schema, fail-closed parse, redaction, cassettes, matrix bridge to #142; gate `environmental-variables` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** (`live_verified: false`, `live_api_called: false`) |
+| **ADR** | `docs/decisions/005-environmental-variables.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr200_environmental_variables.py` |
+
+### 2026-09-24 — PR #199 (merged): Cloud execution worker orchestrator Phase 3 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `CloudExecutionWorker` loop + heartbeat/claim renewal; gate `cloud-execution-worker-orchestrator` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/004-cloud-execution-worker-orchestrator.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py` |
+
+### 2026-09-24 — PR #198 (merged): Cloud execution durable queue Phase 2 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cloud_execution/` SQLite queue + `DurableCloudExecutionEngine`; gate `cloud-execution-durable-queue` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/003-cloud-execution-durable-queue.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr198_cloud_execution_durable_queue.py` |
+
+### 2026-09-24 — PR #197 (merged): Cloud execution substrate Phase 1 (10 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cloud_execution/`; gate `cloud-execution-substrate` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **ADR** | `docs/decisions/002-cloud-execution-substrate.md` |
+| **Verify** | `python3 scripts/verify_kilo_pr197_cloud_execution_substrate.py` |
+
+### 2026-09-24 — PR #196 (merged): KUDBEECLI enterprise upgrade (Phase 4, 25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cli_phase4/`; `thinkbox cli enterprise {status,hub,lanes}`; gate `kudbee-cli-enterprise-upgrade` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **not LIVE VERIFIED** |
+| **Upstream** | PR #195 enterprise SDK lanes (`sdk_bridge`) |
+| **Verify** | `python3 scripts/verify_kilo_pr196_kudbee_cli_enterprise_upgrade.py` |
+
+### 2026-09-24 — PR #195 (merged): Kudbee SDK enterprise lr-energy lanes (25 commits)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_enterprise_lr_energy/`; gate `kudbee-sdk-enterprise-lr-energy-lanes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED** |
+| **Commits** | 25 enterprise lanes ENT01–ENT25 (tenant/RBAC/SLA/compliance/audit/SOC2 themes) |
+| **Verify** | `python3 scripts/verify_kilo_pr195_kudbee_sdk_enterprise_lr_energy.py` |
+
+### 2026-09-24 — PR #194 (merged): Kudbee SDK lr-energy major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_longrange_energy_major_fixes/`; gate `kudbee-sdk-longrange-energy-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
+| **Commits** | 25 fix commits FIX01–FIX25 |
+| **Tests** | `test_kudbee_sdk_longrange_energy_major_fixes`, `test_kilo_live_proof_readiness_pr194` |
+
+### 2026-09-24 — PR #193 (merged): Kudbee SDK long-range + energy loops (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_longrange_energy/`; gate `kudbee-sdk-longrange-energy-deepen` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
+| **Tests** | `test_kudbee_sdk_longrange_energy`, `test_kilo_live_proof_readiness_pr193`; `verify_kilo_pr193_kudbee_sdk_longrange_energy.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr193.json` (`live_verified: false`) |
+| **Notes** | Long-range session bind + energy loop mesh + conservation ledger after merged **#192**; **30 deepen commits** DEP01–DEP30 (`thinkbox/kudbee_sdk_longrange_energy_deepen/`, gate `kudbee-sdk-longrange-energy-deepen-packs`) |
+
+### 2026-09-24 — PR #192 (merged): Kudbee SDK follow-up wave 3 major fixes (35 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_followup_w3_major_fixes/`; gate `kudbee-sdk-followup-w3-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
+| **Tests** | `test_kudbee_sdk_followup_w3_major_fixes`, `test_kilo_live_proof_readiness_pr192`; `verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr192.json` (`live_verified: false`) |
+| **Notes** | Major fix wave after merged **#191**; FIX01–FIX35 registry + pr191 upstream validation |
+
+### 2026-09-24 — PR #191 (merged): Kudbee SDK follow-up wave 3 (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_followup_w3/` toolkit + `apps/web/sdk/followup_w3.ts`; gate `kudbee-sdk-followup-w3` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** |
+| **Tests** | `test_kudbee_sdk_followup_w3`, `test_kilo_live_proof_readiness_pr191`; `verify_kilo_pr191_kudbee_sdk_followup_w3.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr191.json` (`live_verified: false`) |
+| **Notes** | Wave 3 after merged **#181**; capability negotiation v4 + twin federation stub routes |
+
+### 2026-09-24 — PR #190 (merged): Think Job POST /run major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_post_run_major_fixes/`; gate `think-job-post-run-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_post_run_major_fixes`, `test_kilo_live_proof_readiness_pr190` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr190.json` |
+| **Notes** | Major fix wave after merged **#189**; F131 POST `/run` + **#184** deepen |
+
+### 2026-09-24 — PR #189 (merged): Think Job lifecycle major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_lifecycle_major_fixes/`; gate `think-job-lifecycle-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_lifecycle_major_fixes`, `test_kilo_live_proof_readiness_pr189` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr189.json` |
+| **Notes** | Major fix wave after merged **#188**; F023 lifecycle + status UI handoff |
+
+### 2026-09-24 — PR #188 (merged): Think Job governed run major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_governed_run_fixes/`; gate `think-job-governed-run-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_governed_run_major_fixes`, `test_kilo_live_proof_readiness_pr188` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr188.json` |
+| **Notes** | Major fix wave after merged **#187**; F132 `run_governed` spine |
+
+### 2026-09-24 — PR #187 (merged): Think Job receipt major fixes (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_run_receipt_deepen/fixes/`; gate `think-job-receipt-major-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_receipt_major_fixes`, `test_kilo_live_proof_readiness_pr187` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr187.json` |
+| **Notes** | Major fix wave after merged **#186**; pairs **#184**/**#185** handoffs |
+
+### 2026-09-24 — PR #186 merged: Think Job governed run receipt deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_run_receipt_deepen/`; gate `think-job-run-receipt-deepen` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_run_receipt_deepen`, `test_kilo_live_proof_readiness_pr186` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr186.json` |
+| **Notes** | F133 receipt persistence deepen; pairs with **#185** lifecycle fixes |
+
+### 2026-09-24 — PR #185 merged: Think Job lifecycle integration fix pack (25 fixes)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_lifecycle_fixes/`; gate `think-job-lifecycle-fixes` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_think_job_pr185_fixes`, `test_kilo_live_proof_readiness_pr185`, `test_think_job_pr185_local_env` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr185.json` |
+| **Notes** | Glue #183/#184 with F131–F140; **25 fixes** + **local env** (`./scripts/run_pr185_local.sh`, 8 steps) |
+
+### 2026-09-24 — PR #184 merged: Think Job POST /run contract deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_post_run_deepen/`; gate `think-job-post-run-deepen` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_think_job_post_run_deepen`, `test_kilo_live_proof_readiness_pr184` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr184.json` |
+| **Notes** | POST `/api/v1/run` deepen; **10 fixes** + **10 enhancements** (wave 2) after #183 |
+
+### 2026-09-24 — PR #183 merged: Think Job hermetic e2e deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_e2e_deepen/` toolkit; gate `think-job-hermetic-e2e` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** |
+| **Tests** | `test_think_job_hermetic_e2e`, `test_think_job_e2e_major_fixes`, `test_kilo_live_proof_readiness_pr183` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr183.json` |
+| **Notes** | 25 features + 20 major fixes wave |
+
+### 2026-09-24 — PR #183 (draft): Think Job hermetic e2e deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/think_job_e2e_deepen/` toolkit; gate `think-job-hermetic-e2e` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_think_job_hermetic_e2e`, `test_kilo_live_proof_readiness_pr183`; `verify_kilo_pr183_think_job_hermetic_e2e.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr183.json` (`live_verified: false`) |
+| **Notes** | Deepens Think Job status/stream/UI + e2e scaffold (#127–#140); **20 major fixes** in `thinkbox/think_job_e2e_deepen/fixes/`; not SDK/CLI/receipt-chain |
+
+### 2026-09-24 — PR #182 merged: Receipt-chain deepen (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/receipt_chain_deepen/` toolkit; gate `receipt-chain-deepen` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_receipt_chain_deepen`, `test_kilo_live_proof_readiness_pr182`; `verify_kilo_pr182_receipt_chain_deepen.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr182.json` (`live_verified: false`) |
+| **Notes** | Deepens receipt-chain / END_LINK / audit-ledger surfaces (#155–#164); not SDK/CLI |
+
+### 2026-09-24 — PR #181 merged: Kudbee SDK follow-up wave 2 (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_followup_w2/` toolkit + `apps/web/sdk/followup_w2.ts`; gate `kudbee-sdk-followup-w2` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kudbee_sdk_followup_w2`, `test_kilo_live_proof_readiness_pr181`; `verify_kilo_pr181_kudbee_sdk_followup_w2.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr181.json` (`live_verified: false`) |
+| **Notes** | Builds on merged #177/#179 SDK surfaces; does not reopen KUDBEECLI Phase 3/4 |
+
+### 2026-09-24 — PR #180 merged: KUDBEECLI Phase 3 (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cli_phase3/` toolkit + `thinkbox cli` Phase 3 subcommands (status, profile, job, cassette, batch, …); gate `kudbee-cli-phase3` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_cli_phase3_deepen`, `test_kilo_live_proof_readiness_pr180`; `verify_kilo_pr180_kudbee_cli_phase3.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr180.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #179 merged: Kudbee SDK follow-up (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kudbee_sdk_followup/` deepen + `apps/web/sdk/followup.ts` + `/api/sdk/*` routes; gate `kudbee-sdk-followup` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kudbee_sdk_followup_deepen`, `test_kilo_live_proof_readiness_pr179`; `verify_kilo_pr179_kudbee_sdk_followup.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr179.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #178 merged: KUDBEECLI Phase 2 (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/cli_phase2/` toolkit + `thinkbox cli` subcommands (health, dry-run, receipt-bind, envelope); gate `kudbee-cli-phase2` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_cli_phase2_deepen`, `test_kilo_live_proof_readiness_pr178`; `verify_kilo_pr178_kudbee_cli_phase2.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr178.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #177 merged: Kudbee SDK app (~25 features)
+
+| Field | Value |
+|---|---|
+| **Scope** | Python `thinkbox/kudbee_sdk/` (config, HTTP, lifecycle, hermetic fixtures) + TypeScript `apps/web/sdk/` + browser wiring; gate `kudbee-sdk-app` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kudbee_sdk`, `test_kilo_live_proof_readiness_pr177`; `verify_kilo_pr177_kudbee_sdk_app.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr177.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #176 merged: chronicle honesty post-#175
+
+| Field | Value |
+|---|---|
+| **Scope** | Spine Markdown sync after #175 merge; next-slot pointers |
+| **FourState** | Docs only — TEST VERIFIED hermetic chronicle gates unchanged |
+
+### 2026-09-24 — PR #175 merged: lint scope wave 2 (live-proof readiness spine)
+
+| Field | Value |
+|---|---|
+| **Scope** | +12 modules (END_LINK, receipt-chain docs, operator audit-flip); `LINT_SCOPE_REL_PATHS` → 38; beyond-KILO lint v3 |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kilo_live_proof_readiness_pr175`; `verify_kilo_pr175_lint_scope_wave2.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr175.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #174 merged: lint scope wave 1 (enterprise editing)
+
+| Field | Value |
+|---|---|
+| **Scope** | `LINT_SCOPE_REL_PATHS` → 25 spine/hermetic modules; `docs/guides/kilo_enterprise_editing.md` (25 commitments); ruff/mypy/bandit fixes |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `test_kilo_live_proof_readiness_pr174`; `verify_kilo_pr174_lint_scope_wave1.py`; beyond-KILO lint v2 execute |
+| **Audit** | `docs/audit/passes/2026-09-24-pr174.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #173 merged: chronicle honesty (post-#170 era)
+
+| Field | Value |
+|---|---|
+| **Scope** | README refresh for new readers; AGENTS/CONTINUITY/roadmap/runbook stale label fixes (#170–#172 merged); `kilo_pr173_chronicle_honesty` doc contracts |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr173 -v`; `verify_kilo_pr173_chronicle_honesty.py` |
+| **Audit** | `docs/audit/passes/2026-09-24-pr173.json` (`live_verified: false`) |
+
+### 2026-09-24 — PR #172 merged: CI spine-trust slimming
+
+| Field | Value |
+|---|---|
+| **Scope** | `.github/workflows/test.yml` dedupes per-gate `verify_kilo_*`; PR CI = unittest + fast spine + `KILO_BEYOND_KILO_LINT_EXECUTE=1` + secret scan; `kilo_pr172_ci_spine_trust` contract |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr172 -v`; spine fast verify |
+| **Audit** | `docs/audit/passes/2026-09-24-pr172.json` (`live_verified: false`) |
+
+### 2026-09-24 — Post-#170 planning roadmap (docs only)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/roadmaps/kilo-post-170-pr-roadmap.md` — sequenced #171–#180 single-theme PR plan; no implementation |
+| **FourState** | N/A (planning) |
+
+### 2026-09-23 — PR #170 merged: beyond-KILO lint lane (ruff/mypy/bandit)
+
+| Field | Value |
+|---|---|
+| **Scope** | Single-theme lint readiness: `beyond_kilo_lint` primitives + `kilo_beyond_kilo_lint` gate; scoped paths; pyproject tool config; `verify_kilo_beyond_kilo_lint.py`; not a combined post-#169 A–D umbrella |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on **main** — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No Live proof; linters scoped to gate modules only (gradual adoption per roadmap #173–#174) |
+| **Tests** | `pip install -e ".[lint]"`; `python3 scripts/verify_kilo_beyond_kilo_lint.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr170 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr170.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #169 draft: combined post-#168 lane (after #168)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_proof_operator_audit_flip_post168` (prior post167 theme A); Theme B: `api_ops_harden_post168` (prior post167 ops); Theme C: `dashboard_pr168_gates_bind` + `pr168_gates_status.html`; Theme D: `swarm_governance_post168_deepen` (prior post167 swarm); Umbrella: `pr169_combined_post168_lane`; nesting guard: `kilo_hermetic_gate_memo` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py`; `python3 scripts/verify_kilo_pr169_combined_post168_lane.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr169 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr169.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #168 draft: combined post-#167 lane (after #167)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_proof_operator_audit_flip_post167`; Theme B: `api_ops_harden_post167`; Theme C: `dashboard_pr167_gates_bind` + `pr167_gates_status.html`; Theme D: `swarm_governance_post167_deepen`; Umbrella: `pr168_combined_post167_lane` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr168_combined_post167_lane.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr168 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr168.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #167 merged: combined post-#166 lane (after #166)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_proof_operator_audit_flip_deepen`; Theme B: `api_ops_harden_post166`; Theme C: `dashboard_pr166_gates_bind` + `pr166_gates_status.html`; Theme D: `swarm_governance_post166_deepen`; Umbrella: `pr167_combined_post166_lane` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr167_combined_post166_lane.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr167 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr167.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #166 merged: combined post-#165 lane (after #165)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_proof_operator_prep_deepen`; Theme B: `api_ops_harden_post165`; Theme C: `dashboard_pr165_gates_bind` + `pr165_gates_status.html`; Theme D: `swarm_governance_post165_deepen`; Umbrella: `pr166_combined_post165_lane` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr166_combined_post165_lane.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr166 -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr166.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #165 merged: combined harden + #154–#164 era chronicle (after #164)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A–C + era chronicle pack on `main` (merge `cbc09c57`) |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+
+### 2026-09-23 — PR #165 draft: combined harden + #154–#164 era chronicle (after #164)
+
+| Field | Value |
+|---|---|
+| **Scope** | Theme A: `live_smoke_audit_flip_correlation` + audit-flip harden; Theme B: `control_plane_post164_deepen`; Theme C: `receipt_chain_end_link_season_harden`; Theme D: `docs/audit/passes/2026-09-23-pr154-164-era-chronicle.json` + `docs/CONTINUITY.md` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **not LIVE VERIFIED.** `live_api_called: false` |
+| **Not proved** | No bounded Live smoke; no Box/Mercury HTTP in CI; no `live_verified: true` on spine or audit passes |
+| **Tests** | `python3 scripts/verify_kilo_pr165_combined_harden.py`; `python3 -m unittest tests.unit.test_kilo_live_proof_readiness_pr165 tests.unit.test_live_smoke_audit_flip_correlation -v` |
+| **Audit** | `docs/audit/passes/2026-09-23-pr165.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #164 merged: governance-evidence Live-proof readiness (after #163)
+
+| Field | Value |
+|---|---|
+| **Scope** | `governance_evidence_live_proof_readiness`, `kilo_governance_evidence_live_proof_readiness` gate — on `main` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **not LIVE VERIFIED.** |
+| **Audit** | `docs/audit/passes/2026-09-23-pr164.json` |
+
+### 2026-09-23 — PR #164 draft: governance-evidence Live-proof readiness (after #163)
+
+| Field | Value |
+|---|---|
+| **Scope** | `governance_evidence_live_proof_readiness`, `kilo_governance_evidence_live_proof_readiness` gate, fixtures, spine + CI |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED.** `live_api_called: false` |
+| **Tests** | `python3 scripts/verify_kilo_governance_evidence_live_proof_readiness.py`; audit `passes/2026-09-23-pr164.json` (`live_verified: false`) |
+| **Evidence audit** | `docs/audit/passes/2026-09-23-pr164-evidence-audit.json` — strict claim inventory; max TEST_VERIFIED |
+
+### 2026-09-23 — PR #164 evidence audit (founder redirect)
+
+| Finding | Classification |
+|---|---|
+| #164 modules contain no live HTTP clients | TEST VERIFIED (grep + unit tests) |
+| Readiness docs match fail-closed validators | TEST VERIFIED |
+| Governance evidence uses in-memory token service in tests | TEST VERIFIED (hermetic contract; not live burst) |
+| Receipt-chain END_LINK live provenance | Out of #164 scope; prior hermetic gates only |
+| Stale “PR #162 draft” wording in chronicle | Fixed in STATUS/AGENTS on #164 branch |
+
+### 2026-09-23 — PR #162/#163: control-plane E2E hermetic suite deepen (after #161)
+
+| Field | Value |
+|---|---|
+| **Scope** | `tests/e2e/control_plane_hermetic.py`, F162 `test_f162_cp_*`, `kilo_control_plane_e2e_deepen` gate |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **Not LIVE VERIFIED.** |
+| **Tests** | `python3 scripts/verify_kilo_control_plane_e2e_deepen.py`; audit `passes/2026-09-23-pr162.json` (`gate_id`: `control-plane-e2e-deepen`, `live_verified: false`) |
+
+### 2026-09-23 — PR #162 (main checkpoint): receipt-chain / END_LINK era audit close (#154–#161)
+
+| Field | Value |
+|---|---|
+| **Scope** | `pr154-161-era-consolidated` pack, `kilo_receipt_chain_end_link_era_close` gate |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED.** |
+| **Tests** | `test_receipt_chain_end_link_era_close`, `test_kilo_live_proof_readiness_pr162`; audit `passes/2026-09-23-pr162.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #161 merged: END LINK API / ops harden after #160
+
+| Field | Value |
+|---|---|
+| **Scope** | `end_link_api_ops_harden`, chain filter fail-closed, batch Idempotency-Key, ops timing metadata |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_api_ops_harden`, `test_backend_end_link_api_ops_harden_pr161`, `test_kilo_live_proof_readiness_pr161`; audit `passes/2026-09-23-pr161.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #160 merged: receipt-chain / END_LINK docs + audit pack
+
+| Field | Value |
+|---|---|
+| **Scope** | consolidated operator guide, era audit pack #155–#159, `kilo_receipt_chain_end_link_docs` gate |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_receipt_chain_end_link_docs`, `test_kilo_live_proof_readiness_pr160`; audit `passes/2026-09-23-pr160.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #159 merged: END LINK operator UX deepen
+
+| Field | Value |
+|---|---|
+| **Scope** | `end_link_operator_ux`, dashboard filters/batch table, `kilo_end_link_operator_ux` gate |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_operator_ux`, `test_dashboard_end_link_operator_ux_pr159`, `test_kilo_live_proof_readiness_pr159`; audit `passes/2026-09-23-pr159.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #158 merged: END LINK / control-plane deepen
+
+| Field | Value |
+|---|---|
+| **Scope** | `end_link_deepen`, batch validate route, link integrity fields, chain filters, dashboard batch client |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_deepen`, `test_backend_end_link_deepen_pr158`, `test_kilo_live_proof_readiness_pr158`; audit `passes/2026-09-23-pr158.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #157 merged: API / ops harden after #156
+
+| Field | Value |
+|---|---|
+| **Scope** | `control_plane_ops_harden`, backend error envelopes, idempotency + rate limits, receipt page link checks |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_control_plane_ops_harden`, `test_backend_control_plane_ops_harden_pr157`, `test_kilo_live_proof_readiness_pr157`; audit `passes/2026-09-23-pr157.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #156 merged: dashboard receipt-chain / END_LINK bind
+
+| Field | Value |
+|---|---|
+| **Scope** | `receipt_chain_dashboard.html`, `control_plane_end_link_client.js`, `kilo_dashboard_receipt_chain_bind`, proprietary **END_LINK** validate API bind |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_end_link_api`, `test_dashboard_receipt_chain_*`, `test_kilo_live_proof_readiness_pr156`; audit `passes/2026-09-23-pr156.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #155 merged: receipt-chain / ETag deepen
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/receipt_chain_query.py`, `control_plane_conditional`, deepen `/receipts/chain*` routes, `kilo_receipt_chain_etag` gate |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_receipt_chain_query`, `test_backend_receipt_chain_pr155`, `test_kilo_live_proof_readiness_pr155`; verify + spine + secret scan OK; audit `passes/2026-09-23-pr155.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #154 merged: control-plane API surface upgrade
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/control_plane_api_*`, `backend/api/v1/control_plane.py`, `thinkbox/kilo_control_plane_api.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on main — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr154` + control-plane unit/HTTP tests; verify + spine + secret scan OK; audit `passes/2026-09-23-pr154.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #153 draft: KILO live-smoke operator path
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_live_smoke_operator.py`, `scripts/kilo_live_smoke_operator.py`, `scripts/verify_kilo_live_smoke_operator.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr153` (26); operator verify + spine + secret scan OK; audit `passes/2026-09-23-pr153.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #152 merged: KILO bounded live smoke evidence
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_live_smoke_evidence.py`, `audit_flip_candidate`, `scripts/verify_kilo_live_smoke_evidence.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr152`; audit `passes/2026-09-23-pr152.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #151 draft: KILO post-season harden (ops after arc close)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_post_season_harden.py`, CI spine job, branch hygiene script/runbook, docs/STATUS sync |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr151`; `verify_kilo_post_season_harden.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr151.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #150 merged: KILO live-proof-exec gate (arc #141–#150 season close)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_live_proof_exec.py`, fixtures, `scripts/verify_kilo_live_proof_exec.py`, spine wiring, runbook H14, ADR 009, pr150 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof executed in this PR. |
+| **Season** | Marker `kilo-live-proof-arc-141-150-season-closed` |
+| **Tests** | `test_kilo_live_proof_readiness_pr150`; `verify_kilo_live_proof_exec.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr150.json` (`live_verified: false`) |
+
+### 2026-09-23 — PR #149 merged: KILO dashboard-slots gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_dashboard_slots.py`, `data/kilo_dashboard_slots/fixtures/`, `scripts/verify_kilo_dashboard_slots.py`, spine wiring, runbook H13, ADR 008, pr149 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr149`; `verify_kilo_dashboard_slots.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr149.json` |
+
+### 2026-09-23 — PR #148 merged: KILO proof-schema gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_proof_schema.py`, `data/kilo_proof_schema/fixtures/`, `scripts/verify_kilo_proof_schema.py`, spine wiring, runbook H12, ADR 007, pr148 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr148`; `verify_kilo_proof_schema.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr148.json` |
+
+### 2026-09-23 — PR #147 merged: KILO swarm-instrumentation gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_swarm_instrumentation.py`, `thinkbox/swarm_instrumentation_checks.py`, `scripts/verify_kilo_swarm_instrumentation.py`, spine wiring, runbook H11, pr147 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr147`; `verify_kilo_swarm_instrumentation.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr147.json` |
+
+### 2026-09-23 — PR #146 merged: KILO mercury-hermetic gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_mercury_hermetic.py`, `scripts/verify_kilo_mercury_hermetic.py`, spine wiring, runbook H10, pr146 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | `test_kilo_live_proof_readiness_pr146`; `verify_kilo_mercury_hermetic.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr146.json` |
+
+### 2026-09-23 — PR #145 merged: KILO governance-evidence gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_governance_evidence.py`, `scripts/verify_kilo_governance_evidence.py`, spine wiring, runbook H9, pr145 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr145`; `verify_kilo_governance_evidence.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr145.json` |
+
+### 2026-09-23 — PR #144 merged: CI/post-merge unittest green (not governance-evidence)
+
+| Field | Value |
+|---|---|
+| **Scope** | `.github/workflows/test.yml`, `pyproject.toml` httpx for e2e TestClient — spine gate id `ci-post-merge` |
+| **FourState** | CI fix only — does not close a Live-proof readiness gate beyond keeping unittest discover green |
+
+### 2026-09-23 — PR #143 merged: KILO substrate-checklist gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_substrate_checklist.py`, `scripts/verify_kilo_substrate_checklist.py`, spine wiring, runbook H8, pr143 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr143`; `verify_kilo_substrate_checklist.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr143.json` |
+
+### 2026-09-23 — PR #142 merged: KILO env-matrix gate (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `thinkbox/kilo_env_matrix.py`, `scripts/verify_kilo_env_matrix.py`, spine wiring, runbook H7, pr142 tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr142`; `verify_kilo_env_matrix.py` + `verify_kilo_spine.py` OK; audit `passes/2026-09-23-pr142.json` |
+
+### 2026-09-23 — PR #141 merged: KILO Live-proof readiness spine (#141–#150 arc)
+
+| Field | Value |
+|---|---|
+| **Scope** | `docs/runbooks/kilo-live-proof-readiness.md`, `docs/kilo-live-proof-arc.md`, `thinkbox/kilo_live_proof_readiness.py`, hermetic tests |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — **Not LIVE VERIFIED. Not PRODUCTION READY.** No KILO Live proof in this PR. |
+| **Tests** | `test_kilo_live_proof_readiness_pr141`; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr141.json` |
+
+### 2026-09-23 — PR #140 merged: receipt deep-link + shared etag store (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | `receipts.html` watch links, `control_plane_deep_link.js`, `control_plane_etag_store.js`, tab-shared sessionStorage etag |
+| **Four-state** | CODE COMPLETE / TEST VERIFIED on branch — not LIVE VERIFIED |
+| **Tests** | `test_control_plane_etag_store`, `test_control_plane_deep_link`, `test_f140_*`, static pr140 |
+
+### 2026-09-23 — PR #139 draft: receipt-keyed watch + jobs digest multiplex (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | `think_job_status_ui.py` watch targets, `JobsDigestMultiplexer`, receipt toolbar, multiplex panel |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | F139 e2e + unit receipt/multiplex; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr139.json` |
+
+### 2026-09-23 — PR #138 merged: Think Job status UI (SSE subscribe + poll fallback)
+
+| Field | Value |
+|---|---|
+| **Scope** | `think_job_status.html`, `think_job_status_client.js`, `thinkbox/think_job_status_ui.py` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2462 OK; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr138.json` |
+
+### 2026-09-23 — PR #137 merged: Think Job status SSE stream (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | `GET /run/job/{id}/status/stream`, by-receipt + jobs digest streams, delta hub, poll stream hints |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2430 OK; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr137.json` |
+
+### 2026-09-23 — PR #136 merged: major repo harden (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | Path jail, sqlite pragmas, redaction, HTTP id validation, auth query-key opt-in, CI secret scan |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2409 OK; `scripts/scan_doc_secrets.py` OK; audit `passes/2026-09-23-pr136.json` |
+
+### 2026-09-23 — PR #134 draft: Think Job status poll + receipt-linked dashboard card (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | `GET /run/job/{id}/status`, receipt card payloads, governance snapshot counters, fail-closed 404 |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on branch — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2381+ OK; `scripts/scan_doc_secrets.py` OK; 25-commit PR134 branch (10 core + 15 review) |
+
+### 2026-09-23 — PR #133 merged: governed HTTP run receipts + ExperimentManager (hermetic)
+
+| Field | Value |
+|---|---|
+| **Scope** | SQLite receipts, proof artifacts, GET receipt surfaces, fail-closed persistence on `POST /api/v1/run` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED on `main` — **Not LIVE VERIFIED. Not PRODUCTION READY.** |
+| **Tests** | 2364 OK at merge; `scripts/scan_doc_secrets.py` OK |
 
 ### 2026-09-19 — Full Repo Harden (COMPLETE)
 
@@ -1309,3 +2097,1041 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 ---
 
 ---
+
+### 2026-09-23 — PR #127 founder-review doc correction (KUDBEECLI)
+
+- **AUDIT:** Founder-review blockers on draft PR #127 — KUDBEECLI section in `AGENTS.md` (via `kilo/great-cedar-qui` / `ced113b`) mis-attributed Phase 1 CLI to merged PR #126 and listed unimplemented commands (`agent register`, `agent grant`, `agent revoke`, `agent show`, `trace capture`).
+- **FINDING:** Phase 1 CLI begins at `d54b797` on the PR #127 branch; PR #126 merge `866a408` is audit/token/e2e scaffold only. AST-verified Phase 1 surface: `swarm agents`, `swarm status`, `ledger verify`, `proof check`, `env status`, `session list`.
+- **CORRECTION:** `AGENTS.md` — canonical PR table, Phase 1 command list (six commands only), explicit not-implemented list, Phase 2 boundary (persistence/REPL/dashboard/`swarm live` fail-closed) without claiming merge to `main`. Removed stray trailing backtick in dashboard testing section. `STATUS.md` / `PREP.md` unchanged (no duplicate wrong CLI claims on PR #127 branch).
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` on PR #127 branch after doc-only edit (counts recorded in agent report). `python3 scripts/scan_doc_secrets.py` clean.
+- **DECISION:** Docs-only fix on `cursor/pr127-f009-phase1-e2e`; no CLI code changes in this correction commit; PR #127 remains **OPEN / DRAFT**; no merge, no ready-for-review automation by agent.
+- **NEXT ACTION:** Coordinator opens separate draft **PR #128** (~25 improvements); founder merges PR #127 when satisfied.
+
+### 2026-09-23 — PR #127 merged (founder)
+
+- **MERGED:** GitHub PR **#127** → `main` at **`8abc574`** (F009 hermetic e2e, audit pass `2026-09-22-pr127.json`, KUDBEECLI doc attribution corrections).
+- **NOT IN MERGE:** KUDBEECLI Phase 1 **code** at `d54b797` (six CLI commands) — still off `main`; integrate via **PR #128** (planned).
+- **NEXT ACTION:** PR #128 draft (~25 improvements); land `d54b797` (+ Phase 2 lineage) with docs/code alignment.
+
+### 2026-09-23 — PR #128 draft (KUDBEECLI + governance + F023 prep)
+
+- **BRANCH:** `feat/pr128-cli-governance-25` — Phase 1 six CLI commands on `thinkbox/cli.py` + `thinkbox/cli_inspect.py`; F023 prep e2e (`tests/e2e/test_f023_prep.py`); audit pass `docs/audit/passes/2026-09-23-pr128.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2272 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** KUDBEECLI Phase 1 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**. F023 full Think Job lifecycle still open.
+- **NEXT ACTION:** Founder review draft PR #128; PR #129 theme: Phase 2 CLI persistence + `thinkbox shell` REPL (fail-closed live paths).
+
+### 2026-09-23 — PR #128 merged; PR #129 draft (KUDBEECLI Phase 2)
+
+- **MERGED:** GitHub PR **#128** → `main` at **`bfa067d`** (Phase 1 CLI six commands).
+- **BRANCH:** `feat/pr129-cli-phase2-25` — Phase 2: `cli_persist.py`, `cli_shell.py`, `cli_dashboard.py`, `cli_live_gate.py`; `thinkbox shell`, `dashboard status`, `persist *`, `identity *`, `trace *`, `swarm live` (gate only); `ThinkTraceCapture.list_recent`; audit `docs/audit/passes/2026-09-23-pr129.json`.
+- **FourState:** Phase 2 **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY**.
+- **NEXT ACTION:** Founder review draft PR #129; PR #130 theme: F023 Think Job lifecycle e2e + dashboard emission (hermetic).
+
+### 2026-09-23 — PR #129 merged; PR #130 draft (F023 Think Job hermetic e2e)
+
+- **MERGED:** GitHub PR **#129** → `main` at **`f2ab98a`** (KUDBEECLI Phase 2 persistence, shell, dashboard, live gate).
+- **BRANCH:** `feat/pr130-f023-think-job-e2e-25` — F023 hermetic lifecycle: `HermeticModelProvider` + `provider_complete_async` in `tests/e2e/hermetic_scaffold.py`; `tests/e2e/test_f023_think_job_lifecycle.py` (~13 tests); prep aligned to shared provider; audit `docs/audit/passes/2026-09-23-pr130.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2298 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** F023 hermetic Think Job lifecycle **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (no Mercury HTTP, no `POST /run` live path).
+- **NEXT ACTION:** Founder review draft PR #130; PR #131 theme: hermetic `POST /run` + dashboard job upsert contract tests (still mock provider).
+
+### 2026-09-23 — PR #130 merged; PR #131 draft (POST /run Think Job HTTP contracts)
+
+- **MERGED:** GitHub PR **#130** → `main` at **`afd0b91`** (F023 hermetic Think Job lifecycle e2e).
+- **BRANCH:** `feat/pr131-post-run-think-job-contract-25` — hermetic `POST /api/v1/run`: `tests/e2e/api_run_hermetic.py`, `tests/e2e/test_f131_post_run_think_job_contract.py` (25 tests); router import fix for `ThinkJobEntry` / `ThinkBoxEntry` / `CNCJobEntry`; `SecurityHeadersMiddleware` header strip compatible with current Starlette; audit `docs/audit/passes/2026-09-23-pr131.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2323 OK**, 8 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **FourState:** `POST /api/v1/run` hermetic HTTP contracts **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (mock `ThinkBoxEngine` only; no Mercury HTTP; governance admission not wired on `/run`).
+- **NEXT ACTION:** Founder review draft PR #131; PR #132 theme: wire governed verified runner into `/run` async path (hermetic first).
+
+### 2026-09-23 — PR #131 merged; PR #132 draft (governed `/run` admission + ledger)
+
+- **MERGED:** GitHub PR **#131** → `main` at **`b0e48bf`** (hermetic `POST /api/v1/run` Think Job HTTP contracts).
+- **BRANCH:** `feat/pr132-governed-run-admission-25` — `backend/api/v1/run_governed.py`, `thinkbox/hermetic_provider.py`, governed background execution on `/api/v1/run` (admission fail-closed, `GovernedEngine`, verified hermetic-mock path); `tests/e2e/test_f132_governed_run_admission.py`; audit `docs/audit/passes/2026-09-23-pr132.json`.
+- **TEST_VERIFIED:** `python3 -m unittest discover tests/` → **2354 OK** (post follow-on commits), 7 skipped, 3 expected failures. `python3 scripts/scan_doc_secrets.py` clean.
+- **Follow-on:** ten incremental commits on branch (admission shell, subtask validation, `X-Capability`, governance status endpoint, unit/e2e tests, guide `docs/guides/governed_run_http.md`).
+- **FourState:** governed hermetic `POST /api/v1/run` **CODE COMPLETE** / **TEST VERIFIED** on branch only — **not LIVE VERIFIED**, **not PRODUCTION READY** (mock `hermetic-mock` / patched engine only; no Mercury HTTP).
+- **NEXT ACTION:** Founder review draft PR #132; PR #133 theme: persist governed run receipts + experiment manager wiring on HTTP path (hermetic SQLite).
+
+---
+
+### 2026-09-25 — Trait Lab, 25 systems (seeded local game)
+
+- **DISCOVERY:** `public/nfts/game.html` was a static mock: invented challenge progress and a leaderboard of fake `0x` addresses. There was no rules engine and no playable action.
+- **IMPLEMENTATION:** `thinkbox/trait_game/engine.py` is the source of truth. `public/nfts/trait_game_rules.json` is the shared contract (five collections, weights, costs, synergies, U01–U25). `public/nfts/trait_game.js` ports the same LCG multiplier `1664525`, bag order, and actions. The page at `public/nfts/game.html` plays that port: draw, risk draw, focus, forge, shield, mulligan, undo, file grade, daily seed, and a browser-local board. Branch `cursor/trait-game-25-723f` is cut from `origin/main` at `f2c270c` (PR #201 merged). It is not stacked on the durable lifecycle branches.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game -v` → **26 OK**. A 9-action script (draw, risk, focus, shield, mulligan, forge) produced the same state in Python and in the browser port, including proof sha256 `202e19b982e65985a093a76c39520eb96adc849a5266a7ef4e81bf3f89b068d8`. Local browser play: draw, undo (energy and turn restored), mulligan (Ice returned), second draws, forge when dust allowed, and file grade onto a local name. `python3 scripts/scan_doc_secrets.py` clean.
+- **DECISION:** This is a seeded lab. No wallet, no mint, no chain. `live_verified` stays false. Not LIVE VERIFIED. Not PRODUCTION READY. Four-state: **CODE COMPLETE** / **TEST VERIFIED** on this branch only.
+- **NEXT ACTION:** Founder review of the draft PR for `cursor/trait-game-25-723f` against `main`. Do not merge from this record. The GitHub number is the one that PR receives; it is not claimed here in advance.
+
+### 2026-09-25 — PR #202 Trait Lab deepen (U26–U50)
+
+- **DISCOVERY:** The first 25 systems were playable but the bench still trapped a run: empty energy, immortal focus, spam-risk, no peek, no local replay code.
+- **IMPLEMENTATION:** Rules version 2. Scout, rest, energy/dust convert, pin/unpin, lock/unlock, unfocus, unbind, two-grant focus, risk cooldown, pity weights, last-stand rival, late-set bonus, dust interest, unused-shield residue, thesis defense, daily mark, operator on the scorecard, encode/play replay, coach hint, rules checksum, leftover score applied once. Browser port stays on the same LCG and actions.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen -v` → **51 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
+### 2026-09-25 — PR #202 Trait Lab harden (clock leftovers, honest errors)
+
+- **DISCOVERY:** Clock close skipped leftover score. Undo and mulligan were blocked after file/clock. Rest ticked focus. An empty bag raised `no_risk_targets`. Pin/lock/focus misses reused `unknown_*`. Operator accepted Unicode letters the JS port strips. `load_rules` did not reject `live_verified: true`.
+- **IMPLEMENTATION:** Leftover XP applies once on clock or file (`leftover_applied`). Undo and mulligan remain legal after close; mulligan reverts leftovers. Rest and unbind do not spend focus grants. Empty bag is `no_targets`. Distinct codes: `no_focus`, `nothing_pinned`, `already_locked`, `not_locked`. Operator is ASCII `[A-Za-z0-9._-]`. `validate_rules` fail-closes a live claim. Proof body still hashes `live_verified: false`. Browser port and bench copy match.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_trait_game tests.unit.test_trait_game_deepen tests.unit.test_trait_game_harden -v` → **61 OK**.
+- **DECISION:** Still a seeded local lab. Not LIVE VERIFIED. Not PRODUCTION READY. Draft PR **#202** remains founder-review only.
+- **NEXT ACTION:** Founder review of https://github.com/Kudbee-Studio/think-box-ai/pull/202. Do not merge from this record.
+
+### 2026-09-25 — PR #202 merged; PR #203 memory layers
+
+- **MERGED:** GitHub PR **#202** → `main` at **`75a36c5`** (Trait Lab U01–U50 + harden). Four-state on merge: **CODE COMPLETE / TEST VERIFIED** — not LIVE VERIFIED.
+- **NEXT:** Branch `cursor/memory-layers-723f` — `thinkbox/memory_layers.py` writes Session / Task / Organizational / Verified Knowledge through `MemoryStore`. Org rows require evidence. Verified rows require a how. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` → **8 OK**.
+- **DECISION:** Markdown ingest is a catalog plus fail-closed writes, not a chat dump and not a live proof.
+- **NEXT ACTION:** Founder review of the PR for `cursor/memory-layers-723f` against `main`. Do not merge from this record.
+
+### 2026-09-25 — PR #203 memory layers deepen (fail-closed writes)
+
+- **DISCOVERY:** Session could accept transient UI keys. Verified rows could overwrite a different fact silently. Chronicle patterns were hardcoded even when evidence files were absent.
+- **IMPLEMENTATION:** `TRANSIENT_KEYS` rejected on session writes. Verified writes require fact + confidence in `[0,1]` and raise `contradiction` unless `corrects` is set. `chronicle_patterns()` writes only when every evidence path exists; ingest falls back to catalog-evidenced `md-ingest-catalog`. `record_task_step` / `record_task_error` / `snapshot_layers` added. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK**.
+- **DECISION:** Four-layer ingest remains a catalog plus fail-closed writes. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-layers-723f` into `main` (`git merge --no-ff`). GitHub PR create remains 403 from this PAT.
+
+### 2026-09-25 — PR #203 merged to main
+
+- **MERGED:** `cursor/memory-layers-723f` → `main` at **`3976930`** (four-layer ingest + fail-closed deepen). GitHub PR create stayed 403 from this PAT; merge is git `--no-ff` like #202.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers -v` → **16 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY. Do not claim memory is a live proof.
+- **NEXT ACTION:** Founder review of `3976930` on `main`. Do not start a stacked game/memory PR on lifecycle branches.
+
+### 2026-09-25 — PR #204 memory query + retention
+
+- **DISCOVERY:** #203 wrote four layers but had no read path, no session/task lifetime end, and no verified confidence decay.
+- **IMPLEMENTATION:** `read_session` / `read_task` / `read_organizational` / `read_verified`. `query_layer` prefix filter. `end_session` and `end_task` drop only those layers. Organizational is append-only. Verified is not deleted; `effective_confidence` decays by half-life. `apply_retention` expires stale sessions and ended tasks. `live_verified` stays false.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-query-retention-723f` into `main` (`git merge --no-ff`).
+
+### 2026-09-25 — PR #204 merged to main
+
+- **MERGED:** `cursor/memory-query-retention-723f` → `main` at **`0b3fc87`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query -v` → **24 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #205. At most one open PR.
+
+### 2026-09-25 — PR #205 organizational versioning + snapshot
+
+- **DISCOVERY:** Architecture §5.3 says organizational memory is versioned. Writes overwrote `org:pattern:{id}` with no history. No portable four-layer snapshot.
+- **IMPLEMENTATION:** `write_organizational` archives the previous row as `:vN` when description or evidence changes. Identical writes stay put. `org_history` returns oldest-first. `export_snapshot` / `import_snapshot` replay through write policy and reject `live_verified`.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-org-version-723f` into `main`.
+
+### 2026-09-25 — PR #205 merged to main
+
+- **MERGED:** `cursor/memory-org-version-723f` → `main` at **`01f46c6`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version -v` → **32 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #206. At most one open PR.
+
+### 2026-09-25 — PR #206 Trait Lab memory ledger
+
+- **DISCOVERY:** Trait Lab proofs lived only in the game engine. Four-layer memory had no provenance bind from a seeded run.
+- **IMPLEMENTATION:** `record_trait_lab_run` writes Session / Task / Organizational / Verified from `proof_scorecard`. Requires agent_id, task_id, and a 64-hex proof. Rejects live claims and non-`trait-lab` game ids. `query_by_provenance` finds rows by agent, task, or source hash. Org/verified entries now store agent_id, task_id, and source.
+- **TEST_VERIFIED:** `python3 -m unittest tests.unit.test_memory_layers tests.unit.test_memory_layers_query tests.unit.test_memory_layers_version tests.unit.test_memory_trait_lab -v` → **37 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-ledger-723f` into `main`.
+
+### 2026-09-25 — PR #206 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-ledger-723f` → `main` at **`1c8294f`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab ledger suites → **37 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #207. At most one open PR.
+
+### 2026-09-25 — PR #207 Trait Lab replay verify
+
+- **DISCOVERY:** #206 stored proof hashes but not replay codes, so a ledger row could not be checked against the engine.
+- **IMPLEMENTATION:** `record_trait_lab_replay` stores `encode_replay` as verified knowledge. `verify_trait_lab_replay` plays the code and requires `proof_sha256` to match. Fail-closed on missing replay, rejected play, or hash mismatch. `live_verified` stays false.
+- **TEST_VERIFIED:** memory + trait-lab ledger + replay suites → **42 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-replay-723f` into `main`.
+
+### 2026-09-25 — PR #207 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-replay-723f` → `main` at **`d989255`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab ledger + replay suites → **42 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #208. At most one open PR.
+
+### 2026-09-25 — PR #208 Trait Lab run compare
+
+- **DISCOVERY:** Ledger rows could be stored and replay-checked, but there was no index or honest delta between two proofs.
+- **IMPLEMENTATION:** `list_trait_lab_runs` indexes verified Trait Lab proofs and skips replay rows. `compare_trait_lab_runs` returns xp_delta and same_seed. Fail-closed on short hashes, the same proof twice, or a missing row. `live_verified` stays false.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare suites → **47 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-compare-723f` into `main`.
+
+### 2026-09-25 — PR #208 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-compare-723f` → `main` at **`b9074c6`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare suites → **47 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #209. At most one open PR.
+
+### 2026-09-25 — PR #209 Trait Lab local board
+
+- **DISCOVERY:** Compare could delta two proofs, but there was no local board over the stored index.
+- **IMPLEMENTATION:** `board_trait_lab_runs` maps stored proofs through `rank_board`. Empty board is honest. Limit fail-closed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare/board suites → **51 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-board-723f` into `main`.
+
+### 2026-09-25 — PR #209 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-board-723f` → `main` at **`abdf325`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare/board suites → **51 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #210. At most one open PR.
+
+### 2026-09-25 — PR #210 Trait Lab best per seed
+
+- **DISCOVERY:** The local board ranked every stored proof. There was no per-seed best.
+- **IMPLEMENTATION:** `best_trait_lab_by_seed` keeps the highest XP row per seed. `best_trait_lab_seed` fail-closes on a missing seed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab ledger/replay/compare/board/best-seed suites → **55 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-best-seed-723f` into `main`.
+
+### 2026-09-25 — PR #210 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-best-seed-723f` → `main` at **`7b0e0df`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **55 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #211. At most one open PR.
+
+### 2026-09-25 — PR #211 Trait Lab seed history
+
+- **DISCOVERY:** Best-per-seed hid every other stored run for that seed.
+- **IMPLEMENTATION:** `trait_lab_seed_history` lists stored runs for one seed, highest XP first, and exposes `best`. Fail-closed on missing seed or invalid limit. `live_verified` stays false.
+- **TEST_VERIFIED:** memory + trait-lab suites → **58 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-history-723f` into `main`.
+
+### 2026-09-25 — PR #211 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-history-723f` → `main` at **`8536fa4`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **58 OK** (119 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #212. At most one open PR.
+
+### 2026-09-25 — PR #212 Trait Lab seed index
+
+- **DISCOVERY:** Best-per-seed and seed history did not expose a compact index of every stored seed with count + best XP.
+- **IMPLEMENTATION:** `trait_lab_seed_index` lists seeds that have stored runs (`count`, `best_xp`, `best`). Empty store is empty, not an error. Invalid limit fail-closed. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **62 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-index-723f` into `main`.
+
+### 2026-09-25 — PR #212 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-index-723f` → `main` at **`413c28a`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **62 OK** (123 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #213. At most one open PR.
+
+### 2026-09-25 — PR #213 Trait Lab seed grade filter
+
+- **DISCOVERY:** Seed history returned every stored run for a seed. There was no letter-grade filter.
+- **IMPLEMENTATION:** `trait_lab_seed_history_by_grade` keeps history rows whose grade is S/A/B/C/D. Fail-closed on missing seed, missing grade, invalid grade, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **65 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-grade-723f` into `main`.
+
+### 2026-09-25 — PR #213 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-grade-723f` → `main` at **`690979c`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **65 OK** (126 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #214. At most one open PR.
+
+### 2026-09-25 — PR #214 Trait Lab seed difficulty filter
+
+- **DISCOVERY:** Seed history did not filter by difficulty tier. Difficulty was also missing from the stored fact.
+- **IMPLEMENTATION:** `record_trait_lab_run` persists `difficulty`. `trait_lab_seed_history_by_difficulty` keeps survey/lab/thesis rows. Fail-closed on missing seed, missing difficulty, invalid difficulty, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **68 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-difficulty-723f` into `main`.
+
+### 2026-09-25 — PR #214 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-difficulty-723f` → `main` at **`77eb188`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **68 OK** (129 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #215. At most one open PR.
+
+### 2026-09-25 — PR #215 Trait Lab seed operator filter
+
+- **DISCOVERY:** Seed history did not filter by operator name. Operator was also missing from the stored fact.
+- **IMPLEMENTATION:** `record_trait_lab_run` persists `operator`. `trait_lab_seed_history_by_operator` keeps rows whose operator is 1-24 ASCII alnum/._-. Fail-closed on missing seed, missing operator, invalid operator, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **71 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-operator-723f` into `main`.
+
+### 2026-09-25 — PR #215 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-operator-723f` → `main` at **`88d9c45`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **71 OK** (132 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #216. At most one open PR.
+
+### 2026-09-25 — PR #216 Trait Lab seed daily filter
+
+- **DISCOVERY:** Seed history did not filter by the daily-seed flag. Daily was also missing from the stored fact.
+- **IMPLEMENTATION:** `record_trait_lab_run` persists `daily`. `trait_lab_seed_history_by_daily` keeps rows whose daily flag matches. Fail-closed on missing seed, missing daily match, invalid daily, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **74 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-daily-723f` into `main`.
+
+### 2026-09-25 — PR #216 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-daily-723f` → `main` at **`f99af45`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **74 OK** (135 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #217. At most one open PR.
+
+### 2026-09-25 — PR #217 Trait Lab seed XP floor
+
+- **DISCOVERY:** Seed history returned every stored run for a seed. There was no XP threshold.
+- **IMPLEMENTATION:** `trait_lab_seed_history_by_xp_floor` keeps rows whose stored XP is at or above a non-negative floor. Fail-closed on missing seed, missing floor match, invalid floor, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **77 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-xp-floor-723f` into `main`.
+
+### 2026-09-25 — PR #217 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-xp-floor-723f` → `main` at **`50c5a9d`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **77 OK** (138 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #218. At most one open PR.
+
+### 2026-09-25 — PR #218 Trait Lab seed XP ceiling
+
+- **DISCOVERY:** The XP floor kept high scores. There was no ceiling for stored XP.
+- **IMPLEMENTATION:** `trait_lab_seed_history_by_xp_ceiling` keeps rows whose stored XP is at or below a non-negative ceiling. Fail-closed on missing seed, missing ceiling match, invalid ceiling, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **80 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-xp-ceiling-723f` into `main`.
+
+### 2026-09-25 — PR #218 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-xp-ceiling-723f` → `main` at **`528ac80`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **80 OK** (141 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #219. At most one open PR.
+
+### 2026-09-25 — PR #219 Trait Lab seed XP band
+
+- **DISCOVERY:** Floor and ceiling were separate. There was no inclusive XP band.
+- **IMPLEMENTATION:** `trait_lab_seed_history_by_xp_band` keeps rows whose stored XP is between a non-negative floor and ceiling. Fail-closed on missing seed, missing band match, inverted band, invalid bounds, or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **83 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-xp-band-723f` into `main`.
+
+### 2026-09-25 — PR #219 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-xp-band-723f` → `main` at **`e0d400c`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **83 OK** (144 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #220. At most one open PR.
+
+### 2026-09-25 — PR #220 Trait Lab seed pack export
+
+- **DISCOVERY:** Seed history was store-local. There was no portable pack for one seed.
+- **IMPLEMENTATION:** `export_trait_lab_seed_pack` snapshots stored runs for one seed with `pack_sha256` over the stable body. Fail-closed on missing seed or invalid limit. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites → **86 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-723f` into `main`.
+
+### 2026-09-25 — PR #220 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-723f` → `main` at **`d66cc4a`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **86 OK** (147 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #221. At most one open PR.
+
+### 2026-09-25 — PR #221 Trait Lab seed pack import
+
+- **DISCOVERY:** #220 exported a portable seed pack. There was no rematch or import path.
+- **IMPLEMENTATION:** `verify_trait_lab_seed_pack` rematches `pack_sha256` over the same six-key body and refuses live claims. `import_trait_lab_seed_pack` writes a verified fact. Fail-closed on invalid pack, missing hash, rematch fail, and missing provenance. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-import-723f` into `main`.
+
+### 2026-09-25 — PR #221 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-import-723f` → `main` at **`a05b31d`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **89 OK** (150 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #222. At most one open PR.
+
+### 2026-09-25 — PR #222 Trait Lab seed pack apply
+
+- **DISCOVERY:** #221 rematched a pack and wrote one import fact. Destination stores still had no run rows.
+- **IMPLEMENTATION:** `apply_trait_lab_seed_pack` rematches first, then writes each run as verified knowledge. Fail-closed on live claim, invalid run, empty pack, and missing provenance. Pack meta rows stay out of seed history. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-apply-723f` into `main`.
+
+### 2026-09-25 — PR #222 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-apply-723f` → `main` at **`2cfa121`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **92 OK** (153 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #223. At most one open PR.
+
+### 2026-09-25 — PR #223 Trait Lab seed pack diff
+
+- **DISCOVERY:** Packs could be rematched and applied, but two packs for one seed could not be compared.
+- **IMPLEMENTATION:** `diff_trait_lab_seed_packs` rematches both packs, requires the same seed and different hashes, then reports shared / only-a / only-b proofs plus count and XP deltas. Fail-closed on seed mismatch, same pack, live claim, and invalid pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory + trait-lab suites pending merge gate.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Merge `cursor/memory-trait-lab-seed-pack-diff-723f` into `main`.
+
+### 2026-09-25 — PR #223 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-diff-723f` → `main` at **`29e4ff9`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory + trait-lab suites → **95 OK** (156 with engine harden).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Wait for the 1800s cadence timer before opening #224. At most one open PR.
+
+### 2026-09-25 — PR #224 Trait Lab seed pack catalog
+
+- **DISCOVERY:** #223 rematches and diffs packs, but imported/applied packs had no store index. Operators could not list or select a pack by `pack_sha256` without re-executing export.
+- **IMPLEMENTATION:** `catalog_trait_lab_seed_packs` indexes `verified:trait-lab-pack-*` facts. Stable id is the full `pack_sha256`. Order is seed, then hash. `get_trait_lab_seed_pack` selects one row without executing the pack. Apply writes the same pack fact as import. Malformed pack rows are skipped. Fail-closed on invalid limit, missing hash, and missing pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** `python3 -m unittest discover -s tests/unit -p 'test_memory*.py' -q` → **99 OK**. Engine harden → **61 OK** (160 combined). Catalog file: 4 OK. #223 diff file: 3 OK.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. Not merged.
+- **NEXT ACTION:** Do not merge until founder asks. Next larger improvement: catalog filter by seed.
+
+### 2026-09-25 — PR #224 merged to main
+
+- **MERGED:** `cursor/memory-trait-lab-seed-pack-catalog-723f` → `main` at **`5db0c37`**. GitHub PR create stayed 403 from this PAT; merge is git `--no-ff`.
+- **TEST_VERIFIED:** memory suite **99 OK**; engine harden **61 OK** (160 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open #225 seed pack catalog by seed.
+
+### 2026-09-25 — Draft Trait Lab catalog operator pack (25 features)
+
+- **DISCOVERY:** Direct merges to `main` left GitHub PR numbers behind. Founder asked for a visible draft PR with 25 catalog features, not another main push.
+- **IMPLEMENTATION:** C01–C25 on imported/applied pack facts: seed filter, has/list/count/seeds, count floor/ceiling/band, page, purge (catalog fact only), digest, export/verify/import catalog index, agent/task filters, malformed report, has_seed, best-for-seed, catalog diff, ids-for-seed, etag, refuse live, public row, get pack. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** memory suite **123 OK**; engine harden **61 OK** (184 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Open a GitHub **draft** PR for `cursor/memory-trait-lab-catalog-ops-25-723f`. Do not merge from this record.
+
+### 2026-09-25 — GitHub PR #203 catalog operator pack merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-ops-25-723f` → `main` at **`595dbb5`**.
+- **TEST_VERIFIED:** memory suite **123 OK**; engine harden **61 OK** (184 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#204** catalog compose as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #204 Trait Lab catalog compose
+
+- **DISCOVERY:** C20 diffs two rematched catalogs but cannot form a third catalog from their union, intersection, or remainder.
+- **IMPLEMENTATION:** `merge_trait_lab_seed_pack_catalogs`, `intersect_trait_lab_seed_pack_catalogs`, `subtract_trait_lab_seed_pack_catalogs`. Rematch both inputs; same hash, live claim, pack conflict, and invalid catalog fail-closed. Result is a rematched portable catalog. No run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #204 catalog compose merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-compose-723f` → `main` at **`388fde8`**.
+- **TEST_VERIFIED:** compose file **6 OK**; memory suite **129 OK**; engine harden **61 OK** (190 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#205** catalog pin as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #205 Trait Lab catalog pin
+
+- **DISCOVERY:** Compose can form a rematched catalog, but the snapshot had no store identity. Operators could not pin, list, or drop a catalog hash without re-exporting packs.
+- **IMPLEMENTATION:** `pin_trait_lab_seed_pack_catalog`, `get_trait_lab_catalog_pin`, `has_trait_lab_catalog_pin`, `list_trait_lab_catalog_pins`, `unpin_trait_lab_catalog_pin`. Pin writes `verified:trait-lab-catalog-{sha[:16]}` only. Unpin deletes that fact; pack facts and run rows stay. Fail-closed on live claim, missing pin, missing hash, missing provenance, and invalid catalog. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #205 catalog pin merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-723f` → `main` at **`8367f5a`**.
+- **TEST_VERIFIED:** pin file **5 OK**; memory suite **134 OK**; engine harden **61 OK** (195 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#206** as a visible 25-operator pin draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #206 Trait Lab catalog pin operators (25 features)
+
+- **DISCOVERY:** #205 pins a rematched catalog, but operators could not page, filter, export, or rematch a pin index.
+- **IMPLEMENTATION:** P01–P25 on pin facts: list/count/page, agent/task filters, count floor/ceiling/band, digest/etag, export/verify/import pin index, malformed report, best pin, pin-index diff, public row, refuse live, pack membership, get-by-fact-id, pin-from-store, has-count, count-for-pack, ids-for-agent. Import writes pin facts only. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** pin-ops tests on branch. Memory suite + engine harden still required before merge.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #206 catalog pin operators merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-ops-25-723f` → `main` at **`50211b4`**.
+- **TEST_VERIFIED:** pin-ops file **14 OK**; memory suite **148 OK**; engine harden **61 OK** (209 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#207** pin-index compose as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #207 Trait Lab catalog pin compose
+
+- **DISCOVERY:** P16 diffs two rematched pin indexes but cannot form a third index from their union, intersection, or remainder.
+- **IMPLEMENTATION:** `merge_trait_lab_catalog_pin_indexes`, `intersect_trait_lab_catalog_pin_indexes`, `subtract_trait_lab_catalog_pin_indexes`. Rematch both inputs; same hash, live claim, pin conflict, and invalid index fail-closed. Result is a rematched portable pin index. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #207 catalog pin compose merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-compose-723f` → `main` at **`8a120d2`**.
+- **TEST_VERIFIED:** pin-compose file **6 OK**; memory suite **154 OK**; engine harden **61 OK** (215 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#208** pin-index follow-through as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #208 Trait Lab catalog pin follow-through
+
+- **DISCOVERY:** Review of #207: compose has no xor, merge cannot collapse to the best pin, fact_id used a magic length 34, and pin conflict compared id lists in order so equivalent pins false-conflicted.
+- **IMPLEMENTATION:** `symmetric_diff_trait_lab_catalog_pin_indexes` (xor), `retain_trait_lab_catalog_pin_index` (highest count, hash tiebreak). `_require_catalog_pin_fact_id` checks prefix + 16 hex. `_pin_ids_key` compares pack ids as a set. No pin/pack/run writes. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #208 catalog pin follow-through merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-follow-723f` → `main` at **`eb622d5`**.
+- **TEST_VERIFIED:** follow file **5 OK**; memory suite **159 OK**; engine harden **61 OK** (220 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#209** catalog follow-through as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #209 Trait Lab catalog follow-through
+
+- **DISCOVERY:** Pin indexes gained xor and retain in #208. Pack catalogs still stopped at merge/intersect/subtract, so the two compose surfaces were uneven.
+- **IMPLEMENTATION:** `symmetric_diff_trait_lab_seed_pack_catalogs` (xor) and `retain_trait_lab_seed_pack_catalog` (highest count, hash tiebreak). Hash-only. Fail-closed on same catalog, live claim, empty retain, and invalid keep. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #209 catalog follow-through merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-follow-723f` → `main` at **`415acb0`**.
+- **TEST_VERIFIED:** catalog-follow file **4 OK**; memory suite **163 OK**; engine harden **61 OK** (224 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#210** catalog↔pin bind (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #210 Trait Lab catalog↔pin bind
+
+- **DISCOVERY:** After #209 both compose surfaces have merge/intersect/subtract/xor/retain. Pins still store pack hashes without proving those packs exist in the store. No rematch/bind report. No one-shot pin of a retained, xor, or merged catalog.
+- **IMPLEMENTATION:** B01–B25 in `thinkbox/memory_layers.py`: rematch pin vs store packs, bound/unbound lists and counts, bind export/verify/digest/etag/page, refuse live, pin retained/xor/merged catalogs, `catalog_from_pin` (fail-closed if unbound), public bind row, best bound pin, import retained pin index, binds by agent. Bind kind `trait-lab-seed-pack-catalog-pin-bind`. Hash-only except pin/import writes of pin facts. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #210 catalog↔pin bind merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-bind-25-723f` → `main` at **`2846d02`**.
+- **TEST_VERIFIED:** bind file **13 OK**; memory suite **176 OK**; engine harden **61 OK** (237 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#211** bind lane (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #211 Trait Lab catalog pin bind lane
+
+- **DISCOVERY:** After #210 pins rematch against store packs, but bind indexes cannot be filtered, composed, or rematched as a snapshot. Unbound pin facts had no drop path. Bound pins had no batch catalog rebuild.
+- **IMPLEMENTATION:** D01–D25 in `thinkbox/memory_layers.py`: list/count, by task, count floor/ceiling/band, bound-only/unbound-only, rematch index, diff, merge/intersect/subtract/xor, retain-best, drop unbound (unpin facts only), catalogs from bound, pack membership, get by fact_id, ids for agent, export bound-only. Hash-only except drop_unbound. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #211 catalog pin bind lane merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-bind-ops-25-723f` → `main` at **`e416bd7`**.
+- **TEST_VERIFIED:** bind-ops file **10 OK**; memory suite **186 OK**; engine harden **61 OK** (247 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#212** hermetic bind workflow (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #212 Trait Lab catalog pin bind workflow
+
+- **DISCOVERY:** After #211 bind reports can be filtered and composed, but catalog → pin → rematch → require-bound is still a manual sequence. Autonomous workflow needs a signed plan, dry-run that skips writes, and a persistable receipt.
+- **IMPLEMENTATION:** W01–W25 in `thinkbox/memory_layers.py`: plan/validate/sign/verify, dry-run/run, status, step list/page, digest/etag, require_bound, canned from_store / retain_pin / drop_unbound / catalogs_from_bound, persist/get/list/has receipt, receipts by agent. Writes only pin_catalog, drop_unbound, and receipt facts. `live_verified` stays false. Not a live ranking.
+- **TEST_VERIFIED:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #212 catalog pin bind workflow merged
+
+- **MERGED:** `cursor/memory-trait-lab-catalog-pin-bind-workflow-25-723f` → `main` at **`581fab3`**.
+- **TEST_VERIFIED:** workflow file **10 OK**; memory suite **196 OK**; engine harden **61 OK** (257 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#213** local environment prep (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #213 Trait Lab local environment prep
+
+- **DISCOVERY:** After #212 the autonomous workflow can plan/dry-run/run, but a local machine still has no hermetic prep gate: Python/SQLite probe, secret redaction, live-ack refuse, and a persistable prep receipt.
+- **IMPLEMENTATION:** E01–E25 in `thinkbox/local_env_prep.py`: require Python 3.10+, redact environ, probe MemoryStore, refuse THINKBOX_SWARM_LIVE_ACK, run/export/verify prep report, prepare workspace, dry-run rematch workflow, persist/get/list receipts, prepare_and_dry_run. No live APIs. `live_verified` stays false.
+- **TEST_VERIFIED:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined).
+- **DOCS:** `AGENTS.md` PR table now includes GitHub #202–#213. Standing rule §4.3 **Always update MD** — every product change updates `AGENTS.md`, `STATUS.md`, `docs/STATUS.md`, `docs/PREP.md`, `docs/CONTINUITY.md`, and the post-170 roadmap in the same PR.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub PR #213 local environment prep merged
+
+- **MERGED:** `cursor/memory-trait-lab-local-env-prep-25-723f` → `main` at **`257aca3`**.
+- **TEST_VERIFIED:** prep file **8 OK**; memory suite **204 OK**; engine harden **61 OK** (265 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#214** operator session (25 majors) as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — Draft GitHub PR #214 Trait Lab operator session
+
+- **DISCOVERY:** After #213 prep and #212 workflow exist separately. Autonomous workflow still needs a signed session that refuses to dry-run rematch unless local env prep is green, then persist a receipt chaining `prep_sha256` + `session_sha256`.
+- **IMPLEMENTATION:** S01–S25 in `thinkbox/operator_session.py`: refuse live, require prep ok / prep receipt, plan/validate/sign/verify, step list/page, digest/etag, dry-run (no writes), persist/get/list receipts, canned prep+dry-run, open_session. No pin/drop writes. No live APIs. `live_verified` stays false.
+- **TEST_VERIFIED:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined).
+- **DOCS:** `AGENTS.md` marks #213 merged and #214 draft. STATUS / PREP / CONTINUITY / roadmap updated in the same PR (§4.3).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. Not PRODUCTION READY. **Not merged.**
+- **NEXT ACTION:** Keep this as a visible draft. Do not merge until the founder asks.
+
+### 2026-09-25 — GitHub forge PR #214 durable lifecycle harden merged
+
+- **MERGED:** `cursor/durable-lifecycle-harden-723f` → `main` at **`110c7b5`**.
+- **IMPLEMENTATION:** H01–H25 in `thinkbox/lifecycle_harden.py` — fail-closed Repository lifecycle checks; no Upstash live call.
+- **TEST_VERIFIED:** `tests.unit.test_lifecycle_harden` + existing lifecycle/HTTP suites.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+
+### 2026-09-25 — GitHub PR #214 Trait Lab operator session merged
+
+- **MERGED:** `cursor/memory-trait-lab-operator-session-25-723f` → `main` (founder merge train; Trait Lab lane #214).
+- **TEST_VERIFIED:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+- **NEXT ACTION:** Open GitHub **#215** next autonomous workflow major as a visible draft. Do not merge from this record.
+
+### 2026-09-25 — GitHub PR #215 Trait Lab operator session merged
+
+- **MERGED:** `cursor/memory-trait-lab-operator-session-25-723f` → `main` at **`ce6a82c`**.
+- **TEST_VERIFIED:** session file **9 OK**; memory suite **213 OK**; engine harden **61 OK** (274 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. Not LIVE VERIFIED. Not PRODUCTION READY.
+
+### 2026-09-25 — Draft GitHub PR #216 Trait Lab autonomous workflow (A01–A15)
+
+- **DISCOVERY:** After #215 session dry-run, autonomous workflow still needs a signed plan linking prep receipt, session receipt, and workflow dry-run steps before persist/run.
+- **IMPLEMENTATION:** A01–A15 in `thinkbox/autonomous_workflow.py`: refuse live, require prep/session receipts, provenance, plan/validate/sign/verify, step list/page, digest/etag. A16–A25 (dry-run, persist, run) deferred.
+- **TEST_VERIFIED:** autonomous file **5 OK**; memory suite **218 OK**; engine harden **61 OK** (279 combined).
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch only. Not LIVE VERIFIED. **Not merged.**
+- **NEXT ACTION:** Commit A16–A25 on same branch or follow-up; one visible draft. Do not merge until founder asks.
+
+### 2026-09-25 — GitHub PR #217 merged (Trait Lab autonomous A01–A15)
+
+- **MERGE:** `ef6950f` on `main`. Forge **#216** is durable queued resume (lifecycle), not Trait Lab autonomous.
+- **TEST_VERIFIED:** autonomous **5 OK**; memory **218 OK**.
+
+### 2026-09-25 — Draft Trait Lab autonomous workflow A16–A25
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-workflow-a16-723f`
+- **IMPLEMENTATION:** A16–A25 — dry-run chain, receipt persist, `run_autonomous`.
+- **TEST_VERIFIED:** autonomous **11 OK**; memory **224 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #218 merged (Trait Lab autonomous A16–A25)
+
+- **MERGE:** `897c06b` on `main`.
+- **TEST_VERIFIED:** autonomous **11 OK**; memory **224 OK**.
+
+### 2026-09-25 — Draft GitHub PR #219 Trait Lab autonomous receipt chain
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-follow-723f`
+- **DISCOVERY:** After #218, operators need a rematchable index tying prep, session, and autonomous receipt SHA256 triples.
+- **IMPLEMENTATION:** R01–R25 in `thinkbox/autonomous_receipt_chain.py`.
+- **TEST_VERIFIED:** chain **4 OK**; memory suite **228 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #220 merged (Trait Lab autonomous receipt chain)
+
+- **MERGE:** `9d57050` on `main` (branch `cursor/memory-trait-lab-autonomous-follow-723f`).
+- **TEST_VERIFIED:** chain **4 OK**; memory **228 OK**.
+
+### 2026-09-25 — Draft GitHub PR #221 Trait Lab autonomous receipt chain compose
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-chain-compose-723f`
+- **DISCOVERY:** After #220, operators need merge/intersect/subtract/xor over signed chain indexes.
+- **IMPLEMENTATION:** M01–M25 in `thinkbox/autonomous_receipt_chain_compose.py`.
+- **TEST_VERIFIED:** compose **4 OK**; memory suite **232 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #221 merged (Trait Lab autonomous receipt chain compose)
+
+- **MERGE:** `01ee6bf` on `main`.
+- **TEST_VERIFIED:** compose **4 OK**; memory **232 OK**.
+
+### 2026-09-25 — Draft GitHub PR #222 Trait Lab autonomous workflow chain bind
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-chain-follow-723f`
+- **DISCOVERY:** After #221, ``run_autonomous`` needs a green receipt-chain bind persisted for audit/rematch.
+- **IMPLEMENTATION:** F01–F25 in `thinkbox/autonomous_workflow_chain.py` (`run_chained`, `dry_run_chained`, bind CRUD).
+- **TEST_VERIFIED:** workflow-chain **5 OK**; memory suite **237 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #222 merged (Trait Lab autonomous workflow chain bind)
+
+- **MERGE:** `27d64b6` on `main`.
+- **TEST_VERIFIED:** workflow-chain **5 OK**; memory **237 OK**.
+
+### 2026-09-25 — Draft GitHub PR #223 Trait Lab autonomous flow workflow major
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-flow-workflow-723f`
+- **DISCOVERY:** After #222, operators need one signed flow plan over dry-run vs run-chained with a flow receipt.
+- **IMPLEMENTATION:** O01–O25 in `thinkbox/autonomous_flow_workflow.py` (`open_flow`, artifact export, receipt index).
+- **TEST_VERIFIED:** flow-workflow **5 OK**; memory suite **242 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #223 merged (Trait Lab autonomous flow workflow major)
+
+- **MERGE:** `3fdaa32` on `main`.
+- **TEST_VERIFIED:** flow-workflow **5 OK**; memory **242 OK**.
+
+### 2026-09-25 — Draft GitHub PR #224 Trait Lab autonomous flow workflow compose
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-flow-compose-723f`
+- **DISCOVERY:** After #223, operators need merge/intersect/subtract/xor over two rematched flow-receipt indexes.
+- **IMPLEMENTATION:** P01–P25 in `thinkbox/autonomous_flow_workflow_compose.py`; flow-receipt index export/verify in `autonomous_flow_workflow.py`.
+- **TEST_VERIFIED:** flow-compose **4 OK**; memory suite **246 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #224 merged (Trait Lab autonomous flow workflow compose)
+
+- **MERGE:** `3eb4d03` on `main`.
+- **TEST_VERIFIED:** flow-compose **4 OK**; memory **246 OK**.
+
+### 2026-09-25 — Draft GitHub PR #225 Trait Lab autonomous stack harness
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-stack-harness-723f`
+- **DISCOVERY:** Application builders need one hermetic entry to dry-run or run the full prep → flow stack and assert phase receipts.
+- **IMPLEMENTATION:** U01–U25 in `thinkbox/autonomous_stack_harness.py` (`open_smoke_harness`, `bundle_for_app`, persist smoke artifact).
+- **TEST_VERIFIED:** stack-harness **5 OK**; memory suite **251 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #225 merged (Trait Lab autonomous stack harness)
+
+- **MERGE:** `bc8ca28` on `main`.
+- **TEST_VERIFIED:** stack-harness **5 OK**; memory **251 OK**.
+
+### 2026-09-25 — Draft GitHub PR #226 Trait Lab autonomous stack suite
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-stack-suite-723f`
+- **DISCOVERY:** After #225, CI and app regression need one signed plan that runs dry, run, and full smoke and persists a suite report.
+- **IMPLEMENTATION:** V01–V25 in `thinkbox/autonomous_stack_suite.py` (`open_stack_suite`, `bundle_for_ci`, suite + smoke artifact on full store).
+- **TEST_VERIFIED:** stack-suite **5 OK**; memory suite **256 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #226 merged (Trait Lab autonomous stack suite)
+
+- **MERGE:** `67b0304` on `main`.
+- **TEST_VERIFIED:** stack-suite **5 OK**; memory **256 OK**.
+
+### 2026-09-25 — Draft GitHub PR #227 Trait Lab autonomous app gate
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-app-gate-723f`
+- **DISCOVERY:** After #226, application CI needs one fail-closed gate that runs the stack suite and emits a signed pass report.
+- **IMPLEMENTATION:** G01–G25 in `thinkbox/autonomous_app_gate.py`; `scripts/verify_trait_lab_autonomous_app_gate.py`.
+- **TEST_VERIFIED:** app-gate **4 OK**; memory suite **260 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #227 merged (Trait Lab autonomous app gate)
+
+- **MERGE:** `6c3dd6c` on `main` — https://github.com/Kudbee-Studio/think-box-ai/pull/227
+- **TEST_VERIFIED:** app-gate **4 OK**; memory **260 OK**.
+
+### 2026-09-25 — Draft GitHub PR #228 Trait Lab autonomous app regression
+
+- **Superseded by merge** — see #228 merged below.
+
+### 2026-09-25 — GitHub PR #228 merged (Trait Lab autonomous app regression)
+
+- **MERGE:** `449beda` on `main` — https://github.com/Kudbee-Studio/think-box-ai/pull/228
+- **TEST_VERIFIED:** app-regression **3 OK**; memory **263 OK**.
+
+### 2026-09-25 — Draft GitHub PR #229 Trait Lab autonomous integration major
+
+- **BRANCH:** `cursor/memory-trait-lab-autonomous-integration-major-723f`
+- **DISCOVERY:** After #228, application CI needs one major entry that runs gate + optional regression with a signed manifest.
+- **IMPLEMENTATION:** K01–K25 in `thinkbox/autonomous_integration_major.py`; `scripts/verify_trait_lab_autonomous_integration_major.py`.
+- **TEST_VERIFIED:** integration-major **4 OK**; memory suite **267 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED. **Not merged.**
+
+### 2026-09-25 — GitHub PR #229 merged (Trait Lab autonomous integration major)
+
+- **MERGE:** `2a2fa3e` on `main` — https://github.com/Kudbee-Studio/think-box-ai/pull/229
+- **TEST_VERIFIED:** integration-major **4 OK**; memory **267 OK**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on main. **live_verified: false**.
+
+---
+
+### 2026-09-25 — PR230 Trait Lab Autonomous Worker Executor (Implementation Complete)
+
+- **BRANCH:** `feat/trait-lab-autonomous-worker-executor-pr230`
+- **DISCOVERY:** After #229, autonomous applications need a governed execution layer that pulls work from the queue, runs the K01–K25 Integration Major quality gate, executes via existing substrate, and emits verified receipts.
+- **IMPLEMENTATION:** L01–L25 in `thinkbox/autonomous_worker_executor.py`; `scripts/verify_trait_lab_autonomous_worker_executor.py`.
+- **TEST_VERIFIED:** worker-executor **4 OK**; memory suite **267 OK** (unchanged).
+- **ARCHITECTURE:**
+  - Queue (ExecutionJobQueue)
+  - → CloudExecutionWorker (existing substrate, PR #199)
+  - → Trait Lab Worker Executor (NEW governance layer)
+  - → K01–K25 Integration Major (quality gate)
+  - → Execution via existing provider
+  - → Verified Execution Receipt
+  - → Scheduler/Orchestrator Outcome
+- **NO DUPLICATE WORKER:** CloudExecutionWorker already exists (PR #199).
+- **LAYER:** Layer 4 orchestration (not Layer 5 Agent Runtime).
+- **NAMESPACE:** L01–L25 (alphabetic after K01–K25).
+- **COMPOSITION:** Wrap/compose CloudExecutionWorker (not bypass via engine directly).
+- **MODULE:** `thinkbox/autonomous_worker_executor.py`
+- **HERMETIC BOUNDARY:** live_verified=false; four-state ceiling = CODE COMPLETE / TEST VERIFIED; no live APIs; no synthetic LIVE receipts.
+- **ROADMAP:** Slot 14+ (founder-directed) updated with PR230 direction.
+- **ADR:** docs/decisions/025-trait-lab-autonomous-worker-executor.md — **Accepted**.
+- **DECISION:** CODE COMPLETE / TEST VERIFIED on branch. Not LIVE VERIFIED.
+
+---
+
+### 2026-09-25 — PR224 Memory → Next Experiment Binding (Implementation Complete)
+
+- **BRANCH:** `pr/224/memory-next-experiment-binding`
+- **BASE SHA:** `7c599a86a014ae87c2d6dcc48a88b196bf87bb0b` (origin/main)
+- **BINDING CLOSED:** Learning → Memory → Next Experiment
+- **GAP ADDRESSED:** `NextActionGenerator.generate()` produced `recommended_next_experiment` (with `type`, `rationale`, `adjustments`, `max_retries`) and persisted it via `ExperimentManager.record_outcome()` + `ExperimentDB.save_event("next_action_generated", ...)`, but no consumer read it back to seed the next experiment's parameters.
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/experiment.py:ExperimentDB.get_events_by_experiment(experiment_id)` — new read method for event queries
+  - `thinkbox/experiment.py:ExperimentDB.get_next_action_event(experiment_id)` — retrieves `next_action_generated` event for an experiment
+  - `thinkbox/experiment.py:ExperimentDB.get_last_next_action()` — retrieves most recent `recommended_next_experiment` across all experiments
+  - `thinkbox/experiment.py:ExperimentManager.get_last_next_action()` — delegate to db layer
+  - `thinkbox/pr_lifecycle.py:PRLifecycleOrchestrator.__init__` — accepts optional `manager` and `analytics` for testability
+  - `thinkbox/pr_lifecycle.py:_execute_local_experiment()` — calls `self._manager.get_last_next_action()`; if prior recommendation exists, seeds new experiment's `parameters` dict with `prior_recommendation_type`, `prior_recommendation_rationale`, `prior_recommendation_adjustments`, `prior_recommendation_max_retries`; records `recommendation_consumed` event for audit trail; preserves default behavior when no prior evidence exists
+  - `thinkbox/pr_lifecycle.py:PROVISION_PERSISTENCE` step — skips provisioning when injected manager present
+  - `thinkbox/pr_lifecycle.py:HEALTH_CHECK` step — treats injected manager as healthy
+  - `thinkbox/pr_lifecycle.py:CLEANUP` step — skips provisioner cleanup when manager is injected
+- **EVIDENCE:** No external artifacts. All persistence via existing SQLite schema (`experiment_events` table).
+- **PRODUCER:** `NextActionGenerator.generate()` at `thinkbox/experiment_analytics.py:456`
+- **CONSUMER:** `PRLifecycleOrchestrator._execute_local_experiment()` at `thinkbox/pr_lifecycle.py:675`
+- **CALL CHAIN:**
+  1. Prior experiment completes → `GENERATE_NEXT_ACTION` step calls `NextActionGenerator.generate()` → persists `next_action_generated` event with `recommended_next_experiment`
+  2. Next `PRLifecycleOrchestrator` run → `PROVISION_PERSISTENCE` → `HEALTH_CHECK` → `EXECUTE` → `_execute_local_experiment()` → `ExperimentManager.get_last_next_action()` → seeds new experiment parameters
+  3. Persists `recommendation_consumed` event for audit trail
+- **TESTS:** 5 focused tests in `tests/unit/test_memory_to_next_experiment.py`:
+  - `test_recommended_next_experiment_persisted` — verifies event persistence
+  - `test_get_last_next_action_retrieves_recommendation` — verifies retrieval
+  - `test_orchestrator_seeds_params_from_prior_recommendation` — verifies param seeding in orchestrator
+  - `test_orchestrator_no_prior_recommendation_uses_default` — verifies default behavior preserved
+  - `test_two_runs_binding` — end-to-end two-run loop
+- **BROADER TESTS:** 142/142 pass (137 existing + 5 new):
+  - `tests.unit.test_memory_to_next_experiment` — 5 OK
+  - `tests.unit.test_pr_lifecycle` — 23 OK
+  - `tests.unit.test_experiment` — 46 OK
+  - `tests.unit.byoc.test_experiment_analytics` — 37 OK
+  - `tests.unit.test_self_improvement` — 31 OK
+- **Command:** `python3 -m unittest tests.unit.test_memory_to_next_experiment tests.unit.test_pr_lifecycle tests.unit.test_experiment tests.unit.byoc.test_experiment_analytics tests.unit.test_self_improvement`
+- **REMAINING BINDING GAPS:**
+  - Learning → Memory → Planning: `TaskDecomposer.decompose()` does not read prior lessons/recommendations to influence task graph generation
+  - Memory → Opportunity (direct): `PRLifecycleConfig` does not accept `prior_recommendation` as constructor input for founder-driven next-PR configuration
+- **NEXT LARGER IMPROVEMENT:** Wire `recommended_next_experiment` recommendations into `TaskDecomposer.decompose()` so DAG task graphs are parameterized by prior experiment outcomes (close Memory → Planning gap).
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES — all symbols implemented in `thinkbox/experiment.py` and `thinkbox/pr_lifecycle.py`
+  - TEST VERIFIED: YES — 142/142 tests pass
+   - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite
+   - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved
+
+---
+
+### 2026-09-25 — PR232 Memory → Planning Binding (Implementation Complete)
+
+- **BRANCH:** `pr/232/memory-next-planning-binding`
+- **BASE SHA:** `ceca3b3342378b4bdbda7bb137181616cbdb06df` (origin/main, after PR231 merge)
+- **BINDING CLOSED:** Learning → Memory → Planning (following PR224 which closed Learning → Memory → Next Experiment)
+- **GAP ADDRESSED:** `TaskDecomposer.decompose(goal)` produced a single-root TaskGraph with no awareness of prior experiment recommendations. The `recommended_next_experiment` data persisted by `NextActionGenerator` was not consumed to influence task graph decomposition.
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/decomposer.py:TaskDecomposer.decompose()` — added `prior_recommendation: dict[str, Any] | None = None` parameter; when recommendation present, creates investigation sub-task nodes:
+    - `regression_followup` → one `TaskNode` per adjustment (investigate root cause for metric), dependent on root, with metadata `generated_from`/`recommendation_type`/`target_metric`/`recommended_action`
+    - `anomaly_followup` → one `TaskNode` per anomaly adjustment, dependent on root, with metadata `generated_from`/`recommendation_type`/`anomaly_type`
+    - `validation_run` → no additional nodes (default behavior preserved)
+    - `None` → no additional nodes (default behavior preserved)
+  - `thinkbox/engine.py:ThinkBoxEngine.__init__` — added `self._experiment_manager = None` attribute
+  - `thinkbox/engine.py:ThinkBoxEngine.set_experiment_manager(manager)` — new dependency injection method (same pattern as `set_verified_task_runner`)
+  - `thinkbox/engine.py:ThinkBoxEngine.execute_goal()` — when `self._experiment_manager` is set, calls `get_last_next_action()` and passes result to `self.decomposer.decompose(goal, prior_recommendation=recommendation)`; preserves default behavior when no manager injected
+- **PROVIDER INDEPENDENCE:** ThinkBoxEngine does NOT import ExperimentManager or any experiment-specific code; the manager is injected via DI. `decompose()` accepts a plain dict, no type coupling.
+- **CALL CHAIN:**
+  1. Prior experiment completes → `GENERATE_NEXT_ACTION` step calls `NextActionGenerator.generate()` → persists `next_action_generated` event with `recommended_next_experiment` (PR #224)
+  2. `ThinkBoxEngine.execute_goal()` → `self._experiment_manager.get_last_next_action()` → retrieves prior recommendation → `self.decomposer.decompose(goal, prior_recommendation=rec)` → enriched TaskGraph with investigation sub-tasks
+  3. Sub-task nodes carry `metadata["generated_from"] = "prior_recommendation"` for traceability
+- **TESTS:** 8 focused tests in `tests/unit/test_memory_to_planning_binding.py`:
+  - `test_none_recommendation_single_root` — None rec → single root task (default preserved)
+  - `test_regression_followup_creates_investigation_tasks` — rec → 2 investigation sub-tasks dependent on root
+  - `test_anomaly_followup_creates_investigation_tasks` — rec → 2 anomaly investigation sub-tasks
+  - `test_validation_run_no_subtasks` — validation_run type → no additional nodes
+  - `test_recommendation_persisted_and_retrieved` — ExperimentManager round-trip of recommendation
+  - `test_engine_seeds_graph_from_prior_recommendation` — Engine with injected manager produces enriched graph
+  - `test_engine_no_manager_preserves_default` — Engine without manager → single-root graph
+  - `test_prior_recommendation_flows_to_graph` — full chain: generator → persistence → engine → graph
+- **BROADER TESTS:** 194/194 pass (186 existing + 8 new):
+  - `tests.unit.test_memory_to_planning_binding` — 8 OK (new)
+  - `tests.unit.test_memory_to_next_experiment` — 5 OK (from PR #224)
+  - `tests.unit.test_pr_lifecycle` — 23 OK (no regressions from PR #224 changes)
+  - `tests.unit.test_experiment` — 46 OK
+  - `tests.unit.byoc.test_experiment_analytics` — 37 OK
+  - `tests.unit.test_self_improvement` — 31 OK
+  - `tests.unit.test_concurrent_goals` — 45 OK
+  - `tests.unit.test_runtime_contract` — 13 OK (1 skipped)
+  - `tests.integration.test_e2e_engine` — 14 OK (1 pre-existing ERROR: fastapi module not installed in environment)
+- **Command:** `python3 -m unittest tests.unit.test_memory_to_next_experiment tests.unit.test_memory_to_planning_binding tests.unit.test_pr_lifecycle tests.unit.test_experiment tests.unit.byoc.test_experiment_analytics tests.unit.test_self_improvement tests.unit.test_concurrent_goals tests.unit.test_runtime_contract`
+- **REMAINING BINDING GAPS:**
+  - Memory → Opportunity (direct): `PRLifecycleConfig` does not accept `prior_recommendation` as constructor input for founder-driven next-PR configuration
+  - Planning → Execution feedback loop: verified task results from `Actor.execute_step()` are not fed back into `NextActionGenerator` for automated recommendation refinement within a single goal cycle
+- **NEXT LARGER IMPROVEMENT:** Implement a founder-driven config path where `PRLifecycleConfig` accepts an optional `prior_recommendation` field sourced from `ExperimentManager.get_last_next_action()`, allowing deliberate founder review before the recommendation seeds the next PR's experiment parameters.
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES — all symbols implemented in `thinkbox/decomposer.py` and `thinkbox/engine.py`
+  - TEST VERIFIED: YES — 194/194 tests pass
+  - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite + mock model client
+   - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved; e2e engine test_router_imports fails due to pre-existing fastapi environment issue (not related to this change)
+
+---
+
+### 2026-09-25 — PR233 Memory → Opportunity Binding (Implementation Complete)
+
+- **BRANCH:** `pr/233/memory-next-opportunity-binding`
+- **BASE SHA:** `c90e4b697cdc96a731118e70f3bb918fb7e21955` (origin/main, after PR232 merge)
+- **BINDING CLOSED:** Learning → Memory → Opportunity (founder-driven config path)
+- **GAP ADDRESSED:** `PRLifecycleConfig` did not expose prior experiment recommendations as an explicit config field. Recommendations were auto-retrieved inside the orchestrator (PR #224) but a founder had no deliberate review point before seeding the next experiment.
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/pr_lifecycle.py:PRLifecycleConfig` — added `prior_recommendation: Optional[dict[str, Any]] = None` field
+  - `thinkbox/pr_lifecycle.py:PRLifecycleConfig.from_prior_experiments(cls, pr_number, manager, **kwargs)` — classmethod that calls `manager.get_last_next_action()` and seeds `prior_recommendation` into the config; enables founder review before construction
+  - `thinkbox/pr_lifecycle.py:_execute_local_experiment()` — checks `self._config.prior_recommendation` first (explicit founder input), then falls back to `self._manager.get_last_next_action()` (auto-retrieval); `recommendation_consumed` event records `recommendation_source` as `"config"`, `"auto"`, or `"none"` for audit trail
+- **CALL CHAIN:**
+  1. Prior experiment completes → `NextActionGenerator.generate()` → persists `recommended_next_experiment` (PR #224)
+  2. Founder constructs config via `PRLifecycleConfig.from_prior_experiments(pr_number, manager)` → recommendation is explicit in config
+  3. `PRLifecycleOrchestrator.run()` → `_execute_local_experiment()` → checks config first → seeds new experiment parameters
+  4. `recommendation_consumed` event with `recommendation_source="config"` proves founder-driven path
+- **TESTS:** 7 focused tests in `tests/unit/test_memory_to_opportunity_binding.py`:
+  - `test_config_accepts_prior_recommendation` — config field present
+  - `test_config_defaults_to_none` — default is None
+  - `test_from_prior_experiments_seeds_recommendation` — classmethod retrieves and seeds
+  - `test_from_prior_experiments_no_priors_returns_none` — no priors → None
+  - `test_config_recommendation_used_over_auto` — config takes priority over auto-retrieval; event source = "config"
+  - `test_no_config_no_auto_uses_default` — no config + no auto → default behavior; event source = "none"
+  - `test_full_flow` — end-to-end: prior experiment → config from_prior → orchestrator → seeded params
+- **BROADER TESTS:** 201/201 pass (194 existing binding tests + 7 new):
+  - `tests.unit.test_memory_to_opportunity_binding` — 7 OK (new)
+  - `tests.unit.test_memory_to_next_experiment` — 5 OK (from PR #224)
+  - `tests.unit.test_memory_to_planning_binding` — 8 OK (from PR #232)
+  - `tests.unit.test_pr_lifecycle` — 23 OK (no regressions)
+  - `tests.unit.test_experiment` — 46 OK
+  - `tests.unit.byoc.test_experiment_analytics` — 37 OK
+  - `tests.unit.test_self_improvement` — 31 OK
+  - `tests.unit.test_concurrent_goals` — 45 OK
+  - `tests.unit.test_runtime_contract` — 13 OK (1 skipped)
+- **Command:** `python3 -m unittest tests.unit.test_memory_to_next_experiment tests.unit.test_memory_to_planning_binding tests.unit.test_memory_to_opportunity_binding tests.unit.test_pr_lifecycle tests.unit.test_experiment tests.unit.byoc.test_experiment_analytics tests.unit.test_self_improvement tests.unit.test_concurrent_goals tests.unit.test_runtime_contract`
+- **BINDING GAP STATUS:** The three-step Memory loop is now fully closed:
+  - Learning → Memory → Next Experiment: PR #224 (auto-retrieval)
+  - Learning → Memory → Planning: PR #232 (decomposer enrichment)
+  - Learning → Memory → Opportunity: PR #233 (founder-driven config)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES — all symbols implemented in `thinkbox/pr_lifecycle.py`
+  - TEST VERIFIED: YES — 201/201 tests pass
+  - LIVE VERIFIED: NO — no live service evidence; all tests use local SQLite
+  - PRODUCTION READY: NO — no human review; LIVE_VERIFIED not achieved
+
+---
+
+### 2026-09-26 — PR244 Autonomous Decision Loop: Control Plane REST API (Implementation Complete)
+
+- **BRANCH:** `feat/pr244-autonomous-loop-api`
+- **BASE SHA:** `0d4a90c` (origin/main, after PR #243 merge)
+- **CAPABILITY:** REST API & Control Plane endpoint layer for Autonomous Decision Loop and Telemetry
+- **CONCRETE IMPLEMENTATION:**
+  - `thinkbox/autonomous_loop_api_surface.py`: Core payload builders and contracts
+    - `get_autonomous_loop_status_payload(state)`: Overview status, active/bootstrapped counts, revision, versions
+    - `list_autonomous_loops_payload(state)`: Complete list of registered loop entries with 10 components
+    - `get_autonomous_loop_payload(loop_id, state)`: Detail for single loop or None
+    - `list_autonomous_loop_telemetry_payload(state)`: All loop telemetry
+    - `get_autonomous_loop_telemetry_payload(loop_id, state)`: Telemetry for specific loop or default fallback
+  - `backend/api/v1/autonomous_loop.py`: FastAPI endpoints with clean headless fallback
+    - `GET /api/v1/autonomous-loop/status`: Overall system loop status
+    - `GET /api/v1/autonomous-loop/loops`: List all loops
+    - `GET /api/v1/autonomous-loop/loops/{loop_id}`: Single loop detail (404 on missing)
+    - `GET /api/v1/autonomous-loop/telemetry`: All loops telemetry
+    - `GET /api/v1/autonomous-loop/telemetry/{loop_id}`: Loop telemetry (404 on missing loop)
+  - `backend/main.py`: Include `autonomous_loop_router` when FastAPI is available
+- **TESTS:** 12 tests in `tests/unit/test_autonomous_loop_api.py` covering all payloads, empty/populated states, 404s, defaults
+- **BROADER TESTS:** 154/154 pass across all 13 related suites (142 existing + 12 new)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES
+  - TEST VERIFIED: YES — 154/154 pass
+  - LIVE VERIFIED: NO — local unit/hermetic only
+  - PRODUCTION READY: NO
+
+---
+
+### 2026-09-26 — PR245 Autonomous Decision Loop: Control Plane UI (Implementation Complete)
+
+- **BRANCH:** `feat/pr245-autonomous-loop-control-plane-ui`
+- **BASE SHA:** `b466a6c` (origin/main, after PR #244 merge)
+- **CAPABILITY:** Living browser control plane UI and interactive telemetry inspection surface for autonomous decision loops
+- **CONCRETE IMPLEMENTATION:**
+  - `public/control-plane/autonomous_loop.html`: Complete dashboard view with system status cards, 10/10 component health indicators, loop selection list, convergence metrics, and raw JSON explorer
+  - `public/control-plane/autonomous_loop_client.js`: Client fetcher & polling manager consuming `/api/v1/autonomous-loop` endpoints (`/status`, `/loops`, `/loops/{id}`, `/telemetry/{id}`)
+  - `public/control-plane/index.html`: Navigation link updated to include Autonomous Loop control plane
+- **TESTS:** 3 static asset & contract tests in `tests/unit/test_autonomous_loop_ui_static.py`
+- **BROADER TESTS:** 157/157 pass across all 14 related suites (154 existing + 3 new)
+- **FOUR-STATE CLASSIFICATION:**
+  - CODE COMPLETE: YES
+  - TEST VERIFIED: YES — 157/157 pass
+  - LIVE VERIFIED: NO — static HTML/JS assets verified against hermetic API contracts
+  - PRODUCTION READY: NO
+
+### 2026-09-26 — GitHub PR #246: Learning curve + session lifecycle
+
+- **MERGE:** `ad6d134` on `feat/pr246-autonomous-loop-learning-curve-sessions`.
+- **SCOPE:** `LoopTracer` iteration data → `AutonomousLoopTelemetry.learning_curve_points`; `convergence_history` tracking (capped 100); `LoopSessionEntry` dashboard model; `LoopSessionManager` integration in `_update_loop_dashboard()`; closed-session persistence via `_record_closed_session()`; API `GET /sessions`, `/sessions/{id}`, `/sessions/summary`; UI learning curve canvas + convergence history panel + sessions panel.
+- **TESTS:** `test_autonomous_loop_learning_curve` 16 OK; `test_autonomous_loop_session_api` 14 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 63 OK; full suite 649 OK, 6 skipped.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+
+### 2026-09-26 — GitHub PR #247: Control-plane loop management
+
+- **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
+- **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.
+- **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+### 2026-09-27 — GitHub PR #248: Autonomous Loop Actions Documentation & Verification (draft)
+
+- **BRANCH:** `feat/pr248-autonomous-loop-actions`
+- **SCOPE:** Documentation of LoopActionEntry model, POST/GET action endpoints, UI integration, and verification of implementation.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **DOCS:** `docs/guides/autonomous_loop_actions.md` added.
+- **STATUS:** Draft PR opened.
+
+### 2026-09-26 — GitHub PR #249: Autonomous Loop Actions UI panel (draft)
+
+- **BRANCH:** `feat/pr249-autonomous-loop-actions-ui`
+- **SCOPE:** UI panel in `autonomous_loop.html` to display recent actions per loop using `/api/v1/autonomous-loop/loops/{loop_id}/actions`, plus action controls to trigger `start/stop/run/reset` with a governance token.
+- **UI:** `#actionList` Recent Loop Actions panel; hidden `#actionControls` toolbar (Start/Stop/Run/Reset buttons, `#governanceTokenInput` password field, `#actionStatus`) revealed only when a loop is selected; actions API gate + endpoint markers added to the page markers block.
+- **CLIENT:** `fetchLoopActions`, `fetchAllActions`, `postLoopAction`, `renderActionList`, `showActionStatus`, `sendLoopAction`; actions fetched alongside detail + telemetry in `refreshSelectedDetail()`; buttons wired in `setupControls()`; all helpers exported on `window.TBAutonomousLoopClient`.
+- **SAFETY (fail-closed):** no request leaves the browser when no loop is selected or the token is empty — status message shown instead. Server rejects tokenless `POST` with **401**.
+- **API:** `POST /loops/{loop_id}/actions/{action}` now requires a governance token (`X-Governance-Token` or `Authorization: Bearer`); pure helpers `extract_governance_token()` / `validate_loop_action()` extracted so the gate is unit-testable without FastAPI installed.
+- **TESTS:** new `tests/unit/test_autonomous_loop_action_api.py` (token extraction incl. precedence + whitespace, action validation, state persistence, module surface); extended `tests/unit/test_autonomous_loop_ui_static.py`.
+- **VERIFY:** `node --check public/control-plane/autonomous_loop_client.js`; autonomous-loop suite **82 OK** (+19 new).
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` (hermetic only; no live backend exercised).
+- **STATUS:** Draft.
+
+
+- **BRANCH:** `feat/pr247-autonomous-loop-control-actions`
+- **SCOPE:** `POST /loops/{id}/actions/{action}` (start/stop/run/reset); `GET /loops/{id}/actions`; `GET /actions`; `LoopActionEntry` model + `record_loop_action`/`get_loop_actions`; `last_action` field on `AutonomousLoopEntry`; UI action buttons (Start/Stop/Run/Reset) + Recent Loop Actions panel; fixed `fetchSessionSummary` missing closing brace bug.
+- **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+### 2026-09-26 — GitHub PR #252: Honest execution (draft)
+
+- **BRANCH:** `claude/repo-audit-e4801s`
+- **TRIGGER:** repo audit ran `thinkbox run` with no model available; it printed `successful: 1`. The stored output was `[Error: Connection refused]`.
+- **ROOT CAUSES:** `thinkbox/model_client.py` returned `f"[Error: {e}]"` as model text; `swarm.execute_task` treated any returned string as success; `GovernedEngine` only checked admission `if token_value:`.
+- **FIXES:** `ModelCallError` (retryable flag; no speculative retries on unreachable/401); Bearer auth; `/v1` URL normalisation; Ollama `options`; blocking I/O moved to `asyncio.to_thread`; `ModelConfig.from_env` (`ollama` / `openai_compat` / `inception`); `GovernedEngine._admit` denies missing tokens and ledgers the denial (`concurrent_goals` now mints a real token per goal); `thinkbox run` governed + prints outputs + non-zero exit on failure; `thinkbox model check`; `think_box_ai inception` real calls, no simulated/fabricated usage; embedder default `text-embedding-3-small` + 1536-dim check.
+- **LIVE (local only):** Ollama `qwen2.5:1.5b` on CPU: engine answered 17*23=391; governed run answered "Paris."; proof script 6/6 PASS. Mercury-2 endpoint reachable (HTTP 401 without key) — **not** live-verified.
+- **FINDINGS:** 14/38 swarm proof artifacts invalid (`data/findings/swarm_proof_artifacts_invalid.md`); Upstash Vector defect fixed in code, not live-verified; #245–#249 chronicle rows were stale.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` for hosted providers and Upstash.

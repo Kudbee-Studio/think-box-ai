@@ -1,0 +1,20 @@
+{
+  "audit_pass_id": "pr182-receipt-chain-deepen",
+  "pr_number": 182,
+  "gate_id": "receipt-chain-deepen",
+  "date": "2026-09-24",
+  "four_state_max": "TEST_VERIFIED",
+  "live_verified": false,
+  "live_api_called": false,
+  "feature_count": 25,
+  "primary_surface": "thinkbox/receipt_chain_deepen",
+  "themes": [
+    "chain_append_verify",
+    "hash_link_integrity",
+    "redacted_export",
+    "cassette_replay",
+    "fork_compaction_stubs",
+    "end_link_etag_audit_bridges"
+  ],
+  "notes": "Twenty-five receipt-chain deepen features after merged #181; hermetic only; no live Box/Mercury calls."
+}

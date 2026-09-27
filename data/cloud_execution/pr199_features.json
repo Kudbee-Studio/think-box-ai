@@ -1,0 +1,20 @@
+{
+  "gate_id": "cloud-execution-worker-orchestrator",
+  "pr_number": 199,
+  "live_verified": false,
+  "feature_count": 10,
+  "primary_surface": "thinkbox/cloud_execution (worker orchestrator Phase 3)",
+  "upstream_gate_id": "cloud-execution-durable-queue",
+  "features": [
+    {"id": "F01", "name": "worker_lifecycle_states", "module": "thinkbox/cloud_execution/worker_lifecycle.py"},
+    {"id": "F02", "name": "worker_config_capacity", "module": "thinkbox/cloud_execution/worker_config.py"},
+    {"id": "F03", "name": "worker_orchestrator_loop", "module": "thinkbox/cloud_execution/worker_orchestrator.py"},
+    {"id": "F04", "name": "claim_renewal_fencing", "module": "thinkbox/cloud_execution/queue.py"},
+    {"id": "F05", "name": "heartbeat_renewal", "module": "thinkbox/cloud_execution/worker_orchestrator.py"},
+    {"id": "F06", "name": "graceful_shutdown", "module": "thinkbox/cloud_execution/worker_orchestrator.py"},
+    {"id": "F07", "name": "worker_runtime_persist", "module": "thinkbox/cloud_execution/worker_runtime_store.py"},
+    {"id": "F08", "name": "worker_inspection_api", "module": "thinkbox/cloud_execution/worker_inspection.py"},
+    {"id": "F09", "name": "durable_engine_worker_wire", "module": "thinkbox/cloud_execution/durable_engine.py"},
+    {"id": "F10", "name": "recovery_on_worker_start", "module": "thinkbox/cloud_execution/recovery.py"}
+  ]
+}

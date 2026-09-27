@@ -1,8 +1,9 @@
 name: test
+# cursor/** push enables agent branch CI
 
 on:
   push:
-    branches: [main, "feat/**", "session/**"]
+    branches: [main, "feat/**", "session/**", "cursor/**"]
   pull_request:
 
 jobs:
@@ -13,8 +14,58 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+      - name: Install project dependencies
+        run: pip install -e .
       - name: Run unit + integration tests
-        run: python3 -m unittest discover tests/ -v
+        run: python3 -m unittest discover -s tests -t .
+      - name: KILO fast spine verify (hermetic, post-#172)
+        run: PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
+      - name: Beyond-KILO lint execute (scoped ruff/mypy/bandit)
+        run: |
+          pip install -e ".[lint]"
+          KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
+      - name: Think Job hermetic e2e deepen gate (PR #183)
+        run: python3 scripts/verify_kilo_pr183_think_job_hermetic_e2e.py
+      - name: Think Job POST /run deepen gate (PR #184)
+        run: python3 scripts/verify_kilo_pr184_think_job_post_run_deepen.py
+      - name: Think Job lifecycle fixes gate (PR #185)
+        run: python3 scripts/verify_kilo_pr185_think_job_lifecycle_fixes.py
+      - name: Think Job PR #185 local environment manifest
+        run: python3 scripts/verify_pr185_local_environment.py
+      - name: Think Job run receipt deepen gate (PR #186)
+        run: python3 scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py
+      - name: Think Job receipt major fixes gate (PR #187)
+        run: python3 scripts/verify_kilo_pr187_think_job_receipt_major_fixes.py
+      - name: Think Job governed run major fixes gate (PR #188)
+        run: python3 scripts/verify_kilo_pr188_think_job_governed_run_major_fixes.py
+      - name: Think Job lifecycle major fixes gate (PR #189)
+        run: python3 scripts/verify_kilo_pr189_think_job_lifecycle_major_fixes.py
+      - name: Think Job POST /run major fixes gate (PR #190)
+        run: python3 scripts/verify_kilo_pr190_think_job_post_run_major_fixes.py
+      - name: Kudbee SDK follow-up wave 3 gate (PR #191)
+        run: python3 scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py
+      - name: Kudbee SDK follow-up wave 3 major fixes gate (PR #192)
+        run: python3 scripts/verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py
+      - name: Kudbee SDK long-range energy deepen gate (PR #193)
+        run: python3 scripts/verify_kilo_pr193_kudbee_sdk_longrange_energy.py
+      - name: Kudbee SDK long-range energy major fixes gate (PR #194)
+        run: python3 scripts/verify_kilo_pr194_kudbee_sdk_longrange_energy_major_fixes.py
+      - name: Kudbee SDK enterprise lr-energy lanes gate (PR #195)
+        run: python3 scripts/verify_kilo_pr195_kudbee_sdk_enterprise_lr_energy.py
+      - name: KUDBEECLI enterprise upgrade gate (PR #196)
+        run: python3 scripts/verify_kilo_pr196_kudbee_cli_enterprise_upgrade.py
+      - name: Cloud execution substrate gate (PR #197)
+        run: python3 scripts/verify_kilo_pr197_cloud_execution_substrate.py
+      - name: Cloud execution durable queue gate (PR #198)
+        run: python3 scripts/verify_kilo_pr198_cloud_execution_durable_queue.py
+      - name: Cloud execution worker orchestrator gate (PR #199)
+        run: python3 scripts/verify_kilo_pr199_cloud_execution_worker_orchestrator.py
+      - name: Environmental variables gate (PR #200)
+        run: python3 scripts/verify_kilo_pr200_environmental_variables.py
+      - name: Upstash Box access verification gate (PR #201)
+        run: python3 scripts/verify_kilo_pr201_upstash_box_access.py
+      - name: Secret scan (docs + repo hygiene)
+        run: python3 scripts/scan_doc_secrets.py
 
   web-typecheck:
     runs-on: ubuntu-latest

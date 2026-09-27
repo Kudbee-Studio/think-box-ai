@@ -1,0 +1,11 @@
+{
+  "gate_id": "think-job-post-run-major-fixes",
+  "pr_number": 190,
+  "live_verified": false,
+  "artifacts": [
+    "data/think_job_post_run_major/pr190_fixes.json",
+    "data/think_job_post_run_major/pr190_checklist.json",
+    "data/think_job_post_run_major/cassettes/post_run_major_flow.json",
+    "docs/audit/passes/2026-09-24-pr190.json"
+  ]
+}
