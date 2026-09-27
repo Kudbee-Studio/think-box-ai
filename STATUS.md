@@ -1,3 +1,9 @@
+## MERGED (2026-09-27) — GitHub PRs #251 and #255 (bot PRs, reviewed)
+
+- **#251** `1ee9171` durable autonomous-loop action receipts + integrity endpoint. `main` merged in with 2 conflicts resolved (`dashboard_state.py`: kept both sides' independent state; AGENTS.md rows). Merged tree: autonomous-loop + dashboard suites 174 OK; JS integrity test 1/1.
+- **#255** `1719655` sharded concurrent-goal executor. Branch was 1603 commits behind `main` and carried stale versions of 23 files `main` had evolved (16 conflicts); kept `main` for all 23, so the merge adds only `thinkbox/shard.py` + tests. Review fixed a real closure bug (ruff B023): every shard ran on the last shard's runner. `test_shard` 93 OK.
+- Both merged while CI runners were unavailable; verified locally.
+
 ## OPEN (2026-09-26) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
 
 - **Branch:** `feat/pr264-orchestrator-strategy-constraint-fix`
@@ -5,7 +11,7 @@
 - **Knowledge fabric:** `persist()` never wrote to disk while logging that it had (a #263 defect); it now writes atomically, and `KnowledgeFabric.load()` restores the fabric and refuses tampered nodes.
 - **Memory layers:** lessons from #259–#264 seeded as committed `CHRONICLE_PATTERNS` (7 Organizational) and new `CHRONICLE_FACTS` (3 Verified Knowledge: calibration v1, v2, CI outage), each tied to committed evidence; facts refuse to load if their proof artifact's hash changes. Ingest run: 12 organizational, 4 verified, `live_verified=False`. Memory DB is local/gitignored; seeds rehydrate via `scripts/ingest_memory_layers.py`.
 - **Synthesis:** `agreement_fraction` added to `SynthesisEngine`. Pre-registered v2 (committed `bd80cf8e` before the run): Brier 0.212 → 0.120, delta −0.093 CI [−0.121, −0.065] → **IMPROVED**. v1 proof hash still reproduces.
-- **Verify:** `test_multi_model_orchestrator` **41 OK**; `test_multi_box_orchestration` **36 OK**; `test_synthesis_calibration_arena` **39 OK**; full suite: FULL_SUITE_COUNT_PENDING.
+- **Verify:** `test_multi_model_orchestrator` **41 OK**; `test_multi_box_orchestration` **36 OK**; `test_synthesis_calibration_arena` **39 OK**; full `unittest discover` not completed in-session (it runs >2 h locally because of real network-backoff tests, and CI runners are down); verified instead: the targeted suites above, `test_memory_layers*` 42 OK, `test_kilo_live_proof_readiness_pr141` 28 OK, #251 merged tree 174 OK, `test_shard` 93 OK.
 - **CI:** GitHub Actions runners not being assigned repo-wide (every job ~3 s, `runner_id: 0`, empty logs; reproduces on `main`). Needs a Settings → Actions check by a repo/org admin. Documented on #263 and #264.
 - **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED (inference and agents simulated).
 

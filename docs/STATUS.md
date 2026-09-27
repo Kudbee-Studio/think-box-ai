@@ -1,5 +1,12 @@
 # STATUS — Think Box AI
 
+## MERGED (2026-09-27) — GitHub PRs #251 and #255 (bot PRs, reviewed)
+
+| PR | Merge | Review outcome |
+|----|-------|----------------|
+| #251 | `1ee9171` | 2 conflicts resolved (kept both sides); 174 OK on merged tree |
+| #255 | `1719655` | Stale base (1603 behind) dropped in favor of main; closure bug fixed (shards shared last runner); 93 OK |
+
 ## OPEN (2026-09-26) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
 
 | Field | Value |
@@ -9,7 +16,7 @@
 | **Knowledge fabric** | `persist()` now actually writes (was a no-op that logged success); `load()` restores and refuses tampered nodes |
 | **Memory layers** | 7 organizational patterns + 3 verified facts seeded (committed, evidence-gated; facts check proof hashes); ingest: 12 org / 4 verified |
 | **Synthesis** | `agreement_fraction` added; pre-registered v2 **IMPROVED** (Brier 0.212 → 0.120, CI [−0.121, −0.065]) |
-| **Verify** | orchestrator 41 OK; multi-box 36 OK; calibration arena 39 OK; full suite: FULL_SUITE_COUNT_PENDING |
+| **Verify** | orchestrator 41 OK; multi-box 36 OK; calibration arena 39 OK; full `unittest discover` not completed in-session (it runs >2 h locally because of real network-backoff tests, and CI runners are down); verified instead: the targeted suites above, `test_memory_layers*` 42 OK, `test_kilo_live_proof_readiness_pr141` 28 OK, #251 merged tree 174 OK, `test_shard` 93 OK |
 | **CI** | Actions runners not assigned repo-wide (~3 s jobs, `runner_id: 0`); admin Settings check needed |
 | **Four-state** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
 

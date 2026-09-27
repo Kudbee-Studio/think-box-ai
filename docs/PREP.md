@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-27 (GitHub #251 and #255 merged after review)
+>
+> **#251** `1ee9171` (durable loop-action receipts): 2 conflicts resolved; 174 OK on merged tree.
+> **#255** `1719655` (sharded executor): stale 1603-commit-old base files dropped in favor of `main`;
+> closure bug fixed (every shard ran on the last shard's runner); `test_shard` 93 OK.
+> **Gate:** CI runners still unavailable; verification local. **Four-state:** CODE COMPLETE / TEST VERIFIED.
+
 > ## ADDENDUM — 2026-09-26 (GitHub #264 open; #259–#263 merged)
 >
 > **Merged:** #259 `5b844ea`, #260 `7880c4b`, #261 `d03b5eb`, #262 `07f813e`, #263 `d1eccd2`.
@@ -13,7 +20,7 @@
 > `scripts/ingest_memory_layers.py` (DB is local/gitignored).
 > **Gate:** CI runners unavailable repo-wide (jobs end in ~3 s with `runner_id: 0`; reproduces on
 > `main`). Admin action: Settings → Actions. Local verification: orchestrator 41 OK, multi-box 36 OK,
-> calibration arena 39 OK, full suite FULL_SUITE_COUNT_PENDING.
+> calibration arena 39 OK, full `unittest discover` not completed in-session (it runs >2 h locally because of real network-backoff tests, and CI runners are down); verified instead: the targeted suites above, `test_memory_layers*` 42 OK, `test_kilo_live_proof_readiness_pr141` 28 OK, #251 merged tree 174 OK, `test_shard` 93 OK.
 > **Four-state:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
 
 > ## ADDENDUM — 2026-09-26 (GitHub #253 draft — swarm proof honesty + findings close)
