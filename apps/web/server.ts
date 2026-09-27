@@ -29,6 +29,7 @@ import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
+import { algorandQuery } from './algorand.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,7 +48,7 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
-const workspaceRoot = path.join(__dirname, 'workspaces');
+const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
 
@@ -1132,6 +1133,16 @@ app.get('/api/runs/:id', (req: Request, res: Response) => {
   const run = runStore.get(req.params.id);
   if (!run) return res.status(404).json({ error: 'Run not found' });
   res.json(run);
+});
+
+// ─── Algorand (read-only, public AlgoNode endpoints) ───────────
+app.get('/api/algorand', async (req: Request, res: Response) => {
+  try {
+    res.json(await algorandQuery(req.query));
+  } catch (err) {
+    const message = errorMessage(err);
+    res.status(/must be|not a valid|Not found/.test(message) ? 400 : 502).json({ error: message });
+  }
 });
 
 // ─── Memory layers (files + vector index) ──────────────────────

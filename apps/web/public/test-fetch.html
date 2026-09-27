@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Fetch</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .success { color: green; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Test API Fetch</h1>
+  <div id="output"></div>
+
+  <script>
+    async function test() {
+      const output = document.getElementById('output');
+
+      try {
+        output.innerHTML += '<div class="result">Fetching /api/init...</div>';
+
+        const response = await fetch('http://localhost:3000/api/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        output.innerHTML += '<div class="result">Status: ' + response.status + '</div>';
+
+        const text = await response.text();
+        output.innerHTML += '<div class="result">Response type: ' + typeof text + '</div>';
+        output.innerHTML += '<div class="result">First 100 chars: ' + text.substring(0, 100) + '</div>';
+
+        const data = JSON.parse(text);
+        output.innerHTML += '<div class="result success">✓ Successfully parsed JSON!</div>';
+        output.innerHTML += '<div class="result success">✓ Session ID: ' + data.sessionId.substring(0, 8) + '</div>';
+        output.innerHTML += '<div class="result success">✓ Plugins: ' + data.plugins.length + '</div>';
+        output.innerHTML += '<div class="result success">✓ Models: ' + data.models.join(', ') + '</div>';
+      } catch (err) {
+        output.innerHTML += '<div class="result error">✗ Error: ' + err.message + '</div>';
+        console.error(err);
+      }
+    }
+
+    test();
+  </script>
+</body>
+</html>

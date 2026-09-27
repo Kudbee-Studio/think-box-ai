@@ -624,6 +624,11 @@ async function runSlashCommand(command) {
         '  /plugins           List installed plugins',
         '  /plugin NAME JSON  Execute a plugin with JSON input',
         '',
+        '⛓  Algorand (read-only, public nodes):',
+        '  /algo status [mainnet]          Network status',
+        '  /algo account ADDR | txs ADDR   Balance & holdings | recent transactions',
+        '  /algo asset ID | app ID | tx TXID',
+        '',
         '🧠 Memory (Markdown files + vector index):',
         '  /memory [QUERY]    Recent memories, or vector search',
         '  /remember TITLE - TEXT   Save an org note (no args opens the form)',
@@ -741,6 +746,25 @@ async function runSlashCommand(command) {
         ? [`🧠 ${query ? `Memory search "${query}" (${backend})` : 'Recent memories'}:`, ...items.map(item =>
           `  [${item.layer}] ${item.title}${item.score !== undefined ? ` · ${Number(item.score).toFixed(2)}` : ''}\n      ${item.id}`)].join('\n')
         : `🧠 No memories${query ? ` match "${query}"` : ' yet'}.`);
+      return true;
+    }
+
+    case '/algo': {
+      const [action = 'status', target, maybeNetwork] = args;
+      const network = [target, maybeNetwork].find(value => value === 'mainnet' || value === 'testnet') || 'testnet';
+      const aliases = { app: 'application', tx: 'transaction', txs: 'account_transactions', history: 'account_transactions' };
+      const resolved = aliases[action] || action;
+      const params = new URLSearchParams({ action: resolved, network });
+      if (target && target !== network) {
+        if (['account', 'account_transactions'].includes(resolved)) params.set('address', target);
+        else if (resolved === 'transaction') params.set('txid', target);
+        else params.set('id', target);
+      }
+      const response = await fetch(`/api/algorand?${params}`, { cache: 'no-store' });
+      const result = await response.json();
+      appendTerminalMessage(response.ok ? 'system' : 'error', response.ok
+        ? `⛓ Algorand ${resolved} (${network}):\n${JSON.stringify(result, null, 2)}`
+        : `Algorand lookup failed: ${result.error}\nUsage: /algo status|account ADDR|asset ID|app ID|tx TXID|txs ADDR [mainnet]`);
       return true;
     }
 

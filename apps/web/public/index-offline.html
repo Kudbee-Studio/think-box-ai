@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kudbEE — Agent OS</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .plugin-item { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; align-items: center; }
+    .plugin-icon { font-size: 20px; }
+    .plugin-info { flex: 1; }
+    .plugin-name { font-weight: bold; font-size: 12px; }
+    .plugin-desc { font-size: 11px; color: #666; }
+    .health-item { padding: 4px; font-size: 12px; }
+    .health-item.ok { color: #4caf50; }
+    .connection-item { padding: 8px; display: flex; gap: 8px; align-items: center; }
+    .connection-status { width: 12px; height: 12px; border-radius: 50%; }
+    .connection-status.ok { background: #4caf50; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">🐝</div>
+        <div class="title">
+          <h1>kudbEE</h1>
+          <span class="subtitle">Agent OS <span class="live-mark">LIVE</span></span>
+        </div>
+      </div>
+      <div class="header-center">
+        <div class="model-selector">
+          <label for="model-select">Model:</label>
+          <select id="model-select">
+            <option value="smollm2:135m">smollm2:135m</option>
+          </select>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="header-connection" class="connection-pill"><span class="connection-dot" style="background: #4caf50;"></span> Connected</span>
+        <button id="command-help" class="btn-icon" title="Show commands">?</button>
+        <div class="status-indicator">
+          <span id="status-dot" class="status-dot idle"></span>
+          <span id="status-text">Idle</span>
+        </div>
+        <button id="clear-chat" class="btn-secondary">Clear</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Left Sidebar -->
+      <aside class="sidebar-left">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🔌 Plugins</h3>
+          </div>
+          <div id="plugin-list" class="plugin-list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>📡 Connections</h3>
+          </div>
+          <div class="connection-item">
+            <span class="connection-status ok"></span>
+            <span>Ollama (smollm2:135m)</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center: Terminal -->
+      <section class="center">
+        <div class="panel terminal-panel">
+          <div class="panel-header">
+            <h3>💬 Terminal</h3>
+            <div class="terminal-actions">
+              <button id="run-goal" class="btn-primary">▶ Run</button>
+            </div>
+          </div>
+          <div id="terminal" class="terminal">
+            <div class="terminal-welcome">
+              <div class="welcome-line">THINK BOX AI — smollm2:135m</div>
+              <div class="welcome-line">Type a goal and press Run</div>
+              <div class="welcome-line welcome-note">Ready · Connected</div>
+            </div>
+          </div>
+          <div class="terminal-input-area">
+            <div class="terminal-input-row">
+              <input type="text" id="goal-input" placeholder="Ask the model..." />
+              <button id="submit-goal" class="btn-primary">Run</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Sidebar -->
+      <aside class="sidebar-right">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>💭 Thoughts</h3>
+            <span id="thought-count" class="badge">0</span>
+          </div>
+          <div id="thought-list" class="thought-list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>💚 System Health</h3>
+          </div>
+          <div class="health-item ok">✓ Ollama</div>
+          <div class="health-item ok">✓ Server</div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const PLUGINS = [
+      {id: "git_repository", name: "Git", icon: "⑂", description: "Clone and manage Git repositories"},
+      {id: "memory_query", name: "Memory", icon: "🧠", description: "Query agent memory"},
+      {id: "rss_feed", name: "RSS Feed", icon: "📰", description: "Fetch RSS/Atom feeds"},
+      {id: "image_analyze", name: "Image Analyzer", icon: "🖼", description: "Analyze images"},
+      {id: "image_generate", name: "Image Generator", icon: "🎨", description: "Generate images"},
+      {id: "file_manager", name: "File Manager", icon: "📁", description: "Upload and manage files"},
+    ];
+
+    const state = {
+      isRunning: false,
+      thoughts: []
+    };
+
+    // Initialize
+    window.addEventListener('load', () => {
+      renderPlugins();
+      setupEventListeners();
+    });
+
+    function renderPlugins() {
+      const list = document.getElementById('plugin-list');
+      list.innerHTML = PLUGINS.map(p => `
+        <div class="plugin-item">
+          <span class="plugin-icon">${p.icon}</span>
+          <div class="plugin-info">
+            <div class="plugin-name">${p.name}</div>
+            <div class="plugin-desc">${p.description}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function setupEventListeners() {
+      document.getElementById('submit-goal').addEventListener('click', executeGoal);
+      document.getElementById('goal-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') executeGoal();
+      });
+      document.getElementById('clear-chat').addEventListener('click', clearTerminal);
+      document.getElementById('run-goal').addEventListener('click', executeGoal);
+    }
+
+    async function executeGoal() {
+      const input = document.getElementById('goal-input');
+      const goal = input.value.trim();
+      if (!goal) return;
+
+      state.isRunning = true;
+      setStatus('running', 'Processing...');
+      appendMessage('user', goal);
+      input.value = '';
+
+      try {
+        // Use the same origin as the current page
+        const baseUrl = `${window.location.protocol}//${window.location.host}`;
+        const response = await fetch(`${baseUrl}/api/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ goal })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          appendMessage('assistant', result.result);
+          addThought(goal);
+        } else {
+          appendMessage('error', result.error);
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        appendMessage('error', `Error: ${err.message}`);
+      } finally {
+        state.isRunning = false;
+        setStatus('idle', 'Ready');
+      }
+    }
+
+    function appendMessage(role, text) {
+      const terminal = document.getElementById('terminal');
+      const welcome = terminal.querySelector('.terminal-welcome');
+      if (welcome) welcome.remove();
+
+      const msg = document.createElement('div');
+      msg.className = `terminal-message ${role}`;
+      msg.innerHTML = `
+        <div class="message-header">
+          <span class="message-role">${role}</span>
+          <span class="message-time">${new Date().toLocaleTimeString()}</span>
+        </div>
+        <div class="message-content">${text}</div>
+      `;
+      terminal.appendChild(msg);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function clearTerminal() {
+      document.getElementById('terminal').innerHTML = '<div class="terminal-welcome"><div class="welcome-line">Terminal cleared</div></div>';
+    }
+
+    function addThought(text) {
+      state.thoughts.push(text);
+      const list = document.getElementById('thought-list');
+      const item = document.createElement('div');
+      item.className = 'thought-item';
+      item.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee;';
+      item.textContent = text;
+      list.appendChild(item);
+      document.getElementById('thought-count').textContent = state.thoughts.length;
+    }
+
+    function setStatus(status, text) {
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-text');
+      if (dot) dot.className = `status-dot ${status}`;
+      if (txt) txt.textContent = text;
+    }
+  </script>
+</body>
+</html>

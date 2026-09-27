@@ -2,6 +2,7 @@
 // Every tool is confined to the session workspace or to bounded HTTP(S) GETs; there is no shell access.
 import fs from 'fs';
 import path from 'path';
+import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
 export const INCEPTION_MODELS = ['mercury-2'];
@@ -154,6 +155,28 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'algorand',
+      description:
+        'Read-only Algorand blockchain lookups via public nodes (no wallet, cannot sign or send). ' +
+        'Actions: status; account (address: balance, holdings); asset (id); application (id: creator, decoded global state); ' +
+        'transaction (txid); account_transactions (address, limit). Default network testnet.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: [...ALGORAND_ACTIONS] },
+          network: { type: 'string', enum: ['testnet', 'mainnet'] },
+          address: { type: 'string', description: '58-character Algorand address' },
+          id: { type: 'string', description: 'Asset or application id' },
+          txid: { type: 'string', description: '52-character transaction id' },
+          limit: { type: 'number' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'recall',
       description: 'Search long-term memory (verified knowledge, organizational notes, past runs) for anything relevant.',
       parameters: {
@@ -232,6 +255,15 @@ function boundedArgs(args: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(args).map(([key, value]) => [key, typeof value === 'string' ? truncate(value, 1000) : value]));
 }
 
+function algorandTarget(args: Record<string, unknown>): string | null {
+  try {
+    validateAlgorandInput(args);
+    return algorandHost(parseAction(args.action), parseNetwork(args.network));
+  } catch {
+    return null; // invalid input is rejected by the tool itself
+  }
+}
+
 function hostOf(rawUrl: unknown): string | null {
   try {
     return new URL(String(rawUrl)).hostname;
@@ -253,6 +285,10 @@ function approvalReason(name: string, args: Record<string, unknown>, hooks: Agen
     const host = hostOf(args.url);
     if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
   }
+  if (name === 'algorand') {
+    const host = algorandTarget(args);
+    if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
+  }
   return null;
 }
 
@@ -270,7 +306,7 @@ function normalizePath(value: unknown): string {
 }
 
 function isObservation(name: string, args: Record<string, unknown>, context: RunContext): boolean {
-  if (name === 'fetch_url' || name === 'read_rss') return true;
+  if (name === 'fetch_url' || name === 'read_rss' || name === 'algorand') return true;
   if (name === 'read_file') return !context.written.has(normalizePath(args.path));
   return false;
 }
@@ -308,6 +344,8 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
       return hooks.rssFeed(String(args.url ?? ''), limit);
     }
+    case 'algorand':
+      return algorandQuery(args, { signal: hooks.signal });
     case 'recall':
       return hooks.recall(String(args.query ?? ''), Math.min(Math.max(Number(args.limit) || 5, 1), 10));
     case 'remember': {
@@ -446,7 +484,7 @@ export async function runToolAgent(
             hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
             approval = (await hooks.requestApproval(call.function.name, args, reason)) ? 'approved' : 'denied';
             if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
-            const host = hostOf(args.url);
+            const host = call.function.name === 'algorand' ? algorandTarget(args) : hostOf(args.url);
             if (host) hooks.approvedDomains.add(host);
           }
           output = { ok: true, ...(await executeTool(call.function.name, args, hooks, context)) };

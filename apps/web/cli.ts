@@ -204,6 +204,7 @@ const HELP = `${c.bold('kudbEE CLI')} — type a goal for the worker agent, or a
   /metrics           agent metrics      /cat PATH     print a file
   /memory [QUERY]    memory / search    /remember TITLE - TEXT   save org note
   /promote org/ID    promote a note to verified knowledge
+  /algo status|account ADDR|asset ID|app ID|tx TXID|txs ADDR [mainnet]   read-only Algorand
   /status            server health
   /open              dashboard URL      /stop         stop the running goal
   /help              this help          /quit         exit
@@ -270,6 +271,20 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       });
       const item = (await res.json()) as any;
       console.log(res.ok ? c.green(`  saved ${item.id} (${item.path})`) : c.red(`  ${item.error}`));
+      break;
+    }
+    case '/algo': {
+      const [action = 'status', target, maybeNetwork] = args;
+      const network = [target, maybeNetwork].find((v) => v === 'mainnet' || v === 'testnet') ?? 'testnet';
+      const aliases: Record<string, string> = { app: 'application', tx: 'transaction', txs: 'account_transactions', history: 'account_transactions' };
+      const resolved = aliases[action] ?? action;
+      const params = new URLSearchParams({ action: resolved, network });
+      if (target && target !== network) {
+        params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
+      }
+      const res = await fetch(`${HOST}/api/algorand?${params}`);
+      const body = (await res.json()) as Record<string, unknown>;
+      console.log(res.ok ? JSON.stringify(body, null, 2) : c.red(`  ${body.error}`));
       break;
     }
     case '/promote': {
