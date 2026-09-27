@@ -1,0 +1,56 @@
+{
+  "arena": "synthesis-calibration-v1",
+  "timestamp": "2026-09-26T22:26:56.994440",
+  "hypothesis": "Confidence-weighted synthesis achieves a lower Brier score (better calibration) than naive majority voting, on the same underlying agent responses, at matched total agent-call budget.",
+  "improvement_threshold": "Brier reduction > 0.05 AND paired bootstrap 95% CI excludes zero (pre-registered)",
+  "n_tasks": 300,
+  "total_agent_calls": 900,
+  "accuracy": {
+    "single_agent": {
+      "correct": 192,
+      "total": 300,
+      "rate": 0.64,
+      "ci95": [
+        0.5842,
+        0.6922
+      ]
+    },
+    "naive_majority_vote": {
+      "correct": 224,
+      "total": 300,
+      "rate": 0.7467,
+      "ci95": [
+        0.6945,
+        0.7926
+      ]
+    },
+    "confidence_weighted_synthesis": {
+      "correct": 236,
+      "total": 300,
+      "rate": 0.7867,
+      "ci95": [
+        0.7368,
+        0.8292
+      ]
+    }
+  },
+  "brier": {
+    "single_agent": 0.2376,
+    "naive_majority_vote": 0.1063,
+    "confidence_weighted_synthesis": 0.2124
+  },
+  "brier_delta_synthesis_vs_majority": {
+    "observed": 0.1061,
+    "ci95_lo": 0.0847,
+    "ci95_hi": 0.1277
+  },
+  "classification": "WORSE",
+  "classification_reason": "synthesis Brier score 0.1061 higher (worse) than naive majority vote, 95% CI [0.0847, 0.1277] excludes zero",
+  "no_claims": [
+    "no claim about real model intelligence or capability",
+    "no live model calls in the hermetic run",
+    "no claim of novelty over cited prior work",
+    "no claim this generalizes beyond the synthetic task families below"
+  ],
+  "proof_hash": "94d8947ff80dd16597c6b9f19cf4aeb014ed07afe106a3bd382cd0a4e0747e9b"
+}

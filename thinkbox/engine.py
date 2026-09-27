@@ -316,7 +316,21 @@ class ThinkBoxEngine:
             "events": len(self._events),
         }
 
-        verified_results = {tid: r for tid, r in results.items() if _is_verified(r)}
+        task_reports: list[dict[str, Any]] = []
+        for tid, r in results.items():
+            node = graph.tasks.get(tid)
+            report: dict[str, Any] = {"task_id": tid, "description": node.description if node else ""}
+            if isinstance(r, ExecutionResult):
+                report.update(success=r.success, output=r.output, error_type=r.error_type)
+            elif _is_verified(r):
+                report.update(success=bool(r.get("valid")), output=r.get("output", r.get("final_output", "")),
+                              error_type=r.get("final_taxonomy", ""))
+            else:
+                report.update(success=False, output="", error_type=type(r).__name__)
+            task_reports.append(report)
+        summary["tasks"] = task_reports
+
+        verified_results ={tid: r for tid, r in results.items() if _is_verified(r)}
 
         # Per-layer telemetry for deeper DAG analysis (fan-out/fan-in)
         layers_telemetry: list[dict[str, Any]] = []

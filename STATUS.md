@@ -1,4 +1,35 @@
-## Draft — GitHub PR #245 Autonomous decision loop: Control plane UI (in progress)
+## MERGED (2026-09-26 19:25) — Autonomous workflow cloud environment setup + proof
+
+- **Branch:** `feat/neon-serverless-setup`
+- **Main SHA:** `493b6ca6e325441c18ca6dee0b85e1b103772b90`
+- **Commits:** 3561aee (Neon init) + a5e799d (skills) + 4db5f6b (proof)
+- **Scope:** Neon serverless Postgres configuration + end-to-end autonomous workflow proof script
+- **Proof verified:** 
+  - ✅ Mercury-2 model execution via Inception API
+  - ✅ Upstash Redis persistence
+  - ✅ Autonomous decision loop (Sense → Decide → Act → Learn)
+  - ✅ Dashboard state tracking
+- **Cloud env:** INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN preserved; no paid services added
+- **Four-state:** CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox)
+- **Next:** Reconcile Memory layer API; audit Dashboard state API; local development
+
+## Draft — GitHub PR #253 Repo audit: swarm proof honesty + findings close
+
+- **Branch:** `claude/repo-audit-e4801s`
+- **Why:** PR #252 audit found 14/38 committed swarm proof artifacts fail `validate_proof_document` — they declared 32 validator workers but ran 0 validator calls (224 total, not the declared 256).
+- **Fixes:** All 14 invalid swarm proof artifacts patched to honestly reflect partial execution (`partial_run: true`, `declared_validator_workers` preserves original 32, `validator_workers` corrected to 0). Finding doc `data/findings/swarm_proof_artifacts_invalid.md` updated to reflect fix. All 38 proof artifacts now pass `validate_proof_document`.
+- **Four-state cap:** CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED.
+- **Verify:** 38/38 proofs validate; full suite 4134 discovered tests.
+- **Builds on:** PR #252 (merged) — honest execution: real model path + governance no-token deny.
+
+## GitHub PR #252 Honest execution: real model path + governance no-token deny (MERGED)
+
+- **Merge:** on `main`
+- **Fixes:** `ModelCallError` (no error-as-output), Bearer auth + `/v1` URL fix + env provider selection (`ollama` / `openai_compat` / `inception`), no speculative retries on non-retryable errors; no-token = deny + ledger row; `thinkbox run` is governed, prints real output, exits non-zero on failure; `thinkbox model check`; `think_box_ai inception` no longer simulated.
+- **Proof:** `python3 scripts/prove_think_box_local.py` — 6/6 PASS against local Ollama.
+- **Verify:** `tests.unit.test_model_client_honest` **27 OK**.
+
+## GitHub PR #245 — Autonomous decision loop: Control plane UI (on main `9201a42`)
 
 - **Branch:** `feat/pr245-autonomous-loop-control-plane-ui`
 - **Scope:** Control plane UI (`public/control-plane/autonomous_loop.html`, `autonomous_loop_client.js`) + navigation integration + telemetry inspection

@@ -75,19 +75,20 @@ def main(argv: list[str] | None = None) -> int:
         enable_nested_e2e_unittest()
     print(
         f"phase: spine verify start (fast={fast_mode}, e2e_nested_unittest={not fast_mode})",
+        file=sys.stderr,
         flush=True,
     )
     summary = spine_contract_summary(fast=fast_mode)
-    print("phase: spine contract summary built", flush=True)
+    print("phase: spine contract summary built", file=sys.stderr, flush=True)
     print(json.dumps(summary, indent=2, sort_keys=True), flush=True)
     if summary.get("missing_spine_docs") or summary.get("missing_runbook_headings"):
         return 1
     for block_name, ok_field in _SPINE_BLOCKS:
         block = summary.get(block_name) or {}
         if not block.get(ok_field):
-            print(f"phase: failed block {block_name}.{ok_field}", flush=True)
+            print(f"phase: failed block {block_name}.{ok_field}", file=sys.stderr, flush=True)
             return 1
-    print("phase: spine verify ok", flush=True)
+    print("phase: spine verify ok", file=sys.stderr, flush=True)
     return 0
 
 

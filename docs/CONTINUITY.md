@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 
 ---
 
@@ -35,8 +35,8 @@ Before declaring completion, every agent MUST verify:
 
 | Field | Value |
 |---|---|
-| **Active objective** | Verify systems at scale: 100-agent swarm over Mercury-2 via Inception API; LIVE_VERIFIED all working paths |
-| **Latest completed work** | **PR #141–#200 on main**. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume**; **RUNNING orphan reclaim** stacked on resume. |
+| **Active objective** | Establish baseline: autonomous workflow core LIVE VERIFIED in cloud environment; merge queue cleared |
+| **Latest completed work** | **PR #141–#200 + Neon setup (merged 493b6ca6, 2026-09-26 19:25)**. Cloud environment preserved. Autonomous workflow proven end-to-end. **Open drafts (do not merge):** **#201** Upstash access; **#202** lifecycle hardens; **QUEUED resume**; **RUNNING orphan reclaim** stacked on resume. |
 | **Current verified capabilities** | Multi-goal concurrent execution; DAG telemetry; budget contention policies; scheduler 29 features; CNC manufacturing platform; Upstash Box primary substrate (UPSTASH_PUBLIC_BOX_URL present, UPSTASH_PUBLIC_BOX_TOKEN missing — classification B); UpCloud control-plane only; Think Burst protocol; Dashboard pipeline view; Swarm 512+ agents (Mercury-2 via Inception API): 444/512 OK at concurrency=32, 418/512 OK at concurrency=16; 5×256 convergence reproducible (mean 219/256 OK, mean 27.24 RPS); convergence_stats() for descriptive statistics; reliability characterization across concurrency levels |
 | **Current blockers** | UPSTASH_PUBLIC_BOX_TOKEN missing — Box endpoint returns `preview not found` regardless of auth (service-level, not auth). Live Box execution PATH A blocked until provisioned. Mercury-2 reliability inconsistent across concurrency: validator wave intermittently skips at low concurrency (224/256 → 100% failure); rate limiting at concurrency=32 (161-256 OK/256); no concurrency level achieves consistent 256/256 across all runs. |
 | **Known risks** | Recovery evidence small-n; concurrency proven for accounting correctness (not performance); 1 retry max per task bounds cost; shared-budget per-goal attribution cross-checked; PRIORITY policy may skip lower-priority goals if budget exhausted; Box endpoint not provisioned for this URL; Mercury-2 API reliability varies by concurrency and is not fully characterized; validator wave scheduling may have race condition at low concurrency. |
@@ -47,6 +47,29 @@ Before declaring completion, every agent MUST verify:
 ---
 
 ## RECENT CHANGES
+
+### 2026-09-26 19:25 — Autonomous workflow cloud environment setup + proof (merged main 493b6ca6)
+
+| Field | Value |
+|---|---|
+| **Branch** | `feat/neon-serverless-setup` (3 commits) |
+| **Commits** | 3561aee (Neon init) + a5e799d (skills) + 4db5f6b (proof) |
+| **What merged** | Neon serverless Postgres configuration + autonomous workflow end-to-end proof script |
+| **Proof components** | ✅ Mercury-2 model execution (Inception API); ✅ Upstash Redis persistence; ✅ Autonomous loop (Sense→Decide→Act→Learn); ✅ Dashboard state tracking |
+| **Cloud env preserved** | INCEPTION_API + UPSTASH_REDIS_REST_URL/TOKEN intact; no credentials removed; no paid services added |
+| **FourState** | CODE COMPLETE / TEST VERIFIED / **LIVE VERIFIED** (autonomous workflow core proven in cloud sandbox) |
+| **Next** | Reconcile Memory layer API method names; audit Dashboard state API; prepare local development path |
+
+### 2026-09-26 — GitHub #253: swarm proof honesty + findings close (on claude/repo-audit-e4801s)
+
+| Field | Value |
+|---|---|
+| **Scope** | 14/38 committed swarm proof artifacts fail `validate_proof_document` (declared 32 validators, ran 0) |
+| **Fix** | All 14 patched: `partial_run: true`, `declared_validator_workers: 32` (preserved), `validator_workers: 0` (corrected), `partial_run_reason` explains the gap |
+| **Finding** | `data/findings/swarm_proof_artifacts_invalid.md` status updated to fixed |
+| **Validation** | 38/38 proofs now pass `validate_proof_document` |
+| **FourState** | CODE COMPLETE / TEST VERIFIED — not LIVE VERIFIED |
+| **Builds on** | PR #252 (merged) — honest execution: real model path + governance no-token deny |
 
 ### 2026-09-24 — RUNNING orphan reclaim via ownership lease (stacked on QUEUED resume)
 
@@ -3165,3 +3188,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **TESTS:** `test_autonomous_loop_control_actions` 19 OK; `test_autonomous_loop_ui_static` 3 OK; autonomous-loop suite 82 OK.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
 - **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/247
+
+### 2026-09-26 — GitHub PR #252: Honest execution (draft)
+
+- **BRANCH:** `claude/repo-audit-e4801s`
+- **TRIGGER:** repo audit ran `thinkbox run` with no model available; it printed `successful: 1`. The stored output was `[Error: Connection refused]`.
+- **ROOT CAUSES:** `thinkbox/model_client.py` returned `f"[Error: {e}]"` as model text; `swarm.execute_task` treated any returned string as success; `GovernedEngine` only checked admission `if token_value:`.
+- **FIXES:** `ModelCallError` (retryable flag; no speculative retries on unreachable/401); Bearer auth; `/v1` URL normalisation; Ollama `options`; blocking I/O moved to `asyncio.to_thread`; `ModelConfig.from_env` (`ollama` / `openai_compat` / `inception`); `GovernedEngine._admit` denies missing tokens and ledgers the denial (`concurrent_goals` now mints a real token per goal); `thinkbox run` governed + prints outputs + non-zero exit on failure; `thinkbox model check`; `think_box_ai inception` real calls, no simulated/fabricated usage; embedder default `text-embedding-3-small` + 1536-dim check.
+- **LIVE (local only):** Ollama `qwen2.5:1.5b` on CPU: engine answered 17*23=391; governed run answered "Paris."; proof script 6/6 PASS. Mercury-2 endpoint reachable (HTTP 401 without key) — **not** live-verified.
+- **FINDINGS:** 14/38 swarm proof artifacts invalid (`data/findings/swarm_proof_artifacts_invalid.md`); Upstash Vector defect fixed in code, not live-verified; #245–#249 chronicle rows were stale.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false` for hosted providers and Upstash.
