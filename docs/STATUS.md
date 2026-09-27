@@ -7,7 +7,7 @@
 | #251 | `1ee9171` | 2 conflicts resolved (kept both sides); 174 OK on merged tree |
 | #255 | `1719655` | Stale base (1603 behind) dropped in favor of main; closure bug fixed (shards shared last runner); 93 OK |
 
-## OPEN (2026-09-26) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
+## MERGED (2026-09-27, `b42e5c7`) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
 
 | Field | Value |
 |-------|-------|

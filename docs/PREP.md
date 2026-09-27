@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-27 (GitHub #264 merged; zero open PRs)
+>
+> **#264** merged `b42e5c7` after #251 (`1ee9171`) and #255 (`1719655`). Zero open PRs. `main` tree is
+> byte-identical to the tree verified locally (344 OK across affected suites). **Gate still open:** GitHub
+> Actions runners unavailable repo-wide, so `main` is not yet verified green in CI; a scheduled check-in
+> reports when runners return. **Four-state:** CODE COMPLETE / TEST VERIFIED.
+
 > ## ADDENDUM — 2026-09-27 (GitHub #251 and #255 merged after review)
 >
 > **#251** `1ee9171` (durable loop-action receipts): 2 conflicts resolved; 174 OK on merged tree.

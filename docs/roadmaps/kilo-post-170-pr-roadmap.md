@@ -120,7 +120,7 @@
 | Autonomous swarm + orchestrator | **GitHub #259** (merged `5b844ea`), **#260** (merged `7880c4b`); inference simulated; not LIVE VERIFIED |
 | Governance layer + governed execution | **GitHub #261** (merged `d03b5eb`), **#262** (merged `07f813e`); not LIVE VERIFIED |
 | Multi-box orchestration + calibration v1 | **GitHub #263** (merged `d1eccd2`) — pre-registered v1 `WORSE`; not LIVE VERIFIED |
-| Orchestrator strategy fix + calibration v2 | **GitHub #264** (open) — strategies/constraints implemented; pre-registered v2 `IMPROVED` (simulated); not LIVE VERIFIED |
+| Orchestrator strategy fix + calibration v2 | **GitHub #264** (merged `b42e5c7`) — strategies/constraints implemented; pre-registered v2 `IMPROVED` (simulated); not LIVE VERIFIED |
 | Durable loop-action receipts | **GitHub #251** (merged `1ee9171`); not LIVE VERIFIED |
 | Sharded concurrent-goal executor | **GitHub #255** (merged `1719655`); not LIVE VERIFIED |
 

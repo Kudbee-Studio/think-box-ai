@@ -3218,3 +3218,10 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **LESSON:** a local shallow clone reported "no merge base" for #255; `git fetch --unshallow` showed the real one. Unshallow before concluding branches are unrelated.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`. CI runners unavailable; verification local.
 
+### 2026-09-27 — GitHub PR #264 merged; zero open PRs
+
+- **#264** merged `b42e5c7` (squash), after `main` (#251, #255) was merged into it with no conflicts.
+- `main` tree verified byte-identical to the locally tested tree: 344 OK across orchestrator, multi-box, calibration arena, governance, governed execution, swarm pool, memory layers, doc-secrets, shard, and loop-action-store suites.
+- **Open gate:** GitHub Actions runners still not assigned (jobs end in ~2-4 s, `runner_id: 0`). `main` is not claimed CI-green until runners return and CI actually runs.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED — `live_verified: false`.
+

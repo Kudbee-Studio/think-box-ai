@@ -4,7 +4,7 @@
 - **#255** `1719655` sharded concurrent-goal executor. Branch was 1603 commits behind `main` and carried stale versions of 23 files `main` had evolved (16 conflicts); kept `main` for all 23, so the merge adds only `thinkbox/shard.py` + tests. Review fixed a real closure bug (ruff B023): every shard ran on the last shard's runner. `test_shard` 93 OK.
 - Both merged while CI runners were unavailable; verified locally.
 
-## OPEN (2026-09-26) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
+## MERGED (2026-09-27, `b42e5c7`) — GitHub PR #264 Orchestrator strategy fix + synthesis calibration v2
 
 - **Branch:** `feat/pr264-orchestrator-strategy-constraint-fix`
 - **Orchestrator:** CHEAPEST/CONSENSUS/PARALLEL and `max_latency_ms`/`max_cost` now implemented (were documented but not wired, per Bugbot review of #260); `execute(constraints=...)` works as documented. Self-review defects fixed: multi-provider budget under-estimate, consensus-of-one, `failed_executions` always 0.
