@@ -139,6 +139,12 @@ The button is wired through `sendLoopAction(action)`, and all helpers are export
 
 * `tests/unit/autonomous_loop/test_control_actions.py` validates model creation, storage, and retrieval.
 * API surface tests (`tests/unit/test_autonomous_loop_api.py`) cover the new endpoints and error handling for invalid actions.
+* `tests/unit/test_autonomous_loop_action_store.py` (PR #251) covers receipts:
+  hash linkage, tamper detection via raw `sqlite3` mutation, reopen survival,
+  hydration across a simulated restart, idempotency, env configuration branches,
+  one-call attach/recovery, and graceful degradation when storage fails.
+* `tests/unit/test_autonomous_loop_integrity_ui.py` asserts the integrity
+  indicator's source contract and runs Node assertions against the real client.
 * `tests/unit/test_autonomous_loop_action_api.py` (PR #249) covers token extraction
   (`X-Governance-Token`, Bearer, precedence, whitespace, absent), action validation,
   state persistence, and API module surface — hermetically, without FastAPI installed.
@@ -146,9 +152,149 @@ The button is wired through `sendLoopAction(action)`, and all helpers are export
   `actionList` panel, action controls, buttons, token input, and the actions API
   markers; and that the JS exports the action helpers and `X-Governance-Token` header.
 
+## Durable Action Receipts (PR #251)
+
+Before PR #251, actions lived only in `DashboardState.loop_actions` — an in-memory
+dict — so the operator audit trail was lost on every restart. Actions are now also
+persisted to SQLite in an append-only, tamper-evident chain.
+
+### Store — `thinkbox/autonomous_loop_action_store.py`
+
+| Item | Description |
+|------|-------------|
+| `LoopActionReceipt` | `receipt_id`, `loop_id`, `action`, `source`, `evidence_label`, `timestamp`, `prev_hash`, `entry_hash`, `result`, `loop_action_id` (links back to the in-memory `LoopActionEntry.action_id`) |
+| `LoopActionStore` | SQLite append-only store; table `loop_action_receipts` |
+| `open_loop_action_store(path)` | Opens a store, creating the parent directory |
+| `default_loop_action_db_path()` | `data/thinkboxmd/db/loop_actions.db` |
+
+Each row's `entry_hash` is a SHA-256 (truncated to 32 hex chars) over the payload
+**including the previous row's hash**, mirroring the `ActionReceiptStore` pattern
+already used by the agent control plane. The first row's `prev_hash` is `GENESIS`.
+
+```python
+from thinkbox.autonomous_loop_action_store import open_loop_action_store
+
+store = open_loop_action_store()          # or :memory: via LoopActionStore()
+receipt = store.append("loopA", "start", {"msg": "go"}, source="ui")
+store.verify()                            # True until something is tampered with
+store.by_loop("loopA")                    # oldest-first receipts for one loop
+store.latest(10)                          # newest-first across all loops
+store.count()
+```
+
+`verify()` re-walks the chain and recomputes every hash, returning **False** if any
+row was edited, deleted, or had its hash rewritten. This is tested directly:
+the unit suite mutates rows via raw `sqlite3` and asserts `verify()` fails.
+
+Durability claim (tested, not assumed): append two receipts, `close()`, reopen the
+same path with a fresh `LoopActionStore` — both receipts are present and
+`verify()` is still `True`.
+
+### Dashboard wiring
+
+Durability alone does not make history visible: after a restart the in-memory dict
+is empty, so the API and panel would report "no actions recorded" even though the
+receipts are safe on disk. Two pieces close that gap:
+
+- **`DashboardState.hydrate_loop_actions_from_store()`** replays receipts into
+  `loop_actions` and restores each loop's `last_action`. It is **idempotent** —
+  actions already present are matched on `action_id` and skipped, so calling it
+  repeatedly never duplicates entries. Returns the number restored.
+- **`LoopActionStore.all_receipts(limit=None)`** is the oldest-first read path used
+  by hydration.
+
+Both storage read and write paths fail soft: a corrupt or unavailable store is
+logged and reported as `0` rather than breaking control flow.
+
+### Configuration (env)
+
+`THINKBOX_LOOP_ACTION_DB` controls durability:
+
+| Value | Meaning |
+|-------|---------|
+| unset / empty | default durable path `data/thinkboxmd/db/loop_actions.db` |
+| `off`, `0`, `false`, `none`, `disabled` | durability **disabled** (no store attached) |
+| `:memory:` | ephemeral in-memory store (tests) |
+| any other value | that filesystem path |
+
+Discrete values return `None` rather than the default, so callers can distinguish
+"disabled" from "use the default".
+
+### One-call startup wiring
+
+```python
+from thinkbox.autonomous_loop_action_store import attach_durable_loop_actions
+
+store, restored = attach_durable_loop_actions(state)   # open + attach + recover
+```
+
+Or honour configuration so deployments can turn it off explicitly:
+
+```python
+from thinkbox.autonomous_loop_action_store import maybe_attach_loop_action_store
+
+store = maybe_attach_loop_action_store(state)   # None when disabled
+```
+
+The startup call site is still explicit (this doc tracks auto-wiring as future
+work) but is now a single line that both persists *and* recovers.
+
+### UI integrity indicator
+
+The control-plane page shows an **Action Audit Chain (durable)** strip backed by
+`GET /actions/integrity`, refreshed on every poll cycle. It distinguishes four
+states rather than collapsing them into one "ok/not ok":
+
+| Badge | Meaning |
+|-------|---------|
+| `OFFLINE` | integrity endpoint unreachable |
+| `NOT ATTACHED` | durability disabled — deliberately does **not** imply a chain exists |
+| `VALID` | N receipts persisted, hash chain intact |
+| `TAMPERED` | N receipts persisted, hash chain **BROKEN** |
+
+The renderer resets its inline warning styles when a chain recovers, so the
+indicator cannot stay stuck red. Runtime behaviour is asserted in Node against the
+real client file (`tests/js/autonomous_loop_client_integrity.test.js`); the Python
+suite skips that part cleanly when `node` is unavailable.
+
+
+
+`DashboardState` gained `set_loop_action_store(store)` / `get_loop_action_store()`.
+When a store is attached, `record_loop_action()` additionally appends a receipt, so
+every existing caller (including the `POST /actions/{action}` route) becomes durable
+without further changes. Persistence is **best-effort for observability**: a storage
+failure is logged and swallowed so it can never break the in-memory control flow.
+With no store attached the behaviour is exactly as before.
+
+### API
+
+`GET /api/v1/autonomous-loop/actions/integrity` returns:
+
+```json
+{
+  "attached": true,
+  "count": 2,
+  "valid": true,
+  "latest": [ { "receipt_id": "lar_...", "action": "start", ... } ],
+  "api_version": "autonomous-loop-api-v1"
+}
+```
+
+`attached: false` means no durable store is configured (not an error, and not a claim
+that a chain exists). `valid: false` means tampering was detected.
+
+### Evidence
+
+Receipts carry `evidence_label: "simulated"` — they prove the action was *requested
+and recorded* through the control plane. They do **not** prove the loop performed a
+corresponding observable side effect.
+
 ## Future Work
 
 * Validate the token against the governance layer (AdmissionGate) rather than only
   enforcing its presence.
-* Persist loop actions to SQLite so the audit trail survives a process restart.
+* Wire `maybe_attach_loop_action_store()` into application startup; the helper is
+  one line now, but the call site is still explicit rather than implicit.
 * Emit `LOOP_ACTION_RECORDED` dashboard events so the panel can stream updates.
+* ~~Add an operator-facing integrity indicator in the UI~~ — done (see above).
+* Add retention/pruning for receipts (the table grows without bound today).
