@@ -465,6 +465,33 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 4. (Recommended) Purchase Floating IP → stable dashboard endpoint
 5. Verify: `detect_substrate()` returns `upcloud-gpu`
 
+**SSH key injection (verified 2026-09-28 — read this before provisioning any UpCloud Linux server):**
+
+- UpCloud API v1.3 injects a login SSH key **only at server-creation time**, under
+  `server.login_user.ssh_keys.ssh_key` — an array of raw OpenSSH public-key
+  strings (e.g. `"ssh-rsa AAAA... comment"`). Set `server.login_user.username`
+  and `server.login_user.create_password: "no"` alongside it.
+- A **top-level** `server.ssh_keys` attribute does **not exist** — the API
+  returns `UNKNOWN_ATTRIBUTE`.
+- There is **no post-creation endpoint** to attach or modify a login SSH key.
+  `PUT /1.3/server/{uuid}` with `login_user` also returns `UNKNOWN_ATTRIBUTE`
+  (creation-only field). A server created without `login_user.ssh_keys` and
+  whose cloud-init template is SSH-key-only (e.g. stock Ubuntu 22.04 LTS) is
+  **permanently unreachable by SSH** — password auth is not offered
+  (`Authentications that can continue: publickey` at the SSH protocol level).
+  The only fix is delete + recreate with the key injected correctly.
+  There is also no API password-reset endpoint (`/server/{uuid}/password-reset`
+  and similar return `NOT_FOUND`); a lost/missing root password can only be
+  reset via the UpCloud web console.
+- Account-level "SSH keys" shown in the UpCloud web console (e.g. one named
+  `claude_ssh_key`) are **not exposed by any `/1.3` API endpoint** — `/sshkey`,
+  `/account/sshkey`, `/ssh-key` etc. all return `NOT_FOUND`. This appears to be
+  a console-only convenience for autofilling `login_user.ssh_keys` in the web
+  UI. From the API, pass the actual public-key text directly (e.g. from
+  `~/.ssh/id_rsa.pub`) — do not try to reference an account key by name.
+- Never print or commit a private SSH key. Fingerprint (`ssh-keygen -l -f
+  <path>.pub`) is fine to log; the key body is not.
+
 ---
 
 ### 13.6 THINK Burst Execution
@@ -992,6 +1019,8 @@ The connection path used:
 ### Required Human Action (EXACT) — historical SSH direction SUPERSEDED (kept for record; do not act)
 
 SSH-to-UpCloud is no longer on the roadmap. No key registration, no SSH adapter, no UpCloud compute execution will be pursued. UpCloud remains control-plane only.
+
+**SUPERSEDED 2026-09-28** — see "UpCloud HERMES Worker — SSH Key Provisioning Verified (2026-09-28)" in the Work Log below and §13.5. SSH-to-UpCloud is back on the roadmap for the HERMES worker effort; the correct key-injection mechanism (`login_user.ssh_keys.ssh_key` at creation time) is now known and verified live. This does not reopen the historical `212.147.250.183` / `kilo-upcloud` path above, which remains dead.
 
 ### PR Status (2026-09-19)
 
@@ -1840,6 +1869,52 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Four-state classification:** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED — ready for founder review
 - **Note:** MCP registry currently uses fallback servers when GitHub API is unavailable. Remote registry fetch can be re-enabled if anthropics/mcp-servers becomes available as a public repository.
 - **Next:** Founder review → PR merge. Phase 2 (auto-install integration into agent loop) deferred per spec.
+
+### UpCloud HERMES Worker — SSH Key Provisioning Verified (2026-09-28)
+
+- **Goal:** provision a real UpCloud Linux worker reachable by SSH key, as
+  infrastructure for a future HERMES worker deployment. Documentation-only
+  entry — no application code changed.
+- **worker-01** (`kudbee-hermes-worker-01`, UUID
+  `00f08f70-f805-4fca-ba34-c066addde26c`, `152.44.37.207`, us-chi1,
+  1xCPU-2GB): created earlier in this session without `login_user.ssh_keys`.
+  Reachable on port 22 (SSH daemon responds) but **not SSH-authenticatable**
+  by either key (no key was injected) or password (root password from
+  creation was not retained across the session, and the API has no
+  password-reset endpoint). Left untouched; unresolved. Founder must use the
+  UpCloud web console to recover access (console reset password, or delete).
+- **worker-02, first attempt** (UUID `003bc8e7-213d-4101-94c7-8607dec18bb1`,
+  `209.50.50.19`): created with a top-level `server.ssh_keys` attribute →
+  API accepted the request but silently ignored it (no error at creation
+  time; the attribute doesn't exist server-side under that name for a plain
+  `POST /server`, confirmed separately that it's `UNKNOWN_ATTRIBUTE` when
+  tried again). SSH key auth failed (`Permission denied (publickey)`);
+  password auth also refused (`Authentications that can continue:
+  publickey` — the Ubuntu 22.04 cloud-init template offers no password
+  login). Confirmed unrepairable: `PUT /1.3/server/{uuid}` with
+  `login_user` → `UNKNOWN_ATTRIBUTE` (creation-only field). Stopped
+  (hard) and deleted, including its storage (`DELETE
+  /1.3/server/{uuid}?storages=1`).
+- **worker-02, corrected** (`kudbee-hermes-worker-02`, UUID
+  `00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`, us-chi1,
+  1xCPU-2GB, 10GB, Ubuntu 22.04.5 LTS): created with the public key from
+  `~/.ssh/id_rsa.pub` under `server.login_user.ssh_keys.ssh_key` (array of
+  raw OpenSSH key strings) and `login_user.create_password: "no"`. Reached
+  `started`. `ssh -i ~/.ssh/id_rsa root@209.50.51.174` succeeded with no
+  password prompt; verified remotely: `hostname` = `kudbee-hermes-worker-02`,
+  `whoami` = `root`, `/etc/os-release` PRETTY_NAME = `Ubuntu 22.04.5 LTS`.
+- **Durable rule extracted:** see §13.5 above — SSH keys are creation-time
+  only, under `login_user.ssh_keys.ssh_key`, never a top-level `ssh_keys`
+  attribute, and never attachable after the fact.
+- **Four-state:** infrastructure/SSH — **LIVE VERIFIED** (real server, real
+  SSH session, real command output, no fabricated evidence). HERMES worker
+  software — **NOT INSTALLED**. HERMES runtime — **NOT VERIFIED**. No
+  Think Box → HERMES execution proof exists yet. **NOT PRODUCTION READY.**
+- **Next larger improvement:** prepare worker-02 as a clean execution host,
+  install the HERMES worker software, wire it into the Think Box
+  execution/control path, run one bounded end-to-end proof, and classify
+  the result honestly. None of that is done yet — this entry is
+  infrastructure provisioning only.
 
 ### Open items / debt (be honest here)
 
