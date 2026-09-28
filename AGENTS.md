@@ -1396,23 +1396,28 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
 
-### 2026-09-28 (early CT) — PR #273 in progress: Feature 1 Phase 3 — Persistent Memory Integration
+### 2026-09-28 (CT) — PR #273 READY: Feature 1 Phase 3 — Persistent Memory Integration
 
-- **Branch:** `feat/pr273-persistent-memory`
-- **Phase:** Feature 1 Phase 3 (CLI + Memory API + Auto-save)
-- **What's been done:**
-  - CLI commands: `/notes [LAYER]`, `/remember TEXT`, `/forget ID|QUERY`
+- **Branch:** `feat/pr273-persistent-memory` (ready for founder review)
+- **Phase:** Feature 1 Phase 3 COMPLETE (CLI + Memory API + Auto-save + Tests + E2E proof)
+- **What landed:**
+  - CLI commands: `/notes [LAYER]`, `/remember TEXT`, `/forget ID|QUERY` with color-coded layers
   - API endpoints: `GET /api/memory/notes?sessionId=&layer=&limit=`, `POST /api/memory/notes`, `DELETE /api/memory/notes/:id`
+  - Auto-save on run completion: persists run_metadata, cost, tokens, files to SQLite
   - sessionId handling: CLI uses client.sessionId for per-session memory persistence
-  - Color-coded output: session (cyan), task (magenta), org (yellow), verified (green)
-  - Commits: `4bae69f8`, `4ed13824`
-  - Tests: Phase 1 persistence layer (15 tests) all passing
-- **Still pending:**
-  - Auto-save on run completion
-  - Dashboard memory panel UI
-  - E2E restart proof test
-  - Tests for CLI commands
-- **Follow-ups:** Auto-save wiring, E2E restart test, dashboard memory panel
+  - Non-blocking DB writes: errors logged but don't crash run completion
+  - Tests: Phase 1 persistence layer (15), CLI memory commands (7), E2E restart proof (3) = 25 tests
+  - Commits: `4bae69f8`, `4ed13824`, `ba3e1269`, `4f9e8253`, `96850618`, `12ad87dc`
+- **E2E restart proof:**
+  - Write memory + run metadata + dashboard state → close process → reopen → verify all intact
+  - Multi-session isolation validated
+  - Run history aggregation validated
+- **Verified:**
+  - Memory survives restart (no regression on Phase 2 restore)
+  - CLI commands work with layer filtering
+  - sessionId correctly scoped per session
+  - Non-blocking persistence on run completion
+- **Next phase:** Feature 5 (token telemetry KPI) or Feature 3 streaming — wait for founder
 
 ### 2026-09-27 (late night CT) — PR #272 in progress: Dashboard CSS & Layout Redesign
 
