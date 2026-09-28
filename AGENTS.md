@@ -1438,10 +1438,20 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - Unit: `token-routing.test.ts` — 7 tests (simple/complex routing, JSON/code/length detection, manual override, telemetry calc)
   - Integration: `token-stats-integration.test.ts` — 4 tests (persist telemetry, aggregate savings, track auto|manual, restart proof)
 - **What's left:**
-  - Dashboard KPI HTML/CSS integration (optional: can add in PR 272 follow-up)
-  - Final verification: two consecutive runs → KPI updates → restart keeps aggregates
+  - Final verification: two consecutive runs → KPI updates → restart keeps aggregates (needs `ollama pull qwen2.5:1.5b` on a host with network)
   - PR open (do not merge)
 - **Next:** After PR is up, Feature 7 (MCP registry skeleton)
+
+### 2026-09-28 (later still CT) — Dashboard KPI: "Tokens saved (est.)" wired into apps/web/public
+
+- **Branch:** `feat/pr274-token-telemetry` (same PR)
+- **What landed:**
+  - New KPI tile in the existing `.kpi-grid` (Agent Metrics panel): "Tokens saved (est.)", green (`kpi-success`) like the Success KPI
+  - Second sparkline row below the existing Runs sparkline, reusing PR 272's `.sparkline` / `.sparkline-label` classes — no new layout primitives
+  - Two new CSS bar variants: `.bar.savings` (green gradient — a real auto-routed local-model run) and `.bar.fallback` (dashed, dim — `auto_fallback_no_local` fired, zero savings, shown honestly rather than hidden)
+  - `refreshTokenSavings()` in `app.js`: fetches `GET /api/stats/tokens?sessionId=&limit=24`, called from `refreshStats()`'s existing 3s poll loop — **not** awaited inline, so a hiccup on this endpoint can't flip the whole metrics panel to "Offline" for an unrelated reason
+  - Sparkline bars are chronological (oldest→newest) — the `/api/stats/tokens` ordering bug (DB returns newest-first) was caught and fixed in the same PR before this UI landed on top of it
+- **Manual verification still needed (network-gated):** open http://127.0.0.1:3000, run two goals (one simple, one complex) with `qwen2.5:1.5b` pulled, confirm the KPI number and sparkline update, then restart the server and confirm the aggregate KPI value survives (reads from SQLite, not in-memory state — already covered by `token-stats-integration.test.ts`'s restart proof at the persistence layer, but not yet clicked through in a browser)
 
 ### 2026-09-28 (later CT) — Fix: cheap local route never actually fired (Mercury-2 always won)
 

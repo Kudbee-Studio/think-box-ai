@@ -1147,6 +1147,10 @@ async function refreshStats() {
     document.getElementById('metric-failures').innerHTML = Object.entries(s.failures || {})
       .map(([kind, count]) => `<span title="Failure type">${escapeHtml(kind)} × ${count}</span>`).join('');
 
+    // Independent try/catch: a token-stats hiccup shouldn't flip the whole
+    // metrics panel to "Offline" for an unrelated endpoint.
+    refreshTokenSavings();
+
     const c = s.capacity;
     document.getElementById('cap-agents-text').textContent = `${c.running_agents} running · ${c.queued_goals} queued · ${c.connected_sessions} session(s)`;
     setMeter('cap-agents', c.connected_sessions ? (c.running_agents / c.connected_sessions) * 100 : 0);
@@ -1161,6 +1165,38 @@ async function refreshStats() {
     document.getElementById('metrics-badge').textContent = s.running ? `${s.running} running` : 'Live';
   } catch (error) {
     document.getElementById('metrics-badge').textContent = 'Offline';
+  }
+}
+
+// Feature 5: "Tokens saved (est.)" KPI + sparkline, sourced from /api/stats/tokens
+// (aggregates run_metadata.metrics.tokens_saved_est via the SQLite persistence layer).
+async function refreshTokenSavings() {
+  if (!state.sessionId) return;
+  try {
+    const response = await fetch(`/api/stats/tokens?sessionId=${encodeURIComponent(state.sessionId)}&limit=24`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const t = await response.json();
+
+    document.getElementById('metric-tokens-saved').textContent = t.totalTokensSavedEst.toLocaleString();
+
+    const detail = document.getElementById('metric-tokens-saved-detail');
+    detail.textContent = t.totalRunsTracked
+      ? `${t.totalRunsTracked} run(s) · avg ~${t.averageSavingsPerRun.toLocaleString()}/run`
+      : 'no data yet';
+
+    const bars = t.sparklineData || [];
+    const max = Math.max(1, ...bars);
+    document.getElementById('token-savings-sparkline').innerHTML = bars.length
+      ? bars.map((saved) => {
+          const title = saved > 0 ? `est. ${saved.toLocaleString()} tokens saved` : 'no local route (Mercury-2 used)';
+          const cls = saved > 0 ? 'savings' : 'fallback';
+          const height = saved > 0 ? (saved / max) * 100 : 8;
+          return `<div class="bar ${cls}" style="height:${height}%" title="${title}"></div>`;
+        }).join('')
+      : '<div class="bar empty" title="no runs yet"></div>';
+  } catch (error) {
+    // Leave last-known values on screen; this KPI is best-effort and shouldn't
+    // interrupt the rest of the metrics panel.
   }
 }
 
