@@ -4,38 +4,29 @@ from __future__ import annotations
 
 import asyncio
 import unittest
-from unittest.mock import patch
 
-import httpx
-
-from thinkbox.model_client import AsyncModelClient, ModelConfig, ModelCallError
+from thinkbox.async_http import AsyncHttpClient
+from thinkbox.model_client import AsyncModelClient, ModelConfig
 
 
 class TestConnectionPool(unittest.TestCase):
     """Test connection pooling in AsyncModelClient."""
 
-    def test_client_initialization_with_pool(self):
-        """AsyncModelClient initializes with connection pool."""
+    def test_client_initialization(self):
+        """AsyncModelClient initializes with async HTTP client."""
 
         async def test():
             config = ModelConfig(api_type="ollama")
             client = AsyncModelClient(config)
-            self.assertTrue(client._use_pool)
 
             # Get client and verify it's created
             http_client = await client._get_client()
             self.assertIsNotNone(http_client)
-            self.assertIsInstance(http_client, httpx.AsyncClient)
+            self.assertIsInstance(http_client, AsyncHttpClient)
+            self.assertEqual(http_client.timeout, config.timeout)
             await client.close()
 
         asyncio.run(test())
-
-    @patch.dict("os.environ", {"ASYNC_PROVIDER_POOL": "false"})
-    def test_client_disable_pool(self):
-        """Connection pool can be disabled via env var."""
-        config = ModelConfig(api_type="ollama")
-        client = AsyncModelClient(config)
-        self.assertFalse(client._use_pool)
 
     def test_client_reuse(self):
         """AsyncClient is reused across calls."""
@@ -48,6 +39,9 @@ class TestConnectionPool(unittest.TestCase):
             http_client_2 = await client._get_client()
 
             self.assertIs(http_client_1, http_client_2)
+            await client.close()
+
+        asyncio.run(test())
             await client.close()
 
         asyncio.run(test())

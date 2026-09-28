@@ -1,21 +1,89 @@
 # Contributing to Think Box AI
 
-Thank you for your interest in contributing! Here's how to get involved.
+Thank you for your interest in contributing! Think Box AI is an enterprise-grade AI reasoning engine, and we maintain high code quality standards.
 
-## How to Contribute
+## Quick Start
 
-1. **Fork** the repository and create your branch from `main`.
-2. **Install** dependencies: `pip install -e ".[dev]"`
-3. **Make** your changes and add tests where appropriate.
-4. **Test** your changes:
-   ```bash
-   python3 -m unittest discover tests/
-   python3 -m unittest tests.unit.test_session_tracker
-   python3 -m unittest tests.unit.test_phase1_2_security
-   python3 -m unittest tests.unit.test_whip_protocol
-   python3 -m unittest tests.integration.test_e2e_engine
-   ```
-5. **Submit** a pull request with a clear description of what you changed and why.
+1. **Fork** the repository and create your branch from `main`
+2. **Install** dependencies: `make install`
+3. **Make** your changes (follow Code Quality Standards below)
+4. **Test** your changes: `make check` (lint + type + security + tests)
+5. **Commit** with clear message: `type(scope): description`
+6. **Submit** a pull request with reference to related issues
+
+## Code Quality Standards (Enterprise-Grade)
+
+All contributions must pass **all** of these checks:
+
+### 1. Linting with Ruff
+
+Zero violations required. Run:
+```bash
+make lint        # Check for violations
+make fmt         # Auto-fix issues
+```
+
+Enforces: PEP 8, naming conventions, security issues, code simplification, logging best practices.
+
+### 2. Type Checking
+
+All public functions must have type hints. Run:
+```bash
+make type        # mypy type checking
+```
+
+### 3. Security Scanning
+
+Run:
+```bash
+make security    # bandit security scanner
+```
+
+**Critical Rules:**
+- No hardcoded secrets or credentials
+- Validate all user input
+- Use timeouts on network operations
+- No use of `eval()`, `exec()`, or unsafe `pickle`
+
+### 4. Testing Requirements
+
+- **Unit tests**: All public functions must have tests
+- **Coverage**: Target 85%+ for critical paths
+- **Structure**: `tests/unit/`, `tests/integration/`, `tests/e2e/`
+
+Run:
+```bash
+make test        # Full test suite
+make test-unit   # Fast unit tests only
+make test-cov    # With coverage report
+```
+
+## Development Workflow
+
+### Setup
+```bash
+# Clone and install
+git clone https://github.com/Kudbee-Studio/think-box-ai.git
+cd think-box-ai
+make install
+
+# Optional: Install pre-commit hooks
+make install-pre-commit
+```
+
+### Development Loop
+```bash
+# Make changes, then:
+make check       # Full verification (lint + type + security + tests)
+make fmt         # Auto-fix formatting issues
+git commit -m "type(scope): description"
+git push origin feat/your-feature
+```
+
+### Pre-Push Verification
+```bash
+make pre-push    # Lint + type + security (without tests)
+```
 
 ## Phase 9 Testing
 

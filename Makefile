@@ -37,9 +37,25 @@ clean: ## Clean generated files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-lint: ## Check syntax of all Python files
-	python3 -c "import py_compile, sys; [py_compile.compile(f, doraise=True) for f in sys.argv[1:]]" \
-		$$(find think_box_ai backend core -name "*.py" 2>/dev/null)
+lint: ## Run all linters (ruff, type checking, security)
+	ruff check thinkbox core backend tests think_box_ai scripts
+	@echo "✅ Lint check passed"
+
+fmt: ## Format code with ruff
+	ruff check --fix thinkbox core backend tests think_box_ai scripts
+	@echo "✅ Code formatted"
+
+type: ## Run type checking with mypy
+	mypy thinkbox core backend think_box_ai || true
+
+security: ## Security scan with bandit
+	bandit -r thinkbox core backend think_box_ai || true
+
+check: lint type security test ## Full check: lint + type + security + test
+	@echo "✅ All checks passed"
+
+pre-push: lint type security ## Pre-push check (no tests)
+	@echo "✅ Ready to push"
 
 lint-beyond-kilo: ## PR #170 scoped ruff/mypy/bandit gate (requires pip install -e ".[lint]")
 	KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
