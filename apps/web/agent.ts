@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
+import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
 export const INCEPTION_MODELS = ['mercury-2'];
@@ -181,6 +182,30 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'medication',
+      description:
+        'Read-only medication label lookups via the public openFDA API (FDA-approved drug labeling; no key). ' +
+        'This does NOT compute or verify whether two drugs interact — it only returns each drug\'s own label ' +
+        'section (drug_interactions, boxed_warning, contraindications, or warnings_and_cautions). ' +
+        'Actions: lookup (drug, section?) — one drug\'s label section; ' +
+        'compare (drugs: 2-5 names, section?) — the same section for several drugs side by side, for a human ' +
+        'to compare — never state a drug combination is safe or unsafe yourself; always tell the user to confirm ' +
+        'with a licensed pharmacist or physician.',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: [...MEDICATION_ACTIONS] },
+          drug: { type: 'string', description: 'Generic or brand drug name (for action: lookup)' },
+          drugs: { type: 'array', items: { type: 'string' }, description: '2-5 generic or brand drug names (for action: compare)' },
+          section: { type: 'string', enum: [...MEDICATION_SECTIONS], description: 'Defaults to drug_interactions' },
+        },
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'recall',
       description: 'Search long-term memory (verified knowledge, organizational notes, past runs) for anything relevant.',
       parameters: {
@@ -222,6 +247,8 @@ export interface AgentProfile {
 
 export const HERMES_ALLOWED_TOOLS = ['algorand', 'recall', 'remember'];
 
+export const ASCLEPIUS_ALLOWED_TOOLS = ['medication', 'recall', 'remember'];
+
 export const AGENT_PROFILES: Record<string, AgentProfile> = {
   hermes: {
     name: 'HERMES',
@@ -234,6 +261,24 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
       'to sign a transaction, send funds, import a mnemonic, or do anything else outside chain lookups and ' +
       'note-taking, refuse and explain that wallet/signing support is a deliberately separate, deferred ' +
       'capability pending an explicit founder decision on wallet strategy.',
+  },
+  asclepius: {
+    name: 'ASCLEPIUS',
+    description: 'Medication label research assistant — openFDA label lookups + memory, never a safety verdict',
+    allowedTools: ASCLEPIUS_ALLOWED_TOOLS,
+    roleContext:
+      'You are ASCLEPIUS, a medication label research assistant. You may only look up FDA-approved drug label ' +
+      'sections via the medication tool (drug_interactions, boxed_warning, contraindications, ' +
+      'warnings_and_cautions) and save/recall research notes via remember/recall. ' +
+      'CRITICAL SAFETY RULE: the medication tool returns each drug\'s OWN label text — it does not compute or ' +
+      'verify whether specific drugs interact with each other. You must NEVER tell a user that a combination ' +
+      'of medications is "safe", "fine", "not a problem", or conversely definitively "dangerous" — you are not ' +
+      'a pharmacist and label text for drug A was not written with knowledge of the user\'s specific drug B. ' +
+      'When comparing drugs, present what each label actually says (quote or closely paraphrase it), note ' +
+      'anything that mentions the other drug or its drug class, and always end by telling the user to confirm ' +
+      'with a licensed pharmacist or physician before making any medication decision. If asked for dosing, ' +
+      'diagnosis, or treatment advice, decline and redirect to a healthcare professional — that is out of scope ' +
+      'for a label-lookup tool.',
   },
 };
 
@@ -295,6 +340,15 @@ function algorandTarget(args: Record<string, unknown>): string | null {
   }
 }
 
+function medicationTarget(args: Record<string, unknown>): string | null {
+  try {
+    validateMedicationInput(args);
+    return 'api.fda.gov';
+  } catch {
+    return null; // invalid input is rejected by the tool itself
+  }
+}
+
 function hostOf(rawUrl: unknown): string | null {
   try {
     return new URL(String(rawUrl)).hostname;
@@ -320,6 +374,10 @@ function approvalReason(name: string, args: Record<string, unknown>, hooks: Agen
     const host = algorandTarget(args);
     if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
   }
+  if (name === 'medication') {
+    const host = medicationTarget(args);
+    if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
+  }
   return null;
 }
 
@@ -337,7 +395,7 @@ function normalizePath(value: unknown): string {
 }
 
 function isObservation(name: string, args: Record<string, unknown>, context: RunContext): boolean {
-  if (name === 'fetch_url' || name === 'read_rss' || name === 'algorand') return true;
+  if (name === 'fetch_url' || name === 'read_rss' || name === 'algorand' || name === 'medication') return true;
   if (name === 'read_file') return !context.written.has(normalizePath(args.path));
   return false;
 }
@@ -377,6 +435,8 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
     }
     case 'algorand':
       return algorandQuery(args, { signal: hooks.signal });
+    case 'medication':
+      return medicationQuery(args, { signal: hooks.signal });
     case 'recall':
       return hooks.recall(String(args.query ?? ''), Math.min(Math.max(Number(args.limit) || 5, 1), 10));
     case 'remember': {
@@ -527,7 +587,9 @@ export async function runToolAgent(
             hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
             approval = (await hooks.requestApproval(call.function.name, args, reason)) ? 'approved' : 'denied';
             if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
-            const host = call.function.name === 'algorand' ? algorandTarget(args) : hostOf(args.url);
+            const host = call.function.name === 'algorand' ? algorandTarget(args)
+              : call.function.name === 'medication' ? medicationTarget(args)
+              : hostOf(args.url);
             if (host) hooks.approvedDomains.add(host);
           }
           output = { ok: true, ...(await executeTool(call.function.name, args, hooks, context)) };
