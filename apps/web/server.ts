@@ -30,6 +30,7 @@ import { INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent }
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
+import PersistenceLayer from './persistence.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,11 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
+// Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
+// as a legacy alias so old configs pointing at the earlier model name still resolve.
+const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
+const rawDefaultLocalModel = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
+const defaultLocalModel = LEGACY_LOCAL_MODEL_ALIASES[rawDefaultLocalModel.toLowerCase()] || rawDefaultLocalModel;
 const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
@@ -71,6 +77,9 @@ const dataDir = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
 const runStore = new RunStore(path.join(dataDir, 'runs.json'));
 const memoryStore = new MemoryStore(process.env.KUDBEE_MEMORY_DIR || path.join(dataDir, 'memory'));
 void memoryStore.syncVectors();
+
+// ─── Persistent storage (SQLite) ────────────────────────────────
+const persistence = new PersistenceLayer(dataDir);
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -448,6 +457,9 @@ class AgentSession {
   readonly plugins: Map<string, Plugin> = new Map();
   status = 'idle';
   abort: AbortController | null = null;
+  /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
+  readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any> }> = [];
+  private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
   history: Array<{ goal: string; result: string }> = [];
@@ -457,7 +469,7 @@ class AgentSession {
   constructor(id: string, config: SessionConfigInput = {}) {
     this.id = id;
     this.config = {
-      model: config.model ?? (inceptionConfigured() ? INCEPTION_MODELS[0] : 'smollm2:135m'),
+      model: config.model ?? (inceptionConfigured() ? INCEPTION_MODELS[0] : defaultLocalModel),
       provider: config.provider ?? (inceptionConfigured() ? 'inception' : 'ollama'),
       maxIterations: config.maxIterations ?? 20,
       temperature: config.temperature ?? 0.7,
@@ -665,12 +677,52 @@ class AgentSession {
     }
   }
 
-  async runGoal(goal: string): Promise<PluginResult> {
-    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal);
+  /**
+   * Single entry point for goals. A session runs one goal at a time: concurrent runs would share the
+   * abort controller and approval map, so extra goals wait in `queue` as visible "queued" tasks.
+   */
+  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>): { queued: boolean; position: number; task_id?: string } {
+    if (this.busy) {
+      const task = this.addTask({ description: goal, status: 'queued' });
+      this.queue.push({ goal, model, task, routeTelemetry });
+      this.broadcast({ type: 'queued', data: { task_id: task.id, goal, position: this.queue.length } });
+      return { queued: true, position: this.queue.length, task_id: task.id };
+    }
+    void this.drain({ goal, model, routeTelemetry });
+    return { queued: false, position: 0 };
+  }
+
+  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> }): Promise<void> {
+    this.busy = true;
+    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> } | undefined = first;
+    try {
+      while (next) {
+        if (next.model) {
+          this.config.model = next.model;
+          this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
+        }
+        this.broadcast({ type: 'status', data: 'running' });
+        const result = await this.runGoal(next.goal, next.task, next.routeTelemetry);
+        this.broadcast({ type: 'result', data: result });
+        next = this.queue.shift();
+      }
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Reuses the task created at enqueue time, or creates one for a goal that starts immediately. */
+  private beginTask(goal: string, queued?: Task): Task {
+    if (queued) return this.updateTask(queued.id, { status: 'running' }) ?? queued;
+    return this.addTask({ description: goal, status: 'running' });
+  }
+
+  async runGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
+    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry);
     this.status = 'running';
     this.addThought({ type: 'goal', content: `Starting goal: ${goal}`, status: 'info' });
 
-    const task = this.addTask({ description: goal, status: 'running' });
+    const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
     const modelStartedAt = Date.now();
 
@@ -764,17 +816,21 @@ class AgentSession {
     pending.resolve(approved);
   }
 
-  async runAgentGoal(goal: string): Promise<PluginResult> {
+  async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
     this.addThought({ type: 'goal', content: `Worker agent (${this.config.model}) starting: ${goal}`, status: 'info' });
-    const task = this.addTask({ description: goal, status: 'running' });
+    const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
+    if (routeTelemetry) record.routeTelemetry = routeTelemetry;
     this.broadcast({ type: 'run_update', data: record });
     try {
       // Knowledge and episodes are recalled separately so repeated goals cannot crowd out notes.
-      const knowledge = await memoryStore.search(goal, { layers: ['verified', 'org'], topK: 3 });
-      const episodes = await memoryStore.search(goal, { layers: ['task'], topK: 2 });
+      // Parallelized: both searches run concurrently instead of sequentially.
+      const [knowledge, episodes] = await Promise.all([
+        memoryStore.search(goal, { layers: ['verified', 'org'], topK: 3 }),
+        memoryStore.search(goal, { layers: ['task'], topK: 2 }),
+      ]);
       const recalled = { hits: [...knowledge.hits, ...episodes.hits], backend: knowledge.backend };
       record.recalled = recalled.hits.map((hit) => hit.item.id);
       if (recalled.hits.length) {
@@ -823,6 +879,37 @@ class AgentSession {
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
+
+      // Auto-save run metadata to persistent DB (Phase 3 + Feature 5 token telemetry)
+      try {
+        await persistence.saveRunMetadata({
+          runId: record.id,
+          sessionId: this.id,
+          goal: record.goal,
+          status: status as 'running' | 'completed' | 'failed' | 'stopped',
+          startTime: record.started_at,
+          endTime: Date.now(),
+          metrics: {
+            tokens: record.tokens,
+            cost_usd: record.cost_usd,
+            duration_ms: record.duration_ms,
+            tool_calls: record.approvals.tool_calls,
+            approvals_approved: record.approvals.approved,
+            approvals_denied: record.approvals.denied,
+            // Feature 5: Token telemetry
+            model_selected: record.routeTelemetry?.modelSelected ?? this.config.model,
+            route_reason: record.routeTelemetry?.routeReason ?? 'auto',
+            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? record.tokens,
+            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? record.tokens,
+            tokens_saved_est: record.routeTelemetry?.tokensSavedEst ?? 0,
+          },
+          files: record.files,
+          createdAt: record.started_at,
+        });
+      } catch (dbErr) {
+        // Log but don't crash: DB write failure shouldn't block run completion
+        console.error(`[persistence] Failed to save run metadata for ${record.id}:`, dbErr);
+      }
       this.memory.push({ timestamp: Date.now(), type: 'agent_run', run_id: record.id, goal, status, cost_usd: record.cost_usd } as MemoryEntry);
       if (run.success) {
         this.history.push({ goal, result: run.result ?? '' });
@@ -892,6 +979,11 @@ class AgentSession {
   }
 
   stop(): void {
+    // Stop means stop everything: the running goal is aborted and nothing queued behind it starts.
+    for (const waiting of this.queue.splice(0)) {
+      this.updateTask(waiting.task.id, { status: 'cancelled', error: 'Cancelled by stop before it started' } as Partial<Task>);
+      this.broadcast({ type: 'result', data: { success: false, cancelled: true, error: `Cancelled before it started: ${waiting.goal}` } });
+    }
     this.abort?.abort();
     for (const id of [...this.pendingApprovals.keys()]) this.resolveApproval(id, false);
     this.status = 'idle';
@@ -907,6 +999,12 @@ wss.on('connection', async (ws: WebSocket) => {
   sessions.set(sessionId, session);
   void fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true });
 
+  // Restore dashboard state from persistent storage
+  const savedState = await persistence.restoreDashboardState(sessionId);
+  if (savedState?.settings) {
+    Object.assign(session.config, savedState.settings);
+  }
+
   ws.send(
     JSON.stringify({
       type: 'init',
@@ -918,6 +1016,7 @@ wss.on('connection', async (ws: WebSocket) => {
         files: Array.from(session.files.entries()),
         tasks: session.tasks,
         thoughts: session.thoughts,
+        restoredState: savedState,
       },
     }),
   );
@@ -928,13 +1027,8 @@ wss.on('connection', async (ws: WebSocket) => {
 
       switch (msg.type) {
         case 'run_goal': {
-          if (typeof msg.model === 'string' && msg.model) {
-            session.config.model = msg.model;
-            session.config.provider = isInceptionModel(msg.model) ? 'inception' : 'ollama';
-          }
-          session.broadcast({ type: 'status', data: 'running' });
-          const result = await session.runGoal(String(msg.goal));
-          ws.send(JSON.stringify({ type: 'result', data: result }));
+          const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? msg.routeTelemetry : undefined;
+          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any);
           break;
         }
 
@@ -974,7 +1068,29 @@ wss.on('connection', async (ws: WebSocket) => {
 
         case 'update_config': {
           Object.assign(session.config, msg.config);
+          // Save config to persistent storage (debounced)
+          void persistence.saveDashboardState({
+            sessionId,
+            settings: session.config,
+            lastUpdate: Date.now(),
+            createdAt: Date.now()
+          });
           ws.send(JSON.stringify({ type: 'config_updated', data: session.config }));
+          break;
+        }
+
+        case 'state_save': {
+          // Save full dashboard state on demand
+          const state = {
+            sessionId,
+            panelState: (msg.panelState as Record<string, any>) || {},
+            viewState: (msg.viewState as Record<string, any>) || {},
+            settings: session.config,
+            lastUpdate: Date.now(),
+            createdAt: Date.now()
+          };
+          await persistence.saveDashboardState(state);
+          ws.send(JSON.stringify({ type: 'state_saved', data: { success: true } }));
           break;
         }
 
@@ -1100,18 +1216,27 @@ app.get('/api/middleware/test', async (_req: Request, res: Response) => {
 });
 
 let lastCpu = { usage: process.cpuUsage(), at: Date.now() };
+let statsCache = { data: null as any, at: 0 };
+
 app.get('/api/stats', (_req: Request, res: Response) => {
+  // Cache stats for 500ms to reduce computation on rapid dashboard polls
+  const now = Date.now();
+  if (statsCache.data && now - statsCache.at < 500) {
+    return res.json(statsCache.data);
+  }
+
   const usage = process.cpuUsage(lastCpu.usage);
-  const elapsedMs = Math.max(1, Date.now() - lastCpu.at);
-  lastCpu = { usage: process.cpuUsage(), at: Date.now() };
+  const elapsedMs = Math.max(1, now - lastCpu.at);
+  lastCpu = { usage: process.cpuUsage(), at: now };
   const memory = process.memoryUsage();
   const running = [...sessions.values()].filter((session) => session.status === 'running').length;
-  res.json({
+  const stats = {
     ...runStore.stats(),
     budget_usd: dailyBudgetUsd || null,
     memory: { counts: memoryStore.counts(), vector: memoryStore.vectorStatus },
     capacity: {
       running_agents: running,
+      queued_goals: [...sessions.values()].reduce((sum, session) => sum + session.queue.length, 0),
       connected_sessions: sessions.size,
       pending_approvals: [...sessions.values()].reduce((sum, session) => sum + session.pendingApprovals.size, 0),
       server_cpu_pct: Math.round(((usage.user + usage.system) / 1000 / elapsedMs) * 1000) / 10,
@@ -1121,12 +1246,22 @@ app.get('/api/stats', (_req: Request, res: Response) => {
       load_avg: os.loadavg().map((load) => Math.round(load * 100) / 100),
       cores: os.cpus().length,
     },
-  });
+  };
+  statsCache = { data: stats, at: now };
+  res.json(stats);
 });
 
+let runsListCache = { data: null as any, at: 0 };
 app.get('/api/runs', (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
-  res.json({ runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) });
+  const now = Date.now();
+  // Cache runs list for 1s; on rapid polls this cuts response time significantly
+  if (runsListCache.data && now - runsListCache.at < 1000 && (runsListCache.data as any).runs.length === runStore.list(1).length) {
+    return res.json(runsListCache.data);
+  }
+  const data = { runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
+  runsListCache = { data, at: now };
+  res.json(data);
 });
 
 app.get('/api/runs/:id', (req: Request, res: Response) => {
@@ -1399,8 +1534,10 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const result = await session.runGoal(String(req.body.goal));
-  res.json(result);
+  const goal = String(req.body?.goal ?? '').trim();
+  if (!goal) return res.status(400).json({ error: 'goal is required' });
+  // Goes through the session queue like WebSocket goals; follow progress via /api/runs.
+  res.status(202).json(session.submitGoal(goal, typeof req.body.model === 'string' ? req.body.model : undefined));
 });
 
 app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
@@ -1410,12 +1547,139 @@ app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// ─── Memory Notes (Persistent Storage) ────────────────────────
+app.get('/api/memory/notes', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const layer = req.query.layer as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 200);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    const notes = await persistence.listMemoryNotes(sessionId, layer, limit);
+    res.json({ notes });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/memory/notes', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const { title, content, layer = 'session' } = req.body as any;
+
+    if (!sessionId || !title || !content) {
+      return res.status(400).json({ error: 'sessionId, title, content required' });
+    }
+
+    const id = randomUUID();
+    const now = Date.now();
+    await persistence.saveMemoryNote({
+      id,
+      sessionId,
+      layer: layer as any,
+      title,
+      content,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    res.json({ id, title, layer, createdAt: now });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.delete('/api/memory/notes/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    // Phase 3: soft-delete tracking only; full DB delete in Phase 4
+    res.json({ deleted: id });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ─── Run History (Persistent Storage) ──────────────────────────
+app.get('/api/runs/history', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    // Try persistent DB first
+    const dbRuns = await persistence.listRuns(sessionId, limit);
+    if (dbRuns.length > 0) {
+      return res.json({ runs: dbRuns, source: 'db' });
+    }
+
+    // Fallback to JSON run store
+    const allRuns = runStore.all().filter((r) => r.sessionId === sessionId);
+    const runs = allRuns
+      .slice(0, limit)
+      .map((r) => ({
+        runId: r.id,
+        sessionId: r.sessionId,
+        goal: r.goal,
+        status: r.status,
+        startTime: r.start_time,
+        endTime: r.end_time,
+        metrics: { tokens: (r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0), cost: r.cost_usd },
+        files: r.files,
+        createdAt: r.start_time
+      }));
+
+    res.json({ runs, source: 'json' });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Feature 5: Token stats for KPI dashboard
+app.get('/api/stats/tokens', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    // listRuns() returns newest-first (createdAt DESC); a sparkline needs
+    // chronological order (oldest→newest) or the trend line reads backwards.
+    const runs = await persistence.listRuns(sessionId, limit);
+    const chronological = [...runs].reverse();
+
+    const savedPerRun = chronological.map((run) => (run.metrics?.tokens_saved_est as number) || 0);
+    const totalTokensSavedEst = savedPerRun.reduce((sum, v) => sum + v, 0);
+
+    const tokenStats = {
+      totalTokensSavedEst,
+      totalRunsTracked: runs.length,
+      averageSavingsPerRun: runs.length > 0 ? Math.round(totalTokensSavedEst / runs.length) : 0,
+      lastRunTokensSaved: runs.length > 0 ? ((runs[0].metrics?.tokens_saved_est as number) || 0) : 0,
+      sparklineData: savedPerRun,
+    };
+
+    res.json(tokenStats);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── Start server ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+// SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md)
+const LISTEN_ADDR = process.env.LISTEN_ADDR || '127.0.0.1';
+server.listen(PORT, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
-  console.log(`   Backend:  http://localhost:${PORT}`);
-  console.log(`   WebSocket: ws://localhost:${PORT}`);
+  console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
+  console.log(`   WebSocket: ws://${LISTEN_ADDR}:${PORT}`);
   console.log(`   Models:   Ollama ${ollamaBaseUrl}${inceptionConfigured() ? ' + Inception mercury-2 (worker agent)' : ''}`);
   console.log(`\n   Ready.\n`);
 });

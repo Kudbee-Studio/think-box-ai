@@ -210,6 +210,7 @@
             <div class="kpi"><span>Success</span><strong id="metric-suc" class="kpi-success">—</strong></div>
             <div class="kpi"><span>p50 / p95</span><strong id="metric-lat">—</strong></div>
             <div class="kpi"><span>Cost today</span><strong id="metric-cost">$0.0000</strong></div>
+            <div class="kpi"><span>Tokens saved (est.)</span><strong id="metric-tokens-saved" class="kpi-success">0</strong></div>
           </div>
           <div class="budget-row" id="budget-row" hidden>
             <div class="meter"><div id="budget-bar" class="meter-fill"></div></div>
@@ -217,6 +218,8 @@
           </div>
           <div class="sparkline-label"><span>Runs · last 24h</span><small id="metric-tokens">0 tokens today</small></div>
           <div id="sparkline" class="sparkline" aria-label="Runs per hour, last 24 hours"></div>
+          <div class="sparkline-label"><span>Tokens saved · last runs (auto-route)</span><small id="metric-tokens-saved-detail">no data yet</small></div>
+          <div id="token-savings-sparkline" class="sparkline" aria-label="Estimated tokens saved per run, oldest to newest"></div>
           <div id="metric-failures" class="failure-tags"></div>
         </div>
 

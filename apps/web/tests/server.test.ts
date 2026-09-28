@@ -247,3 +247,69 @@ test('workspace routes reject non-session ids and path traversal', async () => {
     client.ws.close();
   }
 });
+
+test('goals sent while one runs are queued and run in order, one at a time', async () => {
+  mock.script([{ content: 'first answer', delayMs: 300 }, say('second answer')]);
+  const client = await connect();
+  try {
+    client.send({ type: 'run_goal', goal: 'first goal', model: 'mercury-2' });
+    client.send({ type: 'run_goal', goal: 'second goal', model: 'mercury-2' });
+    const queued = await client.next('queued');
+    assert.equal(queued.data.goal, 'second goal');
+    assert.equal(queued.data.position, 1);
+    const queuedTask = client.messages.find((m) => m.type === 'task' && m.data.description === 'second goal');
+    assert.equal(queuedTask.data.status, 'queued');
+
+    const first = await client.next('result');
+    const second = await client.next('result');
+    assert.equal(first.data.result, 'first answer');
+    assert.equal(second.data.result, 'second answer');
+    // The queued task is reused (not duplicated) once it starts.
+    const secondRun = await json(`/api/runs/${second.data.run_id}`);
+    assert.equal(secondRun.body.id, queuedTask.data.id);
+    assert.equal(mock.requests.length, 2, 'never two model calls in flight for one session');
+  } finally {
+    client.ws.close();
+  }
+});
+
+test('stop aborts the running goal and cancels everything queued behind it', async () => {
+  mock.script([{ content: 'slow', delayMs: 5000 }, say('must not run'), say('must not run')]);
+  const client = await connect();
+  try {
+    client.send({ type: 'run_goal', goal: 'long goal', model: 'mercury-2' });
+    client.send({ type: 'run_goal', goal: 'queued one', model: 'mercury-2' });
+    client.send({ type: 'run_goal', goal: 'queued two', model: 'mercury-2' });
+    await client.next('queued');
+    await client.next('queued');
+    client.send({ type: 'stop' });
+    const results = [await client.next('result'), await client.next('result'), await client.next('result')].map((m) => m.data);
+    assert.equal(results.filter((r) => r.cancelled).length, 2);
+    assert.ok(results.some((r) => /Stopped by user/.test(String(r.error))));
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(mock.requests.length, 1, 'queued goals never reached the model');
+    const cancelledTasks = client.messages.filter((m) => m.type === 'task_update' && m.data.status === 'cancelled');
+    assert.equal(cancelledTasks.length, 2);
+  } finally {
+    client.ws.close();
+  }
+});
+
+test('REST run endpoint goes through the queue and answers 202', async () => {
+  mock.script([say('rest answer')]);
+  const client = await connect();
+  try {
+    const res = await json(`/api/sessions/${client.init.data.sessionId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: 'from REST' }),
+    });
+    assert.equal(res.status, 202);
+    assert.equal(res.body.queued, false);
+    const { data } = await client.next('result');
+    assert.equal(data.result, 'rest answer');
+    assert.equal((await json(`/api/sessions/${client.init.data.sessionId}/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 400);
+  } finally {
+    client.ws.close();
+  }
+});

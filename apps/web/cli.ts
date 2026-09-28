@@ -14,6 +14,16 @@ const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Cheap local route: default to Qwen2.5 1.5B. 'smollm2' is a legacy alias kept
+// for anyone with existing config/scripts referencing the earlier model name.
+const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
+const RAW_LOCAL_MODEL = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
+const LOCAL_MODEL = LEGACY_LOCAL_MODEL_ALIASES[RAW_LOCAL_MODEL.toLowerCase()] || RAW_LOCAL_MODEL;
+// Name of the enterprise agent model the "complex" route should prefer. The actual
+// candidate list still comes from client.models (server-reported, `agent: true`);
+// this only breaks ties when more than one agent model is available.
+const COMPLEX_MODEL = process.env.KUDBEE_COMPLEX_MODEL || 'mercury-2';
+
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -26,6 +36,8 @@ const c = {
 
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
+type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
+interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
 interface Msg { type: string; data?: any }
@@ -90,6 +102,7 @@ class Client {
   models: Model[] = [];
   plugins: any[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
+  routeTelemetry?: RouteTelemtry;
   private waiters: Array<{ type: string; resolve: (m: Msg) => void }> = [];
 
   connect(): Promise<void> {
@@ -133,7 +146,7 @@ class Client {
   async run(goal: string): Promise<boolean> {
     console.log(c.dim(`▶ ${this.model} working…`));
     const done = this.wait('result');
-    this.send({ type: 'run_goal', goal, model: this.model });
+    this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry });
     const { data: r } = await done;
     console.log();
     if (r.success) console.log(`${c.green('✓')} ${r.result}`);
@@ -197,18 +210,104 @@ async function showRun(prefix: string): Promise<void> {
   if (run.error) console.log(c.red(`\n${run.error}`));
 }
 
-const HELP = `${c.bold('kudbEE CLI')} — type a goal for the worker agent, or a command:
-  /models            list models        /model NAME   switch model
-  /plugins           list plugins       /files        list workspace files
-  /runs              run history        /run ID       step-by-step timeline
-  /metrics           agent metrics      /cat PATH     print a file
-  /memory [QUERY]    memory / search    /remember TITLE - TEXT   save org note
-  /promote org/ID    promote a note to verified knowledge
-  /algo status|account ADDR|asset ID|app ID|tx TXID|txs ADDR [mainnet]   read-only Algorand
-  /status            server health
-  /open              dashboard URL      /stop         stop the running goal
-  /help              this help          /quit         exit
-Example: ${c.cyan('Read https://hnrss.org/frontpage and write top5.md with the 5 top stories')}`;
+async function interactiveModelSelect(client: Client): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    console.log(c.bold('\n🤖 SELECT MODEL\n'));
+    const agents = client.models.filter((m) => m.agent);
+    const local = client.models.filter((m) => !m.agent);
+
+    if (agents.length) {
+      console.log(c.bold('  Enterprise:'));
+      agents.forEach((m, i) =>
+        console.log(`    [${i + 1}] ${m.name} ${c.dim('(full toolkit, tool-using agent)')}`)
+      );
+    }
+    if (local.length) {
+      console.log(c.bold('\n  Local:'));
+      local.forEach((m, i) =>
+        console.log(`    [${agents.length + i + 1}] ${m.name} ${c.dim('(offline, lightweight)')}`)
+      );
+    }
+
+    rl.question(c.cyan('\n  Choose (number or name): '), (input) => {
+      rl.close();
+      const choice = input.trim().toLowerCase();
+      const idx = parseInt(choice, 10) - 1;
+      const all = [...agents, ...local];
+
+      if (idx >= 0 && idx < all.length) {
+        const selected = all[idx];
+        client.model = selected.name;
+        client.routeTelemetry = {
+          modelSelected: selected.name,
+          routeReason: 'manual',
+          complexity: 'simple',
+          estimatedTokensIfFullModel: 2500,
+          estimatedTokensActual: selected.agent ? 2500 : 800,
+          tokensSavedEst: selected.agent ? 0 : 1700,
+        };
+        console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
+        resolve(true);
+      } else {
+        const match = all.find((m) => m.name.toLowerCase().includes(choice));
+        if (match) {
+          client.model = match.name;
+          client.routeTelemetry = {
+            modelSelected: match.name,
+            routeReason: 'manual',
+            complexity: 'simple',
+            estimatedTokensIfFullModel: 2500,
+            estimatedTokensActual: match.agent ? 2500 : 800,
+            tokensSavedEst: match.agent ? 0 : 1700,
+          };
+          console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
+          resolve(true);
+        } else {
+          console.log(c.red(`\n  ✗ Invalid choice\n`));
+          resolve(false);
+        }
+      }
+    });
+  });
+}
+
+const HELP = `${c.bold('kudbEE CLI')} — Enterprise agent control center
+
+${c.bold('MODELS & AGENTS')}
+  /models             list available models (enterprise & local)
+  /model NAME         switch to model (Mercury-2, Qwen2.5 1.5B, etc)
+  /select             interactive model picker 🎯
+
+${c.bold('OPERATIONS')}
+  /plugins            list available tools and permissions
+  /files              list workspace files
+  /cat PATH           print file content
+  /runs               run history (15 latest)
+  /run ID             detailed step-by-step trace
+
+${c.bold('MEMORY & KNOWLEDGE')}
+  /memory [QUERY]     search organizational memory (Upstash + BM25)
+  /notes [LAYER]      list persistent notes (session|task|org|verified)
+  /remember TEXT      save note to persistent DB (default: session layer)
+  /forget [ID|QUERY]  delete note by id or query
+  /promote org/ID     promote note to verified knowledge
+
+${c.bold('ANALYTICS & DEBUG')}
+  /metrics            agent KPIs (runs, tokens, cost, success rate)
+  /status             server health check
+  /algo ACTION [ADDR] read-only Algorand queries
+
+${c.bold('SYSTEM')}
+  /open               show dashboard URL
+  /stop               cancel current goal
+  /help               this help
+  /quit               exit
+
+${c.bold('EXAMPLES')}
+  ${c.cyan('Read https://hnrss.org/frontpage and write top5.md')}
+  ${c.cyan('/select')} — pick Mercury-2 or the local model interactively
+  ${c.cyan('/memory python tips')} — search memory for Python advice`;
 
 async function handleCommand(client: Client, line: string): Promise<boolean> {
   const [cmd, ...args] = line.split(/\s+/);
@@ -216,17 +315,44 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/help':
       console.log(HELP);
       break;
-    case '/models':
-      for (const m of client.models) {
-        const mark = m.name === client.model ? c.green('●') : ' ';
-        console.log(`  ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}]${m.agent ? ' tool-using worker agent' : ''}`)}`);
+    case '/models': {
+      // Enterprise: show model categories with metadata
+      const mercury = client.models.filter((m) => m.agent);
+      const local = client.models.filter((m) => !m.agent);
+
+      if (mercury.length) {
+        console.log(c.bold('\n  🤖 Enterprise Worker Agents (tool-using)'));
+        for (const m of mercury) {
+          const mark = m.name === client.model ? c.green('●') : ' ';
+          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'inference'}] · low-latency, full toolkit`)}`);
+        }
       }
+      if (local.length) {
+        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        for (const m of local) {
+          const mark = m.name === client.model ? c.green('●') : ' ';
+          const cheapRoute = m.name === LOCAL_MODEL ? c.dim(' (cheap route)') : '';
+          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}${cheapRoute}`);
+        }
+      }
+      const localRouteReady = local.some((m) => m.name === LOCAL_MODEL);
+      if (!localRouteReady) {
+        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        console.log(c.red(`    ✗ ${LOCAL_MODEL} not pulled — auto-routing falls back to Mercury-2 for simple goals`));
+        console.log(c.dim(`      Run: ollama pull ${LOCAL_MODEL}`));
+      }
+      console.log(c.dim(`\n  Use: /model MERCURY-2  or  /model ${LOCAL_MODEL}`));
       break;
+    }
     case '/model':
-      if (!client.models.some((m) => m.name === args[0])) console.log(c.red(`Unknown model. Try /models`));
-      else {
+      if (!client.models.some((m) => m.name === args[0])) {
+        console.log(c.red(`Unknown model "${args[0]}". Available:`));
+        for (const m of client.models) console.log(`    ${m.name}`);
+      } else {
         client.model = args[0];
-        console.log(`Model → ${c.bold(client.model)}`);
+        const selected = client.models.find((m) => m.name === args[0]);
+        const icon = selected?.agent ? '🤖' : '💻';
+        console.log(`${icon} Model → ${c.bold(client.model)}`);
       }
       break;
     case '/plugins':
@@ -257,20 +383,57 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       }
       break;
     }
+    case '/notes': {
+      const layer = args[0] || '';
+      const params = new URLSearchParams({ limit: '20', sessionId: cliSessionId });
+      if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
+        params.set('layer', layer);
+      }
+      const res = await fetch(`${HOST}/api/memory/notes?${params}`);
+      const data = (await res.json()) as any;
+      if (!res.ok || !data.notes?.length) {
+        console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
+        break;
+      }
+      for (const note of data.notes) {
+        const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer] || c.dim;
+        console.log(`  ${layerColor(note.layer.padEnd(8))} ${note.title}`);
+        console.log(c.dim(`    ${note.id} — ${note.content.slice(0, 80)}`));
+      }
+      break;
+    }
+
     case '/remember': {
       const text = args.join(' ').trim();
       if (!text) {
-        console.log(c.red('Usage: /remember TITLE - TEXT'));
+        console.log(c.red('Usage: /remember TEXT'));
         break;
       }
       const [title, ...rest] = text.split(/\s+[-—:]\s+/);
-      const res = await fetch(`${HOST}/api/memory`, {
+      const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
+      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(cliSessionId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layer: 'org', title, content: rest.join(' - ') || text }),
+        body: JSON.stringify({
+          title: title || text.slice(0, 40),
+          content: rest.join(' - ') || text,
+          layer
+        }),
       });
       const item = (await res.json()) as any;
-      console.log(res.ok ? c.green(`  saved ${item.id} (${item.path})`) : c.red(`  ${item.error}`));
+      console.log(res.ok ? c.green(`  ✓ saved ${layer} note: ${item.id}`) : c.red(`  ✗ ${item.error}`));
+      break;
+    }
+
+    case '/forget': {
+      const query = args.join(' ').trim();
+      if (!query) {
+        console.log(c.red('Usage: /forget ID|QUERY'));
+        break;
+      }
+      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(cliSessionId)}`, { method: 'DELETE' });
+      const result = (await res.json()) as any;
+      console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
     }
     case '/algo': {
@@ -312,6 +475,9 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/stop':
       client.send({ type: 'stop' });
       break;
+    case '/select':
+      await interactiveModelSelect(client);
+      break;
     case '/quit':
     case '/exit':
       return false;
@@ -321,10 +487,102 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
   return true;
 }
 
+// Heuristics: length, keywords, tool complexity — pure function, easy to unit test.
+const COMPLEX_PATTERNS = [
+  /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
+  /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
+  /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals|functions)\b/i,
+  /\{.*\}/, // JSON structure in goal
+  /```/, // Code blocks
+  /\b(algorithm|architecture|design pattern|optimize|complex)\b/i,
+];
+
+function isComplexGoal(goal: string): boolean {
+  return COMPLEX_PATTERNS.some((p) => p.test(goal)) || goal.length > 150;
+}
+
+let warnedNoLocalModel = false;
+
+// Routing heuristics: Simple → cheap local Ollama model (KUDBEE_LOCAL_MODEL, default
+// qwen2.5:1.5b), Complex → Mercury-2. If the local model isn't pulled into Ollama,
+// fall back to Mercury-2 and report the fallback honestly (no fake savings).
+function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
+  const agentModels = client.models.filter((m) => m.agent);
+  const mercury = agentModels.find((m) => m.name === COMPLEX_MODEL) ?? agentModels[0];
+  const local = client.models.find((m) => !m.agent && m.name === LOCAL_MODEL);
+
+  // No enterprise agent model configured at all: nothing to route between.
+  if (!mercury) {
+    return {
+      modelSelected: client.model,
+      routeReason: 'manual',
+      complexity: 'simple',
+      estimatedTokensIfFullModel: 2500,
+      estimatedTokensActual: 2500,
+      tokensSavedEst: 0,
+    };
+  }
+
+  const isComplex = isComplexGoal(goal);
+  const complexity: 'simple' | 'complex' = isComplex ? 'complex' : 'simple';
+  const estimatedTokensIfFullModel = isComplex ? 2500 : 1500;
+
+  let telemetry: RouteTelemtry;
+
+  if (isComplex) {
+    telemetry = {
+      modelSelected: mercury.name,
+      routeReason: 'auto',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: 2500,
+      tokensSavedEst: 0,
+    };
+  } else if (local) {
+    telemetry = {
+      modelSelected: local.name,
+      routeReason: 'auto',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: 800,
+      tokensSavedEst: estimatedTokensIfFullModel - 800,
+    };
+  } else {
+    // Simple goal, but the configured local model isn't installed — never claim
+    // savings we didn't get.
+    telemetry = {
+      modelSelected: mercury.name,
+      routeReason: 'auto_fallback_no_local',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: estimatedTokensIfFullModel,
+      tokensSavedEst: 0,
+    };
+    if (!warnedNoLocalModel) {
+      warnedNoLocalModel = true;
+      console.log(c.dim(`  ⚠ local model '${LOCAL_MODEL}' not found in Ollama — run: ollama pull ${LOCAL_MODEL}`));
+    }
+  }
+
+  if (telemetry.modelSelected !== client.model || telemetry.routeReason === 'auto_fallback_no_local') {
+    if (telemetry.routeReason === 'auto_fallback_no_local') {
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (no local model; pull ${LOCAL_MODEL})`));
+    } else {
+      const saved = telemetry.tokensSavedEst > 0 ? ` (est. saved ~${telemetry.tokensSavedEst} tokens)` : '';
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}`));
+    }
+  }
+
+  return telemetry;
+}
+
 async function main(): Promise<void> {
   await ensureServer();
   const client = new Client();
   await client.connect();
+
+  // CLI uses its own session for persistent memory
+  const cliSessionId = client.sessionId;
 
   const argv = process.argv.slice(2);
   const autoYes = argv[0] === '--yes' || argv[0] === '-y';
@@ -348,6 +606,15 @@ async function main(): Promise<void> {
     client.ws.close();
     process.exit(0);
   }
+
+  // Enterprise: auto-route to optimal model for token savings
+  if (goal) {
+    const telemetry = selectModelForGoal(goal, client);
+    client.routeTelemetry = telemetry;
+    if (telemetry.modelSelected !== client.model) {
+      client.model = telemetry.modelSelected;
+    }
+  }
   if (goal) {
     const ok = await client.run(goal);
     client.ws.close();
@@ -358,7 +625,7 @@ async function main(): Promise<void> {
   console.log(c.dim('Type a goal, or /help. Ctrl+C to exit.'));
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: c.yellow('kudbee› ') });
   rl.prompt();
-  let busy = false;
+  let inFlight = 0;
   const pending: ApprovalRequest[] = [];
   client.onApproval = (req) => {
     printApproval(req);
@@ -369,18 +636,25 @@ async function main(): Promise<void> {
     const line = raw.trim();
     const approval = pending.shift();
     if (approval) return client.answer(approval.id, /^y(es)?$/i.test(line));
-    if (!line || busy) return rl.prompt();
-    busy = true;
-    try {
-      if (line.startsWith('/')) {
+    if (!line) return rl.prompt();
+    if (line.startsWith('/')) {
+      try {
         if (!(await handleCommand(client, line))) return rl.close();
-      } else {
-        await client.run(line);
+      } catch (err) {
+        console.log(c.red(String(err)));
       }
-    } catch (err) {
-      console.log(c.red(String(err)));
+      return rl.prompt();
     }
-    busy = false;
+    // Goals never block the prompt: the server queues them per session and results arrive in order.
+    if (inFlight) console.log(c.dim(`  ⏳ queued behind ${inFlight} goal(s)`));
+    inFlight += 1;
+    client
+      .run(line)
+      .catch((err) => console.log(c.red(String(err))))
+      .finally(() => {
+        inFlight -= 1;
+        rl.prompt();
+      });
     rl.prompt();
   });
   rl.on('close', () => {
