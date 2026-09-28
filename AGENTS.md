@@ -1419,6 +1419,30 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - Non-blocking persistence on run completion
 - **Next phase:** Feature 5 (token telemetry KPI) or Feature 3 streaming — wait for founder
 
+### 2026-09-28 (evening CT) — PR #274 in progress: Feature 5 — Token-aware routing polish + telemetry
+
+- **Branch:** `feat/pr274-token-telemetry` (in progress → ready for founder review)
+- **Phase:** Feature 5 IN PROGRESS (routing + telemetry + KPI + tests)
+- **What's being done:**
+  - ✅ Enhanced `selectModelForGoal()` with complexity heuristics (code, research, multi-file, JSON, length >150)
+  - ✅ Simple → SmolLM2 (~60% token savings), Complex → Mercury-2 (full toolkit)
+  - ✅ Route telemetry struct: modelSelected, routeReason (auto|manual), complexity, estimatedTokensIfFullModel, estimatedTokensActual, tokensSavedEst
+  - ✅ CLI output: `💡 [simple|complex] → <model> (est. saved ~N tokens)` after routing decision
+  - ✅ Manual override via /select: sets routeReason='manual', persists model preference
+  - ✅ Telemetry passed through CLI → server → runAgentGoal → run_metadata.metrics
+  - ✅ run_metadata persists: model_selected, route_reason, estimated_tokens_if_full_model, estimated_tokens_actual, tokens_saved_est
+  - ✅ API endpoint: GET /api/stats/tokens (aggregates token savings with sparklineData)
+  - ✅ Tests: token routing (3 fixtures: simple/complex/override), telemetry calculations, KPI aggregation, restart persistence
+  - ✅ Dashboard KPI support: "Tokens saved (est.)" metric (PR 272 CSS style)
+- **Tests added:**
+  - Unit: `token-routing.test.ts` — 7 tests (simple/complex routing, JSON/code/length detection, manual override, telemetry calc)
+  - Integration: `token-stats-integration.test.ts` — 4 tests (persist telemetry, aggregate savings, track auto|manual, restart proof)
+- **What's left:**
+  - Dashboard KPI HTML/CSS integration (optional: can add in PR 272 follow-up)
+  - Final verification: two consecutive runs → KPI updates → restart keeps aggregates
+  - PR open (do not merge)
+- **Next:** After PR is up, Feature 7 (MCP registry skeleton)
+
 ### 2026-09-27 (late night CT) — PR #272 in progress: Dashboard CSS & Layout Redesign
 
 - **Branch:** `feat/pr272-dashboard-css-layout`

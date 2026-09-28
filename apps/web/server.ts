@@ -676,20 +676,20 @@ class AgentSession {
    * Single entry point for goals. A session runs one goal at a time: concurrent runs would share the
    * abort controller and approval map, so extra goals wait in `queue` as visible "queued" tasks.
    */
-  submitGoal(goal: string, model?: string): { queued: boolean; position: number; task_id?: string } {
+  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>): { queued: boolean; position: number; task_id?: string } {
     if (this.busy) {
       const task = this.addTask({ description: goal, status: 'queued' });
-      this.queue.push({ goal, model, task });
+      this.queue.push({ goal, model, task, routeTelemetry });
       this.broadcast({ type: 'queued', data: { task_id: task.id, goal, position: this.queue.length } });
       return { queued: true, position: this.queue.length, task_id: task.id };
     }
-    void this.drain({ goal, model });
+    void this.drain({ goal, model, routeTelemetry });
     return { queued: false, position: 0 };
   }
 
-  private async drain(first: { goal: string; model?: string; task?: Task }): Promise<void> {
+  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> }): Promise<void> {
     this.busy = true;
-    let next: { goal: string; model?: string; task?: Task } | undefined = first;
+    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> } | undefined = first;
     try {
       while (next) {
         if (next.model) {
@@ -697,7 +697,7 @@ class AgentSession {
           this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
         }
         this.broadcast({ type: 'status', data: 'running' });
-        const result = await this.runGoal(next.goal, next.task);
+        const result = await this.runGoal(next.goal, next.task, next.routeTelemetry);
         this.broadcast({ type: 'result', data: result });
         next = this.queue.shift();
       }
@@ -712,8 +712,8 @@ class AgentSession {
     return this.addTask({ description: goal, status: 'running' });
   }
 
-  async runGoal(goal: string, queuedTask?: Task): Promise<PluginResult> {
-    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask);
+  async runGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
+    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry);
     this.status = 'running';
     this.addThought({ type: 'goal', content: `Starting goal: ${goal}`, status: 'info' });
 
@@ -811,12 +811,13 @@ class AgentSession {
     pending.resolve(approved);
   }
 
-  async runAgentGoal(goal: string, queuedTask?: Task): Promise<PluginResult> {
+  async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
     this.addThought({ type: 'goal', content: `Worker agent (${this.config.model}) starting: ${goal}`, status: 'info' });
     const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
+    if (routeTelemetry) record.routeTelemetry = routeTelemetry;
     this.broadcast({ type: 'run_update', data: record });
     try {
       // Knowledge and episodes are recalled separately so repeated goals cannot crowd out notes.
@@ -874,7 +875,7 @@ class AgentSession {
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
 
-      // Auto-save run metadata to persistent DB (Phase 3)
+      // Auto-save run metadata to persistent DB (Phase 3 + Feature 5 token telemetry)
       try {
         await persistence.saveRunMetadata({
           runId: record.id,
@@ -890,6 +891,12 @@ class AgentSession {
             tool_calls: record.approvals.tool_calls,
             approvals_approved: record.approvals.approved,
             approvals_denied: record.approvals.denied,
+            // Feature 5: Token telemetry
+            model_selected: record.routeTelemetry?.modelSelected ?? this.config.model,
+            route_reason: record.routeTelemetry?.routeReason ?? 'auto',
+            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? record.tokens,
+            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? record.tokens,
+            tokens_saved_est: record.routeTelemetry?.tokensSavedEst ?? 0,
           },
           files: record.files,
           createdAt: record.started_at,
@@ -1015,7 +1022,8 @@ wss.on('connection', async (ws: WebSocket) => {
 
       switch (msg.type) {
         case 'run_goal': {
-          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined);
+          const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? msg.routeTelemetry : undefined;
+          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any);
           break;
         }
 
@@ -1622,6 +1630,45 @@ app.get('/api/runs/history', async (req: Request, res: Response) => {
       }));
 
     res.json({ runs, source: 'json' });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Feature 5: Token stats for KPI dashboard
+app.get('/api/stats/tokens', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    // Aggregate token savings from run_metadata
+    const runs = await persistence.listRuns(sessionId, limit);
+    const tokenStats = {
+      totalTokensSavedEst: 0,
+      totalRunsTracked: runs.length,
+      averageSavingsPerRun: 0,
+      lastRunTokensSaved: 0,
+      sparklineData: [] as number[],
+    };
+
+    for (const run of runs) {
+      const savedEst = (run.metrics?.tokens_saved_est as number) || 0;
+      tokenStats.totalTokensSavedEst += savedEst;
+      tokenStats.sparklineData.push(savedEst);
+      if (run === runs[0]) {
+        tokenStats.lastRunTokensSaved = savedEst;
+      }
+    }
+
+    if (runs.length > 0) {
+      tokenStats.averageSavingsPerRun = Math.round(tokenStats.totalTokensSavedEst / runs.length);
+    }
+
+    res.json(tokenStats);
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }

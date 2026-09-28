@@ -26,6 +26,7 @@ const c = {
 
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
+interface RouteTelemtry { modelSelected: string; routeReason: 'auto' | 'manual'; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
 interface Msg { type: string; data?: any }
@@ -90,6 +91,7 @@ class Client {
   models: Model[] = [];
   plugins: any[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
+  routeTelemetry?: RouteTelemtry;
   private waiters: Array<{ type: string; resolve: (m: Msg) => void }> = [];
 
   connect(): Promise<void> {
@@ -133,7 +135,7 @@ class Client {
   async run(goal: string): Promise<boolean> {
     console.log(c.dim(`▶ ${this.model} working…`));
     const done = this.wait('result');
-    this.send({ type: 'run_goal', goal, model: this.model });
+    this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry });
     const { data: r } = await done;
     console.log();
     if (r.success) console.log(`${c.green('✓')} ${r.result}`);
@@ -224,13 +226,30 @@ async function interactiveModelSelect(client: Client): Promise<boolean> {
       const all = [...agents, ...local];
 
       if (idx >= 0 && idx < all.length) {
-        client.model = all[idx].name;
+        const selected = all[idx];
+        client.model = selected.name;
+        client.routeTelemetry = {
+          modelSelected: selected.name,
+          routeReason: 'manual',
+          complexity: 'simple',
+          estimatedTokensIfFullModel: 2500,
+          estimatedTokensActual: selected.agent ? 2500 : 800,
+          tokensSavedEst: selected.agent ? 0 : 1700,
+        };
         console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
         resolve(true);
       } else {
         const match = all.find((m) => m.name.toLowerCase().includes(choice));
         if (match) {
           client.model = match.name;
+          client.routeTelemetry = {
+            modelSelected: match.name,
+            routeReason: 'manual',
+            complexity: 'simple',
+            estimatedTokensIfFullModel: 2500,
+            estimatedTokensActual: match.agent ? 2500 : 800,
+            tokensSavedEst: match.agent ? 0 : 1700,
+          };
           console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
           resolve(true);
         } else {
@@ -450,34 +469,70 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
   return true;
 }
 
-// Enterprise routing: optimize for token usage
-function selectModelForGoal(goal: string, client: Client): string {
+// Model routing heuristics & token estimates
+const modelCapabilities = {
+  'mercury-2': {
+    avgTokensPerRequest: 2500,
+    bestFor: 'complex',
+    description: 'Enterprise model with full tool access',
+  },
+  'smoLLM2': {
+    avgTokensPerRequest: 800,
+    bestFor: 'simple',
+    description: 'Lightweight local model, 60% fewer tokens',
+  },
+};
+
+// Routing heuristics: Simple → SmolLM2, Complex → Mercury-2
+function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   const mercury = client.models.find((m) => m.agent);
   const local = client.models.find((m) => !m.agent);
 
-  if (!mercury || !local) return client.model; // fallback
-
-  // Token counters: if goal is complex, use Mercury-2
-  const complexPatterns = [
-    /\b(code|write|generate|create|build|implement|design)\b/i,
-    /\b(research|analyze|investigate|compare|debug)\b/i,
-    /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals)\b/i,
-    /\{.*\}/, // JSON in goal
-    /```/, // code block
-  ];
-
-  const isComplex = complexPatterns.some((p) => p.test(goal));
-  const selectedModel = isComplex ? mercury.name : local.name;
-
-  // Estimate token savings
-  const complexity = isComplex ? 'complex' : 'simple';
-  const savings = isComplex ? 0 : '~60%';
-
-  if (selectedModel !== client.model) {
-    console.log(c.dim(`  💡 [${complexity}] → ${selectedModel} ${savings ? `(save ${savings} tokens)` : ''}`));
+  if (!mercury || !local) {
+    return {
+      modelSelected: client.model,
+      routeReason: 'manual',
+      complexity: 'simple',
+      estimatedTokensIfFullModel: 2500,
+      estimatedTokensActual: 2500,
+      tokensSavedEst: 0,
+    };
   }
 
-  return selectedModel;
+  // Heuristics: length, keywords, tool complexity
+  const complexPatterns = [
+    /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
+    /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
+    /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals|functions)\b/i,
+    /\{.*\}/, // JSON structure in goal
+    /```/, // Code blocks
+    /\b(algorithm|architecture|design pattern|optimize|complex)\b/i,
+  ];
+
+  const isComplex = complexPatterns.some((p) => p.test(goal)) || goal.length > 150;
+  const selectedModel = isComplex ? mercury : local;
+  const complexity: 'simple' | 'complex' = isComplex ? 'complex' : 'simple';
+
+  // Token estimation: simpler goals use fewer tokens in full model too
+  const estimatedTokensIfFullModel = isComplex ? 2500 : 1500;
+  const estimatedTokensActual = selectedModel.agent ? 2500 : 800;
+  const tokensSavedEst = estimatedTokensIfFullModel - estimatedTokensActual;
+
+  const telemetry: RouteTelemtry = {
+    modelSelected: selectedModel.name,
+    routeReason: 'auto',
+    complexity,
+    estimatedTokensIfFullModel,
+    estimatedTokensActual,
+    tokensSavedEst,
+  };
+
+  if (selectedModel.name !== client.model) {
+    const saved = tokensSavedEst > 0 ? ` (est. saved ~${tokensSavedEst} tokens)` : '';
+    console.log(c.dim(`  💡 [${complexity}] → ${selectedModel.name}${saved}`));
+  }
+
+  return telemetry;
 }
 
 async function main(): Promise<void> {
@@ -513,11 +568,11 @@ async function main(): Promise<void> {
 
   // Enterprise: auto-route to optimal model for token savings
   if (goal) {
-    const optimalModel = selectModelForGoal(goal, client);
-    if (optimalModel !== client.model) {
-      client.model = optimalModel;
+    const telemetry = selectModelForGoal(goal, client);
+    client.routeTelemetry = telemetry;
+    if (telemetry.modelSelected !== client.model) {
+      client.model = telemetry.modelSelected;
     }
-  }
   }
   if (goal) {
     const ok = await client.run(goal);
