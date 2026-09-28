@@ -432,8 +432,8 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
         break;
       }
-      for (const note of data.notes) {
-        const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer] || c.dim;
+      for (const note of data.notes as any[]) {
+        const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer as string] || c.dim;
         console.log(`  ${layerColor(note.layer.padEnd(8))} ${note.title}`);
         console.log(c.dim(`    ${note.id} — ${note.content.slice(0, 80)}`));
       }

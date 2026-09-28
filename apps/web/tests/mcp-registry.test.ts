@@ -89,14 +89,14 @@ after(() =>
 test('MCPRegistry.discoverServers returns array of servers with required fields', async () => {
   // Monkeypatch fetch to use mock server
   const originalFetch = global.fetch;
-  global.fetch = (url: string | URL, ...args: any[]) => {
+  global.fetch = ((url: string | URL | Request, ...args: any[]) => {
     const urlStr = typeof url === 'string' ? url : url.toString();
     if (urlStr.includes('github.com/repos/anthropics')) {
       const mockUrl = urlStr.replace('https://api.github.com', baseUrl);
       return originalFetch(mockUrl, ...args);
     }
     return originalFetch(url, ...args);
-  };
+  }) as any;
 
   try {
     const registry = new MCPRegistry(undefined, testCacheDir);
