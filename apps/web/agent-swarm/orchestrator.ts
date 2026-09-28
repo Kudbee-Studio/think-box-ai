@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import {
+import type {
   AgentConfig,
   AgentTask,
   SwarmState,
@@ -14,10 +14,28 @@ import {
   SpawnResponse,
   SwarmMetrics,
   AgentRole,
-} from "./types";
-import { routeModelForAgent, budgetMultiplierForRole, RouterModels } from "./model-router";
+} from "./types.ts";
+import { routeModelForAgent, budgetMultiplierForRole, type RouterModels } from "./model-router.ts";
 
 const uuidv4 = randomUUID;
+
+/**
+ * Hard ceilings independent of per-role maxChildren. Per-role limits alone
+ * don't bound the tree: an orchestrator (maxChildren=12) whose children are
+ * all planners (maxChildren=4) could reach 12*4*... agents by depth 4 with
+ * every individual spawn passing its local check. These are the actual
+ * safety backstop — every spawnAgent() call is checked against both.
+ */
+const MAX_SWARM_DEPTH = 4;
+const MAX_TOTAL_AGENTS = 64;
+const MAX_GOAL_LENGTH = 4000;
+
+/** Strip control/formatting characters a goal string has no legitimate use for. */
+function sanitizeGoal(goal: string): string {
+  // eslint-disable-next-line no-control-regex
+  const stripped = goal.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
+  return stripped.slice(0, MAX_GOAL_LENGTH);
+}
 
 const ROLE_CONFIGS: Record<AgentRole, { maxChildren: number; tools: string[] }> = {
   orchestrator: { maxChildren: 12, tools: ["delegate", "monitor", "spawn_agent"] },
@@ -73,10 +91,15 @@ export class SwarmOrchestrator {
    * Create root orchestrator agent
    */
   async initialize(goal: string): Promise<AgentConfig> {
+    const cleanGoal = sanitizeGoal(goal);
+    if (!cleanGoal) {
+      throw new Error("Swarm goal must not be empty");
+    }
+
     const rootAgent = this.createAgent(
       "orchestrator",
       `orchestrator-${uuidv4().slice(0, 8)}`,
-      goal,
+      cleanGoal,
       undefined,
       { tokens: 100000, cost: 100, time: 3600 }
     );
@@ -151,8 +174,37 @@ export class SwarmOrchestrator {
       return { success: false, error: "Parent agent not found" };
     }
 
+    // Hard backstops first — these bound the whole tree, not just one level.
+    // Per-role maxChildren alone can't prevent exponential blow-up across
+    // depth (e.g. 12 orchestrator children x 4 planner children x ... ), so
+    // every spawn is checked against the swarm-wide ceilings regardless of
+    // whether the parent's own local limit would have allowed it.
+    if (this.state.agents.size >= MAX_TOTAL_AGENTS) {
+      return { success: false, reason: `Swarm has reached the max agent ceiling (${MAX_TOTAL_AGENTS})` };
+    }
+
+    if (parent.depth + 1 > MAX_SWARM_DEPTH) {
+      return { success: false, reason: `Spawn would exceed max swarm depth (${MAX_SWARM_DEPTH})` };
+    }
+
     if (parent.maxChildren <= (this.state.hierarchy.get(parent.id) || []).length) {
       return { success: false, reason: "Parent has reached max children limit" };
+    }
+
+    // A parent that's nearly out of budget can't fund a child — without this,
+    // budget "inheritance" (scaledBudget) is purely cosmetic bookkeeping that
+    // never actually stops spending.
+    const MIN_SPAWN_BUDGET_FRACTION = 0.1;
+    if (
+      parent.budget.tokens < parent.budget.tokens * MIN_SPAWN_BUDGET_FRACTION + 1 &&
+      parent.budget.tokens < 500
+    ) {
+      return { success: false, reason: "Parent budget too low to fund a child agent" };
+    }
+
+    const cleanGoal = sanitizeGoal(request.goal);
+    if (!cleanGoal) {
+      return { success: false, error: "Spawn goal must not be empty" };
     }
 
     // Inherit and reduce budget, scaled by the child role's cost tier
@@ -162,10 +214,16 @@ export class SwarmOrchestrator {
     const childAgent = this.createAgent(
       request.role,
       childId,
-      request.goal,
+      cleanGoal,
       request.parentId,
       childBudget
     );
+
+    // Debit the parent immediately for the budget it just committed to the
+    // child — otherwise a parent could over-commit the same tokens/cost to
+    // many children before any of them ever reports spend back.
+    parent.budget.tokens = Math.max(0, parent.budget.tokens - childBudget.tokens);
+    parent.budget.cost = Math.max(0, parent.budget.cost - childBudget.cost);
 
     // Register child
     this.state.agents.set(childId, childAgent);
@@ -181,7 +239,7 @@ export class SwarmOrchestrator {
     const task: AgentTask = {
       id: `task-${childId}`,
       agentId: childId,
-      goal: request.goal,
+      goal: cleanGoal,
       priority: request.priority,
       delegated: request.role !== "validator" && request.role !== "monitor",
       subTasks: [],
@@ -212,10 +270,15 @@ export class SwarmOrchestrator {
       throw new Error(`Agent ${agentId} not found`);
     }
 
+    const cleanGoal = sanitizeGoal(goal);
+    if (!cleanGoal) {
+      throw new Error("Task goal must not be empty");
+    }
+
     const task: AgentTask = {
       id: `task-${uuidv4()}`,
       agentId,
-      goal,
+      goal: cleanGoal,
       priority,
       delegated,
       subTasks: [],
@@ -226,15 +289,21 @@ export class SwarmOrchestrator {
 
     this.state.tasks.set(task.id, task);
 
-    if (delegated && agent.role !== "orchestrator") {
-      // Spawn researcher to handle task
-      await this.spawnAgent({
+    // Delegation spawns a sub-agent — goes through the same spawnAgent()
+    // depth/ceiling/budget checks as a manual spawn, so a delegated task
+    // can fail to delegate (falls back to the agent doing it directly)
+    // rather than silently bypassing the swarm-wide limits.
+    if (delegated && agent.role !== "orchestrator" && agent.depth < MAX_SWARM_DEPTH) {
+      const response = await this.spawnAgent({
         parentId: agentId,
         role: "researcher",
-        goal,
+        goal: cleanGoal,
         budget: { tokens: agent.budget.tokens * 0.5 },
         priority,
       });
+      if (!response.success) {
+        console.log(`  ⚠ delegation skipped (${response.reason || response.error}) — ${agent.name} will handle it directly`);
+      }
     }
 
     return task;
@@ -278,10 +347,60 @@ export class SwarmOrchestrator {
   }
 
   /**
+   * Record actual spend against an agent's remaining budget and roll it up
+   * into swarm-wide totals. Call this after every real model call — before
+   * this method existed, state.totalCost/totalTokens and the per-agent
+   * budget were write-only fields nothing ever decremented, so a caller
+   * reading getMetrics() mid-run would see cost=0 no matter how much had
+   * actually been spent.
+   *
+   * Returns false if the agent has no budget left, so the caller can stop
+   * issuing further model calls for it (fail closed on exhaustion rather
+   * than silently going over budget).
+   */
+  recordSpend(agentId: string, spend: { tokens: number; cost: number; timeMs?: number }): boolean {
+    const agent = this.state.agents.get(agentId);
+    if (!agent) return false;
+
+    agent.budget.tokens = Math.max(0, agent.budget.tokens - spend.tokens);
+    agent.budget.cost = Math.max(0, agent.budget.cost - spend.cost);
+    if (spend.timeMs) {
+      agent.budget.time = Math.max(0, agent.budget.time - Math.ceil(spend.timeMs / 1000));
+    }
+
+    this.state.totalTokens += spend.tokens;
+    this.state.totalCost += spend.cost;
+
+    return agent.budget.tokens > 0 && agent.budget.cost > 0;
+  }
+
+  /**
+   * Authorization gate: is this agent allowed to invoke this tool? Every
+   * role's tool list in ROLE_CONFIGS is declarative metadata unless
+   * something actually checks it before a tool call executes — this is
+   * that check. Callers wiring the swarm to a real tool-execution loop
+   * (apps/web/agent.ts) must call this before dispatching, not just before
+   * spawning.
+   */
+  isToolAllowed(agentId: string, tool: string): boolean {
+    const agent = this.state.agents.get(agentId);
+    if (!agent) return false;
+    return agent.tools.includes(tool);
+  }
+
+  /**
    * Route message between agents
    */
   sendMessage(message: AgentMessage): void {
     this.messageQueue.push(message);
+    // Unbounded growth here would be a memory leak in any long-running
+    // swarm (e.g. a monitor agent broadcasting on every tick). Drop the
+    // oldest rather than reject sends — messages are best-effort status,
+    // not a durable log.
+    const MAX_QUEUE = 5000;
+    if (this.messageQueue.length > MAX_QUEUE) {
+      this.messageQueue.splice(0, this.messageQueue.length - MAX_QUEUE);
+    }
   }
 
   /**

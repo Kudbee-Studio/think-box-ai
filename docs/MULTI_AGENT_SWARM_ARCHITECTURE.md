@@ -1,281 +1,135 @@
 # Multi-Agent Swarm Architecture
 
-**Status**: Ready for Local Integration  
-**Location**: `apps/web/agent-swarm/`  
-**CLI Integration**: `kudbee swarm` commands  
+**Status**: Code complete, hermetically tested, wired into the CLI. **Not** run against the live Mercury-2/Inception path — this is orchestration scaffolding (spawn/budget/routing bookkeeping), not a tool-execution loop. See "Not done" at the bottom.
+**Location**: `apps/web/agent-swarm/`
+**CLI Integration**: `/swarm` command inside the `kudbee` REPL (same convention as `/memory`, `/model`, `/cat`)
 
 ---
 
 ## Overview
 
-A **hierarchical multi-agent framework** where a single **orchestrator** manages a team of up to **12 specialized agent types**. Agents can dynamically spawn **sub-agents** to delegate work, creating a tree-structured organization of autonomous workers.
+A **hierarchical multi-agent framework** where a single **orchestrator** manages a team of up to **12 specialized agent roles**. Agents can dynamically spawn **sub-agents** to delegate work, creating a tree-structured organization — bounded by hard depth/agent/budget ceilings so a bad goal string or a bug can't fork-bomb the process.
 
 ### Key Features
 
-✅ **12 Agent Types** - Specialized roles for different tasks  
-✅ **Dynamic Spawning** - Agents create sub-agents as needed  
-✅ **Budget Tracking** - Token, cost, and time budgets per agent  
-✅ **Hierarchical Delegation** - Up to 4 levels of agent depth  
-✅ **Task Management** - Assign, track, complete tasks  
-✅ **Swarm Metrics** - Monitor efficiency, cost, progress  
+✅ **12 Agent Roles** — specialized roles for different tasks
+✅ **Dynamic Spawning** — agents create sub-agents as needed, bounded by hard ceilings
+✅ **Cost-Aware Model Routing** — cheap local model by default for mechanical roles, enterprise model for reasoning roles (extends the routing added in `apps/web/cli.ts` #271)
+✅ **Budget Enforcement** — tokens/cost/time are actually debited and checked, not just recorded
+✅ **Hierarchical Delegation** — up to 4 levels of agent depth (hard cap)
+✅ **Task Management** — assign, track, complete tasks
+✅ **Swarm Metrics** — monitor efficiency, cost, progress
 
 ---
 
 ## Agent Roles
 
-| Role | Purpose | Max Children | Can Spawn |
-|------|---------|--------------|-----------|
-| **orchestrator** | Coordinates swarm, delegates work | 12 | ✅ Yes |
-| **researcher** | Gathers info, analyzes data | 3 | ✅ Yes |
-| **executor** | Performs actions, writes files | 2 | ✅ Yes |
-| **validator** | Validates outputs, checks quality | 1 | ❌ No |
-| **optimizer** | Improves solutions, refactors | 2 | ✅ Yes |
-| **monitor** | Tracks progress, alerts on issues | 0 | ❌ No |
-| **communicator** | Handles APIs, messaging | 2 | ✅ Yes |
-| **planner** | Breaks down tasks, creates roadmaps | 4 | ✅ Yes |
-| **debugger** | Diagnoses failures, suggests fixes | 2 | ✅ Yes |
-| **synthesizer** | Combines results, summarizes | 1 | ✅ Yes |
-| **specialist** | Domain-specific work | 3 | ✅ Yes |
-| **supervisor** | Oversees other agents | 6 | ✅ Yes |
+| Role | Purpose | Max Children | Default Model Tier |
+|------|---------|--------------|---------------------|
+| **orchestrator** | Coordinates swarm, delegates work | 12 | complex (Mercury-2) |
+| **planner** | Breaks down tasks, creates roadmaps | 4 | complex |
+| **debugger** | Diagnoses failures, suggests fixes | 2 | complex |
+| **optimizer** | Improves solutions, refactors | 2 | complex |
+| **synthesizer** | Combines results, creates summaries | 1 | complex |
+| **supervisor** | Oversees other agents | 6 | complex |
+| **researcher** | Gathers info, analyzes data | 3 | local (Qwen2.5 1.5B) |
+| **executor** | Performs actions, writes files | 2 | local |
+| **validator** | Validates outputs, checks quality | 1 | local |
+| **monitor** | Tracks progress, alerts on issues | 0 | local |
+| **communicator** | Handles external APIs, messaging | 2 | local |
+| **specialist** | Domain-specific work | 3 | local |
+
+"Default model tier" is a starting point, not a hard assignment: a goal that matches the same complexity heuristic `apps/web/cli.ts` uses (`selectModelForGoal`/`isComplexGoal` — code keywords, JSON structure, length > 150 chars) can escalate a local-tier role to the complex model for that one task. See `model-router.ts`.
 
 ---
 
 ## Architecture
 
 ```
-Orchestrator (root)
-├─ Planner
-├─ Researcher
-│  ├─ Researcher (sub)
-│  └─ Communicator
-├─ Executor
-│  ├─ Executor (sub)
-│  └─ Optimizer
-├─ Validator
-├─ Monitor
-├─ Debugger
-├─ Synthesizer
-└─ Specialist
+Orchestrator (root, depth 0)
+├─ Planner (depth 1)
+│  ├─ Researcher (depth 2)
+│  └─ Executor (depth 2)
+│     └─ Optimizer (depth 3)      ← depth 4 would be the last allowed level
+├─ Researcher (depth 1)
+├─ Executor (depth 1)
+├─ Validator (depth 1)
+├─ Optimizer (depth 1)
+└─ Monitor (depth 1)
 ```
 
-### Hierarchy Constraints
+### Hierarchy constraints (all actually enforced, not just documented)
 
-- **Max Depth**: 4 levels (root → L1 → L2 → L3)
-- **Max Children**: Per-role limits (orchestrator=12, planner=4, etc.)
-- **Budget Inheritance**: Child budgets are 70-80% of parent
-- **Spawning**: Any agent can spawn sub-agents (except validator, monitor)
+| Constraint | Value | Enforced in |
+|---|---|---|
+| Max depth | 4 levels (root = depth 0) | `spawnAgent()` — rejects with `reason` before creating the child |
+| Max total agents (swarm-wide) | 64 | `spawnAgent()` — backstop independent of any single parent's `maxChildren` |
+| Max children per parent | Per-role, see table above | `spawnAgent()` |
+| Budget floor | Parent needs enough tokens left to fund a child | `spawnAgent()` |
+| Goal text | Control characters stripped, capped at 4000 chars, empty rejected | `sanitizeGoal()` in `orchestrator.ts` |
+| Message queue | Capped at 5000 entries (oldest dropped) | `sendMessage()` |
+
+The per-role `maxChildren` table alone does **not** bound the tree — an orchestrator with 12 children, each themselves able to spawn, multiplies out fast. The depth cap and the swarm-wide agent ceiling are the actual backstop; they were added and verified with an adversarial spawn-flood test (chain-spawn past depth 4, then flood-spawn past the ceiling) before this was called done.
 
 ---
 
-## CLI Commands
+## Model Routing (cost-aware)
 
-### Start Swarm
+`model-router.ts` extends the CLI's existing simple/complex heuristic to per-role defaults:
 
-```bash
-kudbee swarm start "Analyze user data and generate insights"
-```
+- Mechanical/lookup roles (researcher, executor, validator, monitor, communicator, specialist) default to the cheap local model.
+- Reasoning/coordination roles (orchestrator, planner, debugger, optimizer, synthesizer, supervisor) default to the enterprise agent model.
+- A goal matching the complexity heuristic can escalate any role to the complex model for that task.
+- **No fake savings**: if the local model isn't confirmed pulled (`localAvailable`), routing falls back to the complex model honestly and says so — same contract as `apps/web/cli.ts`'s `selectModelForGoal`.
 
-Creates:
-- 1 orchestrator agent
-- 6 initial team members (planner, researcher, executor, validator, optimizer, monitor)
+`SwarmOrchestrator`'s constructor takes an optional `RouterModels` config; `apps/web/cli.ts` passes one built from `client.models` (the server's live model list) the first time `/swarm` is used, so `localAvailable` reflects whether Qwen2.5 1.5B is actually pulled into Ollama — not a hardcoded guess.
 
-### List Agents
-
-```bash
-kudbee swarm agents
-```
-
-Shows:
-- Total agents
-- Active agents
-- Completed tasks
-- Failed tasks
-
-### Show Agent Tree
-
-```bash
-kudbee swarm tree
-```
-
-Displays:
-- Hierarchical agent tree
-- Agent names and roles
-- Status (active/completed/pending)
-
-### Show Metrics
-
-```bash
-kudbee swarm status
-```
-
-Reports:
-- Agent counts
-- Task completion rates
-- Efficiency %
-- Total cost
-- Token usage
-- Swarm depth
-
-### Spawn Sub-Agent
-
-```bash
-kudbee swarm spawn <parent-id> <role>
-```
-
-Example:
-```bash
-kudbee swarm spawn researcher-1 executor
-```
-
-### Assign Task
-
-```bash
-kudbee swarm task <agent-id> "Your task here"
-```
-
-Example:
-```bash
-kudbee swarm task orchestrator-abc "Analyze the codebase"
-```
-
-### Stop Swarm
-
-```bash
-kudbee swarm stop
-```
-
-Shuts down all agents and reports final metrics.
+Budgets are also tier-scaled: local-tier roles get roughly 30% of the token/cost footprint a complex-tier role gets by default (`budgetMultiplierForRole`), reflecting that their default model is far cheaper per call.
 
 ---
 
-## Data Flow
+## CLI Usage
 
-### 1. Task Assignment
-
-```
-User/CLI
-  ↓
-Orchestrator.assignTask()
-  ↓
-Task created (pending)
-  ↓
-Agent picks up task
-  ↓
-Task status: running
-```
-
-### 2. Agent Spawning
+Commands live inside the `kudbee` interactive REPL as `/swarm <subcommand>` — same dispatch convention as every other slash command in `apps/web/cli.ts` (`line.split(/\s+/)`, no shell quoting). Everything after the subcommand and any required IDs is space-joined as the goal text, so you don't quote it.
 
 ```
-Parent Agent
-  ↓
-Check capacity (maxChildren, budget)
-  ↓
-Request sub-agent spawn
-  ↓
-Orchestrator.spawnAgent()
-  ↓
-Child created with inherited budget
-  ↓
-Child added to hierarchy
-  ↓
-Task delegated to child
-```
+kudbee› /swarm start Analyze user data and generate insights
 
-### 3. Task Completion
+✅ Swarm initialized with orchestrator: orchestrator-91348bef
 
-```
-Agent completes task
-  ↓
-Orchestrator.completeTask(taskId, result)
-  ↓
-Task status: complete
-  ↓
-Agent marked completed
-  ↓
-Result stored
-  ↓
-Budget credited back
-```
-
----
-
-## Budget System
-
-Each agent gets:
-
-```typescript
-budget: {
-  tokens: number,        // LLM tokens available
-  cost: number,          // USD budget
-  time: number           // Seconds available
-}
-```
-
-### Budget Inheritance
-
-When spawning:
-- Child tokens = parent.tokens * 0.8
-- Child cost = min(request.cost, parent.cost * 0.5)
-- Child time = parent.time * 0.7
-
-### Budget Tracking
-
-- Tokens spent per API call
-- Cost calculated per model call
-- Time tracked per task
-- Swarm fails if budget exhausted
-
----
-
-## Implementation Files
-
-| File | Purpose |
-|------|---------|
-| `types.ts` | Type definitions (AgentConfig, AgentTask, etc.) |
-| `orchestrator.ts` | Core SwarmOrchestrator class |
-| `cli-integration.ts` | kudbee swarm CLI commands |
-| `index.ts` | Exports |
-
----
-
-## Integration with Kudbee CLI
-
-### Add to CLI Handler
-
-In `apps/web/cli.ts`:
-
-```typescript
-import { SwarmCLI } from "./agent-swarm/cli-integration";
-
-async function handleSwarmCommand(args: string[]) {
-  const swarmCLI = new SwarmCLI();
-  await swarmCLI.handleCommand(args);
-}
-
-// In main command router:
-if (command === "swarm") {
-  await handleSwarmCommand(rest);
-}
-```
-
-### Usage Flow
-
-```
-$ kudbee swarm start "Build a feature"
-🚀 Swarm started: Build a feature
-📍 Orchestrator: orchestrator-abc123
+🚀 Swarm started: Analyze user data and generate insights
+📍 Orchestrator: orchestrator-91348bef
 💰 Budget: 100000 tokens, $100
 
 👥 Building initial team...
-   ✓ planner        → planner-1
-   ✓ researcher     → researcher-1
-   ✓ executor       → executor-1
-   ✓ validator      → validator-1
-   ✓ optimizer      → optimizer-1
-   ✓ monitor        → monitor-1
 
-$ kudbee swarm status
+🤖 Spawned agent: planner-1 (planner-2641e219) → model=mercury-2
+   ✓ planner         → planner-2641e219
+🤖 Spawned agent: researcher-1 (researcher-95f98f2e) → model=qwen2.5:1.5b
+   ✓ researcher      → researcher-95f98f2e
+🤖 Spawned agent: executor-1 (executor-6f2a4234) → model=qwen2.5:1.5b
+   ✓ executor        → executor-6f2a4234
+🤖 Spawned agent: validator-1 (validator-87819fed) → model=qwen2.5:1.5b
+   ✓ validator       → validator-87819fed
+🤖 Spawned agent: optimizer-1 (optimizer-b5ef437a) → model=mercury-2
+   ✓ optimizer       → optimizer-b5ef437a
+🤖 Spawned agent: monitor-1 (monitor-678018df) → model=qwen2.5:1.5b
+   ✓ monitor         → monitor-678018df
+
+kudbee› /swarm tree
+
+🌳 Agent Hierarchy
+
+├─ 🔵 orchestrator-1 (orchestrator)
+  ├─ 🔵 planner-1 (planner)
+  ├─ 🔵 researcher-1 (researcher)
+  ├─ 🔵 executor-1 (executor)
+  ├─ 🔵 validator-1 (validator)
+  ├─ 🔵 optimizer-1 (optimizer)
+  └─ 🔵 monitor-1 (monitor)
+
+kudbee› /swarm status
+
 📈 Swarm Metrics
    Agents: 7 total, 7 active
    Tasks: 0 complete, 0 failed
@@ -284,177 +138,133 @@ $ kudbee swarm status
    Tokens: 0
    Depth: 1 levels
 
-$ kudbee swarm task orchestrator-abc123 "Analyze requirements"
-✅ Task assigned: task-xyz789
+kudbee› /swarm spawn planner-1 researcher
+🤖 Spawned agent: researcher-2 (researcher-...) → model=qwen2.5:1.5b
+✅ Spawned: researcher-...
 
-$ kudbee swarm tree
-🌳 Agent Hierarchy
+kudbee› /swarm task orchestrator-91348bef Analyze the requirements doc
+✅ Task assigned: task-...
 
-├─ 🔵 orchestrator-1 (orchestrator)
-   ├─ 🔵 planner-1 (planner)
-   ├─ 🔵 researcher-1 (researcher)
-   ├─ 🔵 executor-1 (executor)
-   ├─ 🔵 validator-1 (validator)
-   ├─ 🔵 optimizer-1 (optimizer)
-   └─ 🔵 monitor-1 (monitor)
+kudbee› /swarm stop
 
-$ kudbee swarm stop
 🛑 Swarm shutdown
-📈 Swarm Metrics
-   ...
+{ "totalAgents": 8, "activeAgents": 8, ... }
 ```
+
+All output above is from an actual `node --experimental-strip-types` run against this code, not hand-written — see "Verification" below.
+
+### Command reference
+
+| Command | Effect |
+|---|---|
+| `/swarm start <goal>` | Create orchestrator + spawn the 6-role starter team (planner, researcher, executor, validator, optimizer, monitor) |
+| `/swarm agents` | Agent/task counts |
+| `/swarm tree` | Hierarchy view with status per agent |
+| `/swarm status` | Cost, tokens, efficiency, depth |
+| `/swarm spawn <parent-id> <role>` | Manually spawn a sub-agent (role validated against the 12 known roles) |
+| `/swarm task <agent-id> <goal>` | Assign a task; delegates to a spawned researcher unless the agent is already at max depth |
+| `/swarm stop` | Shut down and print final metrics |
+
+An unrecognized role, a missing parent, or a swarm-wide limit hit all print a clear `❌ ...` message rather than failing silently or throwing an unhandled rejection into the REPL.
 
 ---
 
-## Example: Multi-Level Delegation
+## Budget System
+
+Each agent has:
+
+```typescript
+budget: { tokens: number, cost: number, time: number }
+```
+
+### What's real vs. what's bookkeeping
+
+- **Inheritance/scaling** (`scaledBudget`): when a parent spawns a child, the child's requested budget is scaled by the role's cost tier and capped by what the parent has left. This happens whether or not you pass explicit `tokens`/`cost` in the spawn request — omit them (as the starter-team builder does) to let tier scaling apply; pass them explicitly only when you need to override the default for one spawn.
+- **Debit on spawn**: the parent's budget is reduced by the committed child budget *immediately*, not just recorded — so a parent can't over-commit the same tokens to many children before any of them report spend back.
+- **`recordSpend(agentId, { tokens, cost, timeMs })`**: call this after an agent actually makes a model call, to decrement its remaining budget and roll the spend into swarm-wide `totalCost`/`totalTokens`. **This orchestration layer does not call it automatically** — there's no LLM call wired in yet (see "Not done"). A caller wiring this to `apps/web/agent.ts`'s tool loop must call `recordSpend` after each real call, or `getMetrics().totalCost`/`totalTokens` will stay honestly at zero, same as they do today.
+- **Budget floor on spawn**: a parent with too little budget left is refused a new child (`"Parent budget too low to fund a child agent"`), rather than spawning a child that inherits a budget of effectively zero.
+
+---
+
+## Security & Limits (what's actually enforced today)
+
+This was built, then adversarially tested against itself before being called done — not just designed on paper:
+
+1. **Depth cap (4 levels)** — verified: chain-spawning past depth 4 is rejected with a clear reason at the exact boundary.
+2. **Swarm-wide agent ceiling (64)** — verified: exists independently of per-role `maxChildren` so a wide-then-deep spawn pattern can't bypass it.
+3. **Per-role `maxChildren`** — verified: root (orchestrator, `maxChildren=12`) refuses a 13th child.
+4. **Budget floor + immediate debit** — verified: draining a parent's budget via `recordSpend` makes the next spawn attempt fail closed rather than proceeding with a near-zero budget.
+5. **Goal sanitization** — control characters stripped, length capped at 4000 chars, empty-after-cleaning goals rejected (`initialize`, `spawnAgent`, `assignTask` all go through this).
+6. **Tool authorization gate** — `isToolAllowed(agentId, tool)` checks a tool call against the agent's role-scoped tool list. **This is a gate a caller must invoke** — it isn't automatically enforced on any execution path yet, because there is no execution path wired in yet. Anyone wiring the swarm to `apps/web/agent.ts`'s tool loop must call this before dispatching a tool, the same way that loop's own approval gates work today.
+7. **Unbounded message queue** — capped at 5000 entries, drops oldest rather than growing forever.
+8. **Role validation on the CLI boundary** — `/swarm spawn <parent> <role>` rejects an unrecognized role string before it reaches orchestration logic, listing the 12 valid roles.
+
+### What this does NOT do (explicit non-goals for this pass)
+
+- **No cross-process or cross-machine coordination.** Everything above lives in one Node process's memory. No persistence across restarts, no distributed locking, no network-addressable agents.
+- **No telephony or external communication tool.** The `communicator` role has a declarative tool list (`send_message`, `fetch_url`, `log`) but nothing wires it to an actual phone/SMS/voice API. If you want that, it's a new gated tool added to `apps/web/agent.ts`'s toolset, behind the same approval-gate pattern as the existing `fetch_url` tool — not something to bolt on inside the orchestrator.
+- **No LLM calls.** `SwarmOrchestrator` is bookkeeping — agent lifecycle, hierarchy, budget accounting, model *routing decisions*. It does not itself call Mercury-2, Ollama, or anything else. Wiring an agent's `context.model` decision to an actual tool-calling loop (`apps/web/agent.ts`) is the next real integration step.
+- **No authentication.** Same posture as the rest of `apps/web` today — keep this on localhost.
+
+---
+
+## Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | `AgentRole` union + `ALL_AGENT_ROLES`/`isAgentRole` runtime validators, `AgentConfig`, `AgentTask`, `SwarmState`, `AgentMessage`, spawn request/response, `SwarmMetrics` |
+| `model-router.ts` | Per-role model tier defaults, complexity-based escalation, budget tier multiplier — extends `apps/web/cli.ts`'s routing heuristic |
+| `orchestrator.ts` | `SwarmOrchestrator` — spawn/assign/complete/fail lifecycle, depth/ceiling/budget enforcement, goal sanitization, tool authorization gate, message queue, tree + metrics reporting |
+| `cli-integration.ts` | `SwarmCLI` — the `/swarm` subcommand handler wired into `apps/web/cli.ts` |
+| `index.ts` | Public exports |
+
+All imports use explicit `.ts` extensions and `import type` for type-only imports, matching this project's `NodeNext` + `verbatimModuleSyntax` `tsconfig.json` and its `node --experimental-strip-types` execution model. Note: TS parameter-property shorthand (`constructor(private x: T)`) is **not** supported by `--experimental-strip-types` (it desugars to a runtime assignment, not just type erasure) — this bit us once during development and is called out in a comment on `SwarmCLI`'s constructor so it doesn't get reintroduced.
+
+---
+
+## Verification
+
+Since `apps/web/node_modules` isn't installed in the environment this was built in, verification was done by direct execution rather than a full `tsc` project check:
 
 ```bash
-# Start swarm
-$ kudbee swarm start "Analyze and optimize code"
+# Syntax check every file
+node --experimental-strip-types --check apps/web/agent-swarm/*.ts
+node --experimental-strip-types --check apps/web/cli.ts
 
-# Assign to orchestrator
-$ kudbee swarm task orchestrator-1 "Optimize src/utils.ts"
-
-# Orchestrator spawns planner
-$ kudbee swarm spawn orchestrator-1 planner
-✅ Spawned: planner-2
-
-# Planner spawns researcher and executor
-$ kudbee swarm spawn planner-2 researcher
-✅ Spawned: researcher-2
-
-$ kudbee swarm spawn planner-2 executor
-✅ Spawned: executor-2
-
-# Executor spawns optimizer
-$ kudbee swarm spawn executor-2 optimizer
-✅ Spawned: optimizer-1
-
-# View final tree
-$ kudbee swarm tree
-
-├─ 🔵 orchestrator-1 (orchestrator)
-   └─ 🔵 planner-2 (planner)
-      ├─ 🔵 researcher-2 (researcher)
-      └─ 🔵 executor-2 (executor)
-         └─ 🔵 optimizer-1 (optimizer)
+# Functional smoke test (adversarial): depth cap, agent ceiling, maxChildren,
+# budget exhaustion, goal sanitization, unknown role/command handling
+node --experimental-strip-types <a scratch script importing SwarmOrchestrator/SwarmCLI>
 ```
 
+All of the "Security & Limits" claims above were confirmed this way, not just asserted. **Before you rely on this**, run `npm install && npx tsc --noEmit -p apps/web/tsconfig.json` once `node_modules` exists locally — the strip-types syntax check catches parse errors but not type errors, and `verbatimModuleSyntax`/`NodeNext` have sharp edges (see the parameter-property note above) that a full project check would catch that a syntax check can't.
+
 ---
 
-## Key Classes & Methods
+## Not done / follow-ups
 
-### SwarmOrchestrator
+- **No automated test file** (e.g. `tests/agent-swarm.test.ts`) — verification so far is the adversarial scratch-script runs described above, not a committed, repeatable test suite. Given this repo's own AGENTS.md testing rules (§3), add one before treating this as done rather than "verified once."
+- **Not wired to a real tool-execution loop.** `apps/web/agent.ts` has its own Mercury-2 tool-calling loop with its own approval gates; this swarm doesn't call it yet. `context.model` per agent is a *decision*, not a dispatch.
+- **`recordSpend` isn't called automatically anywhere** — it exists so a future integration can call it after real model calls; right now nothing does, so swarm-wide cost/token metrics stay at zero through a full run (which is the honest state, not a bug).
+- **No persistence.** A swarm's state disappears when the process exits or `/swarm stop` runs.
 
-```typescript
-class SwarmOrchestrator {
-  initialize(goal: string): Promise<AgentConfig>
-  spawnAgent(request: SpawnRequest): Promise<SpawnResponse>
-  assignTask(agentId, goal, delegated, priority): Promise<AgentTask>
-  completeTask(taskId, result): void
-  failTask(taskId, error): void
-  sendMessage(message): void
-  getMessages(agentId): AgentMessage[]
-  getMetrics(): SwarmMetrics
-  getAgentTree(): Record<string, any>
-  shutdown(): Promise<void>
-}
+---
+
+## Next Steps (when you're back on the local machine)
+
+```bash
+git fetch origin claude-kudbee/gracious-bohr-7sx86a
+git checkout claude-kudbee/gracious-bohr-7sx86a
+cd apps/web && npm install && npx tsc --noEmit -p tsconfig.json
 ```
 
-### SwarmCLI
+Then try it for real:
 
-```typescript
-class SwarmCLI {
-  handleCommand(args: string[]): Promise<void>
-  // Private methods for each command
-}
+```bash
+kudbee
+kudbee› /swarm start Analyze the repo and suggest one improvement
+kudbee› /swarm tree
+kudbee› /swarm status
+kudbee› /swarm stop
 ```
 
----
-
-## Metrics & Monitoring
-
-### SwarmMetrics
-
-```typescript
-interface SwarmMetrics {
-  totalAgents: number
-  activeAgents: number
-  completedTasks: number
-  failedTasks: number
-  avgResponseTime: number      // ms
-  totalCost: number
-  totalTokens: number
-  efficiency: number            // 0-1
-  depth: number                 // Max hierarchy depth
-}
-```
-
-### Real-time Monitoring
-
-The monitor agent (`monitor` role) tracks:
-- Agent health and status
-- Task progress
-- Cost/budget depletion
-- Performance anomalies
-- Failure patterns
-
----
-
-## Next Steps (When You Get Home)
-
-1. **Pull the files**
-   ```bash
-   git pull origin main
-   ```
-
-2. **Review the architecture**
-   - Read `docs/MULTI_AGENT_SWARM_ARCHITECTURE.md`
-   - Check `apps/web/agent-swarm/` files
-
-3. **Integrate with CLI**
-   - Add SwarmCLI to `apps/web/cli.ts`
-   - Wire up swarm command handler
-
-4. **Test locally**
-   ```bash
-   kudbee swarm start "Test swarm execution"
-   kudbee swarm tree
-   kudbee swarm status
-   ```
-
-5. **Extend agent types**
-   - Add domain-specific agents
-   - Customize tools per role
-   - Tune budget multipliers
-
----
-
-## Architecture Decisions
-
-| Decision | Reason |
-|----------|--------|
-| Hierarchical spawning | Natural task decomposition |
-| Budget inheritance | Prevents runaway spending |
-| Role-based agents | Specialization improves performance |
-| Max 12 agents | Keeps coordination tractable |
-| Message queue | Async communication |
-| Per-agent tools | Prevents unauthorized actions |
-
----
-
-## Production Considerations
-
-⚠️ **Before deploying:**
-- Add authentication/authorization
-- Implement persistent state storage
-- Add audit logging
-- Set up cost monitoring/alerts
-- Test swarm scaling to 100+ agents
-- Add graceful shutdown handling
-- Implement agent health checks
-- Add request timeout enforcement
-
----
-
-Ready to integrate! 🚀
+If `tsc` finds anything the strip-types syntax check couldn't (type errors, a missed extension), fix those first. Then decide whether the next real step is wiring `recordSpend`/`isToolAllowed` into `apps/web/agent.ts`'s loop, or writing the committed test suite — both are listed above as not done, and either is a more honest "next" than adding more agent roles.

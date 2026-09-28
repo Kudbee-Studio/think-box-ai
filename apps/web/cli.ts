@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { SwarmCLI } from './agent-swarm/cli-integration.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -286,6 +287,15 @@ ${c.bold('OPERATIONS')}
   /runs               run history (15 latest)
   /run ID             detailed step-by-step trace
 
+${c.bold('AGENT SWARM')} (in-process, this session only — see docs/MULTI_AGENT_SWARM_ARCHITECTURE.md)
+  /swarm start GOAL         spawn orchestrator + 6-role starter team
+  /swarm agents             agent/task counts
+  /swarm tree               hierarchy view
+  /swarm status             cost, tokens, efficiency, depth
+  /swarm spawn PARENT ROLE  manually spawn a sub-agent
+  /swarm task AGENT GOAL    assign/delegate a task
+  /swarm stop               shut down and print final metrics
+
 ${c.bold('MEMORY & KNOWLEDGE')}
   /memory [QUERY]     search organizational memory (Upstash + BM25)
   /notes [LAYER]      list persistent notes (session|task|org|verified)
@@ -309,9 +319,21 @@ ${c.bold('EXAMPLES')}
   ${c.cyan('/select')} — pick Mercury-2 or the local model interactively
   ${c.cyan('/memory python tips')} — search memory for Python advice`;
 
+// Lazily constructed on first /swarm use, once client.models is populated,
+// so router defaults reflect whether the local model is actually pulled
+// rather than always assuming it isn't (see agent-swarm/model-router.ts).
+let swarmCLI: SwarmCLI | null = null;
+
 async function handleCommand(client: Client, line: string): Promise<boolean> {
   const [cmd, ...args] = line.split(/\s+/);
   switch (cmd) {
+    case '/swarm':
+      if (!swarmCLI) {
+        const localAvailable = client.models.some((m) => !m.agent && m.name === LOCAL_MODEL);
+        swarmCLI = new SwarmCLI({ localModel: LOCAL_MODEL, complexModel: COMPLEX_MODEL, localAvailable });
+      }
+      await swarmCLI.handleCommand(args);
+      break;
     case '/help':
       console.log(HELP);
       break;

@@ -18,6 +18,31 @@ export type AgentRole =
   | "specialist"        // Domain-specific work
   | "supervisor";       // Oversees other agents
 
+/**
+ * Runtime-checkable list of every AgentRole, kept in sync with the union
+ * above by hand (TS unions have no runtime representation to derive this
+ * from automatically). Used to validate role strings coming from outside
+ * the type system — e.g. CLI args — before they reach orchestrator logic.
+ */
+export const ALL_AGENT_ROLES: readonly AgentRole[] = [
+  "orchestrator",
+  "researcher",
+  "executor",
+  "validator",
+  "optimizer",
+  "monitor",
+  "communicator",
+  "planner",
+  "debugger",
+  "synthesizer",
+  "specialist",
+  "supervisor",
+] as const;
+
+export function isAgentRole(value: string): value is AgentRole {
+  return (ALL_AGENT_ROLES as readonly string[]).includes(value);
+}
+
 export interface AgentConfig {
   id: string;
   role: AgentRole;

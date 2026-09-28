@@ -9,8 +9,9 @@
  * - Budget tracking (tokens, cost, time)
  */
 
-export { SwarmOrchestrator } from "./orchestrator";
-export { SwarmCLI } from "./cli-integration";
+export { SwarmOrchestrator } from "./orchestrator.ts";
+export { SwarmCLI } from "./cli-integration.ts";
+export { ALL_AGENT_ROLES, isAgentRole } from "./types.ts";
 export type {
   AgentRole,
   AgentConfig,
@@ -20,4 +21,6 @@ export type {
   SpawnRequest,
   SpawnResponse,
   SwarmMetrics,
-} from "./types";
+} from "./types.ts";
+export { routeModelForAgent, isComplexGoal, budgetMultiplierForRole } from "./model-router.ts";
+export type { RouterModels, ModelRouteDecision, RouteReason } from "./model-router.ts";

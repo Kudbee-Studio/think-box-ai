@@ -1,28 +1,53 @@
 /**
  * Kudbee CLI Integration for Agent Swarm
  *
+ * Wired into apps/web/cli.ts as a `/swarm` REPL command (same convention as
+ * /memory, /cat, /model — see handleCommand's `line.split(/\s+/)` dispatch).
+ * No shell quoting: everything after the subcommand is space-joined as the
+ * goal text, so `/swarm start Analyze the repo` works without quotes and
+ * quotes typed in would be taken literally.
+ *
  * Commands:
- * - kudbee swarm start "<goal>"           # Start swarm with goal
- * - kudbee swarm agents                   # List all agents
- * - kudbee swarm tree                     # Show agent hierarchy
- * - kudbee swarm status                   # Show swarm metrics
- * - kudbee swarm spawn <parent-id> <role> # Manually spawn agent
- * - kudbee swarm task <agent-id> "<goal>" # Assign task to agent
- * - kudbee swarm stop                     # Shutdown swarm
+ * - /swarm start <goal>            Start swarm with goal
+ * - /swarm agents                  List all agents
+ * - /swarm tree                    Show agent hierarchy
+ * - /swarm status                  Show swarm metrics
+ * - /swarm spawn <parent-id> <role> Manually spawn agent
+ * - /swarm task <agent-id> <goal>  Assign task to agent
+ * - /swarm stop                    Shutdown swarm
  */
 
-import { SwarmOrchestrator } from "./orchestrator";
-import { AgentRole, SpawnRequest } from "./types";
+import { SwarmOrchestrator } from "./orchestrator.ts";
+import { ALL_AGENT_ROLES, isAgentRole, type AgentRole } from "./types.ts";
+import type { RouterModels } from "./model-router.ts";
 
 export class SwarmCLI {
   private orchestrator: SwarmOrchestrator | null = null;
+  private routerModels?: RouterModels;
+
+  /**
+   * @param routerModels Pass the caller's live model-availability check
+   * (e.g. from apps/web/cli.ts's `client.models`) so role→model routing
+   * reflects reality instead of always assuming the local model isn't
+   * pulled. Omit to use env-var defaults with localAvailable=false.
+   *
+   * Deliberately not a TS parameter-property (`constructor(private x: T)`)
+   * — apps/web runs its .ts files through `node --experimental-strip-types`,
+   * which only strips type syntax and does not support parameter-property
+   * shorthand (it desugars to a runtime assignment, not just type info).
+   * That form throws ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX at import time here;
+   * confirmed by running this file directly with strip-types after the fix.
+   */
+  constructor(routerModels?: RouterModels) {
+    this.routerModels = routerModels;
+  }
 
   async handleCommand(args: string[]): Promise<void> {
     const [command, ...params] = args;
 
     switch (command) {
       case "start":
-        await this.startSwarm(params[0]);
+        await this.startSwarm(params.join(" "));
         break;
       case "agents":
         this.listAgents();
@@ -33,17 +58,35 @@ export class SwarmCLI {
       case "status":
         this.showStatus();
         break;
-      case "spawn":
-        await this.spawnAgent(params[0], params[1] as AgentRole);
+      case "spawn": {
+        const [parentId, roleArg] = params;
+        if (!parentId || !roleArg) {
+          console.log("❌ Usage: /swarm spawn <parent-id> <role>");
+          break;
+        }
+        if (!isAgentRole(roleArg)) {
+          console.log(`❌ Unknown role "${roleArg}". Valid roles: ${ALL_AGENT_ROLES.join(", ")}`);
+          break;
+        }
+        await this.spawnAgent(parentId, roleArg);
         break;
-      case "task":
-        await this.assignTask(params[0], params[1]);
+      }
+      case "task": {
+        const [agentId, ...goalParts] = params;
+        if (!agentId || goalParts.length === 0) {
+          console.log("❌ Usage: /swarm task <agent-id> <goal>");
+          break;
+        }
+        await this.assignTask(agentId, goalParts.join(" "));
         break;
+      }
       case "stop":
         await this.stopSwarm();
         break;
       default:
-        console.log("❌ Unknown swarm command");
+        console.log(
+          "❌ Unknown swarm command. Try: start, agents, tree, status, spawn, task, stop"
+        );
     }
   }
 
@@ -53,8 +96,20 @@ export class SwarmCLI {
       return;
     }
 
-    this.orchestrator = new SwarmOrchestrator();
-    const rootAgent = await this.orchestrator.initialize(goal);
+    if (!goal.trim()) {
+      console.log("❌ Usage: /swarm start <goal>");
+      return;
+    }
+
+    const orchestrator = new SwarmOrchestrator(this.routerModels);
+    let rootAgent;
+    try {
+      rootAgent = await orchestrator.initialize(goal);
+    } catch (err) {
+      console.log(`❌ Failed to start swarm: ${err instanceof Error ? err.message : err}`);
+      return;
+    }
+    this.orchestrator = orchestrator;
 
     console.log(`\n🚀 Swarm started: ${goal}`);
     console.log(`📍 Orchestrator: ${rootAgent.id}`);
@@ -79,16 +134,26 @@ export class SwarmCLI {
     console.log("👥 Building initial team...\n");
 
     for (const role of initialRoles) {
+      // Deliberately don't pin tokens/cost here: a flat request per role
+      // (e.g. a hardcoded 50000 tokens x 6 roles) can exceed the root's
+      // total budget before the last couple of roles even get a turn, and
+      // silently produces a 3-of-6 team with nothing telling you why. Omit
+      // them so scaledBudget() applies the role's actual cost tier
+      // (model-router.ts) against whatever budget the root still has left.
       const response = await this.orchestrator.spawnAgent({
         parentId: orchestratorId,
         role,
         goal: `Specialized ${role} agent for swarm`,
-        budget: { tokens: 50000, cost: 25, time: 600 },
+        budget: { time: 600 },
         priority: "high",
       });
 
       if (response.success) {
         console.log(`   ✓ ${role.padEnd(15)} → ${response.agentId}`);
+      } else {
+        // Never swallow a failed spawn — a silently incomplete starter team
+        // is exactly the kind of fake success AGENTS.md §4.4 rules out.
+        console.log(`   ✗ ${role.padEnd(15)} → ${response.error || response.reason}`);
       }
     }
     console.log();
@@ -179,8 +244,12 @@ export class SwarmCLI {
       return;
     }
 
-    const task = await this.orchestrator.assignTask(agentId, goal, true, "high");
-    console.log(`✅ Task assigned: ${task.id}`);
+    try {
+      const task = await this.orchestrator.assignTask(agentId, goal, true, "high");
+      console.log(`✅ Task assigned: ${task.id}`);
+    } catch (err) {
+      console.log(`❌ ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   private async stopSwarm(): Promise<void> {

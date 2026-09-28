@@ -13,7 +13,7 @@
  * fall back honestly, same contract as the CLI (AGENTS.md §4.4).
  */
 
-import { AgentRole } from "./types";
+import type { AgentRole } from "./types.ts";
 
 export type RouteReason = "role_default" | "goal_override" | "fallback_no_local";
 
