@@ -448,6 +448,9 @@ class AgentSession {
   readonly plugins: Map<string, Plugin> = new Map();
   status = 'idle';
   abort: AbortController | null = null;
+  /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
+  readonly queue: Array<{ goal: string; model?: string; task: Task }> = [];
+  private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
   history: Array<{ goal: string; result: string }> = [];
@@ -665,12 +668,52 @@ class AgentSession {
     }
   }
 
-  async runGoal(goal: string): Promise<PluginResult> {
-    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal);
+  /**
+   * Single entry point for goals. A session runs one goal at a time: concurrent runs would share the
+   * abort controller and approval map, so extra goals wait in `queue` as visible "queued" tasks.
+   */
+  submitGoal(goal: string, model?: string): { queued: boolean; position: number; task_id?: string } {
+    if (this.busy) {
+      const task = this.addTask({ description: goal, status: 'queued' });
+      this.queue.push({ goal, model, task });
+      this.broadcast({ type: 'queued', data: { task_id: task.id, goal, position: this.queue.length } });
+      return { queued: true, position: this.queue.length, task_id: task.id };
+    }
+    void this.drain({ goal, model });
+    return { queued: false, position: 0 };
+  }
+
+  private async drain(first: { goal: string; model?: string; task?: Task }): Promise<void> {
+    this.busy = true;
+    let next: { goal: string; model?: string; task?: Task } | undefined = first;
+    try {
+      while (next) {
+        if (next.model) {
+          this.config.model = next.model;
+          this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
+        }
+        this.broadcast({ type: 'status', data: 'running' });
+        const result = await this.runGoal(next.goal, next.task);
+        this.broadcast({ type: 'result', data: result });
+        next = this.queue.shift();
+      }
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Reuses the task created at enqueue time, or creates one for a goal that starts immediately. */
+  private beginTask(goal: string, queued?: Task): Task {
+    if (queued) return this.updateTask(queued.id, { status: 'running' }) ?? queued;
+    return this.addTask({ description: goal, status: 'running' });
+  }
+
+  async runGoal(goal: string, queuedTask?: Task): Promise<PluginResult> {
+    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask);
     this.status = 'running';
     this.addThought({ type: 'goal', content: `Starting goal: ${goal}`, status: 'info' });
 
-    const task = this.addTask({ description: goal, status: 'running' });
+    const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
     const modelStartedAt = Date.now();
 
@@ -764,11 +807,11 @@ class AgentSession {
     pending.resolve(approved);
   }
 
-  async runAgentGoal(goal: string): Promise<PluginResult> {
+  async runAgentGoal(goal: string, queuedTask?: Task): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
     this.addThought({ type: 'goal', content: `Worker agent (${this.config.model}) starting: ${goal}`, status: 'info' });
-    const task = this.addTask({ description: goal, status: 'running' });
+    const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
     this.broadcast({ type: 'run_update', data: record });
     try {
@@ -892,6 +935,11 @@ class AgentSession {
   }
 
   stop(): void {
+    // Stop means stop everything: the running goal is aborted and nothing queued behind it starts.
+    for (const waiting of this.queue.splice(0)) {
+      this.updateTask(waiting.task.id, { status: 'cancelled', error: 'Cancelled by stop before it started' } as Partial<Task>);
+      this.broadcast({ type: 'result', data: { success: false, cancelled: true, error: `Cancelled before it started: ${waiting.goal}` } });
+    }
     this.abort?.abort();
     for (const id of [...this.pendingApprovals.keys()]) this.resolveApproval(id, false);
     this.status = 'idle';
@@ -928,13 +976,7 @@ wss.on('connection', async (ws: WebSocket) => {
 
       switch (msg.type) {
         case 'run_goal': {
-          if (typeof msg.model === 'string' && msg.model) {
-            session.config.model = msg.model;
-            session.config.provider = isInceptionModel(msg.model) ? 'inception' : 'ollama';
-          }
-          session.broadcast({ type: 'status', data: 'running' });
-          const result = await session.runGoal(String(msg.goal));
-          ws.send(JSON.stringify({ type: 'result', data: result }));
+          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined);
           break;
         }
 
@@ -1112,6 +1154,7 @@ app.get('/api/stats', (_req: Request, res: Response) => {
     memory: { counts: memoryStore.counts(), vector: memoryStore.vectorStatus },
     capacity: {
       running_agents: running,
+      queued_goals: [...sessions.values()].reduce((sum, session) => sum + session.queue.length, 0),
       connected_sessions: sessions.size,
       pending_approvals: [...sessions.values()].reduce((sum, session) => sum + session.pendingApprovals.size, 0),
       server_cpu_pct: Math.round(((usage.user + usage.system) / 1000 / elapsedMs) * 1000) / 10,
@@ -1399,8 +1442,10 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const result = await session.runGoal(String(req.body.goal));
-  res.json(result);
+  const goal = String(req.body?.goal ?? '').trim();
+  if (!goal) return res.status(400).json({ error: 'goal is required' });
+  // Goes through the session queue like WebSocket goals; follow progress via /api/runs.
+  res.status(202).json(session.submitGoal(goal, typeof req.body.model === 'string' ? req.body.model : undefined));
 });
 
 app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {

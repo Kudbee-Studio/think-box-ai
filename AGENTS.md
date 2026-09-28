@@ -1378,6 +1378,16 @@ server → `init` (now includes `models`), `thought`, `task`, `task_update`,
 `memory_changed`,
 `result` (includes `run_id`, `cost_usd`, `tool_calls`, `tokens`, `files`).
 
+**Goal queue:** a session runs one goal at a time; a goal sent while another
+is running is queued (visible as a `queued` task, `WS queued` event) and
+starts automatically when its turn comes. `stop` aborts the running goal and
+cancels everything queued behind it (`task` status `cancelled`, `result` with
+`cancelled: true`). The dashboard input and Run button stay enabled while an
+agent runs — the button reads "＋ Queue" instead of "▶ Run". `POST
+/api/sessions/:id/run` returns `202 {queued, position, task_id}` immediately
+instead of blocking for the whole run. `GET /api/stats` capacity now also
+reports `queued_goals`.
+
 **Operator commands:** `kudbee` (interactive), `kudbee "<goal>"`,
 `kudbee --yes "<goal>"`, `kudbee /runs`, `kudbee /run <id>`, `kudbee /metrics`,
 `kudbee /memory [query]`, `kudbee /remember TITLE - TEXT`, `kudbee /promote org/ID`.
@@ -1385,6 +1395,27 @@ server → `init` (now includes `models`), `thought`, `task`, `task_update`,
 Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`, `/run ID`, `/capacity`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
+
+### 2026-09-27 (night) — Per-session goal queue
+
+- Sending a goal while one is already running used to silently wait on the
+  client and block the dashboard/CLI input. Now the server queues it: one
+  goal runs at a time per session (an agent's abort controller and approval
+  map are per-session, so overlapping runs would corrupt both), extra goals
+  wait as `queued` tasks and run in order automatically.
+- `AgentSession.submitGoal` (WS `run_goal` and `POST /run` both go through it)
+  replaces direct `runGoal` calls from the transport layer; `drain()` is the
+  one place a session's goals execute. `stop()` now also cancels everything
+  still queued, not just the running goal.
+- Dashboard: input/Run button stay enabled while running (button reads "＋
+  Queue"); `queued` WS event and task styling; `cancelled` results shown
+  distinctly from failures.
+- `kudbee` interactive shell no longer blocks on a running goal — typed goals
+  queue server-side and their results print as they complete, in order.
+- **Verified:** 3 new hermetic tests (ordered queue + task reuse, stop cancels
+  queued goals, REST 202) — 57/57 passing; TypeScript 7 clean; headless-Chrome
+  drive of the dashboard confirms input stays enabled, the second goal shows
+  "Queued #1", and both answers arrive in order with zero JS errors.
 
 ### 2026-09-27 (later) — Test suite, read-only Algorand tool, recall noise fix
 

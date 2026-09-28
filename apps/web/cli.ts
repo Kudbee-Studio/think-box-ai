@@ -358,7 +358,7 @@ async function main(): Promise<void> {
   console.log(c.dim('Type a goal, or /help. Ctrl+C to exit.'));
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: c.yellow('kudbee› ') });
   rl.prompt();
-  let busy = false;
+  let inFlight = 0;
   const pending: ApprovalRequest[] = [];
   client.onApproval = (req) => {
     printApproval(req);
@@ -369,18 +369,25 @@ async function main(): Promise<void> {
     const line = raw.trim();
     const approval = pending.shift();
     if (approval) return client.answer(approval.id, /^y(es)?$/i.test(line));
-    if (!line || busy) return rl.prompt();
-    busy = true;
-    try {
-      if (line.startsWith('/')) {
+    if (!line) return rl.prompt();
+    if (line.startsWith('/')) {
+      try {
         if (!(await handleCommand(client, line))) return rl.close();
-      } else {
-        await client.run(line);
+      } catch (err) {
+        console.log(c.red(String(err)));
       }
-    } catch (err) {
-      console.log(c.red(String(err)));
+      return rl.prompt();
     }
-    busy = false;
+    // Goals never block the prompt: the server queues them per session and results arrive in order.
+    if (inFlight) console.log(c.dim(`  ⏳ queued behind ${inFlight} goal(s)`));
+    inFlight += 1;
+    client
+      .run(line)
+      .catch((err) => console.log(c.red(String(err))))
+      .finally(() => {
+        inFlight -= 1;
+        rl.prompt();
+      });
     rl.prompt();
   });
   rl.on('close', () => {

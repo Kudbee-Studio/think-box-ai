@@ -136,6 +136,10 @@ function handleMessage(msg) {
       scheduleMemoryRefresh();
       break;
 
+    case 'queued':
+      appendTerminalMessage('system', `⏳ Queued #${msg.data.position}: ${msg.data.goal}`);
+      break;
+
     case 'approval_request':
       state.approvals.push({ ...msg.data, received_at: Date.now() });
       showNextApproval();
@@ -152,7 +156,9 @@ function handleMessage(msg) {
       const stats = r.steps !== undefined
         ? `\n— ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${formatUsd(r.cost_usd)} · ${((r.duration_ms || 0) / 1000).toFixed(1)}s`
         : '';
-      if (r.success) {
+      if (r.cancelled) {
+        appendTerminalMessage('system', `⊘ ${r.error}`);
+      } else if (r.success) {
         setStatus('idle', 'Completed');
         appendTerminalMessage('assistant', `✓ ${r.result || 'Done'}${stats}`);
       } else {
@@ -316,10 +322,13 @@ function setStatus(status, text) {
 
   const submitBtn = document.getElementById('submit-goal');
   const running = status === 'running';
-  runBtn.disabled = running;
-  submitBtn.disabled = running;
+  // Input stays usable while an agent runs: new goals are queued by the server.
+  runBtn.disabled = false;
+  submitBtn.disabled = false;
   stopBtn.disabled = !running;
-  input.disabled = running;
+  input.disabled = false;
+  runBtn.textContent = running ? '＋ Queue' : '▶ Run';
+  submitBtn.textContent = running ? 'Queue' : 'Run';
 }
 
 function enableInput(enabled) {
@@ -1139,7 +1148,7 @@ async function refreshStats() {
       .map(([kind, count]) => `<span title="Failure type">${escapeHtml(kind)} × ${count}</span>`).join('');
 
     const c = s.capacity;
-    document.getElementById('cap-agents-text').textContent = `${c.running_agents} running · ${c.connected_sessions} session(s)`;
+    document.getElementById('cap-agents-text').textContent = `${c.running_agents} running · ${c.queued_goals} queued · ${c.connected_sessions} session(s)`;
     setMeter('cap-agents', c.connected_sessions ? (c.running_agents / c.connected_sessions) * 100 : 0);
     document.getElementById('cap-cpu-text').textContent = `${c.server_cpu_pct}% · ${c.server_rss_mb} MB RSS`;
     setMeter('cap-cpu', c.server_cpu_pct);
@@ -1447,7 +1456,7 @@ function runGoal() {
   }
 
   appendTerminalMessage('user', goal);
-  setStatus('running', 'Running');
+  if (!state.isRunning) setStatus('running', 'Running');
 
   state.ws.send(JSON.stringify({
     type: 'run_goal',

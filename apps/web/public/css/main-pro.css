@@ -789,3 +789,8 @@ body {
 .memory-form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); }
 .memory-form input, .memory-form select, .memory-form textarea { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-light); border-radius: 6px; padding: 7px 8px; font-size: 12px; font-family: var(--font-sans); }
 .memory-form textarea { font-family: var(--font-mono); resize: vertical; }
+
+/* Goal queue states */
+.task-status.queued { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+.task-status.cancelled, .task-status.stopped { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+.task-item.queued { opacity: 0.8; border-style: dashed; }
