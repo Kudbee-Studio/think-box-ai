@@ -30,6 +30,7 @@ import { INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent }
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
+import PersistenceLayer from './persistence.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +72,9 @@ const dataDir = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
 const runStore = new RunStore(path.join(dataDir, 'runs.json'));
 const memoryStore = new MemoryStore(process.env.KUDBEE_MEMORY_DIR || path.join(dataDir, 'memory'));
 void memoryStore.syncVectors();
+
+// ─── Persistent storage (SQLite) ────────────────────────────────
+const persistence = new PersistenceLayer(dataDir);
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -958,6 +962,12 @@ wss.on('connection', async (ws: WebSocket) => {
   sessions.set(sessionId, session);
   void fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true });
 
+  // Restore dashboard state from persistent storage
+  const savedState = await persistence.restoreDashboardState(sessionId);
+  if (savedState?.settings) {
+    Object.assign(session.config, savedState.settings);
+  }
+
   ws.send(
     JSON.stringify({
       type: 'init',
@@ -969,6 +979,7 @@ wss.on('connection', async (ws: WebSocket) => {
         files: Array.from(session.files.entries()),
         tasks: session.tasks,
         thoughts: session.thoughts,
+        restoredState: savedState,
       },
     }),
   );
@@ -1019,7 +1030,29 @@ wss.on('connection', async (ws: WebSocket) => {
 
         case 'update_config': {
           Object.assign(session.config, msg.config);
+          // Save config to persistent storage (debounced)
+          void persistence.saveDashboardState({
+            sessionId,
+            settings: session.config,
+            lastUpdate: Date.now(),
+            createdAt: Date.now()
+          });
           ws.send(JSON.stringify({ type: 'config_updated', data: session.config }));
+          break;
+        }
+
+        case 'state_save': {
+          // Save full dashboard state on demand
+          const state = {
+            sessionId,
+            panelState: (msg.panelState as Record<string, any>) || {},
+            viewState: (msg.viewState as Record<string, any>) || {},
+            settings: session.config,
+            lastUpdate: Date.now(),
+            createdAt: Date.now()
+          };
+          await persistence.saveDashboardState(state);
+          ws.send(JSON.stringify({ type: 'state_saved', data: { success: true } }));
           break;
         }
 
@@ -1474,6 +1507,44 @@ app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
   session.stop();
   res.json({ success: true });
+});
+
+// ─── Run History (Persistent Storage) ──────────────────────────
+app.get('/api/runs/history', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    // Try persistent DB first
+    const dbRuns = await persistence.listRuns(sessionId, limit);
+    if (dbRuns.length > 0) {
+      return res.json({ runs: dbRuns, source: 'db' });
+    }
+
+    // Fallback to JSON run store
+    const allRuns = runStore.all().filter((r) => r.sessionId === sessionId);
+    const runs = allRuns
+      .slice(0, limit)
+      .map((r) => ({
+        runId: r.id,
+        sessionId: r.sessionId,
+        goal: r.goal,
+        status: r.status,
+        startTime: r.start_time,
+        endTime: r.end_time,
+        metrics: { tokens: (r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0), cost: r.cost_usd },
+        files: r.files,
+        createdAt: r.start_time
+      }));
+
+    res.json({ runs, source: 'json' });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // ─── Start server ──────────────────────────────────────────────
