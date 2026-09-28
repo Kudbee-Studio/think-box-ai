@@ -1313,11 +1313,16 @@ how it was verified, and what is still open. Newest entry first.
 | Session workspaces | `apps/web/workspaces/<session-uuid>/` | Git-ignored; agent file tools are confined here |
 | Layered memory | `apps/web/memory.ts`, files in `apps/web/data/memory/{task,org,verified}/*.md` | Markdown is the source of truth; mirrored to Upstash Vector (sparse, namespace `kudbee-memory`) + in-process BM25 |
 | TS7 typecheck | `apps/web/bin/typecheck` | TypeScript 7.0.2 strict; works in WSL with a Windows-installed `node_modules` |
+| Algorand (read-only) | `apps/web/algorand.ts` | Public AlgoNode algod/indexer, testnet + mainnet; no SDK, no key, no wallet, cannot sign/send |
+| Tests | `apps/web/tests/*.test.ts` (`npm test`) | `node:test`, hermetic: mock Inception, mock Upstash, mock AlgoNode, real `server.ts` on a random port |
 
 **Worker agent tools:** `list_files`, `read_file`, `write_file` (workspace only),
 `fetch_url` (http/https GET, 15 s timeout, HTML stripped, 12 KB cap),
-`read_rss` (via the `rss_feed` plugin), `recall` (memory search), `remember`
-(write an org note). **No shell tool** is exposed to the model (§9: shell
+`read_rss` (via the `rss_feed` plugin), `algorand` (read-only chain lookups:
+status, account, asset, application with decoded global state, transaction,
+account_transactions; same first-contact domain approval as `fetch_url`; input
+is validated before any approval prompt), `recall` (memory search),
+`remember` (write an org note). **No shell tool** is exposed to the model (§9: shell
 execution needs explicit approval).
 
 **Memory layers (§1.3):** *session* = live conversation in the socket session;
@@ -1363,7 +1368,8 @@ running agents, pending approvals, server CPU/RSS, system memory, load),
 `GET /api/models` (Inception + Ollama), memory: `GET /api/memory?layer=&q=`,
 `GET /api/memory/item?id=`, `POST /api/memory` (human note, org|verified),
 `POST /api/memory/promote {id}`, `DELETE /api/memory/item?id=`,
-`GET /api/memory/status`; plus the existing health/monitor/files routes. File read routes accept past sessions whose workspace still exists.
+`GET /api/memory/status`, `GET /api/algorand?action=&network=&address=&id=&txid=`
+(human-initiated, no approval prompt); plus the existing health/monitor/files routes. File read routes accept past sessions whose workspace still exists.
 
 **WebSocket messages:** client → `run_goal`, `stop`, `approval_response
 {id, approved}`, `list_models`, `plugin_execute`, `update_config`;
@@ -1375,9 +1381,47 @@ server → `init` (now includes `models`), `thought`, `task`, `task_update`,
 **Operator commands:** `kudbee` (interactive), `kudbee "<goal>"`,
 `kudbee --yes "<goal>"`, `kudbee /runs`, `kudbee /run <id>`, `kudbee /metrics`,
 `kudbee /memory [query]`, `kudbee /remember TITLE - TEXT`, `kudbee /promote org/ID`.
-Dashboard CLI: `/help`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`, `/run ID`, `/capacity`,
+`kudbee /algo status|account ADDR|asset ID|app ID|tx TXID|txs ADDR [mainnet]`.
+Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`, `/run ID`, `/capacity`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
+
+### 2026-09-27 (later) — Test suite, read-only Algorand tool, recall noise fix
+
+- **Tests (`npm test`, 54 passing, ~12 s, no network/cost):** `agent.test.ts`
+  (answers + cost, workspace confinement, both approval gates, every
+  `remember` evasion seen live, budget, stop, step limit, API error, malformed
+  tool args, memory context, Algorand gating), `memory.test.ts` (files as
+  source of truth incl. hand edits, ranking/layer filter, promote/remove,
+  prompt stripping, Upstash upsert/query shape, Upstash outage fallback),
+  `runs.test.ts` (accounting, stats, persistence, interrupted runs, corrupt
+  file), `algorand.test.ts` (mock AlgoNode), `server.test.ts` (boots the real
+  server against the mocks: WS protocol, file write, run persisted, episode
+  saved and recalled next run, WS approval deny, stop, stats, memory REST,
+  path traversal). Mutation check: disabling the evidence gate fails 2 tests.
+  CI job `web-typecheck` now also runs `npm test`. `KUDBEE_WORKSPACE_DIR`
+  added so tests never touch real workspaces.
+- **Algorand route 1 (no install):** `algorand.ts` + agent tool + REST route +
+  `/algo` in dashboard and CLI. Live: TestNet/MainNet status, asset
+  31566704 = USDC; agent run looked up the asset and round (approval for
+  `mainnet-api.algonode.cloud`), wrote `algo.md`, saved an evidence-backed org
+  note — 5 steps, 4.1 s, $0.0027.
+- **Known-limitation example from that run:** the org note says total supply
+  "~18.4 quadrillion" while its stored evidence says 18,446,744,073,709.55
+  (~18.4 trillion). The gate proves evidence existed, not that the note
+  matches it; left unverified for human review rather than silently fixed.
+- **Recall noise:** instruction/file words (write, file, md, remember, tell,
+  summary, current…) are now stopwords; an Algorand goal no longer recalls
+  unrelated Hacker News episodes.
+- TypeScript 7.0.2 strict still clean (the check caught 3 real type errors in
+  the new Algorand code before commit).
+- Founder commit `e33f1fe7` ("UPDATE V0.02") snapshotted this work mid-way and
+  also added the seven earlier experiment pages (`debug.html`,
+  `enterprise-dashboard.html`, `index-mock.html`, `index-offline.html`,
+  `simple.html`, `test-fetch.html`, `js/app-mock.js`) — they are now tracked.
+- **CI is not running at all:** every GitHub Actions job (PR and `main`) is
+  rejected with "The job was not started because your account is locked due
+  to a billing issue." Founder action: fix Kudbee-Studio GitHub billing.
 
 ### 2026-09-27 — Layered memory (files + vector), evidence gate, TypeScript 7 check
 
@@ -1499,9 +1543,9 @@ Dashboard CLI: `/help`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`,
 
 ### Open items / debt (be honest here)
 
-- **No automated tests** for `agent.ts`, `runs.ts`, `cli.ts` or the new routes
-  (§3 requires them). Next: hermetic unit tests with a mocked Inception
-  endpoint for the approval, budget, stop and step-limit paths.
+- `cli.ts` has no automated tests (its paths are exercised manually and through
+  the same REST/WS routes `server.test.ts` covers). CI cannot run until the
+  GitHub billing lock is lifted.
 - PR branch `feat/agent-os-worker-agent` is cut from `origin/main` and carries
   only Agent OS paths. The PR #185 branch tip had unrelated changes that must
   not reach main without review (deleted `.env.example`, README cut by 247
@@ -1512,7 +1556,8 @@ Dashboard CLI: `/help`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`,
   for. Retrieval is lexical (BM25), not semantic; synonyms won't match. A dense
   semantic layer would need an embedding model (OpenAI key exists in `.env`,
   or a local Ollama embedding model) and a dense index.
-- **Algorand (requested, not started):** AlgoKit CLI + dev wallet need either
+- **Algorand routes 2/3 (awaiting founder decision):** read-only route 1 is
+  done. A dev wallet (algosdk in `apps/web`) or AlgoKit CLI + LocalNet need either
   an install on this machine (`pipx install algokit`; LocalNet also needs
   Docker, which is **not installed** — only a leftover Docker Desktop log on
   Windows) or a cloud environment. Founder said not to install on the laptop.
@@ -1524,9 +1569,9 @@ Dashboard CLI: `/help`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`,
   Two servers sharing one data dir will overwrite each other.
 - The Ollama path records runs but no tokens/cost and has no tools.
 - The web runtime has no authentication; keep it on localhost (§1.4.1).
-- Untracked files from earlier sessions still in `apps/web/public/`
-  (`debug.html`, `enterprise-dashboard.html`, `index-mock.html`,
-  `index-offline.html`, `simple.html`, `test-fetch.html`, `js/app-mock.js`)
-  need a keep/delete decision.
+- Experiment pages in `apps/web/public/` (`debug.html`,
+  `enterprise-dashboard.html`, `index-mock.html`, `index-offline.html`,
+  `simple.html`, `test-fetch.html`, `js/app-mock.js`) are tracked since
+  `e33f1fe7` but unused by the dashboard; keep or delete is a founder call.
 - Hardware seen from WSL: Quadro M1000M (2 GB VRAM), 8 cores, 7.7 GB RAM —
   enough only for tiny local models; Mercury-2 runs remotely at Inception.

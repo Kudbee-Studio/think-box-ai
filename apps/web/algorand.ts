@@ -76,7 +76,17 @@ export function parseAction(value: unknown): AlgorandAction {
 }
 
 /** Throws on input that can never succeed, so callers can reject it before any approval prompt or request. */
-export function validateAlgorandInput(input: { action: unknown; network?: unknown; address?: unknown; id?: unknown; txid?: unknown }): void {
+/** Untrusted input (tool arguments or a URL query); every field is checked at runtime. */
+export interface AlgorandInput {
+  action?: unknown;
+  network?: unknown;
+  address?: unknown;
+  id?: unknown;
+  txid?: unknown;
+  limit?: unknown;
+}
+
+export function validateAlgorandInput(input: AlgorandInput): void {
   const action = parseAction(input.action);
   parseNetwork(input.network);
   if (action === 'account' || action === 'account_transactions') need(input.address, ADDRESS, 'address');
@@ -86,7 +96,7 @@ export function validateAlgorandInput(input: { action: unknown; network?: unknow
 }
 
 export async function algorandQuery(
-  input: { action: unknown; network?: unknown; address?: unknown; id?: unknown; txid?: unknown; limit?: unknown },
+  input: AlgorandInput,
   options: { endpoints?: AlgorandEndpoints; signal?: AbortSignal } = {},
 ): Promise<Record<string, unknown>> {
   validateAlgorandInput(input);

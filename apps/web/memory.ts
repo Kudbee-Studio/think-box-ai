@@ -31,7 +31,13 @@ export interface MemoryHit {
 }
 
 const STOPWORDS = new Set(
-  'a an and are as at be by for from has have i in is it its of on or that the this to was were will with you your we our they their them he she his her not no do does did can could should would into about than then there here what which who when where why how all any each also just only very more most over under after before between if else so such'.split(' '),
+  [
+    'a an and are as at be by for from has have i in is it its of on or that the this to was were will with you your we our they their them he she his her not no do does did can could should would into about than then there here what which who when where why how all any each also just only very more most over under after before between if else so such',
+    // Instruction verbs and file words appear in almost every goal; matching on them recalls unrelated runs.
+    'write wrote written file md txt json remember tell give show make create look find using use based without please short summary current new me my',
+  ]
+    .join(' ')
+    .split(' '),
 );
 
 export function tokenize(text: string): string[] {
