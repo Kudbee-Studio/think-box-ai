@@ -79,3 +79,10 @@ data/cnc/
 apps/web/workspaces/
 apps/web/data/
 .copilot-specs-cache/
+
+# SSH keys - NEVER commit
+kilo-upcloud*
+*.pem
+*.key
+id_rsa*
+id_ed25519*

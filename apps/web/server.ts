@@ -816,8 +816,11 @@ class AgentSession {
     this.broadcast({ type: 'run_update', data: record });
     try {
       // Knowledge and episodes are recalled separately so repeated goals cannot crowd out notes.
-      const knowledge = await memoryStore.search(goal, { layers: ['verified', 'org'], topK: 3 });
-      const episodes = await memoryStore.search(goal, { layers: ['task'], topK: 2 });
+      // Parallelized: both searches run concurrently instead of sequentially.
+      const [knowledge, episodes] = await Promise.all([
+        memoryStore.search(goal, { layers: ['verified', 'org'], topK: 3 }),
+        memoryStore.search(goal, { layers: ['task'], topK: 2 }),
+      ]);
       const recalled = { hits: [...knowledge.hits, ...episodes.hits], backend: knowledge.backend };
       record.recalled = recalled.hits.map((hit) => hit.item.id);
       if (recalled.hits.length) {
@@ -1142,13 +1145,21 @@ app.get('/api/middleware/test', async (_req: Request, res: Response) => {
 });
 
 let lastCpu = { usage: process.cpuUsage(), at: Date.now() };
+let statsCache = { data: null as any, at: 0 };
+
 app.get('/api/stats', (_req: Request, res: Response) => {
+  // Cache stats for 500ms to reduce computation on rapid dashboard polls
+  const now = Date.now();
+  if (statsCache.data && now - statsCache.at < 500) {
+    return res.json(statsCache.data);
+  }
+
   const usage = process.cpuUsage(lastCpu.usage);
-  const elapsedMs = Math.max(1, Date.now() - lastCpu.at);
-  lastCpu = { usage: process.cpuUsage(), at: Date.now() };
+  const elapsedMs = Math.max(1, now - lastCpu.at);
+  lastCpu = { usage: process.cpuUsage(), at: now };
   const memory = process.memoryUsage();
   const running = [...sessions.values()].filter((session) => session.status === 'running').length;
-  res.json({
+  const stats = {
     ...runStore.stats(),
     budget_usd: dailyBudgetUsd || null,
     memory: { counts: memoryStore.counts(), vector: memoryStore.vectorStatus },
@@ -1164,12 +1175,22 @@ app.get('/api/stats', (_req: Request, res: Response) => {
       load_avg: os.loadavg().map((load) => Math.round(load * 100) / 100),
       cores: os.cpus().length,
     },
-  });
+  };
+  statsCache = { data: stats, at: now };
+  res.json(stats);
 });
 
+let runsListCache = { data: null as any, at: 0 };
 app.get('/api/runs', (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
-  res.json({ runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) });
+  const now = Date.now();
+  // Cache runs list for 1s; on rapid polls this cuts response time significantly
+  if (runsListCache.data && now - runsListCache.at < 1000 && (runsListCache.data as any).runs.length === runStore.list(1).length) {
+    return res.json(runsListCache.data);
+  }
+  const data = { runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
+  runsListCache = { data, at: now };
+  res.json(data);
 });
 
 app.get('/api/runs/:id', (req: Request, res: Response) => {
@@ -1457,10 +1478,12 @@ app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
 
 // ─── Start server ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+// SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md)
+const LISTEN_ADDR = process.env.LISTEN_ADDR || '127.0.0.1';
+server.listen(PORT, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
-  console.log(`   Backend:  http://localhost:${PORT}`);
-  console.log(`   WebSocket: ws://localhost:${PORT}`);
+  console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
+  console.log(`   WebSocket: ws://${LISTEN_ADDR}:${PORT}`);
   console.log(`   Models:   Ollama ${ollamaBaseUrl}${inceptionConfigured() ? ' + Inception mercury-2 (worker agent)' : ''}`);
   console.log(`\n   Ready.\n`);
 });
