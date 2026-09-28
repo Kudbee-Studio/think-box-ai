@@ -1396,6 +1396,48 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
 
+### 2026-09-27 (evening CT) — PR #269 merged: Agent OS Mercury-2 worker
+
+- **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/269 — **MERGED** into `main`
+  at 2026-09-28T01:50:38Z (2026-09-27 20:50 CT) by KudbeeZero.
+- **Title:** feat(agent-os): Mercury-2 worker agent, kudbee CLI, run tracking, approval gates
+- **Branch:** `feat/agent-os-worker-agent` → `main`
+- **Merge commit:** `bcedddee3a924ef9e14a9784a7be5fbedeeca934`
+- **Diff:** 39 files, +8877 / −114
+- **What landed (from PR body, verified):**
+  - Worker agent (`apps/web/agent.ts`): Inception `mercury-2` tool-calling loop.
+    Tools: `list_files`, `read_file`, `write_file` (session workspace only),
+    `fetch_url` (http/https, 15 s timeout), `read_rss`. **No shell tool** exposed
+    to the model.
+  - Approval gates: human pause before overwrite of an existing workspace file
+    or first contact to a new domain in a session (dashboard modal or CLI
+    `y/N`; auto-deny after 120 s; denials return as tool errors).
+  - Run tracking (`apps/web/runs.ts`): goals persisted to
+    `apps/web/data/runs.json` (git-ignored) with per-step trace, tokens, cost
+    (mercury-2 $0.25/$0.75 per 1M), failure kind, approvals and files; optional
+    `KUDBEE_DAILY_BUDGET_USD`. Routes: `GET /api/stats`, `GET /api/runs`,
+    `GET /api/runs/:id`.
+  - Dashboard: real Agent Metrics and Capacity panels, Run History, run-timeline
+    modal with Re-run, live `Step N · tool · elapsed` on task cards; Stop aborts
+    the in-flight model request.
+  - `kudbee` CLI (`apps/web/cli.ts`, `apps/web/bin/kudbee`): same WebSocket
+    protocol as the dashboard; auto-starts the server.
+  - Fixes: duplicate top-level `const Enterprise` SyntaxError that stopped
+    `app.js`; `/task` and `/git` helpers un-nested from a stray
+    `refreshConnectionMonitor` wrapper (`ReferenceError`).
+  - Carries Agent OS work from the tip of the PR #185 branch (commits
+    `af1557e9`, `0d42319c`, `6e6f0301`) that had not reached main: Git panel,
+    `/task` and `/git`, task attachments, Janus-Pro image service/routes,
+    SmolLM2 docs. Branch cut fresh from `origin/main` (unrelated #185 tip
+    churn left out of this PR).
+- **Follow-ups called out on the PR (still open at merge):**
+  - No automated tests yet for `agent.ts`, `runs.ts`, `cli.ts`, or the new
+    routes (AGENTS.md §3).
+  - `tsgo --noEmit` not run (`apps/web/node_modules` installed from Windows
+    lacked the Linux binary).
+  - No authentication on the web runtime — keep on localhost (§1.4.1).
+  - `.github/workflows` was not touched (per PR body).
+
 ### 2026-09-27 (night) — Per-session goal queue
 
 - Sending a goal while one is already running used to silently wait on the
