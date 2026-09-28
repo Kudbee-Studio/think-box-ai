@@ -5,7 +5,8 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import MCPRegistry, { MCPServer } from '../mcp-registry.js';
+import MCPRegistry from '../mcp-registry.ts';
+import type { MCPServer } from '../mcp-registry.ts';
 
 let mockGitHubServer: http.Server;
 let baseUrl: string;
@@ -98,7 +99,7 @@ test('MCPRegistry.discoverServers returns array of servers with required fields'
   };
 
   try {
-    const registry = new MCPRegistry();
+    const registry = new MCPRegistry(undefined, testCacheDir);
     const servers = await registry.discoverServers();
 
     assert.ok(Array.isArray(servers), 'discoverServers returns array');

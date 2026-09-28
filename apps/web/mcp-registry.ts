@@ -33,9 +33,9 @@ export class MCPRegistry {
   private githubToken?: string;
   private githubHeaders: Record<string, string>;
 
-  constructor(githubToken?: string) {
+  constructor(githubToken?: string, cacheDir?: string) {
     this.githubToken = githubToken;
-    this.cacheDir = path.join(os.homedir(), '.kudbee', 'mcp-cache');
+    this.cacheDir = cacheDir || path.join(os.homedir(), '.kudbee', 'mcp-cache');
     this.githubHeaders = {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'kudbEE/1.0',
@@ -91,8 +91,61 @@ export class MCPRegistry {
       return servers;
     } catch (error) {
       console.error('Failed to fetch MCP registry:', error);
-      return [];
+      return this.getFallbackServers();
     }
+  }
+
+  private getFallbackServers(): MCPServer[] {
+    return [
+      {
+        name: 'github',
+        repo: 'community/mcp-servers/github',
+        description: 'Interact with GitHub repositories, issues, and pull requests',
+        category: 'Developer Tools',
+        tags: ['version-control', 'github', 'api'],
+        capabilities: ['List repositories', 'Create issues', 'Manage pull requests', 'Create branches'],
+      },
+      {
+        name: 'postgres',
+        repo: 'community/mcp-servers/postgres',
+        description: 'Execute SQL queries and manage PostgreSQL databases',
+        category: 'Database',
+        tags: ['database', 'sql', 'postgres'],
+        capabilities: ['Execute queries', 'List tables', 'Schema inspection', 'Data export'],
+      },
+      {
+        name: 'slack',
+        repo: 'community/mcp-servers/slack',
+        description: 'Send messages and manage Slack workspaces',
+        category: 'Communication',
+        tags: ['communication', 'slack', 'api'],
+        capabilities: ['Send messages', 'List channels', 'Create threads', 'Upload files'],
+      },
+      {
+        name: 'filesystem',
+        repo: 'community/mcp-servers/filesystem',
+        description: 'Read and write files on the local filesystem',
+        category: 'Files',
+        tags: ['filesystem', 'files', 'io'],
+        capabilities: ['Read files', 'Write files', 'List directories', 'Delete files'],
+      },
+      {
+        name: 'stripe',
+        repo: 'community/mcp-servers/stripe',
+        description: 'Process payments and manage billing with Stripe',
+        category: 'Finance',
+        tags: ['finance', 'payment', 'stripe'],
+        capabilities: ['Create charges', 'List transactions', 'Manage customers', 'Issue refunds'],
+      },
+      {
+        name: 'linear',
+        repo: 'community/mcp-servers/linear',
+        description: 'Create and manage issues in Linear',
+        category: 'Project Management',
+        tags: ['project-management', 'linear', 'api'],
+        capabilities: ['Create issues', 'Update status', 'Assign team members', 'Search issues'],
+      },
+    ];
   }
 
   private async parseServerMetadata(serverName: string): Promise<MCPServer | null> {

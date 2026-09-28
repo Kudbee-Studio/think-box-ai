@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
-import MCPRegistry from './mcp-registry.js';
+import MCPRegistry from './mcp-registry.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
