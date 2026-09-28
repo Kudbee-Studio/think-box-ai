@@ -949,6 +949,7 @@ body {
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.1), transparent);
+  background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
