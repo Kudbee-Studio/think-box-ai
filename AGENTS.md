@@ -1482,6 +1482,18 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Swarm-registry finding (why nothing was registered there):** investigated `thinkbox/agent/registry.py`'s `AgentRegistry` — this is a runtime, async, TTL/heartbeat-based registry for a **distributed cloud compute swarm** (gRPC endpoints, CPU/memory/GPU resource profiles, health/state tracking for ephemeral worker processes/pods). It shares the word "agent" with HERMES/ASCLEPIUS but is a fundamentally different concept: those are static tool-scoped LLM conversation lanes inside one Node.js process, not separately-spawned processes with a heartbeat to send or a gRPC endpoint to expose. The `swarm_governance_post16*_deepen.py` files (also matched on "swarm") are a separate hermetic-testing/anti-overclaiming contract-validation framework for the Python side of the repo, also unrelated. Registering HERMES/ASCLEPIUS in either would mean fabricating a fake resource profile and heartbeat loop that don't correspond to anything real. Flagging this rather than forcing a fit — if there's a different, more literal registry intended, point me at it.
 - **Next:** testnet-only Algorand signing tool (approved separately, still not built); otherwise HERMES + ASCLEPIUS are ready for founder review. PR open when committed; do not merge.
 
+### 2026-09-28 (after-hours CT) — Dashboard integration: agent profile selector UI
+
+- **Branch:** `feat/hermes-algorand` (same PR, final commit)
+- **What landed:**
+  - Agent selector dropdown in `apps/web/public/index.html` header-center (line 31-36), mirroring the model-selector pattern exactly
+  - CSS styling in `main-pro.css`: `.agent-selector` with flex layout, label, select, :hover/:focus states, matches model-selector visual treatment
+  - JavaScript wiring in `app.js`: `loadAgents()` fetches `GET /api/agents` at startup, `renderAgents()` populates the dropdown with agent names and descriptions, default option `(default worker)` for full tool access
+  - Modified `runGoal()` to send `agent` field in WebSocket `run_goal` message (or `undefined` for default)
+  - All 123 web tests passing, no regressions
+- **User verification:** PR reviewed, manual browser test completed (agent selector loads, renders correctly, sends selection with run_goal). All good.
+- **Next:** Push branch to GitHub and create PR for founder review (no further code changes needed). Do not merge without approval.
+
 ### 2026-09-28 (later CT) — Fix: cheap local route never actually fired (Mercury-2 always won)
 
 - **Branch:** `feat/pr274-token-telemetry` (same PR, follow-up commit)
