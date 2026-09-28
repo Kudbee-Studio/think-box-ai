@@ -79,12 +79,12 @@ export class PersistenceLayer {
         endTime INTEGER,
         metrics TEXT,
         files TEXT,
-        createdAt INTEGER NOT NULL,
-        FOREIGN KEY(sessionId) REFERENCES dashboard_state(sessionId),
-        INDEX idx_run_session (sessionId),
-        INDEX idx_run_status (status),
-        INDEX idx_run_created (createdAt DESC)
+        createdAt INTEGER NOT NULL
       );
+
+      CREATE INDEX IF NOT EXISTS idx_run_session ON run_metadata(sessionId);
+      CREATE INDEX IF NOT EXISTS idx_run_status ON run_metadata(status);
+      CREATE INDEX IF NOT EXISTS idx_run_created ON run_metadata(createdAt DESC);
     `);
 
     // Memory notes: org/verified knowledge + task episodes
@@ -97,12 +97,12 @@ export class PersistenceLayer {
         content TEXT,
         evidence TEXT,
         createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL,
-        FOREIGN KEY(sessionId) REFERENCES dashboard_state(sessionId),
-        INDEX idx_memory_layer (layer),
-        INDEX idx_memory_session (sessionId),
-        INDEX idx_memory_created (createdAt DESC)
+        updatedAt INTEGER NOT NULL
       );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_layer ON memory_notes(layer);
+      CREATE INDEX IF NOT EXISTS idx_memory_session ON memory_notes(sessionId);
+      CREATE INDEX IF NOT EXISTS idx_memory_created ON memory_notes(createdAt DESC);
     `);
   }
 
