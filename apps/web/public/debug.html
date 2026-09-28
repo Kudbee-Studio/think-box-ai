@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug Fetch</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+    .log { padding: 8px; margin: 4px 0; background: #2a2a2a; border-left: 3px solid #4caf50; }
+    .error { border-left-color: #f44336; }
+  </style>
+</head>
+<body>
+  <h1>Debug: Fetch URL</h1>
+  <div id="logs"></div>
+
+  <script>
+    const logs = document.getElementById('logs');
+
+    function log(msg, isError = false) {
+      const div = document.createElement('div');
+      div.className = `log ${isError ? 'error' : ''}`;
+      div.textContent = msg;
+      logs.appendChild(div);
+      console.log(msg);
+    }
+
+    log(`window.location.protocol: ${window.location.protocol}`);
+    log(`window.location.host: ${window.location.host}`);
+    log(`window.location.hostname: ${window.location.hostname}`);
+    log(`window.location.port: ${window.location.port}`);
+    log(`window.location.origin: ${window.location.origin}`);
+
+    const baseUrl = `${window.location.protocol}//${window.location.host}`;
+    const url = `${baseUrl}/api/execute`;
+    log(`\nFetch URL will be: ${url}`);
+
+    // Try the fetch
+    log('\nAttempting fetch...');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: 'test' })
+    })
+    .then(r => {
+      log(`Response status: ${r.status} ${r.statusText}`);
+      return r.json();
+    })
+    .then(data => {
+      log(`Response data: ${JSON.stringify(data).substring(0, 100)}`);
+    })
+    .catch(err => {
+      log(`Error: ${err.message}`, true);
+    });
+  </script>
+</body>
+</html>

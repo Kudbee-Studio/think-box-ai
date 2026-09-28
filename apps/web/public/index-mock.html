@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>kudbEE — Agent OS</title>
   <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/main-pro.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
-  <script src="/js/enterprise.js"></script>
 </head>
 <body>
   <div id="app">
@@ -54,6 +52,9 @@
           <div class="file-actions">
             <button id="upload-files" class="btn-secondary">Upload files</button>
             <button id="upload-repo" class="btn-secondary">Upload repo</button>
+            <select id="file-upload-target" aria-label="Upload destination">
+              <option value="">Session workspace</option>
+            </select>
             <input id="file-upload-input" type="file" multiple hidden>
             <input id="repo-upload-input" type="file" webkitdirectory multiple hidden>
           </div>
@@ -71,24 +72,6 @@
 
         <div class="panel">
           <div class="panel-header">
-            <h3>🧠 Memory</h3>
-            <span id="memory-backend" class="badge" title="Vector backend">…</span>
-          </div>
-          <input id="memory-search" class="panel-search" type="search" placeholder="Search memory (vector)...">
-          <div class="memory-filters" role="tablist">
-            <button class="thought-filter active" data-memory-layer="">All <span id="memory-count-all">0</span></button>
-            <button class="thought-filter" data-memory-layer="verified">Verified <span id="memory-count-verified">0</span></button>
-            <button class="thought-filter" data-memory-layer="org">Org <span id="memory-count-org">0</span></button>
-            <button class="thought-filter" data-memory-layer="task">Tasks <span id="memory-count-task">0</span></button>
-          </div>
-          <div id="memory-list" class="memory-list">
-            <div class="empty-state">No memories yet</div>
-          </div>
-          <button id="add-memory" class="btn-secondary memory-add" type="button">+ Add note</button>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
             <h3>🔌 Plugins</h3>
           </div>
           <input id="plugin-search" class="panel-search" type="search" placeholder="Search plugins...">
@@ -100,11 +83,14 @@
         <div class="panel">
           <div class="panel-header">
             <h3>📡 Connections</h3>
-            <span id="monitor-updated" class="badge">Waiting</span>
+            <span id="monitor-updated" class="badge">Ready</span>
           </div>
           <button id="test-middleware" class="btn-secondary">Test middleware</button>
           <div id="connection-monitor" class="plugin-list">
-            <div class="empty-state">Checking APIs...</div>
+            <div class="connection-item">
+              <span class="connection-status ok">✓</span>
+              <span>Ollama (smollm2:135m)</span>
+            </div>
           </div>
         </div>
       </aside>
@@ -138,7 +124,7 @@
               <input
                 type="text"
                 id="goal-input"
-                placeholder="Enter a goal, an image prompt, or /help for commands..."
+                placeholder="Enter a goal or image prompt..."
                 disabled
               />
               <button id="submit-goal" class="btn-primary" disabled>Run</button>
@@ -147,7 +133,7 @@
               <button id="analyze-image" class="btn-secondary" type="button">Analyze image</button>
               <button id="generate-image" class="btn-secondary" type="button">Generate image</button>
               <input id="analyze-image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-              <span>Janus-Pro CPU</span>
+              <span>Ollama (smollm2:135m)</span>
             </div>
           </div>
         </div>
@@ -202,150 +188,18 @@
 
         <div class="panel">
           <div class="panel-header">
-            <h3>📊 Agent Metrics</h3>
-            <span id="metrics-badge" class="badge">Live</span>
-          </div>
-          <div class="kpi-grid">
-            <div class="kpi"><span>Runs today</span><strong id="metric-runs">0</strong></div>
-            <div class="kpi"><span>Success</span><strong id="metric-suc" class="kpi-success">—</strong></div>
-            <div class="kpi"><span>p50 / p95</span><strong id="metric-lat">—</strong></div>
-            <div class="kpi"><span>Cost today</span><strong id="metric-cost">$0.0000</strong></div>
-          </div>
-          <div class="budget-row" id="budget-row" hidden>
-            <div class="meter"><div id="budget-bar" class="meter-fill"></div></div>
-            <small id="budget-text"></small>
-          </div>
-          <div class="sparkline-label"><span>Runs · last 24h</span><small id="metric-tokens">0 tokens today</small></div>
-          <div id="sparkline" class="sparkline" aria-label="Runs per hour, last 24 hours"></div>
-          <div id="metric-failures" class="failure-tags"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <h3>🕑 Run History</h3>
-            <span id="run-count" class="badge">0</span>
-          </div>
-          <div id="run-history" class="run-history">
-            <div class="empty-state">No runs yet</div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <h3>⚙️ Capacity</h3>
-            <span id="approval-badge" class="badge">0 approvals</span>
-          </div>
-          <div class="capacity">
-            <div class="cap-row"><span>Agents running</span><small id="cap-agents-text">0</small></div>
-            <div class="meter"><div id="cap-agents" class="meter-fill"></div></div>
-            <div class="cap-row"><span>Server CPU</span><small id="cap-cpu-text">0%</small></div>
-            <div class="meter"><div id="cap-cpu" class="meter-fill"></div></div>
-            <div class="cap-row"><span>System memory</span><small id="cap-mem-text">0%</small></div>
-            <div class="meter"><div id="cap-mem" class="meter-fill warn"></div></div>
-            <div class="cap-row"><span>Load avg</span><small id="cap-load-text">—</small></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
             <h3>💚 System Health</h3>
-            <span id="system-health-status" class="badge">Checking</span>
+            <span id="system-health-status" class="badge">Ready</span>
           </div>
           <div id="system-health" class="health-list">
-            <div class="empty-state">Loading system health...</div>
+            <div class="health-item ok">✓ Ollama</div>
+            <div class="health-item ok">✓ Mock API Server</div>
           </div>
         </div>
       </aside>
     </main>
   </div>
 
-  <div id="plugin-modal" class="modal-backdrop" hidden>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="plugin-modal-title">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">PLUGIN TEST</span>
-          <h2 id="plugin-modal-title">Test plugin</h2>
-        </div>
-        <button id="close-plugin-modal" class="btn-icon" title="Close">×</button>
-      </div>
-      <label for="plugin-input">JSON input</label>
-      <div id="plugin-permission-note" class="permission-note"></div>
-      <textarea id="plugin-input" spellcheck="false">{}</textarea>
-      <div class="modal-actions">
-        <button id="cancel-plugin-modal" class="btn-secondary">Cancel</button>
-        <button id="submit-plugin-test" class="btn-primary">Run test</button>
-      </div>
-    </section>
-  </div>
-
-  <div id="run-modal" class="modal-backdrop" hidden>
-    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="run-modal-title">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">RUN TIMELINE</span>
-          <h2 id="run-modal-title">Run</h2>
-        </div>
-        <button id="close-run-modal" class="btn-icon" title="Close">×</button>
-      </div>
-      <div id="run-summary" class="run-summary"></div>
-      <div id="run-timeline" class="timeline"></div>
-      <div class="modal-actions">
-        <button id="rerun-goal" class="btn-secondary">↻ Re-run goal</button>
-        <button id="close-run-modal-2" class="btn-primary">Close</button>
-      </div>
-    </section>
-  </div>
-
-  <div id="approval-modal" class="modal-backdrop" hidden>
-    <section class="modal" role="alertdialog" aria-modal="true" aria-labelledby="approval-title">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow warn">APPROVAL REQUIRED</span>
-          <h2 id="approval-title">Agent wants to run a tool</h2>
-        </div>
-        <span id="approval-countdown" class="badge"></span>
-      </div>
-      <div id="approval-reason" class="permission-note network"></div>
-      <pre id="approval-args" class="approval-args"></pre>
-      <div class="modal-actions">
-        <button id="deny-approval" class="btn-danger">✗ Deny</button>
-        <button id="approve-approval" class="btn-primary">✓ Approve</button>
-      </div>
-    </section>
-  </div>
-
-  <div id="memory-modal" class="modal-backdrop" hidden>
-    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="memory-modal-title">
-      <div class="modal-header">
-        <div>
-          <span id="memory-modal-layer" class="modal-eyebrow">MEMORY</span>
-          <h2 id="memory-modal-title">Memory</h2>
-        </div>
-        <button id="close-memory-modal" class="btn-icon" title="Close">×</button>
-      </div>
-      <div id="memory-modal-meta" class="memory-meta"></div>
-      <div id="memory-view">
-        <pre id="memory-modal-content" class="memory-content"></pre>
-      </div>
-      <form id="memory-form" class="memory-form" hidden>
-        <label>Layer
-          <select id="memory-form-layer">
-            <option value="org">Org — note, unverified</option>
-            <option value="verified">Verified — trusted knowledge</option>
-          </select>
-        </label>
-        <label>Title <input id="memory-form-title" type="text" maxlength="200" required></label>
-        <label>Tags <input id="memory-form-tags" type="text" placeholder="comma, separated"></label>
-        <label>Content <textarea id="memory-form-content" rows="8" required></textarea></label>
-      </form>
-      <div class="modal-actions">
-        <button id="delete-memory" class="btn-danger" type="button">Delete</button>
-        <button id="promote-memory" class="btn-secondary" type="button">✓ Promote to verified</button>
-        <button id="save-memory" class="btn-primary" type="button" hidden>Save</button>
-      </div>
-    </section>
-  </div>
-
-  <script src="/js/app.js"></script>
+  <script src="/js/app-mock.js"></script>
 </body>
 </html>

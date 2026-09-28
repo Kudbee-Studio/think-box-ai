@@ -74,3 +74,7 @@ data/cnc/
 
 # Local runtime job state (AGENTS.md: never commit .thinkbox/)
 .thinkbox/
+
+# kudbEE Agent OS runtime data (agent workspaces + run history; user content, never commit)
+apps/web/workspaces/
+apps/web/data/

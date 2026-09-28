@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kudbEE Enterprise Dashboard</title>
+  <link rel="stylesheet" href="/css/main-pro.css">
+  <style>
+    .enterprise-container {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .enterprise-header {
+      margin-bottom: 32px;
+      border-bottom: 2px solid var(--border-light);
+      padding-bottom: 24px;
+    }
+
+    .enterprise-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .feature-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 20px;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent-primary);
+      box-shadow: 0 8px 16px rgba(14, 165, 233, 0.1);
+    }
+
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .feature-description {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .feature-button {
+      display: inline-block;
+      padding: 6px 12px;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .feature-button:hover {
+      background: var(--accent-light);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .metric {
+      background: var(--bg-active);
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-primary);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+      transition: var(--transition);
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+    }
+
+    .tab.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .log-entry {
+      padding: 12px;
+      background: var(--bg-active);
+      border-left: 3px solid var(--border-light);
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .log-entry.success {
+      border-left-color: var(--success);
+    }
+
+    .log-entry.error {
+      border-left-color: var(--error);
+    }
+
+    .log-entry.warning {
+      border-left-color: var(--warning);
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      margin-right: 8px;
+    }
+
+    .log-action {
+      color: var(--accent-light);
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .log-details {
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo">🐝</div>
+        <div class="title">
+          <h1>kudbEE</h1>
+          <span class="subtitle">Enterprise Dashboard</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="btn-icon" onclick="Enterprise.theme.toggle()" title="Toggle theme">🌓</button>
+        <span class="connection-pill"><span class="connection-dot"></span> Enterprise Ready</span>
+      </div>
+    </div>
+
+    <div class="enterprise-container">
+      <div class="enterprise-header">
+        <h2 style="margin-bottom: 8px;">10 Enterprise Features</h2>
+        <p style="color: var(--text-muted); font-size: 13px;">Professional-grade tools for production deployments</p>
+      </div>
+
+      <!-- Feature Grid -->
+      <div class="enterprise-grid">
+        <!-- 1. Session Management -->
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <div class="feature-title">Session Management</div>
+          <div class="feature-description">Create, manage, and restore agent sessions with full history persistence and naming</div>
+          <button class="feature-button" onclick="showTab('sessions')">Manage Sessions</button>
+        </div>
+
+        <!-- 2. Real-time Metrics -->
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-title">Real-time Metrics</div>
+          <div class="feature-description">Monitor request latency, success rates, throughput, and error tracking</div>
+          <button class="feature-button" onclick="showTab('metrics')">View Metrics</button>
+        </div>
+
+        <!-- 3. Capacity Management -->
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <div class="feature-title">Capacity Management</div>
+          <div class="feature-description">Track concurrent agents, queue size, CPU and memory usage with limits</div>
+          <button class="feature-button" onclick="showTab('capacity')">Monitor Capacity</button>
+        </div>
+
+        <!-- 4. Audit Logs -->
+        <div class="feature-card">
+          <div class="feature-icon">🔐</div>
+          <div class="feature-title">Audit & Compliance</div>
+          <div class="feature-description">Complete activity log for compliance, security audits, and troubleshooting</div>
+          <button class="feature-button" onclick="showTab('audit')">View Audit Log</button>
+        </div>
+
+        <!-- 5. Notifications -->
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <div class="feature-title">Smart Notifications</div>
+          <div class="feature-description">Real-time alerts for errors, warnings, and important system events</div>
+          <button class="feature-button" onclick="Enterprise.notifications.notify('success', 'Test', 'Notification system working')">Test Notifications</button>
+        </div>
+
+        <!-- 6. Advanced Search -->
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <div class="feature-title">Advanced Filtering</div>
+          <div class="feature-description">Filter and search across sessions, tasks, and metrics with multiple criteria</div>
+          <button class="feature-button" onclick="showTab('search')">Search & Filter</button>
+        </div>
+
+        <!-- 7. Theme Management -->
+        <div class="feature-card">
+          <div class="feature-icon">🌈</div>
+          <div class="feature-title">Theme Management</div>
+          <div class="feature-description">Persistent dark/light theme toggle with localStorage persistence</div>
+          <button class="feature-button" onclick="Enterprise.theme.toggle()">Toggle Theme</button>
+        </div>
+
+        <!-- 8. Keyboard Shortcuts -->
+        <div class="feature-card">
+          <div class="feature-icon">⌨️</div>
+          <div class="feature-title">Keyboard Shortcuts</div>
+          <div class="feature-description">Ctrl+K for command palette, Ctrl+S to export, Alt+D for theme toggle</div>
+          <button class="feature-button" onclick="Enterprise.shortcuts.showHelp()">View Shortcuts</button>
+        </div>
+
+        <!-- 9. Command Palette -->
+        <div class="feature-card">
+          <div class="feature-icon">💡</div>
+          <div class="feature-title">Command Palette</div>
+          <div class="feature-description">Quick access to all actions via Ctrl+K with fuzzy search support</div>
+          <button class="feature-button" onclick="Enterprise.commandPalette.open()">Open Palette</button>
+        </div>
+
+        <!-- 10. Export/Import -->
+        <div class="feature-card">
+          <div class="feature-icon">💾</div>
+          <div class="feature-title">Export & Import</div>
+          <div class="feature-description">Backup and restore entire sessions with metrics and audit logs included</div>
+          <button class="feature-button" onclick="Enterprise.export.exportSession()">Export Session</button>
+        </div>
+      </div>
+
+      <!-- Detailed Views -->
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('overview')">Overview</button>
+        <button class="tab" onclick="showTab('sessions')">Sessions</button>
+        <button class="tab" onclick="showTab('metrics')">Metrics</button>
+        <button class="tab" onclick="showTab('capacity')">Capacity</button>
+        <button class="tab" onclick="showTab('audit')">Audit Log</button>
+        <button class="tab" onclick="showTab('search')">Search</button>
+      </div>
+
+      <!-- Overview Tab -->
+      <div id="overview" class="tab-content active">
+        <div class="enterprise-grid">
+          <div class="feature-card">
+            <h3>System Status</h3>
+            <div class="metrics-grid">
+              <div class="metric">
+                <div class="metric-value" id="status-agents">0</div>
+                <div class="metric-label">Active Agents</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="status-queued">0</div>
+                <div class="metric-label">Queued Tasks</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="status-cpu">0%</div>
+                <div class="metric-label">CPU Usage</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="status-memory">0%</div>
+                <div class="metric-label">Memory Usage</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-card">
+            <h3>Performance Metrics</h3>
+            <div class="metrics-grid">
+              <div class="metric">
+                <div class="metric-value" id="metric-requests">0</div>
+                <div class="metric-label">Total Requests</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="metric-latency">0ms</div>
+                <div class="metric-label">Avg Latency</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="metric-success">100%</div>
+                <div class="metric-label">Success Rate</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value" id="metric-errors">0</div>
+                <div class="metric-label">Errors</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sessions Tab -->
+      <div id="sessions" class="tab-content">
+        <div class="feature-card">
+          <h3 style="margin-bottom: 16px;">Active Sessions</h3>
+          <button class="btn-primary" style="margin-bottom: 16px;" onclick="createNewSession()">+ New Session</button>
+          <div id="sessions-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+      </div>
+
+      <!-- Metrics Tab -->
+      <div id="metrics" class="tab-content">
+        <div class="feature-card">
+          <h3 style="margin-bottom: 16px;">Performance Metrics</h3>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">Real-time performance data</p>
+          <div id="metrics-display" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all;"></div>
+        </div>
+      </div>
+
+      <!-- Capacity Tab -->
+      <div id="capacity" class="tab-content">
+        <div class="feature-card">
+          <h3 style="margin-bottom: 16px;">Capacity Monitoring</h3>
+          <div id="capacity-display" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: pre-wrap;"></div>
+        </div>
+      </div>
+
+      <!-- Audit Tab -->
+      <div id="audit" class="tab-content">
+        <div class="feature-card">
+          <h3 style="margin-bottom: 16px;">Audit Log</h3>
+          <button class="btn-secondary" style="margin-bottom: 16px;" onclick="Enterprise.auditLog.logs = []; updateAuditDisplay()">Clear Logs</button>
+          <div id="audit-logs" style="max-height: 600px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Search Tab -->
+      <div id="search" class="tab-content">
+        <div class="feature-card">
+          <h3 style="margin-bottom: 16px;">Search & Filter</h3>
+          <input type="text" id="search-input" placeholder="Search sessions, tasks, metrics..." style="width: 100%; padding: 8px; margin-bottom: 16px; background: var(--bg-active); border: 1px solid var(--border-light); color: var(--text-primary); border-radius: 6px;">
+          <div id="search-results" style="color: var(--text-muted);">Enter a search query</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/enterprise.js"></script>
+  <script>
+    function showTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    function createNewSession() {
+      const name = prompt('Session name:');
+      if (name) {
+        Enterprise.sessionManager.create(name);
+        updateSessionsList();
+        Enterprise.auditLog.log('session', `Created session: ${name}`, 'info');
+        Enterprise.notifications.notify('success', 'Session Created', name);
+      }
+    }
+
+    function updateSessionsList() {
+      const sessions = Enterprise.sessionManager.list();
+      const html = sessions.map(s => `
+        <div class="log-entry success">
+          <span class="log-action">${s.name}</span>
+          <span class="log-details">${s.created.toLocaleString()}</span>
+        </div>
+      `).join('');
+      document.getElementById('sessions-list').innerHTML = html || '<p style="color: var(--text-muted);">No sessions yet</p>';
+    }
+
+    function updateMetricsDisplay() {
+      const m = Enterprise.metrics.get();
+      document.getElementById('metrics-display').textContent = JSON.stringify(m, null, 2);
+      document.getElementById('metric-requests').textContent = m.totalRequests;
+      document.getElementById('metric-latency').textContent = Math.round(m.avgLatency) + 'ms';
+      document.getElementById('metric-success').textContent = m.successRate + '%';
+      document.getElementById('metric-errors').textContent = m.errorCount;
+    }
+
+    function updateCapacityDisplay() {
+      const c = Enterprise.capacity.current;
+      const util = Enterprise.capacity.getUtilization();
+      document.getElementById('capacity-display').textContent = `
+Active Agents: ${c.activeAgents}/${Enterprise.capacity.limits.maxConcurrent} (${util.agents}%)
+Queued Tasks: ${c.queuedTasks}/${Enterprise.capacity.limits.maxQueueSize} (${util.queue}%)
+CPU Usage: ${util.cpu}%
+Memory Usage: ${util.memory}%
+      `;
+      document.getElementById('status-agents').textContent = c.activeAgents;
+      document.getElementById('status-queued').textContent = c.queuedTasks;
+      document.getElementById('status-cpu').textContent = util.cpu + '%';
+      document.getElementById('status-memory').textContent = util.memory + '%';
+    }
+
+    function updateAuditDisplay() {
+      const logs = Enterprise.auditLog.getRecent(50);
+      const html = logs.map(log => `
+        <div class="log-entry ${log.severity}">
+          <span class="log-time">${log.timestamp.toLocaleTimeString()}</span>
+          <span class="log-action">${log.action}</span>
+          <span class="log-details">${log.details}</span>
+        </div>
+      `).join('');
+      document.getElementById('audit-logs').innerHTML = html || '<p style="color: var(--text-muted);">No logs yet</p>';
+    }
+
+    // Initialize displays
+    document.addEventListener('DOMContentLoaded', () => {
+      updateSessionsList();
+      updateMetricsDisplay();
+      updateCapacityDisplay();
+      updateAuditDisplay();
+
+      // Update metrics every second
+      setInterval(updateMetricsDisplay, 1000);
+      setInterval(updateCapacityDisplay, 1000);
+      setInterval(updateAuditDisplay, 2000);
+
+      // Demo data
+      Enterprise.capacity.update({ activeAgents: 3, queuedTasks: 5, cpuUsage: 45, memoryUsage: 62 });
+      Enterprise.metrics.record(125, true);
+      Enterprise.metrics.record(142, true);
+      Enterprise.metrics.record(98, true);
+    });
+
+    // Search functionality
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      if (!query) {
+        document.getElementById('search-results').innerHTML = 'Enter a search query';
+        return;
+      }
+      const results = Enterprise.search.applyFilters([
+        ...Enterprise.sessionManager.list(),
+        ...Enterprise.auditLog.getRecent(20)
+      ].filter(item => JSON.stringify(item).toLowerCase().includes(query)));
+
+      document.getElementById('search-results').innerHTML = results.length
+        ? `<pre>${JSON.stringify(results, null, 2)}</pre>`
+        : 'No results found';
+    });
+  </script>
+</body>
+</html>

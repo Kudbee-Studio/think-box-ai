@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# TypeScript 7 strict typecheck for apps/web. Works on Linux/macOS (native tsc) and in WSL when
+# node_modules was installed from Windows: the Windows tsc.exe cannot glob \\wsl.localhost paths, so
+# we hand it an explicit file list via a throwaway tsconfig that extends the real one.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.."
+tsc_bin=""
+for candidate in node_modules/@typescript/typescript-linux-x64/lib/tsc node_modules/@typescript/typescript-darwin-arm64/lib/tsc node_modules/@typescript/typescript-win32-x64/lib/tsc.exe; do
+  [ -f "$candidate" ] && { tsc_bin="$candidate"; break; }
+done
+[ -n "$tsc_bin" ] || { echo "typecheck: no TypeScript 7 binary in node_modules (run npm install)" >&2; exit 2; }
+config="tsconfig.tscheck.$$.json"
+trap 'rm -f "$config"' EXIT
+find . -name '*.ts' -not -path './node_modules/*' -not -path './public/*' -not -path './workspaces/*' -not -path './data/*' | sed 's|^\./||' | sort \
+  | python3 -c 'import json,sys; json.dump({"extends": "./tsconfig.json", "include": [], "files": sys.stdin.read().split()}, open(sys.argv[1], "w"))' "$config"
+"$tsc_bin" --version
+"$tsc_bin" -p "$config" --pretty false
+echo "typecheck: OK"

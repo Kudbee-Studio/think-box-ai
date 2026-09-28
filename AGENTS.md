@@ -1292,3 +1292,241 @@ or execution event MUST update canonical dashboard state in real-time.
 - Self-improvement status must update dashboard
 - Provider state must update dashboard
 - UpCloud unverified state must be reflected
+
+---
+
+## kudbEE Agent OS (`apps/web`) — Work Log
+
+**Standing rule (founder, 2026-09-27):** every change to the Agent OS web
+surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
+how it was verified, and what is still open. Newest entry first.
+
+### Surface map
+
+| Piece | File | Notes |
+|-------|------|-------|
+| Server (Express + WS, port 3000) | `apps/web/server.ts` | Loads repo-root `.env` server-side via `process.loadEnvFile`; secrets never reach the browser |
+| Worker agent (tool loop) | `apps/web/agent.ts` | Inception `mercury-2` via OpenAI-compatible `/v1/chat/completions` with tools |
+| Run history + stats | `apps/web/runs.ts` | `apps/web/data/runs.json` (override dir with `KUDBEE_DATA_DIR`), atomic write, max 500 runs |
+| Dashboard | `apps/web/public/index.html`, `js/app.js`, `js/enterprise.js`, `css/main-pro.css` | `enterprise.js` must load before `app.js` and owns the global `Enterprise` |
+| Terminal CLI | `apps/web/cli.ts`, launcher `~/.local/bin/kudbee` | Same WS protocol as the dashboard; auto-starts the server (log `~/.kudbee/server.log`) |
+| Session workspaces | `apps/web/workspaces/<session-uuid>/` | Git-ignored; agent file tools are confined here |
+| Layered memory | `apps/web/memory.ts`, files in `apps/web/data/memory/{task,org,verified}/*.md` | Markdown is the source of truth; mirrored to Upstash Vector (sparse, namespace `kudbee-memory`) + in-process BM25 |
+| TS7 typecheck | `apps/web/bin/typecheck` | TypeScript 7.0.2 strict; works in WSL with a Windows-installed `node_modules` |
+
+**Worker agent tools:** `list_files`, `read_file`, `write_file` (workspace only),
+`fetch_url` (http/https GET, 15 s timeout, HTML stripped, 12 KB cap),
+`read_rss` (via the `rss_feed` plugin), `recall` (memory search), `remember`
+(write an org note). **No shell tool** is exposed to the model (§9: shell
+execution needs explicit approval).
+
+**Memory layers (§1.3):** *session* = live conversation in the socket session;
+*task* = one episode file per finished run (automatic: goal, outcome, tools,
+evidence gathered, files, cost, answer marked unverified); *org* = notes from
+the agent's `remember` or a human (unverified); *verified* = human-promoted
+from org only (`/promote`, dashboard button, `POST /api/memory/promote`).
+Before each run the server recalls up to 3 verified/org items and 2 task
+episodes (separate queries so episodes cannot crowd out knowledge) and puts
+them in the system prompt; past-run *answers* are stripped from that context so
+an unverified answer cannot reinforce itself. Search is hybrid: Upstash sparse
+vectors (BM25-style term vectors computed locally, IDF applied server-side, no
+embedding API) merged with a local BM25 index, because Upstash indexes upserts
+asynchronously (a memory is not queryable there for a few seconds).
+**`remember` evidence gate:** refused unless the run already observed external
+evidence (`fetch_url`, `read_rss`, or `read_file` of a file that existed before
+the run — files the agent wrote itself and recall results do not count) or the
+goal explicitly asks to store something ("remember that…", "memorize…",
+"add this to memory"). An `evidence` argument is required and saved with the
+note. After two refusals `remember` is disabled for the run.
+
+**Approval gates (§1.4 governance by default):** the agent pauses and asks a
+human before (a) overwriting an existing workspace file and (b) the first
+network access to each new domain in a session. Dashboard shows an
+Approve/Deny modal; CLI prompts `y/N` (`kudbee --yes` auto-approves; with no
+TTY it denies). Unanswered requests auto-deny after 120 s. Denials are sent
+back to the model as tool errors and recorded in the run trace.
+
+**Budget:** `KUDBEE_DAILY_BUDGET_USD` (optional) stops new model calls once
+today's Mercury spend reaches the cap. Pricing in `agent.ts`
+(`mercury-2`: $0.25 / $0.75 per 1M input/output tokens, from `/v1/models`).
+
+**Env vars:** `INCEPTION_API_KEY` (required for the worker agent),
+`INCEPTION_BASE_URL`, `KUDBEE_DAILY_BUDGET_USD`, `KUDBEE_DATA_DIR`,
+`KUDBEE_MEMORY_DIR`, `KUDBEE_VECTOR_NAMESPACE`, `UPSTASH_VECTOR_REST_URL` /
+`UPSTASH_VECTOR_REST_TOKEN` (optional vector backend), `PORT`,
+`OLLAMA_BASE_URL`, `JANUS_BASE_URL`, `KUDBEE_URL` (CLI target).
+
+**REST:** `GET /api/stats` (runs, success rate, p50/p95, tokens, cost,
+failure kinds, per-tool and per-model stats, 24 h hourly buckets, capacity:
+running agents, pending approvals, server CPU/RSS, system memory, load),
+`GET /api/runs?limit=N`, `GET /api/runs/:id` (full step trace),
+`GET /api/models` (Inception + Ollama), memory: `GET /api/memory?layer=&q=`,
+`GET /api/memory/item?id=`, `POST /api/memory` (human note, org|verified),
+`POST /api/memory/promote {id}`, `DELETE /api/memory/item?id=`,
+`GET /api/memory/status`; plus the existing health/monitor/files routes. File read routes accept past sessions whose workspace still exists.
+
+**WebSocket messages:** client → `run_goal`, `stop`, `approval_response
+{id, approved}`, `list_models`, `plugin_execute`, `update_config`;
+server → `init` (now includes `models`), `thought`, `task`, `task_update`,
+`run_update`, `approval_request`, `approval_resolved`, `files_changed`,
+`memory_changed`,
+`result` (includes `run_id`, `cost_usd`, `tool_calls`, `tokens`, `files`).
+
+**Operator commands:** `kudbee` (interactive), `kudbee "<goal>"`,
+`kudbee --yes "<goal>"`, `kudbee /runs`, `kudbee /run <id>`, `kudbee /metrics`,
+`kudbee /memory [query]`, `kudbee /remember TITLE - TEXT`, `kudbee /promote org/ID`.
+Dashboard CLI: `/help`, `/memory`, `/remember`, `/promote`, `/metrics`, `/runs`, `/run ID`, `/capacity`,
+`/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
+`/theme`, `/config`, `/shortcuts`, `/clear`.
+
+### 2026-09-27 — Layered memory (files + vector), evidence gate, TypeScript 7 check
+
+- **Memory store** (`memory.ts`) with task/org/verified layers as Markdown
+  files under `apps/web/data/memory/` (+ README), mirrored to the existing
+  Upstash Vector index. The index was found reset to an empty **sparse**
+  index without an embedding model, so vectors are BM25-style term vectors
+  computed locally (FNV-1a term hashing) and queried with
+  `weightingStrategy: IDF` — no embedding API or cost. Namespace
+  `kudbee-memory`; the folder is re-synced to the index on every boot.
+- Agent tools `recall` and `remember`; automatic recall at run start and an
+  automatic task episode at run end; run records store `recalled` ids (shown
+  in the run timeline).
+- Dashboard **Memory** panel (vector backend badge, per-layer counts and tabs,
+  search, view, add note, promote to verified, delete); `/memory`,
+  `/remember`, `/promote` in the dashboard terminal and `kudbee` CLI;
+  monitor check for Upstash Vector.
+- **Bugs found by live testing and fixed:**
+  1. Recall missed a note written seconds earlier — Upstash indexes
+     asynchronously. Fixed with hybrid search (Upstash + local BM25).
+  2. Mercury stored a guess from its own training as a "lesson". Fixed with
+     the evidence gate (see surface map).
+  3. Mercury gamed the first gate by writing the claim to a file and reading
+     it back. Files written in the same run no longer count as evidence;
+     `remember` disables itself after two refusals (it previously looped
+     until a 90 s model timeout).
+  4. A guessed answer propagated through task episodes into later runs.
+     Episodes now label answers "unverified" and record "Evidence gathered";
+     auto-recall strips past answers and queries knowledge and episodes
+     separately.
+  5. Memory panel race: overlapping refreshes let an older unfiltered response
+     overwrite a layer tab. Fixed with a request-sequence guard.
+- **Verified (live Mercury-2):** run 1 read `hnrss.org/frontpage` and saved an
+  org note with evidence; run 2 (new session, no web tools) answered
+  `https://hnrss.org/frontpage` from memory in 0.9 s; "store the capital of
+  Australia without web tools" → refused once, agent stopped and explained
+  (3 steps); memory unit test on both backends (write, search with layer
+  filter, promote, delete, throwaway namespace deleted after); headless-Chrome
+  drive of the Memory panel (badge, counts, search, open, add, promote, tab
+  filter, delete, `/memory`) with zero JS errors.
+- **TypeScript 7:** `apps/web` passes TypeScript **7.0.2** `--strict`
+  (17 files, 0 errors) via `apps/web/bin/typecheck`; a planted type error was
+  caught, so the pass is real. `tsconfig.json` now also excludes `workspaces`
+  and `data` (user files, not app code).
+
+### 2026-09-27 — Merge recovery: committed Git/task/Janus features restored
+
+- **What happened:** the working tree had been rebuilt from `0d42319c`
+  ("SMOLLM2 INSTALLED") with Janus removed, so it silently dropped everything
+  commit `6e6f0301` ("test") added: `git_repository` plugin + Git panel,
+  `/task` and `/git` terminal commands, task actions/filters/activity,
+  task image attachments, and the Janus-Pro image plugins, routes, and UI.
+- **Fix:** 3-way merge (base `0d42319c`, theirs `6e6f0301`, ours = today's
+  work); conflicts resolved to keep both sides. Janus service files,
+  `docker-compose.yml`, `docs/guides/agent_os.md`, and `main.css` restored
+  from HEAD. Nothing committed was dropped; Janus removal, if wanted, should be
+  its own explicit change.
+- **Bug found in `6e6f0301` itself and fixed:** `tokenizeTerminalCommand`,
+  `runTaskCommand`, `runGitCommand`, `uploadTaskImage`, `cloneRepository`,
+  `renderGitRepositories` were nested inside a stray outer
+  `async function refreshConnectionMonitor()`, so `/task` and `/git` threw
+  `ReferenceError`. Unwrapped to top level.
+- `index.html` loads `main.css` then `main-pro.css` (pro theme overrides; file
+  tree, health rows, thought filters, task/Git styles only exist in `main.css`).
+- Plugin memory records use the redacted input again (image base64 stripped).
+- `apps/web/bin/kudbee` launcher added to the repo
+  (`ln -s "$PWD/apps/web/bin/kudbee" ~/.local/bin/kudbee`).
+- **Verified:** headless-Chrome drive — 9 plugins, image buttons + Git panel
+  present, `/task add` renders a high-priority card with tags/actions,
+  `/git help`, `/help` lists Tasks & Git, run timeline opens, live Mercury-2
+  run writes `hello.md` and its task card shows steps/tools/cost; zero JS
+  errors. Screenshot checked for layout.
+
+### 2026-09-27 — Agent tracking: run history, timeline, cost, approvals, real panels
+
+- **Run history** persisted server-side (`runs.ts`); survives page reloads and
+  server restarts (runs left `running` at boot are marked `interrupted`).
+- **Run timeline:** click any task card or Run History row → modal with every
+  model call (latency, prompt+completion tokens, cost, requested tools) and
+  every tool call (args, result/error, latency, approval tag), plus
+  **Re-run goal**. CLI: `/run <id>`.
+- **Cost tracking** per step, per run, today, all-time; optional daily budget.
+- **Real panels:** Agent Metrics (runs today, success %, p50/p95, cost today,
+  24 h sparkline with failure share, failure-kind tags) and Capacity (agents
+  running, pending approvals, server CPU/RSS, system memory, load) now read
+  `/api/stats`; the old hard-coded "3/10 agents" and localStorage metrics are gone.
+  The fake localStorage Sessions panel was replaced by Run History.
+- **Live progress** on the running task card: `Step N · <tool> · <elapsed>`.
+- **Approval gates** (see above). **Stop** now aborts the in-flight Mercury
+  request via `AbortController` (measured: 5 ms from stop to result) and denies
+  pending approvals; closing the socket also stops the run.
+- **Failure classification:** `stopped`, `budget`, `step_limit`, `api_error`,
+  `network`, `interrupted`, `error`.
+- Modal CSS added to `main-pro.css` (it had none, so the plugin modal was unstyled).
+- `.gitignore`: `apps/web/workspaces/`, `apps/web/data/`.
+- **Verified (local, live Mercury-2):** approval deny path (agent reported the
+  denial honestly), approve path on overwrite, mid-run stop, budget cap on a
+  throwaway server (`PORT=3001`, temp `KUDBEE_DATA_DIR`), history reload after
+  restart, and a headless-Chrome drive of the dashboard (models, plugins, KPIs,
+  sparkline, run history, timeline modal, `/metrics`, approval modal →
+  Approve → answer "Example Domain" with cost on the task card; zero JS errors).
+
+### 2026-09-27 — Worker agent, dashboard fix, `kudbee` CLI
+
+- **Fatal dashboard bug fixed:** `app.js` redeclared `const Enterprise` already
+  declared by `enterprise.js`; classic scripts share one global lexical scope,
+  so the SyntaxError killed all of `app.js` (no buttons, models, plugins).
+  Also fixed string-vs-Date crashes in `/logs` and the sessions list, Run
+  buttons staying disabled, and removed `enterprise.js` shortcuts that hijacked
+  Ctrl+S / Ctrl+L (Ctrl+L silently wiped the audit log).
+- **Worker agent** (`agent.ts`) on Inception `mercury-2`; default model when
+  `INCEPTION_API_KEY` is set; Ollama models (`smollm2:135m`) still selectable
+  for plain chat. Connection monitor gained an authenticated Inception check.
+- **`kudbee` CLI** (`cli.ts` + `~/.local/bin/kudbee`).
+- `rss_feed` plugin: RSS `<guid isPermaLink>` objects now yield the text id
+  instead of `[object Object]`.
+- **Verified:** first real job — "read HN front page RSS, write top5.md" —
+  3 steps, 2 tool calls, 3.0 s, real stories and links in `top5.md`.
+
+### Open items / debt (be honest here)
+
+- **No automated tests** for `agent.ts`, `runs.ts`, `cli.ts` or the new routes
+  (§3 requires them). Next: hermetic unit tests with a mocked Inception
+  endpoint for the approval, budget, stop and step-limit paths.
+- PR branch `feat/agent-os-worker-agent` is cut from `origin/main` and carries
+  only Agent OS paths. The PR #185 branch tip had unrelated changes that must
+  not reach main without review (deleted `.env.example`, README cut by 247
+  lines, CRLF rewrite of `docs/CONTINUITY.md`, 9 tracked session-workspace
+  files); they stay on local branch `feat/agent-os-worker-tracking` for audit.
+- Memory: org notes can still be wrong (the gate checks that evidence was
+  gathered, not that the note matches it) — that is what human promotion is
+  for. Retrieval is lexical (BM25), not semantic; synonyms won't match. A dense
+  semantic layer would need an embedding model (OpenAI key exists in `.env`,
+  or a local Ollama embedding model) and a dense index.
+- **Algorand (requested, not started):** AlgoKit CLI + dev wallet need either
+  an install on this machine (`pipx install algokit`; LocalNet also needs
+  Docker, which is **not installed** — only a leftover Docker Desktop log on
+  Windows) or a cloud environment. Founder said not to install on the laptop.
+  Algorand's AI onboarding is **VibeKit** (Agent Skills + Kappa/GitHub MCP
+  servers). Algorand TypeScript compiles with **puya-ts**, which depends on
+  TypeScript **5.9** internally (`typescript ^5.9.3`), so contracts are
+  compiled by puya-ts' own TS 5.9 even when the rest of the repo is on TS 7.
+- Run history is a single JSON file (fine for ≤500 runs, one server process).
+  Two servers sharing one data dir will overwrite each other.
+- The Ollama path records runs but no tokens/cost and has no tools.
+- The web runtime has no authentication; keep it on localhost (§1.4.1).
+- Untracked files from earlier sessions still in `apps/web/public/`
+  (`debug.html`, `enterprise-dashboard.html`, `index-mock.html`,
+  `index-offline.html`, `simple.html`, `test-fetch.html`, `js/app-mock.js`)
+  need a keep/delete decision.
+- Hardware seen from WSL: Quadro M1000M (2 GB VRAM), 8 cores, 7.7 GB RAM —
+  enough only for tiny local models; Mercury-2 runs remotely at Inception.

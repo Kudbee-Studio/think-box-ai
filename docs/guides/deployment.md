@@ -3,6 +3,7 @@
 ## Quick Start with Docker
 
 See the dedicated [Docker enterprise guide](docker_enterprise.md) for profiles, hermetic spine images, and security notes.
+See [the Agent OS guide](agent_os.md) for the Node WebSocket runtime, Ollama, plugins, memories, and dashboard health checks.
 
 ```bash
 # 1. Clone and configure
@@ -15,6 +16,10 @@ python3 scripts/verify_docker_contract.py
 
 # 3. Run API with Docker Compose v2
 docker compose up api -d --build
+
+# Optional interactive Agent OS + private Ollama
+docker compose --profile agent-os up -d --build
+docker compose --profile agent-os exec ollama ollama pull smollm2:135m
 
 # 4. Check health
 curl http://127.0.0.1:8000/health
