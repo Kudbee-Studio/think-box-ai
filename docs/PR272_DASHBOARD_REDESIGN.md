@@ -135,13 +135,31 @@ After:  Gradient + dual-layer shadow
 
 ---
 
+## Streaming UI Improvements (Phase 2)
+
+**Critical for production:** Thoughts/reasoning should integrate into the stream token-by-token, not as complete blocks.
+
+**Current behavior:** Thoughts display after full generation  
+**Desired behavior:** Real-time token streaming (like Claude Code)
+
+### Implementation
+- Wire WebSocket message streaming to frontend
+- Parse `THOUGHT` events and render character-by-character
+- Show streaming indicator (cursor animation)
+- Smooth integration with tool calls and results
+
+This makes the agent feel responsive and transparent, not blocked/delayed.
+
+---
+
 ## Next Steps
 
 After PR 272 merges:
-1. If additional layout tweaks needed, create small focused PRs
-2. Consider adding dashboard dark/light mode toggle (Phase 2)
-3. Accessibility audit (WCAG 2.1 AA compliance)
-4. Mobile responsive testing
+1. **PR 273:** Persistent memory via PHP (critical infrastructure)
+2. **PR 274:** Token-by-token streaming for thoughts/reasoning
+3. If additional layout tweaks needed, create small focused PRs
+4. Accessibility audit (WCAG 2.1 AA compliance)
+5. Mobile responsive testing
 
 ---
 
