@@ -317,7 +317,7 @@ ${c.bold('EXAMPLES')}
   ${c.cyan('/select')} — pick Mercury-2 or the local model interactively
   ${c.cyan('/memory python tips')} — search memory for Python advice`;
 
-async function handleCommand(client: Client, line: string): Promise<boolean> {
+async function handleCommand(client: Client, line: string, sessionId: string): Promise<boolean> {
   const [cmd, ...args] = line.split(/\s+/);
   switch (cmd) {
     case '/help':
@@ -422,7 +422,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     }
     case '/notes': {
       const layer = args[0] || '';
-      const params = new URLSearchParams({ limit: '20', sessionId: cliSessionId });
+      const params = new URLSearchParams({ limit: '20', sessionId });
       if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
         params.set('layer', layer);
       }
@@ -448,7 +448,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       }
       const [title, ...rest] = text.split(/\s+[-—:]\s+/);
       const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
-      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(cliSessionId)}`, {
+      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(sessionId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -468,7 +468,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
         console.log(c.red('Usage: /forget ID|QUERY'));
         break;
       }
-      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(cliSessionId)}`, { method: 'DELETE' });
+      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
       const result = (await res.json()) as any;
       console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
@@ -746,7 +746,7 @@ async function main(): Promise<void> {
     });
   };
   if (goal.startsWith('/')) {
-    await handleCommand(client, goal);
+    await handleCommand(client, goal, cliSessionId);
     client.ws.close();
     process.exit(0);
   }
@@ -783,7 +783,7 @@ async function main(): Promise<void> {
     if (!line) return rl.prompt();
     if (line.startsWith('/')) {
       try {
-        if (!(await handleCommand(client, line))) return rl.close();
+        if (!(await handleCommand(client, line, cliSessionId))) return rl.close();
       } catch (err) {
         console.log(c.red(String(err)));
       }

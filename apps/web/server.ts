@@ -894,17 +894,17 @@ class AgentSession {
           startTime: record.started_at,
           endTime: Date.now(),
           metrics: {
-            tokens: record.tokens,
+            tokens: record.prompt_tokens + record.completion_tokens,
             cost_usd: record.cost_usd,
             duration_ms: record.duration_ms,
-            tool_calls: record.approvals.tool_calls,
+            tool_calls: record.tool_calls,
             approvals_approved: record.approvals.approved,
             approvals_denied: record.approvals.denied,
             // Feature 5: Token telemetry
             model_selected: record.routeTelemetry?.modelSelected ?? this.config.model,
             route_reason: record.routeTelemetry?.routeReason ?? 'auto',
-            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? record.tokens,
-            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? record.tokens,
+            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? (record.prompt_tokens + record.completion_tokens),
+            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? (record.prompt_tokens + record.completion_tokens),
             tokens_saved_est: record.routeTelemetry?.tokensSavedEst ?? 0,
             // HERMES etc: which tool-scoped agent profile ran this goal, if any
             agent_profile: record.agentProfile,
