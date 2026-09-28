@@ -1396,6 +1396,32 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
 
+### 2026-09-27 (night CT) — PR #271 in progress: Security hardening & incident response
+
+- **Branch:** `feat/pr271-security-hardening-incident-response` (in progress)
+- **Severity:** CRITICAL + HIGH
+- **Incident:** 2026-09-28 security scan discovered SSH private key (`kilo-upcloud-recovered`) 
+  committed to git history (2026-09-24, commit `9f12e1dd`), publicly visible on GitHub.
+- **What's been done so far:**
+  - ✅ Ran `git filter-branch` on all 2,135 commits to remove `kilo-upcloud-recovered` and `.pub`
+  - ✅ Verified: No "ssh-rsa" content remains in any commit
+  - ✅ Reflog expired and gc completed
+  - ✅ Created comprehensive incident response documentation (`docs/SECURITY_HARDENING_PR271.md`)
+  - ✅ Dashboard localhost binding already fixed in commit `dd1b525` (no public access)
+  - ✅ `.gitignore` updated with SSH key patterns
+  - ✅ Commit `f4388fdc`: Staged security documentation
+- **Still pending (CRITICAL):**
+  - Force-push cleaned history to `origin/main` (founder action; prepared in `/tmp/think-box-ai-purge`)
+  - Notify all team members to rebase after force-push
+  - Revoke compromised UpCloud SSH key (founder action)
+- **Still pending (HIGH):**
+  - WSL: Run `chmod 600 .env` to fix world-readable API keys
+  - Rotate exposed API keys: `INCEPTION_API_KEY`, `UPSTASH_VECTOR_REST_TOKEN`
+  - Windows PostgreSQL: Set `listen_addresses = 'localhost'` in `postgresql.conf`
+  - Audit chat history for any other exposed credentials
+- **Testing:** N/A (documentation and history purge only)
+- **Follow-ups:** Force-push blocks all merges; coordinate team rebase after push
+
 ### 2026-09-27 (evening CT) — PR #269 merged: Agent OS Mercury-2 worker
 
 - **PR:** https://github.com/Kudbee-Studio/think-box-ai/pull/269 — **MERGED** into `main`
