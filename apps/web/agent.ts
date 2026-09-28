@@ -77,6 +77,10 @@ export interface AgentHooks {
   remember: (title: string, content: string, tags: string[]) => Promise<Record<string, unknown>>;
   recall: (query: string, limit: number) => Promise<Record<string, unknown>>;
   rssFeed: (url: string, limit: number) => Promise<Record<string, unknown>>;
+  /** When set, restricts this run to a named tool subset (see AGENT_PROFILES). A hallucinated
+   *  or otherwise disallowed tool call is rejected before it ever reaches the approval gate —
+   *  the model isn't even offered the tool in its function list, but this is the hard backstop. */
+  allowedTools?: string[];
 }
 
 export interface AgentRunResult {
@@ -92,7 +96,7 @@ export interface AgentRunResult {
   cost_usd: number;
 }
 
-const TOOLS = [
+export const TOOLS = [
   {
     type: 'function',
     function: {
@@ -205,6 +209,33 @@ const TOOLS = [
     },
   },
 ];
+
+// Named tool-scoped agent lanes. A profile restricts which tools a run may call — enforced both
+// by filtering the function list sent to the model (chat()) and, as a hard backstop, by rejecting
+// any disallowed tool_call before it reaches the approval gate (see the dispatch loop below).
+export interface AgentProfile {
+  name: string;
+  description: string;
+  allowedTools: string[];
+  roleContext: string;
+}
+
+export const HERMES_ALLOWED_TOOLS = ['algorand', 'recall', 'remember'];
+
+export const AGENT_PROFILES: Record<string, AgentProfile> = {
+  hermes: {
+    name: 'HERMES',
+    description: 'Algorand read-only research assistant — chain queries + memory, no wallet or signing',
+    allowedTools: HERMES_ALLOWED_TOOLS,
+    roleContext:
+      'You are HERMES, an Algorand research assistant. You may only look things up (account balances, ' +
+      'assets, applications, transactions via the algorand tool) and save/recall research notes via ' +
+      'remember/recall. You have no wallet, no private keys, and cannot sign or send anything — if asked ' +
+      'to sign a transaction, send funds, import a mnemonic, or do anything else outside chain lookups and ' +
+      'note-taking, refuse and explain that wallet/signing support is a deliberately separate, deferred ' +
+      'capability pending an explicit founder decision on wallet strategy.',
+  },
+};
 
 const SYSTEM_PROMPT = `You are kudbEE Worker, an autonomous agent inside kudbEE Agent OS.
 You complete the user's goal by calling tools, not by describing what you would do.
@@ -378,6 +409,7 @@ async function chat(
   messages: AgentMessage[],
   temperature: number,
   signal: AbortSignal,
+  tools: typeof TOOLS = TOOLS,
 ): Promise<{ message: AgentMessage; prompt: number; completion: number }> {
   const response = await fetch(`${INCEPTION_BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -385,7 +417,7 @@ async function chat(
       Authorization: `Bearer ${process.env.INCEPTION_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, messages, tools: TOOLS, temperature, max_tokens: 8000 }),
+    body: JSON.stringify({ model, messages, tools, temperature, max_tokens: 8000 }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(90000)]),
   });
   if (!response.ok) {
@@ -416,8 +448,13 @@ export async function runToolAgent(
 
   if (!inceptionConfigured()) return finish({ success: false, error: 'INCEPTION_API_KEY is not set in .env' });
 
+  const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS;
+  const roleContext = hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined;
+
   const context: RunContext = { observed: false, written: new Set(), rememberRefusals: 0, userAskedToRemember: /\b(remember (that|this|to)|memori[sz]e|note that|(save|add|store) (this|that|it) (to|in) memory)\b/i.test(goal) };
-  const system = memoryContext ? `${SYSTEM_PROMPT}\n\nRelevant memories:\n${memoryContext}` : SYSTEM_PROMPT;
+  const system = [SYSTEM_PROMPT, roleContext, memoryContext ? `Relevant memories:\n${memoryContext}` : undefined]
+    .filter(Boolean)
+    .join('\n\n');
   const messages: AgentMessage[] = [{ role: 'system', content: system }];
   for (const turn of history.slice(-5)) {
     messages.push({ role: 'user', content: turn.goal });
@@ -434,7 +471,7 @@ export async function runToolAgent(
       totals.steps = step;
       hooks.onThought({ type: 'reasoning', content: `Step ${step}: asking ${model}…`, status: 'thinking' });
       const startedAt = Date.now();
-      const { message, prompt, completion } = await chat(model, messages, temperature, hooks.signal);
+      const { message, prompt, completion } = await chat(model, messages, temperature, hooks.signal, tools);
       const stepCost = costUsd(model, prompt, completion);
       totals.prompt_tokens += prompt;
       totals.completion_tokens += completion;
@@ -479,6 +516,12 @@ export async function runToolAgent(
         try {
           args = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>;
           hooks.onThought({ type: 'tool_call', plugin: call.function.name, content: `${call.function.name} ${truncate(JSON.stringify(args), 200)}`, status: 'running' });
+          // Hard backstop: even a hallucinated or prompt-injected tool_call for a name outside
+          // this run's allowlist is rejected before it ever reaches the approval gate — filtering
+          // the model's function list is a UX nicety, not the actual security boundary.
+          if (hooks.allowedTools && !hooks.allowedTools.includes(call.function.name)) {
+            throw new Error(`Tool '${call.function.name}' is not available to this agent profile`);
+          }
           reason = approvalReason(call.function.name, args, hooks);
           if (reason) {
             hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });

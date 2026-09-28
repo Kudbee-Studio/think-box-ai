@@ -283,3 +283,59 @@ test('invalid algorand input is rejected before any network call', async () => {
   assert.equal(approvals.length, 0, 'no approval prompt for input that can never be valid');
   assert.match(String(toolResults()[0].error), /not a valid Algorand address/);
 });
+
+// ─── HERMES agent profile: tool-scoped allowlist ──────────────────────────
+
+test('HERMES allowlist is exactly algorand, recall, remember', () => {
+  assert.deepEqual(agent.HERMES_ALLOWED_TOOLS.slice().sort(), ['algorand', 'recall', 'remember']);
+  assert.equal(agent.AGENT_PROFILES.hermes.allowedTools, agent.HERMES_ALLOWED_TOOLS);
+});
+
+test('a HERMES run only offers its allowlisted tools to the model', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('status check', hooks);
+  const toolNames = (mock.requests[0].tools as Array<{ function: { name: string } }>).map((t) => t.function.name);
+  assert.deepEqual(toolNames.sort(), ['algorand', 'recall', 'remember']);
+});
+
+test('HERMES gets its role context in the system prompt', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('status check', hooks);
+  const system = String(mock.requests[0].messages[0].content);
+  assert.match(system, /You are HERMES/);
+  assert.match(system, /cannot sign or send anything/);
+});
+
+test('a disallowed tool call is rejected before the approval gate, even if the model hallucinates it', async () => {
+  // The model is only ever offered algorand/recall/remember (previous test), but nothing stops
+  // a compromised or confused model from emitting a tool_call for something else anyway — this
+  // is the hard backstop, not just hiding the tool from the function list.
+  mock.script([call('write_file', { path: 'x.txt', content: 'nope' }), say('done')]);
+  const { hooks, approvals } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('write a file anyway', hooks);
+  assert.equal(approvals.length, 0, 'never even reaches the approval gate');
+  assert.match(String(toolResults()[0].error), /not available to this agent profile/);
+});
+
+test('HERMES can still use algorand and remember normally', async () => {
+  mock.script([call('algorand', { action: 'status', network: 'testnet' }), say('done')]);
+  const { hooks, approvals } = makeHooks({
+    allowedTools: agent.HERMES_ALLOWED_TOOLS,
+    requestApproval: async (tool, _args, reason) => {
+      approvals.push({ tool, reason });
+      return false; // deny so the test never reaches the real network; we only care it got this far
+    },
+  });
+  await run('what is the testnet status', hooks);
+  assert.equal(approvals.length, 1, 'algorand is allowed, so it reaches the normal approval gate, not the allowlist rejection');
+  assert.equal(approvals[0].tool, 'algorand');
+});
+
+test('the default (no agentProfile) run is unrestricted, unaffected by HERMES existing', async () => {
+  mock.script([call('write_file', { path: 'ok.txt', content: 'hi' }), say('done')]);
+  const { hooks } = makeHooks(); // no allowedTools override
+  await run('write a file', hooks);
+  assert.equal(toolResults()[0].ok, true);
+});

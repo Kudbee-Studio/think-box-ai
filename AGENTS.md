@@ -1453,6 +1453,22 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - Sparkline bars are chronological (oldest→newest) — the `/api/stats/tokens` ordering bug (DB returns newest-first) was caught and fixed in the same PR before this UI landed on top of it
 - **Manual verification still needed (network-gated):** open http://127.0.0.1:3000, run two goals (one simple, one complex) with `qwen2.5:1.5b` pulled, confirm the KPI number and sparkline update, then restart the server and confirm the aggregate KPI value survives (reads from SQLite, not in-memory state — already covered by `token-stats-integration.test.ts`'s restart proof at the persistence layer, but not yet clicked through in a browser)
 
+### 2026-09-28 (night CT) — HERMES: first tool-scoped agent profile (Algorand read-only)
+
+- **Branch:** `feat/hermes-algorand`
+- **What landed:**
+  - `AGENT_PROFILES` registry in `agent.ts` (`HERMES_ALLOWED_TOOLS = ['algorand', 'recall', 'remember']`) — the first named, tool-restricted agent lane in the runtime; every prior run used the full unrestricted tool set
+  - Enforcement at two levels: the model's function-calling list is filtered to the profile's allowlist, **and** the dispatch loop hard-rejects any tool_call outside the allowlist before it reaches the approval gate — covers a hallucinated or prompt-injected call for a disallowed tool, not just what the model is offered
+  - `routeTelemetry`-style threading of `agentProfile` through `submitGoal → drain → runGoal → runAgentGoal`, recorded on `run_metadata.metrics.agent_profile` for audit/history
+  - CLI: `/agents` (list), `/agent [NAME]` (switch/clear), `kudbee --agent hermes "<goal>"` (one-shot); unknown agent name returns a `result` message with `success:false` instead of a bare `error` the CLI has no handler for (caught this while building it — would have hung `client.run()` forever on a typo)
+  - `GET /api/agents` REST endpoint
+  - `docs/HERMES_ALGORAND.md`, `.env.example` Algorand section
+- **Explicitly deferred (per founder spec):** wallet import, mnemonic handling, signing, send/pay, rekey, mutating application calls. HERMES's system prompt tells the model to refuse and explain the deferral if asked.
+- **Separately (founder + user approved, testnet only):** a from-scratch, tightly-scoped testnet transaction-signing tool is being added as its own capability, *not* part of HERMES's allowlist, gated behind `KUDBEE_ENABLE_ALGORAND_TESTNET_SIGNING` + a testnet-only mnemonic env var that doesn't exist for mainnet. Testnet ALGO has no monetary value (faucet-funded), which is why this is safe to test now while mainnet signing stays fully out of scope.
+- **Tests:** 6 new tests in `agent.test.ts` — allowlist contents, function-list filtering, role-context in system prompt, hard-backstop rejection of a hallucinated disallowed call, allowed tool (algorand) still goes through normal approval, default/unrestricted runs unaffected. Full suite: 27/27 in `agent.test.ts`, no regressions elsewhere.
+- **Correction made in-flight:** the founder's spec claimed "54/54 hermetic tests" for the existing Algorand surface; the actual count in `tests/algorand.test.ts` is 9. Noting the discrepancy rather than repeating an unverified number.
+- **Next:** medication-interaction research agent (same tool-scoped-profile pattern, authoritative-API-only data source — no LLM-invented drug interactions), then register both in the Python `thinkbox/` swarm-governance registry per `tests/unit/test_swarm_governance_post*.py`. PR open when this is committed; do not merge.
+
 ### 2026-09-28 (later CT) — Fix: cheap local route never actually fired (Mercury-2 always won)
 
 - **Branch:** `feat/pr274-token-telemetry` (same PR, follow-up commit)

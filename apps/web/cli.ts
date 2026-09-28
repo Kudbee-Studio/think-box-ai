@@ -103,6 +103,8 @@ class Client {
   plugins: any[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
   routeTelemetry?: RouteTelemtry;
+  /** Tool-scoped agent lane (e.g. 'hermes'). Undefined = full worker agent. */
+  agent?: string;
   private waiters: Array<{ type: string; resolve: (m: Msg) => void }> = [];
 
   connect(): Promise<void> {
@@ -144,9 +146,9 @@ class Client {
   }
 
   async run(goal: string): Promise<boolean> {
-    console.log(c.dim(`▶ ${this.model} working…`));
+    console.log(c.dim(`▶ ${this.agent ? `${this.agent} · ` : ''}${this.model} working…`));
     const done = this.wait('result');
-    this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry });
+    this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry, agent: this.agent });
     const { data: r } = await done;
     console.log();
     if (r.success) console.log(`${c.green('✓')} ${r.result}`);
@@ -278,6 +280,9 @@ ${c.bold('MODELS & AGENTS')}
   /models             list available models (enterprise & local)
   /model NAME         switch to model (Mercury-2, Qwen2.5 1.5B, etc)
   /select             interactive model picker 🎯
+  /agents             list tool-scoped agent lanes (e.g. HERMES — Algorand read-only)
+  /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
+  ${c.dim("kudbee --agent hermes '<goal>'")}  one-shot run with an agent lane
 
 ${c.bold('OPERATIONS')}
   /plugins            list available tools and permissions
@@ -353,6 +358,35 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
         const selected = client.models.find((m) => m.name === args[0]);
         const icon = selected?.agent ? '🤖' : '💻';
         console.log(`${icon} Model → ${c.bold(client.model)}`);
+      }
+      break;
+    case '/agents': {
+      const res = await fetch(`${HOST}/api/agents`);
+      const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
+      console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
+      for (const a of agents) {
+        const mark = client.agent === a.id ? c.green('●') : ' ';
+        console.log(`  ${mark} ${c.bold(a.name)} ${c.dim(`(/agent ${a.id})`)}`);
+        console.log(c.dim(`      ${a.description}`));
+        console.log(c.dim(`      tools: ${a.allowedTools.join(', ')}`));
+      }
+      console.log(c.dim('\n  Use: /agent NAME  or  /agent  (clears — back to default worker)'));
+      break;
+    }
+    case '/agent':
+      if (!args[0]) {
+        client.agent = undefined;
+        console.log(c.green('🤖 Agent → default worker (full tools)'));
+      } else {
+        const res = await fetch(`${HOST}/api/agents`);
+        const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
+        const match = agents.find((a) => a.id === args[0].toLowerCase());
+        if (!match) {
+          console.log(c.red(`Unknown agent "${args[0]}". See /agents.`));
+        } else {
+          client.agent = match.id;
+          console.log(c.green(`🤖 Agent → ${match.name} (read-only tool lane)`));
+        }
       }
       break;
     case '/plugins':
@@ -587,6 +621,10 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const autoYes = argv[0] === '--yes' || argv[0] === '-y';
   if (autoYes) argv.shift();
+  if (argv[0] === '--agent') {
+    argv.shift();
+    client.agent = argv.shift()?.toLowerCase();
+  }
   const goal = argv.join(' ').trim();
   client.onApproval = (req) => {
     printApproval(req);
