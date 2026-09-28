@@ -348,7 +348,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     }
     case '/notes': {
       const layer = args[0] || '';
-      const params = new URLSearchParams({ limit: '20' });
+      const params = new URLSearchParams({ limit: '20', sessionId: cliSessionId });
       if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
         params.set('layer', layer);
       }
@@ -374,7 +374,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       }
       const [title, ...rest] = text.split(/\s+[-—:]\s+/);
       const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
-      const res = await fetch(`${HOST}/api/memory/notes`, {
+      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(cliSessionId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -394,7 +394,7 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
         console.log(c.red('Usage: /forget ID|QUERY'));
         break;
       }
-      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}`, { method: 'DELETE' });
+      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(cliSessionId)}`, { method: 'DELETE' });
       const result = (await res.json()) as any;
       console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
@@ -484,6 +484,9 @@ async function main(): Promise<void> {
   await ensureServer();
   const client = new Client();
   await client.connect();
+
+  // CLI uses its own session for persistent memory
+  const cliSessionId = client.sessionId;
 
   const argv = process.argv.slice(2);
   const autoYes = argv[0] === '--yes' || argv[0] === '-y';
