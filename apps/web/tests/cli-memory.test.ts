@@ -71,7 +71,9 @@ describe('CLI Memory Commands', () => {
       ];
 
       for (const note of notes) await persistence.saveMemoryNote(note);
-      const retrieved = await persistence.listMemoryNotes(sessionId);
+      // Explicit 'session' filter: unfiltered listMemoryNotes() also returns global
+      // task/org/verified notes from other tests sharing this persistence instance.
+      const retrieved = await persistence.listMemoryNotes(sessionId, 'session');
 
       expect(retrieved.length).toBe(2);
       expect(retrieved.map((n) => n.title)).toContain('Note 1');

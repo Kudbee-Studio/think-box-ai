@@ -26,7 +26,7 @@ import type {
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
-import { INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
+import { AGENT_PROFILES, INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
@@ -458,7 +458,7 @@ class AgentSession {
   status = 'idle';
   abort: AbortController | null = null;
   /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
-  readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any> }> = [];
+  readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }> = [];
   private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
@@ -681,20 +681,20 @@ class AgentSession {
    * Single entry point for goals. A session runs one goal at a time: concurrent runs would share the
    * abort controller and approval map, so extra goals wait in `queue` as visible "queued" tasks.
    */
-  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>): { queued: boolean; position: number; task_id?: string } {
+  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>, agentProfile?: string): { queued: boolean; position: number; task_id?: string } {
     if (this.busy) {
       const task = this.addTask({ description: goal, status: 'queued' });
-      this.queue.push({ goal, model, task, routeTelemetry });
+      this.queue.push({ goal, model, task, routeTelemetry, agentProfile });
       this.broadcast({ type: 'queued', data: { task_id: task.id, goal, position: this.queue.length } });
       return { queued: true, position: this.queue.length, task_id: task.id };
     }
-    void this.drain({ goal, model, routeTelemetry });
+    void this.drain({ goal, model, routeTelemetry, agentProfile });
     return { queued: false, position: 0 };
   }
 
-  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> }): Promise<void> {
+  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }): Promise<void> {
     this.busy = true;
-    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any> } | undefined = first;
+    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string } | undefined = first;
     try {
       while (next) {
         if (next.model) {
@@ -702,7 +702,7 @@ class AgentSession {
           this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
         }
         this.broadcast({ type: 'status', data: 'running' });
-        const result = await this.runGoal(next.goal, next.task, next.routeTelemetry);
+        const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
         this.broadcast({ type: 'result', data: result });
         next = this.queue.shift();
       }
@@ -717,8 +717,8 @@ class AgentSession {
     return this.addTask({ description: goal, status: 'running' });
   }
 
-  async runGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
-    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry);
+  async runGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
+    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry, agentProfile);
     this.status = 'running';
     this.addThought({ type: 'goal', content: `Starting goal: ${goal}`, status: 'info' });
 
@@ -816,13 +816,16 @@ class AgentSession {
     pending.resolve(approved);
   }
 
-  async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>): Promise<PluginResult> {
+  async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
-    this.addThought({ type: 'goal', content: `Worker agent (${this.config.model}) starting: ${goal}`, status: 'info' });
+    const profile = agentProfile ? AGENT_PROFILES[agentProfile] : undefined;
+    if (agentProfile && !profile) throw new Error(`Unknown agent profile '${agentProfile}'`);
+    this.addThought({ type: 'goal', content: `${profile ? `${profile.name} agent` : 'Worker agent'} (${this.config.model}) starting: ${goal}`, status: 'info' });
     const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
     if (routeTelemetry) record.routeTelemetry = routeTelemetry;
+    if (agentProfile) record.agentProfile = agentProfile;
     this.broadcast({ type: 'run_update', data: record });
     try {
       // Knowledge and episodes are recalled separately so repeated goals cannot crowd out notes.
@@ -855,6 +858,7 @@ class AgentSession {
             ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
             : null,
         approvedDomains: this.approvedDomains,
+        allowedTools: profile?.allowedTools,
         requestApproval: (tool, args, reason) => this.requestApproval(record.id, tool, args, reason),
         remember: async (title, content, tags) => {
           const item = await memoryStore.write('org', { title, content, tags, source: `agent run:${record.id.slice(0, 8)}` });
@@ -902,6 +906,8 @@ class AgentSession {
             estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? record.tokens,
             estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? record.tokens,
             tokens_saved_est: record.routeTelemetry?.tokensSavedEst ?? 0,
+            // HERMES etc: which tool-scoped agent profile ran this goal, if any
+            agent_profile: record.agentProfile,
           },
           files: record.files,
           createdAt: record.started_at,
@@ -1028,7 +1034,15 @@ wss.on('connection', async (ws: WebSocket) => {
       switch (msg.type) {
         case 'run_goal': {
           const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? msg.routeTelemetry : undefined;
-          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any);
+          const agentProfile = typeof msg.agent === 'string' && msg.agent in AGENT_PROFILES ? msg.agent : undefined;
+          if (typeof msg.agent === 'string' && msg.agent && !agentProfile) {
+            // Respond via the same 'result' contract client.run() already awaits —
+            // a bare top-level 'error' message has no handler on the CLI side and
+            // would leave `kudbee --agent <typo> "goal"` hanging forever.
+            ws.send(JSON.stringify({ type: 'result', data: { success: false, error: `Unknown agent '${msg.agent}'. Available: ${Object.keys(AGENT_PROFILES).join(', ')}` } }));
+            break;
+          }
+          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any, agentProfile);
           break;
         }
 
@@ -1367,6 +1381,11 @@ app.get('/api/sdk/tasks', (req: Request, res: Response) => {
 app.get('/api/models', async (_req: Request, res: Response) => {
   const models = await listModels();
   res.json(models);
+});
+
+app.get('/api/agents', (_req: Request, res: Response) => {
+  const agents = Object.entries(AGENT_PROFILES).map(([id, p]) => ({ id, name: p.name, description: p.description, allowedTools: p.allowedTools }));
+  res.json({ agents });
 });
 
 app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {

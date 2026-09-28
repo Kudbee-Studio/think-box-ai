@@ -1452,6 +1452,17 @@ async function loadModels() {
   state.ws.send(JSON.stringify({ type: 'list_models' }));
 }
 
+async function loadAgents() {
+  try {
+    const res = await fetch(`${HOST}/api/agents`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { agents } = await res.json();
+    renderAgents(agents);
+  } catch (error) {
+    console.error('Failed to load agents:', error);
+  }
+}
+
 function renderModels() {
   const select = document.getElementById('model-select');
   if (!state.models.length) {
@@ -1466,6 +1477,18 @@ function renderModels() {
     return `<option value="${escapeHtml(m.name)}">${escapeHtml(label)}</option>`;
   }).join('');
   if (state.models.some(m => m.name === previous)) select.value = previous;
+}
+
+function renderAgents(agents) {
+  const select = document.getElementById('agent-select');
+  const opts = [{ id: '', name: '(default worker)', description: 'full tool access' }];
+  opts.push(...agents);
+  select.innerHTML = opts.map(a => {
+    const label = a.id ? `${a.name} — ${a.description}` : a.name;
+    return `<option value="${escapeHtml(a.id)}">${escapeHtml(label)}</option>`;
+  }).join('');
+  const previous = select.value;
+  if (opts.some(a => a.id === previous)) select.value = previous;
 }
 
 // ─── Actions ───────────────────────────────────────────────────
@@ -1498,6 +1521,7 @@ function runGoal() {
     type: 'run_goal',
     goal,
     model: document.getElementById('model-select').value,
+    agent: document.getElementById('agent-select').value || undefined,
   }));
 
   input.value = '';
@@ -1624,6 +1648,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── Agent tracking panels (server is the source of truth) ───
   refreshStats();
   refreshRuns();
+  loadAgents();  // Load available agent profiles
   setInterval(refreshStats, 3000);
   setInterval(refreshRuns, 10000);
   setInterval(() => { if (state.isRunning) renderTasks(); }, 1000);

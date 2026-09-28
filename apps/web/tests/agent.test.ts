@@ -259,7 +259,7 @@ test('memory context is added to the system prompt', async () => {
   assert.equal(system.role, 'system');
   assert.match(String(system.content), /Relevant memories:\n- \[VERIFIED \(trust\)\] Use hnrss\.org/);
   const toolNames = (mock.requests[0].tools as Array<{ function: { name: string } }>).map((t) => t.function.name);
-  assert.deepEqual(toolNames.sort(), ['algorand', 'fetch_url', 'list_files', 'read_file', 'read_rss', 'recall', 'remember', 'write_file']);
+  assert.deepEqual(toolNames.sort(), ['algorand', 'fetch_url', 'list_files', 'medication', 'read_file', 'read_rss', 'recall', 'remember', 'write_file']);
 });
 
 test('algorand lookups go through the new-domain approval gate', async () => {
@@ -282,4 +282,116 @@ test('invalid algorand input is rejected before any network call', async () => {
   await run('check account', hooks);
   assert.equal(approvals.length, 0, 'no approval prompt for input that can never be valid');
   assert.match(String(toolResults()[0].error), /not a valid Algorand address/);
+});
+
+// ─── HERMES agent profile: tool-scoped allowlist ──────────────────────────
+
+test('HERMES allowlist is exactly algorand, recall, remember', () => {
+  assert.deepEqual(agent.HERMES_ALLOWED_TOOLS.slice().sort(), ['algorand', 'recall', 'remember']);
+  assert.equal(agent.AGENT_PROFILES.hermes.allowedTools, agent.HERMES_ALLOWED_TOOLS);
+});
+
+test('a HERMES run only offers its allowlisted tools to the model', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('status check', hooks);
+  const toolNames = (mock.requests[0].tools as Array<{ function: { name: string } }>).map((t) => t.function.name);
+  assert.deepEqual(toolNames.sort(), ['algorand', 'recall', 'remember']);
+});
+
+test('HERMES gets its role context in the system prompt', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('status check', hooks);
+  const system = String(mock.requests[0].messages[0].content);
+  assert.match(system, /You are HERMES/);
+  assert.match(system, /cannot sign or send anything/);
+});
+
+test('a disallowed tool call is rejected before the approval gate, even if the model hallucinates it', async () => {
+  // The model is only ever offered algorand/recall/remember (previous test), but nothing stops
+  // a compromised or confused model from emitting a tool_call for something else anyway — this
+  // is the hard backstop, not just hiding the tool from the function list.
+  mock.script([call('write_file', { path: 'x.txt', content: 'nope' }), say('done')]);
+  const { hooks, approvals } = makeHooks({ allowedTools: agent.HERMES_ALLOWED_TOOLS });
+  await run('write a file anyway', hooks);
+  assert.equal(approvals.length, 0, 'never even reaches the approval gate');
+  assert.match(String(toolResults()[0].error), /not available to this agent profile/);
+});
+
+test('HERMES can still use algorand and remember normally', async () => {
+  mock.script([call('algorand', { action: 'status', network: 'testnet' }), say('done')]);
+  const { hooks, approvals } = makeHooks({
+    allowedTools: agent.HERMES_ALLOWED_TOOLS,
+    requestApproval: async (tool, _args, reason) => {
+      approvals.push({ tool, reason });
+      return false; // deny so the test never reaches the real network; we only care it got this far
+    },
+  });
+  await run('what is the testnet status', hooks);
+  assert.equal(approvals.length, 1, 'algorand is allowed, so it reaches the normal approval gate, not the allowlist rejection');
+  assert.equal(approvals[0].tool, 'algorand');
+});
+
+test('the default (no agentProfile) run is unrestricted, unaffected by HERMES existing', async () => {
+  mock.script([call('write_file', { path: 'ok.txt', content: 'hi' }), say('done')]);
+  const { hooks } = makeHooks(); // no allowedTools override
+  await run('write a file', hooks);
+  assert.equal(toolResults()[0].ok, true);
+});
+
+// ─── ASCLEPIUS agent profile: medication label research, never a verdict ──
+
+test('ASCLEPIUS allowlist is exactly medication, recall, remember', () => {
+  assert.deepEqual(agent.ASCLEPIUS_ALLOWED_TOOLS.slice().sort(), ['medication', 'recall', 'remember']);
+  assert.equal(agent.AGENT_PROFILES.asclepius.allowedTools, agent.ASCLEPIUS_ALLOWED_TOOLS);
+});
+
+test('an ASCLEPIUS run only offers its allowlisted tools to the model', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.ASCLEPIUS_ALLOWED_TOOLS });
+  await run('check a drug label', hooks);
+  const toolNames = (mock.requests[0].tools as Array<{ function: { name: string } }>).map((t) => t.function.name);
+  assert.deepEqual(toolNames.sort(), ['medication', 'recall', 'remember']);
+});
+
+test('ASCLEPIUS gets its safety-critical role context in the system prompt', async () => {
+  mock.script([say('ok')]);
+  const { hooks } = makeHooks({ allowedTools: agent.ASCLEPIUS_ALLOWED_TOOLS });
+  await run('check a drug label', hooks);
+  const system = String(mock.requests[0].messages[0].content);
+  assert.match(system, /You are ASCLEPIUS/);
+  assert.match(system, /NEVER tell a user that a combination of medications is "safe"/);
+  assert.match(system, /licensed pharmacist or physician/);
+});
+
+test('ASCLEPIUS cannot write files even if the model hallucinates the call', async () => {
+  mock.script([call('write_file', { path: 'x.txt', content: 'nope' }), say('done')]);
+  const { hooks, approvals } = makeHooks({ allowedTools: agent.ASCLEPIUS_ALLOWED_TOOLS });
+  await run('write a file anyway', hooks);
+  assert.equal(approvals.length, 0);
+  assert.match(String(toolResults()[0].error), /not available to this agent profile/);
+});
+
+test('ASCLEPIUS can still use medication normally, through the approval gate', async () => {
+  mock.script([call('medication', { action: 'lookup', drug: 'warfarin' }), say('done')]);
+  const { hooks, approvals } = makeHooks({
+    allowedTools: agent.ASCLEPIUS_ALLOWED_TOOLS,
+    requestApproval: async (tool, _args, reason) => {
+      approvals.push({ tool, reason });
+      return false; // deny so the test never reaches the real network
+    },
+  });
+  await run('check warfarin interactions', hooks);
+  assert.equal(approvals.length, 1);
+  assert.equal(approvals[0].tool, 'medication');
+  assert.match(approvals[0].reason, /api\.fda\.gov/);
+});
+
+test('invalid medication input is rejected before any network call or approval prompt', async () => {
+  mock.script([call('medication', { action: 'compare', drugs: ['only-one'] }), say('ok')]);
+  const { hooks, approvals } = makeHooks({ allowedTools: agent.ASCLEPIUS_ALLOWED_TOOLS });
+  await run('compare a drug with itself', hooks);
+  assert.equal(approvals.length, 0, 'no approval prompt for input that can never be valid');
+  assert.match(String(toolResults()[0].error), /2 or more/);
 });

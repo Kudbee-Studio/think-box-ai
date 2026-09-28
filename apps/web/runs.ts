@@ -32,6 +32,8 @@ export interface RunRecord {
   failure_kind?: string;
   /** Feature 5: model routing decision + estimated token savings for this run. */
   routeTelemetry?: Record<string, any>;
+  /** HERMES etc: which named tool-scoped agent profile ran this goal, if any. */
+  agentProfile?: string;
 }
 
 const MAX_RUNS = 500;

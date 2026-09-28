@@ -251,24 +251,38 @@ export class PersistenceLayer {
   }
 
   async listMemoryNotes(sessionId: string, layer?: string, limit = 100): Promise<MemoryNote[]> {
+    // Per the memory model (CLAUDE.md): only 'session' is scoped to one live
+    // connection. 'task', 'org' and 'verified' are durable knowledge meant to
+    // survive across sessions — every CLI launch gets a brand-new random
+    // sessionId (server.ts), so filtering those layers by sessionId made
+    // anything saved via /remember invisible the moment you reconnected.
     let stmt;
-    const params = [sessionId, limit];
+    let params: (string | number)[];
 
-    if (layer) {
+    if (layer === 'session') {
       stmt = this.db.prepare(`
         SELECT * FROM memory_notes
-        WHERE sessionId = ? AND layer = ?
+        WHERE sessionId = ? AND layer = 'session'
         ORDER BY updatedAt DESC
         LIMIT ?
       `);
-      params.splice(1, 0, layer);
+      params = [sessionId, limit];
+    } else if (layer) {
+      stmt = this.db.prepare(`
+        SELECT * FROM memory_notes
+        WHERE layer = ?
+        ORDER BY updatedAt DESC
+        LIMIT ?
+      `);
+      params = [layer, limit];
     } else {
       stmt = this.db.prepare(`
         SELECT * FROM memory_notes
-        WHERE sessionId = ?
+        WHERE (layer = 'session' AND sessionId = ?) OR layer != 'session'
         ORDER BY updatedAt DESC
         LIMIT ?
       `);
+      params = [sessionId, limit];
     }
 
     const rows = stmt.all(...params) as any[];
