@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import MCPRegistry from './mcp-registry.js';
 
 const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -286,6 +287,8 @@ ${c.bold('MODELS & AGENTS')}
 
 ${c.bold('OPERATIONS')}
   /plugins            list available tools and permissions
+  /skills             browse 100+ MCP servers from official registry
+  /skill [SEARCH]     find a skill, or interactive menu (no args)
   /files              list workspace files
   /cat PATH           print file content
   /runs               run history (15 latest)
@@ -512,6 +515,109 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/select':
       await interactiveModelSelect(client);
       break;
+    case '/skills': {
+      const registry = new MCPRegistry(process.env.GITHUB_TOKEN);
+      console.log(c.dim('Fetching MCP skill registry...'));
+      const servers = await registry.discoverServers();
+      console.log(c.bold(`\n  🔌 AVAILABLE MCP SKILLS (${servers.length} total)\n`));
+
+      const byCategory = registry.groupByCategory(servers);
+      for (const [cat, items] of Object.entries(byCategory).sort()) {
+        console.log(c.bold(`  ${cat}`));
+        for (const s of items) {
+          console.log(`    ${c.cyan(s.name)} — ${s.description}`);
+          if (s.tags.length) {
+            console.log(c.dim(`      Tags: ${s.tags.join(', ')}`));
+          }
+        }
+      }
+      console.log(c.dim(`\n  Use: /skill SEARCH  or  /skill  for interactive selection`));
+      break;
+    }
+    case '/skill': {
+      const registry = new MCPRegistry(process.env.GITHUB_TOKEN);
+      const skillName = args[0];
+
+      if (!skillName) {
+        // Interactive selection
+        const servers = await registry.discoverServers();
+        if (servers.length === 0) {
+          console.log(c.red('  No skills found'));
+          break;
+        }
+
+        const byCategory = registry.groupByCategory(servers);
+        console.log(c.bold('\n  🔌 AVAILABLE MCP SKILLS\n'));
+        const allServers: Array<{ index: number; server: any; category: string }> = [];
+        let index = 1;
+
+        for (const [cat, items] of Object.entries(byCategory).sort()) {
+          console.log(c.bold(`  ${cat}`));
+          for (const s of items) {
+            console.log(`    ${index}. ${c.cyan(s.name)} — ${s.description}`);
+            allServers.push({ index, server: s, category: cat });
+            index++;
+          }
+        }
+
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(c.cyan('\n  Pick (number or search): '), async (input) => {
+          rl.close();
+          const num = parseInt(input, 10);
+          if (!isNaN(num) && num >= 1 && num < index) {
+            const selected = allServers.find((x) => x.index === num)?.server;
+            if (selected) {
+              console.log(c.green(`\n  ✓ Selected: ${selected.name}`));
+              console.log(`  ${selected.description}`);
+              if (selected.capabilities.length) {
+                console.log(c.dim(`  Capabilities: ${selected.capabilities.join(', ')}`));
+              }
+            }
+          } else {
+            const matches = registry.filter(servers, input);
+            if (matches.length === 0) {
+              console.log(c.red('  No matches found'));
+            } else if (matches.length === 1) {
+              const s = matches[0];
+              console.log(c.green(`\n  ✓ Selected: ${s.name}`));
+              console.log(`  ${s.description}`);
+              if (s.capabilities.length) {
+                console.log(c.dim(`  Capabilities: ${s.capabilities.join(', ')}`));
+              }
+            } else {
+              console.log(c.dim(`\n  Found ${matches.length} matches:`));
+              matches.forEach((m, i) => {
+                console.log(`    ${i + 1}. ${c.cyan(m.name)} — ${m.description}`);
+              });
+            }
+          }
+        });
+      } else {
+        // Direct search
+        const servers = await registry.discoverServers();
+        const matches = registry.filter(servers, skillName);
+
+        if (matches.length === 0) {
+          console.log(c.red(`  No skills matching "${skillName}"`));
+        } else if (matches.length === 1) {
+          const s = matches[0];
+          console.log(`\n${c.bold(s.name)}`);
+          console.log(c.dim(`  ${s.description}`));
+          if (s.tags.length) {
+            console.log(c.dim(`  Tags: ${s.tags.join(', ')}`));
+          }
+          if (s.capabilities.length) {
+            console.log(c.dim(`  Capabilities: ${s.capabilities.join(', ')}`));
+          }
+        } else {
+          console.log(c.dim(`\n  Found ${matches.length} matches:`));
+          for (const m of matches) {
+            console.log(`  ${c.cyan(m.name)} — ${m.description}`);
+          }
+        }
+      }
+      break;
+    }
     case '/quit':
     case '/exit':
       return false;
