@@ -42,6 +42,9 @@ async def test_model():
 
 def test_redis():
     """Test Redis persistence."""
+    import urllib.request
+    import urllib.error
+
     url = os.environ.get('UPSTASH_REDIS_REST_URL', '')
     token = os.environ.get('UPSTASH_REDIS_REST_TOKEN', '')
 
@@ -50,21 +53,35 @@ def test_redis():
         return False
 
     try:
-        # Test via REST API
-        import httpx
         headers = {'Authorization': f'Bearer {token}'}
 
         # Write
-        resp = httpx.post(f"{url}/set/test-key/test-value", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            # Read
-            resp = httpx.get(f"{url}/get/test-key", headers=headers, timeout=5)
-            if resp.status_code == 200:
-                print(f"✅ Redis persistence: working")
-                return True
+        req = urllib.request.Request(
+            f"{url}/set/test-key/test-value",
+            headers=headers,
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    # Read
+                    req = urllib.request.Request(
+                        f"{url}/get/test-key",
+                        headers=headers,
+                        method="GET"
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as resp2:
+                        if resp2.status == 200:
+                            print(f"✅ Redis persistence: working")
+                            return True
+                    print(f"⚠️  Redis: read status {resp2.status}")
+                    return False
+                print(f"⚠️  Redis: write status {resp.status}")
+                return False
+        except urllib.error.HTTPError as e:
+            print(f"⚠️  Redis: status {e.code}")
+            return False
 
-        print(f"⚠️  Redis: status {resp.status_code}")
-        return False
     except Exception as e:
         print(f"❌ Redis failed: {e}")
         return False

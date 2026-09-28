@@ -15,7 +15,6 @@ dependencies = [
     "aiohttp>=3.9.0",
     "websockets>=12.0",
     "python-multipart>=0.0.6",
-    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
@@ -46,11 +45,65 @@ asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py310"
-line-length = 100
+line-length = 120
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    "data/",
+    "experiments/",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "YTT",    # flake8-2020
+    "S",      # flake8-bandit (security)
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "C4",     # flake8-comprehensions
+    "T10",    # flake8-debugger
+    "ISC",    # flake8-implicit-str-concat
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SIM",    # flake8-simplify
+    "TRY",    # tryceratops
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "LOG",    # flake8-logging
+    "G",      # flake8-logging-format
+]
+ignore = [
+    "E501",    # line-too-long
+    "W503",    # line-break-before-binary-operator
+    "S101",    # use-of-assert (acceptable in tests)
+    "S603",    # subprocess-without-shell-equals-true
+    "PT011",   # pytest-raises-too-broad
+    "TRY003",  # raise-vanilla-args
+    "SIM105",  # unnecessary-else-after-return
+    "BLE001",  # blind-except
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S607"]
+"scripts/**" = ["S603", "S607"]
+"experiments/**" = ["S603", "S607", "S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["thinkbox", "core", "backend", "think_box_ai"]
 
 [tool.mypy]
 python_version = "3.10"
