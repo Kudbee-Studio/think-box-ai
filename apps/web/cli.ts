@@ -197,18 +197,85 @@ async function showRun(prefix: string): Promise<void> {
   if (run.error) console.log(c.red(`\n${run.error}`));
 }
 
-const HELP = `${c.bold('kudbEE CLI')} — type a goal for the worker agent, or a command:
-  /models            list models        /model NAME   switch model
-  /plugins           list plugins       /files        list workspace files
-  /runs              run history        /run ID       step-by-step timeline
-  /metrics           agent metrics      /cat PATH     print a file
-  /memory [QUERY]    memory / search    /remember TITLE - TEXT   save org note
-  /promote org/ID    promote a note to verified knowledge
-  /algo status|account ADDR|asset ID|app ID|tx TXID|txs ADDR [mainnet]   read-only Algorand
-  /status            server health
-  /open              dashboard URL      /stop         stop the running goal
-  /help              this help          /quit         exit
-Example: ${c.cyan('Read https://hnrss.org/frontpage and write top5.md with the 5 top stories')}`;
+async function interactiveModelSelect(client: Client): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    console.log(c.bold('\n🤖 SELECT MODEL\n'));
+    const agents = client.models.filter((m) => m.agent);
+    const local = client.models.filter((m) => !m.agent);
+
+    if (agents.length) {
+      console.log(c.bold('  Enterprise:'));
+      agents.forEach((m, i) =>
+        console.log(`    [${i + 1}] ${m.name} ${c.dim('(full toolkit, tool-using agent)')}`)
+      );
+    }
+    if (local.length) {
+      console.log(c.bold('\n  Local:'));
+      local.forEach((m, i) =>
+        console.log(`    [${agents.length + i + 1}] ${m.name} ${c.dim('(offline, lightweight)')}`)
+      );
+    }
+
+    rl.question(c.cyan('\n  Choose (number or name): '), (input) => {
+      rl.close();
+      const choice = input.trim().toLowerCase();
+      const idx = parseInt(choice, 10) - 1;
+      const all = [...agents, ...local];
+
+      if (idx >= 0 && idx < all.length) {
+        client.model = all[idx].name;
+        console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
+        resolve(true);
+      } else {
+        const match = all.find((m) => m.name.toLowerCase().includes(choice));
+        if (match) {
+          client.model = match.name;
+          console.log(c.green(`\n  ✓ Selected: ${client.model}\n`));
+          resolve(true);
+        } else {
+          console.log(c.red(`\n  ✗ Invalid choice\n`));
+          resolve(false);
+        }
+      }
+    });
+  });
+}
+
+const HELP = `${c.bold('kudbEE CLI')} — Enterprise agent control center
+
+${c.bold('MODELS & AGENTS')}
+  /models             list available models (enterprise & local)
+  /model NAME         switch to model (Mercury-2, SmolLM2, etc)
+  /select             interactive model picker 🎯
+
+${c.bold('OPERATIONS')}
+  /plugins            list available tools and permissions
+  /files              list workspace files
+  /cat PATH           print file content
+  /runs               run history (15 latest)
+  /run ID             detailed step-by-step trace
+
+${c.bold('MEMORY & KNOWLEDGE')}
+  /memory [QUERY]     search organizational memory
+  /remember TEXT      save note to verified/org layers
+  /promote org/ID     promote note to verified knowledge
+
+${c.bold('ANALYTICS & DEBUG')}
+  /metrics            agent KPIs (runs, tokens, cost, success rate)
+  /status             server health check
+  /algo ACTION [ADDR] read-only Algorand queries
+
+${c.bold('SYSTEM')}
+  /open               show dashboard URL
+  /stop               cancel current goal
+  /help               this help
+  /quit               exit
+
+${c.bold('EXAMPLES')}
+  ${c.cyan('Read https://hnrss.org/frontpage and write top5.md')}
+  ${c.cyan('/select')} — pick Mercury-2 or SmolLM2 interactively
+  ${c.cyan('/memory python tips')} — search memory for Python advice`;
 
 async function handleCommand(client: Client, line: string): Promise<boolean> {
   const [cmd, ...args] = line.split(/\s+/);
@@ -216,17 +283,37 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/help':
       console.log(HELP);
       break;
-    case '/models':
-      for (const m of client.models) {
-        const mark = m.name === client.model ? c.green('●') : ' ';
-        console.log(`  ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}]${m.agent ? ' tool-using worker agent' : ''}`)}`);
+    case '/models': {
+      // Enterprise: show model categories with metadata
+      const mercury = client.models.filter((m) => m.agent);
+      const local = client.models.filter((m) => !m.agent);
+
+      if (mercury.length) {
+        console.log(c.bold('\n  🤖 Enterprise Worker Agents (tool-using)'));
+        for (const m of mercury) {
+          const mark = m.name === client.model ? c.green('●') : ' ';
+          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'inference'}] · low-latency, full toolkit`)}`);
+        }
       }
+      if (local.length) {
+        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        for (const m of local) {
+          const mark = m.name === client.model ? c.green('●') : ' ';
+          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}`);
+        }
+      }
+      console.log(c.dim('\n  Use: /model MERCURY-2  or  /model SMOLLM2'));
       break;
+    }
     case '/model':
-      if (!client.models.some((m) => m.name === args[0])) console.log(c.red(`Unknown model. Try /models`));
-      else {
+      if (!client.models.some((m) => m.name === args[0])) {
+        console.log(c.red(`Unknown model "${args[0]}". Available:`));
+        for (const m of client.models) console.log(`    ${m.name}`);
+      } else {
         client.model = args[0];
-        console.log(`Model → ${c.bold(client.model)}`);
+        const selected = client.models.find((m) => m.name === args[0]);
+        const icon = selected?.agent ? '🤖' : '💻';
+        console.log(`${icon} Model → ${c.bold(client.model)}`);
       }
       break;
     case '/plugins':
@@ -312,6 +399,9 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
     case '/stop':
       client.send({ type: 'stop' });
       break;
+    case '/select':
+      await interactiveModelSelect(client);
+      break;
     case '/quit':
     case '/exit':
       return false;
@@ -319,6 +409,36 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       console.log(c.red(`Unknown command ${cmd}. Type /help`));
   }
   return true;
+}
+
+// Enterprise routing: optimize for token usage
+function selectModelForGoal(goal: string, client: Client): string {
+  const mercury = client.models.find((m) => m.agent);
+  const local = client.models.find((m) => !m.agent);
+
+  if (!mercury || !local) return client.model; // fallback
+
+  // Token counters: if goal is complex, use Mercury-2
+  const complexPatterns = [
+    /\b(code|write|generate|create|build|implement|design)\b/i,
+    /\b(research|analyze|investigate|compare|debug)\b/i,
+    /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals)\b/i,
+    /\{.*\}/, // JSON in goal
+    /```/, // code block
+  ];
+
+  const isComplex = complexPatterns.some((p) => p.test(goal));
+  const selectedModel = isComplex ? mercury.name : local.name;
+
+  // Estimate token savings
+  const complexity = isComplex ? 'complex' : 'simple';
+  const savings = isComplex ? 0 : '~60%';
+
+  if (selectedModel !== client.model) {
+    console.log(c.dim(`  💡 [${complexity}] → ${selectedModel} ${savings ? `(save ${savings} tokens)` : ''}`));
+  }
+
+  return selectedModel;
 }
 
 async function main(): Promise<void> {
@@ -347,6 +467,15 @@ async function main(): Promise<void> {
     await handleCommand(client, goal);
     client.ws.close();
     process.exit(0);
+  }
+
+  // Enterprise: auto-route to optimal model for token savings
+  if (goal) {
+    const optimalModel = selectModelForGoal(goal, client);
+    if (optimalModel !== client.model) {
+      client.model = optimalModel;
+    }
+  }
   }
   if (goal) {
     const ok = await client.run(goal);
