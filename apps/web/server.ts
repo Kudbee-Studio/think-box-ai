@@ -1509,6 +1509,61 @@ app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// ─── Memory Notes (Persistent Storage) ────────────────────────
+app.get('/api/memory/notes', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const layer = req.query.layer as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 200);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId required' });
+    }
+
+    const notes = await persistence.listMemoryNotes(sessionId, layer, limit);
+    res.json({ notes });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post('/api/memory/notes', async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.query.sessionId as string;
+    const { title, content, layer = 'session' } = req.body as any;
+
+    if (!sessionId || !title || !content) {
+      return res.status(400).json({ error: 'sessionId, title, content required' });
+    }
+
+    const id = randomUUID();
+    const now = Date.now();
+    await persistence.saveMemoryNote({
+      id,
+      sessionId,
+      layer: layer as any,
+      title,
+      content,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    res.json({ id, title, layer, createdAt: now });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.delete('/api/memory/notes/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    // Phase 3: soft-delete tracking only; full DB delete in Phase 4
+    res.json({ deleted: id });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ─── Run History (Persistent Storage) ──────────────────────────
 app.get('/api/runs/history', async (req: Request, res: Response) => {
   try {

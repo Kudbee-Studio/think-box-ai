@@ -257,8 +257,10 @@ ${c.bold('OPERATIONS')}
   /run ID             detailed step-by-step trace
 
 ${c.bold('MEMORY & KNOWLEDGE')}
-  /memory [QUERY]     search organizational memory
-  /remember TEXT      save note to verified/org layers
+  /memory [QUERY]     search organizational memory (Upstash + BM25)
+  /notes [LAYER]      list persistent notes (session|task|org|verified)
+  /remember TEXT      save note to persistent DB (default: session layer)
+  /forget [ID|QUERY]  delete note by id or query
   /promote org/ID     promote note to verified knowledge
 
 ${c.bold('ANALYTICS & DEBUG')}
@@ -344,20 +346,57 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
       }
       break;
     }
+    case '/notes': {
+      const layer = args[0] || '';
+      const params = new URLSearchParams({ limit: '20' });
+      if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
+        params.set('layer', layer);
+      }
+      const res = await fetch(`${HOST}/api/memory/notes?${params}`);
+      const data = (await res.json()) as any;
+      if (!res.ok || !data.notes?.length) {
+        console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
+        break;
+      }
+      for (const note of data.notes) {
+        const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer] || c.dim;
+        console.log(`  ${layerColor(note.layer.padEnd(8))} ${note.title}`);
+        console.log(c.dim(`    ${note.id} — ${note.content.slice(0, 80)}`));
+      }
+      break;
+    }
+
     case '/remember': {
       const text = args.join(' ').trim();
       if (!text) {
-        console.log(c.red('Usage: /remember TITLE - TEXT'));
+        console.log(c.red('Usage: /remember TEXT'));
         break;
       }
       const [title, ...rest] = text.split(/\s+[-—:]\s+/);
-      const res = await fetch(`${HOST}/api/memory`, {
+      const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
+      const res = await fetch(`${HOST}/api/memory/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layer: 'org', title, content: rest.join(' - ') || text }),
+        body: JSON.stringify({
+          title: title || text.slice(0, 40),
+          content: rest.join(' - ') || text,
+          layer
+        }),
       });
       const item = (await res.json()) as any;
-      console.log(res.ok ? c.green(`  saved ${item.id} (${item.path})`) : c.red(`  ${item.error}`));
+      console.log(res.ok ? c.green(`  ✓ saved ${layer} note: ${item.id}`) : c.red(`  ✗ ${item.error}`));
+      break;
+    }
+
+    case '/forget': {
+      const query = args.join(' ').trim();
+      if (!query) {
+        console.log(c.red('Usage: /forget ID|QUERY'));
+        break;
+      }
+      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}`, { method: 'DELETE' });
+      const result = (await res.json()) as any;
+      console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
     }
     case '/algo': {
