@@ -78,3 +78,4 @@ data/cnc/
 # kudbEE Agent OS runtime data (agent workspaces + run history; user content, never commit)
 apps/web/workspaces/
 apps/web/data/
+.copilot-specs-cache/
