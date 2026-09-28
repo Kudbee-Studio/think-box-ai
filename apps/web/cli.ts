@@ -14,6 +14,13 @@ const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Cheap local route: default to Qwen2.5 1.5B. 'smollm2' is a legacy alias kept
+// for anyone with existing config/scripts referencing the earlier model name.
+const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b' };
+const RAW_LOCAL_MODEL = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
+const LOCAL_MODEL = LEGACY_LOCAL_MODEL_ALIASES[RAW_LOCAL_MODEL.toLowerCase()] || RAW_LOCAL_MODEL;
+const COMPLEX_MODEL = process.env.KUDBEE_COMPLEX_MODEL || 'mercury-2';
+
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
   bold: (s: string) => `\x1b[1m${s}\x1b[0m`,
@@ -26,7 +33,8 @@ const c = {
 
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
-interface RouteTelemtry { modelSelected: string; routeReason: 'auto' | 'manual'; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
+type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
+interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
 interface Msg { type: string; data?: any }
@@ -265,7 +273,7 @@ const HELP = `${c.bold('kudbEE CLI')} — Enterprise agent control center
 
 ${c.bold('MODELS & AGENTS')}
   /models             list available models (enterprise & local)
-  /model NAME         switch to model (Mercury-2, SmolLM2, etc)
+  /model NAME         switch to model (Mercury-2, Qwen2.5 1.5B, etc)
   /select             interactive model picker 🎯
 
 ${c.bold('OPERATIONS')}
@@ -295,7 +303,7 @@ ${c.bold('SYSTEM')}
 
 ${c.bold('EXAMPLES')}
   ${c.cyan('Read https://hnrss.org/frontpage and write top5.md')}
-  ${c.cyan('/select')} — pick Mercury-2 or SmolLM2 interactively
+  ${c.cyan('/select')} — pick Mercury-2 or the local model interactively
   ${c.cyan('/memory python tips')} — search memory for Python advice`;
 
 async function handleCommand(client: Client, line: string): Promise<boolean> {
@@ -320,10 +328,17 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
         console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
         for (const m of local) {
           const mark = m.name === client.model ? c.green('●') : ' ';
-          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}`);
+          const cheapRoute = m.name === LOCAL_MODEL ? c.dim(' (cheap route)') : '';
+          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}${cheapRoute}`);
         }
       }
-      console.log(c.dim('\n  Use: /model MERCURY-2  or  /model SMOLLM2'));
+      const localRouteReady = local.some((m) => m.name === LOCAL_MODEL);
+      if (!localRouteReady) {
+        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        console.log(c.red(`    ✗ ${LOCAL_MODEL} not pulled — auto-routing falls back to Mercury-2 for simple goals`));
+        console.log(c.dim(`      Run: ollama pull ${LOCAL_MODEL}`));
+      }
+      console.log(c.dim(`\n  Use: /model MERCURY-2  or  /model ${LOCAL_MODEL}`));
       break;
     }
     case '/model':
@@ -469,26 +484,31 @@ async function handleCommand(client: Client, line: string): Promise<boolean> {
   return true;
 }
 
-// Model routing heuristics & token estimates
-const modelCapabilities = {
-  'mercury-2': {
-    avgTokensPerRequest: 2500,
-    bestFor: 'complex',
-    description: 'Enterprise model with full tool access',
-  },
-  'smoLLM2': {
-    avgTokensPerRequest: 800,
-    bestFor: 'simple',
-    description: 'Lightweight local model, 60% fewer tokens',
-  },
-};
+// Heuristics: length, keywords, tool complexity — pure function, easy to unit test.
+const COMPLEX_PATTERNS = [
+  /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
+  /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
+  /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals|functions)\b/i,
+  /\{.*\}/, // JSON structure in goal
+  /```/, // Code blocks
+  /\b(algorithm|architecture|design pattern|optimize|complex)\b/i,
+];
 
-// Routing heuristics: Simple → SmolLM2, Complex → Mercury-2
+function isComplexGoal(goal: string): boolean {
+  return COMPLEX_PATTERNS.some((p) => p.test(goal)) || goal.length > 150;
+}
+
+let warnedNoLocalModel = false;
+
+// Routing heuristics: Simple → cheap local Ollama model (KUDBEE_LOCAL_MODEL, default
+// qwen2.5:1.5b), Complex → Mercury-2. If the local model isn't pulled into Ollama,
+// fall back to Mercury-2 and report the fallback honestly (no fake savings).
 function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   const mercury = client.models.find((m) => m.agent);
-  const local = client.models.find((m) => !m.agent);
+  const local = client.models.find((m) => !m.agent && m.name === LOCAL_MODEL);
 
-  if (!mercury || !local) {
+  // No enterprise agent model configured at all: nothing to route between.
+  if (!mercury) {
     return {
       modelSelected: client.model,
       routeReason: 'manual',
@@ -499,37 +519,54 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
     };
   }
 
-  // Heuristics: length, keywords, tool complexity
-  const complexPatterns = [
-    /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
-    /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
-    /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals|functions)\b/i,
-    /\{.*\}/, // JSON structure in goal
-    /```/, // Code blocks
-    /\b(algorithm|architecture|design pattern|optimize|complex)\b/i,
-  ];
-
-  const isComplex = complexPatterns.some((p) => p.test(goal)) || goal.length > 150;
-  const selectedModel = isComplex ? mercury : local;
+  const isComplex = isComplexGoal(goal);
   const complexity: 'simple' | 'complex' = isComplex ? 'complex' : 'simple';
-
-  // Token estimation: simpler goals use fewer tokens in full model too
   const estimatedTokensIfFullModel = isComplex ? 2500 : 1500;
-  const estimatedTokensActual = selectedModel.agent ? 2500 : 800;
-  const tokensSavedEst = estimatedTokensIfFullModel - estimatedTokensActual;
 
-  const telemetry: RouteTelemtry = {
-    modelSelected: selectedModel.name,
-    routeReason: 'auto',
-    complexity,
-    estimatedTokensIfFullModel,
-    estimatedTokensActual,
-    tokensSavedEst,
-  };
+  let telemetry: RouteTelemtry;
 
-  if (selectedModel.name !== client.model) {
-    const saved = tokensSavedEst > 0 ? ` (est. saved ~${tokensSavedEst} tokens)` : '';
-    console.log(c.dim(`  💡 [${complexity}] → ${selectedModel.name}${saved}`));
+  if (isComplex) {
+    telemetry = {
+      modelSelected: mercury.name,
+      routeReason: 'auto',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: 2500,
+      tokensSavedEst: 0,
+    };
+  } else if (local) {
+    telemetry = {
+      modelSelected: local.name,
+      routeReason: 'auto',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: 800,
+      tokensSavedEst: estimatedTokensIfFullModel - 800,
+    };
+  } else {
+    // Simple goal, but the configured local model isn't installed — never claim
+    // savings we didn't get.
+    telemetry = {
+      modelSelected: mercury.name,
+      routeReason: 'auto_fallback_no_local',
+      complexity,
+      estimatedTokensIfFullModel,
+      estimatedTokensActual: estimatedTokensIfFullModel,
+      tokensSavedEst: 0,
+    };
+    if (!warnedNoLocalModel) {
+      warnedNoLocalModel = true;
+      console.log(c.dim(`  ⚠ local model '${LOCAL_MODEL}' not found in Ollama — run: ollama pull ${LOCAL_MODEL}`));
+    }
+  }
+
+  if (telemetry.modelSelected !== client.model || telemetry.routeReason === 'auto_fallback_no_local') {
+    if (telemetry.routeReason === 'auto_fallback_no_local') {
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (no local model; pull ${LOCAL_MODEL})`));
+    } else {
+      const saved = telemetry.tokensSavedEst > 0 ? ` (est. saved ~${telemetry.tokensSavedEst} tokens)` : '';
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}`));
+    }
   }
 
   return telemetry;

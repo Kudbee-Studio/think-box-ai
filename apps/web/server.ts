@@ -49,6 +49,11 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
+// Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
+// as a legacy alias so old configs pointing at the earlier model name still resolve.
+const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
+const rawDefaultLocalModel = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
+const defaultLocalModel = LEGACY_LOCAL_MODEL_ALIASES[rawDefaultLocalModel.toLowerCase()] || rawDefaultLocalModel;
 const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
@@ -464,7 +469,7 @@ class AgentSession {
   constructor(id: string, config: SessionConfigInput = {}) {
     this.id = id;
     this.config = {
-      model: config.model ?? (inceptionConfigured() ? INCEPTION_MODELS[0] : 'smollm2:135m'),
+      model: config.model ?? (inceptionConfigured() ? INCEPTION_MODELS[0] : defaultLocalModel),
       provider: config.provider ?? (inceptionConfigured() ? 'inception' : 'ollama'),
       maxIterations: config.maxIterations ?? 20,
       temperature: config.temperature ?? 0.7,

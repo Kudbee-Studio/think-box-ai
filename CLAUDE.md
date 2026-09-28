@@ -44,6 +44,22 @@ apps/web/
     └── css/main-pro.css → Premium styling
 ```
 
+### Local model setup (token-aware routing)
+
+Simple goals auto-route to a cheap local Ollama model instead of Mercury-2. That
+route does nothing until the model is actually pulled:
+
+```bash
+ollama pull qwen2.5:1.5b
+ollama list   # must show qwen2.5:1.5b
+```
+
+Override the tag with `KUDBEE_LOCAL_MODEL` (env var read by both `cli.ts` and
+`server.ts`). Without a matching tag in `ollama list`, routing falls back to
+Mercury-2 and reports `route_reason: auto_fallback_no_local` with
+`tokens_saved_est: 0` — it never claims savings that didn't happen. `/models` in
+the CLI shows whether the configured local model is actually installed.
+
 ---
 
 ## Quality Standards

@@ -1443,6 +1443,42 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - PR open (do not merge)
 - **Next:** After PR is up, Feature 7 (MCP registry skeleton)
 
+### 2026-09-28 (later CT) — Fix: cheap local route never actually fired (Mercury-2 always won)
+
+- **Branch:** `feat/pr274-token-telemetry` (same PR, follow-up commit)
+- **Root cause (founder-reported):** "Mercury-2 is working, where's the small model?" — the
+  Feature 5 routing required `client.models.find((m) => !m.agent)`, i.e. *any* Ollama tag.
+  No small model was ever pulled locally, so `local` was always `undefined` and every goal
+  (simple or complex) silently fell back to whatever model was already active — Mercury-2.
+  The CLI gave no indication a local model was missing.
+- **Fix:**
+  - Picked a concrete default cheap-route model: `qwen2.5:1.5b` (small, fast, good Ollama support)
+  - New env vars: `KUDBEE_LOCAL_MODEL` (default `qwen2.5:1.5b`), `KUDBEE_COMPLEX_MODEL` (default `mercury-2`, currently informational — Mercury is still selected via `client.models.find(m => m.agent)`)
+  - Legacy alias: `smollm2` / `smollm2:135m` → `qwen2.5:1.5b`, so old configs/scripts referencing the earlier placeholder name still resolve instead of silently no-op'ing
+  - Routing now does a **strict name match** against `KUDBEE_LOCAL_MODEL` in the Ollama tag list — it no longer grabs an arbitrary unrelated local model and calls it "the cheap route"
+  - New `route_reason: 'auto_fallback_no_local'` — fires when a goal is simple but the configured local model isn't in `ollama list`. Routes to Mercury-2, and **tokens_saved_est is forced to 0** — never claims savings that didn't happen
+  - One-time CLI warning per session: `⚠ local model 'qwen2.5:1.5b' not found in Ollama — run: ollama pull qwen2.5:1.5b`
+  - CLI routing line distinguishes real auto-routes from fallback: `💡 [simple] → mercury-2 (no local model; pull qwen2.5:1.5b)` vs `💡 [simple] → qwen2.5:1.5b (est. saved ~N tokens)`
+  - `/models` now shows a "cheap route" tag next to the configured local model when present, and an explicit "not pulled" row with the pull command when absent
+  - `server.ts` session default model (used when Inception isn't configured at all) switched from the never-pulled `smollm2:135m` placeholder to the same `defaultLocalModel` constant, so CLI and server agree on what "local" means
+- **Tests added (`token-routing.test.ts`):** local model present → routes to it with savings；
+  local model absent → falls back to Mercury-2 with `tokens_saved_est=0`; complex goals never
+  fall back; an unrelated installed Ollama model is not mistaken for the configured cheap route;
+  manual override unaffected.
+- **Verify (host, requires network):**
+  ```bash
+  ollama pull qwen2.5:1.5b
+  ollama list   # must show qwen2.5:1.5b
+  kudbee "what's 2+2?"   # should show: 💡 [simple] → qwen2.5:1.5b (est. saved ~N tokens)
+  ```
+  Without the pull, same simple goal should print the fallback line and `/models` should show
+  the "not pulled" warning — this was verified in-sandbox (no `ollama` binary available here;
+  code path exercises the `!local` branch identically to a real empty-Ollama environment).
+- **Blockers:** No `ollama` binary in this sandbox, so the "model actually responds" path is
+  unverified end-to-end here — founder/host should run the verify steps above before merging.
+- **Commit:** (see PR #274 branch head)
+- **PR:** still `feat/pr274-token-telemetry` — do not merge without founder review
+
 ### 2026-09-27 (late night CT) — PR #272 in progress: Dashboard CSS & Layout Redesign
 
 - **Branch:** `feat/pr272-dashboard-css-layout`

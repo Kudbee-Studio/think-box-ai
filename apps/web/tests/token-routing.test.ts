@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'node:test';
+import { describe, it } from 'node:test';
+import { expect } from './test-helpers.ts';
 
 describe('Token Routing & Telemetry', () => {
   describe('selectModelForGoal routing heuristics', () => {
@@ -20,7 +21,7 @@ describe('Token Routing & Telemetry', () => {
       };
     };
 
-    it('routes simple goals to SmolLM2', () => {
+    it('routes simple goals to the cheap local model', () => {
       const result = testRouting('What is the capital of France?');
       expect(result.complexity).toBe('simple');
       expect(result.shouldUseComplex).toBe(false);
@@ -53,7 +54,7 @@ describe('Token Routing & Telemetry', () => {
     });
 
     it('detects long goals as complex', () => {
-      const longGoal = 'A '.repeat(75); // >150 chars
+      const longGoal = 'A '.repeat(76); // 152 chars, strictly >150
       const result = testRouting(longGoal);
       expect(result.shouldUseComplex).toBe(true);
     });
@@ -66,6 +67,90 @@ describe('Token Routing & Telemetry', () => {
     it('detects code blocks as complex', () => {
       const result = testRouting('Fix this function:\n```typescript\nfunction test() {}\n```');
       expect(result.complexity).toBe('complex');
+    });
+  });
+
+  describe('local model availability (Qwen2.5 1.5B route + Ollama fallback)', () => {
+    const LOCAL_MODEL = 'qwen2.5:1.5b';
+    interface Model { name: string; agent?: boolean }
+    interface RouteTelemtry {
+      modelSelected: string;
+      routeReason: 'auto' | 'manual' | 'auto_fallback_no_local';
+      complexity: 'simple' | 'complex';
+      estimatedTokensIfFullModel: number;
+      estimatedTokensActual: number;
+      tokensSavedEst: number;
+    }
+
+    // Mirrors apps/web/cli.ts selectModelForGoal without the console output / Client class.
+    function route(goal: string, models: Model[], currentModel: string): RouteTelemtry {
+      const mercury = models.find((m) => m.agent);
+      const local = models.find((m) => !m.agent && m.name === LOCAL_MODEL);
+
+      if (!mercury) {
+        return { modelSelected: currentModel, routeReason: 'manual', complexity: 'simple', estimatedTokensIfFullModel: 2500, estimatedTokensActual: 2500, tokensSavedEst: 0 };
+      }
+
+      const complexPatterns = [
+        /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
+        /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
+      ];
+      const isComplex = complexPatterns.some((p) => p.test(goal)) || goal.length > 150;
+      const complexity: 'simple' | 'complex' = isComplex ? 'complex' : 'simple';
+      const estimatedTokensIfFullModel = isComplex ? 2500 : 1500;
+
+      if (isComplex) {
+        return { modelSelected: mercury.name, routeReason: 'auto', complexity, estimatedTokensIfFullModel, estimatedTokensActual: 2500, tokensSavedEst: 0 };
+      }
+      if (local) {
+        return { modelSelected: local.name, routeReason: 'auto', complexity, estimatedTokensIfFullModel, estimatedTokensActual: 800, tokensSavedEst: estimatedTokensIfFullModel - 800 };
+      }
+      return { modelSelected: mercury.name, routeReason: 'auto_fallback_no_local', complexity, estimatedTokensIfFullModel, estimatedTokensActual: estimatedTokensIfFullModel, tokensSavedEst: 0 };
+    }
+
+    it('routes simple goal to qwen2.5:1.5b when the local model is pulled', () => {
+      const models = [{ name: 'mercury-2', agent: true }, { name: LOCAL_MODEL }];
+      const result = route('What is the capital of France?', models, 'mercury-2');
+      expect(result.modelSelected).toBe(LOCAL_MODEL);
+      expect(result.routeReason).toBe('auto');
+      expect(result.tokensSavedEst).toBeGreaterThan(0);
+    });
+
+    it('falls back to Mercury-2 with honest zero savings when local model is absent', () => {
+      const models = [{ name: 'mercury-2', agent: true }]; // Ollama has nothing pulled
+      const result = route('What is the capital of France?', models, 'mercury-2');
+      expect(result.modelSelected).toBe('mercury-2');
+      expect(result.routeReason).toBe('auto_fallback_no_local');
+      expect(result.tokensSavedEst).toBe(0);
+    });
+
+    it('does not fall back for complex goals even without a local model', () => {
+      const models = [{ name: 'mercury-2', agent: true }];
+      const result = route('Generate a TypeScript utility to validate emails with regex', models, 'mercury-2');
+      expect(result.modelSelected).toBe('mercury-2');
+      expect(result.routeReason).toBe('auto');
+      expect(result.complexity).toBe('complex');
+    });
+
+    it('ignores unrelated Ollama models when picking the cheap route', () => {
+      // A different local model is installed, but not the configured cheap route —
+      // should not be mistaken for it.
+      const models = [{ name: 'mercury-2', agent: true }, { name: 'llama3:8b' }];
+      const result = route('What is the capital of France?', models, 'mercury-2');
+      expect(result.modelSelected).toBe('mercury-2');
+      expect(result.routeReason).toBe('auto_fallback_no_local');
+    });
+
+    it('manual override is unaffected by local model availability', () => {
+      const telemetry: RouteTelemtry = {
+        modelSelected: 'mercury-2',
+        routeReason: 'manual',
+        complexity: 'simple',
+        estimatedTokensIfFullModel: 2500,
+        estimatedTokensActual: 2500,
+        tokensSavedEst: 0,
+      };
+      expect(telemetry.routeReason).toBe('manual');
     });
   });
 

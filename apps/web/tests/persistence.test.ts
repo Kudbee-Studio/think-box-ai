@@ -1,6 +1,7 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import { strictEqual, deepStrictEqual, ok } from 'node:assert';
-import PersistenceLayer, { DashboardState, RunMetadata, MemoryNote } from '../persistence';
+import PersistenceLayer from '../persistence.ts';
+import type { DashboardState, RunMetadata, MemoryNote } from '../persistence.ts';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';

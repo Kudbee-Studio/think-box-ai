@@ -1,4 +1,5 @@
-import { describe, it, expect, before, after } from 'node:test';
+import { describe, it, before, after } from 'node:test';
+import { expect } from './test-helpers.ts';
 import path from 'node:path';
 import os from 'os';
 import { randomUUID } from 'node:crypto';
