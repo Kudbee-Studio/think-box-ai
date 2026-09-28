@@ -1396,6 +1396,24 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 `/models`, `/plugins`, `/plugin NAME JSON`, `/status`, `/logs`, `/export`,
 `/theme`, `/config`, `/shortcuts`, `/clear`.
 
+### 2026-09-28 (early CT) — PR #273 in progress: Feature 1 Phase 3 — Persistent Memory Integration
+
+- **Branch:** `feat/pr273-persistent-memory`
+- **Phase:** Feature 1 Phase 3 (CLI + Memory API + Auto-save)
+- **What's been done:**
+  - CLI commands: `/notes [LAYER]`, `/remember TEXT`, `/forget ID|QUERY`
+  - API endpoints: `GET /api/memory/notes?sessionId=&layer=&limit=`, `POST /api/memory/notes`, `DELETE /api/memory/notes/:id`
+  - sessionId handling: CLI uses client.sessionId for per-session memory persistence
+  - Color-coded output: session (cyan), task (magenta), org (yellow), verified (green)
+  - Commits: `4bae69f8`, `4ed13824`
+  - Tests: Phase 1 persistence layer (15 tests) all passing
+- **Still pending:**
+  - Auto-save on run completion
+  - Dashboard memory panel UI
+  - E2E restart proof test
+  - Tests for CLI commands
+- **Follow-ups:** Auto-save wiring, E2E restart test, dashboard memory panel
+
 ### 2026-09-27 (late night CT) — PR #272 in progress: Dashboard CSS & Layout Redesign
 
 - **Branch:** `feat/pr272-dashboard-css-layout`
