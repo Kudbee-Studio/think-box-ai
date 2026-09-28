@@ -59,25 +59,40 @@ export class SwarmCLI {
         this.showStatus();
         break;
       case "spawn": {
-        const [parentId, roleArg] = params;
-        if (!parentId || !roleArg) {
-          console.log("❌ Usage: /swarm spawn <parent-id> <role>");
+        const [parentRef, roleArg] = params;
+        if (!parentRef || !roleArg) {
+          console.log("❌ Usage: /swarm spawn <parent-id-or-name> <role>");
           break;
         }
         if (!isAgentRole(roleArg)) {
           console.log(`❌ Unknown role "${roleArg}". Valid roles: ${ALL_AGENT_ROLES.join(", ")}`);
           break;
         }
+        const parentId = this.resolveOrReport(parentRef);
+        if (!parentId) break;
         await this.spawnAgent(parentId, roleArg);
         break;
       }
       case "task": {
-        const [agentId, ...goalParts] = params;
-        if (!agentId || goalParts.length === 0) {
-          console.log("❌ Usage: /swarm task <agent-id> <goal>");
+        const [agentRef, ...goalParts] = params;
+        if (!agentRef || goalParts.length === 0) {
+          console.log("❌ Usage: /swarm task <agent-id-or-name> <goal>");
           break;
         }
+        const agentId = this.resolveOrReport(agentRef);
+        if (!agentId) break;
         await this.assignTask(agentId, goalParts.join(" "));
+        break;
+      }
+      case "run": {
+        const [agentRef] = params;
+        if (!agentRef) {
+          console.log("❌ Usage: /swarm run <agent-id-or-name>");
+          break;
+        }
+        const agentId = this.resolveOrReport(agentRef);
+        if (!agentId) break;
+        await this.runAgent(agentId);
         break;
       }
       case "stop":
@@ -85,7 +100,7 @@ export class SwarmCLI {
         break;
       default:
         console.log(
-          "❌ Unknown swarm command. Try: start, agents, tree, status, spawn, task, stop"
+          "❌ Unknown swarm command. Try: start, agents, tree, status, spawn, task, run, stop"
         );
     }
   }
@@ -217,6 +232,24 @@ export class SwarmCLI {
     console.log(`   Depth: ${metrics.depth} levels\n`);
   }
 
+  /**
+   * Resolve a user-typed agent-id-or-name to a canonical ID, printing a
+   * clear error and returning null if it doesn't match anything. Centralizes
+   * the "not found" message so spawn/task/run report it identically.
+   */
+  private resolveOrReport(ref: string): string | null {
+    if (!this.orchestrator) {
+      console.log("❌ No swarm running");
+      return null;
+    }
+    const id = this.orchestrator.resolveAgentRef(ref);
+    if (!id) {
+      console.log(`❌ No agent matches "${ref}" (try /swarm tree to see current names/IDs)`);
+      return null;
+    }
+    return id;
+  }
+
   private async spawnAgent(parentId: string, role: AgentRole): Promise<void> {
     if (!this.orchestrator) {
       console.log("❌ No swarm running");
@@ -249,6 +282,22 @@ export class SwarmCLI {
       console.log(`✅ Task assigned: ${task.id}`);
     } catch (err) {
       console.log(`❌ ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  private async runAgent(agentId: string): Promise<void> {
+    if (!this.orchestrator) {
+      console.log("❌ No swarm running");
+      return;
+    }
+
+    console.log(`⏳ Running ${agentId}…`);
+    const result = await this.orchestrator.runAgent(agentId);
+
+    if (result.success) {
+      console.log(`\n✅ ${agentId} completed:\n${result.result}\n`);
+    } else {
+      console.log(`❌ ${agentId} failed: ${result.error}`);
     }
   }
 

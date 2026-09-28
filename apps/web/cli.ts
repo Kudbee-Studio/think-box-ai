@@ -294,6 +294,7 @@ ${c.bold('AGENT SWARM')} (in-process, this session only — see docs/MULTI_AGENT
   /swarm status             cost, tokens, efficiency, depth
   /swarm spawn PARENT ROLE  manually spawn a sub-agent
   /swarm task AGENT GOAL    assign/delegate a task
+  /swarm run AGENT          execute AGENT's pending task for real (Mercury-2 or local model)
   /swarm stop               shut down and print final metrics
 
 ${c.bold('MEMORY & KNOWLEDGE')}

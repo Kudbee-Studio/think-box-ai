@@ -24,3 +24,5 @@ export type {
 } from "./types.ts";
 export { routeModelForAgent, isComplexGoal, budgetMultiplierForRole } from "./model-router.ts";
 export type { RouterModels, ModelRouteDecision, RouteReason } from "./model-router.ts";
+export { callModel, ModelCallError } from "./model-client.ts";
+export type { ModelCallResult } from "./model-client.ts";

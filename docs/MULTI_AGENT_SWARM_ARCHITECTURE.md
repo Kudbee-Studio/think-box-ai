@@ -1,6 +1,6 @@
 # Multi-Agent Swarm Architecture
 
-**Status**: Code complete, hermetically tested, wired into the CLI. **Not** run against the live Mercury-2/Inception path — this is orchestration scaffolding (spawn/budget/routing bookkeeping), not a tool-execution loop. See "Not done" at the bottom.
+**Status**: Code complete, wired into the CLI, makes real (non-tool-calling) calls to Mercury-2 or the local model via `/swarm run`. **No successful live call has been made from this environment** — no `INCEPTION_API_KEY` and no reachable Ollama here — so both paths are verified only up through a clean, honest failure (see "Verification"). It is still not a tool-execution loop; see "Not done" at the bottom.
 **Location**: `apps/web/agent-swarm/`
 **CLI Integration**: `/swarm` command inside the `kudbee` REPL (same convention as `/memory`, `/model`, `/cat`)
 
@@ -86,6 +86,8 @@ The per-role `maxChildren` table alone does **not** bound the tree — an orches
 
 Budgets are also tier-scaled: local-tier roles get roughly 30% of the token/cost footprint a complex-tier role gets by default (`budgetMultiplierForRole`), reflecting that their default model is far cheaper per call.
 
+**Known quirk, not a bug**: the shared complexity heuristic flags goals containing words like "research", "analyze", "debug" as complex. A `researcher` role's typical goal text ("research the topic", "analyze the data") matches that same pattern, which escalates it to the complex-tier model almost every time in practice — the per-task escalation is working as designed, it just means "researcher defaults to local" is a weaker guarantee in practice than the role table suggests. Worth revisiting the heuristic (or giving swarm roles their own goal-independent tier) if that escalation rate turns out to defeat the cost-saving purpose of tiering at all.
+
 ---
 
 ## CLI Usage
@@ -142,16 +144,22 @@ kudbee› /swarm spawn planner-1 researcher
 🤖 Spawned agent: researcher-2 (researcher-...) → model=qwen2.5:1.5b
 ✅ Spawned: researcher-...
 
-kudbee› /swarm task orchestrator-91348bef Analyze the requirements doc
+kudbee› /swarm task planner-1 Analyze the requirements doc
 ✅ Task assigned: task-...
+
+kudbee› /swarm run planner-1
+⏳ Running planner-6c1fabf3…
+❌ planner-6c1fabf3 failed: INCEPTION_API_KEY is not set — cannot call mercury-2
 
 kudbee› /swarm stop
 
 🛑 Swarm shutdown
-{ "totalAgents": 8, "activeAgents": 8, ... }
+{ "totalAgents": 8, "activeAgents": 6, "failedTasks": 1, "totalCost": 0, "totalTokens": 0, ... }
 ```
 
-All output above is from an actual `node --experimental-strip-types` run against this code, not hand-written — see "Verification" below.
+All output above is from an actual `node --experimental-strip-types` run against this code, not hand-written — see "Verification" below. `/swarm run planner-1` failing with a clear `INCEPTION_API_KEY is not set` message (rather than a fabricated answer or a silent success with `cost: $0.00`) is the correct, honest result in an environment with no key configured — it's the same failure `apps/web/agent.ts`'s own `inceptionConfigured()` gate would produce for the single-agent path.
+
+Every command after `spawn`/`task`/`run`'s first argument accepts either the agent's short display **name** (`planner-1`, as printed above) or its full ID (`planner-6c1fabf3...`) — `resolveAgentRef()` tries an exact ID match first, then a name match, and the CLI reports a clear "no agent matches" error rather than a stack trace if neither resolves.
 
 ### Command reference
 
@@ -161,11 +169,27 @@ All output above is from an actual `node --experimental-strip-types` run against
 | `/swarm agents` | Agent/task counts |
 | `/swarm tree` | Hierarchy view with status per agent |
 | `/swarm status` | Cost, tokens, efficiency, depth |
-| `/swarm spawn <parent-id> <role>` | Manually spawn a sub-agent (role validated against the 12 known roles) |
-| `/swarm task <agent-id> <goal>` | Assign a task; delegates to a spawned researcher unless the agent is already at max depth |
+| `/swarm spawn <parent> <role>` | Manually spawn a sub-agent (role validated against the 12 known roles; `<parent>` accepts name or ID) |
+| `/swarm task <agent> <goal>` | Assign a task; delegates to a spawned researcher unless the agent is already at max depth |
+| `/swarm run <agent>` | **Actually calls** the agent's routed model (Mercury-2 via Inception, or the local model via Ollama) with its pending task's goal, records real token/cost usage, and marks the task complete or failed based on a real response — see "Model Execution" below |
 | `/swarm stop` | Shut down and print final metrics |
 
-An unrecognized role, a missing parent, or a swarm-wide limit hit all print a clear `❌ ...` message rather than failing silently or throwing an unhandled rejection into the REPL.
+An unrecognized role, a missing/unresolvable agent reference, or a swarm-wide limit hit all print a clear `❌ ...` message rather than failing silently or throwing an unhandled rejection into the REPL.
+
+---
+
+## Model Execution (`/swarm run`)
+
+`model-client.ts` makes a real, single-shot chat completion call — **not** the tool-calling loop in `apps/web/agent.ts`. It dispatches on the agent's routed model name (`isInceptionModel()`, same check `apps/web/agent.ts` uses):
+
+- **Mercury-2** → `POST {INCEPTION_BASE_URL}/chat/completions` with the `INCEPTION_API_KEY` bearer token, same base URL and pricing table (`costUsd()`) as the existing single-agent path — imported directly from `apps/web/agent.ts` rather than duplicated, so the two paths can't drift out of sync on pricing.
+- **Local model** → `POST {OLLAMA_BASE_URL}/api/chat` with `stream: false`. Local calls cost `$0`.
+
+`SwarmOrchestrator.runAgent(agentId)` finds the agent's most recent non-terminal task, makes the call, and:
+- **On success**: `completeTask()` with the real response text, `recordSpend()` with the real `prompt_tokens`/`completion_tokens`/cost the API reported.
+- **On failure** (no key, unreachable host, non-2xx, empty completion): `failTask()` with the real error message. Nothing is fabricated and no spend is recorded for a call that didn't happen — verified by running both failure paths in an environment with neither Mercury-2 nor Ollama configured (no fake `$0.00 success`, real `❌ ... failed:` output with the actual cause).
+
+No tool use (`write_file`, `fetch_url`, etc.) happens through this path — it's a plain question-in, answer-out call. Giving swarm agents real tools means bridging to `apps/web/agent.ts`'s `runToolAgent`/`AgentHooks`, which needs a real per-agent workspace and a concurrency-safe approval flow; that's out of scope here (see "Not done").
 
 ---
 
@@ -181,7 +205,7 @@ budget: { tokens: number, cost: number, time: number }
 
 - **Inheritance/scaling** (`scaledBudget`): when a parent spawns a child, the child's requested budget is scaled by the role's cost tier and capped by what the parent has left. This happens whether or not you pass explicit `tokens`/`cost` in the spawn request — omit them (as the starter-team builder does) to let tier scaling apply; pass them explicitly only when you need to override the default for one spawn.
 - **Debit on spawn**: the parent's budget is reduced by the committed child budget *immediately*, not just recorded — so a parent can't over-commit the same tokens to many children before any of them report spend back.
-- **`recordSpend(agentId, { tokens, cost, timeMs })`**: call this after an agent actually makes a model call, to decrement its remaining budget and roll the spend into swarm-wide `totalCost`/`totalTokens`. **This orchestration layer does not call it automatically** — there's no LLM call wired in yet (see "Not done"). A caller wiring this to `apps/web/agent.ts`'s tool loop must call `recordSpend` after each real call, or `getMetrics().totalCost`/`totalTokens` will stay honestly at zero, same as they do today.
+- **`recordSpend(agentId, { tokens, cost, timeMs })`**: decrements an agent's remaining budget and rolls the spend into swarm-wide `totalCost`/`totalTokens`. **`SwarmOrchestrator.runAgent()` calls this automatically** after every real model call made through `/swarm run` — it is no longer purely a manual hook. `getMetrics().totalCost`/`totalTokens` will still read `0` if every call so far has failed closed (no key, unreachable Ollama) — that's the honest state, not a bug (see "Verification").
 - **Budget floor on spawn**: a parent with too little budget left is refused a new child (`"Parent budget too low to fund a child agent"`), rather than spawning a child that inherits a budget of effectively zero.
 
 ---
@@ -198,12 +222,14 @@ This was built, then adversarially tested against itself before being called don
 6. **Tool authorization gate** — `isToolAllowed(agentId, tool)` checks a tool call against the agent's role-scoped tool list. **This is a gate a caller must invoke** — it isn't automatically enforced on any execution path yet, because there is no execution path wired in yet. Anyone wiring the swarm to `apps/web/agent.ts`'s tool loop must call this before dispatching a tool, the same way that loop's own approval gates work today.
 7. **Unbounded message queue** — capped at 5000 entries, drops oldest rather than growing forever.
 8. **Role validation on the CLI boundary** — `/swarm spawn <parent> <role>` rejects an unrecognized role string before it reaches orchestration logic, listing the 12 valid roles.
+9. **Real model calls fail closed** — `/swarm run` never fabricates a response or records spend for a call that didn't happen. Verified against both backends with neither configured: a clear `INCEPTION_API_KEY is not set` for Mercury-2, a clear "unreachable at http://127.0.0.1:11434 ... ollama pull ..." for the local model, `getMetrics().totalCost`/`totalTokens` staying at `0`, and the task correctly marked failed (not silently dropped).
+10. **Name-or-ID resolution at the CLI boundary** — `resolveAgentRef()` tries an exact ID, then a name match, and the CLI prints a clear "no agent matches" rather than orchestration logic seeing a raw, unresolved user string. Found because an early hand-test used the printed name (`planner-1`) where the code expected the full ID and got a confusing "Agent not found" — fixed rather than left as a gotcha.
 
 ### What this does NOT do (explicit non-goals for this pass)
 
 - **No cross-process or cross-machine coordination.** Everything above lives in one Node process's memory. No persistence across restarts, no distributed locking, no network-addressable agents.
 - **No telephony or external communication tool.** The `communicator` role has a declarative tool list (`send_message`, `fetch_url`, `log`) but nothing wires it to an actual phone/SMS/voice API. If you want that, it's a new gated tool added to `apps/web/agent.ts`'s toolset, behind the same approval-gate pattern as the existing `fetch_url` tool — not something to bolt on inside the orchestrator.
-- **No LLM calls.** `SwarmOrchestrator` is bookkeeping — agent lifecycle, hierarchy, budget accounting, model *routing decisions*. It does not itself call Mercury-2, Ollama, or anything else. Wiring an agent's `context.model` decision to an actual tool-calling loop (`apps/web/agent.ts`) is the next real integration step.
+- **Single-shot calls only, no tools.** `/swarm run` makes one real question-in/answer-out call to Mercury-2 or the local model (`model-client.ts`) and records the real result — but it does not give the agent `write_file`/`fetch_url`/etc. Wiring an agent's `context.model` decision to the actual tool-calling loop (`apps/web/agent.ts`'s `runToolAgent`) — with a real per-agent workspace and a concurrency-safe approval flow for potentially several agents running at once — is the next real integration step, not done here.
 - **No authentication.** Same posture as the rest of `apps/web` today — keep this on localhost.
 
 ---
@@ -214,7 +240,8 @@ This was built, then adversarially tested against itself before being called don
 |------|---------|
 | `types.ts` | `AgentRole` union + `ALL_AGENT_ROLES`/`isAgentRole` runtime validators, `AgentConfig`, `AgentTask`, `SwarmState`, `AgentMessage`, spawn request/response, `SwarmMetrics` |
 | `model-router.ts` | Per-role model tier defaults, complexity-based escalation, budget tier multiplier — extends `apps/web/cli.ts`'s routing heuristic |
-| `orchestrator.ts` | `SwarmOrchestrator` — spawn/assign/complete/fail lifecycle, depth/ceiling/budget enforcement, goal sanitization, tool authorization gate, message queue, tree + metrics reporting |
+| `model-client.ts` | Real single-shot model calls — Mercury-2 via Inception's `/chat/completions`, local model via Ollama's `/api/chat`; fails closed with `ModelCallError`, reuses `costUsd`/`inceptionConfigured`/`isInceptionModel` from `apps/web/agent.ts` |
+| `orchestrator.ts` | `SwarmOrchestrator` — spawn/assign/complete/fail lifecycle, depth/ceiling/budget enforcement, goal sanitization, tool authorization gate, name-or-ID resolution, message queue, `runAgent()` (real execution), tree + metrics reporting |
 | `cli-integration.ts` | `SwarmCLI` — the `/swarm` subcommand handler wired into `apps/web/cli.ts` |
 | `index.ts` | Public exports |
 
@@ -232,20 +259,24 @@ node --experimental-strip-types --check apps/web/agent-swarm/*.ts
 node --experimental-strip-types --check apps/web/cli.ts
 
 # Functional smoke test (adversarial): depth cap, agent ceiling, maxChildren,
-# budget exhaustion, goal sanitization, unknown role/command handling
+# budget exhaustion, goal sanitization, unknown role/command handling,
+# name-vs-id resolution, and /swarm run's two real-call failure paths
 node --experimental-strip-types <a scratch script importing SwarmOrchestrator/SwarmCLI>
 ```
 
-All of the "Security & Limits" claims above were confirmed this way, not just asserted. **Before you rely on this**, run `npm install && npx tsc --noEmit -p apps/web/tsconfig.json` once `node_modules` exists locally — the strip-types syntax check catches parse errors but not type errors, and `verbatimModuleSyntax`/`NodeNext` have sharp edges (see the parameter-property note above) that a full project check would catch that a syntax check can't.
+All of the "Security & Limits" claims above were confirmed this way, not just asserted, including the two `/swarm run` failure paths — this sandbox has neither `INCEPTION_API_KEY` nor a reachable Ollama daemon (confirmed with a plain `curl` before writing `model-client.ts`, not assumed), so both backends were exercised down to a real network attempt / real "key missing" check, and confirmed to fail with a clear message rather than fabricate a result. **No successful live call to Mercury-2 or a local model has been made against this code** — that verification is still owed once you're on a machine with a real key or Ollama running.
+
+**Before you rely on this**, run `npm install && npx tsc --noEmit -p apps/web/tsconfig.json` once `node_modules` exists locally — the strip-types syntax check catches parse errors but not type errors, and `verbatimModuleSyntax`/`NodeNext` have sharp edges (see the parameter-property note above) that a full project check would catch that a syntax check can't.
 
 ---
 
 ## Not done / follow-ups
 
 - **No automated test file** (e.g. `tests/agent-swarm.test.ts`) — verification so far is the adversarial scratch-script runs described above, not a committed, repeatable test suite. Given this repo's own AGENTS.md testing rules (§3), add one before treating this as done rather than "verified once."
-- **Not wired to a real tool-execution loop.** `apps/web/agent.ts` has its own Mercury-2 tool-calling loop with its own approval gates; this swarm doesn't call it yet. `context.model` per agent is a *decision*, not a dispatch.
-- **`recordSpend` isn't called automatically anywhere** — it exists so a future integration can call it after real model calls; right now nothing does, so swarm-wide cost/token metrics stay at zero through a full run (which is the honest state, not a bug).
+- **No successful live model call verified.** `/swarm run` is wired to real Mercury-2/Ollama HTTP calls and both failure paths (no key, unreachable host) are confirmed honest, but nobody has run it with a real `INCEPTION_API_KEY` or a real Ollama daemon yet — do that before treating the happy path as trustworthy, not just the failure path.
+- **Not wired to a real tool-execution loop.** `/swarm run` is a single-shot question/answer call, not `apps/web/agent.ts`'s tool-calling loop — no `write_file`, `fetch_url`, etc. `context.model` per agent now drives a real dispatch, but only to a plain chat completion.
 - **No persistence.** A swarm's state disappears when the process exits or `/swarm stop` runs.
+- **No concurrency control across agents.** `runAgent()` has no lock or in-flight guard — if two `/swarm run` calls for related agents ever overlapped (e.g. a pasted multi-line command, or a future automated caller), nothing in this code prevents them from racing on the same budget bookkeeping. Not verified either way whether `apps/web/cli.ts`'s current single-user REPL can actually produce that overlap; flagging as an open question rather than asserting it's safe.
 
 ---
 

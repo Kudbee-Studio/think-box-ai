@@ -16,6 +16,7 @@ import type {
   AgentRole,
 } from "./types.ts";
 import { routeModelForAgent, budgetMultiplierForRole, type RouterModels } from "./model-router.ts";
+import { callModel, ModelCallError } from "./model-client.ts";
 
 const uuidv4 = randomUUID;
 
@@ -347,6 +348,66 @@ export class SwarmOrchestrator {
   }
 
   /**
+   * Execute an agent's pending task against its routed model (Mercury-2 or
+   * the local model — see agent.context.model, set by model-router.ts at
+   * spawn time) and record the real result.
+   *
+   * This is a single-shot completion, not the tool-calling loop in
+   * apps/web/agent.ts — see model-client.ts's header comment for why. It
+   * finds the agent's most recent non-terminal task, calls the model once,
+   * and on success calls completeTask() with the real response text and
+   * recordSpend() with the real token/cost usage the API reported. On
+   * failure it calls failTask() with the real error — never a fabricated
+   * result, and never spend recorded for a call that didn't happen.
+   */
+  async runAgent(agentId: string): Promise<{ success: boolean; result?: string; error?: string }> {
+    const agent = this.state.agents.get(agentId);
+    if (!agent) {
+      return { success: false, error: "Agent not found" };
+    }
+
+    const task = Array.from(this.state.tasks.values())
+      .reverse()
+      .find((t) => t.agentId === agentId && t.status !== "complete" && t.status !== "failed");
+    if (!task) {
+      return { success: false, error: "No pending task for this agent — assign or spawn one first" };
+    }
+
+    const model = (agent.context?.model as string | undefined) || this.routerModels.complexModel;
+    const systemPrompt =
+      `You are the "${agent.name}" agent (role: ${agent.role}) in a multi-agent swarm. ` +
+      `Your capabilities: ${agent.capabilities.join(", ")}. Respond concisely and actionably; ` +
+      `you have no tools in this call — text response only.`;
+
+    task.status = "running";
+    task.startedAt = new Date();
+
+    let call;
+    try {
+      call = await callModel(model, task.goal, systemPrompt);
+    } catch (err) {
+      const message =
+        err instanceof ModelCallError
+          ? err.message
+          : `Unexpected error calling ${model}: ${err instanceof Error ? err.message : String(err)}`;
+      this.failTask(task.id, message);
+      return { success: false, error: message };
+    }
+
+    const withinBudget = this.recordSpend(agentId, {
+      tokens: call.promptTokens + call.completionTokens,
+      cost: call.costUsd,
+      timeMs: call.latencyMs,
+    });
+    this.completeTask(task.id, call.content);
+    if (!withinBudget) {
+      console.log(`  ⚠ ${agent.name} has exhausted its budget completing this task`);
+    }
+
+    return { success: true, result: call.content };
+  }
+
+  /**
    * Record actual spend against an agent's remaining budget and roll it up
    * into swarm-wide totals. Call this after every real model call — before
    * this method existed, state.totalCost/totalTokens and the per-agent
@@ -386,6 +447,23 @@ export class SwarmOrchestrator {
     const agent = this.state.agents.get(agentId);
     if (!agent) return false;
     return agent.tools.includes(tool);
+  }
+
+  /**
+   * Resolve a user-typed reference to a canonical agent ID. Every spawn
+   * confirmation and /swarm tree line prints the short display name
+   * (e.g. "planner-1"), not the full "planner-<8 hex chars>" ID — a user
+   * will naturally type the name back. Checks the exact ID first (the
+   * common case for programmatic callers), then falls back to a name
+   * match. Returns undefined, never throws, so callers can produce their
+   * own "not found" message with the original ref included.
+   */
+  resolveAgentRef(ref: string): string | undefined {
+    if (this.state.agents.has(ref)) return ref;
+    for (const agent of this.state.agents.values()) {
+      if (agent.name === ref) return agent.id;
+    }
+    return undefined;
   }
 
   /**
