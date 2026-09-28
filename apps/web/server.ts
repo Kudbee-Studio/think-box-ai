@@ -873,6 +873,31 @@ class AgentSession {
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
+
+      // Auto-save run metadata to persistent DB (Phase 3)
+      try {
+        await persistence.saveRunMetadata({
+          runId: record.id,
+          sessionId: this.id,
+          goal: record.goal,
+          status: status as 'running' | 'completed' | 'failed' | 'stopped',
+          startTime: record.started_at,
+          endTime: Date.now(),
+          metrics: {
+            tokens: record.tokens,
+            cost_usd: record.cost_usd,
+            duration_ms: record.duration_ms,
+            tool_calls: record.approvals.tool_calls,
+            approvals_approved: record.approvals.approved,
+            approvals_denied: record.approvals.denied,
+          },
+          files: record.files,
+          createdAt: record.started_at,
+        });
+      } catch (dbErr) {
+        // Log but don't crash: DB write failure shouldn't block run completion
+        console.error(`[persistence] Failed to save run metadata for ${record.id}:`, dbErr);
+      }
       this.memory.push({ timestamp: Date.now(), type: 'agent_run', run_id: record.id, goal, status, cost_usd: record.cost_usd } as MemoryEntry);
       if (run.success) {
         this.history.push({ goal, result: run.result ?? '' });
