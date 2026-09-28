@@ -894,17 +894,17 @@ class AgentSession {
           startTime: record.started_at,
           endTime: Date.now(),
           metrics: {
-            tokens: record.tokens,
+            tokens: record.prompt_tokens + record.completion_tokens,
             cost_usd: record.cost_usd,
             duration_ms: record.duration_ms,
-            tool_calls: record.approvals.tool_calls,
+            tool_calls: record.tool_calls,
             approvals_approved: record.approvals.approved,
             approvals_denied: record.approvals.denied,
             // Feature 5: Token telemetry
             model_selected: record.routeTelemetry?.modelSelected ?? this.config.model,
             route_reason: record.routeTelemetry?.routeReason ?? 'auto',
-            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? record.tokens,
-            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? record.tokens,
+            estimated_tokens_if_full_model: record.routeTelemetry?.estimatedTokensIfFullModel ?? (record.prompt_tokens + record.completion_tokens),
+            estimated_tokens_actual: record.routeTelemetry?.estimatedTokensActual ?? (record.prompt_tokens + record.completion_tokens),
             tokens_saved_est: record.routeTelemetry?.tokensSavedEst ?? 0,
             // HERMES etc: which tool-scoped agent profile ran this goal, if any
             agent_profile: record.agentProfile,
@@ -1638,19 +1638,19 @@ app.get('/api/runs/history', async (req: Request, res: Response) => {
     }
 
     // Fallback to JSON run store
-    const allRuns = runStore.all().filter((r) => r.sessionId === sessionId);
+    const allRuns = runStore.list(1000).filter((r: RunRecord) => r.session_id === sessionId);
     const runs = allRuns
       .slice(0, limit)
-      .map((r) => ({
+      .map((r: RunRecord) => ({
         runId: r.id,
-        sessionId: r.sessionId,
+        sessionId: r.session_id,
         goal: r.goal,
         status: r.status,
-        startTime: r.start_time,
-        endTime: r.end_time,
+        startTime: r.started_at,
+        endTime: r.ended_at,
         metrics: { tokens: (r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0), cost: r.cost_usd },
         files: r.files,
-        createdAt: r.start_time
+        createdAt: r.started_at
       }));
 
     res.json({ runs, source: 'json' });
@@ -1695,7 +1695,8 @@ app.get('/api/stats/tokens', async (req: Request, res: Response) => {
 const PORT = process.env.PORT || 3000;
 // SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md)
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '127.0.0.1';
-server.listen(PORT, LISTEN_ADDR, () => {
+const PORT_NUM = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
+server.listen(PORT_NUM, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
   console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
   console.log(`   WebSocket: ws://${LISTEN_ADDR}:${PORT}`);
