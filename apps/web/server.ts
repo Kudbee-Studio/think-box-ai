@@ -458,7 +458,7 @@ class AgentSession {
   status = 'idle';
   abort: AbortController | null = null;
   /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
-  readonly queue: Array<{ goal: string; model?: string; task: Task }> = [];
+  readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any> }> = [];
   private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
@@ -1650,28 +1650,21 @@ app.get('/api/stats/tokens', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'sessionId required' });
     }
 
-    // Aggregate token savings from run_metadata
+    // listRuns() returns newest-first (createdAt DESC); a sparkline needs
+    // chronological order (oldest→newest) or the trend line reads backwards.
     const runs = await persistence.listRuns(sessionId, limit);
+    const chronological = [...runs].reverse();
+
+    const savedPerRun = chronological.map((run) => (run.metrics?.tokens_saved_est as number) || 0);
+    const totalTokensSavedEst = savedPerRun.reduce((sum, v) => sum + v, 0);
+
     const tokenStats = {
-      totalTokensSavedEst: 0,
+      totalTokensSavedEst,
       totalRunsTracked: runs.length,
-      averageSavingsPerRun: 0,
-      lastRunTokensSaved: 0,
-      sparklineData: [] as number[],
+      averageSavingsPerRun: runs.length > 0 ? Math.round(totalTokensSavedEst / runs.length) : 0,
+      lastRunTokensSaved: runs.length > 0 ? ((runs[0].metrics?.tokens_saved_est as number) || 0) : 0,
+      sparklineData: savedPerRun,
     };
-
-    for (const run of runs) {
-      const savedEst = (run.metrics?.tokens_saved_est as number) || 0;
-      tokenStats.totalTokensSavedEst += savedEst;
-      tokenStats.sparklineData.push(savedEst);
-      if (run === runs[0]) {
-        tokenStats.lastRunTokensSaved = savedEst;
-      }
-    }
-
-    if (runs.length > 0) {
-      tokenStats.averageSavingsPerRun = Math.round(tokenStats.totalTokensSavedEst / runs.length);
-    }
 
     res.json(tokenStats);
   } catch (err) {

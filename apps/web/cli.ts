@@ -16,9 +16,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Cheap local route: default to Qwen2.5 1.5B. 'smollm2' is a legacy alias kept
 // for anyone with existing config/scripts referencing the earlier model name.
-const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b' };
+const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
 const RAW_LOCAL_MODEL = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
 const LOCAL_MODEL = LEGACY_LOCAL_MODEL_ALIASES[RAW_LOCAL_MODEL.toLowerCase()] || RAW_LOCAL_MODEL;
+// Name of the enterprise agent model the "complex" route should prefer. The actual
+// candidate list still comes from client.models (server-reported, `agent: true`);
+// this only breaks ties when more than one agent model is available.
 const COMPLEX_MODEL = process.env.KUDBEE_COMPLEX_MODEL || 'mercury-2';
 
 const c = {
@@ -504,7 +507,8 @@ let warnedNoLocalModel = false;
 // qwen2.5:1.5b), Complex → Mercury-2. If the local model isn't pulled into Ollama,
 // fall back to Mercury-2 and report the fallback honestly (no fake savings).
 function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
-  const mercury = client.models.find((m) => m.agent);
+  const agentModels = client.models.filter((m) => m.agent);
+  const mercury = agentModels.find((m) => m.name === COMPLEX_MODEL) ?? agentModels[0];
   const local = client.models.find((m) => !m.agent && m.name === LOCAL_MODEL);
 
   // No enterprise agent model configured at all: nothing to route between.

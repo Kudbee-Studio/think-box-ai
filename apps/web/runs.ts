@@ -30,6 +30,8 @@ export interface RunRecord {
   result?: string;
   error?: string;
   failure_kind?: string;
+  /** Feature 5: model routing decision + estimated token savings for this run. */
+  routeTelemetry?: Record<string, any>;
 }
 
 const MAX_RUNS = 500;
