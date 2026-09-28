@@ -108,11 +108,13 @@ describe('Memory Restart Proof (E2E)', () => {
       p.close();
     }
 
-    // Read and verify isolation
+    // Read and verify isolation. Layer filter is explicit here: 'session' is the
+    // only layer actually scoped per-session — task/org/verified notes from other
+    // tests sharing this DB file are global by design and would otherwise leak in.
     {
       const p = new PersistenceLayer(tempDbDir);
-      const notes1 = await p.listMemoryNotes(session1);
-      const notes2 = await p.listMemoryNotes(session2);
+      const notes1 = await p.listMemoryNotes(session1, 'session');
+      const notes2 = await p.listMemoryNotes(session2, 'session');
 
       expect(notes1.length).toBe(1);
       expect(notes2.length).toBe(1);
@@ -151,6 +153,47 @@ describe('Memory Restart Proof (E2E)', () => {
       const runs = await p.listRuns(sessionId, 50);
       expect(runs.length).toBe(3);
       expect(runs[0].goal).toMatch(/Goal \d/);
+      p.close();
+    }
+  });
+
+  it('org/verified/task notes survive a brand-new sessionId (recall hotfix)', async () => {
+    // Every CLI launch opens a new WebSocket connection and gets a brand-new
+    // random sessionId (server.ts). Before the recall hotfix, listMemoryNotes()
+    // filtered every layer by sessionId, so anything saved via /remember --org
+    // in one CLI session was permanently invisible the moment you reconnected —
+    // this is the literal "agent treats each session as blank" bug.
+    const firstSessionId = randomUUID();
+    const dir = path.join(os.tmpdir(), `kudbee-e2e-cross-session-${randomUUID()}`);
+
+    {
+      const p = new PersistenceLayer(dir);
+      await p.saveMemoryNote({ id: randomUUID(), sessionId: firstSessionId, layer: 'org', title: 'Org decision', content: 'Always use qwen2.5:1.5b for the cheap route', createdAt: Date.now(), updatedAt: Date.now() });
+      await p.saveMemoryNote({ id: randomUUID(), sessionId: firstSessionId, layer: 'verified', title: 'Verified fact', content: 'Ollama base URL is 127.0.0.1:11434', createdAt: Date.now(), updatedAt: Date.now() });
+      await p.saveMemoryNote({ id: randomUUID(), sessionId: firstSessionId, layer: 'task', title: 'Run episode', content: 'Goal: fetch data. Result: success', createdAt: Date.now(), updatedAt: Date.now() });
+      await p.saveMemoryNote({ id: randomUUID(), sessionId: firstSessionId, layer: 'session', title: 'Session-only scratch', content: 'should not leak', createdAt: Date.now(), updatedAt: Date.now() });
+      p.close();
+    }
+
+    // A brand-new session — different random sessionId, exactly like a fresh `kudbee` launch.
+    {
+      const newSessionId = randomUUID();
+      const p = new PersistenceLayer(dir);
+
+      const org = await p.listMemoryNotes(newSessionId, 'org');
+      const verified = await p.listMemoryNotes(newSessionId, 'verified');
+      const task = await p.listMemoryNotes(newSessionId, 'task');
+      const session = await p.listMemoryNotes(newSessionId, 'session');
+      const all = await p.listMemoryNotes(newSessionId);
+
+      expect(org.length).toBe(1);
+      expect(verified.length).toBe(1);
+      expect(task.length).toBe(1);
+      // Session-layer notes from a *different* session must not leak into this one.
+      expect(session.length).toBe(0);
+      // Unfiltered query: global layers included, session-scoped one excluded.
+      expect(all.length).toBe(3);
+
       p.close();
     }
   });
