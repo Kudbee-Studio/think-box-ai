@@ -1482,6 +1482,16 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Swarm-registry finding (why nothing was registered there):** investigated `thinkbox/agent/registry.py`'s `AgentRegistry` — this is a runtime, async, TTL/heartbeat-based registry for a **distributed cloud compute swarm** (gRPC endpoints, CPU/memory/GPU resource profiles, health/state tracking for ephemeral worker processes/pods). It shares the word "agent" with HERMES/ASCLEPIUS but is a fundamentally different concept: those are static tool-scoped LLM conversation lanes inside one Node.js process, not separately-spawned processes with a heartbeat to send or a gRPC endpoint to expose. The `swarm_governance_post16*_deepen.py` files (also matched on "swarm") are a separate hermetic-testing/anti-overclaiming contract-validation framework for the Python side of the repo, also unrelated. Registering HERMES/ASCLEPIUS in either would mean fabricating a fake resource profile and heartbeat loop that don't correspond to anything real. Flagging this rather than forcing a fit — if there's a different, more literal registry intended, point me at it.
 - **Next:** testnet-only Algorand signing tool (approved separately, still not built); otherwise HERMES + ASCLEPIUS are ready for founder review. PR open when committed; do not merge.
 
+### 2026-09-28 (night CT, cont.) — Dashboard terminal: /model, /agent, /notes, /session, /refresh
+
+- **Branch:** `feat/hermes-algorand`
+- **What landed:**
+  - Fixed `loadAgents()` in `app.js` — it referenced an undefined `HOST` variable and would throw `ReferenceError` on every dashboard load. Now a relative `fetch('/api/agents')` with `cache: 'no-store'`.
+  - New dashboard terminal commands in `runSlashCommand`: `/model [NAME]` (list/switch model, syncs header dropdown + `update_config` over WS), `/agent [NAME]` (list/switch/clear agent profile), `/notes [LAYER]` (list notes from `/api/memory`, filterable), `/session` (session/model/provider/WS status), `/refresh` (refresh stats+runs+memory+files+models), `/select` (focus model dropdown).
+  - `/help` updated to document the new commands; added a "Show session info" quick-action button to the terminal welcome area (`index.html`).
+- **Verified:** JS braces/parens/brackets balanced; all 25 commands present in the switch. No Node.js in the sandbox, so `npm test`/typecheck were not run here (the typecheck script only globs `*.ts`, not browser JS).
+- **Next:** founder review → PR → merge.
+
 ### 2026-09-28 (after-hours CT) — Dashboard integration: agent profile selector UI
 
 - **Branch:** `feat/hermes-algorand` (same PR, final commit)

@@ -627,7 +627,12 @@ async function runSlashCommand(command) {
         '  /help              Show this help message',
         '  /clear             Clear the terminal',
         '  /status            Check the Agent OS API health',
+        '  /session           Show current session info',
+        '  /refresh           Refresh stats, runs, memory, files',
         '  /models            List available AI models',
+        '  /model NAME         Switch to a model',
+        '  /agent [NAME]       Switch agent profile (or clear for default)',
+        '  /notes [LAYER]     List recent notes (session|task|org|verified)',
         '',
         '🔌 Plugins & Integration:',
         '  /plugins           List installed plugins',
@@ -904,6 +909,105 @@ async function runSlashCommand(command) {
       }
       return true;
     }
+
+    case '/model': {
+      const name = args.join(' ').trim();
+      if (!name) {
+        const list = state.models.map(m => `  ${m.name} ${m.agent ? '— Worker Agent (Inception)' : `[${m.provider || 'ollama'}]`}`).join('\n');
+        appendTerminalMessage('system', `Current model: ${state.config.model || '(none)'}\nAvailable models:\n${list}\nUsage: /model NAME`);
+        return true;
+      }
+      const match = state.models.find(m => m.name.toLowerCase() === name.toLowerCase());
+      if (!match) {
+        appendTerminalMessage('error', `Unknown model "${name}". Available: ${state.models.map(m => m.name).join(', ')}`);
+        return true;
+      }
+      const select = document.getElementById('model-select');
+      if (select) select.value = match.name;
+      state.config.model = match.name;
+      state.ws?.send(JSON.stringify({ type: 'update_config', config: { model: match.name } }));
+      const icon = match.agent ? '⚡' : '💻';
+      appendTerminalMessage('system', `${icon} Model → ${match.name}`);
+      Enterprise.auditLog.log('cli', `Model switched to ${match.name}`, 'info');
+      return true;
+    }
+
+    case '/agent': {
+      const name = args.join(' ').trim();
+      if (!name) {
+        const select = document.getElementById('agent-select');
+        if (!select) {
+          appendTerminalMessage('error', 'Agent selector not available');
+          return true;
+        }
+        const opts = Array.from(select.options).filter(o => o.value).map(o => `  ${o.value} — ${o.textContent.trim()}`);
+        appendTerminalMessage('system', `Current agent: ${select.value || '(default worker)'}\nAvailable agents:\n${opts.join('\n') || '  (none)'}\nUsage: /agent NAME  (or /agent to clear)`);
+        return true;
+      }
+      const select = document.getElementById('agent-select');
+      if (!select) {
+        appendTerminalMessage('error', 'Agent selector not available');
+        return true;
+      }
+      const lower = name.toLowerCase();
+      if (lower === 'default' || lower === '' || lower === 'worker') {
+        select.value = '';
+        appendTerminalMessage('system', '🤖 Agent → default worker (full tool access)');
+        return true;
+      }
+      const match = Array.from(select.options).find(o => o.value && o.value.toLowerCase() === lower);
+      if (!match) {
+        appendTerminalMessage('error', `Unknown agent "${name}". See /agent for list.`);
+        return true;
+      }
+      select.value = match.value;
+      appendTerminalMessage('system', `🤖 Agent → ${match.textContent.trim()}`);
+      Enterprise.auditLog.log('cli', `Agent switched to ${match.value}`, 'info');
+      return true;
+    }
+
+    case '/select':
+      document.getElementById('model-select')?.focus();
+      appendTerminalMessage('system', '📋 Use the Model dropdown in the header to select a model.');
+      return true;
+
+    case '/notes': {
+      const layer = args[0]?.toLowerCase();
+      const valid = ['', 'session', 'task', 'org', 'verified'];
+      const params = new URLSearchParams({ limit: '20' });
+      if (layer && valid.includes(layer)) params.set('layer', layer);
+      try {
+        const { items, backend } = await (await fetch(`/api/memory?${params}`, { cache: 'no-store' })).json();
+        if (!items.length) {
+          appendTerminalMessage('system', `📝 No notes${layer ? ` in ${layer}` : ''} yet.`);
+          return true;
+        }
+        const rows = items.map(item => `  [${item.layer}] ${item.title} · ${item.id}${item.tags?.length ? ` #${item.tags.join(' #')}` : ''}`);
+        appendTerminalMessage('system', `📝 ${layer ? `Notes in ${layer}` : 'Recent notes'} (${backend}):\n${rows.join('\n')}`);
+      } catch (error) {
+        appendTerminalMessage('error', `Could not load notes: ${error.message}`);
+      }
+      return true;
+    }
+
+    case '/session':
+      appendTerminalMessage('system', [
+        `🐝 kudbEE Agent OS — Session`,
+        `  Session ID: ${state.sessionId || '(disconnected)'}`,
+        `  Model: ${state.config.model || '(not selected)'}`,
+        `  Provider: ${state.config.provider || 'inception/ollama'}`,
+        `  Plugins: ${state.plugins.length}`,
+        `  WebSocket: ${state.ws?.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}`,
+        '',
+        `  Use /model NAME to switch · /agent NAME to select an agent profile`,
+      ].join('\n'));
+      return true;
+
+    case '/refresh':
+      await Promise.all([refreshStats(), refreshRuns(), refreshMemory(), refreshFiles()]);
+      loadModels();
+      appendTerminalMessage('system', '🔄 Refreshed stats, runs, memory, files, and models.');
+      return true;
 
     default:
       return false;
@@ -1454,7 +1558,7 @@ async function loadModels() {
 
 async function loadAgents() {
   try {
-    const res = await fetch(`${HOST}/api/agents`);
+    const res = await fetch('/api/agents', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { agents } = await res.json();
     renderAgents(agents);
