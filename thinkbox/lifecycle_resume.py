@@ -21,6 +21,7 @@ from thinkbox.governed_execution_lifecycle import (
 )
 from thinkbox.governed_job_execution import (
     SUBSTRATE_LOCAL,
+    SUBSTRATE_UPCLOUD_SSH,
     SUBSTRATE_UPSTASH_BOX,
     GovernedJobExecutionError,
     execute_governed_job_command,
@@ -45,7 +46,7 @@ OUTCOME_SKIPPED = "skipped"
 OUTCOME_INCOMPLETE = RESUME_INCOMPLETE
 OUTCOME_CAS_LOST = "cas_lost"
 
-_SHELL_SUBSTRATES = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX})
+_SHELL_SUBSTRATES = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX, SUBSTRATE_UPCLOUD_SSH})
 _RECEIPT_GOAL_PREFIX = "http-governed-run: "
 
 

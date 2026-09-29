@@ -3387,3 +3387,37 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - UpCloud bridge: not yet built; it is now **unblocked**
   - **PRODUCTION READY: NO**
 - **NEXT LARGER IMPROVEMENT:** add the `upcloud-ssh` substrate: `thinkbox/governed_job_execution.py` `_SUPPORTED` + an `_ExecutionAdapter` over `SSHCloudExecutionProvider`, configured from the `UPCLOUD_SERVER_IP` / `UPCLOUD_SSH_USER` / `UPCLOUD_SSH_KEY_PATH` env vars, mirrored in `thinkbox/lifecycle_harden.py` `validate_substrate`. Live-prove `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}` → worker-02 `00e300f7` → receipt → `ThinkJobEntry`.
+
+### 2026-09-29 — SAVE POINT: governed Think Job API → UpCloud worker-02 via `upcloud-ssh` substrate (LIVE VERIFIED)
+
+- **PR #281 merged:** squash `656b43d5` (route-shadow fix). Cursor Bugbot passed with no findings. CI not run (GitHub billing issue).
+- **Implementation (branch `feat/upcloud-ssh-execution-substrate`), Option A as decided in #280:**
+  - Added a third explicit substrate, `upcloud-ssh`, to `thinkbox/governed_job_execution.py`. It uses a new `UpCloudSSHExecutionAdapter` (`thinkbox/upcloud_ssh_execution_adapter.py`) over the committed `SSHCloudExecutionProvider`, configured from the existing `UpCloudConfig` env vars `UPCLOUD_SERVER_IP` / `UPCLOUD_SSH_USER` / `UPCLOUD_SSH_KEY_PATH`.
+  - Substrate lists are kept consistent in `lifecycle_harden` (`ALLOWED_SUBSTRATES` + H09 no-local-fallback), `lifecycle_reclaim` and `lifecycle_resume`.
+  - Fail-closed paths: `remote_not_configured` (never runs locally), `INVALID_COMMAND`, `NOT_CONFIGURED`, `SSH_FAILED` (ssh exit 255 or a provider error), `TIMEOUT`, `EXIT_FAILED`.
+  - No new endpoint, orchestrator, queue or receipt type.
+- **LIVE proof: the chain the founder asked for, observed end to end:**
+  - `POST /api/v1/run` on the real `backend.main:app`, via in-process `TestClient`. The governance token was issued by the real singleton; no test hooks were patched.
+  - Admission: `admitted`, capability `goal:execute`.
+  - Receipt `tb_rcpt_20260929173053_671ae53c`, experiment `tb_exp_20260929173053_f1933a2a`, session `tb_sess_20260929173053_a21f`.
+  - `ThinkJobEntry` `engine_b9da7810`.
+  - `upcloud-ssh` → SSH `root@209.50.51.174` (worker-02 `00e300f7`) `hostname` → **`kudbee-hermes-worker-02`**, exit 0, 1.30s.
+  - Hash-verified artifact `exec_c176df39871e-governed_exec.json` (sha256 `09b1b06764fb52ac072ec7a243024016b5695c7c804cfe1d38640c392f02d022`) and checkpoint `chk_eae4838d2668`.
+  - `GET /api/v1/run/receipt/{id}` → 200.
+  - Dashboard `ThinkJobEntry` status `completed`, `evidence_label: verified`, events `TASK_STARTED` → `TASK_COMPLETED` → `JOB_COMPLETED`.
+  - 1.92s end-to-end. The SSH key path does not appear in the artifact.
+- **Tests:** `tests/unit/test_upcloud_ssh_execution_adapter.py` 13/13 and `tests/e2e/test_f141_governed_shell_upcloud_ssh_http.py` 3/3. Regression: 271/271 across 32 modules. `ruff --isolated` is clean on the new files, with no new issues in the changed modules.
+- **Limits:**
+  - The proof ran on the real app object in-process, not a deployed uvicorn server over TCP. Governance tokens are minted only in-process (`register_agent`); there is no HTTP issuance path, so an out-of-process client can't pass admission yet.
+  - The receipt's own `live_verified` stays `false` by design. The LIVE VERIFIED classification here is the governance conclusion drawn from the evidence above.
+- **FOUR-STATE:**
+  - SSH provider: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED.
+  - Governed-run route: CODE COMPLETE / TEST VERIFIED (#281).
+  - **`upcloud-ssh` substrate: CODE COMPLETE (branch; merge SHA recorded after merge) / TEST VERIFIED / LIVE VERIFIED (Think Job API → worker-02).**
+  - `apps/web` → backend: none of the four.
+  - **PRODUCTION READY: NO.**
+- **NEXT LARGER IMPROVEMENT:** the `apps/web` → `backend.main` bridge, so the `:3000` dashboard can submit governed jobs to worker-02. Its first design decision is how an out-of-process client obtains a governance token. Keep the no-fabrication rule.
+- **Still open (founder):**
+  - Delete the orphan `00068975` (billing, unreachable)?
+  - Keep or delete worker-01 (account `kudbee`)?
+  - Enable an SSH-only firewall on worker-02, given 330 failed SSH logins per 24h?
