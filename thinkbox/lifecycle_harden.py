@@ -27,7 +27,7 @@ EXPECTED_HARDEN_COUNT = 25
 MAX_TRANSITIONS = 32
 MAX_GOAL_CHARS = 200
 MAX_JOB_ID_CHARS = 128
-ALLOWED_SUBSTRATES = frozenset({"", "local", "upstash-box"})
+ALLOWED_SUBSTRATES = frozenset({"", "local", "upstash-box", "upcloud-ssh"})
 _HASH_RE = re.compile(r"^[0-9a-f]{16,128}$")
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _SECRET_KEYS = frozenset(
@@ -171,11 +171,12 @@ def validate_substrate(substrate: str) -> str:
 
 
 def reject_remote_local_fallback(substrate: str, adapter_provider: str) -> None:
-    """H09 — upstash-box must never record provider=local."""
-    if (substrate or "").strip() == "upstash-box" and (adapter_provider or "").strip() == "local":
+    """H09 — remote substrates (upstash-box, upcloud-ssh) must never record provider=local."""
+    remote = (substrate or "").strip()
+    if remote in {"upstash-box", "upcloud-ssh"} and (adapter_provider or "").strip() == "local":
         raise LifecycleError(
             "remote_local_fallback_forbidden",
-            "upstash-box cannot record adapter_provider=local",
+            f"{remote} cannot record adapter_provider=local",
         )
 
 

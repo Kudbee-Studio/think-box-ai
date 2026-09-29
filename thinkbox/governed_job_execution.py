@@ -15,11 +15,13 @@ from thinkbox.execution_adapter import (
 )
 from thinkbox.local_execution_adapter import LOCAL_PROVIDER, LocalExecutionAdapter, receipt_to_public_dict
 from thinkbox.repository import Repository
+from thinkbox.upcloud_ssh_execution_adapter import UPCLOUD_SSH_PROVIDER, UpCloudSSHExecutionAdapter
 
 SUBSTRATE_LOCAL = "local"
 SUBSTRATE_UPSTASH_BOX = "upstash-box"
+SUBSTRATE_UPCLOUD_SSH = "upcloud-ssh"
 
-_SUPPORTED = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX})
+_SUPPORTED = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX, SUBSTRATE_UPCLOUD_SSH})
 
 
 class GovernedJobExecutionError(ValueError):
@@ -69,6 +71,15 @@ def select_execution_adapter(
     normalized = normalize_execution_substrate(substrate)
     if normalized == SUBSTRATE_LOCAL:
         return LocalExecutionAdapter(repo=repo), LOCAL_PROVIDER
+    if normalized == SUBSTRATE_UPCLOUD_SSH:
+        ssh_adapter = UpCloudSSHExecutionAdapter(repo=repo)
+        if not ssh_adapter.is_configured():
+            raise GovernedJobExecutionError(
+                "remote_not_configured",
+                "upcloud-ssh substrate requires UPCLOUD_SERVER_IP and an existing "
+                "UPCLOUD_SSH_KEY_PATH; local fallback is prohibited",
+            )
+        return ssh_adapter, UPCLOUD_SSH_PROVIDER
     adapter = UpstashBoxExecutionAdapter(repo=repo)
     if not adapter.is_configured():
         raise GovernedJobExecutionError(
@@ -97,7 +108,7 @@ def execute_governed_job_command(
     proof["adapter_selected"] = provider
     proof["governed_shell"] = True
     proof["live_verified"] = False
-    proof["live_api_called"] = provider == UPSTASH_PROVIDER and receipt.status not in {
+    proof["live_api_called"] = provider in {UPSTASH_PROVIDER, UPCLOUD_SSH_PROVIDER} and receipt.status not in {
         "NOT_CONFIGURED",
         "INVALID_COMMAND",
     }

@@ -511,6 +511,22 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
   `scripts/verify_upcloud_cli.py`. It authenticates from `UPCLOUD_TOKEN`, the keyring, or
   `~/.config/upctl.yaml`. Its version subcommand is `upctl version` (`--version` exits 100).
 
+**Running a governed job on the UpCloud worker (substrate `upcloud-ssh`, live-verified 2026-09-29):**
+
+- Configure the backend process with `UPCLOUD_SERVER_IP=209.50.51.174`, `UPCLOUD_SSH_USER=root`, and
+  `UPCLOUD_SSH_KEY_PATH=<path to private key>`. These are the vars `thinkbox/upcloud.py`
+  `UpCloudConfig` already reads. The key path must exist; its contents are never read by Python.
+- Send `POST /api/v1/run` with `{"goal", "agent_id", "governance_token", "execution_substrate":
+  "upcloud-ssh", "exec_command": "<bounded command>"}` and header `X-API-Key`.
+- Poll `GET /api/v1/run/job/{engine_id}/status`. Read the receipt at
+  `GET /api/v1/run/receipt/{receipt_id}`.
+- If the vars are missing, the job **fails** with `remote_not_configured`. There is never a local
+  fallback (guard H09 covers `upcloud-ssh`).
+- `ssh` exit 255 (a transport or auth error) is recorded as `SSH_FAILED`, not as a remote-command
+  failure.
+- Governance tokens are minted only in-process (`get_api_run_governance().register_agent`). There is
+  no HTTP issuance path yet, so an out-of-process client cannot pass admission.
+
 ---
 
 ### 13.6 THINK Burst Execution
@@ -2065,6 +2081,53 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   vars) and to `thinkbox/lifecycle_harden.py` `validate_substrate`. Then live-prove
   `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}` → worker-02
   `00e300f7` → receipt → `ThinkJobEntry`.
+- **Merged:** PR #281 → `main` `656b43d5`. Bugbot passed with no findings. CI not run (GitHub billing issue).
+
+### 2026-09-29 — `upcloud-ssh` governed execution substrate: Think Job API → UpCloud worker-02 (LIVE)
+
+- **Changed:**
+  - New `thinkbox/upcloud_ssh_execution_adapter.py`: `UpCloudSSHExecutionAdapter` and
+    `UpCloudSSHExecutionConfig.from_env`. It follows the same receipt/artifact/checkpoint contract as
+    `LocalExecutionAdapter` and reuses its `_truncate` / `intent_fingerprint`. The remote call is
+    delegated to the committed `SSHCloudExecutionProvider`.
+  - `governed_job_execution.py`: `SUBSTRATE_UPCLOUD_SSH`, routing, a `remote_not_configured`
+    fail-closed path, and `live_api_called` for the new provider.
+  - `lifecycle_harden.py`: `ALLOWED_SUBSTRATES`; H09 (no local fallback) now covers `upcloud-ssh`.
+  - `lifecycle_reclaim.py` and `lifecycle_resume.py`: `_SHELL_SUBSTRATES`.
+  - Tests: `tests/unit/test_upcloud_ssh_execution_adapter.py` (13) and
+    `tests/e2e/test_f141_governed_shell_upcloud_ssh_http.py` (3).
+  - No new endpoint, orchestrator, queue, or receipt type.
+- **LIVE proof:**
+  - Setup: the real `backend.main:app` via in-process `TestClient`, the real governance singleton, and
+    no test hooks. The worktree, receipt DB and artifacts were in a scratchpad.
+  - Request: `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}`.
+    Response: HTTP 200 `admitted`. Job `engine_b9da7810`, receipt `tb_rcpt_20260929173053_671ae53c`.
+  - Remote run: SSH `root@209.50.51.174` → stdout **`kudbee-hermes-worker-02`**, exit 0, 1.30s.
+  - Evidence:
+    - artifact `exec_c176df39871e-governed_exec.json`, sha256 `09b1b067…d022`, verified
+    - checkpoint `chk_eae4838d2668`
+    - receipt GET 200
+    - `ThinkJobEntry` completed with `evidence_label: verified`
+    - dashboard events `TASK_STARTED`, `TASK_COMPLETED`, `JOB_COMPLETED`
+    - 1.92s end-to-end
+    - key path absent from the artifact
+- **Tests:** 13/13 unit + 3/3 e2e. Regression: 271/271 across 32 modules (governed e2e f13x/f14x,
+  backend, lifecycle, governed, cloud_execution, local/execution adapters). `ruff --isolated` is
+  clean on the new files, and the changed modules have the same lint counts as before. CI not run
+  (GitHub billing issue).
+- **Limits (honest):**
+  - The proof ran on the real app object in-process, not a deployed server over TCP. That's because
+    governance tokens can't be issued out of process (no HTTP issuance path).
+  - `apps/web` still does not call the backend.
+  - The receipt's `live_verified` stays `false` by design. This LIVE VERIFIED classification is a
+    governance-layer conclusion drawn from the evidence above.
+- **Four-state:**
+  - `upcloud-ssh` substrate: CODE COMPLETE (this branch) / TEST VERIFIED / LIVE VERIFIED (real app
+    object → real worker-02)
+  - PRODUCTION READY: NO
+- **Next:**
+  1. `apps/web` → backend bridge: the dashboard at `:3000` submits governed jobs to `backend.main`.
+  2. It needs a governance-token issuance path, which is the first design decision for that bridge.
 
 ### Open items / debt (be honest here)
 

@@ -34,13 +34,13 @@ from thinkbox.lifecycle_resume import (
     _recover_goal,
     _worktree_identity_matches,
 )
-from thinkbox.governed_job_execution import SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX
+from thinkbox.governed_job_execution import SUBSTRATE_LOCAL, SUBSTRATE_UPCLOUD_SSH, SUBSTRATE_UPSTASH_BOX
 from thinkbox.repository import Repository
 
 ORPHAN_RECLAIM_KIND = "orphan_reclaim"
 ORPHAN_INCOMPLETE = "orphan_reclaim_incomplete"
 GATE_ID = "durable-running-reclaim"
-_SHELL_SUBSTRATES = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX})
+_SHELL_SUBSTRATES = frozenset({SUBSTRATE_LOCAL, SUBSTRATE_UPSTASH_BOX, SUBSTRATE_UPCLOUD_SSH})
 
 
 def reclaim_running_orphan(
