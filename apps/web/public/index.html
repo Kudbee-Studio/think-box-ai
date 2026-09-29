@@ -185,6 +185,10 @@
               <option value="low">Low</option>
             </select>
           </div>
+          <div class="task-actions-bar">
+            <button id="create-workflow" class="btn-secondary" type="button" title="Create task workflow">+ Workflow</button>
+            <button id="bulk-actions" class="btn-secondary" type="button" title="Bulk operations" disabled>⋯ Actions</button>
+          </div>
           <div id="task-list" class="task-list">
             <div class="empty-state">No tasks yet</div>
           </div>
@@ -364,6 +368,57 @@
       <menu><button type="button" id="login-cancel" class="btn-secondary">Cancel</button><button type="submit" class="btn-primary">Sign in</button></menu>
     </form>
   </dialog>
+
+  <div id="workflow-modal" class="modal-backdrop" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="workflow-modal-title">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">WORKFLOW BUILDER</span>
+          <h2 id="workflow-modal-title">Create task workflow</h2>
+        </div>
+        <button id="close-workflow-modal" class="btn-icon" title="Close">×</button>
+      </div>
+      <div class="workflow-container">
+        <div class="workflow-sidebar">
+          <h4>Task Templates</h4>
+          <div id="workflow-templates" class="workflow-templates">
+            <div class="workflow-template" data-template="sequential">
+              <span class="icon">→</span>
+              <span>Sequential</span>
+            </div>
+            <div class="workflow-template" data-template="parallel">
+              <span class="icon">⇄</span>
+              <span>Parallel</span>
+            </div>
+            <div class="workflow-template" data-template="conditional">
+              <span class="icon">◇</span>
+              <span>Conditional</span>
+            </div>
+            <div class="workflow-template" data-template="loop">
+              <span class="icon">⟳</span>
+              <span>Loop</span>
+            </div>
+          </div>
+        </div>
+        <div class="workflow-canvas">
+          <div id="workflow-canvas-area" class="canvas-area">
+            <div class="canvas-placeholder">Drag templates here to build workflow</div>
+          </div>
+        </div>
+        <div class="workflow-properties">
+          <h4>Properties</h4>
+          <label>Workflow name <input id="workflow-name" type="text" placeholder="My workflow"></label>
+          <label>Description <textarea id="workflow-desc" placeholder="What does this workflow do?"></textarea></label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-workflow" class="btn-secondary">Cancel</button>
+        <button id="save-workflow" class="btn-primary">Save workflow</button>
+      </div>
+    </section>
+  </div>
+
+<script src="/js/workflow-builder.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
