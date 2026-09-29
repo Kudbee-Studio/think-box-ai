@@ -1,3 +1,20 @@
+## CURRENT (2026-09-29) — UpCloud governed execution + dashboard sign-in (PRs #280–#285)
+
+The only authorized UpCloud server is worker-02: `00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`, account `kudbeex`.
+
+| Capability | CODE COMPLETE | TEST VERIFIED | LIVE VERIFIED | PRODUCTION READY |
+|---|---|---|---|---|
+| upctl verification script (#280) | yes | yes | yes (real upctl + API) | no |
+| Governed `POST /api/v1/run` reachable in real app (#281) | yes | yes | in-process real app | no |
+| `upcloud-ssh` substrate → worker-02 (#282) | yes | yes | yes | no |
+| Dashboard bridge + backend admission-token (#284) | yes | yes | yes (browser → web → backend HTTP → worker-02) | no |
+| Dashboard sign-in in front of `/api/governed/run` (#285) | yes | yes | yes (local browser, real worker-02) | no |
+
+- **Not production ready:** everything was verified locally over loopback. Nothing is deployed, sessions are in-memory, there is a single dashboard user, and there has been no founder review.
+- **CI:** not run (GitHub billing issue). Nothing is claimed CI-green.
+- **Open founder decisions:** delete the orphan server `00068975`? keep or delete worker-01 (account `kudbee`)? add an SSH-only firewall on worker-02?
+- **Detail:** `docs/CONTINUITY.md` (2026-09-29 entries) and the AGENTS.md Work Log.
+
 ## OPEN (2026-09-27) — GitHub PR #267 Flight readiness: JPL Power of 10 audit + ratchet
 
 - **Branch:** `feat/pr267-power-of-ten-audit`

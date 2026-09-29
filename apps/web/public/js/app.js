@@ -633,7 +633,8 @@ async function runSlashCommand(command) {
         '  /model NAME         Switch to a model',
         '  /agent [NAME]       Switch agent profile (or clear for default)',
         '  /notes [LAYER]     List recent notes (session|task|org|verified)',
-        '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed)',
+        '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed; sign in first)',
+        '  /login · /logout · /whoami   Dashboard sign-in for governed commands',
         '',
         '🔌 Plugins & Integration:',
         '  /plugins           List installed plugins',
@@ -1004,6 +1005,24 @@ async function runSlashCommand(command) {
       ].join('\n'));
       return true;
 
+    case '/login':
+      openLoginDialog();
+      return true;
+
+    case '/logout': {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { 'X-Kudbee-Client': 'dashboard' } });
+      appendTerminalMessage('system', '🔓 Signed out.');
+      return true;
+    }
+
+    case '/whoami': {
+      const me = await (await fetch('/api/auth/me', { cache: 'no-store' })).json();
+      appendTerminalMessage('system', !me.configured
+        ? '⚠ Dashboard sign-in is not configured on this server (governed commands are disabled).'
+        : me.authenticated ? `🔐 Signed in as ${me.user}` : '🔒 Not signed in — use /login');
+      return true;
+    }
+
     case '/remote': {
       const command = args.join(' ').trim();
       const headers = { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' };
@@ -1014,6 +1033,10 @@ async function runSlashCommand(command) {
       try {
         const submit = await fetch('/api/governed/run', { method: 'POST', headers, body: JSON.stringify({ command }) });
         const job = await submit.json();
+        if (submit.status === 401) {
+          appendTerminalMessage('system', '🔒 Sign in first: /login');
+          return true;
+        }
         if (!submit.ok) {
           appendTerminalMessage('system', `✗ /remote rejected (${submit.status}): ${job.error || 'error'}`);
           return true;
@@ -1914,4 +1937,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load models periodically
   setInterval(loadModels, 10000);
   setTimeout(loadModels, 1000);
+});
+
+
+function openLoginDialog() {
+  const dialog = document.getElementById('login-dialog');
+  const form = document.getElementById('login-form');
+  const error = document.getElementById('login-error');
+  error.textContent = '';
+  form.reset();
+  dialog.showModal();
+  document.getElementById('login-username').focus();
+}
+
+document.getElementById('login-cancel')?.addEventListener('click', () => document.getElementById('login-dialog').close());
+document.getElementById('login-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const username = document.getElementById('login-username').value;
+  const passwordInput = document.getElementById('login-password');
+  const error = document.getElementById('login-error');
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' },
+      body: JSON.stringify({ username, password: passwordInput.value }),
+    });
+    passwordInput.value = '';
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      error.textContent = body.error || `Sign-in failed (${res.status})`;
+      return;
+    }
+    document.getElementById('login-dialog').close();
+    appendTerminalMessage('system', `🔐 Signed in as ${body.user}`);
+  } catch (err) {
+    error.textContent = err instanceof Error ? err.message : String(err);
+  }
 });
