@@ -3505,3 +3505,21 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FOUR-STATE:** whole-dashboard auth and backend execution policy are both CODE COMPLETE (branch) / TEST VERIFIED / LIVE VERIFIED (local, real worker-02). **PRODUCTION READY: NO**: in-memory single-user sessions, no HTTPS, worker host key not pinned, resume/reclaim still have no *capability* admission (only the command check), not deployed, no founder review.
 - **Not in scope (recorded):** session persistence, multi-user, deploy/HTTPS, host-key pinning, SSH user, the worker-02 firewall, CI billing, ruff W503, `investigate_upcloud()` semantics, worker-01, the orphan.
 - **NEXT LARGER IMPROVEMENT:** full governance admission (token + capability↔substrate binding) on the resume/reclaim endpoints, so every path into execution is admitted, not only command-filtered.
+
+### 2026-09-30 — SAVE POINT: #287–#289 merged in; dashboard login deferred; resume/reclaim governed; /api/git mounted safely
+
+- **State:** branch `merge/pr287-289` on `main` (`4c9a4a71`, which includes #287, #288 and the direct-to-main #289 merge). Earlier work I had not yet committed was saved by another actor as `b0573564` before I resumed; nothing was lost.
+- **Decision (founder):** dashboard login is **deferred**. The dashboard is a local-only operator console. I removed #285/#286's web-side login (`auth.ts`, hash script, dialog, gates, CLI sign-in, trimmed health) and restored those files to their pre-#285 form. The backend governance from #282–#286 is unchanged. Added a loopback-only listen guard (`KUDBEE_ALLOW_NON_LOOPBACK=1` to override). Dashboard authentication is recorded as a required future step before any remote or shared deployment.
+- **Resume/reclaim governance:**
+  - **Entry points:** only `POST /run` and `POST /run/job/{id}/resume` execute over HTTP. Reclaim has no HTTP route (test-asserted) but is a library call that does execute.
+  - **Mechanism:** the new `thinkbox/execution_authorization.py` persists an immutable `admission_binding` at admission: agent, capability, substrate, policy id/version, command fingerprint. Resume and reclaim must match it and re-pass `remote_exec_policy`. A job without one is refused.
+  - **One shared function:** `authorize_http_execution` (token admission + policy) is used by `/run` and resume. The command list lives only in `remote_exec_policy.py`.
+  - **Resume now needs a governance token;** before this it needed only the API key.
+- **Findings in the merged PRs:**
+  - `origin/main` had a stray `<<<<<<< HEAD` in `index.html` (visible page text). Removed.
+  - `/api/git/*` was never mounted (404) and was unsafe as written: shell-string `execSync` from the caller's `url`/`branch`, and a `..`-only check that let absolute paths be read or written. Mounted with strict validation, no shell, and workspace-confined files.
+  - The #288 Think Token modules have no routes; they are a library not wired into `AgentSession`. Left unwired: that's a decision about agent prompts.
+- **Tests:** f144 resume/reclaim governance 14/14 (real API router; 6 guards mutation-checked); existing resume/reclaim 27/27 with binding-carrying fixtures; web `git-routes` 6, `local-only` 3; web suite 149/149; typecheck 0. Broad Python regression: see the PR. CI not run (GitHub billing issue).
+- **LIVE (real uvicorn over TCP → real worker-02; not a browser):** 8 attacks on resume (no token, forged token, wrong agent, `goal:execute` substitution, different allowed command, `hostname; id`, `rm -rf /`, unbound job) all got 403 before SSH with 0 artifacts. The authorized resume returned `kudbee-hermes-worker-02`, exit 0, 0.88s, receipt `tb_rcpt_live_ok`, checkpoint `chk_6de1abfea105`; a second resume got 409.
+- **FOUR-STATE:** resume/reclaim governance: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED. Login deferral + loopback guard: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED. `/api/git` hardening: CODE COMPLETE / TEST VERIFIED, not browser-tested. **PRODUCTION READY: NO**.
+- **NEXT LARGER IMPROVEMENT:** decide whether to wire the #288 Think Token library into `AgentSession` (it changes what prompts agents receive), then browser-test the Git panel.

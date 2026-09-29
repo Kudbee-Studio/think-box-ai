@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from thinkbox.execution_authorization import authorization_record
 from thinkbox.governed_execution_lifecycle import (
     PHASE_ADMISSION,
     PHASE_COMPLETED,
@@ -49,6 +50,9 @@ def _make_git_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "initial"], cwd=str(path), check=True)
 
 
+_RESUME_COMMANDS = {'job_reload': 'echo THINKBOX_QUEUED_RESUME', 'job_once': 'echo FIRST', 'job_race': 'echo RACE', 'job_run': 'echo NO', 'job_nocmd': 'echo X', 'job_leak': 'echo X', 'job_remote': 'echo remote', 'job_stat': 'echo X', 'job_rcpt': 'echo RCPT', 'job_wt': 'echo WT'}
+
+
 class TestLifecycleResume(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -66,7 +70,11 @@ class TestLifecycleResume(unittest.TestCase):
         goal: str = "resume goal",
         receipt_id: str = "tb_rcpt_resume_1",
         substrate: str = SUBSTRATE_LOCAL,
+        command: str | None = None,
     ) -> None:
+        # Every executable job carries the admission binding written by POST /run; resume may only
+        # run exactly what that admission authorized.
+        command = command if command is not None else _RESUME_COMMANDS.get(job_id, "echo X")
         repo = open_lifecycle_repo(self._repo_path)
         persist_lifecycle_phase(
             repo,
@@ -77,6 +85,7 @@ class TestLifecycleResume(unittest.TestCase):
             experiment_id="tb_exp_resume",
             session_id="tb_sess_resume",
             execution_substrate=substrate,
+            admission_binding=authorization_record(agent_id="test-agent", capability="goal:execute", execution_substrate=substrate, exec_command=command),
         )
         persist_lifecycle_phase(
             repo,
@@ -308,7 +317,7 @@ class TestLifecycleResume(unittest.TestCase):
 
 class TestLifecycleResumeHttp(unittest.TestCase):
     def test_http_resume_reuses_receipt_and_status(self) -> None:
-        from tests.e2e.api_run_hermetic import auth_headers, hermetic_run_client
+        from tests.e2e.api_run_hermetic import auth_headers, hermetic_governance_token, hermetic_run_client
 
         tmp = tempfile.TemporaryDirectory()
         repo_path = Path(tmp.name) / "repo"
@@ -324,6 +333,12 @@ class TestLifecycleResumeHttp(unittest.TestCase):
                     goal="http resume",
                     receipt_id="tb_rcpt_http_resume",
                     execution_substrate=SUBSTRATE_LOCAL,
+                    admission_binding=authorization_record(
+                        agent_id="hermetic-api-run-agent",
+                        capability="goal:execute",
+                        execution_substrate=SUBSTRATE_LOCAL,
+                        exec_command="echo HTTP_RESUME",
+                    ),
                 )
                 persist_lifecycle_phase(
                     repo,
@@ -339,7 +354,7 @@ class TestLifecycleResumeHttp(unittest.TestCase):
                     self.assertTrue(record["resume_eligible"])
                     response = client.post(
                         "/api/v1/run/job/engine_http_resume1/resume",
-                        json={"exec_command": "echo HTTP_RESUME"},
+                        json={"exec_command": "echo HTTP_RESUME", "governance_token": hermetic_governance_token()},
                         headers=auth_headers(),
                     )
                     self.assertEqual(response.status_code, 200, response.text)
