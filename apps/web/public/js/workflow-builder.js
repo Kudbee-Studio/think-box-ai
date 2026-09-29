@@ -25,13 +25,17 @@ class WorkflowBuilder {
     this.saveBtn?.addEventListener('click', () => this.saveWorkflow());
 
     // Drag and drop
-    this.templates.forEach(template => {
-      template.addEventListener('dragstart', (e) => this.handleDragStart(e));
-    });
+    if (this.templates && this.templates.length > 0) {
+      this.templates.forEach(template => {
+        template.addEventListener('dragstart', (e) => this.handleDragStart(e));
+      });
+    }
 
-    this.canvasArea.addEventListener('dragover', (e) => this.handleDragOver(e));
-    this.canvasArea.addEventListener('drop', (e) => this.handleDrop(e));
-    this.canvasArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+    if (this.canvasArea) {
+      this.canvasArea.addEventListener('dragover', (e) => this.handleDragOver(e));
+      this.canvasArea.addEventListener('drop', (e) => this.handleDrop(e));
+      this.canvasArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+    }
   }
 
   handleDragStart(e) {
@@ -46,11 +50,11 @@ class WorkflowBuilder {
   handleDragOver(e) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    this.canvasArea.classList.add('drag-over');
+    if (this.canvasArea) this.canvasArea.classList.add('drag-over');
   }
 
   handleDragLeave(e) {
-    if (e.target === this.canvasArea) {
+    if (this.canvasArea && e.target === this.canvasArea) {
       this.canvasArea.classList.remove('drag-over');
     }
   }

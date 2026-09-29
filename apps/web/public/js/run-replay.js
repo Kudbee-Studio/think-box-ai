@@ -30,14 +30,17 @@ class RunReplay {
   }
 
   renderTimeline() {
-    if (!this.currentRun || !this.currentRun.timeline) return;
+    if (!this.currentRun || !this.currentRun.timeline || !document) return;
 
     const timeline = document.getElementById('run-timeline');
     if (!timeline) return;
 
     timeline.innerHTML = '';
 
-    this.currentRun.timeline.forEach((event, index) => {
+    const events = this.currentRun.timeline;
+    if (!Array.isArray(events)) return;
+
+    events.forEach((event, index) => {
       const item = document.createElement('div');
       item.className = `tl-item ${event.type || 'step'}`;
       if (event.status === 'failed') item.classList.add('fail');

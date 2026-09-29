@@ -39,6 +39,8 @@ class MetricsDashboard {
   }
 
   renderMetrics() {
+    if (!document) return;
+
     // Update KPI values
     const metricsEl = {
       runs: document.getElementById('metric-runs'),
