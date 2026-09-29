@@ -1884,11 +1884,10 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   password-reset endpoint). Left untouched; unresolved. Founder must use the
   UpCloud web console to recover access (console reset password, or delete).
 - **worker-02, first attempt** (UUID `003bc8e7-213d-4101-94c7-8607dec18bb1`,
-  `209.50.50.19`): created with a top-level `server.ssh_keys` attribute →
-  API accepted the request but silently ignored it (no error at creation
-  time; the attribute doesn't exist server-side under that name for a plain
-  `POST /server`, confirmed separately that it's `UNKNOWN_ATTRIBUTE` when
-  tried again). SSH key auth failed (`Permission denied (publickey)`);
+  `209.50.50.19`): a create request with a top-level `server.ssh_keys`
+  attribute was **rejected** by the API (`UNKNOWN_ATTRIBUTE`). The server was
+  then created with that attribute removed, so **no key was injected at
+  all**. SSH key auth failed (`Permission denied (publickey)`);
   password auth also refused (`Authentications that can continue:
   publickey` — the Ubuntu 22.04 cloud-init template offers no password
   login). Confirmed unrepairable: `PUT /1.3/server/{uuid}` with
@@ -1915,6 +1914,39 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   execution/control path, run one bounded end-to-end proof, and classify
   the result honestly. None of that is done yet — this entry is
   infrastructure provisioning only.
+
+### 2026-09-28/29 — SSH remote execution provider (committed) + backend-bridge audit (STOPPED, founder decision pending)
+
+- **Committed `b5f02e4f`** (on `origin/main` via founder merge `1cab17d7`): `thinkbox/cloud_execution/providers/ssh_remote.py`
+  (`SSHCloudExecutionProvider`, `SSHWorkerConfig`), `tests/unit/test_cloud_execution_ssh_provider.py`,
+  one export line in `providers/__init__.py`. Implements the existing `CloudExecutionProvider` ABC and
+  inherits `build_receipt()` unchanged. Uses the system `ssh` binary via `subprocess`; config holds a key
+  *path* only.
+- **Verified:** 10/10 new hermetic tests + 55/55 existing cloud_execution tests. Live-proven twice from
+  standalone Python (not through any HTTP surface): `hostname` on `root@209.50.51.174` →
+  `kudbee-hermes-worker-02`, exit 0, ~0.88s. **Provider: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED
+  (standalone only).**
+- **Worker-02 disk snapshot:** UpCloud storage backup `010bc170-d71b-46c0-9fda-b202cffe7fec`
+  (`kudbee-hermes-worker-02-snapshot-20260928`, 10GB, online) of root storage
+  `012ccf9a-c4ae-4105-8b37-3ff17807be28`. Clean Ubuntu 22.04.5 + injected key, nothing else installed.
+- **Backend-bridge audit, STOPPED:** `backend/main.py` `POST /run` feeds a free-text goal to the LLM
+  `AgentLoop` (`ctx.provider` = a **model** provider). It has no job-dispatch or
+  `CloudExecutionProvider` concept. No file under `backend/` imports `thinkbox.cloud_execution`
+  (confirmed by grep). "Provider" means two unrelated interfaces here: `core.foundation.bootstrap` model
+  providers vs. `thinkbox.cloud_execution.provider.CloudExecutionProvider`. That makes it a second naming
+  collision after HERMES. There is no clean insertion point, so nothing was implemented.
+- **Founder decision pending:** (A) a new deterministic job endpoint (e.g. `POST
+  /api/v1/execution/jobs`) that builds an `ExecutionJob`, dispatches it to a `CloudExecutionProvider`,
+  and emits `ThinkJobEntry` via `get_dashboard_state().emit()`; or (B) register SSH execution as a tool in
+  `ctx.tool_registry` so the `/run` LLM loop can call it, which makes dispatch depend on the model's
+  choice. **Backend bridge: not CODE COMPLETE, not TEST VERIFIED, not LIVE VERIFIED, not PRODUCTION READY.**
+- **Debt:** `docs/SECURITY_CHECKLIST.md`, `scripts/verify_upcloud_cli.py`, and
+  `scripts/verify_upcloud_credentials.py` are now committed on `main` (founder commit `aeba5c58`
+  "UPCLOUD UPDATE V0.01"). Known inaccuracy, not yet fixed: the checklist and `verify_upcloud_cli.py`
+  say upctl installs via `pip install upcloud-cli`, but the official upctl is a Go binary distributed
+  through release downloads and package managers. (The checklist's CI secret-scan reference is accurate:
+  `.github/workflows/test.yml` runs `scripts/scan_doc_secrets.py`.) worker-01 (`152.44.37.207`) is still SSH-unreachable and still
+  billing.
 
 ### Open items / debt (be honest here)
 
