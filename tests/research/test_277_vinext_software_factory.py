@@ -374,7 +374,7 @@ class TestVinextMemoryIntegration(unittest.TestCase):
 
         # Verify memory layer constants exist
         self.assertIsNotNone(MemoryLayer.TASK)
-        self.assertIsNotNone(MemoryLayer.ORGANIZATION)
+        self.assertIsNotNone(MemoryLayer.ORGANIZATIONAL)
         self.assertIsNotNone(MemoryLayer.VERIFIED_KNOWLEDGE)
         self.assertIsNotNone(MemoryLayer.SESSION)
 
@@ -383,7 +383,7 @@ class TestVinextMemoryIntegration(unittest.TestCase):
         memory_layers = [
             MemoryLayer.SESSION,  # Transient session state
             MemoryLayer.TASK,  # Finished run results
-            MemoryLayer.ORGANIZATION,  # Shared knowledge
+            MemoryLayer.ORGANIZATIONAL,  # Shared knowledge
             MemoryLayer.VERIFIED_KNOWLEDGE,  # Ground truth
         ]
         self.assertEqual(len(memory_layers), 4)
