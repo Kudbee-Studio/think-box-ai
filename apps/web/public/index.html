@@ -36,6 +36,9 @@
       </div>
       <div class="header-right">
         <span id="header-connection" class="connection-pill"><span class="connection-dot"></span> Connected</span>
+        <button id="advanced-search-button" class="btn-icon" title="Advanced search">🔍</button>
+        <button id="agent-templates-button" class="btn-icon" title="Agent templates">🤖</button>
+        <button id="settings-button" class="btn-icon" title="Settings">⚙</button>
         <button id="copy-session" class="btn-icon" title="Copy session ID">⧉</button>
         <button id="command-help" class="btn-icon" title="Show commands">?</button>
         <div class="status-indicator">
@@ -90,6 +93,17 @@
             <div class="empty-state">No memories yet</div>
           </div>
           <button id="add-memory" class="btn-secondary memory-add" type="button">+ Add note</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3><span class="icon">🕸</span> Memory Graph</h3>
+            <button class="btn-quiet" title="View graph" onclick="if(memoryGraph) memoryGraph.render()">Refresh</button>
+          </div>
+          <canvas id="memory-graph-canvas"></canvas>
+          <div id="graph-details" class="graph-details">
+            <div class="empty-state">Click a node to view details</div>
+          </div>
         </div>
 
         <div class="panel">
@@ -421,6 +435,10 @@
 <script src="/js/workflow-builder.js"></script>
 <script src="/js/metrics-dashboard.js"></script>
 <script src="/js/run-replay.js"></script>
+<script src="/js/memory-graph.js"></script>
+<script src="/js/settings-panel.js"></script>
+<script src="/js/agent-templates.js"></script>
+<script src="/js/advanced-search.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
