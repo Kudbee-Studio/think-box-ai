@@ -3321,3 +3321,51 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
   Only after one of these is LIVE VERIFIED does `apps/web → backend` become the next task.
 - **Standing by.** Open items: worker-01 is unreachable and still billing. `docs/SECURITY_CHECKLIST.md` and `scripts/verify_upcloud_cli.py` (committed by the founder in `aeba5c58`) still say upctl installs via pip. The official upctl is a Go binary, so both need correcting.
+
+### 2026-09-29 — SAVE POINT: UpCloud substrate audit (real servers), upctl tooling fix, bridge decision = Option A (blocked by a route shadow)
+
+- **Scope:** branch `fix/upctl-install-and-upcloud-infra-audit`. Tooling fix, tests, and docs; no runtime/application code changed. **Founder directive (2026-09-29): the only server to work in is `00e300f7-4fc9-49cf-af9b-b11c79f76853` (`209.50.51.174`).**
+- **Infrastructure, verified live via API and SSH:**
+
+  | Server | Account | UUID | IPv4 | State | SSH |
+  |---|---|---|---|---|---|
+  | worker-02 (**active**) | `kudbeex` (`THINKBOX_UPCLOUD_API_TOKEN`) | `00e300f7-4fc9-49cf-af9b-b11c79f76853` | `209.50.51.174` | started | **LIVE VERIFIED** (key auth) |
+  | worker-02 **orphan** | `kudbeex` | `00068975-59de-4dda-be02-a6b1e9918c33` | `152.44.43.154` | started, billing | blocked: publickey only, no key |
+  | worker-01 | `kudbee` (`UPCLOUD_API_KEY`) | `00f08f70-f805-4fca-ba34-c066addde26c` | `152.44.37.207` | started, billing | blocked: publickey only, no key |
+
+  - **worker-02 (active):** Ubuntu 22.04.5, kernel 5.15.0-187, 1 vCPU, 1382MB free RAM, 5.0G free disk, outbound HTTPS 200, 0 pending security updates. Snapshot `010bc170-…` has `origin` = worker-02's root disk `012ccf9a-…`. It sees 330 failed SSH logins per 24h from internet scanners. That's harmless because password auth is off, but the firewall is off.
+  - **worker-01** is **not deleted**: it lives in the other account. The `kudbeex` token gets `SERVER_FORBIDDEN`, while a deleted or random UUID gets `SERVER_NOT_FOUND`. That also explains the earlier dashboard "discrepancy". Its blocker is **authentication only**: port 22 is open (`OpenSSH_8.9p1`), the firewall is off, only `publickey` is offered, and no key was injected.
+  - **The orphan** came from my duplicate `POST /1.3/server` on 2026-09-28 (my UUID parse failed, so I retried). The previous save points said the first worker-02 attempt was a single server, `003bc8e7`; **that was incomplete**. The founder pasted this UUID mid-task and I missed it. Deleting it needs founder approval.
+- **upctl, corrected from authoritative evidence:**
+  - `UpCloudLtd/upcloud-cli` is a Go project (GitHub API). PyPI returns HTTP 404 for `upcloud-cli`. The official docs (`docs/index.md`) list `.deb`/`.rpm`/tar.gz releases, a Homebrew tap, `go install`, and more. Auth is via `UPCLOUD_TOKEN`, the keyring, or `~/.config/upctl.yaml`.
+  - **The old `scripts/verify_upcloud_cli.py` could never pass.** Live against real upctl v3.36.0 (checksum-verified from the release's `checksums.txt`, run from a scratchpad, no system install), `upctl --version` exits 100 and the script advised `pip install`. It also required `~/.upcloud/config`, which upctl never uses.
+  - The rewritten script passes live: exit 0, `Username: kudbeex`, with `THINKBOX_UPCLOUD_API_TOKEN` mapped to `UPCLOUD_TOKEN`. The token value appears 0 times in the output.
+  - `docs/SECURITY_CHECKLIST.md` is corrected. Its env table now names both accounts and marks the tokens as write-capable (they created and deleted servers), and 3 dead doc links (404) were replaced.
+- **Tests:** `python3 -m unittest tests.unit.test_verify_upcloud_cli -v` → 10/10 OK. All 10 error against the old script, because its API differs; they don't pass vacuously. The strongest evidence is the live comparison above.
+- **Governance rule 9:** `investigate_upcloud()` was run against worker-02 (env `UPCLOUD_SERVER_IP=209.50.51.174`).
+  - authenticate (`kudbeex`) and check_ssh (`ok`) passed. discover_capabilities (HTTP 502), verify_gpu (HTTP 400; there's no GPU) and check_cloudflare failed.
+  - **It still upserted `ProviderEntry(UpCloud, status="verified")`**, because `any_blocked` ignores `failed` steps. That's a pre-existing classification weakness, recorded here and not fixed.
+  - The dashboard state was in-process only; no backend server was running.
+- **Bridge decision: Option A, with evidence. This supersedes the PR #279 "no clean insertion point" conclusion, which came from reading only `backend/main.py`.**
+  - `thinkbox/governed_job_execution.py` is an explicit substrate router: `_SUPPORTED={local, upstash-box}`, an `_ExecutionAdapter.execute(job_id, command, artifact_name)` protocol, "never auto-detect", and "local fallback is prohibited".
+  - It is reached through `backend/api/v1/router.py` `POST /api/v1/run`, via `execution_substrate` + `exec_command`. That path already runs governance admission, `open_http_run_receipt`, `ThinkJobEntry` upsert, dashboard `TASK_STARTED` emit, `admit_and_queue_http_run`, and `execute_governed_run_background`.
+  - Existing worker config lives in `UpCloudConfig` env: `UPCLOUD_SERVER_IP`, `UPCLOUD_SSH_USER`, `UPCLOUD_SSH_KEY_PATH`.
+  - So the bridge is **one new substrate (`upcloud-ssh`) plus an adapter wrapping `SSHCloudExecutionProvider`**, with no new endpoint. Option B (an LLM-callable tool) would bypass the explicit-substrate design and is rejected on architectural grounds.
+- **Blocker found (pre-existing bug):** in the real `backend.main:app`, `POST /api/v1/run` resolves to **`backend.main.run_v1`**, the legacy LLM loop added in `e69bdf27` (2026-09-01). It is registered before `api_v1_router`, so it shadows the governed `backend.api.v1.router.run_goal`.
+  - Evidence: a flattened route walk shows two POST `/api/v1/run` handlers, main's first. A live `TestClient` POST returned main's `{"success": false, "error": "No provider configured"}`.
+  - The governed e2e tests (f131, f132, f133, f136, f137, f140, `api_run_hermetic.py`) build their own app from `api_v1_router`, so they never exercise the real app.
+  - Every caller found (control-plane `receipts.html`, `run_governed.py`, the e2e tests) expects the governed behavior.
+- **CI:** not run. This is the known runner outage; `main` itself fails the same way. Do not read local results as CI-green.
+- **FOUR-STATE:**
+  - `verify_upcloud_cli.py`: CODE COMPLETE (this branch) / TEST VERIFIED / LIVE VERIFIED.
+  - worker-02 substrate: LIVE VERIFIED.
+  - Governed-run HTTP path in the real app: **broken (shadowed)**.
+  - UpCloud bridge: none of the four.
+  - **PRODUCTION READY: NO.**
+- **NEXT LARGER IMPROVEMENT (concrete, in order):**
+  1. Remove `main.py`'s shadowing `api_v1.post("/run")`, keeping the unversioned legacy `/run`. Add a regression test that posts to the **real** `backend.main:app` and asserts the governed handler answers.
+  2. Add an `upcloud-ssh` substrate plus adapter in `governed_job_execution.py`, backed by `SSHCloudExecutionProvider` and configured from the `UpCloudConfig` env vars. Live-prove `POST /api/v1/run {execution_substrate: upcloud-ssh, exec_command: hostname}` → worker-02 `00e300f7` → receipt → `ThinkJobEntry`.
+- **Founder decisions pending:**
+  - Delete the orphan `00068975` (it bills, holds nothing, and is unreachable).
+  - Keep or delete worker-01 (account `kudbee`).
+  - Consider enabling the UpCloud firewall on worker-02 with SSH-only ingress.
