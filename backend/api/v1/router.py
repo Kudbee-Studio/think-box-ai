@@ -234,6 +234,14 @@ async def run_goal(
     )
 
 
+@api_v1_router.post("/run/admission-token")
+async def issue_run_admission_token() -> dict[str, Any]:
+    """Short-lived governance token for the dashboard bridge (API-key authenticated; identity fixed server-side)."""
+    from backend.api.v1.run_governed import issue_web_admission_token
+
+    return issue_web_admission_token()
+
+
 @api_v1_router.get("/run/receipt/{receipt_id}")
 async def get_run_receipt(receipt_id: str, request: Request) -> Any:
     """Redacted governed-run receipt (hermetic SQLite)."""

@@ -633,6 +633,7 @@ async function runSlashCommand(command) {
         '  /model NAME         Switch to a model',
         '  /agent [NAME]       Switch agent profile (or clear for default)',
         '  /notes [LAYER]     List recent notes (session|task|org|verified)',
+        '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed)',
         '',
         '🔌 Plugins & Integration:',
         '  /plugins           List installed plugins',
@@ -1002,6 +1003,40 @@ async function runSlashCommand(command) {
         `  Use /model NAME to switch · /agent NAME to select an agent profile`,
       ].join('\n'));
       return true;
+
+    case '/remote': {
+      const command = args.join(' ').trim();
+      const headers = { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' };
+      if (!command) {
+        appendTerminalMessage('system', 'Usage: /remote hostname | uname -a | uptime | whoami | df -h / | free -m');
+        return true;
+      }
+      try {
+        const submit = await fetch('/api/governed/run', { method: 'POST', headers, body: JSON.stringify({ command }) });
+        const job = await submit.json();
+        if (!submit.ok) {
+          appendTerminalMessage('system', `✗ /remote rejected (${submit.status}): ${job.error || 'error'}`);
+          return true;
+        }
+        appendTerminalMessage('system', `⏳ governed job ${job.engine_id} → ${job.execution_substrate} (receipt ${job.receipt_id})`);
+        for (let i = 0; i < 40; i += 1) {
+          const st = await (await fetch(`/api/governed/run/${job.engine_id}`, { headers, cache: 'no-store' })).json();
+          if (st?.poll?.terminal) {
+            const proof = st.result?.execution_proof || {};
+            appendTerminalMessage('system', [
+              `${st.status === 'completed' ? '✓' : '✗'} ${st.status} · provider ${proof.provider || '?'} · exit ${proof.exit_code ?? '?'} · verified ${proof.verified ?? '?'}`,
+              `  checkpoint ${proof.checkpoint_id || '-'} · artifact ${String(proof.artifact_hash || '').slice(0, 12)}…`,
+            ].join('\n'));
+            return true;
+          }
+          await new Promise(r => setTimeout(r, 500));
+        }
+        appendTerminalMessage('system', `… job ${job.engine_id} still running; check its receipt ${job.receipt_id}`);
+      } catch (err) {
+        appendTerminalMessage('system', `✗ /remote failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return true;
+    }
 
     case '/refresh':
       await Promise.all([refreshStats(), refreshRuns(), refreshMemory(), refreshFiles()]);

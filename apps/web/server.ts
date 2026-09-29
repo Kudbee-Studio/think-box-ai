@@ -1,3 +1,4 @@
+import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { randomUUID } from 'node:crypto';
@@ -1558,6 +1559,11 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
   // Goes through the session queue like WebSocket goals; follow progress via /api/runs.
   res.status(202).json(session.submitGoal(goal, typeof req.body.model === 'string' ? req.body.model : undefined));
 });
+
+// Governed remote execution (dashboard → backend → upcloud-ssh). See governed-bridge.ts.
+const governedBridge = bridgeConfigFromEnv();
+app.post('/api/governed/run', submitGovernedRun(governedBridge));
+app.get('/api/governed/run/:engineId', getGovernedRun(governedBridge));
 
 app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);

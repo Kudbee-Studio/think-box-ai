@@ -3431,3 +3431,21 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **CI:** not run (GitHub billing issue). Nothing is claimed CI-green.
 - **FOUR-STATE (`upcloud-ssh` substrate):** **CODE COMPLETE (`d481afbe`) / TEST VERIFIED / LIVE VERIFIED** (Think Job API on the real app object → real worker-02). **PRODUCTION READY: NO** (no deployed server, no out-of-process token issuance, `apps/web` not bridged, no founder review).
 - **NEXT LARGER IMPROVEMENT:** design and build the `apps/web` → `backend.main` bridge. Step 1 is deciding how an out-of-process client, such as the `:3000` dashboard or a deployed uvicorn, obtains a governance token for `POST /api/v1/run`.
+
+### 2026-09-29 — SAVE POINT: dashboard (browser) → `apps/web` → governed backend → `upcloud-ssh` → worker-02 (LIVE VERIFIED per boundary)
+
+- **Starting point:** `main` `c5876ce9`. **Where the chain stopped:** `apps/web` had no path to `backend.main`, and governed admission tokens could only be minted in-process.
+- **Governance decision:** extend the existing `GovernanceTokenService`/`IdentityLedger` with `POST /api/v1/run/admission-token`. It is API-key authenticated and issues a 300s token for a fixed server-side identity (`web-dashboard-agent`) with `goal:execute` only; callers cannot choose agent, capability or TTL. Admission itself (`require_http_admission`) is unchanged. The browser never holds the API key or the token: the `apps/web` server (`governed-bridge.ts`) obtains the token and submits server-side.
+- **Bridge:** `POST /api/governed/run` / `GET /api/governed/run/:engineId`. `execution_substrate` is fixed to `upcloud-ssh`, the read-only command allow-list is exact-match, the `X-Kudbee-Client: dashboard` header is required, and the bridge fails closed (503) without `THINKBOX_API_KEY`. Dashboard `/remote CMD`. No second execution path.
+- **Tests:** f142 4/4, web bridge 7/7, web suite 140/140, python regression 263/263. CI not run (GitHub billing issue).
+- **LIVE, per boundary** (all local loopback; real worker-02):
+
+  | Boundary | Evidence |
+  |---|---|
+  | In-process app (earlier, #282) | `engine_b9da7810`, `engine_36e6e492` |
+  | Backend over HTTP (uvicorn :18000) + web over HTTP (:13000) | curl → web → `admission-token 200` → `/api/v1/run 200` → `engine_53b5b986` → `kudbee-hermes-worker-02`, exit 0, 1.20s, checkpoint `chk_09c134d0e733` |
+  | Browser (headless Chrome via CDP) | `/remote hostname` → `engine_4ffa5c8f` (`tb_rcpt_20260929174539_764eed02`) completed, exit 0, verified, checkpoint `chk_6b03112e8430`, 0 console errors |
+  | Real worker-02 | both artifacts `remote_host 209.50.51.174`, stdout `kudbee-hermes-worker-02` |
+
+- **FOUR-STATE:** bridge + admission-token: CODE COMPLETE (branch; merge SHA recorded in the PR) / TEST VERIFIED / LIVE VERIFIED (browser → web → backend over HTTP → worker-02). **PRODUCTION READY: NO**: the dashboard has no user authentication, there is a single shared API key, there is no deployed environment, and there has been no founder review.
+- **NEXT LARGER IMPROVEMENT:** dashboard user authentication in front of `/api/governed/run` (currently anything that can reach `:3000` on localhost can trigger the allow-listed read-only commands).

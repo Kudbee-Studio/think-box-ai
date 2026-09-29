@@ -524,8 +524,15 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
   fallback (guard H09 covers `upcloud-ssh`).
 - `ssh` exit 255 (a transport or auth error) is recorded as `SSH_FAILED`, not as a remote-command
   failure.
-- Governance tokens are minted only in-process (`get_api_run_governance().register_agent`). There is
-  no HTTP issuance path yet, so an out-of-process client cannot pass admission.
+- Governance tokens for out-of-process clients: `POST /api/v1/run/admission-token` (API-key
+  authenticated). It returns a 300-second token for a **fixed server-side identity**
+  (`THINKBOX_WEB_AGENT_ID`, default `web-dashboard-agent`) with capability `goal:execute` only. A caller
+  cannot choose the agent, capability, or TTL. (Added 2026-09-29; before that, tokens were in-process only.)
+- The dashboard bridge (`apps/web/governed-bridge.ts`) calls that endpoint server-side. The browser never
+  sees the API key or the token. The bridge fixes `execution_substrate` to `upcloud-ssh` and forwards
+  only an exact-match read-only allow-list (`hostname`, `uname -a`, `uptime`, `whoami`, `df -h /`,
+  `free -m`). The web process needs `THINKBOX_BACKEND_URL` (default `http://127.0.0.1:8000`) and
+  `THINKBOX_API_KEY`. Dashboard usage: `/remote hostname`.
 
 ---
 
@@ -2131,6 +2138,71 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Merged:** PR #282 → `main` `d481afbe`. Post-merge on `main`: 43/43 targeted tests pass, and the live
   proof re-ran from merged code (job `engine_36e6e492`, receipt `tb_rcpt_20260929173803_6dfe975b`,
   worker-02 → `kudbee-hermes-worker-02`, exit 0, 1.39s end-to-end). CI not run (GitHub billing issue).
+
+### 2026-09-29 — Dashboard → governed backend → `upcloud-ssh` → worker-02 bridge (LIVE through the browser)
+
+- **Where the chain stopped:** `apps/web` had no path to the Python backend at all. `backend.main`'s
+  governed `POST /api/v1/run` required a governance token that could only be minted in-process
+  (`register_agent`), so no out-of-process client could pass admission.
+- **Governance decision:** extend the existing `GovernanceTokenService` + `IdentityLedger`; no new auth
+  system. New `POST /api/v1/run/admission-token` (`backend/api/v1/router.py` →
+  `run_governed.issue_web_admission_token`):
+  - sits behind the existing `X-API-Key` middleware (no API key → 401)
+  - the identity is fixed server-side (`web-dashboard-agent`, overridable only by the server env
+    `THINKBOX_WEB_AGENT_ID`); the capability is `goal:execute` only; the TTL is 300s
+  - request bodies are ignored, so a caller cannot pick agent, capability or TTL
+  - the token is still checked by the unchanged `require_http_admission`: it's rejected (403) for
+    another `agent_id` or for `goal:execute:verified`
+- **Web bridge:** `apps/web/governed-bridge.ts` adds `POST /api/governed/run` and
+  `GET /api/governed/run/:engineId`, wired in `server.ts`.
+  - Server-side it fetches an admission token, then calls the existing governed `POST /api/v1/run` with
+    `execution_substrate: "upcloud-ssh"` **fixed**.
+  - Commands must exactly match a read-only allow-list; anything else gets 400 before the backend is
+    contacted.
+  - Requests need the `X-Kudbee-Client: dashboard` header (403 without it), a cross-site
+    form-post/CSRF guard.
+  - The browser never receives the API key or the governance token. If `THINKBOX_API_KEY` is unset,
+    the bridge fails closed with 503.
+  - The status proxy validates the engine id.
+  - Dashboard `/remote CMD` terminal command added in `public/js/app.js`.
+  - No second execution path: admission, receipt, `ThinkJobEntry`, dashboard events, artifact hash and
+    checkpoint all come from the unchanged governed route and substrate.
+- **Tests:**
+  - `tests/e2e/test_f142_web_admission_token.py`: 4/4 (API key required; identity and capability fixed;
+    token admits an `upcloud-ssh` run end to end; token refused for another agent and for the verified
+    capability)
+  - `apps/web/tests/governed-bridge.test.ts`: 7/7 against a mock backend (substrate fixed, client
+    cannot inject substrate/agent/token/capability, allow-list rejects `hostname; id` etc. without
+    contacting the backend, header required, 403 passthrough without token leak, engine-id validation,
+    503 when unconfigured)
+  - full web suite 140/140; python regression 263/263
+  - `ruff --isolated` clean on the new test; no new issues in changed modules
+  - CI not run (GitHub billing issue)
+- **LIVE, by boundary:**
+  1. *Backend over HTTP (TCP):* real `uvicorn backend.main:app` on `127.0.0.1:18000` and the real
+     `apps/web` server on `:13000`. `curl POST :13000/api/governed/run {"command":"hostname"}` →
+     backend access log shows `POST /api/v1/run/admission-token 200` then `POST /api/v1/run 200` →
+     job `engine_53b5b986`, receipt `tb_rcpt_20260929174322_5d5c6f9b` → worker-02 `209.50.51.174`
+     stdout `kudbee-hermes-worker-02`, exit 0, 1.20s. Proof `COMPLETED`, verified, checkpoint
+     `chk_09c134d0e733`. Negatives: no header → 403, `rm -rf /` → 400, backend without key → 401. The
+     token appeared 0 times in web responses.
+  2. *Browser:* real Chrome (headless, Windows host, via CDP) loaded `http://localhost:13000/`, typed
+     `/remote hostname` and clicked Run. The dashboard showed job `engine_4ffa5c8f`
+     (`tb_rcpt_20260929174539_764eed02`) `✓ completed · provider upcloud-ssh · exit 0 · verified true`,
+     checkpoint `chk_6b03112e8430`, with **0 console errors/warnings**. Artifact stdout
+     `kudbee-hermes-worker-02`, exit 0, 1.43s.
+  3. *Real worker-02 execution:* both artifacts record `remote_host 209.50.51.174`,
+     stdout `kudbee-hermes-worker-02`.
+  - Headless automation, not a human clicking; all servers ran locally (loopback). No deployed
+    environment.
+- **Four-state:** web→backend bridge + admission-token endpoint: CODE COMPLETE (this branch) / TEST
+  VERIFIED / LIVE VERIFIED (browser → web over HTTP → backend over HTTP → worker-02). PRODUCTION READY:
+  **NO** (the dashboard itself has no user authentication (AGENTS.md: keep on localhost); there is a
+  single shared API key; no founder review).
+- **Scope held:** only worker-02 was used. Not touched: worker-01, the orphan, the firewall, CI,
+  ruff/W503, `investigate_upcloud()`.
+- **Next:** founder review. Then the next production gap is dashboard user authentication, so that
+  `/api/governed/run` is not open to anything that can reach `:3000`.
 
 ### Open items / debt (be honest here)
 

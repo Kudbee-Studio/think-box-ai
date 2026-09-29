@@ -127,6 +127,36 @@ def get_api_run_governance() -> ApiRunGovernance:
     return _api_governance
 
 
+WEB_ADMISSION_TTL_SECONDS = 300.0
+WEB_ADMISSION_CAPABILITY = DEFAULT_RUN_CAPABILITY
+
+
+def web_admission_agent_id() -> str:
+    """Server-side identity for the dashboard bridge; never client-supplied."""
+    return (os.environ.get("THINKBOX_WEB_AGENT_ID") or "web-dashboard-agent").strip() or "web-dashboard-agent"
+
+
+def issue_web_admission_token() -> dict[str, Any]:
+    """Short-lived governance token for the fixed dashboard agent (capability ``goal:execute`` only).
+
+    The caller has already passed API-key authentication. The identity and
+    capability are fixed server-side, so a caller cannot choose either.
+    """
+    gov = get_api_run_governance()
+    agent_id = web_admission_agent_id()
+    if not any(i.get("agent_id") == agent_id for i in gov.identity_ledger.list()):
+        gov.identity_ledger.register(agent_id=agent_id, capabilities=[WEB_ADMISSION_CAPABILITY])
+    token = gov.token_service.issue(
+        TokenRequest(agent_id=agent_id, capabilities=[WEB_ADMISSION_CAPABILITY], ttl_seconds=WEB_ADMISSION_TTL_SECONDS)
+    )
+    return {
+        "agent_id": agent_id,
+        "capability": WEB_ADMISSION_CAPABILITY,
+        "governance_token": token.token_value,
+        "expires_in_seconds": WEB_ADMISSION_TTL_SECONDS,
+    }
+
+
 def reset_api_run_governance_for_tests(
     *,
     signing_key: str = "hermetic-test-signing",
