@@ -1,4 +1,5 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
+import { createGitRouter } from './git-api-routes.ts';
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { randomUUID } from 'node:crypto';
@@ -1559,6 +1560,11 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
   // Goes through the session queue like WebSocket goals; follow progress via /api/runs.
   res.status(202).json(session.submitGoal(goal, typeof req.body.model === 'string' ? req.body.model : undefined));
 });
+
+// Git repository integration (#289): public github.com clones under <workspaceRoot>/_git, file access confined there.
+const gitRoot = path.join(workspaceRoot, '_git');
+fs.mkdirSync(gitRoot, { recursive: true });
+app.use('/api/git', createGitRouter(gitRoot));
 
 // Governed remote execution (dashboard → backend → upcloud-ssh). See governed-bridge.ts.
 const governedBridge = bridgeConfigFromEnv();

@@ -1,12 +1,17 @@
 // kudbEE Git API Routes — Backend endpoints for git integration
 
 import { Router } from 'express';
-import { GitRepoManager, RepositoryState, FileTreeNode } from './git-repo-manager';
+import { GitRepoManager, GitInputError } from './git-repo-manager.ts';
 import * as fs from 'fs';
 import * as path from 'path';
 
+
+/**
+ * Build the /api/git router over one workspace directory. All file access is confined to `baseDir`.
+ */
+export function createGitRouter(baseDir: string): Router {
 const router = Router();
-const gitManager = new GitRepoManager('./workspaces');
+const gitManager = new GitRepoManager(baseDir);
 
 /**
  * POST /api/git/clone — Clone a git repository
@@ -27,7 +32,7 @@ router.post('/clone', async (req, res) => {
 
     res.json(state);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -39,7 +44,7 @@ router.get('/repos', (req, res) => {
     const repos = gitManager.listRepositories();
     res.json(repos);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -62,7 +67,7 @@ router.get('/tree', (req, res) => {
     const tree = gitManager.getFileTree(repoState.localPath, 15);
     res.json(tree);
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -88,7 +93,7 @@ router.get('/file', (req, res) => {
 
     res.json({ content, language });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -117,7 +122,7 @@ router.post('/save', async (req, res) => {
       size: content.length
     });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -144,7 +149,7 @@ router.get('/status', (req, res) => {
       ...status
     });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
 
@@ -162,9 +167,12 @@ router.delete('/repos/:name', (req, res) => {
 
     res.json({ success: true, message: `Repository '${name}' deleted` });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(error instanceof GitInputError ? 400 : 500).json({ error: (error as Error).message });
   }
 });
+
+return router;
+}
 
 /**
  * Helper: Detect language from file extension
@@ -200,4 +208,3 @@ function detectLanguage(filePath: string): string {
   return languages[ext || ''] || 'plaintext';
 }
 
-export default router;
