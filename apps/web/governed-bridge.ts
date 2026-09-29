@@ -5,10 +5,12 @@
 import type { Request, Response } from 'express';
 
 export const GOVERNED_SUBSTRATE = 'upcloud-ssh';
+export const GOVERNED_CAPABILITY = 'shell:upcloud-ssh:readonly';
 export const CLIENT_HEADER = 'x-kudbee-client';
 export const CLIENT_HEADER_VALUE = 'dashboard';
 
-// Exact-match, read-only. Anything else is rejected before it leaves this process.
+// Defense in depth only: the backend (thinkbox/remote_exec_policy.py) is the authoritative policy and
+// enforces the same exact-match list. Anything else is rejected here before it leaves this process.
 export const ALLOWED_REMOTE_COMMANDS: readonly string[] = ['hostname', 'uname -a', 'uptime', 'whoami', 'df -h /', 'free -m'];
 
 export interface BridgeConfig {
@@ -71,6 +73,7 @@ export function submitGovernedRun(cfg: BridgeConfig) {
           goal: `dashboard remote exec: ${command}`,
           agent_id: adm.json.agent_id,
           governance_token: adm.json.governance_token,
+          capability: GOVERNED_CAPABILITY,
           execution_substrate: GOVERNED_SUBSTRATE,
           exec_command: command,
         },

@@ -14,6 +14,7 @@ from thinkbox.execution_adapter import (
     UpstashBoxExecutionAdapter,
 )
 from thinkbox.local_execution_adapter import LOCAL_PROVIDER, LocalExecutionAdapter, receipt_to_public_dict
+from thinkbox.remote_exec_policy import ALLOWED_READONLY_COMMANDS
 from thinkbox.repository import Repository
 from thinkbox.upcloud_ssh_execution_adapter import UPCLOUD_SSH_PROVIDER, UpCloudSSHExecutionAdapter
 
@@ -99,8 +100,15 @@ def execute_governed_job_command(
     artifact_name: str = "governed_exec.json",
 ) -> GovernedJobExecutionResult:
     """Run one bounded command through the governed execution adapter contract."""
-    repository = repo or Repository()
     normalized = normalize_execution_substrate(substrate)
+    if normalized == SUBSTRATE_UPCLOUD_SSH and command not in ALLOWED_READONLY_COMMANDS:
+        # Enforced here, below every caller (run, resume, reclaim), so no path can reach the worker
+        # with a command outside the read-only policy (thinkbox/remote_exec_policy.py).
+        raise GovernedJobExecutionError(
+            "command_not_allowed",
+            "upcloud-ssh only runs the exact read-only commands in the remote execution policy",
+        )
+    repository = repo or Repository()
     adapter, provider = select_execution_adapter(normalized, repository)
     receipt = adapter.execute(job_id=job_id, command=command, artifact_name=artifact_name)
     proof = receipt_to_public_dict(receipt)

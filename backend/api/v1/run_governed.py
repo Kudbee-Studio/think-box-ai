@@ -128,7 +128,8 @@ def get_api_run_governance() -> ApiRunGovernance:
 
 
 WEB_ADMISSION_TTL_SECONDS = 300.0
-WEB_ADMISSION_CAPABILITY = DEFAULT_RUN_CAPABILITY
+# The dashboard bridge only ever needs governed read-only execution on the UpCloud worker.
+WEB_ADMISSION_CAPABILITY = "shell:upcloud-ssh:readonly"
 
 
 def web_admission_agent_id() -> str:
@@ -137,7 +138,7 @@ def web_admission_agent_id() -> str:
 
 
 def issue_web_admission_token() -> dict[str, Any]:
-    """Short-lived governance token for the fixed dashboard agent (capability ``goal:execute`` only).
+    """Short-lived governance token for the fixed dashboard agent (``shell:upcloud-ssh:readonly`` only).
 
     The caller has already passed API-key authentication. The identity and
     capability are fixed server-side, so a caller cannot choose either.
@@ -146,6 +147,8 @@ def issue_web_admission_token() -> dict[str, Any]:
     agent_id = web_admission_agent_id()
     if not any(i.get("agent_id") == agent_id for i in gov.identity_ledger.list()):
         gov.identity_ledger.register(agent_id=agent_id, capabilities=[WEB_ADMISSION_CAPABILITY])
+    elif not gov.identity_ledger.has_capability(agent_id, WEB_ADMISSION_CAPABILITY):
+        gov.identity_ledger.grant(agent_id, WEB_ADMISSION_CAPABILITY)
     token = gov.token_service.issue(
         TokenRequest(agent_id=agent_id, capabilities=[WEB_ADMISSION_CAPABILITY], ttl_seconds=WEB_ADMISSION_TTL_SECONDS)
     )
@@ -441,6 +444,12 @@ async def execute_governed_shell_background(
         "capability": ctx.capability,
         "agent_id": ctx.agent_id,
     }
+    from thinkbox.remote_exec_policy import CAPABILITY_SUBSTRATES, policy_metadata
+
+    if ctx.capability in CAPABILITY_SUBSTRATES:
+        job_entry.result["execution_policy"] = policy_metadata(
+            capability=ctx.capability, execution_substrate=result.substrate, exec_command=exec_command
+        )
     job_entry.evidence_label = "verified"
     http_proof_path = ""
     if binding:

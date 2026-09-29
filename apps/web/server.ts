@@ -48,7 +48,20 @@ for (const envPath of [path.join(__dirname, '.env'), path.resolve(__dirname, '..
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+// Dashboard sign-in (auth.ts). Route boundary (see AGENTS.md "Dashboard route boundary"):
+//   PUBLIC: static page assets, GET /api/health (trimmed unless signed in), /api/auth/{login,logout,me}
+//   AUTHENTICATED: every other /api/* route and the WebSocket upgrade. There are no INTERNAL routes.
+const dashboardAuth = new DashboardAuth(authConfigFromEnv());
+const PUBLIC_API_PATHS = new Set(['/health', '/auth/login', '/auth/logout', '/auth/me']);
+const wss = new WebSocketServer({
+  server,
+  // Reject the upgrade itself: an unauthenticated client never gets a session, init data, or a socket.
+  verifyClient: ({ req }, done) => {
+    if (!dashboardAuth.configured) return done(false, 503, 'dashboard authentication not configured');
+    if (!dashboardAuth.current(req as unknown as Request)) return done(false, 401, 'authentication required');
+    done(true);
+  },
+});
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
 // Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
@@ -62,6 +75,11 @@ const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', (req: Request, res: Response, next) => {
+  // Exact match on the mount-relative path; anything else (including case/trailing-slash variants) needs a session.
+  if (PUBLIC_API_PATHS.has(req.path)) return next();
+  return dashboardAuth.require(req, res, next);
+});
 
 // ─── In-memory state ───────────────────────────────────────────
 const sessions = new Map<string, AgentSession>();
@@ -1163,7 +1181,9 @@ async function monitorEndpoint(name: string, url: string, headers: Record<string
   }
 }
 
-app.get('/api/health', (_req: Request, res: Response) => {
+app.get('/api/health', (req: Request, res: Response) => {
+  // Public readiness probe. Operational detail (sessions, memory, versions) only for signed-in callers.
+  if (!dashboardAuth.current(req)) return res.json({ status: 'ok', ready: true });
   const sdkConfig = loadConfigFromEnv();
   const memory = process.memoryUsage();
   res.json({
@@ -1564,7 +1584,6 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
 // Governed remote execution (dashboard → backend → upcloud-ssh). See governed-bridge.ts.
 // Dashboard user authentication (auth.ts) is an extra boundary in front of the bridge's own controls.
 const governedBridge = bridgeConfigFromEnv();
-const dashboardAuth = new DashboardAuth(authConfigFromEnv());
 app.post('/api/auth/login', dashboardAuth.login);
 app.post('/api/auth/logout', dashboardAuth.logout);
 app.get('/api/auth/me', dashboardAuth.me);

@@ -51,7 +51,7 @@ class TestWebAdmissionToken(unittest.TestCase):
             self.assertEqual(r.status_code, 200)
             body = r.json()
             self.assertEqual(body["agent_id"], "web-dashboard-agent")
-            self.assertEqual(body["capability"], "goal:execute")
+            self.assertEqual(body["capability"], "shell:upcloud-ssh:readonly")
             self.assertEqual(body["expires_in_seconds"], 300.0)
             self.assertTrue(body["governance_token"])
 
@@ -72,6 +72,7 @@ class TestWebAdmissionToken(unittest.TestCase):
                     "goal": "dashboard remote exec: hostname",
                     "agent_id": adm["agent_id"],
                     "governance_token": adm["governance_token"],
+                    "capability": adm["capability"],
                     "execution_substrate": SUBSTRATE_UPCLOUD_SSH,
                     "exec_command": "hostname",
                 },

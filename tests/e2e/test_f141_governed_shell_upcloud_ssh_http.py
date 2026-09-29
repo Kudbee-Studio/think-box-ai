@@ -56,7 +56,7 @@ class TestGovernedShellUpcloudSshHttp(unittest.TestCase):
     def _run(self, client, command="hostname"):
         r = client.post(
             "/api/v1/run",
-            json=run_payload("governed shell upcloud-ssh e2e",
+            json=run_payload("governed shell upcloud-ssh e2e", capability="shell:upcloud-ssh:readonly",
                              execution_substrate=SUBSTRATE_UPCLOUD_SSH, exec_command=command),
             headers=auth_headers(),
         )
@@ -98,7 +98,7 @@ class TestGovernedShellUpcloudSshHttp(unittest.TestCase):
 
     def test_upcloud_ssh_without_config_fails_and_never_runs_locally(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True), hermetic_run_client() as (client, _):
-            _, status = self._run(client, command="echo must-not-run-locally")
+            _, status = self._run(client, command="hostname")
             self.assertEqual(status["status"], "failed")
             self.assertEqual((status.get("result") or {}).get("error"), "remote_not_configured")
 

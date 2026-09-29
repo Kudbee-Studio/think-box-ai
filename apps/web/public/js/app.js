@@ -58,7 +58,15 @@ function connectWebSocket() {
     document.getElementById('header-connection').innerHTML = '<span class="connection-dot offline"></span> Reconnecting';
     setStatus('error', 'Disconnected');
     appendTerminalMessage('system', 'Disconnected — retrying in 3s...');
-    setTimeout(connectWebSocket, 3000);
+    setTimeout(async () => {
+      const me = await authStatus();
+      if (me.authenticated) {
+        connectWebSocket();
+      } else {
+        appendTerminalMessage('system', '🔒 Session ended — sign in again.');
+        openLoginDialog(true);
+      }
+    }, 3000);
   };
 }
 
@@ -1012,6 +1020,7 @@ async function runSlashCommand(command) {
     case '/logout': {
       await fetch('/api/auth/logout', { method: 'POST', headers: { 'X-Kudbee-Client': 'dashboard' } });
       appendTerminalMessage('system', '🔓 Signed out.');
+      window.location.reload();
       return true;
     }
 
@@ -1704,7 +1713,35 @@ function escapeHtml(text) {
 }
 
 // ─── Event Listeners ───────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+let dashboardStarted = false;
+
+async function authStatus() {
+  try {
+    return await (await fetch('/api/auth/me', { cache: 'no-store' })).json();
+  } catch {
+    return { configured: false, authenticated: false, user: null };
+  }
+}
+
+// Every /api route except health/auth and the WebSocket require a signed-in session, so nothing
+// starts until the user has signed in.
+document.addEventListener('DOMContentLoaded', async () => {
+  const me = await authStatus();
+  if (me.authenticated) {
+    startDashboard();
+    return;
+  }
+  if (!me.configured) {
+    appendTerminalMessage('error', 'Dashboard sign-in is not configured on this server (KUDBEE_DASHBOARD_PASSWORD_HASH). The dashboard is disabled.');
+    return;
+  }
+  appendTerminalMessage('system', '🔒 Sign in to use the dashboard.');
+  openLoginDialog(true);
+});
+
+function startDashboard() {
+  if (dashboardStarted) return;
+  dashboardStarted = true;
   connectWebSocket();
 
   document.getElementById('run-goal').addEventListener('click', runGoal);
@@ -1937,11 +1974,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load models periodically
   setInterval(loadModels, 10000);
   setTimeout(loadModels, 1000);
-});
+}
 
 
-function openLoginDialog() {
+function openLoginDialog(required = false) {
   const dialog = document.getElementById('login-dialog');
+  document.getElementById('login-cancel').hidden = required;
+  dialog.dataset.required = required ? '1' : '';
   const form = document.getElementById('login-form');
   const error = document.getElementById('login-error');
   error.textContent = '';
@@ -1950,6 +1989,9 @@ function openLoginDialog() {
   document.getElementById('login-username').focus();
 }
 
+document.getElementById('login-dialog')?.addEventListener('cancel', (event) => {
+  if (event.currentTarget.dataset.required) event.preventDefault();
+});
 document.getElementById('login-cancel')?.addEventListener('click', () => document.getElementById('login-dialog').close());
 document.getElementById('login-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1970,6 +2012,8 @@ document.getElementById('login-form')?.addEventListener('submit', async (event) 
     }
     document.getElementById('login-dialog').close();
     appendTerminalMessage('system', `🔐 Signed in as ${body.user}`);
+    if (!dashboardStarted) startDashboard();
+    else if (!state.ws || state.ws.readyState !== WebSocket.OPEN) connectWebSocket();
   } catch (err) {
     error.textContent = err instanceof Error ? err.message : String(err);
   }
