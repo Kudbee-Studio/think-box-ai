@@ -1,0 +1,306 @@
+/* kudbEE Git Integration — UI styling for repository management */
+
+/* Git Clone Dialog */
+.git-clone-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.git-clone-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.git-clone-form input[type="text"],
+.git-clone-form input[type="url"] {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.git-clone-form input[type="text"]:focus,
+.git-clone-form input[type="url"]:focus {
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1);
+  outline: none;
+}
+
+.git-clone-form input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+  animation: progress 2s ease-in-out infinite;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  mix-blend-mode: darken;
+}
+
+@keyframes progress {
+  0% { width: 0%; }
+  50% { width: 100%; }
+  100% { width: 0%; }
+}
+
+/* File Tree Repository Section */
+.file-tree-repo {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.repo-name {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(74, 222, 128, 0.05) 100%);
+  font-weight: 600;
+  color: #4ade80;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+  font-size: 0.9rem;
+}
+
+.file-tree-section {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(251, 191, 36, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-name {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%);
+  font-weight: 600;
+  color: #fbbf24;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  font-size: 0.9rem;
+}
+
+/* File Tree Item Styling */
+.file-tree-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.file-tree-item:last-child {
+  border-bottom: none;
+}
+
+.file-tree-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: #cbd5e1;
+}
+
+.file-tree-entry:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: #888;
+  font-size: 0.7rem;
+  user-select: none;
+}
+
+.file-tree-entry .icon {
+  font-size: 0.9rem;
+  min-width: 16px;
+}
+
+.file-tree-entry .name {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tree-entry .size {
+  font-size: 0.75rem;
+  color: #666;
+  margin-left: auto;
+  padding-left: 1rem;
+}
+
+.file-tree-entry .badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-radius: 3px;
+  margin-left: 0.5rem;
+}
+
+.file-tree-item.file-generated {
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.file-tree-item.file-generated .file-tree-entry {
+  color: #fbbf24;
+}
+
+.file-tree-children {
+  display: block;
+}
+
+.file-tree-children[hidden] {
+  display: none;
+}
+
+/* File Editor */
+.file-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.file-editor pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.file-editor code {
+  color: #a0aec0;
+  font-family: 'Courier New', monospace;
+}
+
+.file-editor textarea {
+  min-height: 300px;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.file-editor textarea:focus {
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.1);
+  outline: none;
+}
+
+/* Notification */
+.notification {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.notification-success {
+  background-color: #22c55e !important;
+}
+
+.notification-error {
+  background-color: #ef4444 !important;
+}
+
+.notification-info {
+  background-color: #3b82f6 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .file-editor {
+    max-height: 60vh;
+  }
+
+  .file-editor pre {
+    max-height: 200px;
+  }
+
+  .file-tree-entry .size {
+    display: none;
+  }
+
+  .git-clone-form {
+    padding: 1rem;
+  }
+}
+
+/* Syntax Highlighting for Common Languages */
+code.language-javascript,
+code.language-typescript,
+code.language-jsx,
+code.language-tsx {
+  color: #fbbf24;
+}
+
+code.language-python {
+  color: #60a5fa;
+}
+
+code.language-html {
+  color: #f97316;
+}
+
+code.language-css {
+  color: #06b6d4;
+}
+
+code.language-json {
+  color: #a78bfa;
+}
+
+code.language-markdown {
+  color: #cbd5e1;
+}
+
+code.language-bash,
+code.language-sh {
+  color: #10b981;
+}

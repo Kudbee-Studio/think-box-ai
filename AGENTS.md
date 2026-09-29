@@ -41,6 +41,86 @@ write policy.
 **Rule:** Never store transient UI state in memory. Never store speculative
 claims in Organizational Memory.
 
+### 1.3a Think Tokens — The Energy Core
+
+Think Tokens are durable, structured units of reasoning experience that enable
+cross-worker learning. They are the Energy Core that converts isolated worker
+experience into transferable knowledge.
+
+**The Disruption → Token → Propagation Cycle:**
+
+```
+Worker 1 encounters             Extract high-value        Broadcast to
+  disruption (unexpected          observations (10-20       similar goals
+  condition, error, insight)      tokens per session vs
+         ↓                         500 raw captures)
+    Capture                              ↓
+  (raw observation)           Think Token Factory
+         │                    (Quality gates: specific,
+         └──────────────────→  actionable, generalizable)
+                                        ↓
+                            Store in Persistent DB
+                                        │
+                             ┌──────────┴──────────┐
+                             ↓                     ↓
+                        High confidence       Bootstrap Worker 2's
+                        (70%+) ready for      system prompt with
+                        propagation           prior patterns
+                             │                     │
+                             └──────────┬──────────┘
+                                        ↓
+                            Worker 2 executes with
+                            prior experience injected
+                                        │
+                                        ↓
+                            Record success/failure
+                            Update token confidence
+                                        │
+                                        ↓
+                            ⚡ Energy Core Fires
+                            (Experience compounds)
+```
+
+**Quality Gates (Think Token Factory):**
+
+Not all 500+ captured observations become tokens. Only high-value ones:
+
+- **Specific:** Rejects generic phrases ("I think", "maybe", "probably")
+- **Actionable:** Contains verbs, tool names, patterns, decisions
+- **Generalizable:** Applies to future similar goals, not tied to single execution
+- **Evaluable:** Has measurable success/failure outcomes
+
+Result: 500 captures → ~15 persistent Think Tokens per session.
+
+**Confidence Scoring:**
+
+Tokens start at 0.5 confidence. Each reuse updates the score:
+- Success: +confidence
+- Failure: -confidence
+- Reuse bonus: Tokens used 5+ times get confidence boost
+
+Tokens >70% confidence are "ready for propagation."
+
+**Propagation:**
+
+The `ThinkTokenPropagator` class distributes tokens to new workers:
+
+1. `getRelevantTokensForGoal(goal)` — fetch high-confidence tokens by goal similarity
+2. `injectTokensIntoSystemPrompt()` — embed tokens in worker's system context
+3. `recordTokenUsage(success)` — update confidence after execution
+4. `detectBehaviorChange()` — measure if token injection changed worker behavior
+
+**Integration Points:**
+
+- Constructor: Inject learning at session start
+- `runGoal()`: Record execution, extract candidates, propagate
+- `recordSessionCompletion()`: Update token confidence
+- Dashboard: Visualize token lifecycle, propagation stats, behavioral impact
+
+**Rule:** All tokens must be extractable from execution context (not speculative).
+Never mark a token successful unless the worker actually achieved the goal using
+that token's guidance.
+
 ### 1.4 Governance by Default
 
 Tools do not execute without permission checks. Audit logs are append-only.
