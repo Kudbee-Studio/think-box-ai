@@ -67,7 +67,7 @@ export function validateMedicationInput(input: MedicationInput): void {
 
 async function getJson(url: string, signal?: AbortSignal): Promise<any> {
   const response = await fetch(url, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) });
-  const body = await response.json().catch(() => ({}));
+  const body = await response.json().catch(() => ({})) as any;
   if (response.status === 404) return null; // openFDA: no matching label
   if (!response.ok) throw new Error(`openFDA API HTTP ${response.status}: ${body?.error?.message ?? ''}`.trim());
   return body;
