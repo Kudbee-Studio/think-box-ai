@@ -2333,6 +2333,12 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - Web suite 155/155; typecheck 0 errors.
   - Mutation checks: removing each of the 5 new guards (`/api` gate, WebSocket auth, token-capability
     check, lowest-layer command check, route policy check) makes tests fail.
+  - Governance regression (94 modules touching admission/tokens/governed/lifecycle): **1755 tests, 2
+    failures**, both from ordering. My token check ran before the identity check, which changed the
+    established reason `capability_not_granted` when a capability is missing from both. Fixed by
+    checking the identity first and the token scope second, so `token_capability_not_granted` now fires
+    only when the identity holds the capability but the token doesn't. Both tests pass, and the
+    affected set re-ran 39/39.
   - CI not run (GitHub billing issue).
 - **LIVE (local loopback; real uvicorn backend, real web server, real headless Chrome, real worker-02):**
   - Signed-out HTTP: 5 dashboard routes, the governed route and the WebSocket upgrade → 401. Health →
@@ -2340,7 +2346,8 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   - Backend with a real dashboard token:
     - `hostname; id`, `rm -rf /`, `$(id)` → 403 `command_not_allowed`
     - the capability on `local` → `capability_substrate_mismatch`
-    - `goal:execute` + `upcloud-ssh` → `token_capability_not_granted`
+    - `goal:execute` + `upcloud-ssh` → `capability_not_granted` (re-run after the admission-check
+      reorder described below)
     - 0 worker artifacts produced by these requests
   - Browser: signed out, the page made only `GET /api/auth/me`; the dialog was open, its cancel hidden,
     and Escape was blocked. After sign-in: WebSocket plus the dashboard APIs, all 200. `/remote hostname`

@@ -98,10 +98,10 @@ class TestGovernedExecPolicyHttp(unittest.TestCase):
             adm = client.post("/api/v1/run/admission-token", headers=auth_headers()).json()
             self.assertEqual(adm["capability"], CAP)
             base = {"goal": "x", "governance_token": adm["governance_token"]}
-            # goal:execute (the default) is outside the token's scope
+            # goal:execute (the default) is neither granted to the dashboard identity nor in the token
             r = client.post("/api/v1/run", headers=auth_headers(), json={**base, "agent_id": adm["agent_id"]})
             self.assertEqual(r.status_code, 403)
-            self.assertEqual(r.json()["detail"]["reason"], "token_capability_not_granted")
+            self.assertEqual(r.json()["detail"]["reason"], "capability_not_granted")
             # another agent cannot use it
             r = client.post("/api/v1/run", headers=auth_headers(), json={**base, "agent_id": "other", "capability": CAP,
                                                                           "execution_substrate": "upcloud-ssh", "exec_command": "hostname"})

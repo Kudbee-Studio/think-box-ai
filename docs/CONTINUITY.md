@@ -3489,13 +3489,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **Design:**
   - **Web:** an `/api` gate with an exact-match public set (`/health`, `/auth/login|logout|me`) and a WebSocket `verifyClient` (401 signed out, 503 unconfigured). Health is trimmed to `{status, ready}` unless signed in. The dashboard starts nothing until sign-in, and the CLI signs in.
   - **Backend:** `thinkbox/remote_exec_policy.py` (`upcloud-ssh-readonly` v1) binds `shell:upcloud-ssh:readonly` ↔ `upcloud-ssh` in both directions with exact-match `{hostname, uname -a, uptime, whoami, df -h /, free -m}`. It is enforced at the route (after admission, before any job) and again in `execute_governed_job_command`, below the run, resume and reclaim paths. `AdmissionGate` now requires the capability to be in the token. The dashboard token grants only the narrow capability. Jobs record non-secret `execution_policy` metadata.
-- **Tests:** backend security 35/35 (policy, admission, f141–f143); web auth 15/15; web suite 155/155; typecheck 0. All five new guards were mutation-checked (removing any one fails tests). The governance regression over 94 modules ran in the background; its result is recorded in the PR. CI not run (GitHub billing issue).
+- **Tests:** backend security 35/35 (policy, admission, f141–f143); web auth 15/15; web suite 155/155; typecheck 0. All five new guards were mutation-checked (removing any one fails tests). Governance regression over 94 modules: 1755 tests, **2 failures from check ordering**. The token-scope check ran before the identity check and changed the established `capability_not_granted` reason. Fixed by checking the identity first and the token scope second; the affected set re-ran 39/39. CI not run (GitHub billing issue).
 - **LIVE, by boundary** (local loopback; real uvicorn backend, real web server, real headless Chrome, real worker-02):
 
   | Boundary | Evidence |
   |---|---|
   | Unauthenticated HTTP | `/api/stats`, `/api/agents`, `/api/memory`, `/api/runs`, `/api/sessions/x/files`, `/api/governed/run`, and the WebSocket upgrade all got 401; `/api/health` → `{"status":"ok","ready":true}` |
-  | Backend policy (real token, real HTTP) | `hostname; id`, `rm -rf /`, `$(id)` → 403 `command_not_allowed`; capability on `local` → `capability_substrate_mismatch`; `goal:execute` + `upcloud-ssh` → `token_capability_not_granted`; 0 worker artifacts |
+  | Backend policy (real token, real HTTP) | `hostname; id`, `rm -rf /`, `$(id)` → 403 `command_not_allowed`; capability on `local` → `capability_substrate_mismatch`; `goal:execute` + `upcloud-ssh` → `capability_not_granted` (re-run after the reorder below); 0 worker artifacts |
   | Unauthenticated browser | only `GET /api/auth/me`; required dialog open, cancel hidden, Escape blocked; no WebSocket |
   | Authenticated browser → worker-02 | `/remote hostname` → `engine_4d534c3d` (`tb_rcpt_20260929182814_c98cce42`) completed, exit 0, verified, checkpoint `chk_5cd4a709944a`, `execution_policy` `upcloud-ssh-readonly` v1 fingerprint `7063dece7cccf374`; artifact `209.50.51.174` → `kudbee-hermes-worker-02`, 0.89s |
   | Logout | reloads to the sign-in gate |
