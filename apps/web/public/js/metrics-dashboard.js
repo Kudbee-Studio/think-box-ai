@@ -17,7 +17,6 @@ class MetricsDashboard {
 
   initialize() {
     this.setupMetricsListener();
-    this.startLiveUpdates();
   }
 
   setupMetricsListener() {

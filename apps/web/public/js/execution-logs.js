@@ -8,12 +8,10 @@ class ExecutionLogs {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const logsBtn = document.getElementById('execution-logs-button');
-      if (logsBtn) {
-        logsBtn.addEventListener('click', () => this.openLogs());
-      }
-    });
+    const logsBtn = document.getElementById('execution-logs-button');
+    if (logsBtn) {
+      logsBtn.addEventListener('click', () => this.openLogs());
+    }
 
     window.addEventListener('agent:action', (e) => this.recordAction(e.detail));
     window.addEventListener('tool:executed', (e) => this.recordToolExecution(e.detail));
@@ -72,6 +70,12 @@ class ExecutionLogs {
   }
 
   openLogs() {
+    const existing = document.getElementById('logs-modal');
+    if (existing) {
+      this.refreshLogsModal(existing);
+      return;
+    }
+
     const filtered = this.getFilteredLogs();
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
@@ -181,6 +185,52 @@ class ExecutionLogs {
     document.body.appendChild(modal);
   }
 
+  refreshLogsModal(modal) {
+    const filtered = this.getFilteredLogs();
+    const list = modal.querySelector('.logs-list');
+    if (list) {
+      list.innerHTML = `
+        <div class="logs-header">
+          <span class="col-time">Time</span>
+          <span class="col-level">Level</span>
+          <span class="col-service">Service</span>
+          <span class="col-message">Message</span>
+          <span class="col-duration">Duration</span>
+          <span class="col-actions">Actions</span>
+        </div>
+        ${this.renderLogEntries(filtered)}
+      `;
+    }
+    const total = modal.querySelector('.logs-stats .stat:nth-child(1) .stat-value');
+    const errors = modal.querySelector('.logs-stats .stat:nth-child(2) .stat-value');
+    const rate = modal.querySelector('.logs-stats .stat:nth-child(3) .stat-value');
+    if (total) total.textContent = String(this.logs.length);
+    if (errors) errors.textContent = String(this.logs.filter(l => l.level === 'ERROR').length);
+    if (rate) rate.textContent = `${this.getSuccessRate()}%`;
+  }
+
+  renderLogEntries(filtered) {
+    if (filtered.length === 0) {
+      return '<div class="logs-empty">No logs match your filters</div>';
+    }
+    return filtered.map(log => `
+      <div class="log-entry level-${log.level.toLowerCase()} status-${log.status}">
+        <span class="col-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+        <span class="col-level">
+          <badge class="badge-${log.level.toLowerCase()}">${log.level}</badge>
+        </span>
+        <span class="col-service">${log.service}</span>
+        <span class="col-message">
+          <strong>${log.action}</strong>: ${log.message}
+        </span>
+        <span class="col-duration">${log.duration}ms</span>
+        <span class="col-actions">
+          <button class="btn-icon" onclick="executionLogs.showDetails('${log.id}')">📋</button>
+        </span>
+      </div>
+    `).join('');
+  }
+
   getFilteredLogs() {
     return this.logs.filter(log => {
       if (this.filters.level !== 'all' && log.level !== this.filters.level) return false;
@@ -196,12 +246,16 @@ class ExecutionLogs {
 
   updateFilter(filterName, value) {
     this.filters[filterName] = value;
-    this.openLogs();
+    const modal = document.getElementById('logs-modal');
+    if (modal) this.refreshLogsModal(modal);
+    else this.openLogs();
   }
 
   updateSearch(value) {
     this.filters.search = value;
-    this.openLogs();
+    const modal = document.getElementById('logs-modal');
+    if (modal) this.refreshLogsModal(modal);
+    else this.openLogs();
   }
 
   getSuccessRate() {

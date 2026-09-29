@@ -1444,6 +1444,30 @@ async function openRun(runId) {
     </div>`;
   }).join('') : '<div class="empty-state">No steps recorded yet</div>';
   document.getElementById('run-modal').hidden = false;
+  const timeline = (run.steps || []).map((step) => {
+    if (step.kind === 'model') {
+      return {
+        type: 'thought',
+        title: `Step ${step.step}`,
+        content: step.content || '',
+        timestamp: run.started_at,
+        status: 'success',
+        duration: step.latency_ms,
+      };
+    }
+    return {
+      type: 'tool',
+      title: step.name,
+      content: step.error || step.output || JSON.stringify(step.args),
+      timestamp: run.started_at,
+      status: step.approval === 'denied' ? 'denied' : (step.ok ? 'success' : 'failed'),
+      duration: step.latency_ms,
+      toolName: step.name,
+      input: step.args,
+      output: step.output,
+    };
+  });
+  window.dispatchEvent(new CustomEvent('run:opened', { detail: { ...run, timeline } }));
 }
 
 function closeRunModal() {

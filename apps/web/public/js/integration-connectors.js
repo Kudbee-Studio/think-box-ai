@@ -17,12 +17,10 @@ class IntegrationConnectors {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const intBtn = document.getElementById('integrations-button');
-      if (intBtn) {
-        intBtn.addEventListener('click', () => this.openConnectors());
-      }
-    });
+    const intBtn = document.getElementById('integrations-button');
+    if (intBtn) {
+      intBtn.addEventListener('click', () => this.openConnectors());
+    }
 
     window.addEventListener('integration:trigger', (e) => {
       this.triggerIntegration(e.detail);
@@ -175,7 +173,7 @@ class IntegrationConnectors {
       config: { autoSync: document.getElementById('enable-sync')?.checked || false }
     };
     localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
     this.openConnectors();
   }
 
@@ -203,15 +201,15 @@ class IntegrationConnectors {
           <fieldset>
             <legend>Notification Settings</legend>
             <label>
-              <input type="checkbox" ${connector.config?.notifyOnSuccess ? 'checked' : ''}>
+              <input type="checkbox" id="connector-notify-success" ${connector.config?.notifyOnSuccess ? 'checked' : ''}>
               Notify on success
             </label>
             <label>
-              <input type="checkbox" ${connector.config?.notifyOnError ? 'checked' : ''}>
+              <input type="checkbox" id="connector-notify-error" ${connector.config?.notifyOnError ? 'checked' : ''}>
               Notify on error
             </label>
             <label>
-              <input type="checkbox" ${connector.config?.autoSync ? 'checked' : ''}>
+              <input type="checkbox" id="auto-sync" ${connector.config?.autoSync ? 'checked' : ''}>
               Auto-sync enabled
             </label>
           </fieldset>
@@ -242,14 +240,21 @@ class IntegrationConnectors {
   saveConfig(service) {
     if (!this.integrations[service]) return;
     const config = this.integrations[service].config || {};
-    config.notifyOnSuccess = document.querySelector('input:checked')?.value === 'success' || false;
-    config.notifyOnError = document.querySelectorAll('input:checked').length > 1 || false;
-    config.autoSync = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).some(el => el.id === 'auto-sync');
-    const interval = document.querySelector('input[type="number"]')?.value;
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    const modal = backdrops[backdrops.length - 1];
+    config.notifyOnSuccess = modal?.querySelector('#connector-notify-success')?.checked || false;
+    config.notifyOnError = modal?.querySelector('#connector-notify-error')?.checked || false;
+    config.autoSync = modal?.querySelector('#auto-sync')?.checked || false;
+    const interval = modal?.querySelector('input[type="number"]')?.value;
     if (interval) config.syncInterval = parseInt(interval, 10);
     this.integrations[service].config = config;
     localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
+  }
+
+  closeTopModal() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length) backdrops[backdrops.length - 1].remove();
   }
 
   createAutomation() {
@@ -353,7 +358,7 @@ class IntegrationConnectors {
     this.integrations[service].automations[index].trigger = document.getElementById('trigger-select')?.value || 'manual';
     this.integrations[service].automations[index].message = document.getElementById('automation-message')?.value || '';
     localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
   }
 
   saveAutomation() {

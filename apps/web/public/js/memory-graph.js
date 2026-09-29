@@ -80,6 +80,7 @@ class MemoryGraph {
   }
 
   render() {
+    this.loadMemoriesFromUI();
     const canvas = document.getElementById('memory-graph-canvas');
     if (!canvas) return;
 
@@ -160,11 +161,11 @@ class MemoryGraph {
 
     details.innerHTML = `
       <div class="graph-detail-header">
-        <h4>${memory.title}</h4>
-        <span class="memory-layer ${memory.layer}">${memory.layer}</span>
+        <h4>${this.escapeHtml(memory.title)}</h4>
+        <span class="memory-layer ${this.escapeHtml(memory.layer)}">${this.escapeHtml(memory.layer)}</span>
       </div>
       <div class="graph-detail-content">
-        <p><strong>Tags:</strong> ${memory.tags.join(', ') || 'None'}</p>
+        <p><strong>Tags:</strong> ${this.escapeHtml(memory.tags.join(', ') || 'None')}</p>
         <p><strong>Connected memories:</strong> ${this.findConnectedMemories(memory.id).length}</p>
         <button class="btn-secondary" onclick="memoryGraph.expandNode('${memory.id}')">Expand</button>
       </div>
@@ -178,6 +179,12 @@ class MemoryGraph {
   expandNode(memoryId) {
     console.log('Expanding node:', memoryId);
     // Could trigger a detailed view modal
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
   }
 
   zoom(factor) {

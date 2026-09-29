@@ -3072,7 +3072,7 @@ code {
   margin: 12px 0;
 }
 
-.task-item {
+.collaboration-dashboard .tasks-list .task-item {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-light);
   border-left: 3px solid var(--warning);
@@ -3081,11 +3081,11 @@ code {
   font-size: 12px;
 }
 
-.task-item.priority-high {
+.collaboration-dashboard .tasks-list .task-item.priority-high {
   border-left-color: var(--error);
 }
 
-.task-item.priority-critical {
+.collaboration-dashboard .tasks-list .task-item.priority-critical {
   border-left-color: var(--error);
   background: linear-gradient(90deg, var(--error)11, transparent);
 }

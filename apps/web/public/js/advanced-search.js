@@ -6,6 +6,7 @@ class AdvancedSearch {
     this.results = [];
     this.filters = {
       layer: 'all',
+      type: 'all',
       dateFrom: null,
       dateTo: null,
       tags: [],
@@ -65,6 +66,7 @@ class AdvancedSearch {
   }
 
   openSearchModal() {
+    this.buildSearchIndex();
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
     modal.id = 'search-modal';
@@ -200,6 +202,10 @@ class AdvancedSearch {
       return false;
     }
 
+    if (this.filters.type !== 'all' && item.type !== this.filters.type) {
+      return false;
+    }
+
     if (this.filters.tags.length > 0 && item.tags) {
       const hasAnyTag = this.filters.tags.some(tag =>
         item.tags.some(itemTag => itemTag.toLowerCase().includes(tag.toLowerCase()))
@@ -236,7 +242,7 @@ class AdvancedSearch {
             <h4>${this.highlightQuery(result.title)}</h4>
             ${result.layer ? `<span class="memory-layer ${result.layer}">${result.layer}</span>` : ''}
           </div>
-          <p class="result-content">${result.content.substring(0, 120)}...</p>
+          <p class="result-content">${this.escapeHtml(result.content.substring(0, 120))}...</p>
           <div class="result-meta">
             <span class="result-score">Relevance: ${Math.round(result.relevance)}%</span>
             ${result.tags?.length > 0 ? `<span class="result-tags">${result.tags.slice(0, 2).join(', ')}</span>` : ''}
@@ -258,8 +264,16 @@ class AdvancedSearch {
 
   highlightQuery(text) {
     const query = document.getElementById('search-query-input')?.value;
-    if (!query) return text;
-    return text.replace(new RegExp(`(${query})`, 'gi'), '<mark>$1</mark>');
+    if (!query) return this.escapeHtml(text);
+    const safe = this.escapeHtml(text);
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return safe.replace(new RegExp(`(${escapedQuery})`, 'gi'), '<mark>$1</mark>');
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
   }
 
   exportResults() {

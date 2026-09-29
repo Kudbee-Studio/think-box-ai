@@ -3,6 +3,7 @@
 class SettingsPanel {
   constructor() {
     this.settings = this.loadSettings();
+    this.applySettings();
     this.setupEventListeners();
   }
 

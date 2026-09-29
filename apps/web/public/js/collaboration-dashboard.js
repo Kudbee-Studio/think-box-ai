@@ -9,12 +9,10 @@ class CollaborationDashboard {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const collabBtn = document.getElementById('collaboration-button');
-      if (collabBtn) {
-        collabBtn.addEventListener('click', () => this.openDashboard());
-      }
-    });
+    const collabBtn = document.getElementById('collaboration-button');
+    if (collabBtn) {
+      collabBtn.addEventListener('click', () => this.openDashboard());
+    }
 
     window.addEventListener('agent:created', (e) => this.registerAgent(e.detail));
     window.addEventListener('task:assigned', (e) => this.recordTaskAssignment(e.detail));
@@ -238,7 +236,7 @@ class CollaborationDashboard {
       assignedAt: new Date().toISOString()
     };
     this.recordTaskAssignment(taskData);
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
     this.openDashboard();
   }
 
@@ -302,8 +300,19 @@ class CollaborationDashboard {
       assignedAt: new Date().toISOString()
     };
     this.recordTaskAssignment(taskData);
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
     this.openDashboard();
+  }
+
+  closeTopModal() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length) backdrops[backdrops.length - 1].remove();
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
   }
 
   getActiveAgents() {
@@ -346,13 +355,13 @@ class CollaborationDashboard {
 
     const filtered = status === 'all' ? this.tasks : this.tasks.filter(t => t.status === status);
     tasksList.innerHTML = filtered.slice(0, 10).map(task => `
-      <div class="task-item priority-${task.priority}">
+      <div class="task-item priority-${this.escapeHtml(task.priority)}">
         <div class="task-header">
-          <strong>${task.name}</strong>
-          <span class="task-status">${task.status}</span>
+          <strong>${this.escapeHtml(task.name)}</strong>
+          <span class="task-status">${this.escapeHtml(task.status)}</span>
         </div>
         <div class="task-meta">
-          ${task.assignedTo ? `<span class="assigned-to">${this.getAgentName(task.assignedTo)}</span>` : ''}
+          ${task.assignedTo ? `<span class="assigned-to">${this.escapeHtml(this.getAgentName(task.assignedTo))}</span>` : ''}
           <span class="task-time">${new Date(task.assignedAt).toLocaleTimeString()}</span>
         </div>
       </div>

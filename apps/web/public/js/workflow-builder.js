@@ -165,9 +165,10 @@ class WorkflowBuilder {
       createdAt: new Date().toISOString()
     };
 
-    console.log('Workflow saved:', workflow);
+    const stored = JSON.parse(localStorage.getItem('kudbee-workflows') || '[]');
+    stored.push(workflow);
+    localStorage.setItem('kudbee-workflows', JSON.stringify(stored));
 
-    // Emit event for app.js to handle
     window.dispatchEvent(new CustomEvent('workflow:created', { detail: workflow }));
 
     this.closeModal();

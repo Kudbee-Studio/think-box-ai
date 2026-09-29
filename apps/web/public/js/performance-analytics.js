@@ -30,16 +30,18 @@ class PerformanceAnalytics {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const analyticsBtn = document.getElementById('performance-analytics-button');
-      if (analyticsBtn) {
-        analyticsBtn.addEventListener('click', () => this.openDashboard());
-      }
-    });
+    const analyticsBtn = document.getElementById('performance-analytics-button');
+    if (analyticsBtn) {
+      analyticsBtn.addEventListener('click', () => this.openDashboard());
+    }
 
     window.addEventListener('run:completed', (e) => {
       this.recordRunMetrics(e.detail);
     });
+  }
+
+  startTracking() {
+    // Run metrics are recorded via the run:completed listener above.
   }
 
   recordRunMetrics(run) {

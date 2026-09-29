@@ -8,16 +8,19 @@ class ApprovalWorkflow {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const workflowBtn = document.getElementById('approval-workflow-button');
-      if (workflowBtn) {
-        workflowBtn.addEventListener('click', () => this.openWorkflowBuilder());
-      }
-    });
+    const workflowBtn = document.getElementById('approval-workflow-button');
+    if (workflowBtn) {
+      workflowBtn.addEventListener('click', () => this.openWorkflowBuilder());
+    }
 
     window.addEventListener('task:needs-approval', (e) => {
       this.showApprovalRequest(e.detail);
     });
+  }
+
+  closeTopModal() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length) backdrops[backdrops.length - 1].remove();
   }
 
   openWorkflowBuilder() {
@@ -229,19 +232,19 @@ class ApprovalWorkflow {
   approveTask(taskId) {
     const notes = document.getElementById('approval-notes')?.value || '';
     this.recordApproval(taskId, 'approved', notes);
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
   }
 
   requestChanges(taskId) {
     const notes = document.getElementById('approval-notes')?.value || '';
     this.recordApproval(taskId, 'changes-requested', notes);
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
   }
 
   rejectTask(taskId) {
     const notes = document.getElementById('approval-notes')?.value || '';
     this.recordApproval(taskId, 'rejected', notes);
-    document.querySelector('.modal-backdrop')?.remove();
+    this.closeTopModal();
   }
 
   recordApproval(taskId, status, notes) {
