@@ -36,6 +36,14 @@
       </div>
       <div class="header-right">
         <span id="header-connection" class="connection-pill"><span class="connection-dot"></span> Connected</span>
+        <button id="advanced-search-button" class="btn-icon" title="Advanced search">🔍</button>
+        <button id="agent-templates-button" class="btn-icon" title="Agent templates">🤖</button>
+        <button id="approval-workflow-button" class="btn-icon" title="Approval workflows">🗳</button>
+        <button id="performance-analytics-button" class="btn-icon" title="Performance analytics">📈</button>
+        <button id="execution-logs-button" class="btn-icon" title="Execution logs">📋</button>
+        <button id="integrations-button" class="btn-icon" title="Integrations">🔗</button>
+        <button id="collaboration-button" class="btn-icon" title="Collaboration">👥</button>
+        <button id="settings-button" class="btn-icon" title="Settings">⚙</button>
         <button id="copy-session" class="btn-icon" title="Copy session ID">⧉</button>
         <button id="command-help" class="btn-icon" title="Show commands">?</button>
         <div class="status-indicator">
@@ -90,6 +98,17 @@
             <div class="empty-state">No memories yet</div>
           </div>
           <button id="add-memory" class="btn-secondary memory-add" type="button">+ Add note</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3><span class="icon">🕸</span> Memory Graph</h3>
+            <button class="btn-quiet" title="View graph" onclick="if(memoryGraph) memoryGraph.render()">Refresh</button>
+          </div>
+          <canvas id="memory-graph-canvas"></canvas>
+          <div id="graph-details" class="graph-details">
+            <div class="empty-state">Click a node to view details</div>
+          </div>
         </div>
 
         <div class="panel">
@@ -184,6 +203,10 @@
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
+          </div>
+          <div class="task-actions-bar">
+            <button id="create-workflow" class="btn-secondary" type="button" title="Create task workflow">+ Workflow</button>
+            <button id="bulk-actions" class="btn-secondary" type="button" title="Bulk operations" disabled>⋯ Actions</button>
           </div>
           <div id="task-list" class="task-list">
             <div class="empty-state">No tasks yet</div>
@@ -364,6 +387,68 @@
       <menu><button type="button" id="login-cancel" class="btn-secondary">Cancel</button><button type="submit" class="btn-primary">Sign in</button></menu>
     </form>
   </dialog>
+
+  <div id="workflow-modal" class="modal-backdrop" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="workflow-modal-title">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">WORKFLOW BUILDER</span>
+          <h2 id="workflow-modal-title">Create task workflow</h2>
+        </div>
+        <button id="close-workflow-modal" class="btn-icon" title="Close">×</button>
+      </div>
+      <div class="workflow-container">
+        <div class="workflow-sidebar">
+          <h4>Task Templates</h4>
+          <div id="workflow-templates" class="workflow-templates">
+            <div class="workflow-template" data-template="sequential">
+              <span class="icon">→</span>
+              <span>Sequential</span>
+            </div>
+            <div class="workflow-template" data-template="parallel">
+              <span class="icon">⇄</span>
+              <span>Parallel</span>
+            </div>
+            <div class="workflow-template" data-template="conditional">
+              <span class="icon">◇</span>
+              <span>Conditional</span>
+            </div>
+            <div class="workflow-template" data-template="loop">
+              <span class="icon">⟳</span>
+              <span>Loop</span>
+            </div>
+          </div>
+        </div>
+        <div class="workflow-canvas">
+          <div id="workflow-canvas-area" class="canvas-area">
+            <div class="canvas-placeholder">Drag templates here to build workflow</div>
+          </div>
+        </div>
+        <div class="workflow-properties">
+          <h4>Properties</h4>
+          <label>Workflow name <input id="workflow-name" type="text" placeholder="My workflow"></label>
+          <label>Description <textarea id="workflow-desc" placeholder="What does this workflow do?"></textarea></label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-workflow" class="btn-secondary">Cancel</button>
+        <button id="save-workflow" class="btn-primary">Save workflow</button>
+      </div>
+    </section>
+  </div>
+
+<script src="/js/workflow-builder.js"></script>
+<script src="/js/metrics-dashboard.js"></script>
+<script src="/js/run-replay.js"></script>
+<script src="/js/memory-graph.js"></script>
+<script src="/js/settings-panel.js"></script>
+<script src="/js/agent-templates.js"></script>
+<script src="/js/advanced-search.js"></script>
+<script src="/js/approval-workflow.js"></script>
+<script src="/js/performance-analytics.js"></script>
+<script src="/js/execution-logs.js"></script>
+<script src="/js/integration-connectors.js"></script>
+<script src="/js/collaboration-dashboard.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
