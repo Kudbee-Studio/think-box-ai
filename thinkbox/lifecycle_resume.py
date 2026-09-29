@@ -19,6 +19,7 @@ from thinkbox.governed_execution_lifecycle import (
     load_lifecycle,
     persist_lifecycle_phase,
 )
+from thinkbox.execution_authorization import ADMISSION_BINDING_KEY, check_bound_execution
 from thinkbox.governed_job_execution import (
     SUBSTRATE_LOCAL,
     SUBSTRATE_UPCLOUD_SSH,
@@ -129,6 +130,19 @@ def resume_queued_job(
     if substrate not in _SHELL_SUBSTRATES:
         return _persist_incomplete(repo, job_id, loaded, reason="missing_command")
 
+    # The job may only run exactly what its admission authorized (thinkbox/execution_authorization.py).
+    # A mismatch is refused without claiming or mutating the job.
+    binding = check_bound_execution(loaded.get(ADMISSION_BINDING_KEY), execution_substrate=substrate, exec_command=command)
+    if not binding.allowed:
+        return QueuedResumeResult(
+            job_id=job_id,
+            outcome=OUTCOME_SKIPPED,
+            receipt_id=receipt_id,
+            phase=phase,
+            error=binding.reason,
+            transitions=list(loaded.get("transitions") or []),
+        )
+
     lease = issue_lease()
     lease_id = lease.lease_id
     try:
@@ -226,6 +240,8 @@ def _execute_claimed_shell(
             "execution_substrate": result.substrate,
             "adapter_provider": result.adapter_provider,
             "execution_proof": result.public_proof,
+            "admission_binding": loaded.get(ADMISSION_BINDING_KEY),
+            "execution_attempt": {"lease_id": lease_id, **(result_flags if result_flags is not None else {"resumed": True})},
             **(result_flags if result_flags is not None else {"resumed": True}),
         }
     )

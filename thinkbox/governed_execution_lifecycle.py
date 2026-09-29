@@ -94,8 +94,13 @@ def persist_lifecycle_phase(
     prior_lease_started_at: str = "",
     timeout_reason: str = "",
     transition_at: str = "",
+    admission_binding: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Append one durable lifecycle transition onto the Repository job."""
+    """Append one durable lifecycle transition onto the Repository job.
+
+    ``admission_binding`` (see thinkbox/execution_authorization.py) is recorded at ADMISSION and
+    is immutable afterwards: a later transition may repeat it but never change it.
+    """
     from thinkbox.lifecycle_harden import (
         LifecycleError,
         admission_must_be_first,
@@ -156,8 +161,19 @@ def persist_lifecycle_phase(
             "lease_started_at",
             "lease_expires_at",
             "lease_timeout_seconds",
+            "admission_binding",
         ):
             life.pop(stale, None)
+    if admission_binding is not None:
+        from thinkbox.execution_authorization import normalize_authorization
+
+        binding = normalize_authorization(admission_binding)
+        if binding is None:
+            raise LifecycleError("invalid_admission_binding", "admission binding is malformed")
+        existing_binding = life.get("admission_binding")
+        if existing_binding is not None and existing_binding != binding:
+            raise LifecycleError("admission_binding_immutable", "a job's admission binding cannot be changed")
+        life["admission_binding"] = binding
     transitions = list(life.get("transitions") or [])
     current_lease = str(life.get("lease_id") or "")
     if require_lease_id and current_lease != require_lease_id:

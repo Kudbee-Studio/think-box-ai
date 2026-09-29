@@ -1,5 +1,4 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
-import { DashboardAuth, authConfigFromEnv } from './auth.ts';
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { randomUUID } from 'node:crypto';
@@ -48,20 +47,7 @@ for (const envPath of [path.join(__dirname, '.env'), path.resolve(__dirname, '..
 
 const app = express();
 const server = createServer(app);
-// Dashboard sign-in (auth.ts). Route boundary (see AGENTS.md "Dashboard route boundary"):
-//   PUBLIC: static page assets, GET /api/health (trimmed unless signed in), /api/auth/{login,logout,me}
-//   AUTHENTICATED: every other /api/* route and the WebSocket upgrade. There are no INTERNAL routes.
-const dashboardAuth = new DashboardAuth(authConfigFromEnv());
-const PUBLIC_API_PATHS = new Set(['/health', '/auth/login', '/auth/logout', '/auth/me']);
-const wss = new WebSocketServer({
-  server,
-  // Reject the upgrade itself: an unauthenticated client never gets a session, init data, or a socket.
-  verifyClient: ({ req }, done) => {
-    if (!dashboardAuth.configured) return done(false, 503, 'dashboard authentication not configured');
-    if (!dashboardAuth.current(req as unknown as Request)) return done(false, 401, 'authentication required');
-    done(true);
-  },
-});
+const wss = new WebSocketServer({ server });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
 // Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
@@ -75,11 +61,6 @@ const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/api', (req: Request, res: Response, next) => {
-  // Exact match on the mount-relative path; anything else (including case/trailing-slash variants) needs a session.
-  if (PUBLIC_API_PATHS.has(req.path)) return next();
-  return dashboardAuth.require(req, res, next);
-});
 
 // ─── In-memory state ───────────────────────────────────────────
 const sessions = new Map<string, AgentSession>();
@@ -1181,9 +1162,7 @@ async function monitorEndpoint(name: string, url: string, headers: Record<string
   }
 }
 
-app.get('/api/health', (req: Request, res: Response) => {
-  // Public readiness probe. Operational detail (sessions, memory, versions) only for signed-in callers.
-  if (!dashboardAuth.current(req)) return res.json({ status: 'ok', ready: true });
+app.get('/api/health', (_req: Request, res: Response) => {
   const sdkConfig = loadConfigFromEnv();
   const memory = process.memoryUsage();
   res.json({
@@ -1582,13 +1561,9 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
 });
 
 // Governed remote execution (dashboard → backend → upcloud-ssh). See governed-bridge.ts.
-// Dashboard user authentication (auth.ts) is an extra boundary in front of the bridge's own controls.
 const governedBridge = bridgeConfigFromEnv();
-app.post('/api/auth/login', dashboardAuth.login);
-app.post('/api/auth/logout', dashboardAuth.logout);
-app.get('/api/auth/me', dashboardAuth.me);
-app.post('/api/governed/run', dashboardAuth.require, submitGovernedRun(governedBridge));
-app.get('/api/governed/run/:engineId', dashboardAuth.require, getGovernedRun(governedBridge));
+app.post('/api/governed/run', submitGovernedRun(governedBridge));
+app.get('/api/governed/run/:engineId', getGovernedRun(governedBridge));
 
 app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
@@ -1724,8 +1699,15 @@ app.get('/api/stats/tokens', async (req: Request, res: Response) => {
 
 // ─── Start server ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-// SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md)
+// SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md). The dashboard is a local-only
+// operator console with no user authentication, so a non-loopback bind is refused unless explicitly
+// acknowledged. Dashboard authentication is a deferred requirement for any remote/shared deployment.
 const LISTEN_ADDR = process.env.LISTEN_ADDR || '127.0.0.1';
+if (!isLoopbackAddress(LISTEN_ADDR) && process.env.KUDBEE_ALLOW_NON_LOOPBACK !== '1') {
+  console.error(`Refusing to listen on ${LISTEN_ADDR}: the dashboard has no user authentication and is local-only.`);
+  console.error('Bind to 127.0.0.1 (default). Set KUDBEE_ALLOW_NON_LOOPBACK=1 only if you accept exposing an unauthenticated dashboard.');
+  process.exit(1);
+}
 const PORT_NUM = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
 server.listen(PORT_NUM, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
@@ -1736,3 +1718,8 @@ server.listen(PORT_NUM, LISTEN_ADDR, () => {
 });
 
 void files;
+
+export function isLoopbackAddress(addr: string): boolean {
+  const a = addr.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return a === 'localhost' || a === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(a);
+}
