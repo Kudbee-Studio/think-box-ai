@@ -60,11 +60,6 @@ async def tools_v1() -> dict[str, Any]:
     return await get_tools()
 
 
-@api_v1.post("/run")
-async def run_v1(request: dict[str, Any]) -> dict[str, Any]:
-    return await run_goal(request)
-
-
 @api_v1.get("/stream")
 async def stream_v1(goal: str, model: str = "ollama") -> StreamingResponse:
     return await stream_goal(goal, model)

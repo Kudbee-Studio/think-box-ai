@@ -3369,3 +3369,21 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - Delete the orphan `00068975` (it bills, holds nothing, and is unreachable).
   - Keep or delete worker-01 (account `kudbee`).
   - Consider enabling the UpCloud firewall on worker-02 with SSH-only ingress.
+
+### 2026-09-29 — PR #280 merged; route-shadow fix: governed `POST /api/v1/run` now reachable in the real backend
+
+- **PR #280 merged:** squash `d85bead5` on `main` (upctl tooling fix + live UpCloud substrate audit). Cursor Bugbot passed with no findings. CI not run.
+- **CI cause, corrected:** earlier entries (including #279/#280) say "runner outage". The founder confirmed the cause is a **GitHub billing issue**. CI results are therefore absent, not failing on merit. Local tests are the verification; nothing is claimed CI-green.
+- **Route-shadow fix (branch `fix/api-v1-run-route-shadow`):**
+  - Removed `backend/main.py`'s `@api_v1.post("/run") run_v1`, a 5-line wrapper around the legacy LLM loop that was registered before `api_v1_router` and shadowed the governed `backend.api.v1.router.run_goal`. The unversioned `POST /run` legacy loop is unchanged.
+  - Real-app evidence (`backend.main:app` via `TestClient`, `POST /api/v1/run {"goal": "hostname"}`):
+    - **before:** HTTP 200 `{"success": false, "error": "No provider configured"}`
+    - **after:** HTTP 403 `{"detail": {"error": "governance_denied", "reason": "token_invalid_or_expired", "capability": "goal:execute"}}`, i.e. governed admission is active.
+  - New guard, `tests/unit/test_backend_main_route_shadowing.py`, is the first test of the real app. It is **4/4 OK** with the fix and **3 assertion failures** against `main`'s `main.py`. It fails on any (method, path) served by two *different* handlers, so a future shadow can't pass silently.
+  - Regression: `tests/e2e/test_f13*`, `test_f14*` and `tests/unit/test_backend_*` → **117/117 OK** (19 modules, local scratchpad venv built with `uv pip install -e .`). The full `unittest discover` was not run (>2h locally).
+  - Not fixed (harmless): `GET /api/v1/autonomous-loop/sessions/summary` is registered twice with the same handler.
+- **FOUR-STATE:**
+  - route fix: CODE COMPLETE (branch) / TEST VERIFIED (local) / LIVE VERIFIED only as a real app object in-process (no deployed server)
+  - UpCloud bridge: not yet built; it is now **unblocked**
+  - **PRODUCTION READY: NO**
+- **NEXT LARGER IMPROVEMENT:** add the `upcloud-ssh` substrate: `thinkbox/governed_job_execution.py` `_SUPPORTED` + an `_ExecutionAdapter` over `SSHCloudExecutionProvider`, configured from the `UPCLOUD_SERVER_IP` / `UPCLOUD_SSH_USER` / `UPCLOUD_SSH_KEY_PATH` env vars, mirrored in `thinkbox/lifecycle_harden.py` `validate_substrate`. Live-prove `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}` → worker-02 `00e300f7` → receipt → `ThinkJobEntry`.
