@@ -1,4 +1,5 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
+import { DashboardAuth, authConfigFromEnv } from './auth.ts';
 import express, { type Request, type Response } from 'express';
 import { createServer } from 'http';
 import { randomUUID } from 'node:crypto';
@@ -1561,9 +1562,14 @@ app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
 });
 
 // Governed remote execution (dashboard → backend → upcloud-ssh). See governed-bridge.ts.
+// Dashboard user authentication (auth.ts) is an extra boundary in front of the bridge's own controls.
 const governedBridge = bridgeConfigFromEnv();
-app.post('/api/governed/run', submitGovernedRun(governedBridge));
-app.get('/api/governed/run/:engineId', getGovernedRun(governedBridge));
+const dashboardAuth = new DashboardAuth(authConfigFromEnv());
+app.post('/api/auth/login', dashboardAuth.login);
+app.post('/api/auth/logout', dashboardAuth.logout);
+app.get('/api/auth/me', dashboardAuth.me);
+app.post('/api/governed/run', dashboardAuth.require, submitGovernedRun(governedBridge));
+app.get('/api/governed/run/:engineId', dashboardAuth.require, getGovernedRun(governedBridge));
 
 app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);

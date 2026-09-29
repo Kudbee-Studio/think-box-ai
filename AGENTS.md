@@ -533,6 +533,19 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
   only an exact-match read-only allow-list (`hostname`, `uname -a`, `uptime`, `whoami`, `df -h /`,
   `free -m`). The web process needs `THINKBOX_BACKEND_URL` (default `http://127.0.0.1:8000`) and
   `THINKBOX_API_KEY`. Dashboard usage: `/remote hostname`.
+- **Dashboard sign-in is required for `/api/governed/run` (and its status route)** (`apps/web/auth.ts`, 2026-09-29).
+  - Configure the web process with `KUDBEE_DASHBOARD_USER` (default `admin`) and
+    `KUDBEE_DASHBOARD_PASSWORD_HASH`. Make the hash with
+    `printf '%s' "$PW" | node --experimental-strip-types scripts/hash-password.ts` (scrypt; minimum 12
+    characters; the password is read from stdin, never argv).
+  - With no hash set, the governed routes and login return **503**. They fail closed.
+  - Sessions are server-side and in memory. The cookie is `kudbee_sid` (HttpOnly, SameSite=Strict,
+    `Secure` when `KUDBEE_COOKIE_SECURE=1`); the id rotates at login. They expire after 30 min idle or
+    12 h total, and logout revokes them server-side. Restarting the web process signs everyone out.
+  - Login and logout also require `X-Kudbee-Client: dashboard` (login-CSRF guard). 5 failed logins per
+    client address cause a 15-minute lockout (429).
+  - Dashboard commands: `/login` (password dialog), `/logout`, `/whoami`.
+  - Authentication is an **additional** layer: every #284 control still applies behind it.
 
 ---
 
@@ -2203,6 +2216,60 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   ruff/W503, `investigate_upcloud()`.
 - **Next:** founder review. Then the next production gap is dashboard user authentication, so that
   `/api/governed/run` is not open to anything that can reach `:3000`.
+
+### 2026-09-29 — Dashboard user authentication in front of `/api/governed/run` (LIVE, local browser)
+
+- **Finding:** `apps/web` had no user authentication of any kind. The only "sessions" were agent
+  workspaces.
+- **Design:** the smallest real mechanism, with no new dependencies (Node `crypto` only):
+  - a scrypt password hash from the environment, never in source
+  - server-side in-memory sessions behind an opaque 256-bit cookie (HttpOnly, SameSite=Strict), with
+    the id rotated at login and idle/absolute expiry
+  - per-address login lockout
+  - login/logout CSRF guard using the existing `X-Kudbee-Client` header
+  - fail closed (503) when unconfigured
+- **Changed:**
+  - new `apps/web/auth.ts` and `apps/web/scripts/hash-password.ts`
+  - `apps/web/server.ts`: `/api/auth/login|logout|me`, with `dashboardAuth.require` on both governed
+    routes
+  - `public/index.html`: password `<dialog>`
+  - `public/js/app.js`: `/login`, `/logout`, `/whoami`, and a 401 hint for `/remote`
+  - No backend or execution-substrate change.
+- **Tests:** `apps/web/tests/auth.test.ts`, 10/10. It boots the real `server.ts` against a mock
+  governed backend and covers:
+  - unauthenticated or forged-cookie requests get 401 and the backend is never contacted
+  - bad credentials, a wrong user, and a missing header on login
+  - the cookie flags; the password, hash, governance token and API key never appear in responses
+  - #284's allow-list and header checks still work behind auth
+  - logout revokes the session server-side; session-id rotation
+  - lockout returns 429 even with the right password
+  - unconfigured → 503; no backend key → 503
+  - idle expiry
+  - Mutation check: removing `dashboardAuth.require` makes 4 tests fail.
+  - Full web suite 150/150. Python governed regression 198/198 (backend unchanged).
+  - CI not run (GitHub billing issue).
+- **LIVE (local loopback; real uvicorn backend + real web server + real Chrome headless via CDP;
+  real worker-02):**
+  - An unauthenticated `curl POST /api/governed/run` got 401. `/api/auth/me` returned
+    `authenticated:false`.
+  - Browser, signed out: `/whoami` said "Not signed in", and `/remote hostname` said
+    "Sign in first".
+  - `/login` opened the dialog (a `type=password` field). Submitting signed the user in as `operator`;
+    the field was cleared and `document.cookie` does **not** expose `kudbee_sid` (HttpOnly).
+  - `/remote hostname` produced job `engine_a93111d6` (`tb_rcpt_20260929175703_e2eaab8b`): completed,
+    `upcloud-ssh`, exit 0, verified, checkpoint `chk_b4f50b08e755`. The artifact shows
+    `remote_host 209.50.51.174`, stdout `kudbee-hermes-worker-02`, 1.88s.
+  - `/logout`, then `/remote hostname`, gave "Sign in first".
+  - The backend access log shows exactly **one** `admission-token 200` + **one** `/api/v1/run 200`, from
+    the signed-in attempt only. The password never appeared in the page. 0 console errors.
+  - A random password was generated for the proof and deleted afterwards.
+- **Four-state:** dashboard auth: CODE COMPLETE (branch) / TEST VERIFIED / LIVE VERIFIED (local browser
+  → real worker-02). PRODUCTION READY: **NO**.
+- **Limitations:** single user; in-memory sessions (lost on restart, one process only); no TLS on
+  localhost (set `KUDBEE_COOKIE_SECURE=1` behind HTTPS); the rest of the dashboard (agent runs, files,
+  memory) is still unauthenticated, as before, because it was out of scope here.
+- **Next:** put the whole dashboard (WebSocket + all `/api/*`) behind the same sign-in, so only the
+  health endpoint stays public.
 
 ### Open items / debt (be honest here)
 

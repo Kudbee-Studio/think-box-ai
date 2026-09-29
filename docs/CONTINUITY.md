@@ -3449,3 +3449,31 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 
 - **FOUR-STATE:** bridge + admission-token: CODE COMPLETE (branch; merge SHA recorded in the PR) / TEST VERIFIED / LIVE VERIFIED (browser → web → backend over HTTP → worker-02). **PRODUCTION READY: NO**: the dashboard has no user authentication, there is a single shared API key, there is no deployed environment, and there has been no founder review.
 - **NEXT LARGER IMPROVEMENT:** dashboard user authentication in front of `/api/governed/run` (currently anything that can reach `:3000` on localhost can trigger the allow-listed read-only commands).
+
+### 2026-09-29 — SAVE POINT: dashboard user authentication in front of `/api/governed/run` (LIVE VERIFIED, local browser → real worker-02)
+
+- **Starting point:** `main` `86cf1f78` (PR #284 merged). **Finding:** `apps/web` had no user authentication; the governed bridge was protected only by server-side controls (API key, allow-list, header).
+- **Design (`apps/web/auth.ts`, Node `crypto` only, no new dependency):**
+  - credentials: `KUDBEE_DASHBOARD_USER` + `KUDBEE_DASHBOARD_PASSWORD_HASH` (scrypt; generated with `scripts/hash-password.ts` from stdin)
+  - sessions: server-side and in memory, cookie `kudbee_sid` (HttpOnly, SameSite=Strict, optional Secure), id rotated at login, 30 min idle / 12 h absolute expiry, server-side revocation on logout
+  - per-address lockout after 5 failures for 15 min
+  - `X-Kudbee-Client` header required on login and logout
+  - no hash configured → governed routes and login return 503
+  - `dashboardAuth.require` is placed **in front of** the unchanged #284 bridge, so the allow-list, fixed substrate, header, server-side API key and admission token all still apply
+- **Tests:** `apps/web/tests/auth.test.ts` 10/10 (real `server.ts` + mock backend). Removing the middleware makes 4 of them fail. Web suite 150/150; Python governed regression 198/198. CI not run (GitHub billing issue).
+- **LIVE, by boundary:**
+
+  | Boundary | Evidence |
+  |---|---|
+  | Unauthenticated HTTP client | `POST /api/governed/run` → 401; backend log shows 0 `/api/v1/run` requests |
+  | Unauthenticated browser | `/whoami` → not signed in; `/remote hostname` → "Sign in first" |
+  | Browser sign-in | dialog (`type=password`) → signed in as `operator`; field cleared; `document.cookie` has no `kudbee_sid` (HttpOnly) |
+  | Authenticated browser → worker-02 | `/remote hostname` → `engine_a93111d6` (`tb_rcpt_20260929175703_e2eaab8b`) completed, `upcloud-ssh`, exit 0, verified, checkpoint `chk_b4f50b08e755`; artifact `remote_host 209.50.51.174`, stdout `kudbee-hermes-worker-02`, 1.88s |
+  | Logout | `/logout` → `/remote hostname` → "Sign in first" |
+  | Backend | exactly 1 `admission-token 200` + 1 `/api/v1/run 200`, both from the signed-in attempt |
+  | Browser console | 0 errors/warnings; password absent from the page |
+
+  All of this ran on local loopback: headless Chrome driven by a script, not a human, and not a deployed environment.
+- **FOUR-STATE:** dashboard auth: CODE COMPLETE (branch; merge SHA recorded in the PR) / TEST VERIFIED / LIVE VERIFIED (local browser → real worker-02). **PRODUCTION READY: NO**: single user, in-memory sessions, no TLS, rest of the dashboard still unauthenticated, not deployed, no founder review.
+- **Existing findings, not changed here:** worker-01 and the orphan server (founder decisions), no worker-02 firewall, CI billing, ruff W503, `investigate_upcloud()` semantics.
+- **NEXT LARGER IMPROVEMENT:** extend the same sign-in to the whole dashboard (WebSocket upgrade + every `/api/*` except `/api/health`), so agent runs, files and memory are no longer open to anything that can reach `:3000`.
