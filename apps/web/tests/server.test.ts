@@ -9,6 +9,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
+import { hashPassword } from '../auth.ts';
+
+// The dashboard now requires sign-in for every /api route except health/auth and for the WebSocket.
+const TEST_PASSWORD = 'server-test-password-123';
+let cookie = '';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9'; // nothing listens here: Ollama, Janus and Upstash are "offline"
@@ -49,10 +54,19 @@ before(async () => {
       KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(tmpRoot, 'data'),
       KUDBEE_WORKSPACE_DIR: path.join(tmpRoot, 'workspaces'),
+      KUDBEE_DASHBOARD_USER: 'tester',
+      KUDBEE_DASHBOARD_PASSWORD_HASH: hashPassword(TEST_PASSWORD),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   await waitForHealth(base);
+  const login = await fetch(`${base}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' },
+    body: JSON.stringify({ username: 'tester', password: TEST_PASSWORD }),
+  });
+  assert.equal(login.status, 200, 'test sign-in');
+  cookie = (login.headers.get('set-cookie') || '').split(';')[0];
 });
 
 after(async () => {
@@ -69,7 +83,7 @@ interface Client {
 }
 
 async function connect(): Promise<Client> {
-  const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`);
+  const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`, { headers: { Cookie: cookie } });
   const messages: any[] = [];
   const waiters: Array<{ type: string; resolve: (m: any) => void }> = [];
   ws.on('message', (raw) => {
@@ -100,7 +114,7 @@ async function connect(): Promise<Client> {
 }
 
 const json = async (url: string, init?: RequestInit) => {
-  const res = await fetch(`${base}${url}`, init);
+  const res = await fetch(`${base}${url}`, { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), Cookie: cookie } });
   return { status: res.status, body: (await res.json()) as any };
 };
 

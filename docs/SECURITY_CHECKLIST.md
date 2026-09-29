@@ -311,6 +311,26 @@ python3 scripts/scan_doc_secrets.py docs/my_file.md
 - `.github/workflows/test.yml` — CI/CD pipeline security gates
 - `scripts/scan_doc_secrets.py` — Automated secret scanning
 
+---
+
+## Dashboard and remote-execution boundaries (PR #285/#286)
+
+Three independent layers, each fail-closed:
+
+1. **Dashboard sign-in** (`apps/web/auth.ts`). Every `/api/*` route except `/api/health` and
+   `/api/auth/*` requires a server-side session, and so does the WebSocket. Configure
+   `KUDBEE_DASHBOARD_PASSWORD_HASH` (scrypt, from `apps/web/scripts/hash-password.ts`). Without it the
+   dashboard API returns 503.
+2. **Governance admission** (`thinkbox/admission.py`). The token must be valid, belong to the claimed
+   agent, and **contain** the requested capability, and the identity must hold it too. The dashboard
+   token carries only `shell:upcloud-ssh:readonly` and lasts 300s.
+3. **Execution policy** (`thinkbox/remote_exec_policy.py`). `upcloud-ssh` requires that capability, the
+   capability allows only `upcloud-ssh`, and the command must exactly match the six read-only commands.
+   This is enforced at the route and again below every execution path.
+
+Never expose to the browser: `THINKBOX_API_KEY`, governance tokens, the dashboard password or its hash,
+the session id (it's an HttpOnly cookie), or SSH/UpCloud credentials.
+
 ## External References
 
 - **UpCloud CLI (upctl):** https://upcloudltd.github.io/upcloud-cli/latest/ (getting started: install + credentials)

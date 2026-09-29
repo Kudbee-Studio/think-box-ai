@@ -158,6 +158,19 @@ async def run_goal(
     )
     admission_decision = require_http_admission(admission_ctx)
 
+    from thinkbox.remote_exec_policy import evaluate as evaluate_exec_policy
+
+    policy = evaluate_exec_policy(
+        capability=admission_ctx.capability,
+        execution_substrate=request.execution_substrate or "",
+        exec_command=request.exec_command or "",
+    )
+    if not policy.allowed:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "execution_policy_denied", "reason": policy.reason, "capability": admission_ctx.capability},
+        )
+
     model_config = ModelConfig()
     if request.model:
         model_config.model = request.model

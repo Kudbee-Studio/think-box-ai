@@ -516,8 +516,22 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 - Configure the backend process with `UPCLOUD_SERVER_IP=209.50.51.174`, `UPCLOUD_SSH_USER=root`, and
   `UPCLOUD_SSH_KEY_PATH=<path to private key>`. These are the vars `thinkbox/upcloud.py`
   `UpCloudConfig` already reads. The key path must exist; its contents are never read by Python.
-- Send `POST /api/v1/run` with `{"goal", "agent_id", "governance_token", "execution_substrate":
-  "upcloud-ssh", "exec_command": "<bounded command>"}` and header `X-API-Key`.
+- Send `POST /api/v1/run` with `{"goal", "agent_id", "governance_token", "capability":
+  "shell:upcloud-ssh:readonly", "execution_substrate": "upcloud-ssh", "exec_command": "<allowed command>"}`
+  and header `X-API-Key`.
+- **The backend decides what may run** (`thinkbox/remote_exec_policy.py`, policy
+  `upcloud-ssh-readonly` v1, since PR #286).
+  - `upcloud-ssh` **requires** the capability `shell:upcloud-ssh:readonly`, and that capability
+    authorizes **only** `upcloud-ssh`.
+  - The command must exactly equal one of `hostname`, `uname -a`, `uptime`, `whoami`, `df -h /`,
+    `free -m`. Anything else is 403 `execution_policy_denied`.
+  - The same command list is enforced again inside `execute_governed_job_command`, so the
+    run/resume/reclaim paths cannot reach the worker with anything else. (Before #286 the resume
+    endpoint took a caller-supplied `exec_command` with no governance check.)
+  - `AdmissionGate` now requires the requested capability to be in the **token's** capabilities, not
+    just the identity's (`token_capability_not_granted`).
+  - Jobs record non-secret `execution_policy` metadata: id, version, capability, substrate, and a
+    command fingerprint.
 - Poll `GET /api/v1/run/job/{engine_id}/status`. Read the receipt at
   `GET /api/v1/run/receipt/{receipt_id}`.
 - If the vars are missing, the job **fails** with `remote_not_configured`. There is never a local
@@ -526,14 +540,24 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
   failure.
 - Governance tokens for out-of-process clients: `POST /api/v1/run/admission-token` (API-key
   authenticated). It returns a 300-second token for a **fixed server-side identity**
-  (`THINKBOX_WEB_AGENT_ID`, default `web-dashboard-agent`) with capability `goal:execute` only. A caller
+  (`THINKBOX_WEB_AGENT_ID`, default `web-dashboard-agent`) with capability `shell:upcloud-ssh:readonly`
+  only (`goal:execute` before #286). A caller
   cannot choose the agent, capability, or TTL. (Added 2026-09-29; before that, tokens were in-process only.)
 - The dashboard bridge (`apps/web/governed-bridge.ts`) calls that endpoint server-side. The browser never
   sees the API key or the token. The bridge fixes `execution_substrate` to `upcloud-ssh` and forwards
   only an exact-match read-only allow-list (`hostname`, `uname -a`, `uptime`, `whoami`, `df -h /`,
   `free -m`). The web process needs `THINKBOX_BACKEND_URL` (default `http://127.0.0.1:8000`) and
   `THINKBOX_API_KEY`. Dashboard usage: `/remote hostname`.
-- **Dashboard sign-in is required for `/api/governed/run` (and its status route)** (`apps/web/auth.ts`, 2026-09-29).
+- **Dashboard sign-in is required for the whole dashboard** (`apps/web/auth.ts`; governed routes since
+  #285, everything since #286). Route boundary:
+  - **PUBLIC:** static page assets; `GET /api/health`, which returns only `{status, ready}` unless signed in;
+    and `/api/auth/login|logout|me`.
+  - **AUTHENTICATED:** every other `/api/*` route (an exact-match public list; anything else, including
+    case variants, needs a session) and the WebSocket upgrade, which is refused with 401 before any
+    session is created.
+  - **INTERNAL:** none.
+  - The `kudbee` CLI signs in too, using `KUDBEE_DASHBOARD_PASSWORD` or a hidden prompt, and sends the
+    session cookie.
   - Configure the web process with `KUDBEE_DASHBOARD_USER` (default `admin`) and
     `KUDBEE_DASHBOARD_PASSWORD_HASH`. Make the hash with
     `printf '%s' "$PW" | node --experimental-strip-types scripts/hash-password.ts` (scrypt; minimum 12
@@ -2270,6 +2294,80 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   memory) is still unauthenticated, as before, because it was out of scope here.
 - **Next:** put the whole dashboard (WebSocket + all `/api/*`) behind the same sign-in, so only the
   health endpoint stays public.
+
+### 2026-09-29 — PR #286: whole-dashboard sign-in + backend-authoritative UpCloud execution policy
+
+- **Findings, before this change:**
+  - Only the governed routes required sign-in. The rest of the dashboard (~38 `/api` routes and the
+    WebSocket: agent runs, files, memory, stats) was open. `/api/health` exposed session counts, memory
+    and versions.
+  - The only UpCloud command allow-list lived in `apps/web`.
+  - **`AdmissionGate` never checked `token.capabilities`**, only the identity's capabilities.
+  - **The resume endpoint accepted a caller-supplied `exec_command` with no governance check.** It could
+    have run anything on worker-02 for a queued `upcloud-ssh` job.
+- **Part A (web):**
+  - `/api` gate with an exact-match public set; WebSocket `verifyClient` (401 when signed out, 503 when
+    unconfigured); trimmed public health.
+  - The dashboard waits for sign-in before any API call or WebSocket. The required-sign-in dialog can't
+    be dismissed. Reconnects re-check the session, and logout reloads to the sign-in gate.
+  - The `kudbee` CLI signs in and sends the cookie on fetch and the WebSocket.
+  - #285's properties are unchanged.
+- **Part B (backend):**
+  - New `thinkbox/remote_exec_policy.py`: capability `shell:upcloud-ssh:readonly` ↔ substrate
+    `upcloud-ssh` in both directions, plus the exact-match six-command list.
+  - Enforced three ways:
+    - at the route, after admission and before any job
+    - at the lowest layer, `execute_governed_job_command`, covering run, resume and reclaim
+    - by `AdmissionGate` requiring the capability to be in the token
+  - The dashboard token grants only `shell:upcloud-ssh:readonly`. The bridge sends it, and keeps its
+    allow-list as defense in depth.
+  - Jobs record non-secret `execution_policy` metadata.
+- **Tests:**
+  - `tests/unit/test_remote_exec_policy.py` + `tests/e2e/test_f143_governed_exec_policy_http.py`: 15
+    (six allowed commands; 36 forbidden strings; capability↔substrate matrix; token scope/agent; resume
+    bypass closed; zero SSH calls on any denial). f141/f142 updated to the new capability; 35/35 across
+    the backend security set.
+  - `apps/web/tests/auth.test.ts`: 15 (36 protected routes → 401; WebSocket 401 with no data; public
+    surface; signed-in API/WebSocket/detailed health; logout revokes the WebSocket; unconfigured → 503).
+    `server.test.ts` now signs in (11/11).
+  - Web suite 155/155; typecheck 0 errors.
+  - Mutation checks: removing each of the 5 new guards (`/api` gate, WebSocket auth, token-capability
+    check, lowest-layer command check, route policy check) makes tests fail.
+  - Governance regression (94 modules touching admission/tokens/governed/lifecycle): **1755 tests, 2
+    failures**, both from ordering. My token check ran before the identity check, which changed the
+    established reason `capability_not_granted` when a capability is missing from both. Fixed by
+    checking the identity first and the token scope second, so `token_capability_not_granted` now fires
+    only when the identity holds the capability but the token doesn't. Both tests pass, and the
+    affected set re-ran 39/39.
+  - CI not run (GitHub billing issue).
+- **LIVE (local loopback; real uvicorn backend, real web server, real headless Chrome, real worker-02):**
+  - Signed-out HTTP: 5 dashboard routes, the governed route and the WebSocket upgrade → 401. Health →
+    `{"status":"ok","ready":true}`.
+  - Backend with a real dashboard token:
+    - `hostname; id`, `rm -rf /`, `$(id)` → 403 `command_not_allowed`
+    - the capability on `local` → `capability_substrate_mismatch`
+    - `goal:execute` + `upcloud-ssh` → `capability_not_granted` (re-run after the admission-check
+      reorder described below)
+    - 0 worker artifacts produced by these requests
+  - Browser: signed out, the page made only `GET /api/auth/me`; the dialog was open, its cancel hidden,
+    and Escape was blocked. After sign-in: WebSocket plus the dashboard APIs, all 200. `/remote hostname`
+    ran job `engine_4d534c3d` (`tb_rcpt_20260929182814_c98cce42`): completed, exit 0, verified,
+    checkpoint `chk_5cd4a709944a`, capability `shell:upcloud-ssh:readonly`, `execution_policy`
+    `upcloud-ssh-readonly` v1, fingerprint `7063dece7cccf374`. The artifact shows `209.50.51.174` →
+    `kudbee-hermes-worker-02`, 0.89s. `/logout` reloaded to the sign-in gate.
+  - 0 console errors. Backend totals: 5×403, 1×200. No secret strings in the job record.
+- **Four-state:**
+  - whole-dashboard auth: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (local browser)
+  - backend execution policy + admission fix: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real backend
+    HTTP, real worker-02)
+  - PRODUCTION READY: **NO**
+- **Limits:**
+  - in-memory sessions, single user, no HTTPS, not deployed
+  - worker host key not pinned (`accept-new`)
+  - the resume endpoint still has no *capability* check, only the command check
+- **Next:** give the resume/reclaim endpoints the same governance admission as `POST /api/v1/run`,
+  including the capability↔substrate binding, so every path into execution is admitted, not only
+  command-filtered.
 
 ### Open items / debt (be honest here)
 

@@ -59,6 +59,12 @@ class AdmissionGate:
             decision = AdmissionDecision(False, "capability_not_granted", agent_id, capability)
             self._record(decision, metadata)
             return decision
+        if capability not in token.capabilities:
+            # The token is a scoped grant: an identity holding broader capabilities
+            # must not be able to use a narrowly scoped token for them.
+            decision = AdmissionDecision(False, "token_capability_not_granted", agent_id, capability)
+            self._record(decision, metadata)
+            return decision
         decision = AdmissionDecision(True, "admitted", agent_id, capability)
         self._record(decision, metadata)
         return decision

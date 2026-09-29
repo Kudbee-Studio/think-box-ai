@@ -82,7 +82,7 @@ def hermetic_run_client(
     reset_http_run_persistence_for_tests()
     _HERMETIC_TOKEN = gov.register_agent(
         _HERMETIC_AGENT_ID,
-        ["goal:execute", "goal:execute:verified"],
+        ["goal:execute", "goal:execute:verified", "shell:upcloud-ssh:readonly"],
     )
 
     app = FastAPI(title="hermetic-run-pr132")
@@ -134,7 +134,7 @@ def hermetic_run_client_real_engine() -> Iterator[tuple[TestClient, Any]]:
     reset_http_run_persistence_for_tests()
     _HERMETIC_TOKEN = gov.register_agent(
         _HERMETIC_AGENT_ID,
-        ["goal:execute", "goal:execute:verified"],
+        ["goal:execute", "goal:execute:verified", "shell:upcloud-ssh:readonly"],
     )
 
     app = FastAPI(title="hermetic-run-real-engine")

@@ -176,3 +176,80 @@ test('missing backend API key still fails closed behind auth (503)', async () =>
     assert.equal(r.status, 503);
   } finally { web.proc.kill(); }
 });
+
+// ---------- full dashboard boundary (PR #286) ----------
+import { WebSocket as WsClient } from 'ws';
+
+const PROTECTED: Array<[string, string, unknown?]> = [
+  ['GET', '/api/stats'], ['GET', '/api/stats/tokens'], ['GET', '/api/monitor'], ['GET', '/api/middleware/test'],
+  ['GET', '/api/runs'], ['GET', '/api/runs/history'], ['GET', '/api/runs/x'], ['GET', '/api/agents'], ['GET', '/api/models'],
+  ['GET', '/api/algorand?action=status'], ['GET', '/api/sdk/capabilities'], ['GET', '/api/sdk/version'], ['GET', '/api/sdk/sessions'], ['GET', '/api/sdk/tasks'],
+  ['GET', '/api/memory'], ['GET', '/api/memory/status'], ['GET', '/api/memory/item?id=x'], ['POST', '/api/memory', { title: 't', content: 'c', evidence: 'e' }],
+  ['POST', '/api/memory/promote', { id: 'x' }], ['DELETE', '/api/memory/item?id=x'], ['GET', '/api/memory/notes'], ['POST', '/api/memory/notes', { content: 'x' }], ['DELETE', '/api/memory/notes/x'],
+  ['GET', '/api/sessions/abc/files'], ['GET', '/api/sessions/abc/files/content?path=a'], ['GET', '/api/sessions/abc/files/raw?path=a'], ['POST', '/api/sessions/abc/files'], ['DELETE', '/api/sessions/abc/files'],
+  ['POST', '/api/sessions/abc/run', { goal: 'x' }], ['POST', '/api/sessions/abc/stop'], ['POST', '/api/sessions/abc/images/generate', { prompt: 'x' }],
+  ['POST', '/api/governed/run', { command: 'hostname' }], ['GET', '/api/governed/run/engine_abc'],
+  ['GET', '/API/STATS'], ['GET', '/api/health/'], ['GET', '/api/nonexistent'],
+];
+
+function wsStatus(url: string, headers: Record<string, string> = {}): Promise<{ status: number; firstMessage: string | null }> {
+  return new Promise((resolve) => {
+    const ws = new WsClient(url.replace('http', 'ws') + '/ws', { headers });
+    ws.on('unexpected-response', (_req, res) => resolve({ status: res.statusCode ?? 0, firstMessage: null }));
+    ws.on('message', (raw) => { resolve({ status: 101, firstMessage: raw.toString().slice(0, 40) }); ws.close(); });
+    ws.on('error', () => resolve({ status: -1, firstMessage: null }));
+  });
+}
+
+test('unauthenticated: every protected /api route is rejected with 401', async () => {
+  for (const [method, url, body] of PROTECTED) {
+    const r = await fetch(`${base}${url}`, { method, headers: H, body: body === undefined ? undefined : JSON.stringify(body) });
+    assert.equal(r.status, 401, `${method} ${url}`);
+  }
+});
+
+test('unauthenticated WebSocket upgrade is refused before any session or data', async () => {
+  const r = await wsStatus(base);
+  assert.equal(r.status, 401);
+  assert.equal(r.firstMessage, null);
+  assert.equal((await wsStatus(base, { Cookie: 'kudbee_sid=forged' })).status, 401);
+});
+
+test('public surface: page, health (trimmed), auth endpoints', async () => {
+  const page = await fetch(`${base}/`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /login-dialog/);
+  const h: any = await (await fetch(`${base}/api/health`)).json();
+  assert.deepEqual(h, { status: 'ok', ready: true }, 'no operational detail without a session');
+  assert.equal((await fetch(`${base}/api/auth/me`)).status, 200);
+});
+
+test('authenticated: API, WebSocket and detailed health work with a session', async () => {
+  // Fresh server: the lockout test above deliberately locked this client address out of the shared one.
+  const web = await startWeb({ KUDBEE_DASHBOARD_PASSWORD_HASH: HASH, KUDBEE_DASHBOARD_USER: 'operator' });
+  const base = web.url;
+  try {
+  const c = (await fetch(`${base}/api/auth/login`, { method: 'POST', headers: H, body: JSON.stringify({ username: 'operator', password: PASSWORD }) }))
+    .headers.get('set-cookie')!.split(';')[0];
+  for (const url of ['/api/stats', '/api/agents', '/api/memory/status', '/api/runs', '/api/sdk/version']) {
+    assert.equal((await fetch(`${base}${url}`, { headers: { Cookie: c } })).status, 200, url);
+  }
+  const h: any = await (await fetch(`${base}/api/health`, { headers: { Cookie: c } })).json();
+  assert.ok('sessions' in h && 'node_version' in h);
+  const ws = await wsStatus(base, { Cookie: c });
+  assert.equal(ws.status, 101);
+  assert.match(ws.firstMessage ?? '', /"type":"init"/);
+  await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { ...H, Cookie: c } });
+  assert.equal((await wsStatus(base, { Cookie: c })).status, 401, 'logout revokes WebSocket access');
+  assert.equal((await fetch(`${base}/api/stats`, { headers: { Cookie: c } })).status, 401);
+  } finally { web.proc.kill(); }
+});
+
+test('unconfigured server: whole dashboard API and WebSocket fail closed (503), health stays up', async () => {
+  const web = await startWeb({});
+  try {
+    assert.equal((await fetch(`${web.url}/api/stats`)).status, 503);
+    assert.equal((await fetch(`${web.url}/api/health`)).status, 200);
+    assert.equal((await wsStatus(web.url)).status, 503);
+  } finally { web.proc.kill(); }
+});

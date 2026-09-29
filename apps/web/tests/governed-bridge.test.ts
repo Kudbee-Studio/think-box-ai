@@ -24,7 +24,7 @@ before(async () => {
       seen.push({ method: req.method!, url: req.url!, apiKey: req.headers['x-api-key'] as string, body: raw ? JSON.parse(raw) : null });
       res.setHeader('Content-Type', 'application/json');
       if (req.url === '/api/v1/run/admission-token') {
-        return res.end(JSON.stringify({ agent_id: 'web-dashboard-agent', governance_token: 'SECRET-TOKEN', capability: 'goal:execute' }));
+        return res.end(JSON.stringify({ agent_id: 'web-dashboard-agent', governance_token: 'SECRET-TOKEN', capability: 'shell:upcloud-ssh:readonly' }));
       }
       if (req.url === '/api/v1/run') {
         res.statusCode = runStatus;
@@ -77,7 +77,7 @@ test('client cannot choose substrate, agent, token or capability', async () => {
   assert.equal(run.execution_substrate, 'upcloud-ssh');
   assert.equal(run.agent_id, 'web-dashboard-agent');
   assert.equal(run.governance_token, 'SECRET-TOKEN');
-  assert.equal(run.capability, undefined);
+  assert.equal(run.capability, 'shell:upcloud-ssh:readonly', 'capability fixed server-side, not client-chosen');
 });
 
 test('rejects commands outside the allow-list without contacting the backend', async () => {
