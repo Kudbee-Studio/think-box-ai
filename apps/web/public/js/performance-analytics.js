@@ -278,6 +278,7 @@ class PerformanceAnalytics {
     });
 
     const total = Object.values(breakdown).reduce((a, b) => a + b, 0);
+    if (total === 0) return [];
     return Object.entries(breakdown).map(([model, cost]) => ({
       label: model,
       cost: cost.toFixed(2),

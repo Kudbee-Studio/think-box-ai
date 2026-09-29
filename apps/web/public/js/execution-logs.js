@@ -186,8 +186,9 @@ class ExecutionLogs {
       if (this.filters.level !== 'all' && log.level !== this.filters.level) return false;
       if (this.filters.service !== 'all' && log.service !== this.filters.service) return false;
       if (this.filters.status !== 'all' && log.status !== this.filters.status) return false;
-      if (this.filters.search && !log.message.toLowerCase().includes(this.filters.search.toLowerCase())) {
-        return false;
+      if (this.filters.search) {
+        const msg = typeof log.message === 'string' ? log.message : String(log.message || '');
+        if (!msg.toLowerCase().includes(this.filters.search.toLowerCase())) return false;
       }
       return true;
     });

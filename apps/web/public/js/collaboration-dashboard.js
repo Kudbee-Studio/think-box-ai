@@ -291,8 +291,19 @@ class CollaborationDashboard {
   }
 
   createNewTask() {
+    const taskName = document.getElementById('new-task-name')?.value || 'Unnamed Task';
     const agentId = document.getElementById('new-task-agent')?.value || this.getActiveAgents()[0]?.id;
-    this.submitTaskAssignment(agentId);
+    const priority = document.getElementById('new-task-priority')?.value || 'normal';
+
+    const taskData = {
+      agentId,
+      name: taskName,
+      priority,
+      assignedAt: new Date().toISOString()
+    };
+    this.recordTaskAssignment(taskData);
+    document.querySelector('.modal-backdrop')?.remove();
+    this.openDashboard();
   }
 
   getActiveAgents() {
@@ -326,7 +337,26 @@ class CollaborationDashboard {
   }
 
   filterTasks(status) {
-    // Implementation for filtering tasks
+    const buttons = document.querySelectorAll('.filter-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target?.classList.add('active');
+
+    const tasksList = document.querySelector('.tasks-list');
+    if (!tasksList) return;
+
+    const filtered = status === 'all' ? this.tasks : this.tasks.filter(t => t.status === status);
+    tasksList.innerHTML = filtered.slice(0, 10).map(task => `
+      <div class="task-item priority-${task.priority}">
+        <div class="task-header">
+          <strong>${task.name}</strong>
+          <span class="task-status">${task.status}</span>
+        </div>
+        <div class="task-meta">
+          ${task.assignedTo ? `<span class="assigned-to">${this.getAgentName(task.assignedTo)}</span>` : ''}
+          <span class="task-time">${new Date(task.assignedAt).toLocaleTimeString()}</span>
+        </div>
+      </div>
+    `).join('');
   }
 
   saveAgents() {

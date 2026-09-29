@@ -188,6 +188,7 @@ class IntegrationConnectors {
   }
 
   configureConnector(service) {
+    if (!this.integrations[service]) return;
     const connector = this.integrations[service];
     const configModal = document.createElement('div');
     configModal.className = 'modal-backdrop';
@@ -239,7 +240,14 @@ class IntegrationConnectors {
   }
 
   saveConfig(service) {
-    // Save configuration
+    if (!this.integrations[service]) return;
+    const config = this.integrations[service].config || {};
+    config.notifyOnSuccess = document.querySelector('input:checked')?.value === 'success' || false;
+    config.notifyOnError = document.querySelectorAll('input:checked').length > 1 || false;
+    config.autoSync = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).some(el => el.id === 'auto-sync');
+    const interval = document.querySelector('input[type="number"]')?.value;
+    if (interval) config.syncInterval = parseInt(interval, 10);
+    this.integrations[service].config = config;
     localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
     document.querySelector('.modal-backdrop')?.remove();
   }
@@ -303,11 +311,71 @@ class IntegrationConnectors {
   }
 
   editAutomation(service, index) {
-    this.createAutomation();
+    if (!this.integrations[service]?.automations?.[index]) return;
+    const automation = this.integrations[service].automations[index];
+    const automationModal = document.createElement('div');
+    automationModal.className = 'modal-backdrop';
+    automationModal.innerHTML = `
+      <section class="modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2>Edit Automation</h2>
+          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+        </div>
+        <div class="automation-form">
+          <label>
+            When:
+            <select id="trigger-select">
+              <option value="task-completed" ${automation.trigger === 'task-completed' ? 'selected' : ''}>Task completes</option>
+              <option value="error-occurs" ${automation.trigger === 'error-occurs' ? 'selected' : ''}>Error occurs</option>
+              <option value="daily" ${automation.trigger === 'daily' ? 'selected' : ''}>Daily at time</option>
+              <option value="manual" ${automation.trigger === 'manual' ? 'selected' : ''}>Manual trigger</option>
+            </select>
+          </label>
+          <label>
+            Message:
+            <textarea id="automation-message" placeholder="Enter message...">${automation.message || ''}</textarea>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
+          <button class="btn-success" onclick="integrationConnectors.updateAutomation('${service}', ${index})">Update</button>
+        </div>
+      </section>
+    `;
+    automationModal.addEventListener('click', (e) => {
+      if (e.target === automationModal) automationModal.remove();
+    });
+    document.body.appendChild(automationModal);
+  }
+
+  updateAutomation(service, index) {
+    if (!this.integrations[service]?.automations?.[index]) return;
+    this.integrations[service].automations[index].trigger = document.getElementById('trigger-select')?.value || 'manual';
+    this.integrations[service].automations[index].message = document.getElementById('automation-message')?.value || '';
+    localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
+    document.querySelector('.modal-backdrop')?.remove();
   }
 
   saveAutomation() {
-    // Save automation
+    const serviceSelect = document.getElementById('service-select');
+    const service = serviceSelect?.value;
+    if (!service) return;
+    if (!this.integrations[service]) return;
+
+    const automation = {
+      id: `automation-${Date.now()}`,
+      trigger: document.getElementById('trigger-select')?.value || 'manual',
+      service: service,
+      message: document.getElementById('automation-message')?.value || '',
+      createdAt: new Date().toISOString()
+    };
+
+    if (!this.integrations[service].automations) {
+      this.integrations[service].automations = [];
+    }
+    this.integrations[service].automations.push(automation);
+    localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
+    document.querySelector('.modal-backdrop')?.remove();
     this.openConnectors();
   }
 

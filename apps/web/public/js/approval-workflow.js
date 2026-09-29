@@ -147,7 +147,9 @@ class ApprovalWorkflow {
     };
 
     const id = `workflow-${Date.now()}`;
-    this.workflows[id] = { ...workflows[type], id, createdAt: new Date().toISOString() };
+    const workflow = { ...workflows[type], id, createdAt: new Date().toISOString() };
+    if (name) workflow.name = name;
+    this.workflows[id] = workflow;
     this.saveWorkflows();
     this.openWorkflowBuilder();
   }
@@ -207,6 +209,7 @@ class ApprovalWorkflow {
   }
 
   approveRequest(id) {
+    if (!this.approvals[id]) return;
     this.approvals[id].status = 'approved';
     this.approvals[id].approvedAt = new Date().toISOString();
     this.saveApprovals();
@@ -215,6 +218,7 @@ class ApprovalWorkflow {
   }
 
   rejectRequest(id) {
+    if (!this.approvals[id]) return;
     this.approvals[id].status = 'rejected';
     this.approvals[id].rejectedAt = new Date().toISOString();
     this.saveApprovals();
