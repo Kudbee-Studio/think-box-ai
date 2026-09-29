@@ -3421,3 +3421,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
   - Delete the orphan `00068975` (billing, unreachable)?
   - Keep or delete worker-01 (account `kudbee`)?
   - Enable an SSH-only firewall on worker-02, given 330 failed SSH logins per 24h?
+
+### 2026-09-29 — PR #282 merged: `upcloud-ssh` substrate on `main` (post-merge re-verified)
+
+- **Merged:** PR #282, squash `d481afbe`, at 2026-09-29T17:34:04Z. `origin/main` = `d481afbe`, verified with `git` after the merge.
+- **Post-merge verification on `main`:**
+  - `test_upcloud_ssh_execution_adapter`, `test_f141_governed_shell_upcloud_ssh_http`, `test_backend_main_route_shadowing`, `test_verify_upcloud_cli`, `test_cloud_execution_ssh_provider` and `test_f135_governed_shell_local_http`: **43/43 OK**.
+  - The **live proof re-ran from the merged code**: real `backend.main:app`, `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}`, job `engine_36e6e492`, receipt `tb_rcpt_20260929173803_6dfe975b`, worker-02 `00e300f7` → `kudbee-hermes-worker-02`, exit 0, 0.89s over SSH, checkpoint `chk_68cd583a510f`, `ThinkJobEntry` completed, dashboard `TASK_STARTED` / `TASK_COMPLETED` / `JOB_COMPLETED`, **1.39s end-to-end**.
+- **CI:** not run (GitHub billing issue). Nothing is claimed CI-green.
+- **FOUR-STATE (`upcloud-ssh` substrate):** **CODE COMPLETE (`d481afbe`) / TEST VERIFIED / LIVE VERIFIED** (Think Job API on the real app object → real worker-02). **PRODUCTION READY: NO** (no deployed server, no out-of-process token issuance, `apps/web` not bridged, no founder review).
+- **NEXT LARGER IMPROVEMENT:** design and build the `apps/web` → `backend.main` bridge. Step 1 is deciding how an out-of-process client, such as the `:3000` dashboard or a deployed uvicorn, obtains a governance token for `POST /api/v1/run`.

@@ -2128,6 +2128,9 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Next:**
   1. `apps/web` → backend bridge: the dashboard at `:3000` submits governed jobs to `backend.main`.
   2. It needs a governance-token issuance path, which is the first design decision for that bridge.
+- **Merged:** PR #282 → `main` `d481afbe`. Post-merge on `main`: 43/43 targeted tests pass, and the live
+  proof re-ran from merged code (job `engine_36e6e492`, receipt `tb_rcpt_20260929173803_6dfe975b`,
+  worker-02 → `kudbee-hermes-worker-02`, exit 0, 1.39s end-to-end). CI not run (GitHub billing issue).
 
 ### Open items / debt (be honest here)
 
