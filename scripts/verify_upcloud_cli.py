@@ -1,196 +1,150 @@
 #!/usr/bin/env python3
 """
-Verify UpCloud CLI (upctl) is installed and configured correctly.
+Verify the official UpCloud CLI (upctl) is installed and can authenticate.
 
 Usage:
   python3 scripts/verify_upcloud_cli.py [--install]
 
 Options:
-  --install    Provide installation instructions if upctl is missing
+  --install    Print official installation instructions if upctl is missing
 
 Returns:
-  0 - upctl installed and configured
-  1 - upctl not installed or misconfigured
-  2 - upctl installed but no valid credentials
+  0 - upctl installed and authenticated
+  1 - upctl not installed (or not runnable)
+  2 - upctl installed but not authenticated
 
-Environment:
-  THINKBOX_UPCLOUD_API_TOKEN - UpCloud API token (optional; upctl can load from ~/.upcloud/config)
+Credentials (per the official upctl docs, any one of):
+  UPCLOUD_TOKEN                       - API token (recommended)
+  `upctl account login --with-token`  - saves the token to the system keyring
+  ~/.config/upctl.yaml                - `token: ...` (or --config /path/to/upctl.yaml)
+  UPCLOUD_USERNAME / UPCLOUD_PASSWORD - legacy username/password
+
+  If UPCLOUD_TOKEN is unset but this repo's THINKBOX_UPCLOUD_API_TOKEN is set,
+  it is passed to upctl as UPCLOUD_TOKEN for this check only. The value is never
+  printed.
+
+upctl is a Go binary. It is NOT on PyPI: `pip install upcloud-cli` fails, because
+PyPI returns 404 for that project.
 
 References:
-  Official CLI: https://upcloudltd.github.io/upcloud-cli/latest/
-  Installation: https://upcloudltd.github.io/upcloud-cli/latest/install/
+  Source + releases: https://github.com/UpCloudLtd/upcloud-cli
+  Docs:              https://upcloudltd.github.io/upcloud-cli/
 """
 
-import sys
+from __future__ import annotations
+
 import os
 import subprocess
-import json
-from pathlib import Path
+import sys
+
+REPO_TOKEN_VAR = "THINKBOX_UPCLOUD_API_TOKEN"
+
+INSTALL_INSTRUCTIONS = """\
+UpCloud CLI (upctl) installation -- official methods
+(source: https://github.com/UpCloudLtd/upcloud-cli, docs/index.md)
+
+upctl is a Go binary. There is no PyPI package, so do not use pip.
+
+Ubuntu / Debian (.deb from GitHub releases):
+  VER=<latest, see https://github.com/UpCloudLtd/upcloud-cli/releases>
+  curl -Lo upcloud-cli_${VER}_amd64.deb \\
+    https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VER}/upcloud-cli_${VER}_amd64.deb
+  # verify against checksums.txt from the same release before installing
+  sudo apt install ./upcloud-cli_${VER}_amd64.deb
+
+No root: download upcloud-cli_${VER}_linux_x86_64.tar.gz from the same release,
+  verify it against checksums.txt, extract, and put `upctl` on your PATH.
+
+macOS (Homebrew tap):
+  brew tap UpCloudLtd/tap
+  brew install upcloud-cli
+
+From source:
+  go install github.com/UpCloudLtd/upcloud-cli/v3/...@latest
+
+Verify the install:   upctl version
+
+Authenticate (pick one):
+  export UPCLOUD_TOKEN=...             # or rely on THINKBOX_UPCLOUD_API_TOKEN (see above)
+  upctl account login --with-token     # saves to the system keyring
+
+Verify API access:    upctl account show
+"""
 
 
-def check_upctl_installed():
-    """Check if upctl is installed and accessible."""
+def upctl_env(environ: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment for upctl subprocesses: map the repo token to UPCLOUD_TOKEN if needed."""
+    env = dict(os.environ if environ is None else environ)
+    if not env.get("UPCLOUD_TOKEN") and env.get(REPO_TOKEN_VAR):
+        env["UPCLOUD_TOKEN"] = env[REPO_TOKEN_VAR]
+    return env
+
+
+def check_upctl_installed() -> bool:
     try:
-        result = subprocess.run(
-            ["upctl", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            version = result.stdout.strip().split('\n')[0]
-            print(f"✅ upctl installed: {version}")
-            return True
-        else:
-            print(f"❌ upctl not working (exit code {result.returncode})")
-            return False
+        result = subprocess.run(["upctl", "version"], capture_output=True, text=True, timeout=10, check=False)
     except FileNotFoundError:
         print("❌ upctl not found in PATH")
         return False
     except subprocess.TimeoutExpired:
-        print("❌ upctl command timed out")
+        print("❌ `upctl version` timed out")
         return False
-    except Exception as e:
-        print(f"❌ Error checking upctl: {e}")
+    if result.returncode != 0:
+        print(f"❌ `upctl version` exited {result.returncode}")
         return False
+    first = (result.stdout.strip().splitlines() or ["(no output)"])[0]
+    print(f"✅ upctl installed: {first}")
+    return True
 
 
-def check_upctl_config():
-    """Check if upctl has valid configuration."""
-    config_path = Path.home() / ".upcloud" / "config"
+def check_upctl_authenticated(environ: dict[str, str] | None = None) -> bool:
+    """Authentication is proven only by a successful `upctl account show`.
 
-    if not config_path.exists():
-        print(f"⚠️  No UpCloud config found at {config_path}")
-        print("   Run: upctl account show  (will create config)")
-        return False
-
-    print(f"✅ Config exists: {config_path}")
-
-    # Try to run a simple read-only command
+    No config-file check: upctl may authenticate from UPCLOUD_TOKEN, the system
+    keyring, or ~/.config/upctl.yaml, and any of them is valid.
+    """
+    env = upctl_env(environ)
+    source = (
+        "UPCLOUD_TOKEN"
+        if (environ if environ is not None else os.environ).get("UPCLOUD_TOKEN")
+        else (f"{REPO_TOKEN_VAR} (mapped to UPCLOUD_TOKEN)" if env.get("UPCLOUD_TOKEN") else "upctl config/keyring")
+    )
     try:
         result = subprocess.run(
-            ["upctl", "account", "show"],
-            capture_output=True,
-            text=True,
-            timeout=10
+            ["upctl", "account", "show"], capture_output=True, text=True, timeout=20, env=env, check=False
         )
-
-        if result.returncode == 0:
-            print("✅ upctl authenticated and responsive")
-            # Parse output for account info (safe to log)
-            for line in result.stdout.split('\n'):
-                if 'username' in line.lower() or 'credits' in line.lower():
-                    print(f"   {line.strip()}")
-            return True
-        else:
-            print(f"❌ upctl command failed: {result.stderr[:100]}")
-            return False
-
     except subprocess.TimeoutExpired:
-        print("❌ upctl account show timed out (network issue?)")
+        print("❌ `upctl account show` timed out (network?)")
         return False
-    except Exception as e:
-        print(f"❌ Error testing upctl: {e}")
+    if result.returncode != 0:
+        print(f"❌ `upctl account show` failed (credential source: {source})")
+        print(f"   {result.stderr.strip()[:160]}")
         return False
+    print(f"✅ upctl authenticated (credential source: {source})")
+    for line in result.stdout.splitlines():
+        if line.strip().lower().startswith(("username", "credits")):
+            print(f"   {line.strip()}")
+    return True
 
 
-def print_install_instructions():
-    """Print installation instructions for upctl."""
-    print("\n" + "="*60)
-    print("UpCloud CLI (upctl) Installation")
-    print("="*60 + "\n")
-
-    print("Option 1: Using pip (Recommended)")
-    print("-" * 40)
-    print("""
-  python3 -m pip install upcloud-cli
-
-  Then authenticate:
-  upctl account show
-
-  This will prompt for API username/password and save to ~/.upcloud/config
-    """)
-
-    print("\nOption 2: Using system package manager")
-    print("-" * 40)
-    print("""
-  macOS:
-    brew install upcloud-cli
-
-  Linux (Debian/Ubuntu):
-    sudo apt-get install upcloud-cli
-
-  See: https://upcloudltd.github.io/upcloud-cli/latest/install/
-    """)
-
-    print("\nOption 3: From source")
-    print("-" * 40)
-    print("""
-  git clone https://github.com/UpCloudLtd/upcloud-cli.git
-  cd upcloud-cli
-  python3 -m pip install -e .
-    """)
-
-    print("\nAfter installation:")
-    print("-" * 40)
-    print("""
-  1. Authenticate:
-     upctl account show
-
-  2. Test credentials:
-     python3 scripts/verify_upcloud_cli.py
-
-  3. Common commands:
-     upctl server list          # List all servers
-     upctl server show <uuid>   # Show server details
-     upctl price list           # Show current pricing
-    """)
-
-    print("="*60 + "\n")
-
-
-def verify_upctl():
-    """Full verification of upctl setup."""
-
-    print("\n" + "="*60)
-    print("UpCloud CLI (upctl) Verification")
-    print("="*60 + "\n")
-
-    # Step 1: Check if upctl is installed
+def verify_upctl(environ: dict[str, str] | None = None) -> int:
     if not check_upctl_installed():
-        print("\nℹ️  upctl not installed. Run: pip install upcloud-cli")
+        print("ℹ️  Run with --install for official installation instructions (upctl is not a pip package)")
         return 1
-
-    print()
-
-    # Step 2: Check configuration
-    if not check_upctl_config():
-        print("\nℹ️  Run: upctl account show  (to create config)")
+    if not check_upctl_authenticated(environ):
+        print("ℹ️  Set UPCLOUD_TOKEN (or THINKBOX_UPCLOUD_API_TOKEN), or run: upctl account login --with-token")
         return 2
-
-    print("\n" + "="*60)
-    print("✅ UpCloud CLI is ready for use")
-    print("="*60 + "\n")
-
-    print("Next steps:")
-    print("  upctl server list      # List all servers")
-    print("  upctl server show <id> # Get server details")
-    print("  upctl price list       # Show pricing")
-    print("\n")
-
+    print("✅ UpCloud CLI is ready")
     return 0
 
 
-def main():
-    """Run verification."""
-    show_install = "--install" in sys.argv
-
-    exit_code = verify_upctl()
-
-    if exit_code != 0 and show_install:
-        print_install_instructions()
-
-    return exit_code
+def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    code = verify_upctl()
+    if code != 0 and "--install" in args:
+        print()
+        print(INSTALL_INSTRUCTIONS)
+    return code
 
 
 if __name__ == "__main__":

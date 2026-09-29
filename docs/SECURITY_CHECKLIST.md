@@ -2,7 +2,7 @@
 
 **Purpose:** Every agent session MUST run this checklist before committing code or accessing production systems.
 
-**Last updated:** 2026-09-28  
+**Last updated:** 2026-09-29  
 **Canonical location:** `docs/SECURITY_CHECKLIST.md`
 
 ---
@@ -28,21 +28,46 @@ ls -la .env | awk '{print $1, $NF}' | grep "600 .env" && echo "✅ .env has secu
 
 #### UpCloud (Preferred: Use Official CLI)
 
+`upctl` is a **Go binary**. It is **not** on PyPI: `pip install upcloud-cli` fails, because
+PyPI returns 404 for that project. The install methods below come from the official
+docs (`UpCloudLtd/upcloud-cli`, `docs/index.md`); last checked 2026-09-29 against
+release v3.36.0.
+
 ```bash
-# Install UpCloud CLI (one-time)
-python3 -m pip install upcloud-cli
+# Install (one-time). Ubuntu/Debian: .deb from GitHub releases
+VER=3.36.0   # latest: https://github.com/UpCloudLtd/upcloud-cli/releases
+curl -Lo upcloud-cli_${VER}_amd64.deb \
+  https://github.com/UpCloudLtd/upcloud-cli/releases/download/v${VER}/upcloud-cli_${VER}_amd64.deb
+# Verify against checksums.txt from the same release, then:
+sudo apt install ./upcloud-cli_${VER}_amd64.deb
+# No root? Use upcloud-cli_${VER}_linux_x86_64.tar.gz from the same release
+# (verify with checksums.txt), extract `upctl`, and put it on PATH.
+# macOS: brew tap UpCloudLtd/tap && brew install upcloud-cli
+# From source: go install github.com/UpCloudLtd/upcloud-cli/v3/...@latest
+upctl version
 
-# Configure (one-time)
-upctl account show  # Will prompt for credentials, saves to ~/.upcloud/config
+# Authenticate: upctl reads UPCLOUD_TOKEN, the system keyring, or ~/.config/upctl.yaml.
+# The verify script passes THINKBOX_UPCLOUD_API_TOKEN to upctl as UPCLOUD_TOKEN if
+# UPCLOUD_TOKEN is unset, so no extra setup is needed.
+# To store a token in the keyring instead:
+upctl account login --with-token
 
-# Verify in future sessions (official method - RECOMMENDED)
-python3 scripts/verify_upcloud_cli.py
-# Exit code: 0 = valid, 1 = not installed, 2 = not authenticated
+# Verify in future sessions
+python3 scripts/verify_upcloud_cli.py            # add --install for install help
+# Exit code: 0 = ready, 1 = not installed, 2 = not authenticated
 
-# Or test directly with CLI
-upctl account show       # Show account info
-upctl server list        # List all servers
+# Or test directly with the CLI
+upctl account show       # Account username, credits, limits
+upctl server list        # Servers in *this token's* account (see Accounts below)
 ```
+
+> **Two UpCloud accounts.** `THINKBOX_UPCLOUD_API_TOKEN` authenticates as account
+> `kudbeex`, which holds the active worker `kudbee-hermes-worker-02`
+> (`00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`). `UPCLOUD_API_KEY`
+> authenticates as account `kudbee`, which holds `kudbee-hermes-worker-01`. A server
+> in the other account returns `SERVER_FORBIDDEN`, not `SERVER_NOT_FOUND`. Always
+> check which account you're in (`upctl account show`) before acting, and address
+> servers by UUID: hostnames are not unique.
 
 #### UpCloud (Fallback: HTTP API)
 
@@ -63,7 +88,7 @@ python3 scripts/verify_upcloud_credentials.py
 # python3 scripts/verify_upstash_vector_credentials.py  # (TBD)
 ```
 
-**Recommendation:** Use `upctl` for production work. It's the official UpCloud CLI and handles authentication, certificate validation, and rate limiting automatically.
+**Recommendation:** Use `upctl` for interactive and operational work. It is UpCloud's official CLI. Use `scripts/verify_upcloud_credentials.py` (stdlib HTTP, no install) when upctl is not available.
 
 ### 3. Scan for Leaked Secrets Before Committing
 
@@ -97,7 +122,9 @@ Before closing a session, check:
 
 | Variable | Purpose | Scope | Rotation |
 |----------|---------|-------|----------|
-| `THINKBOX_UPCLOUD_API_TOKEN` | UpCloud API (control plane) | Read-only test; no SSH | 90 days |
+| `THINKBOX_UPCLOUD_API_TOKEN` | UpCloud API, account `kudbeex` (active worker-02) | **Full account access**: it has created and deleted servers. Treat it as write-capable, not read-only. | 90 days |
+| `UPCLOUD_API_KEY` | UpCloud API, account `kudbee` (worker-01 only) | Full account access; a separate account from `kudbeex` | 90 days |
+| `UPCLOUD_SERVER_IP` / `UPCLOUD_SERVER_HOSTNAME` / `UPCLOUD_SSH_USER` / `UPCLOUD_SSH_KEY_PATH` | Worker SSH target (read by `thinkbox/upcloud.py` `UpCloudConfig`) | A key **path** only. Never put private-key contents in env or code. | On key rotation |
 | `UPSTASH_PUBLIC_BOX_URL` | Upstash Box execution endpoint | Execution substrate | On access deny |
 | `UPSTASH_PUBLIC_BOX_TOKEN` | Upstash Box authentication | Execution substrate | On access deny |
 | `INCEPTION_API_KEY` | Mercury-2 model inference | Hermetic only (no live in CI) | 90 days |
@@ -286,10 +313,9 @@ python3 scripts/scan_doc_secrets.py docs/my_file.md
 
 ## External References
 
-- **UpCloud CLI (upctl):** https://upcloudltd.github.io/upcloud-cli/latest/
-  - Installation: https://upcloudltd.github.io/upcloud-cli/latest/install/
-  - Configuration: https://upcloudltd.github.io/upcloud-cli/latest/config/
-  - Commands: https://upcloudltd.github.io/upcloud-cli/latest/commands/
+- **UpCloud CLI (upctl):** https://upcloudltd.github.io/upcloud-cli/latest/ (getting started: install + credentials)
+  - Source and releases (binaries, `checksums.txt`): https://github.com/UpCloudLtd/upcloud-cli/releases
+  - (The earlier `/latest/install/`, `/latest/config/` and `/latest/commands/` links returned 404 on 2026-09-29 and were removed.)
 - **UpCloud API:** https://developers.upcloud.com/
 
 ---
@@ -306,5 +332,5 @@ python3 scripts/scan_doc_secrets.py docs/my_file.md
 
 ---
 
-**Last verified:** 2026-09-28  
+**Last verified:** 2026-09-29 (upctl section live-checked against v3.36.0)  
 **Next review:** 2026-10-28 (30 days)

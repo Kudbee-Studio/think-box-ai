@@ -492,6 +492,25 @@ Set up UpCloud infrastructure (see skill: `upcloud-setup`):
 - Never print or commit a private SSH key. Fingerprint (`ssh-keygen -l -f
   <path>.pub`) is fine to log; the key body is not.
 
+**Accounts, identity, and idempotency (verified 2026-09-29):**
+
+- **There are two UpCloud accounts.** `.env` `THINKBOX_UPCLOUD_API_TOKEN` → account
+  `kudbeex`, which holds the active worker `kudbee-hermes-worker-02`
+  (`00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`). `.env` `UPCLOUD_API_KEY` →
+  account `kudbee`, which holds `kudbee-hermes-worker-01`. Before any action, run
+  `GET /1.3/account` (or `upctl account show`) to confirm which account you are in.
+  `SERVER_FORBIDDEN` means "exists in another account". `SERVER_NOT_FOUND` means
+  "doesn't exist, or was deleted".
+- **Hostnames are not unique.** Two live servers are both named
+  `kudbee-hermes-worker-02`. Always address servers by UUID.
+- **`POST /1.3/server` is not idempotent.** If you can't parse the UUID out of a
+  create response, **list servers (`GET /1.3/server`) before retrying**. On 2026-09-28
+  a failed UUID extraction followed by a retried POST left a duplicate server
+  (`00068975-59de-4dda-be02-a6b1e9918c33`) running and billing unnoticed.
+- **upctl is a Go binary, not a pip package.** See `docs/SECURITY_CHECKLIST.md` and
+  `scripts/verify_upcloud_cli.py`. It authenticates from `UPCLOUD_TOKEN`, the keyring, or
+  `~/.config/upctl.yaml`. Its version subcommand is `upctl version` (`--version` exits 100).
+
 ---
 
 ### 13.6 THINK Burst Execution
@@ -1947,6 +1966,63 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   through release downloads and package managers. (The checklist's CI secret-scan reference is accurate:
   `.github/workflows/test.yml` runs `scripts/scan_doc_secrets.py`.) worker-01 (`152.44.37.207`) is still SSH-unreachable and still
   billing.
+
+### 2026-09-29 — UpCloud substrate audit + upctl tooling fix (branch `fix/upctl-install-and-upcloud-infra-audit`)
+
+- **Changed:** `scripts/verify_upcloud_cli.py` (rewritten to match the official upctl docs),
+  `tests/unit/test_verify_upcloud_cli.py` (new, 10 hermetic tests), `docs/SECURITY_CHECKLIST.md`
+  (upctl install/auth, env table, dead links), §13.5 (account/identity/idempotency rules), and CONTINUITY.
+- **upctl fix, evidence:**
+  - `UpCloudLtd/upcloud-cli` is a Go project. PyPI returns 404 for `upcloud-cli`.
+  - Official docs: `.deb`/`.rpm`/tar.gz from releases, `brew tap UpCloudLtd/tap`, or `go install`. Auth via
+    `UPCLOUD_TOKEN`, the keyring, or `~/.config/upctl.yaml`; the version check is `upctl version`.
+  - The old script **could never pass**. Live against the real upctl v3.36.0 (checksum-verified, run from
+    a scratchpad; nothing installed system-wide), `upctl --version` exits 100 and the script told you
+    to `pip install`. It also required `~/.upcloud/config`, a file upctl never reads.
+  - The new script, live, exits 0: authenticated as `kudbeex`, with `THINKBOX_UPCLOUD_API_TOKEN` mapped
+    to `UPCLOUD_TOKEN`. The token appears 0 times in the output.
+  - 3 of the 4 upctl doc links in the checklist returned 404 and were replaced.
+- **Infra audit (real API + SSH):**
+  - There are two accounts (see §13.5).
+  - worker-01 exists, is started, and sits in account `kudbee`. That's why the `kudbeex` token gets
+    `SERVER_FORBIDDEN` and why the founder couldn't find it in the dashboard. SSH is blocked at **auth
+    only**: port 22 answers `OpenSSH_8.9p1`, the firewall is off, only `publickey` is offered, and no
+    key was injected.
+  - worker-02 (`00e300f7`) is LIVE VERIFIED: key SSH works; Ubuntu 22.04.5; kernel 5.15.0-187;
+    1 vCPU; 1382MB free; 5.0G disk free; outbound HTTPS 200; 0 pending security updates. Its
+    snapshot's `origin` equals worker-02's root disk.
+  - It sees **330 failed SSH logins in 24h** (internet scanners). They're harmless because password
+    auth is off, but its firewall is off.
+  - **Orphan found:** `00068975-59de-4dda-be02-a6b1e9918c33` (`152.44.43.154`), also hostnamed
+    `kudbee-hermes-worker-02`, created by my duplicate POST on 2026-09-28. It is still running and
+    billing, and its SSH is blocked (no key). It was not deleted: that needs founder approval.
+  - `investigate_upcloud()` was run per the dashboard contract, rule 9: authenticate and check_ssh
+    passed; discover_capabilities (HTTP 502), verify_gpu (HTTP 400) and check_cloudflare failed.
+    **It still marked the ProviderEntry `verified`**, a pre-existing weakness: `any_blocked` ignores
+    `failed` steps.
+- **Bridge decision (Option A) and blocker:**
+  - The governed Think Job path already has an explicit substrate router,
+    `thinkbox/governed_job_execution.py`: `{local, upstash-box}`, no auto-detect, no silent local
+    fallback. It is fed by `POST /api/v1/run` `execution_substrate` + `exec_command` in
+    `backend/api/v1/router.py`, which already has admission, receipts, `ThinkJobEntry`, and
+    dashboard emit. So Option A means **adding an `upcloud-ssh` substrate there**. No new endpoint;
+    Option B would contradict the explicit-substrate design. This **supersedes PR #279's "no clean
+    insertion point"**: that audit read only `main.py`.
+  - **Blocker:** `backend/main.py`'s legacy `api_v1.post("/run")` (the LLM loop, since `e69bdf27`)
+    is registered first and **shadows** the governed handler in the real `backend.main:app`. A live
+    `TestClient` POST got `main.run_v1`'s `{"error": "No provider configured"}`. The governed e2e
+    tests (f131–f140) build their own app from `api_v1_router`, which is why they never caught it.
+    Every caller found expects the governed behavior.
+- **Four-state:**
+  - upctl verify script: CODE COMPLETE (this branch) / TEST VERIFIED (10/10) / LIVE VERIFIED
+    (real upctl + API).
+  - worker-02 substrate: LIVE VERIFIED.
+  - Bridge: none of the four.
+  - PRODUCTION READY: NO.
+- **Next:**
+  1. Remove the `/api/v1/run` shadow, with a regression test against `backend.main:app`.
+  2. Then add the `upcloud-ssh` substrate and live-prove
+     `POST /api/v1/run → worker-02 → hostname → receipt → ThinkJobEntry`.
 
 ### Open items / debt (be honest here)
 
