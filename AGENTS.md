@@ -2023,6 +2023,48 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   1. Remove the `/api/v1/run` shadow, with a regression test against `backend.main:app`.
   2. Then add the `upcloud-ssh` substrate and live-prove
      `POST /api/v1/run → worker-02 → hostname → receipt → ThinkJobEntry`.
+- **Merged:** PR #280 → `main` `d85bead5`. Bugbot passed with no findings. CI not run (GitHub billing issue).
+
+### 2026-09-29 — Fix: governed `POST /api/v1/run` was unreachable in the real backend (route shadow)
+
+- **Changed:**
+  - `backend/main.py`: removed the legacy `@api_v1.post("/run") run_v1` wrapper (5 lines). It was
+    registered before `api_v1_router` and shadowed the governed
+    `backend.api.v1.router.run_goal`. The unversioned legacy `POST /run` (LLM loop) is kept.
+  - New `tests/unit/test_backend_main_route_shadowing.py`: the **first** test that loads the real
+    `backend.main:app`.
+- **Evidence:** a real-app `TestClient` `POST /api/v1/run {"goal": "hostname"}`:
+  - before (`main`): HTTP 200 `{"success": false, "error": "No provider configured"}` (legacy loop)
+  - after: HTTP 403 `governance_denied / token_invalid_or_expired` (governed admission)
+- **Tests:**
+  - The new test is 4/4 OK with the fix. Against `main`'s `main.py` it gets **3 assertion
+    failures**: governed handler only, no path shadowed by a different handler, and the request
+    reaches the governed handler.
+  - Regression: all governed-run e2e tests (`tests/e2e/test_f13*`, `test_f14*`) plus
+    `tests/unit/test_backend_*` → **117/117 OK** (19 modules).
+  - `ruff --isolated` is clean on the new test. `main.py` has the same 17 pre-existing ruff issues
+    before and after.
+  - The full `unittest discover` was not run (>2h locally, real network backoff).
+  - CI not run (GitHub billing issue).
+- **Also found, not fixed:** `GET /api/v1/autonomous-loop/sessions/summary` is registered twice with
+  the **same** handler (harmless; the guard test only fails on *different* handlers).
+- **Callers:**
+  - Every caller of `/api/v1/run` (control-plane `receipts.html`, `run_governed.py`, the f131–f140
+    e2e tests) expects the governed behavior.
+  - Nothing referenced `run_v1`.
+  - `apps/web` does not call the Python backend at all.
+- **Correction:** earlier entries attribute the CI failures to a "runner outage". The cause is a
+  **GitHub billing issue** (founder, 2026-09-29), consistent with the "billing lock" already noted
+  under Open items.
+- **Four-state:**
+  - route fix: CODE COMPLETE (this branch) / TEST VERIFIED (4/4 + 117/117 local) / LIVE VERIFIED in
+    the narrow sense (real app object, in-process HTTP; no deployed server)
+  - PRODUCTION READY: NO
+- **Next:** add the `upcloud-ssh` substrate to `thinkbox/governed_job_execution.py`
+  (`_SUPPORTED` + adapter over `SSHCloudExecutionProvider`, configured from the `UpCloudConfig` env
+  vars) and to `thinkbox/lifecycle_harden.py` `validate_substrate`. Then live-prove
+  `POST /api/v1/run {execution_substrate: "upcloud-ssh", exec_command: "hostname"}` → worker-02
+  `00e300f7` → receipt → `ThinkJobEntry`.
 
 ### Open items / debt (be honest here)
 
