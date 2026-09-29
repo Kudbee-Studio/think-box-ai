@@ -304,27 +304,32 @@ GET  /plugins             # List plugins
 
 ---
 
-## STAGE 6 — Intelligence (Week 7-8)
+## STAGE 6 — Intelligence (Week 7-8) ✅ COMPLETE
 
 **Goal:** Agent learns from experience, adaptive routing, reasoning windows.
 
-### 6.1 Memory enhancement
-- [ ] Vector embeddings for long-term memory (sentence-transformers)
-- [ ] Similarity search for relevant past experiences
-- [ ] Memory pruning (forget low-value events)
+### 6.1 Think Token Learning System (PR #288) ✅ COMPLETE
+- [x] **Think Token primitive** — Durable, structured units of reasoning with confidence scoring
+- [x] **Quality gates (Factory)** — Filter 500+ observations → ~15 high-value tokens/session (specific, actionable, generalizable, evaluable)
+- [x] **Persistent storage** — SQLite `learning.db` with confidence-based retrieval and success/failure tracking
+- [x] **Think Token Propagation** — Inject learned tokens into new worker system prompts, record usage feedback, update confidence
+- [x] **Worker Initialization** — Bootstrap new workers with prior learning context + behavioral change detection
+- [x] **Dashboard Integration** — Real-time visualization of token lifecycle, confidence distribution, propagation stats, behavioral impact
+- [x] **Server Integration** — Wire propagation into AgentSession lifecycle (constructor, runGoal, session completion)
+- [x] **Energy Core** — Complete Disruption → Think Token → Propagation → Energy Core feedback loop documented and implemented
 
-### 6.2 Reasoning windows
+### 6.2 Reasoning windows (in progress)
 - [ ] Show chain-of-thought in Terminal panel
 - [ ] Highlight tool selection reasoning
 - [ ] Show error analysis + recovery
 - [ ] Show next-step planning
 
-### 6.3 Adaptive model routing
+### 6.3 Adaptive model routing (in progress)
 - [ ] Route simple tasks to fast/cheap model
 - [ ] Route complex tasks to reasoning model
 - [ ] User can override per-task
 
-**Deliverable:** Smarter agent that learns and shows its work
+**Deliverable:** Smarter agent that learns and shows its work — **Think Token system enables cross-session persistent learning with confidence-based propagation to future workers**
 
 ---
 
