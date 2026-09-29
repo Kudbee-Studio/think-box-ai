@@ -280,6 +280,32 @@ def require_http_admission(ctx: RunAdmissionContext) -> AdmissionDecision:
     return decision
 
 
+def authorize_http_execution(
+    ctx: RunAdmissionContext,
+    *,
+    execution_substrate: str,
+    exec_command: str,
+) -> AdmissionDecision:
+    """The one governance boundary for every HTTP path that can execute: POST /run and resume.
+
+    1. Token admission (AdmissionGate): valid token, token agent == claimed agent, the identity
+       holds the capability, and the token contains the capability.
+    2. Execution policy (thinkbox/remote_exec_policy.py): capability <-> substrate binding and the
+       exact command list.
+    Raises HTTP 403 on any failure. No job is created or claimed before this passes.
+    """
+    from thinkbox.remote_exec_policy import evaluate
+
+    decision = require_http_admission(ctx)
+    policy = evaluate(capability=ctx.capability, execution_substrate=execution_substrate, exec_command=exec_command)
+    if not policy.allowed:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "execution_policy_denied", "reason": policy.reason, "capability": ctx.capability},
+        )
+    return decision
+
+
 def build_complete_async_for_run(
     model: str | None,
     subtasks: list[dict[str, Any]],
@@ -305,6 +331,7 @@ def persist_http_run_lifecycle(
     verdict: str = "",
     http_proof_path: str = "",
     result: dict[str, Any] | None = None,
+    admission_binding: dict[str, Any] | None = None,
 ) -> None:
     """Write one lifecycle transition to the existing Repository job store."""
     persist_lifecycle_phase(
@@ -323,6 +350,7 @@ def persist_http_run_lifecycle(
         verdict=verdict,
         http_proof_path=http_proof_path,
         result=result,
+        admission_binding=admission_binding,
     )
 
 
@@ -346,13 +374,15 @@ def admit_and_queue_http_run(
     *,
     worktree: str,
     execution_substrate: str = "",
+    admission_binding: dict[str, Any] | None = None,
 ) -> None:
-    """Persist ADMISSION then QUEUED before background execution starts."""
+    """Persist ADMISSION (with the immutable admission binding) then QUEUED before execution starts."""
     persist_http_run_lifecycle(
         worktree,
         job_entry,
         PHASE_ADMISSION,
         execution_substrate=execution_substrate,
+        admission_binding=admission_binding,
     )
     persist_http_run_lifecycle(
         worktree,

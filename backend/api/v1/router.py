@@ -25,7 +25,8 @@ from backend.api.v1.run_governed import (
     get_api_run_governance,
     open_http_run_receipt,
     parse_run_admission,
-    require_http_admission,
+    RunAdmissionContext,
+    authorize_http_execution,
     resume_http_queued_job,
 )
 from thinkbox.governed_execution_lifecycle import lifecycle_worktree_path
@@ -107,9 +108,18 @@ class RunResponse(BaseModel):
 
 
 class ResumeRequest(BaseModel):
-    """Operator re-supply of a shell command after process death (QUEUED only)."""
+    """Operator re-supply of a shell command after process death (QUEUED only).
+
+    Resume is governed exactly like POST /run. The caller must present a governance token.
+    Agent, capability and substrate are taken from the job's persisted admission binding, never
+    from the caller: a supplied ``agent_id`` or ``capability`` must match the binding, and the
+    command must match the binding's fingerprint.
+    """
 
     exec_command: str | None = None
+    governance_token: str | None = None
+    agent_id: str | None = None
+    capability: str | None = None
 
 
 @api_v1_router.get("/run/governance/status")
@@ -156,20 +166,11 @@ async def run_goal(
         verified=request.verified,
         subtasks=request.subtasks,
     )
-    admission_decision = require_http_admission(admission_ctx)
-
-    from thinkbox.remote_exec_policy import evaluate as evaluate_exec_policy
-
-    policy = evaluate_exec_policy(
-        capability=admission_ctx.capability,
+    admission_decision = authorize_http_execution(
+        admission_ctx,
         execution_substrate=request.execution_substrate or "",
         exec_command=request.exec_command or "",
     )
-    if not policy.allowed:
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "execution_policy_denied", "reason": policy.reason, "capability": admission_ctx.capability},
-        )
 
     model_config = ModelConfig()
     if request.model:
@@ -206,10 +207,18 @@ async def run_goal(
     )
     _dashboard_state.upsert_think_job(job_entry)
     worktree = str(lifecycle_worktree_path())
+    from thinkbox.execution_authorization import authorization_record
+
     admit_and_queue_http_run(
         job_entry,
         worktree=worktree,
         execution_substrate=(request.execution_substrate or "").strip(),
+        admission_binding=authorization_record(
+            agent_id=admission_ctx.agent_id,
+            capability=admission_ctx.capability,
+            execution_substrate=request.execution_substrate or "",
+            exec_command=request.exec_command or "",
+        ),
     )
     await _emit_dashboard(DashboardCategory.THINK_JOBS, DashboardEvent.TASK_STARTED,
                                job_entry.model_dump(), "api_v1")
@@ -276,15 +285,50 @@ async def get_run_receipt_for_engine(engine_id: str, request: Request) -> Any:
 async def resume_queued_think_job(
     engine_id: str,
     request: ResumeRequest | None = None,
+    x_governance_token: str | None = Header(None, alias="X-Governance-Token"),
 ) -> dict[str, Any]:
-    """Resume a durable QUEUED job. Reuses the existing receipt; no second open."""
-    from thinkbox.governed_execution_lifecycle import open_lifecycle_repo, lifecycle_worktree_path
+    """Resume a durable QUEUED job. Reuses the existing receipt; no second open.
+
+    Governed like POST /run (``authorize_http_execution``) against the job's persisted
+    admission binding, so a resume can never widen the original authorization.
+    """
+    from thinkbox.execution_authorization import (
+        ADMISSION_BINDING_KEY,
+        check_bound_execution,
+        normalize_authorization,
+    )
+    from thinkbox.governed_execution_lifecycle import load_lifecycle, open_lifecycle_repo, lifecycle_worktree_path
     from thinkbox.lifecycle_resume import OUTCOME_SKIPPED
 
     body = request or ResumeRequest()
     repo = open_lifecycle_repo(lifecycle_worktree_path())
     if repo.job_status(engine_id) is None:
         raise HTTPException(status_code=404, detail=THINK_JOB_NOT_FOUND_DETAIL)
+
+    def _deny(reason: str) -> HTTPException:
+        return HTTPException(status_code=403, detail={"error": "resume_denied", "reason": reason, "job_id": engine_id})
+
+    binding = normalize_authorization((load_lifecycle(repo, engine_id) or {}).get(ADMISSION_BINDING_KEY))
+    if binding is None:
+        raise _deny("missing_authorization_context")
+    if body.agent_id is not None and body.agent_id.strip() != binding["agent_id"]:
+        raise _deny("agent_mismatch")
+    if body.capability is not None and body.capability.strip() != binding["capability"]:
+        raise _deny("capability_mismatch")
+    command = (body.exec_command or "").strip()
+    authorize_http_execution(
+        RunAdmissionContext(
+            agent_id=binding["agent_id"],
+            token_value=(body.governance_token or x_governance_token or "").strip(),
+            capability=binding["capability"],
+            verified=False,
+        ),
+        execution_substrate=binding["execution_substrate"],
+        exec_command=command,
+    )
+    bound = check_bound_execution(binding, execution_substrate=binding["execution_substrate"], exec_command=command)
+    if not bound.allowed:
+        raise _deny(bound.reason)
     result = resume_http_queued_job(
         engine_id,
         exec_command=body.exec_command,

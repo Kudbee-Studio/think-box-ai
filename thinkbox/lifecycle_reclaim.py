@@ -34,6 +34,7 @@ from thinkbox.lifecycle_resume import (
     _recover_goal,
     _worktree_identity_matches,
 )
+from thinkbox.execution_authorization import ADMISSION_BINDING_KEY, check_bound_execution
 from thinkbox.governed_job_execution import SUBSTRATE_LOCAL, SUBSTRATE_UPCLOUD_SSH, SUBSTRATE_UPSTASH_BOX
 from thinkbox.repository import Repository
 
@@ -183,6 +184,19 @@ def reclaim_running_orphan(
             require_lease_id=observed_lease,
             moment=moment,
             prior_started=observed_started,
+        )
+
+    # Same binding as resume: a reclaimed job may only run exactly what its admission authorized.
+    binding = check_bound_execution(fresh.get(ADMISSION_BINDING_KEY), execution_substrate=substrate, exec_command=command)
+    if not binding.allowed:
+        return QueuedResumeResult(
+            job_id=job_id,
+            outcome=OUTCOME_SKIPPED,
+            lease_id=observed_lease,
+            receipt_id=receipt_id,
+            phase=str(fresh.get("phase") or ""),
+            error=binding.reason,
+            transitions=list(fresh.get("transitions") or []),
         )
 
     lease = issue_lease(now=moment)

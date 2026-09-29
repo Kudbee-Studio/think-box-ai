@@ -2449,6 +2449,78 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   including the capability↔substrate binding, so every path into execution is admitted, not only
   command-filtered.
 
+### 2026-09-29/30 — PR (this branch): dashboard login deferred; resume/reclaim governed; #287-#289 merged; /api/git mounted safely
+
+- **Decision (founder): dashboard login is deferred.** The dashboard is a local operator console.
+  Removed from `apps/web`: `auth.ts`, `hash-password.ts`, the login dialog, `/login|/logout|/whoami`,
+  the `/api` and WebSocket gates, the trimmed health, and the CLI sign-in. Restored `server.ts`,
+  `app.js`, `cli.ts` and `server.test.ts` to their pre-#285 form.
+  - **Kept:** the backend API key, admission tokens, the `shell:upcloud-ssh:readonly` capability, the
+    `remote_exec_policy`, the bridge's header/allow-list, and all of #286's backend work.
+  - **Added:** the server now **refuses a non-loopback `LISTEN_ADDR`** unless
+    `KUDBEE_ALLOW_NON_LOOPBACK=1`, so an unauthenticated dashboard can't be exposed by accident.
+  - **Deferred requirement:** authentication is required before any remote or shared deployment.
+- **Resume and reclaim are now governed like `POST /run`.**
+  - Entry points traced: only `POST /api/v1/run` and `POST /api/v1/run/job/{id}/resume` can start
+    execution over HTTP. **Reclaim has no HTTP route** (asserted by a test); it's a library call that
+    executes (`reclaim_running_orphan` → `_execute_claimed_shell`), so it is bound at the library
+    layer too.
+  - New `thinkbox/execution_authorization.py`: at admission, `POST /run` persists an **immutable**
+    `admission_binding` on the job (agent, capability, substrate, policy id/version, command
+    fingerprint). No secrets and no command text.
+  - Resume and reclaim must match it: same substrate, same command fingerprint, and
+    `remote_exec_policy` must still allow the recorded capability. A job with no binding is refused
+    (fail-closed). Callers can't change agent, capability, substrate or command; supplying a
+    different `agent_id` or `capability` is refused.
+  - One shared function, `authorize_http_execution` (token admission + `remote_exec_policy`), is used
+    by both `/run` and resume. The six-command list still lives only in `remote_exec_policy.py`.
+  - Resume now **requires a governance token** (body or `X-Governance-Token`). Before this, the
+    resume endpoint needed only the API key.
+  - Resumed and reclaimed results carry `admission_binding` and an `execution_attempt` (lease id).
+- **Merged in:** #287 (dashboard polish/workflow builder), #288 (Think Token learning), #289 (Git
+  integration). Two of them were not what they looked like:
+  - `origin/main` carried a stray `<<<<<<< HEAD` line in `index.html` (from #289), which printed as
+    page text. Removed.
+  - `git-api-routes.ts` was never mounted (`/api/git/*` returned 404) and, if mounted as written, was
+    unsafe: `execSync` on a shell string built from the caller's `url` and `branch` (command injection),
+    and a "traversal" check that only blocked `..`, so absolute paths could be read or written.
+    Mounted at `/api/git` with clone limited to public `https://github.com` repos, `execFileSync`
+    with `--`, validated branch/depth, and file access confined to `<workspaceRoot>/_git` (absolute
+    paths, `..` and escaping symlinks refused).
+  - The #288 Think Token modules have **no routes**; they're a library meant to hook into
+    `AgentSession`. Not wired here (it changes agent prompts, which is a feature decision).
+- **Tests:**
+  - Resume/reclaim governance: `tests/e2e/test_f144_resume_reclaim_governance.py`, 14. It covers:
+    - resume over HTTP through the real API router: unauthenticated, missing/forged token, wrong
+      identity, privileged capability substitution, another identity's privileged token, a different
+      allowed command, forbidden commands (all before SSH, job left untouched), no binding, and an
+      authorized resume that preserves provenance with no secrets
+    - reclaim: no HTTP route; same binding enforced; admitted-command reclaim still works
+    - immutability of the binding
+  - Existing `test_lifecycle_resume` and `test_lifecycle_reclaim` (27) needed fixtures that carry a
+    binding, since executable jobs now require one.
+  - Mutation checks: removing each of the 6 guards fails tests.
+  - Web: `git-routes.test.ts` 6 and `local-only.test.ts` 3; web suite 149/149; typecheck 0.
+  - Broad Python regression: recorded in the PR. CI not run (GitHub billing issue).
+- **LIVE (real uvicorn backend over TCP, real worker-02; not a browser):**
+  - Eight attacks on resume all got HTTP 403 before SSH, with **0 artifacts** produced: no token, forged
+    token, wrong agent, `goal:execute` substitution, a different allowed command (`uptime`),
+    `hostname; id`, `rm -rf /`, and a job with no binding.
+  - The authorized resume ran on worker-02 (`209.50.51.174`) and returned `kudbee-hermes-worker-02`, exit
+    0, 0.88s, receipt `tb_rcpt_live_ok`, checkpoint `chk_6de1abfea105`, binding fingerprint
+    `7063dece7cccf374`. A second resume returned 409. No secrets in the record.
+- **Four-state:**
+  - dashboard login deferral + loopback guard: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real
+    server boots refuse `0.0.0.0`; API and WebSocket work without login)
+  - resume/reclaim governance: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real backend HTTP → worker-02)
+  - `/api/git` hardening: CODE COMPLETE / TEST VERIFIED (real server); not browser-tested
+  - PRODUCTION READY: **NO**
+- **Limits:** the dashboard is unauthenticated and local-only by design. The `/api/git` UI was not
+  exercised in a browser. DNS-rebinding against a localhost dashboard is not addressed. Reclaim isn't
+  wired into any scheduler here. The host key isn't pinned. Nothing is deployed.
+- **Next:** wire (or explicitly drop) the #288 Think Token library into `AgentSession`, behind a
+  decision, and browser-test the Git panel.
+
 ### Open items / debt (be honest here)
 
 - `cli.ts` has no automated tests (its paths are exercised manually and through

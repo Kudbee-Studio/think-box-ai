@@ -110,7 +110,7 @@ class Client {
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(WS_URL, { headers: authCookie ? { Cookie: authCookie } : {} });
+      this.ws = new WebSocket(WS_URL);
       this.ws.on('error', reject);
       this.ws.on('message', (raw) => {
         const msg = JSON.parse(raw.toString()) as Msg;
@@ -162,7 +162,7 @@ class Client {
   }
 
   async files(quiet = false): Promise<void> {
-    const res = await apiFetch(`${HOST}/api/sessions/${this.sessionId}/files`);
+    const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files`);
     const { files } = (await res.json()) as { files: Array<{ path: string; size: number }> };
     if (!files.length) {
       if (!quiet) console.log(c.dim('  (workspace empty)'));
@@ -174,7 +174,7 @@ class Client {
   }
 
   async cat(file: string): Promise<void> {
-    const res = await apiFetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
+    const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
     const body = (await res.json()) as { content?: string; error?: string };
     console.log(body.content ?? c.red(body.error ?? 'error'));
   }
@@ -186,7 +186,7 @@ function printApproval(req: ApprovalRequest): void {
 }
 
 async function showRuns(): Promise<void> {
-  const { runs } = (await (await apiFetch(`${HOST}/api/runs?limit=15`)).json()) as { runs: any[] };
+  const { runs } = (await (await fetch(`${HOST}/api/runs?limit=15`)).json()) as { runs: any[] };
   if (!runs.length) return console.log(c.dim('  (no runs yet)'));
   for (const r of runs) {
     const color = r.status === 'completed' ? c.green : r.status === 'running' ? c.cyan : r.status === 'stopped' ? c.yellow : c.red;
@@ -195,10 +195,10 @@ async function showRuns(): Promise<void> {
 }
 
 async function showRun(prefix: string): Promise<void> {
-  const { runs } = (await (await apiFetch(`${HOST}/api/runs?limit=500`)).json()) as { runs: any[] };
+  const { runs } = (await (await fetch(`${HOST}/api/runs?limit=500`)).json()) as { runs: any[] };
   const match = prefix && runs.find((r) => r.id.startsWith(prefix));
   if (!match) return console.log(c.red('Usage: /run ID (first characters from /runs)'));
-  const run = (await (await apiFetch(`${HOST}/api/runs/${match.id}`)).json()) as any;
+  const run = (await (await fetch(`${HOST}/api/runs/${match.id}`)).json()) as any;
   console.log(c.bold(run.goal));
   console.log(c.dim(`  ${run.status} · ${run.model} · ${run.current_step} steps · ${run.tool_calls} tools · ${run.prompt_tokens + run.completion_tokens} tokens · ${usd(run.cost_usd)} · ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`));
   for (const step of run.steps) {
@@ -364,7 +364,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       }
       break;
     case '/agents': {
-      const res = await apiFetch(`${HOST}/api/agents`);
+      const res = await fetch(`${HOST}/api/agents`);
       const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
       console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
       for (const a of agents) {
@@ -381,7 +381,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         client.agent = undefined;
         console.log(c.green('🤖 Agent → default worker (full tools)'));
       } else {
-        const res = await apiFetch(`${HOST}/api/agents`);
+        const res = await fetch(`${HOST}/api/agents`);
         const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
         const match = agents.find((a) => a.id === args[0].toLowerCase());
         if (!match) {
@@ -402,7 +402,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       await client.cat(args.join(' '));
       break;
     case '/status':
-      console.log(await (await apiFetch(`${HOST}/api/health`)).json());
+      console.log(await (await fetch(`${HOST}/api/health`)).json());
       break;
     case '/runs':
       await showRuns();
@@ -410,7 +410,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/memory': {
       const query = args.join(' ').trim();
       const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
-      const { items, backend } = (await (await apiFetch(`${HOST}/api/memory?${params}`)).json()) as { items: any[]; backend: string };
+      const { items, backend } = (await (await fetch(`${HOST}/api/memory?${params}`)).json()) as { items: any[]; backend: string };
       if (!items.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
       if (query && items.length) console.log(c.dim(`  search backend: ${backend}`));
       const color: Record<string, (s: string) => string> = { verified: c.green, org: c.yellow, task: c.cyan };
@@ -426,7 +426,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
         params.set('layer', layer);
       }
-      const res = await apiFetch(`${HOST}/api/memory/notes?${params}`);
+      const res = await fetch(`${HOST}/api/memory/notes?${params}`);
       const data = (await res.json()) as any;
       if (!res.ok || !data.notes?.length) {
         console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
@@ -448,7 +448,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       }
       const [title, ...rest] = text.split(/\s+[-—:]\s+/);
       const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
-      const res = await apiFetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(sessionId)}`, {
+      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(sessionId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -468,7 +468,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         console.log(c.red('Usage: /forget ID|QUERY'));
         break;
       }
-      const res = await apiFetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
       const result = (await res.json()) as any;
       console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
@@ -482,14 +482,14 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       if (target && target !== network) {
         params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
       }
-      const res = await apiFetch(`${HOST}/api/algorand?${params}`);
+      const res = await fetch(`${HOST}/api/algorand?${params}`);
       const body = (await res.json()) as Record<string, unknown>;
       console.log(res.ok ? JSON.stringify(body, null, 2) : c.red(`  ${body.error}`));
       break;
     }
     case '/promote': {
       const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
-      const res = await apiFetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
       const item = (await res.json()) as any;
       console.log(res.ok ? c.green(`  promoted → ${item.id}`) : c.red(`  ${item.error}`));
       break;
@@ -498,7 +498,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       await showRun(args[0] ?? '');
       break;
     case '/metrics': {
-      const m = (await (await apiFetch(`${HOST}/api/stats`)).json()) as any;
+      const m = (await (await fetch(`${HOST}/api/stats`)).json()) as any;
       console.log(`  Runs ${m.runs_today} today / ${m.runs_total} total · success ${m.success_rate ?? '—'}% · p50 ${(m.p50_ms / 1000).toFixed(1)}s · p95 ${(m.p95_ms / 1000).toFixed(1)}s`);
       console.log(`  Tokens today ${m.tokens_today} · cost today ${usd(m.cost_today_usd)} · all-time ${usd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${usd(m.budget_usd)}` : ''}`);
       for (const [name, t] of Object.entries(m.tools as Record<string, any>)) {
@@ -716,61 +716,8 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   return telemetry;
 }
 
-// ─── Dashboard sign-in ───
-// The server requires a signed-in session for every /api route except health/auth and for the WebSocket.
-// The CLI signs in like the browser does: the password comes from KUDBEE_DASHBOARD_PASSWORD or a hidden
-// prompt, and only the opaque session cookie is kept (in memory, for this process).
-let authCookie = '';
-
-function apiFetch(url: string, init: RequestInit = {}): Promise<globalThis.Response> {
-  return fetch(url, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), ...(authCookie ? { Cookie: authCookie } : {}) } });
-}
-
-function promptHidden(question: string): Promise<string> {
-  if (!process.stdin.isTTY) return Promise.reject(new Error('no TTY for password prompt; set KUDBEE_DASHBOARD_PASSWORD'));
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
-      if (s.startsWith(question)) process.stdout.write(s);
-    };
-    rl.question(question, (answer) => {
-      rl.close();
-      process.stdout.write('\n');
-      resolve(answer);
-    });
-  });
-}
-
-async function signIn(): Promise<void> {
-  const base = HOST;
-  const meRes = await fetch(base + '/api/auth/me');
-  if (!meRes.ok) {
-    console.error(c.red(`The server at ${base} does not support dashboard sign-in (GET /api/auth/me → ${meRes.status}); restart it on the current version.`));
-    process.exit(1);
-  }
-  const me = (await meRes.json()) as { configured: boolean };
-  if (!me.configured) {
-    console.error(c.red('Dashboard sign-in is not configured on the server: set KUDBEE_DASHBOARD_PASSWORD_HASH (see AGENTS.md).'));
-    process.exit(1);
-  }
-  const username = process.env.KUDBEE_DASHBOARD_USER || 'admin';
-  const password = process.env.KUDBEE_DASHBOARD_PASSWORD || (await promptHidden(`Password for ${username}: `));
-  const res = await fetch(base + '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    console.error(c.red(`Sign-in failed (${res.status}): ${body.error || 'error'}`));
-    process.exit(1);
-  }
-  authCookie = (res.headers.get('set-cookie') || '').split(';')[0];
-}
-
 async function main(): Promise<void> {
   await ensureServer();
-  await signIn();
   const client = new Client();
   await client.connect();
 

@@ -313,23 +313,25 @@ python3 scripts/scan_doc_secrets.py docs/my_file.md
 
 ---
 
-## Dashboard and remote-execution boundaries (PR #285/#286)
+## Dashboard and remote-execution boundaries (updated 2026-09-30)
 
-Three independent layers, each fail-closed:
+**Dashboard: local-only, no user authentication (login was tried in #285/#286 and deliberately deferred).**
+The server binds to `127.0.0.1` and refuses any other `LISTEN_ADDR` unless `KUDBEE_ALLOW_NON_LOOPBACK=1`.
+Do not expose it. User authentication (and HTTPS) is a **required** step before any remote or shared use.
 
-1. **Dashboard sign-in** (`apps/web/auth.ts`). Every `/api/*` route except `/api/health` and
-   `/api/auth/*` requires a server-side session, and so does the WebSocket. Configure
-   `KUDBEE_DASHBOARD_PASSWORD_HASH` (scrypt, from `apps/web/scripts/hash-password.ts`). Without it the
-   dashboard API returns 503.
-2. **Governance admission** (`thinkbox/admission.py`). The token must be valid, belong to the claimed
-   agent, and **contain** the requested capability, and the identity must hold it too. The dashboard
-   token carries only `shell:upcloud-ssh:readonly` and lasts 300s.
-3. **Execution policy** (`thinkbox/remote_exec_policy.py`). `upcloud-ssh` requires that capability, the
-   capability allows only `upcloud-ssh`, and the command must exactly match the six read-only commands.
-   This is enforced at the route and again below every execution path.
+Boundaries that remain, each fail-closed:
 
-Never expose to the browser: `THINKBOX_API_KEY`, governance tokens, the dashboard password or its hash,
-the session id (it's an HttpOnly cookie), or SSH/UpCloud credentials.
+1. **Backend API key** (`THINKBOX_API_KEY`), never sent to the browser.
+2. **Governance admission** (`thinkbox/admission.py`): valid token, right agent, capability held by the
+   identity **and** present in the token. The dashboard token carries only `shell:upcloud-ssh:readonly`
+   and lasts 300s.
+3. **Execution policy** (`thinkbox/remote_exec_policy.py`): `upcloud-ssh` requires that capability, the
+   capability allows only `upcloud-ssh`, and the command must exactly match one of six read-only commands.
+4. **Admission binding** (`thinkbox/execution_authorization.py`): what `POST /run` authorized is
+   persisted immutably; resume and reclaim may only run exactly that, and resume needs a token too.
+5. **`/api/git`**: public `https://github.com` clones only, no shell, files confined to the workspace.
+
+Never expose to the browser: `THINKBOX_API_KEY`, governance tokens, or SSH/UpCloud credentials.
 
 ## External References
 

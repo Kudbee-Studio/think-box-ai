@@ -1,4 +1,4 @@
-## CURRENT (2026-09-29) — UpCloud governed execution + dashboard sign-in (PRs #280–#286)
+## CURRENT (2026-09-29) — UpCloud governed execution + dashboard sign-in (PRs #280–#289 and follow-up)
 
 The only authorized UpCloud server is worker-02: `00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`, account `kudbeex`.
 
@@ -8,11 +8,13 @@ The only authorized UpCloud server is worker-02: `00e300f7-4fc9-49cf-af9b-b11c79
 | Governed `POST /api/v1/run` reachable in real app (#281) | yes | yes | in-process real app | no |
 | `upcloud-ssh` substrate → worker-02 (#282) | yes | yes | yes | no |
 | Dashboard bridge + backend admission-token (#284) | yes | yes | yes (browser → web → backend HTTP → worker-02) | no |
-| Dashboard sign-in in front of `/api/governed/run` (#285) | yes | yes | yes (local browser, real worker-02) | no |
-| Whole-dashboard sign-in (all `/api/*` + WebSocket) + CLI sign-in (#286) | yes | yes | yes (local browser) | no |
+| ~~Dashboard sign-in in front of `/api/governed/run` (#285)~~ | **removed (deferred)** in this change; see below | | | |
+| ~~Whole-dashboard sign-in + CLI sign-in (#286)~~ | **removed (deferred)**: dashboard is a local-only operator console; server refuses non-loopback binds | | | |
+| Resume and reclaim governed by the persisted `admission_binding` + shared `authorize_http_execution` | yes | yes | yes (real backend HTTP, real worker-02) | no |
+| `/api/git` routes from #289 mounted with input hardening | yes | yes (real server) | no (not browser-tested) | no |
 | Backend execution policy `shell:upcloud-ssh:readonly` + token-capability admission fix (#286) | yes | yes | yes (real backend HTTP, real worker-02) | no |
 
-- **Not production ready:** everything was verified locally over loopback. Nothing is deployed, sessions are in-memory, there is a single dashboard user, there is no HTTPS, the worker host key is not pinned, resume/reclaim have no capability check (only the command check), and there has been no founder review.
+- **Not production ready:** everything was verified locally over loopback. Nothing is deployed, sessions are in-memory, there is a single dashboard user, **the dashboard has no user authentication (deferred; required before any remote deployment)**, there is no HTTPS, the worker host key is not pinned, and there has been no founder review.
 - **CI:** not run (GitHub billing issue). Nothing is claimed CI-green.
 - **Open founder decisions:** delete the orphan server `00068975`? keep or delete worker-01 (account `kudbee`)? add an SSH-only firewall on worker-02?
 - **Detail:** `docs/CONTINUITY.md` (2026-09-29 entries) and the AGENTS.md Work Log.

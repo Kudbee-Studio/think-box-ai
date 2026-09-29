@@ -58,15 +58,7 @@ function connectWebSocket() {
     document.getElementById('header-connection').innerHTML = '<span class="connection-dot offline"></span> Reconnecting';
     setStatus('error', 'Disconnected');
     appendTerminalMessage('system', 'Disconnected — retrying in 3s...');
-    setTimeout(async () => {
-      const me = await authStatus();
-      if (me.authenticated) {
-        connectWebSocket();
-      } else {
-        appendTerminalMessage('system', '🔒 Session ended — sign in again.');
-        openLoginDialog(true);
-      }
-    }, 3000);
+    setTimeout(connectWebSocket, 3000);
   };
 }
 
@@ -641,8 +633,7 @@ async function runSlashCommand(command) {
         '  /model NAME         Switch to a model',
         '  /agent [NAME]       Switch agent profile (or clear for default)',
         '  /notes [LAYER]     List recent notes (session|task|org|verified)',
-        '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed; sign in first)',
-        '  /login · /logout · /whoami   Dashboard sign-in for governed commands',
+        '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed)',
         '',
         '🔌 Plugins & Integration:',
         '  /plugins           List installed plugins',
@@ -1013,25 +1004,6 @@ async function runSlashCommand(command) {
       ].join('\n'));
       return true;
 
-    case '/login':
-      openLoginDialog();
-      return true;
-
-    case '/logout': {
-      await fetch('/api/auth/logout', { method: 'POST', headers: { 'X-Kudbee-Client': 'dashboard' } });
-      appendTerminalMessage('system', '🔓 Signed out.');
-      window.location.reload();
-      return true;
-    }
-
-    case '/whoami': {
-      const me = await (await fetch('/api/auth/me', { cache: 'no-store' })).json();
-      appendTerminalMessage('system', !me.configured
-        ? '⚠ Dashboard sign-in is not configured on this server (governed commands are disabled).'
-        : me.authenticated ? `🔐 Signed in as ${me.user}` : '🔒 Not signed in — use /login');
-      return true;
-    }
-
     case '/remote': {
       const command = args.join(' ').trim();
       const headers = { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' };
@@ -1042,10 +1014,6 @@ async function runSlashCommand(command) {
       try {
         const submit = await fetch('/api/governed/run', { method: 'POST', headers, body: JSON.stringify({ command }) });
         const job = await submit.json();
-        if (submit.status === 401) {
-          appendTerminalMessage('system', '🔒 Sign in first: /login');
-          return true;
-        }
         if (!submit.ok) {
           appendTerminalMessage('system', `✗ /remote rejected (${submit.status}): ${job.error || 'error'}`);
           return true;
@@ -1713,35 +1681,7 @@ function escapeHtml(text) {
 }
 
 // ─── Event Listeners ───────────────────────────────────────────
-let dashboardStarted = false;
-
-async function authStatus() {
-  try {
-    return await (await fetch('/api/auth/me', { cache: 'no-store' })).json();
-  } catch {
-    return { configured: false, authenticated: false, user: null };
-  }
-}
-
-// Every /api route except health/auth and the WebSocket require a signed-in session, so nothing
-// starts until the user has signed in.
-document.addEventListener('DOMContentLoaded', async () => {
-  const me = await authStatus();
-  if (me.authenticated) {
-    startDashboard();
-    return;
-  }
-  if (!me.configured) {
-    appendTerminalMessage('error', 'Dashboard sign-in is not configured on this server (KUDBEE_DASHBOARD_PASSWORD_HASH). The dashboard is disabled.');
-    return;
-  }
-  appendTerminalMessage('system', '🔒 Sign in to use the dashboard.');
-  openLoginDialog(true);
-});
-
-function startDashboard() {
-  if (dashboardStarted) return;
-  dashboardStarted = true;
+document.addEventListener('DOMContentLoaded', () => {
   connectWebSocket();
 
   document.getElementById('run-goal').addEventListener('click', runGoal);
@@ -1974,47 +1914,4 @@ function startDashboard() {
   // Load models periodically
   setInterval(loadModels, 10000);
   setTimeout(loadModels, 1000);
-}
-
-
-function openLoginDialog(required = false) {
-  const dialog = document.getElementById('login-dialog');
-  document.getElementById('login-cancel').hidden = required;
-  dialog.dataset.required = required ? '1' : '';
-  const form = document.getElementById('login-form');
-  const error = document.getElementById('login-error');
-  error.textContent = '';
-  form.reset();
-  dialog.showModal();
-  document.getElementById('login-username').focus();
-}
-
-document.getElementById('login-dialog')?.addEventListener('cancel', (event) => {
-  if (event.currentTarget.dataset.required) event.preventDefault();
-});
-document.getElementById('login-cancel')?.addEventListener('click', () => document.getElementById('login-dialog').close());
-document.getElementById('login-form')?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const username = document.getElementById('login-username').value;
-  const passwordInput = document.getElementById('login-password');
-  const error = document.getElementById('login-error');
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Kudbee-Client': 'dashboard' },
-      body: JSON.stringify({ username, password: passwordInput.value }),
-    });
-    passwordInput.value = '';
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      error.textContent = body.error || `Sign-in failed (${res.status})`;
-      return;
-    }
-    document.getElementById('login-dialog').close();
-    appendTerminalMessage('system', `🔐 Signed in as ${body.user}`);
-    if (!dashboardStarted) startDashboard();
-    else if (!state.ws || state.ws.readyState !== WebSocket.OPEN) connectWebSocket();
-  } catch (err) {
-    error.textContent = err instanceof Error ? err.message : String(err);
-  }
 });

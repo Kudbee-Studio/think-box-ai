@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+from thinkbox.execution_authorization import authorization_record
 from thinkbox.governed_execution_lifecycle import (
     PHASE_ADMISSION,
     PHASE_COMPLETED,
@@ -54,6 +55,9 @@ def _make_git_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "initial"], cwd=str(path), check=True)
 
 
+_RECLAIM_COMMANDS = {'job_bound_fresh': 'echo NO', 'job_bound_due': 'echo BOUNDARY', 'job_fresh': 'echo NO', 'job_due': 'echo ORPHAN_OK', 'job_race': 'echo RACE', 'job_gone': 'echo NO', 'job_stale': 'echo NO', 'job_nocmd': 'echo X', 'job_nogoal': 'echo X', 'job_wt': 'echo WT', 'job_remote': 'echo remote', 'job_redact': 'echo ORPHAN_SECRET_CMD', 'job_rcpt': 'echo RCPT'}
+
+
 class TestLifecycleReclaim(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -73,7 +77,9 @@ class TestLifecycleReclaim(unittest.TestCase):
         substrate: str = SUBSTRATE_LOCAL,
         goal: str = "reclaim goal",
         receipt_id: str = "tb_rcpt_reclaim_1",
+        command: str | None = None,
     ) -> None:
+        command = command if command is not None else _RECLAIM_COMMANDS.get(job_id, "echo X")
         repo = open_lifecycle_repo(self._repo_path)
         persist_lifecycle_phase(
             repo,
@@ -84,6 +90,7 @@ class TestLifecycleReclaim(unittest.TestCase):
             experiment_id="tb_exp_reclaim",
             session_id="tb_sess_reclaim",
             execution_substrate=substrate,
+            admission_binding=authorization_record(agent_id="test-agent", capability="goal:execute", execution_substrate=substrate, exec_command=command),
         )
         persist_lifecycle_phase(
             repo,
@@ -349,7 +356,8 @@ class TestLifecycleReclaim(unittest.TestCase):
         self.assertEqual(load_lifecycle(repo, "job_adm")["phase"], PHASE_ADMISSION)  # type: ignore[index]
 
         persist_lifecycle_phase(
-            repo, "job_q", PHASE_ADMISSION, goal="queued", receipt_id="tb_rcpt_q", execution_substrate=SUBSTRATE_LOCAL
+            repo, "job_q", PHASE_ADMISSION, goal="queued", receipt_id="tb_rcpt_q", execution_substrate=SUBSTRATE_LOCAL,
+            admission_binding=authorization_record(agent_id="test-agent", capability="goal:execute", execution_substrate=SUBSTRATE_LOCAL, exec_command="echo QUEUED_STILL"),
         )
         persist_lifecycle_phase(
             repo, "job_q", PHASE_QUEUED, receipt_id="tb_rcpt_q", execution_substrate=SUBSTRATE_LOCAL
@@ -418,6 +426,7 @@ class TestLifecycleReclaim(unittest.TestCase):
             goal="own",
             receipt_id="tb_rcpt_own",
             execution_substrate=SUBSTRATE_LOCAL,
+            admission_binding=authorization_record(agent_id="test-agent", capability="goal:execute", execution_substrate=SUBSTRATE_LOCAL, exec_command="echo OWN"),
         )
         persist_lifecycle_phase(
             repo, "job_own", PHASE_QUEUED, receipt_id="tb_rcpt_own", execution_substrate=SUBSTRATE_LOCAL

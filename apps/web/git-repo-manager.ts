@@ -1,6 +1,6 @@
 // kudbEE Git Repository Manager — Clone and sync repos to the dashboard
 
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -35,6 +35,13 @@ export interface RepositoryState {
 /**
  * Git Repository Manager — Clone, track, and sync repositories
  */
+// Input validation. Repository URLs and branches reach `git` as arguments (never a shell string), and only
+// public github.com HTTPS repositories are cloneable. File access is confined to the manager's base directory.
+export class GitInputError extends Error {}
+
+export const GITHUB_HTTPS_URL = /^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*?(?:\.git)?$/;
+export const SAFE_BRANCH = /^[A-Za-z0-9_][A-Za-z0-9_./-]{0,99}$/;
+
 export class GitRepoManager {
   private baseDir: string;
   private repos: Map<string, RepositoryState> = new Map();
@@ -50,7 +57,17 @@ export class GitRepoManager {
    * Clone a git repository
    */
   async cloneRepository(config: GitRepoConfig): Promise<RepositoryState> {
+    if (typeof config.url !== 'string' || !GITHUB_HTTPS_URL.test(config.url)) {
+      throw new GitInputError('Only public https://github.com/<owner>/<repo> URLs can be cloned');
+    }
+    if (config.branch !== undefined && !(typeof config.branch === 'string' && SAFE_BRANCH.test(config.branch))) {
+      throw new GitInputError('Invalid branch name');
+    }
+    if (config.depth !== undefined && !(Number.isInteger(config.depth) && config.depth > 0 && config.depth <= 1000)) {
+      throw new GitInputError('Invalid clone depth');
+    }
     const repoName = this.extractRepoName(config.url);
+    if (repoName.startsWith('.')) throw new GitInputError('Invalid repository name');
     const localPath = config.localPath || path.join(this.baseDir, repoName);
 
     const state: RepositoryState = {
@@ -69,16 +86,12 @@ export class GitRepoManager {
       if (fs.existsSync(localPath)) {
         await this.syncRepository(localPath);
       } else {
-        // Clone the repository
-        const cloneCmd = [
-          'git clone',
-          config.depth ? `--depth ${config.depth}` : '',
-          config.branch ? `-b ${config.branch}` : '',
-          config.url,
-          localPath
-        ].filter(Boolean).join(' ');
-
-        execSync(cloneCmd, { encoding: 'utf-8', stdio: 'pipe' });
+        // Clone the repository: arguments go to git directly (no shell), after strict validation.
+        const args = ['clone'];
+        if (config.depth) args.push('--depth', String(Math.trunc(config.depth)));
+        if (config.branch) args.push('-b', config.branch);
+        args.push('--', config.url, localPath);
+        execFileSync('git', args, { encoding: 'utf-8', stdio: 'pipe' });
       }
 
       // Count files
@@ -164,10 +177,24 @@ export class GitRepoManager {
   /**
    * Read file content
    */
+  /** Resolve a caller-supplied path inside baseDir; anything that escapes (absolute, `..`, symlink) is refused. */
+  resolveInside(filePath: string): string {
+    const root = fs.realpathSync(path.resolve(this.baseDir));
+    const target = path.resolve(root, filePath);
+    if (target !== root && !target.startsWith(root + path.sep)) throw new GitInputError('Path is outside the workspace');
+    // Refuse symlinks that leave the workspace: check the deepest existing ancestor.
+    let probe = target;
+    while (!fs.existsSync(probe) && probe !== root) probe = path.dirname(probe);
+    const real = fs.realpathSync(probe);
+    if (real !== root && !real.startsWith(root + path.sep)) throw new GitInputError('Path is outside the workspace');
+    return target;
+  }
+
   readFile(filePath: string): string {
     try {
-      return fs.readFileSync(filePath, 'utf-8');
+      return fs.readFileSync(this.resolveInside(filePath), 'utf-8');
     } catch (error) {
+      if (error instanceof GitInputError) throw error;
       throw new Error(`Failed to read file: ${error}`);
     }
   }
@@ -177,16 +204,18 @@ export class GitRepoManager {
    */
   writeFile(filePath: string, content: string, createDirs: boolean = true): string {
     try {
+      const target = this.resolveInside(filePath);
       if (createDirs) {
-        const dir = path.dirname(filePath);
+        const dir = path.dirname(target);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
       }
 
-      fs.writeFileSync(filePath, content, 'utf-8');
-      return filePath;
+      fs.writeFileSync(target, content, 'utf-8');
+      return target;
     } catch (error) {
+      if (error instanceof GitInputError) throw error;
       throw new Error(`Failed to write file: ${error}`);
     }
   }
