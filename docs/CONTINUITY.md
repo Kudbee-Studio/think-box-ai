@@ -48,6 +48,24 @@ Before declaring completion, every agent MUST verify:
 
 ## RECENT CHANGES
 
+### 2026-09-30 — Phase 1 UPM dependency installation for LOCAL workers (PR #294)
+
+| Field | Value |
+|---|---|
+| **Branch** | `claude-kudbee/sleepy-clarke-fscuk9` (1 commit) |
+| **Commit** | `0eba6fd` — feat(workers): add optional UPM dependency installation (LOCAL) |
+| **Scope** | ExecutionJob fields + LocalExecutionAdapter + governed routing + 17 tests |
+| **What merged** | Optional frozen-lockfile UPM install for LOCAL substrate only |
+| **Phase** | CODE COMPLETE / TEST VERIFIED (not LIVE VERIFIED per audit spec) |
+| **Tests** | 17 new tests pass (9 LocalExecutionAdapter, 3 governed routing, 5 existing integration) |
+| **Backward compatible** | ✅ install_packages=False (default) unchanged; remote substrates unaffected |
+| **Implementation** | ExecutionJob.install_packages/package_manager fields; UPM install via subprocess before command execution; per-run store isolation `/tmp/upm-store-{job_id}`; error codes: ELOCK, EOFFLINE, EINTEGRITY, UPM_NOT_FOUND, ETIMEOUT |
+| **Files changed** | 5 (job.py, local_execution_adapter.py, governed_job_execution.py, 2× test files) |
+| **Lines added** | ~255 |
+| **Limitations** | UPM only on LOCAL; requires upm.lock or package.json; no multi-language support; no private registry credentials (Phase 2) |
+| **Evidence** | audit: docs/audits/upm-package-manager-integration-audit.md; tests: 17/17 passing; ref: PR #294 |
+| **Next** | Phase 2: private registry credential passing; Phase 3: multi-language package managers |
+
 ### 2026-09-26 19:25 — Autonomous workflow cloud environment setup + proof (merged main 493b6ca6)
 
 | Field | Value |
