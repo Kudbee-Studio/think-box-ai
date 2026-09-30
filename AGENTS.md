@@ -2629,6 +2629,40 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Replaces #291:** it was auto-closed when its base branch (#290) was deleted on merge, and GitHub
   won't reopen a force-pushed PR.
 
+### 2026-09-30 — File confinement past symlinks, update_config limits, private-network requests (branch `fix/web-file-realpath-confinement`)
+
+- **Why:** the #290 review proved two file-confinement gaps and two weaker spots:
+  - `GET /files/content` and `/files/raw` returned an outside file through a symlink (200), and upload
+    and delete followed symlinks too;
+  - WebSocket `file_read` leaked outside content 37 times in 400 reads during a symlink-flip race;
+  - `update_config` accepted any keys and values (`maxIterations: 9999`);
+  - `http_request` GET could reach loopback services with no approval.
+- **Change:**
+  - New `apps/web/workspace-fs.ts`. Every workspace read, write and delete checks that the real path is
+    inside the real root, opens the **resolved** path with `O_NOFOLLOW`, then re-checks the opened
+    descriptor (`/proc/self/fd`, inode match elsewhere). Writes through a symlink are refused. Escapes
+    return **403**.
+  - The agent's `read_file`/`write_file` path hook is realpath-checked.
+  - `update_config` allows only `model`, `provider`, `maxIterations` (1–50) and `temperature` (0–2),
+    and rejects unknown keys (`config_error`). Settings restored from storage are validated the same way.
+  - New `apps/web/net-guard.ts`: `http_request`/`rss_feed` to loopback, RFC 1918, link-local, CGNAT or
+    IPv6-local addresses need human approval. A caller-supplied `allowPrivateNetwork` is ignored.
+    Redirects are followed by hand and re-checked at every hop.
+- **Tests:** `apps/web/tests/file-confinement.test.ts` (7, real `server.ts`):
+  - REST symlink escapes → 403 on content, raw, upload and delete;
+  - the 400-iteration race → **0 leaks** (file and directory swaps);
+  - `update_config` 9999, unknown keys and `__proto__` → rejected;
+  - loopback GET → approval required, a forged flag is ignored, nothing is reached without approval;
+  - a redirect bounce into a private address is refused;
+  - address classification;
+  - the agent cannot read or write through a symlink.
+- **Not done:** per-guard mutation checks (stopped at the founder's request to wrap up the session).
+  Remaining risks: DNS rebinding between the address check and `fetch`; `mkdir -p` or `O_CREAT` can
+  still create an empty entry outside during a directory-swap race (no data is written, and the
+  descriptor check fails first).
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED (real server) / LIVE VERIFIED (loopback). PRODUCTION
+  READY: NO.
+
 ### Open items / debt (be honest here)
 
 - `cli.ts` has no automated tests (its paths are exercised manually and through

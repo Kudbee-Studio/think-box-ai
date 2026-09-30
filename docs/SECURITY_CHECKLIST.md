@@ -344,6 +344,14 @@ Boundaries that remain, each fail-closed:
      escaping symlinks).
    - Plugins act only on the caller's own session.
 
+8. **Workspace files** (`apps/web/workspace-fs.ts`):
+   - every read, write and delete must resolve inside the real workspace root;
+   - the resolved path is opened with `O_NOFOLLOW` and the opened descriptor is re-checked;
+   - symlink escapes return 403.
+9. **Private-network requests** (`apps/web/net-guard.ts`): operator `http_request`/`rss_feed` to
+   loopback or private addresses need approval, and redirects are re-checked at each hop.
+10. **`update_config`**: allow-listed keys, with `maxIterations` capped at 50.
+
 Residual (accepted for local-only use):
 - a local process on this machine can forge `Origin`;
 - an accepted socket can start `run_goal` runs that spend model tokens.
