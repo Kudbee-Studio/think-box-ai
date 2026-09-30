@@ -162,6 +162,8 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
 1. ✅ Governed `upcloud-ssh` execution, execution policy, resume/reclaim governance (#280–#289)
 2. 🔄 **Dashboard lockdown** (branch `fix/dashboard-ws-origin-host-lockdown`, PR awaiting founder review):
    close the cross-origin WebSocket → `shell_exec` hole the audit proved
+2b. 🔄 **Dashboard polish** (stacked on #290): six dead header panels wired, hidden buttons honoured,
+   layout and scrolling fixed at desktop, tablet and phone widths
 3. ⏭ **SSH hardening for worker-02:** pin the host key (replace `StrictHostKeyChecking=accept-new`),
    and use a non-root SSH user
 4. ⏭ **Committed live-proof bundle:** redacted receipt/artifact/checkpoint from a real worker-02 run, so

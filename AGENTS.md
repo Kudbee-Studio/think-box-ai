@@ -2575,6 +2575,50 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Next:** pin worker-02's host key and use a non-root SSH user, then commit a redacted live-proof
   bundle.
 
+### 2026-09-30 — Dashboard polish: layout, scrolling, dead header buttons (branch `fix/dashboard-css-polish`, stacked on #290)
+
+- **Found by a headless-Chrome audit of every header panel at 1440/1024/390 px:**
+  - **6 of 10 header buttons did nothing:** Approval workflows, Analytics, Logs, Integrations,
+    Collaboration, Learning. Each class is created inside a `DOMContentLoaded` handler, but its
+    constructor registered *another* `DOMContentLoaded` listener, which never fires.
+  - `PerformanceAnalytics` called an undefined `startTracking()` (TypeError on every page load).
+  - **Hidden buttons still showed.** Component `display` rules beat the `hidden` attribute, so the
+    memory modal showed Promote/Save/Delete all at once. That produced "Only org memories can be
+    promoted" (Promote on a task memory) and "A memory needs a title and content" (Save in view mode).
+  - `think-token-dashboard.css` redefined `.btn-quiet` for the whole page, so `/help` and `Refresh`
+    rendered as unstyled large text.
+  - Classes with no rules at all: `thought-filters`, `panel-search`, `file-actions`, `git-connect`,
+    `file-tree-empty`, `task-summary` (unstyled browser-default buttons and text).
+  - The page scrolled sideways (1986 px wide at 1024), header buttons were cut off, the right sidebar
+    overflowed, tall modals scrolled their own header and Close button away, and on phones the
+    sidebars were off-canvas with no way to open them.
+- **Fix:**
+  - Header buttons are wired directly in the six panel scripts, and the missing-method call is gone.
+  - New `public/css/polish.css`, loaded last, using the main-pro tokens:
+    - `[hidden]` always wins;
+    - no sideways page scroll; each list scrolls on its own, with thin themed scrollbars;
+    - the header toolbar fits at 1440 px and wraps to its own row below that;
+    - styled filter pills, inputs, empty states and task filters;
+    - terminal output keeps its line breaks;
+    - modals keep the header and actions pinned while the body scrolls;
+    - readable approval and collaboration chips; auto-fit stat grids;
+    - stacked phone layout (terminal first);
+    - visible keyboard focus and reduced-motion support.
+  - `.btn-quiet` in the Think Token stylesheet is scoped to its panel.
+- **Tests:** `apps/web/tests/dashboard-ui.test.ts` (5): no nested `DOMContentLoaded`, constructor calls
+  exist, `[hidden]` rule loads last, no global `.btn-quiet` override, and assets exist. Each bug test
+  fails on `main`'s files. Web suite 154/154 on the branch before the rebase.
+- **Browser (headless Chrome, real server on a spare port):**
+  - no horizontal page scroll at 1440/1024/390;
+  - all 10 panels open;
+  - 0 console errors;
+  - memory modal: a task memory shows only Delete, and the Add form shows only Save. `main` shows
+    all three buttons in both.
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (local browser). PRODUCTION READY: NO
+  (see Phase 3 in `ROADMAP.md`).
+- **Not changed:** panel content that is demo data (Integrations, Collaboration workflows) is still
+  demo data. Wiring it to real state is separate work.
+
 ### Open items / debt (be honest here)
 
 - `cli.ts` has no automated tests (its paths are exercised manually and through
