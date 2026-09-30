@@ -132,9 +132,12 @@ export class ThinkTokenFactory {
   }
 
   private static extractToolSequence(thoughts: Thought[]): string[] | null {
+    // `agent.ts` (runToolAgent) emits `type: 'tool_call'` for each tool invocation, not
+    // 'plugin_call' — that type is never emitted by the real runtime. This previously meant
+    // extractToolSequence always returned null against a real run's thoughts.
     const tools: string[] = [];
     for (const thought of thoughts) {
-      if (thought.type === 'plugin_call' && typeof thought.plugin === 'string') {
+      if (thought.type === 'tool_call' && typeof thought.plugin === 'string') {
         tools.push(thought.plugin);
       }
     }
@@ -150,7 +153,9 @@ export class ThinkTokenFactory {
       const current = thoughts[i];
       const next = thoughts[i + 1];
 
-      if (current.status === 'error' && next.type === 'plugin_call') {
+      // Same real-shape fix: a tool failure is `{ type: 'tool_result', status: 'error' }`
+      // (agent.ts:603), and the next tool attempt is `{ type: 'tool_call' }`, not 'plugin_call'.
+      if (current.status === 'error' && next.type === 'tool_call') {
         recoveries.push({
           error: String(current.content || ''),
           recovery: `Use ${next.plugin} to recover`

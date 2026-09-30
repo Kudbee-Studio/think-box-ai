@@ -35,6 +35,10 @@ import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
 import PersistenceLayer from './persistence.ts';
+import { LearningStore } from './learning-store.ts';
+import { ThinkTokenCollection } from './think-token.ts';
+import { ThinkTokenPropagator } from './think-token-propagation.ts';
+import { ServerLearningIntegration } from './server-learning-integration.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,6 +119,16 @@ void memoryStore.syncVectors();
 
 // ─── Persistent storage (SQLite) ────────────────────────────────
 const persistence = new PersistenceLayer(dataDir);
+
+// ─── Think Token persistence (#288) ──────────────────────────────
+// Bridges a finished agent run into the existing #288 Think Token chain: a successful run's
+// thoughts are checked against ThinkTokenFactory's quality gate, and anything that passes is
+// persisted as a learned_patterns row via LearningStore (see server-learning-integration.ts and
+// think-token-propagation.ts for why each step is needed — several links here were previously
+// unreachable dead code).
+const learningStore = new LearningStore();
+const thinkTokenPropagator = new ThinkTokenPropagator(learningStore, new ThinkTokenCollection());
+const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, undefined, learningStore);
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -945,6 +959,9 @@ class AgentSession {
   async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
+    // Snapshot so the Think Token bridge below only sees this run's own thoughts, not a prior
+    // queued goal's (this.thoughts accumulates for the whole session).
+    const thoughtsStart = this.thoughts.length;
     const profile = agentProfile ? AGENT_PROFILES[agentProfile] : undefined;
     if (agentProfile && !profile) throw new Error(`Unknown agent profile '${agentProfile}'`);
     this.addThought({ type: 'goal', content: `${profile ? `${profile.name} agent` : 'Worker agent'} (${this.config.model}) starting: ${goal}`, status: 'info' });
@@ -1014,6 +1031,21 @@ class AgentSession {
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
+
+      // Think Token bridge (#288): only a successful run can mint a token; a failed or stopped
+      // run still has its session recorded (for later analysis) but produces no token.
+      try {
+        const learning = learningIntegration.recordGoalExecution(this.id, goal, run.success, {
+          thoughts: this.thoughts.slice(thoughtsStart),
+          duration: record.duration_ms ?? 0,
+        });
+        if (learning.tokensAffected > 0) {
+          this.addThought({ type: 'think_token', content: `Captured ${learning.tokensAffected} Think Token${learning.tokensAffected === 1 ? '' : 's'} from this run`, status: 'success' });
+        }
+      } catch (err) {
+        // Learning capture must never fail the run it's capturing.
+        this.addThought({ type: 'think_token', content: `Could not capture Think Tokens: ${errorMessage(err)}`, status: 'error' });
+      }
 
       // Auto-save run metadata to persistent DB (Phase 3 + Feature 5 token telemetry)
       try {
