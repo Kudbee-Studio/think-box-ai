@@ -70,7 +70,7 @@ test('dashboard API and WebSocket work locally without login', async () => {
     const h: any = await (await fetch(`${web.url}/api/health`)).json();
     assert.equal(h.status, 'ok');
     const first = await new Promise<string>((resolve, reject) => {
-      const ws = new WebSocket(web.url.replace('http', 'ws') + '/ws');
+      const ws = new WebSocket(web.url.replace('http', 'ws') + '/ws', { origin: web.url });
       ws.on('message', (m) => { resolve(m.toString()); ws.close(); });
       ws.on('error', reject);
     });
