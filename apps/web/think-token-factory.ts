@@ -1,7 +1,7 @@
 // kudbEE Think Token Factory — Quality gate to distinguish capture from learning
 
-import { ThinkToken, ThinkTokenMetadata, ThinkTokenContent } from './think-token.ts';
-import { Thought, MemoryEntry } from './types.ts';
+import { ThinkToken, type ThinkTokenMetadata, type ThinkTokenContent } from './think-token.ts';
+import type { Thought, MemoryEntry } from './types.ts';
 import { randomUUID } from 'node:crypto';
 
 /**

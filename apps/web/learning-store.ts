@@ -38,8 +38,8 @@ export interface SessionLearning {
 export class LearningStore {
   private db: Database.Database;
 
-  constructor() {
-    this.db = new Database(DB_PATH);
+  constructor(dbPath: string = DB_PATH) {
+    this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.initializeTables();
   }
