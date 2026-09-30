@@ -134,7 +134,7 @@ class AsyncHttpClient:
                 url, data=body, headers=all_headers, method="POST"
             )
 
-            async def do_request():
+            def do_request():
                 try:
                     with urllib.request.urlopen(
                         req, timeout=self.timeout
@@ -210,7 +210,7 @@ class AsyncStreamContext:
                 self.url, data=body, headers=all_headers, method=self.method
             )
 
-            async def do_request():
+            def do_request():
                 try:
                     with urllib.request.urlopen(
                         req, timeout=self.client.timeout
