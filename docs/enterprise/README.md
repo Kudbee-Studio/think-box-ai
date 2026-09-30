@@ -9,15 +9,17 @@ touched to produce it.
 | [`baseline.md`](baseline.md) | Four-state table for every existing component, with evidence and dated measurements |
 | [`gap-analysis.md`](gap-analysis.md) | What is missing, per pillar, with severity and the phase that closes each gap |
 | [`roadmap.md`](roadmap.md) | Phases E0 to E6 as small PRs with acceptance tests; E0 fully specified |
+| [`think-token-audit.md`](think-token-audit.md) | Evidence-only audit separating #288 Think Tokens, THNK, DTHINK and settlement ideas |
 | [`../decisions/027-enterprise-agent-os-architecture.md`](../decisions/027-enterprise-agent-os-architecture.md) | ADR 027 (Proposed): options, design rules, non-goals, reopen criteria |
 | [`../decisions/028-think-token-persistence.md`](../decisions/028-think-token-persistence.md) | ADR 028 (Proposed): where Think Token state lives, and what a Neon database would need first |
 
-## Do this first (not a phase)
+## Documented security finding (accepted as test-only)
 
-**A private SSH key is readable in the public repository's history** (`c62e50d1`, reachable from `origin/main` and 171
-refs), although `INCIDENT_RESPONSE_2026-09-28.md` says the history was purged. Revoke it on UpCloud and remove it from every
-server's `authorized_keys` (ED25519, fingerprint `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`), and rotate the
-API keys that record lists. Details: [baseline row 16](baseline.md#16-secrets-and-key-hygiene).
+A private ED25519 SSH key file is readable in the public repository's history (`c62e50d1`, reachable from `origin/main` and
+171 refs), although `INCIDENT_RESPONSE_2026-09-28.md` says the history was purged. Fingerprint: `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`.
+**Founder decision (2026-09-30): these credentials are TEST-ONLY artifacts of the current testing environment and are intentionally in use; nothing is to be revoked, rotated, replaced, disabled or modified.** The audit did not verify the test-only claim. This plan only documents it: nothing was revoked, rotated, replaced or disabled, no host was contacted, and no secret
+was printed. Gate: confirm every credential involved is test-only or replaced before E6 or any non-test use. Details:
+[baseline row 16](baseline.md#16-secrets-and-key-hygiene).
 
 ## Glossary: three different things called "Think Token"
 
@@ -34,8 +36,8 @@ This plan is about the first. THNK is out of scope and must never be an authoriz
 1. **No human identity.** No login, and one shared governance identity, so receipts cannot say who acted (ID-1, ID-2).
 2. **No durable, attributable audit trail.** Governance state is in memory, the token signature is never checked, and the
    dashboard's "audit log" is browser `localStorage` (GV-1, GV-2, AU-1 to AU-3).
-3. **Worker execution and secrets.** Root SSH, unpinned host key, no firewall, and the exposed private key above (EX-1,
-   EX-2, EX-4, OP-4).
+3. **Worker execution and secrets.** Root SSH, unpinned host key, no firewall, and a private key file readable in public
+   history, documented and accepted as test-only (EX-1, EX-2, EX-4, OP-4).
 4. **CI cannot go green.** 12 type errors, a hung test, and an unbounded multi-hour Python job (OP-1).
 5. **No tenancy, roles or second approver** (TN-1, GV-5).
 
@@ -54,7 +56,7 @@ If you approve the plan without comment, the defaults apply.
 |---|---|---|
 | D1 | Approve the order E0 to E6 and its two adjustments (CI split out; E2 parallel with E1) | Approve |
 | D2 | Signing for receipts and audit: HMAC now, or Ed25519 (needs a Python dependency, so its own ADR) | HMAC now |
-| D3 | The exposed key: revoke and rotate (required), and whether to redo the history purge (a destructive force-push) | Revoke and rotate now; redo the purge only if you want it, it does not undo the exposure |
+| D3 | The exposed test key: documented, not rotated (your decision, 2026-09-30). Confirm at the E6 gate that every credential involved is test-only or replaced | Keep as decided; revisit at the E6 gate |
 | D4 | When to create the non-root user and firewall on worker-02; what to do with the orphan server and worker-01 | Before E2.2 |
 | D5 | Python CI: bound it and move the slow network-backoff tests to a scheduled job; which checks are required; refresh the `gh` token with the `workflow` scope | Bound and split |
 | D6 | Login bootstrap: first-run owner created by a script, minimum 12 characters, no "auth off" switch | As stated |
@@ -66,7 +68,7 @@ Merge order for the open PRs (#298, #299, #300, #302 and this one) is yours.
 ## Unproven (no evidence either way; not assumed)
 
 - The Python `unit-and-integration` suite passing in CI (never seen to finish; 1861 tests passed locally on 2026-09-29).
-- Revocation of the exposed UpCloud key and rotation of the API keys (above).
+- That the exposed credentials are in fact test-only (founder statement; not verified here) and whether any server still trusts the key.
 - Upstash Vector reachability now (the dashboard showed "Vector offline" on 2026-09-30).
 - Worker-02 and Mercury-2 availability now (last verified 2026-09-29 and 2026-09-27; not contacted for this plan).
 - The local Ollama route (needs `ollama pull qwen2.5:1.5b`).

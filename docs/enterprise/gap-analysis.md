@@ -61,7 +61,7 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 | OP-1 | CI cannot go green: 12 type errors (#300), a hung test and no timeouts (#302), and a Python job that runs for hours with no `timeout-minutes`. No branch protection can rely on it. [14] | Critical | E0 |
 | OP-2 | No HTTPS and no deployment target; `nginx.conf` has TLS config that has never been exercised, and `Caddyfile` has `auto_https off`. [17] | High | E6 |
 | OP-3 | No documented backups or restore drill for SQLite files, Markdown memory and receipt artifacts. [17] | High | E6 |
-| OP-4 | **A private SSH key is readable in the public repository's history** (commit `c62e50d1`, reachable from `origin/main` and 171 refs), although `INCIDENT_RESPONSE_2026-09-28.md` records the history as purged. Revocation of that key and rotation of the API keys it lists are unproven. `.env` is the only secret store. [16] | **Critical** | Founder actions now (revoke; do not rely on a history rewrite), then E6 |
+| OP-4 | **A private SSH key file (ED25519) is readable in the public repository's history** (commit `c62e50d1`, reachable from `origin/main` and 171 refs), although `INCIDENT_RESPONSE_2026-09-28.md` records the history as purged. **Founder decision (2026-09-30): these credentials are TEST-ONLY artifacts of the current testing environment and are intentionally in use; nothing is to be revoked, rotated, replaced, disabled or modified.** The audit did not verify the test-only claim. Documented only. `.env` is the only secret store. [16] | Accepted risk (test-only, founder) | Re-evaluate before E6 or any non-test or shared use |
 | OP-5 | 39 open Dependabot alerts (19 high, 19 moderate, 1 low) on the default branch. [16] | Medium | E0 (triage) |
 | OP-6 | Docs drift from code: AGENTS.md records `update_config` validation as shipped (false until #302), describes Think Token integration points that are not wired, and `docs/known-defects.md` is dated 2026-09-19. | Medium | Each phase updates its docs (AGENTS.md section 4.3) |
 
@@ -86,6 +86,6 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 
 1. **No human identity anywhere** (ID-1, ID-2): no login, and one shared governance identity.
 2. **No durable, attributable audit trail** (GV-1, GV-2, AU-1 to AU-3): governance state is in memory, the signature is decorative, the dashboard "audit log" is browser-local.
-3. **Worker execution and secrets hygiene** (EX-1, EX-2, EX-4, OP-4): root SSH, unpinned host key, no firewall, and a private key still readable in public history with revocation unproven. OP-4 is the most urgent item in this document and does not wait for any phase.
+3. **Worker execution and secrets hygiene** (EX-1, EX-2, EX-4, OP-4): root SSH, unpinned host key, no firewall, and a private key file readable in public history (documented; accepted by the founder as a test-only artifact).
 4. **CI cannot go green** (OP-1): nothing can be verified by machine before merge.
 5. **No tenancy, RBAC or second-approver model** (TN-1, GV-5): the structure an enterprise needs does not exist yet.

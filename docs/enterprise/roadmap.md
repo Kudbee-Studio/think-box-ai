@@ -45,8 +45,8 @@ The required security-first order is kept. Why each step sits where it does:
    (create a non-root user, collect the host key, firewall), and root SSH is the only real-host exposure today,
    so it should not wait behind E1.
 
-Non-PR **founder actions** for OP-4 (revoke the compromised UpCloud key, rotate Inception and Upstash Vector keys,
-decide on the history purge) should happen before E0 completes; they are listed under
+OP-4 (a private key file readable in public history) is documented and accepted by the founder as a test-only artifact
+(2026-09-30); nothing is rotated. The gate before E6 or any shared deployment is listed under
 [Founder actions](#founder-actions-not-prs).
 
 ---
@@ -176,7 +176,7 @@ because the web tier authenticates with the backend API key (trust boundary docu
 **Target:** CODE yes, TEST yes, LIVE yes (founder-approved), PROD no.
 
 - **E2.0 Founder infrastructure actions** (not a PR): create a non-root, no-sudo user on worker-02 with a restricted
-  key, set `PermitRootLogin no`, add an SSH-only firewall, record the host key fingerprint, revoke the old key.
+  key, set `PermitRootLogin no`, add an SSH-only firewall, record the host key fingerprint. Whether the existing test key stays is the founder's call (test-only).
 - **E2.1 Code.** Refuse `root` (`ssh_user_root_refused`) and require `UPCLOUD_SSH_USER` explicitly; replace
   `StrictHostKeyChecking=accept-new` with `yes` plus a known-hosts file or a pinned fingerprint; fail closed if the
   pin is missing; a mismatch becomes a typed `SSH_FAILED` with the reason.
@@ -258,12 +258,11 @@ because the web tier authenticates with the backend API key (trust boundary docu
 These need your credentials or authority, not code review:
 
 1. Refresh the `gh` token with the `workflow` scope (needed to push workflow files, including #302's last commit).
-2. **Do this first, before any phase.** Revoke the exposed UpCloud SSH key (ED25519, fingerprint
-   `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`) and remove it from every server's `authorized_keys`; rotate
-   `INCEPTION_API_KEY`, `UPSTASH_VECTOR_REST_TOKEN` and `CURSOR_API_KEY`. The private key is still readable in public
-   history (see baseline row 16), so a purge does not undo the exposure; revocation does. Then decide whether to
-   redo the history purge (a force-push that rewrites every branch; destructive and coordinated). Update
-   `INCIDENT_RESPONSE_2026-09-28.md`, which currently says the purge is complete.
+2. **Exposed test key (documented; no action taken).** A private SSH key file (ED25519, fingerprint
+   `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`) is readable in public history. The founder states it is a TEST-ONLY artifact and instructed that nothing be
+   revoked, rotated, replaced or disabled. **Gate:** before E6 or any non-test or shared use, confirm in writing that every
+   credential involved is test-only or has been replaced. `INCIDENT_RESPONSE_2026-09-28.md` still says the purge is
+   complete; it is left unchanged and the discrepancy is recorded in baseline row 16.
 3. Create the non-root user and firewall on worker-02 (E2.0); decide what to do with the orphan server and worker-01.
 4. Turn on branch protection with the required checks from E0.1.
 5. Approve each live run that contacts worker-02 or any external service (E0.4, E1.4, E2.2).
