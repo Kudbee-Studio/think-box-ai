@@ -30,7 +30,8 @@ INCEPTION_MIN_MAX_TOKENS = 3500
 PROVIDER_OLLAMA = "ollama"
 PROVIDER_OPENAI_COMPAT = "openai_compat"
 PROVIDER_INCEPTION = "inception"
-SUPPORTED_PROVIDERS = (PROVIDER_OLLAMA, PROVIDER_OPENAI_COMPAT, PROVIDER_INCEPTION)
+PROVIDER_MOCK = "mock"
+SUPPORTED_PROVIDERS = (PROVIDER_OLLAMA, PROVIDER_OPENAI_COMPAT, PROVIDER_INCEPTION, PROVIDER_MOCK)
 
 
 class ModelCallError(RuntimeError):
@@ -66,7 +67,13 @@ class ModelConfig:
             raise ValueError(f"unsupported provider {provider!r}; expected one of {SUPPORTED_PROVIDERS}")
         model_env = env.get("THINKBOX_DEFAULT_MODEL", "").strip()
 
-        if provider == PROVIDER_INCEPTION:
+        if provider == PROVIDER_MOCK:
+            cfg = cls(
+                base_url="",
+                model="mock",
+                api_type=PROVIDER_MOCK,
+            )
+        elif provider == PROVIDER_INCEPTION:
             cfg = cls(
                 base_url=env.get("INCEPTION_BASE_URL", "").strip() or INCEPTION_BASE_URL,
                 model=model_env or INCEPTION_DEFAULT_MODEL,
@@ -105,6 +112,41 @@ class ModelConfig:
         return f"{base}/v1/chat/completions"
 
 
+class MockModelClient:
+    """Hermetic mock model for testing without external APIs.
+
+    Returns deterministic answers for math problems without network calls.
+    """
+
+    def __init__(self, config: ModelConfig):
+        self.config = config
+
+    async def generate(self, prompt: str, **kwargs: Any) -> str:
+        """Return a deterministic mock response for math problems."""
+        # Extract numbers from prompts like "What is 42 * 7?"
+        import re
+        numbers = re.findall(r'\d+', prompt)
+        if len(numbers) >= 2:
+            try:
+                a, b = int(numbers[0]), int(numbers[1])
+                # Simple multiplication answer
+                result = a * b
+                return str(result)
+            except (ValueError, IndexError):
+                pass
+        # Fallback for non-math prompts
+        return "OK"
+
+    async def stream(self, prompt: str, **kwargs: Any):
+        """Stream mock response."""
+        result = await self.generate(prompt, **kwargs)
+        yield result
+
+    async def close(self) -> None:
+        """No-op for mock client."""
+        pass
+
+
 class AsyncModelClient:
     def __init__(self, config: ModelConfig | None = None):
         self.config = config or ModelConfig()
@@ -122,12 +164,19 @@ class AsyncModelClient:
 
     async def generate(self, prompt: str, **kwargs: Any) -> str:
         """Return the model's text. Raises ``ModelCallError`` on any failure."""
+        if self.config.api_type == PROVIDER_MOCK:
+            mock = MockModelClient(self.config)
+            return await mock.generate(prompt, **kwargs)
         if self.config.api_type == PROVIDER_OLLAMA:
             return await self._ollama_generate(prompt, **kwargs)
         return await self._openai_generate(prompt, **kwargs)
 
     async def stream(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:
-        if self.config.api_type == PROVIDER_OLLAMA:
+        if self.config.api_type == PROVIDER_MOCK:
+            mock = MockModelClient(self.config)
+            async for token in mock.stream(prompt, **kwargs):
+                yield token
+        elif self.config.api_type == PROVIDER_OLLAMA:
             async for token in self._ollama_stream(prompt, **kwargs):
                 yield token
         else:
