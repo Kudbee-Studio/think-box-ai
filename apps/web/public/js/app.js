@@ -390,20 +390,22 @@ function renderTasks() {
     container.innerHTML = '<div class="empty-state">No tasks match these filters</div>';
     return;
   }
+  const openActivity = new Set([...container.querySelectorAll('.task-activity[open]')]
+    .map(details => details.closest('.task-item')?.dataset.task));
   container.innerHTML = visible.map(task => {
     const overdueTask = task.dueDate && task.dueDate < today && ['pending', 'running', 'blocked'].includes(task.status);
     const actions = task.status === 'completed' ? '' : `
-      <button type="button" class="task-action" data-task-action="${task.status === 'running' ? 'done' : 'start'}" data-task-id="${task.id}">${task.status === 'running' ? 'Complete' : 'Start'}</button>
-      <button type="button" class="task-action" data-task-action="block" data-task-id="${task.id}">Block</button>
+      <button type="button" class="task-action" data-task-action="${task.status === 'running' ? 'done' : 'start'}" data-task-id="${escapeHtml(task.id)}">${task.status === 'running' ? 'Complete' : 'Start'}</button>
+      <button type="button" class="task-action" data-task-action="block" data-task-id="${escapeHtml(task.id)}">Block</button>
     `;
     const attachments = (task.attachments || []).map(image => `<img class="task-attachment" src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.filename)}" loading="lazy">`).join('');
     const activity = (task.activity || []).slice(-5).reverse().map(item => `<div class="task-activity-row"><span>${escapeHtml(item.action)}</span><small>${escapeHtml(item.actor)} · ${new Date(item.timestamp).toLocaleString()}</small>${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}</div>`).join('');
     return `
-      <article class="task-item ${task.status} priority-${task.priority || 'medium'}"${state.runProgress[task.id] ? ` data-run="${escapeHtml(task.id)}" title="Click to open run timeline"` : ''}>
+      <article class="task-item ${escapeHtml(task.status)} priority-${escapeHtml(task.priority || 'medium')}" data-task="${escapeHtml(task.id)}"${state.runProgress[task.id] ? ` data-run="${escapeHtml(task.id)}" title="Click to open run timeline"` : ''}>
         <div class="task-header">
-          <span class="task-status ${task.status}">${escapeHtml(task.status.replace('_', ' '))}</span>
-          <span class="task-priority ${task.priority || 'medium'}">${escapeHtml(task.priority || 'medium')}</span>
-          <code title="${task.id}">${escapeHtml(task.id.slice(0, 8))}</code>
+          <span class="task-status ${escapeHtml(task.status)}">${escapeHtml(task.status.replace('_', ' '))}</span>
+          <span class="task-priority ${escapeHtml(task.priority || 'medium')}">${escapeHtml(task.priority || 'medium')}</span>
+          <code title="${escapeHtml(task.id)}">${escapeHtml(task.id.slice(0, 8))}</code>
         </div>
         <div class="task-description">${escapeHtml(task.title || task.description || 'Untitled task')}</div>
         ${runProgressLine(task)}
@@ -416,9 +418,9 @@ function renderTasks() {
         ${attachments ? `<div class="task-attachments">${attachments}</div>` : ''}
         <div class="task-card-actions">
           ${actions}
-          <button type="button" class="task-action" data-task-attach="${task.id}">Attach image</button>
+          <button type="button" class="task-action" data-task-attach="${escapeHtml(task.id)}">Attach image</button>
         </div>
-        <details class="task-activity"><summary>Activity (${(task.activity || []).length})</summary>${activity || '<div class="task-activity-row">No activity recorded</div>'}</details>
+        <details class="task-activity"${openActivity.has(task.id) ? ' open' : ''}><summary>Activity (${(task.activity || []).length})</summary>${activity || '<div class="task-activity-row">No activity recorded</div>'}</details>
       </article>
     `;
   }).join('');
@@ -436,6 +438,16 @@ function runProgressLine(task) {
     return `<div class="task-progress">${run.current_step} step(s) · ${run.tool_calls} tool(s) · ${formatUsd(run.cost_usd)} · ${((run.duration_ms || 0) / 1000).toFixed(1)}s · timeline ›</div>`;
   }
   return '';
+}
+
+// Only the elapsed-time line changes every second; re-rendering the whole list here replaced the
+// buttons mid-click and collapsed any open Activity section.
+function tickRunningTasks() {
+  document.querySelectorAll('#task-list .task-item.running[data-task]').forEach(item => {
+    const task = state.tasks.find(t => t.id === item.dataset.task);
+    const line = item.querySelector('.task-progress');
+    if (task && line) line.outerHTML = runProgressLine(task);
+  });
 }
 
 function renderTaskActionResult(result) {
@@ -494,7 +506,7 @@ function renderThoughts() {
   container.innerHTML = visibleThoughts.slice(-50).reverse().map(thought => `
     <div class="thought-item ${thought.status || 'info'}">
       <div class="thought-header">
-        <span class="thought-type">${thought.type || 'thought'}</span>
+        <span class="thought-type">${escapeHtml(thought.type || 'thought')}</span>
         <span>${new Date(thought.timestamp).toLocaleTimeString()}</span>
       </div>
       <div class="thought-content">${escapeHtml(thought.content || thought.plugin || '')}</div>
@@ -514,13 +526,13 @@ function renderPlugins() {
   const visiblePlugins = state.plugins.filter(plugin => !query || `${plugin.name} ${plugin.description} ${plugin.permission}`.toLowerCase().includes(query));
   container.innerHTML = visiblePlugins.map(plugin => `
     <div class="plugin-item">
-      <span class="plugin-icon">${plugin.icon || '🔌'}</span>
+      <span class="plugin-icon">${escapeHtml(plugin.icon || '🔌')}</span>
       <div class="plugin-info">
-        <div class="plugin-name">${plugin.name}</div>
-        <div class="plugin-desc">${plugin.description}</div>
+        <div class="plugin-name">${escapeHtml(plugin.name)}</div>
+        <div class="plugin-desc">${escapeHtml(plugin.description)}</div>
       </div>
-      <span class="plugin-badge ${plugin.permission}">${plugin.permission}</span>
-      <button type="button" class="plugin-test" data-plugin="${plugin.name}">Test</button>
+      <span class="plugin-badge ${escapeHtml(plugin.permission)}">${escapeHtml(plugin.permission)}</span>
+      <button type="button" class="plugin-test" data-plugin="${escapeHtml(plugin.name)}">Test</button>
     </div>
   `).join('');
 }
@@ -606,9 +618,20 @@ async function previewFile(filePath) {
   appendTerminalMessage('system', `${filePath}\n\n${result.content}`);
 }
 
+// Buttons and shortcuts call this directly so they never overwrite a goal the user is typing.
+async function runCommand(command) {
+  const name = command.split(/\s+/)[0];
+  try {
+    if (!(await runSlashCommand(command))) {
+      appendTerminalMessage('error', `Unknown command ${name}. Type /help for the list.`);
+    }
+  } catch (error) {
+    appendTerminalMessage('error', `${name} failed: ${error.message}`);
+  }
+}
+
 function showHelp() {
-  document.getElementById('goal-input').value = '/help';
-  runGoal();
+  void runCommand('/help');
 }
 
 async function runSlashCommand(command) {
@@ -1604,6 +1627,10 @@ async function loadAgents() {
 
 function renderModels() {
   const select = document.getElementById('model-select');
+  // The list is re-sent every 10s; rebuilding identical options closes the dropdown while it is open.
+  const key = JSON.stringify(state.models.map(m => [m.name, m.provider, m.size]));
+  if (select.dataset.modelsKey === key) return;
+  select.dataset.modelsKey = key;
   if (!state.models.length) {
     select.innerHTML = '<option value="">No models (set INCEPTION_API_KEY or start Ollama)</option>';
     return;
@@ -1640,7 +1667,7 @@ function runGoal() {
     return;
   }
   if (goal.startsWith('/')) {
-    void runSlashCommand(goal);
+    void runCommand(goal);
     input.value = '';
     return;
   }
@@ -1674,10 +1701,11 @@ function stopGoal() {
 }
 
 // ─── Utilities ─────────────────────────────────────────────────
+// Quotes must be escaped too: results are interpolated into attributes (title="…", data-path="…"),
+// and file names, run goals and memory paths can contain `"` (a name like `x" onmouseover="…` ran script).
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(text ?? '').replace(/[&<>"']/g, ch => entities[ch]);
 }
 
 // ─── Event Listeners ───────────────────────────────────────────
@@ -1776,8 +1804,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderThoughts();
   }));
   document.querySelectorAll('.quick-action').forEach(button => button.addEventListener('click', () => {
-    document.getElementById('goal-input').value = button.dataset.command;
-    runGoal();
+    void runCommand(button.dataset.command);
   }));
   refreshConnectionMonitor();
   setInterval(refreshConnectionMonitor, 10000);
@@ -1790,7 +1817,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAgents();  // Load available agent profiles
   setInterval(refreshStats, 3000);
   setInterval(refreshRuns, 10000);
-  setInterval(() => { if (state.isRunning) renderTasks(); }, 1000);
+  setInterval(() => { if (state.isRunning) tickRunningTasks(); }, 1000);
   document.getElementById('run-history').addEventListener('click', event => {
     const item = event.target.closest('.run-item');
     if (item) openRun(item.dataset.run);
@@ -1872,23 +1899,19 @@ document.addEventListener('DOMContentLoaded', () => {
       switch (e.key.toUpperCase()) {
         case 'M': // Ctrl+Shift+M: Show metrics
           e.preventDefault();
-          document.getElementById('goal-input').value = '/metrics';
-          runGoal();
+          void runCommand('/metrics');
           break;
         case 'C': // Ctrl+Shift+C: Show capacity
           e.preventDefault();
-          document.getElementById('goal-input').value = '/capacity';
-          runGoal();
+          void runCommand('/capacity');
           break;
         case 'L': // Ctrl+Shift+L: Show logs
           e.preventDefault();
-          document.getElementById('goal-input').value = '/logs 10';
-          runGoal();
+          void runCommand('/logs 10');
           break;
         case 'E': // Ctrl+Shift+E: Export
           e.preventDefault();
-          document.getElementById('goal-input').value = '/export';
-          runGoal();
+          void runCommand('/export');
           break;
       }
     }

@@ -14,7 +14,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .main > * { min-width: 0; }
 
 .sidebar-left, .sidebar-right, .terminal, .memory-list, .task-list, .thought-list,
-.run-history, .plugin-list, .file-tree, .modal, .modal-body-scroll {
+.run-history, .plugin-list, .file-tree, .modal, .modal-body-scroll,
+.git-repository-list, .health-list, .graph-details, .search-container, .automations-list, .file-editor {
   scrollbar-width: thin;
   scrollbar-color: var(--border-medium) transparent;
   overscroll-behavior: contain;
@@ -30,6 +31,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .thought-list { max-height: 320px; overflow-y: auto; }
 .plugin-list { max-height: 340px; overflow-y: auto; }
 .file-tree { max-height: 260px; overflow-y: auto; }
+.git-repository-list, .health-list, .graph-details { max-height: 280px; overflow-y: auto; }
+/* These had a max-height but no overflow rule, so content spilled out (or was clipped, for .file-editor) */
+.search-container, .automations-list, .file-editor { overflow-y: auto; }
 
 /* ─── Header: fits the viewport; the toolbar scrolls inside itself if it must ─── */
 .header { gap: var(--spacing-lg); padding: var(--spacing-md) var(--spacing-xl); min-width: 0; }
@@ -57,6 +61,12 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 1439px) {
   .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
   .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; overflow: visible; }
+}
+/* main-pro.css hides .header-center below 1024px, which left tablets and phones with no model or agent picker */
+@media (max-width: 1023px) {
+  .header-center { display: flex; order: 2; flex: 1 1 280px; flex-wrap: wrap; }
+  .model-selector, .agent-selector { flex: 1 1 160px; }
+  .model-selector select, .agent-selector select { max-width: none; }
 }
 
 /* ─── Filter pills (Thoughts and Memory) ─── */
@@ -131,8 +141,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .terminal-actions { display: flex; align-items: center; gap: var(--spacing-sm); }
 
 /* ─── Metrics ─── */
-.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-flow: dense; }
 .kpi strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* "2.2s / 4.1s" does not fit one 96px cell; it was cut to "2.2s / …" */
+.kpi:has(#metric-lat) { grid-column: span 2; }
 
 #memory-graph-canvas { display: block; width: 100%; height: 220px; }
 
@@ -140,7 +152,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .modal { overflow: hidden; min-height: 0; }
 .modal > .modal-header, .modal > .modal-actions { flex: 0 0 auto; }
 .modal > :not(.modal-header):not(.modal-actions) {
-  min-height: 0; flex: 0 1 auto; overflow-y: auto; overflow-x: hidden;
+  min-height: 0; flex: 0 1 auto; overflow-y: auto; overflow-x: auto;
 }
 .modal-wide { width: min(960px, 100%); }
 
