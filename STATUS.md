@@ -1,4 +1,4 @@
-## CURRENT (2026-09-29) — UpCloud governed execution + dashboard sign-in (PRs #280–#289 and follow-up)
+## CURRENT (2026-09-30) — UpCloud governed execution + dashboard local-only lockdown (PRs #280–#289 and follow-ups)
 
 The only authorized UpCloud server is worker-02: `00e300f7-4fc9-49cf-af9b-b11c79f76853`, `209.50.51.174`, account `kudbeex`.
 
@@ -13,6 +13,7 @@ The only authorized UpCloud server is worker-02: `00e300f7-4fc9-49cf-af9b-b11c79
 | Resume and reclaim governed by the persisted `admission_binding` + shared `authorize_http_execution` | yes | yes | yes (real backend HTTP, real worker-02) | no |
 | `/api/git` routes from #289 mounted with input hardening | yes | yes (real server) | no (not browser-tested) | no |
 | Backend execution policy `shell:upcloud-ssh:readonly` + token-capability admission fix (#286) | yes | yes | yes (real backend HTTP, real worker-02) | no |
+| Dashboard local-only lockdown: Host gate (421), WebSocket Origin + Host gate (401), `shell_exec` off by default, approval for operator plugin writes/exec, workspace-confined `file_read`/`file_write` (closes the audit's proven cross-origin WebSocket → shell hole) | yes | yes (real `server.ts`, 8 guards mutation-checked) | yes (real server + headless Chrome, loopback) | no |
 
 - **Not production ready:** everything was verified locally over loopback. Nothing is deployed, sessions are in-memory, there is a single dashboard user, **the dashboard has no user authentication (deferred; required before any remote deployment)**, there is no HTTPS, the worker host key is not pinned, and there has been no founder review.
 - **CI:** not run (GitHub billing issue). Nothing is claimed CI-green.

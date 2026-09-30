@@ -4,6 +4,9 @@
 **Architecture:** Python backend (FastAPI + WebSocket + SSE) + React/Vite frontend + Ollama/OpenAI models
 **Brand:** kudbEE — bee/honeycomb/hive metaphor, warm amber on dark, fast local dev UX
 
+> **Current priorities (2026-09-30):** see [`ROADMAP.md` → Phase 3 — Security & Proof](../ROADMAP.md).
+> This file is the implementation history up to 2026-09-23. Phases and stages below are historical.
+
 ---
 
 ## PHASE 9 — Zero-to-One Innovations (Complete)

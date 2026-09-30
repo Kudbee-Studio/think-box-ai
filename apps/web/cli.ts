@@ -110,7 +110,8 @@ class Client {
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(WS_URL);
+      // The server only accepts WebSocket upgrades from its own loopback origin.
+      this.ws = new WebSocket(WS_URL, { origin: new URL(HOST).origin });
       this.ws.on('error', reject);
       this.ws.on('message', (raw) => {
         const msg = JSON.parse(raw.toString()) as Msg;

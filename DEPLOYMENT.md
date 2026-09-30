@@ -79,6 +79,6 @@ Do NOT use Inception from cloud/box environments — their CDN rejects SNI from 
 | compare_inscription | Compare across multiple indexers |
 | parse_drc20 | Parse DRC-20 JSON operations |
 | load_fixture | Load test data from fixtures/ |
-| shell_exec | Execute shell commands |
-| file_read / file_write | Legacy file tools |
+| shell_exec | Execute shell commands (dashboard: off unless `DASHBOARD_ENABLE_SHELL_EXEC=1`, and every call needs approval) |
+| file_read / file_write | Legacy file tools (dashboard: confined to the session workspace; writes need approval) |
 | http_request / memory_query | Legacy HTTP and memory tools |

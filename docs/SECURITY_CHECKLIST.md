@@ -330,6 +330,23 @@ Boundaries that remain, each fail-closed:
 4. **Admission binding** (`thinkbox/execution_authorization.py`): what `POST /run` authorized is
    persisted immutably; resume and reclaim may only run exactly that, and resume needs a token too.
 5. **`/api/git`**: public `https://github.com` clones only, no shell, files confined to the workspace.
+6. **Local-only request gate** (`apps/web/server.ts`, 2026-09-30). A loopback bind alone doesn't stop
+   a web page in the operator's browser: WebSocket upgrades ignore same-origin policy, and DNS
+   rebinding points an attacker's hostname at 127.0.0.1. So:
+   - every HTTP request must carry a loopback `Host` on the dashboard port (else 421);
+   - every WebSocket upgrade also needs `Origin` = `http://{127.0.0.1|localhost|[::1]}:<port>` (else
+     401). A missing Origin is refused unless `DASHBOARD_ALLOW_NO_ORIGIN=1`.
+7. **Operator plugins:**
+   - `shell_exec` is disabled unless `DASHBOARD_ENABLE_SHELL_EXEC=1`, and then still needs approval.
+   - `plugin_execute`/`git_action` calls that execute, write, clone or send a non-GET request wait for
+     a human `approval_response`.
+   - `file_read`/`file_write` are confined to the session workspace (no absolute paths, `..`, or
+     escaping symlinks).
+   - Plugins act only on the caller's own session.
+
+Residual (accepted for local-only use):
+- a local process on this machine can forge `Origin`;
+- an accepted socket can start `run_goal` runs that spend model tokens.
 
 Never expose to the browser: `THINKBOX_API_KEY`, governance tokens, or SSH/UpCloud credentials.
 

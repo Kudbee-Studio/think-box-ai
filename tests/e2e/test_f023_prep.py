@@ -56,7 +56,12 @@ class TestThinkJobApiSurface(unittest.TestCase):
         self.assertIn('@api_v1_router.post("/run"', source)
         self.assertIn("class RunRequest(BaseModel):", source)
         self.assertIn("governance_token", source)
-        self.assertIn("require_http_admission", source)
+        # #289 routes /run through authorize_http_execution, which wraps require_http_admission
+        # (token admission) and the remote execution policy.
+        self.assertIn("authorize_http_execution(", source)
+        governed = (router_path.parent / "run_governed.py").read_text(encoding="utf-8")
+        authorize = governed.split("def authorize_http_execution(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("require_http_admission(ctx)", authorize)
         self.assertIn("execute_governed_run_background", source)
         self.assertIn("ThinkJobEntry", source)
 

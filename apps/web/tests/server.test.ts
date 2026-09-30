@@ -69,7 +69,7 @@ interface Client {
 }
 
 async function connect(): Promise<Client> {
-  const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`);
+  const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`, { origin: base });
   const messages: any[] = [];
   const waiters: Array<{ type: string; resolve: (m: any) => void }> = [];
   ws.on('message', (raw) => {

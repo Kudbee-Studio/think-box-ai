@@ -1,13 +1,13 @@
 # kudbEE Agent OS Dashboard — Development Roadmap
 
-**Last Updated:** 2026-09-29  
-**Status:** Phase 2 Complete (Premium Dashboard)
+**Last Updated:** 2026-09-30  
+**Status:** Phase 2 features built; **Phase 3 (security + proof) in progress. Not production ready.**
 
 ---
 
 ## Executive Summary
 
-kudbEE Agent OS now features a **professional-grade dashboard** with enterprise-level features for managing, monitoring, and orchestrating intelligent agents. The dashboard is fully functional, locally-tested, and production-ready.
+kudbEE Agent OS now features a **professional-grade dashboard** with enterprise-level features for managing, monitoring, and orchestrating intelligent agents. The dashboard is functional and locally tested. It is **not production ready**: it is a local-only operator console with no user authentication (deferred), and a 2026-09-30 audit found and closed a critical cross-origin WebSocket → local shell hole (see Phase 3).
 
 ---
 
@@ -134,7 +134,7 @@ apps/web/public/js/
 | Code validation | ✅ All modules pass syntax checks |
 | localStorage support | ✅ Full persistence |
 | Responsive design | ✅ Mobile-first |
-| Accessibility | ✅ WCAG 2.1 compliant |
+| Accessibility | ⚠️ Not audited (earlier "WCAG 2.1 compliant" claim had no evidence) |
 | Feature completeness | ✅ 12 features shipped |
 | Lines of code | ✅ 4000+ lines |
 | Documentation | ✅ Complete |
@@ -143,17 +143,40 @@ apps/web/public/js/
 
 ## Deployment Status
 
-**Status: READY FOR PRODUCTION** ✅
+**Status: NOT PRODUCTION READY.** Local-only operator console, verified on loopback.
 
-All features:
-- ✅ Fully functional in local testing
-- ✅ Well-documented
-- ✅ Optimized for performance
-- ✅ Secure by design
+- ✅ Works in local testing (web suite, real server, headless Chrome)
+- ✅ Local-only lockdown: loopback bind, Host gate, WebSocket Origin gate, `shell_exec` off by default,
+  approval for operator writes/exec, workspace-confined file tools (2026-09-30)
+- ❌ No user authentication (deferred by founder decision; **required before any remote or shared use**)
+- ❌ No HTTPS, nothing deployed
+- ❌ CI not running (GitHub billing issue), so nothing is CI-green
 
 ---
 
-## Next Phase (Phase 3) — Future Enhancements
+## Phase 3 — Security & Proof (current, in order)
+
+Governed remote execution: dashboard → governed backend → `upcloud-ssh` → worker-02 (the only authorized
+UpCloud server), six read-only commands, token admission, immutable admission binding for resume/reclaim.
+
+1. ✅ Governed `upcloud-ssh` execution, execution policy, resume/reclaim governance (#280–#289)
+2. 🔄 **Dashboard lockdown** (branch `fix/dashboard-ws-origin-host-lockdown`, PR awaiting founder review):
+   close the cross-origin WebSocket → `shell_exec` hole the audit proved
+3. ⏭ **SSH hardening for worker-02:** pin the host key (replace `StrictHostKeyChecking=accept-new`),
+   and use a non-root SSH user
+4. ⏭ **Committed live-proof bundle:** redacted receipt/artifact/checkpoint from a real worker-02 run, so
+   LIVE VERIFIED claims are independently checkable
+5. ⏭ **Think Token (#288):** decide whether to wire the learning library into `AgentSession` (changes
+   agent prompts)
+6. ⏭ **Git panel browser test** (`/api/git`, mounted and hardened in #289)
+7. ⏭ **Dashboard authentication + HTTPS** before any remote/shared deployment
+
+Founder decisions still open: delete the orphan server `00068975`; keep or delete worker-01; an SSH-only
+firewall on worker-02.
+
+---
+
+## Phase 4 — Future Enhancements
 
 - Real-time collaboration (WebSocket)
 - Custom agent builder UI
@@ -167,4 +190,4 @@ All features:
 
 **Built by**: Claude Haiku 4.5  
 **Date**: 2026-09-29  
-**Ready to ship! 🚀**
+**Next: Phase 3, item 2 → 3.**

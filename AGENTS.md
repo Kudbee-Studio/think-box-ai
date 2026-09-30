@@ -2521,6 +2521,60 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **Next:** wire (or explicitly drop) the #288 Think Token library into `AgentSession`, behind a
   decision, and browser-test the Git panel.
 
+### 2026-09-30 — Dashboard lockdown: WebSocket Origin + Host gate, shell_exec off, workspace-confined file tools (branch `fix/dashboard-ws-origin-host-lockdown`)
+
+- **Why:** a read-only audit of `main` @ `82165813` proved that, with login deferred, **any web page in
+  the operator's browser could run shell commands on this machine**. WebSocket upgrades aren't bound by
+  same-origin policy, the server had no Origin check, and `plugin_execute` called `shell_exec`
+  (`execSync`) directly. The approval gate only existed inside the agent loop. Live proof on a separate
+  port: a client with `Origin: https://evil.example` and no credentials got back `AUDIT_WS_RCE_42` and
+  the local username. `file_read`/`file_write` accepted any absolute path, and a forged `Host` (DNS
+  rebinding) got 200 on every route.
+- **What changed (`apps/web/server.ts`, no login added):**
+  - **Host gate:** Express middleware ahead of everything. `Host` must be `127.0.0.1`, `localhost` or
+    `[::1]` on the dashboard port, otherwise **421**.
+  - **WebSocket gate:** `verifyClient` requires the same loopback `Host` and an `Origin` of exactly
+    `http://{127.0.0.1|localhost|[::1]}:<port>`. A missing Origin is refused unless
+    `DASHBOARD_ALLOW_NO_ORIGIN=1`. The `kudbee` CLI now sends the dashboard origin.
+  - **`shell_exec`** is registered disabled unless `DASHBOARD_ENABLE_SHELL_EXEC=1`.
+  - **Approval gate:** `plugin_execute` and `git_action` go through
+    `AgentSession.executeOperatorPlugin`. Anything that executes (`exec`), writes (`read_write`),
+    clones, or sends a non-GET HTTP request needs a human `approval_response` through the existing
+    `requestApproval` flow.
+  - **File confinement:** `file_read`/`file_write` resolve through `confinedWorkspacePath`. Absolute
+    paths are refused, `..` is refused, and a symlink leading out is refused (realpath-checked).
+  - **Session scope:** every plugin gets the caller's own `sessionId`; a caller-supplied one is
+    overwritten.
+  - The loopback bind is unchanged. Because the Host gate only admits loopback names, the
+    `KUDBEE_ALLOW_NON_LOOPBACK=1` escape hatch no longer yields a reachable dashboard; that is
+    intended, since exposure needs auth first.
+- **Also:** `tests/e2e/test_f023_prep.py` asserted the pre-#289 name `require_http_admission` in
+  `router.py`. It now asserts `authorize_http_execution(` there **and** that `authorize_http_execution`
+  calls `require_http_admission(ctx)`, so the check is no weaker.
+- **Tests:**
+  - New `apps/web/tests/dashboard-lockdown.test.ts`: 7 tests against the real `server.ts` on random
+    loopback ports.
+  - All 8 guards mutation-checked (WS origin, WS host, HTTP host, shell default, approval gate,
+    absolute path, symlink, session scope); each mutation fails at least one test.
+  - Web suite 156/156.
+  - Typecheck: no new errors (15 already on `main`, from #288).
+  - Broad Python regression: see the PR.
+  - CI not run (GitHub billing issue).
+- **Re-test of the audit attack (port 3919, never 3000):** before, shell output returned; after, the
+  upgrade is refused with HTTP 401, and a forged Host gets 421.
+- **Real browser:** headless Chrome shows **Connected** on the dashboard at both `127.0.0.1` and
+  `localhost`.
+- **FOUR-STATE (dashboard local-only lockdown):** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real
+  server, real browser, loopback). **PRODUCTION READY: NO.**
+- **Remaining risks:**
+  - `run_goal` over an accepted socket still spends model tokens.
+  - A local process on this machine can still connect, since it can forge Origin.
+  - SSH to worker-02 is `root` with `StrictHostKeyChecking=accept-new` and no pinned key.
+  - No committed live-proof bundle.
+  - CI blocked.
+- **Next:** pin worker-02's host key and use a non-root SSH user, then commit a redacted live-proof
+  bundle.
+
 ### Open items / debt (be honest here)
 
 - `cli.ts` has no automated tests (its paths are exercised manually and through
@@ -2548,7 +2602,10 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - Run history is a single JSON file (fine for ≤500 runs, one server process).
   Two servers sharing one data dir will overwrite each other.
 - The Ollama path records runs but no tokens/cost and has no tools.
-- The web runtime has no authentication; keep it on localhost (§1.4.1).
+- The web runtime has no authentication; keep it on localhost (§1.4.1). Since 2026-09-30 it also
+  refuses non-loopback `Host` headers (421) and cross-origin WebSocket upgrades (401), so a web page
+  can't drive it. `shell_exec` is off by default, and operator plugin calls that change anything need
+  approval.
 - Experiment pages in `apps/web/public/` (`debug.html`,
   `enterprise-dashboard.html`, `index-mock.html`, `index-offline.html`,
   `simple.html`, `test-fetch.html`, `js/app-mock.js`) are tracked since

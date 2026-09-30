@@ -1,7 +1,7 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import { createGitRouter } from './git-api-routes.ts';
 import express, { type Request, type Response } from 'express';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
@@ -46,9 +46,36 @@ for (const envPath of [path.join(__dirname, '.env'), path.resolve(__dirname, '..
   }
 }
 
+const PORT = process.env.PORT || 3000;
+const PORT_NUM = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
+
+// ─── Local-only request gate ───────────────────────────────────
+// The dashboard has no login (deferred), and a loopback bind alone does not stop a web page in the
+// operator's browser from reaching 127.0.0.1: WebSocket upgrades are not bound by same-origin policy,
+// and DNS rebinding makes an attacker's hostname resolve here. So every HTTP request and WebSocket
+// upgrade must name a loopback Host on our port, and WebSocket upgrades must come from our own origin.
+const LOOPBACK_HOSTNAMES = ['127.0.0.1', 'localhost', '[::1]'];
+
+export function isAllowedHost(host: string | undefined, port: number): boolean {
+  const h = (host ?? '').trim().toLowerCase();
+  return LOOPBACK_HOSTNAMES.some((name) => h === `${name}:${port}` || (port === 80 && h === name));
+}
+
+export function isAllowedOrigin(origin: string | undefined, port: number): boolean {
+  const o = (origin ?? '').trim().toLowerCase();
+  return LOOPBACK_HOSTNAMES.some((name) => o === `http://${name}:${port}` || (port === 80 && o === `http://${name}`));
+}
+
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  // Browsers always send Origin on a WebSocket upgrade. A missing Origin means a non-browser client;
+  // the kudbee CLI and tests send ours, so no-Origin clients are refused unless explicitly allowed.
+  verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) =>
+    isAllowedHost(req.headers.host, PORT_NUM)
+    && (isAllowedOrigin(origin, PORT_NUM) || (!origin && process.env.DASHBOARD_ALLOW_NO_ORIGIN === '1')),
+});
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
 // Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
@@ -60,6 +87,10 @@ const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, '
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
 
+app.use((req: Request, res: Response, next) => {
+  if (isAllowedHost(req.headers.host, PORT_NUM)) return next();
+  res.status(421).json({ error: 'misdirected_request', detail: 'The dashboard is local-only; use http://127.0.0.1 on its port' });
+});
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -259,13 +290,50 @@ async function streamOllama(
 }
 
 // ─── Plugin system ─────────────────────────────────────────────
-function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>): void {
+function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enabled = true): void {
   plugins.set(name, {
     ...config,
     name,
-    enabled: true,
+    enabled,
     callCount: 0,
   });
+}
+
+/**
+ * Resolve a plugin path inside the session workspace. Absolute paths are refused, `..` is refused by
+ * safeWorkspacePath, and the nearest existing ancestor is realpath-checked so a symlink cannot lead out.
+ */
+async function confinedWorkspacePath(sessionId: string, requested: string): Promise<string> {
+  if (!workspaceExists(sessionId)) throw new Error('Session not found');
+  if (path.isAbsolute(requested) || path.win32.isAbsolute(requested)) {
+    throw new Error('Absolute paths are not allowed; use a path inside the session workspace');
+  }
+  const destination = safeWorkspacePath(sessionId, requested);
+  const root = await fs.promises.realpath(sessionWorkspace(sessionId));
+  let probe = destination;
+  for (;;) {
+    try {
+      const real = await fs.promises.realpath(probe);
+      if (real !== root && !real.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
+      return destination;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || probe === root) throw err;
+      probe = path.dirname(probe);
+    }
+  }
+}
+
+/** Why an operator-initiated plugin call (WebSocket plugin_execute / git_action) needs human approval, or null. */
+function operatorApprovalReason(name: string, input: PluginInput): string | null {
+  const plugin = plugins.get(name);
+  if (!plugin) return null;
+  if (plugin.permission === 'exec') return 'executes a shell command on this machine';
+  if (plugin.permission === 'read_write') return 'writes to the session workspace';
+  if (name === 'git_repository' && String(input.action ?? '') === 'clone') return 'clones a repository from the network';
+  if (name === 'http_request' && !['GET', 'HEAD'].includes(String(input.method ?? 'GET').toUpperCase())) {
+    return 'sends a state-changing HTTP request';
+  }
+  return null;
 }
 
 function getPlugins(): Plugin[] {
@@ -276,12 +344,12 @@ function getPlugins(): Plugin[] {
 registerPlugin('file_read', {
   type: 'tool',
   permission: 'read_only',
-  description: 'Read file contents',
+  description: 'Read a file from the session workspace',
   icon: '📄',
   execute: async (input: PluginInput): Promise<PluginResult> => {
-    const filePath = String(input.path);
+    const filePath = String(input.path ?? '');
     try {
-      const content = await fs.promises.readFile(filePath, 'utf-8');
+      const content = await fs.promises.readFile(await confinedWorkspacePath(String(input.sessionId ?? ''), filePath), 'utf-8');
       return { success: true, content, path: filePath };
     } catch (err) {
       return { success: false, error: errorMessage(err) };
@@ -292,13 +360,13 @@ registerPlugin('file_read', {
 registerPlugin('file_write', {
   type: 'tool',
   permission: 'read_write',
-  description: 'Write file contents',
+  description: 'Write a file in the session workspace',
   icon: '✏️',
   execute: async (input: PluginInput): Promise<PluginResult> => {
-    const filePath = String(input.path);
+    const filePath = String(input.path ?? '');
     const content = String(input.content ?? '');
     try {
-      await fs.promises.writeFile(filePath, content, 'utf-8');
+      await fs.promises.writeFile(await confinedWorkspacePath(String(input.sessionId ?? ''), filePath), content, 'utf-8');
       return { success: true, path: filePath };
     } catch (err) {
       return { success: false, error: errorMessage(err) };
@@ -328,7 +396,8 @@ registerPlugin('shell_exec', {
       };
     }
   },
-});
+// Unrestricted local shell: off unless the operator opts in, and even then every call needs approval.
+}, process.env.DASHBOARD_ENABLE_SHELL_EXEC === '1');
 
 registerPlugin('http_request', {
   type: 'tool',
@@ -626,15 +695,16 @@ class AgentSession {
       return { success: false, error: `Plugin disabled: ${name}` };
     }
 
-    const recordedInput = { ...input };
-    if (name === 'git_repository') recordedInput.sessionId = this.id;
+    // Plugins act on this session only (workspace, memory); a caller-supplied sessionId is overwritten.
+    const scopedInput: PluginInput = { ...input, sessionId: this.id };
+    const recordedInput = { ...scopedInput };
     if (typeof recordedInput.image_base64 === 'string') {
       recordedInput.image_base64 = `[omitted image payload: ${Math.floor(recordedInput.image_base64.length * 0.75)} bytes]`;
     }
     this.addThought({ type: 'plugin_call', plugin: name, input: recordedInput, status: 'running' });
 
     try {
-      let result = await plugin.execute(name === 'git_repository' ? { ...input, sessionId: this.id } : input);
+      let result = await plugin.execute(scopedInput);
       if (name === 'image_generate' && typeof result.image_base64 === 'string') {
         const relativePath = `images/plugin-generated-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
         const destination = safeWorkspacePath(this.id, relativePath);
@@ -677,6 +747,20 @@ class AgentSession {
       });
       return { success: false, error: message };
     }
+  }
+
+  /**
+   * Operator-initiated plugin call from the WebSocket. Anything that executes, writes or clones waits
+   * for the same human approval the agent loop uses (requestApproval / approval_response).
+   */
+  async executeOperatorPlugin(name: string, input: PluginInput): Promise<PluginResult> {
+    const plugin = plugins.get(name);
+    if (plugin && !plugin.enabled) return { success: false, error: `Plugin disabled: ${name}` };
+    const reason = operatorApprovalReason(name, input);
+    if (reason && !(await this.requestApproval(`plugin:${name}`, name, { ...input }, reason))) {
+      return { success: false, error: `Denied by human reviewer (${reason})` };
+    }
+    return this.executePlugin(name, input);
   }
 
   /**
@@ -1059,7 +1143,8 @@ wss.on('connection', async (ws: WebSocket) => {
         }
 
         case 'plugin_execute': {
-          const result = await session.executePlugin(String(msg.plugin), msg.input as PluginInput);
+          const input = (msg.input && typeof msg.input === 'object' ? msg.input : {}) as PluginInput;
+          const result = await session.executeOperatorPlugin(String(msg.plugin), input);
           ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, result } }));
           break;
         }
@@ -1074,7 +1159,7 @@ wss.on('connection', async (ws: WebSocket) => {
         }
 
         case 'git_action': {
-          const result = await session.executePlugin('git_repository', {
+          const result = await session.executeOperatorPlugin('git_repository', {
             action: String(msg.action ?? ''),
             ...(msg.payload && typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {}),
           });
@@ -1704,7 +1789,6 @@ app.get('/api/stats/tokens', async (req: Request, res: Response) => {
 });
 
 // ─── Start server ──────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
 // SECURITY: Bind to localhost only, not all interfaces (§1.4.1 AGENTS.md). The dashboard is a local-only
 // operator console with no user authentication, so a non-loopback bind is refused unless explicitly
 // acknowledged. Dashboard authentication is a deferred requirement for any remote/shared deployment.
@@ -1714,7 +1798,6 @@ if (!isLoopbackAddress(LISTEN_ADDR) && process.env.KUDBEE_ALLOW_NON_LOOPBACK !==
   console.error('Bind to 127.0.0.1 (default). Set KUDBEE_ALLOW_NON_LOOPBACK=1 only if you accept exposing an unauthenticated dashboard.');
   process.exit(1);
 }
-const PORT_NUM = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
 server.listen(PORT_NUM, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
   console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
