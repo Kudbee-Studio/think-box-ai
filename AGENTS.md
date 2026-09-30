@@ -2663,6 +2663,20 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED (real server) / LIVE VERIFIED (loopback). PRODUCTION
   READY: NO.
 
+### 2026-09-30 — CI billing lock confirmed still active (PR #295)
+
+- Re-checked via `gh pr checks 295`: all four checks (`Analyze
+  (javascript-typescript)`, `Analyze (python)`, `unit-and-integration`,
+  `web-typecheck`) show `FAILURE`, each completing in 2-4s. `gh run view
+  <run-id>` annotations confirm the same root cause first logged
+  2026-09-27 (§ above): **"The job was not started because your account is
+  locked due to a billing issue."** This is a Kudbee-Studio org GitHub Actions
+  billing lock, not a test or lint regression — do not read a fast all-red CI
+  rollup as a code problem without checking the run annotations first.
+- Founder action still required: resolve the Kudbee-Studio GitHub billing
+  issue. Until then, every PR's CI rollup will show FAILURE regardless of
+  diff content.
+
 ### Open items / debt (be honest here)
 
 - `cli.ts` has no automated tests (its paths are exercised manually and through
