@@ -17,12 +17,12 @@ class IntegrationConnectors {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const intBtn = document.getElementById('integrations-button');
-      if (intBtn) {
-        intBtn.addEventListener('click', () => this.openConnectors());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const intBtn = document.getElementById('integrations-button');
+    if (intBtn) {
+      intBtn.addEventListener('click', () => this.openConnectors());
+    }
 
     window.addEventListener('integration:trigger', (e) => {
       this.triggerIntegration(e.detail);
