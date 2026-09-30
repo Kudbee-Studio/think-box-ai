@@ -8,12 +8,12 @@ class ExecutionLogs {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const logsBtn = document.getElementById('execution-logs-button');
-      if (logsBtn) {
-        logsBtn.addEventListener('click', () => this.openLogs());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const logsBtn = document.getElementById('execution-logs-button');
+    if (logsBtn) {
+      logsBtn.addEventListener('click', () => this.openLogs());
+    }
 
     window.addEventListener('agent:action', (e) => this.recordAction(e.detail));
     window.addEventListener('tool:executed', (e) => this.recordToolExecution(e.detail));

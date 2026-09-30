@@ -1,0 +1,197 @@
+/* kudbEE Agent OS — layout, scrolling and component polish.
+   Loaded after every other stylesheet. Uses the design tokens from main-pro.css.
+   Covers classes the page uses that had no rules (filters, empty states, search inputs,
+   Git connect row, task summary), keeps the page itself from ever scrolling sideways,
+   and makes tall modals scroll inside their body with the header and actions pinned. */
+
+/* The HTML `hidden` attribute must win over component display rules (.btn-secondary, forms, …).
+   Without this, buttons the code hides still render: e.g. "Promote to verified" on a task memory
+   (server: "Only org memories can be promoted") and "Save" in view mode ("needs a title and content"). */
+[hidden] { display: none !important; }
+
+/* ─── Page never scrolls sideways; each region scrolls on its own ─── */
+html, body { max-width: 100%; overflow-x: hidden; }
+.main > * { min-width: 0; }
+
+.sidebar-left, .sidebar-right, .terminal, .memory-list, .task-list, .thought-list,
+.run-history, .plugin-list, .file-tree, .modal, .modal-body-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+  overscroll-behavior: contain;
+}
+.sidebar-left, .sidebar-right { overflow-x: hidden; scroll-behavior: smooth; }
+.sidebar-left > .panel, .sidebar-right > .panel { flex-shrink: 0; }
+::-webkit-scrollbar-thumb { border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Long lists scroll inside their panel instead of stretching the sidebar */
+.task-list { max-height: 360px; overflow-y: auto; }
+.thought-list { max-height: 320px; overflow-y: auto; }
+.plugin-list { max-height: 340px; overflow-y: auto; }
+.file-tree { max-height: 260px; overflow-y: auto; }
+
+/* ─── Header: fits the viewport; the toolbar scrolls inside itself if it must ─── */
+.header { gap: var(--spacing-lg); padding: var(--spacing-md) var(--spacing-xl); min-width: 0; }
+.header-left { min-width: auto; flex-shrink: 0; }
+.header-center { min-width: 0; gap: var(--spacing-sm); flex: 1 1 auto; justify-content: flex-start; }
+.model-selector, .agent-selector { padding: 6px 10px; gap: var(--spacing-sm); min-width: 0; }
+.model-selector select, .agent-selector select {
+  min-width: 0; width: 100%; max-width: 210px; text-overflow: ellipsis; padding: 6px 10px;
+}
+.agent-selector select { max-width: 150px; }
+.header-right {
+  /* flex-start + auto margin: when the toolbar overflows, it scrolls from its first button instead of
+     clipping it (flex-end overflow is unreachable). */
+  min-width: 0; flex: 0 1 auto; margin-left: auto; justify-content: flex-start;
+  gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 2px;
+}
+.header-right::-webkit-scrollbar { display: none; }
+.header-right > * { flex-shrink: 0; }
+.header-right .btn-icon { width: 34px; height: 34px; font-size: 15px; }
+.header-right .btn-secondary { padding: 7px 12px; white-space: nowrap; }
+@media (max-width: 1599px) {
+  .model-selector label, .agent-selector label { display: none; }
+}
+/* Narrower screens: the toolbar gets its own row rather than hiding buttons off-screen */
+@media (max-width: 1439px) {
+  .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
+  .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; overflow: visible; }
+}
+
+/* ─── Filter pills (Thoughts and Memory) ─── */
+.thought-filters {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+}
+.thought-filter {
+  appearance: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font: var(--font-weight-medium) var(--font-size-sm)/1 var(--font-sans);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.thought-filter:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+.thought-filter.active {
+  background: var(--bg-accent-subtle);
+  border-color: var(--border-accent-strong);
+  color: var(--accent-light);
+}
+.thought-filter:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+
+/* ─── Panel inputs and action rows ─── */
+.panel-search {
+  display: block;
+  width: auto;
+  margin: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  padding: 9px 12px;
+  font-size: var(--font-size-sm);
+}
+.file-actions, .git-connect, .task-actions-bar {
+  display: flex; gap: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-lg) var(--spacing-sm);
+}
+.file-actions > button { flex: 1 1 0; }
+.git-connect input { flex: 1 1 auto; min-width: 0; padding: 9px 12px; font-size: var(--font-size-sm); }
+.git-connect button { flex-shrink: 0; }
+.git-repository-list { padding: 0 var(--spacing-lg); }
+.file-tree { padding: 0 var(--spacing-sm) var(--spacing-md); }
+
+.file-tree-empty, .git-repository-list .file-tree-empty {
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-dim);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* ─── Tasks panel ─── */
+.task-summary {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  padding: var(--spacing-md) var(--spacing-lg) 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+.task-summary strong { color: var(--text-primary); font-family: var(--font-mono); }
+.sidebar-right .task-filters {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xs);
+}
+.sidebar-right .task-filters input { grid-column: 1 / -1; }
+.sidebar-right .task-filters input,
+.sidebar-right .task-filters select { width: 100%; min-width: 0; padding: 8px 10px; font-size: var(--font-size-sm); }
+.task-actions-bar > button { flex: 1 1 0; }
+
+/* ─── Terminal ─── */
+.message-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.terminal { scroll-behavior: smooth; }
+.terminal-actions { display: flex; align-items: center; gap: var(--spacing-sm); }
+
+/* ─── Metrics ─── */
+.kpi-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.kpi strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#memory-graph-canvas { display: block; width: 100%; height: 220px; }
+
+/* ─── Modals: header and actions pinned, body scrolls ─── */
+.modal { overflow: hidden; min-height: 0; }
+.modal > .modal-header, .modal > .modal-actions { flex: 0 0 auto; }
+.modal > :not(.modal-header):not(.modal-actions) {
+  min-height: 0; flex: 0 1 auto; overflow-y: auto; overflow-x: hidden;
+}
+.modal-wide { width: min(960px, 100%); }
+
+/* Analytics: never wider than the modal */
+.analytics-charts { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.analytics-charts > * { min-width: 0; }
+.efficiency-row { grid-template-columns: minmax(70px, 1.4fr) repeat(4, minmax(44px, 1fr)); gap: 8px; }
+.efficiency-row > * { min-width: 0; overflow-wrap: anywhere; }
+
+/* Approval workflow templates: a row of readable chips */
+.approval-builder .workflow-templates { display: block; }
+.template-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
+.template-chip { color: var(--text-primary); font: var(--font-weight-medium) var(--font-size-body) var(--font-sans); }
+.approval-builder h3, .collaboration-dashboard h3 { margin: var(--spacing-lg) 0 var(--spacing-sm); }
+
+/* Collaboration filter chips: readable */
+.filter-btn { color: var(--text-secondary); font-family: var(--font-sans); }
+.filter-btn:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+.filter-btn.active { color: var(--bg-primary); }
+
+/* Stat grids fill the row instead of orphaning a card */
+.metrics-grid, .token-stats-grid, .team-stats { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+
+/* Settings: checkbox rows line up with their label */
+.modal label:has(> input[type="checkbox"]) {
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
+  gap: var(--spacing-sm); text-align: left; cursor: pointer;
+}
+.modal label > input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; accent-color: var(--accent-primary); }
+
+/* ─── Keyboard focus is always visible ─── */
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent-primary); outline-offset: 2px;
+}
+
+/* ─── Phones and narrow tablets: stack everything and scroll the page ─── */
+@media (max-width: 767px) {
+  #app { height: auto; min-height: 100vh; }
+  body { overflow-y: auto; }
+  .main { flex-direction: column; overflow: visible; }
+  .sidebar-left, .sidebar-right {
+    position: static; transform: none; width: 100%; height: auto;
+    max-height: none; overflow: visible; border: none;
+  }
+  .center { order: 1; min-height: 75vh; }
+  .sidebar-left { order: 2; }
+  .sidebar-right { order: 3; }
+  .header { flex-wrap: wrap; }
+  .header-right { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

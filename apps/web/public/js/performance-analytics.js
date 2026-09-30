@@ -5,7 +5,6 @@ class PerformanceAnalytics {
     this.metrics = this.loadMetrics();
     this.costs = this.loadCosts();
     this.setupChart();
-    this.startTracking();
     this.setupEventListeners();
   }
 
@@ -30,12 +29,12 @@ class PerformanceAnalytics {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const analyticsBtn = document.getElementById('performance-analytics-button');
-      if (analyticsBtn) {
-        analyticsBtn.addEventListener('click', () => this.openDashboard());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const analyticsBtn = document.getElementById('performance-analytics-button');
+    if (analyticsBtn) {
+      analyticsBtn.addEventListener('click', () => this.openDashboard());
+    }
 
     window.addEventListener('run:completed', (e) => {
       this.recordRunMetrics(e.detail);

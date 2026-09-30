@@ -9,12 +9,12 @@ class CollaborationDashboard {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const collabBtn = document.getElementById('collaboration-button');
-      if (collabBtn) {
-        collabBtn.addEventListener('click', () => this.openDashboard());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const collabBtn = document.getElementById('collaboration-button');
+    if (collabBtn) {
+      collabBtn.addEventListener('click', () => this.openDashboard());
+    }
 
     window.addEventListener('agent:created', (e) => this.registerAgent(e.detail));
     window.addEventListener('task:assigned', (e) => this.recordTaskAssignment(e.detail));

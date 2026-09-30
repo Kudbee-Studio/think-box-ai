@@ -14,12 +14,12 @@ class ThinkTokenDashboard {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const learnBtn = document.getElementById('think-token-button');
-      if (learnBtn) {
-        learnBtn.addEventListener('click', () => this.openDashboard());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const learnBtn = document.getElementById('think-token-button');
+    if (learnBtn) {
+      learnBtn.addEventListener('click', () => this.openDashboard());
+    }
 
     window.addEventListener('token:created', (e) => this.addToken(e.detail));
     window.addEventListener('token:used', (e) => this.recordTokenUsage(e.detail));

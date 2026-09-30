@@ -8,12 +8,12 @@ class ApprovalWorkflow {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const workflowBtn = document.getElementById('approval-workflow-button');
-      if (workflowBtn) {
-        workflowBtn.addEventListener('click', () => this.openWorkflowBuilder());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const workflowBtn = document.getElementById('approval-workflow-button');
+    if (workflowBtn) {
+      workflowBtn.addEventListener('click', () => this.openWorkflowBuilder());
+    }
 
     window.addEventListener('task:needs-approval', (e) => {
       this.showApprovalRequest(e.detail);
