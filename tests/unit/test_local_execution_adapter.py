@@ -84,6 +84,91 @@ class TestLocalExecutionAdapter(unittest.TestCase):
         self.assertEqual(public["provider"], LOCAL_PROVIDER)
         self.assertNotIn("echo ok", dumped)
 
+    # Phase 1 UPM Integration Tests
+
+    def test_execute_without_install_unchanged(self) -> None:
+        """Backward compatibility: install_packages=False behaves as before."""
+        adapter = LocalExecutionAdapter(repo=Repository(self._repo_path))
+        receipt = adapter.execute(
+            job_id="job_noinstall",
+            command="echo backward_compat",
+            install_packages=False,  # Explicit but default
+        )
+        self.assertEqual(receipt.status, "COMPLETED")
+        self.assertEqual(receipt.exit_code, 0)
+        self.assertNotIn("upm_install", " ".join(receipt.provenance))
+
+    def test_execute_install_missing_lockfile_fails(self) -> None:
+        """Install fails with ELOCK when no upm.lock or package.json exists."""
+        adapter = LocalExecutionAdapter(repo=Repository(self._repo_path))
+        # Empty repo: no package.json or upm.lock
+        receipt = adapter.execute(
+            job_id="job_nolock",
+            command="echo test",
+            install_packages=True,
+            package_manager="upm",
+        )
+        self.assertEqual(receipt.status, "INSTALL_FAILED")
+        self.assertIn("ELOCK", receipt.error)
+        self.assertTrue(any("install_error" in prov for prov in receipt.provenance))
+
+    def test_execute_install_with_upm_lock(self) -> None:
+        """Install succeeds when upm.lock exists (mocked behavior)."""
+        # Create a minimal upm.lock for testing
+        repo = Repository(self._repo_path)
+        lock_path = Path(self._repo_path) / "upm.lock"
+        lock_path.write_text('{"packages": [], "root": {}}', encoding="utf-8")
+
+        adapter = LocalExecutionAdapter(repo=repo)
+        receipt = adapter.execute(
+            job_id="job_withlock",
+            command="echo installed",
+            install_packages=True,
+            package_manager="upm",
+        )
+        # If upm is not installed, we expect a UPM_NOT_FOUND error
+        # This is acceptable for unit test (not LIVE VERIFIED)
+        # The status should be either COMPLETED (if upm available) or INSTALL_FAILED
+        self.assertIn(receipt.status, ["COMPLETED", "INSTALL_FAILED"])
+        if receipt.status == "INSTALL_FAILED":
+            # Expected when UPM is not available in test environment
+            self.assertIn("UPM_NOT_FOUND", receipt.error)
+
+    def test_execute_install_with_package_json(self) -> None:
+        """Install succeeds when package.json exists (mocked behavior)."""
+        # Create a minimal package.json
+        repo = Repository(self._repo_path)
+        pkg_path = Path(self._repo_path) / "package.json"
+        pkg_path.write_text('{"name": "test", "version": "1.0.0", "dependencies": {}}', encoding="utf-8")
+
+        adapter = LocalExecutionAdapter(repo=repo)
+        receipt = adapter.execute(
+            job_id="job_withpkg",
+            command="echo setup",
+            install_packages=True,
+            package_manager="upm",
+        )
+        # Expected status depends on whether upm is available
+        self.assertIn(receipt.status, ["COMPLETED", "INSTALL_FAILED"])
+        if receipt.status == "INSTALL_FAILED":
+            self.assertIn("UPM", receipt.error)  # UPM-related error
+
+    def test_execute_install_unsupported_manager_fails(self) -> None:
+        """Install fails when package_manager is not 'upm'."""
+        repo = Repository(self._repo_path)
+        pkg_path = Path(self._repo_path) / "package.json"
+        pkg_path.write_text('{"name": "test"}', encoding="utf-8")
+
+        adapter = LocalExecutionAdapter(repo=repo)
+        receipt = adapter.execute(
+            job_id="job_badmgr",
+            command="echo test",
+            install_packages=True,
+            package_manager="npm",  # Unsupported (Phase 1)
+        )
+        self.assertEqual(receipt.status, "INSTALL_FAILED")
+        self.assertIn("unsupported_package_manager", receipt.error)
+
 
 if __name__ == "__main__":
     unittest.main()

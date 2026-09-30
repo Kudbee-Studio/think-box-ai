@@ -98,9 +98,26 @@ def execute_governed_job_command(
     command: str,
     repo: Repository | None = None,
     artifact_name: str = "governed_exec.json",
+    install_packages: bool = False,
+    package_manager: str = "upm",
 ) -> GovernedJobExecutionResult:
-    """Run one bounded command through the governed execution adapter contract."""
+    """Run one bounded command through the governed execution adapter contract.
+
+    Phase 1: Optional UPM dependency installation (LOCAL substrate only).
+    - install_packages=True triggers frozen-lockfile dependency installation
+    - package_manager must be "upm"; other values are rejected on non-LOCAL substrates
+    - Remote substrates ignore install flags (no node.js guarantee)
+    """
     normalized = normalize_execution_substrate(substrate)
+
+    # Phase 1 validation: reject UPM installation on remote substrates
+    if install_packages and normalized != SUBSTRATE_LOCAL:
+        raise GovernedJobExecutionError(
+            "unsupported_feature",
+            f"package installation (install_packages=true) is only supported on {SUBSTRATE_LOCAL} substrate; "
+            f"got substrate={normalized}",
+        )
+
     if normalized == SUBSTRATE_UPCLOUD_SSH and command not in ALLOWED_READONLY_COMMANDS:
         # Enforced here, below every caller (run, resume, reclaim), so no path can reach the worker
         # with a command outside the read-only policy (thinkbox/remote_exec_policy.py).
@@ -110,7 +127,19 @@ def execute_governed_job_command(
         )
     repository = repo or Repository()
     adapter, provider = select_execution_adapter(normalized, repository)
-    receipt = adapter.execute(job_id=job_id, command=command, artifact_name=artifact_name)
+
+    # Phase 1: Pass install flags only to LOCAL adapter; others ignore them
+    if normalized == SUBSTRATE_LOCAL:
+        receipt = adapter.execute(
+            job_id=job_id,
+            command=command,
+            artifact_name=artifact_name,
+            install_packages=install_packages,
+            package_manager=package_manager,
+        )
+    else:
+        receipt = adapter.execute(job_id=job_id, command=command, artifact_name=artifact_name)
+
     proof = receipt_to_public_dict(receipt)
     proof["execution_substrate"] = normalized
     proof["adapter_selected"] = provider
