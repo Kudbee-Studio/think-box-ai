@@ -24,7 +24,7 @@ API keys that record lists. Details: [baseline row 16](baseline.md#16-secrets-an
 | Name | What it is | Where |
 |---|---|---|
 | **Think Token** (#288) | A learning unit: a structured, reusable piece of agent experience with a confidence score | `apps/web/think-token*.ts`, AGENTS.md section 1.3a |
-| **THNK** | An economic token: staking, rewards, governance votes, pay-for-compute; a planning draft and a Phase 9 simulation | `THINK_TOKEN_STRATEGY.md`, `think_box_ai/token.py`, `thinkbox/economy.py` |
+| **THNK** | An economic token: staking, rewards, governance votes, pay-for-compute; a planning draft plus in-memory Phase 9 classes (unit-tested; no persistence and no production caller) | `THINK_TOKEN_STRATEGY.md`, `think_box_ai/token.py`, `thinkbox/economy.py` |
 | `ThinkToken` (Python class) | A 36-line balance/transfer class for THNK | `think_box_ai/token.py` |
 
 This plan is about the first. THNK is out of scope and must never be an authorization input (ADR 027 non-goals).
