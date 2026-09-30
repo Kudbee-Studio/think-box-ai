@@ -227,7 +227,9 @@ because the web tier authenticates with the backend API key (trust boundary docu
   worker's tool list is data, not code.
 - **E5.2 Worker registry.** Hosts, pinned host keys and allowed policy ids per worker replace `UPCLOUD_SERVER_IP`.
   *Acceptance:* an unregistered worker is refused; a policy not allowed for that worker is refused.
-- **E5.3 Think Token wiring, default off.** Wire `ServerLearningIntegration` into `AgentSession` behind a
+- **E5.3 Think Token wiring, default off (only if decision D7 says to wire; ROADMAP.md Phase 3 item 5 keeps this open because it
+  changes agent prompts).** Persistence is SQLite behind a `TokenStore` interface (ADR 028); Think Tokens are not persisted
+  anywhere today, so this adds a `think_tokens` table. Wire `ServerLearningIntegration` into `AgentSession` behind a
   per-tenant setting; remove the mock-event emitter; the store is tenant-scoped; routing telemetry is computed
   server-side (closes AG-3); `learning.db` gets a configurable, gitignored path.
   *Acceptance:* with the setting off, no Think Token code runs (spy test); on, tokens come only from a real
@@ -256,8 +258,12 @@ because the web tier authenticates with the backend API key (trust boundary docu
 These need your credentials or authority, not code review:
 
 1. Refresh the `gh` token with the `workflow` scope (needed to push workflow files, including #302's last commit).
-2. Revoke the compromised UpCloud SSH key from PR #271, rotate `INCEPTION_API_KEY` and `UPSTASH_VECTOR_REST_TOKEN`,
-   and decide on the history purge (a force-push that rewrites every branch; destructive and coordinated).
+2. **Do this first, before any phase.** Revoke the exposed UpCloud SSH key (ED25519, fingerprint
+   `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`) and remove it from every server's `authorized_keys`; rotate
+   `INCEPTION_API_KEY`, `UPSTASH_VECTOR_REST_TOKEN` and `CURSOR_API_KEY`. The private key is still readable in public
+   history (see baseline row 16), so a purge does not undo the exposure; revocation does. Then decide whether to
+   redo the history purge (a force-push that rewrites every branch; destructive and coordinated). Update
+   `INCIDENT_RESPONSE_2026-09-28.md`, which currently says the purge is complete.
 3. Create the non-root user and firewall on worker-02 (E2.0); decide what to do with the orphan server and worker-01.
 4. Turn on branch protection with the required checks from E0.1.
 5. Approve each live run that contacts worker-02 or any external service (E0.4, E1.4, E2.2).

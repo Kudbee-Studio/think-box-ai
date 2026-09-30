@@ -61,7 +61,7 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 | OP-1 | CI cannot go green: 12 type errors (#300), a hung test and no timeouts (#302), and a Python job that runs for hours with no `timeout-minutes`. No branch protection can rely on it. [14] | Critical | E0 |
 | OP-2 | No HTTPS and no deployment target; `nginx.conf` has TLS config that has never been exercised, and `Caddyfile` has `auto_https off`. [17] | High | E6 |
 | OP-3 | No documented backups or restore drill for SQLite files, Markdown memory and receipt artifacts. [17] | High | E6 |
-| OP-4 | Secrets: PR #271 follow-ups are unproven (key revocation, key rotation), the history that contains the leaked-key path is still on `origin/main`, and `.env` is the only secret store. [16] | High | Founder actions, then E6 |
+| OP-4 | **A private SSH key is readable in the public repository's history** (commit `c62e50d1`, reachable from `origin/main` and 171 refs), although `INCIDENT_RESPONSE_2026-09-28.md` records the history as purged. Revocation of that key and rotation of the API keys it lists are unproven. `.env` is the only secret store. [16] | **Critical** | Founder actions now (revoke; do not rely on a history rewrite), then E6 |
 | OP-5 | 39 open Dependabot alerts (19 high, 19 moderate, 1 low) on the default branch. [16] | Medium | E0 (triage) |
 | OP-6 | Docs drift from code: AGENTS.md records `update_config` validation as shipped (false until #302), describes Think Token integration points that are not wired, and `docs/known-defects.md` is dated 2026-09-19. | Medium | Each phase updates its docs (AGENTS.md section 4.3) |
 
@@ -70,7 +70,7 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 | ID | Gap | Sev | Closes in |
 |---|---|---|---|
 | AG-1 | Web agent profiles are two hardcoded entries (`hermes`, `asclepius`) with tool allow-lists; the default worker has full tool access. There is no registry and no per-agent capability grant at the web layer. [1] | High | E5 |
-| AG-2 | Think Token code is unwired and its panel simulates events. [13] | Medium | E5, behind a per-tenant setting, default off |
+| AG-2 | Think Token code is unwired, its panel simulates events, and the tokens themselves are not persisted anywhere (only patterns, sessions and thought text are). [13] | Medium | E5, only if the founder decides to wire it (ADR 028, D7); default off |
 | AG-3 | Routing choice and "tokens saved" are asserted by the client and stored unvalidated, so the savings metric can be spoofed. [10] | Medium | E5 |
 | AG-4 | `state_save` persists arbitrary client objects; `run_goal` passes client `model` and `routeTelemetry` through. [1] | Medium | E3 (input validation pass with the permission matrix) |
 
@@ -80,12 +80,12 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 |---|---|---|---|
 | DT-1 | State is spread across several stores (Markdown memory, a run-history JSON file, SQLite databases, receipt artifacts) with no migration framework or retention policy. [9] | Medium | E1 (migrations for governance and audit tables), E4 |
 | DT-2 | `apps/web/learning.db` is created by `new LearningStore()` and is not gitignored. [13] | Medium | E5 (or a one-line `.gitignore` change earlier) |
-| DT-3 | **Postgres stays gated** at issue #9 and ADR 026: "Phase 3+ if scale demands it". This arc stays on SQLite. The plan adds measurable reopen criteria (ADR 027) so the gate is testable instead of a feeling. | n/a | Gate, not a phase |
+| DT-3 | **Postgres stays gated** at issue #9 and ADR 026: "Phase 3+ if scale demands it". This arc stays on SQLite. The plan adds measurable reopen criteria (ADR 027) so the gate is testable instead of a feeling. A request for a Neon database for Think Tokens is analyzed in ADR 028 (recommendation: SQLite now). | n/a | Gate, not a phase |
 
 ## Top five, ranked
 
 1. **No human identity anywhere** (ID-1, ID-2): no login, and one shared governance identity.
 2. **No durable, attributable audit trail** (GV-1, GV-2, AU-1 to AU-3): governance state is in memory, the signature is decorative, the dashboard "audit log" is browser-local.
-3. **Worker execution and secrets hygiene** (EX-1, EX-2, EX-4, OP-4): root SSH, unpinned host key, no firewall, and the leaked-key history still on `main` with revocation unproven.
+3. **Worker execution and secrets hygiene** (EX-1, EX-2, EX-4, OP-4): root SSH, unpinned host key, no firewall, and a private key still readable in public history with revocation unproven. OP-4 is the most urgent item in this document and does not wait for any phase.
 4. **CI cannot go green** (OP-1): nothing can be verified by machine before merge.
 5. **No tenancy, RBAC or second-approver model** (TN-1, GV-5): the structure an enterprise needs does not exist yet.

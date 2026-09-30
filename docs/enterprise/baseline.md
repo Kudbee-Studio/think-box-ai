@@ -27,7 +27,7 @@ Nothing here is a claim of "COMPLETE" without a state. Every row cites its evide
 | 13 | Think Token (#288) | partial (unwired) | partial | no (simulated) | no |
 | 14 | CI | yes (workflows exist) | n/a | partial | no |
 | 15 | Upstash Box substrate | yes (adapter) | yes (hermetic gate) | no (NOT_CONFIGURED) | no |
-| 16 | Secrets and key hygiene | n/a | n/a | UNPROVEN | no |
+| 16 | Secrets and key hygiene | n/a | n/a | no (private key exposed in public history) | no |
 | 17 | Deployment, HTTPS, backups | partial (config files) | no | no | no |
 
 ## Measurements taken for this baseline (2026-09-30)
@@ -47,7 +47,7 @@ would have needed that is marked UNPROVEN rather than assumed.
 
 ### 1. Dashboard (`apps/web`)
 - **CODE yes:** Express + WebSocket server (`server.ts`), ten header panels, terminal, tasks, memory, files, metrics.
-- **TEST partial:** 172 of 173 pass on `main` (see measurements); the failure is a real bug, not flakiness (see gap EX/ID findings: `update_config` never called `sanitizeConfigPatch`). Open fixes: #302 (validation + bounded runtime), #298 (terminal did not scroll), #300 (12 type errors).
+- **TEST partial:** 172 of 173 pass on `main` (see measurements); the failure is a real bug, not flakiness (`update_config` never called `sanitizeConfigPatch`). Open fixes: #302 (validation + bounded runtime), #298 (terminal did not scroll), #300 (12 type errors).
 - **LIVE yes, loopback only:** headless Chrome at 1440, 1024 and 390 px with 0 console errors (AGENTS.md, dashboard polish entry; `STATUS.md`). Re-checked 2026-09-30; that pass found the terminal-scroll bug fixed in #298.
 - **PROD no:** local-only by design (the server refuses a non-loopback bind and non-loopback `Host`/`Origin`), no login, no HTTPS, sessions held in memory in one process. Unvalidated input remains on `state_save` (client `panelState`/`viewState` persisted as-is) and `run_goal` (client `model` and `routeTelemetry` passed through).
 
@@ -120,7 +120,11 @@ would have needed that is marked UNPROVEN rather than assumed.
 - **CODE/TEST yes:** adapter plus hermetic gate #201. **LIVE no:** `ENV_NOT_CONFIGURED` (measured above); AGENTS.md records #201 as "not LIVE VERIFIED". **PROD no.**
 
 ### 16. Secrets and key hygiene
-- **LIVE UNPROVEN, PROD no:** `.env` is mode 600 locally (2026-09-30). PR #271's follow-ups (force-push cleaned history, revoke the compromised UpCloud SSH key, rotate the Inception and Upstash Vector keys, `chmod 600 .env`) are recorded as **pending** in AGENTS.md; no completion record was found in AGENTS.md, `STATUS.md`, `docs/CONTINUITY.md` or `docs/SECURITY_HARDENING_PR271.md`. `git` shows commit `c62e50d1`, which adds a path named `kilo-upcloud-recovered`, is **still an ancestor of `origin/main`**, so the history purge did not happen. File contents were not inspected. GitHub reports 39 Dependabot alerts on the default branch (19 high, 19 moderate, 1 low). `docs/known-defects.md` is stale (dated 2026-09-19).
+- **LIVE no, PROD no. A private key is exposed in public history right now.**
+  - **What the record says.** `INCIDENT_RESPONSE_2026-09-28.md` (repo root) states the history purge was **completed**: `git filter-branch` over 2,135 commits, force-pushed to `origin/main` on 2026-09-28 04:48 UTC, `.env` fixed to mode 600. It lists key rotation as **pending**: the boxes for `INCEPTION_API_KEY`, `UPSTASH_VECTOR_REST_TOKEN` and `CURSOR_API_KEY` are unchecked, and no revocation of the UpCloud key is recorded as done. `FORCE_PUSH_READY.md` is the earlier "ready to push" note and is stale.
+  - **What the repository shows (2026-09-30).** Commit `c62e50d1` (2026-09-17, "docs: add Phase 1-6 UpCloud investigation results") adds two files, `kilo-upcloud-recovered` and `kilo-upcloud-recovered.pub`. It **is an ancestor of `origin/main`** (2,237 commits, not the rewritten history the incident record describes) and is reachable from **171 refs**. Checked without printing contents: the first file is 419 bytes and contains `PRIVATE KEY` header lines; the second is one ED25519 public-key line, fingerprint `SHA256:makvGnTYVYSackBcxfGD/QGCV/rLvryYpWy39HK/1GQ`. The repository visibility is **PUBLIC**. The path is absent from the current tree (`HEAD`), which is why the incident record's `git ls-tree -r HEAD` check passes.
+  - **Reading.** Either the purge was later overwritten or it never covered what is on `origin/main` today. A history rewrite cannot un-publish a key that may already be cloned, so the key must be treated as compromised regardless. Whether it was revoked on UpCloud and removed from every server's `authorized_keys` is **UNPROVEN**. The fingerprint above lets you check (`ssh-keygen -lf` on each `authorized_keys`). No UpCloud host was contacted.
+  - **Also open here:** API-key rotation (above), 39 Dependabot alerts on the default branch (19 high, 19 moderate, 1 low), and `docs/known-defects.md` is stale (dated 2026-09-19). Local `.env` is mode 600.
 
 ### 17. Deployment, HTTPS, backups
 - **CODE partial:** `deploy/nginx.conf` has a TLS 1.2/1.3 server and an 80-to-443 redirect; `deploy/Caddyfile` has `auto_https off`; `docs/guides/deployment.md` and `docker_enterprise.md` exist. **TEST no, LIVE no, PROD no:** nothing is deployed (`STATUS.md`) and no backup procedure was found.
