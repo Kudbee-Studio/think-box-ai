@@ -17,12 +17,12 @@ class IntegrationConnectors {
   }
 
   setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => {
-      const intBtn = document.getElementById('integrations-button');
-      if (intBtn) {
-        intBtn.addEventListener('click', () => this.openConnectors());
-      }
-    });
+    // Instances are created on DOMContentLoaded, so wire the header button now (a nested
+    // DOMContentLoaded listener would never fire and the button would do nothing).
+    const intBtn = document.getElementById('integrations-button');
+    if (intBtn) {
+      intBtn.addEventListener('click', () => this.openConnectors());
+    }
 
     window.addEventListener('integration:trigger', (e) => {
       this.triggerIntegration(e.detail);
@@ -37,56 +37,27 @@ class IntegrationConnectors {
       <section class="modal modal-wide" role="dialog" aria-modal="true">
         <div class="modal-header">
           <div>
-            <span class="modal-eyebrow">INTEGRATIONS</span>
-            <h2>Connected Services</h2>
+            <span class="modal-eyebrow">INTEGRATIONS · DEMO</span>
+            <h2>Integrations</h2>
           </div>
           <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
         </div>
 
+        <div class="demo-banner" role="note">Demo data - not connected to real services</div>
+
         <div class="integrations-container">
           <div class="connectors-grid">
-            ${Object.entries(this.connectors).map(([key, connector]) => {
-              const connected = this.integrations[key]?.connected || false;
-              return `
-                <div class="connector-card ${connected ? 'connected' : ''}">
+            ${Object.entries(this.connectors).map(([key, connector]) => `
+                <div class="connector-card" data-connector="${key}">
                   <div class="connector-icon">${connector.icon}</div>
                   <h3>${connector.name}</h3>
                   <p>${connector.description}</p>
                   <div class="connector-status">
-                    ${connected ? `
-                      <span class="status-badge connected">✓ Connected</span>
-                      <button class="btn-danger" onclick="integrationConnectors.disconnect('${key}')">Disconnect</button>
-                    ` : `
-                      <span class="status-badge disconnected">○ Not connected</span>
-                      <button class="btn-primary" onclick="integrationConnectors.connect('${key}')">Connect</button>
-                    `}
+                    <span class="status-badge disconnected">○ Not connected</span>
+                    <button class="btn-secondary" type="button" disabled title="Demo only: kudbEE has no ${connector.name} integration yet">Simulated (demo)</button>
                   </div>
-                  ${connected ? `
-                    <div class="connector-config">
-                      <button class="btn-secondary" onclick="integrationConnectors.configureConnector('${key}')">⚙ Configure</button>
-                    </div>
-                  ` : ''}
                 </div>
-              `;
-            }).join('')}
-          </div>
-
-          <div class="active-integrations">
-            <h3>Active Automations</h3>
-            <div class="automations-list">
-              ${Object.entries(this.integrations)
-                .filter(([_, int]) => int.connected && int.automations?.length > 0)
-                .map(([key, int]) => `
-                  <div class="automation-item">
-                    <span class="automation-name">${int.automations[0]?.name || 'Unnamed'}</span>
-                    <span class="automation-trigger">${int.automations[0]?.trigger || 'manual'}</span>
-                    <button class="btn-icon" onclick="integrationConnectors.editAutomation('${key}', 0)">✎</button>
-                  </div>
-                `).join('')}
-              ${Object.entries(this.integrations).filter(([_, int]) => int.connected && int.automations?.length > 0).length === 0 ?
-                '<div class="empty-state">No automations configured</div>' : ''}
-            </div>
-            <button class="btn-secondary" onclick="integrationConnectors.createAutomation()">+ Create automation</button>
+              `).join('')}
           </div>
         </div>
 
@@ -101,82 +72,6 @@ class IntegrationConnectors {
     });
 
     document.body.appendChild(modal);
-  }
-
-  connect(service) {
-    const integration = {
-      service,
-      connected: true,
-      connectedAt: new Date().toISOString(),
-      automations: [],
-      config: this.getDefaultConfig(service)
-    };
-
-    // Simulate OAuth/connection flow
-    const configModal = document.createElement('div');
-    configModal.className = 'modal-backdrop';
-    configModal.innerHTML = `
-      <section class="modal" role="dialog" aria-modal="true">
-        <div class="modal-header">
-          <h2>Connect to ${this.connectors[service].name}</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
-        </div>
-
-        <div class="connection-form">
-          ${service === 'slack' ? `
-            <label>
-              Slack API Token:
-              <input type="password" id="slack-token" placeholder="xoxb-...">
-            </label>
-          ` : service === 'github' ? `
-            <label>
-              GitHub Personal Access Token:
-              <input type="password" id="github-token" placeholder="ghp_...">
-            </label>
-          ` : service === 'email' ? `
-            <label>
-              Email Address:
-              <input type="email" id="email-addr" placeholder="your@email.com">
-            </label>
-          ` : `
-            <label>
-              API Key:
-              <input type="password" id="api-key" placeholder="Enter your API key">
-            </label>
-          `}
-
-          <label>
-            <input type="checkbox" id="enable-sync"> Enable automatic sync
-          </label>
-
-          <p class="form-note">Your credentials are encrypted and stored locally.</p>
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-success" onclick="integrationConnectors.saveConnection('${service}')">Connect</button>
-        </div>
-      </section>
-    `;
-
-    configModal.addEventListener('click', (e) => {
-      if (e.target === configModal) configModal.remove();
-    });
-
-    document.body.appendChild(configModal);
-  }
-
-  saveConnection(service) {
-    this.integrations[service] = {
-      service,
-      connected: true,
-      connectedAt: new Date().toISOString(),
-      automations: [],
-      config: { autoSync: document.getElementById('enable-sync')?.checked || false }
-    };
-    localStorage.setItem('kudbee-integrations', JSON.stringify(this.integrations));
-    document.querySelector('.modal-backdrop')?.remove();
-    this.openConnectors();
   }
 
   disconnect(service) {

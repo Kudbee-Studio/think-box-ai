@@ -465,7 +465,9 @@
 }
 
 /* Utility Classes */
-.btn-quiet {
+/* Scoped to the Think Token panel: a global .btn-quiet here overrode main-pro.css and left the
+   dashboard's /help and Refresh buttons unstyled. */
+.think-token-dashboard .btn-quiet {
   background: transparent;
   border: none;
   padding: 0;
@@ -474,7 +476,7 @@
   color: inherit;
 }
 
-.btn-quiet:hover {
+.think-token-dashboard .btn-quiet:hover {
   opacity: 0.8;
 }
 
