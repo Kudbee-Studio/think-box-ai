@@ -53,3 +53,17 @@ test('no secondary stylesheet redefines the shared .btn-quiet globally', () => {
 test('every class-based stylesheet and script referenced by index.html exists', () => {
   for (const asset of [...stylesheets, ...pageScripts]) assert.ok(fs.existsSync(path.join(pub, asset)), asset);
 });
+
+test('demo panels carry the demo banner and never ask for a secret or claim a connection', () => {
+  const banner = '<div class="demo-banner" role="note">Demo data - not connected to real services</div>';
+  for (const file of ['js/integration-connectors.js', 'js/collaboration-dashboard.js']) {
+    const src = read(file);
+    assert.ok(src.includes(banner), `${file} is missing the demo banner`);
+    assert.doesNotMatch(src, /<input[^>]*type="password"/i, `${file} renders a password/secret input`);
+    assert.doesNotMatch(src, /<input[^>]*id="[^"]*(token|api-?key|secret)[^"]*"/i, `${file} renders a token/API-key input`);
+    assert.doesNotMatch(src, /✓ Connected/, `${file} can claim a service is connected`);
+    assert.doesNotMatch(src, /credentials are encrypted/i, `${file} makes an unbacked security claim`);
+  }
+  const css = read('css/polish.css');
+  assert.match(css, /\.demo-banner\s*\{/, 'demo banner is styled');
+});

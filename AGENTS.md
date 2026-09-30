@@ -2616,8 +2616,18 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
     all three buttons in both.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (local browser). PRODUCTION READY: NO
   (see Phase 3 in `ROADMAP.md`).
-- **Not changed:** panel content that is demo data (Integrations, Collaboration workflows) is still
-  demo data. Wiring it to real state is separate work.
+- **Demo panels labelled (review of #291):**
+  - Integrations and Collaboration now carry a pinned, non-dismissable banner: "Demo data - not
+    connected to real services".
+  - The Integrations connect flow is removed. It asked for a Slack token, GitHub token or API key,
+    never used them, marked the service "Connected", and claimed credentials were "encrypted and stored
+    locally". Each card now shows "Not connected" and a disabled "Simulated (demo)" button.
+  - Collaboration marks its fixed workflow phases as example data, and shows "—" instead of "100%
+    efficiency" when there are no tasks.
+  - A static test fails if a banner is missing, a secret input appears, or "✓ Connected" returns.
+  - Connecting either panel to real state is separate work.
+- **Replaces #291:** it was auto-closed when its base branch (#290) was deleted on merge, and GitHub
+  won't reopen a force-pushed PR.
 
 ### Open items / debt (be honest here)
 

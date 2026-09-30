@@ -195,3 +195,24 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ─── Demo panels: a pinned, non-dismissable notice (Integrations, Collaboration) ─── */
+.demo-banner {
+  flex: 0 0 auto !important; overflow: visible !important;
+  padding: 10px 14px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-left: 4px solid var(--warning);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.01em;
+}
+.example-tag {
+  margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12); color: #fcd34d;
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); vertical-align: middle;
+}
+.connector-status button:disabled { opacity: 0.75; cursor: not-allowed; }
+.collaboration-dashboard .task-filters { display: flex; flex-wrap: wrap; gap: 6px; }

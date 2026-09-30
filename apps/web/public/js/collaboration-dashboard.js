@@ -58,11 +58,13 @@ class CollaborationDashboard {
       <section class="modal modal-wide" role="dialog" aria-modal="true">
         <div class="modal-header">
           <div>
-            <span class="modal-eyebrow">COLLABORATION</span>
+            <span class="modal-eyebrow">COLLABORATION · DEMO</span>
             <h2>Multi-Agent Coordination</h2>
           </div>
           <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
         </div>
+
+        <div class="demo-banner" role="note">Demo data - not connected to real services</div>
 
         <div class="collaboration-dashboard">
           <div class="team-overview">
@@ -82,7 +84,7 @@ class CollaborationDashboard {
               </div>
               <div class="stat-card">
                 <span class="stat-label">Team Efficiency</span>
-                <span class="stat-value">${this.calculateTeamEfficiency()}%</span>
+                <span class="stat-value">${this.tasks.length ? `${this.calculateTeamEfficiency()}%` : '—'}</span>
               </div>
             </div>
           </div>
@@ -146,14 +148,14 @@ class CollaborationDashboard {
           </div>
 
           <div class="workflow-timeline">
-            <h3>Active Workflows</h3>
+            <h3>Example workflows <span class="example-tag">example data, not real runs</span></h3>
             <div class="timeline">
               ${this.buildWorkflowTimeline().map(item => `
                 <div class="timeline-item">
                   <div class="timeline-marker"></div>
                   <div class="timeline-content">
                     <strong>${item.name}</strong>
-                    <span class="timeline-status">${item.status}</span>
+                    <span class="timeline-status">${item.status} · example</span>
                     <div class="timeline-bar">
                       <div class="progress-bar" style="width: ${item.progress}%"></div>
                     </div>
@@ -328,6 +330,7 @@ class CollaborationDashboard {
     return Math.round((completed / this.tasks.length) * 100);
   }
 
+  /** Fixed example data for the demo panel; not read from any real run. */
   buildWorkflowTimeline() {
     return [
       { name: 'Research Phase', status: 'completed', progress: 100 },
