@@ -54,6 +54,8 @@ class ExecutionJob:
     created_at: str = ""
     updated_at: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    install_packages: bool = False  # Phase 1: LOCAL-only UPM dependency installation
+    package_manager: str = "upm"  # Future-proof: supports [upm, npm, yarn, pnpm]
 
     def __post_init__(self) -> None:
         if not self.job_id:

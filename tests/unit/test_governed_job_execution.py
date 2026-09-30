@@ -127,6 +127,49 @@ class TestGovernedJobExecutionRouting(unittest.TestCase):
         with self.assertRaises(GovernedJobExecutionError):
             normalize_execution_substrate("kubernetes")
 
+    # Phase 1: UPM Integration Tests
+
+    def test_install_packages_accepted_on_local_substrate(self) -> None:
+        """Phase 1: install_packages=True is accepted on LOCAL substrate."""
+        result = execute_governed_job_command(
+            substrate=SUBSTRATE_LOCAL,
+            job_id="gov_install_local",
+            command="echo test",
+            repo=Repository(self._repo_path),
+            install_packages=True,
+            package_manager="upm",
+        )
+        # Should run successfully or fail due to missing lockfile (expected behavior)
+        # Either way, it should not reject the install_packages flag
+        self.assertIn(result.verdict, ["COMPLETED", "INSTALL_FAILED"])
+
+    def test_install_packages_rejected_on_remote_substrate(self) -> None:
+        """Phase 1: install_packages=True is rejected on remote substrates."""
+        with self.assertRaises(GovernedJobExecutionError) as ctx:
+            execute_governed_job_command(
+                substrate=SUBSTRATE_UPSTASH_BOX,
+                job_id="gov_install_remote",
+                command="echo test",
+                repo=Repository(self._repo_path),
+                install_packages=True,
+                package_manager="upm",
+            )
+        self.assertEqual(ctx.exception.code, "unsupported_feature")
+        self.assertIn("local", str(ctx.exception))
+
+    def test_install_packages_false_backward_compatible(self) -> None:
+        """Phase 1: install_packages=False (default) works as before."""
+        result = execute_governed_job_command(
+            substrate=SUBSTRATE_LOCAL,
+            job_id="gov_noinstall",
+            command="echo backward_compat",
+            repo=Repository(self._repo_path),
+            install_packages=False,  # Explicit default
+        )
+        self.assertEqual(result.verdict, "COMPLETED")
+        # Should not contain UPM-related provenance
+        self.assertNotIn("upm_install", " ".join(result.receipt.provenance))
+
 
 if __name__ == "__main__":
     unittest.main()
