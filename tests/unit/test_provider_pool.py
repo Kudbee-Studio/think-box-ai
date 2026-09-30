@@ -42,9 +42,6 @@ class TestConnectionPool(unittest.TestCase):
             await client.close()
 
         asyncio.run(test())
-            await client.close()
-
-        asyncio.run(test())
 
     def test_close_closes_pool(self):
         """close() closes the connection pool."""
