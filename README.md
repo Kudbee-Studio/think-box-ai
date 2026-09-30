@@ -184,7 +184,7 @@ Layer 0: Foundation (config, schemas, logging, structured errors)
 
 **Execution substrate (2026-09-17):** [Upstash Box](docs/CONTINUITY.md) as primary execution path from env (`UPSTASH_PUBLIC_BOX_URL`); UpCloud remains **control-plane read-only** (no SSH execution path). Deep execution milestones, swarm proofs, and DAG verified runs are recorded in [CONTINUITY](docs/CONTINUITY.md) with artifact hashes — not repeated here.
 
-**Phase 9 modules** (`coalition`, `consensus`, `economy`, `intelligence`, `benchmark`, `session`) — index: [PHASE9_INDEX.md](PHASE9_INDEX.md).
+**Phase 9 modules** (`coalition`, `consensus`, `economy`, `intelligence`, `benchmark`, `session`) — index: [PHASE9_INDEX.md](docs/archive/PHASE9_INDEX.md).
 
 ---
 
@@ -254,7 +254,7 @@ SDK exports: [`apps/web/sdk/index.ts`](apps/web/sdk/index.ts) (base client, foll
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Use conventional commits (`type(scope): description`), one logical PR per theme, target `main`, and paste the PR URL in your handoff.
+Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Use conventional commits (`type(scope): description`), one logical PR per theme, target `main`, and paste the PR URL in your handoff.
 
 ---
 
