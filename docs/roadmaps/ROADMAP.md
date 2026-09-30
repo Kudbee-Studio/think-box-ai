@@ -23,6 +23,8 @@ kudbEE Agent OS now features a **professional-grade dashboard** with enterprise-
 
 ### Phase 2: Advanced Features ✅
 
+> **Note (2026-09-30):** none of the panels below calls the server directly (0 `fetch(` calls in each module). Approval Workflows, Execution Logs, Performance Analytics, Integration Connectors and Collaboration persist to browser `localStorage`, and the last two show a demo banner. They are client-side UIs, not server-backed features or audit trails; the enterprise plan (proposed in PR #303, `docs/enterprise/`) replaces them with server-backed equivalents (E1, E3).
+
 #### 🎯 Workflow Builder
 - Drag-and-drop task designer with 4 template types
 - Sequential, parallel, conditional, and loop workflows
@@ -150,7 +152,7 @@ apps/web/public/js/
   approval for operator writes/exec, workspace-confined file tools (2026-09-30)
 - ❌ No user authentication (deferred by founder decision; **required before any remote or shared use**)
 - ❌ No HTTPS, nothing deployed
-- ❌ CI not running (GitHub billing issue), so nothing is CI-green
+- ❌ CI runs again since 2026-09-30 (billing lock lifted) but is not green: `web-typecheck` red on 12 type errors (#300), a hung test and no timeouts (#302), and a multi-hour Python job
 
 ---
 
@@ -160,10 +162,9 @@ Governed remote execution: dashboard → governed backend → `upcloud-ssh` → 
 UpCloud server), six read-only commands, token admission, immutable admission binding for resume/reclaim.
 
 1. ✅ Governed `upcloud-ssh` execution, execution policy, resume/reclaim governance (#280–#289)
-2. 🔄 **Dashboard lockdown** (branch `fix/dashboard-ws-origin-host-lockdown`, PR awaiting founder review):
-   close the cross-origin WebSocket → `shell_exec` hole the audit proved
-2b. 🔄 **Dashboard polish** (stacked on #290): six dead header panels wired, hidden buttons honoured,
-   layout and scrolling fixed at desktop, tablet and phone widths
+2. ✅ **Dashboard lockdown** (#290, merged): closed the cross-origin WebSocket → `shell_exec` hole the audit proved. Note: its `update_config` allow-list was not wired into the handler until #302 (open)
+2b. ✅ **Dashboard polish** (#292, merged; follow-ups: #296 merged, #298 terminal scroll open): six dead header panels wired,
+   hidden buttons honoured, layout and scrolling fixed at desktop, tablet and phone widths
 3. ⏭ **SSH hardening for worker-02:** pin the host key (replace `StrictHostKeyChecking=accept-new`),
    and use a non-root SSH user
 4. ⏭ **Committed live-proof bundle:** redacted receipt/artifact/checkpoint from a real worker-02 run, so
@@ -175,6 +176,12 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
 
 Founder decisions still open: delete the orphan server `00068975`; keep or delete worker-01; an SSH-only
 firewall on worker-02.
+
+---
+
+## Enterprise track (proposed, PR #303)
+
+Phase 3 items 3, 4, 5 and 7 and Phase 4's RBAC, audit compliance, cost allocation and agent builder are planned as phases E0 to E6 in `docs/enterprise/roadmap.md` (security-first order: CI + login + per-user identity, durable governance and audit, SSH hardening, RBAC and approvals, tenancy, registries, deploy). Think Token wiring (item 5) stays an open founder decision (ADR 028, proposed).
 
 ---
 
