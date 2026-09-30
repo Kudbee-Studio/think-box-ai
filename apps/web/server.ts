@@ -1,5 +1,7 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import { createGitRouter } from './git-api-routes.ts';
+import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
+import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request, type Response } from 'express';
 import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
@@ -301,30 +303,62 @@ function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enable
 
 /**
  * Resolve a plugin path inside the session workspace. Absolute paths are refused, `..` is refused by
- * safeWorkspacePath, and the nearest existing ancestor is realpath-checked so a symlink cannot lead out.
+ * safeWorkspacePath, and the real path (nearest existing ancestor) must stay inside the workspace.
+ * Reads and writes then go through workspace-fs.ts, which opens the resolved path, not this one.
  */
 async function confinedWorkspacePath(sessionId: string, requested: string): Promise<string> {
   if (!workspaceExists(sessionId)) throw new Error('Session not found');
   if (path.isAbsolute(requested) || path.win32.isAbsolute(requested)) {
-    throw new Error('Absolute paths are not allowed; use a path inside the session workspace');
+    throw new WorkspacePathError('Absolute paths are not allowed; use a path inside the session workspace');
   }
   const destination = safeWorkspacePath(sessionId, requested);
-  const root = await fs.promises.realpath(sessionWorkspace(sessionId));
-  let probe = destination;
-  for (;;) {
-    try {
-      const real = await fs.promises.realpath(probe);
-      if (real !== root && !real.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
-      return destination;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT' || probe === root) throw err;
-      probe = path.dirname(probe);
+  await assertRealInside(sessionWorkspace(sessionId), destination);
+  return destination;
+}
+
+/** HTTP status for a workspace file error: a path that leads out is 403, not a client typo. */
+function fileErrorStatus(err: unknown): number {
+  if (err instanceof WorkspacePathError) return 403;
+  if (err instanceof FileTooLargeError) return 413;
+  return 400;
+}
+
+// ─── update_config: known keys, sane values ─────────────────────
+const MAX_AGENT_ITERATIONS = 50;
+
+/** Validate a config patch from the WebSocket (or restored settings). Unknown keys and bad values throw. */
+function sanitizeConfigPatch(input: unknown): Partial<AgentSessionConfig> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('config must be an object');
+  const patch: Partial<AgentSessionConfig> = {};
+  for (const [key, value] of Object.entries(input)) {
+    switch (key) {
+      case 'model':
+        if (typeof value !== 'string' || !value.trim() || value.length > 100) throw new Error('model must be a model name');
+        patch.model = value.trim();
+        break;
+      case 'provider':
+        if (value !== 'inception' && value !== 'ollama') throw new Error('provider must be inception or ollama');
+        patch.provider = value;
+        break;
+      case 'maxIterations':
+        if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_AGENT_ITERATIONS) {
+          throw new Error(`maxIterations must be an integer from 1 to ${MAX_AGENT_ITERATIONS}`);
+        }
+        patch.maxIterations = value as number;
+        break;
+      case 'temperature':
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) throw new Error('temperature must be from 0 to 2');
+        patch.temperature = value;
+        break;
+      default:
+        throw new Error(`unknown config key: ${key}`);
     }
   }
+  return patch;
 }
 
 /** Why an operator-initiated plugin call (WebSocket plugin_execute / git_action) needs human approval, or null. */
-function operatorApprovalReason(name: string, input: PluginInput): string | null {
+async function operatorApprovalReason(name: string, input: PluginInput): Promise<string | null> {
   const plugin = plugins.get(name);
   if (!plugin) return null;
   if (plugin.permission === 'exec') return 'executes a shell command on this machine';
@@ -332,6 +366,9 @@ function operatorApprovalReason(name: string, input: PluginInput): string | null
   if (name === 'git_repository' && String(input.action ?? '') === 'clone') return 'clones a repository from the network';
   if (name === 'http_request' && !['GET', 'HEAD'].includes(String(input.method ?? 'GET').toUpperCase())) {
     return 'sends a state-changing HTTP request';
+  }
+  if ((name === 'http_request' || name === 'rss_feed') && await targetsPrivateNetwork(String(input.url ?? ''))) {
+    return 'reaches a local or private network address';
   }
   return null;
 }
@@ -349,7 +386,8 @@ registerPlugin('file_read', {
   execute: async (input: PluginInput): Promise<PluginResult> => {
     const filePath = String(input.path ?? '');
     try {
-      const content = await fs.promises.readFile(await confinedWorkspacePath(String(input.sessionId ?? ''), filePath), 'utf-8');
+      const sessionId = String(input.sessionId ?? '');
+      const content = (await readConfined(sessionWorkspace(sessionId), await confinedWorkspacePath(sessionId, filePath))).toString('utf-8');
       return { success: true, content, path: filePath };
     } catch (err) {
       return { success: false, error: errorMessage(err) };
@@ -366,7 +404,8 @@ registerPlugin('file_write', {
     const filePath = String(input.path ?? '');
     const content = String(input.content ?? '');
     try {
-      await fs.promises.writeFile(await confinedWorkspacePath(String(input.sessionId ?? ''), filePath), content, 'utf-8');
+      const sessionId = String(input.sessionId ?? '');
+      await writeConfined(sessionWorkspace(sessionId), await confinedWorkspacePath(sessionId, filePath), content);
       return { success: true, path: filePath };
     } catch (err) {
       return { success: false, error: errorMessage(err) };
@@ -408,7 +447,7 @@ registerPlugin('http_request', {
     const url = String(input.url);
     const method = input.method ? String(input.method) : 'GET';
     try {
-      const res = await fetch(url, { method });
+      const res = await fetchChecked(url, { method }, input.allowPrivateNetwork === true);
       const text = await res.text();
       return { success: true, status: res.status, body: text };
     } catch (err) {
@@ -434,10 +473,10 @@ registerPlugin('rss_feed', {
     }
 
     try {
-      const response = await fetch(parsedUrl, {
+      const response = await fetchChecked(parsedUrl.toString(), {
         headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
         signal: AbortSignal.timeout(10000),
-      });
+      }, input.allowPrivateNetwork === true);
       if (!response.ok) return { success: false, error: `Feed returned HTTP ${response.status}` };
       const xml = await response.text();
       const document = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' }).parse(xml) as Record<string, any>;
@@ -708,8 +747,7 @@ class AgentSession {
       if (name === 'image_generate' && typeof result.image_base64 === 'string') {
         const relativePath = `images/plugin-generated-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
         const destination = safeWorkspacePath(this.id, relativePath);
-        await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-        await fs.promises.writeFile(destination, Buffer.from(result.image_base64, 'base64'));
+        await writeConfined(sessionWorkspace(this.id), destination, Buffer.from(result.image_base64, 'base64'), { mkdirs: true });
         result = {
           ...result,
           image_base64: undefined,
@@ -756,11 +794,13 @@ class AgentSession {
   async executeOperatorPlugin(name: string, input: PluginInput): Promise<PluginResult> {
     const plugin = plugins.get(name);
     if (plugin && !plugin.enabled) return { success: false, error: `Plugin disabled: ${name}` };
-    const reason = operatorApprovalReason(name, input);
-    if (reason && !(await this.requestApproval(`plugin:${name}`, name, { ...input }, reason))) {
+    const { allowPrivateNetwork: _ignored, ...cleanInput } = input;
+    const reason = await operatorApprovalReason(name, cleanInput);
+    if (reason && !(await this.requestApproval(`plugin:${name}`, name, { ...cleanInput }, reason))) {
       return { success: false, error: `Denied by human reviewer (${reason})` };
     }
-    return this.executePlugin(name, input);
+    const approvedPrivate = reason === 'reaches a local or private network address';
+    return this.executePlugin(name, approvedPrivate ? { ...cleanInput, allowPrivateNetwork: true } : cleanInput);
   }
 
   /**
@@ -931,7 +971,12 @@ class AgentSession {
       }
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
         workspace: sessionWorkspace(this.id),
-        resolvePath: (relativePath) => safeWorkspacePath(this.id, relativePath),
+        resolvePath: (relativePath) => {
+          // The agent's file tools must not follow a symlink out (e.g. one inside a cloned repository).
+          const destination = safeWorkspacePath(this.id, relativePath);
+          assertRealInsideSync(sessionWorkspace(this.id), destination);
+          return destination;
+        },
         onThought: (thought) => this.addThought(thought),
         onEvent: (event) => {
           runStore.addEvent(record, event);
@@ -1094,7 +1139,11 @@ wss.on('connection', async (ws: WebSocket) => {
   // Restore dashboard state from persistent storage
   const savedState = await persistence.restoreDashboardState(sessionId);
   if (savedState?.settings) {
-    Object.assign(session.config, savedState.settings);
+    try {
+      Object.assign(session.config, sanitizeConfigPatch(savedState.settings));
+    } catch {
+      // Saved settings from before validation (or edited on disk) are ignored, not applied.
+    }
   }
 
   ws.send(
@@ -1168,7 +1217,14 @@ wss.on('connection', async (ws: WebSocket) => {
         }
 
         case 'update_config': {
-          Object.assign(session.config, msg.config);
+          let patch: Partial<AgentSessionConfig>;
+          try {
+            patch = msg.config as Partial<AgentSessionConfig>;
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'config_error', data: { error: errorMessage(err) } }));
+            break;
+          }
+          Object.assign(session.config, patch);
           // Save config to persistent storage (debounced)
           void persistence.saveDashboardState({
             sessionId,
@@ -1484,7 +1540,7 @@ app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {
       const absolute = path.join(directory, entry.name);
       if (entry.isDirectory() && entry.name !== '.git') await walk(absolute);
       else {
-        const stat = await fs.promises.stat(absolute);
+        const stat = await fs.promises.lstat(absolute); // never stat a symlink's (possibly outside) target
         files.push({ path: path.relative(root, absolute).replaceAll(path.sep, '/'), size: stat.size, modified_at: stat.mtime.toISOString() });
       }
     }
@@ -1498,11 +1554,10 @@ app.get('/api/sessions/:id/files/content', async (req: Request, res: Response) =
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     const filePath = safeWorkspacePath(req.params.id, String(req.query.path || ''));
-    const stat = await fs.promises.stat(filePath);
-    if (!stat.isFile() || stat.size > 2 * 1024 * 1024) return res.status(413).json({ error: 'File is too large to preview' });
-    res.json({ path: String(req.query.path), content: await fs.promises.readFile(filePath, 'utf8') });
+    const content = await readConfined(sessionWorkspace(req.params.id), filePath, 2 * 1024 * 1024);
+    res.json({ path: String(req.query.path), content: content.toString('utf8') });
   } catch (err) {
-    res.status(400).json({ error: errorMessage(err) });
+    res.status(fileErrorStatus(err)).json({ error: errorMessage(err) });
   }
 });
 
@@ -1514,12 +1569,12 @@ app.get('/api/sessions/:id/files/raw', async (req: Request, res: Response) => {
       return res.status(415).json({ error: 'Only raster images can be served by this endpoint' });
     }
     const filePath = safeWorkspacePath(req.params.id, relativePath);
-    if (!(await fs.promises.stat(filePath)).isFile()) return res.status(404).json({ error: 'File not found' });
+    const image = await readConfined(sessionWorkspace(req.params.id), filePath);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.type(path.extname(filePath));
-    res.sendFile(filePath);
+    res.send(image);
   } catch (err) {
-    res.status(400).json({ error: errorMessage(err) });
+    res.status(fileErrorStatus(err)).json({ error: errorMessage(err) });
   }
 });
 
@@ -1534,8 +1589,7 @@ app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async 
   try {
     const relativePath = `images/${randomUUID()}-${path.basename(image.originalname)}`;
     const destination = safeWorkspacePath(session.id, relativePath);
-    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-    await fs.promises.writeFile(destination, image.buffer);
+    await writeConfined(sessionWorkspace(session.id), destination, image.buffer, { mkdirs: true });
     const result = await requestJanus('analyze', {
       image_base64: image.buffer.toString('base64'),
       prompt: String(req.body.prompt || 'Describe this image.'),
@@ -1561,8 +1615,7 @@ app.post('/api/sessions/:id/images/generate', async (req: Request, res: Response
     const result = await requestJanus('generate', { prompt });
     const relativePath = `images/generated-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
     const destination = safeWorkspacePath(session.id, relativePath);
-    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-    await fs.promises.writeFile(destination, Buffer.from(result.image_base64, 'base64'));
+    await writeConfined(sessionWorkspace(session.id), destination, Buffer.from(result.image_base64, 'base64'), { mkdirs: true });
     const imageUrl = `/api/sessions/${session.id}/files/raw?path=${encodeURIComponent(relativePath)}`;
     session.addThought({ type: 'image_generation', content: prompt, path: relativePath, status: 'success' });
     session.memory.push({ timestamp: Date.now(), type: 'image_generation', prompt, path: relativePath });
@@ -1594,8 +1647,7 @@ app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('imag
   const relativePath = `images/tasks/${task.id}/${filename}`;
   try {
     const destination = safeWorkspacePath(session.id, relativePath);
-    await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-    await fs.promises.writeFile(destination, image.buffer);
+    await writeConfined(sessionWorkspace(session.id), destination, image.buffer, { mkdirs: true });
     const attachment = {
       path: relativePath,
       filename: path.basename(image.originalname),
@@ -1616,23 +1668,22 @@ app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Requ
   try {
     for (const file of (req.files ?? []) as Express.Multer.File[]) {
       const destination = safeWorkspacePath(req.params.id, file.originalname);
-      await fs.promises.mkdir(path.dirname(destination), { recursive: true });
-      await fs.promises.writeFile(destination, file.buffer);
+      await writeConfined(sessionWorkspace(req.params.id), destination, file.buffer, { mkdirs: true });
       uploaded.push({ path: path.relative(sessionWorkspace(req.params.id), destination).replaceAll(path.sep, '/'), size: file.size });
     }
     res.status(201).json({ uploaded });
   } catch (err) {
-    res.status(400).json({ error: errorMessage(err) });
+    res.status(fileErrorStatus(err)).json({ error: errorMessage(err) });
   }
 });
 
 app.delete('/api/sessions/:id/files', async (req: Request, res: Response) => {
   if (!sessions.has(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
-    await fs.promises.unlink(safeWorkspacePath(req.params.id, String(req.body.path || '')));
+    await unlinkConfined(sessionWorkspace(req.params.id), safeWorkspacePath(req.params.id, String(req.body.path || '')));
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: errorMessage(err) });
+    res.status(fileErrorStatus(err)).json({ error: errorMessage(err) });
   }
 });
 
