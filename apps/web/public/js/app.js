@@ -89,9 +89,20 @@ function handleMessage(msg) {
       appendTerminalStream(msg.data);
       break;
 
-    case 'thought':
-      addThought({ ...msg.data, timestamp: msg.timestamp });
+    case 'thought': {
+      const thought = { ...msg.data, timestamp: msg.timestamp };
+      addThought(thought);
+      // Real bridge to the Think Token cube (and the pre-existing, previously-unfed token
+      // dashboard): every thought the server actually emits, forwarded as-is — no synthesized
+      // events. See think-cube-render.js's LIVE MAPPING comment for what each type does.
+      window.dispatchEvent(new CustomEvent('think-cube:thought', { detail: thought }));
+      if (thought.type === 'think_token') {
+        window.dispatchEvent(new CustomEvent('token:created', {
+          detail: { id: `run-token-${thought.id || Date.now()}`, type: 'tool_sequence', content: String(thought.content || ''), confidence: 0.6 },
+        }));
+      }
       break;
+    }
 
     case 'task':
       addTask({ ...msg.data, timestamp: msg.timestamp });

@@ -1,0 +1,100 @@
+/* kudbEE Think Token Cube — visualization layer for the existing #288 Think Token.
+   Ten roles x ten cells, arranged as a 10x10 grid with a slight 3D tilt so it reads as a
+   cube-like object rather than a flat table, per the "smooth 3D cube/Rubik's-cube presentation"
+   requirement without pulling in a WebGL/Three.js dependency this project doesn't have. */
+
+.think-cube-wrap {
+  perspective: 900px;
+  padding: 12px 4px 28px;
+}
+
+.think-cube {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  gap: 3px;
+  width: min(100%, 360px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  transform: rotateX(18deg) rotateY(-14deg);
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+.think-cube:hover {
+  transform: rotateX(8deg) rotateY(-6deg);
+}
+
+.think-cube > div {
+  border-radius: 3px;
+  background: var(--color-bg-card, #1c1f26);
+  border: 1px solid var(--color-border, #2a2e37);
+  transition: opacity 0.35s ease, background-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+  cursor: default;
+}
+
+/* Role colors — one hue per one of the ten semantic categories the cube task named. */
+.think-cube .role-identity      { background-color: #6366f1; }
+.think-cube .role-jobState      { background-color: #0ea5e9; }
+.think-cube .role-thinkBox      { background-color: #14b8a6; }
+.think-cube .role-propagation   { background-color: #22c55e; }
+.think-cube .role-evidence      { background-color: #eab308; }
+.think-cube .role-validation    { background-color: #a855f7; }
+.think-cube .role-memory        { background-color: #f97316; }
+.think-cube .role-outcome       { background-color: #ec4899; }
+.think-cube .role-tokenState    { background-color: #f43f5e; }
+.think-cube .role-relationship  { background-color: #64748b; }
+
+.think-cube .is-active {
+  box-shadow: 0 0 6px 0 currentColor;
+}
+
+.think-cube .is-locked {
+  border: 2px solid #ffffff;
+  transform: translateZ(4px) scale(1.05);
+}
+
+.think-cube .is-disrupted {
+  animation: think-cube-disrupt 0.6s ease-in-out infinite;
+  border: 2px solid #ef4444;
+}
+
+.think-cube .is-shared {
+  box-shadow: 0 0 10px 3px #ffffffaa;
+}
+
+@keyframes think-cube-disrupt {
+  0%, 100% { transform: translateZ(0) rotate(0deg); }
+  50% { transform: translateZ(2px) rotate(3deg); }
+}
+
+.cube-status {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-secondary, #9aa1ac);
+  margin-top: 10px;
+  font-family: var(--font-mono, monospace);
+}
+
+.cube-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary, #9aa1ac);
+}
+
+.cube-legend span.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+@media (max-width: 1023px) {
+  .think-cube { width: min(100%, 260px); transform: rotateX(10deg) rotateY(-8deg); }
+}
