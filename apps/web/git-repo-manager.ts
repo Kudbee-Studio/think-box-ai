@@ -6,7 +6,9 @@ import * as path from 'path';
 
 export interface GitRepoConfig {
   url: string;
-  localPath: string;
+  // The one caller (git-api-routes.ts /clone) never sets this; cloneRepository() already
+  // falls back to path.join(this.baseDir, repoName) below when it's absent.
+  localPath?: string;
   branch?: string;
   depth?: number;
 }

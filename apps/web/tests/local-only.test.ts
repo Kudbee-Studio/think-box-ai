@@ -87,7 +87,10 @@ test('governed bridge controls still apply on the real server', async () => {
     hits = [];
     assert.equal((await fetch(`${web.url}/api/governed/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"command":"hostname"}' })).status, 403, 'client header');
     assert.equal((await fetch(`${web.url}/api/governed/run`, { method: 'POST', headers: H, body: '{"command":"hostname; id"}' })).status, 400, 'allow-list');
-    assert.deepEqual(hits, [], 'rejected before the backend');
+    // `deepEqual<T>(actual, expected): asserts actual is T` narrows `hits` by the literal's
+    // inferred type; an untyped `[]` infers T=never[], which made every later `hits.find(...)`
+    // element type `never`. Typing the literal keeps `hits` as its real element type afterward.
+    assert.deepEqual(hits, [] as Array<{ url: string; body: any }>, 'rejected before the backend');
     const ok = await fetch(`${web.url}/api/governed/run`, { method: 'POST', headers: H, body: '{"command":"hostname"}' });
     assert.equal(ok.status, 202);
     assert.equal((await ok.text()).includes('SECRET-GOV'), false, 'token never reaches the browser');
