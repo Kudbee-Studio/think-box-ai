@@ -5,7 +5,7 @@ This is the repository's memory. Conversations are temporary; this is persistent
 
 **Location:** `docs/CONTINUITY.md` (this file)
 **Inherited by:** All agents via AGENTS.md §14
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-30
 
 ---
 
@@ -3523,3 +3523,29 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **LIVE (real uvicorn over TCP → real worker-02; not a browser):** 8 attacks on resume (no token, forged token, wrong agent, `goal:execute` substitution, different allowed command, `hostname; id`, `rm -rf /`, unbound job) all got 403 before SSH with 0 artifacts. The authorized resume returned `kudbee-hermes-worker-02`, exit 0, 0.88s, receipt `tb_rcpt_live_ok`, checkpoint `chk_6de1abfea105`; a second resume got 409.
 - **FOUR-STATE:** resume/reclaim governance: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED. Login deferral + loopback guard: CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED. `/api/git` hardening: CODE COMPLETE / TEST VERIFIED, not browser-tested. **PRODUCTION READY: NO**.
 - **NEXT LARGER IMPROVEMENT:** decide whether to wire the #288 Think Token library into `AgentSession` (it changes what prompts agents receive), then browser-test the Git panel.
+
+### 2026-09-30 — SAVE POINT: dashboard lockdown (WebSocket Origin + Host gate, shell_exec off, confined file tools)
+
+- **Why:** a read-only audit of `main` @ `82165813` **proved** (live, on a separate local port) that any web page in the operator's browser could open the dashboard WebSocket and run `shell_exec` on this machine. There was no Origin check, and `plugin_execute` bypassed the approval gate. It returned `AUDIT_WS_RCE_42` and the local username. A forged `Host` got 200 on every route (DNS rebinding).
+- **State:** branch `fix/dashboard-ws-origin-host-lockdown`, PR opened for founder review (**not merged**).
+- **Change (`apps/web/server.ts`):**
+  - **Host gate:** Host must be loopback on the dashboard port, else 421.
+  - **WebSocket gate:** `verifyClient` requires a loopback Host and an exact loopback Origin, else 401. A missing Origin needs `DASHBOARD_ALLOW_NO_ORIGIN=1`.
+  - **`shell_exec`:** off unless `DASHBOARD_ENABLE_SHELL_EXEC=1`.
+  - **Approval:** `plugin_execute`/`git_action` calls that execute, write, clone or send a non-GET request need approval.
+  - **File confinement:** `file_read`/`file_write` are confined to the session workspace; absolute paths, `..` and escaping symlinks are refused.
+  - **Session scope:** plugins act only on the caller's session.
+  - **CLI:** sends the dashboard origin.
+  - **Stale test:** `tests/e2e/test_f023_prep.py` updated for the #289 rename, no weaker.
+  - **No login added;** backend governance, SSH and worker-02 untouched.
+- **Evidence:**
+  - `apps/web/tests/dashboard-lockdown.test.ts`: 7 tests against the real `server.ts`; all 8 guards mutation-checked.
+  - Web suite 156/156.
+  - Typecheck: no new errors (15 already on `main`).
+  - Broad Python regression: 104 modules, **1861 tests OK** (1 skipped, 3 expected failures). Before this fix: 1 failure (stale f023).
+  - Audit attack re-run on port 3919: **HTTP 401** (was: shell output); forged Host **421**.
+  - Headless Chrome shows **Connected** at `127.0.0.1` and `localhost`.
+  - CI not run (billing).
+- **Environment note:** `/tmp` here is a 3.9 GB RAM disk that fills up (Ollama installer tarballs, 3.5 GB). Run tests with `TMPDIR` on the main disk.
+- **FOUR-STATE (dashboard lockdown):** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (loopback, real server, real browser). **PRODUCTION READY: NO.**
+- **NEXT LARGER IMPROVEMENT:** pin worker-02's SSH host key and use a non-root SSH user, then commit a redacted live-proof bundle.
