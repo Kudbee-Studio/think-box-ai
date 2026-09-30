@@ -114,7 +114,7 @@ async def _prove(cfg: ModelConfig, ledger_path: Path) -> list[dict[str, Any]]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--provider", choices=["ollama", "openai_compat", "inception"], default=None)
+    parser.add_argument("--provider", choices=["ollama", "openai_compat", "inception", "mock"], default=None)
     parser.add_argument("--model", default=None)
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--max-tokens", type=int, default=None)
