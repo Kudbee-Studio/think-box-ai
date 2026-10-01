@@ -3,9 +3,8 @@
 
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { WorkerInitializer, BehavioralChangeDetector } from './worker-initialization.ts';
-import { LearningStore } from './learning-store.ts';
+import { LearningStore, type SessionLearning } from './learning-store.ts';
 import { ThinkTokenFactory } from './think-token-factory.ts';
-import type { AgentSession } from './server.ts';
 import type { ChatMessage } from './types.ts';
 
 /**
@@ -14,11 +13,11 @@ import type { ChatMessage } from './types.ts';
  */
 export class ServerLearningIntegration {
   private propagator: ThinkTokenPropagator;
-  private initializer: WorkerInitializer;
+  private initializer: WorkerInitializer | undefined;
   private behaviorDetector: BehavioralChangeDetector;
   private store: LearningStore;
 
-  constructor(propagator: ThinkTokenPropagator, initializer: WorkerInitializer, store: LearningStore) {
+  constructor(propagator: ThinkTokenPropagator, initializer: WorkerInitializer | undefined, store: LearningStore) {
     this.propagator = propagator;
     this.initializer = initializer;
     this.behaviorDetector = new BehavioralChangeDetector();
@@ -77,22 +76,40 @@ export class ServerLearningIntegration {
     tokensAffected: number;
     behavioralImpact: string;
   } {
-    // Step 1: Record goal completion for learning store
-    this.store.recordSessionCompletion(sessionId, goal, success);
-
-    // Step 2: Extract candidates from execution
-    const thoughts = executionContext.thoughts || [];
-    const candidates = ThinkTokenFactory.extractCandidates(sessionId, goal, thoughts as any[]);
+    // Step 1: Record goal completion for learning store.
+    // `LearningStore` has no `recordSessionCompletion` method — it was never implemented; the
+    // store's real method for this is `storeSessionLearning`.
+    this.store.storeSessionLearning({
+      sessionId,
+      goal,
+      thoughts: (executionContext.thoughts as SessionLearning['thoughts']) || [],
+      outcome: success ? 'success' : 'failure',
+      duration: (executionContext.duration as number) ?? 0,
+      patterns: [],
+      metadata: executionContext,
+    });
 
     let tokensAffected = 0;
 
-    // Step 3: For each candidate, inject and record usage
-    if (candidates.length > 0) {
+    // Step 2: Only a successful execution can mint a Think Token. A failed goal still gets its
+    // session recorded above (for later analysis) but produces no token — the factory's own
+    // quality gate (specific/actionable/generalizable) is a second, independent filter on top of
+    // this, not a replacement for it.
+    if (success) {
+      const thoughts = executionContext.thoughts || [];
+      const candidates = ThinkTokenFactory.extractCandidates(sessionId, goal, thoughts as any[]);
+
+      // Step 3: For each candidate, make it reachable, then persist its usage.
       candidates.forEach(token => {
-        // Add token to collection
+        // `addToken` must happen before `recordTokenUsage`, which looks the token up by id in
+        // the propagator's own collection and silently no-ops if it isn't there — which, before
+        // this fix, every freshly-created candidate always was.
+        this.propagator.addToken(token);
+
         this.propagator.broadcastToken(token, 'similar_goals');
 
-        // Record that this token was used
+        // Record that this token was used; this is also what persists it (see
+        // ThinkTokenPropagator.recordTokenUsage -> LearningStore.storePattern).
         this.propagator.recordTokenUsage(sessionId, token.id, success);
         tokensAffected++;
       });

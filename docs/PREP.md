@@ -2,6 +2,16 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-09-30 (specialist execution boundary; branch `docs/enterprise-agent-os-plan`)
+>
+> **Architecture:** `apps/web/specialist-executor.ts` consumes unchanged contracts/Director selection and runs each model-backed specialist in a fresh `AgentSession` identity and confined workspace through the existing `runToolAgent`. Receiver `acceptsFrom` handoffs create sequential dependency waves; ready independent specialists run concurrently. No new agent runtime or provider SDK.
+>
+> **Evidence:** each execution carries its own actual model/tool events and resource usage. Required tool evidence is enforced; Validator must be a distinct run and re-read the evidence artifact. Proof Keeper refuses if any selected execution failed. Think Token extraction uses per-specialist thoughts only after proof acceptance; persistence is checked before emitting `think_token`.
+>
+> **Proof:** `docs/enterprise/proof/specialist-execution-proof.json` was emitted from the real `server.ts` WebSocket integration under MockInception. It records Builder completed, Tester failed closed (`exec` unavailable), Security and Validator completed with independent reads; validation passed for Builder evidence, Proof Keeper refused due to Tester failure, and zero tokens were emitted. Replay reproduces execution/evidence/proof/full 100-cell cube state.
+>
+> **Verification/four-state:** specialist executor 9/9; cube reducer 21/21; server success/failure/token integration passes; full web suite 240/240; strict typecheck 0 errors. CODE COMPLETE / TEST VERIFIED only. NOT LIVE VERIFIED: this proof used MockInception; no Mercury request was made. Independent sessions/workspaces ran in one Node process; separate processes, remote boxes, distributed swarm, and production readiness are unproven. The current runtime lacks `exec`, so Tester remains visible as failed rather than simulated. GitHub CI is pending for the update.
+
 > ## ADDENDUM — 2026-09-27 (GitHub #268 open — fault-injection chaos harness)
 >
 > **#267** merged `c2af3ce`. **#268** on `feat/pr268-fault-injection-campaign`: fault-injection harness

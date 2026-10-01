@@ -9,6 +9,13 @@ class ThinkTokenDashboard {
       avgConfidence: 0,
       totalInteractions: 0
     };
+    // The cube is created once, here, detached from the document — it keeps receiving real
+    // 'think-cube:thought' events (dispatched by app.js from every WebSocket thought) whether
+    // or not the modal below is currently open. openDashboard() just re-parents this same live
+    // node into the modal each time, so the lifecycle it shows was not started by opening the
+    // dialog. Without window.ThinkCubeRenderer (the module script failed to load), there's
+    // simply no cube — degrade to the pre-existing card/timeline view, not a fake one.
+    this.cube = window.ThinkCubeRenderer ? new window.ThinkCubeRenderer(document.createElement('div')) : null;
     this.setupEventListeners();
     this.startLiveUpdates();
   }
@@ -24,6 +31,8 @@ class ThinkTokenDashboard {
     window.addEventListener('token:created', (e) => this.addToken(e.detail));
     window.addEventListener('token:used', (e) => this.recordTokenUsage(e.detail));
     window.addEventListener('propagation:active', (e) => this.updatePropagationStats(e.detail));
+    // Real bridge: app.js dispatches this for every WebSocket 'thought' message it receives.
+    window.addEventListener('think-cube:thought', (e) => this.cube?.handleThought(e.detail));
   }
 
   addToken(tokenData) {
@@ -68,6 +77,11 @@ class ThinkTokenDashboard {
   }
 
   openDashboard() {
+    // updateDashboard() re-calls this whenever a live event arrives while the modal is already
+    // open; without removing the previous one first, the cube's control buttons below would end
+    // up wired to an orphaned, invisible copy of the modal after the first such update.
+    document.getElementById('think-token-modal')?.remove();
+
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
     modal.id = 'think-token-modal';
@@ -82,6 +96,25 @@ class ThinkTokenDashboard {
         </div>
 
         <div class="think-token-dashboard">
+          <!-- Think Token Cube: live visualization of the current token's lifecycle. -->
+          <div class="cube-section">
+            <h3>🧊 Think Token Cube</h3>
+            ${this.cube ? `
+              <div class="think-cube-wrap"><div class="think-cube-slot"></div></div>
+              <div class="cube-controls">
+                <button class="btn-quiet" data-cube-action="pause">Pause</button>
+                <button class="btn-quiet" data-cube-action="resume">Resume</button>
+                <button class="btn-quiet" data-cube-action="reset">Reset</button>
+                <button class="btn-quiet" data-cube-action="replay">Replay lifecycle</button>
+                <button class="btn-quiet" data-cube-action="demo">Run demo (not live — see legend)</button>
+              </div>
+              <p class="cube-legend">
+                <strong>Live from this run:</strong> intent, execution, evidence, a tool failure shown as challenge, harvest, the completed token.
+                <strong>Demo only, no backend signal exists for these yet:</strong> decompose, swarm, jury, commons.
+              </p>
+            ` : '<p class="cube-legend">Cube visualization unavailable (its module script did not load).</p>'}
+          </div>
+
           <!-- Stats Overview -->
           <div class="token-stats-grid">
             <div class="stat-card">
@@ -227,6 +260,27 @@ class ThinkTokenDashboard {
     });
 
     document.body.appendChild(modal);
+
+    if (this.cube) {
+      const slot = modal.querySelector('.think-cube-slot');
+      // Re-parent the SAME live cube container (and its status/inspect elements) — moving a
+      // node, not cloning it, so nothing about its current state or listeners is lost.
+      slot.appendChild(this.cube.container);
+      slot.insertAdjacentElement('afterend', this.cube.statusEl);
+      this.cube.statusEl.insertAdjacentElement('afterend', this.cube.inspectEl);
+      this.cube.render();
+
+      const actions = {
+        pause: () => this.cube.pause(),
+        resume: () => this.cube.resume(),
+        reset: () => this.cube.reset(),
+        replay: () => this.cube.replay(),
+        demo: () => this.cube.runDeterministicDemo(),
+      };
+      modal.querySelectorAll('[data-cube-action]').forEach((btn) => {
+        btn.addEventListener('click', () => actions[btn.dataset.cubeAction]?.());
+      });
+    }
   }
 
   showTokenDetails(tokenId) {

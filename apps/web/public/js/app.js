@@ -89,9 +89,25 @@ function handleMessage(msg) {
       appendTerminalStream(msg.data);
       break;
 
-    case 'thought':
-      addThought({ ...msg.data, timestamp: msg.timestamp });
+    case 'thought': {
+      const thought = { ...msg.data, timestamp: msg.timestamp };
+      addThought(thought);
+      // Real bridge to the Think Token cube (and the pre-existing, previously-unfed token
+      // dashboard): every thought the server actually emits, forwarded as-is — no synthesized
+      // events. See think-cube-render.js's LIVE MAPPING comment for what each type does.
+      window.dispatchEvent(new CustomEvent('think-cube:thought', { detail: thought }));
+      if (thought.type === 'think_token') {
+        window.dispatchEvent(new CustomEvent('token:created', {
+          detail: {
+            id: thought.tokenId || `run-token-${thought.id || Date.now()}`,
+            type: thought.tokenType || 'tool_sequence',
+            content: String(thought.content || ''),
+            confidence: thought.tokenConfidence ?? 0.6,
+          },
+        }));
+      }
       break;
+    }
 
     case 'task':
       addTask({ ...msg.data, timestamp: msg.timestamp });
@@ -167,6 +183,27 @@ function handleMessage(msg) {
       }
       refreshFiles();
       refreshStats();
+      refreshRuns();
+      enableInput(true);
+      break;
+    }
+
+    case 'specialist_result': {
+      const r = msg.data || {};
+      const specialists = (r.specialistsExecuted || []).map((run) =>
+        `  ${run.specialistId}: ${run.status}${run.failure ? ` — ${run.failure}` : ''} · box ${run.thinkBoxId}`,
+      );
+      const summary = [
+        `Specialist job ${r.jobId || ''} · ${r.status || 'UNKNOWN'}`,
+        `Selected: ${(r.specialistsSelected || []).join(', ') || '(none)'}`,
+        ...specialists,
+        `Evidence: ${(r.evidence || []).length} · Validator: ${r.validation?.valid ? 'PASS' : 'FAIL'}`,
+        `Proof: ${r.proof?.ok ? 'accepted' : 'refused'} · Think Tokens: ${(r.thinkToken || []).length}`,
+        r.artifactPath ? `Artifact: ${r.artifactPath}` : '',
+      ].filter(Boolean).join('\n');
+      setStatus(r.status === 'COMPLETED' ? 'idle' : 'error', r.status === 'COMPLETED' ? 'Specialists completed' : 'Specialist job failed');
+      appendTerminalMessage(r.status === 'COMPLETED' ? 'assistant' : 'error', summary);
+      refreshFiles();
       refreshRuns();
       enableInput(true);
       break;
@@ -657,6 +694,7 @@ async function runSlashCommand(command) {
         '  /agent [NAME]       Switch agent profile (or clear for default)',
         '  /notes [LAYER]     List recent notes (session|task|org|verified)',
         '  /remote CMD        Run an allow-listed read-only command on the UpCloud worker (governed)',
+        '  /specialists INTENT Execute Director-selected specialists in independent workspaces',
         '',
         '🔌 Plugins & Integration:',
         '  /plugins           List installed plugins',
@@ -712,6 +750,22 @@ async function runSlashCommand(command) {
         : '📦 No plugins are registered.');
       Enterprise.auditLog.log('cli', 'Plugins listed', 'info');
       return true;
+
+    case '/specialists': {
+      const intent = args.join(' ').trim();
+      if (!intent) {
+        appendTerminalMessage('system', 'Usage: /specialists INTENT');
+        return true;
+      }
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        appendTerminalMessage('error', 'Not connected to the kudbEE backend.');
+        return true;
+      }
+      appendTerminalMessage('user', `Specialists: ${intent}`);
+      setStatus('running', 'Running specialists');
+      state.ws.send(JSON.stringify({ type: 'run_specialists', intent }));
+      return true;
+    }
 
     case '/models':
       await loadModels();
@@ -1512,6 +1566,12 @@ async function refreshMemory() {
           <small>${item.score !== undefined ? `score ${Number(item.score).toFixed(2)} · ` : ''}${escapeHtml(item.content)}</small>
         </button>`).join('')
       : `<div class="empty-state">${state.memoryQuery ? `No matches (${escapeHtml(backend)})` : 'No memories yet — finished runs are saved here automatically'}</div>`;
+    // Real bridge for memory-graph.js: it already listens for this event but nothing ever
+    // dispatched it, so the graph only ever showed whatever .memory-item elements existed at
+    // page load and never updated again. Real ids/layers/tags, not synthesized ones.
+    window.dispatchEvent(new CustomEvent('memory:updated', {
+      detail: { memories: items.map((item) => ({ id: item.id, title: item.title, layer: item.layer, tags: item.tags || [] })) },
+    }));
   } catch (error) {
     document.getElementById('memory-backend').textContent = 'Offline';
   }

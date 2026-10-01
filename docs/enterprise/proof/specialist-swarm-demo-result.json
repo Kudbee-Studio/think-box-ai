@@ -1,0 +1,68 @@
+{
+  "agents_selected": [
+    "builder",
+    "security",
+    "validator"
+  ],
+  "selection_rationale": {
+    "builder": "matched /\\b(build|create|implement|write|fix|add)\\b/i in intent/opportunity text",
+    "validator": "matched /\\b(validate|verify|double.?check)\\b/i in intent/opportunity text",
+    "security": " auto-added: Builder is selected, baseline review required"
+  },
+  "capabilities_used": [
+    "Produces or modifies a concrete artifact (file, code, document) in the session workspace.",
+    "Reviews an artifact or plan for secrets, destructive commands, or scope beyond the stated goal before it ships.",
+    "Independently re-checks evidence other specialists submitted; never trusts a self-report."
+  ],
+  "composition_check": {
+    "ok": true
+  },
+  "handoff_checks": [
+    {
+      "ok": true
+    },
+    {
+      "ok": true
+    },
+    {
+      "ok": true
+    }
+  ],
+  "execution_trace_source": "docs/enterprise/proof/think-token-cube-real-run-events.json (the real captured WebSocket trace from this session's real Mercury-2 run)",
+  "evidence": [
+    {
+      "specialistId": "builder",
+      "claim": "created cube-proof-note.txt with the exact content \"cube proof run ok\"",
+      "reference": "real tool_result (write_file, status success) from job 6645412a-587f-47f0-9379-2db251ec3c6d: apps/web/workspaces/6645412a-587f-47f0-9379-2db251ec3c6d/cube-proof-note.txt"
+    }
+  ],
+  "challenges_note": "The underlying real run hit one real tool failure (read_file ENOENT, mapped to the cube's challenge stage). That failure was produced by the single real agent, not by an independently-assigned Disruptor specialist — this demo proves selection/validation/proof over real evidence, not concurrent multi-specialist execution, which #288 does not support.",
+  "validation": {
+    "valid": true,
+    "checkedEvidenceCount": 1,
+    "reason": "Every claim has a concrete, checkable reference."
+  },
+  "proof_result": {
+    "ok": true,
+    "artifact": {
+      "jobId": "6645412a-587f-47f0-9379-2db251ec3c6d",
+      "claim": "created cube-proof-note.txt with the exact content \"cube proof run ok\"",
+      "evidenceReferences": [
+        {
+          "specialistId": "builder",
+          "reference": "real tool_result (write_file, status success) from job 6645412a-587f-47f0-9379-2db251ec3c6d: apps/web/workspaces/6645412a-587f-47f0-9379-2db251ec3c6d/cube-proof-note.txt"
+        }
+      ],
+      "validation": {
+        "valid": true,
+        "checkedEvidenceCount": 1,
+        "reason": "Every claim has a concrete, checkable reference."
+      },
+      "resourceUsage": {
+        "tokens": 6147,
+        "costUsd": 0.00163,
+        "durationMs": 1725
+      }
+    }
+  }
+}

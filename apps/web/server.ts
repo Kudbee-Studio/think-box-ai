@@ -35,6 +35,23 @@ import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
 import PersistenceLayer from './persistence.ts';
+import { LearningStore } from './learning-store.ts';
+import { ThinkTokenCollection } from './think-token.ts';
+import { ThinkTokenPropagator } from './think-token-propagation.ts';
+import { ServerLearningIntegration } from './server-learning-integration.ts';
+import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
+import {
+  allocateSpecialistJobs,
+  assembleSpecialistProof,
+  completeSpecialistJob,
+  createRunToolAgentExecutor,
+  evidenceFromSpecialistExecutions,
+  executeSpecialistPlan,
+  replaySpecialistEvents,
+  replaySpecialistJobEvents,
+  validateSpecialistEvidence,
+} from './specialist-executor.ts';
+import { createInitialCubeState, applyEvent as applyThinkCubeEvent } from './public/js/think-cube-state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,6 +132,16 @@ void memoryStore.syncVectors();
 
 // ─── Persistent storage (SQLite) ────────────────────────────────
 const persistence = new PersistenceLayer(dataDir);
+
+// ─── Think Token persistence (#288) ──────────────────────────────
+// Bridges a finished agent run into the existing #288 Think Token chain: a successful run's
+// thoughts are checked against ThinkTokenFactory's quality gate, and anything that passes is
+// persisted as a learned_patterns row via LearningStore (see server-learning-integration.ts and
+// think-token-propagation.ts for why each step is needed — several links here were previously
+// unreachable dead code).
+const learningStore = new LearningStore(process.env.KUDBEE_LEARNING_DB || undefined);
+const thinkTokenPropagator = new ThinkTokenPropagator(learningStore, new ThinkTokenCollection());
+const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, undefined, learningStore);
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -572,6 +599,7 @@ class AgentSession {
   private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
+  readonly specialistAborts = new Map<string, AbortController>();
   history: Array<{ goal: string; result: string }> = [];
   currentTask: Task | null = null;
   ws: WebSocket | null = null;
@@ -945,6 +973,9 @@ class AgentSession {
   async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
+    // Snapshot so the Think Token bridge below only sees this run's own thoughts, not a prior
+    // queued goal's (this.thoughts accumulates for the whole session).
+    const thoughtsStart = this.thoughts.length;
     const profile = agentProfile ? AGENT_PROFILES[agentProfile] : undefined;
     if (agentProfile && !profile) throw new Error(`Unknown agent profile '${agentProfile}'`);
     this.addThought({ type: 'goal', content: `${profile ? `${profile.name} agent` : 'Worker agent'} (${this.config.model}) starting: ${goal}`, status: 'info' });
@@ -1015,6 +1046,21 @@ class AgentSession {
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
 
+      // Think Token bridge (#288): only a successful run can mint a token; a failed or stopped
+      // run still has its session recorded (for later analysis) but produces no token.
+      try {
+        const learning = learningIntegration.recordGoalExecution(this.id, goal, run.success, {
+          thoughts: this.thoughts.slice(thoughtsStart),
+          duration: record.duration_ms ?? 0,
+        });
+        if (learning.tokensAffected > 0) {
+          this.addThought({ type: 'think_token', content: `Captured ${learning.tokensAffected} Think Token${learning.tokensAffected === 1 ? '' : 's'} from this run`, status: 'success' });
+        }
+      } catch (err) {
+        // Learning capture must never fail the run it's capturing.
+        this.addThought({ type: 'think_token', content: `Could not capture Think Tokens: ${errorMessage(err)}`, status: 'error' });
+      }
+
       // Auto-save run metadata to persistent DB (Phase 3 + Feature 5 token telemetry)
       try {
         await persistence.saveRunMetadata({
@@ -1081,6 +1127,284 @@ class AgentSession {
     }
   }
 
+  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    const jobId = randomUUID();
+    const startedAt = Date.now();
+    const selection = selectSpecialists(intent, opportunity);
+    const eventLog: Array<Record<string, unknown>> = [];
+    let sequence = 0;
+    const recordEvent = (event: Record<string, unknown>): void => {
+      const entry = { sequence: ++sequence, timestamp: Date.now(), jobId, ...event };
+      eventLog.push(entry);
+      this.broadcast({ type: 'specialist_event', data: entry });
+    };
+
+    this.addThought({ type: 'goal', content: `Specialist job ${jobId}: ${intent}`, status: 'info', jobId, run_id: jobId });
+    if (selection.blocked) {
+      const blocked = { jobId, intent, status: 'BLOCKED', selection, specialistsSelected: [], specialistsExecuted: [], events: eventLog };
+      this.broadcast({ type: 'specialist_result', data: blocked });
+      return blocked;
+    }
+
+    const executionContracts = selection.selected.map((id) => SPECIALISTS[id]).filter((contract) => contract.modelRequirements !== 'none');
+    const handledByOrchestrator = selection.selected.filter((id) => SPECIALISTS[id].modelRequirements === 'none');
+    const allocations = executionContracts.length ? allocateSpecialistJobs({
+      jobId,
+      intent,
+      specialists: executionContracts,
+      jobContext,
+    }) : [];
+    const compositionCheck = validateComposition(Object.fromEntries(allocations.map((item) => [item.specialistId, item.thinkBoxId])));
+    if (!compositionCheck.ok) {
+      const blocked = { jobId, intent, status: 'BLOCKED', selection, compositionCheck, specialistsSelected: selection.selected, specialistsExecuted: [], events: eventLog };
+      this.broadcast({ type: 'specialist_result', data: blocked });
+      return blocked;
+    }
+
+    const boxIds = allocations.map((item) => item.thinkBoxId);
+    this.addThought({
+      type: 'specialist_wave_started',
+      content: `Allocated ${allocations.length} independent specialist workspace(s)`,
+      status: 'info',
+      jobId,
+      run_id: jobId,
+      specialistIds: allocations.map((item) => item.specialistId),
+      thinkBoxIds: boxIds,
+    });
+    recordEvent({ phase: 'allocation', selection, allocations: allocations.map(({ specialistId, thinkBoxId, input }) => ({ specialistId, thinkBoxId, input })) });
+
+    const runtimeExecutor = createRunToolAgentExecutor({
+      model: this.config.model,
+      maxIterations: this.config.maxIterations,
+      temperature: this.config.temperature,
+      createHooks: (allocation, runId) => {
+        const worker = new AgentSession(allocation.thinkBoxId, { ...this.config });
+        fs.mkdirSync(sessionWorkspace(allocation.thinkBoxId), { recursive: true });
+        const record = worker.newRun(`${allocation.contract.name}: ${intent}`, runId);
+        record.jobId = jobId;
+        record.specialistId = allocation.specialistId;
+        record.thinkBoxId = allocation.thinkBoxId;
+        const abort = new AbortController();
+        const abortKey = `${jobId}:${allocation.thinkBoxId}`;
+        this.specialistAborts.set(abortKey, abort);
+        recordEvent({ phase: 'run_started', runId, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId });
+        return {
+          workspace: sessionWorkspace(allocation.thinkBoxId),
+          resolvePath: (relativePath: string) => {
+            const destination = safeWorkspacePath(allocation.thinkBoxId, relativePath);
+            assertRealInsideSync(sessionWorkspace(allocation.thinkBoxId), destination);
+            return destination;
+          },
+          onThought: (thought: Record<string, unknown>) => {
+            const attributed = { ...thought, jobId, run_id: runId, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId };
+            worker.addThought(attributed);
+            this.addThought(attributed);
+            recordEvent({ phase: 'thought', runId, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId, thought: attributed });
+          },
+          onEvent: (event: import('./agent.ts').AgentEvent) => {
+            runStore.addEvent(record, event);
+            recordEvent({ phase: 'run_event', runId, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId, event });
+          },
+          onFilesChanged: () => this.broadcast({ type: 'files_changed', data: { sessionId: allocation.thinkBoxId, jobId, specialistId: allocation.specialistId } }),
+          signal: abort.signal,
+          checkBudget: () => dailyBudgetUsd > 0 && runStore.costToday() >= dailyBudgetUsd
+            ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
+            : null,
+          approvedDomains: worker.approvedDomains,
+          requestApproval: (tool: string, args: Record<string, unknown>, reason: string) => this.requestApproval(runId, tool, { ...args, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId }, reason),
+          remember: async (title: string, content: string, tags: string[]) => {
+            const item = await memoryStore.write('org', { title, content, tags, source: `specialist:${allocation.specialistId}:run:${runId.slice(0, 8)}` });
+            this.broadcast({ type: 'memory_changed', data: { id: item.id } });
+            return { id: item.id, layer: item.layer, path: item.path };
+          },
+          recall: async (query: string, limit: number) => {
+            const { hits, backend } = await memoryStore.search(query, { topK: limit });
+            return { backend, results: hits.map(({ item, score }) => ({ id: item.id, layer: item.layer, title: item.title, score, content: item.content.slice(0, 800) })) };
+          },
+          rssFeed: async (url: string, limit: number) => {
+            const rss = plugins.get('rss_feed');
+            if (!rss) throw new Error('rss_feed plugin missing');
+            const result = await rss.execute({ url, limit });
+            if (!result.success) throw new Error(String(result.error));
+            return result as Record<string, unknown>;
+          },
+        };
+      },
+    });
+
+    const wave = await executeSpecialistPlan(allocations, async (allocation) => {
+      const result = await runtimeExecutor(allocation);
+      const record = runStore.get(result.runId);
+      if (record) {
+        runStore.finish(record, {
+          status: result.success ? 'completed' : 'failed',
+          result: result.output,
+          error: result.failure,
+          failure_kind: classifyFailure(result.failure, false),
+        });
+      }
+      this.specialistAborts.delete(`${jobId}:${allocation.thinkBoxId}`);
+      return result;
+    }, {
+      onEvent: (event) => {
+        recordEvent({ phase: 'specialist_event', event });
+        this.addThought({
+          type: `specialist_${event.type}`,
+          content: `${event.specialistId} ${event.type}`,
+          status: event.type === 'failed' ? 'error' : event.type === 'completed' ? 'success' : 'info',
+          jobId,
+          run_id: event.execution?.runId ?? jobId,
+          specialistId: event.specialistId,
+          thinkBoxId: event.thinkBoxId,
+          execution: event.execution,
+        });
+      },
+      prepareWave: async (waveAllocations, completed) => {
+        for (const allocation of waveAllocations) {
+          const wantsArtifact = allocation.contract.allowedInputs.includes('artifact_path')
+            || allocation.contract.allowedInputs.includes('claims_with_evidence');
+          if (!wantsArtifact) continue;
+          const write = completed.flatMap((execution) => execution.events)
+            .find((event) => event.kind === 'tool' && event.ok && event.name === 'write_file' && typeof event.args.path === 'string');
+          if (!write || write.kind !== 'tool') continue;
+          const artifactPath = String(write.args.path);
+          const sourceExecution = completed.find((execution) => execution.events.includes(write));
+          if (!sourceExecution || sourceExecution.thinkBoxId === allocation.thinkBoxId) continue;
+          const sourceRoot = sessionWorkspace(sourceExecution.thinkBoxId);
+          const targetRoot = sessionWorkspace(allocation.thinkBoxId);
+          fs.mkdirSync(targetRoot, { recursive: true });
+          const sourcePath = await confinedWorkspacePath(sourceExecution.thinkBoxId, artifactPath);
+          const targetPath = await confinedWorkspacePath(allocation.thinkBoxId, artifactPath);
+          const content = await readConfined(sourceRoot, sourcePath);
+          await writeConfined(targetRoot, targetPath, content, { mkdirs: true });
+          recordEvent({ phase: 'artifact_handoff', fromThinkBoxId: sourceExecution.thinkBoxId, toThinkBoxId: allocation.thinkBoxId, specialistId: allocation.specialistId, artifactPath });
+        }
+      },
+    });
+
+    const evidence = evidenceFromSpecialistExecutions(wave.executions).filter((item) => item.specialistId !== 'validator');
+    const validation = validateSpecialistEvidence(evidence, wave.executions);
+    const resourceUsage = wave.executions.reduce((total, execution) => ({
+      tokens: total.tokens + (execution.resourceUsage?.tokens ?? 0),
+      costUsd: total.costUsd + (execution.resourceUsage?.costUsd ?? 0),
+      durationMs: total.durationMs + (execution.resourceUsage?.durationMs ?? 0),
+    }), { tokens: 0, costUsd: 0, durationMs: 0 });
+    const completion = completeSpecialistJob({ jobId, claim: intent, executions: wave.executions, resourceUsage });
+    recordEvent({ phase: 'validation', validation });
+    this.addThought({ type: 'specialist_validation', content: validation.reason, status: validation.valid ? 'success' : 'error', jobId, run_id: jobId });
+    recordEvent({ phase: completion.proof.ok ? 'proof_accepted' : 'proof_refused', proof: completion.proof });
+    this.addThought({ type: completion.proof.ok ? 'proof_accepted' : 'proof_refused', content: completion.proof.ok ? 'Proof Keeper accepted validated specialist evidence' : completion.proof.reason, status: completion.proof.ok ? 'success' : 'error', jobId, run_id: jobId });
+
+    let createdTokens: Array<{ id: string; type: string; content: string; confidence: number }> = [];
+    try {
+      if (completion.proof.ok) {
+        const candidates: Array<{ id: string; type: string; content: string; confidence: number }> = [];
+        for (const execution of wave.executions.filter((item) => item.status === 'completed')) {
+          const previousTokenIds = new Set(thinkTokenPropagator.getRelevantTokensForGoal(intent, 100).map((token) => token.id));
+          learningIntegration.recordGoalExecution(execution.thinkBoxId, intent, true, {
+            thoughts: execution.thoughts,
+            duration: execution.resourceUsage?.durationMs ?? 0,
+            specialistId: execution.specialistId,
+            jobId,
+          });
+          const persistedIds = new Set(learningStore.getTopPatterns(500).map((pattern) => pattern.id));
+          candidates.push(...thinkTokenPropagator.getRelevantTokensForGoal(intent, 100)
+            .filter((token) => !previousTokenIds.has(token.id) && persistedIds.has(token.id))
+            .map((token) => ({ id: token.id, type: token.content.type, content: token.content.text, confidence: token.confidence })));
+        }
+        createdTokens = [...new Map(candidates.map((token) => [token.id, token])).values()];
+        for (const token of createdTokens) {
+          recordEvent({ phase: 'think_token', token });
+          this.addThought({ type: 'think_token', content: token.content, status: 'success', jobId, run_id: jobId, tokenId: token.id, tokenType: token.type, tokenConfidence: token.confidence, specialistIds: selection.selected });
+        }
+      } else {
+        for (const execution of wave.executions) {
+          learningStore.storeSessionLearning({
+            sessionId: execution.thinkBoxId,
+            goal: intent,
+            outcome: execution.status === 'failed' ? 'failure' : 'partial',
+            duration: execution.resourceUsage?.durationMs ?? 0,
+            thoughts: execution.thoughts,
+            patterns: [],
+            metadata: { jobId, specialistId: execution.specialistId, status: execution.status },
+          });
+        }
+      }
+    } catch (err) {
+      this.addThought({ type: 'think_token', content: `Could not capture specialist Think Tokens: ${errorMessage(err)}`, status: 'error', jobId, run_id: jobId });
+    }
+
+    const replayed = replaySpecialistEvents(wave.events);
+    const replayEvidence = evidenceFromSpecialistExecutions(replayed).filter((item) => item.specialistId !== 'validator');
+    const replayValidation = validateSpecialistEvidence(replayEvidence, replayed);
+    const replayCompletion = completeSpecialistJob({ jobId, claim: intent, executions: replayed, resourceUsage });
+    const cubeStateFor = (executions: typeof wave.executions, proofAccepted: boolean) => {
+      let state = createInitialCubeState();
+      state = applyThinkCubeEvent(state, { stage: 'intent', payload: { tokenId: jobId } });
+      state = applyThinkCubeEvent(state, {
+        stage: 'swarm',
+        payload: { boxIds: executions.map((execution) => execution.thinkBoxId), specialistIds: executions.map((execution) => execution.specialistId) },
+      });
+      const toolEvents = executions.flatMap((execution) => execution.events.filter((event) => event.kind === 'tool'));
+      const failedEvidenceEvents = toolEvents.filter((event) => event.kind === 'tool' && !event.ok).length
+        + executions.filter((execution) => execution.status === 'failed').length;
+      if (toolEvents.length) state = applyThinkCubeEvent(state, { stage: 'execution', payload: { step: toolEvents.length } });
+      const evidenceCount = evidenceFromSpecialistExecutions(executions).filter((item) => item.specialistId !== 'validator').length;
+      if (evidenceCount) state = applyThinkCubeEvent(state, { stage: 'evidence', payload: { evidenceCount } });
+      if (failedEvidenceEvents) state = applyThinkCubeEvent(state, { stage: 'challenge', payload: { vulnerabilities: failedEvidenceEvents } });
+      state = applyThinkCubeEvent(state, { stage: 'jury', payload: { passed: proofAccepted } });
+      if (proofAccepted) state = applyThinkCubeEvent(state, { stage: 'proof' });
+      if (createdTokens.length) state = applyThinkCubeEvent(state, { stage: 'think_token', payload: { tokenId: createdTokens[0].id } });
+      return state;
+    };
+    const cubeFinalState = cubeStateFor(wave.executions, completion.proof.ok);
+    const replayCubeState = cubeStateFor(replayed, replayCompletion.proof.ok);
+    recordEvent({ phase: 'cube_final_state', state: cubeFinalState });
+    const fullReplay = replaySpecialistJobEvents(eventLog as import('./specialist-executor.ts').SpecialistJobEvent[]);
+    const replayResult = {
+      mode: 'complete-event-log reduction; no model re-execution',
+      sameEvents: JSON.stringify(fullReplay.events) === JSON.stringify(eventLog),
+      sameSpecialistStates: JSON.stringify(fullReplay.executions) === JSON.stringify(wave.executions),
+      sameEvidenceRelationships: JSON.stringify(fullReplay.evidence.filter((item) => item.specialistId !== 'validator')) === JSON.stringify(evidence),
+      sameProofResult: JSON.stringify(fullReplay.proof) === JSON.stringify(completion.proof),
+      sameCubeState: JSON.stringify(fullReplay.cubeFinalState) === JSON.stringify(cubeFinalState)
+        && JSON.stringify(replayCubeState) === JSON.stringify(cubeFinalState),
+    };
+    const artifact = {
+      jobId,
+      intent,
+      status: wave.executions.every((execution) => execution.status === 'completed') && completion.proof.ok ? 'COMPLETED' : 'FAILED',
+      specialistsSelected: selection.selected,
+      specialistsHandledByOrchestrator: handledByOrchestrator,
+      selectionRationale: selection.rationale,
+      specialistsExecuted: wave.executions,
+      thinkBoxIds: boxIds,
+      executionOrder: wave.events.filter((event) => event.type === 'started').map((event) => ({ specialistId: event.specialistId, thinkBoxId: event.thinkBoxId, sequence: event.sequence })),
+      events: eventLog,
+      evidence,
+      failures: wave.executions.filter((execution) => execution.status === 'failed').map((execution) => ({ specialistId: execution.specialistId, thinkBoxId: execution.thinkBoxId, runId: execution.runId, failure: execution.failure })),
+      validation,
+      proof: completion.proof,
+      thinkToken: createdTokens,
+      cubeFinalState,
+      resourceUsage,
+      replayResult,
+      classification: {
+        multiSpecialistExecution: 'CODE COMPLETE / TEST VERIFIED',
+        multiBoxConcurrentSwarm: 'UNPROVEN: independent in-process workspaces, not separate processes or remote compute boxes',
+        liveVerified: false,
+        productionReady: false,
+      },
+      durationMs: Date.now() - startedAt,
+    };
+    const artifactPath = path.join(dataDir, 'specialist-jobs', `${jobId}.json`);
+    await fs.promises.mkdir(path.dirname(artifactPath), { recursive: true });
+    await fs.promises.writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`, { mode: 0o600 });
+    const result = { ...artifact, artifactPath };
+    this.broadcast({ type: 'specialist_result', data: result });
+    return result;
+  }
+
   /** Task-layer memory: one Markdown episode per finished agent run, so later runs can learn from it. */
   async recordEpisode(run: RunRecord): Promise<void> {
     const tools = run.steps.filter((step) => step.kind === 'tool').map((step) => (step.kind === 'tool' ? `${step.name}${step.ok ? '' : ' ✗'}` : ''));
@@ -1122,6 +1446,8 @@ class AgentSession {
       this.broadcast({ type: 'result', data: { success: false, cancelled: true, error: `Cancelled before it started: ${waiting.goal}` } });
     }
     this.abort?.abort();
+    for (const controller of this.specialistAborts.values()) controller.abort();
+    this.specialistAborts.clear();
     for (const id of [...this.pendingApprovals.keys()]) this.resolveApproval(id, false);
     this.status = 'idle';
     this.broadcast({ type: 'status', data: 'idle' });
@@ -1181,6 +1507,22 @@ wss.on('connection', async (ws: WebSocket) => {
           break;
         }
 
+        case 'run_specialists': {
+          const intent = String(msg.intent ?? msg.goal ?? '').trim();
+          const opportunity = typeof msg.opportunity === 'string' ? msg.opportunity : undefined;
+          const jobContext = msg.jobContext && typeof msg.jobContext === 'object' && !Array.isArray(msg.jobContext)
+            ? msg.jobContext as Record<string, unknown>
+            : {};
+          if (!intent) {
+            ws.send(JSON.stringify({ type: 'specialist_result', data: { status: 'BLOCKED', error: 'intent is required' } }));
+            break;
+          }
+          void session.runSpecialistJob(intent, opportunity, jobContext).catch((err) => {
+            ws.send(JSON.stringify({ type: 'specialist_result', data: { status: 'FAILED', error: errorMessage(err) } }));
+          });
+          break;
+        }
+
         case 'stop': {
           session.stop();
           break;
@@ -1219,7 +1561,7 @@ wss.on('connection', async (ws: WebSocket) => {
         case 'update_config': {
           let patch: Partial<AgentSessionConfig>;
           try {
-            patch = msg.config as Partial<AgentSessionConfig>;
+            patch = sanitizeConfigPatch(msg.config);
           } catch (err) {
             ws.send(JSON.stringify({ type: 'config_error', data: { error: errorMessage(err) } }));
             break;

@@ -1,4 +1,12 @@
 # STATUS — Think Box AI
+## CURRENT (2026-09-30) — Specialist execution adapter (branch `docs/enterprise-agent-os-plan`)
+
+- **CODE COMPLETE:** Director selection now allocates contract-backed jobs to unique `AgentSession` IDs and confined workspaces. Contract handoffs form dependency waves; independent ready specialists use the existing `runToolAgent` loop concurrently. Each run is recorded by the existing `RunStore` with job/specialist/box identity.
+- **Evidence and gates:** evidence comes only from recorded successful model/tool events; Validator must be a separate successful run that re-reads the concrete artifact. Proof Keeper refuses if validation fails or any selected execution failed. Think Tokens are extracted from each specialist's own captured thought sequence only after proof acceptance, persisted through the existing learning store, then emitted with the real token ID/confidence.
+- **Cube:** the existing deterministic reducer now receives real allocated box/specialist IDs, evidence/failure, proof, and token identity. The machine-readable failure proof is [`enterprise/proof/specialist-execution-proof.json`](enterprise/proof/specialist-execution-proof.json).
+- **TEST VERIFIED:** specialist executor 9/9; cube reducer 21/21; server success/failure/token scenarios pass; full web suite 240/240; strict typecheck 0 errors. Execution source in the proof artifact is hermetic MockInception, not a live Mercury call.
+- **NOT LIVE VERIFIED / NOT PRODUCTION READY:** no live Mercury call was made for this phase; separate OS processes, remote/cloud boxes, and a distributed swarm remain unproven. `exec` is absent from the current tool registry, so Tester fails closed and remains visible. GitHub CI for the pushed update is pending.
+
 
 ## OPEN (2026-09-27) — GitHub PR #267 Flight readiness: JPL Power of 10 audit + ratchet
 

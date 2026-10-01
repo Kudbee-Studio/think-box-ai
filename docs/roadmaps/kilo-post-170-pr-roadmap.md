@@ -126,6 +126,7 @@
 | Flight readiness: mutation testing | **GitHub #266** (merged `d940160`) — orchestrator score 55.2% → 92.0%; not LIVE VERIFIED |
 | Flight readiness: JPL Power of 10 audit | **GitHub #267** (merged `c2af3ce`) — 184 findings baselined, ratchet blocks new ones; not LIVE VERIFIED |
 | Flight readiness: fault-injection chaos harness | **GitHub #268** (open) — 22 adversarial trials vs real VerifiedRetrySession, 0 silent successes; not LIVE VERIFIED |
+| kudbEE specialist execution (branch-only, not a KILO slot) | `docs/enterprise-agent-os-plan` — dependency-wave executor over existing `AgentSession`/`runToolAgent`; hermetic A/B/C proof at `docs/enterprise/proof/specialist-execution-proof.json`; not LIVE VERIFIED, separate-process/remote swarm unproven |
 
 ---
 

@@ -50,14 +50,24 @@ class MemoryGraph {
   }
 
   buildGraph() {
-    this.nodes = this.memories.map(mem => ({
-      id: mem.id,
-      label: mem.title.substring(0, 20),
-      layer: mem.layer,
-      x: mem.x,
-      y: mem.y,
-      radius: 20 + (mem.tags.length * 3)
-    }));
+    // Real callers (app.js's memory:updated dispatch) send {id, title, layer, tags} with no x/y
+    // — only the old, never-exercised loadMemoriesFromUI() path set those. Falling back to
+    // mem.x/mem.y when present (nothing currently sets them, but it's a harmless affordance),
+    // otherwise a deterministic layout from the node's own id, so nodes land in stable positions
+    // across re-renders instead of jittering (random) or landing at NaN (undefined).
+    this.nodes = this.memories.map(mem => {
+      const [x, y] = (typeof mem.x === 'number' && typeof mem.y === 'number')
+        ? [mem.x, mem.y]
+        : this.deterministicPosition(mem.id);
+      return {
+        id: mem.id,
+        label: mem.title.substring(0, 20),
+        layer: mem.layer,
+        x,
+        y,
+        radius: 20 + (mem.tags.length * 3)
+      };
+    });
 
     // Create edges based on tag similarity
     this.edges = [];
@@ -118,6 +128,18 @@ class MemoryGraph {
       ctx.textBaseline = 'middle';
       ctx.fillText(node.label, node.x, node.y);
     });
+  }
+
+  /** Stable [x, y] within the canvas's actual drawing buffer (300x150, the HTML default — the
+   *  canvas element has no width/height attribute set), derived from the id so the same memory
+   *  always lands in the same spot across re-renders. */
+  deterministicPosition(id) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    const margin = 24;
+    const x = margin + (hash % (300 - margin * 2));
+    const y = margin + (Math.floor(hash / 300) % (150 - margin * 2));
+    return [x, y];
   }
 
   getLayerColor(layer) {

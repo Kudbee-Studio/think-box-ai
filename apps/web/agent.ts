@@ -66,6 +66,8 @@ export type AgentEvent =
 
 export interface AgentHooks {
   workspace: string;
+  /** Optional per-run endpoint override, primarily for isolated runtimes and tests. */
+  apiBaseUrl?: string;
   resolvePath: (relativePath: string) => string;
   onThought: (thought: Record<string, unknown>) => void;
   onEvent: (event: AgentEvent) => void;
@@ -82,6 +84,8 @@ export interface AgentHooks {
    *  or otherwise disallowed tool call is rejected before it ever reaches the approval gate —
    *  the model isn't even offered the tool in its function list, but this is the hard backstop. */
   allowedTools?: string[];
+  /** Additional role context for a contract-backed specialist run. */
+  roleContext?: string;
 }
 
 export interface AgentRunResult {
@@ -470,8 +474,9 @@ async function chat(
   temperature: number,
   signal: AbortSignal,
   tools: typeof TOOLS = TOOLS,
+  apiBaseUrl = process.env.INCEPTION_BASE_URL || INCEPTION_BASE_URL,
 ): Promise<{ message: AgentMessage; prompt: number; completion: number }> {
-  const response = await fetch(`${INCEPTION_BASE_URL}/chat/completions`, {
+  const response = await fetch(`${apiBaseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.INCEPTION_API_KEY}`,
@@ -509,7 +514,7 @@ export async function runToolAgent(
   if (!inceptionConfigured()) return finish({ success: false, error: 'INCEPTION_API_KEY is not set in .env' });
 
   const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS;
-  const roleContext = hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined;
+  const roleContext = hooks.roleContext ?? (hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined);
 
   const context: RunContext = { observed: false, written: new Set(), rememberRefusals: 0, userAskedToRemember: /\b(remember (that|this|to)|memori[sz]e|note that|(save|add|store) (this|that|it) (to|in) memory)\b/i.test(goal) };
   const system = [SYSTEM_PROMPT, roleContext, memoryContext ? `Relevant memories:\n${memoryContext}` : undefined]
@@ -531,7 +536,7 @@ export async function runToolAgent(
       totals.steps = step;
       hooks.onThought({ type: 'reasoning', content: `Step ${step}: asking ${model}…`, status: 'thinking' });
       const startedAt = Date.now();
-      const { message, prompt, completion } = await chat(model, messages, temperature, hooks.signal, tools);
+      const { message, prompt, completion } = await chat(model, messages, temperature, hooks.signal, tools, hooks.apiBaseUrl);
       const stepCost = costUsd(model, prompt, completion);
       totals.prompt_tokens += prompt;
       totals.completion_tokens += completion;

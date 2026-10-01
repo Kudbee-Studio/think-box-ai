@@ -1,7 +1,7 @@
 // kudbEE Learning Extractor — Transform observations into durable learning
 
-import { Thought, MemoryEntry } from './types.ts';
-import { LearningStore, LearnedPattern } from './learning-store.ts';
+import type { Thought, MemoryEntry } from './types.ts';
+import { LearningStore, type LearnedPattern } from './learning-store.ts';
 import { randomUUID } from 'node:crypto';
 
 export interface ThoughtSequence {

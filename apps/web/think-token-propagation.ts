@@ -1,8 +1,17 @@
 // kudbEE Think Token Propagation — Distribute validated tokens to workers
 
 import { ThinkToken, ThinkTokenCollection } from './think-token.ts';
-import { LearningStore } from './learning-store.ts';
+import { LearningStore, type LearnedPattern } from './learning-store.ts';
 import type { ChatMessage } from './types.ts';
+
+function toLearnedPatternType(t: string): LearnedPattern['type'] {
+  // ThinkTokenContent.type has more variants ('approach', 'reasoning', 'pattern') than
+  // LearnedPattern.type does. The factory only ever constructs 'tool_sequence',
+  // 'error_recovery', 'optimization' or 'approach'; map that last one onto the closest existing
+  // LearnedPattern category instead of adding a new one to the schema.
+  if (t === 'tool_sequence' || t === 'error_recovery' || t === 'optimization') return t;
+  return 'goal_approach';
+}
 
 /**
  * Propagation: Making validated Think Tokens available to other workers
@@ -15,6 +24,15 @@ export class ThinkTokenPropagator {
   constructor(store: LearningStore, collection: ThinkTokenCollection) {
     this.store = store;
     this.tokenCollection = collection;
+  }
+
+  /**
+   * Make a newly-minted candidate token reachable by id, so `recordTokenUsage` (and future
+   * `getRelevantTokensForGoal` calls) can find it. Without this, a token that was only
+   * broadcast and never added here is invisible to every other method on this class.
+   */
+  addToken(token: ThinkToken): void {
+    this.tokenCollection.add(token);
   }
 
   /**
@@ -113,8 +131,24 @@ export class ThinkTokenPropagator {
 
     token.recordUse(success);
 
-    // Update store confidence
-    this.store.updatePatternSuccess(tokenId, success);
+    // Persist the token as a durable, evaluable pattern using the existing learning-store
+    // mechanism. `storePattern` upserts (it SELECTs first, then INSERTs or UPDATEs), which is
+    // required here: `updatePatternSuccess` is UPDATE-only and silently affects zero rows for a
+    // pattern id that was never inserted — which every freshly-minted Think Token is, so calling
+    // it here never actually persisted anything.
+    const pattern: LearnedPattern = {
+      id: token.id,
+      type: toLearnedPatternType(token.content.type),
+      pattern: token.content.text,
+      confidence: token.evaluate(),
+      sourceThoughts: [],
+      firstSeen: token.metadata.captureTime,
+      lastSeen: token.metadata.lastReused ?? token.metadata.captureTime,
+      successCount: token.metadata.successCount,
+      failureCount: token.metadata.failureCount,
+      metadata: { ...token.metadata, contentType: token.content.type, artifacts: token.content.artifacts },
+    };
+    this.store.storePattern(pattern);
 
     // Log usage for analytics
     console.log({

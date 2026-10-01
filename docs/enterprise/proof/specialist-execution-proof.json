@@ -1,0 +1,4054 @@
+{
+  "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+  "intent": "Build a report and test it",
+  "status": "FAILED",
+  "specialistsSelected": [
+    "builder",
+    "security",
+    "tester",
+    "validator"
+  ],
+  "specialistsHandledByOrchestrator": [],
+  "selectionRationale": {
+    "builder": "matched /\\b(build|create|implement|write|fix|add)\\b/i in intent/opportunity text",
+    "tester": "matched /\\b(test|verify tests|run.*suite)\\b/i in intent/opportunity text",
+    "validator": " auto-added: Builder is selected, and no specialist may claim success without independent verification",
+    "security": " auto-added: Builder is selected, baseline review required"
+  },
+  "specialistsExecuted": [
+    {
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "intent": "Build a report and test it",
+      "specialistId": "builder",
+      "contract": {
+        "id": "builder",
+        "name": "Builder",
+        "capability": "Produces or modifies a concrete artifact (file, code, document) in the session workspace.",
+        "allowedInputs": [
+          "goal",
+          "researcher_findings"
+        ],
+        "expectedOutputs": [
+          "artifact_path",
+          "artifact_diff_or_content"
+        ],
+        "evidenceRequirements": [
+          "the write_file/exec tool_result that actually created or changed the artifact"
+        ],
+        "successCriteria": "The claimed artifact exists on disk with the claimed content, independently checkable by Validator.",
+        "failureBehavior": "A failed write_file/exec leaves the task visibly failed; Builder never reports success for a tool call that returned an error.",
+        "toolsRequired": [
+          "write_file",
+          "read_file"
+        ],
+        "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+        "permissionsBoundary": "read_write",
+        "handoffContract": {
+          "acceptsFrom": [
+            "director",
+            "researcher"
+          ],
+          "handsOffTo": [
+            "tester",
+            "debugger",
+            "disruptor",
+            "validator"
+          ]
+        },
+        "mustBeIndependentOf": [
+          "disruptor"
+        ]
+      },
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "input": {
+        "intent": "Build a report and test it",
+        "goal": "Build a report and test it"
+      },
+      "status": "completed",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "inputStartedAt": 1790818207521,
+      "startedAt": 1790818207521,
+      "endedAt": 1790818207597,
+      "output": "Created artifact.txt",
+      "events": [
+        {
+          "kind": "model",
+          "step": 1,
+          "latency_ms": 50,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [
+            "write_file"
+          ],
+          "content": ""
+        },
+        {
+          "kind": "tool",
+          "step": 1,
+          "name": "write_file",
+          "args": {
+            "path": "artifact.txt",
+            "content": "artifact from specialist A"
+          },
+          "ok": true,
+          "latency_ms": 7,
+          "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}"
+        },
+        {
+          "kind": "model",
+          "step": 2,
+          "latency_ms": 9,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [],
+          "content": "Created artifact.txt"
+        }
+      ],
+      "thoughts": [
+        {
+          "id": "06d5a58c-58f3-4776-80db-54ac9e541b43",
+          "timestamp": 1790818207525,
+          "type": "reasoning",
+          "content": "Step 1: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "4f882947-4413-4a94-9c79-b5737f6d2b46",
+          "timestamp": 1790818207577,
+          "type": "reasoning",
+          "content": "Model replied in 51ms → write_file",
+          "status": "info"
+        },
+        {
+          "id": "ad5a99f3-7e35-4be8-a4eb-7bbed49ca3d4",
+          "timestamp": 1790818207578,
+          "type": "tool_call",
+          "content": "write_file {\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+          "status": "running",
+          "plugin": "write_file"
+        },
+        {
+          "id": "c933da9e-06df-414f-ac5b-9514b6a3cbde",
+          "timestamp": 1790818207585,
+          "type": "tool_result",
+          "content": "write_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+          "status": "success",
+          "plugin": "write_file"
+        },
+        {
+          "id": "1b603c6e-a9fa-4aee-83fa-05b16ad35c67",
+          "timestamp": 1790818207585,
+          "type": "reasoning",
+          "content": "Step 2: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "7bebfb8e-a770-45c7-9acc-587e20e10de7",
+          "timestamp": 1790818207596,
+          "type": "answer",
+          "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+          "status": "success"
+        }
+      ],
+      "evidence": [
+        {
+          "specialistId": "builder",
+          "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+          "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+        },
+        {
+          "specialistId": "builder",
+          "claim": "Recorded model output: Created artifact.txt",
+          "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+        }
+      ],
+      "resourceUsage": {
+        "tokens": 2200,
+        "costUsd": 0.00065,
+        "durationMs": 73
+      }
+    },
+    {
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "intent": "Build a report and test it",
+      "specialistId": "security",
+      "contract": {
+        "id": "security",
+        "name": "Security",
+        "capability": "Reviews an artifact or plan for secrets, destructive commands, or scope beyond the stated goal before it ships.",
+        "allowedInputs": [
+          "artifact_path",
+          "planned_tool_calls"
+        ],
+        "expectedOutputs": [
+          "findings",
+          "block_or_pass"
+        ],
+        "evidenceRequirements": [
+          "the actual artifact content or tool-call list reviewed, quoted or referenced, not summarized from memory"
+        ],
+        "successCriteria": "A pass decision only follows an actual read of the artifact/plan in this run.",
+        "failureBehavior": "When unsure, blocks rather than passes; a block always states what would resolve it.",
+        "toolsRequired": [
+          "read_file"
+        ],
+        "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+        "permissionsBoundary": "read_only",
+        "handoffContract": {
+          "acceptsFrom": [
+            "builder",
+            "director"
+          ],
+          "handsOffTo": [
+            "validator",
+            "proof_keeper"
+          ]
+        },
+        "mustBeIndependentOf": [
+          "builder"
+        ]
+      },
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "input": {
+        "intent": "Build a report and test it",
+        "artifact_path": "artifact.txt",
+        "planned_tool_calls": [
+          {
+            "name": "write_file",
+            "args": {
+              "path": "artifact.txt",
+              "content": "artifact from specialist A"
+            }
+          }
+        ]
+      },
+      "status": "completed",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "inputStartedAt": 1790818207619,
+      "startedAt": 1790818207619,
+      "endedAt": 1790818207649,
+      "output": "Security reviewed the artifact contents.",
+      "events": [
+        {
+          "kind": "model",
+          "step": 1,
+          "latency_ms": 16,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [
+            "read_file"
+          ],
+          "content": ""
+        },
+        {
+          "kind": "tool",
+          "step": 1,
+          "name": "read_file",
+          "args": {
+            "path": "artifact.txt"
+          },
+          "ok": true,
+          "latency_ms": 2,
+          "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+        },
+        {
+          "kind": "model",
+          "step": 2,
+          "latency_ms": 8,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [],
+          "content": "Security reviewed the artifact contents."
+        }
+      ],
+      "thoughts": [
+        {
+          "id": "8455b276-92db-416a-bd34-9956595fc256",
+          "timestamp": 1790818207621,
+          "type": "reasoning",
+          "content": "Step 1: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "57782f92-ee69-4c1f-8408-89fc2e883202",
+          "timestamp": 1790818207637,
+          "type": "reasoning",
+          "content": "Model replied in 16ms → read_file",
+          "status": "info"
+        },
+        {
+          "id": "8354a3f5-f283-43d2-a89f-37cdc3ba1faf",
+          "timestamp": 1790818207638,
+          "type": "tool_call",
+          "content": "read_file {\"path\":\"artifact.txt\"}",
+          "status": "running",
+          "plugin": "read_file"
+        },
+        {
+          "id": "bbcdb260-0313-4cb1-ba35-6ac7b82ed539",
+          "timestamp": 1790818207639,
+          "type": "tool_result",
+          "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+          "status": "success",
+          "plugin": "read_file"
+        },
+        {
+          "id": "c87f945b-835e-4336-8884-9d80b7eafc10",
+          "timestamp": 1790818207640,
+          "type": "reasoning",
+          "content": "Step 2: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "bb837ab7-53ea-4506-aa0e-2b294a26d522",
+          "timestamp": 1790818207648,
+          "type": "answer",
+          "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+          "status": "success"
+        }
+      ],
+      "evidence": [
+        {
+          "specialistId": "security",
+          "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+          "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+        },
+        {
+          "specialistId": "security",
+          "claim": "Recorded model output: Security reviewed the artifact contents.",
+          "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+        }
+      ],
+      "resourceUsage": {
+        "tokens": 2200,
+        "costUsd": 0.00065,
+        "durationMs": 29
+      }
+    },
+    {
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "intent": "Build a report and test it",
+      "specialistId": "tester",
+      "contract": {
+        "id": "tester",
+        "name": "Tester",
+        "capability": "Runs the existing test suite (or a targeted subset) against Builder's change and reports the real result.",
+        "allowedInputs": [
+          "artifact_path",
+          "test_command"
+        ],
+        "expectedOutputs": [
+          "pass_fail",
+          "raw_test_output"
+        ],
+        "evidenceRequirements": [
+          "the actual command exit code and stdout/stderr"
+        ],
+        "successCriteria": "Reported pass/fail matches the real exit code; never a bare \"tests pass\" without the output that proves it.",
+        "failureBehavior": "A failing test is reported with its real output and handed to Debugger, not retried silently until green.",
+        "toolsRequired": [
+          "exec"
+        ],
+        "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+        "permissionsBoundary": "read_only",
+        "handoffContract": {
+          "acceptsFrom": [
+            "builder"
+          ],
+          "handsOffTo": [
+            "debugger",
+            "validator"
+          ]
+        },
+        "mustBeIndependentOf": [
+          "builder"
+        ]
+      },
+      "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+      "input": {
+        "intent": "Build a report and test it",
+        "artifact_path": "artifact.txt"
+      },
+      "status": "failed",
+      "runId": "f1ffd483-46ad-4d53-b653-07f3905fe6d4",
+      "inputStartedAt": 1790818207632,
+      "startedAt": 1790818207632,
+      "endedAt": 1790818207634,
+      "events": [],
+      "thoughts": [],
+      "evidence": [],
+      "resourceUsage": {
+        "tokens": 0,
+        "costUsd": 0,
+        "durationMs": 0
+      },
+      "failure": "Required runtime tool(s) unavailable: exec"
+    },
+    {
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "intent": "Build a report and test it",
+      "specialistId": "validator",
+      "contract": {
+        "id": "validator",
+        "name": "Validator",
+        "capability": "Independently re-checks evidence other specialists submitted; never trusts a self-report.",
+        "allowedInputs": [
+          "claims_with_evidence"
+        ],
+        "expectedOutputs": [
+          "validation_result"
+        ],
+        "evidenceRequirements": [
+          "Validator's own independent re-check of the underlying evidence, not a re-statement of the original claim"
+        ],
+        "successCriteria": "Validation result is reproducible by re-running the same check against the same evidence.",
+        "failureBehavior": "An unverifiable claim is marked INVALID, not passed through on trust.",
+        "toolsRequired": [
+          "read_file"
+        ],
+        "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+        "permissionsBoundary": "read_only",
+        "handoffContract": {
+          "acceptsFrom": [
+            "builder",
+            "tester",
+            "disruptor",
+            "security",
+            "researcher"
+          ],
+          "handsOffTo": [
+            "proof_keeper"
+          ]
+        },
+        "mustBeIndependentOf": [
+          "builder"
+        ]
+      },
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "input": {
+        "intent": "Build a report and test it",
+        "claims_with_evidence": [
+          {
+            "specialistId": "builder",
+            "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+            "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+          },
+          {
+            "specialistId": "builder",
+            "claim": "Recorded model output: Created artifact.txt",
+            "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+          },
+          {
+            "specialistId": "security",
+            "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+            "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+          },
+          {
+            "specialistId": "security",
+            "claim": "Recorded model output: Security reviewed the artifact contents.",
+            "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+          }
+        ]
+      },
+      "status": "completed",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "inputStartedAt": 1790818207657,
+      "startedAt": 1790818207657,
+      "endedAt": 1790818207679,
+      "output": "The artifact contents match the claim.",
+      "events": [
+        {
+          "kind": "model",
+          "step": 1,
+          "latency_ms": 11,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [
+            "read_file"
+          ],
+          "content": ""
+        },
+        {
+          "kind": "tool",
+          "step": 1,
+          "name": "read_file",
+          "args": {
+            "path": "artifact.txt"
+          },
+          "ok": true,
+          "latency_ms": 2,
+          "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+        },
+        {
+          "kind": "model",
+          "step": 2,
+          "latency_ms": 5,
+          "prompt_tokens": 1000,
+          "completion_tokens": 100,
+          "cost_usd": 0.000325,
+          "tool_calls": [],
+          "content": "The artifact contents match the claim."
+        }
+      ],
+      "thoughts": [
+        {
+          "id": "b98d8252-8b33-487d-a5bf-d192735ef885",
+          "timestamp": 1790818207659,
+          "type": "reasoning",
+          "content": "Step 1: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "d59388cf-bd09-4de8-a404-9633c25cd6ef",
+          "timestamp": 1790818207670,
+          "type": "reasoning",
+          "content": "Model replied in 11ms → read_file",
+          "status": "info"
+        },
+        {
+          "id": "7ef1f31a-5cba-4b5d-9e37-2311f1b72aab",
+          "timestamp": 1790818207670,
+          "type": "tool_call",
+          "content": "read_file {\"path\":\"artifact.txt\"}",
+          "status": "running",
+          "plugin": "read_file"
+        },
+        {
+          "id": "e7217026-ead5-4699-bc9d-a5c4f65ba53b",
+          "timestamp": 1790818207672,
+          "type": "tool_result",
+          "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+          "status": "success",
+          "plugin": "read_file"
+        },
+        {
+          "id": "0e0d6635-d518-46bd-b5ac-ab7b0cb7975f",
+          "timestamp": 1790818207672,
+          "type": "reasoning",
+          "content": "Step 2: asking mercury-2…",
+          "status": "thinking"
+        },
+        {
+          "id": "3a48f23c-0603-4d0c-98d8-7ffbc6a6938f",
+          "timestamp": 1790818207679,
+          "type": "answer",
+          "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+          "status": "success"
+        }
+      ],
+      "evidence": [
+        {
+          "specialistId": "validator",
+          "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+          "reference": "1e8f6195-f471-4816-8b53-3a75218d05a6:tool:1:read_file"
+        },
+        {
+          "specialistId": "validator",
+          "claim": "Recorded model output: The artifact contents match the claim.",
+          "reference": "1e8f6195-f471-4816-8b53-3a75218d05a6:model:2"
+        }
+      ],
+      "resourceUsage": {
+        "tokens": 2200,
+        "costUsd": 0.00065,
+        "durationMs": 20
+      }
+    }
+  ],
+  "thinkBoxIds": [
+    "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+    "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+    "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+    "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+  ],
+  "executionOrder": [
+    {
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "sequence": 1
+    },
+    {
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "sequence": 3
+    },
+    {
+      "specialistId": "tester",
+      "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+      "sequence": 4
+    },
+    {
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "sequence": 7
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "timestamp": 1790818207519,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "allocation",
+      "selection": {
+        "selected": [
+          "builder",
+          "security",
+          "tester",
+          "validator"
+        ],
+        "rationale": {
+          "builder": "matched /\\b(build|create|implement|write|fix|add)\\b/i in intent/opportunity text",
+          "tester": "matched /\\b(test|verify tests|run.*suite)\\b/i in intent/opportunity text",
+          "validator": " auto-added: Builder is selected, and no specialist may claim success without independent verification",
+          "security": " auto-added: Builder is selected, baseline review required"
+        },
+        "blocked": false
+      },
+      "allocations": [
+        {
+          "specialistId": "builder",
+          "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+          "input": {
+            "intent": "Build a report and test it",
+            "goal": "Build a report and test it"
+          }
+        },
+        {
+          "specialistId": "security",
+          "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+          "input": {
+            "intent": "Build a report and test it",
+            "artifact_path": "artifact.txt",
+            "planned_tool_calls": [
+              {
+                "name": "write_file",
+                "args": {
+                  "path": "artifact.txt",
+                  "content": "artifact from specialist A"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "specialistId": "tester",
+          "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+          "input": {
+            "intent": "Build a report and test it",
+            "artifact_path": "artifact.txt"
+          }
+        },
+        {
+          "specialistId": "validator",
+          "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+          "input": {
+            "intent": "Build a report and test it",
+            "claims_with_evidence": [
+              {
+                "specialistId": "builder",
+                "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+                "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+              },
+              {
+                "specialistId": "builder",
+                "claim": "Recorded model output: Created artifact.txt",
+                "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+              },
+              {
+                "specialistId": "security",
+                "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+                "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+              },
+              {
+                "specialistId": "security",
+                "claim": "Recorded model output: Security reviewed the artifact contents.",
+                "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "timestamp": 1790818207521,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "started",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+        "timestamp": 1790818207521,
+        "sequence": 1
+      }
+    },
+    {
+      "sequence": 3,
+      "timestamp": 1790818207522,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_started",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+    },
+    {
+      "sequence": 4,
+      "timestamp": 1790818207526,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 1: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 5,
+      "timestamp": 1790818207576,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "event": {
+        "kind": "model",
+        "step": 1,
+        "latency_ms": 50,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [
+          "write_file"
+        ],
+        "content": ""
+      }
+    },
+    {
+      "sequence": 6,
+      "timestamp": 1790818207577,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "reasoning",
+        "content": "Model replied in 51ms → write_file",
+        "status": "info",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 7,
+      "timestamp": 1790818207578,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "tool_call",
+        "plugin": "write_file",
+        "content": "write_file {\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+        "status": "running",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 8,
+      "timestamp": 1790818207585,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "tool_result",
+        "plugin": "write_file",
+        "content": "write_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 9,
+      "timestamp": 1790818207585,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "event": {
+        "kind": "tool",
+        "step": 1,
+        "name": "write_file",
+        "args": {
+          "path": "artifact.txt",
+          "content": "artifact from specialist A"
+        },
+        "ok": true,
+        "latency_ms": 7,
+        "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}"
+      }
+    },
+    {
+      "sequence": 10,
+      "timestamp": 1790818207586,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 2: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 11,
+      "timestamp": 1790818207595,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "event": {
+        "kind": "model",
+        "step": 2,
+        "latency_ms": 9,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [],
+        "content": "Created artifact.txt"
+      }
+    },
+    {
+      "sequence": 12,
+      "timestamp": 1790818207596,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+      "specialistId": "builder",
+      "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "thought": {
+        "type": "answer",
+        "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c"
+      }
+    },
+    {
+      "sequence": 13,
+      "timestamp": 1790818207597,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "completed",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "builder",
+        "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+        "timestamp": 1790818207597,
+        "execution": {
+          "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+          "intent": "Build a report and test it",
+          "specialistId": "builder",
+          "contract": {
+            "id": "builder",
+            "name": "Builder",
+            "capability": "Produces or modifies a concrete artifact (file, code, document) in the session workspace.",
+            "allowedInputs": [
+              "goal",
+              "researcher_findings"
+            ],
+            "expectedOutputs": [
+              "artifact_path",
+              "artifact_diff_or_content"
+            ],
+            "evidenceRequirements": [
+              "the write_file/exec tool_result that actually created or changed the artifact"
+            ],
+            "successCriteria": "The claimed artifact exists on disk with the claimed content, independently checkable by Validator.",
+            "failureBehavior": "A failed write_file/exec leaves the task visibly failed; Builder never reports success for a tool call that returned an error.",
+            "toolsRequired": [
+              "write_file",
+              "read_file"
+            ],
+            "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+            "permissionsBoundary": "read_write",
+            "handoffContract": {
+              "acceptsFrom": [
+                "director",
+                "researcher"
+              ],
+              "handsOffTo": [
+                "tester",
+                "debugger",
+                "disruptor",
+                "validator"
+              ]
+            },
+            "mustBeIndependentOf": [
+              "disruptor"
+            ]
+          },
+          "thinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+          "input": {
+            "intent": "Build a report and test it",
+            "goal": "Build a report and test it"
+          },
+          "status": "completed",
+          "runId": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1",
+          "inputStartedAt": 1790818207521,
+          "startedAt": 1790818207521,
+          "endedAt": 1790818207597,
+          "output": "Created artifact.txt",
+          "events": [
+            {
+              "kind": "model",
+              "step": 1,
+              "latency_ms": 50,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [
+                "write_file"
+              ],
+              "content": ""
+            },
+            {
+              "kind": "tool",
+              "step": 1,
+              "name": "write_file",
+              "args": {
+                "path": "artifact.txt",
+                "content": "artifact from specialist A"
+              },
+              "ok": true,
+              "latency_ms": 7,
+              "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}"
+            },
+            {
+              "kind": "model",
+              "step": 2,
+              "latency_ms": 9,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [],
+              "content": "Created artifact.txt"
+            }
+          ],
+          "thoughts": [
+            {
+              "id": "06d5a58c-58f3-4776-80db-54ac9e541b43",
+              "timestamp": 1790818207525,
+              "type": "reasoning",
+              "content": "Step 1: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "4f882947-4413-4a94-9c79-b5737f6d2b46",
+              "timestamp": 1790818207577,
+              "type": "reasoning",
+              "content": "Model replied in 51ms → write_file",
+              "status": "info"
+            },
+            {
+              "id": "ad5a99f3-7e35-4be8-a4eb-7bbed49ca3d4",
+              "timestamp": 1790818207578,
+              "type": "tool_call",
+              "content": "write_file {\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+              "status": "running",
+              "plugin": "write_file"
+            },
+            {
+              "id": "c933da9e-06df-414f-ac5b-9514b6a3cbde",
+              "timestamp": 1790818207585,
+              "type": "tool_result",
+              "content": "write_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+              "status": "success",
+              "plugin": "write_file"
+            },
+            {
+              "id": "1b603c6e-a9fa-4aee-83fa-05b16ad35c67",
+              "timestamp": 1790818207585,
+              "type": "reasoning",
+              "content": "Step 2: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "7bebfb8e-a770-45c7-9acc-587e20e10de7",
+              "timestamp": 1790818207596,
+              "type": "answer",
+              "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+              "status": "success"
+            }
+          ],
+          "evidence": [
+            {
+              "specialistId": "builder",
+              "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+              "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+            },
+            {
+              "specialistId": "builder",
+              "claim": "Recorded model output: Created artifact.txt",
+              "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+            }
+          ],
+          "resourceUsage": {
+            "tokens": 2200,
+            "costUsd": 0.00065,
+            "durationMs": 73
+          }
+        },
+        "sequence": 2
+      }
+    },
+    {
+      "sequence": 14,
+      "timestamp": 1790818207613,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "artifact_handoff",
+      "fromThinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "toThinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "specialistId": "security",
+      "artifactPath": "artifact.txt"
+    },
+    {
+      "sequence": 15,
+      "timestamp": 1790818207619,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "artifact_handoff",
+      "fromThinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "toThinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+      "specialistId": "tester",
+      "artifactPath": "artifact.txt"
+    },
+    {
+      "sequence": 16,
+      "timestamp": 1790818207619,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "started",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+        "timestamp": 1790818207619,
+        "sequence": 3
+      }
+    },
+    {
+      "sequence": 17,
+      "timestamp": 1790818207620,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_started",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+    },
+    {
+      "sequence": 18,
+      "timestamp": 1790818207621,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 1: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 19,
+      "timestamp": 1790818207632,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "started",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "tester",
+        "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+        "timestamp": 1790818207632,
+        "sequence": 4
+      }
+    },
+    {
+      "sequence": 20,
+      "timestamp": 1790818207633,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_started",
+      "runId": "f1ffd483-46ad-4d53-b653-07f3905fe6d4",
+      "specialistId": "tester",
+      "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269"
+    },
+    {
+      "sequence": 21,
+      "timestamp": 1790818207634,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "failed",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "tester",
+        "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+        "timestamp": 1790818207634,
+        "execution": {
+          "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+          "intent": "Build a report and test it",
+          "specialistId": "tester",
+          "contract": {
+            "id": "tester",
+            "name": "Tester",
+            "capability": "Runs the existing test suite (or a targeted subset) against Builder's change and reports the real result.",
+            "allowedInputs": [
+              "artifact_path",
+              "test_command"
+            ],
+            "expectedOutputs": [
+              "pass_fail",
+              "raw_test_output"
+            ],
+            "evidenceRequirements": [
+              "the actual command exit code and stdout/stderr"
+            ],
+            "successCriteria": "Reported pass/fail matches the real exit code; never a bare \"tests pass\" without the output that proves it.",
+            "failureBehavior": "A failing test is reported with its real output and handed to Debugger, not retried silently until green.",
+            "toolsRequired": [
+              "exec"
+            ],
+            "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+            "permissionsBoundary": "read_only",
+            "handoffContract": {
+              "acceptsFrom": [
+                "builder"
+              ],
+              "handsOffTo": [
+                "debugger",
+                "validator"
+              ]
+            },
+            "mustBeIndependentOf": [
+              "builder"
+            ]
+          },
+          "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+          "input": {
+            "intent": "Build a report and test it",
+            "artifact_path": "artifact.txt"
+          },
+          "status": "failed",
+          "runId": "f1ffd483-46ad-4d53-b653-07f3905fe6d4",
+          "inputStartedAt": 1790818207632,
+          "startedAt": 1790818207632,
+          "endedAt": 1790818207634,
+          "events": [],
+          "thoughts": [],
+          "evidence": [],
+          "resourceUsage": {
+            "tokens": 0,
+            "costUsd": 0,
+            "durationMs": 0
+          },
+          "failure": "Required runtime tool(s) unavailable: exec"
+        },
+        "sequence": 5
+      }
+    },
+    {
+      "sequence": 22,
+      "timestamp": 1790818207637,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "event": {
+        "kind": "model",
+        "step": 1,
+        "latency_ms": 16,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [
+          "read_file"
+        ],
+        "content": ""
+      }
+    },
+    {
+      "sequence": 23,
+      "timestamp": 1790818207638,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "reasoning",
+        "content": "Model replied in 16ms → read_file",
+        "status": "info",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 24,
+      "timestamp": 1790818207638,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "tool_call",
+        "plugin": "read_file",
+        "content": "read_file {\"path\":\"artifact.txt\"}",
+        "status": "running",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 25,
+      "timestamp": 1790818207640,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "tool_result",
+        "plugin": "read_file",
+        "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 26,
+      "timestamp": 1790818207640,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "event": {
+        "kind": "tool",
+        "step": 1,
+        "name": "read_file",
+        "args": {
+          "path": "artifact.txt"
+        },
+        "ok": true,
+        "latency_ms": 2,
+        "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+      }
+    },
+    {
+      "sequence": 27,
+      "timestamp": 1790818207640,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 2: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 28,
+      "timestamp": 1790818207648,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "event": {
+        "kind": "model",
+        "step": 2,
+        "latency_ms": 8,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [],
+        "content": "Security reviewed the artifact contents."
+      }
+    },
+    {
+      "sequence": 29,
+      "timestamp": 1790818207649,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "0336477f-8cae-4761-a011-15809e667917",
+      "specialistId": "security",
+      "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "thought": {
+        "type": "answer",
+        "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "0336477f-8cae-4761-a011-15809e667917",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0"
+      }
+    },
+    {
+      "sequence": 30,
+      "timestamp": 1790818207649,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "completed",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "security",
+        "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+        "timestamp": 1790818207649,
+        "execution": {
+          "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+          "intent": "Build a report and test it",
+          "specialistId": "security",
+          "contract": {
+            "id": "security",
+            "name": "Security",
+            "capability": "Reviews an artifact or plan for secrets, destructive commands, or scope beyond the stated goal before it ships.",
+            "allowedInputs": [
+              "artifact_path",
+              "planned_tool_calls"
+            ],
+            "expectedOutputs": [
+              "findings",
+              "block_or_pass"
+            ],
+            "evidenceRequirements": [
+              "the actual artifact content or tool-call list reviewed, quoted or referenced, not summarized from memory"
+            ],
+            "successCriteria": "A pass decision only follows an actual read of the artifact/plan in this run.",
+            "failureBehavior": "When unsure, blocks rather than passes; a block always states what would resolve it.",
+            "toolsRequired": [
+              "read_file"
+            ],
+            "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+            "permissionsBoundary": "read_only",
+            "handoffContract": {
+              "acceptsFrom": [
+                "builder",
+                "director"
+              ],
+              "handsOffTo": [
+                "validator",
+                "proof_keeper"
+              ]
+            },
+            "mustBeIndependentOf": [
+              "builder"
+            ]
+          },
+          "thinkBoxId": "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+          "input": {
+            "intent": "Build a report and test it",
+            "artifact_path": "artifact.txt",
+            "planned_tool_calls": [
+              {
+                "name": "write_file",
+                "args": {
+                  "path": "artifact.txt",
+                  "content": "artifact from specialist A"
+                }
+              }
+            ]
+          },
+          "status": "completed",
+          "runId": "0336477f-8cae-4761-a011-15809e667917",
+          "inputStartedAt": 1790818207619,
+          "startedAt": 1790818207619,
+          "endedAt": 1790818207649,
+          "output": "Security reviewed the artifact contents.",
+          "events": [
+            {
+              "kind": "model",
+              "step": 1,
+              "latency_ms": 16,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [
+                "read_file"
+              ],
+              "content": ""
+            },
+            {
+              "kind": "tool",
+              "step": 1,
+              "name": "read_file",
+              "args": {
+                "path": "artifact.txt"
+              },
+              "ok": true,
+              "latency_ms": 2,
+              "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+            },
+            {
+              "kind": "model",
+              "step": 2,
+              "latency_ms": 8,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [],
+              "content": "Security reviewed the artifact contents."
+            }
+          ],
+          "thoughts": [
+            {
+              "id": "8455b276-92db-416a-bd34-9956595fc256",
+              "timestamp": 1790818207621,
+              "type": "reasoning",
+              "content": "Step 1: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "57782f92-ee69-4c1f-8408-89fc2e883202",
+              "timestamp": 1790818207637,
+              "type": "reasoning",
+              "content": "Model replied in 16ms → read_file",
+              "status": "info"
+            },
+            {
+              "id": "8354a3f5-f283-43d2-a89f-37cdc3ba1faf",
+              "timestamp": 1790818207638,
+              "type": "tool_call",
+              "content": "read_file {\"path\":\"artifact.txt\"}",
+              "status": "running",
+              "plugin": "read_file"
+            },
+            {
+              "id": "bbcdb260-0313-4cb1-ba35-6ac7b82ed539",
+              "timestamp": 1790818207639,
+              "type": "tool_result",
+              "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+              "status": "success",
+              "plugin": "read_file"
+            },
+            {
+              "id": "c87f945b-835e-4336-8884-9d80b7eafc10",
+              "timestamp": 1790818207640,
+              "type": "reasoning",
+              "content": "Step 2: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "bb837ab7-53ea-4506-aa0e-2b294a26d522",
+              "timestamp": 1790818207648,
+              "type": "answer",
+              "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+              "status": "success"
+            }
+          ],
+          "evidence": [
+            {
+              "specialistId": "security",
+              "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+              "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+            },
+            {
+              "specialistId": "security",
+              "claim": "Recorded model output: Security reviewed the artifact contents.",
+              "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+            }
+          ],
+          "resourceUsage": {
+            "tokens": 2200,
+            "costUsd": 0.00065,
+            "durationMs": 29
+          }
+        },
+        "sequence": 6
+      }
+    },
+    {
+      "sequence": 31,
+      "timestamp": 1790818207657,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "artifact_handoff",
+      "fromThinkBoxId": "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "toThinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "specialistId": "validator",
+      "artifactPath": "artifact.txt"
+    },
+    {
+      "sequence": 32,
+      "timestamp": 1790818207657,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "started",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+        "timestamp": 1790818207657,
+        "sequence": 7
+      }
+    },
+    {
+      "sequence": 33,
+      "timestamp": 1790818207658,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_started",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+    },
+    {
+      "sequence": 34,
+      "timestamp": 1790818207659,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 1: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 35,
+      "timestamp": 1790818207670,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "event": {
+        "kind": "model",
+        "step": 1,
+        "latency_ms": 11,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [
+          "read_file"
+        ],
+        "content": ""
+      }
+    },
+    {
+      "sequence": 36,
+      "timestamp": 1790818207670,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "reasoning",
+        "content": "Model replied in 11ms → read_file",
+        "status": "info",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 37,
+      "timestamp": 1790818207670,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "tool_call",
+        "plugin": "read_file",
+        "content": "read_file {\"path\":\"artifact.txt\"}",
+        "status": "running",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 38,
+      "timestamp": 1790818207672,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "tool_result",
+        "plugin": "read_file",
+        "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 39,
+      "timestamp": 1790818207672,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "event": {
+        "kind": "tool",
+        "step": 1,
+        "name": "read_file",
+        "args": {
+          "path": "artifact.txt"
+        },
+        "ok": true,
+        "latency_ms": 2,
+        "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+      }
+    },
+    {
+      "sequence": 40,
+      "timestamp": 1790818207673,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "reasoning",
+        "content": "Step 2: asking mercury-2…",
+        "status": "thinking",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 41,
+      "timestamp": 1790818207678,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "run_event",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "event": {
+        "kind": "model",
+        "step": 2,
+        "latency_ms": 5,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "cost_usd": 0.000325,
+        "tool_calls": [],
+        "content": "The artifact contents match the claim."
+      }
+    },
+    {
+      "sequence": 42,
+      "timestamp": 1790818207679,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "thought",
+      "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+      "specialistId": "validator",
+      "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+      "thought": {
+        "type": "answer",
+        "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+        "status": "success",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "run_id": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+      }
+    },
+    {
+      "sequence": 43,
+      "timestamp": 1790818207679,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "specialist_event",
+      "event": {
+        "type": "completed",
+        "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "specialistId": "validator",
+        "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+        "timestamp": 1790818207679,
+        "execution": {
+          "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+          "intent": "Build a report and test it",
+          "specialistId": "validator",
+          "contract": {
+            "id": "validator",
+            "name": "Validator",
+            "capability": "Independently re-checks evidence other specialists submitted; never trusts a self-report.",
+            "allowedInputs": [
+              "claims_with_evidence"
+            ],
+            "expectedOutputs": [
+              "validation_result"
+            ],
+            "evidenceRequirements": [
+              "Validator's own independent re-check of the underlying evidence, not a re-statement of the original claim"
+            ],
+            "successCriteria": "Validation result is reproducible by re-running the same check against the same evidence.",
+            "failureBehavior": "An unverifiable claim is marked INVALID, not passed through on trust.",
+            "toolsRequired": [
+              "read_file"
+            ],
+            "modelRequirements": "mercury-2 (existing #288 worker path) or ollama local",
+            "permissionsBoundary": "read_only",
+            "handoffContract": {
+              "acceptsFrom": [
+                "builder",
+                "tester",
+                "disruptor",
+                "security",
+                "researcher"
+              ],
+              "handsOffTo": [
+                "proof_keeper"
+              ]
+            },
+            "mustBeIndependentOf": [
+              "builder"
+            ]
+          },
+          "thinkBoxId": "cfc5bf00-86b9-4280-94e9-22eb7bf39693",
+          "input": {
+            "intent": "Build a report and test it",
+            "claims_with_evidence": [
+              {
+                "specialistId": "builder",
+                "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+                "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+              },
+              {
+                "specialistId": "builder",
+                "claim": "Recorded model output: Created artifact.txt",
+                "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+              },
+              {
+                "specialistId": "security",
+                "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+                "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+              },
+              {
+                "specialistId": "security",
+                "claim": "Recorded model output: Security reviewed the artifact contents.",
+                "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+              }
+            ]
+          },
+          "status": "completed",
+          "runId": "1e8f6195-f471-4816-8b53-3a75218d05a6",
+          "inputStartedAt": 1790818207657,
+          "startedAt": 1790818207657,
+          "endedAt": 1790818207679,
+          "output": "The artifact contents match the claim.",
+          "events": [
+            {
+              "kind": "model",
+              "step": 1,
+              "latency_ms": 11,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [
+                "read_file"
+              ],
+              "content": ""
+            },
+            {
+              "kind": "tool",
+              "step": 1,
+              "name": "read_file",
+              "args": {
+                "path": "artifact.txt"
+              },
+              "ok": true,
+              "latency_ms": 2,
+              "output": "{\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}"
+            },
+            {
+              "kind": "model",
+              "step": 2,
+              "latency_ms": 5,
+              "prompt_tokens": 1000,
+              "completion_tokens": 100,
+              "cost_usd": 0.000325,
+              "tool_calls": [],
+              "content": "The artifact contents match the claim."
+            }
+          ],
+          "thoughts": [
+            {
+              "id": "b98d8252-8b33-487d-a5bf-d192735ef885",
+              "timestamp": 1790818207659,
+              "type": "reasoning",
+              "content": "Step 1: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "d59388cf-bd09-4de8-a404-9633c25cd6ef",
+              "timestamp": 1790818207670,
+              "type": "reasoning",
+              "content": "Model replied in 11ms → read_file",
+              "status": "info"
+            },
+            {
+              "id": "7ef1f31a-5cba-4b5d-9e37-2311f1b72aab",
+              "timestamp": 1790818207670,
+              "type": "tool_call",
+              "content": "read_file {\"path\":\"artifact.txt\"}",
+              "status": "running",
+              "plugin": "read_file"
+            },
+            {
+              "id": "e7217026-ead5-4699-bc9d-a5c4f65ba53b",
+              "timestamp": 1790818207672,
+              "type": "tool_result",
+              "content": "read_file ✓ {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+              "status": "success",
+              "plugin": "read_file"
+            },
+            {
+              "id": "0e0d6635-d518-46bd-b5ac-ab7b0cb7975f",
+              "timestamp": 1790818207672,
+              "type": "reasoning",
+              "content": "Step 2: asking mercury-2…",
+              "status": "thinking"
+            },
+            {
+              "id": "3a48f23c-0603-4d0c-98d8-7ffbc6a6938f",
+              "timestamp": 1790818207679,
+              "type": "answer",
+              "content": "Finished in 2 step(s), 1 tool call(s), 2200 tokens, $0.00065",
+              "status": "success"
+            }
+          ],
+          "evidence": [
+            {
+              "specialistId": "validator",
+              "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+              "reference": "1e8f6195-f471-4816-8b53-3a75218d05a6:tool:1:read_file"
+            },
+            {
+              "specialistId": "validator",
+              "claim": "Recorded model output: The artifact contents match the claim.",
+              "reference": "1e8f6195-f471-4816-8b53-3a75218d05a6:model:2"
+            }
+          ],
+          "resourceUsage": {
+            "tokens": 2200,
+            "costUsd": 0.00065,
+            "durationMs": 20
+          }
+        },
+        "sequence": 8
+      }
+    },
+    {
+      "sequence": 44,
+      "timestamp": 1790818207682,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "validation",
+      "validation": {
+        "valid": true,
+        "checkedEvidenceCount": 4,
+        "reason": "Every claim has a concrete, checkable reference."
+      }
+    },
+    {
+      "sequence": 45,
+      "timestamp": 1790818207682,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "proof_refused",
+      "proof": {
+        "ok": false,
+        "reason": "Selected specialist execution failed: tester failed (Required runtime tool(s) unavailable: exec)"
+      }
+    },
+    {
+      "sequence": 46,
+      "timestamp": 1790818207688,
+      "jobId": "750a5b54-2a9d-4100-8876-51901f340910",
+      "phase": "cube_final_state",
+      "state": {
+        "stage": "jury",
+        "tokenId": "750a5b54-2a9d-4100-8876-51901f340910",
+        "thinkBoxIds": [
+          "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+          "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+          "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+          "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+        ],
+        "specialistIds": [
+          "builder",
+          "security",
+          "tester",
+          "validator"
+        ],
+        "verdict": "fail",
+        "stable": false,
+        "cells": [
+          {
+            "index": 0,
+            "face": 0,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 1,
+            "face": 1,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 2,
+            "face": 2,
+            "role": "thinkBox",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 3,
+            "face": 3,
+            "role": "propagation",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 4,
+            "face": 4,
+            "role": "evidence",
+            "active": true,
+            "locked": true,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 5,
+            "face": 5,
+            "role": "validation",
+            "active": true,
+            "locked": false,
+            "disrupted": true,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 6,
+            "face": 0,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 7,
+            "face": 1,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 8,
+            "face": 2,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 9,
+            "face": 3,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 10,
+            "face": 4,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 11,
+            "face": 5,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 12,
+            "face": 0,
+            "role": "thinkBox",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 13,
+            "face": 1,
+            "role": "propagation",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 14,
+            "face": 2,
+            "role": "evidence",
+            "active": true,
+            "locked": true,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 15,
+            "face": 3,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 16,
+            "face": 4,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 17,
+            "face": 5,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 18,
+            "face": 0,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 19,
+            "face": 1,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 20,
+            "face": 2,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 21,
+            "face": 3,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 22,
+            "face": 4,
+            "role": "thinkBox",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 23,
+            "face": 5,
+            "role": "propagation",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 24,
+            "face": 0,
+            "role": "evidence",
+            "active": true,
+            "locked": true,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 25,
+            "face": 1,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 26,
+            "face": 2,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 27,
+            "face": 3,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 28,
+            "face": 4,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 29,
+            "face": 5,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 30,
+            "face": 0,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 31,
+            "face": 1,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 32,
+            "face": 2,
+            "role": "thinkBox",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 33,
+            "face": 3,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 34,
+            "face": 4,
+            "role": "evidence",
+            "active": true,
+            "locked": true,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 35,
+            "face": 5,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 36,
+            "face": 0,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 37,
+            "face": 1,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 38,
+            "face": 2,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 39,
+            "face": 3,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 40,
+            "face": 4,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 41,
+            "face": 5,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 42,
+            "face": 0,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 43,
+            "face": 1,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 44,
+            "face": 2,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 45,
+            "face": 3,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 46,
+            "face": 4,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 47,
+            "face": 5,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 48,
+            "face": 0,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 49,
+            "face": 1,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 50,
+            "face": 2,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 51,
+            "face": 3,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 52,
+            "face": 4,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 53,
+            "face": 5,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 54,
+            "face": 0,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 55,
+            "face": 1,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 56,
+            "face": 2,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 57,
+            "face": 3,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 58,
+            "face": 4,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 59,
+            "face": 5,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 60,
+            "face": 0,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 61,
+            "face": 1,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 62,
+            "face": 2,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 63,
+            "face": 3,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 64,
+            "face": 4,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 65,
+            "face": 5,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 66,
+            "face": 0,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 67,
+            "face": 1,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 68,
+            "face": 2,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 69,
+            "face": 3,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 70,
+            "face": 4,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 71,
+            "face": 5,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 72,
+            "face": 0,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 73,
+            "face": 1,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 74,
+            "face": 2,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 75,
+            "face": 3,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 76,
+            "face": 4,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 77,
+            "face": 5,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 78,
+            "face": 0,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 79,
+            "face": 1,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 80,
+            "face": 2,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 81,
+            "face": 3,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 82,
+            "face": 4,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 83,
+            "face": 5,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 84,
+            "face": 0,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 85,
+            "face": 1,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 86,
+            "face": 2,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 87,
+            "face": 3,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 88,
+            "face": 4,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 89,
+            "face": 5,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 90,
+            "face": 0,
+            "role": "identity",
+            "active": true,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 1
+          },
+          {
+            "index": 91,
+            "face": 1,
+            "role": "jobState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 92,
+            "face": 2,
+            "role": "thinkBox",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 93,
+            "face": 3,
+            "role": "propagation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 94,
+            "face": 4,
+            "role": "evidence",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 95,
+            "face": 5,
+            "role": "validation",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 96,
+            "face": 0,
+            "role": "memory",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 97,
+            "face": 1,
+            "role": "outcome",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 98,
+            "face": 2,
+            "role": "tokenState",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          },
+          {
+            "index": 99,
+            "face": 3,
+            "role": "relationship",
+            "active": false,
+            "locked": false,
+            "disrupted": false,
+            "shared": false,
+            "value": 0
+          }
+        ],
+        "history": [
+          "intent",
+          "swarm",
+          "execution",
+          "evidence",
+          "challenge",
+          "jury"
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "specialistId": "builder",
+      "claim": "Tool write_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"bytes\":26}",
+      "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:tool:1:write_file"
+    },
+    {
+      "specialistId": "builder",
+      "claim": "Recorded model output: Created artifact.txt",
+      "reference": "81d76de6-9851-4e45-a4ac-7ff7b3af01d1:model:2"
+    },
+    {
+      "specialistId": "security",
+      "claim": "Tool read_file returned: {\"ok\":true,\"path\":\"artifact.txt\",\"content\":\"artifact from specialist A\"}",
+      "reference": "0336477f-8cae-4761-a011-15809e667917:tool:1:read_file"
+    },
+    {
+      "specialistId": "security",
+      "claim": "Recorded model output: Security reviewed the artifact contents.",
+      "reference": "0336477f-8cae-4761-a011-15809e667917:model:2"
+    }
+  ],
+  "failures": [
+    {
+      "specialistId": "tester",
+      "thinkBoxId": "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+      "runId": "f1ffd483-46ad-4d53-b653-07f3905fe6d4",
+      "failure": "Required runtime tool(s) unavailable: exec"
+    }
+  ],
+  "validation": {
+    "valid": true,
+    "checkedEvidenceCount": 4,
+    "reason": "Every claim has a concrete, checkable reference."
+  },
+  "proof": {
+    "ok": false,
+    "reason": "Selected specialist execution failed: tester failed (Required runtime tool(s) unavailable: exec)"
+  },
+  "thinkToken": [],
+  "cubeFinalState": {
+    "stage": "jury",
+    "tokenId": "750a5b54-2a9d-4100-8876-51901f340910",
+    "thinkBoxIds": [
+      "c10c67e7-5f99-4a29-8aa6-4e0feb6ec06c",
+      "64919e66-1f05-4a41-8ebb-2fd8efb953b0",
+      "d1aa2e44-7ab3-4b8c-9113-c017451d5269",
+      "cfc5bf00-86b9-4280-94e9-22eb7bf39693"
+    ],
+    "specialistIds": [
+      "builder",
+      "security",
+      "tester",
+      "validator"
+    ],
+    "verdict": "fail",
+    "stable": false,
+    "cells": [
+      {
+        "index": 0,
+        "face": 0,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 1,
+        "face": 1,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 2,
+        "face": 2,
+        "role": "thinkBox",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 3,
+        "face": 3,
+        "role": "propagation",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 4,
+        "face": 4,
+        "role": "evidence",
+        "active": true,
+        "locked": true,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 5,
+        "face": 5,
+        "role": "validation",
+        "active": true,
+        "locked": false,
+        "disrupted": true,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 6,
+        "face": 0,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 7,
+        "face": 1,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 8,
+        "face": 2,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 9,
+        "face": 3,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 10,
+        "face": 4,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 11,
+        "face": 5,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 12,
+        "face": 0,
+        "role": "thinkBox",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 13,
+        "face": 1,
+        "role": "propagation",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 14,
+        "face": 2,
+        "role": "evidence",
+        "active": true,
+        "locked": true,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 15,
+        "face": 3,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 16,
+        "face": 4,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 17,
+        "face": 5,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 18,
+        "face": 0,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 19,
+        "face": 1,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 20,
+        "face": 2,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 21,
+        "face": 3,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 22,
+        "face": 4,
+        "role": "thinkBox",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 23,
+        "face": 5,
+        "role": "propagation",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 24,
+        "face": 0,
+        "role": "evidence",
+        "active": true,
+        "locked": true,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 25,
+        "face": 1,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 26,
+        "face": 2,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 27,
+        "face": 3,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 28,
+        "face": 4,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 29,
+        "face": 5,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 30,
+        "face": 0,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 31,
+        "face": 1,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 32,
+        "face": 2,
+        "role": "thinkBox",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 33,
+        "face": 3,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 34,
+        "face": 4,
+        "role": "evidence",
+        "active": true,
+        "locked": true,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 35,
+        "face": 5,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 36,
+        "face": 0,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 37,
+        "face": 1,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 38,
+        "face": 2,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 39,
+        "face": 3,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 40,
+        "face": 4,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 41,
+        "face": 5,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 42,
+        "face": 0,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 43,
+        "face": 1,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 44,
+        "face": 2,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 45,
+        "face": 3,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 46,
+        "face": 4,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 47,
+        "face": 5,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 48,
+        "face": 0,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 49,
+        "face": 1,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 50,
+        "face": 2,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 51,
+        "face": 3,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 52,
+        "face": 4,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 53,
+        "face": 5,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 54,
+        "face": 0,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 55,
+        "face": 1,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 56,
+        "face": 2,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 57,
+        "face": 3,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 58,
+        "face": 4,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 59,
+        "face": 5,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 60,
+        "face": 0,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 61,
+        "face": 1,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 62,
+        "face": 2,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 63,
+        "face": 3,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 64,
+        "face": 4,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 65,
+        "face": 5,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 66,
+        "face": 0,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 67,
+        "face": 1,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 68,
+        "face": 2,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 69,
+        "face": 3,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 70,
+        "face": 4,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 71,
+        "face": 5,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 72,
+        "face": 0,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 73,
+        "face": 1,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 74,
+        "face": 2,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 75,
+        "face": 3,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 76,
+        "face": 4,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 77,
+        "face": 5,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 78,
+        "face": 0,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 79,
+        "face": 1,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 80,
+        "face": 2,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 81,
+        "face": 3,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 82,
+        "face": 4,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 83,
+        "face": 5,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 84,
+        "face": 0,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 85,
+        "face": 1,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 86,
+        "face": 2,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 87,
+        "face": 3,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 88,
+        "face": 4,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 89,
+        "face": 5,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 90,
+        "face": 0,
+        "role": "identity",
+        "active": true,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 1
+      },
+      {
+        "index": 91,
+        "face": 1,
+        "role": "jobState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 92,
+        "face": 2,
+        "role": "thinkBox",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 93,
+        "face": 3,
+        "role": "propagation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 94,
+        "face": 4,
+        "role": "evidence",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 95,
+        "face": 5,
+        "role": "validation",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 96,
+        "face": 0,
+        "role": "memory",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 97,
+        "face": 1,
+        "role": "outcome",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 98,
+        "face": 2,
+        "role": "tokenState",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      },
+      {
+        "index": 99,
+        "face": 3,
+        "role": "relationship",
+        "active": false,
+        "locked": false,
+        "disrupted": false,
+        "shared": false,
+        "value": 0
+      }
+    ],
+    "history": [
+      "intent",
+      "swarm",
+      "execution",
+      "evidence",
+      "challenge",
+      "jury"
+    ]
+  },
+  "resourceUsage": {
+    "tokens": 6600,
+    "costUsd": 0.00195,
+    "durationMs": 122
+  },
+  "replayResult": {
+    "mode": "complete-event-log reduction; no model re-execution",
+    "sameEvents": true,
+    "sameSpecialistStates": true,
+    "sameEvidenceRelationships": true,
+    "sameProofResult": true,
+    "sameCubeState": true
+  },
+  "classification": {
+    "multiSpecialistExecution": "CODE COMPLETE / TEST VERIFIED",
+    "multiBoxConcurrentSwarm": "UNPROVEN: independent in-process workspaces, not separate processes or remote compute boxes",
+    "liveVerified": false,
+    "productionReady": false
+  },
+  "durationMs": 176,
+  "executionEnvironment": "Hermetic local MockInception HTTP provider; no external Mercury-2 request"
+}
