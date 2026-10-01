@@ -1,0 +1,395 @@
+{
+ "note": "Real browser (Windows Chrome headless, throwaway profile) driving the real dashboard served by the real server on 127.0.0.1:3001; each width submitted one real Mercury-2 goal through the UI. 't' is Chrome virtual time, not wall-clock.",
+ "runs": {
+  "1440": [
+   {
+    "t": 500,
+    "s": "dashboard-object",
+    "present": true
+   },
+   {
+    "t": 500,
+    "s": "run-button-enabled",
+    "ok": true
+   },
+   {
+    "t": 500,
+    "s": "opened",
+    "modal": true,
+    "tab": "This session (0)",
+    "status": null,
+    "cube": "stage: idle \u00b7 active 0 \u00b7 verified 0"
+   },
+   {
+    "t": 500,
+    "s": "goal-submitted",
+    "goal": "Call read_file on the path 'missing-a1.txt' (it will fail, that's expected). Then call write_file to create 'live-check-a1.txt' with the exact content 'live check a1'. Then briefly state what happened with both calls."
+   },
+   {
+    "t": 510,
+    "s": "live",
+    "i": 0,
+    "status": "running",
+    "job": null,
+    "tab": "This session (0)",
+    "cubeStages": "intent>execution>challenge",
+    "cube": "stage: challenge \u00b7 active 12 \u00b7 verified 0 \u00b7 disrupted 1"
+   },
+   {
+    "t": 540,
+    "s": "live",
+    "i": 1,
+    "status": "completed",
+    "job": null,
+    "tab": "This session (1)",
+    "cubeStages": "intent>execution>challenge>execution>evidence>harvest>proof>think_token",
+    "cube": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1"
+   },
+   {
+    "t": 550,
+    "s": "after-run",
+    "status": "completed",
+    "job": null,
+    "tokens": [
+     {
+      "id": "run-token-c62d87f2-68be-4387-a1f5-46dbaea94370",
+      "type": "tool_sequence"
+     }
+    ],
+    "lastError": null,
+    "tab": "This session (1)",
+    "runInfo": "Current job\nnone yet\nStatus\ncompleted\nThink Tokens seen (this session, UI)\n1"
+   },
+   {
+    "t": 750,
+    "s": "tab-analytics",
+    "activePane": "tab-analytics",
+    "text": "Computed from this session's in-memory tokens, not from persisted statistics.\n\nConfidence\nHigh (>70%)\n0\nMedium (40\u201370%)\n1\nLow (<40%)\n0\nTypes\ntool_sequence\n1\nUsa"
+   },
+   {
+    "t": 950,
+    "s": "tab-tokens",
+    "activePane": "tab-tokens",
+    "cards": 1
+   },
+   {
+    "t": 1150,
+    "s": "details-dialog",
+    "opened": true
+   },
+   {
+    "t": 1150,
+    "s": "pause",
+    "paused": true
+   },
+   {
+    "t": 1150,
+    "s": "resume",
+    "paused": false
+   },
+   {
+    "t": 1850,
+    "s": "replay-started",
+    "statusDuringReplay": "stage: execution \u00b7 active 11 \u00b7 verified 0",
+    "recorded": 8
+   },
+   {
+    "t": 4050,
+    "s": "replay-finished",
+    "status": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "recordedBefore": 8,
+    "recordedAfter": 8
+   },
+   {
+    "t": 4050,
+    "s": "drawer-initial",
+    "open": false
+   },
+   {
+    "t": 4250,
+    "s": "drawer-clicked",
+    "open": true
+   },
+   {
+    "t": 10750,
+    "s": "demo-ran",
+    "demoCubeStatus": "stage: commons \u00b7 token: demo-token \u00b7 boxes: 3 () \u00b7 active 68 \u00b7 verified 34 \u00b7 shared 10 \u00b7 jury: pass",
+    "liveStatusBefore": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveStatusAfter": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveRecordedBefore": 8,
+    "liveRecordedAfter": 8,
+    "demoCells": 100
+   },
+   {
+    "t": 10750,
+    "s": "layout",
+    "vw": 1440,
+    "docScrollW": 1440,
+    "pageOverflowX": false,
+    "modalW": 1200,
+    "cubeW": 349,
+    "sx": []
+   }
+  ],
+  "1024": [
+   {
+    "t": 515,
+    "s": "dashboard-object",
+    "present": true
+   },
+   {
+    "t": 515,
+    "s": "run-button-enabled",
+    "ok": true
+   },
+   {
+    "t": 515,
+    "s": "opened",
+    "modal": true,
+    "tab": "This session (0)",
+    "status": null,
+    "cube": "stage: idle \u00b7 active 0 \u00b7 verified 0"
+   },
+   {
+    "t": 515,
+    "s": "goal-submitted",
+    "goal": "Call read_file on the path 'missing-b1024.txt' (it will fail, that's expected). Then call write_file to create 'live-check-b1024.txt' with the exact content 'live check b1024'. Then briefly state what happened with both calls."
+   },
+   {
+    "t": 525,
+    "s": "live",
+    "i": 0,
+    "status": "running",
+    "job": null,
+    "tab": "This session (0)",
+    "cubeStages": "intent>execution>challenge",
+    "cube": "stage: challenge \u00b7 active 12 \u00b7 verified 0 \u00b7 disrupted 1"
+   },
+   {
+    "t": 555,
+    "s": "live",
+    "i": 1,
+    "status": "completed",
+    "job": null,
+    "tab": "This session (1)",
+    "cubeStages": "intent>execution>challenge>execution>evidence>harvest>proof>think_token",
+    "cube": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1"
+   },
+   {
+    "t": 565,
+    "s": "after-run",
+    "status": "completed",
+    "job": null,
+    "tokens": [
+     {
+      "id": "run-token-bc996270-5c0c-4a08-9e89-befcf1affd7d",
+      "type": "tool_sequence"
+     }
+    ],
+    "lastError": null,
+    "tab": "This session (1)",
+    "runInfo": "Current job\nnone yet\nStatus\ncompleted\nThink Tokens seen (this session, UI)\n1"
+   },
+   {
+    "t": 765,
+    "s": "tab-analytics",
+    "activePane": "tab-analytics",
+    "text": "Computed from this session's in-memory tokens, not from persisted statistics.\n\nConfidence\nHigh (>70%)\n0\nMedium (40\u201370%)\n1\nLow (<40%)\n0\nTypes\ntool_sequence\n1\nUsa"
+   },
+   {
+    "t": 965,
+    "s": "tab-tokens",
+    "activePane": "tab-tokens",
+    "cards": 1
+   },
+   {
+    "t": 1165,
+    "s": "details-dialog",
+    "opened": true
+   },
+   {
+    "t": 1165,
+    "s": "pause",
+    "paused": true
+   },
+   {
+    "t": 1165,
+    "s": "resume",
+    "paused": false
+   },
+   {
+    "t": 1865,
+    "s": "replay-started",
+    "statusDuringReplay": "stage: execution \u00b7 active 11 \u00b7 verified 0",
+    "recorded": 8
+   },
+   {
+    "t": 4066,
+    "s": "replay-finished",
+    "status": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "recordedBefore": 8,
+    "recordedAfter": 8
+   },
+   {
+    "t": 4066,
+    "s": "drawer-initial",
+    "open": false
+   },
+   {
+    "t": 4266,
+    "s": "drawer-clicked",
+    "open": true
+   },
+   {
+    "t": 10766,
+    "s": "demo-ran",
+    "demoCubeStatus": "stage: commons \u00b7 token: demo-token \u00b7 boxes: 3 () \u00b7 active 68 \u00b7 verified 34 \u00b7 shared 10 \u00b7 jury: pass",
+    "liveStatusBefore": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveStatusAfter": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveRecordedBefore": 8,
+    "liveRecordedAfter": 8,
+    "demoCells": 100
+   },
+   {
+    "t": 10766,
+    "s": "layout",
+    "vw": 1024,
+    "docScrollW": 1024,
+    "pageOverflowX": false,
+    "modalW": 992,
+    "cubeW": 349,
+    "sx": []
+   }
+  ],
+  "390": [
+   {
+    "t": 572,
+    "s": "dashboard-object",
+    "present": true
+   },
+   {
+    "t": 572,
+    "s": "run-button-enabled",
+    "ok": true
+   },
+   {
+    "t": 572,
+    "s": "opened",
+    "modal": true,
+    "tab": "This session (0)",
+    "status": null,
+    "cube": "stage: idle \u00b7 active 0 \u00b7 verified 0"
+   },
+   {
+    "t": 572,
+    "s": "goal-submitted",
+    "goal": "Call read_file on the path 'missing-b390.txt' (it will fail, that's expected). Then call write_file to create 'live-check-b390.txt' with the exact content 'live check b390'. Then briefly state what happened with both calls."
+   },
+   {
+    "t": 582,
+    "s": "live",
+    "i": 0,
+    "status": "running",
+    "job": null,
+    "tab": "This session (0)",
+    "cubeStages": "intent>execution>challenge>execution>evidence",
+    "cube": "stage: evidence \u00b7 active 14 \u00b7 verified 1 \u00b7 disrupted 1"
+   },
+   {
+    "t": 602,
+    "s": "live",
+    "i": 1,
+    "status": "completed",
+    "job": null,
+    "tab": "This session (1)",
+    "cubeStages": "intent>execution>challenge>execution>evidence>harvest>proof>think_token",
+    "cube": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1"
+   },
+   {
+    "t": 612,
+    "s": "after-run",
+    "status": "completed",
+    "job": null,
+    "tokens": [
+     {
+      "id": "run-token-94148042-a6dc-41ab-bd9d-9a653d60f743",
+      "type": "tool_sequence"
+     }
+    ],
+    "lastError": null,
+    "tab": "This session (1)",
+    "runInfo": "Current job\nnone yet\nStatus\ncompleted\nThink Tokens seen (this session, UI)\n1"
+   },
+   {
+    "t": 812,
+    "s": "tab-analytics",
+    "activePane": "tab-analytics",
+    "text": "Computed from this session's in-memory tokens, not from persisted statistics.\n\nConfidence\nHigh (>70%)\n0\nMedium (40\u201370%)\n1\nLow (<40%)\n0\nTypes\ntool_sequence\n1\nUsa"
+   },
+   {
+    "t": 1012,
+    "s": "tab-tokens",
+    "activePane": "tab-tokens",
+    "cards": 1
+   },
+   {
+    "t": 1212,
+    "s": "details-dialog",
+    "opened": true
+   },
+   {
+    "t": 1212,
+    "s": "pause",
+    "paused": true
+   },
+   {
+    "t": 1212,
+    "s": "resume",
+    "paused": false
+   },
+   {
+    "t": 1912,
+    "s": "replay-started",
+    "statusDuringReplay": "stage: execution \u00b7 active 11 \u00b7 verified 0",
+    "recorded": 8
+   },
+   {
+    "t": 4112,
+    "s": "replay-finished",
+    "status": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "recordedBefore": 8,
+    "recordedAfter": 8
+   },
+   {
+    "t": 4112,
+    "s": "drawer-initial",
+    "open": false
+   },
+   {
+    "t": 4312,
+    "s": "drawer-clicked",
+    "open": true
+   },
+   {
+    "t": 10812,
+    "s": "demo-ran",
+    "demoCubeStatus": "stage: commons \u00b7 token: demo-token \u00b7 boxes: 3 () \u00b7 active 68 \u00b7 verified 34 \u00b7 shared 10 \u00b7 jury: pass",
+    "liveStatusBefore": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveStatusAfter": "stage: think_token \u00b7 active 54 \u00b7 verified 31 \u00b7 disrupted 1",
+    "liveRecordedBefore": 8,
+    "liveRecordedAfter": 8,
+    "demoCells": 100
+   },
+   {
+    "t": 10812,
+    "s": "layout",
+    "vw": 390,
+    "docScrollW": 390,
+    "pageOverflowX": false,
+    "modalW": 358,
+    "cubeW": 241,
+    "sx": []
+   }
+  ]
+ }
+}
