@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (227 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (229 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -32,7 +32,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 ## Contents
 
 - [Start here (repository root)](#start-here-repository-root) (4)
-- [Decisions (ADRs)](#decisions-adrs) (34)
+- [Decisions (ADRs)](#decisions-adrs) (35)
 - [Enterprise Agent OS plan](#enterprise-agent-os-plan) (5)
 - [Guides](#guides) (63)
 - [Runbooks](#runbooks) (4)
@@ -41,7 +41,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Project policies](#project-policies) (1)
 - [Architecture, plans and deployment](#architecture-plans-and-deployment) (5)
 - [Audits and reviews](#audits-and-reviews) (32)
-- [Research and strategy](#research-and-strategy) (3)
+- [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
 - [Other documents in docs/](#other-documents-in-docs) (26)
 - [Agent definitions](#agent-definitions) (17)
@@ -95,6 +95,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/decisions/026-neon-serverless-postgres.md](decisions/026-neon-serverless-postgres.md) | ADR 026: Neon serverless Postgres setup (PR #257) — revert | On 2026-09-01, issue #9 ("Phase 2: PostgreSQL 19 + pgvector Migration") proposed |
 | [docs/decisions/027-enterprise-agent-os-architecture.md](decisions/027-enterprise-agent-os-architecture.md) | ADR 027: Enterprise Agent OS architecture | The Agent OS is a local-only operator console today: one implicit user, no login, one fixed governance identity,... |
 | [docs/decisions/028-think-token-persistence.md](decisions/028-think-token-persistence.md) | ADR 028: Where Think Token state lives (SQLite now; Neon only if a reopen criterion is met) | On 2026-09-30 the founder asked for a Neon database to track Think Tokens. That request arrives hours after ADR 026 |
+| [docs/decisions/029-think-token-intelligence-object.md](decisions/029-think-token-intelligence-object.md) | ADR 029: The Think Token as a reconfigurable intelligence object | Supersedes nothing. Builds on ADR 026 (Accepted: the unused Neon setup was reverted, so SQLite stays), ADR 027... |
 
 ## Enterprise Agent OS plan
 
@@ -262,6 +263,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 
 | File | Title | About |
 |---|---|---|
+| [docs/research/2026-10-01-think-box-findings.md](research/2026-10-01-think-box-findings.md) | Think Box findings — 2026-10-01 | Source document for ADR 029. Each row has two parts, kept apart on purpose: |
 | [docs/research/277-vinext-software-factory-experiment.md](research/277-vinext-software-factory-experiment.md) | Research #277: Vinext-Style Software-Factory Experiment | Experiment: Can Think Box reproduce autonomous software-factory workflows described in Cloudflare's Vinext announcement? |
 | [docs/research/RESEARCH.md](research/RESEARCH.md) | RESEARCH.md — Doginals Indexer-Split Thesis | Different Doginals/DRC-20 indexers disagree on which deployment transaction is |
 | [docs/strategy/THINK_TOKEN_STRATEGY.md](strategy/THINK_TOKEN_STRATEGY.md) | THINK Token & Training Strategy | This file is about the THNK economic token (staking, rewards, votes, paying for compute) and a plan to fine-tune a |
