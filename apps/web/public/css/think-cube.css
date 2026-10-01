@@ -63,6 +63,33 @@
   box-shadow: 0 0 10px 3px #ffffffaa;
 }
 
+/* Real-event pulses (think_token_learned / think_token_used). Display only; see think-cube-render.js pulse(). */
+.think-cube > div[data-pulse] {
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 calc(8px + 16px * var(--tt-glow, 0.5)) calc(1px + 4px * var(--tt-glow, 0.5)) #ffffff;
+  transform: translateZ(6px) scale(1.12);
+}
+
+.think-cube > div[data-pulse="used"] {
+  box-shadow: 0 0 calc(8px + 16px * var(--tt-glow, 0.5)) calc(1px + 4px * var(--tt-glow, 0.5)) #22d3ee;
+}
+
+.think-cube.tt-twist {
+  animation: think-cube-twist 0.7s ease-in-out;
+}
+
+@keyframes think-cube-twist {
+  0%, 100% { transform: rotateX(18deg) rotateY(-14deg); }
+  50% { transform: rotateX(18deg) rotateY(166deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .think-cube.tt-twist { animation: none; }
+  .think-cube > div, .think-cube > div[data-pulse] { transition: none; animation: none; }
+  .think-cube > div[data-pulse] { transform: none; outline: 2px solid #ffffff; }
+}
+
 @keyframes think-cube-disrupt {
   0%, 100% { transform: translateZ(0) rotate(0deg); }
   50% { transform: translateZ(2px) rotate(3deg); }

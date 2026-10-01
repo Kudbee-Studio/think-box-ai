@@ -94,20 +94,9 @@ function handleMessage(msg) {
     case 'thought': {
       const thought = { ...msg.data, timestamp: msg.timestamp };
       addThought(thought);
-      // Real bridge to the Think Token cube (and the pre-existing, previously-unfed token
-      // dashboard): every thought the server actually emits, forwarded as-is — no synthesized
-      // events. See think-cube-render.js's LIVE MAPPING comment for what each type does.
+      // Real bridge to the Think Token cube and view: every thought the server actually emits, forwarded as-is,
+      // no synthesized events. Persisted tokens arrive separately (think_tokens), read from the database.
       window.dispatchEvent(new CustomEvent('think-cube:thought', { detail: thought }));
-      if (thought.type === 'think_token') {
-        window.dispatchEvent(new CustomEvent('token:created', {
-          detail: {
-            id: thought.tokenId || `run-token-${thought.id || Date.now()}`,
-            type: thought.tokenType || 'tool_sequence',
-            content: String(thought.content || ''),
-            confidence: thought.tokenConfidence ?? 0.6,
-          },
-        }));
-      }
       break;
     }
 
@@ -144,6 +133,7 @@ function handleMessage(msg) {
       break;
 
     case 'run_update':
+      window.dispatchEvent(new CustomEvent('think-cube:run', { detail: { id: msg.data.id, status: msg.data.status } }));
       state.runProgress[msg.data.id] = msg.data;
       renderTasks();
       scheduleRunsRefresh();
@@ -158,6 +148,8 @@ function handleMessage(msg) {
     case 'think_token_result':
     case 'think_token_error':
     case 'think_tokens_changed':
+    case 'think_token_learned':
+    case 'think_token_used':
       window.dispatchEvent(new CustomEvent('think-tokens:message', { detail: msg }));
       break;
 
@@ -526,7 +518,7 @@ function renderTaskActionResult(result) {
   appendTerminalMessage('system', `Task ${task.id.slice(0, 8)} ${result.action}: ${task.title} [${task.status}/${task.priority}]`);
 }
 
-// Used by think-tokens-panel.js; the server validates every field and gates mutations behind approval.
+// Used by think-token-dashboard.js; the server validates every field and gates mutations behind approval.
 function sendThinkTokenMessage(message) {
   if (state.ws?.readyState !== WebSocket.OPEN) return false;
   state.ws.send(JSON.stringify(message));

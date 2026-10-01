@@ -28,9 +28,24 @@
 
 import { createInitialCubeState, applyEvent, cellsToRenderProps, summarize, CELL_COUNT } from './think-cube-state.js';
 
+// Display-only pulses for real token events (think_token_learned / think_token_used). They never change the
+// cube's deterministic state; they only mark cells with a data attribute for a moment. Pulses are queued so
+// animations never overlap, and a burst keeps only the newest few.
+const PULSE_ROLE = Object.freeze({ learned: 'tokenState', used: 'relationship' });
+const PULSE_MS = 700;
+const REDUCED_PULSE_MS = 1200;
+const MAX_PULSE_QUEUE = 5;
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export class ThinkCubeRenderer {
   constructor(container) {
     this.container = container;
+    this._pulseQueue = [];
+    this._pulsing = false;
+    this.pulseCount = 0;
     this.state = createInitialCubeState();
     this.toolCallCount = 0;
     this.evidenceCount = 0;
@@ -105,6 +120,43 @@ export class ThinkCubeRenderer {
     if (this.paused && stage !== 'reset') return;
     this.state = applyEvent(this.state, { stage, payload });
     this.render();
+  }
+
+  /**
+   * Highlight the cells for a real token event: 'learned' lights the tokenState cells with glow proportional to the
+   * token's score (and twists the cube unless the user prefers reduced motion); 'used' lights the relationship cells.
+   * Returns false for an unknown kind. Nothing here fabricates an event: callers pass events the server emitted.
+   */
+  pulse(kind, intensity = 0.5) {
+    if (!Object.prototype.hasOwnProperty.call(PULSE_ROLE, kind)) return false;
+    const glow = Math.min(1, Math.max(0.1, Number.isFinite(Number(intensity)) ? Number(intensity) : 0.5));
+    if (this._pulseQueue.length >= MAX_PULSE_QUEUE) this._pulseQueue.shift();
+    this._pulseQueue.push({ kind, glow });
+    if (!this._pulsing) this._drainPulses();
+    return true;
+  }
+
+  _drainPulses() {
+    const item = this._pulseQueue.shift();
+    if (!item) { this._pulsing = false; return; }
+    this._pulsing = true;
+    this.pulseCount += 1;
+    const reduced = prefersReducedMotion();
+    const role = PULSE_ROLE[item.kind];
+    const lit = [];
+    this.state.cells.forEach((cell, i) => {
+      if (cell.role !== role) return;
+      const el = this.cellEls[i];
+      el.dataset.pulse = item.kind;
+      el.style.setProperty('--tt-glow', String(item.glow));
+      lit.push(el);
+    });
+    if (item.kind === 'learned' && !reduced) this.container.classList.add('tt-twist');
+    setTimeout(() => {
+      for (const el of lit) { delete el.dataset.pulse; el.style.removeProperty('--tt-glow'); }
+      this.container.classList.remove('tt-twist');
+      this._drainPulses();
+    }, reduced ? REDUCED_PULSE_MS : PULSE_MS);
   }
 
   pause() { this.paused = true; }
