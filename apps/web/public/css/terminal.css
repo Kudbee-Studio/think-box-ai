@@ -17,8 +17,9 @@
 .tw-title { font-size: 12px; color: var(--tw-dim); letter-spacing: 0.04em; }
 .tw-meta { font-size: 11px; color: var(--tw-dim); }
 .tw-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.tw-btn { background: #1a1f31; color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; }
-.tw-btn:hover, .tw-btn[aria-pressed="true"] { border-color: var(--tw-purple); color: #fff; }
+.tw-btn { background: #1a1f31; color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; transition: all 0.15s ease; }
+.tw-btn:hover { border-color: var(--tw-purple); color: #fff; background: #212835; }
+.tw-btn[aria-pressed="true"] { border-color: var(--tw-purple); color: #fff; background: rgba(167, 139, 250, 0.1); }
 .tw-btn:focus-visible, .tw-viewport:focus-visible, .tw-jump:focus-visible, .tw-copy:focus-visible, .tw-chev:focus-visible { outline: 2px solid var(--tw-cyan); outline-offset: 1px; transition: outline-offset 0.15s ease; }
 .tw-btn:focus-visible, .tw-jump:focus-visible, .tw-copy:focus-visible, .tw-chev:focus-visible { outline-offset: 2px; }
 .tw-buffer { font-size: 12px; color: var(--tw-dim); display: inline-flex; align-items: center; gap: 6px; }
@@ -55,8 +56,10 @@
 .tw-chev:hover { opacity: 0.8; transform: scale(1.1); }
 .group-head .tw-chev[aria-expanded="false"]::before { content: '▶ '; }
 .group-head .tw-chev[aria-expanded="true"]::before { content: '▼ '; }
-.tw-copy { opacity: 0; background: none; border: 0; color: var(--tw-dim); cursor: pointer; font: inherit; height: var(--tw-row); padding: 0; }
-.tw-line:hover .tw-copy, .tw-copy:focus-visible { opacity: 1; }
+.tw-copy { opacity: 0; background: none; border: 1px solid transparent; color: var(--tw-dim); cursor: pointer; font: inherit; height: var(--tw-row); padding: 0 2px; border-radius: 4px; transition: all 0.15s ease; }
+.tw-line:hover .tw-copy { opacity: 1; }
+.tw-copy:hover { color: var(--tw-cyan); border-color: rgba(34, 211, 238, 0.3); background: rgba(34, 211, 238, 0.05); }
+.tw-copy:focus-visible { opacity: 1; }
 .tw-hit { background: rgba(251, 191, 36, 0.24); color: inherit; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4); }
 .tw-current { background: var(--tw-amber); color: #111; border-radius: 3px; box-shadow: 0 0 8px rgba(251, 191, 36, 0.3); }
 .tw-cursor { display: inline-block; width: 0.6em; height: 1.05em; background: var(--tw-cyan); vertical-align: text-bottom; margin-left: 2px; animation: tw-blink 1.1s steps(2, start) infinite; }
