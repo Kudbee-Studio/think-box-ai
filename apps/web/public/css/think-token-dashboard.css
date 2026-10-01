@@ -199,6 +199,11 @@
 .tt-meta, .tt-used, .tt-actions, .tt-content, .tt-title { overflow-wrap: anywhere; }
 
 /* Responsive */
+@media (min-width: 1025px) {
+  /* Keep the saved tokens in view while the taller left column (cube, Energy Core, run) scrolls. */
+  .dashboard-secondary { position: sticky; top: 0; align-self: start; }
+}
+
 @media (max-width: 1024px) {
   .dashboard-layout { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
   .dashboard-secondary .tt-list { max-height: 50vh; }

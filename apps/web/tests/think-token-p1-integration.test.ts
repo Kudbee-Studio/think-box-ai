@@ -247,3 +247,22 @@ test('a failing extraction model leaves a labeled template candidate (never auto
     assert.ok(!serverLog.includes(KEY2), 'the key is not in the server output');
   } finally { client.ws.close(); }
 });
+
+test('when the model finds nothing new, the run says so explicitly and saves nothing (no template fallback)', async () => {
+  const client = await connect();
+  try {
+    const before = dbRows('SELECT COUNT(*) n FROM think_tokens')[0].n;
+    mock.script([call('write_file', { path: 'third.md', content: 'x' }), call('list_files', {}), say('Done'), say(JSON.stringify({ lessons: [] }))]);
+    client.send({ type: 'run_goal', goal: 'Save my third notes file to third.md with write_file and confirm with list_files', model: 'mercury-2' });
+    const result = (await client.next('result')).data;
+    assert.equal(result.success, true);
+    await new Promise((r) => setTimeout(r, 300));
+    const note = client.messages.find((m) => m.type === 'thought' && m.data?.type === 'think_token' && /^No new Think Token/.test(m.data.content));
+    assert.ok(note, 'the run explains why no token was saved');
+    assert.equal(note.data.run_id, result.run_id);
+    assert.equal(dbRows('SELECT COUNT(*) n FROM think_tokens')[0].n, before);
+    assert.equal(client.messages.filter((m) => m.type === 'think_token_learned').length, 0);
+    // the retrieved tokens were still recorded as used, so reuse is visible even when nothing new is learned
+    assert.ok(dbRows(`SELECT 1 FROM think_token_uses WHERE run_id = '${result.run_id}'`).length >= 1);
+  } finally { client.ws.close(); }
+});

@@ -1478,6 +1478,10 @@ export class AgentSession {
         this.broadcast({ type: 'think_tokens_changed', data: { count: fresh.length } });
       } else if (result.dropped.length) {
         this.addThought({ type: 'think_token', content: `No Think Token saved: ${result.dropped.length} lesson${result.dropped.length === 1 ? '' : 's'} failed grounding/specificity checks`, status: 'info', run_id: record.id });
+      } else if (success && !result.tokens.length) {
+        this.addThought({ type: 'think_token', content: 'No new Think Token from this run: nothing new beyond the lessons already saved', status: 'info', run_id: record.id });
+      } else if (success) {
+        this.addThought({ type: 'think_token', content: `No new Think Token from this run: ${result.tokens.length} lesson${result.tokens.length === 1 ? '' : 's'} already saved (seen again)`, status: 'info', run_id: record.id });
       }
     } catch (err) {
       // Learning capture must never fail the run it is capturing.

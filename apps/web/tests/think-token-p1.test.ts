@@ -395,8 +395,18 @@ test('pipeline: a failed model challenge rejects the token; an unreachable chall
   assert.equal(scored.tokens[0].status, 'scored');
   assert.equal(unreachable.get('TT-000001')!.challenge.verdict, null);
   assert.deepEqual(unreachable.retrieve('research notes fetch_url', 3), []);
-  assert.deepEqual(unreachable.modelUsage('run-ab5e5299').map((u) => u.ok), [true, false]);
+  assert.deepEqual(unreachable.modelUsage('run-ab5e5299').map((u) => u.ok), [true, false, false], 'the challenge was retried once, then gave up');
   unreachable.close();
+});
+
+test('retry: one transient Mercury failure (an empty reply, seen in a live run) is retried and the token is still challenged and accepted', async () => {
+  const store = new SqliteTokenStore();
+  const mercury = fake('mercury', 'mercury-2', [lessons(GOOD), new Error('mercury returned no text'), PASS]);
+  const r = await processFinishedRun(deps({ mercury }, store), RUN, 'agent');
+  assert.equal(r.tokens[0].status, 'accepted');
+  assert.deepEqual(store.modelUsage('run-ab5e5299').map((u) => [u.step, u.ok]), [['extract', true], ['challenge', false], ['challenge', true]]);
+  assert.ok(store.handle.prepare("SELECT 1 FROM think_token_ledger WHERE action = 'model_call' AND decision = 'rejected' AND detail LIKE '%no text%'").get(), 'the failed attempt is receipted');
+  store.close();
 });
 
 test('fallback: Mercury missing or erroring uses the local model; both missing keeps the labeled template as a candidate', async () => {
@@ -413,7 +423,7 @@ test('fallback: Mercury missing or erroring uses the local model; both missing k
   const local2 = fake('local', 'llama3:8b', [lessons(GOOD), PASS]);
   const b = await processFinishedRun(deps({ mercury, local: local2 }, erroring), RUN, 'agent');
   assert.equal(b.tokens[0].extractor, 'local');
-  assert.deepEqual(erroring.modelUsage('run-ab5e5299').map((u) => [u.provider, u.ok]), [['mercury', false], ['local', true], ['mercury', false], ['local', true]]);
+  assert.deepEqual(erroring.modelUsage('run-ab5e5299').map((u) => [u.provider, u.ok]), [['mercury', false], ['mercury', false], ['local', true], ['mercury', false], ['mercury', false], ['local', true]]);
   erroring.close();
 
   const none = new SqliteTokenStore();
@@ -423,6 +433,73 @@ test('fallback: Mercury missing or erroring uses the local model; both missing k
   assert.equal(none.advance(c.tokens[0].id, 'extracted', 'agent').ok, false);
   assert.equal(none.modelCallCount({}), 0);
   none.close();
+});
+
+const GOOD2 = {
+  kind: 'lesson', title: 'Recall first, one fetch is enough',
+  lesson: 'Run recall before any fetch_url call and write_file the notes afterwards; one fetch_url is enough when recall already returned matching notes, so skip the second page.',
+  tools_cited: ['recall', 'fetch_url', 'write_file'], files_cited: [] as string[], tags: ['research'],
+};
+const RUN2: FinishedRun = { ...RUN, id: 'run-second' };
+
+test('novelty: accepted lessons reach both the extraction and the challenge prompts so repeats can be skipped', async () => {
+  const store = new SqliteTokenStore();
+  await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons(GOOD), PASS]) }, store), RUN, 'agent');
+  const mercury = fake('mercury', 'mercury-2', [lessons({ ...GOOD2 }), JSON.stringify({ true: true, specific: true, supported: true, novel: true, reason: 'adds the one-fetch rule' })]);
+  const r = await processFinishedRun(deps({ mercury }, store), RUN2, 'agent');
+  const extraction = mercury.calls[0];
+  assert.match(extraction[0].content, /do NOT repeat or paraphrase/);
+  const payload = JSON.parse(extraction[1].content);
+  assert.deepEqual(payload.known_lessons.map((k: { id: string }) => k.id), ['TT-000001']);
+  assert.match(payload.known_lessons[0].lesson, /write_file/);
+  assert.match(mercury.calls[1][0].content, /"novel"/);
+  assert.equal(JSON.parse(mercury.calls[1][1].content).known_lessons[0].id, 'TT-000001');
+  assert.equal(r.tokens[0].status, 'accepted');
+  store.close();
+});
+
+test('novelty: a lesson the reviewer calls a repeat is rejected, and a missing answer leaves it unchallenged', async () => {
+  const repeat = new SqliteTokenStore();
+  await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons(GOOD), PASS]) }, repeat), RUN, 'agent');
+  const dup = await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons({ ...GOOD2 }), JSON.stringify({ true: true, specific: true, supported: true, novel: false, reason: 'same as TT-000001' })]) }, repeat), RUN2, 'agent');
+  assert.equal(dup.tokens[0].status, 'rejected');
+  assert.match(repeat.get(dup.tokens[0].id)!.challenge.reason!, /repeats a known lesson/);
+  assert.equal(repeat.get(dup.tokens[0].id)!.challenge.verdict, 'fail');
+  repeat.close();
+
+  const silent = new SqliteTokenStore();
+  await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons(GOOD), PASS]) }, silent), RUN, 'agent');
+  const unanswered = await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons({ ...GOOD2 }), PASS, PASS]) }, silent), RUN2, 'agent');
+  assert.equal(unanswered.tokens[0].status, 'scored', 'no novel verdict -> not verified -> never accepted');
+  assert.ok(silent.handle.prepare("SELECT 1 FROM think_token_ledger WHERE action = 'challenge_rejected' AND detail LIKE '%whether the lesson is new%'").get());
+  silent.close();
+
+  const first = new SqliteTokenStore();
+  const noKnown = await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [lessons(GOOD), PASS]) }, first), RUN, 'agent');
+  assert.equal(noKnown.tokens[0].status, 'accepted', 'with nothing known yet, no novel field is needed');
+  first.close();
+});
+
+test('no-new-lessons: an empty answer, or a model that answered with something unusable, saves nothing and never falls back to the template', async () => {
+  for (const reply of [lessons(), '[]', '```json\n{"lessons": []}\n```']) {
+    const store = new SqliteTokenStore();
+    const r = await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [reply]) }, store), RUN, 'agent');
+    assert.deepEqual(r.tokens, [], reply);
+    assert.equal(store.list().length, 0, 'no token, and no template fallback, because a model answered');
+    store.close();
+  }
+  const store = new SqliteTokenStore();
+  const secret = 'sk-abcdefghijklmnop1234';
+  const r = await processFinishedRun(deps({ mercury: fake('mercury', 'mercury-2', [`I found nothing new to add (key ${secret}). Sorry!`]) }, store), RUN, 'agent');
+  assert.deepEqual(r.tokens, [], 'an unusable reply saves nothing');
+  assert.equal(store.list().length, 0, 'and does not fall back to a template lesson the model declined to write');
+  const row = store.handle.prepare("SELECT decision, detail FROM think_token_ledger WHERE action = 'extract_rejected'").get() as { decision: string; detail: string };
+  assert.equal(row.decision, 'rejected');
+  assert.match(row.detail, /not the expected JSON/);
+  assert.match(row.detail, /nothing new to add/, 'a short excerpt of what the model said is kept for debugging');
+  assert.ok(!row.detail.includes(secret), 'and it is sanitized');
+  assert.equal(store.modelUsage('run-ab5e5299').length, 1, 'no further model calls were spent');
+  store.close();
 });
 
 test('caps: the per-run and per-day model call caps stop further calls and are receipted', async () => {
@@ -474,7 +551,8 @@ test('key: never appears in logs, database rows, events, formatted output or err
   } finally {
     for (const restore of spies) restore();
   }
-  assert.ok(result!.tokens.length > 0 && result!.tokens.every((t) => t.extractor === 'template'), 'the extraction call failed (echoing the key); with no local model the labeled template was used');
+  assert.equal(result!.tokens[0]?.extractor, 'mercury', 'the first extraction call failed (echoing the key); the retry succeeded');
+  assert.ok(store.handle.prepare("SELECT 1 FROM think_token_ledger WHERE action = 'model_call' AND decision = 'rejected'").get(), 'the leaking failure was receipted (scrubbed)');
   // every table, as the database stores it
   const dump = (['think_tokens', 'think_token_ledger', 'think_token_uses', 'think_token_model_calls', 'think_token_seq'] as const)
     .map((t) => JSON.stringify(store.handle.prepare(`SELECT * FROM ${t}`).all())).join('\n');
