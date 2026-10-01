@@ -19,12 +19,14 @@
 .tw-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tw-btn { background: #1a1f31; color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; }
 .tw-btn:hover, .tw-btn[aria-pressed="true"] { border-color: var(--tw-purple); color: #fff; }
-.tw-btn:focus-visible, .tw-viewport:focus-visible, .tw-jump:focus-visible, .tw-copy:focus-visible, .tw-chev:focus-visible { outline: 2px solid var(--tw-cyan); outline-offset: 1px; }
+.tw-btn:focus-visible, .tw-viewport:focus-visible, .tw-jump:focus-visible, .tw-copy:focus-visible, .tw-chev:focus-visible { outline: 2px solid var(--tw-cyan); outline-offset: 1px; transition: outline-offset 0.15s ease; }
+.tw-btn:focus-visible, .tw-jump:focus-visible, .tw-copy:focus-visible, .tw-chev:focus-visible { outline-offset: 2px; }
 .tw-buffer { font-size: 12px; color: var(--tw-dim); display: inline-flex; align-items: center; gap: 6px; }
 .tw-buffer select { background: #1a1f31; color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; font: inherit; font-size: 12px; padding: 2px 4px; }
 .tw-search { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--tw-bg2); border-bottom: 1px solid var(--tw-line); }
 .tw-search[hidden] { display: none; }
-.tw-search input { flex: 1; min-width: 0; background: var(--tw-bg); color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; }
+.tw-search input { flex: 1; min-width: 0; background: var(--tw-bg); color: var(--tw-fg); border: 1px solid var(--tw-line); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.tw-search input:focus { border-color: var(--tw-cyan); box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1); }
 .tw-count { font-size: 12px; color: var(--tw-dim); min-width: 5ch; text-align: right; }
 
 .tw-body { display: grid; grid-template-columns: minmax(0, 1fr) 210px; flex: 1; min-height: 0; }
