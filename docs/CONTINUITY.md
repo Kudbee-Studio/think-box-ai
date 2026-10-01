@@ -3598,3 +3598,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **Not done:** GitHub Actions bumps (`gh` token lacks the `workflow` scope; the two-line diff is in the upgrade doc); `@types/node` 26 (floor is Node 22.6); declaring `httpx2` (adds a dependency; founder decision).
 - **Live:** real browser, real server and a real Mercury-2 run on Express 5.2.1 at 1440 and 390 px (screenshots in `docs/screenshots/deps-upgrade/`).
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED for web and the targeted Python subset; LIVE VERIFIED for the web server only; PRODUCTION READY: NO. Details: `docs/dependencies/UPGRADE-2026-10-01.md`.
+
+### 2026-10-01 — SAVE POINT: ADR 029 (Think Token intelligence object) and research findings (docs only)
+
+- **Added:** `docs/decisions/029-think-token-intelligence-object.md` (Status: Proposed) and `docs/research/2026-10-01-think-box-findings.md`. The prompt named `docs/adr/`; the repo keeps ADRs in `docs/decisions/` (026–028), so 029 follows that.
+- **What they record:** the founder vision (labelled VISION), the cube reducer as built (100 cells, 10 roles of 10, `face = i % 6`), the lifecycle target versus the three statuses the store has today, permanent `TT-000001` IDs with a migration from `tt_<hash>`, Disruption Token and link-table designs (CONCEPT), Energy Core metrics tied to real sources, layer separation, CLI/dashboard parity, guardrails, 13 known gaps, and phases P1–P5 each with acceptance tests and EVIDENCE requirements.
+- **Checked against code, not assumed:** the token store (2 candidate rows, 2 ledger rows, `think_token_uses` empty, score 0.525 reproduces from the formula), run ab5e5299 (called `list_files`, `recall`, `fetch_url` ×2, `write_file`; the earlier "wrongly cites fetch_url" note was wrong, the defect is template lessons), MCP (10 registry tests, no execution bridge; the "133/133" figure not reproduced), no Redis dependency, vector memory reports "local-bm25 (vector offline)".
+- **Not examined:** think-box-ai-v2, FRONTIERNeXt, any live Upstash Box/Vector, the full Python suite.
+- **Open founder decision recorded in the ADR:** six system-part faces / 54 squares versus the built 100-cell / 10-role cube.
+- **FOUR-STATE:** documentation only. No capability is claimed. PRODUCTION READY: NO.
+
