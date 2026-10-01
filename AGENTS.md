@@ -102,6 +102,16 @@ hash-chained ledger. A human accepts or retires a token in the dashboard's **ðŸ§
 top 3 accepted tokens matching the goal, cited as `[tt:ID]`, and logs which were used. A token is advisory text: it has no field
 that can grant a permission, a tool or an approval.
 
+**Dashboard terminal (premium terminal).** The dashboard's agent output is a virtualized terminal
+(`apps/web/public/js/terminal-core.js` pure logic, `terminal-view.js` view, `css/terminal.css`). Lines come only from real
+WebSocket events (thoughts, approvals, memory, Think Token results, streamed model tokens) and the dashboard's own command
+output; nothing is scripted. Prefixes: `[runtime] [tool] [policy] [gate] [ledger] [memory] [model]`; the side "System activity"
+panel highlights Dashboard, Agent runtime, Tools & plugins, Local models, Memory, Security gate or Think Tokens per line.
+Output is rendered with text nodes only (no HTML-string sinks). Follow mode pauses when you scroll up (floating "Jump to
+latest"); `End` jumps to latest, `/` opens search (Enter / Shift+Enter step through matches), `Esc` closes it; each tool call
+and approval is a collapsible step; copy-line and copy-all; the buffer cap (1k to 50k lines) is stored in `localStorage`.
+`prefers-reduced-motion` disables the cursor blink and smooth scrolling.
+
 **Confidence Scoring:**
 
 Tokens start at 0.5 confidence. Each reuse updates the score:
