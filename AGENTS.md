@@ -236,6 +236,13 @@ python3 -m pytest tests/                # All tests
 | Public API docstrings | In-code | Yes |
 | Setup guide | `docs/guides/setup.md` | Phase 1 |
 | Tool authoring guide | `docs/guides/tools.md` | Phase 1 |
+| Documentation index | `docs/INDEX.md` (generated) | Yes |
+
+**Where Markdown lives.** Every `.md` file goes in a folder, normally under `docs/`. Only `README.md`, `CLAUDE.md`,
+`AGENTS.md` and `STATUS.md` sit at the repository root (tools and these rules load them by path). Whenever you add, move,
+rename or delete a `.md` file, run `python3 scripts/generate_docs_index.py`; `tests/unit/test_docs_index.py` fails if the
+index is missing a file or a new `.md` file lands at the root. Files that used to be at the root are listed in
+`docs/INDEX.md` under "Moved files"; older chronicle entries below may still name the old location.
 
 ### 4.2 Decision Records
 
