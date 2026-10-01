@@ -1,0 +1,13 @@
+.tt-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.tt-toolbar input { flex: 1 1 200px; }
+.tt-list { display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow: auto; }
+.tt-card { border: 1px solid var(--border-light); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.tt-card.tt-retired { opacity: 0.6; }
+.tt-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tt-title { flex: 1 1 200px; word-break: break-word; }
+.tt-kind, .tt-status, .tt-score { font-family: var(--font-mono); font-size: var(--font-size-xs); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border-light); }
+.tt-status.accepted { color: #4ade80; }
+.tt-status.retired { color: #f87171; }
+.tt-content { color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; }
+.tt-meta, .tt-used, .tt-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: var(--font-size-xs); color: var(--text-muted); }
+.tt-btn { padding: 4px 10px; }

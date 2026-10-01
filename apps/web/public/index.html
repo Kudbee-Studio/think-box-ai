@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/think-token-dashboard.css">
   <link rel="stylesheet" href="/css/think-cube.css">
   <link rel="stylesheet" href="/css/git-integration.css">
+  <link rel="stylesheet" href="/css/think-tokens.css">
   <link rel="stylesheet" href="/css/polish.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/enterprise.js"></script>
@@ -54,6 +55,7 @@
         <button id="copy-session" class="btn-icon" title="Copy session ID">⧉</button>
         <button id="command-help" class="btn-icon" title="Show commands">?</button>
         <button id="think-token-button" class="btn-secondary" title="View Think Tokens & Learning">🎫 Learning</button>
+        <button id="think-tokens-open" class="btn-secondary" title="Review saved Think Tokens (ADR 028)">🧩 Tokens</button>
         <div class="status-indicator">
           <span id="status-dot" class="status-dot idle"></span>
           <span id="status-text">Idle</span>
@@ -386,6 +388,29 @@
     </section>
   </div>
 
+  <div id="think-tokens-modal" class="modal-backdrop" hidden>
+    <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="think-tokens-title">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">ADR 028 · LEARNING UNITS</span>
+          <h2 id="think-tokens-title">Think Tokens</h2>
+        </div>
+        <button id="think-tokens-close" class="btn-icon" title="Close">×</button>
+      </div>
+      <div class="tt-toolbar">
+        <input id="think-tokens-search" type="search" maxlength="100" placeholder="Search tokens" aria-label="Search Think Tokens">
+        <select id="think-tokens-status" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="candidate">Candidate</option>
+          <option value="accepted">Accepted</option>
+          <option value="retired">Retired</option>
+        </select>
+      </div>
+      <div id="think-tokens-meta" class="memory-meta"></div>
+      <div id="think-tokens-list" class="tt-list" aria-live="polite"></div>
+    </section>
+  </div>
+
   <div id="workflow-modal" class="modal-backdrop" hidden>
     <section class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="workflow-modal-title">
       <div class="modal-header">
@@ -448,6 +473,7 @@
 <script src="/js/integration-connectors.js"></script>
 <script src="/js/collaboration-dashboard.js"></script>
 <script src="/js/think-token-dashboard.js"></script>
+<script src="/js/think-tokens-panel.js"></script>
 <script src="/js/git-integration.js"></script>
 <script src="/js/app.js"></script>
 </body>
