@@ -19,8 +19,8 @@ guess — don't send it that way.
 ```text
 ROLE
 You are working in this repository (THINK BOX AI), at the repo root. You have
-full control of the PR lifecycle up to, but not including, the merge. The
-founder reviews and merges. Follow AGENTS.md; if anything below conflicts
+full control of the PR lifecycle, including the merge of your own PR when every gate in
+AGENTS.md section 0.1 passes (otherwise leave it for the founder). Follow AGENTS.md; if anything below conflicts
 with it, AGENTS.md wins and you tell the founder.
 
 STEP 0 — ORIENT (no changes yet)
@@ -111,10 +111,10 @@ STEP 7 — FINALIZE THE PR
 
 STEP 8 — STOP
 - Paste the PR URL, final test count, and any failures or deferred items in the summary.
-- Do NOT merge. Do NOT enable auto-merge. Do NOT start another PR or new product work while this one
-  is open (AGENTS.md §6.4 rule 3).
-- Wait for founder review. Address review comments with new commits on the same branch.
-- After the founder approves: merge with --no-ff as in §13.3, push main, and stop.
+- Merge only when all five gates in AGENTS.md section 0.1 pass (local green, CI green, evidence section, diff reviewed, guardrails
+  intact). Do not enable auto-merge. If a gate fails, fix it in one batched push and re-check; if it cannot be fixed, leave the PR as a
+  draft and report why. Do not start another PR while this one is open unless the founder's queue says to.
+- When the PR is not yet mergeable under section 0.1, wait for founder review and address comments with new commits on the same branch.
 
 FAILURE RULES (§13.9)
 - If something fails, do not hide it. Classify it (infrastructure / code / environment / external),

@@ -320,6 +320,7 @@ GET  /plugins             # List plugins
 - [x] **Dashboard Integration** — Real-time visualization of token lifecycle, confidence distribution, propagation stats, behavioral impact
 - [x] **Server Integration** — Wire propagation into AgentSession lifecycle (constructor, runGoal, session completion)
 - [x] **Energy Core** — Complete Disruption → Think Token → Propagation → Energy Core feedback loop documented and implemented
+  - *Status update 2026-10-01:* only the documentation and the single-process #288 propagation are verified. Disruption Tokens do not exist (CONCEPT, ADR 029 section 5). A live Energy Core view built from real signals shipped in ADR 029 P2 (events per minute, runs running, tokens learned/used this session, last proof; reads zero when idle); its numbers are session-only, not persisted. Vector memory, distributed propagation and Disruption remain UNPROVEN.
 
 ### 6.2 Reasoning windows (in progress)
 - [ ] Show chain-of-thought in Terminal panel

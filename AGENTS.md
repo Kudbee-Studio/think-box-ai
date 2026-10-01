@@ -6,6 +6,73 @@ defined in `docs/architecture-v1.md`.
 
 ---
 
+## 0. Operating rules (founder-granted 2026-10-01)
+
+These supersede older "do not merge" and "founder reviews" lines elsewhere in this file (those lines are dated history).
+
+### 0.1 Standing merge authority
+
+You may squash-merge your own PRs into `main` without waiting for the founder when ALL of these gates pass:
+
+1. All tests, lint and typecheck are green locally before the single push.
+2. CI is green on that push (no re-runs, no empty retrigger commits). A CodeQL "new alert" on the PR counts as red.
+3. The PR body has an EVIDENCE section with a four-state table, and UNPROVEN items are listed honestly.
+4. You reviewed the diff yourself: no secrets, no `.db` / `.neon` files, no out-of-scope changes.
+5. The guardrails in 0.4 are intact.
+
+If a gate fails, fix it in ONE batched push, re-check, then merge. If it cannot be fixed, leave the PR as a draft and report why.
+After a merge, pull `main` and start the next queued prompt. Scope: your own PRs only. It does not cover other people's PRs,
+credential or token-scope changes, or contact with live infrastructure.
+**Exception:** changes to `.github/workflows/` need a token with the `workflow` scope; only the founder can grant it
+(`gh auth refresh -s workflow`). Do not push workflow changes without it.
+
+### 0.2 CI cost rules (CI costs real money)
+
+- Run all tests, lint, typecheck and CodeQL locally first. CodeQL CLI: download `codeql-linux64.zip` from
+  `github/codeql-cli-binaries`, `codeql pack download codeql/javascript-queries`, then
+  `codeql database create --language=javascript-typescript --source-root=apps/web` and
+  `codeql database analyze ... codeql/javascript-queries:codeql-suites/javascript-code-scanning.qls`. Compare the result with the open
+  alerts on `main` (`gh api repos/<owner>/<repo>/code-scanning/alerts?ref=refs/heads/main`); a finding that already exists on `main`
+  is not new, but editing the alert's line can make it look new, so keep route-handler lines unchanged when you can.
+- Commit locally as often as you like, but push once, at the end. No WIP pushes, no fix-up push loops, no re-running CI, no empty commits.
+- Open the PR as a draft only after the final push. Batch every review fix into one push.
+- Bundle related work into one PR (stay in scope but max it out). Docs ride along with the code PR instead of getting their own CI run.
+
+### 0.3 Evidence rules
+
+- Every claim has proof: a test, a command with its real output, a screenshot, a database query, or a commit.
+- Report status with the four-state table (CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED / PRODUCTION READY). Never write a bare
+  "COMPLETE". Anything not proven is UNPROVEN. A status is the highest state with evidence and never implies the ones above it.
+- LIVE VERIFIED means a real run on the real server with the real model; mocks, seeds and timer-generated events do not count.
+- Each PR gets a red-team pass: try to break every claim and record the result.
+- A test is trusted only after a mutation shows it fails when the protected behavior is removed (see 13.12).
+- Do not claim a browser check you did not run. Look at the screenshots; numeric probes can miss what a picture shows.
+
+### 0.4 Guardrails
+
+- SQLite only (ADR 026): no Postgres, Neon or new runtime services. No Vercel.
+- The dashboard binds to 127.0.0.1 with Host/Origin gating unchanged.
+- No Algorand writes. HERMES's tools are `algorand` (read-only chain queries), `recall` and `remember`; `remember` writes memory behind the evidence gate.
+- THNK (the economic-token concept) is not a Think Token. A Think Token is advisory text and grants no permission, tool or approval.
+- Keys are never printed, logged, committed or put in events, rows or error text. Never commit `.db`, `.neon` or `.env` files.
+
+### 0.5 Models
+
+- Think Token extraction and challenge use Inception Mercury 2 with the key from `INCEPTION_API_KEY_2` (environment only), with one retry
+  per call inside a per-run call cap (`THINKBOX_TOKEN_MODEL_CALLS_PER_RUN`, default 10) and a per-day cap (`THINKBOX_TOKEN_MODEL_CALLS_PER_DAY`, default 200).
+- Local fallback: the already-installed Ollama model named by `THINKBOX_LOCAL_MODEL` (older name: `KUDBEE_LOCAL_MODEL`; default
+  `qwen2.5:1.5b`). The app never pulls models. Run `ollama list` and set the variable to a model you already have.
+- If no model answers, the deterministic template extractor is used, labeled `extractor: template`; such tokens stay `candidate` and are never auto-accepted.
+
+### 0.6 Think Tokens: where they live, and CLI/dashboard parity
+
+- The store is `apps/web/data/think-tokens.db` (override `KUDBEE_THINK_TOKEN_DB`), NOT `learning.db` (that is the older #288 `learned_patterns` store).
+- Every token has a permanent id `TT-000001`, `TT-000002`, ... allocated in the insert transaction and never reused. Pre-v2 `tt_<hash>` ids are kept as `legacy_id` and still resolve.
+- The dashboard's single **🧩 Think Tokens** view and `kudbee tokens list|show` read the same database through one module, `apps/web/think-token-reader.ts`.
+  Do not add a second query or formatter.
+
+---
+
 ## 1. Architecture Principles
 
 These are non-negotiable. Violating them requires a decision record.
@@ -92,15 +159,20 @@ Not all 500+ captured observations become tokens. Only high-value ones:
 
 Result: 500 captures → ~15 persistent Think Tokens per session.
 
-**Think Tokens as reviewable learning units (ADR 028).** Separate from the #288 pattern pipeline above, a finished successful
-agent run is turned by a deterministic extractor (`think-token-extract.ts`; optional `qwen2.5:1.5b` reword via
-`KUDBEE_LOCAL_MODEL`, used only if installed) into at most 3 *candidate* tokens (`lesson`, `fix`, `tool_pattern`) stored in
-SQLite (`think-token-store.ts`, `think-tokens.db`). Every write passes one admission gate (secret redaction, 600-char cap,
-content-hash dedupe, rejection of text that tries to change permissions or approvals) and returns a receipt from a local
-hash-chained ledger. A human accepts or retires a token in the dashboard's **🧩 Tokens** panel (WebSocket actions
-`think_tokens_list`, `think_token_action`; mutations use the normal approval modal). Before planning, `runAgentGoal` injects the
-top 3 accepted tokens matching the goal, cited as `[tt:ID]`, and logs which were used. A token is advisory text: it has no field
-that can grant a permission, a tool or an approval.
+**Think Tokens as reviewable learning units (ADR 028; lifecycle and ids per ADR 029 P1).** Separate from the #288 pattern pipeline above, a
+finished successful agent run goes through `think-token-pipeline.ts`: Mercury 2 (`INCEPTION_API_KEY_2`, else the local Ollama model, else the
+labeled template in `think-token-extract.ts`) writes up to 3 lessons from the run's real tool calls, results and files. A lesson that cites
+or mentions a tool or file the run never used, or uses template phrasing, is dropped. Each surviving lesson becomes a token with a permanent
+id (`TT-000001`) and moves `candidate -> extracted -> scored -> challenged -> accepted | rejected`; every step is an entry in a local
+hash-chained ledger that returns a receipt. The challenge (deterministic checks, then a second model call that also asks whether the
+lesson is new compared with saved lessons) accepts or rejects; template-written tokens and tokens that could not be challenged are never
+auto-accepted. The score (`0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback`) is stored with its components and weights. Stored in SQLite
+(`think-token-store.ts`, `apps/web/data/think-tokens.db`); every write passes one admission gate (secret redaction, 600-char cap, content-hash
+dedupe, rejection of text that tries to change permissions or approvals). A human can still accept or retire a token in the dashboard's
+**🧩 Think Tokens** view (WebSocket actions `think_tokens_list`, `think_token_action`; mutations use the normal approval modal), and the same
+tokens are readable with `kudbee tokens list|show`. Before planning, `runAgentGoal` injects the top 3 accepted tokens matching the goal,
+cited as `[tt:TT-000001]`, writes a `think_token_uses` row and emits `think_token_used`. A saved token emits `think_token_learned`, built
+only from the stored row; the cube pulses for both. A token is advisory text: it has no field that can grant a permission, a tool or an approval.
 
 **Dashboard terminal (premium terminal).** The dashboard's agent output is a virtualized terminal
 (`apps/web/public/js/terminal-core.js` pure logic, `terminal-view.js` view, `css/terminal.css`). Lines come only from real
@@ -409,7 +481,7 @@ commits.
 
 For every meaningful change: commit on a feature branch → open/update a GitHub PR → paste the PR URL in your summary.
 
-Do not stop at "committed to branch." Do not merge. Founder reviews on Graphite/GitHub.
+Do not stop at "committed to branch." Merge your own PR only under the standing authority and gates in section 0.1; otherwise leave it open for the founder (Graphite/GitHub).
 
 Batch only when founder says so; default = one PR per checkpoint.
 
@@ -1543,6 +1615,8 @@ how it was verified, and what is still open. Newest entry first.
 | Layered memory | `apps/web/memory.ts`, files in `apps/web/data/memory/{task,org,verified}/*.md` | Markdown is the source of truth; mirrored to Upstash Vector (sparse, namespace `kudbee-memory`) + in-process BM25 |
 | TS7 typecheck | `apps/web/bin/typecheck` | TypeScript 7.0.2 strict; works in WSL with a Windows-installed `node_modules` |
 | Algorand (read-only) | `apps/web/algorand.ts` | Public AlgoNode algod/indexer, testnet + mainnet; no SDK, no key, no wallet, cannot sign/send |
+| Think Tokens | `apps/web/think-token-store.ts`, `think-token-pipeline.ts`, `think-token-model.ts`, `think-token-reader.ts`, `local-model.ts` | Store + ledger + lifecycle (schema v2), extract/challenge pipeline, model callers, the one shared reader, local-model resolver |
+| Think Tokens view | `apps/web/public/js/think-token-dashboard.js`, `js/think-cube-render.js`, `css/think-token-dashboard.css` | One merged modal: live cube, Energy Core (real signals only), current run, saved tokens read from SQLite |
 | Tests | `apps/web/tests/*.test.ts` (`npm test`) | `node:test`, hermetic: mock Inception, mock Upstash, mock AlgoNode, real `server.ts` on a random port |
 
 **Worker agent tools:** `list_files`, `read_file`, `write_file` (workspace only),

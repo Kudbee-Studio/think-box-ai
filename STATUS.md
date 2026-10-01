@@ -1,3 +1,10 @@
+## CURRENT (2026-10-01) — ADR 029 P1 + P2: Think Token lifecycle, permanent ids, merged view (branch `feat/adr029-p1-token-lifecycle`)
+
+- **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED** (real Mercury 2 runs on the real server, real browser): permanent `TT-000001` ids (migrated 4 real legacy rows), lifecycle `candidate -> extracted -> scored -> challenged -> accepted | rejected` with a ledger entry per step, a model-written extractor built from the run's actual tool calls, a challenge step (deterministic checks, then a model that also says whether the lesson is new), a stored score breakdown, per-run and per-day model-call caps, `kudbee tokens list|show` and the dashboard reading one store through one module (identical JSON), `run_id` on plain-run goal messages, the real lesson on the card, reuse recorded in `think_token_uses`, and one merged **🧩 Think Tokens** view with an Energy Core built only from real signals and cube pulses for real `think_token_learned/used` events.
+- **Tests:** web suite 348/348 (297 baseline), typecheck 0 errors, `npm audit` 0, local CodeQL 35 = 35 open on `main`, 0 new. Evidence: `docs/evidence/adr-029-p1.md`.
+- **UNPROVEN:** the local Ollama fallback (Ollama was not reachable); whether the challenge can reject a poor lesson (it passed 12 of 12 live); learning quality; reduced-motion in a browser; the six-face / 54-square mapping and heat-map mode are not built; tokens stuck at `scored` are not re-challenged. **NOT PRODUCTION READY.**
+- **Process:** the agent now merges its own PRs under `AGENTS.md` section 0.1 (five gates); CI cost rules in 0.2.
+
 ## CURRENT (2026-09-30) — Specialist execution adapter (branch `docs/enterprise-agent-os-plan`)
 
 - **CODE COMPLETE:** Director selection now allocates contract-backed jobs to unique `AgentSession` IDs and confined workspaces. Contract handoffs form dependency waves; independent ready specialists use the existing `runToolAgent` loop concurrently. Each run is recorded by the existing `RunStore` with job/specialist/box identity.

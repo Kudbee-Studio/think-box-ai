@@ -65,7 +65,7 @@ Create PR targeting `main`. Title matches commit message. Description includes:
 
 ## Step 6 — Wait for Review
 
-Do NOT merge without founder review. Do NOT create a second PR until the first is reviewed.
+Merge only under the standing authority and gates in AGENTS.md section 0.1; otherwise leave the PR for the founder. Do NOT create a second PR until the first is merged or reported as blocked.
 
 ## Step 7 — Merge
 
@@ -78,7 +78,7 @@ git push origin main
 
 # Rules
 
-- ONE PR AT A TIME. Do not merge. Stop after PR is open.
+- ONE PR AT A TIME. Merge only under AGENTS.md section 0.1 (all five gates); otherwise stop after the PR is open.
 - Never touch open draft PRs unless explicitly told.
 - Never reopen dead convoy branches (#28, #32).
 - No secrets in commits or PR descriptions.

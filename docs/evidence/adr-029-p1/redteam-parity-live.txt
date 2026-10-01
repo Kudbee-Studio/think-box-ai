@@ -1,0 +1,63 @@
+{
+  "before": {
+    "tokens": 17,
+    "ledger": 78,
+    "uses": 11
+  },
+  "after": {
+    "tokens": 17,
+    "ledger": 78,
+    "uses": 11
+  },
+  "unchanged": true,
+  "eventsBroadcastToOthers": 0,
+  "rows": [
+    {
+      "case": "forged learned event (client -> server)",
+      "reply": "error"
+    },
+    {
+      "case": "forged used event",
+      "reply": "error"
+    },
+    {
+      "case": "forged run_id (SQL injection shape)",
+      "reply": "think_token_error: invalid run_id"
+    },
+    {
+      "case": "oversized run_id (5000 chars)",
+      "reply": "think_token_error: invalid run_id"
+    },
+    {
+      "case": "oversized query (200000 chars)",
+      "reply": "think_token_error: query must be a string up to 100 chars"
+    },
+    {
+      "case": "malformed id TT-0",
+      "reply": "think_token_error: invalid token id"
+    },
+    {
+      "case": "malformed id with SQL",
+      "reply": "think_token_error: invalid token id"
+    },
+    {
+      "case": "extra key (permission grant attempt)",
+      "reply": "think_token_error: unexpected field(s): permissions"
+    },
+    {
+      "case": "status outside the lifecycle",
+      "reply": "think_token_error: invalid status"
+    },
+    {
+      "case": "not JSON",
+      "reply": "error"
+    },
+    {
+      "case": "well-formed run_id that does not exist",
+      "reply": "think_tokens with 0 tokens"
+    }
+  ]
+}
+PARITY identical JSON (CLI show --json vs WebSocket think_tokens for the run): true
+PARITY_CLI={"id":"TT-000005","title":"Create‑then‑verify file workflow","content":"Use write_file to generate the target file and immediately follow with list_files to confirm its presence and size. This two‑step pattern catches write failures early and works for any file creation task. Reuse when you need a quick existence check; avoid if the file is large and listing is costly.","status":"accepted","score":0.7757,"run":"0523c147-0d39-48f6-aece-86cafdea08c9","receipt":"ttr_3aa4fc64b9c98754","challenge":"pass by mercury-2"}
+PARITY_API={"id":"TT-000005","title":"Create‑then‑verify file workflow","content":"Use write_file to generate the target file and immediately follow with list_files to confirm its presence and size. This two‑step pattern catches write failures early and works for any file creation task. Reuse when you need a quick existence check; avoid if the file is large and listing is costly.","status":"accepted","score":0.7757,"run":"0523c147-0d39-48f6-aece-86cafdea08c9","receipt":"ttr_3aa4fc64b9c98754","challenge":"pass by mercury-2"}
