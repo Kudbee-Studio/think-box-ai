@@ -59,10 +59,13 @@
 .tw-empty { position: absolute; inset: 0; padding: 14px 16px; pointer-events: none; color: var(--tw-dim); overflow: auto; }
 .tw-empty[hidden] { display: none; }
 .tw-empty .quick-actions, .tw-empty button { pointer-events: auto; }
+.tw-empty .welcome-shortcuts { margin-top: 16px; font-size: 11px; }
+.tw-empty kbd { background: rgba(167, 139, 250, 0.1); border: 1px solid var(--tw-purple); border-radius: 3px; padding: 1px 4px; font-family: inherit; color: var(--tw-purple); }
 .tw-empty .welcome-line { color: var(--tw-dim); }
 .tw-jump { position: absolute; right: 16px; bottom: 14px; background: var(--tw-purple); color: #14101f; border: 0; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); }
 .tw-jump[hidden] { display: none; }
-.tw-toast { position: absolute; left: 14px; bottom: 12px; font-size: 12px; color: var(--tw-cyan); pointer-events: none; }
+.tw-toast { position: absolute; left: 14px; bottom: 12px; font-size: 12px; color: var(--tw-cyan); pointer-events: none; opacity: 0; transition: opacity 0.2s ease; }
+.tw-toast:not(:empty) { opacity: 1; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .tw-activity { background: var(--tw-bg2); border-left: 1px solid var(--tw-line); padding: 10px 10px; overflow-y: auto; }
