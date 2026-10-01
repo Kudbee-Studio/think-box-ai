@@ -105,6 +105,10 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
+> Tests that use Starlette's `TestClient` need the `httpx2` package, which is not declared in
+> `pyproject.toml` yet (see `docs/dependencies/UPGRADE-2026-10-01.md`). Until it is, install it
+> yourself for those tests: `pip install httpx2`.
+
 ### Operator verification (hermetic)
 
 ```bash
@@ -226,7 +230,9 @@ Do not treat README test counts as authoritative if they drift from [CONTINUITY]
 cd apps/web
 npm install
 npm run typecheck      # tsgo --noEmit
-npm start              # Node 22+ with type stripping
+npm test               # hermetic, mocked model
+npm audit              # expected: 0 vulnerabilities
+npm start              # Node 22.6+ with type stripping (Express 5)
 ```
 
 SDK exports: [`apps/web/sdk/index.ts`](apps/web/sdk/index.ts) (base client, follow-up, follow-up W2).

@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (225 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (226 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -34,7 +34,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Start here (repository root)](#start-here-repository-root) (4)
 - [Decisions (ADRs)](#decisions-adrs) (34)
 - [Enterprise Agent OS plan](#enterprise-agent-os-plan) (5)
-- [Guides](#guides) (62)
+- [Guides](#guides) (63)
 - [Runbooks](#runbooks) (4)
 - [Roadmaps, status and continuity](#roadmaps-status-and-continuity) (7)
 - [Security and incidents](#security-and-incidents) (5)
@@ -110,6 +110,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 
 | File | Title | About |
 |---|---|---|
+| [docs/guides/agent-pr-instructions.md](guides/agent-pr-instructions.md) | Agent PR Instructions — copy/paste task-kickoff template | Purpose: a ready-to-fill prompt for starting a scoped PR. It assembles the |
 | [docs/guides/agent_os.md](guides/agent_os.md) | kudbEE Agent OS | The interactive web runtime lives in apps/web and serves the Agent OS at |
 | [docs/guides/auditable-governance-layer.md](guides/auditable-governance-layer.md) | Auditable Governance Layer for Autonomous Decisions | An accountability infrastructure for recorded governance signals, not an alignment solution. |
 | [docs/guides/autonomous-swarm-integration.md](guides/autonomous-swarm-integration.md) | Autonomous Swarm Integration — Production Workflows | Bind autonomous workflow loops to the enterprise swarm pool for concurrent execution with production-grade... |

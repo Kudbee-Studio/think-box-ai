@@ -173,6 +173,12 @@ result in `benchmarks/`.
 - Every external dependency must have a documented trigger (see
   `docs/project-foundation.md` §4).
 - No "maybe we'll need it" imports.
+- Declared dependencies must be imported somewhere; remove unused ones (`uuid` was removed 2026-10-01 for this reason).
+- Keep `backend/requirements.txt` and the `dependencies` in `pyproject.toml` in sync. Their floors must audit clean
+  (`pip-audit`) and be versions the tests were actually run against; `apps/web` must stay at `npm audit` 0.
+- Python floors must not outrun `requires-python` (currently >= 3.10); web dependencies must not outrun the supported
+  Node floor (>= 22.6), which is why `@types/node` stays on 22.
+- Upgrade evidence, skipped majors and follow-ups: `docs/dependencies/UPGRADE-2026-10-01.md`.
 
 ### 2.3 Style
 
@@ -1528,7 +1534,7 @@ how it was verified, and what is still open. Newest entry first.
 
 | Piece | File | Notes |
 |-------|------|-------|
-| Server (Express + WS, port 3000) | `apps/web/server.ts` | Loads repo-root `.env` server-side via `process.loadEnvFile`; secrets never reach the browser |
+| Server (Express 5 + WS, port 3000) | `apps/web/server.ts` | Loads repo-root `.env` server-side via `process.loadEnvFile`; secrets never reach the browser |
 | Worker agent (tool loop) | `apps/web/agent.ts` | Inception `mercury-2` via OpenAI-compatible `/v1/chat/completions` with tools |
 | Run history + stats | `apps/web/runs.ts` | `apps/web/data/runs.json` (override dir with `KUDBEE_DATA_DIR`), atomic write, max 500 runs |
 | Dashboard | `apps/web/public/index.html`, `js/app.js`, `js/enterprise.js`, `css/main-pro.css` | `enterprise.js` must load before `app.js` and owns the global `Enterprise` |
