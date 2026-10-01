@@ -16,8 +16,14 @@ class MetricsDashboard {
   }
 
   initialize() {
+    // Passive only. app.js's refreshStats() is the authoritative renderer for #metric-runs,
+    // #metric-suc, #metric-lat and #metric-cost, from the real /api/stats endpoint. This class
+    // used to also run a 5-second setInterval of simulateMetricsUpdate(), which generated
+    // Math.random() "runs", latency, cost and tokens and wrote them over those same elements,
+    // so the panel showed fabricated numbers that drifted away from the real ones. That
+    // generator is removed; nothing here writes to the DOM unless a real 'metrics:updated'
+    // event is dispatched (none is today — app.js renders directly).
     this.setupMetricsListener();
-    this.startLiveUpdates();
   }
 
   setupMetricsListener() {
@@ -81,35 +87,6 @@ class MetricsDashboard {
     return tokens.toString();
   }
 
-  startLiveUpdates() {
-    this.updateInterval = setInterval(() => {
-      this.simulateMetricsUpdate();
-    }, 5000); // Update every 5 seconds
-  }
-
-  simulateMetricsUpdate() {
-    // In production, this would come from the WebSocket
-    const now = new Date();
-    const hour = now.getHours();
-
-    // Simulate realistic metrics
-    const baseRuns = Math.floor(Math.random() * 3) + (hour % 8 === 0 ? 0 : 1);
-    this.runsToday += baseRuns;
-    this.successRate = 0.85 + Math.random() * 0.15;
-    this.avgLatency = Math.floor(45 + Math.random() * 55);
-    this.p95Latency = this.avgLatency + Math.floor(Math.random() * 100);
-    this.costToday += Math.random() * 0.05;
-    this.tokensSaved += Math.floor(Math.random() * 5000);
-
-    this.renderMetrics();
-  }
-
-  stopUpdates() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-  }
 }
 
 // Initialize when DOM is ready

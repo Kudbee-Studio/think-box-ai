@@ -1523,6 +1523,12 @@ async function refreshMemory() {
           <small>${item.score !== undefined ? `score ${Number(item.score).toFixed(2)} · ` : ''}${escapeHtml(item.content)}</small>
         </button>`).join('')
       : `<div class="empty-state">${state.memoryQuery ? `No matches (${escapeHtml(backend)})` : 'No memories yet — finished runs are saved here automatically'}</div>`;
+    // Real bridge for memory-graph.js: it already listens for this event but nothing ever
+    // dispatched it, so the graph only ever showed whatever .memory-item elements existed at
+    // page load and never updated again. Real ids/layers/tags, not synthesized ones.
+    window.dispatchEvent(new CustomEvent('memory:updated', {
+      detail: { memories: items.map((item) => ({ id: item.id, title: item.title, layer: item.layer, tags: item.tags || [] })) },
+    }));
   } catch (error) {
     document.getElementById('memory-backend').textContent = 'Offline';
   }
