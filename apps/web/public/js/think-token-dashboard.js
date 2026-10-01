@@ -246,6 +246,11 @@ class ThinkTokenDashboard {
       }
     });
 
+    modal.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('[data-token-details]');
+      if (btn) this.showTokenDetails(btn.dataset.tokenDetails);
+    });
+
     // Tab switching
     modal.querySelectorAll('.tab-button').forEach(btn => {
       btn.addEventListener('click', () => this.switchTab(btn.dataset.tab, modal));
@@ -289,7 +294,7 @@ class ThinkTokenDashboard {
   }
 
   renderTokenCard(token) {
-    const safeId = this.escapeHtml(token.id);
+    const safeId = this.escapeAttr(token.id);
     const safeContent = this.escapeHtml(token.content.substring(0, 100));
     return `
       <div class="token-card" data-token-id="${safeId}">
@@ -303,7 +308,7 @@ class ThinkTokenDashboard {
           <span class="token-usage">${token.usageCount} uses</span>
           <span class="token-success">${token.successCount}✓ ${token.failureCount}✗</span>
         </div>
-        <button class="token-expand btn-quiet" onclick="thinkTokenDashboard.showTokenDetails('${safeId}')">Details</button>
+        <button class="token-expand btn-quiet" data-token-details="${safeId}">Details</button>
       </div>
     `;
   }
@@ -415,6 +420,10 @@ class ThinkTokenDashboard {
     if (hours > 0) return `${hours}h ago`;
     if (minutes > 0) return `${minutes}m ago`;
     return 'just now';
+  }
+
+  escapeAttr(text) {
+    return this.escapeHtml(String(text ?? '')).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   escapeHtml(text) {

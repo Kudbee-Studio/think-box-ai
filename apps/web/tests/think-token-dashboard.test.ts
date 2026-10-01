@@ -102,37 +102,23 @@ describe('Think Token Dashboard — Controls and Interactions', () => {
     assert.ok(dashboardSource.includes('e.target === modal') && dashboardSource.includes('modal.remove()'), 'outside click closes');
   });
 
-  it('token.id is escaped before use in HTML attributes', () => {
-    assert.ok(dashboardSource.includes('escapeHtml(token.id)'), 'id is escaped');
+  it('token ids never reach inline JavaScript; Details uses delegation', () => {
+    assert.ok(!/onclick="[^"]*\$\{/.test(dashboardSource), 'no interpolation inside onclick');
+    assert.ok(dashboardSource.includes('data-token-details'), 'delegated details button');
+    assert.ok(dashboardSource.includes('escapeAttr(token.id)'), 'id is attribute-escaped');
   });
 });
 
-describe('Think Token Dashboard — Responsive Layout', () => {
-  it('uses CSS grid layout that reflows at media query breakpoints', () => {
-    // Behavior: dashboard-layout uses grid-template-columns: 1fr 1fr at desktop
-    // switches to 1fr at 1024px, and single column on mobile
-    assert.ok(true); // Verified in CSS: three media queries (1024px, 768px, 480px)
+describe('Think Token Dashboard — Responsive Layout (static CSS checks; not a browser run)', () => {
+  const css = readFileSync(join(__dirname, '../public/css/think-token-dashboard.css'), 'utf8');
+
+  it('declares breakpoints at 1024px, 768px and 480px', () => {
+    for (const bp of ['1024px', '768px', '480px']) assert.ok(css.includes(`max-width: ${bp}`), bp);
   });
 
-  it('cube controls are readable and clickable on 390px width', () => {
-    // Behavior: buttons have min font-size 0.65rem at 480px, padding scales down
-    assert.ok(true); // Verified in CSS: mobile styles reduce padding and font
-  });
-
-  it('token cards do not overflow horizontally at any width', () => {
-    // Behavior: token-list uses flex-direction column (no horizontal scroll)
-    assert.ok(true); // Verified in CSS: no horizontal layout in token-list
-  });
-
-  it('analytics grid adapts to available width', () => {
-    // Behavior: grid-template-columns uses repeat(auto-fit, minmax(250px, 1fr))
-    // falls back to 1fr at mobile
-    assert.ok(true); // Verified in CSS: responsive grid + @media override
-  });
-
-  it('tabs are always clickable without horizontal scroll', () => {
-    // Behavior: tabs use flex and wrap if needed; no overflow-x
-    assert.ok(true); // Verified in CSS: flex with no horizontal scroll
+  it('collapses the two-column layout to one column at 1024px', () => {
+    const block = css.slice(css.indexOf('max-width: 1024px'));
+    assert.ok(/\.dashboard-layout\s*\{[^}]*grid-template-columns:\s*1fr;/.test(block));
   });
 });
 
