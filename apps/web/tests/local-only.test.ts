@@ -21,7 +21,7 @@ const recordedHits = (): Array<{ url: string; body: any }> => hits;
 
 function env(extra: Record<string, string>): NodeJS.ProcessEnv {
   return {
-    ...process.env, INCEPTION_API_KEY: 'test', OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD, UPSTASH_VECTOR_REST_URL: DEAD,
+    ...process.env, INCEPTION_API_KEY: 'test', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD, UPSTASH_VECTOR_REST_URL: DEAD,
     UPSTASH_VECTOR_REST_TOKEN: 'none', KUDBEE_DAILY_BUDGET_USD: '0', KUDBEE_DATA_DIR: path.join(tmp, 'd'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'w'),
     THINKBOX_BACKEND_URL: `http://127.0.0.1:${(backend.address() as AddressInfo).port}`, THINKBOX_API_KEY: 'server-side-key', ...extra,
   };

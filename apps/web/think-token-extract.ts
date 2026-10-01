@@ -1,7 +1,10 @@
-// kudbEE Think Token extractor (ADR 028). Deterministic: the same finished run always yields the same
-// drafts. Only a successful run mints tokens (a failed or stopped run teaches nothing reliable), at most
-// MAX_PER_RUN per run, and drafts hold run metadata (tool names, error summaries) rather than transcripts.
-// Every draft is only a proposal; SqliteTokenStore.write() is the admission gate that redacts, caps and records it.
+// kudbEE Think Token TEMPLATE extractor (ADR 028; ADR 029 P1 demotes it to a last-resort fallback). Deterministic:
+// the same finished run always yields the same drafts. It is used only when no model (Mercury 2 or the local Ollama
+// model) is reachable, and every draft it produces is marked extractor "template": such a token stays `candidate`
+// and is never auto-accepted. The real extractor is think-token-pipeline.ts.
+// Only a successful run mints tokens (a failed or stopped run teaches nothing reliable), at most MAX_PER_RUN per run,
+// and drafts hold run metadata (tool names, error summaries) rather than transcripts. Every draft is only a proposal;
+// SqliteTokenStore.write() is the admission gate that redacts, caps and records it.
 import type { AgentEvent } from './agent.ts';
 import { LIMITS, keywords, redact, type TokenDraft } from './think-token-store.ts';
 
@@ -13,6 +16,10 @@ export interface FinishedRun {
   goal: string;
   success: boolean;
   steps: AgentEvent[];
+  /** Files the run wrote (workspace-relative paths). */
+  files?: string[];
+  /** The run's final answer, if any. */
+  result?: string;
 }
 
 function clip(text: string, max: number): string {
@@ -45,6 +52,7 @@ export function extractDrafts(run: FinishedRun): TokenDraft[] {
       content: `${failed.name} failed with "${clip(failed.error, 160)}"; a retry succeeded after changing its arguments (${Object.keys(recovered.args).slice(0, 6).join(', ') || 'none'}).`,
       tags: [failed.name, 'fix', ...tags],
       evidence_ref: evidence,
+      extractor: 'template',
     });
   }
 
@@ -59,6 +67,7 @@ export function extractDrafts(run: FinishedRun): TokenDraft[] {
       content: `For goals like "${goal}", this tool sequence worked: ${dedup.slice(0, 8).join(' → ')}.`,
       tags: [...dedup.slice(0, 3), 'tool_pattern', ...tags],
       evidence_ref: evidence,
+      extractor: 'template',
     });
   }
 
@@ -72,28 +81,8 @@ export function extractDrafts(run: FinishedRun): TokenDraft[] {
       content: `Goals like "${goal}" were answered successfully using observed evidence from ${grounded.join(', ')}.`,
       tags: [...grounded, 'lesson', ...tags],
       evidence_ref: evidence,
+      extractor: 'template',
     });
   }
   return drafts.slice(0, MAX_PER_RUN);
-}
-
-/** Optional cheap local-model pass. It may only reword title/content; everything else (kind, tags, evidence) is kept, and the store gate re-checks the result. */
-export type Refiner = (draft: TokenDraft) => Promise<{ title: string; content: string } | null>;
-
-export async function refineDrafts(drafts: TokenDraft[], refine?: Refiner): Promise<TokenDraft[]> {
-  if (!refine) return drafts;
-  const out: TokenDraft[] = [];
-  for (const draft of drafts) {
-    try {
-      const better = await refine(draft);
-      if (better && typeof better.title === 'string' && typeof better.content === 'string' && better.title.trim() && better.content.trim()) {
-        out.push({ ...draft, title: better.title.slice(0, LIMITS.title), content: better.content.slice(0, LIMITS.content) });
-        continue;
-      }
-    } catch {
-      // A local model that is down or misbehaving falls back to the deterministic draft.
-    }
-    out.push(draft);
-  }
-  return out;
 }

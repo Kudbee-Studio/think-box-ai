@@ -26,7 +26,7 @@ async function start(extra: Record<string, string> = {}): Promise<Server> {
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,
     env: {
-      ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test', OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD,
+      ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD,
       UPSTASH_VECTOR_REST_URL: DEAD, UPSTASH_VECTOR_REST_TOKEN: 'none', KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(dir, 'd'), KUDBEE_WORKSPACE_DIR: workspaces, THINKBOX_BACKEND_URL: DEAD,
       DASHBOARD_ENABLE_SHELL_EXEC: '', DASHBOARD_ALLOW_NO_ORIGIN: '', ...extra,

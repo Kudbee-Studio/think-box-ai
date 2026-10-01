@@ -41,7 +41,7 @@ before(async () => {
     env: {
       ...process.env,
       PORT: String(port),
-      INCEPTION_API_KEY: 'test-key',
+      INCEPTION_API_KEY: 'test-key', INCEPTION_API_KEY_2: '',
       INCEPTION_BASE_URL: mock.baseUrl,
       OLLAMA_BASE_URL: DEAD,
       JANUS_BASE_URL: DEAD,
