@@ -63,6 +63,8 @@ function connectWebSocket() {
 }
 
 function handleMessage(msg) {
+  // Real server events (thoughts, approvals, memory, Think Tokens) become terminal lines; other message types are shown by their handlers below.
+  window.KudbeeTerminal?.ingest(msg, { provider: state.config?.provider });
   switch (msg.type) {
     case 'init':
       state.sessionId = msg.data.sessionId;
@@ -176,6 +178,7 @@ function handleMessage(msg) {
     case 'result': {
       const r = msg.data || {};
       document.querySelector('.terminal-stream')?.classList.remove('terminal-stream');
+      window.KudbeeTerminal?.endStream();
       const stats = r.steps !== undefined
         ? `\n— ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${formatUsd(r.cost_usd)} · ${((r.duration_ms || 0) / 1000).toFixed(1)}s`
         : '';
@@ -226,6 +229,7 @@ function handleMessage(msg) {
 
 // ─── Terminal ──────────────────────────────────────────────────
 function appendTerminalMessage(role, content) {
+  if (window.KudbeeTerminal) return window.KudbeeTerminal.local(role, content);
   const terminal = document.getElementById('terminal');
   const welcome = terminal.querySelector('.terminal-welcome');
   if (welcome) welcome.remove();
@@ -248,6 +252,7 @@ function appendTerminalMessage(role, content) {
 }
 
 function appendTerminalStream(token) {
+  if (window.KudbeeTerminal) return window.KudbeeTerminal.stream(token);
   const terminal = document.getElementById('terminal');
   let streamEl = terminal.querySelector('.terminal-stream');
   if (!streamEl) {
@@ -264,6 +269,7 @@ function appendTerminalStream(token) {
 }
 
 function appendTerminalImage(role, content, imageUrl, alt) {
+  if (window.KudbeeTerminal) return window.KudbeeTerminal.local(role, `${content}\n[image] ${alt}: ${imageUrl}`);
   const terminal = document.getElementById('terminal');
   const welcome = terminal.querySelector('.terminal-welcome');
   if (welcome) welcome.remove();
@@ -338,6 +344,12 @@ async function generateImage() {
 }
 
 function clearTerminal() {
+  if (window.KudbeeTerminal) {
+    window.KudbeeTerminal.clear();
+    state.thoughts = [];
+    renderThoughts();
+    return;
+  }
   const terminal = document.getElementById('terminal');
   terminal.innerHTML = `
     <div class="terminal-welcome">

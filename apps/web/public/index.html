@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/css/think-cube.css">
   <link rel="stylesheet" href="/css/git-integration.css">
   <link rel="stylesheet" href="/css/think-tokens.css">
+  <link rel="stylesheet" href="/css/terminal.css">
   <link rel="stylesheet" href="/css/polish.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/enterprise.js"></script>
@@ -154,7 +155,29 @@
               <button id="stop-goal" class="btn-danger" disabled>⏹ Stop</button>
             </div>
           </div>
-          <div id="terminal" class="terminal">
+          <div class="tw" id="terminal-window">
+            <div class="tw-chrome">
+              <span class="tw-dots" aria-hidden="true"><i class="d r"></i><i class="d y"></i><i class="d g"></i></span>
+              <span class="tw-title">kudbee — agent-os</span>
+              <span id="tw-meta" class="tw-meta" aria-hidden="true">0 lines</span>
+              <div class="tw-tools">
+                <button id="tw-search-toggle" class="tw-btn" type="button" title="Search output ( / )" aria-label="Search output">⌕ <span class="tw-lbl">Search</span></button>
+                <button id="tw-collapse" class="tw-btn" type="button" title="Collapse or expand all steps" aria-pressed="false">⊟ <span class="tw-lbl">Steps</span></button>
+                <button id="tw-copy-all" class="tw-btn" type="button" title="Copy all output">⧉ <span class="tw-lbl">Copy all</span></button>
+                <label class="tw-buffer" title="Maximum lines kept in the scrollback">Buffer <select id="tw-max" aria-label="Maximum buffer"></select></label>
+              </div>
+            </div>
+            <div id="tw-search" class="tw-search" hidden>
+              <input id="tw-search-input" type="search" maxlength="200" placeholder="Search output" aria-label="Search output" autocomplete="off">
+              <span id="tw-search-count" class="tw-count"></span>
+              <button id="tw-search-prev" class="tw-btn" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match">↑</button>
+              <button id="tw-search-next" class="tw-btn" type="button" title="Next match (Enter)" aria-label="Next match">↓</button>
+              <button id="tw-search-close" class="tw-btn" type="button" title="Close (Esc)" aria-label="Close search">✕</button>
+            </div>
+            <div id="tw-body" class="tw-body">
+              <div class="tw-main">
+                <div id="terminal" class="terminal tw-viewport" tabindex="0" role="log" aria-label="Agent output" aria-live="off"></div>
+                <div id="tw-empty" class="tw-empty">
             <div class="terminal-welcome">
               <div class="welcome-line">KUDBEE AGENT OS — Enterprise Terminal</div>
               <div class="welcome-line">Enter a goal and press Run to begin.</div>
@@ -166,6 +189,16 @@
                 <button class="quick-action" data-command="/session">Show session info</button>
               </div>
               <div class="welcome-line"></div>
+            </div>
+                </div>
+                <button id="tw-jump" class="tw-jump" type="button" hidden>↓ Jump to latest <span id="tw-jump-count"></span></button>
+                <span id="tw-toast" class="tw-toast" role="status"></span>
+                <span id="tw-search-status" class="sr-only" role="status"></span>
+              </div>
+              <aside class="tw-activity" aria-label="System activity">
+                <h4>System activity</h4>
+                <ul id="tw-systems" class="tw-systems"></ul>
+              </aside>
             </div>
           </div>
           <div class="terminal-input-area">
@@ -474,6 +507,7 @@
 <script src="/js/collaboration-dashboard.js"></script>
 <script src="/js/think-token-dashboard.js"></script>
 <script src="/js/think-tokens-panel.js"></script>
+<script type="module" src="/js/terminal-view.js"></script>
 <script src="/js/git-integration.js"></script>
 <script src="/js/app.js"></script>
 </body>
