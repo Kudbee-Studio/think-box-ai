@@ -1,0 +1,35 @@
+▶ mercury-2 working…
+  · Worker agent (mercury-2) starting: Fetch https://example.com and write the page title and its first sentence into a file named example-summary.md.
+  · Recalled 1 memory (local-bm25 (vector offline)): Create a file named release-checklist.md containing a three-item checklist for shipping a
+  🧩 Using 2 Think Tokens: tt:TT-000005, tt:TT-000006
+  · Step 1: asking mercury-2…
+  · Model replied in 521ms → fetch_url
+  ⚙ fetch_url {"url":"https://example.com"}
+  · Waiting for approval: First network access to example.com in this session
+
+  ⚖ APPROVAL: fetch_url — First network access to example.com in this session
+    {"url":"https://example.com"}
+  ⚖ approved
+  ✓ fetch_url ✓ {"ok":true,"url":"https://example.com/","status":200,"content_type":"text/html; charset=utf-8","text":"Example Domain This domain is for use in documentation examples without needing permission. This …[truncated 87 chars]
+  · Step 2: asking mercury-2…
+  · Model replied in 519ms → write_file
+  ⚙ write_file {"path":"example-summary.md","content":"# Example Domain\n\nThis domain is for use in documentation examples without needing permission."}
+  ✓ write_file ✓ {"ok":true,"path":"example-summary.md","bytes":94}
+  · Step 3: asking mercury-2…
+  · Model replied in 334ms → list_files
+  ⚙ list_files {}
+  ✓ list_files ✓ {"ok":true,"files":[{"path":"example-summary.md","size":94}]}
+  · Step 4: asking mercury-2…
+  · Finished in 4 step(s), 3 tool call(s), 6694 tokens, $0.00183
+  · Saved episode to task memory: task/2026-10-01-1c546b41.md
+  🧩 TT-000008 [accepted] Use fetch_url to retrieve the page, then locate the <title> tag and the first paragraph text. This works for simple static pages and keeps the pipeline lightweight. Reuse for any single‑page scrape; avoid when content is dynamically generated via JavaScript.
+  🧩 TT-000009 [accepted] Pass a formatted markdown string to write_file, including a header for the title and a blank line before the first sentence. This produces readable output and works with any text content. Use for documentation or summary generation; not suitable for binary data.
+  🧩 TT-000010 [accepted] After writing, call list_files to confirm the file exists and check its size. This quick verification catches write failures early. Apply when subsequent steps depend on the file; skip if the environment guarantees atomic writes.
+  🧩 Saved 3 Think Tokens from this run: TT-000008, TT-000009, TT-000010 (accepted 3, rejected 0, other 0)
+  · Recorded 1 learned pattern in the legacy #288 store (separate from the Think Tokens above)
+
+✓ I fetched https://example.com, extracted the page title (“Example Domain”) and its first sentence, and saved them to **example-summary.md**. The workspace now contains the file, confirming successful creation.
+  4 step(s) · 3 tool call(s) · 6694 tokens · $0.0018 · 1.8s · run 1c546b41
+  Workspace files:
+    example-summary.md 94 B
+    ~/projects/think-box-ai/apps/web/workspaces/44c0ecd9-15c9-4b8b-b43f-72ca39bb24ac

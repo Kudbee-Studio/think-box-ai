@@ -1,0 +1,35 @@
+$ kudbee tokens list
+TT-000017  accepted   0.525  tool_pattern write_file → list_files pattern  [mercury-2]
+TT-000016  accepted   0.525  lesson       Verify file creation with list_files  [mercury-2]
+TT-000015  accepted   0.525  lesson       Create a markdown file with write_file  [mercury-2]
+TT-000014  accepted   0.525  tool_pattern write_file → list_files verification chain  [mercury-2]
+TT-000013  accepted   0.643  lesson       Validate file creation with list_files  [mercury-2]
+TT-000012  accepted   0.525  lesson       Validate Content Size  [mercury-2]
+TT-000011  accepted   0.706  lesson       Create‑and‑Verify Pattern  [mercury-2]
+TT-000010  accepted   0.643  lesson       Verify file creation with list_files  [mercury-2]
+TT-000009  accepted   0.525  lesson       Write extracted data to a markdown file  [mercury-2]
+TT-000008  accepted   0.525  lesson       Extract title and first sentence from fetched HTML  [mercury-2]
+TT-000007  scored     0.525  fix          Validate write_file output before proceeding  [mercury-2]
+TT-000006  accepted   0.747  lesson       Provide concise markdown content  [mercury-2]
+TT-000005  accepted   0.776  tool_pattern Create‑then‑verify file workflow  [mercury-2]
+TT-000004  candidate  0.525  lesson       Ground "WHAT PR ARE WE ON?" in evidence  [template]
+TT-000003  candidate  0.525  tool_pattern Tool sequence for "WHAT PR ARE WE ON?"  [template]
+TT-000002  candidate  0.525  lesson       Ground "train a think token" in evidence  [template]
+TT-000001  candidate  0.525  tool_pattern Tool sequence for "train a think token"  [template]
+17 shown · ledger verified (78 entries) · <livedata>/think-tokens.db
+
+$ kudbee tokens show TT-000008
+TT-000008  accepted  lesson
+title:     Extract title and first sentence from fetched HTML
+lesson:    Use fetch_url to retrieve the page, then locate the <title> tag and the first paragraph text. This works for simple static pages and keeps the pipeline lightweight. Reuse for any single‑page scrape; avoid when content is dynamically generated via JavaScript.
+tags:      html, extraction, scraping, fetch_url
+run:       1c546b41-2d12-47bf-b031-7e0b6c062171   evidence: run:1c546b41-2d12-47bf-b031-7e0b6c062171
+extractor: mercury (mercury-2)
+challenge:  pass by mercury-2 - Run used fetch_url, extracted <title> and first paragraph, wrote to example-summary.md; lesson matches these steps and is evidenced by tool outputs.
+score:     0.5250 = 0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback
+  usefulness 0.5 x 0.45 = 0.225  (success 0, failed 0)
+  recency    0.9999 x 0.2 = 0.2  (age 0.0039 days, half-life 30)
+  reuse      0 x 0.15 = 0  (uses 0)
+  feedback   0.5 x 0.2 = 0.1  (up 0, down 0)
+uses:      0   seen 1x
+receipt:   ttr_f6377e5dac15cca5 (transition, admitted, ledger seq 27)

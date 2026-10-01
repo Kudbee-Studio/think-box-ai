@@ -50,11 +50,10 @@ Simple goals auto-route to a cheap local Ollama model instead of Mercury-2. That
 route does nothing until the model is actually pulled:
 
 ```bash
-ollama pull qwen2.5:1.5b
-ollama list   # must show qwen2.5:1.5b
+ollama list   # see which local models you already have; do not pull new ones for this
 ```
 
-Override the tag with `KUDBEE_LOCAL_MODEL` (env var read by both `cli.ts` and
+Set `THINKBOX_LOCAL_MODEL` (older name `KUDBEE_LOCAL_MODEL`; read by `cli.ts`, `server.ts` and the Think Token pipeline through `local-model.ts`) to a model from `ollama list`. If you do want the default `qwen2.5:1.5b`, you pull it yourself; nothing here does. Override the tag with the variable (read by both `cli.ts` and
 `server.ts`). Without a matching tag in `ollama list`, routing falls back to
 Mercury-2 and reports `route_reason: auto_fallback_no_local` with
 `tokens_saved_est: 0` — it never claims savings that didn't happen. `/models` in
@@ -211,6 +210,11 @@ Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
 ```
 
 ---
+
+## Merge policy
+
+You may merge your own PRs under the standing authority and gates in `AGENTS.md` section 0.1 (local green, CI green, evidence section, diff reviewed,
+guardrails intact). The review checklist below is what you check before merging your own PR.
 
 ## Review Checklist
 

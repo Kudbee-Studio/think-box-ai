@@ -23,7 +23,7 @@ before(async () => {
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir, stdio: 'ignore',
-    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test', OLLAMA_BASE_URL: 'http://127.0.0.1:9', JANUS_BASE_URL: 'http://127.0.0.1:9',
+    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: 'http://127.0.0.1:9', JANUS_BASE_URL: 'http://127.0.0.1:9',
       UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'n', KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(tmp, 'data'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws') },
   });

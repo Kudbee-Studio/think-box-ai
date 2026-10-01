@@ -235,3 +235,26 @@ Each phase ships as one PR, runs all tests locally before one push, and includes
 ## Related
 
 ADR 024, ADR 026, ADR 027, ADR 028; PRs #288, #303, #306, #311; `docs/research/2026-10-01-think-box-findings.md`; `AGENTS.md` §1.3a; `docs/strategy/THINK_TOKEN_STRATEGY.md` (THNK, separate).
+
+## Status update 2026-10-01 (P1 and P2 implemented together)
+
+P1 and P2 shipped in one PR to save CI runs. Evidence: `docs/evidence/adr-029-p1.md`. Against this ADR:
+
+| Item | Status now |
+|---|---|
+| Permanent ids `TT-000001`, transactional, never reused, migration with `legacy_id` | CODE COMPLETE, TEST VERIFIED (including four processes writing at once), LIVE VERIFIED (migrated 4 real legacy rows) |
+| Lifecycle `candidate -> extracted -> scored -> challenged -> accepted \| rejected`, illegal transitions refused, ledger entry per step | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED |
+| Real extractor from the run's actual tool calls (Mercury 2 via `INCEPTION_API_KEY_2`) and challenge step | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED (real Mercury runs) |
+| Local-model fallback (`THINKBOX_LOCAL_MODEL`) | CODE COMPLETE, TEST VERIFIED (mocks); **LIVE UNPROVEN** (Ollama was not reachable) |
+| Score breakdown stored and shown | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED |
+| `kudbee tokens list/show` and the dashboard read the same store through one module | CODE COMPLETE, TEST VERIFIED (parity test), LIVE VERIFIED (identical JSON) |
+| Plain-run goal thought carries `run_id`; the card shows the real lesson text | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED |
+| Reuse proven by `think_token_uses` rows | LIVE VERIFIED (it was 0 rows before) |
+| Cube pulses for real `think_token_learned` / `think_token_used` events; Energy Core from real signals | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED (real browser, real runs) |
+| Heat-map mode, and the six-face / 54-square mapping | **Not built.** The open founder decision in section 2 is unchanged. |
+| Disruption Tokens, long-range connections, multi-worker propagation, vector memory | CONCEPT / UNPROVEN, unchanged |
+
+Differences from the text above that came from running it: a Mercury call can fail transiently, so each call gets one retry inside the
+per-run cap; paraphrased lessons are not caught by a keyword-similarity threshold (paraphrases overlapped at most 0.28, unrelated lessons at a
+median of 0.07), so saved lessons are shown to the extractor and the challenge asks whether a lesson is new; and the Energy Core numbers are
+session-only, not persisted. Learning quality is still not proven: the challenge accepted 12 of 13 lessons in the live runs.

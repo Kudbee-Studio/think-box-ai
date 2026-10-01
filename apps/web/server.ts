@@ -32,7 +32,7 @@ import type {
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
-import { AGENT_PROFILES, INCEPTION_MODELS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
+import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { algorandQuery } from './algorand.ts';
@@ -41,8 +41,11 @@ import { LearningStore } from './learning-store.ts';
 import { ThinkTokenCollection } from './think-token.ts';
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
-import { SqliteTokenStore, formatTokensForPrompt, type TokenDraft } from './think-token-store.ts';
-import { extractDrafts, refineDrafts, type Refiner } from './think-token-extract.ts';
+import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
+import { processFinishedRun } from './think-token-pipeline.ts';
+import { createTokenModels } from './think-token-model.ts';
+import { readTokens, toApiToken } from './think-token-reader.ts';
+import { resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
 import {
@@ -102,11 +105,9 @@ const wss = new WebSocketServer({
 });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
-// Cheap local route default (Feature 5 token-aware routing). 'smollm2' is accepted
-// as a legacy alias so old configs pointing at the earlier model name still resolve.
-const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
-const rawDefaultLocalModel = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
-const defaultLocalModel = LEGACY_LOCAL_MODEL_ALIASES[rawDefaultLocalModel.toLowerCase()] || rawDefaultLocalModel;
+// Cheap local route default (Feature 5 token-aware routing). THINKBOX_LOCAL_MODEL (or the older KUDBEE_LOCAL_MODEL) names an
+// already-installed Ollama model; the app never pulls models. See local-model.ts.
+const defaultLocalModel = resolveLocalModel();
 const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
@@ -263,29 +264,6 @@ async function listOllamaModels(): Promise<OllamaTag[]> {
     return [];
   }
 }
-
-/**
- * Optional cheap local-model pass for Think Token drafts (qwen2.5:1.5b by default, see KUDBEE_LOCAL_MODEL).
- * Returns null when the model is not installed, so the deterministic draft is used; its output is re-checked by the store gate.
- */
-const localTokenRefiner: Refiner = async (draft: TokenDraft) => {
-  const installed = (await listOllamaModels()).some((m) => m.name === defaultLocalModel);
-  if (!installed) return null;
-  const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(8000),
-    body: JSON.stringify({
-      model: defaultLocalModel,
-      stream: false,
-      format: 'json',
-      messages: [{ role: 'user', content: `Reword this note to be clearer in under 400 characters. Reply as JSON {"title": string, "content": string} and add no new facts.\nTitle: ${draft.title}\nContent: ${draft.content}` }],
-    }),
-  });
-  const body = (await res.json()) as { message?: { content?: string } };
-  const parsed = JSON.parse(body.message?.content ?? '{}') as { title?: unknown; content?: unknown };
-  return typeof parsed.title === 'string' && typeof parsed.content === 'string' ? { title: parsed.title, content: parsed.content } : null;
-};
 
 async function requestJanus(endpoint: 'analyze' | 'generate', payload: Record<string, string>): Promise<Record<string, string>> {
   const response = await fetch(`${janusBaseUrl}/${endpoint}`, {
@@ -617,6 +595,11 @@ registerPlugin('image_generate', {
 });
 
 // ─── Agent runtime ─────────────────────────────────────────────
+/** The validated, size-limited payload for think_token_learned / think_token_used. Built only from a stored row, so no event exists without a database row behind it. */
+function tokenEvent(row: { id: string; kind: string; status: string; score: number; uses: number; title: string }, runId: string, delta: number) {
+  return { token_id: row.id, run_id: runId.slice(0, 80), kind: row.kind, status: row.status, score: row.score, delta: Math.round(delta * 10_000) / 10_000, uses: row.uses, title: row.title.slice(0, 120) };
+}
+
 export class AgentSession {
   readonly id: string;
   readonly config: AgentSessionConfig;
@@ -1011,9 +994,9 @@ export class AgentSession {
     const thoughtsStart = this.thoughts.length;
     const profile = agentProfile ? AGENT_PROFILES[agentProfile] : undefined;
     if (agentProfile && !profile) throw new Error(`Unknown agent profile '${agentProfile}'`);
-    this.addThought({ type: 'goal', content: `${profile ? `${profile.name} agent` : 'Worker agent'} (${this.config.model}) starting: ${goal}`, status: 'info' });
     const task = this.beginTask(goal, queuedTask);
     const record = this.newRun(goal, task.id);
+    this.addThought({ type: 'goal', content: `${profile ? `${profile.name} agent` : 'Worker agent'} (${this.config.model}) starting: ${goal}`, status: 'info', run_id: record.id });
     if (routeTelemetry) record.routeTelemetry = routeTelemetry;
     if (agentProfile) record.agentProfile = agentProfile;
     this.broadcast({ type: 'run_update', data: record });
@@ -1038,6 +1021,10 @@ export class AgentSession {
       if (thinkTokens.length) {
         record.think_tokens = thinkTokens.map((t) => t.id);
         tokenStore.recordUse(record.think_tokens, record.id, `agent:${record.id.slice(0, 8)}`);
+        for (const before of thinkTokens) {
+          const after = tokenStore.get(before.id);
+          if (after) this.broadcast({ type: 'think_token_used', data: tokenEvent(after, record.id, after.score - before.score) });
+        }
         this.addThought({ type: 'think_token', content: `Using ${thinkTokens.length} Think Token${thinkTokens.length === 1 ? '' : 's'}: ${thinkTokens.map((t) => `tt:${t.id}`).join(', ')}`, status: 'info' });
       }
       const plannerContext = [MemoryStore.formatForPrompt(recalled.hits), formatTokensForPrompt(thinkTokens)].filter(Boolean).join('\n\n');
@@ -1096,11 +1083,11 @@ export class AgentSession {
           duration: record.duration_ms ?? 0,
         });
         if (learning.tokensAffected > 0) {
-          this.addThought({ type: 'think_token', content: `Captured ${learning.tokensAffected} Think Token${learning.tokensAffected === 1 ? '' : 's'} from this run`, status: 'success' });
+          this.addThought({ type: 'memory', content: `Recorded ${learning.tokensAffected} learned pattern${learning.tokensAffected === 1 ? '' : 's'} in the legacy #288 store (separate from the Think Tokens above)`, status: 'success' });
         }
       } catch (err) {
         // Learning capture must never fail the run it's capturing.
-        this.addThought({ type: 'think_token', content: `Could not capture Think Tokens: ${errorMessage(err)}`, status: 'error' });
+        this.addThought({ type: 'memory', content: `Could not record learned patterns: ${errorMessage(err)}`, status: 'error' });
       }
 
       // Auto-save run metadata to persistent DB (Phase 3 + Feature 5 token telemetry)
@@ -1447,20 +1434,58 @@ export class AgentSession {
     return result;
   }
 
-  /** ADR 028 save path: fold the outcome into tokens this run used, then admit extracted candidates (never accepted automatically). */
+  /**
+   * ADR 029 P1 save path: fold the outcome into tokens this run used, then run the lifecycle pipeline (extract with Mercury 2 or the
+   * local model, write a TT- candidate, score, challenge, accept or reject). Template-only tokens stay candidates.
+   */
   private async saveThinkTokens(record: RunRecord, success: boolean): Promise<void> {
     try {
       const actor = `agent:${record.id.slice(0, 8)}`;
       tokenStore.recordOutcome(record.id, success, actor);
-      const drafts = await refineDrafts(extractDrafts({ id: record.id, goal: record.goal, success, steps: record.steps }), localTokenRefiner);
-      const saved = drafts.map((draft) => tokenStore.write(draft, actor)).filter((r) => r.ok && !r.duplicate);
-      if (saved.length) {
-        this.addThought({ type: 'think_token', content: `Saved ${saved.length} Think Token candidate${saved.length === 1 ? '' : 's'} for review (receipt ${saved[0].receipt.receipt_id})`, status: 'success' });
-        this.broadcast({ type: 'think_tokens_changed', data: { count: saved.length } });
+      const result = await processFinishedRun(
+        { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) },
+        { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result },
+        actor,
+      );
+      const fresh = result.tokens.filter((t) => !t.duplicate);
+      for (const token of fresh) {
+        const row = tokenStore.get(token.id);
+        if (!row) continue;
+        this.addThought({
+          type: 'think_token',
+          content: row.content,
+          status: 'success',
+          run_id: record.id,
+          tokenId: row.id,
+          tokenType: row.kind,
+          title: row.title,
+          tokenStatus: row.status,
+          tokenScore: row.score,
+          extractor: row.extractor,
+          model: row.extract_model ?? undefined,
+          receiptId: token.receipt_id ?? undefined,
+        });
+        this.broadcast({ type: 'think_token_learned', data: tokenEvent(row, record.id, 0) });
+      }
+      if (fresh.length) {
+        const tally = (status: string) => fresh.filter((t) => t.status === status).length;
+        this.addThought({
+          type: 'think_token',
+          content: `Saved ${fresh.length} Think Token${fresh.length === 1 ? '' : 's'} from this run: ${fresh.map((t) => t.id).join(', ')} (accepted ${tally('accepted')}, rejected ${tally('rejected')}, other ${fresh.length - tally('accepted') - tally('rejected')})`,
+          status: 'success',
+          run_id: record.id,
+        });
+        this.broadcast({ type: 'think_tokens_changed', data: { count: fresh.length } });
+      } else if (result.dropped.length) {
+        this.addThought({ type: 'think_token', content: `No Think Token saved: ${result.dropped.length} lesson${result.dropped.length === 1 ? '' : 's'} failed grounding/specificity checks`, status: 'info', run_id: record.id });
+      } else if (success && !result.tokens.length) {
+        this.addThought({ type: 'think_token', content: 'No new Think Token from this run: nothing new beyond the lessons already saved', status: 'info', run_id: record.id });
+      } else if (success) {
+        this.addThought({ type: 'think_token', content: `No new Think Token from this run: ${result.tokens.length} lesson${result.tokens.length === 1 ? '' : 's'} already saved (seen again)`, status: 'info', run_id: record.id });
       }
     } catch (err) {
       // Learning capture must never fail the run it is capturing.
-      this.addThought({ type: 'think_token', content: `Could not save Think Tokens: ${errorMessage(err)}`, status: 'error' });
+      this.addThought({ type: 'think_token', content: `Could not save Think Tokens: ${errorMessage(err)}`, status: 'error', run_id: record.id });
     }
   }
 
@@ -1661,7 +1686,7 @@ wss.on('connection', async (ws: WebSocket) => {
           }
           const req = checked.req;
           if (req.type === 'think_tokens_list') {
-            ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: tokenStore.list({ query: req.query, status: req.status, limit: req.limit }), ledger: tokenStore.verifyLedger() } }));
+            ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: readTokens(tokenStore, { query: req.query, status: req.status, limit: req.limit, run_id: req.run_id }), ledger: tokenStore.verifyLedger() } }));
             break;
           }
           // Every mutation needs the same human approval the agent loop uses; denial and timeout change nothing.

@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (229 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (231 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (26)
+- [Other documents in docs/](#other-documents-in-docs) (28)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -55,7 +55,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [AGENTS.md](../AGENTS.md) | AGENTS.md — THINK BOX AI | Purpose: This file defines the rules that every agent (human or AI) working |
 | [CLAUDE.md](../CLAUDE.md) | CLAUDE.md — kudbEE Agent OS Project Guidelines | Purpose: This file tells AI (Claude, other agents) how to contribute to this project effectively. |
 | [README.md](../README.md) | Think Box AI | Governed agent execution for the enterprise — goals decompose into tasks, tools run behind permission checks,... |
-| [STATUS.md](../STATUS.md) | STATUS.md | - CODE COMPLETE: Director selection now allocates contract-backed jobs to unique AgentSession IDs and confined... |
+| [STATUS.md](../STATUS.md) | STATUS.md | - CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real Mercury 2 runs on the real server, real browser): permanent... |
 
 ## Decisions (ADRs)
 
@@ -286,6 +286,8 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/DASHBOARD_BUILDOUT.md](DASHBOARD_BUILDOUT.md) | Dashboard → Middleware → Backend — Build-Out List | servers, no framework, no daemon fleet. Everything below is stdlib or a single |
 | [docs/dependencies/UPGRADE-2026-10-01.md](dependencies/UPGRADE-2026-10-01.md) | Dependency upgrade — 2026-10-01 | Branch chore/deps-upgrade, one PR. Scope: apps/web npm dependencies, Python version floors and dev |
 | [docs/disruptor-evaluation.md](disruptor-evaluation.md) | Disruptor + Verifier Evaluation Harness | Companion to: KUDBEE white paper §11 (Evaluation agenda) and |
+| [docs/evidence/adr-029-p1.md](evidence/adr-029-p1.md) | ADR 029 P1 + P2 — evidence | Date: 2026-10-01. Scope: Think Token lifecycle with permanent TT- ids, a real extractor and challenge, a score... |
+| [docs/evidence/docs-sync-2026-10-01.md](evidence/docs-sync-2026-10-01.md) | Docs sync — 2026-10-01 | Rides along with the ADR-029 P1/P2 PR (no separate PR, one push). No code behavior changes come from this part. |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
 | [docs/gcode-mastery.md](gcode-mastery.md) | G-Code Mastery Curriculum — 2-Week Daily Drills | For: Dominick (CNC beginner → solid) |
 | [docs/harvest-replay.md](harvest-replay.md) | Harvest & Replay | Harvest once on the GPU; re-score forever offline. This closes the loop |

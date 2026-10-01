@@ -2,6 +2,8 @@
 
 **As of:** `main` @ `71027021` (2026-09-30). **Status:** Proposed, part of the enterprise plan in [`README.md`](README.md).
 
+> **Status update 2026-10-01:** this baseline is dated 2026-09-30 and is kept as written. Since then: the #288 Think Token chain is wired into the run path and proven on real runs (PR #311/#312 era), the ADR 028 store shipped (PR #306), and ADR 029 P1/P2 added permanent `TT-` ids, a model-written lesson with a challenge step, a score breakdown, `kudbee tokens`, and one merged Think Tokens view. Where this document says Think Tokens are "not wired", read ADR 029 and `docs/evidence/adr-029-p1.md` for the current state.
+
 This is an honest accounting of what exists today. It uses the repo's four-state convention
 (AGENTS.md): **CODE COMPLETE** (implemented) / **TEST VERIFIED** (automated tests pass) /
 **LIVE VERIFIED** (proven against a real browser, server or host) / **PRODUCTION READY** (deployable

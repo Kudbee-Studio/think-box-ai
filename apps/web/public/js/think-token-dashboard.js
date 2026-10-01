@@ -1,49 +1,91 @@
-// kudbEE Think Token Dashboard — session view of the Think Token lifecycle.
+// kudbEE Think Tokens — ONE view inside the Agent OS dashboard (ADR 029 P1 + P2): live cube, Energy Core, current run,
+// and the saved tokens. It replaces the old "🎫 Learning" (in-memory) and "🧩 Tokens" (persisted) panels.
 //
-// Data sources (nothing else is displayed as fact):
-//  - 'think-cube:thought': every real WebSocket thought, forwarded by app.js. Drives the live cube
-//    and the "Current run" panel (job id, status, last capture error).
-//  - 'token:created': dispatched by app.js when the server emits a think_token thought. These are
-//    IN-MEMORY, THIS-SESSION UI entries, not rows read from the database. Persisted tokens live in
-//    the separate Tokens panel (ADR 028, think-tokens.db).
-//  - 'token:used': nothing dispatches this today, so usage numbers appear only if it ever fires.
-// No timers, no generated events. The Demo drawer runs on its own throwaway cube, never the live one.
+// Where every number comes from (nothing else is shown as fact):
+//  - Saved tokens, counts, ledger status: the `think_tokens` WebSocket message, read from SQLite (think-tokens.db) by the
+//    server's shared reader. The same reader feeds `kudbee tokens list|show`, so the CLI and this view agree.
+//  - Live cube: every real WebSocket 'thought', forwarded by app.js as 'think-cube:thought'.
+//  - Cube pulses: the server's `think_token_learned` / `think_token_used` events, which exist only for a stored token.
+//  - Energy Core: events per minute (real thoughts in the last 60 s), runs currently running (real run_update status),
+//    tokens learned/used during THIS browser session (real events), time since the last accepted proof (real thought).
+//    It reads zero when nothing is happening. The 1 s timer that runs while the view is open only repaints; it never
+//    creates or dispatches an event.
+// Token text is rendered with textContent only; it never reaches innerHTML.
 
-const THINK_TOKEN_TYPE_ICONS = {
-  reasoning: '🤔',
-  approach: '📋',
-  error_recovery: '🔧',
-  tool_sequence: '⚙️',
-  optimization: '⚡',
-};
+const TT_ENERGY_WINDOW_MS = 60_000;
+const TT_IDLE_AFTER_MS = 30_000;
+const TT_MAX_EVENTS = 2000;
+const TT_ID_LIKE = /^(?:tt-?)?\d{1,9}$/i;
+const TT_STATUS_ORDER = ['candidate', 'extracted', 'scored', 'challenged', 'accepted', 'rejected', 'retired'];
+const TT_FINISHED_RUN_STATES = new Set(['completed', 'failed', 'stopped']);
+
+function ttEl(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function ttIsToken(t) {
+  return Boolean(t) && typeof t === 'object' && typeof t.id === 'string' && typeof t.title === 'string' && typeof t.content === 'string'
+    && typeof t.status === 'string' && typeof t.score === 'number' && Array.isArray(t.tags) && typeof t.source_run_id === 'string';
+}
+
+/** A think_token_learned / think_token_used payload is trusted only if it is well formed and within the server's limits. */
+function validTokenEvent(d) {
+  return Boolean(d) && typeof d === 'object'
+    && typeof d.token_id === 'string' && /^(?:TT-\d{1,9}|tt_[a-f0-9]{16})$/.test(d.token_id)
+    && typeof d.run_id === 'string' && d.run_id.length <= 80
+    && typeof d.score === 'number' && d.score >= 0 && d.score <= 1
+    && typeof d.delta === 'number' && Math.abs(d.delta) <= 1
+    && typeof d.status === 'string' && TT_STATUS_ORDER.includes(d.status)
+    && typeof d.title === 'string' && d.title.length <= 120
+    && typeof d.kind === 'string' && d.kind.length <= 20
+    && Number.isInteger(d.uses) && d.uses >= 0;
+}
 
 class ThinkTokenDashboard {
   constructor() {
     this.tokens = [];
+    this.ledger = null;
+    this.loaded = false;
+    this.listError = null;
+    this.filters = { query: '', status: '' };
+    this.actionMessage = null;
     this.currentJobId = null;
     this.currentRunStatus = null;
     this.lastError = null;
-    // The cube is created once, detached from the document, so it keeps receiving real events
-    // whether or not the modal is open; openDashboard() re-parents this same node into the modal.
-    // Without window.ThinkCubeRenderer (module failed to load) there is no cube and no fake one.
+    this.lastLearned = null;
+    this.ignoredEvents = 0;
+    this.energy = { events: [], runs: new Map(), learned: 0, used: 0, lastProofAt: null, lastEventAt: null };
+    // The cube is created once, detached from the document, so it keeps receiving real events whether or not the view is
+    // open; opening re-parents this same node. Without window.ThinkCubeRenderer there is no cube and no fake one.
     this.cube = window.ThinkCubeRenderer ? new window.ThinkCubeRenderer(document.createElement('div')) : null;
     this.demoCube = null;
     this.modalEl = null;
+    this.repaintTimer = null;
+    this.searchTimer = null;
     this.setupEventListeners();
   }
 
   setupEventListeners() {
-    const learnBtn = document.getElementById('think-token-button');
-    if (learnBtn) learnBtn.addEventListener('click', () => this.openDashboard());
-
-    window.addEventListener('token:created', (e) => this.addToken(e.detail));
-    window.addEventListener('token:used', (e) => this.recordTokenUsage(e.detail));
+    const button = document.getElementById('think-token-button');
+    if (button) button.addEventListener('click', () => this.openDashboard());
     window.addEventListener('think-cube:thought', (e) => this.handleThought(e.detail));
+    window.addEventListener('think-cube:run', (e) => this.handleRun(e.detail));
+    window.addEventListener('think-tokens:message', (e) => this.handleTokenMessage(e.detail));
   }
+
+  // ── Real events in ───────────────────────────────────────────────────────────────────────────
 
   handleThought(thought) {
     if (!thought) return;
     this.cube?.handleThought(thought);
+    const now = Date.now();
+    this.energy.events.push(now);
+    if (this.energy.events.length > TT_MAX_EVENTS) this.energy.events.splice(0, this.energy.events.length - TT_MAX_EVENTS);
+    this.energy.lastEventAt = now;
+    if (thought.type === 'proof_accepted') this.energy.lastProofAt = now;
     if (thought.type === 'goal') {
       const id = thought.run_id ?? thought.job_id;
       this.currentJobId = id == null ? null : String(id);
@@ -53,165 +95,158 @@ class ThinkTokenDashboard {
       if (thought.status === 'error') {
         this.currentRunStatus = 'token capture failed';
         this.lastError = String(thought.content || 'Think Token capture failed');
-      } else {
+      } else if (this.currentRunStatus === 'running') {
         this.currentRunStatus = 'completed';
       }
     } else if (thought.type === 'memory' && String(thought.content || '').startsWith('Saved episode')) {
       this.currentRunStatus = 'completed';
     }
     this.refreshRunInfo();
+    this.renderEnergy();
   }
 
-  addToken(tokenData) {
-    const data = tokenData || {};
-    this.tokens.unshift({
-      id: String(data.id || `token-${Date.now()}`),
-      type: data.type || 'reasoning',
-      content: String(data.content || ''),
-      confidence: data.confidence || 0.5,
-      createdAt: Date.now(),
-      usageCount: 0,
-      successCount: 0,
-      failureCount: 0,
-    });
-    this.refreshOpenViews();
+  handleRun(run) {
+    if (!run || typeof run.id !== 'string' || typeof run.status !== 'string') return;
+    if (TT_FINISHED_RUN_STATES.has(run.status)) this.energy.runs.delete(run.id);
+    else this.energy.runs.set(run.id, run.status);
+    this.energy.lastEventAt = Date.now();
+    this.renderEnergy();
   }
 
-  recordTokenUsage(usageData) {
-    const token = this.tokens.find((t) => t.id === usageData?.tokenId);
-    if (!token) return;
-    token.usageCount++;
-    if (usageData.success) token.successCount++;
-    else token.failureCount++;
-    token.confidence = this.calculateConfidence(token);
-    this.refreshOpenViews();
-  }
-
-  calculateConfidence(token) {
-    if (token.usageCount === 0) return token.confidence || 0.5;
-    const successRate = token.successCount / token.usageCount;
-    return Math.min(1, Math.max(0, successRate * 0.9 + (token.confidence || 0.5) * 0.1));
-  }
-
-  // ── Pure view builders (strings only; no DOM access) ────────────────────────────────────────
-
-  tokensTabLabel() {
-    return `This session (${this.tokens.length})`;
-  }
-
-  renderRunInfoHtml() {
-    const rows = [
-      ['Current job', this.currentJobId ? this.escapeHtml(this.currentJobId.substring(0, 12)) : 'none yet'],
-      ['Status', this.escapeHtml(this.currentRunStatus || 'idle')],
-      ['Think Tokens seen (this session, UI)', String(this.tokens.length)],
-    ];
-    let html = rows.map(([label, value]) => `
-      <div class="job-info-item">
-        <span class="job-info-label">${label}</span>
-        <span class="job-info-value">${value}</span>
-      </div>`).join('');
-    if (this.lastError) {
-      html += `<div class="job-info-error" role="alert">${this.escapeHtml(this.lastError)}</div>`;
+  handleTokenMessage(msg) {
+    if (!msg || typeof msg.type !== 'string') return;
+    switch (msg.type) {
+      case 'think_tokens': {
+        const data = msg.data || {};
+        if (!Array.isArray(data.tokens)) return;
+        this.tokens = data.tokens.filter(ttIsToken);
+        this.ledger = data.ledger || null;
+        this.loaded = true;
+        this.listError = null;
+        this.renderList();
+        this.refreshRunInfo();
+        return;
+      }
+      case 'think_tokens_changed':
+        this.requestList();
+        return;
+      case 'think_token_learned': {
+        if (!validTokenEvent(msg.data)) { this.ignoredEvents += 1; return; }
+        this.energy.learned += 1;
+        this.energy.lastEventAt = Date.now();
+        this.lastLearned = { ...msg.data };
+        this.cube?.pulse?.('learned', msg.data.score);
+        this.renderLastToken();
+        this.renderEnergy();
+        this.requestList();
+        return;
+      }
+      case 'think_token_used': {
+        if (!validTokenEvent(msg.data)) { this.ignoredEvents += 1; return; }
+        this.energy.used += 1;
+        this.energy.lastEventAt = Date.now();
+        if (this.lastLearned && this.lastLearned.token_id === msg.data.token_id) this.lastLearned = { ...this.lastLearned, uses: msg.data.uses, score: msg.data.score };
+        this.cube?.pulse?.('used', msg.data.score);
+        this.renderLastToken();
+        this.renderEnergy();
+        this.requestList();
+        return;
+      }
+      case 'think_token_result': {
+        const d = msg.data || {};
+        this.actionMessage = d.ok ? `Applied ${d.action} to ${d.id}${d.receipt ? ` (receipt ${d.receipt.receipt_id})` : ''}` : `Not applied: ${d.error || 'unknown error'}`;
+        this.renderMeta();
+        this.requestList();
+        return;
+      }
+      case 'think_token_error':
+        this.actionMessage = `Rejected: ${(msg.data && msg.data.error) || 'invalid request'}`;
+        this.renderMeta();
+        return;
+      default:
     }
-    return html;
   }
 
-  renderTokenCard(token) {
-    const type = this.escapeHtml(token.type);
-    const used = token.usageCount > 0
-      ? `<span class="token-usage">${token.usageCount} uses · ${token.successCount}✓ ${token.failureCount}✗</span>`
-      : '';
-    return `
-      <div class="token-card" data-token-id="${this.escapeHtml(token.id)}">
-        <div class="token-header">
-          <span class="token-type">${this.getTypeIcon(token.type)} ${type}</span>
-          <span class="token-confidence" title="Confidence reported with the token">${(token.confidence * 100).toFixed(0)}%</span>
-        </div>
-        <div class="token-content">${this.escapeHtml(token.content.substring(0, 100))}${token.content.length > 100 ? '…' : ''}</div>
-        <div class="token-meta">
-          <span class="token-age">${this.formatAge(token.createdAt)}</span>
-          ${used}
-        </div>
-        <button type="button" class="token-expand btn-quiet" data-token-details="${this.escapeHtml(token.id)}">Details</button>
-      </div>`;
-  }
-
-  renderTokensPaneHtml() {
-    if (this.tokens.length === 0) {
-      return `<p class="empty-state">No Think Token has been reported in this browser session yet.
-        A token appears here when a run emits one. Saved, reviewable tokens are in the 🧩 Tokens panel.</p>`;
+  requestList() {
+    if (!this.isOpen()) return false;
+    const message = { type: 'think_tokens_list', limit: 50 };
+    const query = this.filters.query.trim().slice(0, 100);
+    if (query) message.query = query;
+    if (this.filters.status) message.status = this.filters.status;
+    const sent = typeof window.sendThinkTokenMessage === 'function' ? window.sendThinkTokenMessage(message) : false;
+    if (!sent) {
+      this.listError = 'Not connected to the Agent OS backend, so saved tokens cannot be loaded.';
+      this.renderList();
     }
-    return `<p class="pane-note">In-memory entries for this session only (not read from the database). Showing the latest ${Math.min(10, this.tokens.length)}.</p>
-      <div class="token-list">${this.tokens.slice(0, 10).map((t) => this.renderTokenCard(t)).join('')}</div>`;
+    return sent;
   }
 
-  renderAnalyticsPaneHtml() {
-    if (this.tokens.length === 0) {
-      return '<p class="empty-state">Nothing to summarise yet. These figures describe this session\'s tokens only.</p>';
-    }
-    const high = this.tokens.filter((t) => t.confidence > 0.7).length;
-    const mid = this.tokens.filter((t) => t.confidence >= 0.4 && t.confidence <= 0.7).length;
-    const low = this.tokens.filter((t) => t.confidence < 0.4).length;
-    const dist = this.getTokenTypeDistribution();
-    const max = Math.max(...dist.map((x) => x[1]));
-    const used = this.tokens.some((t) => t.usageCount > 0);
-    return `
-      <p class="pane-note">Computed from this session's in-memory tokens, not from persisted statistics.</p>
-      <div class="analytics-grid">
-        <div class="analytics-card">
-          <h4>Confidence</h4>
-          <div class="confidence-tiers">
-            <div class="tier high-confidence"><span class="tier-label">High (&gt;70%)</span><span class="tier-count">${high}</span></div>
-            <div class="tier medium-confidence"><span class="tier-label">Medium (40–70%)</span><span class="tier-count">${mid}</span></div>
-            <div class="tier low-confidence"><span class="tier-label">Low (&lt;40%)</span><span class="tier-count">${low}</span></div>
-          </div>
-        </div>
-        <div class="analytics-card">
-          <h4>Types</h4>
-          <div class="type-bars">${dist.map(([type, count]) => `
-            <div class="type-bar">
-              <span class="type-name">${this.escapeHtml(type)}</span>
-              <div class="bar-container"><div class="bar-fill" style="width: ${(count / max) * 100}%"></div></div>
-              <span class="type-count">${count}</span>
-            </div>`).join('')}</div>
-        </div>
-        <div class="analytics-card">
-          <h4>Usage</h4>
-          ${used
-            ? `<div class="metric-display"><span class="metric-value">${this.calculateAverageSuccessRate()}%</span><span class="metric-label">average success where usage was reported</span></div>`
-            : '<p class="empty-state">No usage events have been reported, so there is no success rate to show.</p>'}
-        </div>
-      </div>`;
+  sendAction(action, id) {
+    const sent = typeof window.sendThinkTokenMessage === 'function' ? window.sendThinkTokenMessage({ type: 'think_token_action', action, id }) : false;
+    this.actionMessage = sent ? 'Waiting for your approval…' : 'Not connected to the Agent OS backend.';
+    this.renderMeta();
+    return sent;
   }
 
-  // ── Modal lifecycle ─────────────────────────────────────────────────────────────────────────
+  // ── Derived numbers (pure) ───────────────────────────────────────────────────────────────────
+
+  energySnapshot(now = Date.now()) {
+    const recent = this.energy.events.filter((t) => now - t <= TT_ENERGY_WINDOW_MS);
+    const activeRuns = this.energy.runs.size;
+    const active = activeRuns > 0 || (this.energy.lastEventAt !== null && now - this.energy.lastEventAt <= TT_IDLE_AFTER_MS);
+    return {
+      eventsPerMinute: recent.length,
+      activeRuns,
+      learned: this.energy.learned,
+      used: this.energy.used,
+      lastProofAgoMs: this.energy.lastProofAt === null ? null : now - this.energy.lastProofAt,
+      state: active ? 'active' : 'idle',
+      intensity: Math.min(1, recent.length / 60),
+    };
+  }
+
+  formatAge(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+  }
+
+  statusCounts() {
+    const counts = {};
+    for (const t of this.tokens) counts[t.status] = (counts[t.status] || 0) + 1;
+    return counts;
+  }
+
+  // ── Modal lifecycle ──────────────────────────────────────────────────────────────────────────
 
   isOpen() {
     return Boolean(this.modalEl) && document.body.contains(this.modalEl);
   }
 
   closeDashboard() {
+    if (this.repaintTimer !== null) { clearInterval(this.repaintTimer); this.repaintTimer = null; }
+    clearTimeout(this.searchTimer);
     this.modalEl?.remove();
     this.modalEl = null;
   }
 
   openDashboard() {
-    if (this.isOpen()) {
-      this.refreshOpenViews();
-      return;
-    }
-
+    if (this.isOpen()) { this.requestList(); return; }
     const modal = document.createElement('div');
     modal.className = 'modal-backdrop';
     modal.id = 'think-token-modal';
     this.modalEl = modal;
 
+    // Static markup only: no token or run data is ever interpolated here.
     modal.innerHTML = `
       <section class="modal modal-dashboard" role="dialog" aria-modal="true" aria-labelledby="think-token-title">
         <div class="modal-header">
           <div>
-            <span class="modal-eyebrow">🎫 LEARNING SYSTEM</span>
-            <h2 id="think-token-title">Think Token Dashboard</h2>
+            <span class="modal-eyebrow">🧩 LEARNING UNITS · ADR 029</span>
+            <h2 id="think-token-title">Think Tokens</h2>
           </div>
           <button type="button" class="btn-icon" aria-label="Close" data-dashboard-close>×</button>
         </div>
@@ -228,11 +263,13 @@ class ThinkTokenDashboard {
                   <button type="button" class="btn-quiet" data-cube-action="reset" title="Clear the cube and its recorded events">↻ Reset</button>
                   <button type="button" class="btn-quiet" data-cube-action="replay" title="Replay the real events recorded so far">↺ Replay</button>
                 </div>
+                <div class="last-token" aria-live="polite"></div>
                 <details class="cube-legend-detail">
                   <summary>What is live?</summary>
                   <div class="cube-legend-content">
                     <strong>Driven by real backend events:</strong> intent (goal), execution (tool call), evidence (tool success), challenge (tool error), harvest (episode saved), think token.
                     Specialist jobs also drive swarm, jury and proof from their own events.
+                    A learned token pulses the token-state cells (glow = its score); a token used by a run pulses the relationship cells.
                     <br><strong>Never driven by the backend yet:</strong> decompose, repair, commons. They appear only in the simulated demo below.
                   </div>
                 </details>
@@ -245,6 +282,15 @@ class ThinkTokenDashboard {
               ` : '<p class="cube-legend">Cube unavailable: its module script did not load.</p>'}
             </div>
 
+            <div class="energy-core" data-state="idle">
+              <h3>⚡ Energy Core</h3>
+              <div class="energy-body">
+                <div class="energy-ring" aria-hidden="true"></div>
+                <dl class="energy-stats"></dl>
+              </div>
+              <p class="pane-note">Real signals from this browser session only: nothing here is simulated or persisted.</p>
+            </div>
+
             <div class="current-job-section">
               <h3>📍 Current run</h3>
               <div class="current-job-info" aria-live="polite"></div>
@@ -252,19 +298,27 @@ class ThinkTokenDashboard {
           </div>
 
           <div class="dashboard-secondary">
-            <div class="tabs" role="tablist">
-              <button type="button" class="tab-button active" role="tab" data-tab="tokens" aria-selected="true"></button>
-              <button type="button" class="tab-button" role="tab" data-tab="analytics" aria-selected="false">Analytics</button>
+            <div class="tt-toolbar">
+              <input id="tt-search" type="search" maxlength="100" placeholder="Search, or jump to TT-42" aria-label="Search Think Tokens or jump to an id">
+              <select id="tt-status" aria-label="Filter by status">
+                <option value="">All statuses</option>
+                <option value="candidate">Candidate</option>
+                <option value="extracted">Extracted</option>
+                <option value="scored">Scored</option>
+                <option value="challenged">Challenged</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="retired">Retired</option>
+              </select>
+              <button type="button" class="btn-secondary tt-btn" data-tt-refresh title="Reload from the database">↻</button>
             </div>
-            <div class="tab-content">
-              <div class="tab-pane active" id="tab-tokens" role="tabpanel"></div>
-              <div class="tab-pane" id="tab-analytics" role="tabpanel"></div>
-            </div>
+            <div class="tt-meta-line memory-meta" aria-live="polite"></div>
+            <div class="tt-list" aria-live="polite"></div>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-dashboard-export title="Exports this session's in-memory tokens">Export session tokens</button>
+          <button type="button" class="btn-secondary" data-dashboard-export title="Exports the saved tokens currently shown">Export shown tokens</button>
           <button type="button" class="btn-secondary" data-dashboard-close>Close</button>
         </div>
       </section>
@@ -274,13 +328,23 @@ class ThinkTokenDashboard {
       if (e.target === modal) return this.closeDashboard();
       const target = e.target;
       if (target.closest?.('[data-dashboard-close]')) return this.closeDashboard();
-      if (target.closest?.('[data-dashboard-export]')) return this.exportLearnings();
-      const details = target.closest?.('[data-token-details]');
-      if (details) return this.showTokenDetails(details.dataset.tokenDetails);
-      const tab = target.closest?.('[data-tab]');
-      if (tab) return this.switchTab(tab.dataset.tab, modal);
-      const action = target.closest?.('[data-cube-action]');
-      if (action) this.runCubeAction(action.dataset.cubeAction, modal);
+      if (target.closest?.('[data-dashboard-export]')) return this.exportTokens();
+      if (target.closest?.('[data-tt-refresh]')) return void this.requestList();
+      const action = target.closest?.('[data-tt-action]');
+      if (action) return void this.sendAction(action.dataset.ttAction, action.dataset.tokenId);
+      const cube = target.closest?.('[data-cube-action]');
+      if (cube) this.runCubeAction(cube.dataset.cubeAction, modal);
+    });
+    const search = modal.querySelector('#tt-search');
+    search?.addEventListener('input', () => {
+      this.filters.query = search.value || '';
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => this.requestList(), 250);
+    });
+    const status = modal.querySelector('#tt-status');
+    status?.addEventListener('change', () => {
+      this.filters.status = status.value || '';
+      this.requestList();
     });
 
     document.body.appendChild(modal);
@@ -293,7 +357,10 @@ class ThinkTokenDashboard {
       this.cube.render();
     }
 
-    this.refreshOpenViews();
+    this.renderAll();
+    this.requestList();
+    // Repaint only (relative times and the sliding events/minute window). Never dispatches or invents an event.
+    this.repaintTimer = setInterval(() => { this.renderEnergy(); this.refreshRunInfo(); }, 1000);
   }
 
   runCubeAction(name, modal) {
@@ -308,150 +375,197 @@ class ThinkTokenDashboard {
   runDemo(modal) {
     const slot = modal.querySelector('.demo-cube-slot');
     if (!slot || !window.ThinkCubeRenderer) return;
-    if (!this.demoCube) {
-      this.demoCube = new window.ThinkCubeRenderer(slot);
-    } else {
-      this.demoCube.reset();
-    }
+    if (!this.demoCube) this.demoCube = new window.ThinkCubeRenderer(slot);
+    else this.demoCube.reset();
     this.demoCube.runDeterministicDemo();
   }
 
-  switchTab(tabName, modal) {
-    modal.querySelectorAll('.tab-button').forEach((btn) => {
-      const active = btn.dataset.tab === tabName;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-selected', String(active));
-    });
-    modal.querySelectorAll('.tab-pane').forEach((pane) => {
-      pane.classList.toggle('active', pane.id === `tab-${tabName}`);
-    });
+  // ── Rendering (DOM nodes + textContent; the only innerHTML above is the static skeleton) ──────
+
+  renderAll() {
+    this.renderList();
+    this.renderEnergy();
+    this.renderLastToken();
+    this.refreshRunInfo();
   }
 
-  // ── In-place updates (never rebuild the modal, so tab, scroll, focus and the cube survive) ──
+  renderMeta() {
+    if (!this.isOpen()) return;
+    const line = this.modalEl.querySelector('.tt-meta-line');
+    if (!line) return;
+    const parts = [];
+    if (this.loaded) {
+      const counts = this.statusCounts();
+      const tally = TT_STATUS_ORDER.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(', ');
+      parts.push(`${this.tokens.length} shown from SQLite${tally ? ` (${tally})` : ''}`);
+      if (this.ledger) parts.push(`write ledger ${this.ledger.ok ? 'verified' : 'BROKEN'} (${this.ledger.entries ?? 0} entries)`);
+    }
+    if (this.actionMessage) parts.push(this.actionMessage);
+    line.textContent = parts.join(' · ');
+  }
+
+  renderList() {
+    if (!this.isOpen()) return;
+    const list = this.modalEl.querySelector('.tt-list');
+    if (!list) return;
+    const scroll = list.scrollTop;
+    list.replaceChildren();
+    if (this.listError) {
+      const err = ttEl('div', 'empty-state tt-error', this.listError);
+      err.setAttribute('role', 'alert');
+      list.append(err);
+    } else if (!this.loaded) {
+      list.append(ttEl('div', 'empty-state', 'Loading saved tokens…'));
+    } else if (!this.tokens.length) {
+      const filtered = this.filters.query.trim() || this.filters.status;
+      list.append(ttEl('div', 'empty-state', filtered
+        ? 'No saved token matches this search or filter.'
+        : 'No Think Tokens saved yet. A successful run saves its lessons here; Mercury 2 (or the local model) writes them from the run record.'));
+    } else {
+      const jumpTo = TT_ID_LIKE.test(this.filters.query.trim()) ? this.filters.query.trim().replace(/\D/g, '').replace(/^0+/, '') : null;
+      for (const token of this.tokens) {
+        const card = this.renderTokenCard(token);
+        if (jumpTo !== null && String(token.id).replace(/\D/g, '').replace(/^0+/, '') === jumpTo) card.classList.add('is-jump');
+        list.append(card);
+      }
+    }
+    list.scrollTop = scroll;
+    this.renderMeta();
+  }
+
+  renderTokenCard(token) {
+    const card = ttEl('article', `tt-card tt-${token.status}`);
+    card.dataset.tokenId = token.id;
+    const head = ttEl('div', 'tt-head');
+    head.append(ttEl('code', 'tt-id', token.id), ttEl('span', 'tt-kind', String(token.kind).replace('_', ' ')), ttEl('strong', 'tt-title', token.title), ttEl('span', `tt-status ${token.status}`, token.status));
+    const score = ttEl('span', 'tt-score', `score ${token.score.toFixed(3)}`);
+    if (token.score_breakdown) score.title = token.score_breakdown.formula;
+    head.append(score);
+    card.append(head, ttEl('p', 'tt-content', token.content));
+
+    const b = token.score_breakdown;
+    if (b && b.components && b.weights && b.weighted && b.inputs) {
+      const details = ttEl('details', 'tt-breakdown');
+      details.append(ttEl('summary', '', 'Score breakdown'));
+      const rows = [
+        ['usefulness', `success ${b.inputs.success_runs}, failed ${b.inputs.failed_runs}`],
+        ['recency', `age ${b.inputs.age_days} days, half-life ${b.inputs.half_life_days}`],
+        ['reuse', `uses ${b.inputs.uses}`],
+        ['feedback', `up ${b.inputs.thumbs_up}, down ${b.inputs.thumbs_down}`],
+      ];
+      for (const [name, why] of rows) details.append(ttEl('div', 'tt-breakdown-row', `${name}: ${b.components[name]} × ${b.weights[name]} = ${b.weighted[name]}  (${why})`));
+      details.append(ttEl('div', 'tt-breakdown-row', `total ${b.score} = ${b.formula}`));
+      card.append(details);
+    }
+
+    const meta = ttEl('div', 'tt-meta');
+    const run = ttEl('code', '', `run ${String(token.source_run_id).slice(0, 8)}`);
+    run.title = token.source_run_id;
+    meta.append(run, ttEl('span', '', token.extractor === 'template' ? 'extractor: template (not model-written)' : `extractor: ${token.extractor}${token.extract_model ? ` (${token.extract_model})` : ''}`));
+    const ch = token.challenge;
+    meta.append(ttEl('span', '', ch && ch.verdict ? `challenge: ${ch.verdict} by ${ch.model || 'unknown'}${ch.reason ? ` — ${ch.reason}` : ''}` : 'challenge: none yet'));
+    meta.append(ttEl('span', '', `uses ${token.uses}`), ttEl('span', '', `👍 ${token.thumbs_up} 👎 ${token.thumbs_down}`));
+    if (token.receipt) meta.append(ttEl('code', '', `receipt ${token.receipt.receipt_id}`));
+    if (token.legacy_id) meta.append(ttEl('span', '', `was ${token.legacy_id}`));
+    if (token.tags.length) meta.append(ttEl('span', 'tt-tags', token.tags.join(' · ')));
+    card.append(meta);
+
+    const used = ttEl('div', 'tt-used');
+    if (token.used_by && token.used_by.length) {
+      used.append(ttEl('span', '', 'Used by runs: '));
+      for (const use of token.used_by) used.append(ttEl('code', '', `${String(use.run_id).slice(0, 8)}${use.success === 1 ? ' ✓' : use.success === 0 ? ' ✗' : ''}`));
+    } else {
+      used.textContent = 'Not used by any run yet';
+    }
+    card.append(used);
+
+    const actions = ttEl('div', 'tt-actions');
+    const add = (label, action, title) => {
+      const button = ttEl('button', 'btn-secondary tt-btn', label);
+      button.type = 'button';
+      button.title = title;
+      button.dataset.ttAction = action;
+      button.dataset.tokenId = token.id;
+      actions.append(button);
+    };
+    if (token.status !== 'accepted' && token.status !== 'retired') add('Accept', 'accept', 'Make this token eligible for planner context (asks for approval)');
+    if (token.status !== 'retired') add('Retire', 'retire', 'Stop using this token (asks for approval)');
+    add('👍', 'thumb_up', 'Helpful');
+    add('👎', 'thumb_down', 'Not helpful');
+    card.append(actions);
+    return card;
+  }
+
+  renderLastToken() {
+    if (!this.isOpen()) return;
+    const box = this.modalEl.querySelector('.last-token');
+    if (!box) return;
+    box.replaceChildren();
+    const t = this.lastLearned;
+    if (!t) {
+      box.append(ttEl('span', 'pane-note', 'No token learned in this session yet. The cube pulses when the server saves one.'));
+      return;
+    }
+    box.append(ttEl('code', 'tt-id', t.token_id), ttEl('strong', '', t.title), ttEl('span', 'tt-score', `score ${t.score.toFixed(3)}`), ttEl('code', '', `run ${t.run_id.slice(0, 8)}`), ttEl('span', '', `used ${t.uses}×`));
+  }
+
+  renderEnergy() {
+    if (!this.isOpen()) return;
+    const core = this.modalEl.querySelector('.energy-core');
+    const stats = this.modalEl.querySelector('.energy-stats');
+    if (!core || !stats) return;
+    const s = this.energySnapshot();
+    core.dataset.state = s.state;
+    core.style.setProperty('--energy', String(s.intensity));
+    stats.replaceChildren();
+    const row = (label, value) => { stats.append(ttEl('dt', '', label), ttEl('dd', '', value)); };
+    row('state', s.state);
+    row('events / min', String(s.eventsPerMinute));
+    row('runs running', String(s.activeRuns));
+    row('learned (session)', String(s.learned));
+    row('used (session)', String(s.used));
+    row('last proof', s.lastProofAgoMs === null ? 'none yet' : this.formatAge(s.lastProofAgoMs));
+  }
+
+  renderRunInfoNodes() {
+    const info = ttEl('div', '');
+    const rows = [
+      ['Current job', this.currentJobId ? this.currentJobId.slice(0, 12) : 'none yet'],
+      ['Status', this.currentRunStatus || 'idle'],
+      ['Tokens saved (persisted, shown)', this.loaded ? String(this.tokens.length) : 'loading…'],
+    ];
+    for (const [label, value] of rows) {
+      const item = ttEl('div', 'job-info-item');
+      item.append(ttEl('span', 'job-info-label', label), ttEl('span', 'job-info-value', value));
+      info.append(item);
+    }
+    if (this.lastError) {
+      const err = ttEl('div', 'job-info-error', this.lastError);
+      err.setAttribute('role', 'alert');
+      info.append(err);
+    }
+    return info;
+  }
 
   refreshRunInfo() {
     if (!this.isOpen()) return;
-    const el = this.modalEl.querySelector('.current-job-info');
-    if (el) el.innerHTML = this.renderRunInfoHtml();
+    const box = this.modalEl.querySelector('.current-job-info');
+    if (box) box.replaceChildren(...this.renderRunInfoNodes().children);
   }
 
-  refreshOpenViews() {
-    if (!this.isOpen()) return;
-    const modal = this.modalEl;
-    const scroller = modal.querySelector('.tab-content');
-    const scrollTop = scroller ? scroller.scrollTop : 0;
-    const focusedId = document.activeElement?.dataset?.tokenDetails;
-
-    const tabBtn = modal.querySelector('[data-tab="tokens"]');
-    if (tabBtn) tabBtn.textContent = this.tokensTabLabel();
-    const tokensPane = modal.querySelector('#tab-tokens');
-    if (tokensPane) tokensPane.innerHTML = this.renderTokensPaneHtml();
-    const analyticsPane = modal.querySelector('#tab-analytics');
-    if (analyticsPane) analyticsPane.innerHTML = this.renderAnalyticsPaneHtml();
-    this.refreshRunInfo();
-
-    if (scroller) scroller.scrollTop = scrollTop;
-    if (focusedId !== undefined) {
-      const again = [...modal.querySelectorAll('[data-token-details]')].find((b) => b.dataset.tokenDetails === focusedId);
-      again?.focus();
-    }
-  }
-
-  showTokenDetails(tokenId) {
-    const token = this.tokens.find((t) => t.id === tokenId);
-    if (!token) return;
-
-    const detailModal = document.createElement('div');
-    detailModal.className = 'modal-backdrop';
-    detailModal.innerHTML = `
-      <section class="modal modal-token-details" role="dialog" aria-modal="true">
-        <div class="modal-header">
-          <h2>${this.getTypeIcon(token.type)} ${this.escapeHtml(token.type.toUpperCase())}</h2>
-          <button type="button" class="btn-icon" aria-label="Close" data-detail-close>×</button>
-        </div>
-        <div class="token-details-content">
-          <div class="detail-section">
-            <h4>Content</h4>
-            <pre><code>${this.escapeHtml(token.content)}</code></pre>
-          </div>
-          <div class="detail-section">
-            <h4>This session (UI)</h4>
-            <ul>
-              <li>Id: ${this.escapeHtml(token.id)}</li>
-              <li>Seen: ${new Date(token.createdAt).toLocaleString()}</li>
-              <li>Confidence: ${(token.confidence * 100).toFixed(1)}%</li>
-              <li>Usage events: ${token.usageCount > 0 ? `${token.usageCount} (${token.successCount} ok, ${token.failureCount} failed)` : 'none reported'}</li>
-            </ul>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-detail-close>Close</button>
-        </div>
-      </section>
-    `;
-    detailModal.addEventListener('click', (e) => {
-      if (e.target === detailModal || e.target.closest?.('[data-detail-close]')) detailModal.remove();
-    });
-    document.body.appendChild(detailModal);
-  }
-
-  getTokenTypeDistribution() {
-    const dist = {};
-    this.tokens.forEach((t) => { dist[t.type] = (dist[t.type] || 0) + 1; });
-    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
-  }
-
-  getTypeIcon(type) {
-    return THINK_TOKEN_TYPE_ICONS[type] || '🎫';
-  }
-
-  calculateAverageSuccessRate() {
-    const rates = this.tokens.filter((t) => t.usageCount > 0).map((t) => (t.successCount / t.usageCount) * 100);
-    return rates.length > 0 ? Math.round(rates.reduce((a, b) => a + b) / rates.length) : 0;
-  }
-
-  calculateKnowledgeReuse() {
-    const totalPotential = this.tokens.length * 100;
-    const actualReuse = this.tokens.reduce((sum, t) => sum + t.usageCount, 0);
-    return totalPotential > 0 ? Math.round((actualReuse / totalPotential) * 100) : 0;
-  }
-
-  formatAge(timestamp) {
-    const minutes = Math.floor((Date.now() - timestamp) / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'just now';
-  }
-
-  // String-based so it is safe in text and quoted attributes and needs no DOM.
-  escapeHtml(text) {
-    return String(text ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  exportLearnings() {
+  exportTokens() {
     const data = {
       exportedAt: new Date().toISOString(),
-      scope: 'in-memory tokens seen in this browser session; not read from the database',
+      scope: 'saved Think Tokens currently shown, read from SQLite (think-tokens.db) via the server; not session-only data',
+      filters: { ...this.filters },
       tokenCount: this.tokens.length,
       tokens: this.tokens,
-      analysis: {
-        avgSuccessRate: this.calculateAverageSuccessRate(),
-        knowledgeReuse: this.calculateKnowledgeReuse(),
-      },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `think-tokens-session-${Date.now()}.json`;
+    a.download = `think-tokens-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

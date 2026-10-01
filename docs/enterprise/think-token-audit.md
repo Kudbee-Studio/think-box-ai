@@ -1,6 +1,8 @@
 # Think Token / THNK / DTHINK audit
 
 Status: evidence-only audit, 2026-09-30. Nothing was changed, minted, provisioned or contacted to produce it. Every
+
+> **Status update 2026-10-01:** this audit is dated 2026-09-30 and is kept as written. Its main finding (tokens not persisted and not wired) was fixed afterwards: the #288 chain is wired into `runAgentGoal` and proven on real runs, the ADR 028 store (`think-tokens.db`) and ADR 029 P1/P2 (TT ids, extractor, challenge, shared reader, merged view) are implemented. See `docs/decisions/029-think-token-intelligence-object.md` and `docs/evidence/adr-029-p1.md`. THNK remains a separate concept.
 claim below was read from a file or a git object in this repository.
 
 Labels follow AGENTS.md section 4.4: IMPLEMENTED (code exists), TEST VERIFIED (a test exercises it), LIVE VERIFIED

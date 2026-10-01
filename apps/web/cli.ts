@@ -2,6 +2,7 @@
 //   kudbee                 interactive shell
 //   kudbee "<goal>"        run one goal with the worker agent and exit
 //   kudbee --yes "<goal>"  same, auto-approving gated tool calls (overwrites, new domains)
+//   kudbee tokens list|show  read Think Tokens from the same think-tokens.db the dashboard uses (no server needed)
 import { spawn } from 'node:child_process';
 import readline from 'node:readline';
 import path from 'node:path';
@@ -10,16 +11,17 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
+import { localModelHint, resolveLocalModel } from './local-model.ts';
+import { formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
+import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Cheap local route: default to Qwen2.5 1.5B. 'smollm2' is a legacy alias kept
-// for anyone with existing config/scripts referencing the earlier model name.
-const LEGACY_LOCAL_MODEL_ALIASES: Record<string, string> = { smollm2: 'qwen2.5:1.5b', 'smollm2:135m': 'qwen2.5:1.5b' };
-const RAW_LOCAL_MODEL = process.env.KUDBEE_LOCAL_MODEL || 'qwen2.5:1.5b';
-const LOCAL_MODEL = LEGACY_LOCAL_MODEL_ALIASES[RAW_LOCAL_MODEL.toLowerCase()] || RAW_LOCAL_MODEL;
+// Cheap local route: the already-installed Ollama model named by THINKBOX_LOCAL_MODEL (older: KUDBEE_LOCAL_MODEL).
+// The CLI never pulls models; see local-model.ts.
+const LOCAL_MODEL = resolveLocalModel();
 // Name of the enterprise agent model the "complex" route should prefer. The actual
 // candidate list still comes from client.models (server-reported, `agent: true`);
 // this only breaks ties when more than one agent model is available.
@@ -90,6 +92,10 @@ function printThought(t: any): void {
       break;
     case 'plugin_call':
     case 'plugin_result':
+      break;
+    case 'think_token':
+      // Same id, status and lesson text the dashboard shows; `kudbee tokens show <id>` prints the rest.
+      console.log(t.tokenId ? c.green(`  🧩 ${t.tokenId} [${t.tokenStatus ?? 'saved'}] ${text}`) : c.dim(`  🧩 ${text}`));
       break;
     default:
       console.log(c.dim(`  · ${text}`));
@@ -285,6 +291,8 @@ ${c.bold('MODELS & AGENTS')}
   /agents             list tool-scoped agent lanes (e.g. HERMES — Algorand read-only)
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
   ${c.dim("kudbee --agent hermes '<goal>'")}  one-shot run with an agent lane
+  ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
+  ${c.dim('kudbee tokens show <TT-id> [--json]')}  one token: lesson, score breakdown, run, ledger receipt
 
 ${c.bold('OPERATIONS')}
   /plugins            list available tools and permissions
@@ -347,8 +355,8 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       const localRouteReady = local.some((m) => m.name === LOCAL_MODEL);
       if (!localRouteReady) {
         console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
-        console.log(c.red(`    ✗ ${LOCAL_MODEL} not pulled — auto-routing falls back to Mercury-2 for simple goals`));
-        console.log(c.dim(`      Run: ollama pull ${LOCAL_MODEL}`));
+        console.log(c.red(`    ✗ ${LOCAL_MODEL} is not installed — auto-routing falls back to Mercury-2 for simple goals`));
+        console.log(c.dim('      Set THINKBOX_LOCAL_MODEL to a model from `ollama list` (nothing is pulled for you).'));
       }
       console.log(c.dim(`\n  Use: /model MERCURY-2  or  /model ${LOCAL_MODEL}`));
       break;
@@ -644,8 +652,8 @@ function isComplexGoal(goal: string): boolean {
 
 let warnedNoLocalModel = false;
 
-// Routing heuristics: Simple → cheap local Ollama model (KUDBEE_LOCAL_MODEL, default
-// qwen2.5:1.5b), Complex → Mercury-2. If the local model isn't pulled into Ollama,
+// Routing heuristics: Simple → cheap local Ollama model (THINKBOX_LOCAL_MODEL), Complex → Mercury-2.
+// If the configured local model isn't installed in Ollama,
 // fall back to Mercury-2 and report the fallback honestly (no fake savings).
 function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   const agentModels = client.models.filter((m) => m.agent);
@@ -701,13 +709,13 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
     };
     if (!warnedNoLocalModel) {
       warnedNoLocalModel = true;
-      console.log(c.dim(`  ⚠ local model '${LOCAL_MODEL}' not found in Ollama — run: ollama pull ${LOCAL_MODEL}`));
+      console.log(c.dim(`  ⚠ ${localModelHint(LOCAL_MODEL)}`));
     }
   }
 
   if (telemetry.modelSelected !== client.model || telemetry.routeReason === 'auto_fallback_no_local') {
     if (telemetry.routeReason === 'auto_fallback_no_local') {
-      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (no local model; pull ${LOCAL_MODEL})`));
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (local model '${LOCAL_MODEL}' not installed; set THINKBOX_LOCAL_MODEL)`));
     } else {
       const saved = telemetry.tokensSavedEst > 0 ? ` (est. saved ~${telemetry.tokensSavedEst} tokens)` : '';
       console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}`));
@@ -717,7 +725,64 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   return telemetry;
 }
 
+
+/** `kudbee tokens list|show`: reads the same think-tokens.db the dashboard reads, through the one shared reader. */
+function tokensCommand(args: string[]): number {
+  const flag = (name: string): string | undefined => {
+    const i = args.indexOf(name);
+    if (i < 0) return undefined;
+    const [, value] = args.splice(i, 2);
+    return value;
+  };
+  const json = args.includes('--json');
+  if (json) args.splice(args.indexOf('--json'), 1);
+  const status = flag('--status');
+  const runId = flag('--run');
+  const [sub, ...rest] = args;
+  if (status !== undefined && !(TOKEN_STATUSES as readonly string[]).includes(status)) {
+    console.log(c.red(`status must be one of: ${TOKEN_STATUSES.join(', ')}`));
+    return 2;
+  }
+  let store;
+  try {
+    store = openTokenReader();
+  } catch (err) {
+    console.log(c.red(`No Think Token database to read at ${thinkTokenDbPath()} (${err instanceof Error ? err.message : err}).`));
+    console.log(c.dim('Complete a goal with the Agent OS running, then try again.'));
+    return 1;
+  }
+  try {
+    if (sub === 'show') {
+      const id = rest[0];
+      if (!id) { console.log(c.red('usage: kudbee tokens show <TT-id> [--json]')); return 2; }
+      const token = readToken(store, id);
+      if (!token) { console.log(c.red(`No Think Token ${id}`)); return 1; }
+      console.log(json ? JSON.stringify(token, null, 2) : formatTokenDetail(token));
+      return 0;
+    }
+    if (sub === undefined || sub === 'list') {
+      const query = rest.join(' ').trim() || undefined;
+      const tokens = readTokens(store, { status: status as TokenStatus | undefined, run_id: runId, query, limit: 100 });
+      if (json) console.log(JSON.stringify({ tokens, ledger: store.verifyLedger() }, null, 2));
+      else if (!tokens.length) console.log(c.dim('No Think Tokens match.'));
+      else {
+        for (const t of tokens) console.log(formatTokenLine(t));
+        const ledger = store.verifyLedger();
+        console.log(c.dim(`${tokens.length} shown · ledger ${ledger.ok ? 'verified' : 'BROKEN'} (${ledger.entries} entries) · ${thinkTokenDbPath()}`));
+      }
+      return 0;
+    }
+    console.log(c.red('usage: kudbee tokens list [--status S] [--run RUN_ID] [--json] [query] | kudbee tokens show <TT-id> [--json]'));
+    return 2;
+  } finally {
+    store.close();
+  }
+}
+
 async function main(): Promise<void> {
+  // Reading tokens needs no server and no WebSocket.
+  if (process.argv[2] === 'tokens') process.exit(tokensCommand(process.argv.slice(3)));
+
   await ensureServer();
   const client = new Client();
   await client.connect();

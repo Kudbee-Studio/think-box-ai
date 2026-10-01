@@ -101,3 +101,10 @@ Score (computed in `computeScore`, no ML): `0.45*usefulness + 0.20*recency + 0.1
 creation, `reuse = min(1, log2(1+uses)/log2(11))`, `feedback = (thumbs_up+1)/(thumbs_up+thumbs_down+2)`.
 Retrieval is keyword/tag match over accepted tokens only (tag 3, title 2, content 1), ranked by match times `(0.5 + score)`;
 no embeddings, because none exist for this table.
+
+## Status update 2026-10-01 (ADR 029 P1)
+
+The store described above was extended, not replaced: schema v2 adds permanent ids (`TT-000001`, the old `tt_<hash>` kept as `legacy_id`), the
+lifecycle statuses `candidate | extracted | scored | challenged | accepted | rejected | retired`, a stored score breakdown, extractor/model/challenge
+columns and a model-call log. The v1 -> v2 migration is in `think-token-store.ts` (`migrateUp`) and never rewrites the hash-chained ledger. The
+"deterministic extractor" is now only the labeled last-resort fallback; the real extractor is `think-token-pipeline.ts`. The ADR is still **Proposed**.

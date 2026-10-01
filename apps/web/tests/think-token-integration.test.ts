@@ -25,7 +25,7 @@ before(async () => {
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,
     env: {
-      ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test-key', INCEPTION_BASE_URL: mock.baseUrl, OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD,
+      ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test-key', INCEPTION_API_KEY_2: '', INCEPTION_BASE_URL: mock.baseUrl, OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD,
       UPSTASH_VECTOR_REST_URL: DEAD, UPSTASH_VECTOR_REST_TOKEN: 'none', KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(tmpRoot, 'data'), KUDBEE_LEARNING_DB: path.join(tmpRoot, 'learning.db'), KUDBEE_THINK_TOKEN_DB: path.join(tmpRoot, 'think-tokens.db'),
       KUDBEE_WORKSPACE_DIR: path.join(tmpRoot, 'workspaces'),

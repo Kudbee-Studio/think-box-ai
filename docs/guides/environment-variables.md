@@ -148,3 +148,18 @@ asyncio.run(test_bounded())
 3. Monitor rate limits and adjust concurrency accordingly
 4. Use governed execution (`GovernedEngine`) for audit trails
 5. Test model provider failover for high availability
+
+## Think Token extraction (apps/web, ADR 029)
+
+Read only from the environment (the server also loads the repo-root `.env`). Never print, log or commit these.
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `INCEPTION_API_KEY_2` | Key for Think Token extraction and challenge with Mercury 2 (separate from `INCEPTION_API_KEY`, which the worker agent uses) | unset: the local model is used |
+| `THINKBOX_TOKEN_MODEL` | Mercury model name for those calls | `mercury-2` |
+| `THINKBOX_LOCAL_MODEL` | Already-installed Ollama model for the fallback (older name `KUDBEE_LOCAL_MODEL`); the app never pulls models | `qwen2.5:1.5b` |
+| `THINKBOX_TOKEN_MODEL_CALLS_PER_RUN` | Cap on extraction + challenge model calls per run (a failed Mercury call is retried once and counts) | `10` |
+| `THINKBOX_TOKEN_MODEL_CALLS_PER_DAY` | Cap on those calls per day | `200` |
+| `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
+
+Prompts for Mercury leave the machine: secrets and absolute paths are removed and inputs are size-capped first.

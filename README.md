@@ -37,7 +37,7 @@
 | **KUDBEECLI** (inspect, persist, REPL) | Phase 1 on `main`; Phase 2 [#178](https://github.com/Kudbee-Studio/think-box-ai/pull/178) · Phase 3 [#180](https://github.com/Kudbee-Studio/think-box-ai/pull/180) — [CLI Phase 2 guide](docs/guides/kudbee_cli_phase2_quickstart.md) · [Phase 3 guide](docs/guides/kudbee_cli_phase3_quickstart.md) |
 | **Kudbee SDK** (Python + web) | App [#177](https://github.com/Kudbee-Studio/think-box-ai/pull/177) · Follow-up [#179](https://github.com/Kudbee-Studio/think-box-ai/pull/179) · Wave 2 [#181](https://github.com/Kudbee-Studio/think-box-ai/pull/181) (draft) — [SDK guide](docs/guides/kudbee_sdk_quickstart.md) · [Follow-up W2 guide](docs/guides/kudbee_sdk_followup_w2_quickstart.md) |
 | **Control plane UI** | [Think Job status](docs/guides/think_job_status_stream.md) · [Control plane API](docs/guides/kilo_control_plane_api.md) · static assets in `public/control-plane/` |
-| **Swarm & experiments** | [Swarm scale guide](docs/guides/kilo_swarm_scale.md) · `experiments/` proofs · [THINK burst protocol](docs/think-burst-protocol.md) |
+| **Swarm & experiments** | [Swarm scale guide](docs/guides/kilo_swarm_scale.md) · `experiments/` proofs · [THINK burst protocol](docs/think-burst-protocol.md) · status: a distributed swarm is **UNPROVEN** (specialists run in one process; see [ADR 029 findings](docs/research/2026-10-01-think-box-findings.md)) |
 
 ### Agents & manufacturing
 
@@ -186,9 +186,9 @@ Layer 1: Providers (OpenAI-compatible, Anthropic protocol, local — config swap
 Layer 0: Foundation (config, schemas, logging, structured errors)
 ```
 
-**Execution substrate (2026-09-17):** [Upstash Box](docs/CONTINUITY.md) as primary execution path from env (`UPSTASH_PUBLIC_BOX_URL`); UpCloud remains **control-plane read-only** (no SSH execution path). Deep execution milestones, swarm proofs, and DAG verified runs are recorded in [CONTINUITY](docs/CONTINUITY.md) with artifact hashes — not repeated here.
+**Execution substrate (2026-09-17):** [Upstash Box](docs/CONTINUITY.md) as the intended primary execution path from env (`UPSTASH_PUBLIC_BOX_URL`; status 2026-10-01: **UNPROVEN** here, the Box probe returned `ENV_NOT_CONFIGURED`, see [ADR 024](docs/decisions/024-upstash-box-access-verification.md)); UpCloud remains **control-plane read-only** (no SSH execution path). Deep execution milestones, swarm proofs, and DAG verified runs are recorded in [CONTINUITY](docs/CONTINUITY.md) with artifact hashes — not repeated here.
 
-**Phase 9 modules** (`coalition`, `consensus`, `economy`, `intelligence`, `benchmark`, `session`) — index: [PHASE9_INDEX.md](docs/archive/PHASE9_INDEX.md).
+**Phase 9 modules** (`coalition`, `consensus`, `economy`, `intelligence`, `benchmark`, `session`) — index: [PHASE9_INDEX.md](docs/archive/PHASE9_INDEX.md). Status 2026-10-01: each is **UNPROVEN** until it has its own evidence.
 
 ---
 
@@ -232,6 +232,7 @@ npm install
 npm run typecheck      # tsgo --noEmit
 npm test               # hermetic, mocked model
 npm audit              # expected: 0 vulnerabilities
+kudbee tokens list     # Think Tokens from apps/web/data/think-tokens.db (same data as the dashboard, no server needed)
 npm start              # Node 22.6+ with type stripping (Express 5)
 ```
 
