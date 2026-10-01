@@ -30,9 +30,9 @@
 .tw-body { display: grid; grid-template-columns: minmax(0, 1fr) 210px; flex: 1; min-height: 0; }
 .tw-main { position: relative; min-width: 0; min-height: 0; display: flex; }
 .terminal.tw-viewport {
-  flex: 1; min-width: 0; position: relative; overflow-y: auto; overflow-x: hidden; padding: 8px 0;
+  flex: 1; min-width: 0; position: relative; overflow-y: scroll; overflow-x: hidden; padding: 8px 0;
   background: var(--tw-bg); font-size: 13px; line-height: var(--tw-row); font-family: inherit; color: var(--tw-fg);
-  scroll-behavior: auto; overscroll-behavior: contain;
+  scroll-behavior: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
 }
 .tw-sizer { position: relative; width: 100%; }
 .tw-rows { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
