@@ -5,7 +5,6 @@ import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { WorkerInitializer, BehavioralChangeDetector } from './worker-initialization.ts';
 import { LearningStore, type SessionLearning } from './learning-store.ts';
 import { ThinkTokenFactory } from './think-token-factory.ts';
-import type { AgentSession } from './server.ts';
 import type { ChatMessage } from './types.ts';
 
 /**

@@ -17,6 +17,7 @@ const DEAD = 'http://127.0.0.1:9';
 let tmp: string;
 let backend: http.Server;
 let hits: Array<{ url: string; body: any }> = [];
+const recordedHits = (): Array<{ url: string; body: any }> => hits;
 
 function env(extra: Record<string, string>): NodeJS.ProcessEnv {
   return {
@@ -90,7 +91,7 @@ test('governed bridge controls still apply on the real server', async () => {
     const ok = await fetch(`${web.url}/api/governed/run`, { method: 'POST', headers: H, body: '{"command":"hostname"}' });
     assert.equal(ok.status, 202);
     assert.equal((await ok.text()).includes('SECRET-GOV'), false, 'token never reaches the browser');
-    const run = hits.find((h) => h.url === '/api/v1/run')!.body;
+    const run = recordedHits().find((h) => h.url === '/api/v1/run')!.body;
     assert.equal(run.capability, 'shell:upcloud-ssh:readonly');
     assert.equal(run.execution_substrate, 'upcloud-ssh');
   } finally { web.proc.kill(); }

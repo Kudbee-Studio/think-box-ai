@@ -27,6 +27,7 @@ router.post('/clone', async (req, res) => {
     const state = await gitManager.cloneRepository({
       url,
       branch,
+      localPath: path.join(baseDir, path.basename(String(url ?? '').replace(/\.git$/i, ''))),
       depth: shallow ? 1 : undefined
     });
 

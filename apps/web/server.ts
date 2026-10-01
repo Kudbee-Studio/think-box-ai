@@ -1561,7 +1561,7 @@ wss.on('connection', async (ws: WebSocket) => {
         case 'update_config': {
           let patch: Partial<AgentSessionConfig>;
           try {
-            patch = msg.config as Partial<AgentSessionConfig>;
+            patch = sanitizeConfigPatch(msg.config);
           } catch (err) {
             ws.send(JSON.stringify({ type: 'config_error', data: { error: errorMessage(err) } }));
             break;
