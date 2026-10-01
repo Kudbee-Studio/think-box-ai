@@ -1,0 +1,72 @@
+{
+  "sessionId": "6645412a-587f-47f0-9379-2db251ec3c6d",
+  "transitionCount": 8,
+  "transitions": [
+    {
+      "t_ms": 21,
+      "sourceThoughtType": "goal",
+      "stage": "intent",
+      "payload": {
+        "tokenId": null
+      }
+    },
+    {
+      "t_ms": 985,
+      "sourceThoughtType": "tool_call",
+      "stage": "execution",
+      "payload": {
+        "step": 1
+      }
+    },
+    {
+      "t_ms": 987,
+      "sourceThoughtType": "tool_result",
+      "stage": "challenge",
+      "payload": {
+        "vulnerabilities": 1
+      }
+    },
+    {
+      "t_ms": 1312,
+      "sourceThoughtType": "tool_call",
+      "stage": "execution",
+      "payload": {
+        "step": 2
+      }
+    },
+    {
+      "t_ms": 1316,
+      "sourceThoughtType": "tool_result",
+      "stage": "evidence",
+      "payload": {
+        "evidenceCount": 1
+      }
+    },
+    {
+      "t_ms": 1741,
+      "sourceThoughtType": "memory",
+      "stage": "harvest",
+      "payload": {}
+    },
+    {
+      "t_ms": 1745,
+      "sourceThoughtType": "think_token",
+      "stage": "proof",
+      "payload": {}
+    },
+    {
+      "t_ms": 1745,
+      "sourceThoughtType": "think_token",
+      "stage": "think_token",
+      "payload": {
+        "tokenId": null
+      }
+    }
+  ],
+  "finalStage": "think_token",
+  "finalTokenId": null,
+  "activeCellCount": 54,
+  "lockedCellCount": 31,
+  "disruptedCellCount": 1,
+  "replayDeterministic_sameInputSameOutput": true
+}

@@ -1,0 +1,71 @@
+{
+  "proof_name": "think-token-cube-real-run",
+  "captured_at": "2026-10-01T00:46:11.345Z",
+  "job_id": "6645412a-587f-47f0-9379-2db251ec3c6d",
+  "think_token_id": "token-tools-3ef27a8e-af45-46e8-971b-ff0b5ab7ccf9",
+  "box_agent_identities": {
+    "session_id": "6645412a-587f-47f0-9379-2db251ec3c6d",
+    "model": "mercury-2",
+    "provider": "inception",
+    "note": "#288 is single-agent per session; there is no multi-Think-Box swarm identity to record. 'box/agent identities' here is this one session id, honestly, not a fabricated swarm roster."
+  },
+  "goal": "Call read_file on the path 'this-file-does-not-exist-12345.txt' (it will fail, that's expected). Then call write_file to create 'cube-proof-note.txt' with the exact content 'cube proof run ok'. Then briefly state what happened with both calls.",
+  "cost": { "tokens": 6147, "usd": 0.00163, "steps": 3, "tool_calls": 2 },
+  "event_sequence_source": "docs/enterprise/proof/think-token-cube-real-run-events.json (29 raw WebSocket events, t=0 at socket open, real local timestamps in ms)",
+  "real_thought_events": [
+    { "t_ms": 21,   "type": "goal",        "status": "info",    "content": "Worker agent (mercury-2) starting: ..." },
+    { "t_ms": 985,  "type": "tool_call",   "status": "running", "content": "read_file {\"path\":\"this-file-does-not-exist-12345.txt\"}" },
+    { "t_ms": 987,  "type": "tool_result", "status": "error",   "content": "read_file ✗ ENOENT: no such file or directory, open '...'" },
+    { "t_ms": 1312, "type": "tool_call",   "status": "running", "content": "write_file {\"path\":\"cube-proof-note.txt\",\"content\":\"cube proof run ok\"}" },
+    { "t_ms": 1316, "type": "tool_result", "status": "success", "content": "write_file ✓ {\"ok\":true,\"path\":\"cube-proof-note.txt\",\"bytes\":17}" },
+    { "t_ms": 1741, "type": "memory",      "status": "success", "content": "Saved episode to task memory: task/2026-10-01-518de9a3.md" },
+    { "t_ms": 1745, "type": "think_token", "status": "success", "content": "Captured 1 Think Token from this run", "id": "f35bb31f-6323-4b27-861d-fa9f267efeca" }
+  ],
+  "cube_state_transitions_source": "docs/enterprise/proof/think-token-cube-correlation-result.json (full detail, with per-transition timestamps)",
+  "cube_state_transitions_summary": [
+    { "t_ms": 21,   "from_thought": "goal",        "stage": "intent" },
+    { "t_ms": 985,  "from_thought": "tool_call",   "stage": "execution",  "step": 1 },
+    { "t_ms": 987,  "from_thought": "tool_result", "stage": "challenge",  "vulnerabilities": 1, "note": "a real tool failure (ENOENT), shown as a disruption; NOT an adversarial-review Jury event, which #288 does not have" },
+    { "t_ms": 1312, "from_thought": "tool_call",   "stage": "execution",  "step": 2 },
+    { "t_ms": 1316, "from_thought": "tool_result", "stage": "evidence",   "evidenceCount": 1 },
+    { "t_ms": 1741, "from_thought": "memory",      "stage": "harvest" },
+    { "t_ms": 1745, "from_thought": "think_token", "stage": "proof" },
+    { "t_ms": 1745, "from_thought": "think_token", "stage": "think_token" }
+  ],
+  "final_cube_state": {
+    "stage": "think_token",
+    "active_cells": 54,
+    "locked_cells": 31,
+    "disrupted_cells": 1,
+    "note": "The one disrupted cell (from the real read_file failure) is still disrupted at the end: #288 has no 'repair' signal for a real tool error, so nothing clears it. This is the real, honest end state, not a cosmetic resolution."
+  },
+  "final_token_state": {
+    "persisted": true,
+    "store": "apps/web/learning.db, table learned_patterns",
+    "row": { "id": "token-tools-3ef27a8e-af45-46e8-971b-ff0b5ab7ccf9", "type": "tool_sequence", "confidence": 0.73, "success_count": 1, "failure_count": 0 },
+    "survives_restart": true,
+    "verified_by": "dashboard process restarted (fresh uptime_seconds: 8) and the row, the session_learning row, and the task memory file were all re-queried and found intact"
+  },
+  "evidence_references": [
+    "apps/web/learning.db (learned_patterns row id token-tools-3ef27a8e-af45-46e8-971b-ff0b5ab7ccf9; session_learning row session_id 6645412a-587f-47f0-9379-2db251ec3c6d)",
+    "apps/web/data/memory/task/2026-10-01-518de9a3.md (the recorded episode, 1367 bytes)",
+    "apps/web/workspaces/<session_id>/cube-proof-note.txt (the real file write_file actually produced)"
+  ],
+  "validation_result": {
+    "chain_enforced": "EXECUTION -> EVIDENCE -> run.success flag -> ServerLearningIntegration.recordGoalExecution(success) -> ThinkTokenFactory quality gate -> THINK TOKEN",
+    "gate_location": "apps/web/server-learning-integration.ts: candidate extraction and persistence only run `if (success)`",
+    "unit_test_proof_of_the_gate": "apps/web/tests/think-token-lifecycle.test.ts: 'failed execution -> no token is created, even with the same thought content' (passing) and 'a candidate that fails the factory quality gate produces no token even on success' (passing)",
+    "statement": "A token event occurring is not treated as self-certifying: minting requires the real run.success flag from runToolAgent AND the factory's independent content quality gate (specific/actionable/generalizable), both of which are enforced in code and covered by tests, not just asserted here."
+  },
+  "replay_result": {
+    "method": "the captured real_thought_events replayed through applyEvent() twice, independently, from a fresh createInitialCubeState()",
+    "same_input_same_output": true,
+    "deterministic": true
+  },
+  "not_claimed": [
+    "No swarm: #288 has one agent per session, not multiple participating Think Boxes.",
+    "No jury/adversarial challenge: the 'challenge' stage above is a real tool error, not a Jury verdict.",
+    "No repair: nothing in #288 clears a real disruption; the final state's 1 disrupted cell reflects that honestly.",
+    "No commons/cross-session propagation: this token was persisted but nothing in this run propagated it to another session."
+  ]
+}
