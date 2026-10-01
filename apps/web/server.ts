@@ -114,6 +114,8 @@ app.use((req: Request, res: Response, next) => {
   res.status(421).json({ error: 'misdirected_request', detail: 'The dashboard is local-only; use http://127.0.0.1 on its port' });
 });
 app.use(express.json());
+// Express 5 leaves req.body undefined for body-less requests (v4 gave {}); keep v4 behavior so handlers answer 400, not 500.
+app.use((req: Request, _res: Response, next) => { if (req.body === undefined) req.body = {}; next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── In-memory state ───────────────────────────────────────────
@@ -1844,7 +1846,7 @@ app.get('/api/runs', (req: Request, res: Response) => {
   res.json(data);
 });
 
-app.get('/api/runs/:id', (req: Request, res: Response) => {
+app.get('/api/runs/:id', (req: Request<{ id: string }>, res: Response) => {
   const run = runStore.get(req.params.id);
   if (!run) return res.status(404).json({ error: 'Run not found' });
   res.json(run);
@@ -1954,7 +1956,7 @@ app.get('/api/agents', (_req: Request, res: Response) => {
   res.json({ agents });
 });
 
-app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {
+app.get('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   const root = sessionWorkspace(req.params.id);
   const files: Array<{ path: string; size: number; modified_at: string }> = [];
@@ -1973,7 +1975,7 @@ app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {
   res.json({ files: files.sort((a, b) => a.path.localeCompare(b.path)) });
 });
 
-app.get('/api/sessions/:id/files/content', async (req: Request, res: Response) => {
+app.get('/api/sessions/:id/files/content', async (req: Request<{ id: string }>, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     const filePath = safeWorkspacePath(req.params.id, String(req.query.path || ''));
@@ -1984,7 +1986,7 @@ app.get('/api/sessions/:id/files/content', async (req: Request, res: Response) =
   }
 });
 
-app.get('/api/sessions/:id/files/raw', async (req: Request, res: Response) => {
+app.get('/api/sessions/:id/files/raw', async (req: Request<{ id: string }>, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     const relativePath = String(req.query.path || '');
@@ -2001,7 +2003,7 @@ app.get('/api/sessions/:id/files/raw', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async (req: Request, res: Response) => {
+app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async (req: Request<{ id: string }>, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const image = req.file;
@@ -2028,7 +2030,7 @@ app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async 
   }
 });
 
-app.post('/api/sessions/:id/images/generate', async (req: Request, res: Response) => {
+app.post('/api/sessions/:id/images/generate', async (req: Request<{ id: string }>, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const prompt = typeof req.body.prompt === 'string' ? req.body.prompt.trim() : '';
@@ -2050,7 +2052,7 @@ app.post('/api/sessions/:id/images/generate', async (req: Request, res: Response
   }
 });
 
-app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('image'), async (req: Request, res: Response) => {
+app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('image'), async (req: Request<{ id: string; taskId: string }>, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const task = session.tasks.find((item) => item.id === req.params.taskId || item.id.startsWith(req.params.taskId));
@@ -2085,7 +2087,7 @@ app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('imag
   }
 });
 
-app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Request, res: Response) => {
+app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Request<{ id: string }>, res: Response) => {
   if (!sessions.has(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   const uploaded: Array<{ path: string; size: number }> = [];
   try {
@@ -2100,7 +2102,7 @@ app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Requ
   }
 });
 
-app.delete('/api/sessions/:id/files', async (req: Request, res: Response) => {
+app.delete('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: Response) => {
   if (!sessions.has(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     await unlinkConfined(sessionWorkspace(req.params.id), safeWorkspacePath(req.params.id, String(req.body.path || '')));
@@ -2110,7 +2112,7 @@ app.delete('/api/sessions/:id/files', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
+app.post('/api/sessions/:id/run', async (req: Request<{ id: string }>, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -2130,7 +2132,7 @@ const governedBridge = bridgeConfigFromEnv();
 app.post('/api/governed/run', submitGovernedRun(governedBridge));
 app.get('/api/governed/run/:engineId', getGovernedRun(governedBridge));
 
-app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
+app.post('/api/sessions/:id/stop', (req: Request<{ id: string }>, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   session.stop();
@@ -2182,7 +2184,7 @@ app.post('/api/memory/notes', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/memory/notes/:id', async (req: Request, res: Response) => {
+app.delete('/api/memory/notes/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const id = req.params.id;
     // Phase 3: soft-delete tracking only; full DB delete in Phase 4
