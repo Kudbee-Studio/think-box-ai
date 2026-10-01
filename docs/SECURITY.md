@@ -12,6 +12,12 @@ the project maintainers. Please do not open a public issue for security vulnerab
 - API keys are passed via the `X-API-Key` header or `api_key` query parameter
 - Keys are compared using constant-time comparison to prevent timing attacks
 
+#### Dashboard password hash (deferred)
+- `KUDBEE_DASHBOARD_PASSWORD_HASH` is reserved for the removed dashboard-auth implementation and is not consumed by the active local-only web runtime. Setting it does not enable sign-in.
+- The value is intended to be a derived scrypt hash, never a plaintext password. Do not put plaintext passwords or password hashes in tracked files, command-line arguments, or logs; use a secret manager or a local untracked environment file if authentication is reintroduced.
+- The hash-generation script previously documented for this variable is not present in the current repository. No password-hash generation command is currently supported.
+- Dashboard authentication remains deferred; do not expose the unauthenticated dashboard beyond loopback.
+
 ### Rate Limiting
 - Default: 100 requests per minute per IP
 - Configurable via `THINKBOX_RATE_LIMIT` environment variable
