@@ -47,8 +47,12 @@
 .px-runtime { color: var(--tw-purple); } .px-tool { color: var(--tw-cyan); } .px-policy { color: var(--tw-amber); }
 .px-gate { color: #fb923c; } .px-ledger { color: #fde68a; } .px-memory { color: #c4b5fd; } .px-model { color: #67e8f9; }
 .lvl-error .tw-text { color: #fca5a5; } .lvl-warn .tw-text { color: #fde68a; }
-.in-group:not(.group-head) .tw-text { padding-left: 2ch; border-left: 1px solid var(--tw-line); }
-.tw-chev { background: none; border: 0; color: var(--tw-amber); font: inherit; cursor: pointer; padding: 0 1ch 0 0; }
+.in-group:not(.group-head) .tw-text { padding-left: 2ch; border-left: 1px solid rgba(29, 34, 51, 0.8); }
+.in-group.group-head { border-bottom: 1px solid rgba(29, 34, 51, 0.5); }
+.tw-chev { background: none; border: 0; color: var(--tw-amber); font: inherit; cursor: pointer; padding: 0 1ch 0 0; transition: transform 0.2s ease; }
+.tw-chev:hover { opacity: 0.8; transform: scale(1.1); }
+.group-head .tw-chev[aria-expanded="false"]::before { content: '▶ '; }
+.group-head .tw-chev[aria-expanded="true"]::before { content: '▼ '; }
 .tw-copy { opacity: 0; background: none; border: 0; color: var(--tw-dim); cursor: pointer; font: inherit; height: var(--tw-row); padding: 0; }
 .tw-line:hover .tw-copy, .tw-copy:focus-visible { opacity: 1; }
 .tw-hit { background: rgba(251, 191, 36, 0.24); color: inherit; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.4); }
