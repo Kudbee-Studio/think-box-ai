@@ -584,7 +584,7 @@ registerPlugin('image_generate', {
 });
 
 // ─── Agent runtime ─────────────────────────────────────────────
-class AgentSession {
+export class AgentSession {
   readonly id: string;
   readonly config: AgentSessionConfig;
   readonly memory: MemoryEntry[] = [];
