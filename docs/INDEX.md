@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (226 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (227 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (3)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (25)
+- [Other documents in docs/](#other-documents-in-docs) (26)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -282,6 +282,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/cnc-integration-proof.md](cnc-integration-proof.md) | THINK CNC AI — Integration + Enterprise Proof Report | Branch: kilo/adept-marsh-qiq (ahead of origin by 2 commits) |
 | [docs/cnc-roi-report.md](cnc-roi-report.md) | CNC ROI & Evidence Report | Module: thinkbox/cnc/ |
 | [docs/DASHBOARD_BUILDOUT.md](DASHBOARD_BUILDOUT.md) | Dashboard → Middleware → Backend — Build-Out List | servers, no framework, no daemon fleet. Everything below is stdlib or a single |
+| [docs/dependencies/UPGRADE-2026-10-01.md](dependencies/UPGRADE-2026-10-01.md) | Dependency upgrade — 2026-10-01 | Branch chore/deps-upgrade, one PR. Scope: apps/web npm dependencies, Python version floors and dev |
 | [docs/disruptor-evaluation.md](disruptor-evaluation.md) | Disruptor + Verifier Evaluation Harness | Companion to: KUDBEE white paper §11 (Evaluation agenda) and |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
 | [docs/gcode-mastery.md](gcode-mastery.md) | G-Code Mastery Curriculum — 2-Week Daily Drills | For: Dominick (CNC beginner → solid) |
