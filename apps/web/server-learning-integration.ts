@@ -75,6 +75,7 @@ export class ServerLearningIntegration {
     learningRecorded: boolean;
     tokensAffected: number;
     behavioralImpact: string;
+    createdTokens: Array<{ id: string; type: string; content: string; confidence: number }>;
   } {
     // Step 1: Record goal completion for learning store.
     // `LearningStore` has no `recordSessionCompletion` method — it was never implemented; the
@@ -90,6 +91,7 @@ export class ServerLearningIntegration {
     });
 
     let tokensAffected = 0;
+    const createdTokens: Array<{ id: string; type: string; content: string; confidence: number }> = [];
 
     // Step 2: Only a successful execution can mint a Think Token. A failed goal still gets its
     // session recorded above (for later analysis) but produces no token — the factory's own
@@ -112,6 +114,12 @@ export class ServerLearningIntegration {
         // ThinkTokenPropagator.recordTokenUsage -> LearningStore.storePattern).
         this.propagator.recordTokenUsage(sessionId, token.id, success);
         tokensAffected++;
+        createdTokens.push({
+          id: token.id,
+          type: token.content.type,
+          content: token.content.text,
+          confidence: token.confidence,
+        });
       });
     }
 
@@ -121,7 +129,8 @@ export class ServerLearningIntegration {
     return {
       learningRecorded: true,
       tokensAffected,
-      behavioralImpact: `Tokens: ${stats.totalTokensAvailable}, Interactions: ${stats.totalWorkerInteractions}`
+      behavioralImpact: `Tokens: ${stats.totalTokensAvailable}, Interactions: ${stats.totalWorkerInteractions}`,
+      createdTokens,
     };
   }
 

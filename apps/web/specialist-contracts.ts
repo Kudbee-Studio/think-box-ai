@@ -261,9 +261,9 @@ export function selectSpecialists(intent: string, opportunity?: string): Selecti
     selected.add('validator');
     rationale.validator = (rationale.validator ?? '') + ' auto-added: Builder is selected, and no specialist may claim success without independent verification';
   }
-  if (selected.has('builder') && !selected.has('disruptor')) {
+  if (selected.has('builder') && !selected.has('security')) {
     // Not forced the way Validator is (Disruptor is a stronger, opt-in adversarial pass), but
-    // Security always accompanies Builder for a baseline review.
+    // Security always accompanies Builder for a baseline review (including when Disruptor is selected).
     selected.add('security');
     rationale.security = (rationale.security ?? '') + ' auto-added: Builder is selected, baseline review required';
   }

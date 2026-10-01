@@ -480,8 +480,15 @@ export function validateSpecialistEvidence(
     if (!modelMatch && !toolMatch) {
       return { valid: false, checkedEvidenceCount: 0, reason: `Unsupported evidence reference format: ${item.reference}` };
     }
+    const fileArtifactTools = new Set(['write_file', 'read_file']);
+    const evidenceReferencesFileArtifact = toolMatch
+      ? fileArtifactTools.has(toolMatch[2])
+      : false;
+    if (!evidenceReferencesFileArtifact) {
+      continue;
+    }
     const sourcePaths = source.events
-      .filter((event) => event.kind === 'tool' && event.ok && ['write_file', 'read_file'].includes(event.name) && typeof event.args.path === 'string')
+      .filter((event) => event.kind === 'tool' && event.ok && fileArtifactTools.has(event.name) && typeof event.args.path === 'string')
       .map((event) => event.kind === 'tool' ? String(event.args.path) : '');
     if (!sourcePaths.length) {
       return { valid: false, checkedEvidenceCount: 0, reason: `Evidence ${item.reference} has no independently checkable artifact path.` };

@@ -584,6 +584,10 @@ registerPlugin('image_generate', {
 });
 
 // ─── Agent runtime ─────────────────────────────────────────────
+type QueuedSessionWork =
+  | { kind: 'goal'; goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }
+  | { kind: 'specialists'; intent: string; opportunity?: string; jobContext: Record<string, unknown> };
+
 class AgentSession {
   readonly id: string;
   readonly config: AgentSessionConfig;
@@ -594,8 +598,8 @@ class AgentSession {
   readonly plugins: Map<string, Plugin> = new Map();
   status = 'idle';
   abort: AbortController | null = null;
-  /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
-  readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }> = [];
+  /** Goals and specialist jobs waiting behind the running one; drained strictly in order, one at a time per session. */
+  readonly queue: QueuedSessionWork[] = [];
   private busy = false;
   readonly approvedDomains = new Set<string>();
   readonly pendingApprovals = new Map<string, { resolve: (approved: boolean) => void; timer: NodeJS.Timeout }>();
@@ -838,30 +842,53 @@ class AgentSession {
   submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>, agentProfile?: string): { queued: boolean; position: number; task_id?: string } {
     if (this.busy) {
       const task = this.addTask({ description: goal, status: 'queued' });
-      this.queue.push({ goal, model, task, routeTelemetry, agentProfile });
+      this.queue.push({ kind: 'goal', goal, model, task, routeTelemetry, agentProfile });
       this.broadcast({ type: 'queued', data: { task_id: task.id, goal, position: this.queue.length } });
       return { queued: true, position: this.queue.length, task_id: task.id };
     }
-    void this.drain({ goal, model, routeTelemetry, agentProfile });
+    void this.drain({ kind: 'goal', goal, model, routeTelemetry, agentProfile });
     return { queued: false, position: 0 };
   }
 
-  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }): Promise<void> {
+  submitSpecialistJob(
+    intent: string,
+    opportunity?: string,
+    jobContext: Record<string, unknown> = {},
+  ): { queued: boolean; position: number } {
+    if (this.busy) {
+      this.queue.push({ kind: 'specialists', intent, opportunity, jobContext });
+      this.broadcast({ type: 'queued', data: { goal: intent, position: this.queue.length, specialists: true } });
+      return { queued: true, position: this.queue.length };
+    }
+    void this.drain({ kind: 'specialists', intent, opportunity, jobContext });
+    return { queued: false, position: 0 };
+  }
+
+  private async drain(first: QueuedSessionWork): Promise<void> {
     this.busy = true;
-    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string } | undefined = first;
+    let next: QueuedSessionWork | undefined = first;
     try {
       while (next) {
-        if (next.model) {
-          this.config.model = next.model;
-          this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
-        }
         this.broadcast({ type: 'status', data: 'running' });
-        const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
-        this.broadcast({ type: 'result', data: result });
+        if (next.kind === 'goal') {
+          if (next.model) {
+            this.config.model = next.model;
+            this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
+          }
+          const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
+          this.broadcast({ type: 'result', data: result });
+        } else {
+          try {
+            await this.runSpecialistJob(next.intent, next.opportunity, next.jobContext);
+          } catch (err) {
+            this.broadcast({ type: 'specialist_result', data: { status: 'FAILED', error: errorMessage(err) } });
+          }
+        }
         next = this.queue.shift();
       }
     } finally {
       this.busy = false;
+      this.broadcast({ type: 'status', data: 'idle' });
     }
   }
 
@@ -1053,8 +1080,17 @@ class AgentSession {
           thoughts: this.thoughts.slice(thoughtsStart),
           duration: record.duration_ms ?? 0,
         });
-        if (learning.tokensAffected > 0) {
-          this.addThought({ type: 'think_token', content: `Captured ${learning.tokensAffected} Think Token${learning.tokensAffected === 1 ? '' : 's'} from this run`, status: 'success' });
+        if (learning.createdTokens.length > 0) {
+          for (const token of learning.createdTokens) {
+            this.addThought({
+              type: 'think_token',
+              content: token.content,
+              status: 'success',
+              tokenId: token.id,
+              tokenType: token.type,
+              tokenConfidence: token.confidence,
+            });
+          }
         }
       } catch (err) {
         // Learning capture must never fail the run it's capturing.
@@ -1442,8 +1478,15 @@ class AgentSession {
   stop(): void {
     // Stop means stop everything: the running goal is aborted and nothing queued behind it starts.
     for (const waiting of this.queue.splice(0)) {
-      this.updateTask(waiting.task.id, { status: 'cancelled', error: 'Cancelled by stop before it started' } as Partial<Task>);
-      this.broadcast({ type: 'result', data: { success: false, cancelled: true, error: `Cancelled before it started: ${waiting.goal}` } });
+      if (waiting.kind === 'goal') {
+        this.updateTask(waiting.task.id, { status: 'cancelled', error: 'Cancelled by stop before it started' } as Partial<Task>);
+        this.broadcast({ type: 'result', data: { success: false, cancelled: true, error: `Cancelled before it started: ${waiting.goal}` } });
+      } else {
+        this.broadcast({
+          type: 'specialist_result',
+          data: { status: 'FAILED', cancelled: true, error: `Cancelled before it started: ${waiting.intent}` },
+        });
+      }
     }
     this.abort?.abort();
     for (const controller of this.specialistAborts.values()) controller.abort();
@@ -1517,9 +1560,7 @@ wss.on('connection', async (ws: WebSocket) => {
             ws.send(JSON.stringify({ type: 'specialist_result', data: { status: 'BLOCKED', error: 'intent is required' } }));
             break;
           }
-          void session.runSpecialistJob(intent, opportunity, jobContext).catch((err) => {
-            ws.send(JSON.stringify({ type: 'specialist_result', data: { status: 'FAILED', error: errorMessage(err) } }));
-          });
+          session.submitSpecialistJob(intent, opportunity, jobContext);
           break;
         }
 

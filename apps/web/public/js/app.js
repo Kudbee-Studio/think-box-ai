@@ -201,11 +201,9 @@ function handleMessage(msg) {
         `Proof: ${r.proof?.ok ? 'accepted' : 'refused'} · Think Tokens: ${(r.thinkToken || []).length}`,
         r.artifactPath ? `Artifact: ${r.artifactPath}` : '',
       ].filter(Boolean).join('\n');
-      setStatus(r.status === 'COMPLETED' ? 'idle' : 'error', r.status === 'COMPLETED' ? 'Specialists completed' : 'Specialist job failed');
       appendTerminalMessage(r.status === 'COMPLETED' ? 'assistant' : 'error', summary);
       refreshFiles();
       refreshRuns();
-      enableInput(true);
       break;
     }
 
