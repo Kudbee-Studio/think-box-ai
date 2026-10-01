@@ -8,7 +8,7 @@
     "start": "node --experimental-strip-types server.ts",
     "typecheck": "tsgo --noEmit",
     "typecheck:tsc": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test --test-reporter=spec \"tests/*.test.ts\""
+    "test": "node --experimental-strip-types --no-warnings --test --test-timeout=30000 --test-reporter=spec \"tests/*.test.ts\""
   },
   "engines": {
     "node": ">=22.6"

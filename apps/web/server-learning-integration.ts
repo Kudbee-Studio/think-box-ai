@@ -88,7 +88,6 @@ export class ServerLearningIntegration {
       patterns: [],
       metadata: executionContext,
     });
-
     let tokensAffected = 0;
 
     // Step 2: Only a successful execution can mint a Think Token. A failed goal still gets its

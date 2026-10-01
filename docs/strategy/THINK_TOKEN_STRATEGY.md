@@ -1,5 +1,21 @@
 # THINK Token & Training Strategy
 
+> **Status (2026-09-30): planning draft, mostly not implemented. Not about the Think Token learning system.**
+>
+> This file is about the **THNK economic token** (staking, rewards, votes, paying for compute) and a plan to fine-tune a
+> model on doginals/ordinals indexer research. It is **not** about the Think Tokens from #288 (learning units;
+> `apps/web/think-token*.ts`, AGENTS.md section 1.3a). They share a name and nothing else.
+>
+> What exists today (checked 2026-09-30): `think_box_ai/token.py` is a 36-line balance/transfer class;
+> `thinkbox/economy.py` holds in-memory Phase 9 classes (accounts, staking, slashing, treasury) with unit tests, no
+> persistence and no production caller; the research tools (`doge_tx`, `compare_inscription`) live in
+> `core/tools/doginals.py`. There is no rate-limit tiering, no training-data export and no fine-tuning pipeline, and nothing
+> else in the repository refers to this file.
+>
+> Enterprise arc: out of scope. THNK must never be an authorization input (who may do what comes from roles, agent grants and
+> tenant quotas); see ADR 027, proposed in PR #303. Training on customer data would also need per-tenant consent, and
+> changing the default model provider needs benchmarks first (AGENTS.md section 1.5).
+
 ## THINK Token (THNK) — Utility Plan
 
 The token exists in `think_box_ai/token.py` as a basic balance/transfer class.

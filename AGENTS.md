@@ -92,6 +92,26 @@ Not all 500+ captured observations become tokens. Only high-value ones:
 
 Result: 500 captures → ~15 persistent Think Tokens per session.
 
+**Think Tokens as reviewable learning units (ADR 028).** Separate from the #288 pattern pipeline above, a finished successful
+agent run is turned by a deterministic extractor (`think-token-extract.ts`; optional `qwen2.5:1.5b` reword via
+`KUDBEE_LOCAL_MODEL`, used only if installed) into at most 3 *candidate* tokens (`lesson`, `fix`, `tool_pattern`) stored in
+SQLite (`think-token-store.ts`, `think-tokens.db`). Every write passes one admission gate (secret redaction, 600-char cap,
+content-hash dedupe, rejection of text that tries to change permissions or approvals) and returns a receipt from a local
+hash-chained ledger. A human accepts or retires a token in the dashboard's **🧩 Tokens** panel (WebSocket actions
+`think_tokens_list`, `think_token_action`; mutations use the normal approval modal). Before planning, `runAgentGoal` injects the
+top 3 accepted tokens matching the goal, cited as `[tt:ID]`, and logs which were used. A token is advisory text: it has no field
+that can grant a permission, a tool or an approval.
+
+**Dashboard terminal (premium terminal).** The dashboard's agent output is a virtualized terminal
+(`apps/web/public/js/terminal-core.js` pure logic, `terminal-view.js` view, `css/terminal.css`). Lines come only from real
+WebSocket events (thoughts, approvals, memory, Think Token results, streamed model tokens) and the dashboard's own command
+output; nothing is scripted. Prefixes: `[runtime] [tool] [policy] [gate] [ledger] [memory] [model]`; the side "System activity"
+panel highlights Dashboard, Agent runtime, Tools & plugins, Local models, Memory, Security gate or Think Tokens per line.
+Output is rendered with text nodes only (no HTML-string sinks). Follow mode pauses when you scroll up (floating "Jump to
+latest"); `End` jumps to latest, `/` opens search (Enter / Shift+Enter step through matches), `Esc` closes it; each tool call
+and approval is a collapsible step; copy-line and copy-all; the buffer cap (1k to 50k lines) is stored in `localStorage`.
+`prefers-reduced-motion` disables the cursor blink and smooth scrolling.
+
 **Confidence Scoring:**
 
 Tokens start at 0.5 confidence. Each reuse updates the score:
@@ -236,6 +256,13 @@ python3 -m pytest tests/                # All tests
 | Public API docstrings | In-code | Yes |
 | Setup guide | `docs/guides/setup.md` | Phase 1 |
 | Tool authoring guide | `docs/guides/tools.md` | Phase 1 |
+| Documentation index | `docs/INDEX.md` (generated) | Yes |
+
+**Where Markdown lives.** Every `.md` file goes in a folder, normally under `docs/`. Only `README.md`, `CLAUDE.md`,
+`AGENTS.md` and `STATUS.md` sit at the repository root (tools and these rules load them by path). Whenever you add, move,
+rename or delete a `.md` file, run `python3 scripts/generate_docs_index.py`; `tests/unit/test_docs_index.py` fails if the
+index is missing a file or a new `.md` file lands at the root. Files that used to be at the root are listed in
+`docs/INDEX.md` under "Moved files"; older chronicle entries below may still name the old location.
 
 ### 4.2 Decision Records
 

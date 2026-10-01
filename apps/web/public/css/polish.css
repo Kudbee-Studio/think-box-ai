@@ -13,6 +13,11 @@
 html, body { max-width: 100%; overflow-x: hidden; }
 .main > * { min-width: 0; }
 
+/* .terminal (flex:1; overflow-y:auto, main-pro.css) never actually scrolled: its parent
+   .terminal-panel had no flex:1/min-height:0, so it sized to its content instead of filling
+   .center and the overflow just grew past the viewport, clipped by .center's overflow:hidden. */
+.terminal-panel { flex: 1; min-height: 0; }
+
 .sidebar-left, .sidebar-right, .terminal, .memory-list, .task-list, .thought-list,
 .run-history, .plugin-list, .file-tree, .modal, .modal-body-scroll,
 .git-repository-list, .health-list, .graph-details, .search-container, .automations-list, .file-editor {
