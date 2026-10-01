@@ -39,6 +39,9 @@ import { LearningStore } from './learning-store.ts';
 import { ThinkTokenCollection } from './think-token.ts';
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
+import { SqliteTokenStore, formatTokensForPrompt, type TokenDraft } from './think-token-store.ts';
+import { extractDrafts, refineDrafts, type Refiner } from './think-token-extract.ts';
+import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
 import {
   allocateSpecialistJobs,
@@ -142,6 +145,9 @@ const persistence = new PersistenceLayer(dataDir);
 const learningStore = new LearningStore(process.env.KUDBEE_LEARNING_DB || undefined);
 const thinkTokenPropagator = new ThinkTokenPropagator(learningStore, new ThinkTokenCollection());
 const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, undefined, learningStore);
+// ADR 028 Think Tokens: reusable learning units in their own SQLite file (never learning.db). Writes are admitted and
+// receipted by the store; use and extraction are wired into runAgentGoal below.
+const tokenStore = new SqliteTokenStore(process.env.KUDBEE_THINK_TOKEN_DB || path.join(dataDir, 'think-tokens.db'));
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -253,6 +259,29 @@ async function listOllamaModels(): Promise<OllamaTag[]> {
     return [];
   }
 }
+
+/**
+ * Optional cheap local-model pass for Think Token drafts (qwen2.5:1.5b by default, see KUDBEE_LOCAL_MODEL).
+ * Returns null when the model is not installed, so the deterministic draft is used; its output is re-checked by the store gate.
+ */
+const localTokenRefiner: Refiner = async (draft: TokenDraft) => {
+  const installed = (await listOllamaModels()).some((m) => m.name === defaultLocalModel);
+  if (!installed) return null;
+  const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({
+      model: defaultLocalModel,
+      stream: false,
+      format: 'json',
+      messages: [{ role: 'user', content: `Reword this note to be clearer in under 400 characters. Reply as JSON {"title": string, "content": string} and add no new facts.\nTitle: ${draft.title}\nContent: ${draft.content}` }],
+    }),
+  });
+  const body = (await res.json()) as { message?: { content?: string } };
+  const parsed = JSON.parse(body.message?.content ?? '{}') as { title?: unknown; content?: unknown };
+  return typeof parsed.title === 'string' && typeof parsed.content === 'string' ? { title: parsed.title, content: parsed.content } : null;
+};
 
 async function requestJanus(endpoint: 'analyze' | 'generate', payload: Record<string, string>): Promise<Record<string, string>> {
   const response = await fetch(`${janusBaseUrl}/${endpoint}`, {
@@ -1000,6 +1029,14 @@ export class AgentSession {
           status: 'info',
         });
       }
+      // ADR 028: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
+      const thinkTokens = tokenStore.retrieve(goal, 3);
+      if (thinkTokens.length) {
+        record.think_tokens = thinkTokens.map((t) => t.id);
+        tokenStore.recordUse(record.think_tokens, record.id, `agent:${record.id.slice(0, 8)}`);
+        this.addThought({ type: 'think_token', content: `Using ${thinkTokens.length} Think Token${thinkTokens.length === 1 ? '' : 's'}: ${thinkTokens.map((t) => `tt:${t.id}`).join(', ')}`, status: 'info' });
+      }
+      const plannerContext = [MemoryStore.formatForPrompt(recalled.hits), formatTokensForPrompt(thinkTokens)].filter(Boolean).join('\n\n');
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
         workspace: sessionWorkspace(this.id),
         resolvePath: (relativePath) => {
@@ -1041,10 +1078,11 @@ export class AgentSession {
           if (!result.success) throw new Error(String(result.error));
           return result as Record<string, unknown>;
         },
-      }, MemoryStore.formatForPrompt(recalled.hits));
+      }, plannerContext);
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
       await this.recordEpisode(record);
+      if (!run.stopped) await this.saveThinkTokens(record, run.success);
 
       // Think Token bridge (#288): only a successful run can mint a token; a failed or stopped
       // run still has its session recorded (for later analysis) but produces no token.
@@ -1405,6 +1443,23 @@ export class AgentSession {
     return result;
   }
 
+  /** ADR 028 save path: fold the outcome into tokens this run used, then admit extracted candidates (never accepted automatically). */
+  private async saveThinkTokens(record: RunRecord, success: boolean): Promise<void> {
+    try {
+      const actor = `agent:${record.id.slice(0, 8)}`;
+      tokenStore.recordOutcome(record.id, success, actor);
+      const drafts = await refineDrafts(extractDrafts({ id: record.id, goal: record.goal, success, steps: record.steps }), localTokenRefiner);
+      const saved = drafts.map((draft) => tokenStore.write(draft, actor)).filter((r) => r.ok && !r.duplicate);
+      if (saved.length) {
+        this.addThought({ type: 'think_token', content: `Saved ${saved.length} Think Token candidate${saved.length === 1 ? '' : 's'} for review (receipt ${saved[0].receipt.receipt_id})`, status: 'success' });
+        this.broadcast({ type: 'think_tokens_changed', data: { count: saved.length } });
+      }
+    } catch (err) {
+      // Learning capture must never fail the run it is capturing.
+      this.addThought({ type: 'think_token', content: `Could not save Think Tokens: ${errorMessage(err)}`, status: 'error' });
+    }
+  }
+
   /** Task-layer memory: one Markdown episode per finished agent run, so later runs can learn from it. */
   async recordEpisode(run: RunRecord): Promise<void> {
     const tools = run.steps.filter((step) => step.kind === 'tool').map((step) => (step.kind === 'tool' ? `${step.name}${step.ok ? '' : ' ✗'}` : ''));
@@ -1590,6 +1645,32 @@ wss.on('connection', async (ws: WebSocket) => {
           };
           await persistence.saveDashboardState(state);
           ws.send(JSON.stringify({ type: 'state_saved', data: { success: true } }));
+          break;
+        }
+
+        case 'think_tokens_list':
+        case 'think_token_action': {
+          const checked = validateTokenMessage(msg);
+          if (!checked.ok) {
+            ws.send(JSON.stringify({ type: 'think_token_error', data: { error: checked.error } }));
+            break;
+          }
+          const req = checked.req;
+          if (req.type === 'think_tokens_list') {
+            ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: tokenStore.list({ query: req.query, status: req.status, limit: req.limit }), ledger: tokenStore.verifyLedger() } }));
+            break;
+          }
+          // Every mutation needs the same human approval the agent loop uses; denial and timeout change nothing.
+          const approved = await session.requestApproval(`think-token:${req.id}`, `think_token_${req.action}`, { id: req.id }, `Apply "${req.action}" to Think Token ${req.id}`);
+          if (!approved) {
+            ws.send(JSON.stringify({ type: 'think_token_result', data: { ok: false, id: req.id, action: req.action, error: 'Not approved' } }));
+            break;
+          }
+          const actor = `operator:${sessionId.slice(0, 8)}`;
+          const result = req.action === 'accept' ? tokenStore.setStatus(req.id, 'accepted', actor)
+            : req.action === 'retire' ? tokenStore.setStatus(req.id, 'retired', actor)
+            : tokenStore.feedback(req.id, req.action === 'thumb_up' ? 'up' : 'down', actor);
+          ws.send(JSON.stringify({ type: 'think_token_result', data: { ok: result.ok, id: req.id, action: req.action, error: result.ok ? undefined : result.reason, receipt: result.receipt } }));
           break;
         }
 

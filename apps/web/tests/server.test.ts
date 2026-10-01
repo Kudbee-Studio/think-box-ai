@@ -403,6 +403,8 @@ test('stop aborts the running goal and cancels everything queued behind it', asy
     client.send({ type: 'run_goal', goal: 'queued two', model: 'mercury-2' });
     await client.next('queued');
     await client.next('queued');
+    // Stop only once the long goal's model call is in flight; on a slow runner an earlier stop would abort it before the request.
+    for (const end = Date.now() + 8000; mock.requests.length < 1 && Date.now() < end; await new Promise((r) => setTimeout(r, 25)));
     client.send({ type: 'stop' });
     const results = [await client.next('result'), await client.next('result'), await client.next('result')].map((m) => m.data);
     assert.equal(results.filter((r) => r.cancelled).length, 2);

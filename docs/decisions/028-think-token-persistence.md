@@ -74,3 +74,30 @@ founder chooses B or C regardless, the sequence is: accept this ADR with the cho
 ## Related
 
 ADR 026, ADR 027, issue #9, `ROADMAP.md` Phase 3 item 5, `docs/enterprise/roadmap.md` (E5.3), AGENTS.md section 1.3a.
+
+## Implementation note (PR "feat(think-tokens): ADR 028 learning units"; status stays Proposed until the founder accepts)
+
+Option A is implemented behind the `TokenStore` interface (`apps/web/think-token-store.ts`, SQLite file `think-tokens.db`,
+override with `KUDBEE_THINK_TOKEN_DB`). Founder item 1 (wiring) is taken as answered by the request that asked for this
+change: accepted tokens are injected into the planner context of `runAgentGoal`, which changes agent prompts.
+
+Where this ADR and the code disagreed, the ADR's definition was followed and the difference is recorded here:
+
+- The ADR says nothing is wired; the tree already had a #288 bridge in `runAgentGoal` (`learningIntegration.recordGoalExecution`
+  into `learned_patterns`). It is left untouched; Think Tokens (`think_tokens`) are a separate, reviewable unit with their own
+  lifecycle (candidate, accepted, retired).
+- The ADR lists the columns loosely (type, confidence, reuse and success counts, metadata). The table uses the founder's
+  requested names (`kind`, `score`, `uses`, `status`, `evidence_ref`, ...) plus `tenant_id` (E4), `content_hash` (dedupe) and
+  `success_runs`, `failed_runs`, `thumbs_up`, `thumbs_down` as score inputs.
+- The ADR's data policy (store token fields, never raw transcripts) is enforced: drafts hold tool names, argument keys and a
+  clipped error summary, are redacted for secrets, and are capped at 600 characters.
+- "Existing governance/admission path": the Python admission gate and receipt chain are only reachable through the remote-exec
+  bridge today. Think Token writes use an in-process admission gate and a local SHA-256 hash-chained ledger
+  (`think_token_ledger`) that returns a receipt id. It is **not** the backend's signed ledger; connecting the two is UNPROVEN and
+  left for E1.
+
+Score (computed in `computeScore`, no ML): `0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback`, where
+`usefulness = (success_runs+1)/(success_runs+failed_runs+2)`, `recency = 0.5^(age_days/30)` from the later of last use and
+creation, `reuse = min(1, log2(1+uses)/log2(11))`, `feedback = (thumbs_up+1)/(thumbs_up+thumbs_down+2)`.
+Retrieval is keyword/tag match over accepted tokens only (tag 3, title 2, content 1), ranked by match times `(0.5 + score)`;
+no embeddings, because none exist for this table.
