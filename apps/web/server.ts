@@ -2,7 +2,9 @@ import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './govern
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
-import express, { type Request, type Response } from 'express';
+import express, { type Request as ExpressRequest, type Response } from 'express';
+// Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
+type Request = ExpressRequest<Record<string, string>>;
 import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -114,6 +116,8 @@ app.use((req: Request, res: Response, next) => {
   res.status(421).json({ error: 'misdirected_request', detail: 'The dashboard is local-only; use http://127.0.0.1 on its port' });
 });
 app.use(express.json());
+// Express 5 leaves req.body undefined for body-less requests (v4 gave {}); keep v4 behavior so handlers answer 400, not 500.
+app.use((req: Request, _res: Response, next) => { if (req.body === undefined) req.body = {}; next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── In-memory state ───────────────────────────────────────────

@@ -93,3 +93,10 @@ test('files: save and read inside the workspace work (relative and absolute-insi
   const abs: any = await (await fetch(`${base}/api/git/file?path=${encodeURIComponent(saved.path)}`)).json();
   assert.equal(abs.content, 'export const a = 1;');
 });
+
+test('a POST with no body at all is a 400, not a 500 (Express 5 leaves req.body undefined)', async () => {
+  for (const route of ['/api/git/clone', '/api/git/save']) {
+    const r = await fetch(`${base}${route}`, { method: 'POST' });
+    assert.equal(r.status, 400, route);
+  }
+});
