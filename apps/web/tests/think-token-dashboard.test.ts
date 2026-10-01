@@ -350,6 +350,6 @@ describe('Think Token Dashboard: responsive CSS (static check, not a browser run
 
   it('collapses the two-column layout to one column at 1024px', () => {
     const block = css.slice(css.indexOf('max-width: 1024px'));
-    assert.ok(/\.dashboard-layout\s*\{[^}]*grid-template-columns:\s*1fr;/.test(block));
+    assert.ok(/\.dashboard-layout\s*\{[^}]*grid-template-columns:\s*(minmax\(0,\s*1fr\)|1fr);/.test(block));
   });
 });

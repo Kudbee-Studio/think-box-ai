@@ -288,7 +288,7 @@ class ThinkTokenDashboard {
     if (this.cube) {
       const slot = modal.querySelector('.think-cube-slot');
       slot.appendChild(this.cube.container);
-      slot.insertAdjacentElement('afterend', this.cube.statusEl);
+      modal.querySelector('.think-cube-wrap').insertAdjacentElement('afterend', this.cube.statusEl);
       this.cube.statusEl.insertAdjacentElement('afterend', this.cube.inspectEl);
       this.cube.render();
     }

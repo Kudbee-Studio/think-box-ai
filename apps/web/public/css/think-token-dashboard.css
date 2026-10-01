@@ -1,17 +1,23 @@
 /* kudbEE Think Token Dashboard — Clean, honest interface */
 
 .modal-dashboard {
-  max-width: 1400px;
+  width: min(1200px, 100%);
+  max-width: 1200px;
 }
 
 .dashboard-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 2rem;
   padding: 2rem;
   background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
   color: #e0e0e0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dashboard-primary,
+.dashboard-secondary {
+  min-width: 0;
 }
 
 .dashboard-primary {
@@ -541,7 +547,7 @@
 /* Responsive */
 @media (max-width: 1024px) {
   .dashboard-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
   }
 
@@ -761,5 +767,14 @@
 
 .job-info-value,
 .token-content {
+  overflow-wrap: anywhere;
+}
+
+.think-cube-slot {
+  width: 100%;
+}
+
+.cube-section .cube-status,
+.cube-section .cube-inspect {
   overflow-wrap: anywhere;
 }
