@@ -2,7 +2,9 @@ import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './govern
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
-import express, { type Request, type Response } from 'express';
+import express, { type Request as ExpressRequest, type Response } from 'express';
+// Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
+type Request = ExpressRequest<Record<string, string>>;
 import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -1846,7 +1848,7 @@ app.get('/api/runs', (req: Request, res: Response) => {
   res.json(data);
 });
 
-app.get('/api/runs/:id', (req: Request<{ id: string }>, res: Response) => {
+app.get('/api/runs/:id', (req: Request, res: Response) => {
   const run = runStore.get(req.params.id);
   if (!run) return res.status(404).json({ error: 'Run not found' });
   res.json(run);
@@ -1956,7 +1958,7 @@ app.get('/api/agents', (_req: Request, res: Response) => {
   res.json({ agents });
 });
 
-app.get('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: Response) => {
+app.get('/api/sessions/:id/files', async (req: Request, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   const root = sessionWorkspace(req.params.id);
   const files: Array<{ path: string; size: number; modified_at: string }> = [];
@@ -1975,7 +1977,7 @@ app.get('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: Res
   res.json({ files: files.sort((a, b) => a.path.localeCompare(b.path)) });
 });
 
-app.get('/api/sessions/:id/files/content', async (req: Request<{ id: string }>, res: Response) => {
+app.get('/api/sessions/:id/files/content', async (req: Request, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     const filePath = safeWorkspacePath(req.params.id, String(req.query.path || ''));
@@ -1986,7 +1988,7 @@ app.get('/api/sessions/:id/files/content', async (req: Request<{ id: string }>, 
   }
 });
 
-app.get('/api/sessions/:id/files/raw', async (req: Request<{ id: string }>, res: Response) => {
+app.get('/api/sessions/:id/files/raw', async (req: Request, res: Response) => {
   if (!workspaceExists(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     const relativePath = String(req.query.path || '');
@@ -2003,7 +2005,7 @@ app.get('/api/sessions/:id/files/raw', async (req: Request<{ id: string }>, res:
   }
 });
 
-app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async (req: Request<{ id: string }>, res: Response) => {
+app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const image = req.file;
@@ -2030,7 +2032,7 @@ app.post('/api/sessions/:id/images/analyze', imageUpload.single('image'), async 
   }
 });
 
-app.post('/api/sessions/:id/images/generate', async (req: Request<{ id: string }>, res: Response) => {
+app.post('/api/sessions/:id/images/generate', async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const prompt = typeof req.body.prompt === 'string' ? req.body.prompt.trim() : '';
@@ -2052,7 +2054,7 @@ app.post('/api/sessions/:id/images/generate', async (req: Request<{ id: string }
   }
 });
 
-app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('image'), async (req: Request<{ id: string; taskId: string }>, res: Response) => {
+app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('image'), async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const task = session.tasks.find((item) => item.id === req.params.taskId || item.id.startsWith(req.params.taskId));
@@ -2087,7 +2089,7 @@ app.post('/api/sessions/:id/tasks/:taskId/attachments', imageUpload.single('imag
   }
 });
 
-app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Request<{ id: string }>, res: Response) => {
+app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Request, res: Response) => {
   if (!sessions.has(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   const uploaded: Array<{ path: string; size: number }> = [];
   try {
@@ -2102,7 +2104,7 @@ app.post('/api/sessions/:id/files', upload.array('files', 500), async (req: Requ
   }
 });
 
-app.delete('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: Response) => {
+app.delete('/api/sessions/:id/files', async (req: Request, res: Response) => {
   if (!sessions.has(req.params.id)) return res.status(404).json({ error: 'Session not found' });
   try {
     await unlinkConfined(sessionWorkspace(req.params.id), safeWorkspacePath(req.params.id, String(req.body.path || '')));
@@ -2112,7 +2114,7 @@ app.delete('/api/sessions/:id/files', async (req: Request<{ id: string }>, res: 
   }
 });
 
-app.post('/api/sessions/:id/run', async (req: Request<{ id: string }>, res: Response) => {
+app.post('/api/sessions/:id/run', async (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -2132,7 +2134,7 @@ const governedBridge = bridgeConfigFromEnv();
 app.post('/api/governed/run', submitGovernedRun(governedBridge));
 app.get('/api/governed/run/:engineId', getGovernedRun(governedBridge));
 
-app.post('/api/sessions/:id/stop', (req: Request<{ id: string }>, res: Response) => {
+app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   const session = sessions.get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   session.stop();
@@ -2184,7 +2186,7 @@ app.post('/api/memory/notes', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/api/memory/notes/:id', async (req: Request<{ id: string }>, res: Response) => {
+app.delete('/api/memory/notes/:id', async (req: Request, res: Response) => {
   try {
     const id = req.params.id;
     // Phase 3: soft-delete tracking only; full DB delete in Phase 4
