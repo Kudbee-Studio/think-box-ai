@@ -18,9 +18,13 @@
 //   thought.type === 'memory' ("Saved episode...")     -> stage 'harvest'
 //   thought.type === 'think_token'                     -> stage 'proof' then 'think_token'
 //
-// NOT LIVE: 'decompose', 'swarm', 'jury' (pass/fail) and 'commons' have no real #288 signal to
-// drive them (confirmed in docs/enterprise/think-token-audit.md). `runDeterministicDemo` below
-// is the only place that produces them, and it is opt-in and clearly labeled in the UI as a demo.
+// ALSO LIVE, for specialist jobs only (server.ts emits these from run_specialists):
+//   'specialist_wave_started' -> 'swarm', 'specialist_validation' -> 'jury',
+//   'proof_accepted' -> 'jury'(pass) + 'proof', 'proof_refused' -> 'jury'(fail)
+//
+// NOT LIVE: 'decompose', 'repair' and 'commons' have no backend signal. `runDeterministicDemo`
+// below is the only place that produces them; the dashboard runs it on a separate cube, labeled
+// as a simulation, never on the live one.
 
 import { createInitialCubeState, applyEvent, cellsToRenderProps, summarize, CELL_COUNT } from './think-cube-state.js';
 
