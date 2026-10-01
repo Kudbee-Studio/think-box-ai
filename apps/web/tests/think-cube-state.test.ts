@@ -12,8 +12,6 @@ import {
   applyEvent as applyEventUntyped,
   cellsToRenderProps as cellsToRenderPropsUntyped,
   summarize as summarizeUntyped,
-  // @ts-expect-error — plain JS module under public/, which tsconfig excludes from the program
-  // entirely, so it has no declaration file; the interfaces and casts right below stand in.
 } from '../public/js/think-cube-state.js';
 
 // think-cube-state.js is plain JS with no .d.ts, so TypeScript would otherwise infer `any` for
@@ -32,6 +30,8 @@ interface CubeCell {
 interface CubeState {
   stage: string;
   tokenId: string | null;
+  thinkBoxIds: string[];
+  specialistIds: string[];
   verdict: 'pass' | 'fail' | null;
   stable: boolean;
   cells: CubeCell[];
@@ -54,6 +54,7 @@ const applyEvent = applyEventUntyped as (state: CubeState, event: { stage: strin
 const cellsToRenderProps = cellsToRenderPropsUntyped as (state: CubeState) => RenderProp[];
 const summarize = summarizeUntyped as (state: CubeState) => {
   stage: string; tokenId: string | null; verdict: string | null; stable: boolean;
+  thinkBoxIds: string[]; specialistIds: string[];
   activeCount: number; lockedCount: number; disruptedCount: number; sharedCount: number; historyLength: number;
 };
 
@@ -63,6 +64,8 @@ describe('Think Cube state engine', () => {
     assert.equal(state.stage, 'idle');
     assert.equal(state.cells.length, CELL_COUNT);
     assert.equal(state.tokenId, null);
+      assert.deepEqual(state.thinkBoxIds, []);
+      assert.deepEqual(state.specialistIds, []);
     assert.equal(state.verdict, null);
     assert.equal(state.stable, false);
     assert.deepEqual(state.history, []);
@@ -257,3 +260,12 @@ describe('Think Cube state engine', () => {
     assert.equal(summary.stable, false);
   });
 });
+
+  it('swarm records actual allocated box/specialist identities and lights only those box cells', () => {
+    let state = applyEvent(createInitialCubeState(), { stage: 'intent', payload: { tokenId: 'job-1' } });
+    state = applyEvent(state, { stage: 'swarm', payload: { boxIds: ['box-a', 'box-b'], specialistIds: ['builder', 'validator'] } });
+    assert.deepEqual(state.thinkBoxIds, ['box-a', 'box-b']);
+    assert.deepEqual(state.specialistIds, ['builder', 'validator']);
+    assert.equal(state.cells.filter((cell) => cell.role === 'thinkBox' && cell.active).length, 2);
+    assert.deepEqual(summarize(state).thinkBoxIds, ['box-a', 'box-b']);
+  });

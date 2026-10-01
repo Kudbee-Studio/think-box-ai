@@ -34,6 +34,10 @@ export interface RunRecord {
   routeTelemetry?: Record<string, any>;
   /** HERMES etc: which named tool-scoped agent profile ran this goal, if any. */
   agentProfile?: string;
+  /** Specialist job provenance; each box has its own RunRecord. */
+  jobId?: string;
+  specialistId?: string;
+  thinkBoxId?: string;
 }
 
 const MAX_RUNS = 500;

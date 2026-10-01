@@ -30,6 +30,12 @@ Nothing here is a claim of "COMPLETE" without a state. Every row cites its evide
 | 16 | Secrets and key hygiene | n/a | n/a | documented (private key file in public history; test-only per founder) | no |
 | 17 | Deployment, HTTPS, backups | partial (config files) | no | no | no |
 
+## Branch-only follow-through (2026-09-30)
+
+The row 13 table above remains the `main` baseline. On branch `docs/enterprise-agent-os-plan`, the specialist layer is now wired through a thin executor and WebSocket entry point: contract-selected specialists receive distinct in-process `AgentSession` IDs/workspaces; independent handoff-ready work executes concurrently; evidence is event-backed; Validator must independently reread artifacts; Proof Keeper refuses any selected failure; and Think Tokens are extracted per specialist only after accepted proof. The cube receives actual box/specialist IDs.
+
+This is **CODE COMPLETE / TEST VERIFIED** only. The committed [`specialist-execution-proof.json`](proof/specialist-execution-proof.json) is a hermetic MockInception A/B/C failure run, not a live Mercury-2 execution. There is no `exec` tool, so Tester fails closed. Separate processes, remote boxes, a distributed swarm, and production readiness remain **UNPROVEN**.
+
 ## Measurements taken for this baseline (2026-09-30)
 
 | Check | Command | Result |

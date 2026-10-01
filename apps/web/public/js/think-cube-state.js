@@ -11,16 +11,11 @@
 //   - 'intent'      <- real: the 'goal' thought server.ts emits at the start of runAgentGoal.
 //   - 'execution'   <- real: 'tool_call' / 'tool_result' thoughts (agent.ts).
 //   - 'evidence'    <- real: the same tool_result thoughts, counted.
-//   - 'think_token' <- real: the 'think_token' thought server.ts emits after a run mints one
-//                      (server-learning-integration.ts / think-token-propagation.ts).
-//   - 'decompose', 'swarm', 'challenge', 'repair', 'jury', 'harvest', 'commons' are NOT produced
-//     by any current backend signal: #288 has no multi-Think-Box swarm, no adversarial
-//     challenge, no jury and no cross-session propagation today (the existing audit,
-//     docs/enterprise/think-token-audit.md, confirms those concepts live only in an unrelated,
-//     unwired experiment, experiments/kudbee_orchestrator.py). Driving this engine's 'swarm' /
-//     'challenge' / 'repair' / 'jury' / 'harvest' / 'commons' stages therefore always means a
-//     deterministic demo driver, never a live event — see think-cube-render.js's
-//     `runDeterministicDemo` for the only place that does this, which labels itself as such.
+//   - 'swarm'          <- real: `specialist_wave_started` carries allocated workspace ids.
+//   - 'jury' / 'proof' <- real: specialist validation and Proof Keeper outcomes.
+//   - 'think_token'    <- real: the server thought emitted after a quality-gated token is persisted.
+//   - 'decompose', 'repair', 'harvest', and 'commons' still have no live backend signal and are
+//     only exercised by the explicitly labeled deterministic demo.
 
 export const STAGES = Object.freeze([
   'idle', 'intent', 'decompose', 'swarm', 'execution', 'evidence',
@@ -69,6 +64,8 @@ export function createInitialCubeState() {
   return {
     stage: 'idle',
     tokenId: null,
+    thinkBoxIds: [],
+    specialistIds: [],
     verdict: null, // 'pass' | 'fail' | null
     stable: false,
     cells: Array.from({ length: CELL_COUNT }, (_, i) => createCell(i)),
@@ -103,13 +100,15 @@ export function applyEvent(state, event) {
 
   const history = [...state.history, stage];
   let cells = state.cells;
+  let thinkBoxIds = state.thinkBoxIds ?? [];
+  let specialistIds = state.specialistIds ?? [];
 
   switch (stage) {
     case 'intent': {
       // A fresh token: identity cells light up, everything else about the previous token clears.
       cells = createInitialCubeState().cells;
       cells = patchCells(cells, (c) => c.role === 'identity', { active: true, value: 1 });
-      return { stage, tokenId: payload.tokenId ?? state.tokenId, verdict: null, stable: false, cells, history: [stage] };
+      return { stage, tokenId: payload.tokenId ?? state.tokenId, thinkBoxIds: [], specialistIds: [], verdict: null, stable: false, cells, history: [stage] };
     }
 
     case 'decompose': {
@@ -123,9 +122,10 @@ export function applyEvent(state, event) {
     }
 
     case 'swarm': {
-      // One participating Think Box per thinkBox cell, up to 10; NOT driven by any real signal
-      // today (#288 has no multi-box swarm) — see the module header.
-      const boxes = Array.isArray(payload.boxIds) ? payload.boxIds.slice(0, 10) : [];
+      // One participating Think Box per thinkBox cell, up to 10; callers supply real allocated ids.
+      const boxes = Array.isArray(payload.boxIds) ? payload.boxIds.slice(0, 10).map(String) : [];
+      thinkBoxIds = boxes;
+      specialistIds = Array.isArray(payload.specialistIds) ? payload.specialistIds.slice(0, 10).map(String) : [];
       const thinkBoxCells = cellsWithRole(cells, 'thinkBox');
       const toActivate = new Set(thinkBoxCells.slice(0, boxes.length).map((c) => c.index));
       cells = patchCells(cells, (c) => toActivate.has(c.index), { active: true, value: 1 });
@@ -211,7 +211,7 @@ export function applyEvent(state, event) {
       throw new Error(`Unhandled cube stage: ${stage}`);
   }
 
-  return { ...state, stage, cells, history };
+  return { ...state, stage, cells, history, thinkBoxIds, specialistIds };
 }
 
 /**
@@ -248,6 +248,8 @@ export function summarize(state) {
   return {
     stage: state.stage,
     tokenId: state.tokenId,
+    thinkBoxIds: [...(state.thinkBoxIds ?? [])],
+    specialistIds: [...(state.specialistIds ?? [])],
     verdict: state.verdict,
     stable: state.stable,
     activeCount,

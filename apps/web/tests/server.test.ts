@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
+import { LearningStore } from '../learning-store.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9'; // nothing listens here: Ollama, Janus and Upstash are "offline"
@@ -48,6 +49,7 @@ before(async () => {
       UPSTASH_VECTOR_REST_TOKEN: 'none',
       KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(tmpRoot, 'data'),
+      KUDBEE_LEARNING_DB: path.join(tmpRoot, 'learning.db'),
       KUDBEE_WORKSPACE_DIR: path.join(tmpRoot, 'workspaces'),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -140,6 +142,125 @@ test('a goal runs end to end: file written, run persisted, episode saved to task
     const full = await json(`/api/memory/item?id=${encodeURIComponent(episode.id)}`);
     assert.match(full.body.content, /Outcome: completed/);
     assert.match(full.body.content, /Answer given \(unverified\):\nWrote report\.md/);
+  } finally {
+    client.ws.close();
+  }
+});
+
+test('run_specialists executes the selected contract and persists its attributable JSON artifact', async () => {
+  mock.script([say('The research result is recorded as model output evidence.')]);
+  const client = await connect();
+  try {
+    client.send({ type: 'run_specialists', intent: 'Research the current state of specialist execution' });
+    const { data: result } = await client.next('specialist_result');
+    assert.equal(result.status, 'FAILED', 'without a separate Validator run the Proof Keeper must refuse the claim');
+    assert.deepEqual(result.specialistsSelected, ['researcher']);
+    assert.equal(result.specialistsExecuted.length, 1);
+    assert.equal(result.specialistsExecuted[0].status, 'completed');
+    assert.equal(result.specialistsExecuted[0].specialistId, 'researcher');
+    assert.ok(result.specialistsExecuted[0].thinkBoxId);
+    assert.equal(result.evidence.length, 1);
+    assert.equal(result.evidence[0].reference, `${result.specialistsExecuted[0].runId}:model:1`);
+    assert.equal(result.validation.valid, false);
+    assert.equal(result.proof.ok, false);
+    assert.deepEqual(result.thinkToken, []);
+    assert.ok(result.replayResult.sameEvents);
+    assert.ok(result.replayResult.sameSpecialistStates);
+    assert.ok(result.replayResult.sameEvidenceRelationships);
+    assert.ok(result.replayResult.sameProofResult);
+    assert.ok(result.replayResult.sameCubeState);
+    const artifact = JSON.parse(fs.readFileSync(result.artifactPath, 'utf8'));
+    assert.equal(artifact.jobId, result.jobId);
+    assert.equal(artifact.specialistsExecuted[0].thinkBoxId, result.specialistsExecuted[0].thinkBoxId);
+    assert.equal(artifact.classification.liveVerified, false);
+  } finally {
+    client.ws.close();
+  }
+});
+
+test('specialist WebSocket failure chain preserves Builder evidence, Tester failure, and independent Validator read', async () => {
+  mock.script([
+    call('write_file', { path: 'artifact.txt', content: 'artifact from specialist A' }),
+    say('Created artifact.txt'),
+    call('read_file', { path: 'artifact.txt' }),
+    say('Security reviewed the artifact contents.'),
+    call('read_file', { path: 'artifact.txt' }),
+    say('The artifact contents match the claim.'),
+  ]);
+  const client = await connect();
+  try {
+    client.send({ type: 'run_specialists', intent: 'Build a report and test it' });
+    const { data: result } = await client.next('specialist_result');
+    const byId = Object.fromEntries(result.specialistsExecuted.map((run: any) => [run.specialistId, run]));
+    assert.equal(byId.builder.status, 'completed');
+    assert.equal(byId.tester.status, 'failed');
+    assert.match(byId.tester.failure, /exec/);
+    assert.equal(byId.security.status, 'completed');
+    assert.equal(byId.validator.status, 'completed');
+    assert.equal(new Set(result.specialistsExecuted.map((run: any) => run.thinkBoxId)).size, 4);
+    assert.equal(result.validation.valid, true, 'Validator independently read the actual Builder artifact');
+    assert.equal(result.proof.ok, false, 'Proof Keeper must refuse because selected Tester failed');
+    assert.equal(result.thinkToken.length, 0);
+    assert.equal(result.replayResult.sameEvents, true);
+    assert.equal(result.replayResult.sameSpecialistStates, true);
+    assert.equal(result.replayResult.sameEvidenceRelationships, true);
+    assert.equal(result.replayResult.sameProofResult, true);
+    assert.equal(result.replayResult.sameCubeState, true);
+    assert.equal(result.cubeFinalState.cells.length, 100);
+    assert.deepEqual(result.cubeFinalState.thinkBoxIds, result.thinkBoxIds);
+    assert.equal(result.cubeFinalState.cells.filter((cell: any) => cell.role === 'thinkBox' && cell.active).length, 4);
+    assert.ok(result.events.some((event: any) => event.phase === 'artifact_handoff' && event.specialistId === 'validator'));
+    for (const phase of ['thought', 'run_event', 'specialist_event', 'validation', 'proof_refused', 'cube_final_state']) {
+      assert.ok(result.events.some((event: any) => event.phase === phase), `missing complete replay event phase: ${phase}`);
+    }
+    assert.ok(!client.messages.some((message) => message.type === 'thought' && message.data?.type === 'think_token'));
+    const artifact = JSON.parse(fs.readFileSync(result.artifactPath, 'utf8'));
+    assert.equal(artifact.failures[0].specialistId, 'tester');
+    assert.equal(artifact.validation.valid, true);
+    assert.equal(artifact.proof.ok, false);
+    assert.equal(artifact.thinkToken.length, 0);
+    if (process.env.SPECIALIST_PROOF_ARTIFACT) {
+      const proofPath = path.resolve(process.env.SPECIALIST_PROOF_ARTIFACT);
+      fs.mkdirSync(path.dirname(proofPath), { recursive: true });
+      fs.writeFileSync(proofPath, `${JSON.stringify({
+        ...artifact,
+        executionEnvironment: 'Hermetic local MockInception HTTP provider; no external Mercury-2 request',
+      }, null, 2)}\n`);
+    }
+  } finally {
+    client.ws.close();
+  }
+});
+
+test('proof acceptance gates real Think Token persistence and event emission', async () => {
+  mock.script([
+    call('write_file', { path: 'verified-artifact.txt', content: 'verified artifact' }),
+    call('read_file', { path: 'verified-artifact.txt' }),
+    say('Created and re-read verified-artifact.txt.'),
+    call('read_file', { path: 'verified-artifact.txt' }),
+    say('Security reviewed the artifact contents.'),
+    call('read_file', { path: 'verified-artifact.txt' }),
+    say('The artifact contents independently match the claim.'),
+  ]);
+  const client = await connect();
+  try {
+    client.send({ type: 'run_specialists', intent: 'Build and validate a report' });
+    const { data: result } = await client.next('specialist_result');
+    assert.equal(result.status, 'COMPLETED');
+    assert.equal(result.validation.valid, true);
+    assert.equal(result.proof.ok, true);
+    assert.ok(result.thinkToken.length > 0, `quality-gated specialist execution should create a reusable token; captured thoughts: ${JSON.stringify(result.specialistsExecuted.map((run: any) => ({ specialistId: run.specialistId, thoughts: run.thoughts })))}`);
+    const token = result.thinkToken[0];
+    assert.ok(client.messages.some((message) => message.type === 'thought' && message.data?.type === 'think_token' && message.data?.tokenId === token.id));
+    assert.equal(result.cubeFinalState.stage, 'think_token');
+    assert.equal(result.cubeFinalState.tokenId, token.id);
+
+    const store = new LearningStore(path.join(tmpRoot, 'learning.db'));
+    try {
+      assert.ok(store.getTopPatterns(50).some((pattern) => pattern.id === token.id), 'token row must be durable before the event is emitted');
+    } finally {
+      store.close();
+    }
   } finally {
     client.ws.close();
   }

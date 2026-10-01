@@ -3,6 +3,8 @@
 **Status:** Proposed, part of the enterprise plan in [`README.md`](README.md). **Nothing here is started.**
 E0 begins only after the founder approves this plan.
 
+> **Branch checkpoint (2026-09-30; `docs/enterprise-agent-os-plan`, not merged):** Specialist contracts now have a thin executor on the existing web worker path, with dependency-aware concurrent waves, per-run evidence, independent artifact reread, proof refusal on any selected failure, per-specialist token persistence only after accepted proof, and real IDs in the existing cube. The hermetic A/B/C artifact is linked from [`baseline.md`](baseline.md). This does not implement the E5 multi-tenant registry or separate-process/remote box swarm; those remain unproven.
+
 ## How to read this
 
 - Each phase is split into **small, reviewable PRs** (`E0.1`, `E0.2`, ...). Each PR follows the repo

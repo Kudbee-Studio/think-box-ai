@@ -70,7 +70,7 @@ or audit guarantee we already claim. *Medium:* operational or hygiene debt.
 | ID | Gap | Sev | Closes in |
 |---|---|---|---|
 | AG-1 | Web agent profiles are two hardcoded entries (`hermes`, `asclepius`) with tool allow-lists; the default worker has full tool access. There is no registry and no per-agent capability grant at the web layer. [1] | High | E5 |
-| AG-2 | Think Token code is unwired, its panel simulates events, and the tokens themselves are not persisted anywhere (only patterns, sessions and thought text are). [13] | Medium | E5, only if the founder decides to wire it (ADR 028, D7); default off |
+| AG-2 | On `main`, the Think Token integration was unwired and the cube's specialist/swarm stages were demo-only. This branch wires a provider-neutral specialist executor, proof-gated per-box token extraction, and real box/specialist cube IDs; its committed proof is hermetic, and live Mercury plus separate-process/remote boxes remain unproven. | Medium | E5 follow-through; current branch is CODE COMPLETE / TEST VERIFIED only |
 | AG-3 | Routing choice and "tokens saved" are asserted by the client and stored unvalidated, so the savings metric can be spoofed. [10] | Medium | E5 |
 | AG-4 | `state_save` persists arbitrary client objects; `run_goal` passes client `model` and `routeTelemetry` through. [1] | Medium | E3 (input validation pass with the permission matrix) |
 

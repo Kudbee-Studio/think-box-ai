@@ -86,6 +86,7 @@ export class ThinkCubeRenderer {
     const s = summarize(this.state);
     const bits = [`stage: ${s.stage}`];
     if (s.tokenId) bits.push(`token: ${s.tokenId}`);
+    if (s.thinkBoxIds.length) bits.push(`boxes: ${s.thinkBoxIds.length} (${s.specialistIds.join(', ')})`);
     bits.push(`active ${s.activeCount}`, `verified ${s.lockedCount}`);
     if (s.disruptedCount) bits.push(`disrupted ${s.disruptedCount}`);
     if (s.sharedCount) bits.push(`shared ${s.sharedCount}`);
@@ -161,14 +162,30 @@ export class ThinkCubeRenderer {
           this.dispatch('evidence', { evidenceCount: this.evidenceCount });
         }
         break;
+      case 'specialist_wave_started':
+        this.dispatch('swarm', {
+          boxIds: thought.thinkBoxIds ?? [],
+          specialistIds: thought.specialistIds ?? [],
+        });
+        break;
+      case 'specialist_validation':
+        this.dispatch('jury', { passed: thought.status === 'success' });
+        break;
+      case 'proof_accepted':
+        this.dispatch('jury', { passed: true });
+        this.dispatch('proof', {});
+        break;
+      case 'proof_refused':
+        this.dispatch('jury', { passed: false });
+        break;
       case 'memory':
         if (typeof thought.content === 'string' && thought.content.startsWith('Saved episode')) {
           this.dispatch('harvest', {});
         }
         break;
       case 'think_token':
-        this.dispatch('proof', {});
-        this.dispatch('think_token', { tokenId: this.state.tokenId });
+        if (!this.state.stable) this.dispatch('proof', {});
+        this.dispatch('think_token', { tokenId: thought.tokenId ?? this.state.tokenId });
         break;
       default:
         break;
