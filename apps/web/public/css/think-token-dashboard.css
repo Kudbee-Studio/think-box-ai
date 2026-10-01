@@ -715,3 +715,51 @@
 .token-details-content::-webkit-scrollbar-thumb:hover {
   background: rgba(74, 222, 128, 0.5);
 }
+
+/* Demo drawer (collapsed by default) and pane notes */
+.demo-drawer {
+  padding: 0.75rem;
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px dashed rgba(251, 191, 36, 0.35);
+  border-radius: 6px;
+}
+
+.demo-drawer summary {
+  font-size: 0.85rem;
+  color: #fbbf24;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.demo-note {
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+  color: #a0aec0;
+}
+
+.demo-cube-wrap {
+  margin-top: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pane-note {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.job-info-error {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.job-info-value,
+.token-content {
+  overflow-wrap: anywhere;
+}
