@@ -152,6 +152,13 @@ function handleMessage(msg) {
       scheduleMemoryRefresh();
       break;
 
+    case 'think_tokens':
+    case 'think_token_result':
+    case 'think_token_error':
+    case 'think_tokens_changed':
+      window.dispatchEvent(new CustomEvent('think-tokens:message', { detail: msg }));
+      break;
+
     case 'queued':
       appendTerminalMessage('system', `⏳ Queued #${msg.data.position}: ${msg.data.goal}`);
       break;
@@ -505,6 +512,13 @@ function renderTaskActionResult(result) {
   }
   const task = result.task;
   appendTerminalMessage('system', `Task ${task.id.slice(0, 8)} ${result.action}: ${task.title} [${task.status}/${task.priority}]`);
+}
+
+// Used by think-tokens-panel.js; the server validates every field and gates mutations behind approval.
+function sendThinkTokenMessage(message) {
+  if (state.ws?.readyState !== WebSocket.OPEN) return false;
+  state.ws.send(JSON.stringify(message));
+  return true;
 }
 
 function sendTaskAction(action, payload = {}) {

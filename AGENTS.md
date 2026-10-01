@@ -92,6 +92,16 @@ Not all 500+ captured observations become tokens. Only high-value ones:
 
 Result: 500 captures → ~15 persistent Think Tokens per session.
 
+**Think Tokens as reviewable learning units (ADR 028).** Separate from the #288 pattern pipeline above, a finished successful
+agent run is turned by a deterministic extractor (`think-token-extract.ts`; optional `qwen2.5:1.5b` reword via
+`KUDBEE_LOCAL_MODEL`, used only if installed) into at most 3 *candidate* tokens (`lesson`, `fix`, `tool_pattern`) stored in
+SQLite (`think-token-store.ts`, `think-tokens.db`). Every write passes one admission gate (secret redaction, 600-char cap,
+content-hash dedupe, rejection of text that tries to change permissions or approvals) and returns a receipt from a local
+hash-chained ledger. A human accepts or retires a token in the dashboard's **🧩 Tokens** panel (WebSocket actions
+`think_tokens_list`, `think_token_action`; mutations use the normal approval modal). Before planning, `runAgentGoal` injects the
+top 3 accepted tokens matching the goal, cited as `[tt:ID]`, and logs which were used. A token is advisory text: it has no field
+that can grant a permission, a tool or an approval.
+
 **Confidence Scoring:**
 
 Tokens start at 0.5 confidence. Each reuse updates the score:

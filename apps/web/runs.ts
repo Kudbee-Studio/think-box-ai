@@ -27,6 +27,8 @@ export interface RunRecord {
   files: string[];
   /** Memory ids injected into the prompt at run start. */
   recalled?: string[];
+  /** Think Token ids (ADR 028) injected into the planner context for this run. */
+  think_tokens?: string[];
   result?: string;
   error?: string;
   failure_kind?: string;
