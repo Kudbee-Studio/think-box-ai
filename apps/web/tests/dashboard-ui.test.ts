@@ -91,6 +91,20 @@ test('command buttons and shortcuts never overwrite the goal being typed', () =>
   assert.deepEqual(clobbers, [], 'use runCommand() instead of writing a slash command into the goal input');
 });
 
+test('the terminal panel fills .center so its own overflow:auto can actually scroll', () => {
+  // .center is display:flex; flex-direction:column; overflow:hidden (main-pro.css). .terminal-panel
+  // is its only flex child and .terminal inside it is flex:1; overflow-y:auto. Without flex:1 and
+  // min-height:0 on .terminal-panel itself, it sizes to its content instead of filling .center, so
+  // the terminal never hits a height ceiling to scroll against — it just grows past the viewport and
+  // gets silently clipped by .center's overflow:hidden. Verified live: before this rule, flooding the
+  // terminal with 80 messages left panelHeight 8579px (== content) vs centerHeight 584px, scrollable
+  // false; after, panelHeight == centerHeight and scrollable true.
+  const rule = read('css/polish.css').match(/\.terminal-panel\s*\{([^}]*)\}/);
+  assert.ok(rule, '.terminal-panel needs a sizing rule in polish.css');
+  assert.match(rule[1], /flex\s*:\s*1\b/, '.terminal-panel must flex:1 to fill .center');
+  assert.match(rule[1], /min-height\s*:\s*0\b/, '.terminal-panel must min-height:0 so it can shrink below its content size');
+});
+
 test('demo panels carry the demo banner and never ask for a secret or claim a connection', () => {
   const banner = '<div class="demo-banner" role="note">Demo data - not connected to real services</div>';
   for (const file of ['js/integration-connectors.js', 'js/collaboration-dashboard.js']) {
