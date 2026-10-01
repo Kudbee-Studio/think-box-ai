@@ -43,7 +43,11 @@ async function start(extra: Record<string, string> = {}): Promise<Server> {
   throw new Error('server did not start');
 }
 
-interface Client { sessionId: string; ws: string; send(msg: object, reply: string, approve?: boolean): Promise<any>; approvals: string[]; close(): void }
+interface Client {
+  sessionId: string; ws: string; send(msg: object, reply: string, approve?: boolean): Promise<any>; approvals: string[]; close(): void;
+  // Resolves with whichever of `replies` arrives first, so a wrong reply type fails an assertion instead of hanging.
+  sendAny(msg: object | string, replies: string[]): Promise<{ type: string; data: Record<string, unknown> }>;
+}
 
 async function connect(s: Server): Promise<Client> {
   const sock = new WebSocket(`ws://127.0.0.1:${s.port}/ws`, { origin: s.url });
@@ -73,6 +77,10 @@ async function connect(s: Server): Promise<Client> {
         if (approve === undefined) throw new Error(`unexpected approval_request: ${m.data.reason}`);
         sock.send(JSON.stringify({ type: 'approval_response', id: m.data.id, approved: approve }));
       }
+    },
+    sendAny(msg, replies) {
+      sock.send(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      return next(replies);
     },
     close: () => sock.close(),
   };
@@ -192,6 +200,94 @@ test('update_config rejects unknown keys and out-of-range values; valid changes 
     const ok = await c.send({ type: 'update_config', config: { maxIterations: 12, model: 'mercury-2' } }, 'config_updated');
     assert.equal(ok.maxIterations, 12);
     assert.equal(ok.model, 'mercury-2');
+  } finally { c.close(); }
+});
+
+const CONFIG_REPLIES = ['config_error', 'config_updated'];
+const updateConfig = (c: Client, config: unknown) => c.sendAny({ type: 'update_config', config }, CONFIG_REPLIES);
+
+test('update_config refuses prototype-reaching keys, unknown keys and non-object input', async () => {
+  const s = await start();
+  const c = await connect(s);
+  try {
+    const rejected: Array<[string, object | string]> = [
+      ['__proto__ as an own key (raw JSON)', '{"type":"update_config","config":{"__proto__":{"polluted":true}}}'],
+      ['__proto__ beside a valid key', '{"type":"update_config","config":{"model":"mercury-2","__proto__":{"polluted":true}}}'],
+      ['constructor', { type: 'update_config', config: { constructor: { prototype: { polluted: true } } } }],
+      ['prototype', { type: 'update_config', config: { prototype: { polluted: true } } }],
+      ['toString', { type: 'update_config', config: { toString: 1 } }],
+      ['null', { type: 'update_config', config: null }],
+      ['array', { type: 'update_config', config: [{ maxIterations: 5 }] }],
+      ['string', { type: 'update_config', config: 'maxIterations=5' }],
+      ['number', { type: 'update_config', config: 42 }],
+      ['boolean', { type: 'update_config', config: true }],
+      ['missing config', { type: 'update_config' }],
+    ];
+    for (const [label, msg] of rejected) {
+      const r = await c.sendAny(msg, CONFIG_REPLIES);
+      assert.equal(r.type, 'config_error', `${label} must be rejected, got ${r.type}`);
+      assert.match(String(r.data.error), /unknown config key|config must be an object/, label);
+    }
+    const after = await updateConfig(c, {});
+    assert.equal(after.type, 'config_updated');
+    assert.equal(after.data.maxIterations, 20, 'rejected patches left the default untouched');
+  } finally { c.close(); }
+});
+
+test('update_config enforces the documented bounds exactly (maxIterations 1-50, temperature 0-2, provider, model)', async () => {
+  const s = await start();
+  const c = await connect(s);
+  try {
+    const bad: Array<[string, Record<string, unknown>, RegExp]> = [
+      ['maxIterations 0', { maxIterations: 0 }, /maxIterations/],
+      ['maxIterations 51', { maxIterations: 51 }, /maxIterations/],
+      ['maxIterations -1', { maxIterations: -1 }, /maxIterations/],
+      ['maxIterations 1.5', { maxIterations: 1.5 }, /maxIterations/],
+      ['maxIterations as a string', { maxIterations: '12' }, /maxIterations/],
+      ['temperature -0.1', { temperature: -0.1 }, /temperature/],
+      ['temperature 2.01', { temperature: 2.01 }, /temperature/],
+      ['temperature as a string', { temperature: '1' }, /temperature/],
+      ['provider openai', { provider: 'openai' }, /provider/],
+      ['provider as a number', { provider: 5 }, /provider/],
+      ['empty model', { model: '' }, /model/],
+      ['blank model', { model: '   ' }, /model/],
+      ['101-character model', { model: 'm'.repeat(101) }, /model/],
+      ['model as a number', { model: 42 }, /model/],
+    ];
+    for (const [label, config, pattern] of bad) {
+      const r = await updateConfig(c, config);
+      assert.equal(r.type, 'config_error', `${label} must be rejected, got ${r.type}`);
+      assert.match(String(r.data.error), pattern, label);
+    }
+    const good: Array<[string, Record<string, unknown>, string, unknown]> = [
+      ['maxIterations 1', { maxIterations: 1 }, 'maxIterations', 1],
+      ['maxIterations 50', { maxIterations: 50 }, 'maxIterations', 50],
+      ['temperature 0', { temperature: 0 }, 'temperature', 0],
+      ['temperature 2', { temperature: 2 }, 'temperature', 2],
+      ['provider ollama', { provider: 'ollama' }, 'provider', 'ollama'],
+      ['provider inception', { provider: 'inception' }, 'provider', 'inception'],
+      ['model is trimmed', { model: '  mercury-2  ' }, 'model', 'mercury-2'],
+    ];
+    for (const [label, config, key, expected] of good) {
+      const r = await updateConfig(c, config);
+      assert.equal(r.type, 'config_updated', `${label} must be accepted, got ${r.type}`);
+      assert.equal(r.data[key], expected, label);
+    }
+  } finally { c.close(); }
+});
+
+test('update_config applies nothing when any key in the patch is rejected', async () => {
+  const s = await start();
+  const c = await connect(s);
+  try {
+    const before = await updateConfig(c, {});
+    assert.equal(before.type, 'config_updated');
+    const other = before.data.maxIterations === 9 ? 10 : 9;
+    const mixed = await updateConfig(c, { maxIterations: other, systemPrompt: 'x' });
+    assert.equal(mixed.type, 'config_error', 'a patch with an unknown key is rejected as a whole');
+    const after = await updateConfig(c, {});
+    assert.equal(after.type, 'config_updated');
+    assert.equal(after.data.maxIterations, before.data.maxIterations, 'the valid half of a rejected patch must not be applied');
   } finally { c.close(); }
 });
 
