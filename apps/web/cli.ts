@@ -443,10 +443,17 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         client.send({ type: 'plugin_execute', plugin: pluginName, input });
         const { data: result } = await done;
         if (result.success) {
-          console.log(c.green(`✓ ${pluginName} executed`));
-          if (result.output) console.log(`  ${JSON.stringify(result.output, null, 2)}`);
+          console.log(c.green(`✓ ${pluginName} executed successfully`));
+          if (result.output) {
+            const formatted = typeof result.output === 'string'
+              ? result.output
+              : JSON.stringify(result.output, null, 2);
+            console.log(c.dim('Output:'));
+            console.log(`  ${formatted.split('\n').join('\n  ')}`);
+          }
         } else {
-          console.log(c.red(`✗ ${result.error ?? `${pluginName} failed`}`));
+          console.log(c.red(`✗ Plugin execution failed: ${pluginName}`));
+          if (result.error) console.log(c.dim(`  Error: ${result.error}`));
         }
       } catch (err) {
         console.log(c.red('Error: Invalid JSON input'));
