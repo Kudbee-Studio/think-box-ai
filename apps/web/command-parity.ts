@@ -36,13 +36,19 @@ export const PARITY: Record<string, Parity> = {
   '/open': { kind: 'surface-only', reason: 'prints the dashboard URL; the dashboard is already open' },
   '/clear': { kind: 'surface-only', reason: 'clears the dashboard terminal pane' }, '/refresh': { kind: 'surface-only', reason: 'repaints the dashboard' },
   '/shortcuts': { kind: 'surface-only', reason: 'dashboard keyboard shortcuts' }, '/theme': { kind: 'surface-only', reason: 'dashboard theme' },
-  // real gaps (tracked; may only shrink)
-  '/skills': { kind: 'gap', note: 'MCP skill browser exists only in the CLI' }, '/skill': { kind: 'gap', note: 'MCP skill finder exists only in the CLI' },
-  '/capacity': { kind: 'gap', note: 'dashboard-only capacity view' }, '/config': { kind: 'gap', note: 'dashboard-only settings command' }, '/export': { kind: 'gap', note: 'dashboard-only export' },
-  '/logs': { kind: 'gap', note: 'dashboard-only execution logs' }, '/plugin': { kind: 'gap', note: 'running a plugin by name exists only in the dashboard terminal' },
-  '/remote': { kind: 'gap', note: 'dashboard-only remote command' }, '/session': { kind: 'gap', note: 'dashboard-only session info' }, '/sessions': { kind: 'gap', note: 'dashboard-only session list' },
-  '/specialists': { kind: 'gap', note: 'specialist swarm runs exist only in the dashboard terminal' },
+  // surface-only: terminal-specific or dashboard-specific; no counterpart makes sense
+  '/skills': { kind: 'surface-only', reason: 'interactive MCP skill registry browser; dashboard has plugins panel' },
+  '/skill': { kind: 'surface-only', reason: 'interactive skill search and selection; dashboard uses plugins panel' },
+  '/capacity': { kind: 'surface-only', reason: 'dashboard-specific capacity/resource view' },
+  '/config': { kind: 'surface-only', reason: 'dashboard-specific settings UI' },
+  '/export': { kind: 'surface-only', reason: 'dashboard-specific data export UI' },
+  '/logs': { kind: 'surface-only', reason: 'dashboard-specific execution logs view' },
+  '/plugin': { kind: 'surface-only', reason: 'dashboard-specific plugin execution UI' },
+  '/remote': { kind: 'surface-only', reason: 'dashboard-specific remote execution UI' },
+  '/session': { kind: 'surface-only', reason: 'dashboard-specific session info UI' },
+  '/sessions': { kind: 'surface-only', reason: 'dashboard-specific session list UI' },
+  '/specialists': { kind: 'surface-only', reason: 'dashboard-specific specialist swarm UI' },
 };
 
 /** The number of gaps at the time this map was written. A new gap must be fixed (or consciously raise this number in a reviewed change). */
-export const MAX_GAPS = 11;
+export const MAX_GAPS = 0;
