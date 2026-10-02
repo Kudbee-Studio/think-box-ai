@@ -444,13 +444,13 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         // Wait up to 30 seconds for plugin result
         let result: any;
         try {
-          const { data } = await Promise.race([
+          const response = await Promise.race<Msg>([
             done,
-            new Promise((_, reject) =>
+            new Promise<Msg>((_, reject) =>
               setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
             ),
           ]);
-          result = data;
+          result = response.data;
         } catch (timeoutErr) {
           console.log(c.red('Error: Plugin execution timed out (30s)'));
           break;
