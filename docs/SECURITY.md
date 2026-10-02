@@ -87,3 +87,27 @@ the project maintainers. Please do not open a public issue for security vulnerab
 - [ ] Configure monitoring and alerting
 - [ ] Use Docker with non-root user
 - [ ] Keep dependencies updated
+
+## Plugin Command Security (cli.ts /plugin)
+
+**Input Validation:**
+- Plugin name: must be non-empty string
+- JSON input: parsed and validated, malformed JSON rejected
+- Both validated before WebSocket send
+
+**Timeout Protection:**
+- 30-second execution timeout prevents indefinite hangs
+- Clear timeout error message returned to user
+- Graceful failure without system crash
+
+**WebSocket Message:**
+- Sends {type: 'plugin_execute', plugin, input}
+- Expects {type: 'plugin_result', success, output, error}
+- Size validated by server-side limits
+
+**Error Handling:**
+- JSON parse errors caught and reported
+- Timeout errors handled gracefully
+- Plugin execution errors passed through without modification
+- No secrets or keys printed in error messages
+
