@@ -3608,6 +3608,16 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **Open founder decision recorded in the ADR:** six system-part faces / 54 squares versus the built 100-cell / 10-role cube.
 - **FOUR-STATE:** documentation only. No capability is claimed. PRODUCTION READY: NO.
 
+### 2026-10-02 — SAVE POINT: ADR 029 P3.3 held-out proof + hygiene (branch `feat/adr029-p3-proof-relationships`, draft PR #315)
+
+- **Push audit:** no `pre-push` hook; Cursor commit hooks only; VM reflog shows no local push for `32ab41a1` — treat as another Grok/Cursor session. `AGENTS.md` §0.7 + `docs/evidence/adr-029-p3/push-audit.md`.
+- **Held-out retrieval (8 new goals, weights frozen):** hit@1 6/8, hit@3 7/8 (`p33-retrieval-eval.json`).
+- **Held-out A/B:** 64 real Mercury runs, $0.069; related objectives off 19/32, on 20/32 (`ab33-result.json`). Pooled with P3.1 ab31: 34/56 each, p≈1.0 — **not significant**; headline unchanged (tokens not shown to help).
+- **Security:** Janus opt-in (`KUDBEE_JANUS_ENABLED`), loopback default, single model id; CVE-2026-69112 in `docs/SECURITY.md`; `.kilo/worktrees/` ignored.
+- **Browser:** `prefers-reduced-motion` on Think Tokens cube — animation off (`reduced-motion-browser.json`, screenshot artifact).
+- **Tests:** web 380/380. CodeQL local SARIF 35 on apps/web; GitHub compare UNPROVEN (403).
+- **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (Mercury A/B + browser motion). **NOT PRODUCTION READY.** CI blocked (billing). **Commits local; no push until billing clears.**
+
 ### 2026-10-01 — SAVE POINT: ADR 029 P1 + P2 (branch `feat/adr029-p1-token-lifecycle`)
 
 - **Built (one PR, one push):** store schema v2 (permanent `TT-` ids from an AUTOINCREMENT sequence inside the insert transaction, lifecycle statuses and transition rules, stored score breakdown, extractor/model/challenge columns, model-call log, v1 -> v2 migration that keeps `legacy_id` and never rewrites the ledger); `think-token-pipeline.ts` (Mercury 2 via `INCEPTION_API_KEY_2`, local fallback `THINKBOX_LOCAL_MODEL`, labeled template last resort; grounding and specificity checks; challenge with a novelty verdict); `think-token-reader.ts` shared by the WebSocket handler and `kudbee tokens list|show`; one merged Think Tokens view (Energy Core from real signals, cube pulses, token list from SQLite); server fixes (`run_id` on plain-run goal thoughts, real lesson text on the card).

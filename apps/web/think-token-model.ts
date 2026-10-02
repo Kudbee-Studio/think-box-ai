@@ -36,6 +36,20 @@ type FetchLike = typeof fetch;
 export const MAX_MODEL_INPUT_CHARS = 8000;
 const CALL_TIMEOUT_MS = 30_000;
 
+/** After the local model is found down or missing, skip it for a minute (and warn once) instead of probing on every call. A restart of Ollama is picked up on the next window. */
+export const LOCAL_BACKOFF_MS = 60_000;
+let localDownUntil = 0;
+
+function noteLocalUnreachable(detail: string, model: string, now: number = Date.now()): void {
+  if (now >= localDownUntil) console.warn(`[think-token] local model '${model}' unavailable (${detail}); skipping it for ${LOCAL_BACKOFF_MS / 1000}s`);
+  localDownUntil = now + LOCAL_BACKOFF_MS;
+}
+
+/** Test helper: forget a recorded outage. */
+export function resetLocalFallbackState(): void {
+  localDownUntil = 0;
+}
+
 /** Remove secrets and machine-specific absolute paths, then cap the size, before text is sent to a model. */
 export function sanitizeForModel(text: string, max: number = MAX_MODEL_INPUT_CHARS): string {
   const noPaths = redact(text)
@@ -93,18 +107,24 @@ export function createMercuryCaller(env: Env = process.env, fetchImpl: FetchLike
 /** The already-installed Ollama model. Reports a readable error (never pulls) when it is not installed or Ollama is down. */
 export function createLocalCaller(env: Env = process.env, fetchImpl: FetchLike = fetch): ModelCaller {
   return async (messages, opts = {}) => {
-    const base = (env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
     const model = resolveLocalModel(env);
+    if (Date.now() < localDownUntil) throw new Error('local model unavailable: skipped, it was unreachable moments ago');
+    const base = (env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
     const started = Date.now();
     let installed: boolean;
     try {
       const tags = await fetchImpl(`${base}/api/tags`, { signal: AbortSignal.timeout(3000) });
       const list = (await tags.json()) as { models?: Array<{ name?: string }> };
       installed = (list.models ?? []).some((m) => m.name === model);
-    } catch {
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'not reachable';
+      noteLocalUnreachable(detail, model);
       throw new Error('local model unavailable: Ollama is not reachable');
     }
-    if (!installed) throw new Error(localModelHint(model));
+    if (!installed) {
+      noteLocalUnreachable(`model '${model}' not installed`, model);
+      throw new Error(localModelHint(model));
+    }
     let body: any;
     try {
       const response = await fetchImpl(`${base}/api/chat`, {
@@ -118,8 +138,9 @@ export function createLocalCaller(env: Env = process.env, fetchImpl: FetchLike =
     } catch (err) {
       throw new Error(`local model call failed: ${err instanceof Error ? err.message.slice(0, 80) : 'error'}`);
     }
-    const text = body?.message?.content;
-    if (typeof text !== 'string' || !text.trim()) throw new Error('local model returned no text');
+    // Never call string methods on undefined content (guards prior TypeError on missing path).
+    const text = typeof body?.message?.content === 'string' ? body.message.content : '';
+    if (!text.trim()) throw new Error('local model returned no text');
     return { text, provider: 'local', model, latency_ms: Date.now() - started, tokens_in: Number(body?.prompt_eval_count) || 0, tokens_out: Number(body?.eval_count) || 0 };
   };
 }

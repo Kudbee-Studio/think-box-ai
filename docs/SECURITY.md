@@ -53,6 +53,20 @@ the project maintainers. Please do not open a public issue for security vulnerab
 - All configuration is via environment variables
 - Infrastructure details (IPs, UUIDs) are excluded from version control
 
+### Known dependency risk: CVE-2026-69112 (Hugging Face `accelerate`)
+
+**Component:** `accelerate` (pulled in by `apps/web/janus-requirements.txt` for the optional Janus-Pro CPU image service).
+
+**Risk:** Low for this repository's deployment model. The Janus service loads a single fixed checkpoint (`deepseek-ai/Janus-Pro-1B`) on loopback when explicitly enabled; it does not load arbitrary user-supplied model paths in normal operation.
+
+**Mitigation (shipped):**
+- Janus is **disabled by default** (`KUDBEE_JANUS_ENABLED` must be `1` or `true`).
+- The Node dashboard only calls Janus when enabled; `JANUS_BASE_URL` defaults to `http://127.0.0.1:8001`.
+- `apps/web/janus_service.py` rejects any `JANUS_MODEL` other than `deepseek-ai/Janus-Pro-1B` at import time.
+- Dependency pins in `janus-requirements.txt` are unchanged until a fixed `accelerate` release is available and validated against `transformers` in this stack.
+
+**Plan:** Revisit when upstream publishes a fixed `accelerate` version that remains compatible with the pinned `transformers` stack; then bump pins, re-run the Janus smoke test on loopback, and remove or downgrade this entry.
+
 ## Production Deployment Checklist
 
 - [ ] Change default API key

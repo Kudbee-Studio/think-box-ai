@@ -42,7 +42,7 @@ import { ThinkTokenCollection } from './think-token.ts';
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
-import { processFinishedRun } from './think-token-pipeline.ts';
+import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens, toApiToken } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -105,6 +105,12 @@ const wss = new WebSocketServer({
 });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
+
+/** Janus is opt-in (default off). CVE-2026-69112 in pinned `accelerate`; see docs/SECURITY.md. */
+function janusEnabled(): boolean {
+  const v = process.env.KUDBEE_JANUS_ENABLED;
+  return v === '1' || v === 'true';
+}
 // Cheap local route default (Feature 5 token-aware routing). THINKBOX_LOCAL_MODEL (or the older KUDBEE_LOCAL_MODEL) names an
 // already-installed Ollama model; the app never pulls models. See local-model.ts.
 const defaultLocalModel = resolveLocalModel();
@@ -266,6 +272,9 @@ async function listOllamaModels(): Promise<OllamaTag[]> {
 }
 
 async function requestJanus(endpoint: 'analyze' | 'generate', payload: Record<string, string>): Promise<Record<string, string>> {
+  if (!janusEnabled()) {
+    throw new Error('Janus image service is disabled (set KUDBEE_JANUS_ENABLED=1 on loopback only)');
+  }
   const response = await fetch(`${janusBaseUrl}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1016,9 +1025,13 @@ export class AgentSession {
           status: 'info',
         });
       }
-      // ADR 028: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
-      const thinkTokens = tokenStore.retrieve(goal, 3);
-      if (thinkTokens.length) {
+      // ADR 028/029: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
+      // THINKBOX_TOKEN_RETRIEVAL=0|off disables retrieval for A/B proof runs.
+      const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name) });
+      if (retrievalOff) {
+        this.addThought({ type: 'think_token', content: 'Think Token retrieval OFF (THINKBOX_TOKEN_RETRIEVAL)', status: 'info' });
+      } else if (thinkTokens.length) {
         record.think_tokens = thinkTokens.map((t) => t.id);
         tokenStore.recordUse(record.think_tokens, record.id, `agent:${record.id.slice(0, 8)}`);
         for (const before of thinkTokens) {
@@ -1442,11 +1455,18 @@ export class AgentSession {
     try {
       const actor = `agent:${record.id.slice(0, 8)}`;
       tokenStore.recordOutcome(record.id, success, actor);
+      const deps = { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) };
       const result = await processFinishedRun(
-        { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) },
+        deps,
         { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result },
         actor,
       );
+      // A token whose challenge could not run earlier (model down) is retried now that a run has finished; at most 3 per run.
+      const earlier = await rechallengeScoredTokens(deps, (id) => { const r = runStore.get(id); return r ? { id: r.id, goal: r.goal, success: r.status === 'completed', steps: r.steps, files: r.files, result: r.result } : undefined; }, actor, 3);
+      for (const r of earlier) {
+        const row = r.result === 'left_scored' ? null : tokenStore.get(r.id);
+        if (row) this.broadcast({ type: 'think_token_learned', data: tokenEvent(row, row.source_run_id, 0) });
+      }
       const fresh = result.tokens.filter((t) => !t.duplicate);
       for (const token of fresh) {
         const row = tokenStore.get(token.id);
@@ -1779,7 +1799,7 @@ app.get('/api/monitor', async (_req: Request, res: Response) => {
     monitorEndpoint('Agent OS API', `${baseUrl}/api/health`),
     monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
     monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
-    monitorEndpoint('Janus image service', `${janusBaseUrl}/health`),
+    ...(janusEnabled() ? [monitorEndpoint('Janus image service', `${janusBaseUrl}/health`)] : []),
     ...(process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
       ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
       : []),

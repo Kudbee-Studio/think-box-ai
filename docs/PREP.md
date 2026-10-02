@@ -2,6 +2,10 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-10-02 (ADR 029 P3.3; branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
+>
+> **Local-only checkpoint** (commits on branch; **no push** until GitHub billing clears). Push audit: no in-repo auto-push; commit `32ab41a1` on origin likely from another agent session. Held-out retrieval **6/8 hit@1**, **7/8 hit@3**; held-out A/B **$0.069** / 64 runs; pooled P31+P33 **not significant**. Janus disabled by default + CVE doc. Web tests **380/380**. Next: single push → `gh pr checks 315` → merge if green.
+
 > ## ADDENDUM — 2026-09-30 (specialist execution boundary; branch `docs/enterprise-agent-os-plan`)
 >
 > **Architecture:** `apps/web/specialist-executor.ts` consumes unchanged contracts/Director selection and runs each model-backed specialist in a fresh `AgentSession` identity and confined workspace through the existing `runToolAgent`. Receiver `acceptsFrom` handoffs create sequential dependency waves; ready independent specialists run concurrently. No new agent runtime or provider SDK.

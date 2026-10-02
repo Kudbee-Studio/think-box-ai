@@ -64,12 +64,27 @@ credential or token-scope changes, or contact with live infrastructure.
   `qwen2.5:1.5b`). The app never pulls models. Run `ollama list` and set the variable to a model you already have.
 - If no model answers, the deterministic template extractor is used, labeled `extractor: template`; such tokens stay `candidate` and are never auto-accepted.
 
+### 0.7 Git push (no auto-push)
+
+Nothing in this repository may push to a remote on commit, hook, or timer. Only a human or agent may run `git push` after local gates pass (tests, lint, typecheck, CodeQL when required, evidence updated). Cursor agent hooks run on **commit** only (`pre-commit`, `commit-msg`); there is no `pre-push` hook in-repo. If a push appears without an explicit agent push step, treat it as another session or machine and record findings in `docs/evidence/` (see `docs/evidence/adr-029-p3/push-audit.md`).
+
 ### 0.6 Think Tokens: where they live, and CLI/dashboard parity
 
 - The store is `apps/web/data/think-tokens.db` (override `KUDBEE_THINK_TOKEN_DB`), NOT `learning.db` (that is the older #288 `learned_patterns` store).
 - Every token has a permanent id `TT-000001`, `TT-000002`, ... allocated in the insert transaction and never reused. Pre-v2 `tt_<hash>` ids are kept as `legacy_id` and still resolve.
 - The dashboard's single **🧩 Think Tokens** view and `kudbee tokens list|show` read the same database through one module, `apps/web/think-token-reader.ts`.
   Do not add a second query or formatter.
+- Relationships (ADR 029 P3): `think_token_links` holds only links with a mechanical evidence source: `same_tool` (shared `tool:<name>` tags, which the
+  pipeline adds to new tokens; tokens saved before P3 carry bare tool names and get no `same_tool` links), `similar` (normalized BM25 of the lesson text
+  at or above `SIMILAR_THRESHOLD` 0.25, calibrated on 78 real lesson pairs, see `docs/evidence/adr-029-p3.md`), and `co_used` (used by the same run, weight grows with shared runs).
+  `kudbee tokens links <TT-id>` and the token card's Links panel read them through the same reader. Propagation v1 is depth 1: using a token credits
+  its linked neighbors; the bonus is `min(0.10, 0.02 x sum of the last 12 credits)` and is stored in `score_breakdown` so the shown score reproduces.
+- Retrieval (`retrieve`) ranks accepted tokens by goal intent and failure mode, not shared tools: `0.6 x BM25 + 0.5 per failure mode both goal and lesson name` x a genericness factor x (0.5 + score), with near-duplicates skipped (`diverse: false` for the novelty check). `same_tool` links weight tools by rarity (`toolIdf`). An unusable challenge reply is retried once, then the lesson stays `scored` (`challenge_unjudged`).
+- Dedupe: `mergeDuplicates` retires an accepted token that has the same tool set and similarity >= 0.25 to a better-scored one, linked `merged_into` (directed, duplicate -> survivor); it runs after each newly accepted token. Pass the known tool names to `linkToken`/`mergeDuplicates` so tokens saved before P3 (bare tool-name tags) are included.
+- A token whose challenge could not run stays `scored`. After each run the server retries up to 3 of them against their own run record
+  (`rechallengeScoredTokens`); a token with no run record or no model stays `scored` and is never force-rejected. `scored -> rejected` is not a legal transition.
+- Unsafe advice (`rm -rf`, `curl | sh`, disabling auth, exfiltration, inline secrets) fails the deterministic specificity check regardless of what the model says.
+- `THINKBOX_TOKEN_RETRIEVAL=off` disables planner retrieval (A/B runs only). If the local model is down it is skipped for 60 s, then probed again.
 
 ---
 

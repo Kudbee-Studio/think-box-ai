@@ -1,0 +1,330 @@
+{
+ "variant": "current",
+ "tp": 17,
+ "fn": 1,
+ "fp": 0,
+ "tn": 19,
+ "none": 3,
+ "rows": [
+  {
+   "label": "good",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows config.yaml read_file failed ENOENT; lesson advises using correct config.json filename, ma"
+  },
+  {
+   "label": "good",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows read_file on config.yaml failed; goal was config.json, so lesson about using correct filen"
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows config.json with three keys and summary.md bullet list of those keys; matches lesson and d"
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read config.json (three keys) and wrote summary.md with bullet list of those keys, matching the "
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows write_file output 31 bytes and list_files reports 31 bytes; matching sizes confirm full co"
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "write_file reports 31 bytes, list_files shows 31 bytes, confirming the entire content was written."
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read_file returned JSON keys and write_file used those keys, matching lesson; not covered by kno"
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read_file returned JSON with keys port, debug, name; lesson.md was written using those keys, mat"
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows ENOENT error for config.yaml, yet it continued using config.json and completed task, confi"
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "none",
+   "reason": ""
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run reads config.json before writing summary.md, matching lesson's ordering advice; not covered by k"
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "none",
+   "reason": "mercury request failed: TimeoutError"
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows write_file created summary.md with heading '# Keys' and bullets for each key in one call, "
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows summary.md written with heading and bullet list in one write_file call, matching lesson; n"
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "list_files output shows both config.json (44 bytes) and summary.md, confirming both input and output"
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run's list_files output shows both config.json (44 bytes) and summary.md, confirming lesson matches "
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows ENOENT on config.yaml, error noted, and fallback to config.json without retry; matches les"
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows ENOENT error for guessed config.yaml; lesson suggests handling it, which is specific, back"
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read_file output shows three keys and final answer mentions count, matching the summary file; th"
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read config.json (3 keys) and wrote summary.md listing them; the lesson about counting keys matc"
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "read_file on config.yaml failed, making the lesson inaccurate; it is a specific claim not covered by"
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows read_file on config.yaml failed (ENOENT), so lesson's claim of success is false and unsupp"
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows write_file succeeded but no backup file or mention; claim unsupported."
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows write_file and list_files but no backup behavior; claim not evidenced."
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson says list_files reports checksums, yet run output only shows file sizes, no checksum data."
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run's list_files output shows only filenames and sizes, no checksums; lesson's claim about checksums"
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson claims double read due to caching, but run only read once and succeeded; no evidence supports"
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run reads config.json once; no caching evidence. Lesson unsupported, but specific and not a repeat o"
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows debug false but no mention of passing debug mode to write_file; claim not evidenced, yet i"
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows no debug flag usage for write_file; lesson not reflected in actions."
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson advises list_files before write_file, but run performed list_files after; not reflected in ru"
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson proposes list_files before write_file, but run did write_file then list_files; no evidence of"
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 0,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called"
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 1,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called"
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson suggests using JSON for summary.md, but run used markdown; no evidence supports this claim, a"
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson proposes JSON output, yet the run wrote markdown and provides no evidence for JSON being bett"
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run called list_files after write_file and saw summary.md, confirming existence and size, matching t"
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run called list_files after write_file, showing summary.md exists with size, matching the lesson. Le"
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run read config.json without a timeout; lesson not reflected in run, but it is a distinct, specific "
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "none",
+   "reason": "mercury request failed: TimeoutError"
+  }
+ ]
+}

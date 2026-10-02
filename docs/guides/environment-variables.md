@@ -160,6 +160,7 @@ Read only from the environment (the server also loads the repo-root `.env`). Nev
 | `THINKBOX_LOCAL_MODEL` | Already-installed Ollama model for the fallback (older name `KUDBEE_LOCAL_MODEL`); the app never pulls models | `qwen2.5:1.5b` |
 | `THINKBOX_TOKEN_MODEL_CALLS_PER_RUN` | Cap on extraction + challenge model calls per run (a failed Mercury call is retried once and counts) | `10` |
 | `THINKBOX_TOKEN_MODEL_CALLS_PER_DAY` | Cap on those calls per day | `200` |
+| `THINKBOX_TOKEN_RETRIEVAL` | `0` or `off` stops injecting accepted Think Tokens into the planner context (for A/B proof runs: `scripts/think-token-ab-live.mjs`); any other value leaves retrieval on | on |
 | `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
 
 Prompts for Mercury leave the machine: secrets and absolute paths are removed and inputs are size-capped first.

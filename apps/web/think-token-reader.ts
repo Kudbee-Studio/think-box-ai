@@ -3,7 +3,7 @@
 // id, title, lesson, status, score breakdown, run id and ledger receipt everywhere. Layer 1: read-only, no network.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SqliteTokenStore, normalizeTokenId, type ListOptions, type Receipt, type ScoreBreakdown, type ThinkTokenRow, type TokenStatus } from './think-token-store.ts';
+import { SqliteTokenStore, normalizeTokenId, type ListOptions, type Receipt, type ScoreBreakdown, type ThinkTokenLink, type ThinkTokenRow, type TokenStatus } from './think-token-store.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -40,10 +40,12 @@ export interface ApiToken {
   used_by: NonNullable<ThinkTokenRow['used_by']>;
   /** Latest ledger receipt that mentions this token. */
   receipt: Receipt | null;
+  /** P3 relationship links (same reader for CLI + dashboard). */
+  links: ThinkTokenLink[];
 }
 
 /** The single projection of a stored row to what clients see. Nothing else formats a token. */
-export function toApiToken(row: ThinkTokenRow): ApiToken {
+export function toApiToken(row: ThinkTokenRow, store?: SqliteTokenStore): ApiToken {
   return {
     id: row.id,
     legacy_id: row.legacy_id,
@@ -69,16 +71,17 @@ export function toApiToken(row: ThinkTokenRow): ApiToken {
     created_at: row.created_at,
     used_by: row.used_by ?? [],
     receipt: row.latest_receipt ?? row.receipts?.[row.receipts.length - 1] ?? null,
+    links: store ? store.listLinks(row.id) : [],
   };
 }
 
 export function readTokens(store: SqliteTokenStore, opts: ListOptions = {}): ApiToken[] {
-  return store.list(opts).map(toApiToken);
+  return store.list(opts).map((row) => toApiToken(row, store));
 }
 
 export function readToken(store: SqliteTokenStore, idLike: string): ApiToken | null {
   const row = store.get(idLike);
-  return row ? toApiToken(row) : null;
+  return row ? toApiToken(row, store) : null;
 }
 
 /** Read-only handle on the same database the server writes. Throws a readable error if there is nothing yet. */
@@ -115,7 +118,26 @@ export function formatTokenDetail(t: ApiToken): string {
     `uses:      ${t.uses}${t.used_by.length ? `   by runs ${t.used_by.map((u) => u.run_id.slice(0, 8)).join(', ')}` : ''}   seen ${t.seen_count}x`,
     `receipt:   ${t.receipt ? `${t.receipt.receipt_id} (${t.receipt.action}, ${t.receipt.decision}, ledger seq ${t.receipt.seq})` : 'none'}`,
   ];
+  if (t.links?.length) {
+    lines.push(`links:     ${t.links.length}`);
+    for (const L of t.links) {
+      const other = L.from_id === t.id ? L.to_id : L.from_id;
+      const dir = L.from_id === t.id ? '→' : '←';
+      lines.push(`  - ${L.kind} ${dir} ${other} w=${L.weight.toFixed(2)} ${L.evidence}`);
+    }
+  } else {
+    lines.push('links:     (none)');
+  }
   return lines.join('\n');
 }
 
 export { normalizeTokenId };
+
+/** Links for one token — CLI `tokens links` and dashboard panel share this. */
+export function readTokenLinks(store: SqliteTokenStore, idLike: string): ThinkTokenLink[] {
+  const id = normalizeTokenId(idLike);
+  if (!id) return [];
+  const row = store.get(id);
+  if (!row) return [];
+  return store.listLinks(row.id);
+}

@@ -258,3 +258,18 @@ Differences from the text above that came from running it: a Mercury call can fa
 per-run cap; paraphrased lessons are not caught by a keyword-similarity threshold (paraphrases overlapped at most 0.28, unrelated lessons at a
 median of 0.07), so saved lessons are shown to the extractor and the challenge asks whether a lesson is new; and the Energy Core numbers are
 session-only, not persisted. Learning quality is still not proven: the challenge accepted 12 of 13 lessons in the live runs.
+
+## Status update 2026-10-02 (P3: proof and relationships)
+
+Evidence: `docs/evidence/adr-029-p3.md`. This ADR stays **Proposed**; P3 changes the table above as follows.
+
+| Item | Status now |
+|---|---|
+| Challenge can say no (deterministic checks, unsafe-advice gate, model verdict incl. novelty) | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED (real Mercury: 21 of 21 deliberately bad lessons rejected with stored reasons; one of three good controls was also rejected) |
+| Tokens stuck at `scored` are re-challenged against their own run record; never force-rejected | CODE COMPLETE, TEST VERIFIED; the accept/reject path is **not live-proven** (the one real stuck token has no run record, and stayed `scored` as designed) |
+| `think_token_links` (`same_tool`, `similar`, `co_used`) with evidence, ledger entries, CLI `tokens links` and a Links panel on the card | CODE COMPLETE, TEST VERIFIED; `co_used` LIVE VERIFIED on real history; `same_tool` and `similar` have no live example (older tokens carry no `tool:` tags; the real similar pairs fall below the threshold except one cluster) |
+| Propagation v1 (depth 1, capped, reproducible score) | CODE COMPLETE, TEST VERIFIED; not observed live |
+| Learning proof (A/B) | **UNPROVEN, and the first measurement was negative-to-null:** 24 real runs, retrieval on vs off, no measurable benefit (see evidence). Tokens are not shown to help yet |
+| 54-sticker cube mapping | **Decided by the founder, 2026-10-02: the 100-cell token is canonical; the 54-sticker cube is a view.** The decision is recorded only: the view mapping is **not built**, and its layout (which cells land on which sticker) is still to be designed and tested as total and stable before any code. This closes the open question in section 2 and gap 11 |
+| Disruption Tokens, multi-worker propagation, vector memory | CONCEPT / UNPROVEN, unchanged |
+

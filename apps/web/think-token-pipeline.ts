@@ -15,9 +15,9 @@
 //    sanitized (secrets and absolute paths removed) because they leave the machine for Mercury 2.
 import { extractDrafts, type FinishedRun } from './think-token-extract.ts';
 import { sanitizeForModel, scrubSecrets, type ModelMessage, type ModelResult, type TokenModels } from './think-token-model.ts';
-import { LIMITS, TOKEN_KINDS, keywords, redact, type SqliteTokenStore, type TokenDraft, type TokenKind, type ThinkTokenRow } from './think-token-store.ts';
+import { DEFAULT_KNOWN_TOOLS, LIMITS, TOKEN_KINDS, keywords, redact, type SqliteTokenStore, type TokenDraft, type TokenKind, type ThinkTokenRow } from './think-token-store.ts';
 
-export const DEFAULT_KNOWN_TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'read_rss', 'algorand', 'medication', 'recall', 'remember'];
+export { DEFAULT_KNOWN_TOOLS };
 export const MAX_LESSONS = 3;
 const DEFAULT_CALLS_PER_RUN = 10;
 const DEFAULT_CALLS_PER_DAY = 200;
@@ -124,6 +124,17 @@ export function checkGrounding(lesson: Pick<LessonCandidate, 'title' | 'content'
   return { ok: reasons.length === 0, reasons };
 }
 
+/** Destructive or security-harmful guidance never becomes a token, whatever the model says about it. */
+const UNSAFE_ADVICE: RegExp[] = [
+  /\brm\s+-rf\b/i,
+  /\bcurl\s+[^|]+\|\s*(ba)?sh\b/i,
+  /\bdisable\s+(auth|authentication|tls|ssl|firewall)\b/i,
+  /\b(ignore|skip|bypass)\s+(security|auth|permission|safety)\b/i,
+  /\bexfiltrat/i,
+  /\bpassword\s*=\s*['"]?[^\s'"]+/i,
+  /\b(api[_-]?key|secret)\s*=\s*['"]?[^\s'"]+/i,
+];
+
 function jaccard(a: string[], b: string[]): number {
   const sa = new Set(a);
   const sb = new Set(b);
@@ -144,6 +155,7 @@ export function checkSpecificity(lesson: Pick<LessonCandidate, 'title' | 'conten
   const anchors = [...view.tool_names, ...view.files, ...argKeys].filter((a) => a.length >= 3 && lower.includes(a.toLowerCase()));
   if (!anchors.length) reasons.push('generic: names no tool, file or argument from the run');
   if (jaccard(keywords(body), keywords(view.goal)) > 0.7) reasons.push('restates the goal');
+  if (UNSAFE_ADVICE.some((p) => p.test(body) || p.test(lesson.title))) reasons.push('unsafe advice');
   return { ok: reasons.length === 0, reasons };
 }
 
@@ -180,7 +192,7 @@ async function callModel(deps: PipelineDeps, runId: string, step: 'extract' | 'c
       }
       const started = Date.now();
       try {
-        const result = await caller(messages, { maxTokens: step === 'extract' ? 900 : 400 });
+        const result = await caller(messages, { maxTokens: step === 'extract' ? 900 : 700 });
         deps.store.recordModelCall({ run_id: runId, step, provider, model: result.model, ok: true, latency_ms: result.latency_ms, tokens_in: result.tokens_in, tokens_out: result.tokens_out });
         return result;
       } catch (err) {
@@ -231,7 +243,7 @@ export interface KnownLesson {
 /** Accepted lessons related to this run (same goal words or tool names), so the models can skip repeats and paraphrases. */
 export function knownLessonsFor(store: SqliteTokenStore, view: RunView): KnownLesson[] {
   return store
-    .retrieve(`${view.goal} ${view.tool_names.join(' ')}`, 6)
+    .retrieve(`${view.goal} ${view.tool_names.join(' ')}`, 6, { diverse: false })
     .map((t) => ({ id: t.id, title: clip(t.title, 80), lesson: clip(t.content, 160) }));
 }
 
@@ -288,22 +300,29 @@ export async function challengeLesson(deps: PipelineDeps, view: RunView, lesson:
   const grounded = checkGrounding(lc, view, deps.knownTools);
   const specific = checkSpecificity(lc, view);
   const reasons = [...grounded.reasons, ...specific.reasons];
+
   if (reasons.length) return { verdict: 'fail', reason: clip(reasons.join('; '), LIMITS.reason), model: 'deterministic-check', meta: {} };
-  const result = await callModel(deps, view.run_id, 'challenge', [
-    { role: 'system', content: CHALLENGE_SYSTEM },
-    { role: 'user', content: JSON.stringify({ run: view, lesson: { title: lesson.title, lesson: lesson.content }, known_lessons: known }) },
-  ], actor);
+  // A model call that errors, times out or returns nothing is already retried inside callModel. A reply that arrives but cannot be used
+  // (not the expected JSON, or no "novel" answer when it is required) gets one more try; after that the lesson is unjudged: it stays
+  // `scored` and is never accepted.
+  let result: ModelResult | null = null;
+  let parsed: any = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    result = await callModel(deps, view.run_id, 'challenge', [
+      { role: 'system', content: CHALLENGE_SYSTEM },
+      { role: 'user', content: JSON.stringify({ run: view, lesson: { title: lesson.title, lesson: lesson.content }, known_lessons: known }) },
+    ], actor);
+    if (!result) return null;
+    parsed = parseJsonObject(result.text);
+    const usable = parsed && typeof parsed.true === 'boolean' && typeof parsed.specific === 'boolean' && typeof parsed.supported === 'boolean' && (!known.length || typeof parsed.novel === 'boolean');
+    if (usable) break;
+    deps.store.recordRejection(actor, 'challenge_rejected', !parsed ? 'challenge reply was not the expected JSON' : known.length && typeof parsed.novel !== 'boolean' && typeof parsed.true === 'boolean' ? 'challenge reply did not say whether the lesson is new' : 'challenge reply was not the expected JSON', view.run_id, { model: result.model, attempt });
+    if (attempt === 2) {
+      deps.store.recordRejection(actor, 'challenge_unjudged', 'no usable challenge reply after one retry; the lesson stays scored', view.run_id, { model: result.model });
+      return null;
+    }
+  }
   if (!result) return null;
-  const parsed = parseJsonObject(result.text);
-  if (!parsed || typeof parsed.true !== 'boolean' || typeof parsed.specific !== 'boolean' || typeof parsed.supported !== 'boolean') {
-    deps.store.recordRejection(actor, 'challenge_rejected', 'challenge reply was not the expected JSON', view.run_id, { model: result.model });
-    return null;
-  }
-  // With known lessons in play the reviewer must also say whether this one is new; a missing answer means it was not verified.
-  if (known.length && typeof parsed.novel !== 'boolean') {
-    deps.store.recordRejection(actor, 'challenge_rejected', 'challenge reply did not say whether the lesson is new', view.run_id, { model: result.model });
-    return null;
-  }
   const novel = known.length ? parsed.novel === true : true;
   const pass = parsed.true && parsed.specific && parsed.supported && novel;
   const why = typeof parsed.reason === 'string' ? redact(parsed.reason).trim() : '';
@@ -377,7 +396,7 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
         kind: l.kind,
         title: l.title,
         content: l.content,
-        tags: [...l.tags, ...l.tools_cited].slice(0, 8),
+        tags: [...l.tags, ...l.tools_cited.map((t) => `tool:${t}`)].slice(0, 8),
         evidence_ref: `run:${run.id}`,
         extractor: modelled.result.provider,
         extract_model: modelled.result.model,
@@ -410,9 +429,53 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
       continue;
     }
     if (!store.advance(id, 'challenged', actor, { challenge: verdict }).ok) { out.tokens.push(snapshot(store, id, false)); continue; }
-    store.advance(id, verdict.verdict === 'pass' ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    const final = store.advance(id, verdict.verdict === 'pass' ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    if (final.ok && verdict.verdict === 'pass') {
+      store.linkToken(id, actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
+      store.mergeDuplicates(actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
+    }
     out.tokens.push(snapshot(store, id, false));
   }
   out.model_calls = store.modelUsage(run.id).length;
+  return out;
+}
+
+
+// ─── Re-challenge of tokens stuck at `scored` ───────────────────
+
+export interface RechallengeResult {
+  id: string;
+  result: 'accepted' | 'rejected' | 'left_scored';
+  reason: string;
+}
+
+/**
+ * A token is left at `scored` when its challenge could not run (no model reachable, a crash). Re-run the challenge against
+ * the token's own run record. A token with no run record, or whose challenge still cannot run, stays `scored`: it is never
+ * force-rejected, because "could not be checked" is not a verdict.
+ */
+export async function rechallengeScoredTokens(deps: PipelineDeps, getRun: (runId: string) => FinishedRun | undefined, actor: string, limit = 50): Promise<RechallengeResult[]> {
+  const out: RechallengeResult[] = [];
+  for (const row of deps.store.listByStatus('scored', limit)) {
+    const run = row.source_run_id ? getRun(row.source_run_id) : undefined;
+    if (!run) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'no run record to check the lesson against' });
+      continue;
+    }
+    const view = buildRunView(run);
+    const verdict = await challengeLesson(deps, view, row, actor, knownLessonsFor(deps.store, view).filter((k) => k.id !== row.id));
+    if (!verdict) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'challenge model unavailable' });
+      continue;
+    }
+    if (!deps.store.advance(row.id, 'challenged', actor, { challenge: verdict }).ok) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'transition refused' });
+      continue;
+    }
+    const accepted = verdict.verdict === 'pass';
+    deps.store.advance(row.id, accepted ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    if (accepted) deps.store.linkToken(row.id, actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
+    out.push({ id: row.id, result: accepted ? 'accepted' : 'rejected', reason: verdict.reason });
+  }
   return out;
 }

@@ -16,7 +16,7 @@
 
 THINK BOX AI is an **agent OS**: a Python runtime (`thinkbox/`, `core/`) with governance (admission gates, append-only ledgers, tool permissions), a **FastAPI control plane** (`backend/`), and a **local-first operator dashboard** plus `kudbee` CLI (`apps/web/`). Models are **provider-swappable** (Ollama, OpenAI-compatible APIs, Inception Mercury-2 via env config)—no provider SDKs in the runtime layer.
 
-**Think Tokens** (durable, reviewable lessons from finished runs) live in SQLite at `apps/web/data/think-tokens.db` by default; the dashboard **Think Tokens** view and `kudbee tokens list|show` read the same store ([AGENTS.md §0.6](AGENTS.md)).
+**Think Tokens** (durable, reviewable lessons from finished runs) live in SQLite at `apps/web/data/think-tokens.db` by default; the dashboard **Think Tokens** view and `kudbee tokens list|show|links` read the same store ([AGENTS.md §0.6](AGENTS.md)).
 
 Hermetic development and CI cap most repo work at **CODE COMPLETE / TEST VERIFIED** unless founder-run live proof artifacts exist; see [STATUS.md](STATUS.md) for the four-state ladder.
 

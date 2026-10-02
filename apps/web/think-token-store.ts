@@ -22,7 +22,10 @@
 //   feedback   = (thumbs_up + 1) / (thumbs_up + thumbs_down + 2)                founder thumbs; 0.5 with no votes
 // The components, weights and inputs are stored next to the score (`score_breakdown`).
 import Database from 'better-sqlite3';
+import { SIMILAR_THRESHOLD, rankAgainstQuery, similarityToPool } from './think-token-bm25.ts';
 import { createHash } from 'node:crypto';
+
+export const DEFAULT_KNOWN_TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'read_rss', 'algorand', 'medication', 'recall', 'remember'];
 
 export const TOKEN_KINDS = ['lesson', 'fix', 'tool_pattern'] as const;
 export type TokenKind = (typeof TOKEN_KINDS)[number];
@@ -61,7 +64,29 @@ export interface ScoreBreakdown {
   components: { usefulness: number; recency: number; reuse: number; feedback: number };
   weighted: { usefulness: number; recency: number; reuse: number; feedback: number };
   score: number;
+  /** P3: credits from linked tokens that a run used (newest last, at most MAX_PROPAGATION_CREDITS kept). */
+  propagation?: PropagationCredit[];
+  /** P3: min(MAX_PROPAGATION_BONUS, PROPAGATION_BONUS_PER_CREDIT x sum(credits)); already included in `score`. */
+  propagation_bonus?: number;
 }
+
+export interface PropagationCredit {
+  from_id: string;
+  kind: string;
+  weight: number;
+  credit: number;
+  run_id: string;
+}
+
+/**
+ * Propagation v1: when a run uses token A, each token linked to A (depth 1 only, so it cannot loop) earns a credit
+ * equal to the link weight. The bonus is 0.02 per credit over a sliding window of the last 12 credits, capped at +0.10.
+ */
+export const PROPAGATION_BONUS_PER_CREDIT = 0.02;
+export const MAX_PROPAGATION_CREDITS = 12;
+export const MAX_PROPAGATION_BONUS = 0.1;
+/** Minimum summed tool rarity (see `toolIdf`) for a `same_tool` link. */
+export const MIN_SHARED_TOOL_RARITY = 0.2;
 
 export interface ExtractMeta {
   latency_ms?: number;
@@ -151,6 +176,33 @@ export interface ListOptions {
   run_id?: string;
 }
 
+/** Only kinds that have a mechanical evidence source: shared `tool:` tags, lesson-text similarity, tokens used in the same run. */
+export const LINK_KINDS = ['same_tool', 'similar', 'co_used', 'merged_into'] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+
+export interface ThinkTokenLink {
+  from_id: string;
+  to_id: string;
+  kind: LinkKind;
+  weight: number;
+  evidence: string;
+  created_at: number;
+}
+
+export interface LinkWriteResult {
+  ok: boolean;
+  created: boolean;
+  reason?: string;
+  link?: ThinkTokenLink;
+  receipt?: Receipt;
+}
+
+export interface MergeReport {
+  before: number;
+  after: number;
+  merged: Array<{ id: string; into: string; similarity: number; tools: string[] }>;
+}
+
 /** Interface so a Postgres implementation could be added later (ADR 028) and share one test suite. */
 export interface TokenStore {
   write(draft: TokenDraft, actor: string): WriteResult;
@@ -161,8 +213,13 @@ export interface TokenStore {
   recordOutcome(runId: string, success: boolean, actor: string): Receipt | null;
   get(id: string): ThinkTokenRow | null;
   list(opts?: ListOptions): ThinkTokenRow[];
-  retrieve(goal: string, k?: number): ThinkTokenRow[];
+  retrieve(goal: string, k?: number, opts?: { knownTools?: readonly string[]; diverse?: boolean }): ThinkTokenRow[];
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number };
+  upsertLink(fromId: string, toId: string, kind: LinkKind, weight: number, evidence: string, actor: string): LinkWriteResult;
+  listLinks(tokenId: string): ThinkTokenLink[];
+  linkToken(idLike: string, actor: string, knownTools?: readonly string[]): { created: number; updated: number };
+  mergeDuplicates(actor: string, knownTools: readonly string[]): MergeReport;
+  listByStatus(status: TokenStatus, limit?: number): ThinkTokenRow[];
   close(): void;
 }
 
@@ -205,7 +262,7 @@ type ScoreInputs = Pick<ThinkTokenRow, 'created_at' | 'last_used_at' | 'uses' | 
 
 const r4 = (n: number): number => Math.round(n * 10_000) / 10_000;
 
-export function scoreBreakdown(row: ScoreInputs, now: number = Date.now()): ScoreBreakdown {
+export function scoreBreakdown(row: ScoreInputs, now: number = Date.now(), propagation: PropagationCredit[] = []): ScoreBreakdown {
   const usefulness = (row.success_runs + 1) / (row.success_runs + row.failed_runs + 2);
   const ageDays = Math.max(0, now - Math.max(row.last_used_at ?? 0, row.created_at)) / DAY_MS;
   const recency = Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
@@ -217,9 +274,11 @@ export function scoreBreakdown(row: ScoreInputs, now: number = Date.now()): Scor
     reuse: SCORE_WEIGHTS.reuse * reuse,
     feedback: SCORE_WEIGHTS.feedback * feedback,
   };
-  const total = weighted.usefulness + weighted.recency + weighted.reuse + weighted.feedback;
-  return {
-    formula: '0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback',
+  const base = weighted.usefulness + weighted.recency + weighted.reuse + weighted.feedback;
+  const credits = propagation.slice(-MAX_PROPAGATION_CREDITS);
+  const bonus = Math.min(MAX_PROPAGATION_BONUS, PROPAGATION_BONUS_PER_CREDIT * credits.reduce((sum, c) => sum + (Number(c.credit) || 0), 0));
+  const out: ScoreBreakdown = {
+    formula: bonus > 0 ? '0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback + min(0.10, 0.02*sum(propagation credits))' : '0.45*usefulness + 0.20*recency + 0.15*reuse + 0.20*feedback',
     weights: { ...SCORE_WEIGHTS },
     inputs: {
       success_runs: row.success_runs,
@@ -232,12 +291,17 @@ export function scoreBreakdown(row: ScoreInputs, now: number = Date.now()): Scor
     },
     components: { usefulness: r4(usefulness), recency: r4(recency), reuse: r4(reuse), feedback: r4(feedback) },
     weighted: { usefulness: r4(weighted.usefulness), recency: r4(weighted.recency), reuse: r4(weighted.reuse), feedback: r4(weighted.feedback) },
-    score: r4(Math.min(1, Math.max(0, total))),
+    score: r4(Math.min(1, Math.max(0, base + bonus))),
   };
+  if (credits.length) {
+    out.propagation = credits;
+    out.propagation_bonus = r4(bonus);
+  }
+  return out;
 }
 
-export function computeScore(row: ScoreInputs, now: number = Date.now()): number {
-  return scoreBreakdown(row, now).score;
+export function computeScore(row: ScoreInputs, now: number = Date.now(), propagation: PropagationCredit[] = []): number {
+  return scoreBreakdown(row, now, propagation).score;
 }
 
 // ─── Retrieval helpers (keyword/tag match; no embeddings, none are wired into this store) ──
@@ -339,6 +403,18 @@ const SUPPORT_TABLES = `
     tokens_out INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_think_token_model_calls_day ON think_token_model_calls(day);
+
+  CREATE TABLE IF NOT EXISTS think_token_links (
+    from_id TEXT NOT NULL,
+    to_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    weight REAL NOT NULL,
+    evidence TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (from_id, to_id, kind)
+  );
+  CREATE INDEX IF NOT EXISTS idx_think_token_links_to ON think_token_links(to_id);
+  CREATE INDEX IF NOT EXISTS idx_think_token_links_kind ON think_token_links(kind);
 `;
 
 function tokensTableSql(name: string): string {
@@ -432,9 +508,48 @@ export function migrateUp(db: Database.Database): void {
 /** Rollback: removes every Think Token table. Other databases are untouched. Ids allocated so far are forgotten with the tables. */
 export function migrateDown(db: Database.Database): void {
   db.exec(
-    'DROP TABLE IF EXISTS think_token_model_calls; DROP TABLE IF EXISTS think_token_uses; DROP TABLE IF EXISTS think_token_ledger; DROP TABLE IF EXISTS think_token_seq; DROP TABLE IF EXISTS think_tokens;',
+    [
+      'DROP TABLE IF EXISTS think_token_links;',
+      'DROP TABLE IF EXISTS think_token_model_calls;',
+      'DROP TABLE IF EXISTS think_token_uses;',
+      'DROP TABLE IF EXISTS think_token_ledger;',
+      'DROP TABLE IF EXISTS think_token_seq;',
+      'DROP TABLE IF EXISTS think_tokens;',
+    ].join(' '),
   );
   db.pragma('user_version = 0');
+}
+
+/** `tool:<name>` tags, plus (tokens saved before P3) bare tags that name a known tool. */
+export function toolsOfTags(tags: string[], known: ReadonlySet<string>): string[] {
+  return [...new Set(tags.map((t) => (t.startsWith('tool:') ? t.slice(5) : t)).filter((t) => known.has(t) || tags.includes(`tool:${t}`)))].sort();
+}
+
+/**
+ * Specificity of a tool name in [0,1] across a set of tokens' tool sets: ln(N/df)/ln(N), so a tool named by every token scores 0
+ * and one named by a single token scores 1. Used to down-weight `same_tool` links and generic lessons on very common tools.
+ */
+export function toolIdf(toolSets: string[][]): (tool: string) => number {
+  const df = new Map<string, number>();
+  for (const set of toolSets) for (const t of set) df.set(t, (df.get(t) ?? 0) + 1);
+  const n = Math.max(2, toolSets.length);
+  return (tool) => Math.max(0, Math.min(1, Math.log(n / (df.get(tool) ?? 1)) / Math.log(n)));
+}
+
+/**
+ * Failure modes a goal can trip on and a lesson can warn about. Each has goal-side and lesson-side cue words; a mode counts only when both
+ * sides name it. This lexicon was written after the P3.1 A/B showed which quirks the goals hit, so evaluating it on those same goals is in-sample.
+ */
+const FAILURE_MODES: Array<{ goal: string[]; lesson: string[] }> = [
+  { goal: ['enoent', 'missing', 'not exist', 'may not exist', 'no such', 'not found', 'nonexistent'], lesson: ['enoent', 'missing', 'not exist', 'no such', 'not found'] },
+  { goal: ['append', 'end of', 'add a second', 'add a line', 'without losing', 'increment', 'modify', 'update the'], lesson: ['append', 'overwrit', 'increment', 'read_file first', 'reading it', 'modif'] },
+  { goal: ['..', 'outside', 'absolute path', 'escape', '/etc', 'parent folder'], lesson: ['..', 'invalid workspace path', 'workspace-relative', 'escape'] },
+  { goal: ['bytes', ' utf', 'unicode', 'non-ascii', 'characters', 'encoding'], lesson: ['bytes', 'utf-8', 'non-ascii', 'characters'] },
+  { goal: ['folder', 'directory', 'subdir', 'inside the', 'docs/'], lesson: ['subfolder', 'prefix', 'no path argument', 'accepts no'] },
+];
+
+function failureModesShared(goalLower: string, lessonLower: string): number {
+  return FAILURE_MODES.filter((m) => m.goal.some((c) => goalLower.includes(c)) && m.lesson.some((c) => lessonLower.includes(c))).length;
 }
 
 // ─── SQLite implementation ──────────────────────────────────────
@@ -449,6 +564,13 @@ function parseJson<T>(text: unknown, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/** Propagation credits live inside the stored breakdown; everything else in it is recomputed from the row's counters. */
+function storedPropagation(raw: unknown): PropagationCredit[] {
+  const parsed = typeof raw === 'string' ? parseJson<Partial<ScoreBreakdown> | null>(raw, null) : (raw as Partial<ScoreBreakdown> | null);
+  const list = parsed && Array.isArray(parsed.propagation) ? parsed.propagation : [];
+  return list.filter((c) => c && typeof c.from_id === 'string' && Number.isFinite(Number(c.credit)));
 }
 
 function rowFrom(raw: any): ThinkTokenRow {
@@ -654,7 +776,7 @@ export class SqliteTokenStore implements TokenStore {
   private rescore(id: string): void {
     const raw = this.rawRow(id);
     if (!raw) return;
-    const breakdown = scoreBreakdown(raw);
+    const breakdown = scoreBreakdown(raw, Date.now(), storedPropagation(raw.score_breakdown));
     this.db.prepare('UPDATE think_tokens SET score = ?, score_breakdown = ? WHERE id = ?').run(breakdown.score, JSON.stringify(breakdown), id);
   }
 
@@ -726,10 +848,11 @@ export class SqliteTokenStore implements TokenStore {
       this.rescore(id);
       used.push(id);
     }
+    if (used.length > 1) this.linkCoUsed(used, actor);
+    this.propagate(used, runId, actor);
     return used.length ? this.ledger(actor, 'use', 'admitted', { token_ids: used }, undefined, runId) : null;
   }
 
-  /** The run that used these tokens finished: fold success/failure into their usefulness. */
   recordOutcome(runId: string, success: boolean, actor: string): Receipt | null {
     const pending = this.db.prepare('SELECT token_id FROM think_token_uses WHERE run_id = ? AND success IS NULL').all(runId) as Array<{ token_id: string }>;
     if (!pending.length) return null;
@@ -772,7 +895,7 @@ export class SqliteTokenStore implements TokenStore {
 
   private withExtras(row: ThinkTokenRow, withReceipts: boolean): ThinkTokenRow {
     const used = this.db.prepare('SELECT run_id, used_at, success FROM think_token_uses WHERE token_id = ? ORDER BY used_at DESC LIMIT 20').all(row.id) as ThinkTokenRow['used_by'];
-    const breakdown = scoreBreakdown(row);
+    const breakdown = scoreBreakdown(row, Date.now(), row.score_breakdown?.propagation ?? []);
     const receipts = this.receiptsFor(row);
     const out: ThinkTokenRow = { ...row, score: breakdown.score, score_breakdown: breakdown, used_by: used, latest_receipt: receipts[receipts.length - 1] ?? null };
     if (withReceipts) out.receipts = receipts;
@@ -808,16 +931,45 @@ export class SqliteTokenStore implements TokenStore {
     return out.slice(0, limit).map((row) => this.withExtras(row, false)).sort((a, b) => b.seq - a.seq);
   }
 
-  /** Top-k accepted tokens for a goal. Candidate, rejected and retired tokens are never returned. */
-  retrieve(goal: string, k = 3): ThinkTokenRow[] {
-    const terms = keywords(goal);
+  /**
+   * Top-k accepted tokens for a goal, ranked by what the goal is trying to do and how it can go wrong, not by shared tools:
+   *   relevance = 0.6 x BM25(goal vs lesson, scaled to the best) + 0.5 per failure mode the goal and the lesson both name (max 1)
+   *   x a genericness factor (a lesson that matches no failure mode and only names tools almost every token names is cut to 0.4-1.0)
+   *   x (0.5 + the token's own score).
+   * With `diverse` (default) a lesson that is a near-duplicate (similarity >= SIMILAR_THRESHOLD) of one already chosen is skipped.
+   * Candidate, rejected and retired tokens are never returned. See FAILURE_MODES for the failure-mode lexicon.
+   */
+  retrieve(goal: string, k = 3, opts: { knownTools?: readonly string[]; diverse?: boolean } = {}): ThinkTokenRow[] {
+    const known = new Set(opts.knownTools ?? DEFAULT_KNOWN_TOOLS);
     const accepted = (this.db.prepare("SELECT * FROM think_tokens WHERE tenant_id = ? AND status = 'accepted'").all(this.tenant) as any[]).map(rowFrom);
-    return accepted
-      .map((row) => ({ row, match: matchStrength(terms, row), score: computeScore(row) }))
-      .filter((entry) => entry.match > 0)
-      .sort((a, b) => b.match * (0.5 + b.score) - a.match * (0.5 + a.score))
-      .slice(0, Math.max(0, Math.min(k, 10)))
-      .map((entry) => ({ ...entry.row, score: entry.score }));
+    if (!accepted.length) return [];
+    const text = (t: ThinkTokenRow): string => `${t.title}\n${t.content}`;
+    const bm25 = rankAgainstQuery(goal, accepted.map((t) => ({ id: t.id, text: text(t) })));
+    const idf = toolIdf(accepted.map((t) => toolsOfTags(t.tags, known)));
+    const goalLower = goal.toLowerCase();
+    const ranked = accepted
+      .map((row) => {
+        const modes = failureModesShared(goalLower, text(row).toLowerCase());
+        const relevance = 0.6 * (bm25.get(row.id) ?? 0) + Math.min(1, 0.5 * modes);
+        const tools = toolsOfTags(row.tags, known);
+        const specificity = tools.length ? Math.max(...tools.map((t) => idf(t))) : 0.5;
+        const generic = modes > 0 ? 1 : 0.4 + 0.6 * Math.min(1, 2 * specificity);
+        const quality = computeScore(row, Date.now(), row.score_breakdown?.propagation ?? []);
+        return { row, rel: relevance > 0 ? relevance * generic * (0.5 + quality) : 0, quality };
+      })
+      .filter((e) => e.rel > 0)
+      .sort((a, b) => b.rel - a.rel || a.row.seq - b.row.seq);
+    const limit = Math.max(0, Math.min(k, 10));
+    const chosen: typeof ranked = [];
+    for (const cand of ranked) {
+      if (chosen.length >= limit) break;
+      if (opts.diverse !== false && chosen.length) {
+        const sims = similarityToPool({ id: cand.row.id, text: text(cand.row) }, accepted.filter((a) => a.id !== cand.row.id).map((a) => ({ id: a.id, text: text(a) })));
+        if (chosen.some((c) => (sims.get(c.row.id) ?? 0) >= SIMILAR_THRESHOLD)) continue;
+      }
+      chosen.push(cand);
+    }
+    return chosen.map((e) => ({ ...e.row, score: e.quality }));
   }
 
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number } {
@@ -829,6 +981,197 @@ export class SqliteTokenStore implements TokenStore {
       prev = r.hash;
     }
     return { ok: true, entries: rows.length };
+  }
+
+
+  listByStatus(status: TokenStatus, limit = 100): ThinkTokenRow[] {
+    return this.list({ status, limit });
+  }
+
+  upsertLink(
+    fromId: string,
+    toId: string,
+    kind: LinkKind,
+    weight: number,
+    evidence: string,
+    actor: string,
+  ): LinkWriteResult {
+    const a = normalizeTokenId(fromId);
+    const b = normalizeTokenId(toId);
+    if (!a || !b) return { ok: false, created: false, reason: 'missing id' };
+    if (a === b) return { ok: false, created: false, reason: 'self-link' };
+    if (!(LINK_KINDS as readonly string[]).includes(kind)) {
+      return { ok: false, created: false, reason: `bad kind: ${kind}` };
+    }
+    if (!this.get(a) || !this.get(b)) return { ok: false, created: false, reason: 'token not found' };
+    const w = Math.max(0, Math.min(1, Number(weight) || 0));
+    const now = Date.now();
+    const existing = this.db
+      .prepare(`SELECT from_id, to_id, kind, weight, evidence, created_at FROM think_token_links WHERE from_id = ? AND to_id = ? AND kind = ?`)
+      .get(a, b, kind) as any;
+    if (existing) {
+      // Idempotent: update weight/evidence if changed, no duplicate ledger spam when identical
+      if (Math.abs(existing.weight - w) < 1e-9 && existing.evidence === evidence) {
+        return {
+          ok: true,
+          created: false,
+          link: {
+            from_id: existing.from_id,
+            to_id: existing.to_id,
+            kind: existing.kind,
+            weight: existing.weight,
+            evidence: existing.evidence,
+            created_at: existing.created_at,
+          },
+        };
+      }
+      this.db
+        .prepare(`UPDATE think_token_links SET weight = ?, evidence = ? WHERE from_id = ? AND to_id = ? AND kind = ?`)
+        .run(w, evidence, a, b, kind);
+      const receipt = this.ledger(actor, 'link_update', 'admitted', { from_id: a, to_id: b, kind, weight: w, evidence }, a);
+      return {
+        ok: true,
+        created: false,
+        link: { from_id: a, to_id: b, kind, weight: w, evidence, created_at: existing.created_at },
+        receipt,
+      };
+    }
+    this.db
+      .prepare(
+        `INSERT INTO think_token_links (from_id, to_id, kind, weight, evidence, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(a, b, kind, w, evidence, now);
+    const receipt = this.ledger(actor, 'link_create', 'admitted', { from_id: a, to_id: b, kind, weight: w, evidence }, a);
+    return {
+      ok: true,
+      created: true,
+      link: { from_id: a, to_id: b, kind, weight: w, evidence, created_at: now },
+      receipt,
+    };
+  }
+
+  listLinks(tokenId: string): ThinkTokenLink[] {
+    const id = normalizeTokenId(tokenId);
+    if (!id) return [];
+    const rows = this.db
+      .prepare(
+        `SELECT from_id, to_id, kind, weight, evidence, created_at FROM think_token_links
+         WHERE from_id = ? OR to_id = ?
+         ORDER BY weight DESC, created_at DESC`,
+      )
+      .all(id, id) as any[];
+    return rows.map((r) => ({
+      from_id: r.from_id,
+      to_id: r.to_id,
+      kind: r.kind as LinkKind,
+      weight: r.weight,
+      evidence: r.evidence,
+      created_at: r.created_at,
+    }));
+  }
+
+  /**
+   * Merge near-duplicate accepted tokens: same tool set (`tool:x` tags, or bare tags naming a known tool) and similarity at or above
+   * SIMILAR_THRESHOLD. The highest-scoring token (oldest on a tie) stays; each duplicate is retired and linked `merged_into` the survivor,
+   * with a ledger entry. A token is only ever compared to survivors, so merges never chain. Idempotent.
+   */
+  mergeDuplicates(actor: string, knownTools: readonly string[]): MergeReport {
+    const known = new Set(knownTools);
+    const toolsOf = (t: ThinkTokenRow): string[] => [...new Set(t.tags.map((x) => (x.startsWith('tool:') ? x.slice(5) : x)).filter((x) => known.has(x)))].sort();
+    const accepted = this.list({ status: 'accepted', limit: 500 }).sort((a, b) => b.score - a.score || a.seq - b.seq);
+    const text = (t: ThinkTokenRow): string => `${t.title}\n${t.content}`;
+    const survivors: ThinkTokenRow[] = [];
+    const report: MergeReport = { before: accepted.length, after: 0, merged: [] };
+    for (const token of accepted) {
+      const tools = toolsOf(token);
+      const peers = survivors.filter((s) => toolsOf(s).join() === tools.join());
+      // IDF comes from every accepted token, not just the peers, so shared words are weighted against the whole corpus.
+      const sims = similarityToPool({ id: token.id, text: text(token) }, accepted.filter((a) => a.id !== token.id).map((p) => ({ id: p.id, text: text(p) })));
+      const best = peers.map((p) => ({ p, sim: sims.get(p.id) ?? 0 })).sort((a, b) => b.sim - a.sim)[0];
+      if (!tools.length || !best || best.sim < SIMILAR_THRESHOLD) {
+        survivors.push(token);
+        continue;
+      }
+      this.db.transaction(() => {
+        this.db.prepare("UPDATE think_tokens SET status = 'retired' WHERE id = ?").run(token.id);
+        this.upsertLink(token.id, best.p.id, 'merged_into', best.sim, `near-duplicate: bm25=${best.sim.toFixed(3)}, tools ${tools.join(', ')}`, actor);
+        this.ledger(actor, 'merge', 'admitted', { from: token.id, into: best.p.id, similarity: r4(best.sim), tools }, token.id);
+      }).immediate();
+      report.merged.push({ id: token.id, into: best.p.id, similarity: r4(best.sim), tools });
+    }
+    report.after = survivors.length;
+    return report;
+  }
+
+  /** Both ends of a link, canonically ordered so (A,B) and (B,A) are one row. */
+  private linkEnds(a: string, b: string): [string, string] {
+    return a < b ? [a, b] : [b, a];
+  }
+
+  /**
+   * Evidence-based links from one token to the live pool (accepted, challenged, scored): shared tool tags (see below) and
+   * normalized-BM25 lesson similarity at or above SIMILAR_THRESHOLD. Idempotent. Called by the pipeline after a token
+   * is written; co-use links are created by recordUse.
+   */
+  linkToken(idLike: string, actor: string, knownTools: readonly string[] = []): { created: number; updated: number } {
+    const id = this.resolve(idLike);
+    const out = { created: 0, updated: 0 };
+    if (!id) return out;
+    const self = this.rawRow(id);
+    if (!self) return out;
+    const me = rowFrom(self);
+    const pool = (['accepted', 'challenged', 'scored'] as const).flatMap((status) => this.list({ status, limit: 500 })).filter((t) => t.id !== id);
+    const text = (t: { title: string; content: string }): string => `${t.title}\n${t.content}`;
+    const sims = similarityToPool({ id, text: text(me) }, pool.map((t) => ({ id: t.id, text: text(t) })));
+    // A tool tag is `tool:<name>`, or (tokens saved before P3) a bare tag that names a known tool.
+    const known = new Set(knownTools);
+    const toolsOf = (tags: string[]): Set<string> => new Set(tags.map((t) => (t.startsWith('tool:') ? t.slice(5) : t)).filter((t) => known.has(t) || tags.includes(`tool:${t}`)));
+    const myTools = toolsOf(me.tags);
+    const idf = toolIdf([...pool.map((t) => [...toolsOf(t.tags)]), [...myTools]]);
+    const tally = (r: LinkWriteResult): void => {
+      if (r.created) out.created++;
+      else if (r.receipt) out.updated++;
+    };
+    for (const other of pool) {
+      const [from, to] = this.linkEnds(id, other.id);
+      const shared = [...toolsOf(other.tags)].filter((t) => myTools.has(t)).sort();
+      // Shared tools count by rarity: a tool nearly every token names (write_file) adds almost nothing, so it cannot make a link on its own.
+      const rarity = shared.reduce((sum, t) => sum + idf(t), 0);
+      if (rarity >= MIN_SHARED_TOOL_RARITY) tally(this.upsertLink(from, to, 'same_tool', Math.min(1, 0.3 + 0.7 * rarity), `shared tools: ${shared.slice(0, 5).map((t) => `${t} (idf ${idf(t).toFixed(2)})`).join(', ')}`, actor));
+      const sim = sims.get(other.id) ?? 0;
+      if (sim >= SIMILAR_THRESHOLD) tally(this.upsertLink(from, to, 'similar', sim, `bm25=${sim.toFixed(3)}`, actor));
+    }
+    return out;
+  }
+
+  /** Tokens used by the same run are linked `co_used`; the weight grows with the number of runs that used both. */
+  private linkCoUsed(ids: string[], actor: string): void {
+    const shared = this.db.prepare('SELECT COUNT(*) n FROM think_token_uses a JOIN think_token_uses b ON a.run_id = b.run_id WHERE a.token_id = ? AND b.token_id = ?');
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const [from, to] = this.linkEnds(ids[i]!, ids[j]!);
+        const runs = (shared.get(from, to) as { n: number }).n;
+        this.upsertLink(from, to, 'co_used', Math.min(1, 0.3 + 0.2 * runs), `used together in ${runs} run${runs === 1 ? '' : 's'}`, actor);
+      }
+    }
+  }
+
+  /** Depth-1 propagation: tokens linked to a used token get a credit (see PROPAGATION_BONUS_PER_CREDIT); used tokens are skipped. */
+  private propagate(usedIds: string[], runId: string, actor: string): void {
+    const skip = new Set(usedIds);
+    for (const id of usedIds) {
+      for (const link of this.listLinks(id)) {
+        const neighborId = link.from_id === id ? link.to_id : link.from_id;
+        if (skip.has(neighborId)) continue;
+        const raw = this.rawRow(neighborId);
+        if (!raw || raw.status === 'rejected' || raw.status === 'retired') continue;
+        const credits = storedPropagation(raw.score_breakdown);
+        credits.push({ from_id: id, kind: link.kind, weight: r4(link.weight), credit: r4(link.weight), run_id: runId });
+        const breakdown = scoreBreakdown(raw, Date.now(), credits);
+        this.db.prepare('UPDATE think_tokens SET score = ?, score_breakdown = ? WHERE id = ?').run(breakdown.score, JSON.stringify(breakdown), neighborId);
+        this.ledger(actor, 'propagate', 'admitted', { from: id, kind: link.kind, credit: r4(link.weight), score: breakdown.score }, neighborId, runId);
+      }
+    }
   }
 
   close(): void {

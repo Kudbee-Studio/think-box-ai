@@ -196,6 +196,10 @@
 .tt-breakdown { font-size: var(--font-size-xs, 12px); color: #a0aec0; }
 .tt-breakdown summary { cursor: pointer; color: #888; }
 .tt-breakdown-row { font-family: 'Courier New', monospace; padding-left: 0.5rem; overflow-wrap: anywhere; }
+.tt-links { font-size: var(--font-size-xs, 12px); color: #a0aec0; }
+.tt-links summary { cursor: pointer; color: #888; }
+.tt-link-row { font-family: 'Courier New', monospace; padding-left: 0.5rem; overflow-wrap: anywhere; }
+.tt-links-empty { font-size: var(--font-size-xs, 12px); }
 .tt-meta, .tt-used, .tt-actions, .tt-content, .tt-title { overflow-wrap: anywhere; }
 
 /* Responsive */

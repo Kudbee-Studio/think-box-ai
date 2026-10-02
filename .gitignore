@@ -93,3 +93,6 @@ apps/web/think-tokens.db*
 
 # Local Neon CLI context; never commit
 .neon
+
+# Agent worktrees (may duplicate dependency pins); not part of the product tree
+.kilo/worktrees/
