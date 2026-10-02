@@ -441,7 +441,20 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         const input = JSON.parse(args.join(' '));
         const done = client.wait('plugin_result');
         client.send({ type: 'plugin_execute', plugin: pluginName, input });
-        const { data: result } = await done;
+        // Wait up to 30 seconds for plugin result
+        let result: any;
+        try {
+          const { data } = await Promise.race([
+            done,
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
+            ),
+          ]);
+          result = data;
+        } catch (timeoutErr) {
+          console.log(c.red('Error: Plugin execution timed out (30s)'));
+          break;
+        }
         if (result.success) {
           console.log(c.green(`✓ ${pluginName} executed successfully`));
           if (result.output) {
