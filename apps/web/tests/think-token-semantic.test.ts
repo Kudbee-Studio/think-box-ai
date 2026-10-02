@@ -202,3 +202,46 @@ test('extraction asks for when_to_use and stores it with the new token', async (
   void buildRunView;
   store.close();
 });
+
+// ─── ranker choice (P3.8) ───────────────────────────────────────
+
+import { DEFAULT_RANKER, RANKERS } from '../think-token-store.ts';
+
+test('P3.8: cosine is the default ranker; all four stay selectable; cosine ranks by similarity alone and returns nothing for an unrelated goal', async () => {
+  assert.equal(DEFAULT_RANKER, 'cosine');
+  assert.deepEqual([...RANKERS].sort(), ['cosine', 'cosine-tiebreak', 'hybrid', 'lexical']);
+  const store = new SqliteTokenStore();
+  const blank = accept(store, { title: 'Zero-byte documents', content: 'Writing a blank document creates a zero length file.' });
+  accept(store, { title: 'Feed digests', content: 'Summaries of syndicated feeds should cite each headline.' });
+  accept(store, { title: 'Nested folders', content: 'A deep directory tree is created on demand.' });
+  const emb = fakeEmbedder();
+  await ensureEmbeddings(store, emb);
+  const goal = 'Make something with nothing inside.';
+  const [goalVector] = await emb.embed([goal]);
+  const base = { now: Date.now(), goalVector, embedModel: 'fake-model' };
+  assert.equal(store.retrieve(goal, 3, base)[0]!.id, blank, 'default (cosine) finds the synonym lesson');
+  for (const ranker of ['cosine', 'cosine-tiebreak', 'hybrid'] as const) assert.equal(store.retrieve(goal, 3, { ...base, ranker })[0]!.id, blank, ranker);
+  assert.deepEqual(store.retrieve(goal, 3, { ...base, ranker: 'lexical' }), [], 'lexical cannot, there is no shared word');
+  const [unrelated] = await emb.embed(['12345']); // no letters: the fake embedder gives a zero vector, cosine 0 with every lesson
+  assert.deepEqual(store.retrieve('12345', 3, { ...base, goalVector: unrelated }), [], 'cosine floor: an unrelated goal gets no lesson');
+  assert.equal(store.retrieve(goal, 3, { now: Date.now() }).length, 0, 'no goal vector: falls back to lexical (nothing shared here)');
+  process.env.THINKBOX_RETRIEVER = 'hybrid';
+  try { assert.equal(store.retrieve(goal, 3, base)[0]!.id, blank, 'THINKBOX_RETRIEVER selects a ranker'); } finally { delete process.env.THINKBOX_RETRIEVER; }
+  store.close();
+});
+
+test('P3.8: cosine-tiebreak orders lessons whose cosine is within 0.02 by BM25, and plain cosine does not', async () => {
+  const store = new SqliteTokenStore();
+  const e = (v: number[]): Float32Array => { const a = Float32Array.from(v); const n = Math.hypot(...a); return a.map((x) => x / n); };
+  const near = accept(store, { title: 'Alpha lesson', content: 'unrelated filler words entirely' });
+  const exact = accept(store, { title: 'Beta lesson', content: 'quartz mineral sample' });
+  store.setEmbedding(near, 'm', e([1, 0.100]), 'a');
+  store.setEmbedding(exact, 'm', e([1, 0.125]), 'b');
+  const goalVector = e([1, 0.2]);
+  const opts = { now: Date.now(), goalVector, embedModel: 'm' } as const;
+  assert.equal(store.retrieve('quartz', 2, { ...opts, ranker: 'cosine' })[0]!.id, exact, 'plain cosine: the slightly closer vector wins');
+  store.setEmbedding(near, 'm', e([1, 0.2]), 'a2'); // now `near` is closer by a hair but inside the same 0.02 bucket as `exact`
+  assert.equal(store.retrieve('quartz', 2, { ...opts, ranker: 'cosine' })[0]!.id, near);
+  assert.equal(store.retrieve('quartz', 2, { ...opts, ranker: 'cosine-tiebreak' })[0]!.id, exact, 'inside a bucket BM25 decides');
+  store.close();
+});

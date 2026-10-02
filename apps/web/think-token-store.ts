@@ -213,7 +213,7 @@ export const RANKERS: readonly RankerName[] = ['hybrid', 'lexical', 'cosine', 'c
 /** Cosine below this is "unrelated" for the cosine rankers (the same floor the hybrid rescales from), so a goal with no related lesson gets none. */
 export const COSINE_FLOOR = 0.15;
 /** The ranker used when neither the caller nor THINKBOX_RETRIEVER names one. */
-export const DEFAULT_RANKER: RankerName = 'hybrid';
+export const DEFAULT_RANKER: RankerName = 'cosine';
 
 export interface RetrieveOptions {
   /** Which ranker to use. Default: THINKBOX_RETRIEVER if it names one, else DEFAULT_RANKER. */

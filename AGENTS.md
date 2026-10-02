@@ -71,6 +71,17 @@ If a gate cannot run (for example Docker is not installed, so `act` cannot run),
 
 Pull `main`, delete the branch, and start the next queued prompt.
 
+### 0.10 Founder handoff (founder rule, 2026-10-02)
+
+Every summary you give the founder MUST end with a section titled `### WHAT FOUNDER SHOULD RUN NEXT`:
+
+- One code block with the exact copy-paste terminal commands, in order, starting with `cd ~/projects/think-box-ai`.
+- Every step the founder needs: `gh pr ready <n>`, `gh pr merge <n> --squash --admin`, `git switch main && git pull --ff-only origin main`, server restart, backups, anything else.
+- One short plain-English line under the block saying what each step does and what the founder should see if it worked.
+- If nothing is needed, write "Nothing to run."
+
+Rules: founder commands go ONLY in this section, never mixed into prompts meant for agents; an agent never runs the commands in this section itself; the section goes at the very end, after the four-state table and evidence links.
+
 ### 0.6 Think Tokens: where they live, and CLI/dashboard parity
 
 - The store is `apps/web/data/think-tokens.db` (override `KUDBEE_THINK_TOKEN_DB`), NOT `learning.db` (that is the older #288 `learned_patterns` store).
@@ -82,7 +93,7 @@ Pull `main`, delete the branch, and start the next queued prompt.
   at or above `SIMILAR_THRESHOLD` 0.25, calibrated on 78 real lesson pairs, see `docs/evidence/adr-029-p3.md`), and `co_used` (used by the same run, weight grows with shared runs).
   `kudbee tokens links <TT-id>` and the token card's Links panel read them through the same reader. Propagation v1 is depth 1: using a token credits
   its linked neighbors; the bonus is `min(0.10, 0.02 x sum of the last 12 credits)` and is stored in `score_breakdown` so the shown score reproduces.
-- Semantic retrieval (P3.6): accepted lessons and goals are embedded locally (`think-token-embed.ts`, default `Xenova/all-MiniLM-L6-v2`, CPU, optional dependency `@huggingface/transformers`); vectors live in SQLite (`think_token_embeddings` BLOB, schema v3, automatic `.bak-pre-v3-<date>` copy before the migration). Each lesson may carry `when_to_use` retrieval text (asked for at extraction, backfilled with `backfillRetrievalText`; table `think_token_retrieval_text`, schema v4) that is embedded with it and never shown as the lesson. With a goal vector the ranker is hybrid (`0.3 x BM25 + 0.5 x rescaled cosine + failure modes`); without one, or with `THINKBOX_RETRIEVER=lexical` or `THINKBOX_EMBEDDINGS=off`, it is the lexical ranker below. The server never waits for the model: it starts loading in the background when there is an accepted lesson, and goals are ranked lexically until it is ready (about 7 s the first time).
+- Semantic retrieval (P3.6): accepted lessons and goals are embedded locally (`think-token-embed.ts`, default `Xenova/all-MiniLM-L6-v2`, CPU, optional dependency `@huggingface/transformers`); vectors live in SQLite (`think_token_embeddings` BLOB, schema v3, automatic `.bak-pre-v3-<date>` copy before the migration). Each lesson may carry `when_to_use` retrieval text (asked for at extraction, backfilled with `backfillRetrievalText`; table `think_token_retrieval_text`, schema v4) that is embedded with it and never shown as the lesson. With a goal vector the default ranker is plain cosine (floor 0.15, no other terms; chosen on the untouched set 4, P3.8); `THINKBOX_RETRIEVER=hybrid|cosine-tiebreak|lexical` selects another, and without a goal vector, or with `THINKBOX_EMBEDDINGS=off`, ranking is the lexical ranker below. The server never waits for the model: it starts loading in the background when there is an accepted lesson, and goals are ranked lexically until it is ready (about 7 s the first time).
 - Retrieval (`retrieve`) ranks accepted tokens by goal intent and failure mode, not shared tools: `0.6 x BM25 + 0.5 per failure mode both goal and lesson name` x a genericness factor x (0.5 + score), with near-duplicates skipped (`diverse: false` for the novelty check). `same_tool` links weight tools by rarity (`toolIdf`). An unusable challenge reply is retried once, then the lesson stays `scored` (`challenge_unjudged`).
 - Dedupe: `mergeDuplicates` retires an accepted token that has the same tool set and similarity >= 0.25 to a better-scored one, linked `merged_into` (directed, duplicate -> survivor); it runs after each newly accepted token. Pass the known tool names to `linkToken`/`mergeDuplicates` so tokens saved before P3 (bare tool-name tags) are included.
 - A token whose challenge could not run stays `scored`. After each run the server retries up to 3 of them against their own run record

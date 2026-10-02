@@ -166,7 +166,7 @@ Read only from the environment (the server also loads the repo-root `.env`). Nev
 | `THINKBOX_EMBEDDINGS` | `off` (or `0`) disables local semantic retrieval; goals are then ranked lexically. Needs the optional `@huggingface/transformers` package | on |
 | `THINKBOX_EMBED_MODEL` | Sentence-embedding model (Hugging Face id) used for lesson/goal vectors; vectors are stored per model | `Xenova/all-MiniLM-L6-v2` (about 23 MB, CPU, downloaded once, then offline) |
 | `THINKBOX_EMBED_CACHE` | Directory for the downloaded model | `<KUDBEE_DATA_DIR or apps/web/data>/models` |
-| `THINKBOX_RETRIEVER` | `lexical` forces the P3.2 lexical ranker even when vectors exist (for comparison) | hybrid when vectors exist |
+| `THINKBOX_RETRIEVER` | Ranker: `cosine` (default), `cosine-tiebreak` (cosine first, BM25 breaks ties within 0.02), `hybrid` (P3.6: BM25 + cosine + failure modes), or `lexical` (P3.2). The cosine rankers need vectors and fall back to lexical without them | `cosine` |
 | `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
 
 Prompts for Mercury leave the machine: secrets and absolute paths are removed and inputs are size-capped first.

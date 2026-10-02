@@ -1,0 +1,453 @@
+{
+  "seed": "p37-seed.db",
+  "goals_module": "think-token-ab-goals-p38-decision4.mjs",
+  "frozen_now": "2026-10-02T12:00:00.000Z",
+  "embed_model": "Xenova/all-MiniLM-L6-v2",
+  "goals": 12,
+  "results": {
+    "lexical": {
+      "hit_at_1": 2,
+      "hit_at_3": 5
+    },
+    "hybrid": {
+      "hit_at_1": 4,
+      "hit_at_3": 8
+    },
+    "cosine": {
+      "hit_at_1": 7,
+      "hit_at_3": 9
+    },
+    "cosine-tiebreak": {
+      "hit_at_1": 7,
+      "hit_at_3": 9
+    }
+  },
+  "per_goal": [
+    {
+      "id": "terse-deep-folders",
+      "style": "terse",
+      "expectedLesson": "deep-mkdir",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "missing-no-invent",
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "missing-no-invent",
+          "three-files"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "deep-mkdir",
+          "list-subdir",
+          "recursive-list"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "deep-mkdir",
+          "list-subdir",
+          "recursive-list"
+        ]
+      }
+    },
+    {
+      "id": "rambling-stub",
+      "style": "rambling",
+      "expectedLesson": "zero-byte",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "three-files",
+          "recursive-list",
+          "counter"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "three-files",
+          "missing-no-invent",
+          "recursive-list"
+        ]
+      },
+      "cosine": {
+        "rank": 3,
+        "top3": [
+          "size-match",
+          "bytes-not-chars",
+          "zero-byte"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 3,
+        "top3": [
+          "size-match",
+          "bytes-not-chars",
+          "zero-byte"
+        ]
+      }
+    },
+    {
+      "id": "typos-replace-letter",
+      "style": "typos",
+      "expectedLesson": "replace-not-append",
+      "lexical": {
+        "rank": 3,
+        "top3": [
+          "append",
+          "counter",
+          "replace-not-append"
+        ]
+      },
+      "hybrid": {
+        "rank": 3,
+        "top3": [
+          "append",
+          "counter",
+          "replace-not-append"
+        ]
+      },
+      "cosine": {
+        "rank": null,
+        "top3": [
+          "emoji-utf8",
+          "bytes-not-chars"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": null,
+        "top3": [
+          "emoji-utf8",
+          "bytes-not-chars"
+        ]
+      }
+    },
+    {
+      "id": "terse-rocket-icon",
+      "style": "terse",
+      "expectedLesson": "emoji-utf8",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "size-match",
+          "bytes-not-chars",
+          "zero-byte"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "emoji-utf8",
+          "size-match",
+          "zero-byte"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "emoji-utf8",
+          "size-match",
+          "bytes-not-chars"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "emoji-utf8",
+          "size-match",
+          "bytes-not-chars"
+        ]
+      }
+    },
+    {
+      "id": "rambling-quarter-recap",
+      "style": "rambling",
+      "expectedLesson": "missing-no-invent",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "bytes-not-chars"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "bytes-not-chars",
+          "noise-rss",
+          "dotdot-path"
+        ]
+      },
+      "cosine": {
+        "rank": null,
+        "top3": [
+          "noise-rss",
+          "dotdot-path",
+          "noise-approval"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": null,
+        "top3": [
+          "noise-rss",
+          "dotdot-path",
+          "noise-approval"
+        ]
+      }
+    },
+    {
+      "id": "typos-config-fallback",
+      "style": "typos",
+      "expectedLesson": "missing-then-create",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "missing-then-create",
+          "deep-mkdir"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "missing-then-create",
+          "deep-mkdir"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "missing-then-create"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "missing-then-create"
+        ]
+      }
+    },
+    {
+      "id": "typos-accented-greeting",
+      "style": "typos",
+      "expectedLesson": "bytes-not-chars",
+      "lexical": {
+        "rank": 2,
+        "top3": [
+          "zero-byte",
+          "bytes-not-chars"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "bytes-not-chars",
+          "zero-byte",
+          "size-match"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "bytes-not-chars",
+          "emoji-utf8",
+          "size-match"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "bytes-not-chars",
+          "emoji-utf8",
+          "size-match"
+        ]
+      }
+    },
+    {
+      "id": "terse-tack-on-line",
+      "style": "terse",
+      "expectedLesson": "append",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "append",
+          "replace-not-append",
+          "counter"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "append",
+          "replace-not-append",
+          "counter"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "append",
+          "replace-not-append",
+          "json-line"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "append",
+          "json-line",
+          "replace-not-append"
+        ]
+      }
+    },
+    {
+      "id": "terse-five-letters",
+      "style": "terse",
+      "expectedLesson": "size-match",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "missing-no-invent",
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": 3,
+        "top3": [
+          "noise-approval",
+          "bytes-not-chars",
+          "size-match"
+        ]
+      },
+      "cosine": {
+        "rank": 2,
+        "top3": [
+          "bytes-not-chars",
+          "size-match",
+          "emoji-utf8"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 2,
+        "top3": [
+          "bytes-not-chars",
+          "size-match",
+          "emoji-utf8"
+        ]
+      }
+    },
+    {
+      "id": "rambling-machine-config",
+      "style": "rambling",
+      "expectedLesson": "json-line",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-rss",
+          "replace-not-append",
+          "emoji-utf8"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "noise-rss",
+          "json-line",
+          "replace-not-append"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "missing-then-create",
+          "counter"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "missing-then-create",
+          "counter"
+        ]
+      }
+    },
+    {
+      "id": "terse-memo-above",
+      "style": "terse",
+      "expectedLesson": "dotdot-path",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "counter",
+          "json-line"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "counter",
+          "json-line",
+          "noise-memory"
+        ]
+      },
+      "cosine": {
+        "rank": null,
+        "top3": [
+          "noise-memory"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": null,
+        "top3": [
+          "noise-memory"
+        ]
+      }
+    },
+    {
+      "id": "rambling-three-labelled",
+      "style": "rambling",
+      "expectedLesson": "three-files",
+      "lexical": {
+        "rank": 2,
+        "top3": [
+          "counter",
+          "three-files",
+          "json-line"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "counter",
+          "three-files",
+          "json-line"
+        ]
+      },
+      "cosine": {
+        "rank": 1,
+        "top3": [
+          "three-files",
+          "counter"
+        ]
+      },
+      "cosine-tiebreak": {
+        "rank": 1,
+        "top3": [
+          "three-files",
+          "counter"
+        ]
+      }
+    }
+  ]
+}
