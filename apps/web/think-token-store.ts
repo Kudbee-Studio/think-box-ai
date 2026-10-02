@@ -23,7 +23,9 @@
 // The components, weights and inputs are stored next to the score (`score_breakdown`).
 import Database from 'better-sqlite3';
 import { SIMILAR_THRESHOLD, rankAgainstQuery, similarityToPool } from './think-token-bm25.ts';
+import { blobToVector, cosine, embedText, vectorToBlob } from './think-token-embed.ts';
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 
 export const DEFAULT_KNOWN_TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'read_rss', 'algorand', 'medication', 'recall', 'remember'];
 
@@ -39,7 +41,7 @@ const SCORE_WEIGHTS = { usefulness: 0.45, recency: 0.2, reuse: 0.15, feedback: 0
 const HALF_LIFE_DAYS = 30;
 const DAY_MS = 86_400_000;
 const DEFAULT_TENANT = 'local';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export function formatTokenId(seq: number): string {
   return `TT-${String(seq).padStart(6, '0')}`;
@@ -208,6 +210,9 @@ export interface RetrieveOptions {
   diverse?: boolean;
   /** Epoch ms used for the recency term of every token's score. Default: THINKBOX_TOKEN_CLOCK (epoch ms) if set, else the real clock. Evals and A/B runs freeze it. */
   now?: number;
+  /** Embedding of the goal (same model as `embedModel`). With it the ranker is hybrid; without it, or with THINKBOX_RETRIEVER=lexical, it is the lexical ranker of P3.2. */
+  goalVector?: Float32Array;
+  embedModel?: string;
 }
 
 /** Interface so a Postgres implementation could be added later (ADR 028) and share one test suite. */
@@ -422,6 +427,15 @@ const SUPPORT_TABLES = `
   );
   CREATE INDEX IF NOT EXISTS idx_think_token_links_to ON think_token_links(to_id);
   CREATE INDEX IF NOT EXISTS idx_think_token_links_kind ON think_token_links(kind);
+  CREATE TABLE IF NOT EXISTS think_token_embeddings (
+    token_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    dim INTEGER NOT NULL,
+    vector BLOB NOT NULL,
+    text_sha256 TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (token_id, model)
+  );
 `;
 
 function tokensTableSql(name: string): string {
@@ -516,6 +530,7 @@ export function migrateUp(db: Database.Database): void {
 export function migrateDown(db: Database.Database): void {
   db.exec(
     [
+      'DROP TABLE IF EXISTS think_token_embeddings;',
       'DROP TABLE IF EXISTS think_token_links;',
       'DROP TABLE IF EXISTS think_token_model_calls;',
       'DROP TABLE IF EXISTS think_token_uses;',
@@ -557,6 +572,20 @@ const FAILURE_MODES: Array<{ goal: string[]; lesson: string[] }> = [
 
 function failureModesShared(goalLower: string, lessonLower: string): number {
   return FAILURE_MODES.filter((m) => m.goal.some((c) => goalLower.includes(c)) && m.lesson.some((c) => lessonLower.includes(c))).length;
+}
+
+/**
+ * Before a file database moves to a newer schema, keep a consistent copy (`VACUUM INTO`, which includes the WAL) next to it as
+ * `<db>.bak-pre-v<N>-<YYYYMMDD>`. Skipped for in-memory databases, empty ones, ones already on the current version, and when that copy exists.
+ */
+function backupBeforeMigration(db: Database.Database, dbPath: string): void {
+  if (dbPath === ':memory:' || dbPath === '') return;
+  const version = db.pragma('user_version', { simple: true }) as number;
+  const hasTokens = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='think_tokens'").get();
+  if (!hasTokens || version >= SCHEMA_VERSION) return;
+  const copy = `${dbPath}.bak-pre-v${SCHEMA_VERSION}-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}`;
+  if (fs.existsSync(copy)) return;
+  db.exec(`VACUUM INTO '${copy.replaceAll("'", "''")}'`);
 }
 
 // ─── SQLite implementation ──────────────────────────────────────
@@ -651,6 +680,7 @@ export class SqliteTokenStore implements TokenStore {
       this.db = new Database(dbPath, { readonly: true, fileMustExist: true });
     } else {
       this.db = new Database(dbPath);
+      backupBeforeMigration(this.db, dbPath);
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('busy_timeout = 5000');
       migrateUp(this.db);
@@ -956,10 +986,14 @@ export class SqliteTokenStore implements TokenStore {
     const bm25 = rankAgainstQuery(goal, accepted.map((t) => ({ id: t.id, text: text(t) })));
     const idf = toolIdf(accepted.map((t) => toolsOfTags(t.tags, known)));
     const goalLower = goal.toLowerCase();
+    const vectors = opts.goalVector && opts.embedModel && process.env.THINKBOX_RETRIEVER !== 'lexical' ? this.embeddingsFor(opts.embedModel) : null;
     const ranked = accepted
       .map((row) => {
         const modes = failureModesShared(goalLower, text(row).toLowerCase());
-        const relevance = 0.6 * (bm25.get(row.id) ?? 0) + Math.min(1, 0.5 * modes);
+        const vec = vectors?.get(row.id);
+        // Hybrid weights fixed before any held-out run: 0.3 BM25 + 0.5 cosine (rescaled: 0.15 -> 0, 0.65 -> 1) + failure modes. Lexical: 0.6 BM25 + failure modes.
+        const semantic = vectors && vec ? Math.max(0, Math.min(1, (cosine(opts.goalVector!, vec) - 0.15) / 0.5)) : 0;
+        const relevance = (vectors ? 0.3 : 0.6) * (bm25.get(row.id) ?? 0) + 0.5 * semantic + Math.min(1, 0.5 * modes);
         const tools = toolsOfTags(row.tags, known);
         const specificity = tools.length ? Math.max(...tools.map((t) => idf(t))) : 0.5;
         const generic = modes > 0 ? 1 : 0.4 + 0.6 * Math.min(1, 2 * specificity);
@@ -979,6 +1013,25 @@ export class SqliteTokenStore implements TokenStore {
       chosen.push(cand);
     }
     return chosen.map((e) => ({ ...e.row, score: e.quality }));
+  }
+
+  /** Accepted tokens with no vector for `model`, or whose text changed since it was embedded. */
+  listMissingEmbeddings(model: string): ThinkTokenRow[] {
+    const have = new Map((this.db.prepare('SELECT token_id, text_sha256 FROM think_token_embeddings WHERE model = ?').all(model) as Array<{ token_id: string; text_sha256: string }>).map((r) => [r.token_id, r.text_sha256]));
+    return this.list({ status: 'accepted', limit: 500 }).filter((t) => have.get(t.id) !== sha256(embedText(t)));
+  }
+
+  setEmbedding(tokenId: string, model: string, vector: Float32Array, text: string): void {
+    const id = this.resolve(tokenId);
+    if (!id) return;
+    this.db
+      .prepare('INSERT INTO think_token_embeddings (token_id, model, dim, vector, text_sha256, created_at) VALUES (?,?,?,?,?,?) ON CONFLICT(token_id, model) DO UPDATE SET dim = excluded.dim, vector = excluded.vector, text_sha256 = excluded.text_sha256, created_at = excluded.created_at')
+      .run(id, model, vector.length, vectorToBlob(vector), sha256(text), Date.now());
+  }
+
+  embeddingsFor(model: string): Map<string, Float32Array> {
+    const rows = this.db.prepare('SELECT token_id, vector FROM think_token_embeddings WHERE model = ?').all(model) as Array<{ token_id: string; vector: Buffer }>;
+    return new Map(rows.map((r) => [r.token_id, blobToVector(r.vector)]));
   }
 
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number } {
