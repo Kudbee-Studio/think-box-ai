@@ -1,0 +1,90 @@
+[
+  {
+    "label": "generic",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "deterministic-check",
+    "sample_reason": "generic: names no tool, file or argument from the run"
+  },
+  {
+    "label": "unsafe",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "deterministic-check",
+    "sample_reason": "unsafe advice"
+  },
+  {
+    "label": "invented tool",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "mercury-2",
+    "sample_reason": "not true to the run, not supported by evidence: Lesson talks about teleport_files, but run only used write_fil"
+  },
+  {
+    "label": "restates goal",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "deterministic-check",
+    "sample_reason": "restates the goal"
+  },
+  {
+    "label": "paraphrase of TT-000010",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "mercury-2",
+    "sample_reason": "repeats a known lesson: Lesson matches the run, details the write_file then list_files verification, is backed"
+  },
+  {
+    "label": "false claim",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "mercury-2",
+    "sample_reason": "not true to the run, not supported by evidence: Run shows write_file output only size, no checksum; claim of r"
+  },
+  {
+    "label": "unsupported claim",
+    "expect": "reject",
+    "tally": {
+      "fail": 3,
+      "pass": 0,
+      "none": 0
+    },
+    "by": "mercury-2",
+    "sample_reason": "not true to the run, not supported by evidence: Run wrote markdown with default encoding; no evidence of UTF-1"
+  },
+  {
+    "label": "control: specific + true",
+    "expect": "accept",
+    "tally": {
+      "fail": 1,
+      "pass": 2,
+      "none": 0
+    },
+    "by": "mercury-2",
+    "sample_reason": "Run shows write_file reported 96 bytes and list_files shows 96 bytes, confirming the byte count comparison tip"
+  }
+]

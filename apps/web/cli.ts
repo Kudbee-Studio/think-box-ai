@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
 import { localModelHint, resolveLocalModel } from './local-model.ts';
-import { formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
+import { formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
@@ -760,6 +760,24 @@ function tokensCommand(args: string[]): number {
       console.log(json ? JSON.stringify(token, null, 2) : formatTokenDetail(token));
       return 0;
     }
+    if (sub === 'links') {
+      const id = rest[0];
+      if (!id) { console.log(c.red('usage: kudbee tokens links <TT-id> [--json]')); return 2; }
+      const token = readToken(store, id);
+      if (!token) { console.log(c.red(`No Think Token ${id}`)); return 1; }
+      const links = readTokenLinks(store, id);
+      if (json) console.log(JSON.stringify({ id: token.id, links }, null, 2));
+      else if (!links.length) console.log(c.dim(`No links for ${token.id}`));
+      else {
+        console.log(c.bold(`${token.id} links (${links.length})`));
+        for (const L of links) {
+          const other = L.from_id === token.id ? L.to_id : L.from_id;
+          const dir = L.from_id === token.id ? '→' : '←';
+          console.log(`  ${L.kind.padEnd(16)} ${dir} ${other}  w=${L.weight.toFixed(2)}  ${L.evidence}`);
+        }
+      }
+      return 0;
+    }
     if (sub === undefined || sub === 'list') {
       const query = rest.join(' ').trim() || undefined;
       const tokens = readTokens(store, { status: status as TokenStatus | undefined, run_id: runId, query, limit: 100 });
@@ -772,7 +790,7 @@ function tokensCommand(args: string[]): number {
       }
       return 0;
     }
-    console.log(c.red('usage: kudbee tokens list [--status S] [--run RUN_ID] [--json] [query] | kudbee tokens show <TT-id> [--json]'));
+    console.log(c.red('usage: kudbee tokens list|show <TT-id>|links <TT-id> [--json]'));
     return 2;
   } finally {
     store.close();

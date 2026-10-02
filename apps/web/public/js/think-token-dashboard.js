@@ -493,6 +493,20 @@ class ThinkTokenDashboard {
     add('👍', 'thumb_up', 'Helpful');
     add('👎', 'thumb_down', 'Not helpful');
     card.append(actions);
+    // P3 links panel — same payload as `kudbee tokens links` (shared reader).
+    const links = Array.isArray(token.links) ? token.links : [];
+    if (links.length) {
+      const box = ttEl('details', 'tt-links');
+      box.append(ttEl('summary', '', `Links (${links.length})`));
+      for (const L of links) {
+        const other = L.from_id === token.id ? L.to_id : L.from_id;
+        const dir = L.from_id === token.id ? '→' : '←';
+        box.append(ttEl('div', 'tt-link-row', `${L.kind} ${dir} ${other}  w=${Number(L.weight).toFixed(2)}  ${L.evidence || ''}`));
+      }
+      card.append(box);
+    } else {
+      card.append(ttEl('p', 'tt-muted tt-links-empty', 'No relationship links yet.'));
+    }
     return card;
   }
 

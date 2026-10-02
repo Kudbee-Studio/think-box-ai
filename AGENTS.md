@@ -70,6 +70,15 @@ credential or token-scope changes, or contact with live infrastructure.
 - Every token has a permanent id `TT-000001`, `TT-000002`, ... allocated in the insert transaction and never reused. Pre-v2 `tt_<hash>` ids are kept as `legacy_id` and still resolve.
 - The dashboard's single **🧩 Think Tokens** view and `kudbee tokens list|show` read the same database through one module, `apps/web/think-token-reader.ts`.
   Do not add a second query or formatter.
+- Relationships (ADR 029 P3): `think_token_links` holds only links with a mechanical evidence source: `same_tool` (shared `tool:<name>` tags, which the
+  pipeline adds to new tokens; tokens saved before P3 carry bare tool names and get no `same_tool` links), `similar` (normalized BM25 of the lesson text
+  at or above `SIMILAR_THRESHOLD` 0.25, calibrated on 78 real lesson pairs, see `docs/evidence/adr-029-p3.md`), and `co_used` (used by the same run, weight grows with shared runs).
+  `kudbee tokens links <TT-id>` and the token card's Links panel read them through the same reader. Propagation v1 is depth 1: using a token credits
+  its linked neighbors; the bonus is `min(0.10, 0.02 x sum of the last 12 credits)` and is stored in `score_breakdown` so the shown score reproduces.
+- A token whose challenge could not run stays `scored`. After each run the server retries up to 3 of them against their own run record
+  (`rechallengeScoredTokens`); a token with no run record or no model stays `scored` and is never force-rejected. `scored -> rejected` is not a legal transition.
+- Unsafe advice (`rm -rf`, `curl | sh`, disabling auth, exfiltration, inline secrets) fails the deterministic specificity check regardless of what the model says.
+- `THINKBOX_TOKEN_RETRIEVAL=off` disables planner retrieval (A/B runs only). If the local model is down it is skipped for 60 s, then probed again.
 
 ---
 

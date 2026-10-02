@@ -42,7 +42,7 @@ import { ThinkTokenCollection } from './think-token.ts';
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
-import { processFinishedRun } from './think-token-pipeline.ts';
+import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens, toApiToken } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -1016,9 +1016,13 @@ export class AgentSession {
           status: 'info',
         });
       }
-      // ADR 028: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
-      const thinkTokens = tokenStore.retrieve(goal, 3);
-      if (thinkTokens.length) {
+      // ADR 028/029: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
+      // THINKBOX_TOKEN_RETRIEVAL=0|off disables retrieval for A/B proof runs.
+      const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3);
+      if (retrievalOff) {
+        this.addThought({ type: 'think_token', content: 'Think Token retrieval OFF (THINKBOX_TOKEN_RETRIEVAL)', status: 'info' });
+      } else if (thinkTokens.length) {
         record.think_tokens = thinkTokens.map((t) => t.id);
         tokenStore.recordUse(record.think_tokens, record.id, `agent:${record.id.slice(0, 8)}`);
         for (const before of thinkTokens) {
@@ -1442,11 +1446,18 @@ export class AgentSession {
     try {
       const actor = `agent:${record.id.slice(0, 8)}`;
       tokenStore.recordOutcome(record.id, success, actor);
+      const deps = { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) };
       const result = await processFinishedRun(
-        { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) },
+        deps,
         { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result },
         actor,
       );
+      // A token whose challenge could not run earlier (model down) is retried now that a run has finished; at most 3 per run.
+      const earlier = await rechallengeScoredTokens(deps, (id) => { const r = runStore.get(id); return r ? { id: r.id, goal: r.goal, success: r.status === 'completed', steps: r.steps, files: r.files, result: r.result } : undefined; }, actor, 3);
+      for (const r of earlier) {
+        const row = r.result === 'left_scored' ? null : tokenStore.get(r.id);
+        if (row) this.broadcast({ type: 'think_token_learned', data: tokenEvent(row, row.source_run_id, 0) });
+      }
       const fresh = result.tokens.filter((t) => !t.duplicate);
       for (const token of fresh) {
         const row = tokenStore.get(token.id);

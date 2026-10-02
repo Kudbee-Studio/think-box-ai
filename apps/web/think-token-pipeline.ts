@@ -124,6 +124,17 @@ export function checkGrounding(lesson: Pick<LessonCandidate, 'title' | 'content'
   return { ok: reasons.length === 0, reasons };
 }
 
+/** Destructive or security-harmful guidance never becomes a token, whatever the model says about it. */
+const UNSAFE_ADVICE: RegExp[] = [
+  /\brm\s+-rf\b/i,
+  /\bcurl\s+[^|]+\|\s*(ba)?sh\b/i,
+  /\bdisable\s+(auth|authentication|tls|ssl|firewall)\b/i,
+  /\b(ignore|skip|bypass)\s+(security|auth|permission|safety)\b/i,
+  /\bexfiltrat/i,
+  /\bpassword\s*=\s*['"]?[^\s'"]+/i,
+  /\b(api[_-]?key|secret)\s*=\s*['"]?[^\s'"]+/i,
+];
+
 function jaccard(a: string[], b: string[]): number {
   const sa = new Set(a);
   const sb = new Set(b);
@@ -144,6 +155,7 @@ export function checkSpecificity(lesson: Pick<LessonCandidate, 'title' | 'conten
   const anchors = [...view.tool_names, ...view.files, ...argKeys].filter((a) => a.length >= 3 && lower.includes(a.toLowerCase()));
   if (!anchors.length) reasons.push('generic: names no tool, file or argument from the run');
   if (jaccard(keywords(body), keywords(view.goal)) > 0.7) reasons.push('restates the goal');
+  if (UNSAFE_ADVICE.some((p) => p.test(body) || p.test(lesson.title))) reasons.push('unsafe advice');
   return { ok: reasons.length === 0, reasons };
 }
 
@@ -180,7 +192,7 @@ async function callModel(deps: PipelineDeps, runId: string, step: 'extract' | 'c
       }
       const started = Date.now();
       try {
-        const result = await caller(messages, { maxTokens: step === 'extract' ? 900 : 400 });
+        const result = await caller(messages, { maxTokens: step === 'extract' ? 900 : 700 });
         deps.store.recordModelCall({ run_id: runId, step, provider, model: result.model, ok: true, latency_ms: result.latency_ms, tokens_in: result.tokens_in, tokens_out: result.tokens_out });
         return result;
       } catch (err) {
@@ -288,6 +300,7 @@ export async function challengeLesson(deps: PipelineDeps, view: RunView, lesson:
   const grounded = checkGrounding(lc, view, deps.knownTools);
   const specific = checkSpecificity(lc, view);
   const reasons = [...grounded.reasons, ...specific.reasons];
+
   if (reasons.length) return { verdict: 'fail', reason: clip(reasons.join('; '), LIMITS.reason), model: 'deterministic-check', meta: {} };
   const result = await callModel(deps, view.run_id, 'challenge', [
     { role: 'system', content: CHALLENGE_SYSTEM },
@@ -377,7 +390,7 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
         kind: l.kind,
         title: l.title,
         content: l.content,
-        tags: [...l.tags, ...l.tools_cited].slice(0, 8),
+        tags: [...l.tags, ...l.tools_cited.map((t) => `tool:${t}`)].slice(0, 8),
         evidence_ref: `run:${run.id}`,
         extractor: modelled.result.provider,
         extract_model: modelled.result.model,
@@ -410,9 +423,50 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
       continue;
     }
     if (!store.advance(id, 'challenged', actor, { challenge: verdict }).ok) { out.tokens.push(snapshot(store, id, false)); continue; }
-    store.advance(id, verdict.verdict === 'pass' ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    const final = store.advance(id, verdict.verdict === 'pass' ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    if (final.ok && verdict.verdict === 'pass') store.linkToken(id, actor);
     out.tokens.push(snapshot(store, id, false));
   }
   out.model_calls = store.modelUsage(run.id).length;
+  return out;
+}
+
+
+// ─── Re-challenge of tokens stuck at `scored` ───────────────────
+
+export interface RechallengeResult {
+  id: string;
+  result: 'accepted' | 'rejected' | 'left_scored';
+  reason: string;
+}
+
+/**
+ * A token is left at `scored` when its challenge could not run (no model reachable, a crash). Re-run the challenge against
+ * the token's own run record. A token with no run record, or whose challenge still cannot run, stays `scored`: it is never
+ * force-rejected, because "could not be checked" is not a verdict.
+ */
+export async function rechallengeScoredTokens(deps: PipelineDeps, getRun: (runId: string) => FinishedRun | undefined, actor: string, limit = 50): Promise<RechallengeResult[]> {
+  const out: RechallengeResult[] = [];
+  for (const row of deps.store.listByStatus('scored', limit)) {
+    const run = row.source_run_id ? getRun(row.source_run_id) : undefined;
+    if (!run) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'no run record to check the lesson against' });
+      continue;
+    }
+    const view = buildRunView(run);
+    const verdict = await challengeLesson(deps, view, row, actor, knownLessonsFor(deps.store, view).filter((k) => k.id !== row.id));
+    if (!verdict) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'challenge model unavailable' });
+      continue;
+    }
+    if (!deps.store.advance(row.id, 'challenged', actor, { challenge: verdict }).ok) {
+      out.push({ id: row.id, result: 'left_scored', reason: 'transition refused' });
+      continue;
+    }
+    const accepted = verdict.verdict === 'pass';
+    deps.store.advance(row.id, accepted ? 'accepted' : 'rejected', actor, { note: verdict.reason });
+    if (accepted) deps.store.linkToken(row.id, actor);
+    out.push({ id: row.id, result: accepted ? 'accepted' : 'rejected', reason: verdict.reason });
+  }
   return out;
 }

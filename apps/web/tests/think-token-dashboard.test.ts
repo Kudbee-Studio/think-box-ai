@@ -196,6 +196,20 @@ describe('Think Tokens view: saved tokens (persisted list)', () => {
     assert.equal(card.dataset.tokenId, 'TT-000007');
   });
 
+  it('shows a token\'s links with kind, direction, weight and evidence, and says so when there are none', () => {
+    const { open, msg } = setup();
+    const m = open();
+    const links = [
+      { from_id: 'TT-000002', to_id: 'TT-000007', kind: 'same_tool', weight: 0.7, evidence: 'shared tools: write_file, recall', created_at: 1 },
+      { from_id: 'TT-000007', to_id: 'TT-000009', kind: 'co_used', weight: 0.5, evidence: 'used together in 1 run', created_at: 2 },
+    ];
+    msg('think_tokens', { tokens: [TOKEN(7, { links }), TOKEN(8, { links: [] })], ledger: { ok: true, entries: 3 } });
+    const [linked, bare] = byClass(m.querySelector('.tt-list'), 'tt-card');
+    const t = text(linked);
+    for (const needle of ['Links (2)', 'same_tool ← TT-000002  w=0.70  shared tools: write_file, recall', 'co_used → TT-000009  w=0.50  used together in 1 run']) assert.ok(t.includes(needle), needle);
+    assert.match(text(bare), /No relationship links yet/);
+  });
+
   it('marks template-extracted tokens as not model-written, and shows legacy ids and uses', () => {
     const { open, msg } = setup();
     const m = open();
