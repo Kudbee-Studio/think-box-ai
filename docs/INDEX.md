@@ -54,7 +54,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 |---|---|---|
 | [AGENTS.md](../AGENTS.md) | AGENTS.md — THINK BOX AI | Purpose: This file defines the rules that every agent (human or AI) working |
 | [CLAUDE.md](../CLAUDE.md) | CLAUDE.md — kudbEE Agent OS Project Guidelines | Purpose: This file tells AI (Claude, other agents) how to contribute to this project effectively. |
-| [README.md](../README.md) | Think Box AI | Governed agent execution for the enterprise — goals decompose into tasks, tools run behind permission checks,... |
+| [README.md](../README.md) | THINK BOX AI | Governed agent execution for the KUDBEE product line (this repository was formerly discussed as thinkTokens). Goals... |
 | [STATUS.md](../STATUS.md) | STATUS.md | - CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real Mercury 2 runs on the real server, real browser): permanent... |
 
 ## Decisions (ADRs)
