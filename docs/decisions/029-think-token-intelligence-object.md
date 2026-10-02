@@ -284,3 +284,16 @@ Evidence: `docs/evidence/adr-029-p3/p313-token-cube.md`. **Accepted (founder, 20
 | Pure, total, stable mapping token -> 100 cells; 100 -> 54 view projection (cell i is sticker i for i < 54, cells 54-99 fold onto stickers 0-45) | CODE COMPLETE, TEST VERIFIED (changes only where the data changed) |
 | Reconfigure on learning: used, scored, challenged, merged, linked, outcome, feedback and operator actions record changed cells in `think_token_cell_events` (schema v6) plus a `cells` ledger receipt | CODE COMPLETE, TEST VERIFIED |
 | Dashboard 100-cell grid, 3D cube view (reduced-motion safe), hover inspector, link lines; CLI `kudbee token cube <TT-id>` | CODE COMPLETE, TEST VERIFIED; live state in the evidence file |
+
+## Status update 2026-10-02 (P3.15 and P3.16: the local model, live)
+
+Evidence: `docs/evidence/p316-local-chat.md`, `docs/evidence/adr-029-p3/p315-local-challenger.md`, `docs/evidence/p316-local-chat/` (CLI trace, dashboard check and screenshot). Ollama 0.35.1 is now installed on the founder's laptop (`smollm2:360m`, Quadro M1000M 2 GiB, 69% on GPU at a 2048 context). This supersedes the earlier "Ollama unreachable" UNPROVEN rows.
+
+| Item | Status now |
+|---|---|
+| Local model answers simple goals with no cloud model (CLI and Agent OS dashboard) | CODE COMPLETE, TEST VERIFIED, **LIVE VERIFIED** (trace and screenshot saved). Quality is that of a 360M model: one wrong answer ("Frencie" for the capital of France) seen |
+| Local-model fallback (`THINKBOX_LOCAL_MODEL`): the local caller reaches Ollama and checks the model is installed | CODE COMPLETE, TEST VERIFIED, **LIVE VERIFIED** (P3.15 runs used the real caller) |
+| Local model timed backoff (skip an unavailable model for 60 s) | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED once: the real "model not installed; skipping it for 60s" message was observed before the pull finished |
+| `smollm2:360m` as the Think Token challenge/extraction fallback | **LIVE VERIFIED negative**: free-form JSON unusable; forced to a schema it returns one verdict for every lesson (20/20 good lessons rejected). Not wired in. A stronger local model is UNPROVEN |
+| Local model for goals that need tools | NOT SUPPORTED: those route to Mercury-2 |
+| Fully on the GPU | PARTIAL: 69% (2 GiB card) |

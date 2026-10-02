@@ -27,6 +27,7 @@ SmolLM2-360M is a weak model. Across the runs it answered "France" wrongly once 
 | Item | State |
 |---|---|
 | Plain no-tools chat, answer shown once | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED (CLI and dashboard) |
+| Local fallback (no cloud model for simple goals) | LIVE VERIFIED: trace `p316-local-chat/cli-live.txt`, dashboard `dashboard-local-check.json` and `dashboard-local-1024.png` (was UNPROVEN: Ollama unreachable) |
 | Local answers are correct | UNPROVEN beyond a handful of runs; one wrong answer seen |
 | Local model fully on GPU | PARTIAL: 69% on GPU at 2048 context (2 GiB card) |
 | Local model fit for tool use or judging | NO (see P3.15) |
