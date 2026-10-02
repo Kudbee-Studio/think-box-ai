@@ -390,7 +390,7 @@ function approvalReason(name: string, args: Record<string, unknown>, hooks: Agen
   return null;
 }
 
-interface RunContext {
+export interface RunContext {
   /** True once the run has read external data or a file that existed before the run. */
   observed: boolean;
   userAskedToRemember: boolean;
@@ -445,7 +445,9 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       const raw = await response.text();
       const type = response.headers.get('content-type') ?? '';
       const text = type.includes('html') ? htmlToText(raw) : raw;
-      return { url: url.toString(), status: response.status, content_type: type, text: truncate(text, 12000) };
+      // Internal callers (local recipes) may ask for more than the default 12000 characters; the model-facing tool schema has no such argument.
+      const maxChars = Math.min(Math.max(Number(args.max_chars) || 12000, 1000), 120000);
+      return { url: url.toString(), status: response.status, content_type: type, text: truncate(text, maxChars) };
     }
     case 'read_rss': {
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
@@ -480,6 +482,72 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
+}
+
+export interface GovernedToolResult {
+  output: Record<string, unknown>;
+  args: Record<string, unknown>;
+  approval?: 'approved' | 'denied';
+  reason: string | null;
+  latency_ms: number;
+}
+
+export function newRunContext(): RunContext {
+  return { observed: false, userAskedToRemember: false, written: new Set(), rememberRefusals: 0 };
+}
+
+/**
+ * One tool call through the full governance path: allowlist, approval gate (first network access to a host, overwriting a file), execution,
+ * thoughts and the run event. The worker agent's loop and the local recipes both call this, so there is one gate, not two. It never throws for
+ * a tool failure (the failure is in `output`); it throws only when the run was aborted.
+ */
+export async function runGovernedTool(name: string, rawArgs: string | Record<string, unknown>, hooks: AgentHooks, context: RunContext, step: number): Promise<GovernedToolResult> {
+  const toolStartedAt = Date.now();
+  let args: Record<string, unknown> = {};
+  let output: Record<string, unknown>;
+  let approval: 'approved' | 'denied' | undefined;
+  let reason: string | null = null;
+  try {
+    args = typeof rawArgs === 'string' ? (JSON.parse(rawArgs || '{}') as Record<string, unknown>) : rawArgs;
+    hooks.onThought({ type: 'tool_call', plugin: name, content: `${name} ${truncate(JSON.stringify(args), 200)}`, status: 'running' });
+    // Hard backstop: even a hallucinated or prompt-injected tool_call for a name outside
+    // this run's allowlist is rejected before it ever reaches the approval gate — filtering
+    // the model's function list is a UX nicety, not the actual security boundary.
+    if (hooks.allowedTools && !hooks.allowedTools.includes(name)) {
+      throw new Error(`Tool '${name}' is not available to this agent profile`);
+    }
+    reason = approvalReason(name, args, hooks);
+    if (reason) {
+      hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
+      approval = (await hooks.requestApproval(name, args, reason)) ? 'approved' : 'denied';
+      if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
+      const host = name === 'algorand' ? algorandTarget(args) : name === 'medication' ? medicationTarget(args) : hostOf(args.url);
+      if (host) hooks.approvedDomains.add(host);
+    }
+    output = { ok: true, ...(await executeTool(name, args, hooks, context)) };
+    if (isObservation(name, args, context)) context.observed = true;
+    if (name === 'write_file') { context.written.add(normalizePath(args.path)); context.workspaceEmpty = false; }
+    hooks.onThought({ type: 'tool_result', plugin: name, content: `${name} ✓ ${truncate(JSON.stringify(output), 200)}`, status: 'success' });
+  } catch (err) {
+    if (hooks.signal.aborted) throw err;
+    const error = err instanceof Error ? err.message : String(err);
+    output = { ok: false, error };
+    hooks.onThought({ type: 'tool_result', plugin: name, content: `${name} ✗ ${error}`, status: 'error' });
+  }
+  const latency_ms = Date.now() - toolStartedAt;
+  hooks.onEvent({
+    kind: 'tool',
+    step,
+    name,
+    args: boundedArgs(args),
+    ok: output.ok === true,
+    latency_ms,
+    output: truncate(JSON.stringify(output), 1500),
+    error: output.ok === true ? undefined : String(output.error),
+    approval,
+    approval_reason: reason ?? undefined,
+  });
+  return { output, args, approval, reason, latency_ms };
 }
 
 async function chat(
@@ -627,52 +695,14 @@ export async function runToolAgent(
 
       for (const call of message.tool_calls) {
         totals.tool_calls++;
-        const toolStartedAt = Date.now();
-        let args: Record<string, unknown> = {};
-        let output: Record<string, unknown>;
-        let approval: 'approved' | 'denied' | undefined;
-        let reason: string | null = null;
+        let governed: GovernedToolResult;
         try {
-          args = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>;
-          hooks.onThought({ type: 'tool_call', plugin: call.function.name, content: `${call.function.name} ${truncate(JSON.stringify(args), 200)}`, status: 'running' });
-          // Hard backstop: even a hallucinated or prompt-injected tool_call for a name outside
-          // this run's allowlist is rejected before it ever reaches the approval gate — filtering
-          // the model's function list is a UX nicety, not the actual security boundary.
-          if (hooks.allowedTools && !hooks.allowedTools.includes(call.function.name)) {
-            throw new Error(`Tool '${call.function.name}' is not available to this agent profile`);
-          }
-          reason = approvalReason(call.function.name, args, hooks);
-          if (reason) {
-            hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
-            approval = (await hooks.requestApproval(call.function.name, args, reason)) ? 'approved' : 'denied';
-            if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
-            const host = call.function.name === 'algorand' ? algorandTarget(args)
-              : call.function.name === 'medication' ? medicationTarget(args)
-              : hostOf(args.url);
-            if (host) hooks.approvedDomains.add(host);
-          }
-          output = { ok: true, ...(await executeTool(call.function.name, args, hooks, context)) };
-          if (isObservation(call.function.name, args, context)) context.observed = true;
-          if (call.function.name === 'write_file') { context.written.add(normalizePath(args.path)); context.workspaceEmpty = false; }
-          hooks.onThought({ type: 'tool_result', plugin: call.function.name, content: `${call.function.name} ✓ ${truncate(JSON.stringify(output), 200)}`, status: 'success' });
-        } catch (err) {
-          if (hooks.signal.aborted) return finish({ success: false, stopped: true, error: 'Stopped by user' });
-          const error = err instanceof Error ? err.message : String(err);
-          output = { ok: false, error };
-          hooks.onThought({ type: 'tool_result', plugin: call.function.name, content: `${call.function.name} ✗ ${error}`, status: 'error' });
+          governed = await runGovernedTool(call.function.name, call.function.arguments, hooks, context, step);
+        } catch {
+          // runGovernedTool only throws when the run was aborted.
+          return finish({ success: false, stopped: true, error: 'Stopped by user' });
         }
-        hooks.onEvent({
-          kind: 'tool',
-          step,
-          name: call.function.name,
-          args: boundedArgs(args),
-          ok: output.ok === true,
-          latency_ms: Date.now() - toolStartedAt,
-          output: truncate(JSON.stringify(output), 1500),
-          error: output.ok === true ? undefined : String(output.error),
-          approval,
-          approval_reason: reason ?? undefined,
-        });
+        const output = governed.output;
         evidence.push({ name: call.function.name, ok: output.ok === true, output: truncate(JSON.stringify(output), 1500) });
         messages.push({ role: 'tool', tool_call_id: call.id, content: truncate(JSON.stringify(output), 15000) });
       }

@@ -21,3 +21,8 @@ export function sameLocalModel(configured: string, installed: string): boolean {
 export function localModelHint(model: string): string {
   return `local model '${model}' not found in Ollama. Set THINKBOX_LOCAL_MODEL to a model from \`ollama list\` (or pull '${model}' yourself).`;
 }
+
+// A local Ollama model is a plain chat, exactly like `ollama run <model> "..."` in a terminal, where small models answer well: no system prompt, no
+// tool list, default sampling. Telling a 360M model to "use the available plugins", or adding long instructions or a repeat penalty, made it invent a
+// fake tool plan or answer with nothing. Only a reply cap (stops a runaway "0000000000") and a 2048 context (more of the model fits a 2 GiB GPU).
+export const LOCAL_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 };

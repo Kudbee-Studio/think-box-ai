@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (257 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (258 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (54)
+- [Other documents in docs/](#other-documents-in-docs) (55)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -306,6 +306,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/p316-local-chat.md](evidence/p316-local-chat.md) | P3.16: the local model in the Agent OS (CLI and dashboard) | Founder: "the CLI works with the model, not the Agent OS dashboard", and ollama run smollm2:360m "..." in a terminal... |
 | [docs/evidence/p317-dashboard-polish.md](evidence/p317-dashboard-polish.md) | P3.17: dashboard polish ("Invalid Date" and unstyled panels) | Founder asked for a polish pass on the Agent OS dashboard: the "Invalid Date" on thought cards and panels that look... |
 | [docs/evidence/p318-local-escalation.md](evidence/p318-local-escalation.md) | P3.18: goals that need tools or live data are escalated off the local model | Founder: on the dashboard, "WHAT PR ARE WE ON" run on smollm2:360m returned a confident essay about machine... |
+| [docs/evidence/p319-local-recipes.md](evidence/p319-local-recipes.md) | P3.19: local recipes ("the local model should do this") | Founder: the local model should answer "WHAT PR ARE WE ON" itself, for free, instead of escalating to Mercury... |
 | [docs/evidence/pr333-plugin-command.md](evidence/pr333-plugin-command.md) | PR #333: /plugin Command Implementation | Branch: feat/pr333-plugin-command |
 | [docs/evidence/pr334-session-command.md](evidence/pr334-session-command.md) | PR #334: /session Command Implementation | - Display current session info: ID, model, agent, plugins, WebSocket status |
 | [docs/evidence/pr337-dashboard-cli.md](evidence/pr337-dashboard-cli.md) | PR #337: dashboard and CLI hardening, CodeQL fixes, /capacity and /config | Code head tested by every gate below: 59de351. Commits after it add only this file, the files it links and AGENTS.md... |

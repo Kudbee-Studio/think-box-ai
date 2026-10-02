@@ -1,0 +1,26 @@
+=== B: this repo (Kudbee-Studio/think-box-ai), real GitHub, none open
+  💡 [simple] → smollm2:360m (est. saved ~700 tokens)
+▶ smollm2:360m working…
+  · Local recipe "open pull requests" (smollm2:360m): the lookup runs in code, smollm2:360m only words the answer. WHAT PR ARE WE ON
+  ⚙ fetch_url {"url":"https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open&per_page=5","max_chars":120000}
+  · Waiting for approval: First network access to api.github.com in this session
+
+  ⚖ APPROVAL: fetch_url — First network access to api.github.com in this session
+    {"url":"https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open&per_page=5","max_chars":120000}
+  ⚖ approved
+  ✓ fetch_url ✓ {"ok":true,"url":"https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open&per_page=5","status":200,"content_type":"application/json; charset=utf-8","text":"[]"}
+  · Nothing to summarise: showing the data itself.
+Open pull requests in Kudbee-Studio/think-box-ai (live from GitHub just now): none.
+✓ done
+  2 step(s) · 1 tool call(s) · 0 tokens · $0.0000 · 0.5s · run ba242761
+
+=== C: empty workspace listing (no network, no approval, model not asked)
+  💡 [simple] → smollm2:360m (est. saved ~700 tokens)
+▶ smollm2:360m working…
+  · Local recipe "list the workspace files" (smollm2:360m): the lookup runs in code, smollm2:360m only words the answer. list my files
+  ⚙ list_files {}
+  ✓ list_files ✓ {"ok":true,"files":[]}
+  · Nothing to summarise: showing the data itself.
+The workspace is empty.
+✓ done
+  2 step(s) · 1 tool call(s) · 0 tokens · $0.0000 · 0.0s · run 4150cc07
