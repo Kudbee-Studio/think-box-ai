@@ -201,3 +201,10 @@ test('superseded memories are never recalled and identical recalls collapse to t
   const deduped = dedupeHits([item('task/a', 'WHAT PR ARE WE WORKING ON?', '2026-10-01T10:00:00Z'), item('task/b', 'what pr are we working on?', '2026-10-02T10:00:00Z'), item('task/c', 'Something else', '2026-10-02T11:00:00Z')]);
   assert.deepEqual(deduped.map((h) => h.item.id), ['task/b', 'task/c'], 'the two identical goals collapse; the newest is kept, order preserved');
 });
+
+test('a PR number mentioned in order to deny it ("no open PR like #304") is not an unsupported claim', () => {
+  const empty = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[]"}' }];
+  assert.deepEqual(unsupportedClaims('There are no open pull requests, so #304 is not open.', empty), []);
+  assert.equal(conflictCandidate('There are currently no open pull requests (no draft PRs like #304).', empty), false);
+  assert.equal(conflictCandidate('The open pull request is #304.', empty), true);
+});
