@@ -398,7 +398,7 @@ export class MemoryStore {
   }
 
   /** Compact context block for the agent's system prompt; verified knowledge is labelled as such. */
-  static formatForPrompt(hits: MemoryHit[], now: number = Date.now()): string {
+  static formatForPrompt(hits: MemoryHit[], now: number = Date.now(), liveFlags?: Map<string, boolean>): string {
     if (!hits.length) return '';
     const label: Record<MemoryLayer, string> = {
       verified: 'VERIFIED (trust)',
@@ -409,6 +409,6 @@ export class MemoryStore {
     // reinforce itself run after run. The facts of the run (goal, outcome, tools, files) stay.
     const body = (item: MemoryItem) =>
       (item.layer === 'task' ? item.content.split(/\n(?:Answer given \(unverified\)|Result):/)[0] : item.content).replace(/\s+/g, ' ').slice(0, 500);
-    return hits.map(({ item }) => `- [${label[item.layer]}] ${item.title} (${item.id}, updated ${freshnessLabel(item.updated, `${item.title} ${item.content}`, now)})\n  ${body(item)}`).join('\n');
+    return hits.map(({ item }) => `- [${label[item.layer]}] ${item.title} (${item.id}, updated ${freshnessLabel(item.updated, `${item.title} ${item.content}`, now, liveFlags?.get(item.id))})\n  ${body(item)}`).join('\n');
   }
 }

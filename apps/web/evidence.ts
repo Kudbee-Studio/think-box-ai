@@ -12,11 +12,11 @@ export function isLiveStateText(text: string): boolean {
 }
 
 /** "2026-09-30" and, for live-state text older than 24 h, ", STALE, verify with a tool". `when` is an ISO string or epoch ms. */
-export function freshnessLabel(when: string | number | undefined | null, text: string, now: number = Date.now()): string {
+export function freshnessLabel(when: string | number | undefined | null, text: string, now: number = Date.now(), live: boolean = isLiveStateText(text)): string {
   const t = typeof when === 'number' ? when : when ? Date.parse(when) : Number.NaN;
-  if (!Number.isFinite(t)) return isLiveStateText(text) ? 'undated, STALE, verify with a tool' : 'undated';
+  if (!Number.isFinite(t)) return live ? 'undated, STALE, verify with a tool' : 'undated';
   const date = new Date(t).toISOString().slice(0, 10);
-  return isLiveStateText(text) && now - t > LIVE_STATE_MAX_AGE_MS ? `${date}, STALE, verify with a tool` : date;
+  return live && now - t > LIVE_STATE_MAX_AGE_MS ? `${date}, STALE, verify with a tool` : date;
 }
 
 export const EVIDENCE_RULE =

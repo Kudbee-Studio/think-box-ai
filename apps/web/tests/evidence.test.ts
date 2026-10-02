@@ -175,3 +175,29 @@ test('an unusable judge reply leaves the answer alone (no silent rewrite)', asyn
   assert.equal(result.result, 'We are working on PR #304 (draft).');
   assert.equal(result.evidence_conflicts, undefined);
 });
+
+// ─── live-state classifier, superseded and duplicate memories (P3.10) ───
+
+import { createLiveStateClassifier } from '../evidence.ts';
+import { dedupeHits, isSuperseded, type MemoryHit } from '../memory.ts';
+
+test('freshnessLabel honors an explicit live flag over the keyword list', () => {
+  assert.equal(freshnessLabel('2026-09-30T10:00:00Z', 'Prod database failover is in progress', NOW, true), '2026-09-30, STALE, verify with a tool');
+  assert.equal(freshnessLabel('2026-09-30T10:00:00Z', 'The project has a pull request template', NOW, false), '2026-09-30');
+});
+
+test('the live-state classifier says "live" when a text is closer to a live example than to any static one', async () => {
+  // fake embedder: axis 0 = live-ish words, axis 1 = static-ish words
+  const embed = async (texts: string[]) => texts.map((t) => { const v = new Float32Array(2); v[0] = (t.match(/currently|right now|today|down|running|failover/gi) ?? []).length; v[1] = (t.match(/stores|must|uses|decisions|lessons|supports|have/gi) ?? []).length; const n = Math.hypot(...v) || 1; return v.map((x) => x / n); });
+  const classify = await createLiveStateClassifier({ embed });
+  assert.deepEqual(await classify(['The service is down right now.', 'The tool must validate input.']), [true, false]);
+});
+
+test('superseded memories are never recalled and identical recalls collapse to the newest', () => {
+  const item = (id: string, title: string, updated: string, tags: string[] = []): MemoryHit => ({ item: { id, layer: 'task', title, tags, source: 'run', created: updated, updated, content: 'Goal: WHAT PR ARE WE WORKING ON? Outcome: done', path: `${id}.md` }, score: 1 });
+  assert.equal(isSuperseded({ title: '[SUPERSEDED 2026-10-02] Open PR state', tags: [] }), true);
+  assert.equal(isSuperseded({ title: 'Open PR state', tags: ['status', 'Superseded'] }), true);
+  assert.equal(isSuperseded({ title: 'Open PR state', tags: ['status'] }), false);
+  const deduped = dedupeHits([item('task/a', 'WHAT PR ARE WE WORKING ON?', '2026-10-01T10:00:00Z'), item('task/b', 'what pr are we working on?', '2026-10-02T10:00:00Z'), item('task/c', 'Something else', '2026-10-02T11:00:00Z')]);
+  assert.deepEqual(deduped.map((h) => h.item.id), ['task/b', 'task/c'], 'the two identical goals collapse; the newest is kept, order preserved');
+});
