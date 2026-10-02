@@ -1,0 +1,215 @@
+{
+  "corpus_size": 20,
+  "queries": 10,
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "results": {
+    "local-bm25": {
+      "hit_at_1": 2,
+      "hit_at_3": 2
+    },
+    "local-vector": {
+      "hit_at_1": 8,
+      "hit_at_3": 10
+    }
+  },
+  "per_query": [
+    {
+      "id": "q1",
+      "expected": "org/sqlite-only",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "task/ep-backup-db",
+          "org/embedding-model"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/sqlite-only",
+          "task/ep-backup-db",
+          "task/ep-rss-top5"
+        ]
+      }
+    },
+    {
+      "id": "q2",
+      "expected": "org/dashboard-loopback",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": []
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/dashboard-loopback",
+          "org/algorand-read-only",
+          "org/hnrss-reliable"
+        ]
+      }
+    },
+    {
+      "id": "q3",
+      "expected": "org/founder-merges",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": []
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/founder-merges"
+        ]
+      }
+    },
+    {
+      "id": "q4",
+      "expected": "org/hnrss-reliable",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "org/markdown-reports"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/hnrss-reliable",
+          "task/ep-open-prs",
+          "org/stale-state"
+        ]
+      }
+    },
+    {
+      "id": "q5",
+      "expected": "org/markdown-reports",
+      "local-bm25": {
+        "rank": 1,
+        "backend": "local-bm25",
+        "top3": [
+          "org/markdown-reports"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/markdown-reports",
+          "task/ep-markdown-notes",
+          "task/ep-zero-byte"
+        ]
+      }
+    },
+    {
+      "id": "q6",
+      "expected": "org/mercury-pricing",
+      "local-bm25": {
+        "rank": 1,
+        "backend": "local-bm25",
+        "top3": [
+          "org/mercury-pricing",
+          "org/ollama-optional",
+          "verified/think-token-ids"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/mercury-pricing",
+          "task/ep-backup-db",
+          "org/token-lifecycle"
+        ]
+      }
+    },
+    {
+      "id": "q7",
+      "expected": "verified/think-token-ids",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "org/token-lifecycle"
+        ]
+      },
+      "local-vector": {
+        "rank": 2,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/token-lifecycle",
+          "verified/think-token-ids",
+          "org/sqlite-only"
+        ]
+      }
+    },
+    {
+      "id": "q8",
+      "expected": "org/embedding-model",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "org/ollama-optional",
+          "org/stale-state"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/embedding-model",
+          "task/ep-backup-db",
+          "org/hnrss-reliable"
+        ]
+      }
+    },
+    {
+      "id": "q9",
+      "expected": "org/codeql-route-lines",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "org/hnrss-reliable"
+        ]
+      },
+      "local-vector": {
+        "rank": 1,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/codeql-route-lines",
+          "task/ep-open-prs",
+          "org/dashboard-loopback"
+        ]
+      }
+    },
+    {
+      "id": "q10",
+      "expected": "task/ep-open-prs",
+      "local-bm25": {
+        "rank": null,
+        "backend": "local-bm25",
+        "top3": [
+          "task/ep-backup-db"
+        ]
+      },
+      "local-vector": {
+        "rank": 3,
+        "backend": "local-vector (MiniLM)",
+        "top3": [
+          "org/founder-merges",
+          "org/sqlite-only",
+          "task/ep-open-prs"
+        ]
+      }
+    }
+  ]
+}

@@ -73,6 +73,7 @@ test('Upstash is opt-in: with its URL and token set but no KUDBEE_MEMORY_BACKEND
   try {
     const env = { UPSTASH_VECTOR_REST_URL: `http://127.0.0.1:${(srv.address() as AddressInfo).port}`, UPSTASH_VECTOR_REST_TOKEN: 'x' } as NodeJS.ProcessEnv;
     const s = new MemoryStore(tmp(), env);
+    await s.syncVectors();
     await s.write('org', { title: 'Feed digests', content: 'Summaries of feeds.' });
     const r = await s.search('feeds', { topK: 2 });
     assert.equal(r.backend, 'local-bm25');

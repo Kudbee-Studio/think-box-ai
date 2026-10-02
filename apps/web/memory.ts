@@ -159,6 +159,8 @@ export class MemoryStore {
   private docFreq = new Map<string, number>();
   private tokenCache = new Map<string, string[]>();
   private readonly vectorUrl?: string;
+  /** True only with KUDBEE_MEMORY_BACKEND=upstash plus its URL and token. Nothing contacts Upstash otherwise (not even the startup sync). */
+  private readonly upstashOptIn: boolean;
   private readonly vectorToken?: string;
   readonly namespace: string;
   vectorStatus: { backend: 'upstash-sparse' | 'local-bm25'; ok: boolean; synced: number; error?: string } = {
@@ -173,7 +175,8 @@ export class MemoryStore {
     this.vectorToken = env.UPSTASH_VECTOR_REST_TOKEN;
     this.namespace = env.KUDBEE_VECTOR_NAMESPACE || 'kudbee-memory';
     // Local is the default. The Upstash adapter stays in the code but is used only when asked for explicitly: KUDBEE_MEMORY_BACKEND=upstash (and its URL and token).
-    if (env.KUDBEE_MEMORY_BACKEND === 'upstash' && this.vectorUrl && this.vectorToken) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
+    this.upstashOptIn = env.KUDBEE_MEMORY_BACKEND === 'upstash' && Boolean(this.vectorUrl && this.vectorToken);
+    if (this.upstashOptIn) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
     for (const layer of MEMORY_LAYERS) fs.mkdirSync(path.join(root, layer), { recursive: true });
     const readme = path.join(root, 'README.md');
     if (!fs.existsSync(readme)) fs.writeFileSync(readme, README);
@@ -252,7 +255,7 @@ export class MemoryStore {
 
   /** Upserts every file into the vector index; called at boot so the index always matches the folder. */
   async syncVectors(): Promise<void> {
-    if (!this.vectorUrl || !this.vectorToken) return;
+    if (!this.upstashOptIn || !this.vectorUrl || !this.vectorToken) return;
     try {
       const all = [...this.items.values()];
       const batches = [];
