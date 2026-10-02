@@ -26,6 +26,11 @@ credential or token-scope changes, or contact with live infrastructure.
 **Exception:** changes to `.github/workflows/` need a token with the `workflow` scope; only the founder can grant it
 (`gh auth refresh -s workflow`). Do not push workflow changes without it.
 
+**Bypassing a gate is forbidden for agents.** `gh pr merge --admin`, any other override of branch protection or required checks, force-merging
+while CI is red, cancelled, queued or has never run, and merging a PR you did not write under this authority are all FORBIDDEN. If CI cannot run
+(for example the Actions billing lock), the PR waits as a draft until the founder clears it; "the checks are blocked" is a reason to wait, never to
+override. Only the founder can authorize a bypass, in a message about that specific PR. (Breach of 2026-10-02: `docs/evidence/adr-029-p3/merge-breach.md`.)
+
 ### 0.2 CI cost rules (CI costs real money)
 
 - Run all tests, lint, typecheck and CodeQL locally first. CodeQL CLI: download `codeql-linux64.zip` from
