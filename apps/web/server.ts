@@ -119,6 +119,12 @@ const wss = new WebSocketServer({
   },
 });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+// A local Ollama model is a plain chat here: no tools are attached. Telling a small model to "use the available plugins" made it invent a
+// tool plan (fake http requests and plugin names) for goals like "what is 2 plus 2".
+// A local Ollama model is a plain chat, exactly like `ollama run <model> "..."` in a terminal, where small models answer well: no system prompt, no
+// tool list, default sampling. Telling a 360M model to "use the available plugins", or adding long instructions or a repeat penalty, made it invent a
+// fake tool plan or answer with nothing. Only a reply cap (stops a runaway "0000000000") and a 2048 context (more of the model fits a 2 GiB GPU).
+export const LOCAL_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 };
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
 
 /** Janus is opt-in (default off). CVE-2026-69112 in pinned `accelerate`; see docs/SECURITY.md. */
@@ -320,7 +326,7 @@ async function streamOllama(
     const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify({ model, messages, stream: true, options: LOCAL_CHAT_OPTIONS }),
     });
 
     if (!res.body) {
@@ -977,20 +983,14 @@ export class AgentSession {
 
     try {
       const messages: ChatMessage[] = [
-        {
-          role: 'system',
-          content:
-            'You are THINK BOX AI, an intelligent agent. Use the available plugins to accomplish tasks. Think step by step. Be concise and actionable.',
-        },
-        ...this.memory.slice(-10).map(
-          (m): ChatMessage => ({ role: 'user', content: JSON.stringify(m) }),
-        ),
+        // Only earlier plain-chat answers, as the assistant's own turns. Replaying raw tool/run records as JSON "user" messages confused small models.
+        ...this.memory
+          .filter((m) => m.type === 'response' && typeof (m as { content?: unknown }).content === 'string')
+          .slice(-6)
+          .map((m): ChatMessage => ({ role: 'assistant', content: String((m as { content?: unknown }).content).slice(0, 1500) })),
         {
           role: 'user',
-          content: `Goal: ${goal}\n\nAvailable plugins: ${Array.from(plugins.values())
-            .filter((p) => p.enabled)
-            .map((p) => p.name)
-            .join(', ')}\n\nExecute this goal step by step.`,
+          content: goal,
         },
       ];
 
@@ -1005,7 +1005,8 @@ export class AgentSession {
           this.broadcast({ type: 'stream', data: token });
         },
         () => {
-          this.addThought({ type: 'reasoning', content: fullResponse, status: 'complete' });
+          // The text was already streamed token by token and comes back in the result: do not print it a third time as a thought.
+          this.addThought({ type: 'reasoning', content: `Answered by ${this.config.model} (local chat, no tools).`, status: 'complete' });
           this.memory.push({ timestamp: Date.now(), type: 'response', content: fullResponse });
         },
       );
@@ -1017,7 +1018,7 @@ export class AgentSession {
       runStore.finish(record, { status: 'completed', result: fullResponse });
       this.updateTask(task.id, { status: 'completed', result: fullResponse });
       this.status = 'idle';
-      return { success: true, result: fullResponse, run_id: record.id, duration_ms: record.duration_ms, steps: 1, tool_calls: 0, tokens: 0, cost_usd: 0 };
+      return { success: true, result: fullResponse, streamed: true, run_id: record.id, duration_ms: record.duration_ms, steps: 1, tool_calls: 0, tokens: 0, cost_usd: 0 };
     } catch (err) {
       const message = errorMessage(err);
       runStore.finish(record, { status: 'failed', error: message, failure_kind: classifyFailure(message, false) });

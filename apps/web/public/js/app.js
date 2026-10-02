@@ -201,7 +201,8 @@ function handleMessage(msg) {
         appendTerminalMessage('system', `⊘ ${r.error}`);
       } else if (r.success) {
         setStatus('idle', 'Completed');
-        appendTerminalMessage('assistant', `✓ ${r.result || 'Done'}${stats}`);
+        // A streamed (local chat) answer is already in the terminal token by token; show only the completion line.
+        appendTerminalMessage('assistant', `✓ ${r.streamed ? 'Done' : r.result || 'Done'}${stats}`);
       } else {
         setStatus('error', 'Failed');
         appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}`);
