@@ -2872,3 +2872,11 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   `e33f1fe7` but unused by the dashboard; keep or delete is a founder call.
 - Hardware seen from WSL: Quadro M1000M (2 GB VRAM), 8 cores, 7.7 GB RAM —
   enough only for tiny local models; Mercury-2 runs remotely at Inception.
+
+## /session Command (P3.11)
+
+- Display current session info: ID, model, agent, plugins, WebSocket
+- Color-coded output for readability
+- Parity gap closure: /session on both CLI and dashboard
+- Mirror dashboard functionality exactly
+
