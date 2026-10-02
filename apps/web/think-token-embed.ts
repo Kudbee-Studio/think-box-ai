@@ -81,20 +81,34 @@ export function resetEmbedder(): void {
 }
 
 async function load(env: Env): Promise<Embedder | null> {
-  const lib = await import('@huggingface/transformers');
-  const model = env.THINKBOX_EMBED_MODEL || DEFAULT_EMBED_MODEL;
-  lib.env.cacheDir = env.THINKBOX_EMBED_CACHE || path.join(env.KUDBEE_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'), 'models');
-  const extractor = await lib.pipeline('feature-extraction', model, { dtype: 'q8' });
-  return {
-    model,
-    async embed(texts) {
-      if (!texts.length) return [];
-      const out = await extractor(texts, { pooling: 'mean', normalize: true });
-      const dim = out.dims[out.dims.length - 1] as number;
-      const data = out.data as Float32Array;
-      return texts.map((_, i) => Float32Array.from(data.subarray(i * dim, (i + 1) * dim)));
-    },
-  };
+  try {
+    // Defensive: Handle missing optional dependency gracefully
+    let lib: any;
+    try {
+      // @ts-expect-error @huggingface/transformers is optional and may not be installed in CI
+      lib = await import('@huggingface/transformers');
+    } catch (importErr) {
+      loadError = `Embedding module unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}. Semantic search disabled.`;
+      return null;
+    }
+
+    const model = env.THINKBOX_EMBED_MODEL || DEFAULT_EMBED_MODEL;
+    lib.env.cacheDir = env.THINKBOX_EMBED_CACHE || path.join(env.KUDBEE_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'), 'models');
+    const extractor = await lib.pipeline('feature-extraction', model, { dtype: 'q8' });
+    return {
+      model,
+      async embed(texts) {
+        if (!texts.length) return [];
+        const out = await extractor(texts, { pooling: 'mean', normalize: true });
+        const dim = out.dims[out.dims.length - 1] as number;
+        const data = out.data as Float32Array;
+        return texts.map((_, i) => Float32Array.from(data.subarray(i * dim, (i + 1) * dim)));
+      },
+    };
+  } catch (err) {
+    loadError = `Failed to load embedding model: ${err instanceof Error ? err.message : String(err)}`;
+    return null;
+  }
 }
 
 /** Structural view of the store used here, so this module does not import it. */
