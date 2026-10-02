@@ -1,0 +1,211 @@
+{
+  "seed": "p33-seed.db",
+  "goals_module": "think-token-ab-goals-p35-heldout.mjs",
+  "frozen_now": "2026-10-02T12:00:00.000Z",
+  "embed_model": "Xenova/all-MiniLM-L6-v2",
+  "tokens_embedded": 21,
+  "goals": 10,
+  "lexical": {
+    "hit_at_1": 2,
+    "hit_at_3": 3
+  },
+  "hybrid": {
+    "hit_at_1": 2,
+    "hit_at_3": 5
+  },
+  "per_goal": [
+    {
+      "id": "three-levels-down",
+      "expectedLesson": "deep-mkdir",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "counter",
+          "missing-then-create"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "missing-then-create",
+          "counter"
+        ]
+      }
+    },
+    {
+      "id": "blank-document",
+      "expectedLesson": "zero-byte",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "deep-mkdir"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "deep-mkdir",
+          "missing-no-invent"
+        ]
+      }
+    },
+    {
+      "id": "redundant-dots",
+      "expectedLesson": "path-normalize",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "json-line"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "json-line",
+          "path-normalize",
+          "dotdot-path"
+        ]
+      }
+    },
+    {
+      "id": "buried-file-inventory",
+      "expectedLesson": "recursive-list",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "recursive-list",
+          "dotdot-path",
+          "missing-then-create"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "dotdot-path",
+          "recursive-list",
+          "three-files"
+        ]
+      }
+    },
+    {
+      "id": "five-letter-length",
+      "expectedLesson": "size-match",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "missing-then-create",
+          "missing-no-invent"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "size-match",
+          "noise-approval",
+          "emoji-utf8"
+        ]
+      }
+    },
+    {
+      "id": "swap-the-letter",
+      "expectedLesson": "replace-not-append",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "missing-then-create",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "missing-then-create",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "dartboard-size",
+      "expectedLesson": "emoji-utf8",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "three-files",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "bytes-not-chars",
+          "three-files"
+        ]
+      }
+    },
+    {
+      "id": "minified-flag",
+      "expectedLesson": "json-line",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "counter",
+          "emoji-utf8"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "counter",
+          "emoji-utf8"
+        ]
+      }
+    },
+    {
+      "id": "second-journal-entry",
+      "expectedLesson": "append",
+      "lexical": {
+        "rank": 3,
+        "top3": [
+          "counter",
+          "replace-not-append",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": 3,
+        "top3": [
+          "counter",
+          "replace-not-append",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "digest-of-unknown-report",
+      "expectedLesson": "missing-no-invent",
+      "lexical": {
+        "rank": null,
+        "top3": []
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "noise-algo",
+          "size-match",
+          "noise-rss"
+        ]
+      }
+    }
+  ]
+}

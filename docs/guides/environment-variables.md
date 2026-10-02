@@ -163,6 +163,10 @@ Read only from the environment (the server also loads the repo-root `.env`). Nev
 | `KUDBEE_JANUS_ENABLED` | `1` or `true` turns on the optional Janus image service in the dashboard (`image_analyze`, `image_generate`, monitor check); `JANUS_BASE_URL` (default `http://127.0.0.1:8001`) says where it listens. Off by default because of CVE-2026-69112, see `docs/SECURITY.md` | off |
 | `THINKBOX_TOKEN_RETRIEVAL` | `0` or `off` stops injecting accepted Think Tokens into the planner context (for A/B proof runs: `scripts/think-token-ab-live.mjs`); any other value leaves retrieval on | on |
 | `THINKBOX_TOKEN_CLOCK` | Epoch milliseconds to use as "now" in Think Token retrieval scoring (the recency term); set it for evals and A/B runs so rankings do not drift with the date | real clock |
+| `THINKBOX_EMBEDDINGS` | `off` (or `0`) disables local semantic retrieval; goals are then ranked lexically. Needs the optional `@huggingface/transformers` package | on |
+| `THINKBOX_EMBED_MODEL` | Sentence-embedding model (Hugging Face id) used for lesson/goal vectors; vectors are stored per model | `Xenova/all-MiniLM-L6-v2` (about 23 MB, CPU, downloaded once, then offline) |
+| `THINKBOX_EMBED_CACHE` | Directory for the downloaded model | `<KUDBEE_DATA_DIR or apps/web/data>/models` |
+| `THINKBOX_RETRIEVER` | `lexical` forces the P3.2 lexical ranker even when vectors exist (for comparison) | hybrid when vectors exist |
 | `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
 
 Prompts for Mercury leave the machine: secrets and absolute paths are removed and inputs are size-capped first.
