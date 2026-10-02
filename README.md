@@ -1,101 +1,57 @@
-# Think Box AI
+# THINK BOX AI
 
-**Governed agent execution for the enterprise** — goals decompose into tasks, tools run behind permission checks, outcomes land in layered memory and tamper-evident ledgers, and every claim carries an evidence label. The [KUDBEE control fabric](docs/kudbee-control-fabric.md) (admission gates, Think Boxes, ActionLedger) keeps **draft/simulate** the default until a valid governance token is present.
+**Governed agent execution** for the [KUDBEE](https://www.kudbee.xyz) product line (this repository was formerly discussed as *thinkTokens*). Goals decompose into tasks, tools run behind permission checks, outcomes land in layered memory and tamper-evident ledgers, and capability claims carry explicit evidence labels.
 
 | | |
 |---|---|
-| **Repository** | [Kudbee-Studio/think-box-ai](https://github.com/Kudbee-Studio/think-box-ai) |
-| **Agent rules** | [AGENTS.md](AGENTS.md) |
-| **Live chronicle** | [docs/CONTINUITY.md](docs/CONTINUITY.md) |
+| **GitHub** | [Kudbee-Studio/think-box-ai](https://github.com/Kudbee-Studio/think-box-ai) |
+| **Agent & contributor rules** | [AGENTS.md](AGENTS.md) |
 | **Architecture** | [docs/architecture-v1.md](docs/architecture-v1.md) |
-| **Enterprise editing** | [docs/guides/kilo_enterprise_editing.md](docs/guides/kilo_enterprise_editing.md) |
-| **Env matrix (PR #200)** | [docs/guides/environmental_variables_matrix.md](docs/guides/environmental_variables_matrix.md) |
+| **Documentation index** | [docs/INDEX.md](docs/INDEX.md) (generated; run `python3 scripts/generate_docs_index.py` after moving `.md` files) |
+| **Current status** | [STATUS.md](STATUS.md) · [docs/CONTINUITY.md](docs/CONTINUITY.md) |
 
 ---
 
-## Documentation hub
+## What this repository is
 
-### Platform & governance
+THINK BOX AI is an **agent OS**: a Python runtime (`thinkbox/`, `core/`) with governance (admission gates, append-only ledgers, tool permissions), a **FastAPI control plane** (`backend/`), and a **local-first operator dashboard** plus `kudbee` CLI (`apps/web/`). Models are **provider-swappable** (Ollama, OpenAI-compatible APIs, Inception Mercury-2 via env config)—no provider SDKs in the runtime layer.
 
-| Resource | Description |
-|----------|-------------|
-| [Architecture v1](docs/architecture-v1.md) | Layered runtime, provider independence, memory model |
-| [Project foundation](docs/project-foundation.md) | Phase boundaries, dependency policy |
-| [KUDBEE control fabric](docs/kudbee-control-fabric.md) | Admission, workspaces, occupancy mesh, ledger |
-| [KILO Live-proof readiness](docs/runbooks/kilo-live-proof-readiness.md) | Hermetic spine, operator runbooks, honesty gates |
-| [Enterprise editing guide](docs/guides/kilo_enterprise_editing.md) | Chronicle, audit passes, single-theme PR discipline |
-| [Post-#170 PR roadmap](docs/roadmaps/kilo-post-170-pr-roadmap.md) | Sequenced implementation slots |
-| [Audit index](docs/audit/README.md) | Checklists and pass JSON under `docs/audit/passes/` |
-| [Known defects](docs/known-defects.md) | Tracked gaps with evidence |
-| [Docker enterprise](docs/guides/docker_enterprise.md) | API image, compose profiles, hermetic spine container |
-| [Deployment](docs/guides/deployment.md) | Production TLS, reverse proxy, compose quick start |
+**Think Tokens** (durable, reviewable lessons from finished runs) live in SQLite at `apps/web/data/think-tokens.db` by default; the dashboard **Think Tokens** view and `kudbee tokens list|show` read the same store ([AGENTS.md §0.6](AGENTS.md)).
 
-### Operator surfaces
-
-| Surface | Quickstart |
-|---------|------------|
-| **KUDBEECLI** (inspect, persist, REPL) | Phase 1 on `main`; Phase 2 [#178](https://github.com/Kudbee-Studio/think-box-ai/pull/178) · Phase 3 [#180](https://github.com/Kudbee-Studio/think-box-ai/pull/180) — [CLI Phase 2 guide](docs/guides/kudbee_cli_phase2_quickstart.md) · [Phase 3 guide](docs/guides/kudbee_cli_phase3_quickstart.md) |
-| **Kudbee SDK** (Python + web) | App [#177](https://github.com/Kudbee-Studio/think-box-ai/pull/177) · Follow-up [#179](https://github.com/Kudbee-Studio/think-box-ai/pull/179) · Wave 2 [#181](https://github.com/Kudbee-Studio/think-box-ai/pull/181) (draft) — [SDK guide](docs/guides/kudbee_sdk_quickstart.md) · [Follow-up W2 guide](docs/guides/kudbee_sdk_followup_w2_quickstart.md) |
-| **Control plane UI** | [Think Job status](docs/guides/think_job_status_stream.md) · [Control plane API](docs/guides/kilo_control_plane_api.md) · static assets in `public/control-plane/` |
-| **Swarm & experiments** | [Swarm scale guide](docs/guides/kilo_swarm_scale.md) · `experiments/` proofs · [THINK burst protocol](docs/think-burst-protocol.md) · status: a distributed swarm is **UNPROVEN** (specialists run in one process; see [ADR 029 findings](docs/research/2026-10-01-think-box-findings.md)) |
-
-### Agents & manufacturing
-
-| Resource | Description |
-|----------|-------------|
-| [agents/README.md](agents/README.md) | KILO cloud agent framework (protocol-first) |
-| [CNC ROI report](docs/cnc-roi-report.md) | Manufacturing intelligence platform evidence |
-| [ADR 001 — CNC](docs/decisions/001-cnc-manufacturing.md) | Human-in-the-loop execution policy |
+Hermetic development and CI cap most repo work at **CODE COMPLETE / TEST VERIFIED** unless founder-run live proof artifacts exist; see [STATUS.md](STATUS.md) for the four-state ladder.
 
 ---
 
-## Enterprise pillars
+## Repository layout
 
 ```text
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│   GOVERNANCE    │   │    EVIDENCE     │   │   OPERATIONS    │
-│ AdmissionGate   │   │ Four-state caps │   │ Spine + gates   │
-│ ActionLedger    │   │ Audit JSON      │   │ Hermetic CI     │
-│ Permissions     │   │ Proof artifacts │   │ Secret scan     │
-└────────┬────────┘   └────────┬────────┘   └────────┬────────┘
-         │                     │                     │
-         └─────────────────────┴─────────────────────┘
-                    Think Box + Memory layers
+think-box-ai/
+├── thinkbox/              # Engine, scheduler, KILO gates, CLI modules, CNC, cloud execution
+├── core/                  # Foundation, providers, memory, governance primitives
+├── think_box_ai/          # Packaged CLI entry (`thinkbox`, `think-box-ai`)
+├── backend/               # FastAPI app (control plane, governed `/api/v1/*`)
+├── apps/web/              # Agent OS: Express 5 + WebSocket dashboard, worker agent, Think Tokens
+├── public/control-plane/  # Static operator HTML/JS (Think Job status, receipts, etc.)
+├── scripts/               # `verify_kilo_*` spine gates, doc secret scan, demos
+├── tests/                 # unit · integration · e2e (Python)
+├── docs/                  # Architecture, ADRs, guides, runbooks, audit passes
+├── experiments/           # Swarm and research harnesses (not required for a minimal local run)
+└── data/                  # Fixtures, manifests, proof artifacts (git-tracked samples)
 ```
 
-1. **Governance by default** — Side effects pass admission; audit logs are append-only. Tools without an explicit permission level are `RESTRICTED`. See [AGENTS.md §1.4](AGENTS.md).
-2. **Evidence over assumptions** — Capability claims use labels: *simulated*, *inferred*, *verified*, *physically_measured*. Hermetic repo work caps at **CODE COMPLETE / TEST VERIFIED** unless founder-run Live proof artifacts exist (`live_verified: false` on spine audits until then).
-3. **Operational repeatability** — Fast spine verify, scoped lint execute, unittest discovery, and doc secret scan run on every meaningful change. Nested control-plane e2e is **opt-in** (`verify_kilo_spine.py --e2e`), not default PR CI.
+---
+
+## Prerequisites
+
+| Component | Requirement |
+|-----------|-------------|
+| **Python** | ≥ 3.10 |
+| **Node.js** (dashboard / web tests only) | ≥ 22.6 ([`apps/web/package.json`](apps/web/package.json)) |
+| **Optional** | [Ollama](https://ollama.com) for local models; Docker for [containerized API](docs/guides/docker_enterprise.md) |
 
 ---
 
-## Release train (KILO post-#170)
-
-| Milestone | PR | State | Entry point |
-|-----------|-----|--------|-------------|
-| Beyond-KILO lint readiness | [#170](https://github.com/Kudbee-Studio/think-box-ai/pull/170) | Merged | `scripts/verify_kilo_beyond_kilo_lint.py` |
-| Implementation roadmap | [#171](https://github.com/Kudbee-Studio/think-box-ai/pull/171) | Merged | [roadmap](docs/roadmaps/kilo-post-170-pr-roadmap.md) |
-| CI spine-trust | [#172](https://github.com/Kudbee-Studio/think-box-ai/pull/172) | Merged | [runbook H31](docs/runbooks/kilo-live-proof-readiness.md) |
-| Chronicle honesty | [#173](https://github.com/Kudbee-Studio/think-box-ai/pull/173)–[#176](https://github.com/Kudbee-Studio/think-box-ai/pull/176) | Merged | README + spine Markdown |
-| Lint scope waves 1–2 | [#174](https://github.com/Kudbee-Studio/think-box-ai/pull/174)–[#175](https://github.com/Kudbee-Studio/think-box-ai/pull/175) | Merged | [enterprise editing](docs/guides/kilo_enterprise_editing.md) |
-| Kudbee SDK app | [#177](https://github.com/Kudbee-Studio/think-box-ai/pull/177) | Merged | `thinkbox/kudbee_sdk/` · [guide](docs/guides/kudbee_sdk_quickstart.md) |
-| KUDBEECLI Phase 2 | [#178](https://github.com/Kudbee-Studio/think-box-ai/pull/178) | Merged | `thinkbox/cli_phase2/` · [guide](docs/guides/kudbee_cli_phase2_quickstart.md) |
-| Kudbee SDK follow-up | [#179](https://github.com/Kudbee-Studio/think-box-ai/pull/179) | Merged | `thinkbox/kudbee_sdk_followup/` · `apps/web/sdk/followup.ts` |
-| KUDBEECLI Phase 3 | [#180](https://github.com/Kudbee-Studio/think-box-ai/pull/180) | Merged | `thinkbox/cli_phase3/` · [guide](docs/guides/kudbee_cli_phase3_quickstart.md) |
-| Kudbee SDK follow-up wave 2 | [#181](https://github.com/Kudbee-Studio/think-box-ai/pull/181) | **Draft** | `thinkbox/kudbee_sdk_followup_w2/` · [W2 guide](docs/guides/kudbee_sdk_followup_w2_quickstart.md) |
-
-**How we ship:** One **single-theme** implementation PR at a time. No combined post-#N umbrella lanes by default. Authoritative counts and blockers: [docs/CONTINUITY.md](docs/CONTINUITY.md) · [docs/STATUS.md](docs/STATUS.md).
-
----
-
-## Quick start
-
-### Prerequisites
-
-- Python ≥ 3.10
-- [pip](https://pip.pypa.io/)
-
-### Clone & install
+## Install
 
 ```bash
 git clone https://github.com/Kudbee-Studio/think-box-ai.git
@@ -105,163 +61,144 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-> Tests that use Starlette's `TestClient` need the `httpx2` package, which is not declared in
-> `pyproject.toml` yet (see `docs/dependencies/UPGRADE-2026-10-01.md`). Until it is, install it
-> yourself for those tests: `pip install httpx2`.
-
-### Operator verification (hermetic)
+Copy environment template (names only—never commit real secrets):
 
 ```bash
-python3 -m unittest discover -s tests -t .
-PYTHONUNBUFFERED=1 python3 -u scripts/verify_kilo_spine.py
-pip install -e ".[lint]"
-KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py
-python3 scripts/verify_kilo_pr177_kudbee_sdk_app.py
-python3 scripts/verify_kilo_pr178_kudbee_cli_phase2.py
-python3 scripts/verify_kilo_pr179_kudbee_sdk_followup.py
-python3 scripts/verify_kilo_pr180_kudbee_cli_phase3.py
-python3 scripts/verify_kilo_pr181_kudbee_sdk_followup_w2.py
-python3 scripts/verify_kilo_pr191_kudbee_sdk_followup_w3.py
-python3 scripts/verify_kilo_pr192_kudbee_sdk_followup_w3_major_fixes.py
-python3 scripts/verify_kilo_pr182_receipt_chain_deepen.py
-python3 scripts/verify_kilo_pr183_think_job_hermetic_e2e.py
-python3 scripts/verify_kilo_pr184_think_job_post_run_deepen.py
-python3 scripts/verify_kilo_pr185_think_job_lifecycle_fixes.py
-./scripts/run_pr185_local.sh
-python3 scripts/verify_pr185_local_environment.py
-python3 scripts/verify_kilo_pr186_think_job_run_receipt_deepen.py
-python3 scripts/verify_kilo_pr187_think_job_receipt_major_fixes.py
-python3 scripts/scan_doc_secrets.py
+cp .env.example .env
+# Edit .env with your keys; see "Configuration" below and docs/guides/environmental_variables_matrix.md
 ```
 
-### KUDBEECLI (inspection)
-
-```bash
-python3 -m thinkbox swarm status
-python3 -m thinkbox ledger verify
-python3 -m thinkbox env status
-python3 -m thinkbox cli health    # Phase 2+ deepen
-```
-
-### Kudbee SDK (hermetic demo)
-
-```bash
-python3 examples/kudbee_sdk_followup_quickstart.py
-python3 examples/kudbee_sdk_followup_w2_quickstart.py
-python3 examples/receipt_chain_deepen_quickstart.py
-python3 examples/think_job_hermetic_e2e_quickstart.py
-python3 examples/think_job_post_run_deepen_quickstart.py
-```
-
-### Control fabric demo
-
-```bash
-python3 examples/control_fabric_demo.py
-```
-
-### Docker (API + optional UI)
-
-Full guide: [docs/guides/docker_enterprise.md](docs/guides/docker_enterprise.md).
-
-```bash
-export THINKBOX_API_KEY="$(python3 -c "import secrets; print('tb_' + secrets.token_urlsafe(24))")"
-make docker-contract    # hermetic file contract (no daemon)
-make docker-build       # requires Docker engine
-make docker-up          # API on http://127.0.0.1:8000/health
-make docker-hermetic      # spine verify inside container
-```
-
----
-
-## Architecture (summary)
-
-Layered stack — details in [architecture v1](docs/architecture-v1.md):
-
-```text
-Layer 5: Agent implementations (KILO agent era, CNC, marketplace)
-Layer 4: Runtime (engine, decomposer, swarm, scheduler)
-Layer 3: Governance & tools (permissions, audit, admission)
-Layer 2: Memory (session, task, organizational, verified knowledge)
-Layer 1: Providers (OpenAI-compatible, Anthropic protocol, local — config swap)
-Layer 0: Foundation (config, schemas, logging, structured errors)
-```
-
-**Execution substrate (2026-09-17):** [Upstash Box](docs/CONTINUITY.md) as the intended primary execution path from env (`UPSTASH_PUBLIC_BOX_URL`; status 2026-10-01: **UNPROVEN** here, the Box probe returned `ENV_NOT_CONFIGURED`, see [ADR 024](docs/decisions/024-upstash-box-access-verification.md)); UpCloud remains **control-plane read-only** (no SSH execution path). Deep execution milestones, swarm proofs, and DAG verified runs are recorded in [CONTINUITY](docs/CONTINUITY.md) with artifact hashes — not repeated here.
-
-**Phase 9 modules** (`coalition`, `consensus`, `economy`, `intelligence`, `benchmark`, `session`) — index: [PHASE9_INDEX.md](docs/archive/PHASE9_INDEX.md). Status 2026-10-01: each is **UNPROVEN** until it has its own evidence.
-
----
-
-## Repository layout
-
-```text
-think-box-ai/
-├── thinkbox/           # Engine, KILO gates, SDK, CLI phases, scheduler, CNC
-├── core/               # Foundation, providers, memory, runtime, governance
-├── backend/            # FastAPI control plane + API v1 routes
-├── apps/web/           # TypeScript 7 web shell + Kudbee SDK TS packages
-├── public/control-plane/   # Hermetic operator HTML/JS
-├── scripts/            # verify_kilo_* spine and PR gates
-├── tests/              # unit · integration · e2e (e2e opt-in on spine)
-├── docs/               # Architecture, runbooks, guides, audit passes
-├── experiments/        # Swarm, research, and live proof harnesses
-└── data/               # Manifests, fixtures, thinkboxmd artifacts
-```
-
----
-
-## Testing & quality
-
-| Check | Command |
-|-------|---------|
-| Full suite | `python3 -m unittest discover -s tests -t .` |
-| KILO spine (fast) | `python3 -u scripts/verify_kilo_spine.py` |
-| Spine + nested e2e | `python3 -u scripts/verify_kilo_spine.py --e2e` |
-| Scoped lint execute | `KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py` |
-| Doc secrets | `python3 scripts/scan_doc_secrets.py` |
-
-Do not treat README test counts as authoritative if they drift from [CONTINUITY](docs/CONTINUITY.md).
-
----
-
-## Web runtime (TypeScript 7)
+**Web shell** (separate from Python venv):
 
 ```bash
 cd apps/web
 npm install
-npm run typecheck      # tsgo --noEmit
-npm test               # hermetic, mocked model
-npm audit              # expected: 0 vulnerabilities
-kudbee tokens list     # Think Tokens from apps/web/data/think-tokens.db (same data as the dashboard, no server needed)
-npm start              # Node 22.6+ with type stripping (Express 5)
 ```
 
-SDK exports: [`apps/web/sdk/index.ts`](apps/web/sdk/index.ts) (base client, follow-up, follow-up W2).
+> Some FastAPI tests use Starlette’s `TestClient` and need **`httpx`** installed in the Python environment if you run the full Python suite (see [docs/dependencies/UPGRADE-2026-10-01.md](docs/dependencies/UPGRADE-2026-10-01.md)).
 
 ---
 
-## Demos
+## Run locally
 
-| Demo | Script / doc |
-|------|----------------|
-| Control plane dry-run (hermetic) | [PR111 doc](docs/PR111_CONTROL_PLANE_DRY_RUN.md) · `scripts/demo_in_10_control_plane_dry_run.sh` |
-| Burst / mock vLLM smoke | `scripts/demo_in_10_control_plane.sh` |
-| THINKBOXMD research workflow | `experiments/thinkboxmd_research.py` · [report](docs/THINKBOXMD_REPORT.md) |
+### 1. Governed CLI (Python, real or mock provider)
+
+See [docs/guides/local_think_box.md](docs/guides/local_think_box.md).
+
+```bash
+# After setting provider env vars (e.g. THINKBOX_DEFAULT_PROVIDER, INCEPTION_API_KEY, or Ollama)
+python3 -m thinkbox.cli model check
+python3 -m thinkbox.cli run --goal "What is 17 * 23? Reply with only the number."
+python3 scripts/prove_think_box_local.py   # six governed-path checks; exit 0 = pass
+```
+
+Inspection commands (hermetic / read-only): `python3 -m thinkbox swarm status`, `ledger verify`, `env status` — see [AGENTS.md — KUDBEECLI](AGENTS.md).
+
+### 2. FastAPI backend (control plane)
+
+```bash
+make serve
+# or: python3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Health: `GET http://127.0.0.1:8000/health` (exact routes depend on auth configuration; see backend docs).
+
+### 3. Agent OS dashboard + worker (`kudbee`)
+
+Binds to **loopback by default** (`LISTEN_ADDR` / `127.0.0.1`; see [AGENTS.md](AGENTS.md) guardrails).
+
+```bash
+cd apps/web
+npm start          # same as npm run dev — port 3000 unless PORT is set
+```
+
+Optional launcher from repo root: `apps/web/bin/kudbee` (symlink into `PATH` as documented in [AGENTS.md — kudbEE Agent OS](AGENTS.md)).
+
+List Think Tokens without starting the server (reads SQLite):
+
+```bash
+cd apps/web && node --experimental-strip-types bin/kudbee tokens list
+```
 
 ---
 
-## Honest capability notes
+## Test
 
-- **Live model provider:** Inception **Mercury 2** (`api.inceptionlabs.ai/v1`) is used in bounded experiments; providers are swappable via config. See [CONTINUITY](docs/CONTINUITY.md) for current blockers (Box token, concurrency characterization).
-- **Simulated economics:** `thinkbox/economy.py` is in-process accounting — not on-chain settlement.
-- **Upstash Vector:** historical dense-index defect documented in `data/findings/thinkboxmd_upstash_vector_defect.md` (fix tracked in chronicle).
-- **Four-state ladder:** CODE_COMPLETE → TEST_VERIFIED → LIVE_VERIFIED → PRODUCTION_READY — hermetic CI never advances the last two without founder artifacts.
+Commands below match scripts in the repo; run from the repository root unless noted.
+
+| What | Command |
+|------|---------|
+| **Python unit** (subset) | `make test` |
+| **Python full suite** | `python3 -m unittest discover -s tests -t .` |
+| **KILO spine (fast)** | `python3 -u scripts/verify_kilo_spine.py` |
+| **Doc secret scan** | `python3 scripts/scan_doc_secrets.py` |
+| **Web typecheck** | `cd apps/web && npm run typecheck` |
+| **Web tests** (mocked model, hermetic) | `cd apps/web && npm test` |
+| **Lint (optional)** | `make lint` · scoped KILO lint: `pip install -e ".[lint]"` then `KILO_BEYOND_KILO_LINT_EXECUTE=1 python3 scripts/verify_kilo_beyond_kilo_lint.py` |
+
+Authoritative test counts and blockers: [STATUS.md](STATUS.md) and [docs/CONTINUITY.md](docs/CONTINUITY.md)—do not treat static numbers in this README as canonical if they drift.
+
+### Continuous integration
+
+GitHub Actions workflow [`.github/workflows/test.yml`](.github/workflows/test.yml) on `push` / `pull_request` to `main`, `feat/**`, `session/**`, and `cursor/**`:
+
+1. `npm install` in `apps/web`
+2. `npm run typecheck` (TypeScript 7 / `tsgo`)
+3. `npm test` (hermetic Agent OS tests)
+
+---
+
+## Configuration
+
+**Source of truth for names:** [`.env.example`](.env.example) (copy to `.env` at repo root; `apps/web/server.ts` loads repo-root `.env` server-side).
+
+**Grouped reference (no secret values):** [docs/guides/environmental_variables_matrix.md](docs/guides/environmental_variables_matrix.md).
+
+| Area | Variables (set only in environment or `.env`) |
+|------|-----------------------------------------------|
+| **Python providers** | `THINKBOX_DEFAULT_PROVIDER`, `THINKBOX_DEFAULT_MODEL`, `THINKBOX_OPENAI_COMPAT_API_KEY`, `THINKBOX_OPENAI_COMPAT_BASE_URL`, `THINKBOX_OLLAMA_BASE_URL`, `INCEPTION_API_KEY`, `THINKBOX_EMBED_MODEL` |
+| **API / security** | `THINKBOX_API_KEY`, `THINKBOX_API_KEYS`, `THINKBOX_ALLOWED_ORIGINS`, `THINKBOX_RATE_LIMIT`, `THINKBOX_PROJECT_ROOT`, `THINKBOX_LOG_LEVEL` |
+| **Upstash Box / vector** | `UPSTASH_PUBLIC_BOX_URL`, `UPSTASH_PUBLIC_BOX_TOKEN`, `UPSTASH_VECTOR_REST_URL`, `UPSTASH_VECTOR_REST_TOKEN`, `KUDBEE_VECTOR_NAMESPACE` |
+| **Agent OS web** | `PORT`, `LISTEN_ADDR`, `INCEPTION_API_KEY`, `INCEPTION_BASE_URL`, `OLLAMA_BASE_URL`, `KUDBEE_DATA_DIR`, `KUDBEE_MEMORY_DIR`, `KUDBEE_WORKSPACE_DIR`, `KUDBEE_DAILY_BUDGET_USD`, `KUDBEE_THINK_TOKEN_DB`, `THINKBOX_BACKEND_URL`, `THINKBOX_API_KEY`, `THINKBOX_LOCAL_MODEL` (alias: `KUDBEE_LOCAL_MODEL`) |
+| **UpCloud (governed SSH substrate)** | `UPCLOUD_SERVER_IP`, `UPCLOUD_SSH_USER`, `UPCLOUD_SSH_KEY_PATH`, `THINKBOX_UPCLOUD_API_TOKEN` — see [AGENTS.md §13.5](AGENTS.md) |
+| **Algorand (read-only / optional testnet signing)** | `ALGORAND_ALGOD_URL_*`, `ALGORAND_INDEXER_URL_*`, `KUDBEE_ENABLE_ALGORAND_TESTNET_SIGNING`, `KUDBEE_ALGORAND_TESTNET_MNEMONIC` |
+
+Never commit `.env`, `.db`, API keys, or mnemonics. Dashboard defaults to **localhost-only** binding and Host/Origin gates; do not expose the operator UI without authentication ([AGENTS.md](AGENTS.md)).
+
+---
+
+## Documentation map
+
+| Topic | Location |
+|-------|----------|
+| **All Markdown files** | [docs/INDEX.md](docs/INDEX.md) |
+| **Architecture & layers** | [docs/architecture-v1.md](docs/architecture-v1.md) · [docs/project-foundation.md](docs/project-foundation.md) |
+| **Decision records (ADRs)** | [docs/decisions/](docs/decisions/) (35+ records; e.g. CNC, cloud execution, Think Token lifecycle) |
+| **KUDBEE control fabric** | [docs/kudbee-control-fabric.md](docs/kudbee-control-fabric.md) |
+| **Local Think Box / CLI** | [docs/guides/local_think_box.md](docs/guides/local_think_box.md) |
+| **Docker / deployment** | [docs/guides/docker_enterprise.md](docs/guides/docker_enterprise.md) · [docs/guides/deployment.md](docs/guides/deployment.md) |
+| **KILO live-proof spine** | [docs/runbooks/kilo-live-proof-readiness.md](docs/runbooks/kilo-live-proof-readiness.md) |
+| **Contributing** | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
+| **KILO post-#170 PR roadmap** | [docs/roadmaps/kilo-post-170-pr-roadmap.md](docs/roadmaps/kilo-post-170-pr-roadmap.md) |
+
+---
+
+## Docker (optional)
+
+```bash
+export THINKBOX_API_KEY="$(python3 -c "import secrets; print('tb_' + secrets.token_urlsafe(24))")"
+make docker-contract    # hermetic file contract (no daemon)
+make docker-build       # requires Docker
+make docker-up          # API on http://127.0.0.1:8000/health
+```
+
+Details: [docs/guides/docker_enterprise.md](docs/guides/docker_enterprise.md).
 
 ---
 
 ## Contributing
 
-Read [CONTRIBUTING.md](docs/CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Use conventional commits (`type(scope): description`), one logical PR per theme, target `main`, and paste the PR URL in your handoff.
+Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Use conventional commits (`type(scope): description`), one focused PR per theme, target `main`. AI agents must follow the evidence and CI-cost rules in AGENTS.md §0.
 
 ---
 
