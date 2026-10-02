@@ -1,0 +1,55 @@
+{
+  "note": "10 paraphrased recall queries; expected memory ids fixed and committed BEFORE any run (P3.12).",
+  "queries": [
+    {
+      "id": "q1",
+      "query": "Which database engine holds our data, and what did we decide about the hosted alternative?",
+      "expected": "org/sqlite-only"
+    },
+    {
+      "id": "q2",
+      "query": "Can someone on the internet reach the web console?",
+      "expected": "org/dashboard-loopback"
+    },
+    {
+      "id": "q3",
+      "query": "Who is allowed to approve and land changes into the main branch?",
+      "expected": "org/founder-merges"
+    },
+    {
+      "id": "q4",
+      "query": "Where can I find the freshest posts from the tech-community link aggregator?",
+      "expected": "org/hnrss-reliable"
+    },
+    {
+      "id": "q5",
+      "query": "How should findings be formatted for this user?",
+      "expected": "org/markdown-reports"
+    },
+    {
+      "id": "q6",
+      "query": "What does it cost to use the fast diffusion language model per token?",
+      "expected": "org/mercury-pricing"
+    },
+    {
+      "id": "q7",
+      "query": "Do the lesson identifiers ever get recycled?",
+      "expected": "verified/think-token-ids"
+    },
+    {
+      "id": "q8",
+      "query": "Where does the sentence-vector model live on disk once downloaded?",
+      "expected": "org/embedding-model"
+    },
+    {
+      "id": "q9",
+      "query": "Why did a scanner start complaining after I touched an HTTP endpoint definition?",
+      "expected": "org/codeql-route-lines"
+    },
+    {
+      "id": "q10",
+      "query": "A moment ago we asked for the list of proposals under review; what came back?",
+      "expected": "task/ep-open-prs"
+    }
+  ]
+}

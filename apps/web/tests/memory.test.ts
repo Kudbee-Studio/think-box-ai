@@ -122,7 +122,7 @@ async function mockVector(opts: { failQueries?: boolean } = {}) {
 test('upstash: sparse vectors are upserted and queries use IDF weighting and layer filters', async () => {
   const vector = await mockVector();
   try {
-    const env = { UPSTASH_VECTOR_REST_URL: vector.url, UPSTASH_VECTOR_REST_TOKEN: 't', KUDBEE_VECTOR_NAMESPACE: 'ns' } as NodeJS.ProcessEnv;
+    const env = { KUDBEE_MEMORY_BACKEND: 'upstash', UPSTASH_VECTOR_REST_URL: vector.url, UPSTASH_VECTOR_REST_TOKEN: 't', KUDBEE_VECTOR_NAMESPACE: 'ns' } as NodeJS.ProcessEnv;
     const { store } = await seeded(tmp(), env);
     assert.equal(vector.upserts.length, 3);
     const sv = vector.upserts[0].sparseVector;
@@ -145,7 +145,7 @@ test('upstash: sparse vectors are upserted and queries use IDF weighting and lay
 test('upstash outage falls back to the local index and reports the vector as offline', async () => {
   const vector = await mockVector({ failQueries: true });
   try {
-    const env = { UPSTASH_VECTOR_REST_URL: vector.url, UPSTASH_VECTOR_REST_TOKEN: 't' } as NodeJS.ProcessEnv;
+    const env = { KUDBEE_MEMORY_BACKEND: 'upstash', UPSTASH_VECTOR_REST_URL: vector.url, UPSTASH_VECTOR_REST_TOKEN: 't' } as NodeJS.ProcessEnv;
     const { store } = await seeded(tmp(), env);
     const result = await store.search('hacker news');
     assert.equal(result.backend, 'local-bm25 (vector offline)');

@@ -42,7 +42,7 @@ const SCORE_WEIGHTS = { usefulness: 0.45, recency: 0.2, reuse: 0.15, feedback: 0
 const HALF_LIFE_DAYS = 30;
 const DAY_MS = 86_400_000;
 const DEFAULT_TENANT = 'local';
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export function formatTokenId(seq: number): string {
   return `TT-${String(seq).padStart(6, '0')}`;
@@ -446,6 +446,15 @@ const SUPPORT_TABLES = `
     source TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS memory_embeddings (
+    memory_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    dim INTEGER NOT NULL,
+    vector BLOB NOT NULL,
+    text_sha256 TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (memory_id, model)
+  );
   CREATE TABLE IF NOT EXISTS think_token_embeddings (
     token_id TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -549,6 +558,7 @@ export function migrateUp(db: Database.Database): void {
 export function migrateDown(db: Database.Database): void {
   db.exec(
     [
+      'DROP TABLE IF EXISTS memory_embeddings;',
       'DROP TABLE IF EXISTS think_token_retrieval_text;',
       'DROP TABLE IF EXISTS think_token_embeddings;',
       'DROP TABLE IF EXISTS think_token_links;',
@@ -1050,6 +1060,33 @@ export class SqliteTokenStore implements TokenStore {
       chosen.push(cand);
     }
     return chosen.map((e) => ({ ...e.row, score: e.quality }));
+  }
+
+  // ─── Memory embeddings (P3.12): vectors for the Markdown memories (apps/web/memory.ts), kept in the same SQLite file ──
+
+  /** memory id -> sha256 of the text that was embedded, for one model: a memory whose text changed is re-embedded, nothing else is. */
+  memoryEmbeddingHashes(model: string): Map<string, string> {
+    return new Map((this.db.prepare('SELECT memory_id, text_sha256 FROM memory_embeddings WHERE model = ?').all(model) as Array<{ memory_id: string; text_sha256: string }>).map((r) => [r.memory_id, r.text_sha256]));
+  }
+
+  setMemoryEmbedding(memoryId: string, model: string, vector: Float32Array, text: string): void {
+    this.db
+      .prepare('INSERT INTO memory_embeddings (memory_id, model, dim, vector, text_sha256, created_at) VALUES (?,?,?,?,?,?) ON CONFLICT(memory_id, model) DO UPDATE SET dim = excluded.dim, vector = excluded.vector, text_sha256 = excluded.text_sha256, created_at = excluded.created_at')
+      .run(memoryId.slice(0, 300), model, vector.length, vectorToBlob(vector), sha256(text), Date.now());
+  }
+
+  memoryEmbeddingsFor(model: string): Map<string, Float32Array> {
+    const rows = this.db.prepare('SELECT memory_id, vector FROM memory_embeddings WHERE model = ?').all(model) as Array<{ memory_id: string; vector: Buffer }>;
+    return new Map(rows.map((r) => [r.memory_id, blobToVector(r.vector)]));
+  }
+
+  /** Drop vectors of memories that no longer exist. */
+  pruneMemoryEmbeddings(model: string, keepIds: Iterable<string>): number {
+    const keep = new Set(keepIds);
+    const stale = [...this.memoryEmbeddingHashes(model).keys()].filter((id) => !keep.has(id));
+    const del = this.db.prepare('DELETE FROM memory_embeddings WHERE memory_id = ? AND model = ?');
+    for (const id of stale) del.run(id, model);
+    return stale.length;
   }
 
   /** Retrieval text (`when_to_use`) for a token; written at extraction, or backfilled for older tokens. Not the lesson, not shown to the planner. */

@@ -35,6 +35,7 @@ import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
+import { createMemorySemantic } from './memory-semantic.ts';
 import { algorandQuery } from './algorand.ts';
 import PersistenceLayer from './persistence.ts';
 import { LearningStore } from './learning-store.ts';
@@ -645,6 +646,8 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
     return { why: 'embedding error' };
   }
 }
+
+memoryStore.semantic = createMemorySemantic({ memory: memoryStore, tokens: tokenStore, peek: () => peekEmbedder(), state: () => embedderState() });
 
 let liveClassifier: Promise<((texts: string[]) => Promise<boolean[]>) | null> | null = null;
 /**
@@ -1877,7 +1880,7 @@ app.get('/api/monitor', async (_req: Request, res: Response) => {
     monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
     monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
     ...(janusEnabled() ? [monitorEndpoint('Janus image service', `${janusBaseUrl}/health`)] : []),
-    ...(process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
+    ...(process.env.KUDBEE_MEMORY_BACKEND === 'upstash' && process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
       ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
       : []),
     ...(inceptionConfigured()

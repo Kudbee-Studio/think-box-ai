@@ -1,0 +1,125 @@
+{
+  "note": "Hermetic memory corpus for the P3.12 recall eval (written for the eval; not the founder's real memories).",
+  "memories": [
+    {
+      "layer": "org",
+      "slug": "sqlite-only",
+      "title": "Persistence decision",
+      "content": "Decision: all persistence stays in SQLite; Neon and Postgres were reverted (ADR 026)."
+    },
+    {
+      "layer": "org",
+      "slug": "dashboard-loopback",
+      "title": "Dashboard exposure",
+      "content": "The dashboard binds to 127.0.0.1 and checks Host and Origin; it is never exposed to the network."
+    },
+    {
+      "layer": "org",
+      "slug": "founder-merges",
+      "title": "Who merges",
+      "content": "The founder merges pull requests; agents open drafts and report; CI is billing-locked so local gates stand in."
+    },
+    {
+      "layer": "org",
+      "slug": "hnrss-reliable",
+      "title": "Hacker News source",
+      "content": "https://hnrss.org/frontpage is a reliable source for Hacker News front page items."
+    },
+    {
+      "layer": "org",
+      "slug": "markdown-reports",
+      "title": "Report format preference",
+      "content": "The user prefers reports delivered as markdown files with links to sources."
+    },
+    {
+      "layer": "org",
+      "slug": "mercury-pricing",
+      "title": "Mercury 2 pricing",
+      "content": "Mercury 2 costs 0.25 dollars per million input tokens and 0.75 per million output tokens."
+    },
+    {
+      "layer": "verified",
+      "slug": "think-token-ids",
+      "title": "Think Token ids",
+      "content": "Think Tokens have permanent ids like TT-000001 that are never reused after a delete."
+    },
+    {
+      "layer": "org",
+      "slug": "embedding-model",
+      "title": "Local embeddings",
+      "content": "Local embeddings use MiniLM L6 and are cached in the data directory after the first download."
+    },
+    {
+      "layer": "org",
+      "slug": "codeql-route-lines",
+      "title": "CodeQL and route lines",
+      "content": "Keep Express route handler lines unchanged because editing them makes CodeQL re-flag rate limiting alerts."
+    },
+    {
+      "layer": "org",
+      "slug": "algorand-read-only",
+      "title": "Algorand access",
+      "content": "Algorand access is read-only; the agent never signs or sends transactions."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-rss-top5",
+      "title": "read hnrss front page and write top5.md",
+      "content": "Goal: read the hnrss front page and write top5.md. Outcome: completed. Tools: fetch_url, write_file."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-open-prs",
+      "title": "what pull requests are open",
+      "content": "Goal: what pull requests are open. Outcome: no open pull requests. Tools: fetch_url."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-zero-byte",
+      "title": "create an empty file and report its size",
+      "content": "Goal: create an empty file and report its size. Outcome: zero bytes. Tools: write_file."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-wallet",
+      "title": "show wallet balance",
+      "content": "Goal: show the wallet balance. Outcome: balance fetched from the Algorand testnet read-only. Tools: algorand."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-backup-db",
+      "title": "back up the token database",
+      "content": "Goal: back up the token database. Outcome: a VACUUM INTO copy was created next to the database."
+    },
+    {
+      "layer": "org",
+      "slug": "ollama-optional",
+      "title": "Ollama is optional",
+      "content": "Ollama is optional; no models are pulled automatically; the local model is named by THINKBOX_LOCAL_MODEL."
+    },
+    {
+      "layer": "org",
+      "slug": "ci-billing-lock",
+      "title": "CI billing lock",
+      "content": "GitHub Actions jobs fail within seconds when the account billing is locked; nothing is tested by CI then."
+    },
+    {
+      "layer": "org",
+      "slug": "stale-state",
+      "title": "Live state goes stale",
+      "content": "Notes about live state such as open pull requests or server status go stale within a day and must be re-checked with a tool."
+    },
+    {
+      "layer": "task",
+      "slug": "ep-markdown-notes",
+      "title": "save meeting notes as a markdown file",
+      "content": "Goal: save meeting notes as a markdown file. Outcome: notes.md written. Tools: write_file."
+    },
+    {
+      "layer": "org",
+      "slug": "token-lifecycle",
+      "title": "Token lifecycle",
+      "content": "A lesson moves from candidate to extracted, scored, challenged and then accepted or rejected."
+    }
+  ]
+}
