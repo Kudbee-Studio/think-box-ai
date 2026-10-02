@@ -661,6 +661,14 @@ function storedPropagation(raw: unknown): PropagationCredit[] {
 }
 
 function rowFrom(raw: any): ThinkTokenRow {
+  // Defensive: Validate required fields exist and are of expected type
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid row: not an object');
+  }
+  if (typeof raw.id !== 'string' || typeof raw.kind !== 'string') {
+    throw new Error('Invalid row: missing required fields');
+  }
+
   return {
     id: raw.id,
     seq: raw.seq,
@@ -670,18 +678,19 @@ function rowFrom(raw: any): ThinkTokenRow {
     kind: raw.kind,
     title: raw.title,
     content: raw.content,
-    tags: JSON.parse(raw.tags),
-    score: raw.score,
+    // Defensive: Handle malformed tags JSON gracefully
+    tags: parseJson<string[]>(raw.tags, []),
+    score: Number.isFinite(Number(raw.score)) ? raw.score : 0.5,
     score_breakdown: parseJson<ScoreBreakdown>(raw.score_breakdown, scoreBreakdown(raw)),
-    uses: raw.uses,
+    uses: Math.max(0, Number(raw.uses) || 0),
     last_used_at: raw.last_used_at,
     status: raw.status,
     evidence_ref: raw.evidence_ref,
-    success_runs: raw.success_runs,
-    failed_runs: raw.failed_runs,
-    thumbs_up: raw.thumbs_up,
-    thumbs_down: raw.thumbs_down,
-    seen_count: raw.seen_count ?? 1,
+    success_runs: Math.max(0, Number(raw.success_runs) || 0),
+    failed_runs: Math.max(0, Number(raw.failed_runs) || 0),
+    thumbs_up: Math.max(0, Number(raw.thumbs_up) || 0),
+    thumbs_down: Math.max(0, Number(raw.thumbs_down) || 0),
+    seen_count: Math.max(1, Number(raw.seen_count) || 1),
     extractor: raw.extractor ?? 'template',
     extract_model: raw.extract_model ?? null,
     extract_meta: parseJson<ExtractMeta>(raw.extract_meta, {}),

@@ -1729,7 +1729,24 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
   ws.on('message', async (raw: RawData) => {
     try {
-      const msg = JSON.parse(raw.toString()) as WsMessage;
+      // Defensive: Limit message size to prevent DoS; 1MB should be plenty for any legitimate message
+      const rawStr = raw.toString();
+      if (rawStr.length > 1_000_000) {
+        ws.send(JSON.stringify({ type: 'error', data: 'Message too large (max 1MB)' }));
+        return;
+      }
+
+      const msg = JSON.parse(rawStr) as WsMessage;
+      if (!msg || typeof msg !== 'object' || !msg.type) {
+        ws.send(JSON.stringify({ type: 'error', data: 'Invalid message format' }));
+        return;
+      }
+
+      // Helper to safely truncate strings
+      const safeString = (v: any, maxLen: number = 50000): string => {
+        if (typeof v !== 'string') return '';
+        return v.slice(0, maxLen);
+      };
 
       switch (msg.type) {
         case 'subscribe_runs': {
@@ -1744,16 +1761,20 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             // Respond via the same 'result' contract client.run() already awaits —
             // a bare top-level 'error' message has no handler on the CLI side and
             // would leave `kudbee --agent <typo> "goal"` hanging forever.
-            ws.send(JSON.stringify({ type: 'result', data: { success: false, error: `Unknown agent '${msg.agent}'. Available: ${Object.keys(AGENT_PROFILES).join(', ')}` } }));
+            // Defensive: Escape agent name to prevent injection in error message
+            const safeAgent = String(msg.agent).replace(/[<>"&]/g, '?');
+            ws.send(JSON.stringify({ type: 'result', data: { success: false, error: `Unknown agent '${safeAgent}'. Available: ${Object.keys(AGENT_PROFILES).join(', ')}` } }));
             break;
           }
-          session.submitGoal(String(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any, agentProfile);
+          // Defensive: Truncate goal to prevent memory issues
+          session.submitGoal(safeString(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any, agentProfile);
           break;
         }
 
         case 'run_specialists': {
-          const intent = String(msg.intent ?? msg.goal ?? '').trim();
-          const opportunity = typeof msg.opportunity === 'string' ? msg.opportunity : undefined;
+          const intentRaw = msg.intent ?? msg.goal ?? '';
+          const intent = safeString(intentRaw).trim();
+          const opportunity = safeString(msg.opportunity);
           const jobContext = msg.jobContext && typeof msg.jobContext === 'object' && !Array.isArray(msg.jobContext)
             ? msg.jobContext as Record<string, unknown>
             : {};
@@ -1778,18 +1799,34 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         case 'plugin_execute': {
-          const input = (msg.input && typeof msg.input === 'object' ? msg.input : {}) as PluginInput;
-          const result = await session.executeOperatorPlugin(String(msg.plugin), input);
-          ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, result } }));
+          try {
+            const input = (msg.input && typeof msg.input === 'object' ? msg.input : {}) as PluginInput;
+            const pluginName = safeString(msg.plugin, 200);
+            if (!pluginName) {
+              ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, error: 'Plugin name required' } }));
+              break;
+            }
+            const result = await session.executeOperatorPlugin(pluginName, input);
+            ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, result } }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'plugin_result', data: { plugin: msg.plugin, error: errorMessage(err) } }));
+          }
           break;
         }
 
         case 'task_action': {
-          const result = session.executeTaskAction(
-            String(msg.action ?? ''),
-            msg.payload && typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {},
-          );
-          ws.send(JSON.stringify({ type: 'task_action_result', data: result }));
+          try {
+            const action = safeString(msg.action ?? '', 200);
+            const payload = msg.payload && typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {};
+            if (!action) {
+              ws.send(JSON.stringify({ type: 'task_action_result', data: { error: 'Action required' } }));
+              break;
+            }
+            const result = session.executeTaskAction(action, payload);
+            ws.send(JSON.stringify({ type: 'task_action_result', data: result }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'task_action_result', data: { error: errorMessage(err) } }));
+          }
           break;
         }
 
@@ -1929,10 +1966,26 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   });
 
   ws.on('close', () => {
-    mirrors.delete(ws);
-    // Nobody is watching or able to approve any more, so stop spending tokens.
-    session.stop();
-    sessions.delete(sessionId);
+    try {
+      mirrors.delete(ws);
+      // Nobody is watching or able to approve any more, so stop spending tokens.
+      try {
+        session.stop();
+      } catch (err) {
+        console.error(`Error stopping session ${sessionId}:`, errorMessage(err));
+      }
+      if (sessions.has(sessionId)) {
+        sessions.delete(sessionId);
+      }
+    } catch (err) {
+      // Ensure close handler never crashes
+      console.error('Error in WebSocket close handler:', errorMessage(err));
+    }
+  });
+
+  // Defensive: Handle unexpected errors and socket errors
+  ws.on('error', (err) => {
+    console.error(`WebSocket error for session ${sessionId}:`, errorMessage(err));
   });
 });
 
