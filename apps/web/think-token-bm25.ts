@@ -12,7 +12,7 @@ const STOP = new Set([
 
 /**
  * Minimum similarity for a `similar` link. Calibrated on 78 pairs of real Mercury lessons (13 tokens, 2026-10-02):
- * see docs/evidence/adr-029-p3.md. 5 of the 78 pairs clear it (max 0.32, median 0.08); all 5 sit in one create-then-verify cluster of near-duplicate lessons, so links stay sparse. It is a
+ * see docs/evidence/adr-029-p3.md. 6 of the 78 pairs clear it (max 0.35, median 0.085; re-measured after the tokenizer stopped keeping trailing punctuation); all 6 sit in one create-then-verify cluster of near-duplicate lessons, so links stay sparse. It is a
  * calibration against real data, not a validated cut-off for paraphrase detection.
  */
 export const SIMILAR_THRESHOLD = 0.25;
@@ -22,6 +22,7 @@ export function tokenize(text: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9_\-./]+/g, ' ')
     .split(/\s+/)
+    .map((t) => t.replace(/^[._\-./]+|[._\-./]+$/g, '')) // 'exist.' and 'exist' are one term
     .filter((t) => t.length >= 2 && !STOP.has(t));
 }
 
@@ -84,5 +85,16 @@ export function similarityToPool(target: { id: string; text: string }, pool: Arr
     const sim = (score(index, d.id, target.text) / selfT + score(index, target.id, d.text) / selfD) / 2;
     out.set(d.id, Math.max(0, Math.min(1, sim)));
   }
+  return out;
+}
+
+/** BM25 of a free-text query (a goal) against every pool entry, scaled so the best match is 1. IDF comes from the pool. */
+export function rankAgainstQuery(query: string, pool: Array<{ id: string; text: string }>): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!pool.length) return out;
+  const index = buildIndex(pool);
+  const raw = pool.map((d) => [d.id, score(index, d.id, query)] as const);
+  const max = Math.max(...raw.map(([, v]) => v));
+  for (const [id, v] of raw) out.set(id, max > 0 ? v / max : 0);
   return out;
 }

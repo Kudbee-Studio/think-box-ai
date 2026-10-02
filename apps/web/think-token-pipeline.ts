@@ -15,9 +15,9 @@
 //    sanitized (secrets and absolute paths removed) because they leave the machine for Mercury 2.
 import { extractDrafts, type FinishedRun } from './think-token-extract.ts';
 import { sanitizeForModel, scrubSecrets, type ModelMessage, type ModelResult, type TokenModels } from './think-token-model.ts';
-import { LIMITS, TOKEN_KINDS, keywords, redact, type SqliteTokenStore, type TokenDraft, type TokenKind, type ThinkTokenRow } from './think-token-store.ts';
+import { DEFAULT_KNOWN_TOOLS, LIMITS, TOKEN_KINDS, keywords, redact, type SqliteTokenStore, type TokenDraft, type TokenKind, type ThinkTokenRow } from './think-token-store.ts';
 
-export const DEFAULT_KNOWN_TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'read_rss', 'algorand', 'medication', 'recall', 'remember'];
+export { DEFAULT_KNOWN_TOOLS };
 export const MAX_LESSONS = 3;
 const DEFAULT_CALLS_PER_RUN = 10;
 const DEFAULT_CALLS_PER_DAY = 200;
@@ -243,7 +243,7 @@ export interface KnownLesson {
 /** Accepted lessons related to this run (same goal words or tool names), so the models can skip repeats and paraphrases. */
 export function knownLessonsFor(store: SqliteTokenStore, view: RunView): KnownLesson[] {
   return store
-    .retrieve(`${view.goal} ${view.tool_names.join(' ')}`, 6)
+    .retrieve(`${view.goal} ${view.tool_names.join(' ')}`, 6, { diverse: false })
     .map((t) => ({ id: t.id, title: clip(t.title, 80), lesson: clip(t.content, 160) }));
 }
 
@@ -302,21 +302,27 @@ export async function challengeLesson(deps: PipelineDeps, view: RunView, lesson:
   const reasons = [...grounded.reasons, ...specific.reasons];
 
   if (reasons.length) return { verdict: 'fail', reason: clip(reasons.join('; '), LIMITS.reason), model: 'deterministic-check', meta: {} };
-  const result = await callModel(deps, view.run_id, 'challenge', [
-    { role: 'system', content: CHALLENGE_SYSTEM },
-    { role: 'user', content: JSON.stringify({ run: view, lesson: { title: lesson.title, lesson: lesson.content }, known_lessons: known }) },
-  ], actor);
+  // A model call that errors, times out or returns nothing is already retried inside callModel. A reply that arrives but cannot be used
+  // (not the expected JSON, or no "novel" answer when it is required) gets one more try; after that the lesson is unjudged: it stays
+  // `scored` and is never accepted.
+  let result: ModelResult | null = null;
+  let parsed: any = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    result = await callModel(deps, view.run_id, 'challenge', [
+      { role: 'system', content: CHALLENGE_SYSTEM },
+      { role: 'user', content: JSON.stringify({ run: view, lesson: { title: lesson.title, lesson: lesson.content }, known_lessons: known }) },
+    ], actor);
+    if (!result) return null;
+    parsed = parseJsonObject(result.text);
+    const usable = parsed && typeof parsed.true === 'boolean' && typeof parsed.specific === 'boolean' && typeof parsed.supported === 'boolean' && (!known.length || typeof parsed.novel === 'boolean');
+    if (usable) break;
+    deps.store.recordRejection(actor, 'challenge_rejected', !parsed ? 'challenge reply was not the expected JSON' : known.length && typeof parsed.novel !== 'boolean' && typeof parsed.true === 'boolean' ? 'challenge reply did not say whether the lesson is new' : 'challenge reply was not the expected JSON', view.run_id, { model: result.model, attempt });
+    if (attempt === 2) {
+      deps.store.recordRejection(actor, 'challenge_unjudged', 'no usable challenge reply after one retry; the lesson stays scored', view.run_id, { model: result.model });
+      return null;
+    }
+  }
   if (!result) return null;
-  const parsed = parseJsonObject(result.text);
-  if (!parsed || typeof parsed.true !== 'boolean' || typeof parsed.specific !== 'boolean' || typeof parsed.supported !== 'boolean') {
-    deps.store.recordRejection(actor, 'challenge_rejected', 'challenge reply was not the expected JSON', view.run_id, { model: result.model });
-    return null;
-  }
-  // With known lessons in play the reviewer must also say whether this one is new; a missing answer means it was not verified.
-  if (known.length && typeof parsed.novel !== 'boolean') {
-    deps.store.recordRejection(actor, 'challenge_rejected', 'challenge reply did not say whether the lesson is new', view.run_id, { model: result.model });
-    return null;
-  }
   const novel = known.length ? parsed.novel === true : true;
   const pass = parsed.true && parsed.specific && parsed.supported && novel;
   const why = typeof parsed.reason === 'string' ? redact(parsed.reason).trim() : '';

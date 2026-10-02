@@ -12,6 +12,8 @@ import {
   MAX_PROPAGATION_CREDITS,
   SqliteTokenStore,
   scoreBreakdown,
+  toolIdf,
+  toolsOfTags,
   type PropagationCredit,
   type TokenDraft,
 } from '../think-token-store.ts';
@@ -99,6 +101,12 @@ test('score: the bonus is capped, only the last 12 credits count, and the score 
   assert.ok(Number.isFinite(garbage.score));
 });
 
+/** Unrelated accepted tokens on other tools, so a shared tool is rare enough in the corpus to link on (see toolIdf). */
+const bystanders = (store: SqliteTokenStore): void => {
+  accept(store, draft(91, { tags: ['tool:algorand'] }));
+  accept(store, draft(92, { tags: ['tool:medication'] }));
+};
+
 // ─── links ──────────────────────────────────────────────────────
 
 test('links: shared tool tags and similar lesson text link; an unrelated token does not; ids are stored in canonical order', () => {
@@ -123,6 +131,7 @@ test('links: shared tool tags and similar lesson text link; an unrelated token d
 
 test('links: linking twice changes nothing (no duplicate rows, no ledger spam)', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const a = accept(store, draft(1, { tags: ['tool:write_file'] }));
   const b = accept(store, draft(2, { tags: ['tool:write_file'] }));
   assert.equal(store.linkToken(b, 'p').created, 1);
@@ -171,6 +180,7 @@ test('links: tokens used by the same run become co_used, and the weight grows wi
 
 test('propagation: using a token credits its linked neighbors once per run; the stored breakdown reproduces the score', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const used = accept(store, draft(1, { tags: ['tool:write_file'] }));
   const neighbor = accept(store, draft(2, { tags: ['tool:write_file'] }));
   const stranger = accept(store, draft(3, { tags: ['tool:read_rss'] }));
@@ -181,7 +191,9 @@ test('propagation: using a token credits its linked neighbors once per run; the 
   const after = store.get(neighbor)!;
   assert.ok(after.score > before, `${after.score} > ${before}`);
   assert.equal(after.score_breakdown.propagation!.length, 1);
-  assert.deepEqual(after.score_breakdown.propagation![0], { from_id: used, kind: 'same_tool', weight: 0.5, credit: 0.5, run_id: 'run-1' });
+  const credit = after.score_breakdown.propagation![0]!;
+  assert.deepEqual([credit.from_id, credit.kind, credit.run_id], [used, 'same_tool', 'run-1']);
+  assert.ok(credit.weight > 0 && credit.credit === credit.weight, 'the credit is the link weight');
   const expected = scoreBreakdown(store.get(neighbor)!, Date.now(), after.score_breakdown.propagation);
   assert.ok(Math.abs(expected.score - after.score) < 0.001, 'stored credits reproduce the shown score');
   assert.equal(store.get(stranger)!.score, strangerBefore, 'an unlinked token is untouched');
@@ -194,6 +206,7 @@ test('propagation: using a token credits its linked neighbors once per run; the 
 
 test('propagation: credits survive a later rescore (feedback) and the list view, are skipped for tokens used in the same run, and skip retired tokens', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const a = accept(store, draft(1, { tags: ['tool:write_file'] }));
   const b = accept(store, draft(2, { tags: ['tool:write_file'] }));
   const gone = accept(store, draft(3, { tags: ['tool:write_file'] }));
@@ -214,6 +227,7 @@ test('propagation: credits survive a later rescore (feedback) and the list view,
 
 test('propagation: depth 1 only, so a link cycle cannot loop', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const [a, b, c] = [1, 2, 3].map((n) => accept(store, draft(n, { tags: ['tool:write_file'] })));
   for (const id of [a!, b!, c!]) store.linkToken(id, 'p');
   store.recordUse([a!], 'run-1', 'agent');
@@ -303,6 +317,7 @@ test('challenge can say no: a model verdict of not-specific / not-novel fails th
 
 test('pipeline: a modelled token is tagged tool:<name> and linked to an existing accepted token that shares a tool', async () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const first = accept(store, draft(1, { tags: ['tool:write_file'], title: 'Write then verify', content: 'After write_file, confirm the file landed.' }));
   const second = lessons({ ...GOOD });
   const d = deps({ mercury: fake('mercury-2', [second, PASS]) }, store);
@@ -406,6 +421,7 @@ test('local model: after an outage it is skipped for the backoff window, then pr
 
 test('reader: the API token carries its links, the detail text lists them, and readTokenLinks matches', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const a = accept(store, draft(1, { tags: ['tool:write_file'] }));
   const b = accept(store, draft(2, { tags: ['tool:write_file'] }));
   store.linkToken(b, 'p');
@@ -423,6 +439,7 @@ test('CLI: kudbee tokens links prints the same links as the reader, as JSON and 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-p3-'));
   const file = path.join(dir, 'think-tokens.db');
   const store = new SqliteTokenStore(file);
+  bystanders(store);
   const a = accept(store, draft(1, { tags: ['tool:write_file'] }));
   const b = accept(store, draft(2, { tags: ['tool:write_file'] }));
   store.linkToken(b, 'p');
@@ -485,6 +502,7 @@ test('dedupe: a token whose tags name no known tool is never merged', () => {
 
 test('links: with known tools given, bare tool-name tags (tokens saved before P3) also produce same_tool links', () => {
   const store = new SqliteTokenStore();
+  bystanders(store);
   const old = accept(store, draft(1, { tags: ['verification', 'write_file'] }));
   const fresh = accept(store, draft(2, { tags: ['tool:write_file'] }));
   assert.equal(store.linkToken(fresh, 'p').created, 0, 'without known tools a bare tag is just a word');
@@ -493,5 +511,92 @@ test('links: with known tools given, bare tool-name tags (tokens saved before P3
   assert.equal(link.kind, 'same_tool');
   assert.match(link.evidence, /write_file/);
   assert.equal(store.linkToken(old, 'p', ['write_file']).created, 0, 'idempotent from the other end');
+  store.close();
+});
+
+// ─── retrieval ranking ──────────────────────────────────────────
+
+const MISSING = { title: 'read_file on a missing file fails with ENOENT', content: 'read_file raises ENOENT when the file does not exist. Report that it is missing instead of inventing contents.', tags: ['tool:read_file'] };
+const GENERIC = { title: 'Create-and-verify pattern', content: 'After write_file, call list_files to confirm the file appears with a non-zero size.', tags: ['tool:write_file'] };
+const DOTS = { title: 'Paths must be workspace-relative', content: 'Paths containing .. are rejected as an invalid workspace path; use a plain relative path.', tags: ['tool:write_file', 'tool:read_file'] };
+
+test('retrieval: a goal that can hit a failure mode surfaces the lesson about it ahead of a generic write_file lesson', () => {
+  const store = new SqliteTokenStore();
+  accept(store, draft(1, GENERIC));
+  const missing = accept(store, draft(2, MISSING));
+  accept(store, draft(3, DOTS));
+  const top = store.retrieve('Read settings.json (it may not exist). If it does not exist, create it with write_file, then read it back.', 3);
+  assert.equal(top[0]!.id, missing);
+  store.close();
+});
+
+test('retrieval: a lesson with no failure-mode match that only names a very common tool ranks below a more specific one', () => {
+  const store = new SqliteTokenStore();
+  const generic = accept(store, draft(1, GENERIC));
+  const common = [2, 3, 4].map((n) => accept(store, draft(n, { title: `Other write note ${n}`, content: `Unrelated thing number ${n} about write_file notes.`, tags: ['tool:write_file'] })));
+  const specific = accept(store, draft(5, { title: 'RSS feeds list items', content: 'read_rss returns title, url and date per item; write the notes with write_file afterward.', tags: ['tool:read_rss', 'tool:write_file'] }));
+  const top = store.retrieve('write notes with write_file from an rss feed', 5, { diverse: false });
+  assert.ok(top.findIndex((t) => t.id === specific) < top.findIndex((t) => t.id === generic), `${top.map((t) => t.id)} vs generic ${generic} common ${common}`);
+  store.close();
+});
+
+test('retrieval: near-duplicates are not returned together (diverse), but are when diversity is off', () => {
+  const store = new SqliteTokenStore();
+  const a = accept(store, draft(1, { title: VERIFY_A.text.split('\n')[0]!, content: VERIFY_A.text.split('\n')[1]!, tags: ['tool:write_file', 'tool:list_files'] }));
+  const b = accept(store, draft(2, { title: VERIFY_B.text.split('\n')[0]!, content: VERIFY_B.text.split('\n')[1]!, tags: ['tool:write_file', 'tool:list_files'] }));
+  accept(store, draft(3, { title: OTHER.text.split('\n')[0]!, content: OTHER.text.split('\n')[1]!, tags: ['tool:read_rss'] }));
+  const goal = 'write a file then confirm with list_files that the file is present';
+  const ids = (xs: Array<{ id: string }>) => xs.map((x) => x.id);
+  const diverse = ids(store.retrieve(goal, 3));
+  assert.equal([a, b].filter((id) => diverse.includes(id)).length, 1, `only one of the pair: ${diverse}`);
+  assert.equal([a, b].filter((id) => ids(store.retrieve(goal, 3, { diverse: false })).includes(id)).length, 2);
+  store.close();
+});
+
+test('retrieval: only accepted tokens, none for an empty store or a goal with no overlap', () => {
+  const store = new SqliteTokenStore();
+  assert.deepEqual(store.retrieve('anything', 3), []);
+  okW(store.write(draft(1, MISSING), 't'));
+  accept(store, draft(2, { title: OTHER.text.split('\n')[0]!, content: OTHER.text.split('\n')[1]!, tags: ['tool:read_rss'] }));
+  assert.deepEqual(store.retrieve('zzzz qqqq', 3), []);
+  assert.equal(store.retrieve('read the missing file read_file', 3).some((t) => t.status !== 'accepted'), false);
+  store.close();
+});
+
+test('tool idf: a tool every token names scores 0, a rare one scores near 1; bare tags count only for known tools', () => {
+  const idf = toolIdf([['write_file'], ['write_file'], ['write_file', 'read_rss'], ['write_file']]);
+  assert.equal(idf('write_file'), 0);
+  assert.ok(idf('read_rss') > 0.7);
+  assert.deepEqual(toolsOfTags(['tool:read_file', 'write_file', 'verification'], new Set(['write_file'])), ['read_file', 'write_file']);
+});
+
+test('links: a tool nearly every token names (write_file) cannot make a same_tool link on its own, but a rare shared tool can', () => {
+  const store = new SqliteTokenStore();
+  const [a, b, c, d] = [1, 2, 3, 4].map((n) => accept(store, draft(n, { tags: n === 4 ? ['tool:write_file', 'tool:read_rss'] : n === 3 ? ['tool:write_file', 'tool:read_rss'] : ['tool:write_file'] })));
+  accept(store, draft(5, { tags: ['tool:write_file'] }));
+  store.linkToken(a!, 'p');
+  assert.deepEqual(store.listLinks(a!), [], 'write_file alone links nothing');
+  store.linkToken(d!, 'p');
+  const links = store.listLinks(d!);
+  assert.deepEqual(links.map((l) => [l.from_id, l.to_id].sort().join()), [[c!, d!].sort().join()], 'only the pair sharing read_rss is linked');
+  assert.match(links[0]!.evidence, /read_rss \(idf /);
+  void b;
+  store.close();
+});
+
+test('challenge: an unusable reply gets one retry; a good second reply is used; two bad ones leave the lesson unjudged (never accepted)', async () => {
+  const view = buildRunView(RUN);
+  const input = { title: GOOD.title, content: GOOD.lesson, tags: [] as string[] };
+  const store = new SqliteTokenStore();
+  const retried = fake('mercury-2', ['not json at all', PASS]);
+  const v = await challengeLesson(deps({ mercury: retried }, store), view, input, 't', []);
+  assert.equal(v!.verdict, 'pass');
+  assert.equal(retried.calls.length, 2);
+  const noNovel = fake('mercury-2', [JSON.stringify({ true: true, specific: true, supported: true, reason: 'x' }), PASS]);
+  assert.equal((await challengeLesson(deps({ mercury: noNovel }, store), view, input, 't', [{ id: 'TT-000001', title: 'k', lesson: 'k' }]))!.verdict, 'pass', 'a reply without "novel" is retried when known lessons exist');
+  const bad = fake('mercury-2', ['nope', '{"true":']);
+  assert.equal(await challengeLesson(deps({ mercury: bad }, store), view, input, 't', []), null);
+  assert.equal(bad.calls.length, 2, 'one retry, not more');
+  assert.ok(store.handle.prepare("SELECT 1 FROM think_token_ledger WHERE action = 'challenge_unjudged'").get(), 'the unjudged outcome is receipted');
   store.close();
 });

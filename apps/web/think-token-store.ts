@@ -22,8 +22,10 @@
 //   feedback   = (thumbs_up + 1) / (thumbs_up + thumbs_down + 2)                founder thumbs; 0.5 with no votes
 // The components, weights and inputs are stored next to the score (`score_breakdown`).
 import Database from 'better-sqlite3';
-import { SIMILAR_THRESHOLD, similarityToPool } from './think-token-bm25.ts';
+import { SIMILAR_THRESHOLD, rankAgainstQuery, similarityToPool } from './think-token-bm25.ts';
 import { createHash } from 'node:crypto';
+
+export const DEFAULT_KNOWN_TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'read_rss', 'algorand', 'medication', 'recall', 'remember'];
 
 export const TOKEN_KINDS = ['lesson', 'fix', 'tool_pattern'] as const;
 export type TokenKind = (typeof TOKEN_KINDS)[number];
@@ -83,6 +85,8 @@ export interface PropagationCredit {
 export const PROPAGATION_BONUS_PER_CREDIT = 0.02;
 export const MAX_PROPAGATION_CREDITS = 12;
 export const MAX_PROPAGATION_BONUS = 0.1;
+/** Minimum summed tool rarity (see `toolIdf`) for a `same_tool` link. */
+export const MIN_SHARED_TOOL_RARITY = 0.2;
 
 export interface ExtractMeta {
   latency_ms?: number;
@@ -209,7 +213,7 @@ export interface TokenStore {
   recordOutcome(runId: string, success: boolean, actor: string): Receipt | null;
   get(id: string): ThinkTokenRow | null;
   list(opts?: ListOptions): ThinkTokenRow[];
-  retrieve(goal: string, k?: number): ThinkTokenRow[];
+  retrieve(goal: string, k?: number, opts?: { knownTools?: readonly string[]; diverse?: boolean }): ThinkTokenRow[];
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number };
   upsertLink(fromId: string, toId: string, kind: LinkKind, weight: number, evidence: string, actor: string): LinkWriteResult;
   listLinks(tokenId: string): ThinkTokenLink[];
@@ -514,6 +518,38 @@ export function migrateDown(db: Database.Database): void {
     ].join(' '),
   );
   db.pragma('user_version = 0');
+}
+
+/** `tool:<name>` tags, plus (tokens saved before P3) bare tags that name a known tool. */
+export function toolsOfTags(tags: string[], known: ReadonlySet<string>): string[] {
+  return [...new Set(tags.map((t) => (t.startsWith('tool:') ? t.slice(5) : t)).filter((t) => known.has(t) || tags.includes(`tool:${t}`)))].sort();
+}
+
+/**
+ * Specificity of a tool name in [0,1] across a set of tokens' tool sets: ln(N/df)/ln(N), so a tool named by every token scores 0
+ * and one named by a single token scores 1. Used to down-weight `same_tool` links and generic lessons on very common tools.
+ */
+export function toolIdf(toolSets: string[][]): (tool: string) => number {
+  const df = new Map<string, number>();
+  for (const set of toolSets) for (const t of set) df.set(t, (df.get(t) ?? 0) + 1);
+  const n = Math.max(2, toolSets.length);
+  return (tool) => Math.max(0, Math.min(1, Math.log(n / (df.get(tool) ?? 1)) / Math.log(n)));
+}
+
+/**
+ * Failure modes a goal can trip on and a lesson can warn about. Each has goal-side and lesson-side cue words; a mode counts only when both
+ * sides name it. This lexicon was written after the P3.1 A/B showed which quirks the goals hit, so evaluating it on those same goals is in-sample.
+ */
+const FAILURE_MODES: Array<{ goal: string[]; lesson: string[] }> = [
+  { goal: ['enoent', 'missing', 'not exist', 'may not exist', 'no such', 'not found', 'nonexistent'], lesson: ['enoent', 'missing', 'not exist', 'no such', 'not found'] },
+  { goal: ['append', 'end of', 'add a second', 'add a line', 'without losing', 'increment', 'modify', 'update the'], lesson: ['append', 'overwrit', 'increment', 'read_file first', 'reading it', 'modif'] },
+  { goal: ['..', 'outside', 'absolute path', 'escape', '/etc', 'parent folder'], lesson: ['..', 'invalid workspace path', 'workspace-relative', 'escape'] },
+  { goal: ['bytes', ' utf', 'unicode', 'non-ascii', 'characters', 'encoding'], lesson: ['bytes', 'utf-8', 'non-ascii', 'characters'] },
+  { goal: ['folder', 'directory', 'subdir', 'inside the', 'docs/'], lesson: ['subfolder', 'prefix', 'no path argument', 'accepts no'] },
+];
+
+function failureModesShared(goalLower: string, lessonLower: string): number {
+  return FAILURE_MODES.filter((m) => m.goal.some((c) => goalLower.includes(c)) && m.lesson.some((c) => lessonLower.includes(c))).length;
 }
 
 // ─── SQLite implementation ──────────────────────────────────────
@@ -895,16 +931,45 @@ export class SqliteTokenStore implements TokenStore {
     return out.slice(0, limit).map((row) => this.withExtras(row, false)).sort((a, b) => b.seq - a.seq);
   }
 
-  /** Top-k accepted tokens for a goal. Candidate, rejected and retired tokens are never returned. */
-  retrieve(goal: string, k = 3): ThinkTokenRow[] {
-    const terms = keywords(goal);
+  /**
+   * Top-k accepted tokens for a goal, ranked by what the goal is trying to do and how it can go wrong, not by shared tools:
+   *   relevance = 0.6 x BM25(goal vs lesson, scaled to the best) + 0.5 per failure mode the goal and the lesson both name (max 1)
+   *   x a genericness factor (a lesson that matches no failure mode and only names tools almost every token names is cut to 0.4-1.0)
+   *   x (0.5 + the token's own score).
+   * With `diverse` (default) a lesson that is a near-duplicate (similarity >= SIMILAR_THRESHOLD) of one already chosen is skipped.
+   * Candidate, rejected and retired tokens are never returned. See FAILURE_MODES for the failure-mode lexicon.
+   */
+  retrieve(goal: string, k = 3, opts: { knownTools?: readonly string[]; diverse?: boolean } = {}): ThinkTokenRow[] {
+    const known = new Set(opts.knownTools ?? DEFAULT_KNOWN_TOOLS);
     const accepted = (this.db.prepare("SELECT * FROM think_tokens WHERE tenant_id = ? AND status = 'accepted'").all(this.tenant) as any[]).map(rowFrom);
-    return accepted
-      .map((row) => ({ row, match: matchStrength(terms, row), score: computeScore(row, Date.now(), row.score_breakdown?.propagation ?? []) }))
-      .filter((entry) => entry.match > 0)
-      .sort((a, b) => b.match * (0.5 + b.score) - a.match * (0.5 + a.score))
-      .slice(0, Math.max(0, Math.min(k, 10)))
-      .map((entry) => ({ ...entry.row, score: entry.score }));
+    if (!accepted.length) return [];
+    const text = (t: ThinkTokenRow): string => `${t.title}\n${t.content}`;
+    const bm25 = rankAgainstQuery(goal, accepted.map((t) => ({ id: t.id, text: text(t) })));
+    const idf = toolIdf(accepted.map((t) => toolsOfTags(t.tags, known)));
+    const goalLower = goal.toLowerCase();
+    const ranked = accepted
+      .map((row) => {
+        const modes = failureModesShared(goalLower, text(row).toLowerCase());
+        const relevance = 0.6 * (bm25.get(row.id) ?? 0) + Math.min(1, 0.5 * modes);
+        const tools = toolsOfTags(row.tags, known);
+        const specificity = tools.length ? Math.max(...tools.map((t) => idf(t))) : 0.5;
+        const generic = modes > 0 ? 1 : 0.4 + 0.6 * Math.min(1, 2 * specificity);
+        const quality = computeScore(row, Date.now(), row.score_breakdown?.propagation ?? []);
+        return { row, rel: relevance > 0 ? relevance * generic * (0.5 + quality) : 0, quality };
+      })
+      .filter((e) => e.rel > 0)
+      .sort((a, b) => b.rel - a.rel || a.row.seq - b.row.seq);
+    const limit = Math.max(0, Math.min(k, 10));
+    const chosen: typeof ranked = [];
+    for (const cand of ranked) {
+      if (chosen.length >= limit) break;
+      if (opts.diverse !== false && chosen.length) {
+        const sims = similarityToPool({ id: cand.row.id, text: text(cand.row) }, accepted.filter((a) => a.id !== cand.row.id).map((a) => ({ id: a.id, text: text(a) })));
+        if (chosen.some((c) => (sims.get(c.row.id) ?? 0) >= SIMILAR_THRESHOLD)) continue;
+      }
+      chosen.push(cand);
+    }
+    return chosen.map((e) => ({ ...e.row, score: e.quality }));
   }
 
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number } {
@@ -1062,6 +1127,7 @@ export class SqliteTokenStore implements TokenStore {
     const known = new Set(knownTools);
     const toolsOf = (tags: string[]): Set<string> => new Set(tags.map((t) => (t.startsWith('tool:') ? t.slice(5) : t)).filter((t) => known.has(t) || tags.includes(`tool:${t}`)));
     const myTools = toolsOf(me.tags);
+    const idf = toolIdf([...pool.map((t) => [...toolsOf(t.tags)]), [...myTools]]);
     const tally = (r: LinkWriteResult): void => {
       if (r.created) out.created++;
       else if (r.receipt) out.updated++;
@@ -1069,7 +1135,9 @@ export class SqliteTokenStore implements TokenStore {
     for (const other of pool) {
       const [from, to] = this.linkEnds(id, other.id);
       const shared = [...toolsOf(other.tags)].filter((t) => myTools.has(t)).sort();
-      if (shared.length) tally(this.upsertLink(from, to, 'same_tool', Math.min(1, 0.3 + 0.2 * shared.length), `shared tools: ${shared.slice(0, 5).join(', ')}`, actor));
+      // Shared tools count by rarity: a tool nearly every token names (write_file) adds almost nothing, so it cannot make a link on its own.
+      const rarity = shared.reduce((sum, t) => sum + idf(t), 0);
+      if (rarity >= MIN_SHARED_TOOL_RARITY) tally(this.upsertLink(from, to, 'same_tool', Math.min(1, 0.3 + 0.7 * rarity), `shared tools: ${shared.slice(0, 5).map((t) => `${t} (idf ${idf(t).toFixed(2)})`).join(', ')}`, actor));
       const sim = sims.get(other.id) ?? 0;
       if (sim >= SIMILAR_THRESHOLD) tally(this.upsertLink(from, to, 'similar', sim, `bm25=${sim.toFixed(3)}`, actor));
     }

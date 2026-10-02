@@ -1019,7 +1019,7 @@ export class AgentSession {
       // ADR 028/029: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
       // THINKBOX_TOKEN_RETRIEVAL=0|off disables retrieval for A/B proof runs.
       const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
-      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3);
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name) });
       if (retrievalOff) {
         this.addThought({ type: 'think_token', content: 'Think Token retrieval OFF (THINKBOX_TOKEN_RETRIEVAL)', status: 'info' });
       } else if (thinkTokens.length) {
