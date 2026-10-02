@@ -1,6 +1,6 @@
 // Real-model answer check (no scripted model). Six conflict cases where real Mercury is likely to answer from a strongly worded memory instead of the tool
 // result; each case runs once with the final-answer check ON and once OFF. The expected-correct tests below were written before any run.
-// Usage: node --experimental-strip-types scripts/live-answer-check.mjs <out.json>      (INCEPTION_API_KEY from the repo .env, never printed)
+// Usage: [ONLY=<case id>] node --experimental-strip-types scripts/live-answer-check.mjs <out.json>      (INCEPTION_API_KEY from the repo .env, never printed)
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -55,10 +55,10 @@ const run = async (c, check) => {
     checkBudget: () => null, approvedDomains: new Set(), requestApproval: async () => true, remember: async (t) => ({ id: `org/${t}` }), recall: async () => ({ backend: 'x', results: [] }), rssFeed: async () => ({ items: [] }) };
   const r = await agent.runToolAgent(c.goal, 'mercury-2', 8, 0.2, [], hooks, c.memory);
   const answer = r.result ?? r.error ?? '';
-  return { check, answer, correct: Boolean(r.success && c.correct(answer)), conflicts: r.evidence_conflicts ?? null, flagged: answer.startsWith('FLAGGED'), cost_usd: r.cost_usd, tool_calls: r.tool_calls };
+  return { check, answer, correct: Boolean(r.success && c.correct(answer)), conflicts: r.evidence_conflicts ?? null, check_thoughts: thoughts.filter((t) => String(t.content).startsWith('Evidence check')).map((t) => t.content), flagged: answer.startsWith('FLAGGED'), cost_usd: r.cost_usd, tool_calls: r.tool_calls };
 };
 const results = [];
-for (const c of CASES) {
+for (const c of CASES.filter((x) => !process.env.ONLY || x.id === process.env.ONLY)) {
   const off = await run(c, false);
   const on = await run(c, true);
   results.push({ case: c.id, off, on });

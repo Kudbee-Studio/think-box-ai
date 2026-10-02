@@ -37,6 +37,8 @@ function connectWebSocket() {
     console.log('kudbEE WebSocket connected');
     document.getElementById('header-connection').innerHTML = '<span class="connection-dot"></span> Connected';
     appendTerminalMessage('system', '🐝 Connected to kudbEE backend');
+    // Live link: also show goals run from the kudbee CLI (same engine and data) in this terminal.
+    state.ws.send(JSON.stringify({ type: 'subscribe_runs' }));
     setStatus('idle', 'Ready');
     enableInput(true);
   };
@@ -82,6 +84,26 @@ function handleMessage(msg) {
       appendTerminalMessage('system', `Session: ${state.sessionId.slice(0, 8)}`);
       refreshFiles();
       break;
+
+    case 'mirror': {
+      // A run started from the kudbee CLI, relayed by the server. Shown as labeled terminal lines only: it never changes this session's status or input.
+      const inner = msg.data?.message;
+      const label = `[${msg.data?.client || 'cli'} ${msg.data?.session || ''}]`;
+      if (inner?.type === 'thought') {
+        window.KudbeeTerminal?.ingest({ ...inner, data: { ...inner.data, content: `${label} ${inner.data?.content ?? ''}` } }, { provider: state.config?.provider });
+      } else if (inner?.type === 'result') {
+        const r = inner.data || {};
+        appendTerminalMessage(r.success ? 'assistant' : 'error', `${label} ${r.success ? '✓' : '✗'} ${r.result || r.error || 'finished'}`);
+        refreshRuns();
+      } else if (inner?.type === 'queued') {
+        appendTerminalMessage('system', `${label} ⏳ queued: ${inner.data?.goal || ''}`);
+      } else if (inner?.type === 'run_update') {
+        scheduleRunsRefresh();
+      } else if (inner?.type === 'think_token_learned' || inner?.type === 'think_token_used') {
+        window.dispatchEvent(new CustomEvent('think-tokens:message', { detail: inner }));
+      }
+      break;
+    }
 
     case 'status':
       setStatus(msg.data, msg.data === 'running' ? 'Running' : 'Idle');
@@ -705,6 +727,7 @@ async function runSlashCommand(command) {
         '  /help              Show this help message',
         '  /clear             Clear the terminal',
         '  /status            Check the Agent OS API health',
+        '  /tokens [QUERY]    Think Tokens (lessons): open the view, optionally searching; /lessons and /token TT-ID are the same',
         '  /session           Show current session info',
         '  /refresh           Refresh stats, runs, memory, files',
         '  /models            List available AI models',
@@ -792,6 +815,15 @@ async function runSlashCommand(command) {
         ? ['🤖 Available Models:', ...state.models.map(m => `  ${m.name} [${m.provider || 'ollama'}]${m.agent ? ' — tool-using worker agent' : ''}`)].join('\n')
         : '🤖 No models found. Start Ollama and pull a model.');
       return true;
+
+    // Think Tokens are the lessons the agent learned: the same store and view as `kudbee tokens ...`.
+    case '/tokens':
+    case '/token':
+    case '/lessons':
+      if (!window.thinkTokenDashboard) { appendTerminalMessage('error', 'The Think Tokens view is not loaded.'); break; }
+      window.thinkTokenDashboard.openWithQuery(args.join(' '));
+      appendTerminalMessage('system', `Opened the Think Tokens view${args.length ? ` for "${args.join(' ')}"` : ''}.`);
+      break;
 
     case '/status': {
       try {

@@ -14,10 +14,13 @@ import MCPRegistry from './mcp-registry.ts';
 import { localModelHint, resolveLocalModel } from './local-model.ts';
 import { formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
+import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 
-const HOST = process.env.KUDBEE_URL || 'http://localhost:3000';
+const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// The same data directory the server uses (KUDBEE_DATA_DIR, else apps/web/data): the CLI reads its local token and the Think Token database from there.
+const DATA_DIR = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
 
 // Cheap local route: the already-installed Ollama model named by THINKBOX_LOCAL_MODEL (older: KUDBEE_LOCAL_MODEL).
 // The CLI never pulls models; see local-model.ts.
@@ -55,11 +58,17 @@ async function serverUp(): Promise<boolean> {
 }
 
 async function ensureServer(): Promise<void> {
-  if (await serverUp()) return;
+  if (await serverUp()) {
+    console.log(c.dim(`Connected to the running Agent OS at ${HOST}: same engine, database and memory as the dashboard; this run shows live in the dashboard terminal.`));
+    return;
+  }
   const logDir = path.join(os.homedir(), '.kudbee');
   fs.mkdirSync(logDir, { recursive: true });
   const log = fs.openSync(path.join(logDir, 'server.log'), 'a');
-  process.stdout.write(c.dim(`Starting kudbEE Agent OS (${HOST})… `));
+  // The fallback is the same engine, not a second one: the server process (apps/web/server.ts) owns the database, memory and ranker, so the CLI starts it
+  // on 127.0.0.1 with the same data directory and talks to it like any other client. A separate in-process copy would be a second engine.
+  console.log(c.yellow(`Agent OS is not running at ${HOST}: starting it on 127.0.0.1 with the same database (${DATA_DIR}); it stays up, so the dashboard shows this run too.`));
+  process.stdout.write(c.dim('Starting kudbEE Agent OS… '));
   spawn(process.execPath, ['--experimental-strip-types', path.join(__dirname, 'server.ts')], {
     cwd: __dirname,
     detached: true,
@@ -116,8 +125,10 @@ class Client {
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // The server only accepts WebSocket upgrades from its own loopback origin.
-      this.ws = new WebSocket(WS_URL, { origin: new URL(HOST).origin });
+      // The server only accepts WebSocket upgrades from its own loopback origin. The local token (file, mode 0600; never printed) identifies this
+      // client as the CLI, so the run is labeled and mirrored live in the dashboard terminal.
+      const token = readLocalToken(DATA_DIR);
+      this.ws = new WebSocket(WS_URL, { origin: new URL(HOST).origin, ...(token ? { headers: { [TOKEN_HEADER]: token } } : {}) });
       this.ws.on('error', reject);
       this.ws.on('message', (raw) => {
         const msg = JSON.parse(raw.toString()) as Msg;
@@ -290,7 +301,7 @@ ${c.bold('MODELS & AGENTS')}
   /select             interactive model picker 🎯
   /agents             list tool-scoped agent lanes (e.g. HERMES — Algorand read-only)
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
-  ${c.dim("kudbee --agent hermes '<goal>'")}  one-shot run with an agent lane
+  ${c.dim("kudbee run '<goal>'")}  one-shot goal (same as kudbee '<goal>'); ${c.dim("kudbee --agent hermes '<goal>'")} uses an agent lane
   ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
   ${c.dim('kudbee tokens show <TT-id> [--json]')}  one token: lesson, score breakdown, run, ledger receipt
 
@@ -300,6 +311,8 @@ ${c.bold('OPERATIONS')}
   /skill [SEARCH]     find a skill, or interactive menu (no args)
   /files              list workspace files
   /cat PATH           print file content
+  /tokens [QUERY]     Think Tokens (lessons): list or search; /lessons is the same
+  /token TT-ID        one Think Token in full
   /runs               run history (15 latest)
   /run ID             detailed step-by-step trace
 
@@ -412,6 +425,14 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       break;
     case '/status':
       console.log(await (await fetch(`${HOST}/api/health`)).json());
+      break;
+    // Think Tokens are the lessons the agent learned: same store and formatter as `kudbee tokens ...` and the dashboard's Think Tokens view.
+    case '/tokens':
+    case '/lessons':
+      tokensCommand(['list', ...args]);
+      break;
+    case '/token':
+      tokensCommand(['show', ...args]);
       break;
     case '/runs':
       await showRuns();
@@ -798,6 +819,10 @@ function tokensCommand(args: string[]): number {
 }
 
 async function main(): Promise<void> {
+  if (!isLoopbackUrl(HOST)) {
+    console.error(c.red(`kudbee: KUDBEE_URL must point to this machine (127.0.0.1 or localhost); refusing ${HOST}`));
+    process.exit(2);
+  }
   // Reading tokens needs no server and no WebSocket.
   if (process.argv[2] === 'tokens') process.exit(tokensCommand(process.argv.slice(3)));
 
@@ -809,6 +834,7 @@ async function main(): Promise<void> {
   const cliSessionId = client.sessionId;
 
   const argv = process.argv.slice(2);
+  if (argv[0] === 'run') argv.shift(); // `kudbee run "<goal>"` is the same as `kudbee "<goal>"`
   const autoYes = argv[0] === '--yes' || argv[0] === '-y';
   if (autoYes) argv.shift();
   if (argv[0] === '--agent') {

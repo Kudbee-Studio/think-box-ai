@@ -210,6 +210,17 @@ describe('Think Tokens view: saved tokens (persisted list)', () => {
     assert.match(text(bare), /No relationship links yet/);
   });
 
+  it('openWithQuery (the terminal /tokens, /token and /lessons commands) opens the view with the search or TT-id already typed and asks for that list', () => {
+    const { dash, sent, modal } = setup();
+    dash.openWithQuery('TT-000007');
+    assert.equal(dash.filters.query, 'TT-000007');
+    assert.deepEqual(sent.at(-1), { type: 'think_tokens_list', limit: 50, query: 'TT-000007' });
+    assert.ok(modal());
+    dash.openWithQuery('stale memory');
+    assert.equal(dash.filters.query, 'stale memory');
+    assert.deepEqual(sent.at(-1), { type: 'think_tokens_list', limit: 50, query: 'stale memory' }, 'reopening with a new query re-requests the list');
+  });
+
   it('marks template-extracted tokens as not model-written, and shows legacy ids and uses', () => {
     const { open, msg } = setup();
     const m = open();
