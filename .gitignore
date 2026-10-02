@@ -100,3 +100,4 @@ apps/web/think-tokens.db*
 # SQLite sidecar files from opening evidence seeds
 docs/evidence/**/*.db-shm
 docs/evidence/**/*.db-wal
+docs/evidence/**/*.bak-pre-*
