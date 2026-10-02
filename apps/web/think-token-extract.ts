@@ -20,6 +20,8 @@ export interface FinishedRun {
   files?: string[];
   /** The run's final answer, if any. */
   result?: string;
+  /** Set when the final-answer check caught the answer contradicting the run's own tool results. */
+  evidence_conflicts?: string[];
 }
 
 function clip(text: string, max: number): string {

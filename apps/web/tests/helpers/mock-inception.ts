@@ -14,6 +14,7 @@ export interface ScriptedReply {
 export interface MockInception {
   baseUrl: string;
   pageUrl: string;
+  origin: string;
   requests: Array<{ messages: Array<{ role: string; content: string | null; tool_call_id?: string }>; tools: unknown[] }>;
   script(replies: ScriptedReply[]): void;
   close(): Promise<void>;
@@ -33,6 +34,10 @@ export async function startMockInception(): Promise<MockInception> {
       res.end('<html><body><h1>Mock Page</h1><p>The answer is 42.</p></body></html>');
       return;
     }
+    // Live-state endpoints for the evidence-beats-memory regression tests: nothing open, no CI runs, server down.
+    if (req.method === 'GET' && req.url === '/api/pulls') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('[]'); return; }
+    if (req.method === 'GET' && req.url === '/api/ci') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"total_count":0,"workflow_runs":[]}'); return; }
+    if (req.method === 'GET' && req.url === '/api/health') { res.writeHead(503, { 'Content-Type': 'text/plain' }); res.end('service unavailable'); return; }
     if (req.method === 'POST' && req.url === '/v1/chat/completions') {
       let body = '';
       req.on('data', (chunk) => (body += chunk));
@@ -72,6 +77,7 @@ export async function startMockInception(): Promise<MockInception> {
   return {
     baseUrl: `http://127.0.0.1:${port}/v1`,
     pageUrl: `http://127.0.0.1:${port}/page`,
+    origin: `http://127.0.0.1:${port}`,
     requests,
     script(replies) {
       queue = [...replies];
