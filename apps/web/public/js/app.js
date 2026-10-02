@@ -1023,6 +1023,36 @@ async function runSlashCommand(command) {
       Enterprise.auditLog.log('cli', 'Terminal cleared', 'info');
       return true;
 
+    case '/skills': {
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        appendTerminalMessage('error', 'Connect to the Agent OS backend before browsing MCP skills.');
+        return true;
+      }
+      state.ws.send(JSON.stringify({ type: 'list_mcp_skills' }));
+      appendTerminalMessage('system', 'Fetching MCP skill registry...');
+      Enterprise.auditLog.log('cli', 'MCP skills requested', 'info');
+      return true;
+    }
+
+    case '/skill': {
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        appendTerminalMessage('error', 'Connect to the Agent OS backend before searching MCP skills.');
+        return true;
+      }
+      const skillQuery = args.join(' ').trim();
+      state.ws.send(JSON.stringify({
+        type: 'search_mcp_skills',
+        query: skillQuery
+      }));
+      if (skillQuery) {
+        appendTerminalMessage('system', `Searching MCP skills for: "${skillQuery}"...`);
+      } else {
+        appendTerminalMessage('system', 'Use: /skill SEARCH_TERM  to find MCP skills');
+      }
+      Enterprise.auditLog.log('cli', `MCP skill search: ${skillQuery || '(all)'}`, 'info');
+      return true;
+    }
+
     case '/plugin': {
       if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
         appendTerminalMessage('error', 'Connect to the Agent OS backend before running a plugin.');
