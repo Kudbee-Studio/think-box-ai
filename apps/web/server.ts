@@ -105,6 +105,12 @@ const wss = new WebSocketServer({
 });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
+
+/** Janus is opt-in (default off). CVE-2026-69112 in pinned `accelerate`; see docs/SECURITY.md. */
+function janusEnabled(): boolean {
+  const v = process.env.KUDBEE_JANUS_ENABLED;
+  return v === '1' || v === 'true';
+}
 // Cheap local route default (Feature 5 token-aware routing). THINKBOX_LOCAL_MODEL (or the older KUDBEE_LOCAL_MODEL) names an
 // already-installed Ollama model; the app never pulls models. See local-model.ts.
 const defaultLocalModel = resolveLocalModel();
@@ -266,6 +272,9 @@ async function listOllamaModels(): Promise<OllamaTag[]> {
 }
 
 async function requestJanus(endpoint: 'analyze' | 'generate', payload: Record<string, string>): Promise<Record<string, string>> {
+  if (!janusEnabled()) {
+    throw new Error('Janus image service is disabled (set KUDBEE_JANUS_ENABLED=1 on loopback only)');
+  }
   const response = await fetch(`${janusBaseUrl}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1790,7 +1799,7 @@ app.get('/api/monitor', async (_req: Request, res: Response) => {
     monitorEndpoint('Agent OS API', `${baseUrl}/api/health`),
     monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
     monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
-    monitorEndpoint('Janus image service', `${janusBaseUrl}/health`),
+    ...(janusEnabled() ? [monitorEndpoint('Janus image service', `${janusBaseUrl}/health`)] : []),
     ...(process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
       ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
       : []),

@@ -16,7 +16,12 @@ from transformers import AutoModelForCausalLM
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 
-MODEL_ID = os.environ.get("JANUS_MODEL", "deepseek-ai/Janus-Pro-1B")
+ALLOWED_MODEL_ID = "deepseek-ai/Janus-Pro-1B"
+MODEL_ID = os.environ.get("JANUS_MODEL", ALLOWED_MODEL_ID)
+if MODEL_ID != ALLOWED_MODEL_ID:
+    raise RuntimeError(
+        f"JANUS_MODEL must be exactly {ALLOWED_MODEL_ID!r} (CVE-2026-69112 mitigation); got {MODEL_ID!r}"
+    )
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 MAX_PROMPT_LENGTH = 4000
 DEVICE = torch.device("cpu")

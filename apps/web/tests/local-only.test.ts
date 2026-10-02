@@ -103,3 +103,35 @@ test('governed bridge controls still apply on the real server', async () => {
     assert.equal((await fetch(`${noKey.url}/api/governed/run`, { method: 'POST', headers: H, body: '{"command":"hostname"}' })).status, 503, 'no backend key');
   } finally { noKey.proc.kill(); }
 });
+
+test('Janus image service is opt-in (disabled by default)', async () => {
+  const web = await start();
+  try {
+    const mon: any = await (await fetch(`${web.url}/api/monitor`)).json();
+    const names = (mon.checks ?? []).map((c: { name: string }) => c.name);
+    assert.equal(names.some((n: string) => /janus/i.test(n)), false, 'monitor skips Janus when disabled');
+    const pluginResult = await new Promise<{ success: boolean; error?: string }>((resolve, reject) => {
+      const ws = new WebSocket(web.url.replace('http', 'ws') + '/ws', { origin: web.url });
+      const timer = setTimeout(() => { ws.close(); reject(new Error('plugin_execute timeout')); }, 15_000);
+      ws.on('message', (raw) => {
+        let msg: { type: string; data?: { result?: { success: boolean; error?: string } } };
+        try { msg = JSON.parse(raw.toString()); } catch { return; }
+        if (msg.type === 'init') {
+          ws.send(JSON.stringify({
+            type: 'plugin_execute',
+            plugin: 'image_analyze',
+            input: { image_base64: 'a', prompt: 'x' },
+          }));
+        }
+        if (msg.type === 'plugin_result') {
+          clearTimeout(timer);
+          ws.close();
+          resolve(msg.data?.result ?? { success: false, error: 'missing result' });
+        }
+      });
+      ws.on('error', (err) => { clearTimeout(timer); reject(err); });
+    });
+    assert.equal(pluginResult.success, false);
+    assert.match(pluginResult.error ?? '', /disabled/i);
+  } finally { web.proc.kill(); }
+});
