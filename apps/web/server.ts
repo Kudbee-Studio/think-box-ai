@@ -43,7 +43,7 @@ import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
 import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
-import { ensureEmbeddings, getEmbedder } from './think-token-embed.ts';
+import { ensureEmbeddings, peekEmbedder } from './think-token-embed.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -611,18 +611,17 @@ function tokenEvent(row: { id: string; kind: string; status: string; score: numb
 
 /**
  * Semantic retrieval input: the goal's embedding (and the model name), after embedding any accepted lesson that has no vector yet.
- * Bounded to 20 s so a first-run model download cannot stall a goal; on any problem the goal is ranked lexically.
+ * It never waits for the model to load (the first goals after a start are ranked lexically while it loads in the background), only starts
+ * loading when there is at least one accepted lesson to embed, and falls back to lexical on any problem.
  */
 async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array; embedModel?: string }> {
   try {
-    const work = (async () => {
-      const embedder = await getEmbedder();
-      if (!embedder) return {};
-      await ensureEmbeddings(tokenStore, embedder);
-      const [goalVector] = await embedder.embed([goal]);
-      return goalVector ? { goalVector, embedModel: embedder.model } : {};
-    })();
-    return await Promise.race([work, new Promise<Record<string, never>>((resolve) => setTimeout(() => resolve({}), 20_000))]);
+    if (!tokenStore.list({ status: 'accepted', limit: 1 }).length) return {};
+    const embedder = peekEmbedder();
+    if (!embedder) return {};
+    await ensureEmbeddings(tokenStore, embedder);
+    const [goalVector] = await embedder.embed([goal]);
+    return goalVector ? { goalVector, embedModel: embedder.model } : {};
   } catch {
     return {};
   }

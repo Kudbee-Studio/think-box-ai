@@ -37,17 +37,28 @@ export function blobToVector(b: Buffer): Float32Array {
 }
 
 let cached: Promise<Embedder | null> | null = null;
+let loaded: Embedder | null = null;
 
 /** The embedder, or null when disabled (`THINKBOX_EMBEDDINGS=off`) or when the library/model cannot be loaded. Loaded once per process. */
 export function getEmbedder(env: Env = process.env): Promise<Embedder | null> {
   if (env.THINKBOX_EMBEDDINGS === 'off' || env.THINKBOX_EMBEDDINGS === '0') return Promise.resolve(null);
-  cached ??= load(env).catch(() => null);
+  cached ??= load(env).then((e) => (loaded = e)).catch(() => null);
   return cached;
+}
+
+/**
+ * The embedder if it has already finished loading, else null. The first call starts the load in the background, so a request never waits for a model
+ * download: until it is ready, retrieval is lexical.
+ */
+export function peekEmbedder(env: Env = process.env): Embedder | null {
+  void getEmbedder(env);
+  return loaded;
 }
 
 /** Test helper: forget the loaded model. */
 export function resetEmbedder(): void {
   cached = null;
+  loaded = null;
 }
 
 async function load(env: Env): Promise<Embedder | null> {

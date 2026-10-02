@@ -122,3 +122,12 @@ test('the embedder is optional: THINKBOX_EMBEDDINGS=off gives null without loadi
   assert.equal(await getEmbedder({ THINKBOX_EMBEDDINGS: 'off' }), null);
   resetEmbedder();
 });
+
+test('peekEmbedder never waits: it returns null until the load has finished, and null forever when embeddings are off', async () => {
+  const { peekEmbedder } = await import('../think-token-embed.ts');
+  resetEmbedder();
+  assert.equal(peekEmbedder({ THINKBOX_EMBEDDINGS: 'off' }), null);
+  assert.equal(await getEmbedder({ THINKBOX_EMBEDDINGS: 'off' }), null);
+  assert.equal(peekEmbedder({ THINKBOX_EMBEDDINGS: 'off' }), null);
+  resetEmbedder();
+});

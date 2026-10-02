@@ -7,7 +7,7 @@ Mercury spend: **$0**. The A/B was **not run**: the precondition (hit@3 of at le
 - `think-token-embed.ts`: local sentence embeddings, CPU, no API key. Default `Xenova/all-MiniLM-L6-v2` (about 23 MB, quantized ONNX) through the optional dependency `@huggingface/transformers`; downloaded once from the Hugging Face hub, then used offline. If the package or model is unavailable the embedder is `null` and retrieval stays lexical.
 - Schema v3: table `think_token_embeddings(token_id, model, dim, vector BLOB, text_sha256, created_at)`. No new database engine (ADR 026). Before a file database migrates, `VACUUM INTO <db>.bak-pre-v3-<date>` keeps a consistent copy (tested: the backup is the pre-migration state and passes `integrity_check`).
 - Hybrid ranking in `retrieve()`: `relevance = 0.3 x BM25 + 0.5 x clamp((cosine - 0.15) / 0.5) + failure modes`, then the existing genericness factor, diversity and `(0.5 + score)`; frozen clock as before. The lexical ranker (0.6 x BM25 + failure modes) stays behind `THINKBOX_RETRIEVER=lexical` and is the fallback.
-- The server embeds the goal (and any accepted lesson without a vector) before retrieval, capped at 20 s so a first-run download cannot stall a goal.
+- The server embeds the goal (and any accepted lesson without a vector) before retrieval, but never waits for the model: it loads in the background (only when an accepted lesson exists) and goals are ranked lexically until it is ready. (A first version waited up to 20 s; the clean-worktree gate caught that it broke 7 integration tests, so it was changed.)
 - The weights above were fixed in commit `adb35d5d` before either held-out set was run; nothing was tuned afterwards.
 
 ## Held-out results (frozen clock 2026-10-02T12:00:00Z, one run each)
@@ -36,7 +36,7 @@ Both sets are improved by the hybrid ranker, but the bar for the A/B (hit@3 >= 7
 |---|---|---|---|---|
 | Local embeddings + vector BLOB table, backup before migration | yes | yes (6 hermetic tests incl. migration backup) | yes (real model loaded and used by the eval, 21 lessons embedded) | no |
 | Hybrid ranker, lexical flag, frozen clock | yes | yes | yes (eval) | no |
-| Server integration (goal embedding with 20 s bound) | yes | not covered by a server test | not exercised in a live agent run | no |
+| Server integration (non-blocking goal embedding) | yes | the existing server integration tests exercise the path with embeddings unavailable; none exercises a loaded model | not exercised in a live agent run | no |
 | Held-out result | | | hit@3 5/10 and 9/10 | **UNPROVEN as a general result** |
 | A/B with Mercury | not run | | | n/a |
 
