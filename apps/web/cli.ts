@@ -11,6 +11,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
+import { isComplexGoal } from './goal-routing.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
@@ -661,20 +662,6 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       console.log(c.red(`Unknown command ${cmd}. Type /help`));
   }
   return true;
-}
-
-// Heuristics: length, keywords, tool complexity — pure function, easy to unit test.
-const COMPLEX_PATTERNS = [
-  /\b(code|write|generate|create|build|implement|design|refactor)\b/i,
-  /\b(research|analyze|investigate|compare|debug|trace|profile)\b/i,
-  /\b(multiple|several|many)\b.*\b(files|tasks|steps|goals|functions)\b/i,
-  /\{.*\}/, // JSON structure in goal
-  /```/, // Code blocks
-  /\b(algorithm|architecture|design pattern|optimize|complex)\b/i,
-];
-
-function isComplexGoal(goal: string): boolean {
-  return COMPLEX_PATTERNS.some((p) => p.test(goal)) || goal.length > 150;
 }
 
 /** True at most once per 24 h: a marker file in ~/.kudbee records the last warning, so repeated `kudbee run` calls stay quiet. */
