@@ -1,0 +1,203 @@
+{
+  "seed": "p37-seed.db",
+  "goals_module": "think-token-ab-goals-p36-heldout2.mjs",
+  "frozen_now": "2026-10-02T12:00:00.000Z",
+  "embed_model": "Xenova/all-MiniLM-L6-v2",
+  "tokens_embedded": 21,
+  "goals": 10,
+  "lexical": {
+    "hit_at_1": 4,
+    "hit_at_3": 6
+  },
+  "hybrid": {
+    "hit_at_1": 5,
+    "hit_at_3": 9
+  },
+  "per_goal": [
+    {
+      "id": "accents-and-checkmark",
+      "expectedLesson": "bytes-not-chars",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "bytes-not-chars",
+          "zero-byte",
+          "size-match"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "emoji-utf8",
+          "size-match",
+          "zero-byte"
+        ]
+      }
+    },
+    {
+      "id": "entries-below-folder",
+      "expectedLesson": "list-subdir",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "dotdot-path",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": 3,
+        "top3": [
+          "dotdot-path",
+          "path-normalize",
+          "list-subdir"
+        ]
+      }
+    },
+    {
+      "id": "preferences-fallback",
+      "expectedLesson": "missing-then-create",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "counter",
+          "json-line"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "counter",
+          "missing-then-create",
+          "json-line"
+        ]
+      }
+    },
+    {
+      "id": "sibling-directory-memo",
+      "expectedLesson": "dotdot-path",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "dotdot-path"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "dotdot-path",
+          "noise-memory",
+          "three-files"
+        ]
+      }
+    },
+    {
+      "id": "tally-bump",
+      "expectedLesson": "counter",
+      "lexical": {
+        "rank": 2,
+        "top3": [
+          "noise-memory",
+          "counter",
+          "missing-no-invent"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "counter",
+          "noise-memory",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "three-named-notes",
+      "expectedLesson": "three-files",
+      "lexical": {
+        "rank": 2,
+        "top3": [
+          "counter",
+          "three-files",
+          "missing-no-invent"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "counter",
+          "three-files",
+          "missing-no-invent"
+        ]
+      }
+    },
+    {
+      "id": "headline-digest",
+      "expectedLesson": "noise-rss",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "three-files",
+          "noise-rss"
+        ]
+      }
+    },
+    {
+      "id": "ledger-token-amount",
+      "expectedLesson": "noise-algo",
+      "lexical": {
+        "rank": null,
+        "top3": []
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "noise-algo",
+          "counter",
+          "bytes-not-chars"
+        ]
+      }
+    },
+    {
+      "id": "persist-a-fact",
+      "expectedLesson": "noise-memory",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "noise-memory",
+          "noise-approval"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "noise-memory",
+          "noise-approval",
+          "missing-no-invent"
+        ]
+      }
+    },
+    {
+      "id": "never-contacted-site",
+      "expectedLesson": "noise-approval",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "noise-approval"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "noise-approval"
+        ]
+      }
+    }
+  ]
+}
