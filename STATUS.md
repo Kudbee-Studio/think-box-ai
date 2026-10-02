@@ -1,3 +1,11 @@
+## CURRENT (2026-10-02) — ADR 029 P3.3: held-out eval, hygiene, Janus CVE (branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
+
+- **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (bounded):** push audit (no auto-push hook; `32ab41a1` likely another session); held-out retrieval hit@1 **6/8**, hit@3 **7/8** (no weight changes); held-out A/B 64 Mercury runs (**$0.069**); pooled P31+P33 related objectives **34/56 vs 34/56**, **p≈1.0** (not significant); Janus **opt-in** + CVE-2026-69112 documented; reduced-motion browser check on Think Tokens cube.
+- **Tests:** web **380/380**, typecheck not re-run this checkpoint; local CodeQL P3.3 SARIF 35 findings on `apps/web` (0 new vs main **UNPROVEN**, `gh api` 403).
+- **UNPROVEN:** CI green on #315 (GitHub billing lock); whether tokens ever help at higher power; `three-files` goal not retuned.
+- **NOT PRODUCTION READY.** **Do not push** until billing clears; then one push, `gh pr checks 315`, merge if five gates pass.
+- **Evidence:** `docs/evidence/adr-029-p3.md` §10, `docs/evidence/adr-029-p3-ab.md` (P3.3), `docs/evidence/adr-029-p3/push-audit.md`.
+
 ## CURRENT (2026-10-01) — ADR 029 P1 + P2: Think Token lifecycle, permanent ids, merged view (branch `feat/adr029-p1-token-lifecycle`)
 
 - **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED** (real Mercury 2 runs on the real server, real browser): permanent `TT-000001` ids (migrated 4 real legacy rows), lifecycle `candidate -> extracted -> scored -> challenged -> accepted | rejected` with a ledger entry per step, a model-written extractor built from the run's actual tool calls, a challenge step (deterministic checks, then a model that also says whether the lesson is new), a stored score breakdown, per-run and per-day model-call caps, `kudbee tokens list|show` and the dashboard reading one store through one module (identical JSON), `run_id` on plain-run goal messages, the real lesson on the card, reuse recorded in `think_token_uses`, and one merged **🧩 Think Tokens** view with an Energy Core built only from real signals and cube pulses for real `think_token_learned/used` events.

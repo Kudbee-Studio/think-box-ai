@@ -1,4 +1,9 @@
 # STATUS — Think Box AI
+## CURRENT (2026-10-02) — ADR 029 P3.3 (branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
+
+- **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (bounded):** held-out retrieval 6/8 hit@1, 7/8 hit@3; held-out A/B $0.069; pooled P31+P33 not significant; Janus opt-in + CVE; reduced-motion browser; push audit. Web **380/380**.
+- **NOT PRODUCTION READY.** No push until billing clears. Evidence: `docs/evidence/adr-029-p3.md` §10.
+
 ## CURRENT (2026-09-30) — Specialist execution adapter (branch `docs/enterprise-agent-os-plan`)
 
 - **CODE COMPLETE:** Director selection now allocates contract-backed jobs to unique `AgentSession` IDs and confined workspaces. Contract handoffs form dependency waves; independent ready specialists use the existing `runToolAgent` loop concurrently. Each run is recorded by the existing `RunStore` with job/specialist/box identity.

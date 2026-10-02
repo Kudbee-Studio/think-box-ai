@@ -117,9 +117,27 @@ A real bug found on the way: the tokenizer kept trailing punctuation (`exist.` a
 Per goal, objective passes off / on: bytes 0/1, append 0/2, list-subdir 0/0, missing-then-create 3/3, dotdot-path 0/0, counter 2/3, missing-no-invent 3/3. The right lesson was injected in the "on" arm for all seven (see the raw rows).
 
 **Reading it, no spin:** the direction now favors retrieval (12 vs 8 passes), but it is **not significant** (Fisher exact p = 0.53 on passes among completed runs), and the "off" arm itself moved a lot between rounds (the same arm passed 15 of 23 in P3.1 on 8 goals, then 8 of 19 here on 7), so run-to-run variance is as large as the gap. Two goals fail in both arms regardless of lessons (their checks may be too strict). Mean duration is not comparable (two "off" timeouts).
-Retrieval costs about 560 more tokens per run. Status: **UNPROVEN, trending positive**. Needs more repetitions and goals where the baseline fails more reliably than the lesson fixes it.
+Retrieval costs about 560 more tokens per run. Status: **UNPROVEN** (not significant on this subset).
 
 ## P3.2: challenge retry, Links panel
 
 - An unusable challenge reply (not JSON, or no `novel` when known lessons exist) is retried once; after that it is receipted `challenge_unjudged`, the lesson stays `scored`, and it is never accepted. Errors and timeouts were already retried once inside `callModel`. TEST VERIFIED.
-- Links panel in real Chrome at 1024 px and 390 px (`docs/screenshots/think-tokens-p3/links-panel-1024.png`, `-390.png`; DOM probes in `adr-029-p3/links-panel-browser-*.json`): text wraps, no horizontal overflow at either width, new `(idf ...)` evidence shown. Reduced motion not checked.
+- Links panel in real Chrome at 1024 px and 390 px (`docs/screenshots/think-tokens-p3/links-panel-1024.png`, `-390.png`; DOM probes in `adr-029-p3/links-panel-browser-*.json`): text wraps, no horizontal overflow at either width, new `(idf ...)` evidence shown.
+
+## P3.3: held-out goals and pooled significance (2026-10-02)
+
+**P3.1 tuning-set A/B (for pool):** [`ab31-result.json`](./adr-029-p3/ab31-result.json) — off 15/24, on 14/24 related objectives on eight goals in `scripts/think-token-ab-goals-p31.mjs`.
+
+**P3.3 held-out goals:** `scripts/think-token-ab-goals-p33-heldout.mjs` — eight **new** quirks (`deep-mkdir`, `zero-byte`, `path-normalize`, `recursive-list`, `size-match`, `replace-not-append`, `emoji-utf8`, `json-line`) with `expectedLesson` fixed before any run. Seed built by `scripts/build-think-token-p33-seed.ts` → `docs/evidence/adr-029-p3/p33-seed.db`.
+
+**Retrieval (no weight changes):** [`p33-retrieval-eval.json`](./adr-029-p3/p33-retrieval-eval.json) — hit@1 **6/8**, hit@3 **7/8**.
+
+**A/B:** [`ab33-result.json`](./adr-029-p3/ab33-result.json) — 4 reps × 2 arms × 8 goals = 64 Mercury runs, **$0.069** total worker spend. Related objective passes: off **19/32** (0.594), on **20/32** (0.625). One goal can swing a single rep; this is not evidence of benefit.
+
+**Pooled (P3.1 ab31 + P3.3 ab33, related rows only):** [`ab-pooled-significance.json`](./adr-029-p3/ab-pooled-significance.json)
+
+| Pool | off ok/n | on ok/n | rate off | rate on | delta | p (two-sided) |
+|---|---|---|---|---|---|---|
+| P31 + P33 related | 34/56 | 34/56 | 0.607 | 0.607 | 0 | ≈ 1.0 |
+
+**Interpretation:** With ~112 related-arm runs, an effect small enough to leave pooled rates identical is still compatible with the data. Retrieval got better on held-out keywords; **objective success still does not discriminate arms.** Tokens are **not** shown to help. The pooled test is **not** significant.
