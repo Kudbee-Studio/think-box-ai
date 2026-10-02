@@ -170,8 +170,12 @@ class Client {
     this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry, agent: this.agent });
     const { data: r } = await done;
     console.log();
-    if (r.success) console.log(`${c.green('✓')} ${r.result}`);
-    else console.log(c.red(`✗ ${r.error}`));
+    // The final answer is always printed, including after an evidence-check retry or a FLAGGED replacement.
+    if (Array.isArray(r.evidence_conflicts) && r.evidence_conflicts.length) {
+      console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String(r.evidence_conflicts[0]).slice(0, 200)}); final answer below.`));
+    }
+    if (r.success) console.log(`${c.green('✓')} ${String(r.result ?? '').trim() || '(the agent returned no answer text)'}`);
+    else console.log(c.red(`✗ ${r.error ?? 'the run failed without an error message'}`));
     if (r.steps !== undefined) {
       console.log(c.dim(`  ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${usd(r.cost_usd)} · ${((r.duration_ms ?? 0) / 1000).toFixed(1)}s · run ${String(r.run_id).slice(0, 8)}`));
     }
@@ -671,7 +675,18 @@ function isComplexGoal(goal: string): boolean {
   return COMPLEX_PATTERNS.some((p) => p.test(goal)) || goal.length > 150;
 }
 
-let warnedNoLocalModel = false;
+/** True at most once per 24 h: a marker file in ~/.kudbee records the last warning, so repeated `kudbee run` calls stay quiet. */
+function shouldWarnLocalModelToday(): boolean {
+  const marker = path.join(os.homedir(), '.kudbee', 'local-model-warned');
+  try {
+    if (Date.now() - fs.statSync(marker).mtimeMs < 24 * 3_600_000) return false;
+  } catch { /* never warned */ }
+  try {
+    fs.mkdirSync(path.dirname(marker), { recursive: true });
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch { /* read-only home: warn every time rather than never */ }
+  return true;
+}
 
 // Routing heuristics: Simple → cheap local Ollama model (THINKBOX_LOCAL_MODEL), Complex → Mercury-2.
 // If the configured local model isn't installed in Ollama,
@@ -728,15 +743,17 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
       estimatedTokensActual: estimatedTokensIfFullModel,
       tokensSavedEst: 0,
     };
-    if (!warnedNoLocalModel) {
-      warnedNoLocalModel = true;
-      console.log(c.dim(`  ⚠ ${localModelHint(LOCAL_MODEL)}`));
+    // No Ollama at all (nothing installed): nothing to warn about, every run would just repeat it. Ollama present but the configured model missing:
+    // say so at most once a day, and name the models that ARE installed.
+    const installed = client.models.filter((m) => !m.agent).map((m) => m.name);
+    if (installed.length && shouldWarnLocalModelToday()) {
+      console.log(c.dim(`  ⚠ ${localModelHint(LOCAL_MODEL)} Installed: ${installed.slice(0, 5).join(', ')}.`));
     }
   }
 
   if (telemetry.modelSelected !== client.model || telemetry.routeReason === 'auto_fallback_no_local') {
     if (telemetry.routeReason === 'auto_fallback_no_local') {
-      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (local model '${LOCAL_MODEL}' not installed; set THINKBOX_LOCAL_MODEL)`));
+      if (process.env.KUDBEE_VERBOSE === '1') console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (local model '${LOCAL_MODEL}' not installed)`));
     } else {
       const saved = telemetry.tokensSavedEst > 0 ? ` (est. saved ~${telemetry.tokensSavedEst} tokens)` : '';
       console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}`));

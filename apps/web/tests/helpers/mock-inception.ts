@@ -37,6 +37,8 @@ export async function startMockInception(): Promise<MockInception> {
     // Live-state endpoints for the evidence-beats-memory regression tests: nothing open, no CI runs, server down.
     if (req.method === 'GET' && req.url === '/api/pulls') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('[]'); return; }
     if (req.method === 'GET' && req.url === '/api/ci') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"total_count":0,"workflow_runs":[]}'); return; }
+    if (req.method === 'GET' && req.url === '/api/missing') { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end('{"message":"Not Found"}'); return; }
+    if (req.method === 'GET' && req.url === '/api/pulls-page') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<html><body>Pull requests Open 0 Closed 304</body></html>'); return; }
     if (req.method === 'GET' && req.url === '/api/health') { res.writeHead(503, { 'Content-Type': 'text/plain' }); res.end('service unavailable'); return; }
     if (req.method === 'POST' && req.url === '/v1/chat/completions') {
       let body = '';

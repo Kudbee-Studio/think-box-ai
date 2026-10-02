@@ -35,6 +35,8 @@ import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
+import { createMemorySemantic } from './memory-semantic.ts';
+import { detectRepo, repoContextLine } from './repo-context.ts';
 import { algorandQuery } from './algorand.ts';
 import PersistenceLayer from './persistence.ts';
 import { LearningStore } from './learning-store.ts';
@@ -646,6 +648,9 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
   }
 }
 
+const KNOWN_REPO = detectRepo();
+memoryStore.semantic = createMemorySemantic({ memory: memoryStore, tokens: tokenStore, peek: () => peekEmbedder(), state: () => embedderState() });
+
 let liveClassifier: Promise<((texts: string[]) => Promise<boolean[]>) | null> | null = null;
 /**
  * Which recalled memories/lessons describe live state (so they can be dated and marked STALE), by embedding similarity to fixed examples
@@ -1112,7 +1117,7 @@ export class AgentSession {
         this.addThought({ type: 'think_token', content: `Using ${thinkTokens.length} Think Token${thinkTokens.length === 1 ? '' : 's'}: ${thinkTokens.map((t) => `tt:${t.id}`).join(', ')}`, status: 'info' });
       }
       const liveFlags = await liveStateFlags([...recalled.hits.map((h) => ({ key: h.item.id, text: `${h.item.title} ${h.item.content}` })), ...thinkTokens.map((t) => ({ key: t.id, text: `${t.title} ${t.content}` }))]);
-      const plannerContext = [MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
+      const plannerContext = [repoContextLine(KNOWN_REPO), MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
         workspace: sessionWorkspace(this.id),
         resolvePath: (relativePath) => {
@@ -1228,6 +1233,7 @@ export class AgentSession {
         duration_ms: record.duration_ms,
         model: this.config.model,
         files: record.files,
+        ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}),
       };
     } catch (err) {
       const message = errorMessage(err);
@@ -1877,7 +1883,7 @@ app.get('/api/monitor', async (_req: Request, res: Response) => {
     monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
     monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
     ...(janusEnabled() ? [monitorEndpoint('Janus image service', `${janusBaseUrl}/health`)] : []),
-    ...(process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
+    ...(process.env.KUDBEE_MEMORY_BACKEND === 'upstash' && process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
       ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
       : []),
     ...(inceptionConfigured()

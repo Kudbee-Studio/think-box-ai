@@ -29,7 +29,7 @@ before(async () => {
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,
     env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test-key', INCEPTION_BASE_URL: mock.baseUrl, OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD, UPSTASH_VECTOR_REST_URL: DEAD, UPSTASH_VECTOR_REST_TOKEN: 'none',
-      KUDBEE_DAILY_BUDGET_USD: '0', KUDBEE_DATA_DIR: dataDir, KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_EMBEDDINGS: 'off' },
+      KUDBEE_DAILY_BUDGET_USD: '0', KUDBEE_REPO: 'Acme/widgets', KUDBEE_DATA_DIR: dataDir, KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_EMBEDDINGS: 'off' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stdout?.on('data', (d) => { log += d; });
@@ -121,4 +121,40 @@ test('the kudbee CLI refuses a non-loopback KUDBEE_URL without sending anything,
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /Connected to the running Agent OS/);
   assert.equal(ok.stdout.includes(readLocalToken(dataDir)!) || ok.stderr.includes(readLocalToken(dataDir)!), false, 'the CLI never prints the token');
+});
+
+// Asynchronous on purpose: the scripted model lives in this process, so a blocking spawnSync would starve it.
+const runCli = (args: string[], home: string): Promise<{ status: number | null; stdout: string; stderr: string }> => new Promise((resolve) => {
+  const child = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'cli.ts', ...args], { cwd: appDir, env: { ...process.env, KUDBEE_URL: base, KUDBEE_DATA_DIR: dataDir, HOME: home } });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => (stdout += d));
+  child.stderr.on('data', (d) => (stderr += d));
+  const timer = setTimeout(() => child.kill(), 60000);
+  child.on('close', (status) => { clearTimeout(timer); resolve({ status, stdout, stderr }); });
+});
+const strip = (t: string): string => t.replace(/\x1b\[[0-9;]*m/g, '');
+
+test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));
+  mock.script([
+    { tool_calls: [{ name: 'fetch_url', args: { url: `${mock.origin}/api/pulls` } }] },
+    say('We are working on PR #304, a draft.'),
+    verdict(true, 'The pulls API returned an empty list, so no pull request is open.'),
+    say('There are no open pull requests: the API returned an empty list. The memory about #304 is stale.'),
+    verdict(false, ''),
+  ]);
+  const first = await runCli(['run', '--yes', 'which pull request is open?'], home);
+  const out = strip(first.stdout);
+  assert.equal(first.status, 0, `${first.stderr}\n${out.slice(-1500)}`);
+  assert.match(mock.requests[0]!.messages[0]!.content!, /KNOWN REPOSITORY: .*Acme\/widgets/, 'the planner context names the repository');
+  assert.match(out, /evidence check: the first answer conflicted/);
+  assert.match(out, /✓ There are no open pull requests: the API returned an empty list\./, 'the corrected final answer is printed');
+  assert.doesNotMatch(out, /not found in Ollama|local model/i, 'Ollama is absent here: no warning');
+  mock.script([say('Plain answer.')]);
+  const second = await runCli(['run', '--yes', 'say hi'], home);
+  assert.doesNotMatch(strip(second.stdout), /not found in Ollama|local model/i);
+  assert.match(strip(second.stdout), /✓ Plain answer\./);
+  assert.equal(fs.existsSync(path.join(home, '.kudbee', 'local-model-warned')), false, 'nothing to warn about, so no marker either');
 });

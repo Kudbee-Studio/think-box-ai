@@ -46,6 +46,25 @@ export function dedupeHits(hits: MemoryHit[]): MemoryHit[] {
   return order.map((k) => best.get(k)!);
 }
 
+/**
+ * Local semantic recall (P3.12). The provider (apps/web/server.ts) embeds memories with the same local MiniLM model the Think Tokens use and keeps the
+ * vectors in SQLite; it answers "how close is each memory to this query" or says why it cannot (model still loading, embeddings off).
+ */
+export interface SemanticProvider {
+  cosines(query: string, items: MemoryItem[]): Promise<{ model: string; label: string; scores: Map<string, number> } | { why: string }>;
+}
+
+/** Cosine below this means "unrelated" (the same floor the Think Token rankers use). */
+export const MEMORY_COSINE_FLOOR = 0.15;
+/** Cosine buckets of this width; inside a bucket BM25 breaks the tie. Fixed before the eval, as for Think Tokens (P3.8). */
+export const MEMORY_COSINE_BUCKET = 0.02;
+
+/** The text that represents a memory for embedding: title and body, without a task episode's unverified answer. */
+export function memoryEmbedText(item: Pick<MemoryItem, 'title' | 'content' | 'layer'>): string {
+  const body = item.layer === 'task' ? item.content.split(/\n(?:Answer given \(unverified\)|Result):/)[0]! : item.content;
+  return `${item.title.replace(/^\s*\[[^\]]*\]\s*/, '')}\n${body}`.replace(/\s+/g, ' ').slice(0, 2000);
+}
+
 export interface MemoryHit {
   item: MemoryItem;
   score: number;
@@ -140,6 +159,8 @@ export class MemoryStore {
   private docFreq = new Map<string, number>();
   private tokenCache = new Map<string, string[]>();
   private readonly vectorUrl?: string;
+  /** True only with KUDBEE_MEMORY_BACKEND=upstash plus its URL and token. Nothing contacts Upstash otherwise (not even the startup sync). */
+  private readonly upstashOptIn: boolean;
   private readonly vectorToken?: string;
   readonly namespace: string;
   vectorStatus: { backend: 'upstash-sparse' | 'local-bm25'; ok: boolean; synced: number; error?: string } = {
@@ -153,11 +174,20 @@ export class MemoryStore {
     this.vectorUrl = env.UPSTASH_VECTOR_REST_URL?.replace(/\/+$/, '');
     this.vectorToken = env.UPSTASH_VECTOR_REST_TOKEN;
     this.namespace = env.KUDBEE_VECTOR_NAMESPACE || 'kudbee-memory';
-    if (this.vectorUrl && this.vectorToken) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
+    // Local is the default. The Upstash adapter stays in the code but is used only when asked for explicitly: KUDBEE_MEMORY_BACKEND=upstash (and its URL and token).
+    this.upstashOptIn = env.KUDBEE_MEMORY_BACKEND === 'upstash' && Boolean(this.vectorUrl && this.vectorToken);
+    if (this.upstashOptIn) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
     for (const layer of MEMORY_LAYERS) fs.mkdirSync(path.join(root, layer), { recursive: true });
     const readme = path.join(root, 'README.md');
     if (!fs.existsSync(readme)) fs.writeFileSync(readme, README);
     this.loadAll();
+  }
+
+  /** Set by the server: local vectors for recall. Without it (or while the model loads) recall is BM25 and says so. */
+  semantic?: SemanticProvider;
+
+  all(): MemoryItem[] {
+    return [...this.items.values()];
   }
 
   get usesUpstash(): boolean {
@@ -225,7 +255,7 @@ export class MemoryStore {
 
   /** Upserts every file into the vector index; called at boot so the index always matches the folder. */
   async syncVectors(): Promise<void> {
-    if (!this.vectorUrl || !this.vectorToken) return;
+    if (!this.upstashOptIn || !this.vectorUrl || !this.vectorToken) return;
     try {
       const all = [...this.items.values()];
       const batches = [];
@@ -354,8 +384,28 @@ export class MemoryStore {
    */
   async search(query: string, options: { layers?: MemoryLayer[]; topK?: number } = {}): Promise<{ hits: MemoryHit[]; backend: string }> {
     const topK = Math.min(Math.max(options.topK ?? 5, 1), 25);
-    const raw = await this.searchRaw(query, { ...options, topK: Math.min(topK * 2, 25) });
-    return { hits: dedupeHits(raw.hits.filter((hit) => !isSuperseded(hit.item))).slice(0, topK), backend: raw.backend };
+    const layers = options.layers?.length ? options.layers : MEMORY_LAYERS;
+    // Explicit opt-in to the Upstash backend keeps its own path; everything else is local.
+    if (this.usesUpstash) {
+      const raw = await this.searchRaw(query, { ...options, topK: Math.min(topK * 2, 25) });
+      return { hits: dedupeHits(raw.hits.filter((hit) => !isSuperseded(hit.item))).slice(0, topK), backend: raw.backend };
+    }
+    const eligible = this.all().filter((item) => layers.includes(item.layer) && !isSuperseded(item));
+    const semantic = this.semantic ? await this.semantic.cosines(query, eligible).catch((err) => ({ why: `embedding error: ${err instanceof Error ? err.message.slice(0, 60) : 'error'}` })) : { why: 'no embedder' };
+    const bm25 = new Map(this.localSearch(query, layers, 1000).map((h) => [h.item.id, h.score]));
+    if ('scores' in semantic) {
+      // Cosine first (buckets of 0.02), BM25 only breaks ties inside a bucket; then BM25-only matches (an exact keyword the model scored low) follow.
+      const byCosine = eligible
+        .map((item) => ({ item, cos: semantic.scores.get(item.id) ?? -1, bm: bm25.get(item.id) ?? 0 }))
+        .filter((e) => e.cos >= MEMORY_COSINE_FLOOR)
+        .sort((a, b) => Math.round(b.cos / MEMORY_COSINE_BUCKET) - Math.round(a.cos / MEMORY_COSINE_BUCKET) || b.bm - a.bm || b.cos - a.cos);
+      const taken = new Set(byCosine.map((e) => e.item.id));
+      const rest = [...bm25.entries()].filter(([id]) => !taken.has(id) && this.items.get(id) && layers.includes(this.items.get(id)!.layer) && !isSuperseded(this.items.get(id)!)).sort((a, b) => b[1] - a[1]);
+      const hits: MemoryHit[] = [...byCosine.map((e) => ({ item: e.item, score: e.cos })), ...rest.map(([id, score]) => ({ item: this.items.get(id)!, score }))];
+      return { hits: dedupeHits(hits).slice(0, topK), backend: semantic.label };
+    }
+    const hits = eligible.filter((item) => bm25.has(item.id)).map((item) => ({ item, score: bm25.get(item.id)! })).sort((a, b) => b.score - a.score);
+    return { hits: dedupeHits(hits).slice(0, topK), backend: this.semantic ? `local-bm25 (${semantic.why})` : 'local-bm25' };
   }
 
   private async searchRaw(query: string, options: { layers?: MemoryLayer[]; topK?: number } = {}): Promise<{ hits: MemoryHit[]; backend: string }> {
