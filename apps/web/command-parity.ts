@@ -24,7 +24,8 @@ export const PARITY: Record<string, Parity> = {
   // both sides
   '/agent': { kind: 'both' }, '/algo': { kind: 'both' }, '/help': { kind: 'both' }, '/lessons': { kind: 'both' }, '/memory': { kind: 'both' }, '/metrics': { kind: 'both' },
   '/model': { kind: 'both' }, '/models': { kind: 'both' }, '/notes': { kind: 'both' }, '/plugins': { kind: 'both' }, '/promote': { kind: 'both' }, '/remember': { kind: 'both' },
-  '/run': { kind: 'both' }, '/runs': { kind: 'both' }, '/select': { kind: 'both' }, '/session': { kind: 'both' }, '/skill': { kind: 'both' }, '/skills': { kind: 'both' }, '/status': { kind: 'both' }, '/token': { kind: 'both' }, '/tokens': { kind: 'both' },
+<<<<<<< HEAD
+  '/run': { kind: 'both' }, '/runs': { kind: 'both' }, '/select': { kind: 'both' }, '/session': { kind: 'both' }, '/sessions': { kind: 'both' }, '/skill': { kind: 'both' }, '/skills': { kind: 'both' }, '/status': { kind: 'both' }, '/token': { kind: 'both' }, '/tokens': { kind: 'both' },
   // CLI commands whose dashboard counterpart is a view or control
   '/agents': { kind: 'counterpart', side: 'cli', what: '/agent in the dashboard terminal lists the available agents', proof: 'Available agents:' },
   '/files': { kind: 'counterpart', side: 'cli', what: 'the dashboard Files panel', proof: 'refreshFiles' },
@@ -43,7 +44,6 @@ export const PARITY: Record<string, Parity> = {
   '/logs': { kind: 'gap', note: 'dashboard-only execution logs' },
   '/plugin': { kind: 'gap', note: 'running a plugin by name exists only in the dashboard terminal' },
   '/remote': { kind: 'gap', note: 'dashboard-only remote command' },
-  '/sessions': { kind: 'gap', note: 'dashboard-only session list' },
   '/specialists': { kind: 'gap', note: 'specialist swarm runs exist only in the dashboard terminal' },
 };
 
