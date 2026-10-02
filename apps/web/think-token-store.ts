@@ -173,7 +173,7 @@ export interface ListOptions {
 }
 
 /** Only kinds that have a mechanical evidence source: shared `tool:` tags, lesson-text similarity, tokens used in the same run. */
-export const LINK_KINDS = ['same_tool', 'similar', 'co_used'] as const;
+export const LINK_KINDS = ['same_tool', 'similar', 'co_used', 'merged_into'] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 export interface ThinkTokenLink {
@@ -193,6 +193,12 @@ export interface LinkWriteResult {
   receipt?: Receipt;
 }
 
+export interface MergeReport {
+  before: number;
+  after: number;
+  merged: Array<{ id: string; into: string; similarity: number; tools: string[] }>;
+}
+
 /** Interface so a Postgres implementation could be added later (ADR 028) and share one test suite. */
 export interface TokenStore {
   write(draft: TokenDraft, actor: string): WriteResult;
@@ -207,7 +213,8 @@ export interface TokenStore {
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number };
   upsertLink(fromId: string, toId: string, kind: LinkKind, weight: number, evidence: string, actor: string): LinkWriteResult;
   listLinks(tokenId: string): ThinkTokenLink[];
-  linkToken(idLike: string, actor: string): { created: number; updated: number };
+  linkToken(idLike: string, actor: string, knownTools?: readonly string[]): { created: number; updated: number };
+  mergeDuplicates(actor: string, knownTools: readonly string[]): MergeReport;
   listByStatus(status: TokenStatus, limit?: number): ThinkTokenRow[];
   close(): void;
 }
@@ -998,17 +1005,50 @@ export class SqliteTokenStore implements TokenStore {
     }));
   }
 
+  /**
+   * Merge near-duplicate accepted tokens: same tool set (`tool:x` tags, or bare tags naming a known tool) and similarity at or above
+   * SIMILAR_THRESHOLD. The highest-scoring token (oldest on a tie) stays; each duplicate is retired and linked `merged_into` the survivor,
+   * with a ledger entry. A token is only ever compared to survivors, so merges never chain. Idempotent.
+   */
+  mergeDuplicates(actor: string, knownTools: readonly string[]): MergeReport {
+    const known = new Set(knownTools);
+    const toolsOf = (t: ThinkTokenRow): string[] => [...new Set(t.tags.map((x) => (x.startsWith('tool:') ? x.slice(5) : x)).filter((x) => known.has(x)))].sort();
+    const accepted = this.list({ status: 'accepted', limit: 500 }).sort((a, b) => b.score - a.score || a.seq - b.seq);
+    const text = (t: ThinkTokenRow): string => `${t.title}\n${t.content}`;
+    const survivors: ThinkTokenRow[] = [];
+    const report: MergeReport = { before: accepted.length, after: 0, merged: [] };
+    for (const token of accepted) {
+      const tools = toolsOf(token);
+      const peers = survivors.filter((s) => toolsOf(s).join() === tools.join());
+      // IDF comes from every accepted token, not just the peers, so shared words are weighted against the whole corpus.
+      const sims = similarityToPool({ id: token.id, text: text(token) }, accepted.filter((a) => a.id !== token.id).map((p) => ({ id: p.id, text: text(p) })));
+      const best = peers.map((p) => ({ p, sim: sims.get(p.id) ?? 0 })).sort((a, b) => b.sim - a.sim)[0];
+      if (!tools.length || !best || best.sim < SIMILAR_THRESHOLD) {
+        survivors.push(token);
+        continue;
+      }
+      this.db.transaction(() => {
+        this.db.prepare("UPDATE think_tokens SET status = 'retired' WHERE id = ?").run(token.id);
+        this.upsertLink(token.id, best.p.id, 'merged_into', best.sim, `near-duplicate: bm25=${best.sim.toFixed(3)}, tools ${tools.join(', ')}`, actor);
+        this.ledger(actor, 'merge', 'admitted', { from: token.id, into: best.p.id, similarity: r4(best.sim), tools }, token.id);
+      }).immediate();
+      report.merged.push({ id: token.id, into: best.p.id, similarity: r4(best.sim), tools });
+    }
+    report.after = survivors.length;
+    return report;
+  }
+
   /** Both ends of a link, canonically ordered so (A,B) and (B,A) are one row. */
   private linkEnds(a: string, b: string): [string, string] {
     return a < b ? [a, b] : [b, a];
   }
 
   /**
-   * Evidence-based links from one token to the live pool (accepted, challenged, scored): shared `tool:` tags and
+   * Evidence-based links from one token to the live pool (accepted, challenged, scored): shared tool tags (see below) and
    * normalized-BM25 lesson similarity at or above SIMILAR_THRESHOLD. Idempotent. Called by the pipeline after a token
    * is written; co-use links are created by recordUse.
    */
-  linkToken(idLike: string, actor: string): { created: number; updated: number } {
+  linkToken(idLike: string, actor: string, knownTools: readonly string[] = []): { created: number; updated: number } {
     const id = this.resolve(idLike);
     const out = { created: 0, updated: 0 };
     if (!id) return out;
@@ -1018,14 +1058,17 @@ export class SqliteTokenStore implements TokenStore {
     const pool = (['accepted', 'challenged', 'scored'] as const).flatMap((status) => this.list({ status, limit: 500 })).filter((t) => t.id !== id);
     const text = (t: { title: string; content: string }): string => `${t.title}\n${t.content}`;
     const sims = similarityToPool({ id, text: text(me) }, pool.map((t) => ({ id: t.id, text: text(t) })));
-    const myTools = new Set(me.tags.filter((t) => t.startsWith('tool:')));
+    // A tool tag is `tool:<name>`, or (tokens saved before P3) a bare tag that names a known tool.
+    const known = new Set(knownTools);
+    const toolsOf = (tags: string[]): Set<string> => new Set(tags.map((t) => (t.startsWith('tool:') ? t.slice(5) : t)).filter((t) => known.has(t) || tags.includes(`tool:${t}`)));
+    const myTools = toolsOf(me.tags);
     const tally = (r: LinkWriteResult): void => {
       if (r.created) out.created++;
       else if (r.receipt) out.updated++;
     };
     for (const other of pool) {
       const [from, to] = this.linkEnds(id, other.id);
-      const shared = other.tags.filter((t) => myTools.has(t)).map((t) => t.slice(5));
+      const shared = [...toolsOf(other.tags)].filter((t) => myTools.has(t)).sort();
       if (shared.length) tally(this.upsertLink(from, to, 'same_tool', Math.min(1, 0.3 + 0.2 * shared.length), `shared tools: ${shared.slice(0, 5).join(', ')}`, actor));
       const sim = sims.get(other.id) ?? 0;
       if (sim >= SIMILAR_THRESHOLD) tally(this.upsertLink(from, to, 'similar', sim, `bm25=${sim.toFixed(3)}`, actor));

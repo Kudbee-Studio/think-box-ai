@@ -437,3 +437,61 @@ test('CLI: kudbee tokens links prints the same links as the reader, as JSON and 
   assert.notEqual(cli('links', 'TT-999999').status, 0);
   assert.notEqual(cli('links').status, 0);
 });
+
+// ─── dedupe ─────────────────────────────────────────────────────
+
+const TOOLS = ['write_file', 'list_files', 'read_rss'];
+const verifyDraft = (n: number, title: string, content: string, tags: string[]) => draft(n, { title, content, tags });
+
+test('dedupe: near-duplicates with the same tool set merge into the best-scored token, retired and linked merged_into', () => {
+  const store = new SqliteTokenStore();
+  const a = accept(store, verifyDraft(1, VERIFY_A.text.split('\n')[0]!, VERIFY_A.text.split('\n')[1]!, ['tool:write_file', 'tool:list_files']));
+  const b = accept(store, verifyDraft(2, VERIFY_B.text.split('\n')[0]!, VERIFY_B.text.split('\n')[1]!, ['write_file', 'list_files']));
+  const other = accept(store, verifyDraft(3, OTHER.text.split('\n')[0]!, OTHER.text.split('\n')[1]!, ['tool:read_rss']));
+  store.feedback(a, 'up', 'founder');
+  const report = store.mergeDuplicates('p', TOOLS);
+  assert.equal(report.before, 3);
+  assert.equal(report.after, 2);
+  assert.deepEqual(report.merged.map((m) => [m.id, m.into]), [[b, a]]);
+  assert.equal(store.get(b)!.status, 'retired');
+  assert.equal(store.get(a)!.status, 'accepted');
+  assert.equal(store.get(other)!.status, 'accepted');
+  const link = store.listLinks(b).find((l) => l.kind === 'merged_into')!;
+  assert.deepEqual([link.from_id, link.to_id], [b, a], 'directed: duplicate -> survivor');
+  assert.ok(store.get(b)!.receipts!.some((r) => r.action === 'merge'));
+  assert.equal(store.retrieve('verify file list_files write_file', 5).some((t) => t.id === b), false, 'a merged token is no longer retrieved');
+  assert.deepEqual(store.mergeDuplicates('p', TOOLS).merged, [], 'idempotent');
+  assert.equal(store.verifyLedger().ok, true);
+  store.close();
+});
+
+test('dedupe: similar text with a different tool set, or a dissimilar token with the same tools, is not merged', () => {
+  const store = new SqliteTokenStore();
+  accept(store, verifyDraft(1, VERIFY_A.text.split('\n')[0]!, VERIFY_A.text.split('\n')[1]!, ['tool:write_file', 'tool:list_files']));
+  accept(store, verifyDraft(2, VERIFY_B.text.split('\n')[0]!, VERIFY_B.text.split('\n')[1]!, ['tool:list_files']));
+  accept(store, verifyDraft(3, OTHER.text.split('\n')[0]!, OTHER.text.split('\n')[1]!, ['tool:write_file', 'tool:list_files']));
+  const report = store.mergeDuplicates('p', TOOLS);
+  assert.deepEqual([report.before, report.after, report.merged.length], [3, 3, 0]);
+  store.close();
+});
+
+test('dedupe: a token whose tags name no known tool is never merged', () => {
+  const store = new SqliteTokenStore();
+  accept(store, verifyDraft(1, VERIFY_A.text.split('\n')[0]!, VERIFY_A.text.split('\n')[1]!, []));
+  accept(store, verifyDraft(2, VERIFY_A.text.split('\n')[0]!, VERIFY_A.text.split('\n')[1]! + ' Again.', []));
+  assert.equal(store.mergeDuplicates('p', TOOLS).merged.length, 0);
+  store.close();
+});
+
+test('links: with known tools given, bare tool-name tags (tokens saved before P3) also produce same_tool links', () => {
+  const store = new SqliteTokenStore();
+  const old = accept(store, draft(1, { tags: ['verification', 'write_file'] }));
+  const fresh = accept(store, draft(2, { tags: ['tool:write_file'] }));
+  assert.equal(store.linkToken(fresh, 'p').created, 0, 'without known tools a bare tag is just a word');
+  assert.equal(store.linkToken(fresh, 'p', ['write_file']).created, 1);
+  const link = store.listLinks(old)[0]!;
+  assert.equal(link.kind, 'same_tool');
+  assert.match(link.evidence, /write_file/);
+  assert.equal(store.linkToken(old, 'p', ['write_file']).created, 0, 'idempotent from the other end');
+  store.close();
+});

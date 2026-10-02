@@ -424,7 +424,10 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
     }
     if (!store.advance(id, 'challenged', actor, { challenge: verdict }).ok) { out.tokens.push(snapshot(store, id, false)); continue; }
     const final = store.advance(id, verdict.verdict === 'pass' ? 'accepted' : 'rejected', actor, { note: verdict.reason });
-    if (final.ok && verdict.verdict === 'pass') store.linkToken(id, actor);
+    if (final.ok && verdict.verdict === 'pass') {
+      store.linkToken(id, actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
+      store.mergeDuplicates(actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
+    }
     out.tokens.push(snapshot(store, id, false));
   }
   out.model_calls = store.modelUsage(run.id).length;
@@ -465,7 +468,7 @@ export async function rechallengeScoredTokens(deps: PipelineDeps, getRun: (runId
     }
     const accepted = verdict.verdict === 'pass';
     deps.store.advance(row.id, accepted ? 'accepted' : 'rejected', actor, { note: verdict.reason });
-    if (accepted) deps.store.linkToken(row.id, actor);
+    if (accepted) deps.store.linkToken(row.id, actor, deps.knownTools ?? DEFAULT_KNOWN_TOOLS);
     out.push({ id: row.id, result: accepted ? 'accepted' : 'rejected', reason: verdict.reason });
   }
   return out;

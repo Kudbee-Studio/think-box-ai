@@ -1,6 +1,8 @@
 // ADR 029 P3 live A/B: does retrieving Think Tokens change real runs?
 //
-// Usage: node scripts/think-token-ab-live.mjs <seed-think-tokens.db> <out.json> [reps=2]
+// Usage: node scripts/think-token-ab-live.mjs <seed-think-tokens.db> <out.json> [reps=2] [goals-module.mjs]
+// A goals module exports `GOALS` (see below); it defaults to the built-in set. Total worker cost is summed from the server's run
+// records and the script stops once it passes MAX_SPEND_USD (default 2).
 //
 // For each arm (retrieval off, retrieval on) it starts a real server on 127.0.0.1 against its OWN COPY of the seed database
 // and its own throwaway data/workspace dirs, with THINKBOX_TOKEN_MODEL_CALLS_PER_RUN=0 so no run learns anything (both arms see
@@ -17,12 +19,13 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appDir = path.join(root, 'apps/web');
 const { WebSocket } = createRequire(path.join(appDir, 'package.json'))('ws');
-const [seed, outFile, repsArg] = process.argv.slice(2);
+const [seed, outFile, repsArg, goalsModule] = process.argv.slice(2);
+const MAX_SPEND_USD = Number(process.env.MAX_SPEND_USD ?? 2);
 if (!seed || !outFile) throw new Error('usage: think-token-ab-live.mjs <seed.db> <out.json> [reps]');
 const REPS = Number(repsArg ?? 2);
 
 // Each goal has an objective check on the files the run left in its workspace. `related` marks goals the seed tokens are about.
-const GOALS = [
+const BUILTIN_GOALS = [
   { id: 'checklist', related: true, goal: 'Use write_file to save a release checklist (a markdown heading and at least 4 bullet items) in release.md, then confirm it was created.', check: (f) => /^#/m.test(f['release.md'] ?? '') && (f['release.md'].match(/^\s*[-*] /gm) ?? []).length >= 4 },
   { id: 'notes', related: true, goal: 'Create notes.md containing a markdown heading "Notes" and three bullet points about testing, then tell me how many bytes it is.', check: (f) => /Notes/.test(f['notes.md'] ?? '') && (f['notes.md'].match(/^\s*[-*] /gm) ?? []).length >= 3 },
   { id: 'two-files', related: true, goal: 'Write alpha.md with the single line "alpha" and beta.md with the single line "beta", then list the workspace.', check: (f) => /alpha/.test(f['alpha.md'] ?? '') && /beta/.test(f['beta.md'] ?? '') },
@@ -30,6 +33,9 @@ const GOALS = [
   { id: 'arithmetic', related: false, goal: 'What is 17 * 23? Answer with just the number and do not use any tools.', check: (_f, answer) => /391/.test(answer ?? '') },
   { id: 'no-file', related: false, goal: 'Name the three primary colors in one short sentence. Do not use any tools.', check: (_f, answer) => /red/i.test(answer ?? '') && /blue/i.test(answer ?? '') && /yellow/i.test(answer ?? '') },
 ];
+
+const GOALS = goalsModule ? (await import(path.resolve(goalsModule))).GOALS : BUILTIN_GOALS;
+let spent = 0;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -92,8 +98,10 @@ for (const arm of ['off', 'on']) {
           steps: run?.steps?.length ?? null, tool_calls: run?.tool_calls ?? null, prompt_tokens: run?.prompt_tokens ?? null, completion_tokens: run?.completion_tokens ?? null,
           cost_usd: run?.cost_usd ?? null, duration_ms: run?.duration_ms ?? Date.now() - t0, tokens_injected: run?.think_tokens ?? [], timeout: Boolean(r.timeout), error: run?.error ?? null,
         });
+        spent += run?.cost_usd ?? 0;
         console.log(arm, g.id, rep, completed ? 'completed' : 'NOT completed', rows.at(-1).objective_ok ? 'ok' : 'check-failed', `tools=${rows.at(-1).tool_calls}`, `injected=${rows.at(-1).tokens_injected.length}`);
       }
+      if (spent > MAX_SPEND_USD) break;
     }
   } finally {
     srv.child.kill();
@@ -101,5 +109,5 @@ for (const arm of ['off', 'on']) {
     await sleep(500);
   }
 }
-fs.writeFileSync(outFile, `${JSON.stringify({ seed: path.basename(seed), reps: REPS, goals: GOALS.map(({ id, related, goal }) => ({ id, related, goal })), rows }, null, 2)}\n`);
+fs.writeFileSync(outFile, `${JSON.stringify({ seed: path.basename(seed), reps: REPS, spent_usd: spent, stopped_on_spend_cap: spent > MAX_SPEND_USD, goals: GOALS.map(({ id, related, goal }) => ({ id, related, goal })), rows }, null, 2)}\n`);
 console.log('wrote', outFile, rows.length, 'runs');

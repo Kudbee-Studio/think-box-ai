@@ -46,3 +46,42 @@ The driver takes a seed database and a repetition count, so that is a data chang
 ```bash
 node scripts/think-token-ab-live.mjs <seed-think-tokens.db> out.json 2   # needs INCEPTION_API_KEY in the repo .env; about 1 minute
 ```
+
+## P3.1: a harder A/B (2026-10-02)
+
+Raw: [`adr-029-p3/ab31-result.json`](./adr-029-p3/ab31-result.json). Goals: `scripts/think-token-ab-goals-p31.mjs`. Same driver, 8 goals x 3 repetitions x 2 arms = 48 real runs on Mercury 2.
+
+**Headline: still no benefit.** Retrieval did not improve success, steps or tokens, and cost slightly more.
+
+**What was tested.** Each goal hits a real quirk of the worker's tools (write_file reports bytes not characters, there is no append, list_files takes no argument, read_file on a missing file fails, `..` paths are rejected, ...).
+The seed was the deduplicated real token database plus **6 hand-written lessons** that state those quirks truthfully (`extract_model: HAND-WRITTEN`, all accepted). So this tests whether a *correct, relevant* lesson helps; it does **not** test whether the system learns such lessons by itself.
+
+| Arm | Completed | Objective check passed | Tool calls (mean) | Steps (mean) | Tokens (mean) | Cost per run (mean, real) | Duration ms (mean) |
+|---|---|---|---|---|---|---|---|
+| off | 23 of 24 | 15 | 3.33 | 7.63 | 7,321 | $0.00198 | 6,886 |
+| on | 23 of 24 | 14 | 3.67 | 8.29 | 9,283 | $0.00249 | 7,199 |
+
+Total worker spend for the 48 runs: **$0.107** (real cost from the server's run records, not an estimate; cap was $2). One run per arm hit a 30 s timeout (not attributed to tokens).
+Per goal, objective passes (off / on, of 3): bytes-not-chars 1/1, append 2/2, list-subdir 0/0, missing-then-create 3/3, dotdot-path 0/0, counter 3/3, three-files 3/2, missing-no-invent 3/3. Two goals (`list-subdir`, `dotdot-path`) failed in both arms, so their checks may be too strict; I did not tune them after seeing results.
+
+**Why retrieval cannot be credited here: it often fetched the wrong lessons.** The hand-written lessons that matter were injected for some goals (bytes, append, list-subdir, dotdot, counter) but not for `missing-then-create` or `missing-no-invent` (the missing-file lesson was never in the top 3; older verification lessons won).
+Keyword retrieval (`matchStrength`) is a weak link in the chain, separate from whether lessons help. Fixing retrieval ranking is the next lever, and untested.
+
+Not a cost bug: the earlier worry that runs record `cost_usd: 0` does not reproduce. Worker runs record real costs ($0.0004 to $0.0027 per run in P3 and P3.1); the only zero-cost paths are local Ollama runs and runs that fail before the first model reply (a provider 503). Extraction/challenge calls are not priced (they store token counts only). `tests/run-cost.test.ts` pins the behavior.
+
+## P3.1: challenge tuning
+
+Raw: `adr-029-p3/challenge-tune-current.json`, `challenge-tune-strict.json`; script `challenge-tune.ts.txt`. Real run record (read_file x2 incl. an ENOENT, write_file, list_files), 10 true and specific lessons, 10 bad ones (false tool claims, invented behavior, cached-read myth, wrong-tool advice, a paraphrase of a known lesson, a goal-unrelated claim), 2 repetitions each = 40 judgments per prompt.
+
+| Prompt | good passed | good rejected | bad passed | bad rejected | unjudged (timeouts/empty) | precision | recall |
+|---|---|---|---|---|---|---|---|
+| current | 17 | 1 | 0 | 19 | 3 | 1.00 | 0.94 |
+| stricter wording (each claim checked; "novel" defined) | 18 | 1 | 0 | 19 | 2 | 1.00 | 0.95 |
+
+Precision and recall are over judged calls. The prompts do not differ beyond noise (n=40), so **the prompt was not changed**. The earlier 2-of-3 on a single good control was sample noise plus the since-fixed truncation; the real weak spot is provider timeouts and empty replies (5 of 80 calls), which leave a lesson unjudged (safe: it stays `scored`).
+
+## P3.1: dedupe
+
+`SqliteTokenStore.mergeDuplicates`: same tool set (`tool:x` tags or bare tags naming a known tool) and similarity >= 0.25 against the whole accepted corpus; the best-scored token survives (oldest on a tie), the duplicate is retired, linked `merged_into`, and receipted; idempotent. It also runs after each newly accepted token.
+On the real accepted tokens (copy): **12 -> 11** (TT-000011 merged into TT-000005, bm25 0.32, tools list_files + write_file); [`dedupe-report.json`](./adr-029-p3/dedupe-report.json).
+Only one merge because the strict tool-set rule keeps most of the verification cluster apart (for example "Verify file creation with list_files" is tagged `list_files` only while TT-000005 is tagged `write_file` and `list_files`), and only 5 pairs clear the similarity bar. I did not loosen either rule to get a bigger number.

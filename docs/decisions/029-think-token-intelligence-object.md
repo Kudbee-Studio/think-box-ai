@@ -270,6 +270,6 @@ Evidence: `docs/evidence/adr-029-p3.md`. This ADR stays **Proposed**; P3 changes
 | `think_token_links` (`same_tool`, `similar`, `co_used`) with evidence, ledger entries, CLI `tokens links` and a Links panel on the card | CODE COMPLETE, TEST VERIFIED; `co_used` LIVE VERIFIED on real history; `same_tool` and `similar` have no live example (older tokens carry no `tool:` tags; the real similar pairs fall below the threshold except one cluster) |
 | Propagation v1 (depth 1, capped, reproducible score) | CODE COMPLETE, TEST VERIFIED; not observed live |
 | Learning proof (A/B) | **UNPROVEN, and the first measurement was negative-to-null:** 24 real runs, retrieval on vs off, no measurable benefit (see evidence). Tokens are not shown to help yet |
-| 54-sticker cube mapping | **Not decided.** An earlier draft of P3 marked it decided; that was withdrawn. The open question in section 2 stands |
+| 54-sticker cube mapping | **Decided by the founder, 2026-10-02: the 100-cell token is canonical; the 54-sticker cube is a view.** The decision is recorded only: the view mapping is **not built**, and its layout (which cells land on which sticker) is still to be designed and tested as total and stable before any code. This closes the open question in section 2 and gap 11 |
 | Disruption Tokens, multi-worker propagation, vector memory | CONCEPT / UNPROVEN, unchanged |
 

@@ -75,6 +75,7 @@ credential or token-scope changes, or contact with live infrastructure.
   at or above `SIMILAR_THRESHOLD` 0.25, calibrated on 78 real lesson pairs, see `docs/evidence/adr-029-p3.md`), and `co_used` (used by the same run, weight grows with shared runs).
   `kudbee tokens links <TT-id>` and the token card's Links panel read them through the same reader. Propagation v1 is depth 1: using a token credits
   its linked neighbors; the bonus is `min(0.10, 0.02 x sum of the last 12 credits)` and is stored in `score_breakdown` so the shown score reproduces.
+- Dedupe: `mergeDuplicates` retires an accepted token that has the same tool set and similarity >= 0.25 to a better-scored one, linked `merged_into` (directed, duplicate -> survivor); it runs after each newly accepted token. Pass the known tool names to `linkToken`/`mergeDuplicates` so tokens saved before P3 (bare tool-name tags) are included.
 - A token whose challenge could not run stays `scored`. After each run the server retries up to 3 of them against their own run record
   (`rechallengeScoredTokens`); a token with no run record or no model stays `scored` and is never force-rejected. `scored -> rejected` is not a legal transition.
 - Unsafe advice (`rm -rf`, `curl | sh`, disabling auth, exfiltration, inline secrets) fails the deterministic specificity check regardless of what the model says.

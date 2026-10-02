@@ -1,0 +1,330 @@
+{
+ "variant": "strict",
+ "tp": 18,
+ "fn": 1,
+ "fp": 0,
+ "tn": 19,
+ "none": 2,
+ "rows": [
+  {
+   "label": "good",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows read_file config.yaml error ENOENT and successful read of config.json; lesson matches thes"
+  },
+  {
+   "label": "good",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Lesson correctly notes the ENOENT error on config.yaml and the successful read of config.json, match"
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows config.json has three keys and summary.md contains bullet list of those keys, matching les"
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows config.json with three keys and summary.md containing bullet list of those keys, matching "
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Lesson correctly cites write_file reported 31 bytes and list_files showed 31 bytes for summary.md, m"
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "write_file output says 31 bytes written; list_files shows summary.md 31 bytes, matching confirms ful"
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows read_file returned single-line JSON and summary.md contains those keys, matching lesson cl"
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows read_file on config.json returning a single-line JSON object, which was parsed to extract "
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows config.yaml read_file failed ENOENT, yet subsequent steps succeeded, confirming the run co"
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows read_file config.yaml failed (ENOENT) but run proceeded using config.json and completed ta"
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "The run reads config.json (read_file) before writing summary.md (write_file), matching the lesson's "
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run reads config.json before writing summary.md, matching lesson's claim about ordering; lesson is g"
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Lesson matches run: summary.md has a heading and bullet list written by a single write_file call, as"
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Lesson matches write_file content (heading + bullets) and single call, directly backed by tool outpu"
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "list_files output shows config.json 44 bytes and summary.md 31 bytes, matching the lesson; lesson me"
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "list_files output shows config.json 44 bytes and summary.md, matching lesson; lesson cites concrete "
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows ENOENT error on config.yaml and then uses config.json without retrying, matching lesson's "
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "none",
+   "reason": "mercury returned no text"
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run read_file shows three keys; lesson correctly counts them and notes the count, which matches outp"
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "pass",
+   "reason": "Run shows three keys in config.json read_file output and summary.md contains those keys; lesson’s cl"
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson says read_file on config.yaml succeeded, but run shows it failed with ENOENT."
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "The run shows read_file on config.yaml failed (ENOENT), contradicting the lesson's claim of success "
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run shows write_file writes summary.md but gives no evidence of automatic backup; claim not supporte"
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson claims write_file backs up previous version, but run shows no backup behavior; not supported "
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run's list_files output shows only file sizes, no checksums; claim about checksums is unsupported an"
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run's list_files output shows only filenames and sizes, no checksums; claim about checksums is unsup"
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run only read config.json once; no evidence of caching or need for second read."
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run only reads config.json once; no second read or caching behavior is shown, so the lesson's claim "
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson asserts write_file should be called with debug mode off due to debug:false, but run shows no "
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson claims write_file should be called with debug mode off, but the run shows no debug mode param"
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson advises list_files before write_file, but the run performed list_files after write_file and s"
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson advises list_files before write_file, but the run executed write_file first; the claim is not"
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 0,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called"
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 1,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called"
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson claims summary.md should be JSON, but run wrote markdown; no tool output supports this claim."
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson recommends JSON format, but run wrote markdown; no evidence supports claim, making it unsuppo"
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson matches run's list_files verification, but is generic and duplicates known lesson without nam"
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Lesson matches run: after write_file, list_files confirms summary.md exists and size, exactly as kno"
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "Run did not include a timeout argument for read_file; claim not backed by the run."
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "none",
+   "reason": ""
+  }
+ ]
+}
