@@ -207,7 +207,17 @@ export interface MergeReport {
   merged: Array<{ id: string; into: string; similarity: number; tools: string[] }>;
 }
 
+/** `hybrid`: the P3.6 ranker; `lexical`: P3.2; `cosine`: cosine only; `cosine-tiebreak`: cosine first (buckets of 0.02), BM25 only breaks ties inside a bucket. The cosine rankers need vectors and fall back to `lexical` without them. */
+export type RankerName = 'hybrid' | 'lexical' | 'cosine' | 'cosine-tiebreak';
+export const RANKERS: readonly RankerName[] = ['hybrid', 'lexical', 'cosine', 'cosine-tiebreak'];
+/** Cosine below this is "unrelated" for the cosine rankers (the same floor the hybrid rescales from), so a goal with no related lesson gets none. */
+export const COSINE_FLOOR = 0.15;
+/** The ranker used when neither the caller nor THINKBOX_RETRIEVER names one. */
+export const DEFAULT_RANKER: RankerName = 'cosine';
+
 export interface RetrieveOptions {
+  /** Which ranker to use. Default: THINKBOX_RETRIEVER if it names one, else DEFAULT_RANKER. */
+  ranker?: RankerName;
   knownTools?: readonly string[];
   diverse?: boolean;
   /** Epoch ms used for the recency term of every token's score. Default: THINKBOX_TOKEN_CLOCK (epoch ms) if set, else the real clock. Evals and A/B runs freeze it. */
@@ -1000,7 +1010,19 @@ export class SqliteTokenStore implements TokenStore {
     const bm25 = rankAgainstQuery(goal, accepted.map((t) => ({ id: t.id, text: text(t) })));
     const idf = toolIdf(accepted.map((t) => toolsOfTags(t.tags, known)));
     const goalLower = goal.toLowerCase();
-    const vectors = opts.goalVector && opts.embedModel && process.env.THINKBOX_RETRIEVER !== 'lexical' ? this.embeddingsFor(opts.embedModel) : null;
+    const envRanker = process.env.THINKBOX_RETRIEVER as RankerName | undefined;
+    const requested: RankerName = opts.ranker ?? (envRanker && RANKERS.includes(envRanker) ? envRanker : DEFAULT_RANKER);
+    const vectors = opts.goalVector && opts.embedModel && requested !== 'lexical' ? this.embeddingsFor(opts.embedModel) : null;
+    if (vectors && vectors.size && (requested === 'cosine' || requested === 'cosine-tiebreak')) {
+      const scored = accepted
+        .map((row) => {
+          const vec = vectors.get(row.id);
+          return { row, cos: vec ? cosine(opts.goalVector!, vec) : -1, bm: bm25.get(row.id) ?? 0, quality: computeScore(row, now, row.score_breakdown?.propagation ?? []) };
+        })
+        .filter((e) => e.cos >= COSINE_FLOOR)
+        .sort((a, b) => (requested === 'cosine' ? b.cos - a.cos : Math.round(b.cos / 0.02) - Math.round(a.cos / 0.02) || b.bm - a.bm || b.cos - a.cos) || a.row.seq - b.row.seq);
+      return scored.slice(0, Math.max(0, Math.min(k, 10))).map((e) => ({ ...e.row, score: e.quality }));
+    }
     const ranked = accepted
       .map((row) => {
         const modes = failureModesShared(goalLower, text(row).toLowerCase());

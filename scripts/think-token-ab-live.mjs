@@ -1,6 +1,7 @@
 // ADR 029 P3 live A/B: does retrieving Think Tokens change real runs?
 //
 // Usage: node scripts/think-token-ab-live.mjs <seed-think-tokens.db> <out.json> [reps=2] [goals-module.mjs]
+// AB_WAIT_MS (default 0) waits that long after the "on" server starts so the embedding model has loaded before the first goal; THINKBOX_TOKEN_CLOCK, if set, freezes retrieval's clock in both arms.
 // A goals module exports `GOALS` (see below); it defaults to the built-in set. Total worker cost is summed from the server's run
 // records and the script stops once it passes MAX_SPEND_USD (default 2).
 //
@@ -50,7 +51,7 @@ async function startServer(arm, port) {
   };
   const child = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], { cwd: appDir, env, stdio: ['ignore', 'ignore', 'ignore'] });
   for (let i = 0; i < 60; i += 1) {
-    try { if ((await fetch(`http://127.0.0.1:${port}/api/runs`)).ok) return { child, dir, port }; } catch { /* not up yet */ }
+    try { if ((await fetch(`http://127.0.0.1:${port}/api/runs`)).ok) { if (arm === 'on' && process.env.AB_WAIT_MS) await sleep(Number(process.env.AB_WAIT_MS)); return { child, dir, port }; } } catch { /* not up yet */ }
     await sleep(500);
   }
   child.kill();
