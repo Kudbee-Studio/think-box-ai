@@ -163,7 +163,7 @@ test('P3.10: a superseded memory stays on disk but is never recalled, and two id
   await store.write('org', { title: '[SUPERSEDED 2026-10-02] Open PR state 2026-09-30', content: 'Open PRs: #304 (draft). The pull request list as of 2026-09-30.', tags: ['pr', 'superseded'] });
   await store.write('org', { title: 'Open PR check', content: 'List the open pull request list with the GitHub API; do not trust old notes.', tags: ['pr'] });
   await store.write('task', { title: 'WHAT PR ARE WE WORKING ON?', content: 'Goal: WHAT PR ARE WE WORKING ON?\nOutcome: completed', slug: 'ep-1' });
-  await store.write('task', { title: 'WHAT PR ARE WE WORKING ON?', content: 'Goal: WHAT PR ARE WE WORKING ON?\nOutcome: completed', slug: 'ep-2' });
+  await store.write('task', { title: 'WHAT PR ARE WE WORKING ON?', content: 'Goal: WHAT PR ARE WE WORKING ON?\nOutcome: completed\nTools: fetch_url, write_file', slug: 'ep-2' });
   const { hits } = await store.search('what open pull request list PR are we working on', { topK: 10 });
   const titles = hits.map((h) => h.item.title);
   assert.ok(!titles.some((t) => t.includes('SUPERSEDED')), `recalled: ${titles}`);

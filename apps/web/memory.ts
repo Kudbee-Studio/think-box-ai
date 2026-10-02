@@ -31,13 +31,14 @@ export function isSuperseded(item: Pick<MemoryItem, 'title' | 'tags'>): boolean 
   return item.tags.some((t) => t.toLowerCase() === 'superseded') || /^\s*\[SUPERSEDED/i.test(item.title);
 }
 
-/** Identical recalls (same title and text after whitespace/case normalisation, e.g. the same goal asked twice) collapse to the newest one. */
+/** Duplicate recalls collapse to the newest one: same title and text after whitespace/case normalisation, or, for task episodes, the same goal. */
 export function dedupeHits(hits: MemoryHit[]): MemoryHit[] {
   const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
   const best = new Map<string, MemoryHit>();
   const order: string[] = [];
   for (const hit of hits) {
-    const key = `${hit.item.layer}|${norm(hit.item.title)}|${norm(hit.item.content).slice(0, 400)}`;
+    // task episodes of the same goal differ in their recorded outcome and tool details; the goal (title) is what makes them the same question
+    const key = hit.item.layer === 'task' ? `task|${norm(hit.item.title)}` : `${hit.item.layer}|${norm(hit.item.title)}|${norm(hit.item.content).slice(0, 400)}`;
     const prior = best.get(key);
     if (!prior) order.push(key);
     if (!prior || hit.item.updated > prior.item.updated) best.set(key, { item: hit.item, score: Math.max(hit.score, prior?.score ?? 0) });
