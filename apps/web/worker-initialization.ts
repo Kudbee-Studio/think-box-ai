@@ -2,7 +2,7 @@
 
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { LearningManager } from './learning-integration.ts';
-import type { AgentSessionConfig, ChatMessage } from './types.ts';
+import type { AgentSessionConfig } from './types.ts';
 
 /**
  * Worker Initialization: Set up new worker with Think Token context

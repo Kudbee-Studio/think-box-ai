@@ -1,15 +1,38 @@
 {
-  "screenshot": "/opt/cursor/artifacts/think-tokens-reduced-motion.png",
-  "prefers_reduced_motion": true,
-  "console_errors": [
-    "Failed to load resource: the server responded with a status of 404 (Not Found)"
-  ],
-  "cube": {
-    "hasTwistClass": false,
-    "animationName": "none",
-    "animationDuration": "1e-05s"
+  "date": "2026-10-02",
+  "method": "Windows Chrome headless, real server on 127.0.0.1:3002 over a copy of docs/evidence/adr-029-p3/p33-seed.db, Think Tokens modal open; the same probe run without and with --force-prefers-reduced-motion",
+  "screenshot": "docs/screenshots/think-tokens-p3/reduced-motion-1440.png (reduced-motion run)",
+  "normal": {
+    "prefersReduced": false,
+    "cards": 21,
+    "cubePresent": true,
+    "twist": {
+      "animationName": "think-cube-twist",
+      "transitionProperty": "opacity, background-color, box-shadow, transform"
+    },
+    "pulseCell": {
+      "transitionProperty": "opacity, background-color, box-shadow, transform",
+      "animationName": "none",
+      "outline": "none 3px",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)"
+    }
   },
-  "energy_core_ring": {
-    "activeCore": false
-  }
+  "reduced": {
+    "prefersReduced": true,
+    "cards": 21,
+    "cubePresent": true,
+    "twist": {
+      "animationName": "none",
+      "transitionProperty": "none"
+    },
+    "pulseCell": {
+      "transitionProperty": "none",
+      "animationName": "none",
+      "outline": "solid 2px",
+      "transform": "none"
+    }
+  },
+  "reading": "With reduced motion the cube twist animation is none (was think-cube-twist), cube transitions are none (were opacity/background/box-shadow/transform), and a pulsed cell shows a static 2px outline instead of a transform. This replaces the P3.3 probe, whose active-core check was vacuous (no active core existed in that run).",
+  "console_404": "The earlier 404 was the browser's automatic /favicon.ico request (index.html had no icon link). Fixed with an inline data: icon link; verified: every asset the page references returns 200 and no favicon request is made.",
+  "not_checked": "Energy Core ring animation (no active core in a seeded database without a live run)"
 }

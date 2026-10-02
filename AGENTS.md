@@ -14,7 +14,7 @@ These supersede older "do not merge" and "founder reviews" lines elsewhere in th
 
 You may squash-merge your own PRs into `main` without waiting for the founder when ALL of these gates pass:
 
-1. All tests, lint and typecheck are green locally before the single push.
+1. All tests, lint and typecheck are green locally before the single push (`cd apps/web && npm test && npm run lint && npm run typecheck`).
 2. CI is green on that push (no re-runs, no empty retrigger commits). A CodeQL "new alert" on the PR counts as red.
 3. The PR body has an EVIDENCE section with a four-state table, and UNPROVEN items are listed honestly.
 4. You reviewed the diff yourself: no secrets, no `.db` / `.neon` files, no out-of-scope changes.

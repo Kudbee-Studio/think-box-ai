@@ -60,10 +60,17 @@ the project maintainers. Please do not open a public issue for security vulnerab
 **Risk:** Low for this repository's deployment model. The Janus service loads a single fixed checkpoint (`deepseek-ai/Janus-Pro-1B`) on loopback when explicitly enabled; it does not load arbitrary user-supplied model paths in normal operation.
 
 **Mitigation (shipped):**
-- Janus is **disabled by default** (`KUDBEE_JANUS_ENABLED` must be `1` or `true`).
-- The Node dashboard only calls Janus when enabled; `JANUS_BASE_URL` defaults to `http://127.0.0.1:8001`.
-- `apps/web/janus_service.py` rejects any `JANUS_MODEL` other than `deepseek-ai/Janus-Pro-1B` at import time.
+- Janus is **disabled by default** (`KUDBEE_JANUS_ENABLED` must be `1` or `true`; the compose `agent-os` service passes it through, default `0`).
+- The Node dashboard only calls Janus when enabled; `JANUS_BASE_URL` defaults to `http://127.0.0.1:8001`, and compose publishes the service on `127.0.0.1` only.
+- `apps/web/janus_service.py` rejects any `JANUS_MODEL` other than `deepseek-ai/Janus-Pro-1B` at import time **and** loads the model weights at a pinned commit (`MODEL_REVISION = 960ab331...`, checked 2026-10-02), so the checkpoint cannot change underneath the service.
+- At that commit the repository holds one `pytorch_model.bin` and **no sharded index** (`*.index.json`), so the advisory's attack (a crafted `weight_map` in a shard index) has no index to poison there.
 - Dependency pins in `janus-requirements.txt` are unchanged until a fixed `accelerate` release is available and validated against `transformers` in this stack.
+
+**Still open (not mitigated):**
+- `accelerate` itself is still the affected component (pinned 0.29.3; the advisory range is "through 1.14.0").
+- **safetensors-only cannot be enforced**: the model repository ships only a pickle-format `pytorch_model.bin`, so `use_safetensors=True` would make loading fail. Loading a pickle checkpoint is its own trust decision, made by pinning the commit.
+- The Janus *processor* (`VLChatProcessor`, tokenizer and preprocessor JSON, no weights) is still loaded from the model id without a revision; the `janus` package's `from_pretrained` signature was not verified against a `revision` argument and torch is not installed in this environment, so the change was not run. `trust_remote_code=True` is unchanged.
+- The pin and allow-list are covered only by a source-level test (`tests/janus-pin.test.ts`); the service itself was not started.
 
 **Plan:** Revisit when upstream publishes a fixed `accelerate` version that remains compatible with the pinned `transformers` stack; then bump pins, re-run the Janus smoke test on loopback, and remove or downgrade this entry.
 

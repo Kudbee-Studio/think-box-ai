@@ -339,7 +339,6 @@ export async function executeSpecialistWave(
 }
 
 export function planSpecialistWaves(allocations: SpecialistAllocation[]): SpecialistAllocation[][] {
-  const byId = new Map(allocations.map((allocation) => [allocation.specialistId, allocation]));
   const dependencies = new Map(allocations.map((allocation) => [allocation.specialistId, new Set<string>()]));
   for (const source of allocations) {
     for (const target of allocations) {

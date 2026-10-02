@@ -203,6 +203,13 @@ export interface MergeReport {
   merged: Array<{ id: string; into: string; similarity: number; tools: string[] }>;
 }
 
+export interface RetrieveOptions {
+  knownTools?: readonly string[];
+  diverse?: boolean;
+  /** Epoch ms used for the recency term of every token's score. Default: THINKBOX_TOKEN_CLOCK (epoch ms) if set, else the real clock. Evals and A/B runs freeze it. */
+  now?: number;
+}
+
 /** Interface so a Postgres implementation could be added later (ADR 028) and share one test suite. */
 export interface TokenStore {
   write(draft: TokenDraft, actor: string): WriteResult;
@@ -213,7 +220,7 @@ export interface TokenStore {
   recordOutcome(runId: string, success: boolean, actor: string): Receipt | null;
   get(id: string): ThinkTokenRow | null;
   list(opts?: ListOptions): ThinkTokenRow[];
-  retrieve(goal: string, k?: number, opts?: { knownTools?: readonly string[]; diverse?: boolean }): ThinkTokenRow[];
+  retrieve(goal: string, k?: number, opts?: RetrieveOptions): ThinkTokenRow[];
   verifyLedger(): { ok: boolean; entries: number; broken_at?: number };
   upsertLink(fromId: string, toId: string, kind: LinkKind, weight: number, evidence: string, actor: string): LinkWriteResult;
   listLinks(tokenId: string): ThinkTokenLink[];
@@ -939,7 +946,9 @@ export class SqliteTokenStore implements TokenStore {
    * With `diverse` (default) a lesson that is a near-duplicate (similarity >= SIMILAR_THRESHOLD) of one already chosen is skipped.
    * Candidate, rejected and retired tokens are never returned. See FAILURE_MODES for the failure-mode lexicon.
    */
-  retrieve(goal: string, k = 3, opts: { knownTools?: readonly string[]; diverse?: boolean } = {}): ThinkTokenRow[] {
+  retrieve(goal: string, k = 3, opts: RetrieveOptions = {}): ThinkTokenRow[] {
+    const clock = Number(process.env.THINKBOX_TOKEN_CLOCK);
+    const now = opts.now ?? (Number.isFinite(clock) && clock > 0 ? clock : Date.now());
     const known = new Set(opts.knownTools ?? DEFAULT_KNOWN_TOOLS);
     const accepted = (this.db.prepare("SELECT * FROM think_tokens WHERE tenant_id = ? AND status = 'accepted'").all(this.tenant) as any[]).map(rowFrom);
     if (!accepted.length) return [];
@@ -954,7 +963,7 @@ export class SqliteTokenStore implements TokenStore {
         const tools = toolsOfTags(row.tags, known);
         const specificity = tools.length ? Math.max(...tools.map((t) => idf(t))) : 0.5;
         const generic = modes > 0 ? 1 : 0.4 + 0.6 * Math.min(1, 2 * specificity);
-        const quality = computeScore(row, Date.now(), row.score_breakdown?.propagation ?? []);
+        const quality = computeScore(row, now, row.score_breakdown?.propagation ?? []);
         return { row, rel: relevance > 0 ? relevance * generic * (0.5 + quality) : 0, quality };
       })
       .filter((e) => e.rel > 0)

@@ -246,7 +246,6 @@ export class LearningExtractor {
 
   generateSystemPromptWithLearnings(goal: string, topN: number = 5): string {
     const patterns = this.store.getTopPatterns(topN);
-    const goalSpecific = this.store.queryLearningByGoal(goal, 3);
     const successfulApproaches = this.store.getSuccessfulApproaches(goal);
 
     let prompt = '';

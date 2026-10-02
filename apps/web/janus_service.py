@@ -17,6 +17,8 @@ from transformers import AutoModelForCausalLM
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 
 ALLOWED_MODEL_ID = "deepseek-ai/Janus-Pro-1B"
+# Commit of deepseek-ai/Janus-Pro-1B (last modified 2025-02-01) whose weights are loaded. A moved or force-pushed branch cannot change them.
+MODEL_REVISION = "960ab33191f61342a4c60ae74d8dc356a39fafcb"
 MODEL_ID = os.environ.get("JANUS_MODEL", ALLOWED_MODEL_ID)
 if MODEL_ID != ALLOWED_MODEL_ID:
     raise RuntimeError(
@@ -51,6 +53,7 @@ def load_model() -> tuple[VLChatProcessor, MultiModalityCausalLM]:
         loaded_processor = VLChatProcessor.from_pretrained(MODEL_ID)
         loaded_model = AutoModelForCausalLM.from_pretrained(
             MODEL_ID,
+            revision=MODEL_REVISION,
             trust_remote_code=True,
             torch_dtype=torch.float32,
             low_cpu_mem_usage=True,

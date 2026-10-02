@@ -1,0 +1,125 @@
+{
+  "seed": "p33-seed.db",
+  "frozen_now": "2026-10-02T12:00:00.000Z",
+  "goals_module": "think-token-ab-goals-p35-heldout.mjs",
+  "related_goals": 10,
+  "hit_at_1": 2,
+  "hit_at_3": 3,
+  "hit_at_1_rate": 0.2,
+  "hit_at_3_rate": 0.3,
+  "per_goal": [
+    {
+      "id": "three-levels-down",
+      "expectedLesson": "deep-mkdir",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "[lesson:missing-no-invent] Admit missing files",
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:missing-then-create] Create missing JSON settings"
+      ]
+    },
+    {
+      "id": "blank-document",
+      "expectedLesson": "zero-byte",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "[lesson:dotdot-path] Parent paths via write_file",
+        "[lesson:deep-mkdir] Nested paths auto-create dirs"
+      ]
+    },
+    {
+      "id": "redundant-dots",
+      "expectedLesson": "path-normalize",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "[lesson:json-line] Compact JSON line"
+      ]
+    },
+    {
+      "id": "buried-file-inventory",
+      "expectedLesson": "recursive-list",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:recursive-list] list_files finds deep files",
+        "[lesson:dotdot-path] Parent paths via write_file",
+        "[lesson:missing-then-create] Create missing JSON settings"
+      ]
+    },
+    {
+      "id": "five-letter-length",
+      "expectedLesson": "size-match",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "Approval for new domains",
+        "[lesson:missing-then-create] Create missing JSON settings",
+        "[lesson:missing-no-invent] Admit missing files"
+      ]
+    },
+    {
+      "id": "swap-the-letter",
+      "expectedLesson": "replace-not-append",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "Approval for new domains",
+        "[lesson:missing-then-create] Create missing JSON settings",
+        "[lesson:append] Append with read_file then write_file"
+      ]
+    },
+    {
+      "id": "dartboard-size",
+      "expectedLesson": "emoji-utf8",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "[lesson:missing-no-invent] Admit missing files",
+        "[lesson:three-files] Name files in content",
+        "[lesson:append] Append with read_file then write_file"
+      ]
+    },
+    {
+      "id": "minified-flag",
+      "expectedLesson": "json-line",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:json-line] Compact JSON line",
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:emoji-utf8] Emoji byte length"
+      ]
+    },
+    {
+      "id": "second-journal-entry",
+      "expectedLesson": "append",
+      "hit1": false,
+      "hit3": true,
+      "rank": 3,
+      "top3": [
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:replace-not-append] Overwrite replaces all",
+        "[lesson:append] Append with read_file then write_file"
+      ]
+    },
+    {
+      "id": "digest-of-unknown-report",
+      "expectedLesson": "missing-no-invent",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": []
+    }
+  ]
+}
