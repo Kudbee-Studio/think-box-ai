@@ -1,0 +1,134 @@
+{
+  "model": "mercury-2",
+  "total_cost_usd": 0.0105195,
+  "results": [
+    {
+      "case": "open-prs-empty",
+      "off": {
+        "check": false,
+        "answer": "The pull‑request list at `http://127.0.0.1:39437/pulls` returned an empty array (`[]`), indicating that there are currently no open pull requests.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.0009074999999999999,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "The request to **http://127.0.0.1:39437/pulls** returned an empty list, indicating that there are currently **no open pull requests** in the repository.\n\nThe previous memory that listed PR #304 as an open draft was stale; the up‑to‑date information from the tool shows no open PRs.",
+        "correct": true,
+        "conflicts": [
+          "The tool returned an empty list of pull requests, indicating no open draft PRs like PR #304."
+        ],
+        "flagged": false,
+        "cost_usd": 0.00129475,
+        "tool_calls": 1
+      }
+    },
+    {
+      "case": "ci-no-runs",
+      "off": {
+        "check": false,
+        "answer": "I fetched the CI status from http://127.0.0.1:39437/ci. The response contains an empty list of workflow runs (`\"total_count\":0, \"workflow_runs\":[]`). Since there are no recorded CI runs, there is no information indicating a green (passing) status on the main branch.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00085,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "I fetched the URL `http://127.0.0.1:39437/ci`. The response contains:\n\n```json\n{\n  \"total_count\": 0,\n  \"workflow_runs\": []\n}\n```\n\nThis indicates that the CI endpoint is currently reporting **no workflow runs** (total count = 0). Because there are no runs listed, the response does not provide a status such as “green” or “red” for the `main` branch. Based on this data alone, we cannot confirm whether the CI on `main` is green.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00115575,
+        "tool_calls": 1
+      }
+    },
+    {
+      "case": "server-503",
+      "off": {
+        "check": false,
+        "answer": "The health check endpoint returned a **503 Service Unavailable** response, indicating that the Agent OS server is **not currently running/healthy** at `http://127.0.0.1:39437/health`.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00070225,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "I fetched `http://127.0.0.1:39437/health`. The response indicates a **503 Service Unavailable** status with the text “service unavailable”.  \n\n**Answer:** The Agent OS server is not currently running (or not healthy) at that endpoint.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00075475,
+        "tool_calls": 1
+      }
+    },
+    {
+      "case": "wallet-404",
+      "off": {
+        "check": false,
+        "answer": "I tried to retrieve the wallet information from **http://127.0.0.1:39437/wallet**, but the request returned a **404 Not Found** error:\n\n```\n{ \"ok\": true,\n  \"url\": \"http://127.0.0.1:39437/wallet\",\n  \"status\": 404,\n  \"content_type\": \"application/json\",\n  \"text\": \"{ \\\"error\\\": \\\"not found\\\" }\" }\n```\n\nSince the URL does not provide the data, I’m using the verified internal record for the wallet balance, which is **125.5 ALGO**.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.000842,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "I tried to fetch the wallet information from the URL you provided (`http://127.0.0.1:39437/wallet`). The request returned a **404 Not Found** response with the JSON error:\n\n```json\n{ \"error\": \"not found\" }\n```\n\nSince the endpoint didn’t return any balance data, I can’t retrieve the balance from it. However, according to our verified internal records, the current wallet balance is **125.5 ALGO**. If you need the balance from a different source or a working endpoint, please let me know.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.0009142499999999999,
+        "tool_calls": 1
+      }
+    },
+    {
+      "case": "open-pr-contradicted",
+      "off": {
+        "check": false,
+        "answer": "The open pull request is **#322** – titled **“Real current PR.”** It is currently **open** and marked as a **draft**.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.0007915,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "The open pull request is **#322** – titled **“Real current PR.”**",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.0007355,
+        "tool_calls": 1
+      }
+    },
+    {
+      "case": "ci-contradicted",
+      "off": {
+        "check": false,
+        "answer": "The CI check for the **main** branch is **failing** – the latest workflow run reports a conclusion of “failure.”",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00082375,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "The CI status for the **main** branch is **not passing** – the latest workflow run has a conclusion of **failure**.",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.0007475,
+        "tool_calls": 1
+      }
+    }
+  ]
+}

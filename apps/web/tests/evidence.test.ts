@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
 import type { AgentEvent, AgentHooks } from '../agent.ts';
-import { EVIDENCE_RULE, conflictCandidate, freshnessLabel, isLiveStateText, isNegativeEvidence, parseJudge } from '../evidence.ts';
+import { EVIDENCE_RULE, conflictCandidate, unsupportedClaims, freshnessLabel, isLiveStateText, isNegativeEvidence, parseJudge } from '../evidence.ts';
 import { MemoryStore, type MemoryItem } from '../memory.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from '../think-token-store.ts';
 
@@ -49,12 +49,27 @@ test('conflictCandidate: only when a tool said nothing/failed AND the answer ass
   assert.equal(isNegativeEvidence(empty[0]!), true);
   assert.equal(conflictCandidate('We are working on PR #304, a draft.', empty), true);
   assert.equal(conflictCandidate('There are no open pull requests right now.', empty), false);
-  assert.equal(conflictCandidate('We are working on PR #304, a draft.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":304}]"}' }]), false, 'the tool agreed');
+  assert.equal(conflictCandidate('We are working on PR #304, a draft.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":304,\\"draft\\":true}]"}' }]), false, 'the tool agreed');
   assert.equal(conflictCandidate('CI is passing.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"{\\"total_count\\":0,\\"workflow_runs\\":[]}"}' }]), true);
   assert.equal(conflictCandidate('The server is running.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":503,"text":"service unavailable"}' }]), true);
   assert.equal(conflictCandidate('Done.', empty), false);
   assert.equal(parseJudge('```json\n{"conflict":true,"detail":"The API returned []."}\n```')?.conflict, true);
   assert.equal(parseJudge('nonsense'), null);
+});
+
+test('non-empty conflicts: a PR number, status or count that is nowhere in this run\'s tool output makes the answer a candidate; supported claims do not', () => {
+  const list = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":322,\\"title\\":\\"Real PR\\",\\"state\\":\\"open\\",\\"draft\\":false}]"}' }];
+  assert.deepEqual(unsupportedClaims('The open PR is #304.', list), ['#304']);
+  assert.equal(conflictCandidate('The open PR is #304.', list), true);
+  assert.equal(conflictCandidate('The open PR is #322, Real PR.', list), false, 'the number is in the tool output');
+  assert.deepEqual(unsupportedClaims('There are 3 open PRs.', list), ['3 prs']);
+  assert.equal(conflictCandidate('There is 1 open PR.', list), false, 'the count appears in the output');
+  const ci = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"{\\"workflow_runs\\":[{\\"conclusion\\":\\"failure\\",\\"name\\":\\"test\\"}]}"}' }];
+  assert.equal(conflictCandidate('CI is green and passing on main.', ci), true, 'the tool says failure');
+  assert.equal(conflictCandidate('CI is failing: the latest run concluded with failure.', ci), false);
+  assert.equal(conflictCandidate('CI is not green; the run failed.', ci), false, 'a negated status word is not a claim');
+  assert.equal(conflictCandidate('Done.', []), false, 'no tool output, nothing to contradict');
+  assert.equal(conflictCandidate('Wrote the file, 42 bytes.', [{ name: 'write_file', ok: true, output: '{"ok":true,"bytes":42}' }]), false, 'ordinary answers do not trigger');
 });
 
 // ─── agent-level replays ────────────────────────────────────────
@@ -159,4 +174,37 @@ test('an unusable judge reply leaves the answer alone (no silent rewrite)', asyn
   const result = await run('WHAT PR ARE WE WORKING ON?', hooksFor().hooks);
   assert.equal(result.result, 'We are working on PR #304 (draft).');
   assert.equal(result.evidence_conflicts, undefined);
+});
+
+// ─── live-state classifier, superseded and duplicate memories (P3.10) ───
+
+import { createLiveStateClassifier } from '../evidence.ts';
+import { dedupeHits, isSuperseded, type MemoryHit } from '../memory.ts';
+
+test('freshnessLabel honors an explicit live flag over the keyword list', () => {
+  assert.equal(freshnessLabel('2026-09-30T10:00:00Z', 'Prod database failover is in progress', NOW, true), '2026-09-30, STALE, verify with a tool');
+  assert.equal(freshnessLabel('2026-09-30T10:00:00Z', 'The project has a pull request template', NOW, false), '2026-09-30');
+});
+
+test('the live-state classifier says "live" when a text is closer to a live example than to any static one', async () => {
+  // fake embedder: axis 0 = live-ish words, axis 1 = static-ish words
+  const embed = async (texts: string[]) => texts.map((t) => { const v = new Float32Array(2); v[0] = (t.match(/currently|right now|today|down|running|failover/gi) ?? []).length; v[1] = (t.match(/stores|must|uses|decisions|lessons|supports|have/gi) ?? []).length; const n = Math.hypot(...v) || 1; return v.map((x) => x / n); });
+  const classify = await createLiveStateClassifier({ embed });
+  assert.deepEqual(await classify(['The service is down right now.', 'The tool must validate input.']), [true, false]);
+});
+
+test('superseded memories are never recalled and identical recalls collapse to the newest', () => {
+  const item = (id: string, title: string, updated: string, tags: string[] = []): MemoryHit => ({ item: { id, layer: 'task', title, tags, source: 'run', created: updated, updated, content: 'Goal: WHAT PR ARE WE WORKING ON? Outcome: done', path: `${id}.md` }, score: 1 });
+  assert.equal(isSuperseded({ title: '[SUPERSEDED 2026-10-02] Open PR state', tags: [] }), true);
+  assert.equal(isSuperseded({ title: 'Open PR state', tags: ['status', 'Superseded'] }), true);
+  assert.equal(isSuperseded({ title: 'Open PR state', tags: ['status'] }), false);
+  const deduped = dedupeHits([item('task/a', 'WHAT PR ARE WE WORKING ON?', '2026-10-01T10:00:00Z'), item('task/b', 'what pr are we working on?', '2026-10-02T10:00:00Z'), item('task/c', 'Something else', '2026-10-02T11:00:00Z')]);
+  assert.deepEqual(deduped.map((h) => h.item.id), ['task/b', 'task/c'], 'the two identical goals collapse; the newest is kept, order preserved');
+});
+
+test('a PR number mentioned in order to deny it ("no open PR like #304") is not an unsupported claim', () => {
+  const empty = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[]"}' }];
+  assert.deepEqual(unsupportedClaims('There are no open pull requests, so #304 is not open.', empty), []);
+  assert.equal(conflictCandidate('There are currently no open pull requests (no draft PRs like #304).', empty), false);
+  assert.equal(conflictCandidate('The open pull request is #304.', empty), true);
 });

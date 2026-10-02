@@ -1,0 +1,127 @@
+{
+  "keyword_correct": 12,
+  "embedding_correct": 15,
+  "total": 20,
+  "rows": [
+    {
+      "text": "Staging API is currently returning 500s for /v2/orders; ops are investigating.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "The nightly backup job last finished at 03:12 and succeeded.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "Prod database failover is in progress; writes are paused.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "Alice is on call this week for the payments service.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "The build on main is red because the lint step fails.",
+      "live": true,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "Wallet balance is 125.5 ALGO as of yesterday.",
+      "live": true,
+      "keyword": true,
+      "embedding": true
+    },
+    {
+      "text": "The dev server is listening on port 3000 right now.",
+      "live": true,
+      "keyword": true,
+      "embedding": true
+    },
+    {
+      "text": "Open PRs: #298, #300 (draft).",
+      "live": true,
+      "keyword": true,
+      "embedding": true
+    },
+    {
+      "text": "Disk usage on the build host is at 91 percent.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "The release v2.4 is rolling out to 25 percent of users.",
+      "live": true,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "write_file reports bytes, not characters.",
+      "live": false,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "The project uses SQLite for all persistence.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "Decision 2026-09-27: Neon was reverted; SQLite stays.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "To rotate a key, generate a new one and then revoke the old one.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "The dashboard binds to 127.0.0.1 by design.",
+      "live": false,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "Deploys are described in docs/guides and use docker compose profiles.",
+      "live": false,
+      "keyword": false,
+      "embedding": true
+    },
+    {
+      "text": "Think Tokens carry permanent TT ids that are never reused.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "Express route handlers must keep their line text stable to avoid CodeQL re-flagging.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "The CLI command kudbee tokens list shows saved tokens.",
+      "live": false,
+      "keyword": false,
+      "embedding": false
+    },
+    {
+      "text": "A pull request needs a four-state evidence table before it is merged.",
+      "live": false,
+      "keyword": true,
+      "embedding": true
+    }
+  ]
+}

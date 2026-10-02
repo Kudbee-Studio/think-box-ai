@@ -41,9 +41,10 @@ import { LearningStore } from './learning-store.ts';
 import { ThinkTokenCollection } from './think-token.ts';
 import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
-import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
+import { DEFAULT_RANKER, RANKERS, SqliteTokenStore, formatTokensForPrompt, type RankerName } from './think-token-store.ts';
 import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
-import { ensureEmbeddings, peekEmbedder } from './think-token-embed.ts';
+import { embedderState, ensureEmbeddings, peekEmbedder } from './think-token-embed.ts';
+import { createLiveStateClassifier } from './evidence.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -159,8 +160,8 @@ const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, 
 // ADR 028 Think Tokens: reusable learning units in their own SQLite file (never learning.db). Writes are admitted and
 // receipted by the store; use and extraction are wired into runAgentGoal below.
 const tokenStore = new SqliteTokenStore(process.env.KUDBEE_THINK_TOKEN_DB || path.join(dataDir, 'think-tokens.db'));
-// Start loading the embedding model in the background when there is something to embed, so the first goals are not ranked lexically for long.
-if (tokenStore.list({ status: 'accepted', limit: 1 }).length) peekEmbedder();
+// Start loading the embedding model in the background at boot (no-op when THINKBOX_EMBEDDINGS=off or the optional package is missing).
+peekEmbedder(); // always: a first goal right after a restart should not be ranked lexically while the model loads
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -621,12 +622,34 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
     if (!tokenStore.list({ status: 'accepted', limit: 1 }).length) return { why: 'no accepted lessons' };
     if (process.env.THINKBOX_EMBEDDINGS === 'off' || process.env.THINKBOX_EMBEDDINGS === '0') return { why: 'embeddings off' };
     const embedder = peekEmbedder();
-    if (!embedder) return { why: 'embedding model still loading or unavailable' };
+    if (!embedder) {
+      const st = embedderState();
+      return { why: st.state === 'failed' ? `embedding model failed to load: ${st.error}` : 'embedding model still loading' };
+    }
     await ensureEmbeddings(tokenStore, embedder);
     const [goalVector] = await embedder.embed([goal]);
     return goalVector ? { goalVector, embedModel: embedder.model } : { why: 'no goal vector' };
   } catch {
     return { why: 'embedding error' };
+  }
+}
+
+let liveClassifier: Promise<((texts: string[]) => Promise<boolean[]>) | null> | null = null;
+/**
+ * Which recalled memories/lessons describe live state (so they can be dated and marked STALE), by embedding similarity to fixed examples
+ * (evidence.ts; 15/20 vs 12/20 for the old keyword list on hand-labeled memories). undefined = embedder not ready: the keyword list is used.
+ */
+async function liveStateFlags(entries: Array<{ key: string; text: string }>): Promise<Map<string, boolean> | undefined> {
+  try {
+    const embedder = peekEmbedder();
+    if (!embedder || !entries.length) return undefined;
+    liveClassifier ??= createLiveStateClassifier(embedder).catch(() => null);
+    const classify = await liveClassifier;
+    if (!classify) return undefined;
+    const flags = await classify(entries.map((e) => e.text));
+    return new Map(entries.map((e, i) => [e.key, flags[i]!]));
+  } catch {
+    return undefined;
   }
 }
 
@@ -1053,7 +1076,7 @@ export class AgentSession {
       const semantic = retrievalOff ? {} : await goalEmbedding(goal);
       const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), goalVector: semantic.goalVector, embedModel: semantic.embedModel });
       if (!retrievalOff) {
-        const ranker = semantic.goalVector ? `hybrid (${semantic.embedModel})` : `lexical (${semantic.why ?? 'no vectors'})`;
+        const ranker = semantic.goalVector ? `${process.env.THINKBOX_RETRIEVER && RANKERS.includes(process.env.THINKBOX_RETRIEVER as RankerName) ? process.env.THINKBOX_RETRIEVER : DEFAULT_RANKER} (${semantic.embedModel})` : `lexical (${semantic.why ?? 'no vectors'})`;
         this.addThought({ type: 'think_token', content: `Think Token ranking: ${ranker}, ${Date.now() - retrievalStarted} ms, ${thinkTokens.length} found`, status: 'info' });
       }
       if (retrievalOff) {
@@ -1067,7 +1090,8 @@ export class AgentSession {
         }
         this.addThought({ type: 'think_token', content: `Using ${thinkTokens.length} Think Token${thinkTokens.length === 1 ? '' : 's'}: ${thinkTokens.map((t) => `tt:${t.id}`).join(', ')}`, status: 'info' });
       }
-      const plannerContext = [MemoryStore.formatForPrompt(recalled.hits), formatTokensForPrompt(thinkTokens)].filter(Boolean).join('\n\n');
+      const liveFlags = await liveStateFlags([...recalled.hits.map((h) => ({ key: h.item.id, text: `${h.item.title} ${h.item.content}` })), ...thinkTokens.map((t) => ({ key: t.id, text: `${t.title} ${t.content}` }))]);
+      const plannerContext = [MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
         workspace: sessionWorkspace(this.id),
         resolvePath: (relativePath) => {

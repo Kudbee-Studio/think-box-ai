@@ -22,6 +22,7 @@ const child = spawn(process.execPath, ['--experimental-strip-types', '--no-warni
 const out = { goal, thoughts: [], approvals: [] };
 try {
   for (let i = 0; i < 60; i += 1) { try { if ((await fetch(`http://127.0.0.1:${port}/api/health`)).ok) break; } catch { /* starting */ } await sleep(500); }
+  await sleep(Number(process.env.WAIT_MS ?? 0)); // let the embedding model load in the background
   await new Promise((resolve) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}`, { headers: { Origin: `http://127.0.0.1:${port}` } });
     const timer = setTimeout(() => { ws.close(); resolve(); }, 150_000);
