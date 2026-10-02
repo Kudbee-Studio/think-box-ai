@@ -87,3 +87,11 @@ the project maintainers. Please do not open a public issue for security vulnerab
 - [ ] Configure monitoring and alerting
 - [ ] Use Docker with non-root user
 - [ ] Keep dependencies updated
+
+## Session Info Security
+
+- No secrets or credentials printed
+- Session ID safe to display (random token)
+- Model name is public configuration
+- WebSocket status non-sensitive
+
