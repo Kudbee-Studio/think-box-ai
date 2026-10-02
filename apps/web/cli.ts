@@ -11,7 +11,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
-import { localModelHint, resolveLocalModel } from './local-model.ts';
+import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
@@ -366,11 +366,11 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
         for (const m of local) {
           const mark = m.name === client.model ? c.green('●') : ' ';
-          const cheapRoute = m.name === LOCAL_MODEL ? c.dim(' (cheap route)') : '';
+          const cheapRoute = sameLocalModel(LOCAL_MODEL, m.name) ? c.dim(' (cheap route)') : '';
           console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}${cheapRoute}`);
         }
       }
-      const localRouteReady = local.some((m) => m.name === LOCAL_MODEL);
+      const localRouteReady = local.some((m) => sameLocalModel(LOCAL_MODEL, m.name));
       if (!localRouteReady) {
         console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
         console.log(c.red(`    ✗ ${LOCAL_MODEL} is not installed — auto-routing falls back to Mercury-2 for simple goals`));
@@ -695,7 +695,7 @@ function shouldWarnLocalModelToday(): boolean {
 function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   const agentModels = client.models.filter((m) => m.agent);
   const mercury = agentModels.find((m) => m.name === COMPLEX_MODEL) ?? agentModels[0];
-  const local = client.models.find((m) => !m.agent && m.name === LOCAL_MODEL);
+  const local = client.models.find((m) => !m.agent && sameLocalModel(LOCAL_MODEL, m.name));
 
   // No enterprise agent model configured at all: nothing to route between.
   if (!mercury) {

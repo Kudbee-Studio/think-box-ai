@@ -6,7 +6,7 @@
 // KEY HANDLING: the key is read from the environment at call time and used only for the Authorization header. It is never
 // logged, stored or put in an error: every error message is scrubbed of the key first. Prompts leave the machine for
 // Mercury, so callers pass text through sanitizeForModel (secrets and absolute paths removed, size capped).
-import { localModelHint, resolveLocalModel } from './local-model.ts';
+import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { redact } from './think-token-store.ts';
 
 export interface ModelMessage {
@@ -115,7 +115,7 @@ export function createLocalCaller(env: Env = process.env, fetchImpl: FetchLike =
     try {
       const tags = await fetchImpl(`${base}/api/tags`, { signal: AbortSignal.timeout(3000) });
       const list = (await tags.json()) as { models?: Array<{ name?: string }> };
-      installed = (list.models ?? []).some((m) => m.name === model);
+      installed = (list.models ?? []).some((m) => typeof m.name === 'string' && sameLocalModel(model, m.name));
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'not reachable';
       noteLocalUnreachable(detail, model);

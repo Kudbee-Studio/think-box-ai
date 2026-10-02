@@ -7,12 +7,14 @@
 
 export const DEFAULT_LOCAL_MODEL = 'qwen2.5:1.5b';
 
-// 'smollm2' is a legacy alias kept for anyone with older config referencing the earlier model name.
-const LEGACY_ALIASES: Record<string, string> = { smollm2: DEFAULT_LOCAL_MODEL, 'smollm2:135m': DEFAULT_LOCAL_MODEL };
-
 export function resolveLocalModel(env: Record<string, string | undefined> = process.env): string {
-  const raw = (env.THINKBOX_LOCAL_MODEL || env.KUDBEE_LOCAL_MODEL || DEFAULT_LOCAL_MODEL).trim() || DEFAULT_LOCAL_MODEL;
-  return LEGACY_ALIASES[raw.toLowerCase()] || raw;
+  return (env.THINKBOX_LOCAL_MODEL || env.KUDBEE_LOCAL_MODEL || DEFAULT_LOCAL_MODEL).trim() || DEFAULT_LOCAL_MODEL;
+}
+
+/** Ollama lists an untagged pull as `name:latest`, so `smollm2` and `smollm2:latest` are the same installed model. */
+export function sameLocalModel(configured: string, installed: string): boolean {
+  const tagged = (n: string) => (n.includes(':') ? n : `${n}:latest`);
+  return tagged(configured).toLowerCase() === tagged(installed).toLowerCase();
 }
 
 /** What to tell the operator when the configured local model is not in `ollama list`. Never suggests pulling as the only option. */
