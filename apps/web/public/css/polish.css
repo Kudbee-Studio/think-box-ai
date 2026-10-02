@@ -259,7 +259,7 @@ select option:checked, select option:hover { background-color: var(--bg-active, 
    live theme's border variable. ─── */
 .terminal-message.thought { background: var(--bg-tertiary); border-left: 3px solid var(--warning); font-style: italic; }
 .terminal-message.plugin { background: var(--bg-secondary); border-left: 3px solid #8b5cf6; }
-.terminal-image { display: block; width: min(100%, 384px); max-height: 384px; object-fit: contain; margin-top: 10px; border: 1px solid var(--border-light); border-radius: 4px; background: #fff; }
+.terminal-image { display: block; width: min(100%, 384px); max-block-size: 384px; object-fit: contain; margin-top: 10px; border: 1px solid var(--border-light); border-radius: 4px; background: #fff; }
 .plugin-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 .plugin-badge.read_only { background: var(--info); color: white; }
 .plugin-badge.read_write { background: var(--warning); color: black; }
