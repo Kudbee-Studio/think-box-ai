@@ -14,7 +14,8 @@ const { GOALS } = await import(path.resolve(goalsModule));
 // Frozen clock: the recency term of the score depends on "now", so the eval pins it (override with EVAL_NOW_ISO).
 const NOW = Date.parse(process.env.EVAL_NOW_ISO ?? '2026-10-02T12:00:00Z');
 const store = SqliteTokenStore.openReadOnly(path.resolve(seed));
-const slugInTitle = (title, slug) => title.includes(`[lesson:${slug}]`);
+// the seed builder stamps every lesson with evidence_ref `seed:<slug>`
+const isExpected = (t, slug) => t.evidence_ref === `seed:${slug}`;
 
 const related = GOALS.filter((g) => g.related && g.expectedLesson);
 const perGoal = [];
@@ -24,7 +25,7 @@ for (const g of related) {
   const top3 = store.retrieve(g.goal, 3, { now: NOW });
   const ids = top3.map((t) => t.id);
   const titles = top3.map((t) => t.title);
-  const rank = top3.findIndex((t) => slugInTitle(t.title, g.expectedLesson));
+  const rank = top3.findIndex((t) => isExpected(t, g.expectedLesson));
   const h1 = rank === 0;
   const h3 = rank >= 0;
   if (h1) hit1 += 1;

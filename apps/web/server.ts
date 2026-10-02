@@ -43,6 +43,7 @@ import { ThinkTokenPropagator } from './think-token-propagation.ts';
 import { ServerLearningIntegration } from './server-learning-integration.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
 import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
+import { ensureEmbeddings, peekEmbedder } from './think-token-embed.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -608,6 +609,24 @@ function tokenEvent(row: { id: string; kind: string; status: string; score: numb
   return { token_id: row.id, run_id: runId.slice(0, 80), kind: row.kind, status: row.status, score: row.score, delta: Math.round(delta * 10_000) / 10_000, uses: row.uses, title: row.title.slice(0, 120) };
 }
 
+/**
+ * Semantic retrieval input: the goal's embedding (and the model name), after embedding any accepted lesson that has no vector yet.
+ * It never waits for the model to load (the first goals after a start are ranked lexically while it loads in the background), only starts
+ * loading when there is at least one accepted lesson to embed, and falls back to lexical on any problem.
+ */
+async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array; embedModel?: string }> {
+  try {
+    if (!tokenStore.list({ status: 'accepted', limit: 1 }).length) return {};
+    const embedder = peekEmbedder();
+    if (!embedder) return {};
+    await ensureEmbeddings(tokenStore, embedder);
+    const [goalVector] = await embedder.embed([goal]);
+    return goalVector ? { goalVector, embedModel: embedder.model } : {};
+  } catch {
+    return {};
+  }
+}
+
 export class AgentSession {
   readonly id: string;
   readonly config: AgentSessionConfig;
@@ -1027,7 +1046,7 @@ export class AgentSession {
       // ADR 028/029: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
       // THINKBOX_TOKEN_RETRIEVAL=0|off disables retrieval for A/B proof runs.
       const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
-      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name) });
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), ...(await goalEmbedding(goal)) });
       if (retrievalOff) {
         this.addThought({ type: 'think_token', content: 'Think Token retrieval OFF (THINKBOX_TOKEN_RETRIEVAL)', status: 'info' });
       } else if (thinkTokens.length) {

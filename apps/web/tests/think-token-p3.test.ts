@@ -620,25 +620,34 @@ test('retrieval clock: the same seed and the same frozen clock give the same ran
 
 // ─── held-out goals must not copy the lesson text ───────────────
 
-test('held-out set: each goal shares at most one distinctive word with its marked lesson, and no path-like or quoted string', async () => {
-  const { tokenize } = await import('../think-token-bm25.ts');
-  const goalsPath = '../../../scripts/think-token-ab-goals-p35-heldout.mjs';
-  const { GOALS } = (await import(goalsPath)) as { GOALS: Array<{ id: string; goal: string; expectedLesson: string }> };
-  const seedCopy = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-heldout-')), 'seed.db');
-  fs.copyFileSync(path.join(here, '../../../docs/evidence/adr-029-p3/p33-seed.db'), seedCopy);
-  const store = new SqliteTokenStore(seedCopy);
-  const lessons = store.list({ status: 'accepted', limit: 100 });
-  // words that carry no distinctive meaning here: tool names and the vocabulary every file task shares
-  const COMMON = new Set(['write_file', 'read_file', 'list_files', 'file', 'files', 'text', 'content', 'path', 'paths', 'tool', 'with', 'then', 'that', 'this', 'under', 'when', 'from', 'into', 'workspace', 'before', 'after', 'only', 'single', 'document', 'create', 'creates', 'write', 'writes', 'save', 'report', 'reports', 'reported', 'there', 'exist', 'exists', 'does', 'first', 'second', 'folders', 'folder', 'markdown']);
-  assert.equal(GOALS.length, 10);
-  assert.equal(new Set(GOALS.map((g: { expectedLesson: string }) => g.expectedLesson)).size, 10, 'ten different lessons');
-  for (const g of GOALS as Array<{ id: string; goal: string; expectedLesson: string }>) {
-    const lesson = lessons.find((l) => l.title.includes(`[lesson:${g.expectedLesson}]`));
-    assert.ok(lesson, `${g.id}: the marked lesson exists in the seed`);
-    const lessonWords = new Set(tokenize(`${lesson!.title.replace(/\[lesson:[^\]]+\]/, '')} ${lesson!.content}`).filter((w) => w.length >= 4 && !COMMON.has(w)));
-    const shared = [...new Set(tokenize(g.goal))].filter((w) => w.length >= 4 && !COMMON.has(w) && lessonWords.has(w));
-    assert.ok(shared.length <= 1, `${g.id} shares ${shared.join(', ')} with ${g.expectedLesson}`);
-    assert.doesNotMatch(g.goal, /[\w-]+\/[\w.-]+|\.\w{2,4}\b|"[^"]+"/, `${g.id}: no path, file name or quoted string`);
-  }
-  store.close();
+for (const [label, goalsFile] of [['P3.5 set', 'think-token-ab-goals-p35-heldout.mjs'], ['P3.6 set 2', 'think-token-ab-goals-p36-heldout2.mjs']] as const) {
+  test(`held-out ${label}: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string`, async () => {
+    const { tokenize } = await import('../think-token-bm25.ts');
+    const goalsPath = `../../../scripts/${goalsFile}`;
+    const { GOALS } = (await import(goalsPath)) as { GOALS: Array<{ id: string; goal: string; expectedLesson: string }> };
+    const seedCopy = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-heldout-')), 'seed.db');
+    fs.copyFileSync(path.join(here, '../../../docs/evidence/adr-029-p3/p33-seed.db'), seedCopy);
+    const store = new SqliteTokenStore(seedCopy);
+    const lessons = store.list({ status: 'accepted', limit: 100 });
+    // words that carry no distinctive meaning here: tool names and the vocabulary every file task shares
+    const COMMON = new Set(['write_file', 'read_file', 'list_files', 'file', 'files', 'text', 'content', 'path', 'paths', 'tool', 'with', 'then', 'that', 'this', 'under', 'when', 'from', 'into', 'workspace', 'before', 'after', 'only', 'single', 'document', 'create', 'creates', 'write', 'writes', 'save', 'report', 'reports', 'reported', 'there', 'exist', 'exists', 'does', 'first', 'second', 'folders', 'folder', 'markdown']);
+    assert.equal(GOALS.length, 10);
+    assert.equal(new Set(GOALS.map((g) => g.expectedLesson)).size, 10, 'ten different lessons');
+    for (const g of GOALS) {
+      const lesson = lessons.find((l) => l.evidence_ref === `seed:${g.expectedLesson}`);
+      assert.ok(lesson, `${g.id}: the marked lesson exists in the seed`);
+      const lessonWords = new Set(tokenize(`${lesson!.title.replace(/\[lesson:[^\]]+\]/, '')} ${lesson!.content}`).filter((w) => w.length >= 4 && !COMMON.has(w)));
+      const shared = [...new Set(tokenize(g.goal))].filter((w) => w.length >= 4 && !COMMON.has(w) && lessonWords.has(w));
+      assert.ok(shared.length <= 1, `${g.id} shares ${shared.join(', ')} with ${g.expectedLesson}`);
+      assert.doesNotMatch(g.goal, /[\w-]+\/[\w.-]+|\.\w{2,4}\b|"[^"]+"/, `${g.id}: no path, file name or quoted string`);
+    }
+    store.close();
+  });
+}
+
+test('held-out sets use different lessons', async () => {
+  const a = (await import('../../../scripts/think-token-ab-goals-p35-heldout.mjs' as string)) as { GOALS: Array<{ expectedLesson: string }> };
+  const b = (await import('../../../scripts/think-token-ab-goals-p36-heldout2.mjs' as string)) as { GOALS: Array<{ expectedLesson: string }> };
+  const first = new Set(a.GOALS.map((g) => g.expectedLesson));
+  assert.ok(b.GOALS.every((g) => !first.has(g.expectedLesson)), 'set 2 targets lessons set 1 did not');
 });
