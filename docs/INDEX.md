@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (238 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (239 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (35)
+- [Other documents in docs/](#other-documents-in-docs) (36)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -293,6 +293,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/adr-029-p3/p34-audit.md](evidence/adr-029-p3/p34-audit.md) | P3.4 post-merge audit of bb059c17 (2026-10-02) | Scope: the P3.3 changes another agent session merged into PR #315 (Janus opt-in, held-out eval, push audit),... |
 | [docs/evidence/adr-029-p3/p36-semantic.md](evidence/adr-029-p3/p36-semantic.md) | ADR 029 P3.6: semantic retrieval (2026-10-02) | Mercury spend: $0. The A/B was not run: the precondition (hit@3 of at least 7/10 on both held-out sets) was not met. |
 | [docs/evidence/adr-029-p3/p37-lesson-side-recall.md](evidence/adr-029-p3/p37-lesson-side-recall.md) | ADR 029 P3.7: live check, lesson-side recall, set 3 (2026-10-02) | Mercury spend: about $0.03 (21 retrieval-text calls, 3 live goals with extraction capped at 0). The A/B was not run:... |
+| [docs/evidence/adr-029-p3/p38-ranker-decision.md](evidence/adr-029-p3/p38-ranker-decision.md) | ADR 029 P3.8: choosing the ranker on an untouched set (2026-10-02) | Mercury spend: $0.067 (the A/B; the ranker comparison is offline). |
 | [docs/evidence/adr-029-p3/push-audit.md](evidence/adr-029-p3/push-audit.md) | Push audit — commit 32ab41a1 (2026-10-02) | Question: Something pushed 32ab41a1 to origin/feat/adr029-p3-proof-relationships without the P3.3 cloud agent... |
 | [docs/evidence/docs-sync-2026-10-01.md](evidence/docs-sync-2026-10-01.md) | Docs sync — 2026-10-01 | Rides along with the ADR-029 P1/P2 PR (no separate PR, one push). No code behavior changes come from this part. |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
