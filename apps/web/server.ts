@@ -45,6 +45,7 @@ import { DEFAULT_RANKER, RANKERS, SqliteTokenStore, formatTokensForPrompt, type 
 import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
 import { embedderState, ensureEmbeddings, peekEmbedder } from './think-token-embed.ts';
 import { createLiveStateClassifier } from './evidence.ts';
+import { TOKEN_HEADER, ensureLocalToken, tokensMatch } from './local-token.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
@@ -94,15 +95,26 @@ export function isAllowedOrigin(origin: string | undefined, port: number): boole
   return LOOPBACK_HOSTNAMES.some((name) => o === `http://${name}:${port}` || (port === 80 && o === `http://${name}`));
 }
 
+const LOCAL_TOKEN = ensureLocalToken(process.env.KUDBEE_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'));
 const app = express();
 const server = createServer(app);
+// CLI identity: a client that sends the local token (see local-token.ts) is the kudbee CLI. An invalid token is refused; no token means a browser/dashboard.
+const cliUpgrades = new WeakSet<IncomingMessage>();
+// Dashboards that asked to see runs started elsewhere (the CLI); they receive `mirror` messages, never approval requests.
+const mirrors = new Set<WebSocket>();
+const MIRRORED_TYPES = new Set(['thought', 'result', 'queued', 'run_update', 'think_token_learned', 'think_token_used']);
 const wss = new WebSocketServer({
   server,
   // Browsers always send Origin on a WebSocket upgrade. A missing Origin means a non-browser client;
   // the kudbee CLI and tests send ours, so no-Origin clients are refused unless explicitly allowed.
-  verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) =>
-    isAllowedHost(req.headers.host, PORT_NUM)
-    && (isAllowedOrigin(origin, PORT_NUM) || (!origin && process.env.DASHBOARD_ALLOW_NO_ORIGIN === '1')),
+  verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) => {
+    if (!(isAllowedHost(req.headers.host, PORT_NUM) && (isAllowedOrigin(origin, PORT_NUM) || (!origin && process.env.DASHBOARD_ALLOW_NO_ORIGIN === '1')))) return false;
+    const given = req.headers[TOKEN_HEADER];
+    if (given === undefined) return true;
+    if (!tokensMatch(LOCAL_TOKEN, Array.isArray(given) ? given[0] : given)) return false;
+    cliUpgrades.add(req);
+    return true;
+  },
 });
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
@@ -816,9 +828,18 @@ export class AgentSession {
     }
   }
 
+  /** Who started this session: the kudbee CLI (authenticated by the local token) or a dashboard/browser. */
+  client: 'cli' | 'dashboard' = 'dashboard';
+
   broadcast(message: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    }
+    // Live link: runs started from the CLI also show up in every dashboard that subscribed (labeled with who and which session).
+    const type = (message as { type?: string } | null)?.type;
+    if (this.client === 'cli' && type && MIRRORED_TYPES.has(type)) {
+      const frame = JSON.stringify({ type: 'mirror', data: { client: 'cli', session: this.id.slice(0, 8), message } });
+      for (const peer of mirrors) if (peer !== this.ws && peer.readyState === WebSocket.OPEN) peer.send(frame);
     }
   }
 
@@ -1608,10 +1629,11 @@ export class AgentSession {
 }
 
 // ─── WebSocket handling ────────────────────────────────────────
-wss.on('connection', async (ws: WebSocket) => {
+wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   const sessionId = randomUUID();
   const session = new AgentSession(sessionId);
   session.ws = ws;
+  if (cliUpgrades.has(req)) session.client = 'cli';
   sessions.set(sessionId, session);
   void fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true });
 
@@ -1646,6 +1668,11 @@ wss.on('connection', async (ws: WebSocket) => {
       const msg = JSON.parse(raw.toString()) as WsMessage;
 
       switch (msg.type) {
+        case 'subscribe_runs': {
+          if (session.client === 'dashboard') mirrors.add(ws);
+          break;
+        }
+
         case 'run_goal': {
           const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? msg.routeTelemetry : undefined;
           const agentProfile = typeof msg.agent === 'string' && msg.agent in AGENT_PROFILES ? msg.agent : undefined;
@@ -1788,6 +1815,7 @@ wss.on('connection', async (ws: WebSocket) => {
   });
 
   ws.on('close', () => {
+    mirrors.delete(ws);
     // Nobody is watching or able to approve any more, so stop spending tokens.
     session.stop();
     sessions.delete(sessionId);

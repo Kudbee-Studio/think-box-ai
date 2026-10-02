@@ -233,6 +233,20 @@ class ThinkTokenDashboard {
     this.modalEl = null;
   }
 
+  /** Open the view with a search or a TT-id already typed (the terminal's /tokens, /token and /lessons commands use this). */
+  openWithQuery(query) {
+    this.filters.query = String(query || '').trim().slice(0, 100);
+    if (this.isOpen()) {
+      const search = this.modalEl?.querySelector('#tt-search');
+      if (search) search.value = this.filters.query;
+      this.requestList();
+      return;
+    }
+    this.openDashboard();
+    const search = this.modalEl?.querySelector('#tt-search');
+    if (search) search.value = this.filters.query;
+  }
+
   openDashboard() {
     if (this.isOpen()) { this.requestList(); return; }
     const modal = document.createElement('div');

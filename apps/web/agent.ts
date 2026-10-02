@@ -579,7 +579,7 @@ export async function runToolAgent(
           const first = await check(answer);
           if (first?.conflict) {
             conflicts.push(first.detail || 'the answer contradicted a tool result');
-            hooks.onThought({ type: 'reasoning', content: `Evidence check: the answer conflicts with this run's tool results (${first.detail}). Retrying once.`, status: 'info' });
+            hooks.onThought({ type: 'reasoning', content: `Evidence check: the answer conflicts with this run's tool results (${first.detail}). Retrying once. First answer: ${truncate(answer.replace(/\s+/g, ' '), 300)}`, status: 'info' });
             messages.push({ role: 'user', content: `Your answer conflicts with this run's tool results: ${first.detail}\nTool results from THIS run outrank memory. Answer again from the tool results only, and say which memory or lesson was stale.` });
             const retry = await chat(model, messages, temperature, hooks.signal, [], hooks.apiBaseUrl);
             totals.prompt_tokens += retry.prompt;

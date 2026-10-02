@@ -1,0 +1,29 @@
+{
+  "model": "mercury-2",
+  "total_cost_usd": 0.00237,
+  "results": [
+    {
+      "case": "open-prs-empty",
+      "off": {
+        "check": false,
+        "answer": "I fetched the pull‑request list from **http://127.0.0.1:37199/pulls**. The response contained an empty JSON array (`[]`), indicating that no pull requests are currently listed at that endpoint. \n\n*(Note: A verified memory in the system mentions an open PR #304 titled “Markdown organized into folders,” but the live query returned no data, so the tool’s result takes precedence.)*",
+        "correct": true,
+        "conflicts": null,
+        "flagged": false,
+        "cost_usd": 0.00094025,
+        "tool_calls": 1
+      },
+      "on": {
+        "check": true,
+        "answer": "According to the live data fetched from http://127.0.0.1:37199/pulls, the list of pull requests is empty—there are currently no open (draft or otherwise) pull requests.\n\nThe previous memory that listed PR #304 (“Markdown organized into folders”) is therefore stale.",
+        "correct": true,
+        "conflicts": [
+          "The tool returned an empty list of pull requests, indicating no open draft pull request #304 exists."
+        ],
+        "flagged": false,
+        "cost_usd": 0.0014297500000000002,
+        "tool_calls": 1
+      }
+    }
+  ]
+}
