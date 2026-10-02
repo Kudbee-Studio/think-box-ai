@@ -41,7 +41,6 @@ export const PARITY: Record<string, Parity> = {
   '/config': { kind: 'gap', note: 'dashboard-only settings command' },
   '/export': { kind: 'gap', note: 'dashboard-only export' },
   '/logs': { kind: 'gap', note: 'dashboard-only execution logs' },
-  '/plugin': { kind: 'gap', note: 'running a plugin by name exists only in the dashboard terminal' },
   '/remote': { kind: 'gap', note: 'dashboard-only remote command' },
   '/session': { kind: 'gap', note: 'dashboard-only session info' },
   '/sessions': { kind: 'gap', note: 'dashboard-only session list' },
@@ -49,4 +48,4 @@ export const PARITY: Record<string, Parity> = {
 };
 
 /** The number of gaps at the time this map was written. A new gap must be fixed (or consciously raise this number in a reviewed change). */
-export const MAX_GAPS = 9;
+export const MAX_GAPS = 8;
