@@ -89,7 +89,7 @@ test('hybrid ranking is deterministic under a frozen clock', async () => {
   store.close();
 });
 
-test('schema v5: a v2 database gets a consistent backup before it migrates, and nothing is lost; a current or in-memory database makes no backup', () => {
+test('schema v6: a v2 database gets a consistent backup before it migrates, and nothing is lost; a current or in-memory database makes no backup', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-v3-'));
   const file = path.join(dir, 'think-tokens.db');
   const first = new SqliteTokenStore(file);
@@ -100,7 +100,7 @@ test('schema v5: a v2 database gets a consistent backup before it migrates, and 
   raw.exec('DROP TABLE think_token_embeddings');
   raw.pragma('user_version = 2');
   raw.close();
-  const backups = () => fs.readdirSync(dir).filter((f) => f.includes('.bak-pre-v5-'));
+  const backups = () => fs.readdirSync(dir).filter((f) => f.includes('.bak-pre-v6-'));
   assert.deepEqual(backups(), []);
   const migrated = new SqliteTokenStore(file);
   assert.equal(migrated.handle.pragma('user_version', { simple: true }), SCHEMA_VERSION);

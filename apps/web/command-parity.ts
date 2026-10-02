@@ -17,6 +17,7 @@ export const CORE: Array<{ capability: string; cli: string; dashboard: string }>
   { capability: 'memory', cli: "case '/memory'", dashboard: "case '/memory'" },
   { capability: 'status', cli: "case '/status'", dashboard: "case '/status'" },
   { capability: 'run history', cli: "case '/runs'", dashboard: "case '/runs'" },
+  { capability: 'Think Token 100-cell cube', cli: "sub === 'cube'", dashboard: "type: 'think_token_cube'" },
 ];
 
 export const PARITY: Record<string, Parity> = {

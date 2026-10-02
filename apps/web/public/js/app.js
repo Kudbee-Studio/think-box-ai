@@ -169,6 +169,7 @@ function handleMessage(msg) {
     case 'think_tokens':
     case 'think_token_result':
     case 'think_token_error':
+    case 'think_token_cube':
     case 'think_tokens_changed':
     case 'think_token_learned':
     case 'think_token_used':

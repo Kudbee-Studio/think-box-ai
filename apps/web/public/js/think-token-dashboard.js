@@ -31,6 +31,12 @@ function ttIsToken(t) {
     && typeof t.status === 'string' && typeof t.score === 'number' && Array.isArray(t.tags) && typeof t.source_run_id === 'string';
 }
 
+/** A cube payload from the server: 100 cells, 54 stickers, and the changed-cell record. */
+function ttIsCube(d) {
+  return Boolean(d) && typeof d === 'object' && typeof d.id === 'string' && Array.isArray(d.cells) && d.cells.length === 100 && Array.isArray(d.stickers) && d.stickers.length === 54
+    && d.cells.every((c) => c && typeof c.key === 'string' && typeof c.label === 'string' && typeof c.display === 'string' && typeof c.source === 'string' && typeof c.row === 'string');
+}
+
 /** A think_token_learned / think_token_used payload is trusted only if it is well formed and within the server's limits. */
 function validTokenEvent(d) {
   return Boolean(d) && typeof d === 'object'
@@ -52,6 +58,13 @@ class ThinkTokenDashboard {
     this.listError = null;
     this.filters = { query: '', status: '' };
     this.actionMessage = null;
+    // P3.13: per-token 100-cell cube data (requested on demand) and which tokens' cube panels are open.
+    this.cubes = new Map();
+    this.openCubes = new Set();
+    // The main-dashboard dock (below the Memory Graph): one token's cube, following the most recently used token unless the viewer picks one.
+    this.dockId = null;
+    this.dockPinned = false;
+    this.dockTries = 0;
     this.currentJobId = null;
     this.currentRunStatus = null;
     this.lastError = null;
@@ -74,6 +87,52 @@ class ThinkTokenDashboard {
     window.addEventListener('think-cube:thought', (e) => this.handleThought(e.detail));
     window.addEventListener('think-cube:run', (e) => this.handleRun(e.detail));
     window.addEventListener('think-tokens:message', (e) => this.handleTokenMessage(e.detail));
+    this.dockTimer = typeof setInterval === 'function' && document.getElementById('tt-cube-dock') ? setInterval(() => this.startDock(), 1000) : null;
+  }
+
+  /** Load the saved tokens for the dock once the socket is up (the list request is otherwise only sent while the modal is open). */
+  startDock() {
+    this.dockTries += 1;
+    if (this.loaded || this.dockTries > 60) { clearInterval(this.dockTimer); this.dockTimer = null; return; }
+    if (typeof window.sendThinkTokenMessage === 'function') window.sendThinkTokenMessage({ type: 'think_tokens_list', limit: 50 });
+  }
+
+  /** The token the dock shows: the viewer's pick, else the last one used, else the best-scored accepted one. */
+  dockToken() {
+    const byId = (id) => this.tokens.find((t) => t.id === id);
+    const pick = (this.dockId && byId(this.dockId))
+      || [...this.tokens].filter((t) => t.status === 'accepted').sort((a, b) => b.score - a.score)[0]
+      || this.tokens[0];
+    return pick || null;
+  }
+
+  renderDock() {
+    const host = typeof document !== 'undefined' ? document.getElementById('tt-cube-dock') : null;
+    if (!host) return;
+    host.replaceChildren();
+    const token = this.dockToken();
+    if (!token) { host.append(ttEl('div', 'empty-state', this.loaded ? 'No saved Think Tokens yet.' : 'Loading Think Tokens…')); return; }
+    if (!this.cubes.has(token.id) && !this.dockAsked?.has(token.id)) {
+      (this.dockAsked ||= new Set()).add(token.id);
+      this.requestCube(token.id);
+    }
+    const select = document.createElement('select');
+    select.className = 'tt-dock-select';
+    select.setAttribute('aria-label', 'Think Token to show');
+    for (const t of this.tokens) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.id} · ${String(t.title || '').slice(0, 48)}`;
+      if (t.id === token.id) opt.selected = true;
+      select.append(opt);
+    }
+    select.addEventListener('change', () => {
+      this.dockId = select.value;
+      this.dockPinned = true;
+      this.dockAsked?.delete(select.value);
+      this.renderDock();
+    });
+    host.append(select, this.renderCubePanel(token));
   }
 
   // ── Real events in ───────────────────────────────────────────────────────────────────────────
@@ -114,7 +173,19 @@ class ThinkTokenDashboard {
   }
 
   handleTokenMessage(msg) {
+    this.handleTokenMessageInner(msg);
+    this.renderDock();
+  }
+
+  handleTokenMessageInner(msg) {
     if (!msg || typeof msg.type !== 'string') return;
+    // The dock follows the token that was just used or learned from, unless the viewer picked one.
+    if (document.getElementById('tt-cube-dock') && (msg.type === 'think_token_used' || msg.type === 'think_token_learned') && msg.data && typeof msg.data.token_id === 'string') {
+      if (!this.dockPinned) this.dockId = msg.data.token_id;
+      if (this.dockId === msg.data.token_id) { this.dockAsked?.delete(msg.data.token_id); this.requestCube(msg.data.token_id); }
+    }
+    // An open cube refreshes when its token is used or learned from, so changed cells pulse as it happens.
+    if ((msg.type === 'think_token_used' || msg.type === 'think_token_learned') && msg.data && this.openCubes.has(msg.data.token_id)) this.requestCube(msg.data.token_id);
     switch (msg.type) {
       case 'think_tokens': {
         const data = msg.data || {};
@@ -125,6 +196,13 @@ class ThinkTokenDashboard {
         this.listError = null;
         this.renderList();
         this.refreshRunInfo();
+        return;
+      }
+      case 'think_token_cube': {
+        const d = msg.data;
+        if (!ttIsCube(d)) return;
+        this.cubes.set(d.id, d);
+        this.renderList();
         return;
       }
       case 'think_tokens_changed':
@@ -179,6 +257,103 @@ class ThinkTokenDashboard {
       this.renderList();
     }
     return sent;
+  }
+
+  requestCube(id) {
+    return typeof window.sendThinkTokenMessage === 'function' ? window.sendThinkTokenMessage({ type: 'think_token_cube', id }) : false;
+  }
+
+  toggleCube(id) {
+    if (this.openCubes.has(id)) this.openCubes.delete(id);
+    else {
+      this.openCubes.add(id);
+      if (!this.requestCube(id)) this.actionMessage = 'Not connected to the Agent OS backend.';
+    }
+    this.renderList();
+  }
+
+  /** The 10x10 grid, the 54-sticker cube view, the link lines and the cell inspector for one token. Text is only ever set through textContent. */
+  renderCubePanel(token) {
+    const cube = this.cubes.get(token.id);
+    const panel = ttEl('div', 'tt-cube-panel');
+    if (!cube) { panel.append(ttEl('p', 'tt-muted', 'Loading the 100 cells…')); return panel; }
+    const changed = new Set(cube.last_change ? cube.last_change.keys : []);
+    panel.append(ttEl('p', 'tt-cube-meta', `100-cell Think Token: ${cube.filled} of 100 cells have data (dim cells are empty: no data for this token).${cube.last_change ? ` Highlighted: changed by "${cube.last_change.cause}".` : ' No cell changes recorded yet.'}`));
+    const inspector = ttEl('div', 'tt-cell-inspector', 'Hover, focus or tap a cell to see its field, value and source.');
+    inspector.setAttribute('role', 'status');
+    const inspect = (c) => {
+      inspector.replaceChildren(ttEl('strong', '', `${c.label}: ${c.display}`), ttEl('div', 'tt-muted', `source: ${c.source}`), ttEl('div', 'tt-muted', c.doc), ttEl('div', 'tt-muted', `row ${c.row}, column ${c.col + 1}, cell ${c.index + 1} of 100${changed.has(c.key) ? ' · changed in the last update' : ''}`));
+    };
+    const grid = ttEl('div', 'tt-grid');
+    grid.setAttribute('role', 'group');
+    grid.setAttribute('aria-label', `100 cells of ${token.id}`);
+    for (let r = 0; r < 10; r += 1) {
+      const row = ttEl('div', 'tt-gridrow');
+      row.append(ttEl('span', 'tt-rowlabel', cube.cells[r * 10].row));
+      for (const c of cube.cells.slice(r * 10, r * 10 + 10)) {
+        const cell = ttEl('button', `tt-cell${c.empty ? ' is-empty' : ''}${changed.has(c.key) ? ' is-changed' : ''}`);
+        cell.type = 'button';
+        cell.dataset.key = c.key;
+        cell.style.setProperty('--v', String(c.value === null ? 0 : c.value));
+        cell.title = `${c.label}: ${c.display}`;
+        cell.setAttribute('aria-label', `${c.label}: ${c.display}. Source ${c.source}`);
+        for (const ev of ['mouseenter', 'focus', 'click']) cell.addEventListener(ev, () => inspect(c));
+        row.append(cell);
+      }
+      grid.append(row);
+    }
+    panel.append(grid, inspector);
+    // The 54-sticker view: six faces of nine stickers; a sticker folds one or two of the 100 cells.
+    const cubeBox = ttEl('div', 'tt-cube3d-wrap');
+    cubeBox.setAttribute('aria-label', '54-sticker cube view of the same 100 cells');
+    const cube3d = ttEl('div', 'tt-cube3d');
+    for (const face of ['U', 'R', 'F', 'D', 'L', 'B']) {
+      const f = ttEl('div', `tt-face face-${face}`);
+      for (const s of cube.stickers.filter((x) => x.face === face)) {
+        const st = ttEl('span', `tt-sticker${s.empty ? ' is-empty' : ''}${s.cells.some((i) => changed.has(cube.cells[i].key)) ? ' is-changed' : ''}`);
+        st.style.setProperty('--v', String(s.value === null ? 0 : s.value));
+        st.title = `${face}${s.position + 1}: cells ${s.cells.map((i) => cube.cells[i].label).join(' + ')}`;
+        st.tabIndex = 0;
+        const show = () => inspector.replaceChildren(ttEl('strong', '', `Sticker ${face}${s.position + 1} (view only)`), ttEl('div', 'tt-muted', s.cells.map((i) => `${cube.cells[i].label}: ${cube.cells[i].display}`).join('  ·  ')));
+        for (const ev of ['mouseenter', 'focus', 'click']) st.addEventListener(ev, show);
+        f.append(st);
+      }
+      cube3d.append(f);
+    }
+    cubeBox.append(cube3d);
+    panel.append(cubeBox);
+    // Links to other tokens as lines (weight = line width).
+    const links = Array.isArray(token.links) ? token.links.slice(0, 8) : [];
+    if (links.length && typeof document.createElementNS === 'function') {
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 300 170');
+      svg.setAttribute('class', 'tt-linkmap');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `Links of ${token.id}`);
+      const cx = 150; const cy = 85;
+      links.forEach((L, n) => {
+        const other = L.from_id === token.id ? L.to_id : L.from_id;
+        const a = (Math.PI * 2 * n) / links.length - Math.PI / 2;
+        const x = cx + Math.cos(a) * 112; const y = cy + Math.sin(a) * 62;
+        const line = document.createElementNS(NS, 'line');
+        for (const [k, v] of Object.entries({ x1: cx, y1: cy, x2: x, y2: y, 'stroke-width': 0.6 + 3.2 * Math.max(0, Math.min(1, Number(L.weight) || 0)), class: `tt-linkline kind-${String(L.kind).replace(/[^a-z_]/g, '')}` })) line.setAttribute(k, String(v));
+        const title = document.createElementNS(NS, 'title');
+        title.textContent = `${L.kind} ${other} w=${Number(L.weight).toFixed(2)} ${L.evidence || ''}`;
+        line.append(title);
+        const label = document.createElementNS(NS, 'text');
+        for (const [k, v] of Object.entries({ x: x, y: y + (y > cy ? 12 : -5), 'text-anchor': 'middle', class: 'tt-linklabel' })) label.setAttribute(k, String(v));
+        label.textContent = `${other}`;
+        svg.append(line, label);
+      });
+      const hub = document.createElementNS(NS, 'circle');
+      for (const [k, v] of Object.entries({ cx, cy, r: 9, class: 'tt-linkhub' })) hub.setAttribute(k, String(v));
+      svg.append(hub);
+      panel.append(svg);
+    } else {
+      panel.append(ttEl('p', 'tt-muted', links.length ? 'Links are listed above.' : 'No links to draw.'));
+    }
+    return panel;
   }
 
   sendAction(action, id) {
@@ -346,6 +521,8 @@ class ThinkTokenDashboard {
       if (target.closest?.('[data-tt-refresh]')) return void this.requestList();
       const action = target.closest?.('[data-tt-action]');
       if (action) return void this.sendAction(action.dataset.ttAction, action.dataset.tokenId);
+      const cubeToggle = target.closest?.('[data-tt-cube]');
+      if (cubeToggle) return void this.toggleCube(cubeToggle.dataset.ttCube);
       const cube = target.closest?.('[data-cube-action]');
       if (cube) this.runCubeAction(cube.dataset.cubeAction, modal);
     });
@@ -504,9 +681,19 @@ class ThinkTokenDashboard {
     };
     if (token.status !== 'accepted' && token.status !== 'retired') add('Accept', 'accept', 'Make this token eligible for planner context (asks for approval)');
     if (token.status !== 'retired') add('Retire', 'retire', 'Stop using this token (asks for approval)');
+    {
+      const open = this.openCubes.has(token.id);
+      const button = ttEl('button', 'btn-secondary tt-btn', open ? '🧊 Hide cube' : '🧊 100-cell cube');
+      button.type = 'button';
+      button.title = 'The 100 documented cells of this token and the 54-sticker cube view';
+      button.dataset.ttCube = token.id;
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      actions.append(button);
+    }
     add('👍', 'thumb_up', 'Helpful');
     add('👎', 'thumb_down', 'Not helpful');
     card.append(actions);
+    if (this.openCubes.has(token.id)) card.append(this.renderCubePanel(token));
     // P3 links panel — same payload as `kudbee tokens links` (shared reader).
     const links = Array.isArray(token.links) ? token.links : [];
     if (links.length) {

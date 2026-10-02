@@ -1,0 +1,13 @@
+TT-000007: 94/100 cells filled (· = empty, no data)
+  identity     █  ░  █  █  █  █  █  █  ·   
+  lesson       ▒  ▒  ▓  ▒                 █
+  provenance   ▒  ▒  ▒  ░  █  ▒  █  █  █  ░
+  challenge    █  █  ▒  ░  ▒  ▒  ▓  █  █   
+  score        █  █  █  ▓  █  █  ▓  █      
+  usage        ▓  ▓  █  ░  █        █  ▓  ▒
+  links        ▒  ░     ▒  ·     █  █  ▒  ▒
+  lifecycle    █     ▒     ░               
+  health       █  █              █         
+  propagation  ▒  █  █  ▒  █  █  ·  ·  ·  ·
+  (no cell changes recorded yet)
+  recent cell changes (newest first)

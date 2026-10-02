@@ -49,7 +49,7 @@ import { embedderState, ensureEmbeddings, peekEmbedder } from './think-token-emb
 import { createLiveStateClassifier } from './evidence.ts';
 import { TOKEN_HEADER, ensureLocalToken, tokensMatch } from './local-token.ts';
 import { createTokenModels } from './think-token-model.ts';
-import { readTokens } from './think-token-reader.ts';
+import { readTokenCube, readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
@@ -1780,6 +1780,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         case 'think_tokens_list':
+        case 'think_token_cube':
         case 'think_token_action': {
           const checked = validateTokenMessage(msg);
           if (!checked.ok) {
@@ -1787,6 +1788,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             break;
           }
           const req = checked.req;
+          if (req.type === 'think_token_cube') {
+            const cube = readTokenCube(tokenStore, req.id);
+            ws.send(JSON.stringify(cube ? { type: 'think_token_cube', data: cube } : { type: 'think_token_error', data: { error: `No Think Token ${req.id}` } }));
+            break;
+          }
           if (req.type === 'think_tokens_list') {
             ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: readTokens(tokenStore, { query: req.query, status: req.status, limit: req.limit, run_id: req.run_id }), ledger: tokenStore.verifyLedger() } }));
             break;

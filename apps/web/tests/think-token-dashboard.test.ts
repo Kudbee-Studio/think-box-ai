@@ -78,17 +78,19 @@ class FakeCube {
   render() { this.calls.push('render'); }
 }
 
-function setup(opts: { cube?: boolean; connected?: boolean } = {}) {
+function setup(opts: { cube?: boolean; connected?: boolean; dock?: boolean } = {}) {
   FakeCube.instances = [];
   const clock = { t: 1_700_000_000_000 };
   const windowListeners: Record<string, Array<(e: any) => void>> = {};
   const sent: any[] = [];
   const timers = { intervals: [] as Array<() => void>, cleared: 0, timeouts: [] as Array<{ fn: () => void; ms: number }> };
   const body = new FakeEl('body');
+  const dockEl = new FakeEl('div');
   const doc: any = {
     body,
     createElement: (tag: string) => new FakeEl(tag),
-    getElementById: () => null,
+    createElementNS: (_ns: string, tag: string) => new FakeEl(tag),
+    getElementById: (id: string) => (opts.dock && id === 'tt-cube-dock' ? dockEl : null),
     addEventListener: () => {},
   };
   const blobs: string[] = [];
@@ -120,7 +122,7 @@ function setup(opts: { cube?: boolean; connected?: boolean } = {}) {
   const modal = () => body.children.find((c) => c.id === 'think-token-modal') as FakeEl;
   const open = () => { dash.openDashboard(); return modal(); };
   const msg = (type: string, data: unknown) => fire('think-tokens:message', { type, data });
-  return { dash, doc, body, fire, click, modal, open, msg, windowListeners, timers, sent, blobs, clock, api };
+  return { dockEl, dash, doc, body, fire, click, modal, open, msg, windowListeners, timers, sent, blobs, clock, api };
 }
 
 const TOKEN = (n: number, over: Record<string, unknown> = {}) => ({
@@ -295,7 +297,7 @@ describe('Think Tokens view: saved tokens (persisted list)', () => {
     const m = open();
     msg('think_tokens', { tokens: [TOKEN(3, { status: 'candidate' })], ledger: { ok: true, entries: 1 } });
     const card = byClass(m.querySelector('.tt-list'), 'tt-card')[0];
-    const buttons = all(card).filter((e) => e.tag === 'button');
+    const buttons = all(card).filter((e) => e.tag === 'button' && e.dataset.ttAction);
     assert.deepEqual(buttons.map((b) => b.dataset.ttAction), ['accept', 'retire', 'thumb_up', 'thumb_down']);
     sent.length = 0;
     click(m, { '[data-tt-action]': buttons[0] });
@@ -315,7 +317,7 @@ describe('Think Tokens view: saved tokens (persisted list)', () => {
     const { open, msg } = setup();
     const m = open();
     msg('think_tokens', { tokens: [TOKEN(1, { status: 'retired' }), TOKEN(2, { status: 'accepted' })], ledger: null });
-    const labels = byClass(m.querySelector('.tt-list'), 'tt-card').map((c) => all(c).filter((e) => e.tag === 'button').map((b) => b.dataset.ttAction));
+    const labels = byClass(m.querySelector('.tt-list'), 'tt-card').map((c) => all(c).filter((e) => e.tag === 'button' && e.dataset.ttAction).map((b) => b.dataset.ttAction));
     assert.deepEqual(labels, [['thumb_up', 'thumb_down'], ['retire', 'thumb_up', 'thumb_down']]);
   });
 
@@ -545,5 +547,157 @@ describe('Think Tokens view: no inline handlers and responsive CSS (static check
     assert.match(css, /prefers-reduced-motion: reduce\)\s*\{\s*\.energy-core\[data-state="active"\] \.energy-ring \{ animation: none; \}/);
     const cubeCss = readFileSync(join(pub, 'css/think-cube.css'), 'utf8');
     assert.match(cubeCss, /prefers-reduced-motion: reduce[\s\S]*\.think-cube\.tt-twist \{ animation: none; \}/);
+  });
+});
+
+
+// ─── P3.13: the 100-cell cube in the Think Tokens view ──────────
+
+import { CELL_DEFS, projectTo54 } from '../think-token-cube.ts';
+
+const CUBE = (id: string, changed: string[] = [], over: Record<string, { value: number | null; display: string }> = {}) => {
+  const cells = CELL_DEFS.map((d) => ({ ...d, value: over[d.key] ? over[d.key]!.value : 0.5, display: over[d.key] ? over[d.key]!.display : '1' })).map((c) => ({ ...c, empty: c.value === null }));
+  return { id, cells, stickers: projectTo54(cells as any), events: [], last_change: changed.length ? { cause: 'used', ts: 1, keys: changed } : null, filled: cells.filter((c) => !c.empty).length };
+};
+
+describe('Think Tokens view: the 100-cell cube', () => {
+  it('opens on demand: asks the server for the cube, shows a loading line, then 100 cells and a 54-sticker view with changed cells marked and empty cells dim', () => {
+    const { open, msg, click, sent } = setup();
+    const m = open();
+    msg('think_tokens', { tokens: [TOKEN(7)], ledger: { ok: true, entries: 3 } });
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    assert.deepEqual(sent.at(-1), { type: 'think_token_cube', id: 'TT-000007' });
+    assert.match(text(m.querySelector('.tt-list')), /Loading the 100 cells/);
+    msg('think_token_cube', CUBE('TT-000007', ['uses', 'score'], { win_rate: { value: null, display: 'empty' } }));
+    const list = m.querySelector('.tt-list');
+    const cells = byClass(list, 'tt-cell');
+    assert.equal(cells.length, 100);
+    assert.equal(byClass(list, 'tt-sticker').length, 54);
+    assert.equal(byClass(list, 'tt-face').length, 6);
+    assert.deepEqual(cells.filter((c) => c.className.includes('is-changed')).map((c) => c.dataset.key).sort(), ['score', 'uses']);
+    assert.deepEqual(cells.filter((c) => c.className.includes('is-empty')).map((c) => c.dataset.key), ['win_rate']);
+    assert.equal(byClass(list, 'tt-gridrow').length, 10);
+    assert.match(text(list), /99 of 100 cells have data/);
+    assert.match(text(list), /changed by "used"/);
+    assert.ok(cells.every((c) => c.attrs['aria-label'] && c.title), 'every cell is labeled for assistive tech and hover');
+  });
+
+  it('hovering, focusing or tapping a cell shows its field, value, source and meaning; a sticker shows the cells it folds together', () => {
+    const { open, msg, click } = setup();
+    const m = open();
+    msg('think_tokens', { tokens: [TOKEN(7)], ledger: { ok: true, entries: 3 } });
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    msg('think_token_cube', CUBE('TT-000007', [], { uses: { value: 0.2, display: '4' } }));
+    const list = m.querySelector('.tt-list');
+    const uses = byClass(list, 'tt-cell').find((c) => c.dataset.key === 'uses')!;
+    for (const ev of ['mouseenter', 'focus', 'click']) assert.ok((uses.listeners[ev] ?? []).length, ev);
+    uses.listeners.mouseenter![0]({});
+    const insp = text(byClass(list, 'tt-cell-inspector')[0]);
+    assert.match(insp, /Uses: 4/);
+    assert.match(insp, /source: think_tokens\.uses/);
+    assert.match(insp, /row usage, column 1, cell 51 of 100/);
+    const sticker = byClass(list, 'tt-sticker')[0];
+    sticker.listeners.focus![0]({});
+    assert.match(text(byClass(list, 'tt-cell-inspector')[0]), /Sticker U1 \(view only\)/);
+  });
+
+  it('is text-only (a hostile cell value is shown literally), ignores malformed cubes, and hides again on a second click', () => {
+    const { open, msg, click, sent } = setup();
+    const m = open();
+    msg('think_tokens', { tokens: [TOKEN(7)], ledger: { ok: true, entries: 3 } });
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    msg('think_token_cube', { ...CUBE('TT-000007'), cells: CUBE('TT-000007').cells.slice(0, 99) });
+    assert.match(text(m.querySelector('.tt-list')), /Loading the 100 cells/, 'a 99-cell payload is refused');
+    const hostile = '<img src=x onerror=alert(1)>';
+    msg('think_token_cube', CUBE('TT-000007', [], { title_len: { value: 1, display: hostile } }));
+    const list = m.querySelector('.tt-list');
+    const cell = byClass(list, 'tt-cell').find((c) => c.dataset.key === 'title_len')!;
+    cell.listeners.mouseenter![0]({});
+    assert.ok(text(byClass(list, 'tt-cell-inspector')[0]).includes(hostile));
+    assert.ok(all(list).every((e) => e.tag !== 'img' && e.tag !== 'script'));
+    const before = sent.length;
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    assert.equal(byClass(m.querySelector('.tt-list'), 'tt-cell').length, 0, 'second click hides the panel');
+    assert.equal(sent.length, before, 'hiding asks the server for nothing');
+  });
+
+  it('an open cube refreshes when its token is used (so changed cells pulse as it happens); a closed one does not', () => {
+    const { open, msg, click, sent } = setup();
+    const m = open();
+    msg('think_tokens', { tokens: [TOKEN(7), TOKEN(8)], ledger: { ok: true, entries: 3 } });
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    const asked = () => sent.filter((s) => s.type === 'think_token_cube').length;
+    assert.equal(asked(), 1);
+    msg('think_token_used', EVENT({ token_id: 'TT-000007' }));
+    assert.equal(asked(), 2, 'refreshed');
+    msg('think_token_used', EVENT({ token_id: 'TT-000008' }));
+    assert.equal(asked(), 2, 'a token whose cube is closed is not re-requested');
+  });
+
+  it('draws the token\'s links as lines (width = weight) next to the cube', () => {
+    const { open, msg, click } = setup();
+    const m = open();
+    const links = [{ from_id: 'TT-000002', to_id: 'TT-000007', kind: 'same_tool', weight: 0.7, evidence: 'x', created_at: 1 }, { from_id: 'TT-000007', to_id: 'TT-000009', kind: 'co_used', weight: 0.3, evidence: 'y', created_at: 1 }];
+    msg('think_tokens', { tokens: [TOKEN(7, { links })], ledger: { ok: true, entries: 3 } });
+    click(m, { '[data-tt-cube]': { dataset: { ttCube: 'TT-000007' } } });
+    msg('think_token_cube', CUBE('TT-000007'));
+    const lines = all(m.querySelector('.tt-list')).filter((e) => e.tag === 'line');
+    assert.equal(lines.length, 2);
+    assert.deepEqual(lines.map((l) => l.attrs['stroke-width']).sort(), ['1.56', '2.84']);
+    assert.ok(lines.every((l) => /kind-/.test(l.attrs.class ?? '')));
+  });
+
+  it('the styles keep it reduced-motion safe and usable on a phone: no pulse or spin under prefers-reduced-motion (the cube lays out flat), cells shrink to ten columns at 520 px', () => {
+    const css = readFileSync(join(pub, 'css/think-token-dashboard.css'), 'utf8');
+    const rm = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+    assert.match(rm, /\.tt-cell\.is-changed[\s\S]*animation: none/);
+    assert.match(rm, /\.tt-cube3d \{[^}]*animation: none[^}]*transform: none/);
+    assert.match(rm, /\.tt-face \{[^}]*position: static/);
+    assert.match(css, /@media \(max-width: 520px\)[\s\S]*grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
+  });
+});
+
+describe('app.js routing', () => {
+  it('forwards every message type the Think Tokens view handles (the live run found think_token_cube was not routed)', () => {
+    const dash = readFileSync(join(pub, 'js/think-token-dashboard.js'), 'utf8');
+    const app = readFileSync(join(pub, 'js/app.js'), 'utf8');
+    const handled = [...dash.matchAll(/case '(think_token[a-z_]*)':/g)].map((m) => m[1]);
+    assert.ok(handled.includes('think_token_cube'));
+    for (const type of new Set(handled)) assert.ok(app.includes(`case '${type}':`), `app.js does not route ${type}`);
+  });
+});
+
+describe('main dashboard dock (below the Memory Graph)', () => {
+  it('loads the tokens itself, shows the best accepted token\'s cube without opening the modal, and follows the token that was just used', () => {
+    const { dockEl, dash, msg, sent, timers } = setup({ dock: true });
+    assert.equal(timers.intervals.length, 1, 'a start-up timer loads the list');
+    timers.intervals[0]!();
+    assert.deepEqual(sent.at(-1), { type: 'think_tokens_list', limit: 50 });
+    msg('think_tokens', { tokens: [TOKEN(3, { status: 'accepted', score: 0.5 }), TOKEN(7, { status: 'accepted', score: 0.9 })], ledger: { ok: true, entries: 3 } });
+    assert.deepEqual(sent.at(-1), { type: 'think_token_cube', id: 'TT-000007' });
+    msg('think_token_cube', CUBE('TT-000007', ['score']));
+    assert.equal(byClass(dockEl, 'tt-cell').length, 100);
+    assert.equal(byClass(dockEl, 'tt-sticker').length, 54);
+    msg('think_token_used', EVENT({ token_id: 'TT-000003' }));
+    assert.deepEqual(sent.at(-1), { type: 'think_token_cube', id: 'TT-000003' });
+    assert.equal(dash.dockId, 'TT-000003');
+  });
+
+  it('a viewer\'s pick sticks: later uses of other tokens do not move the dock', () => {
+    const { dockEl, dash, msg, sent } = setup({ dock: true });
+    msg('think_tokens', { tokens: [TOKEN(3), TOKEN(7)], ledger: { ok: true, entries: 3 } });
+    const select = all(dockEl).find((e) => e.tag === 'select')!;
+    select.value = 'TT-000007';
+    select.listeners.change![0]({});
+    assert.equal(dash.dockId, 'TT-000007');
+    msg('think_token_used', EVENT({ token_id: 'TT-000003' }));
+    assert.equal(dash.dockId, 'TT-000007');
+    assert.notDeepEqual(sent.at(-1), { type: 'think_token_cube', id: 'TT-000003' });
+  });
+
+  it('the page has the dock under the Memory Graph and app.js is wired to it', () => {
+    const html = readFileSync(join(pub, 'index.html'), 'utf8');
+    assert.ok(html.indexOf('Memory Graph') < html.indexOf('id="tt-cube-dock"'));
+    assert.ok(html.indexOf('id="tt-cube-dock"') < html.indexOf('Plugins'));
   });
 });

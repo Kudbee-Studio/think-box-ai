@@ -235,3 +235,54 @@
 @media (prefers-reduced-motion: reduce) {
   .energy-core[data-state="active"] .energy-ring { animation: none; }
 }
+
+/* ── P3.13: the 100-cell Think Token ─────────────────────────────── */
+.tt-cube-panel { margin-top: 0.75rem; padding: 0.75rem; border: 1px solid rgba(160, 174, 192, 0.25); border-radius: 8px; background: rgba(10, 14, 22, 0.55); }
+.tt-cube-meta { font-size: var(--font-size-xs, 12px); color: #a0aec0; margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.tt-grid { display: grid; gap: 2px; max-width: 460px; }
+.tt-gridrow { display: grid; grid-template-columns: 5.2rem repeat(10, minmax(0, 1fr)); gap: 2px; align-items: center; }
+.tt-rowlabel { font-size: 10px; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; }
+.tt-cell { aspect-ratio: 1; min-width: 0; padding: 0; border: 1px solid rgba(160, 174, 192, 0.18); border-radius: 3px; cursor: pointer;
+  background: color-mix(in srgb, #38b2ac calc(var(--v, 0) * 100%), #1a202c); }
+.tt-cell.is-empty { background: transparent; border-style: dashed; opacity: 0.55; }
+.tt-cell:hover, .tt-cell:focus-visible { outline: 2px solid #90cdf4; outline-offset: 1px; position: relative; z-index: 1; }
+.tt-cell.is-changed, .tt-sticker.is-changed { outline: 2px solid #ffd666; outline-offset: 0; animation: ttPulse 1.4s ease-in-out 4; }
+@keyframes ttPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 102, 0); } 50% { box-shadow: 0 0 0 5px rgba(255, 214, 102, 0.85); } }
+.tt-cell-inspector { margin-top: 0.5rem; min-height: 4.2rem; padding: 0.5rem; font-size: var(--font-size-xs, 12px); border-left: 3px solid #38b2ac; background: rgba(26, 32, 44, 0.7); overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .tt-gridrow { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  .tt-rowlabel { display: none; }
+}
+.tt-cube3d-wrap { --s: 22px; margin: 0.9rem auto 0.4rem; width: calc(var(--s) * 3 + 8px); height: calc(var(--s) * 3 + 8px); perspective: 520px; }
+.tt-cube3d { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateX(-24deg) rotateY(32deg); animation: ttSpin 24s linear infinite; }
+@keyframes ttSpin { to { transform: rotateX(-24deg) rotateY(392deg); } }
+.tt-face { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 2px; padding: 1px; background: #0b0f17; border: 1px solid rgba(160, 174, 192, 0.3); }
+.tt-face.face-F { transform: translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-face.face-B { transform: rotateY(180deg) translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-face.face-R { transform: rotateY(90deg) translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-face.face-L { transform: rotateY(-90deg) translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-face.face-U { transform: rotateX(90deg) translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-face.face-D { transform: rotateX(-90deg) translateZ(calc((var(--s) * 3 + 8px) / 2)); }
+.tt-sticker { border-radius: 2px; background: color-mix(in srgb, #38b2ac calc(var(--v, 0) * 100%), #1a202c); }
+.tt-sticker.is-empty { background: transparent; border: 1px dashed rgba(160, 174, 192, 0.35); }
+.tt-sticker:focus-visible, .tt-sticker:hover { outline: 2px solid #90cdf4; }
+.tt-linkmap { width: 100%; max-width: 360px; height: auto; margin-top: 0.5rem; color: #a0aec0; }
+.tt-linkline { stroke: #63b3ed; opacity: 0.85; }
+.tt-linkline.kind-co_used { stroke: #f6ad55; }
+.tt-linkline.kind-similar { stroke: #b794f4; }
+.tt-linkline.kind-merged_into { stroke: #fc8181; stroke-dasharray: 4 3; }
+.tt-linklabel { fill: #cbd5e0; font-size: 9px; }
+.tt-linkhub { fill: #38b2ac; }
+/* Reduced motion: no pulse, no spin; the cube is laid out flat as six faces side by side, and changes are still visible (outline). */
+@media (prefers-reduced-motion: reduce) {
+  .tt-cell.is-changed, .tt-sticker.is-changed { animation: none; box-shadow: 0 0 0 3px rgba(255, 214, 102, 0.85); }
+  .tt-cube3d-wrap { width: auto; height: auto; perspective: none; }
+  .tt-cube3d { animation: none; transform: none; position: static; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .tt-face { position: static; transform: none !important; width: calc(var(--s) * 3 + 8px); height: calc(var(--s) * 3 + 8px); }
+}
+
+.tt-dock { padding: 0 0.5rem 0.75rem; }
+.tt-dock-select { width: 100%; max-width: 100%; margin-bottom: 0.25rem; }
+.tt-dock .tt-cube-panel { margin-top: 0.25rem; }
+.tt-dock .tt-gridrow { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.tt-dock .tt-rowlabel { display: none; }

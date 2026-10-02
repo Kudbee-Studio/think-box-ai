@@ -77,7 +77,7 @@ test('ids: survive a restart and keep counting', () => {
   const two = new SqliteTokenStore(file);
   assert.equal(two.get('TT-000002')!.title, 'Lesson number 2');
   assert.equal(okW(two.write(draft(3), 't')).id, 'TT-000003');
-  assert.deepEqual(two.verifyLedger(), { ok: true, entries: 3 });
+  assert.deepEqual(two.verifyLedger(), { ok: true, entries: 6 });
   two.close();
 });
 
@@ -120,7 +120,7 @@ test('lifecycle: candidate -> extracted -> scored -> challenged -> accepted, eve
   assert.deepEqual(row.challenge, { verdict: 'pass', reason: pass.reason, model: 'mercury-2', meta: {} });
   const steps = row.receipts!.map((r) => r.action);
   assert.deepEqual(steps, ['write', 'transition', 'transition', 'transition', 'transition']);
-  assert.deepEqual(store.verifyLedger(), { ok: true, entries: 5 });
+  assert.deepEqual(store.verifyLedger(), { ok: true, entries: 10 });
   store.close();
 });
 

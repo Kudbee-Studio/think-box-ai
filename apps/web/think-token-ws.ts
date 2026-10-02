@@ -10,7 +10,8 @@ export const MAX_WS_FIELD_CHARS = 4096;
 
 export type TokenWsRequest =
   | { type: 'think_tokens_list'; query?: string; status?: TokenStatus; limit: number; run_id?: string }
-  | { type: 'think_token_action'; action: TokenAction; id: string };
+  | { type: 'think_token_action'; action: TokenAction; id: string }
+  | { type: 'think_token_cube'; id: string };
 
 function onlyKeys(msg: Record<string, unknown>, allowed: string[]): string | null {
   const extra = Object.keys(msg).filter((k) => !allowed.includes(k));
@@ -51,6 +52,12 @@ export function validateTokenMessage(msg: unknown): { ok: true; req: TokenWsRequ
     if (typeof m.action !== 'string' || !(TOKEN_ACTIONS as readonly string[]).includes(m.action)) return { ok: false, error: 'invalid action' };
     if (typeof m.id !== 'string' || !TOKEN_ID_PATTERN.test(m.id)) return { ok: false, error: 'invalid token id' };
     return { ok: true, req: { type: 'think_token_action', action: m.action as TokenAction, id: m.id } };
+  }
+  if (m.type === 'think_token_cube') {
+    const bad = onlyKeys(m, ['type', 'id']);
+    if (bad) return { ok: false, error: bad };
+    if (typeof m.id !== 'string' || !TOKEN_ID_PATTERN.test(m.id)) return { ok: false, error: 'invalid token id' };
+    return { ok: true, req: { type: 'think_token_cube', id: m.id } };
   }
   return { ok: false, error: 'unknown think token message' };
 }

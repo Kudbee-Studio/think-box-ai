@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (243 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (244 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (40)
+- [Other documents in docs/](#other-documents-in-docs) (41)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -291,6 +291,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/adr-029-p3.md](evidence/adr-029-p3.md) | ADR 029 P3 — evidence (challenge can say no, links, propagation, re-challenge) | Date: 2026-10-02. Branch feat/adr029-p3-proof-relationships. A Grok bot left a first version of this work... |
 | [docs/evidence/adr-029-p3/merge-breach.md](evidence/adr-029-p3/merge-breach.md) | Gate breach: PR #315 merged with --admin (2026-10-02) | main at bb059c17 passes typecheck and all 387 tests (verified after the fact). That does not excuse the bypass: the... |
 | [docs/evidence/adr-029-p3/p310-live-gaps.md](evidence/adr-029-p3/p310-live-gaps.md) | ADR 029 P3.10: live gaps, real-model answer check, learning A/B (2026-10-02) | Mercury spend: about $0.21 of the $0.75 cap (A/B $0.18, answer-check cases $0.01, live runs and one extraction call... |
+| [docs/evidence/adr-029-p3/p313-token-cube.md](evidence/adr-029-p3/p313-token-cube.md) | P3.13: the 100-cell Think Token cube | Decision (founder, 2026-10-02, now Accepted in ADR 029): the 100-cell token is canonical; the 54-sticker Rubik's... |
 | [docs/evidence/adr-029-p3/p34-audit.md](evidence/adr-029-p3/p34-audit.md) | P3.4 post-merge audit of bb059c17 (2026-10-02) | Scope: the P3.3 changes another agent session merged into PR #315 (Janus opt-in, held-out eval, push audit),... |
 | [docs/evidence/adr-029-p3/p36-semantic.md](evidence/adr-029-p3/p36-semantic.md) | ADR 029 P3.6: semantic retrieval (2026-10-02) | Mercury spend: $0. The A/B was not run: the precondition (hit@3 of at least 7/10 on both held-out sets) was not met. |
 | [docs/evidence/adr-029-p3/p37-lesson-side-recall.md](evidence/adr-029-p3/p37-lesson-side-recall.md) | ADR 029 P3.7: live check, lesson-side recall, set 3 (2026-10-02) | Mercury spend: about $0.03 (21 retrieval-text calls, 3 live goals with extraction capped at 0). The A/B was not run:... |
