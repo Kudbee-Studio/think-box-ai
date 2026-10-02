@@ -47,6 +47,7 @@ before(async () => {
       JANUS_BASE_URL: DEAD,
       UPSTASH_VECTOR_REST_URL: DEAD,
       UPSTASH_VECTOR_REST_TOKEN: 'none',
+      THINKBOX_EMBEDDINGS: 'off',
       KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(tmpRoot, 'data'),
       KUDBEE_LEARNING_DB: path.join(tmpRoot, 'learning.db'),
@@ -324,16 +325,16 @@ test('stop ends a slow run and it is recorded as stopped', async () => {
   }
 });
 
-test('stats reflect the runs and report the vector backend as offline', async () => {
+test('stats reflect the runs; memory is local even though Upstash variables are set (opt-in only)', async () => {
   const stats = await json('/api/stats');
   assert.ok(stats.body.runs_total >= 4);
   assert.ok(stats.body.failures.stopped >= 1);
-  assert.equal(stats.body.memory.vector.backend, 'upstash-sparse');
+  assert.equal(stats.body.memory.vector.backend, 'local-bm25', 'the Upstash URL and token are set in this server\'s env, but without KUDBEE_MEMORY_BACKEND=upstash it is never used');
   const status = await json('/api/memory/status');
   assert.ok(status.body.counts.task >= 3);
 });
 
-test('memory REST: add, search (falls back to local), promote, delete; bad input rejected', async () => {
+test('memory REST: add, search (local), promote, delete; bad input rejected', async () => {
   const created = await json('/api/memory', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -344,7 +345,7 @@ test('memory REST: add, search (falls back to local), promote, delete; bad input
   assert.deepEqual(created.body.tags, ['ops', 'deploy']);
 
   const search = await json('/api/memory?q=deploy%20checklist');
-  assert.equal(search.body.backend, 'local-bm25 (vector offline)');
+  assert.equal(search.body.backend, 'local-bm25 (embeddings off)');
   assert.equal(search.body.items[0].id, created.body.id);
 
   const promoted = await json('/api/memory/promote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: created.body.id }) });
