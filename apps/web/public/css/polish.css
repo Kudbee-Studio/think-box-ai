@@ -236,3 +236,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 }
 .connector-status button:disabled { opacity: 0.75; cursor: not-allowed; }
 .collaboration-dashboard .task-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ─── Open menus: the page is dark, so native popups (select lists, date pickers, scrollbars) must be too.
+   Without this the list opened white with the page's light text on it. ─── */
+:root { color-scheme: dark; }
+select option, select optgroup { background-color: var(--bg-secondary, #141b2e); color: var(--text-primary, #e2e8f0); }
+select option:checked, select option:hover { background-color: var(--bg-active, #243447); color: var(--text-primary, #e2e8f0); }

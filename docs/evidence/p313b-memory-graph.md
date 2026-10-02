@@ -15,6 +15,10 @@ Founder feedback (2026-10-02): the Memory Graph was too layered, needed to be fi
 - `public/js/memory-graph.js`: sizes the canvas to its box times the device pixel ratio, draws the brain (lobes, cerebellum, stem, fold lines), nodes by layer colour, only real links, and one label for the hovered or selected node. Details use `textContent` only. A legend shows the layer counts.
 - Links are only real shared tags, and a tag carried by more than a third of the memories draws no link (before: 1378 links, all from generic tags; now 4). The fold lines are decoration and carry no data.
 
+## Open menus were white
+
+Founder feedback: "when I open the menus they're all white". The dashboard never declared a dark colour scheme and did not style `<option>`, so native select lists (model, agent, task filters, memory layer, terminal buffer, token status, the new cube selector) opened with the browser's white popup while keeping the page's light text. `polish.css` now sets `color-scheme: dark` and gives options a dark background and light text. `tests/dashboard-menus.test.ts` asserts both. Headless Chrome cannot screenshot a native popup, so this is TEST VERIFIED (the CSS), not LIVE VERIFIED; the founder should open a dropdown to confirm. The Think Tokens modal itself computed to dark backgrounds everywhere in a live scan (0 light elements; `modal-before-1024.png`).
+
 ## Evidence
 
 - Screenshots, after: `p313b-memory-graph/graph-after-1024.png`, `graph-after-390.png` (hovering the org memory shows its label).
@@ -28,5 +32,6 @@ Founder feedback (2026-10-02): the Memory Graph was too layered, needed to be fi
 | Layout never overlaps or leaves the brain | CODE COMPLETE, TEST VERIFIED, LIVE VERIFIED (56 real memories, 2 widths) |
 | Details are text-only | CODE COMPLETE, TEST VERIFIED |
 | Looks like a brain | LIVE VERIFIED (screenshots); taste is the founder's call |
+| Dark open menus (select lists) | CODE COMPLETE, TEST VERIFIED (CSS asserted); UNPROVEN in a real popup |
 | Dragging, zooming, filtering by layer | not built (not asked for) |
 | Real-device pixel ratio above 1 | UNPROVEN (headless Chrome ran at ratio 1; a test covers the maths) |
