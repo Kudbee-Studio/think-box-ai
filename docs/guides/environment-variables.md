@@ -167,6 +167,9 @@ Read only from the environment (the server also loads the repo-root `.env`). Nev
 | `THINKBOX_EMBED_MODEL` | Sentence-embedding model (Hugging Face id) used for lesson/goal vectors; vectors are stored per model | `Xenova/all-MiniLM-L6-v2` (about 23 MB, CPU, downloaded once, then offline) |
 | `THINKBOX_EMBED_CACHE` | Directory for the downloaded model | `<KUDBEE_DATA_DIR or apps/web/data>/models` |
 | `THINKBOX_RETRIEVER` | Ranker: `cosine` (default), `cosine-tiebreak` (cosine first, BM25 breaks ties within 0.02), `hybrid` (P3.6: BM25 + cosine + failure modes), or `lexical` (P3.2). The cosine rankers need vectors and fall back to lexical without them | `cosine` |
+| `KUDBEE_MEMORY_BACKEND` | `upstash` opts in to the Upstash vector backend for memory recall (needs `UPSTASH_VECTOR_REST_URL` and `UPSTASH_VECTOR_REST_TOKEN`); anything else, or unset, is the local default (SQLite vectors with the local MiniLM model, BM25 fallback). The Upstash variables alone do nothing | local |
+| `KUDBEE_REPO` | `owner/name` of the project's GitHub repository, told to the planner so it never guesses one; default: read from `git remote get-url origin` | git remote |
+| `KUDBEE_VERBOSE` | `1` shows the CLI's per-goal routing line when no local model is used | off |
 | `THINKBOX_EVIDENCE_CHECK` | `off` disables the final-answer check against this run's tool results (ADR 029 P3.9/P3.10); on by default | on |
 | `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
 

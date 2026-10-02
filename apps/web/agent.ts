@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
-import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, type ToolEvidence } from './evidence.ts';
+import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
@@ -292,6 +292,7 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
 const SYSTEM_PROMPT = `You are kudbEE Worker, an autonomous agent inside kudbEE Agent OS.
 You complete the user's goal by calling tools, not by describing what you would do.
 - Your workspace is a private folder. Use list_files/read_file to inspect it and write_file to deliver results.
+  If list_files returns an empty list the workspace is empty: do not read_file guessed names like pr_status.md; work from the tool results you already have.
 - Use fetch_url and read_rss to gather real, current information from the web. Never invent facts or URLs.
 - When the goal asks for a report, summary, code or data, save it to a file with write_file.
 - A human may deny a tool call. If denied, do not retry the same call; adapt or explain.
@@ -396,6 +397,8 @@ interface RunContext {
   /** Files this run wrote; reading them back is not evidence of anything. */
   written: Set<string>;
   rememberRefusals: number;
+  /** list_files returned nothing and nothing has been written since: the workspace is empty, so reading a guessed file cannot succeed. */
+  workspaceEmpty?: boolean;
 }
 
 function normalizePath(value: unknown): string {
@@ -411,8 +414,15 @@ function isObservation(name: string, args: Record<string, unknown>, context: Run
 async function executeTool(name: string, args: Record<string, unknown>, hooks: AgentHooks, context: RunContext): Promise<Record<string, unknown>> {
   switch (name) {
     case 'list_files':
-      return { files: await listWorkspace(hooks.workspace) };
+      {
+        const files = await listWorkspace(hooks.workspace);
+        context.workspaceEmpty = files.length === 0;
+        return { files };
+      }
     case 'read_file': {
+      if (context.workspaceEmpty && !context.written.has(normalizePath(args.path))) {
+        throw new Error('The workspace is empty (list_files returned nothing), so there is no such file to read. Do not guess file names: use the tool results you already have, or write the file first.');
+      }
       const file = hooks.resolvePath(String(args.path ?? ''));
       const content = await fs.promises.readFile(file, 'utf8');
       return { path: args.path, content: truncate(content, 20000) };
@@ -568,7 +578,7 @@ export async function runToolAgent(
           const check = async (text: string): Promise<{ conflict: boolean; detail: string } | null> => {
             const judged = await chat(model, [
               { role: 'system', content: EVIDENCE_JUDGE_SYSTEM },
-              { role: 'user', content: JSON.stringify({ answer: text, tool_results: evidence.map((e) => ({ tool: e.name, ok: e.ok, output: e.output })) }) },
+              { role: 'user', content: JSON.stringify({ answer: text, tool_results: evidence.map((e, i) => ({ order: i + 1, tool: e.name, ok: e.ok, output: e.output, superseded_by_later_success: supersededFlags(evidence)[i] })) }) },
             ], 0, hooks.signal, [], hooks.apiBaseUrl);
             totals.prompt_tokens += judged.prompt;
             totals.completion_tokens += judged.completion;
@@ -639,7 +649,7 @@ export async function runToolAgent(
           }
           output = { ok: true, ...(await executeTool(call.function.name, args, hooks, context)) };
           if (isObservation(call.function.name, args, context)) context.observed = true;
-          if (call.function.name === 'write_file') context.written.add(normalizePath(args.path));
+          if (call.function.name === 'write_file') { context.written.add(normalizePath(args.path)); context.workspaceEmpty = false; }
           hooks.onThought({ type: 'tool_result', plugin: call.function.name, content: `${call.function.name} ✓ ${truncate(JSON.stringify(output), 200)}`, status: 'success' });
         } catch (err) {
           if (hooks.signal.aborted) return finish({ success: false, stopped: true, error: 'Stopped by user' });
