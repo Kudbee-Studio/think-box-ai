@@ -174,7 +174,8 @@ class Client {
     if (Array.isArray(r.evidence_conflicts) && r.evidence_conflicts.length) {
       console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String(r.evidence_conflicts[0]).slice(0, 200)}); final answer below.`));
     }
-    if (r.success) console.log(`${c.green('✓')} ${String(r.result ?? '').trim() || '(the agent returned no answer text)'}`);
+    // A streamed (local chat) answer is already on screen token by token; do not print it again.
+    if (r.success) console.log(`${c.green('✓')} ${r.streamed ? 'done' : String(r.result ?? '').trim() || '(the agent returned no answer text)'}`);
     else console.log(c.red(`✗ ${r.error ?? 'the run failed without an error message'}`));
     if (r.steps !== undefined) {
       console.log(c.dim(`  ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${usd(r.cost_usd)} · ${((r.duration_ms ?? 0) / 1000).toFixed(1)}s · run ${String(r.run_id).slice(0, 8)}`));

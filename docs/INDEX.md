@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (246 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (247 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (43)
+- [Other documents in docs/](#other-documents-in-docs) (44)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -303,6 +303,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/p3.11-cli-link-audit.md](evidence/p3.11-cli-link-audit.md) | P3.11: one engine, one database: audit and link (2026-10-02) | Mercury spend: about $0.06 of the $0.15 cap (CLI proof runs, answer-check re-runs, goal-check reviews). The real... |
 | [docs/evidence/p3.12-vector-memory.md](evidence/p3.12-vector-memory.md) | P3.12: local vector memory (SQLite, no Upstash) and the live-run fixes (2026-10-02) | Mercury spend: about $0.03 of the $0.10 cap (two live runs on :3000, one CLI run). The real database was backed up... |
 | [docs/evidence/p313b-memory-graph.md](evidence/p313b-memory-graph.md) | P3.13b: Memory Graph as a brain, without the layering | Founder feedback (2026-10-02): the Memory Graph was too layered, needed to be fixed and professional, and should... |
+| [docs/evidence/p316-local-chat.md](evidence/p316-local-chat.md) | P3.16: the local model in the Agent OS (CLI and dashboard) | Founder: "the CLI works with the model, not the Agent OS dashboard", and ollama run smollm2:360m "..." in a terminal... |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
 | [docs/gcode-mastery.md](gcode-mastery.md) | G-Code Mastery Curriculum — 2-Week Daily Drills | For: Dominick (CNC beginner → solid) |
 | [docs/harvest-replay.md](harvest-replay.md) | Harvest & Replay | Harvest once on the GPU; re-score forever offline. This closes the loop |

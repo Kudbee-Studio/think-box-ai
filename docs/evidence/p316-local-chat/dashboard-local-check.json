@@ -1,0 +1,1 @@
+{"opts":["mercury-2","smollm2:360m"],"selected":"smollm2:360m","count_It_is_4":0,"count_step_plan":0,"last_lines":["status: running","Starting goal: What is 2 plus 2? Answer in one short sentence.","Planning execution...","2 + 2 = 4.","Answered by smollm2:360m (local chat, no tools).","✓ Done","— 1 step(s) · 0 tool call(s) · 0 tokens · $0.0000 · 1.1s","0000000000"]}
