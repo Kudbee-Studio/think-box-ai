@@ -36,12 +36,12 @@ export type TokenStatus = (typeof TOKEN_STATUSES)[number];
 export const EXTRACTORS = ['template', 'local', 'mercury'] as const;
 export type Extractor = (typeof EXTRACTORS)[number];
 
-export const LIMITS = { title: 120, content: 600, tag: 32, tags: 8, evidence: 200, query: 100, list: 100, reason: 300, model: 60 } as const;
+export const LIMITS = { when_to_use: 400, title: 120, content: 600, tag: 32, tags: 8, evidence: 200, query: 100, list: 100, reason: 300, model: 60 } as const;
 const SCORE_WEIGHTS = { usefulness: 0.45, recency: 0.2, reuse: 0.15, feedback: 0.2 } as const;
 const HALF_LIFE_DAYS = 30;
 const DAY_MS = 86_400_000;
 const DEFAULT_TENANT = 'local';
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export function formatTokenId(seq: number): string {
   return `TT-${String(seq).padStart(6, '0')}`;
@@ -148,6 +148,8 @@ export interface TokenDraft {
   extractor?: string;
   extract_model?: string;
   extract_meta?: ExtractMeta;
+  /** Retrieval text written at extraction: plain-words situations where the lesson applies. Embedded with the lesson; never shown as the lesson. */
+  when_to_use?: string;
   [extra: string]: unknown;
 }
 
@@ -427,6 +429,12 @@ const SUPPORT_TABLES = `
   );
   CREATE INDEX IF NOT EXISTS idx_think_token_links_to ON think_token_links(to_id);
   CREATE INDEX IF NOT EXISTS idx_think_token_links_kind ON think_token_links(kind);
+  CREATE TABLE IF NOT EXISTS think_token_retrieval_text (
+    token_id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS think_token_embeddings (
     token_id TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -530,6 +538,7 @@ export function migrateUp(db: Database.Database): void {
 export function migrateDown(db: Database.Database): void {
   db.exec(
     [
+      'DROP TABLE IF EXISTS think_token_retrieval_text;',
       'DROP TABLE IF EXISTS think_token_embeddings;',
       'DROP TABLE IF EXISTS think_token_links;',
       'DROP TABLE IF EXISTS think_token_model_calls;',
@@ -729,9 +738,9 @@ export class SqliteTokenStore implements TokenStore {
 
   /** The admission gate: shape, size, redaction, directive screening. A draft can only ever become a candidate. */
   private admit(draft: TokenDraft):
-    | { ok: true; clean: { kind: TokenKind; title: string; content: string; tags: string[]; evidence_ref: string; run: string; extractor: Extractor; extract_model: string | null; extract_meta: ExtractMeta } }
+    | { ok: true; clean: { kind: TokenKind; title: string; content: string; tags: string[]; evidence_ref: string; run: string; extractor: Extractor; extract_model: string | null; extract_meta: ExtractMeta; when_to_use: string } }
     | { ok: false; reason: string } {
-    const allowedKeys = new Set(['source_run_id', 'kind', 'title', 'content', 'tags', 'evidence_ref', 'extractor', 'extract_model', 'extract_meta']);
+    const allowedKeys = new Set(['source_run_id', 'kind', 'title', 'content', 'tags', 'evidence_ref', 'extractor', 'extract_model', 'extract_meta', 'when_to_use']);
     const extra = Object.keys(draft).filter((key) => !allowedKeys.has(key));
     if (extra.length) return { ok: false, reason: `unexpected field(s): ${extra.join(', ')}` };
     if (!(TOKEN_KINDS as readonly string[]).includes(draft.kind)) return { ok: false, reason: 'unknown kind' };
@@ -755,6 +764,9 @@ export class SqliteTokenStore implements TokenStore {
     if (content.length > LIMITS.content) return { ok: false, reason: `content over ${LIMITS.content} chars` };
     if (evidence.length > LIMITS.evidence) return { ok: false, reason: `evidence_ref over ${LIMITS.evidence} chars` };
     if (draft.source_run_id.length > 80) return { ok: false, reason: 'source_run_id too long' };
+    if (draft.when_to_use !== undefined && typeof draft.when_to_use !== 'string') return { ok: false, reason: 'when_to_use must be a string' };
+    const whenToUse = redact((draft.when_to_use ?? '').trim()).slice(0, LIMITS.when_to_use);
+    if (whenToUse && violatesDirectivePolicy(whenToUse)) return { ok: false, reason: 'when_to_use tries to change permissions or approvals; tokens are advisory only' };
     const tags = [...new Set((draft.tags ?? []).map((t) => redact(t).toLowerCase().replace(/[^a-z0-9_.:-]/g, '').slice(0, LIMITS.tag)).filter(Boolean))].slice(0, LIMITS.tags);
     if (violatesDirectivePolicy(`${title}\n${content}`)) return { ok: false, reason: 'content tries to change permissions or approvals; tokens are advisory only' };
     return {
@@ -769,6 +781,7 @@ export class SqliteTokenStore implements TokenStore {
         extractor: extractor as Extractor,
         extract_model: draft.extract_model ? redact(draft.extract_model) : null,
         extract_meta: meta,
+        when_to_use: whenToUse,
       },
     };
   }
@@ -796,6 +809,7 @@ export class SqliteTokenStore implements TokenStore {
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         )
         .run(id, seq, this.tenant, now, clean.run, clean.kind, clean.title, clean.content, JSON.stringify(clean.tags), breakdown.score, JSON.stringify(breakdown), 'candidate', clean.evidence_ref, hash, clean.extractor, clean.extract_model, JSON.stringify(clean.extract_meta));
+      if (clean.when_to_use) this.setRetrievalText(id, clean.when_to_use, clean.extract_model ?? 'extractor');
       return {
         ok: true,
         id,
@@ -1015,10 +1029,34 @@ export class SqliteTokenStore implements TokenStore {
     return chosen.map((e) => ({ ...e.row, score: e.quality }));
   }
 
+  /** Retrieval text (`when_to_use`) for a token; written at extraction, or backfilled for older tokens. Not the lesson, not shown to the planner. */
+  setRetrievalText(tokenId: string, text: string, source: string): void {
+    const id = this.resolve(tokenId);
+    const clean = redact(text.trim()).slice(0, LIMITS.when_to_use);
+    if (!id || !clean) return;
+    this.db
+      .prepare('INSERT INTO think_token_retrieval_text (token_id, text, source, created_at) VALUES (?,?,?,?) ON CONFLICT(token_id) DO UPDATE SET text = excluded.text, source = excluded.source, created_at = excluded.created_at')
+      .run(id, clean, source.slice(0, LIMITS.model), Date.now());
+  }
+
+  retrievalTextFor(tokenId: string): string | null {
+    const row = this.db.prepare('SELECT text FROM think_token_retrieval_text WHERE token_id = ?').get(tokenId) as { text: string } | undefined;
+    return row?.text ?? null;
+  }
+
+  /** Accepted tokens that have no retrieval text yet. */
+  listWithoutRetrievalText(limit = 100): ThinkTokenRow[] {
+    const have = new Set((this.db.prepare('SELECT token_id FROM think_token_retrieval_text').all() as Array<{ token_id: string }>).map((r) => r.token_id));
+    return this.list({ status: 'accepted', limit: 500 }).filter((t) => !have.has(t.id)).slice(0, limit);
+  }
+
   /** Accepted tokens with no vector for `model`, or whose text changed since it was embedded. */
-  listMissingEmbeddings(model: string): ThinkTokenRow[] {
+  listMissingEmbeddings(model: string): Array<ThinkTokenRow & { when_to_use?: string }> {
     const have = new Map((this.db.prepare('SELECT token_id, text_sha256 FROM think_token_embeddings WHERE model = ?').all(model) as Array<{ token_id: string; text_sha256: string }>).map((r) => [r.token_id, r.text_sha256]));
-    return this.list({ status: 'accepted', limit: 500 }).filter((t) => have.get(t.id) !== sha256(embedText(t)));
+    const aux = new Map((this.db.prepare('SELECT token_id, text FROM think_token_retrieval_text').all() as Array<{ token_id: string; text: string }>).map((r) => [r.token_id, r.text]));
+    return this.list({ status: 'accepted', limit: 500 })
+      .map((t) => ({ ...t, when_to_use: aux.get(t.id) }))
+      .filter((t) => have.get(t.id) !== sha256(embedText(t)));
   }
 
   setEmbedding(tokenId: string, model: string, vector: Float32Array, text: string): void {
