@@ -30,6 +30,8 @@ export interface RunRecord {
   /** Think Token ids (ADR 028) injected into the planner context for this run. */
   think_tokens?: string[];
   result?: string;
+  /** What this run's tools said when the final-answer check found the answer contradicting them (see evidence.ts). */
+  evidence_conflicts?: string[];
   error?: string;
   failure_kind?: string;
   /** Feature 5: model routing decision + estimated token savings for this run. */

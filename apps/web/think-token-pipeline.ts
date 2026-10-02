@@ -34,6 +34,8 @@ export interface RunView {
   tools: Array<{ n: number; name: string; args: Record<string, string>; ok: boolean; error?: string; output_excerpt: string }>;
   tool_names: string[];
   files: string[];
+  /** Present when the answer first contradicted this run's tool results; a lesson about avoiding that is worth keeping. */
+  evidence_conflicts?: string[];
 }
 
 const clip = (text: string, max: number): string => {
@@ -69,6 +71,7 @@ export function buildRunView(run: FinishedRun): RunView {
     tools,
     tool_names: [...new Set(tools.map((t) => t.name))],
     files: [...new Set((run.files ?? []).map((f) => sanitizeForModel(String(f), 120)))].slice(0, 20),
+    ...(run.evidence_conflicts?.length ? { evidence_conflicts: run.evidence_conflicts.slice(0, 3).map((c) => sanitizeForModel(c, 300)) } : {}),
   };
 }
 
@@ -226,6 +229,7 @@ const EXTRACT_SYSTEM = [
   '"when_to_use" is one or two plain sentences naming the kinds of tasks or situations where the lesson applies, in everyday words and synonyms; do not copy the lesson\'s wording or its tool and file names.',
   'Each lesson must be specific and reusable: say what worked, why it worked, when to reuse it, and when NOT to. Keep it under 500 characters.',
   'Cite only tools and files that appear in the run record. Do not restate the goal. Do not invent facts. Never include secrets or credentials.',
+  'If the run record has "evidence_conflicts", the answer first contradicted the run\'s own tool results (for example it repeated a stale memory); a lesson about avoiding that mistake, grounded in the tools the run used, is worth keeping.',
   '"known_lessons" lists lessons already saved: do NOT repeat or paraphrase any of them. If everything worth keeping is already known, return {"lessons":[]}.',
 ].join(' ');
 

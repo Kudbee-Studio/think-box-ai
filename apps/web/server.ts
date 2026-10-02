@@ -1111,7 +1111,7 @@ export class AgentSession {
         },
       }, plannerContext);
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
-      runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)) });
+      runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)), ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}) });
       await this.recordEpisode(record);
       if (!run.stopped) await this.saveThinkTokens(record, run.success);
 
@@ -1483,7 +1483,7 @@ export class AgentSession {
       const deps = { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) };
       const result = await processFinishedRun(
         deps,
-        { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result },
+        { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result, evidence_conflicts: record.evidence_conflicts },
         actor,
       );
       // A token whose challenge could not run earlier (model down) is retried now that a run has finished; at most 3 per run.

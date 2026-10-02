@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
+import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, type ToolEvidence } from './evidence.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
@@ -99,6 +100,8 @@ export interface AgentRunResult {
   completion_tokens: number;
   tokens: number;
   cost_usd: number;
+  /** Set when the final-answer check found the answer contradicting this run's own tool results (what the tools said, one sentence each). */
+  evidence_conflicts?: string[];
 }
 
 export const TOOLS = [
@@ -297,6 +300,7 @@ You complete the user's goal by calling tools, not by describing what you would 
   earlier run did — an earlier answer is NOT evidence and may have been wrong. Prefer VERIFIED, then ORG.
   If memory does not settle the question, say so instead of guessing.
 - When you learn something reusable (a reliable source, a user preference, a mistake to avoid), save it with remember.
+- ${EVIDENCE_RULE}
 - Work in small steps. When finished, reply with a short summary of what you did and which files you created.`;
 
 function truncate(text: string, max: number): string {
@@ -482,7 +486,7 @@ async function chat(
       Authorization: `Bearer ${process.env.INCEPTION_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, messages, tools, temperature, max_tokens: 8000 }),
+    body: JSON.stringify({ model, messages, ...(tools.length ? { tools } : {}), temperature, max_tokens: 8000 }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(90000)]),
   });
   if (!response.ok) {
@@ -516,6 +520,8 @@ export async function runToolAgent(
   const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS;
   const roleContext = hooks.roleContext ?? (hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined);
 
+  const evidence: ToolEvidence[] = [];
+  const conflicts: string[] = [];
   const context: RunContext = { observed: false, written: new Set(), rememberRefusals: 0, userAskedToRemember: /\b(remember (that|this|to)|memori[sz]e|note that|(save|add|store) (this|that|it) (to|in) memory)\b/i.test(goal) };
   const system = [SYSTEM_PROMPT, roleContext, memoryContext ? `Relevant memories:\n${memoryContext}` : undefined]
     .filter(Boolean)
@@ -555,13 +561,47 @@ export async function runToolAgent(
       });
 
       if (!message.tool_calls?.length) {
-        const answer = message.content?.trim() || '(no answer)';
+        let answer = message.content?.trim() || '(no answer)';
+        // Final-answer check: an answer that asserts state while this run's own tool results say nothing/failed is confirmed by a model, retried once
+        // with the conflict spelled out, and if it still conflicts the answer is replaced by what the tools said, flagged.
+        if (process.env.THINKBOX_EVIDENCE_CHECK !== 'off' && conflictCandidate(answer, evidence)) {
+          const check = async (text: string): Promise<{ conflict: boolean; detail: string } | null> => {
+            const judged = await chat(model, [
+              { role: 'system', content: EVIDENCE_JUDGE_SYSTEM },
+              { role: 'user', content: JSON.stringify({ answer: text, tool_results: evidence.map((e) => ({ tool: e.name, ok: e.ok, output: e.output })) }) },
+            ], 0, hooks.signal, [], hooks.apiBaseUrl);
+            totals.prompt_tokens += judged.prompt;
+            totals.completion_tokens += judged.completion;
+            totals.tokens += judged.prompt + judged.completion;
+            totals.cost_usd += costUsd(model, judged.prompt, judged.completion);
+            return parseJudge(judged.message.content ?? '');
+          };
+          const first = await check(answer);
+          if (first?.conflict) {
+            conflicts.push(first.detail || 'the answer contradicted a tool result');
+            hooks.onThought({ type: 'reasoning', content: `Evidence check: the answer conflicts with this run's tool results (${first.detail}). Retrying once.`, status: 'info' });
+            messages.push({ role: 'user', content: `Your answer conflicts with this run's tool results: ${first.detail}\nTool results from THIS run outrank memory. Answer again from the tool results only, and say which memory or lesson was stale.` });
+            const retry = await chat(model, messages, temperature, hooks.signal, [], hooks.apiBaseUrl);
+            totals.prompt_tokens += retry.prompt;
+            totals.completion_tokens += retry.completion;
+            totals.tokens += retry.prompt + retry.completion;
+            totals.cost_usd += costUsd(model, retry.prompt, retry.completion);
+            const retried = retry.message.content?.trim() || '';
+            const second = retried ? await check(retried) : null;
+            if (retried && second && !second.conflict) {
+              answer = retried;
+            } else {
+              answer = `FLAGGED: my answer conflicted with this run's tool results and could not be reconciled. What the tools said: ${first.detail}`;
+              conflicts.push(second?.detail || 'the retry still conflicted');
+            }
+          }
+        }
         hooks.onThought({
           type: 'answer',
           content: `Finished in ${step} step(s), ${totals.tool_calls} tool call(s), ${totals.tokens} tokens, $${totals.cost_usd.toFixed(5)}`,
           status: 'success',
         });
-        return finish({ success: true, result: answer });
+        return finish({ success: true, result: answer, ...(conflicts.length ? { evidence_conflicts: conflicts } : {}) });
       }
 
       if (message.content?.trim()) hooks.onThought({ type: 'plan', content: message.content.trim(), status: 'info' });
@@ -619,6 +659,7 @@ export async function runToolAgent(
           approval,
           approval_reason: reason ?? undefined,
         });
+        evidence.push({ name: call.function.name, ok: output.ok === true, output: truncate(JSON.stringify(output), 1500) });
         messages.push({ role: 'tool', tool_call_id: call.id, content: truncate(JSON.stringify(output), 15000) });
       }
     }
