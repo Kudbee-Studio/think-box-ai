@@ -429,10 +429,12 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       const pluginName = args.shift();
       if (!pluginName) {
         console.log(c.red('Usage: /plugin NAME JSON'));
+        console.log(c.dim('Example: /plugin my_tool {"key": "value"}'));
         break;
       }
       if (!args.length) {
-        console.log(c.red('Plugin input required as valid JSON'));
+        console.log(c.red(`Error: ${pluginName} requires JSON input`));
+        console.log(c.dim('Example: /plugin my_tool {"key": "value"}'));
         break;
       }
       try {
@@ -447,7 +449,8 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           console.log(c.red(`✗ ${result.error ?? `${pluginName} failed`}`));
         }
       } catch (err) {
-        console.log(c.red('Plugin input must be valid JSON.'));
+        console.log(c.red('Error: Invalid JSON input'));
+        console.log(c.dim(`Details: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }
