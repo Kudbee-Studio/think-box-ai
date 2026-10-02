@@ -33,6 +33,7 @@ import type {
 import { errorMessage } from './types.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
+import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
 import { createMemorySemantic } from './memory-semantic.ts';
@@ -952,6 +953,15 @@ export class AgentSession {
     let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string } | undefined = first;
     try {
       while (next) {
+        // A local chat has no tools: a goal that needs tools or live state goes to the worker agent, or fails plainly. It is never answered from the model's head.
+        const escalation = next.model && !isInceptionModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
+        if (escalation?.error) {
+          if (next.task) this.updateTask(next.task.id, { status: 'failed', error: escalation.error });
+          this.broadcast({ type: 'result', data: { success: false, error: escalation.error } });
+          next = this.queue.shift();
+          continue;
+        }
+        if (escalation?.model) next = { ...next, model: escalation.model };
         if (next.model) {
           this.config.model = next.model;
           this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
@@ -964,6 +974,21 @@ export class AgentSession {
     } finally {
       this.busy = false;
     }
+  }
+
+  /**
+   * A goal picked for a local model that needs tools or live data (a repo, files, the web, today's date...). With a worker agent configured it is
+   * sent there and the thought line says why; without one it fails with an explanation instead of a confident made-up answer. null = stay local.
+   */
+  private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string } | null {
+    const why = needsToolsOrLiveData(goal);
+    if (!why) return null;
+    if (!inceptionConfigured()) {
+      return { error: `This goal needs tools or live data (${why}), which ${localModel} cannot use, and no worker agent is configured. Set INCEPTION_API_KEY to run it with ${INCEPTION_MODELS[0]}.` };
+    }
+    const model = INCEPTION_MODELS[0];
+    this.addThought({ type: 'routing', content: `Routed to ${model} instead of ${localModel}: ${why}. A local chat has no tools and cannot check live state.`, status: 'info' });
+    return { model };
   }
 
   /** Reuses the task created at enqueue time, or creates one for a goal that starts immediately. */
