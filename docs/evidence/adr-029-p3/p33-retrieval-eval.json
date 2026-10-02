@@ -1,0 +1,107 @@
+{
+  "seed": "p33-seed.db",
+  "goals_module": "think-token-ab-goals-p33-heldout.mjs",
+  "related_goals": 8,
+  "hit_at_1": 6,
+  "hit_at_3": 7,
+  "hit_at_1_rate": 0.75,
+  "hit_at_3_rate": 0.875,
+  "per_goal": [
+    {
+      "id": "deep-mkdir",
+      "expectedLesson": "deep-mkdir",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:deep-mkdir] Nested paths auto-create dirs",
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:dotdot-path] Parent paths via write_file"
+      ]
+    },
+    {
+      "id": "zero-byte",
+      "expectedLesson": "zero-byte",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:zero-byte] Empty file is zero bytes",
+        "[lesson:size-match] Five ASCII bytes",
+        "[lesson:emoji-utf8] Emoji byte length"
+      ]
+    },
+    {
+      "id": "path-normalize",
+      "expectedLesson": "path-normalize",
+      "hit1": false,
+      "hit3": true,
+      "rank": 2,
+      "top3": [
+        "[lesson:deep-mkdir] Nested paths auto-create dirs",
+        "[lesson:path-normalize] Dots in paths",
+        "[lesson:dotdot-path] Parent paths via write_file"
+      ]
+    },
+    {
+      "id": "recursive-list",
+      "expectedLesson": "recursive-list",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:recursive-list] list_files finds deep files",
+        "[lesson:list-subdir] list_files is recursive",
+        "[lesson:counter] Increment via read/write loop"
+      ]
+    },
+    {
+      "id": "size-match",
+      "expectedLesson": "size-match",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:size-match] Five ASCII bytes",
+        "[lesson:bytes-not-chars] Report write_file UTF-8 bytes",
+        "[lesson:counter] Increment via read/write loop"
+      ]
+    },
+    {
+      "id": "replace-not-append",
+      "expectedLesson": "replace-not-append",
+      "hit1": false,
+      "hit3": false,
+      "rank": null,
+      "top3": [
+        "[lesson:missing-then-create] Create missing JSON settings",
+        "[lesson:zero-byte] Empty file is zero bytes",
+        "[lesson:append] Append with read_file then write_file"
+      ]
+    },
+    {
+      "id": "emoji-utf8",
+      "expectedLesson": "emoji-utf8",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:emoji-utf8] Emoji byte length",
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:json-line] Compact JSON line"
+      ]
+    },
+    {
+      "id": "json-line",
+      "expectedLesson": "json-line",
+      "hit1": true,
+      "hit3": true,
+      "rank": 1,
+      "top3": [
+        "[lesson:json-line] Compact JSON line",
+        "[lesson:counter] Increment via read/write loop",
+        "[lesson:append] Append with read_file then write_file"
+      ]
+    }
+  ]
+}

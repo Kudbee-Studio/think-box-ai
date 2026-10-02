@@ -1,0 +1,15 @@
+{
+  "screenshot": "/opt/cursor/artifacts/think-tokens-reduced-motion.png",
+  "prefers_reduced_motion": true,
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "cube": {
+    "hasTwistClass": false,
+    "animationName": "none",
+    "animationDuration": "1e-05s"
+  },
+  "energy_core_ring": {
+    "activeCore": false
+  }
+}

@@ -64,6 +64,10 @@ credential or token-scope changes, or contact with live infrastructure.
   `qwen2.5:1.5b`). The app never pulls models. Run `ollama list` and set the variable to a model you already have.
 - If no model answers, the deterministic template extractor is used, labeled `extractor: template`; such tokens stay `candidate` and are never auto-accepted.
 
+### 0.7 Git push (no auto-push)
+
+Nothing in this repository may push to a remote on commit, hook, or timer. Only a human or agent may run `git push` after local gates pass (tests, lint, typecheck, CodeQL when required, evidence updated). Cursor agent hooks run on **commit** only (`pre-commit`, `commit-msg`); there is no `pre-push` hook in-repo. If a push appears without an explicit agent push step, treat it as another session or machine and record findings in `docs/evidence/` (see `docs/evidence/adr-029-p3/push-audit.md`).
+
 ### 0.6 Think Tokens: where they live, and CLI/dashboard parity
 
 - The store is `apps/web/data/think-tokens.db` (override `KUDBEE_THINK_TOKEN_DB`), NOT `learning.db` (that is the older #288 `learned_patterns` store).

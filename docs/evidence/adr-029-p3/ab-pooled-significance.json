@@ -1,0 +1,27 @@
+{
+  "sources": [
+    {
+      "file": "docs/evidence/adr-029-p3/ab31-result.json",
+      "spent_usd": 0.10711100000000001
+    },
+    {
+      "file": "docs/evidence/adr-029-p3/ab33-result.json",
+      "spent_usd": 0.06937725
+    }
+  ],
+  "pooled_related_runs": 112,
+  "off": {
+    "n": 56,
+    "ok": 34,
+    "rate": 0.6071428571428571
+  },
+  "on": {
+    "n": 56,
+    "ok": 34,
+    "rate": 0.6071428571428571
+  },
+  "delta_on_minus_off": 0,
+  "two_sided_z": 0,
+  "p_value": 0.99999970019902,
+  "interpretation": "not significant at 0.05"
+}
