@@ -314,6 +314,7 @@ ${c.bold('MODELS & AGENTS')}
 
 ${c.bold('OPERATIONS')}
   /plugins            list available tools and permissions
+  /plugin NAME JSON   run a plugin with the given JSON input
   /skills             browse 100+ MCP servers from official registry
   /skill [SEARCH]     find a skill, or interactive menu (no args)
   /files              list workspace files
