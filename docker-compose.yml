@@ -69,6 +69,8 @@ services:
       PORT: "3000"
       OLLAMA_BASE_URL: http://ollama:11434
       JANUS_BASE_URL: http://janus:8001
+      # Janus is opt-in (CVE-2026-69112 in the pinned accelerate; docs/SECURITY.md). Set KUDBEE_JANUS_ENABLED=1 together with the `images` profile.
+      KUDBEE_JANUS_ENABLED: ${KUDBEE_JANUS_ENABLED:-0}
     volumes:
       - agent_os_data:/app/data
     depends_on:
