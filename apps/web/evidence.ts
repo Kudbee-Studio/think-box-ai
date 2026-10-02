@@ -41,13 +41,56 @@ export function isNegativeEvidence(e: ToolEvidence): boolean {
 const ASSERTS_STATE = /#\d{1,6}\b|\b(is|are|was|were)\s+(currently\s+)?(open|running|passing|green|up|failing|red|draft|merged|live)\b|\bdraft\b|\b\d+\s+(open\s+)?(prs?|pull requests?|files?|items?|results?)\b/i;
 const NEGATES = /\b(no|none|not|zero|empty|nothing|isn't|aren't|wasn't|weren't|couldn't|can't|cannot|failed|unable|stale|unverified)\b/i;
 
+/** Status words an answer may use, and the spellings in tool output that support each. */
+const STATUS_CLAIMS: Array<{ say: RegExp; support: RegExp }> = [
+  { say: /\b(green|passing|passed|successful|succeeded)\b/i, support: /success|passed|passing|"state":\s*"ok"|"status":\s*"(ok|healthy)"|green|completed/i },
+  { say: /\b(failing|failed|red|broken)\b/i, support: /fail|error|cancel|timed.?out|red\b|broken/i },
+  { say: /\b(running|up and running|healthy|online)\b/i, support: /running|"status":\s*(200|"ok"|"healthy")|\bok\b|healthy|online|\b200\b/i },
+  { say: /\b(down|offline|unreachable|not running)\b/i, support: /"status":\s*(5\d\d|4\d\d)|refused|unreachable|down|offline|unavailable|not running|error/i },
+  { say: /\b(merged)\b/i, support: /merged/i },
+  { say: /\b(draft)\b/i, support: /"draft":\s*true|draft/i },
+  { say: /\b(closed)\b/i, support: /closed/i },
+];
+
+/** Claims in an answer that this run's tool output does not contain: PR numbers (#N), status words, and counts of PRs/files/items/results. */
+export function unsupportedClaims(answer: string, evidence: ToolEvidence[]): string[] {
+  const out = evidence.map((e) => e.output.replace(/\\"/g, '"')).join('\n');
+  const outLower = out.toLowerCase();
+  // list lengths count as "present" numbers: a JSON array of 1 PR supports "1 open PR" even though the digit 1 is not written anywhere
+  const lengths = new Set<string>();
+  for (const e of evidence) {
+    try {
+      const body = JSON.parse(e.output) as { text?: unknown };
+      const inner = typeof body.text === 'string' ? JSON.parse(body.text) : null;
+      if (Array.isArray(inner)) lengths.add(String(inner.length));
+    } catch { /* not JSON */ }
+  }
+  const claims: string[] = [];
+  for (const m of answer.matchAll(/#(\d{1,6})\b/g)) {
+    const n = m[1]!;
+    if (!new RegExp(`(#|"number":\\s*|/pull/|/pulls/|/issues/|\\bpr )${n}\\b`, 'i').test(out)) claims.push(`#${n}`);
+  }
+  for (const m of answer.matchAll(/\b(\d{1,6})\s+(?:open\s+)?(prs?|pull requests?|files?|items?|results?)\b/gi)) {
+    const n = m[1]!;
+    if (!lengths.has(n) && !new RegExp(`\\b${n}\\b`).test(out)) claims.push(`${n} ${m[2]!.toLowerCase()}`);
+  }
+  for (const { say, support } of STATUS_CLAIMS) {
+    const hit = answer.match(say);
+    if (hit && !NEGATES.test(answer.slice(Math.max(0, hit.index! - 25), hit.index!)) && !support.test(outLower)) claims.push(hit[0].toLowerCase());
+  }
+  return [...new Set(claims)];
+}
+
 /**
- * Cheap, deterministic gate: could this answer contradict the run's own tool results? True only when a tool result was negative or empty AND the answer
- * asserts a concrete state (a PR number, "is open/running/passing", a count) without saying it found nothing. A model then confirms; this keeps that call rare.
+ * Cheap, deterministic gate: could this answer contradict the run's own tool results? Two ways:
+ *  1. a tool result was negative or empty AND the answer asserts a concrete state without saying it found nothing; or
+ *  2. a tool result has content, but the answer names a PR number, a status or a count that appears nowhere in this run's tool output.
+ * A model then confirms; the gate only keeps that call rare.
  */
 export function conflictCandidate(answer: string, evidence: ToolEvidence[]): boolean {
-  if (!evidence.some(isNegativeEvidence)) return false;
-  return ASSERTS_STATE.test(answer) && !NEGATES.test(answer);
+  if (!evidence.length) return false;
+  if (evidence.some(isNegativeEvidence) && ASSERTS_STATE.test(answer) && !NEGATES.test(answer)) return true;
+  return unsupportedClaims(answer, evidence).length > 0;
 }
 
 export const EVIDENCE_JUDGE_SYSTEM =
@@ -65,4 +108,42 @@ export function parseJudge(text: string): { conflict: boolean; detail: string } 
   } catch {
     return null;
   }
+}
+
+// ─── Live-state classifier (embedding similarity) ───────────────
+
+/** Example sentences, fixed before the classifier was evaluated. A text is "live state" when it is closer to some LIVE example than to any STATIC one (margin 0). */
+export const LIVE_EXAMPLES = [
+  'The server is currently running on port 3000.',
+  'CI is passing on main right now.',
+  'There are 2 open pull requests today.',
+  'The production API is returning errors at the moment.',
+  'The wallet balance is 42 as of this morning.',
+  'A deploy is in progress.',
+  'The queue currently has 17 pending jobs.',
+  'The service went down this afternoon and is being restarted.',
+];
+export const STATIC_EXAMPLES = [
+  'The project stores data in SQLite.',
+  'Functions must validate their input before use.',
+  'The design system uses a dark theme with blue accents.',
+  'A key should be rotated regularly.',
+  'The CLI supports a list command.',
+  'Tokens have a title, a body and a score.',
+  'Decisions are recorded as architecture decision records.',
+  'Lessons describe how to do a task.',
+];
+
+export interface EmbedLike {
+  embed(texts: string[]): Promise<Float32Array[]>;
+}
+
+/** Returns a function that says, for each text, whether it describes live state. Example vectors are computed once. */
+export async function createLiveStateClassifier(embedder: EmbedLike): Promise<(texts: string[]) => Promise<boolean[]>> {
+  const [live, stat] = await Promise.all([embedder.embed(LIVE_EXAMPLES), embedder.embed(STATIC_EXAMPLES)]);
+  const dot = (a: Float32Array, b: Float32Array): number => a.reduce((s, x, i) => s + x * (b[i] ?? 0), 0);
+  return async (texts) => {
+    const vecs = await embedder.embed(texts);
+    return vecs.map((v) => Math.max(...live.map((e) => dot(v, e))) - Math.max(...stat.map((e) => dot(v, e))) > 0);
+  };
 }

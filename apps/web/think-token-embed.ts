@@ -39,11 +39,28 @@ export function blobToVector(b: Buffer): Float32Array {
 
 let cached: Promise<Embedder | null> | null = null;
 let loaded: Embedder | null = null;
+let loadError: string | null = null;
+
+export type EmbedderState = { state: 'off' } | { state: 'loading' } | { state: 'ready'; model: string } | { state: 'failed'; error: string };
+
+/** Why embeddings are or are not available, for the thought stream and logs. */
+export function embedderState(env: Env = process.env): EmbedderState {
+  if (env.THINKBOX_EMBEDDINGS === 'off' || env.THINKBOX_EMBEDDINGS === '0') return { state: 'off' };
+  if (loaded) return { state: 'ready', model: loaded.model };
+  if (loadError) return { state: 'failed', error: loadError };
+  return { state: 'loading' };
+}
 
 /** The embedder, or null when disabled (`THINKBOX_EMBEDDINGS=off`) or when the library/model cannot be loaded. Loaded once per process. */
 export function getEmbedder(env: Env = process.env): Promise<Embedder | null> {
   if (env.THINKBOX_EMBEDDINGS === 'off' || env.THINKBOX_EMBEDDINGS === '0') return Promise.resolve(null);
-  cached ??= load(env).then((e) => (loaded = e)).catch(() => null);
+  cached ??= load(env)
+    .then((e) => (loaded = e))
+    .catch((err) => {
+      loadError = (err instanceof Error ? err.message : String(err)).replace(/\s+/g, ' ').slice(0, 200);
+      console.warn(`[think-token] embedding model could not be loaded: ${loadError}; retrieval stays lexical`);
+      return null;
+    });
   return cached;
 }
 
@@ -60,6 +77,7 @@ export function peekEmbedder(env: Env = process.env): Embedder | null {
 export function resetEmbedder(): void {
   cached = null;
   loaded = null;
+  loadError = null;
 }
 
 async function load(env: Env): Promise<Embedder | null> {

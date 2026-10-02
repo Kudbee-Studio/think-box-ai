@@ -26,6 +26,25 @@ export interface MemoryItem {
   path: string; // relative to memory root
 }
 
+/** A memory a human or agent marked out of date: tag `superseded`, or a title starting `[SUPERSEDED`. It stays on disk for history but is never recalled. */
+export function isSuperseded(item: Pick<MemoryItem, 'title' | 'tags'>): boolean {
+  return item.tags.some((t) => t.toLowerCase() === 'superseded') || /^\s*\[SUPERSEDED/i.test(item.title);
+}
+
+/** Identical recalls (same title and text after whitespace/case normalisation, e.g. the same goal asked twice) collapse to the newest one. */
+export function dedupeHits(hits: MemoryHit[]): MemoryHit[] {
+  const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const best = new Map<string, MemoryHit>();
+  const order: string[] = [];
+  for (const hit of hits) {
+    const key = `${hit.item.layer}|${norm(hit.item.title)}|${norm(hit.item.content).slice(0, 400)}`;
+    const prior = best.get(key);
+    if (!prior) order.push(key);
+    if (!prior || hit.item.updated > prior.item.updated) best.set(key, { item: hit.item, score: Math.max(hit.score, prior?.score ?? 0) });
+  }
+  return order.map((k) => best.get(k)!);
+}
+
 export interface MemoryHit {
   item: MemoryItem;
   score: number;
@@ -333,6 +352,12 @@ export class MemoryStore {
    * yet; the local index sees it immediately. Scores are max-normalised per backend and summed.
    */
   async search(query: string, options: { layers?: MemoryLayer[]; topK?: number } = {}): Promise<{ hits: MemoryHit[]; backend: string }> {
+    const topK = Math.min(Math.max(options.topK ?? 5, 1), 25);
+    const raw = await this.searchRaw(query, { ...options, topK: Math.min(topK * 2, 25) });
+    return { hits: dedupeHits(raw.hits.filter((hit) => !isSuperseded(hit.item))).slice(0, topK), backend: raw.backend };
+  }
+
+  private async searchRaw(query: string, options: { layers?: MemoryLayer[]; topK?: number } = {}): Promise<{ hits: MemoryHit[]; backend: string }> {
     const layers = options.layers?.length ? options.layers : MEMORY_LAYERS;
     const topK = Math.min(Math.max(options.topK ?? 5, 1), 25);
     const local = this.localSearch(query, layers, topK * 2);

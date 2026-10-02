@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
 import type { AgentEvent, AgentHooks } from '../agent.ts';
-import { EVIDENCE_RULE, conflictCandidate, freshnessLabel, isLiveStateText, isNegativeEvidence, parseJudge } from '../evidence.ts';
+import { EVIDENCE_RULE, conflictCandidate, unsupportedClaims, freshnessLabel, isLiveStateText, isNegativeEvidence, parseJudge } from '../evidence.ts';
 import { MemoryStore, type MemoryItem } from '../memory.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from '../think-token-store.ts';
 
@@ -49,12 +49,27 @@ test('conflictCandidate: only when a tool said nothing/failed AND the answer ass
   assert.equal(isNegativeEvidence(empty[0]!), true);
   assert.equal(conflictCandidate('We are working on PR #304, a draft.', empty), true);
   assert.equal(conflictCandidate('There are no open pull requests right now.', empty), false);
-  assert.equal(conflictCandidate('We are working on PR #304, a draft.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":304}]"}' }]), false, 'the tool agreed');
+  assert.equal(conflictCandidate('We are working on PR #304, a draft.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":304,\\"draft\\":true}]"}' }]), false, 'the tool agreed');
   assert.equal(conflictCandidate('CI is passing.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"{\\"total_count\\":0,\\"workflow_runs\\":[]}"}' }]), true);
   assert.equal(conflictCandidate('The server is running.', [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":503,"text":"service unavailable"}' }]), true);
   assert.equal(conflictCandidate('Done.', empty), false);
   assert.equal(parseJudge('```json\n{"conflict":true,"detail":"The API returned []."}\n```')?.conflict, true);
   assert.equal(parseJudge('nonsense'), null);
+});
+
+test('non-empty conflicts: a PR number, status or count that is nowhere in this run\'s tool output makes the answer a candidate; supported claims do not', () => {
+  const list = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"[{\\"number\\":322,\\"title\\":\\"Real PR\\",\\"state\\":\\"open\\",\\"draft\\":false}]"}' }];
+  assert.deepEqual(unsupportedClaims('The open PR is #304.', list), ['#304']);
+  assert.equal(conflictCandidate('The open PR is #304.', list), true);
+  assert.equal(conflictCandidate('The open PR is #322, Real PR.', list), false, 'the number is in the tool output');
+  assert.deepEqual(unsupportedClaims('There are 3 open PRs.', list), ['3 prs']);
+  assert.equal(conflictCandidate('There is 1 open PR.', list), false, 'the count appears in the output');
+  const ci = [{ name: 'fetch_url', ok: true, output: '{"ok":true,"status":200,"text":"{\\"workflow_runs\\":[{\\"conclusion\\":\\"failure\\",\\"name\\":\\"test\\"}]}"}' }];
+  assert.equal(conflictCandidate('CI is green and passing on main.', ci), true, 'the tool says failure');
+  assert.equal(conflictCandidate('CI is failing: the latest run concluded with failure.', ci), false);
+  assert.equal(conflictCandidate('CI is not green; the run failed.', ci), false, 'a negated status word is not a claim');
+  assert.equal(conflictCandidate('Done.', []), false, 'no tool output, nothing to contradict');
+  assert.equal(conflictCandidate('Wrote the file, 42 bytes.', [{ name: 'write_file', ok: true, output: '{"ok":true,"bytes":42}' }]), false, 'ordinary answers do not trigger');
 });
 
 // ─── agent-level replays ────────────────────────────────────────
