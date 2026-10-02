@@ -317,6 +317,38 @@ async function listModels(): Promise<OllamaTag[]> {
   return [...cloud, ...(await listOllamaModels())];
 }
 
+async function discoverMCPSkills(): Promise<any[]> {
+  try {
+    const MCPRegistry = (await import('./mcp-registry.ts')).default;
+    const registry = new MCPRegistry(process.env.GITHUB_TOKEN);
+    return await registry.discoverServers();
+  } catch (err) {
+    console.error('Failed to discover MCP skills:', err);
+    return [];
+  }
+}
+
+function groupSkillsByCategory(skills: any[]): Record<string, any[]> {
+  const groups: Record<string, any[]> = {};
+  for (const skill of skills) {
+    const cat = skill.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(skill);
+  }
+  return groups;
+}
+
+function filterSkills(skills: any[], query: string): any[] {
+  if (!query) return skills;
+  const q = query.toLowerCase();
+  return skills.filter(
+    (s: any) =>
+      s.name.toLowerCase().includes(q) ||
+      s.description?.toLowerCase().includes(q) ||
+      s.tags?.some((t: string) => t.toLowerCase().includes(q))
+  );
+}
+
 async function streamOllama(
   model: string,
   messages: ChatMessage[],
@@ -1840,6 +1872,50 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         case 'list_models': {
           const models = await listModels();
           ws.send(JSON.stringify({ type: 'models', data: models }));
+          break;
+        }
+
+        case 'list_mcp_skills': {
+          try {
+            const skills = await discoverMCPSkills();
+            const byCategory = groupSkillsByCategory(skills);
+            let output = '🔌 AVAILABLE MCP SKILLS\n\n';
+            for (const [cat, items] of Object.entries(byCategory).sort()) {
+              output += `${cat}\n`;
+              for (const s of items) {
+                output += `  ${s.name} — ${s.description}\n`;
+                if (s.tags?.length) {
+                  output += `    Tags: ${s.tags.join(', ')}\n`;
+                }
+              }
+            }
+            ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'system', content: output } }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'error', content: `Failed to fetch MCP skills: ${errorMessage(err)}` } }));
+          }
+          break;
+        }
+
+        case 'search_mcp_skills': {
+          try {
+            const query = (msg as any).query || '';
+            const skills = await discoverMCPSkills();
+            const matches = filterSkills(skills, query);
+            if (matches.length === 0) {
+              ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'system', content: 'No MCP skills found matching that search.' } }));
+            } else if (matches.length === 1) {
+              const s = matches[0];
+              ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'system', content: `✓ Found: ${s.name}\n${s.description}\n${s.capabilities?.length ? `Capabilities: ${s.capabilities.join(', ')}` : ''}` } }));
+            } else {
+              let output = `Found ${matches.length} MCP skills:\n\n`;
+              matches.forEach((m, i) => {
+                output += `${i + 1}. ${m.name} — ${m.description}\n`;
+              });
+              ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'system', content: output } }));
+            }
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'terminal_message', data: { role: 'error', content: `Failed to search MCP skills: ${errorMessage(err)}` } }));
+          }
           break;
         }
 
