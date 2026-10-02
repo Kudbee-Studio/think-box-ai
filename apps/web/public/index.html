@@ -116,7 +116,8 @@
             <h3><span class="icon">🕸</span> Memory Graph</h3>
             <button class="btn-quiet" title="View graph" onclick="if(memoryGraph) memoryGraph.render()">Refresh</button>
           </div>
-          <canvas id="memory-graph-canvas"></canvas>
+          <div id="graph-legend" class="graph-legend" aria-label="Memory layers"></div>
+          <canvas id="memory-graph-canvas" role="img" aria-label="Memory graph: memories grouped by layer, linked where they share tags"></canvas>
           <div id="graph-details" class="graph-details">
             <div class="empty-state">Click a node to view details</div>
           </div>
@@ -483,6 +484,7 @@
 <script src="/js/workflow-builder.js"></script>
 <script src="/js/metrics-dashboard.js"></script>
 <script src="/js/run-replay.js"></script>
+<script src="/js/memory-graph-layout.js"></script>
 <script src="/js/memory-graph.js"></script>
 <script src="/js/settings-panel.js"></script>
 <script src="/js/agent-templates.js"></script>

@@ -1656,6 +1656,7 @@ how it was verified, and what is still open. Newest entry first.
 | Algorand (read-only) | `apps/web/algorand.ts` | Public AlgoNode algod/indexer, testnet + mainnet; no SDK, no key, no wallet, cannot sign/send |
 | Think Tokens | `apps/web/think-token-store.ts`, `think-token-pipeline.ts`, `think-token-model.ts`, `think-token-reader.ts`, `local-model.ts` | Store + ledger + lifecycle (schema v2), extract/challenge pipeline, model callers, the one shared reader, local-model resolver |
 | Think Tokens view | `apps/web/public/js/think-token-dashboard.js`, `js/think-cube-render.js`, `css/think-token-dashboard.css` | One merged modal: live cube, Energy Core (real signals only), current run, saved tokens read from SQLite |
+| Memory Graph | `apps/web/public/js/memory-graph.js`, `js/memory-graph-layout.js` | A brain-shaped graph of the saved memories: layers gather in regions, no overlaps, only real shared-tag links (generic tags draw none), details are text-only |
 | Tests | `apps/web/tests/*.test.ts` (`npm test`) | `node:test`, hermetic: mock Inception, mock Upstash, mock AlgoNode, real `server.ts` on a random port |
 
 **Worker agent tools:** `list_files`, `read_file`, `write_file` (workspace only),
