@@ -1,0 +1,385 @@
+{
+ "model": "smollm2:360m",
+ "mode": "schema",
+ "reps": 2,
+ "seconds": 44.4,
+ "model_calls": 38,
+ "avg_ms_per_call": 1168,
+ "gpu": [
+  {
+   "name": "smollm2:360m",
+   "size_mb": 1146,
+   "vram_mb": 664,
+   "on_gpu_pct": 58
+  }
+ ],
+ "good": {
+  "seen_by_model": 20,
+  "kept": 0,
+  "wrongly_rejected": 20
+ },
+ "bad": {
+  "seen_by_model": 18,
+  "caught": 18,
+  "wrongly_accepted": 0,
+  "rejected_by_deterministic_check_before_the_model": 1
+ },
+ "unusable": 0,
+ "bad_caught_rate": 1,
+ "good_wrong_reject_rate": 1,
+ "unusable_rate": 0,
+ "qualifies_as_first_pass_rejector": false,
+ "rows": [
+  {
+   "label": "good",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 2167
+  },
+  {
+   "label": "good",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1009
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1287
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 986
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1310
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1013
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1285
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1002
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1307
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1008
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1265
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 988
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1315
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1005
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1296
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1012
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1283
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1024
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1283
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1009
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1272
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1022
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1268
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1077
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1258
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1000
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1268
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 990
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1260
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 986
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1303
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 999
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 0,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called",
+   "ms": 0
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1255
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1022
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1280
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1007
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 1280
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson",
+   "ms": 995
+  }
+ ]
+}

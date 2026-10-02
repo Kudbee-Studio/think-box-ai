@@ -13,7 +13,7 @@ import { SqliteTokenStore, formatTokenId, normalizeTokenId, scoreBreakdown, comp
 import { buildRunView, challengeLesson, checkGrounding, checkSpecificity, processFinishedRun, type PipelineDeps } from '../think-token-pipeline.ts';
 import { createMercuryCaller, createLocalCaller, sanitizeForModel, scrubSecrets, type ModelCaller, type ModelMessage, type TokenModels } from '../think-token-model.ts';
 import { formatTokenDetail, formatTokenLine, readToken, readTokens, toApiToken } from '../think-token-reader.ts';
-import { resolveLocalModel } from '../local-model.ts';
+import { resolveLocalModel, sameLocalModel } from '../local-model.ts';
 import type { FinishedRun } from '../think-token-extract.ts';
 import type { AgentEvent } from '../agent.ts';
 
@@ -580,7 +580,10 @@ test('key: missing means no Mercury caller (the local model is used); the local 
   assert.equal(resolveLocalModel({ THINKBOX_LOCAL_MODEL: 'llama3:8b', KUDBEE_LOCAL_MODEL: 'other' }), 'llama3:8b');
   assert.equal(resolveLocalModel({ KUDBEE_LOCAL_MODEL: 'other' }), 'other');
   assert.equal(resolveLocalModel({}), 'qwen2.5:1.5b');
-  assert.equal(resolveLocalModel({ THINKBOX_LOCAL_MODEL: 'smollm2' }), 'qwen2.5:1.5b');
+  // Names are used as given: smollm2 is no longer silently rewritten to qwen.
+  assert.equal(resolveLocalModel({ THINKBOX_LOCAL_MODEL: 'smollm2' }), 'smollm2');
+  assert.equal(resolveLocalModel({ THINKBOX_LOCAL_MODEL: ' smollm2:360m ' }), 'smollm2:360m');
+  assert.ok(sameLocalModel('smollm2', 'smollm2:latest') && sameLocalModel('smollm2:360m', 'smollm2:360m') && !sameLocalModel('smollm2:360m', 'smollm2:135m') && !sameLocalModel('smollm2', 'qwen2.5:1.5b'));
 });
 
 // ─── reader (the one shared formatter) ──────────────────────────
