@@ -2211,16 +2211,9 @@ select.success:focus {
 
 /* ─── Memory Graph ──────────────────────────────────────────── */
 #memory-graph-canvas {
-  width: 100%;
-  height: 400px;
   background: linear-gradient(135deg, rgba(10, 15, 31, 0.9) 0%, rgba(15, 22, 33, 0.95) 100%);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  cursor: grab;
-}
-
-#memory-graph-canvas:active {
-  cursor: grabbing;
 }
 
 .graph-details {
