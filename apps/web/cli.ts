@@ -314,6 +314,7 @@ ${c.bold('MODELS & AGENTS')}
 
 ${c.bold('OPERATIONS')}
   /plugins            list available tools and permissions
+  /plugin NAME JSON   run a plugin with the given JSON input
   /skills             browse 100+ MCP servers from official registry
   /skill [SEARCH]     find a skill, or interactive menu (no args)
   /files              list workspace files
@@ -424,6 +425,55 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/plugins':
       for (const p of client.plugins) console.log(`  ${p.icon ?? '🔌'} ${p.name} ${c.dim(`[${p.permission}] ${p.description}`)}`);
       break;
+    case '/plugin': {
+      const pluginName = args.shift();
+      if (!pluginName) {
+        console.log(c.red('Usage: /plugin NAME JSON'));
+        console.log(c.dim('Example: /plugin my_tool {"key": "value"}'));
+        break;
+      }
+      if (!args.length) {
+        console.log(c.red(`Error: ${pluginName} requires JSON input`));
+        console.log(c.dim('Example: /plugin my_tool {"key": "value"}'));
+        break;
+      }
+      try {
+        const input = JSON.parse(args.join(' '));
+        const done = client.wait('plugin_result');
+        client.send({ type: 'plugin_execute', plugin: pluginName, input });
+        // Wait up to 30 seconds for plugin result
+        let result: any;
+        try {
+          const response = await Promise.race<Msg>([
+            done,
+            new Promise<Msg>((_, reject) =>
+              setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
+            ),
+          ]);
+          result = response.data;
+        } catch (timeoutErr) {
+          console.log(c.red('Error: Plugin execution timed out (30s)'));
+          break;
+        }
+        if (result.success) {
+          console.log(c.green(`✓ ${pluginName} executed successfully`));
+          if (result.output) {
+            const formatted = typeof result.output === 'string'
+              ? result.output
+              : JSON.stringify(result.output, null, 2);
+            console.log(c.dim('Output:'));
+            console.log(`  ${formatted.split('\n').join('\n  ')}`);
+          }
+        } else {
+          console.log(c.red(`✗ Plugin execution failed: ${pluginName}`));
+          if (result.error) console.log(c.dim(`  Error: ${result.error}`));
+        }
+      } catch (err) {
+        console.log(c.red('Error: Invalid JSON input'));
+        console.log(c.dim(`Details: ${err instanceof Error ? err.message : String(err)}`));
+      }
+      break;
+    }
     case '/files':
       await client.files();
       break;

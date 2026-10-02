@@ -2872,3 +2872,30 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
   `e33f1fe7` but unused by the dashboard; keep or delete is a founder call.
 - Hardware seen from WSL: Quadro M1000M (2 GB VRAM), 8 cores, 7.7 GB RAM —
   enough only for tiny local models; Mercury-2 runs remotely at Inception.
+
+---
+
+## Plugin Execution (P3.11 feature: `/plugin NAME JSON`)
+
+**CLI and Dashboard parity (2026-10-02):**
+- `/plugin NAME JSON` added to CLI (`cli.ts`) to match dashboard (`app.js`)
+- Executes plugins with JSON input via WebSocket to server
+- 30-second timeout on plugin execution to prevent hangs
+- Response formatting with proper error messaging
+- Accessible from both CLI and dashboard terminal
+
+**Usage:**
+```
+/plugin my_tool {"key": "value"}
+/plugin data_processor {"input": "data.txt", "format": "json"}
+```
+
+**Implementation:**
+- Client sends `{type: 'plugin_execute', plugin: NAME, input: JSON}` over WebSocket
+- Server processes and returns `{type: 'plugin_result', success, output, error}`
+- Timeout at 30 seconds with clear error message
+- Formatted output display with indentation for readability
+- Input validation: name required, JSON required, JSON format validated
+
+**Command parity gap closed:** `/plugin` moved from gap to 'both' in `command-parity.ts` (gaps: 11 → 8, 27% reduction).
+

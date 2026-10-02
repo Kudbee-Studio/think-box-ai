@@ -23,7 +23,7 @@ export const CORE: Array<{ capability: string; cli: string; dashboard: string }>
 export const PARITY: Record<string, Parity> = {
   // both sides
   '/agent': { kind: 'both' }, '/algo': { kind: 'both' }, '/help': { kind: 'both' }, '/lessons': { kind: 'both' }, '/memory': { kind: 'both' }, '/metrics': { kind: 'both' },
-  '/model': { kind: 'both' }, '/models': { kind: 'both' }, '/notes': { kind: 'both' }, '/plugins': { kind: 'both' }, '/promote': { kind: 'both' }, '/remember': { kind: 'both' },
+  '/model': { kind: 'both' }, '/models': { kind: 'both' }, '/notes': { kind: 'both' }, '/plugin': { kind: 'both' }, '/plugins': { kind: 'both' }, '/promote': { kind: 'both' }, '/remember': { kind: 'both' },
   '/run': { kind: 'both' }, '/runs': { kind: 'both' }, '/select': { kind: 'both' }, '/skill': { kind: 'both' }, '/skills': { kind: 'both' }, '/status': { kind: 'both' }, '/token': { kind: 'both' }, '/tokens': { kind: 'both' },
   // CLI commands whose dashboard counterpart is a view or control
   '/agents': { kind: 'counterpart', side: 'cli', what: '/agent in the dashboard terminal lists the available agents', proof: 'Available agents:' },
@@ -41,7 +41,6 @@ export const PARITY: Record<string, Parity> = {
   '/config': { kind: 'gap', note: 'dashboard-only settings command' },
   '/export': { kind: 'gap', note: 'dashboard-only export' },
   '/logs': { kind: 'gap', note: 'dashboard-only execution logs' },
-  '/plugin': { kind: 'gap', note: 'running a plugin by name exists only in the dashboard terminal' },
   '/remote': { kind: 'gap', note: 'dashboard-only remote command' },
   '/session': { kind: 'gap', note: 'dashboard-only session info' },
   '/sessions': { kind: 'gap', note: 'dashboard-only session list' },
@@ -49,4 +48,4 @@ export const PARITY: Record<string, Parity> = {
 };
 
 /** The number of gaps at the time this map was written. A new gap must be fixed (or consciously raise this number in a reviewed change). */
-export const MAX_GAPS = 9;
+export const MAX_GAPS = 8;
