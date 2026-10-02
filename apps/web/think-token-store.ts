@@ -24,6 +24,7 @@
 import Database from 'better-sqlite3';
 import { SIMILAR_THRESHOLD, rankAgainstQuery, similarityToPool } from './think-token-bm25.ts';
 import { blobToVector, cosine, embedText, vectorToBlob } from './think-token-embed.ts';
+import { buildCells, diffCells, lessonFailureModes, type Cell, type CubeInputs } from './think-token-cube.ts';
 import { createHash } from 'node:crypto';
 import { freshnessLabel } from './evidence.ts';
 import fs from 'node:fs';
@@ -42,7 +43,7 @@ const SCORE_WEIGHTS = { usefulness: 0.45, recency: 0.2, reuse: 0.15, feedback: 0
 const HALF_LIFE_DAYS = 30;
 const DAY_MS = 86_400_000;
 const DEFAULT_TENANT = 'local';
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export function formatTokenId(seq: number): string {
   return `TT-${String(seq).padStart(6, '0')}`;
@@ -446,6 +447,24 @@ const SUPPORT_TABLES = `
     source TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS think_token_cells (
+    token_id TEXT PRIMARY KEY,
+    cells TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS think_token_cell_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_id TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    cause TEXT NOT NULL,
+    cell_key TEXT NOT NULL,
+    before_display TEXT,
+    after_display TEXT NOT NULL,
+    before_value REAL,
+    after_value REAL,
+    ledger_seq INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_think_token_cell_events_token ON think_token_cell_events(token_id, id);
   CREATE TABLE IF NOT EXISTS memory_embeddings (
     memory_id TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -558,6 +577,8 @@ export function migrateUp(db: Database.Database): void {
 export function migrateDown(db: Database.Database): void {
   db.exec(
     [
+      'DROP TABLE IF EXISTS think_token_cell_events;',
+      'DROP TABLE IF EXISTS think_token_cells;',
       'DROP TABLE IF EXISTS memory_embeddings;',
       'DROP TABLE IF EXISTS think_token_retrieval_text;',
       'DROP TABLE IF EXISTS think_token_embeddings;',
@@ -716,6 +737,21 @@ export class SqliteTokenStore implements TokenStore {
       migrateUp(this.db);
     }
     this.tenant = tenant;
+    if (!this.readOnly) this.baselineCells();
+  }
+
+  /**
+   * Tokens that existed before the cube (schema v6) have no snapshot. Store one now, silently (no events, no receipt),
+   * so their first real change is diffed against the state they were really in, not blamed on whichever hook ran first.
+   */
+  private baselineCells(now: number = Date.now()): void {
+    const ids = this.db.prepare('SELECT id FROM think_tokens WHERE id NOT IN (SELECT token_id FROM think_token_cells)').all() as Array<{ id: string }>;
+    if (!ids.length) return;
+    const put = this.db.prepare('INSERT OR IGNORE INTO think_token_cells (token_id, cells, updated_at) VALUES (?,?,?)');
+    for (const { id } of ids) {
+      const inputs = this.cubeInputs(id);
+      if (inputs) put.run(id, JSON.stringify(buildCells(inputs, now).map((c) => ({ key: c.key, value: c.value, display: c.display }))), now);
+    }
   }
 
   /** Read-only handle on an existing database. Throws if the file does not exist or is still on schema v1. */
@@ -838,7 +874,9 @@ export class SqliteTokenStore implements TokenStore {
         receipt: this.ledger(actor, 'write', 'admitted', { kind: clean.kind, content_sha256: sha256(clean.content), extractor: clean.extractor, model: clean.extract_model }, id, clean.run),
       };
     });
-    return tx.immediate();
+    const written = tx.immediate();
+    if (written.ok && !written.duplicate) this.recordCells(written.id, 'created', actor);
+    return written;
   }
 
   private rawRow(id: string): any | undefined {
@@ -883,7 +921,9 @@ export class SqliteTokenStore implements TokenStore {
       if (info.note) detail.note = info.note.slice(0, LIMITS.reason);
       return { ok: true, id, duplicate: false, receipt: this.ledger(actor, 'transition', 'admitted', detail, id, raw.source_run_id) };
     });
-    return tx.immediate();
+    const moved = tx.immediate();
+    if (moved.ok) this.recordCells(id, `transition:${to}`, actor);
+    return moved;
   }
 
   /** Operator (human) status changes: accept or retire only. The pipeline never calls this. */
@@ -895,7 +935,9 @@ export class SqliteTokenStore implements TokenStore {
     if (status === 'accepted' && !OPERATOR_ACCEPT_FROM.includes(row.status)) return this.reject(actor, 'set_status', `cannot accept a token that is ${row.status}`, id);
     if (status === 'retired' && row.status === 'retired') return this.reject(actor, 'set_status', 'already retired', id);
     this.db.prepare('UPDATE think_tokens SET status = ? WHERE id = ?').run(status, id);
-    return { ok: true, id, duplicate: false, receipt: this.ledger(actor, 'set_status', 'admitted', { from: row.status, to: status }, id) };
+    const receipt = this.ledger(actor, 'set_status', 'admitted', { from: row.status, to: status }, id);
+    this.recordCells(id, `operator:${status}`, actor);
+    return { ok: true, id, duplicate: false, receipt };
   }
 
   feedback(idLike: string, vote: 'up' | 'down', actor: string): WriteResult {
@@ -905,7 +947,9 @@ export class SqliteTokenStore implements TokenStore {
     const column = vote === 'up' ? 'thumbs_up' : 'thumbs_down';
     this.db.prepare(`UPDATE think_tokens SET ${column} = ${column} + 1 WHERE id = ? AND tenant_id = ?`).run(id, this.tenant);
     this.rescore(id);
-    return { ok: true, id, duplicate: false, receipt: this.ledger(actor, 'feedback', 'admitted', { vote }, id) };
+    const receipt = this.ledger(actor, 'feedback', 'admitted', { vote }, id);
+    this.recordCells(id, `feedback:${vote}`, actor);
+    return { ok: true, id, duplicate: false, receipt };
   }
 
   recordUse(ids: string[], runId: string, actor: string): Receipt | null {
@@ -922,7 +966,9 @@ export class SqliteTokenStore implements TokenStore {
     }
     if (used.length > 1) this.linkCoUsed(used, actor);
     this.propagate(used, runId, actor);
-    return used.length ? this.ledger(actor, 'use', 'admitted', { token_ids: used }, undefined, runId) : null;
+    const receipt = used.length ? this.ledger(actor, 'use', 'admitted', { token_ids: used }, undefined, runId) : null;
+    for (const id of used) this.recordCells(id, 'used', actor);
+    return receipt;
   }
 
   recordOutcome(runId: string, success: boolean, actor: string): Receipt | null {
@@ -934,7 +980,9 @@ export class SqliteTokenStore implements TokenStore {
       this.db.prepare(`UPDATE think_tokens SET ${column} = ${column} + 1 WHERE id = ?`).run(token_id);
       this.rescore(token_id);
     }
-    return this.ledger(actor, 'outcome', 'admitted', { success, token_ids: pending.map((p) => p.token_id) }, undefined, runId);
+    const receipt = this.ledger(actor, 'outcome', 'admitted', { success, token_ids: pending.map((p) => p.token_id) }, undefined, runId);
+    for (const { token_id } of pending) this.recordCells(token_id, success ? 'outcome:win' : 'outcome:loss', actor);
+    return receipt;
   }
 
   // ─── Model-call log (per-run and per-day caps for the extraction/challenge model) ──
@@ -960,7 +1008,7 @@ export class SqliteTokenStore implements TokenStore {
 
   private receiptsFor(row: ThinkTokenRow): Receipt[] {
     const rows = this.db
-      .prepare('SELECT seq, action, decision, prev_hash, hash FROM think_token_ledger WHERE token_id = ? OR (? IS NOT NULL AND token_id = ?) ORDER BY seq')
+      .prepare("SELECT seq, action, decision, prev_hash, hash FROM think_token_ledger WHERE (token_id = ? OR (? IS NOT NULL AND token_id = ?)) AND action != 'cells' ORDER BY seq")
       .all(row.id, row.legacy_id, row.legacy_id) as Array<{ seq: number; action: string; decision: 'admitted' | 'rejected'; prev_hash: string; hash: string }>;
     return rows.map((r) => ({ receipt_id: `ttr_${r.hash.slice(0, 16)}`, seq: r.seq, hash: r.hash, prev_hash: r.prev_hash, action: r.action, decision: r.decision }));
   }
@@ -1062,6 +1110,93 @@ export class SqliteTokenStore implements TokenStore {
     return chosen.map((e) => ({ ...e.row, score: e.quality }));
   }
 
+  // ─── The 100-cell cube (P3.13): per-token cells, and a record of which cells changed when ──
+
+  /** Everything the 100 cells are computed from, gathered from stored rows only. */
+  cubeInputs(idLike: string): CubeInputs | null {
+    const id = this.resolve(idLike);
+    if (!id) return null;
+    const row = this.get(id);
+    if (!row) return null;
+    const links = this.listLinks(id);
+    const grouped = this.db
+      .prepare("SELECT action, decision, COUNT(*) n, MIN(ts) first_ts, MAX(ts) last_ts FROM think_token_ledger WHERE (token_id = ? OR (? IS NOT NULL AND token_id = ?)) AND action != 'cells' GROUP BY action, decision")
+      .all(id, row.legacy_id, row.legacy_id) as Array<{ action: string; decision: string; n: number; first_ts: number; last_ts: number }>;
+    const byAction: Record<string, number> = {};
+    let total = 0;
+    let rejected = 0;
+    let firstTs: number | null = null;
+    let lastTs: number | null = null;
+    for (const g of grouped) {
+      byAction[g.action] = (byAction[g.action] ?? 0) + g.n;
+      total += g.n;
+      if (g.decision === 'rejected') rejected += g.n;
+      firstTs = firstTs === null ? g.first_ts : Math.min(firstTs, g.first_ts);
+      lastTs = lastTs === null ? g.last_ts : Math.max(lastTs, g.last_ts);
+    }
+    // `use` and `outcome` receipts name their tokens in the detail (one receipt per run), not in the token_id column.
+    for (const action of ['use', 'outcome']) {
+      const g = this.db.prepare("SELECT COUNT(*) n, MIN(ts) first_ts, MAX(ts) last_ts FROM think_token_ledger, json_each(think_token_ledger.detail, '$.token_ids') WHERE action = ? AND json_each.value = ?").get(action, id) as { n: number; first_ts: number | null; last_ts: number | null };
+      if (g.n) {
+        byAction[action] = (byAction[action] ?? 0) + g.n;
+        total += g.n;
+        if (g.first_ts !== null) firstTs = firstTs === null ? g.first_ts : Math.min(firstTs, g.first_ts);
+        if (g.last_ts !== null) lastTs = lastTs === null ? g.last_ts : Math.max(lastTs, g.last_ts);
+      }
+    }
+    const neighborIds = [...new Set(links.map((l) => (l.from_id === id ? l.to_id : l.from_id)))];
+    const neighborStatus: Record<string, string> = {};
+    for (const nid of neighborIds) {
+      const st = this.db.prepare('SELECT status FROM think_tokens WHERE id = ?').get(nid) as { status: string } | undefined;
+      if (st) neighborStatus[nid] = st.status;
+    }
+    const emb = this.db.prepare('SELECT model FROM think_token_embeddings WHERE token_id = ? LIMIT 1').get(id) as { model: string } | undefined;
+    const wtu = this.db.prepare('SELECT text, source FROM think_token_retrieval_text WHERE token_id = ?').get(id) as { text: string; source: string } | undefined;
+    return { row, links, ledger: { byAction, total, rejected, firstTs, lastTs }, neighborStatus, embeddingModel: emb?.model ?? null, whenToUse: wtu ?? null, failureModes: lessonFailureModes(`${row.title} ${row.content}`) };
+  }
+
+  /** The token's 100 cells right now (read-only; works on a read-only handle). */
+  cubeCells(idLike: string, now: number = Date.now()): Cell[] | null {
+    const inputs = this.cubeInputs(idLike);
+    return inputs ? buildCells(inputs, now) : null;
+  }
+
+  /** Recorded cell changes, newest first. */
+  cellEvents(idLike: string, limit = 100): Array<{ id: number; ts: number; cause: string; key: string; before: string | null; after: string; before_value: number | null; after_value: number | null; ledger_seq: number | null }> {
+    const id = this.resolve(idLike);
+    if (!id) return [];
+    return (this.db.prepare('SELECT id, ts, cause, cell_key, before_display, after_display, before_value, after_value, ledger_seq FROM think_token_cell_events WHERE token_id = ? ORDER BY id DESC LIMIT ?').all(id, Math.min(Math.max(1, limit), 500)) as any[]).map((r) => ({
+      id: r.id, ts: r.ts, cause: r.cause, key: r.cell_key, before: r.before_display, after: r.after_display, before_value: r.before_value, after_value: r.after_value, ledger_seq: r.ledger_seq,
+    }));
+  }
+
+  /**
+   * Called after a token is written, used, scored, challenged, merged, linked or given feedback: recomputes the cells, stores a snapshot, records
+   * which cells changed (think_token_cell_events) and appends one ledger receipt (`cells`) naming the cause and the changed cell keys.
+   * Returns the changed keys. Nothing is recorded when nothing changed.
+   */
+  recordCells(idLike: string, cause: string, actor: string, now: number = Date.now()): string[] {
+    if (this.readOnly) return [];
+    const id = this.resolve(idLike);
+    if (!id) return [];
+    // One immediate transaction: the snapshot, the events and the ledger receipt succeed together, and the hash chain cannot interleave with another process.
+    return this.db.transaction((): string[] => {
+    const inputs = this.cubeInputs(id);
+    if (!inputs) return [];
+    const cells = buildCells(inputs, now);
+    const prevRow = this.db.prepare('SELECT cells FROM think_token_cells WHERE token_id = ?').get(id) as { cells: string } | undefined;
+    const prev = prevRow ? (JSON.parse(prevRow.cells) as Array<Pick<Cell, 'key' | 'value' | 'display'>>) : null;
+    const changes = diffCells(prev, cells);
+    this.db.prepare('INSERT INTO think_token_cells (token_id, cells, updated_at) VALUES (?,?,?) ON CONFLICT(token_id) DO UPDATE SET cells = excluded.cells, updated_at = excluded.updated_at').run(id, JSON.stringify(cells.map((c) => ({ key: c.key, value: c.value, display: c.display }))), now);
+    if (!changes.length) return [];
+    const keys = changes.map((c) => c.key);
+    const receipt = this.ledger(actor, 'cells', 'admitted', { cause, changed: keys }, id);
+    const ins = this.db.prepare('INSERT INTO think_token_cell_events (token_id, ts, cause, cell_key, before_display, after_display, before_value, after_value, ledger_seq) VALUES (?,?,?,?,?,?,?,?,?)');
+    for (const c of changes) ins.run(id, now, cause.slice(0, 60), c.key, c.before, c.after, c.before_value, c.after_value, receipt.seq);
+    return keys;
+    }).immediate();
+  }
+
   // ─── Memory embeddings (P3.12): vectors for the Markdown memories (apps/web/memory.ts), kept in the same SQLite file ──
 
   /** memory id -> sha256 of the text that was embedded, for one model: a memory whose text changed is re-embedded, nothing else is. */
@@ -1155,6 +1290,8 @@ export class SqliteTokenStore implements TokenStore {
     weight: number,
     evidence: string,
     actor: string,
+    /** Cell-event causes for the two ends; default `linked:<kind>` for both (a merge names its own). */
+    causes?: [string, string],
   ): LinkWriteResult {
     const a = normalizeTokenId(fromId);
     const b = normalizeTokenId(toId);
@@ -1189,6 +1326,8 @@ export class SqliteTokenStore implements TokenStore {
         .prepare(`UPDATE think_token_links SET weight = ?, evidence = ? WHERE from_id = ? AND to_id = ? AND kind = ?`)
         .run(w, evidence, a, b, kind);
       const receipt = this.ledger(actor, 'link_update', 'admitted', { from_id: a, to_id: b, kind, weight: w, evidence }, a);
+      this.recordCells(a, causes?.[0] ?? `linked:${kind}`, actor);
+      this.recordCells(b, causes?.[1] ?? `linked:${kind}`, actor);
       return {
         ok: true,
         created: false,
@@ -1202,6 +1341,8 @@ export class SqliteTokenStore implements TokenStore {
       )
       .run(a, b, kind, w, evidence, now);
     const receipt = this.ledger(actor, 'link_create', 'admitted', { from_id: a, to_id: b, kind, weight: w, evidence }, a);
+    this.recordCells(a, causes?.[0] ?? `linked:${kind}`, actor);
+    this.recordCells(b, causes?.[1] ?? `linked:${kind}`, actor);
     return {
       ok: true,
       created: true,
@@ -1254,7 +1395,7 @@ export class SqliteTokenStore implements TokenStore {
       }
       this.db.transaction(() => {
         this.db.prepare("UPDATE think_tokens SET status = 'retired' WHERE id = ?").run(token.id);
-        this.upsertLink(token.id, best.p.id, 'merged_into', best.sim, `near-duplicate: bm25=${best.sim.toFixed(3)}, tools ${tools.join(', ')}`, actor);
+        this.upsertLink(token.id, best.p.id, 'merged_into', best.sim, `near-duplicate: bm25=${best.sim.toFixed(3)}, tools ${tools.join(', ')}`, actor, ['merged:away', 'merged:absorbed']);
         this.ledger(actor, 'merge', 'admitted', { from: token.id, into: best.p.id, similarity: r4(best.sim), tools }, token.id);
       }).immediate();
       report.merged.push({ id: token.id, into: best.p.id, similarity: r4(best.sim), tools });
@@ -1330,6 +1471,7 @@ export class SqliteTokenStore implements TokenStore {
         const breakdown = scoreBreakdown(raw, Date.now(), credits);
         this.db.prepare('UPDATE think_tokens SET score = ?, score_breakdown = ? WHERE id = ?').run(breakdown.score, JSON.stringify(breakdown), neighborId);
         this.ledger(actor, 'propagate', 'admitted', { from: id, kind: link.kind, credit: r4(link.weight), score: breakdown.score }, neighborId, runId);
+        this.recordCells(neighborId, 'propagated', actor);
       }
     }
   }

@@ -1,7 +1,7 @@
 # ADR 029: The Think Token as a reconfigurable intelligence object
 
 **Date:** 2026-10-01
-**Status:** Proposed
+**Status:** Proposed (the 100-cell-token-canonical / 54-sticker-view decision is **Accepted**, 2026-10-02; see the P3.13 update below)
 
 Supersedes nothing. Builds on ADR 026 (Accepted: the unused Neon setup was reverted, so SQLite stays), ADR 027 (Proposed: default deny, tenant scoping) and ADR 028 (Proposed: Think Token persistence). Because 027 and 028 are still Proposed, the guardrails below inherit that status. Evidence base: [`docs/research/2026-10-01-think-box-findings.md`](../research/2026-10-01-think-box-findings.md). Docs only: this ADR changes no code.
 
@@ -273,3 +273,14 @@ Evidence: `docs/evidence/adr-029-p3.md`. This ADR stays **Proposed**; P3 changes
 | 54-sticker cube mapping | **Decided by the founder, 2026-10-02: the 100-cell token is canonical; the 54-sticker cube is a view.** The decision is recorded only: the view mapping is **not built**, and its layout (which cells land on which sticker) is still to be designed and tested as total and stable before any code. This closes the open question in section 2 and gap 11 |
 | Disruption Tokens, multi-worker propagation, vector memory | CONCEPT / UNPROVEN, unchanged |
 
+
+## Status update 2026-10-02 (P3.13: the 100-cell cube)
+
+Evidence: `docs/evidence/adr-029-p3/p313-token-cube.md`. **Accepted (founder, 2026-10-02): the 100-cell token is canonical; the 54-sticker Rubik's cube is a view only.** The rest of this ADR stays Proposed.
+
+| Item | Status now |
+|---|---|
+| 100 named cells (10 rows x 10), each with a documented source; no data means `empty`, never filled (`apps/web/think-token-cube.ts`) | CODE COMPLETE, TEST VERIFIED |
+| Pure, total, stable mapping token -> 100 cells; 100 -> 54 view projection (cell i is sticker i for i < 54, cells 54-99 fold onto stickers 0-45) | CODE COMPLETE, TEST VERIFIED (changes only where the data changed) |
+| Reconfigure on learning: used, scored, challenged, merged, linked, outcome, feedback and operator actions record changed cells in `think_token_cell_events` (schema v6) plus a `cells` ledger receipt | CODE COMPLETE, TEST VERIFIED |
+| Dashboard 100-cell grid, 3D cube view (reduced-motion safe), hover inspector, link lines; CLI `kudbee token cube <TT-id>` | CODE COMPLETE, TEST VERIFIED; live state in the evidence file |

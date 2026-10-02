@@ -3,6 +3,7 @@
 // id, title, lesson, status, score breakdown, run id and ledger receipt everywhere. Layer 1: read-only, no network.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CELL_COUNT, projectTo54, type Cell, type Sticker } from './think-token-cube.ts';
 import { SqliteTokenStore, normalizeTokenId, type ListOptions, type Receipt, type ScoreBreakdown, type ThinkTokenLink, type ThinkTokenRow, type TokenStatus } from './think-token-store.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -140,4 +141,49 @@ export function readTokenLinks(store: SqliteTokenStore, idLike: string): ThinkTo
   const row = store.get(id);
   if (!row) return [];
   return store.listLinks(row.id);
+}
+
+
+export interface ApiCube {
+  id: string;
+  cells: Cell[];
+  stickers: Sticker[];
+  /** Newest first. */
+  events: Array<{ ts: number; cause: string; key: string; before: string | null; after: string; ledger_seq: number | null }>;
+  /** Keys of the cells changed by the latest recorded cause (what pulses in the views). */
+  last_change: { cause: string; ts: number; keys: string[] } | null;
+  filled: number;
+}
+
+/** The 100 cells, the 54-sticker view and the recent cell changes: one projection for the CLI (`kudbee token cube`) and the dashboard. */
+export function readTokenCube(store: SqliteTokenStore, idLike: string, now: number = Date.now()): ApiCube | null {
+  const id = normalizeTokenId(idLike);
+  if (!id) return null;
+  const cells = store.cubeCells(id, now);
+  if (!cells) return null;
+  const events = store.cellEvents(id, 200);
+  const latest = events[0];
+  const last_change = latest ? { cause: latest.cause, ts: latest.ts, keys: events.filter((e) => e.ts === latest.ts && e.cause === latest.cause).map((e) => e.key) } : null;
+  return {
+    id: store.get(id)!.id,
+    cells,
+    stickers: projectTo54(cells),
+    events: events.slice(0, 60).map((e) => ({ ts: e.ts, cause: e.cause, key: e.key, before: e.before, after: e.after, ledger_seq: e.ledger_seq })),
+    last_change,
+    filled: cells.filter((c) => !c.empty).length,
+  };
+}
+
+/** ASCII grid of the 100 cells for the terminal: ten rows of ten, with the changed cells marked. */
+export function formatCubeGrid(cube: ApiCube): string {
+  const changed = new Set(cube.last_change?.keys ?? []);
+  const shade = (v: number | null): string => (v === null ? '·' : v >= 0.75 ? '█' : v >= 0.5 ? '▓' : v >= 0.25 ? '▒' : v > 0 ? '░' : ' ');
+  const rows: string[] = [`${cube.id}: ${cube.filled}/${CELL_COUNT} cells filled (· = empty, no data)`];
+  for (let r = 0; r < 10; r++) {
+    const row = cube.cells.slice(r * 10, r * 10 + 10);
+    rows.push(`  ${row[0]!.row.padEnd(11)} ${row.map((c) => `${changed.has(c.key) ? '*' : ' '}${shade(c.value)}`).join(' ')}`);
+  }
+  if (cube.last_change) rows.push(`  * changed by "${cube.last_change.cause}" at ${new Date(cube.last_change.ts).toISOString()}: ${cube.last_change.keys.join(', ')}`);
+  else rows.push('  (no cell changes recorded yet)');
+  return rows.join('\n');
 }

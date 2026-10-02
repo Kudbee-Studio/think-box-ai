@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
 import { localModelHint, resolveLocalModel } from './local-model.ts';
-import { formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
+import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 
@@ -307,6 +307,7 @@ ${c.bold('MODELS & AGENTS')}
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
   ${c.dim("kudbee run '<goal>'")}  one-shot goal (same as kudbee '<goal>'); ${c.dim("kudbee --agent hermes '<goal>'")} uses an agent lane
   ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
+  ${c.dim('kudbee token cube <TT-id> [--events] [--json]')}  the token's 100-cell grid (ASCII) and its recent cell changes
   ${c.dim('kudbee tokens show <TT-id> [--json]')}  one token: lesson, score breakdown, run, ledger receipt
 
 ${c.bold('OPERATIONS')}
@@ -798,6 +799,19 @@ function tokensCommand(args: string[]): number {
       console.log(json ? JSON.stringify(token, null, 2) : formatTokenDetail(token));
       return 0;
     }
+    if (sub === 'cube') {
+      const id = rest[0];
+      if (!id) { console.log(c.red('usage: kudbee token cube <TT-id> [--events] [--json]')); return 2; }
+      const cube = readTokenCube(store, id);
+      if (!cube) { console.log(c.red(`No Think Token ${id}`)); return 1; }
+      if (json) { console.log(JSON.stringify(cube, null, 2)); return 0; }
+      console.log(formatCubeGrid(cube));
+      if (args.includes('--events')) {
+        console.log(c.bold('  recent cell changes (newest first)'));
+        for (const e of cube.events.slice(0, 30)) console.log(`  ${new Date(e.ts).toISOString().slice(0, 19)}  ${e.cause.padEnd(22)} ${e.key.padEnd(20)} ${String(e.before ?? '(none)').padEnd(14)} -> ${e.after}${e.ledger_seq ? c.dim(`  receipt #${e.ledger_seq}`) : ''}`);
+      }
+      return 0;
+    }
     if (sub === 'links') {
       const id = rest[0];
       if (!id) { console.log(c.red('usage: kudbee tokens links <TT-id> [--json]')); return 2; }
@@ -841,7 +855,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   // Reading tokens needs no server and no WebSocket.
-  if (process.argv[2] === 'tokens') process.exit(tokensCommand(process.argv.slice(3)));
+  if (process.argv[2] === 'tokens' || process.argv[2] === 'token') process.exit(tokensCommand(process.argv.slice(3)));
 
   await ensureServer();
   const client = new Client();

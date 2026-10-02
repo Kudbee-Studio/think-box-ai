@@ -1,0 +1,31 @@
+TT-000007: 94/100 cells filled (· = empty, no data)
+  identity     █  ░  █  █  █  █  █  █  ·   
+  lesson       ▒  ▒  ▓  ▒                 █
+  provenance   ▒  ▒  ▒  ░  █  ▒  █  █  █  ░
+  challenge    █  █  ▒  ░  ▒  ▒  ▓  █  █   
+  score       *█  █  █  ▓ *█  █  ▓ *█      
+  usage        ▓  ▓ *█  ░ *█        █  ▓ *▓
+  links        ▒  ░     ▒  ·     █  █  ▒  ▒
+  lifecycle   *█     ▒     ░               
+  health       █  █              █         
+  propagation  ▒  █  █  ▒  █  █  ·  ·  ·  ·
+  * changed by "outcome:win" at 2026-10-02T20:02:42.818Z: receipts, ledger_outcomes, win_rate, success_runs, score, base_score, usefulness
+  recent cell changes (newest first)
+  2026-10-02T20:02:42  outcome:win            receipts             33             -> 34  receipt #152
+  2026-10-02T20:02:42  outcome:win            ledger_outcomes      9              -> 10  receipt #152
+  2026-10-02T20:02:42  outcome:win            win_rate             0.889          -> 0.9  receipt #152
+  2026-10-02T20:02:42  outcome:win            success_runs         8              -> 9  receipt #152
+  2026-10-02T20:02:42  outcome:win            score                0.917          -> 0.923  receipt #152
+  2026-10-02T20:02:42  outcome:win            base_score           0.818          -> 0.825  receipt #152
+  2026-10-02T20:02:42  outcome:win            usefulness           0.818          -> 0.833  receipt #152
+  2026-10-02T20:02:39  used                   receipts             32             -> 33  receipt #148
+  2026-10-02T20:02:39  used                   ledger_uses          10             -> 11  receipt #148
+  2026-10-02T20:02:39  linked:co_used         link_receipts        1              -> 2  receipt #132
+  2026-10-02T20:02:39  linked:co_used         receipts             31             -> 32  receipt #132
+  2026-10-02T20:02:39  linked:co_used         link_co_used         2              -> 3  receipt #132
+  2026-10-02T20:02:39  linked:co_used         links_total          3              -> 4  receipt #132
+  2026-10-02T20:02:39  linked:co_used         uses_7d              10             -> 11  receipt #132
+  2026-10-02T20:02:39  linked:co_used         distinct_runs        10             -> 11  receipt #132
+  2026-10-02T20:02:39  linked:co_used         uses                 10             -> 11  receipt #132
+  2026-10-02T20:02:39  linked:co_used         base_score           0.818          -> 0.818  receipt #132
+  2026-10-02T20:02:39  linked:co_used         recency              1              -> 1  receipt #132
