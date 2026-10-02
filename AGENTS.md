@@ -10,38 +10,27 @@ defined in `docs/architecture-v1.md`.
 
 These supersede older "do not merge" and "founder reviews" lines elsewhere in this file (those lines are dated history).
 
-### 0.1 Standing merge authority
+### 0.1 Merge gates (founder rule, 2026-10-02)
 
-You may squash-merge your own PRs into `main` without waiting for the founder when ALL of these gates pass:
+An agent MAY merge its own PR (squash) when ALL of these pass on a clean worktree at the PR head:
 
-1. All tests, lint and typecheck are green locally before the single push (`cd apps/web && npm test && npm run lint && npm run typecheck`).
-2. CI is green on that push (no re-runs, no empty retrigger commits). A CodeQL "new alert" on the PR counts as red.
-3. The PR body has an EVIDENCE section with a four-state table, and UNPROVEN items are listed honestly.
-4. You reviewed the diff yourself: no secrets, no `.db` / `.neon` files, no out-of-scope changes.
-5. The guardrails in 0.4 are intact.
+1. Local tests green, `npm run typecheck` clean, `npm run lint` clean (`cd apps/web`).
+2. LOCAL CI: `act pull_request` (nektos/act, Docker) runs every PR-triggered job in `.github/workflows`. All non-skipped jobs are green. Jobs that need GitHub-only services (CodeQL upload, cache, deploy) may be skipped, with the reason logged. Log saved to `docs/evidence/ci-local/<branch>-act.log`.
+3. Local CodeQL: no new alerts compared to `main`'s last scan (SARIF committed).
+4. The PR body has EVIDENCE: a four-state table (CODE / TEST / LIVE / PROD), an `act` jobs table (ran / skipped / green), and anything unproven labeled UNPROVEN.
+5. Self-reviewed diff: no secrets or keys, no `.db` / `.db-wal` / `.db-shm` / `.neon` files, guardrails intact (0.4: SQLite only, dashboard 127.0.0.1, no Vercel, HERMES/Algorand read-only).
 
-If a gate fails, fix it in ONE batched push, re-check, then merge. If it cannot be fixed, leave the PR as a draft and report why.
-After a merge, pull `main` and start the next queued prompt. Scope: your own PRs only. It does not cover other people's PRs,
-credential or token-scope changes, or contact with live infrastructure.
-**Exception:** changes to `.github/workflows/` need a token with the `workflow` scope; only the founder can grant it
-(`gh auth refresh -s workflow`). Do not push workflow changes without it.
+If a gate fails, fix it in ONE batched push and re-check. If it cannot be fixed, leave the PR as a draft and report why. Scope: your own PRs only; it does not cover other
+people's PRs, credential or token-scope changes, or contact with live infrastructure. Changes to `.github/workflows/` need a token with the `workflow` scope; only the
+founder can grant it (`gh auth refresh -s workflow`). Bypassing gates is covered in 0.8.
 
-**Bypassing a gate is forbidden for agents.** `gh pr merge --admin`, any other override of branch protection or required checks, force-merging
-while CI is red, cancelled, queued or has never run, and merging a PR you did not write under this authority are all FORBIDDEN. If CI cannot run
-(for example the Actions billing lock), the PR waits as a draft until the founder clears it; "the checks are blocked" is a reason to wait, never to
-override. Only the founder can authorize a bypass, in a message about that specific PR. (Breach of 2026-10-02: `docs/evidence/adr-029-p3/merge-breach.md`.)
+### 0.2 CI cost
 
-### 0.2 CI cost rules (CI costs real money)
+Run `act` ONCE per PR, at the end. Commit locally and push ONCE. No WIP pushes, empty commits or CI re-runs. Batch any review fixes into one push. Pack related work into one PR (docs ride along with the code PR).
 
-- Run all tests, lint, typecheck and CodeQL locally first. CodeQL CLI: download `codeql-linux64.zip` from
-  `github/codeql-cli-binaries`, `codeql pack download codeql/javascript-queries`, then
-  `codeql database create --language=javascript-typescript --source-root=apps/web` and
-  `codeql database analyze ... codeql/javascript-queries:codeql-suites/javascript-code-scanning.qls`. Compare the result with the open
-  alerts on `main` (`gh api repos/<owner>/<repo>/code-scanning/alerts?ref=refs/heads/main`); a finding that already exists on `main`
-  is not new, but editing the alert's line can make it look new, so keep route-handler lines unchanged when you can.
-- Commit locally as often as you like, but push once, at the end. No WIP pushes, no fix-up push loops, no re-running CI, no empty commits.
-- Open the PR as a draft only after the final push. Batch every review fix into one push.
-- Bundle related work into one PR (stay in scope but max it out). Docs ride along with the code PR instead of getting their own CI run.
+Local CodeQL recipe: download `codeql-linux64.zip` from `github/codeql-cli-binaries`, `codeql pack download codeql/javascript-queries`, then
+`codeql database create --language=javascript-typescript --source-root=apps/web` and `codeql database analyze ... codeql/javascript-queries:codeql-suites/javascript-code-scanning.qls`.
+Compare with the open alerts on `main` (`gh api repos/<owner>/<repo>/code-scanning/alerts?ref=refs/heads/main`). A finding that already exists on `main` is not new, but editing an alert's line can make it look new, so keep route-handler lines unchanged when you can.
 
 ### 0.3 Evidence rules
 
@@ -72,6 +61,15 @@ override. Only the founder can authorize a bypass, in a message about that speci
 ### 0.7 Git push (no auto-push)
 
 Nothing in this repository may push to a remote on commit, hook, or timer. Only a human or agent may run `git push` after local gates pass (tests, lint, typecheck, CodeQL when required, evidence updated). Cursor agent hooks run on **commit** only (`pre-commit`, `commit-msg`); there is no `pre-push` hook in-repo. If a push appears without an explicit agent push step, treat it as another session or machine and record findings in `docs/evidence/` (see `docs/evidence/adr-029-p3/push-audit.md`).
+
+### 0.8 Bypass (founder rule, 2026-10-02; numbered 0.8 so 0.3 to 0.7 keep their numbers)
+
+While GitHub Actions is billing-locked, merging with `--admin` is ALLOWED only after gates 1 to 5 in 0.1 pass, and the PR body must say "CI bypassed: founder authorization, billing lock; local act gate passed." Any other `--admin` or bypass is FORBIDDEN (the breach of 2026-10-02 is recorded in `docs/evidence/adr-029-p3/merge-breach.md`). When billing clears, gate 2 becomes "GitHub CI green" again and this section expires.
+If a gate cannot run (for example Docker is not installed, so `act` cannot run), the gate has not passed: the PR waits.
+
+### 0.9 After merge
+
+Pull `main`, delete the branch, and start the next queued prompt.
 
 ### 0.6 Think Tokens: where they live, and CLI/dashboard parity
 
