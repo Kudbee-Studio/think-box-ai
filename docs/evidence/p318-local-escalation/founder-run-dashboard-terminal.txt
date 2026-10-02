@@ -1,0 +1,27 @@
+Founder-run, Agent OS dashboard terminal, local model selected (smollm2:360m), real Mercury, network access approved by the operator.
+Pasted by the founder on 2026-10-02 after PR #330 was opened; long tool output was already truncated by the dashboard.
+
+› WHAT PR ARE WE ON
+Routed to mercury-2 instead of smollm2:360m: it asks about this repository or its pull requests, issues, branches, commits or CI. A local chat has no tools and cannot check live state.
+status: running
+Worker agent (mercury-2) starting: WHAT PR ARE WE ON
+Recalled 4 memories (local-vector (MiniLM)): Decisions on record: Neon, exposed test key, Rubik's cube · Think Token meanings: five unrelated things · what pr are we on? · what PR are we working on?
+Think Token ranking: cosine (Xenova/all-MiniLM-L6-v2), 9 ms, 3 found
+Using 3 Think Tokens: tt:TT-000006, tt:TT-000005, tt:TT-000012
+Step 1: asking mercury-2…
+Model replied in 834ms → fetch_url
+fetch_url {"url":"https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open"}
+Waiting for approval: First network access to api.github.com in this session
+approval needed: fetch_url — First network access to api.github.com in this session
+Approved fetch_url: First network access to api.github.com in this session (approved by operator)
+fetch_url ok {"ok":true,"url":"https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open","status":200,"content_type":"application/json; charset=utf-8", ... [truncated 12699 chars]
+Step 2: asking mercury-2…
+Model replied in 868ms → write_file
+write_file {"path":"pr_status.md", ... }  ->  ok, 323 bytes
+Step 3: asking mercury-2…
+Finished in 3 step(s), 2 tool call(s), 17689 tokens, $0.00486
+Saved 1 Think Token from this run: TT-000014 (accepted 1, rejected 0, other 0)
+
+Final answer: the current open pull request for Kudbee-Studio/think-box-ai is #330, "#330 P3.18: escalate tool/live-data goals off the local model",
+state open, draft true, created and updated 2026-10-02T21:42:25Z. Details saved in pr_status.md.
+-- 3 step(s) · 2 tool call(s) · 17689 tokens · $0.0049 · 10.8s

@@ -12,6 +12,7 @@ Founder: on the dashboard, "WHAT PR ARE WE ON" run on `smollm2:360m` returned a 
 
 - Tests: `tests/goal-routing.test.ts` (9 stay-local goals, 13 must-escalate goals with the expected reason, empty/non-string/100k-character input, the CLI rule), and `tests/local-escalation.test.ts` (real `server.ts`, fake Ollama, mock Inception): routed with a worker agent (the goal is never chatted to the small model, a routing thought appears, Mercury answers), a plain goal stays local with Mercury untouched, and with no worker agent the goal fails with an explanation and no made-up answer.
 - Live, dashboard at 1024 px with `smollm2:360m` selected, real Mercury: "WHAT PR ARE WE ON" shows the thought "Routed to mercury-2 instead of smollm2:360m: it asks about this repository or its pull requests, issues, branches, commits or CI. ..." and mercury-2 immediately asks to fetch the GitHub pulls API (`dashboard-pr-check.json`, `dashboard-pr-1024.png`). The same session's "What is 2 plus 2?" stays local: "2 plus 2 equals 4.", $0.0000 (`dashboard-simple-check.json`).
+- **Founder's own end-to-end run** (`founder-run-dashboard-terminal.txt`): local model selected, "WHAT PR ARE WE ON", routing thought, mercury-2 fetched the real GitHub pulls API, the operator approved network access, and the final answer was correct and matches GitHub at that moment (PR #330, open, draft). 3 steps, 2 tool calls, $0.0049.
 - Mercury spend for the proof: $0.0019 (two runs that stopped at the network-approval prompt, which a headless browser cannot answer).
 
 ## Limits (honest)
@@ -19,6 +20,11 @@ Founder: on the dashboard, "WHAT PR ARE WE ON" run on `smollm2:360m` returned a 
 - It is a keyword classifier. It will send some local-safe goals to Mercury (for example "check my grammar" is fine, but "open source licences explained" matches "open") and could miss a goal that needs live data without any of those words. A false positive costs a Mercury call; a false negative is a wrong local answer. Neither is measured on a real set of goals.
 - A goal that needs only the model's knowledge but mentions a file name or the word "run" will be escalated.
 - The approval prompt for network access still applies to the escalated run.
+
+## Side effects seen in the founder's run (not part of this change)
+
+- The run saved TT-000014 (accepted): "When the fetched open-PR list has exactly one item, pull its number, title, URL, state, draft flag, and timestamps, then write a concise markdown file." It is narrow (it hinges on there being exactly one open PR) and could mislead a later run; the founder may want to retire it.
+- The terminal printed both "Saved 1 Think Token ... (accepted 1)" and "1 Think Token candidate(s) saved for review" for the same run. One of the two messages is redundant or wrong; not investigated.
 
 ## Four-state table
 
