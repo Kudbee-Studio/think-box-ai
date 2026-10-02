@@ -242,3 +242,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 :root { color-scheme: dark; }
 select option, select optgroup { background-color: var(--bg-secondary, #141b2e); color: var(--text-primary, #e2e8f0); }
 select option:checked, select option:hover { background-color: var(--bg-active, #243447); color: var(--text-primary, #e2e8f0); }
+
+/* ─── System Health rows and status badges: these lived only in main.css, which the page does not load, so every row ran
+   together ("RuntimeRunning") and the badge had no state colour. ─── */
+.health-list { padding: 8px 12px; }
+.health-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); font-size: var(--font-size-sm, 12px); }
+.health-row:last-child { border-bottom: none; }
+.health-row span { min-width: 0; }
+.health-row strong { color: var(--text-primary); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.badge.health-ok { background: rgba(16, 185, 129, 0.15); color: var(--success); border-color: rgba(16, 185, 129, 0.45); }
+.badge.health-warn { background: rgba(245, 158, 11, 0.15); color: var(--warning); border-color: rgba(245, 158, 11, 0.45); }
+.badge.health-error { background: rgba(239, 68, 68, 0.15); color: var(--error); border-color: rgba(239, 68, 68, 0.45); }

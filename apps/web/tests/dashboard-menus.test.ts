@@ -31,3 +31,20 @@ describe('dashboard menus', () => {
     }
   });
 });
+
+describe('System Health', () => {
+  it('styles its rows and status badges in a stylesheet the page actually loads (they were only in main.css, which is not linked)', () => {
+    const linked = [...html.matchAll(/<link rel="stylesheet" href="(\/css\/[^"]+)"/g)].map((m) => readFileSync(join(pub, m[1]!), 'utf8')).join('\n');
+    assert.ok(!html.includes('/css/main.css"'));
+    assert.match(linked, /\.health-row \{[^}]*display: flex[^}]*justify-content: space-between/);
+    for (const c of ['health-ok', 'health-warn', 'health-error']) assert.match(linked, new RegExp(`\\.badge\\.${c} \\{`), c);
+  });
+
+  it('every class app.js builds for health rows and badges has a rule', () => {
+    const app = readFileSync(join(pub, 'js/app.js'), 'utf8');
+    const linked = [...html.matchAll(/<link rel="stylesheet" href="(\/css\/[^"]+)"/g)].map((m) => readFileSync(join(pub, m[1]!), 'utf8')).join('\n');
+    for (const c of new Set([...app.matchAll(/'(health-(?:row|ok|warn|error))'|class="(health-row)"|\b(health-(?:ok|warn|error))\b/g)].flatMap((m) => m.slice(1)).filter(Boolean) as string[])) {
+      assert.ok(linked.includes(`.${c}`), `.${c} has no rule in a loaded stylesheet`);
+    }
+  });
+});
