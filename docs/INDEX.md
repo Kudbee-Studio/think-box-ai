@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (234 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (235 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (31)
+- [Other documents in docs/](#other-documents-in-docs) (32)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -289,6 +289,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/adr-029-p1.md](evidence/adr-029-p1.md) | ADR 029 P1 + P2 — evidence | Date: 2026-10-01. Scope: Think Token lifecycle with permanent TT- ids, a real extractor and challenge, a score... |
 | [docs/evidence/adr-029-p3-ab.md](evidence/adr-029-p3-ab.md) | ADR 029 P3 — A/B: do Think Tokens help real runs? | Date: 2026-10-02. Driver: scripts/think-token-ab-live.mjs. Raw rows: adr-029-p3/ab-result.json. |
 | [docs/evidence/adr-029-p3.md](evidence/adr-029-p3.md) | ADR 029 P3 — evidence (challenge can say no, links, propagation, re-challenge) | Date: 2026-10-02. Branch feat/adr029-p3-proof-relationships. A Grok bot left a first version of this work... |
+| [docs/evidence/adr-029-p3/merge-breach.md](evidence/adr-029-p3/merge-breach.md) | Gate breach: PR #315 merged with --admin (2026-10-02) | main at bb059c17 passes typecheck and all 387 tests (verified after the fact). That does not excuse the bypass: the... |
 | [docs/evidence/adr-029-p3/push-audit.md](evidence/adr-029-p3/push-audit.md) | Push audit — commit 32ab41a1 (2026-10-02) | Question: Something pushed 32ab41a1 to origin/feat/adr029-p3-proof-relationships without the P3.3 cloud agent... |
 | [docs/evidence/docs-sync-2026-10-01.md](evidence/docs-sync-2026-10-01.md) | Docs sync — 2026-10-01 | Rides along with the ADR-029 P1/P2 PR (no separate PR, one push). No code behavior changes come from this part. |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |

@@ -96,3 +96,7 @@ apps/web/think-tokens.db*
 
 # Agent worktrees (may duplicate dependency pins); not part of the product tree
 .kilo/worktrees/
+
+# SQLite sidecar files from opening evidence seeds
+docs/evidence/**/*.db-shm
+docs/evidence/**/*.db-wal
