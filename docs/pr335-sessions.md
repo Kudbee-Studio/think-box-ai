@@ -6,3 +6,4 @@ Commit 6
 Commit 7
 Commit 8
 Commit 9
+Final polish for /sessions command
