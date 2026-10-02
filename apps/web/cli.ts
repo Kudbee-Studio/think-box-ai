@@ -424,6 +424,32 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/plugins':
       for (const p of client.plugins) console.log(`  ${p.icon ?? '🔌'} ${p.name} ${c.dim(`[${p.permission}] ${p.description}`)}`);
       break;
+    case '/plugin': {
+      const pluginName = args.shift();
+      if (!pluginName) {
+        console.log(c.red('Usage: /plugin NAME JSON'));
+        break;
+      }
+      if (!args.length) {
+        console.log(c.red('Plugin input required as valid JSON'));
+        break;
+      }
+      try {
+        const input = JSON.parse(args.join(' '));
+        const done = client.wait('plugin_result');
+        client.send({ type: 'plugin_execute', plugin: pluginName, input });
+        const { data: result } = await done;
+        if (result.success) {
+          console.log(c.green(`✓ ${pluginName} executed`));
+          if (result.output) console.log(`  ${JSON.stringify(result.output, null, 2)}`);
+        } else {
+          console.log(c.red(`✗ ${result.error ?? `${pluginName} failed`}`));
+        }
+      } catch (err) {
+        console.log(c.red('Plugin input must be valid JSON.'));
+      }
+      break;
+    }
     case '/files':
       await client.files();
       break;
