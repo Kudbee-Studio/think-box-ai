@@ -114,7 +114,8 @@ function handleMessage(msg) {
       break;
 
     case 'thought': {
-      const thought = { ...msg.data, timestamp: msg.timestamp };
+      // The server stamps each thought inside `data`; the message itself carries no timestamp (spreading msg.timestamp over it gave "Invalid Date").
+      const thought = { ...msg.data, timestamp: msg.data?.timestamp ?? msg.timestamp ?? Date.now() };
       addThought(thought);
       // Real bridge to the Think Token cube and view: every thought the server actually emits, forwarded as-is,
       // no synthesized events. Persisted tokens arrive separately (think_tokens), read from the database.
@@ -123,7 +124,7 @@ function handleMessage(msg) {
     }
 
     case 'task':
-      addTask({ ...msg.data, timestamp: msg.timestamp });
+      addTask({ ...msg.data, timestamp: msg.data?.timestamp ?? msg.timestamp ?? Date.now() });
       break;
 
     case 'task_update':
@@ -566,6 +567,13 @@ function sendGitAction(action, payload = {}) {
 }
 
 // ─── Thoughts ──────────────────────────────────────────────────
+/** A time of day, or nothing at all for a missing or invalid timestamp: never the text "Invalid Date". */
+function formatThoughtTime(timestamp) {
+  if (timestamp === null || timestamp === undefined || timestamp === '') return '';
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString() : '';
+}
+
 function addThought(thought) {
   state.thoughts.push(thought);
   renderThoughts();
@@ -586,7 +594,7 @@ function renderThoughts() {
     <div class="thought-item ${thought.status || 'info'}">
       <div class="thought-header">
         <span class="thought-type">${escapeHtml(thought.type || 'thought')}</span>
-        <span>${new Date(thought.timestamp).toLocaleTimeString()}</span>
+        <span>${formatThoughtTime(thought.timestamp)}</span>
       </div>
       <div class="thought-content">${escapeHtml(thought.content || thought.plugin || '')}</div>
     </div>

@@ -48,3 +48,36 @@ describe('System Health', () => {
     }
   });
 });
+
+describe('thought times and ported component styles (P3.17)', () => {
+  const app = readFileSync(join(pub, 'js/app.js'), 'utf8');
+  const loaded = [...html.matchAll(/<link rel="stylesheet" href="(\/css\/[^"]+)"/g)].map((m) => readFileSync(join(pub, m[1]!), 'utf8')).join('\n');
+
+  it('a thought keeps the timestamp the server put inside its data, and an invalid one shows nothing instead of "Invalid Date"', async () => {
+    const vm = await import('node:vm');
+    const fn = app.match(/function formatThoughtTime\(timestamp\) \{[\s\S]*?\n\}/)?.[0];
+    assert.ok(fn, 'formatThoughtTime exists');
+    const ctx: any = {};
+    vm.createContext(ctx);
+    vm.runInContext(`${fn}; this.f = formatThoughtTime;`, ctx);
+    assert.notEqual(ctx.f(1_700_000_000_000), '');
+    assert.doesNotMatch(ctx.f(1_700_000_000_000), /Invalid/);
+    for (const bad of [undefined, null, NaN, 'not a date', {}]) assert.equal(ctx.f(bad), '', String(bad));
+    assert.match(app, /timestamp: msg\.data\?\.timestamp \?\? msg\.timestamp \?\? Date\.now\(\)/, 'the data timestamp wins over the (absent) message one');
+    assert.doesNotMatch(app, /\{ \.\.\.msg\.data, timestamp: msg\.timestamp \}/);
+    assert.doesNotMatch(app, /new Date\(thought\.timestamp\)\.toLocaleTimeString/);
+  });
+
+  it('every component class app.js builds has a rule in a stylesheet the page loads', () => {
+    for (const c of ['plugin-badge', 'permission-note', 'git-repository-item', 'task-priority', 'task-description', 'task-meta', 'task-tags', 'task-attachments', 'task-attachment', 'task-card-actions', 'task-action', 'task-activity', 'task-activity-row', 'task-blocked-reason', 'thought-header', 'thought-type', 'thought-content', 'terminal-image', 'overdue']) {
+      assert.match(app + html, new RegExp(c), `${c} is used by the page`);
+      assert.match(loaded, new RegExp(`\\.${c}(?![\\w-])`), `.${c} has no rule in a loaded stylesheet`);
+    }
+  });
+
+  it('the ported rules use only variables the loaded theme defines (the old --border-color is not defined there)', () => {
+    const block = loaded.slice(loaded.indexOf('Components whose rules only existed in main.css'));
+    const defined = new Set([...loaded.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    for (const v of new Set([...block.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]))) assert.ok(defined.has(v!), `${v} is defined`);
+  });
+});
