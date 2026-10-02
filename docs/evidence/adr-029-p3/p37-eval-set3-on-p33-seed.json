@@ -1,0 +1,216 @@
+{
+  "seed": "p33-seed.db",
+  "goals_module": "think-token-ab-goals-p37-heldout3.mjs",
+  "frozen_now": "2026-10-02T12:00:00.000Z",
+  "embed_model": "Xenova/all-MiniLM-L6-v2",
+  "tokens_embedded": 21,
+  "goals": 10,
+  "lexical": {
+    "hit_at_1": 2,
+    "hit_at_3": 3
+  },
+  "hybrid": {
+    "hit_at_1": 4,
+    "hit_at_3": 6
+  },
+  "per_goal": [
+    {
+      "id": "unmade-hierarchy",
+      "expectedLesson": "deep-mkdir",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "missing-no-invent",
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "dotdot-path",
+          "missing-no-invent",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "vacant-placeholder",
+      "expectedLesson": "zero-byte",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-rss",
+          "deep-mkdir"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "noise-rss",
+          "deep-mkdir",
+          "size-match"
+        ]
+      }
+    },
+    {
+      "id": "rewrite-a-to-b",
+      "expectedLesson": "replace-not-append",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "three-files",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "three-files",
+          "missing-no-invent",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "party-popper",
+      "expectedLesson": "emoji-utf8",
+      "lexical": {
+        "rank": 2,
+        "top3": [
+          "missing-no-invent",
+          "emoji-utf8",
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "emoji-utf8",
+          "three-files",
+          "missing-no-invent"
+        ]
+      }
+    },
+    {
+      "id": "budget-forecast-upload",
+      "expectedLesson": "missing-no-invent",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "missing-no-invent",
+          "three-files",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "missing-no-invent",
+          "three-files",
+          "zero-byte"
+        ]
+      }
+    },
+    {
+      "id": "boolean-settings",
+      "expectedLesson": "json-line",
+      "lexical": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "missing-then-create",
+          "counter"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "json-line",
+          "missing-then-create",
+          "counter"
+        ]
+      }
+    },
+    {
+      "id": "two-levels-beneath",
+      "expectedLesson": "recursive-list",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "missing-no-invent",
+          "three-files",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": null,
+        "top3": [
+          "three-files",
+          "missing-no-invent",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "dot-slash-segment",
+      "expectedLesson": "path-normalize",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "json-line",
+          "append"
+        ]
+      },
+      "hybrid": {
+        "rank": 3,
+        "top3": [
+          "json-line",
+          "append",
+          "path-normalize"
+        ]
+      }
+    },
+    {
+      "id": "numeric-file-steps",
+      "expectedLesson": "counter",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "noise-approval",
+          "missing-no-invent",
+          "three-files"
+        ]
+      },
+      "hybrid": {
+        "rank": 1,
+        "top3": [
+          "counter",
+          "noise-approval",
+          "append"
+        ]
+      }
+    },
+    {
+      "id": "fresh-subdirectory",
+      "expectedLesson": "list-subdir",
+      "lexical": {
+        "rank": null,
+        "top3": [
+          "missing-then-create",
+          "dotdot-path",
+          "path-normalize"
+        ]
+      },
+      "hybrid": {
+        "rank": 2,
+        "top3": [
+          "missing-then-create",
+          "list-subdir",
+          "dotdot-path"
+        ]
+      }
+    }
+  ]
+}

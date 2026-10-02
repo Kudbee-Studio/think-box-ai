@@ -159,6 +159,8 @@ const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, 
 // ADR 028 Think Tokens: reusable learning units in their own SQLite file (never learning.db). Writes are admitted and
 // receipted by the store; use and extraction are wired into runAgentGoal below.
 const tokenStore = new SqliteTokenStore(process.env.KUDBEE_THINK_TOKEN_DB || path.join(dataDir, 'think-tokens.db'));
+// Start loading the embedding model in the background when there is something to embed, so the first goals are not ranked lexically for long.
+if (tokenStore.list({ status: 'accepted', limit: 1 }).length) peekEmbedder();
 const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
@@ -614,16 +616,17 @@ function tokenEvent(row: { id: string; kind: string; status: string; score: numb
  * It never waits for the model to load (the first goals after a start are ranked lexically while it loads in the background), only starts
  * loading when there is at least one accepted lesson to embed, and falls back to lexical on any problem.
  */
-async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array; embedModel?: string }> {
+async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array; embedModel?: string; why?: string }> {
   try {
-    if (!tokenStore.list({ status: 'accepted', limit: 1 }).length) return {};
+    if (!tokenStore.list({ status: 'accepted', limit: 1 }).length) return { why: 'no accepted lessons' };
+    if (process.env.THINKBOX_EMBEDDINGS === 'off' || process.env.THINKBOX_EMBEDDINGS === '0') return { why: 'embeddings off' };
     const embedder = peekEmbedder();
-    if (!embedder) return {};
+    if (!embedder) return { why: 'embedding model still loading or unavailable' };
     await ensureEmbeddings(tokenStore, embedder);
     const [goalVector] = await embedder.embed([goal]);
-    return goalVector ? { goalVector, embedModel: embedder.model } : {};
+    return goalVector ? { goalVector, embedModel: embedder.model } : { why: 'no goal vector' };
   } catch {
-    return {};
+    return { why: 'embedding error' };
   }
 }
 
@@ -1046,7 +1049,13 @@ export class AgentSession {
       // ADR 028/029: accepted Think Tokens relevant to this goal join the planner context, with their ids cited.
       // THINKBOX_TOKEN_RETRIEVAL=0|off disables retrieval for A/B proof runs.
       const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
-      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), ...(await goalEmbedding(goal)) });
+      const retrievalStarted = Date.now();
+      const semantic = retrievalOff ? {} : await goalEmbedding(goal);
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), goalVector: semantic.goalVector, embedModel: semantic.embedModel });
+      if (!retrievalOff) {
+        const ranker = semantic.goalVector ? `hybrid (${semantic.embedModel})` : `lexical (${semantic.why ?? 'no vectors'})`;
+        this.addThought({ type: 'think_token', content: `Think Token ranking: ${ranker}, ${Date.now() - retrievalStarted} ms, ${thinkTokens.length} found`, status: 'info' });
+      }
       if (retrievalOff) {
         this.addThought({ type: 'think_token', content: 'Think Token retrieval OFF (THINKBOX_TOKEN_RETRIEVAL)', status: 'info' });
       } else if (thinkTokens.length) {

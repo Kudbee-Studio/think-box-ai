@@ -14,9 +14,10 @@ export interface Embedder {
 
 type Env = Record<string, string | undefined>;
 
-/** The text that represents a lesson: title and body, without a leading `[tag]` marker. */
-export function embedText(t: { title: string; content: string }): string {
-  return `${t.title.replace(/^\s*\[[^\]]*\]\s*/, '')}\n${t.content}`.slice(0, 2000);
+/** The text that represents a lesson: title and body (without a leading `[tag]` marker), plus its retrieval text (`when_to_use`) when it has one. */
+export function embedText(t: { title: string; content: string; when_to_use?: string | null }): string {
+  const base = `${t.title.replace(/^\s*\[[^\]]*\]\s*/, '')}\n${t.content}`;
+  return (t.when_to_use ? `${base}\nUseful when: ${t.when_to_use}` : base).slice(0, 2400);
 }
 
 export function cosine(a: Float32Array, b: Float32Array): number {
@@ -80,7 +81,7 @@ async function load(env: Env): Promise<Embedder | null> {
 
 /** Structural view of the store used here, so this module does not import it. */
 export interface EmbeddingStore {
-  listMissingEmbeddings(model: string): Array<{ id: string; title: string; content: string }>;
+  listMissingEmbeddings(model: string): Array<{ id: string; title: string; content: string; when_to_use?: string }>;
   setEmbedding(tokenId: string, model: string, vector: Float32Array, text: string): void;
 }
 

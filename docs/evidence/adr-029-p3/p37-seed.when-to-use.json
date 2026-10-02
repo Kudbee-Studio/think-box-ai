@@ -1,0 +1,86 @@
+[
+  {
+    "slug": "seed:noise-approval",
+    "when_to_use": "When you want to pull data from a new website or domain, you need to get a human's okay in the dashboard before the system can fetch it. Use this for any first‑time URL access."
+  },
+  {
+    "slug": "seed:noise-arith",
+    "when_to_use": "Use this when you need to solve basic addition, subtraction, multiplication, or division in your head because calculators, pens, or other aids aren’t allowed."
+  },
+  {
+    "slug": "seed:noise-memory",
+    "when_to_use": "When you want to keep something in memory but only after you’ve pulled it from a website or opened a file you already have."
+  },
+  {
+    "slug": "seed:noise-algo",
+    "when_to_use": "When you want to convert the raw token count into the real‑world amount by adjusting for the asset’s decimal precision. Useful for showing balances or calculating values in everyday terms."
+  },
+  {
+    "slug": "seed:noise-rss",
+    "when_to_use": "When you are creating a short overview of news feeds and need to list the original article titles as references."
+  },
+  {
+    "slug": "seed:json-line",
+    "when_to_use": "Use this when you need a JSON object on a single line with no extra spaces or line breaks, such as for a tiny config, embedding in a URL, or sending a compact payload."
+  },
+  {
+    "slug": "seed:emoji-utf8",
+    "when_to_use": "Use this when you need to find out how many bytes a single emoji occupies, such as checking file size limits or counting storage space for text that includes emojis."
+  },
+  {
+    "slug": "seed:replace-not-append",
+    "when_to_use": "Use this whenever you need to replace the entire contents of a file with new data instead of appending to what’s already there, such as when you want to completely refresh a text file."
+  },
+  {
+    "slug": "seed:size-match",
+    "when_to_use": "When you need to generate a tiny piece of text that must be exactly five bytes in size, for example creating a very small file or verifying a byte count."
+  },
+  {
+    "slug": "seed:recursive-list",
+    "when_to_use": "Use this when you need to see every file inside a folder hierarchy, including those in subfolders, after adding new files. It’s handy for scanning a directory tree to retrieve all file paths."
+  },
+  {
+    "slug": "seed:path-normalize",
+    "when_to_use": "Use this when you’re saving or referencing a file with a path that includes ‘./’ or other dot segments, and you need to know that the system will clean the path and still write the file in the intended folder."
+  },
+  {
+    "slug": "seed:zero-byte",
+    "when_to_use": "When you need to create an empty file or confirm that writing no content results in a file of size zero. Use it for generating placeholder files or checking that a file‑writing operation reports 0 bytes for empty input."
+  },
+  {
+    "slug": "seed:deep-mkdir",
+    "when_to_use": "When you need to save a file into a new subfolder chain and expect the system to create the directories automatically, without running a separate make‑folder command. Handy for generating output files in deep directories on the fly."
+  },
+  {
+    "slug": "seed:missing-no-invent",
+    "when_to_use": "Use this when someone asks for the contents of a file that isn’t present, or when a file‑reading operation fails because the file is missing."
+  },
+  {
+    "slug": "seed:three-files",
+    "when_to_use": "When you need each document to include its own filename inside its text, and you must look at a specific file before responding."
+  },
+  {
+    "slug": "seed:counter",
+    "when_to_use": "When you need to raise a numeric value stored in a plain text file by repeatedly reading, adding one, and writing it back, such as updating a simple counter."
+  },
+  {
+    "slug": "seed:dotdot-path",
+    "when_to_use": "When you want to save a file but the target folder may not exist yet, or when you need to refer to a location using a relative path like '..' inside the project."
+  },
+  {
+    "slug": "seed:missing-then-create",
+    "when_to_use": "When a configuration file is missing or cannot be opened, create a default settings file (such as setting the theme to dark) and then load it to retrieve the needed value."
+  },
+  {
+    "slug": "seed:list-subdir",
+    "when_to_use": "When you want to view every file inside a folder, including those hidden in its subfolders, or need a full inventory of all items in a directory tree."
+  },
+  {
+    "slug": "seed:append",
+    "when_to_use": "When you want to add a new line to an existing text file, like a log, without losing its current contents—read the file, keep the old lines, and write back the whole content with the new line at the end."
+  },
+  {
+    "slug": "seed:bytes-not-chars",
+    "when_to_use": "Use this when you need to determine the byte length of UTF‑8 text (e.g., checking file size or handling raw bytes) instead of counting characters."
+  }
+]

@@ -620,7 +620,7 @@ test('retrieval clock: the same seed and the same frozen clock give the same ran
 
 // ─── held-out goals must not copy the lesson text ───────────────
 
-for (const [label, goalsFile] of [['P3.5 set', 'think-token-ab-goals-p35-heldout.mjs'], ['P3.6 set 2', 'think-token-ab-goals-p36-heldout2.mjs']] as const) {
+for (const [label, goalsFile] of [['P3.5 set', 'think-token-ab-goals-p35-heldout.mjs'], ['P3.6 set 2', 'think-token-ab-goals-p36-heldout2.mjs'], ['P3.7 set 3', 'think-token-ab-goals-p37-heldout3.mjs']] as const) {
   test(`held-out ${label}: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string`, async () => {
     const { tokenize } = await import('../think-token-bm25.ts');
     const goalsPath = `../../../scripts/${goalsFile}`;
@@ -633,6 +633,7 @@ for (const [label, goalsFile] of [['P3.5 set', 'think-token-ab-goals-p35-heldout
     const COMMON = new Set(['write_file', 'read_file', 'list_files', 'file', 'files', 'text', 'content', 'path', 'paths', 'tool', 'with', 'then', 'that', 'this', 'under', 'when', 'from', 'into', 'workspace', 'before', 'after', 'only', 'single', 'document', 'create', 'creates', 'write', 'writes', 'save', 'report', 'reports', 'reported', 'there', 'exist', 'exists', 'does', 'first', 'second', 'folders', 'folder', 'markdown']);
     assert.equal(GOALS.length, 10);
     assert.equal(new Set(GOALS.map((g) => g.expectedLesson)).size, 10, 'ten different lessons');
+    if (label === 'P3.7 set 3') assert.ok(GOALS.every((g) => !g.expectedLesson.startsWith('noise-')), 'set 3 covers real lessons only');
     for (const g of GOALS) {
       const lesson = lessons.find((l) => l.evidence_ref === `seed:${g.expectedLesson}`);
       assert.ok(lesson, `${g.id}: the marked lesson exists in the seed`);

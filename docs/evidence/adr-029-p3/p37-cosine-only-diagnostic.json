@@ -1,0 +1,27 @@
+{
+  "note": "DIAGNOSTIC ONLY (not a result and not used to tune anything): plain cosine ranking over the same seeds and goal sets, frozen nothing needed (no clock term).",
+  "p33-seed.db:set1": {
+    "cosine_only_hit_at_1": 6,
+    "cosine_only_hit_at_3": 8
+  },
+  "p33-seed.db:set2": {
+    "cosine_only_hit_at_1": 7,
+    "cosine_only_hit_at_3": 10
+  },
+  "p33-seed.db:set3": {
+    "cosine_only_hit_at_1": 7,
+    "cosine_only_hit_at_3": 9
+  },
+  "p37-seed.db:set1": {
+    "cosine_only_hit_at_1": 5,
+    "cosine_only_hit_at_3": 8
+  },
+  "p37-seed.db:set2": {
+    "cosine_only_hit_at_1": 8,
+    "cosine_only_hit_at_3": 10
+  },
+  "p37-seed.db:set3": {
+    "cosine_only_hit_at_1": 8,
+    "cosine_only_hit_at_3": 10
+  }
+}

@@ -17,15 +17,15 @@ test('schema: migrateUp is idempotent and migrateDown rolls everything back', ()
   const db = new Database(':memory:');
   migrateUp(db);
   migrateUp(db);
-  assert.deepEqual(tables(db), ['think_token_embeddings', 'think_token_ledger', 'think_token_links', 'think_token_model_calls', 'think_token_seq', 'think_token_uses', 'think_tokens']);
+  assert.deepEqual(tables(db), ['think_token_embeddings', 'think_token_ledger', 'think_token_links', 'think_token_model_calls', 'think_token_retrieval_text', 'think_token_seq', 'think_token_uses', 'think_tokens']);
   const cols = (db.prepare('PRAGMA table_info(think_tokens)').all() as Array<{ name: string }>).map((c) => c.name);
   for (const c of ['id', 'created_at', 'source_run_id', 'kind', 'title', 'content', 'tags', 'score', 'uses', 'last_used_at', 'status', 'evidence_ref']) assert.ok(cols.includes(c), c);
-  assert.equal(db.pragma('user_version', { simple: true }), 3);
+  assert.equal(db.pragma('user_version', { simple: true }), 4);
   migrateDown(db);
   assert.deepEqual(tables(db), []);
   assert.equal(db.pragma('user_version', { simple: true }), 0);
   migrateUp(db); // re-apply after rollback
-  assert.equal(tables(db).length, 7);
+  assert.equal(tables(db).length, 8);
   db.close();
 });
 
