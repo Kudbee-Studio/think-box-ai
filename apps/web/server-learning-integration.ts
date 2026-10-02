@@ -13,13 +13,11 @@ import type { ChatMessage } from './types.ts';
  */
 export class ServerLearningIntegration {
   private propagator: ThinkTokenPropagator;
-  private initializer: WorkerInitializer | undefined;
   private behaviorDetector: BehavioralChangeDetector;
   private store: LearningStore;
 
   constructor(propagator: ThinkTokenPropagator, initializer: WorkerInitializer | undefined, store: LearningStore) {
     this.propagator = propagator;
-    this.initializer = initializer;
     this.behaviorDetector = new BehavioralChangeDetector();
     this.store = store;
   }
@@ -38,7 +36,7 @@ export class ServerLearningIntegration {
     tokens: Array<Record<string, unknown>>;
   } {
     // Step 1: Get relevant prior patterns
-    const { enhancedMessages, injectedTokens, contextSummary } = this.propagator.createWorkerContext(
+    const { injectedTokens, contextSummary } = this.propagator.createWorkerContext(
       sessionId,
       goal,
       messages

@@ -1,6 +1,5 @@
 import { describe, it, before, after } from 'node:test';
 import { expect } from './test-helpers.ts';
-import Database from 'better-sqlite3';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -8,12 +7,10 @@ import PersistenceLayer from '../persistence.ts';
 
 describe('CLI Memory Commands', () => {
   let persistence: PersistenceLayer;
-  let dbPath: string;
 
   before(() => {
     const tempDir = path.join(os.tmpdir(), `kudbee-test-${randomUUID()}`);
     persistence = new PersistenceLayer(tempDir);
-    dbPath = path.join(tempDir, 'kudbee.db');
   });
 
   after(() => {

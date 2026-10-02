@@ -162,6 +162,7 @@ Read only from the environment (the server also loads the repo-root `.env`). Nev
 | `THINKBOX_TOKEN_MODEL_CALLS_PER_DAY` | Cap on those calls per day | `200` |
 | `KUDBEE_JANUS_ENABLED` | `1` or `true` turns on the optional Janus image service in the dashboard (`image_analyze`, `image_generate`, monitor check); `JANUS_BASE_URL` (default `http://127.0.0.1:8001`) says where it listens. Off by default because of CVE-2026-69112, see `docs/SECURITY.md` | off |
 | `THINKBOX_TOKEN_RETRIEVAL` | `0` or `off` stops injecting accepted Think Tokens into the planner context (for A/B proof runs: `scripts/think-token-ab-live.mjs`); any other value leaves retrieval on | on |
+| `THINKBOX_TOKEN_CLOCK` | Epoch milliseconds to use as "now" in Think Token retrieval scoring (the recency term); set it for evals and A/B runs so rankings do not drift with the date | real clock |
 | `KUDBEE_THINK_TOKEN_DB` | Path of the Think Token SQLite file | `<KUDBEE_DATA_DIR or apps/web/data>/think-tokens.db` |
 
 Prompts for Mercury leave the machine: secrets and absolute paths are removed and inputs are size-capped first.

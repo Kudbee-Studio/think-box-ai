@@ -1,13 +1,8 @@
 import { execSync, type ExecException } from 'child_process';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import type { Plugin, PluginConfig, PluginInput, PluginResult } from '../types.ts';
 import { errorMessage } from '../types.ts';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 class PluginManager {
   private readonly plugins: Map<string, Plugin>;

@@ -44,13 +44,12 @@ import { ServerLearningIntegration } from './server-learning-integration.ts';
 import { SqliteTokenStore, formatTokensForPrompt } from './think-token-store.ts';
 import { processFinishedRun, rechallengeScoredTokens } from './think-token-pipeline.ts';
 import { createTokenModels } from './think-token-model.ts';
-import { readTokens, toApiToken } from './think-token-reader.ts';
+import { readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
 import {
   allocateSpecialistJobs,
-  assembleSpecialistProof,
   completeSpecialistJob,
   createRunToolAgentExecutor,
   evidenceFromSpecialistExecutions,
@@ -1377,8 +1376,6 @@ export class AgentSession {
     }
 
     const replayed = replaySpecialistEvents(wave.events);
-    const replayEvidence = evidenceFromSpecialistExecutions(replayed).filter((item) => item.specialistId !== 'validator');
-    const replayValidation = validateSpecialistEvidence(replayEvidence, replayed);
     const replayCompletion = completeSpecialistJob({ jobId, claim: intent, executions: replayed, resourceUsage });
     const cubeStateFor = (executions: typeof wave.executions, proofAccepted: boolean) => {
       let state = createInitialCubeState();

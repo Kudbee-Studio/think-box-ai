@@ -257,7 +257,7 @@ test('MCPRegistry caches servers locally', async () => {
 
   try {
     // Stub the cache directory
-    const registry = new MCPRegistry();
+    new MCPRegistry();
     const mockServersData: MCPServer[] = [
       {
         name: 'test',
@@ -308,7 +308,7 @@ test('MCPRegistry handles network errors gracefully', async () => {
 });
 
 test('MCPRegistry.inferCategory categorizes servers correctly', () => {
-  const registry = new MCPRegistry();
+  new MCPRegistry();
 
   // Test category inference by name
   const testCases = [
@@ -321,7 +321,7 @@ test('MCPRegistry.inferCategory categorizes servers correctly', () => {
     { name: 'unknown-tool', expected: 'Utilities' },
   ];
 
-  for (const tc of testCases) {
+  for (const _tc of testCases) {
     // We need to access private method for testing, so we verify the behavior
     // through the public discoverServers + groupByCategory flow instead
     assert.ok(true, `category inference exists`);

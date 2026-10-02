@@ -5,7 +5,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  STAGES as STAGES_UNTYPED,
   ROLES as ROLES_UNTYPED,
   CELL_COUNT as CELL_COUNT_UNTYPED,
   createInitialCubeState as createInitialCubeStateUntyped,
@@ -46,7 +45,6 @@ interface RenderProp {
   opacity: number;
 }
 
-const STAGES = STAGES_UNTYPED as readonly string[];
 const ROLES = ROLES_UNTYPED as readonly string[];
 const CELL_COUNT = CELL_COUNT_UNTYPED as number;
 const createInitialCubeState = createInitialCubeStateUntyped as () => CubeState;

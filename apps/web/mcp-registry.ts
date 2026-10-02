@@ -30,11 +30,9 @@ interface GitHubContent {
 
 export class MCPRegistry {
   private cacheDir: string;
-  private githubToken?: string;
   private githubHeaders: Record<string, string>;
 
   constructor(githubToken?: string, cacheDir?: string) {
-    this.githubToken = githubToken;
     this.cacheDir = cacheDir || path.join(os.homedir(), '.kudbee', 'mcp-cache');
     this.githubHeaders = {
       Accept: 'application/vnd.github.v3+json',

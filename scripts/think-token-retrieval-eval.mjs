@@ -11,6 +11,8 @@ if (!seed || !goalsModule) throw new Error('usage: think-token-retrieval-eval.mj
 const { SqliteTokenStore } = await import(pathToFileURL(path.join(root, 'apps/web/think-token-store.ts')).href);
 const { GOALS } = await import(path.resolve(goalsModule));
 
+// Frozen clock: the recency term of the score depends on "now", so the eval pins it (override with EVAL_NOW_ISO).
+const NOW = Date.parse(process.env.EVAL_NOW_ISO ?? '2026-10-02T12:00:00Z');
 const store = SqliteTokenStore.openReadOnly(path.resolve(seed));
 const slugInTitle = (title, slug) => title.includes(`[lesson:${slug}]`);
 
@@ -19,7 +21,7 @@ const perGoal = [];
 let hit1 = 0;
 let hit3 = 0;
 for (const g of related) {
-  const top3 = store.retrieve(g.goal, 3);
+  const top3 = store.retrieve(g.goal, 3, { now: NOW });
   const ids = top3.map((t) => t.id);
   const titles = top3.map((t) => t.title);
   const rank = top3.findIndex((t) => slugInTitle(t.title, g.expectedLesson));
@@ -33,6 +35,7 @@ store.close();
 
 const report = {
   seed: path.basename(seed),
+  frozen_now: new Date(NOW).toISOString(),
   goals_module: path.basename(goalsModule),
   related_goals: related.length,
   hit_at_1: hit1,
