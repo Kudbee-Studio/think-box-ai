@@ -1,4 +1,11 @@
-## CURRENT (2026-10-03) — Phase 3 item 6: Git panel browser test (branch `feat/pr341-p3-git-panel-browser-test`)
+## CURRENT (2026-10-03) — Phase 3 implementation lanes exhausted; roadmap reconciled (branch `feat/pr342-p3-roadmap-reconciliation`, PR **#342**)
+
+- **Docs-only reconciliation** (no application code): Phase 3 items 3, 4 (tooling) and 6 are merged on `main` (`d94afbbb` #340, `e458a13e` #341) and the roadmap/status now say so; the stale "Next: Phase 3, item 2 → 3" line is replaced with the current founder gate.
+- **Merged state:** item 1 CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED; item 2, 2b, 3, 6 CODE COMPLETE / TEST VERIFIED; item 4 tooling CODE COMPLETE / TEST VERIFIED (real worker-02 bundle **UNPROVEN**). Item 3 LIVE VERIFIED **UNPROVEN**.
+- **Gate:** item 5 = **FOUNDER DECISION REQUIRED** (ADR 028/029 *Proposed*; wire/decouple/drop not chosen); items 3/4 LIVE VERIFIED = founder-gated real worker-02 evidence; item 7 = **DEFERRED** by founder decision. No new implementation lane is authorized until one of these changes.
+- **Evidence:** `docs/roadmaps/ROADMAP.md`, `AGENTS.md` §0.12, this file, `docs/STATUS.md`, `docs/PREP.md`, `docs/CONTINUITY.md`.
+
+## CURRENT (2026-10-03) — Phase 3 item 6: Git panel browser test (#341, merged)
 
 - **CODE COMPLETE / TEST VERIFIED:** `apps/web/tests/git-panel-browser.test.ts` loads the real dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own `/api/git` fetches against a real spawned `server.ts`: repo list, open-file (content+language), in-workspace save + read-back, and the traversal refusal. 4/4 new; `git-routes` 7/7; mutation-proven (drop `language` → 2 fails; disable `resolveInside` → traversal fails).
 - **NOT LIVE VERIFIED** — local loopback only, no external service. **NOT PRODUCTION READY.**

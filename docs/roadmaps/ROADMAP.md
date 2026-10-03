@@ -156,29 +156,40 @@ apps/web/public/js/
 
 ---
 
-## Phase 3 — Security & Proof (current, in order)
+## Phase 3 — Security & Proof (current; implementation lanes exhausted — see gate below)
 
 Governed remote execution: dashboard → governed backend → `upcloud-ssh` → worker-02 (the only authorized
 UpCloud server), six read-only commands, token admission, immutable admission binding for resume/reclaim.
 
-1. ✅ Governed `upcloud-ssh` execution, execution policy, resume/reclaim governance (#280–#289)
-2. ✅ **Dashboard lockdown** (#290, merged): closed the cross-origin WebSocket → `shell_exec` hole the audit proved. Note: its `update_config` allow-list was not wired into the handler until #302 (open)
-2b. ✅ **Dashboard polish** (#292, merged; follow-ups: #296 merged, #298 terminal scroll open): six dead header panels wired,
-   hidden buttons honoured, layout and scrolling fixed at desktop, tablet and phone widths
-3. 🔨 **SSH hardening for worker-02:** host-key pinning (`StrictHostKeyChecking=yes` +
-   `UserKnownHostsFile`, no `accept-new` when hardened) and explicit non-root user support landed on
-   #340. Hardened mode without a trusted known_hosts source fails closed. The pinned path is **not
-   LIVE VERIFIED** (no real worker-02 run); CODE COMPLETE / TEST VERIFIED
-4. 🔨 **Committed live-proof bundle:** redacting builder + operator runner shipped (#340); the bundle from a
-   real worker-02 run is UNPROVEN (worktree has the dead host + no key). Run
-   `python3 scripts/run_live_proof_bundle.py --command hostname` with worker-02 env, then commit `docs/evidence/live-proof/`
-5. ⏭ **Think Token (#288):** decide whether to wire the learning library into `AgentSession` (changes
-   agent prompts)
-6. 🔨 **Git panel browser test** (`/api/git`, mounted and hardened in #289): `tests/git-panel-browser.test.ts`
-   loads the real dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own
-   `/api/git` fetches against a real spawned `server.ts` — repo list, open-file (content+language),
-   in-workspace save, and the traversal refusal. CODE COMPLETE / TEST VERIFIED (local HTTP; not LIVE VERIFIED)
-7. ⏭ **Dashboard authentication + HTTPS** before any remote/shared deployment
+1. ✅ **Governed `upcloud-ssh` execution, execution policy, resume/reclaim governance** (#280–#289, merged). CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (real worker-02, historical evidence).
+2. ✅ **Dashboard lockdown** (#290, merged): closed the cross-origin WebSocket → `shell_exec` hole the audit proved; the `update_config` allow-list was wired in #302 (merged). CODE COMPLETE / TEST VERIFIED.
+2b. ✅ **Dashboard polish** (#292, merged; follow-ups #296 and #298 merged): six dead header panels wired,
+   hidden buttons honoured, layout and scrolling fixed at desktop, tablet and phone widths. CODE COMPLETE / TEST VERIFIED.
+3. ✅ **SSH hardening for worker-02** (#340, merged `d94afbbb`): host-key pinning (`StrictHostKeyChecking=yes` +
+   `UserKnownHostsFile`, no `accept-new` when hardened) and explicit non-root user support; hardened mode
+   without a trusted known_hosts source fails closed. CODE COMPLETE / TEST VERIFIED. **LIVE VERIFIED UNPROVEN**
+   (no real worker-02 run — see the gate below).
+4. 🔨 **Committed live-proof bundle:** redacting builder + operator runner (#340, merged `d94afbbb`).
+   CODE COMPLETE / TEST VERIFIED. **Real worker-02 live bundle UNPROVEN**. Founder step (once worker-02 SSH
+   access is present): `python3 scripts/run_live_proof_bundle.py --command hostname`, then commit
+   `docs/evidence/live-proof/`.
+5. ⏭ **Think Token (#288):** **FOUNDER DECISION REQUIRED.** Decide whether to wire the learning library into
+   `AgentSession` (changes agent prompts). Recorded in ADR 028 and ADR 029 (both *Proposed*); this roadmap does
+   not choose wire / decouple / drop.
+6. ✅ **Git panel browser test** (#341, merged `e458a13e`): `tests/git-panel-browser.test.ts` loads the real
+   dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own `/api/git` fetches
+   against a real spawned `server.ts` — repo list, open-file (content+language), in-workspace save, and the
+   traversal refusal. CODE COMPLETE / TEST VERIFIED (local HTTP; **not LIVE VERIFIED**).
+7. ⏸ **Dashboard authentication + HTTPS** before any remote/shared deployment. **DEFERRED BY FOUNDER
+   DECISION** (2026-09-30). Not authorized; the deferral must be explicitly lifted first.
+
+**Phase 3 implementation lanes are currently exhausted.** Remaining work is founder-gated:
+
+- **(a)** the item 5 architectural decision (wire / decouple / drop the #288 learning library);
+- **(b)** real worker-02 evidence for items 3 and 4 (to move them to LIVE VERIFIED);
+- **(c)** explicit lifting of the item 7 deferral.
+
+No new implementation lane is authorized until one of these gates changes.
 
 Founder decisions still open: delete the orphan server `00068975`; keep or delete worker-01; an SSH-only
 firewall on worker-02.
@@ -187,7 +198,7 @@ firewall on worker-02.
 
 ## Enterprise track (proposed, PR #303)
 
-Phase 3 items 3, 4, 5 and 7 and Phase 4's RBAC, audit compliance, cost allocation and agent builder are planned as phases E0 to E6 in `docs/enterprise/roadmap.md` (security-first order: CI + login + per-user identity, durable governance and audit, SSH hardening, RBAC and approvals, tenancy, registries, deploy). Think Token wiring (item 5) stays an open founder decision (ADR 028, proposed).
+Phase 3 items 4 (live evidence), 5 and 7 and Phase 4's RBAC, audit compliance, cost allocation and agent builder are planned as phases E0 to E6 in `docs/enterprise/roadmap.md` (security-first order: CI + login + per-user identity, durable governance and audit, SSH hardening, RBAC and approvals, tenancy, registries, deploy). Item 3 SSH hardening is implemented (#340); the enterprise E2 entry remains the planned home for the remaining live/founder-gated work. Think Token wiring (item 5) stays an open founder decision (ADR 028, proposed); the enterprise plan is Proposed — E0 begins only after founder approval.
 
 ---
 
@@ -205,4 +216,4 @@ Phase 3 items 3, 4, 5 and 7 and Phase 4's RBAC, audit compliance, cost allocatio
 
 **Built by**: Claude Haiku 4.5  
 **Date**: 2026-09-29  
-**Next: Phase 3, item 2 → 3.**
+**Next:** Phase 3 implementation lanes are exhausted; the next step is a founder gate (item 5 decision, real worker-02 evidence for items 3/4, or lifting the item 7 deferral). No implementation PR is authorized until then.
