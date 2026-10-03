@@ -1,9 +1,14 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
-import { parseOllamaLine } from './ollama-line.ts';
 import { rateLimit, rejectCrossOriginWrites, securityHeaders } from './http-security.ts';
 import { describeError, installProcessHandlers, jsonErrorHandler } from './error-handling.ts';
+import { sanitizeConfigPatch } from './config-patch.ts';
+import { discoverMCPSkills, filterSkills, groupSkillsByCategory } from './mcp-skills.ts';
+import { createModelClients } from './ollama-client.ts';
+import { registerDiagnosticsRoutes } from './routes/diagnostics.ts';
+import { registerMemoryRoutes } from './routes/memory.ts';
+import { registerRunsRoutes } from './routes/runs.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
 // Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
@@ -17,13 +22,11 @@ import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
-import os from 'os';
 
 import type {
   AgentSessionConfig,
   ChatMessage,
   MemoryEntry,
-  OllamaTokenMessage,
   Plugin,
   PluginConfig,
   PluginInput,
@@ -34,13 +37,12 @@ import type {
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
-import type { MCPServer } from './mcp-registry.ts';
-import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
+import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
-import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
+import { MemoryStore } from './memory.ts';
 import { createMemorySemantic } from './memory-semantic.ts';
 import { detectRepo, repoContextLine } from './repo-context.ts';
 import { algorandQuery } from './algorand.ts';
@@ -56,7 +58,7 @@ import { createLiveStateClassifier } from './evidence.ts';
 import { TOKEN_HEADER, ensureLocalToken, tokensMatch } from './local-token.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokenCube, readTokens } from './think-token-reader.ts';
-import { LOCAL_CHAT_OPTIONS, resolveLocalModel } from './local-model.ts';
+import { resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
 import {
@@ -320,120 +322,7 @@ async function runGitAction(sessionId: string, action: string, input: PluginInpu
 }
 
 // ─── Ollama integration ────────────────────────────────────────
-interface OllamaTag {
-  name: string;
-  [key: string]: unknown;
-}
-
-async function listOllamaModels(): Promise<OllamaTag[]> {
-  try {
-    const res = await fetch(`${ollamaBaseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    const data = (await res.json()) as { models?: OllamaTag[] };
-    return (data.models ?? []).map((m) => ({ ...m, provider: 'ollama' }));
-  } catch {
-    return [];
-  }
-}
-
-async function requestJanus(endpoint: 'analyze' | 'generate', payload: Record<string, string>): Promise<Record<string, string>> {
-  if (!janusEnabled()) {
-    throw new Error('Janus image service is disabled (set KUDBEE_JANUS_ENABLED=1 on loopback only)');
-  }
-  const response = await fetch(`${janusBaseUrl}/${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10 * 60 * 1000),
-  });
-  const result = await response.json() as Record<string, string>;
-  if (!response.ok) throw new Error(result.detail || `Janus service returned HTTP ${response.status}`);
-  return result;
-}
-
-async function listModels(): Promise<OllamaTag[]> {
-  const cloud = inceptionConfigured()
-    ? INCEPTION_MODELS.map((name) => ({ name, provider: 'inception', agent: true }))
-    : [];
-  return [...cloud, ...(await listOllamaModels())];
-}
-
-async function discoverMCPSkills(): Promise<any[]> {
-  try {
-    const MCPRegistry = (await import('./mcp-registry.ts')).default;
-    const registry = new MCPRegistry(process.env.GITHUB_TOKEN);
-    return await registry.discoverServers();
-  } catch (err) {
-    console.error('Failed to discover MCP skills:', err);
-    return [];
-  }
-}
-
-function groupSkillsByCategory(skills: MCPServer[]): Record<string, MCPServer[]> {
-  const groups: Record<string, MCPServer[]> = {};
-  for (const skill of skills) {
-    const cat = skill.category || 'Other';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(skill);
-  }
-  return groups;
-}
-
-function filterSkills(skills: MCPServer[], query: string): MCPServer[] {
-  if (!query) return skills;
-  const q = query.toLowerCase();
-  return skills.filter(
-    (s) =>
-      s.name.toLowerCase().includes(q) ||
-      s.description?.toLowerCase().includes(q) ||
-      s.tags?.some((t: string) => t.toLowerCase().includes(q))
-  );
-}
-
-async function streamOllama(
-  model: string,
-  messages: ChatMessage[],
-  onToken: (token: string) => void,
-  onDone: (result: OllamaTokenMessage) => void,
-): Promise<void> {
-  try {
-    const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true, options: LOCAL_CHAT_OPTIONS }),
-    });
-
-    if (!res.body) {
-      throw new Error('Ollama response has no body');
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        const json = parseOllamaLine<OllamaTokenMessage>(line);
-        if (!json) continue;
-        if (json.message?.content) {
-          onToken(json.message.content);
-        }
-        if (json.done) {
-          onDone(json);
-        }
-      }
-    }
-  } catch (err) {
-    const message = errorMessage(err);
-    onToken(`[Error: ${message}]`);
-    onDone({ error: message });
-  }
-}
-
+const { requestJanus, listModels, streamOllama } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
 // ─── Plugin system ─────────────────────────────────────────────
 function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enabled = true): void {
   plugins.set(name, {
@@ -464,40 +353,6 @@ function fileErrorStatus(err: unknown): number {
   if (err instanceof WorkspacePathError) return 403;
   if (err instanceof FileTooLargeError) return 413;
   return 400;
-}
-
-// ─── update_config: known keys, sane values ─────────────────────
-const MAX_AGENT_ITERATIONS = 50;
-
-/** Validate a config patch from the WebSocket (or restored settings). Unknown keys and bad values throw. */
-function sanitizeConfigPatch(input: unknown): Partial<AgentSessionConfig> {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('config must be an object');
-  const patch: Partial<AgentSessionConfig> = {};
-  for (const [key, value] of Object.entries(input)) {
-    switch (key) {
-      case 'model':
-        if (typeof value !== 'string' || !value.trim() || value.length > 100) throw new Error('model must be a model name');
-        patch.model = value.trim();
-        break;
-      case 'provider':
-        if (value !== 'inception' && value !== 'ollama') throw new Error('provider must be inception or ollama');
-        patch.provider = value;
-        break;
-      case 'maxIterations':
-        if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_AGENT_ITERATIONS) {
-          throw new Error(`maxIterations must be an integer from 1 to ${MAX_AGENT_ITERATIONS}`);
-        }
-        patch.maxIterations = value as number;
-        break;
-      case 'temperature':
-        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 2) throw new Error('temperature must be from 0 to 2');
-        patch.temperature = value;
-        break;
-      default:
-        throw new Error(`unknown config key: ${key}`);
-    }
-  }
-  return patch;
 }
 
 /** Why an operator-initiated plugin call (WebSocket plugin_execute / git_action) needs human approval, or null. */
@@ -1169,6 +1024,7 @@ export class AgentSession {
       this.addThought({ type: 'reasoning', content: 'Planning execution...', status: 'thinking' });
 
       let fullResponse = '';
+      let streamError: string | undefined;
       await streamOllama(
         this.config.model,
         messages,
@@ -1176,12 +1032,15 @@ export class AgentSession {
           fullResponse += token;
           this.broadcast({ type: 'stream', data: token });
         },
-        () => {
-          // The text was already streamed token by token and comes back in the result: do not print it a third time as a thought.
+        (done) => {
+          if (done.error) { streamError = done.error; return; }
+          // The text was already streamed token by token and comes back in the result: do not print it again as a thought.
           this.addThought({ type: 'reasoning', content: `Answered by ${this.config.model} (local chat, no tools).`, status: 'complete' });
           this.memory.push({ timestamp: Date.now(), type: 'response', content: fullResponse });
         },
       );
+      // A model that failed (missing, crashed, cut off) is a failed run, not a "completed" one with an empty or "[Error: ...]" answer.
+      if (streamError) throw new Error(streamError);
 
       runStore.addEvent(record, {
         kind: 'model', step: 1, latency_ms: Date.now() - modelStartedAt, prompt_tokens: 0, completion_tokens: 0,
@@ -2111,162 +1970,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 });
 
 // ─── REST API ──────────────────────────────────────────────────
-async function monitorEndpoint(name: string, url: string, headers: Record<string, string> = {}): Promise<Record<string, unknown>> {
-  const startedAt = Date.now();
-  try {
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
-    const body = await response.text();
-    let details: unknown = body.slice(0, 500);
-    try {
-      details = JSON.parse(body);
-    } catch {
-      // Keep non-JSON API responses as bounded text.
-    }
-    return {
-      name,
-      url,
-      status: response.ok ? 'ok' : 'error',
-      http_status: response.status,
-      latency_ms: Date.now() - startedAt,
-      details,
-    };
-  } catch (err) {
-    return {
-      name,
-      url,
-      status: 'offline',
-      latency_ms: Date.now() - startedAt,
-      error: errorMessage(err),
-    };
-  }
-}
-
-app.get('/api/health', (_req: Request, res: Response) => {
-  const sdkConfig = loadConfigFromEnv();
-  const memory = process.memoryUsage();
-  res.json({
-    status: 'ok',
-    ready: true,
-    sessions: sessions.size,
-    plugins: plugins.size,
-    inception_configured: inceptionConfigured(),
-    sdk_version: SDK_VERSION,
-    dry_run: sdkConfig.dryRun,
-    uptime_seconds: Math.floor((Date.now() - serverStartedAt) / 1000),
-    memory_mb: Math.round(memory.rss / 1024 / 1024),
-    node_version: process.version,
-  });
-});
-
-app.get('/api/monitor', async (_req: Request, res: Response) => {
-  const baseUrl = `http://127.0.0.1:${PORT}`;
-  const checks = await Promise.all([
-    monitorEndpoint('Agent OS API', `${baseUrl}/api/health`),
-    monitorEndpoint('SDK capabilities', `${baseUrl}/api/sdk/capabilities`),
-    monitorEndpoint('Ollama models', `${ollamaBaseUrl}/api/tags`),
-    ...(janusEnabled() ? [monitorEndpoint('Janus image service', `${janusBaseUrl}/health`)] : []),
-    ...(process.env.KUDBEE_MEMORY_BACKEND === 'upstash' && process.env.UPSTASH_VECTOR_REST_URL && process.env.UPSTASH_VECTOR_REST_TOKEN
-      ? [monitorEndpoint('Upstash Vector (memory)', `${process.env.UPSTASH_VECTOR_REST_URL.replace(/\/+$/, '')}/info`, { Authorization: `Bearer ${process.env.UPSTASH_VECTOR_REST_TOKEN}` })]
-      : []),
-    ...(inceptionConfigured()
-      ? [monitorEndpoint('Inception Mercury 2', 'https://api.inceptionlabs.ai/v1/models', { Authorization: `Bearer ${process.env.INCEPTION_API_KEY}` })]
-      : []),
-  ]);
-  monitorAgent.checks += 1;
-  monitorAgent.last_check = new Date().toISOString();
-  res.json({
-    checked_at: new Date().toISOString(),
-    agent: monitorAgent,
-    websocket_sessions: sessions.size,
-    checks,
-  });
-});
-
-app.get('/api/middleware/test', async (_req: Request, res: Response) => {
-  const baseUrl = `http://127.0.0.1:${PORT}`;
-  const checks = await Promise.all([
-    monitorEndpoint('API middleware', `${baseUrl}/api/health`),
-    monitorEndpoint('SDK middleware', `${baseUrl}/api/sdk/capabilities`),
-    monitorEndpoint('Ollama middleware', `${ollamaBaseUrl}/api/tags`),
-  ]);
-  const passed = checks.every((check) => check.status === 'ok');
-  const sessionId = typeof _req.query.session_id === 'string' ? _req.query.session_id : '';
-  const session = sessions.get(sessionId);
-  if (session) {
-    const timestamp = Date.now();
-    session.memory.push({ timestamp, type: 'middleware_test', passed, checks });
-    session.addThought({
-      type: 'middleware_test',
-      content: `Middleware test ${passed ? 'passed' : 'failed'} (${checks.length} checks)`,
-      status: passed ? 'success' : 'error',
-    });
-  }
-  res.status(passed ? 200 : 503).json({
-    passed,
-    checked_at: new Date().toISOString(),
-    websocket_sessions: sessions.size,
-    checks,
-  });
-});
-
-let lastCpu = { usage: process.cpuUsage(), at: Date.now() };
-let statsCache: { data: Record<string, unknown> | null; at: number } = { data: null, at: 0 };
-
-app.get('/api/stats', (_req: Request, res: Response) => {
-  // Cache stats for 500ms to reduce computation on rapid dashboard polls
-  const now = Date.now();
-  if (statsCache.data && now - statsCache.at < 500) {
-    return res.json(statsCache.data);
-  }
-
-  const usage = process.cpuUsage(lastCpu.usage);
-  const elapsedMs = Math.max(1, now - lastCpu.at);
-  lastCpu = { usage: process.cpuUsage(), at: now };
-  const memory = process.memoryUsage();
-  const running = [...sessions.values()].filter((session) => session.status === 'running').length;
-  const stats = {
-    ...runStore.stats(),
-    budget_usd: dailyBudgetUsd || null,
-    memory: { counts: memoryStore.counts(), vector: memoryStore.vectorStatus },
-    capacity: {
-      running_agents: running,
-      queued_goals: [...sessions.values()].reduce((sum, session) => sum + session.queue.length, 0),
-      connected_sessions: sessions.size,
-      pending_approvals: [...sessions.values()].reduce((sum, session) => sum + session.pendingApprovals.size, 0),
-      server_cpu_pct: Math.round(((usage.user + usage.system) / 1000 / elapsedMs) * 1000) / 10,
-      server_rss_mb: Math.round(memory.rss / 1024 / 1024),
-      system_mem_used_pct: Math.round((1 - os.freemem() / os.totalmem()) * 100),
-      system_mem_total_gb: Math.round((os.totalmem() / 1024 ** 3) * 10) / 10,
-      load_avg: os.loadavg().map((load) => Math.round(load * 100) / 100),
-      cores: os.cpus().length,
-    },
-  };
-  statsCache = { data: stats, at: now };
-  res.json(stats);
-});
-
-let runsListCache: { data: Record<string, unknown> | null; at: number } = { data: null, at: 0 };
-app.get('/api/runs', (req: Request, res: Response) => {
-  const limit = Math.min(Number(req.query.limit) || 50, 500);
-  const now = Date.now();
-  // Cache runs list for 1s; on rapid polls this cuts response time significantly
-  if (runsListCache.data && now - runsListCache.at < 1000) {
-    const cached = runsListCache.data as Record<string, unknown>;
-    const cachedRuns = cached.runs as Array<Record<string, unknown>>;
-    if (cachedRuns.length === runStore.list(1).length) {
-      return res.json(runsListCache.data);
-    }
-  }
-  const data = { runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
-  runsListCache = { data, at: now };
-  res.json(data);
-});
-
-app.get('/api/runs/:id', (req: Request, res: Response) => {
-  const run = runStore.get(req.params.id);
-  if (!run) return res.status(404).json({ error: 'Run not found' });
-  res.json(run);
-});
+// ─── REST routes moved to routes/*.ts (explicit dependencies, no behaviour change) ───
+registerDiagnosticsRoutes(app, { sessions, plugins, serverStartedAt, monitorAgent, port: PORT, ollamaBaseUrl, janusBaseUrl, janusEnabled, runStore, memoryStore, dailyBudgetUsd });
+registerRunsRoutes(app, { runStore, persistence });
+registerMemoryRoutes(app, { memoryStore, persistence, sessions });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {
@@ -2276,62 +1983,6 @@ app.get('/api/algorand', async (req: Request, res: Response) => {
     const message = errorMessage(err);
     res.status(/must be|not a valid|Not found/.test(message) ? 400 : 502).json({ error: message });
   }
-});
-
-// ─── Memory layers (files + vector index) ──────────────────────
-function memoryLayerParam(value: unknown): MemoryLayer | undefined {
-  return MEMORY_LAYERS.includes(value as MemoryLayer) ? (value as MemoryLayer) : undefined;
-}
-
-app.get('/api/memory/status', (_req: Request, res: Response) => {
-  res.json({ root: memoryStore.root, namespace: memoryStore.namespace, counts: memoryStore.counts(), vector: memoryStore.vectorStatus });
-});
-
-app.get('/api/memory', async (req: Request, res: Response) => {
-  const layer = memoryLayerParam(req.query.layer);
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
-  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  const preview = (item: { content: string }) => item.content.replace(/\s+/g, ' ').slice(0, 240);
-  if (query) {
-    const { hits, backend } = await memoryStore.search(query, { layers: layer ? [layer] : undefined, topK: Math.min(limit, 25) });
-    return res.json({ backend, items: hits.map(({ item, score }) => ({ ...item, content: preview(item), score })) });
-  }
-  res.json({ backend: 'list', items: memoryStore.list(layer, limit).map((item) => ({ ...item, content: preview(item) })) });
-});
-
-app.get('/api/memory/item', (req: Request, res: Response) => {
-  const item = memoryStore.get(String(req.query.id ?? ''));
-  if (!item) return res.status(404).json({ error: 'Memory not found' });
-  res.json(item);
-});
-
-app.post('/api/memory', async (req: Request, res: Response) => {
-  const layer = memoryLayerParam(req.body?.layer) ?? 'org';
-  const title = String(req.body?.title ?? '').trim();
-  const content = String(req.body?.content ?? '').trim();
-  if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
-  if (layer === 'task') return res.status(400).json({ error: 'Task memory is written automatically by runs' });
-  const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(String) : String(req.body?.tags ?? '').split(',');
-  const item = await memoryStore.write(layer, { title, content, tags, source: 'human' });
-  for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: { id: item.id } });
-  res.status(201).json(item);
-});
-
-app.post('/api/memory/promote', async (req: Request, res: Response) => {
-  try {
-    const item = await memoryStore.promote(String(req.body?.id ?? ''));
-    for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: { id: item.id } });
-    res.json(item);
-  } catch (err) {
-    res.status(400).json({ error: errorMessage(err) });
-  }
-});
-
-app.delete('/api/memory/item', async (req: Request, res: Response) => {
-  const removed = await memoryStore.remove(String(req.query.id ?? ''));
-  if (!removed) return res.status(404).json({ error: 'Memory not found' });
-  for (const session of sessions.values()) session.broadcast({ type: 'memory_changed', data: {} });
-  res.json({ success: true });
 });
 
 app.get('/api/sdk/capabilities', (_req: Request, res: Response) => {
@@ -2553,134 +2204,6 @@ app.post('/api/sessions/:id/stop', (req: Request, res: Response) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
   session.stop();
   res.json({ success: true });
-});
-
-// ─── Memory Notes (Persistent Storage) ────────────────────────
-app.get('/api/memory/notes', async (req: Request, res: Response) => {
-  try {
-    const sessionId = req.query.sessionId as string;
-    const layer = req.query.layer as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 200);
-
-    if (!sessionId) {
-      return res.status(400).json({ error: 'sessionId required' });
-    }
-
-    const notes = await persistence.listMemoryNotes(sessionId, layer, limit);
-    res.json({ notes });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-app.post('/api/memory/notes', async (req: Request, res: Response) => {
-  try {
-    const sessionId = req.query.sessionId as string;
-    const body = req.body as Record<string, unknown>;
-    const title = body.title as string | undefined;
-    const content = body.content as string | undefined;
-    const layer = (body.layer as string | undefined) ?? 'session';
-
-    if (!sessionId || !title || !content) {
-      return res.status(400).json({ error: 'sessionId, title, content required' });
-    }
-
-    const id = randomUUID();
-    const now = Date.now();
-    await persistence.saveMemoryNote({
-      id,
-      sessionId,
-      layer: layer as MemoryLayer,
-      title,
-      content,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    res.json({ id, title, layer, createdAt: now });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-app.delete('/api/memory/notes/:id', async (req: Request, res: Response) => {
-  try {
-    const id = req.params.id;
-    // Phase 3: soft-delete tracking only; full DB delete in Phase 4
-    res.json({ deleted: id });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// ─── Run History (Persistent Storage) ──────────────────────────
-app.get('/api/runs/history', async (req: Request, res: Response) => {
-  try {
-    const sessionId = req.query.sessionId as string;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
-
-    if (!sessionId) {
-      return res.status(400).json({ error: 'sessionId required' });
-    }
-
-    // Try persistent DB first
-    const dbRuns = await persistence.listRuns(sessionId, limit);
-    if (dbRuns.length > 0) {
-      return res.json({ runs: dbRuns, source: 'db' });
-    }
-
-    // Fallback to JSON run store
-    const allRuns = runStore.list(1000).filter((r: RunRecord) => r.session_id === sessionId);
-    const runs = allRuns
-      .slice(0, limit)
-      .map((r: RunRecord) => ({
-        runId: r.id,
-        sessionId: r.session_id,
-        goal: r.goal,
-        status: r.status,
-        startTime: r.started_at,
-        endTime: r.ended_at,
-        metrics: { tokens: (r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0), cost: r.cost_usd },
-        files: r.files,
-        createdAt: r.started_at
-      }));
-
-    res.json({ runs, source: 'json' });
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-// Feature 5: Token stats for KPI dashboard
-app.get('/api/stats/tokens', async (req: Request, res: Response) => {
-  try {
-    const sessionId = req.query.sessionId as string;
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 500);
-
-    if (!sessionId) {
-      return res.status(400).json({ error: 'sessionId required' });
-    }
-
-    // listRuns() returns newest-first (createdAt DESC); a sparkline needs
-    // chronological order (oldest→newest) or the trend line reads backwards.
-    const runs = await persistence.listRuns(sessionId, limit);
-    const chronological = [...runs].reverse();
-
-    const savedPerRun = chronological.map((run) => (run.metrics?.tokens_saved_est as number) || 0);
-    const totalTokensSavedEst = savedPerRun.reduce((sum, v) => sum + v, 0);
-
-    const tokenStats = {
-      totalTokensSavedEst,
-      totalRunsTracked: runs.length,
-      averageSavingsPerRun: runs.length > 0 ? Math.round(totalTokensSavedEst / runs.length) : 0,
-      lastRunTokensSaved: runs.length > 0 ? ((runs[0].metrics?.tokens_saved_est as number) || 0) : 0,
-      sparklineData: savedPerRun,
-    };
-
-    res.json(tokenStats);
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
 });
 
 // ─── Start server ──────────────────────────────────────────────
