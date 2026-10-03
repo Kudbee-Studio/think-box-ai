@@ -125,7 +125,7 @@ class TestConcurrentGoalsAccounting(unittest.TestCase):
         self.assertEqual(spent, 3)
         self.assertEqual(exhausted, 1)
 
-def test_aggregate_layer_telemetry_deterministic(self):
+    def test_aggregate_layer_telemetry_deterministic(self):
         results = [
             {"layers_telemetry": [
                 {"layer_index": 0, "tasks": 2, "first_try_successes": 2, "recovered_successes": 0,
@@ -138,7 +138,10 @@ def test_aggregate_layer_telemetry_deterministic(self):
                  "failures": 0, "budget_exhausted": 0, "retries": 1},
             ]},
         ]
-        agg, per_goal = aggregate_layer_telemetry(results)
+        # One list of per-layer sums, as both callers (concurrent_goals, shard) use it. This test sat at module
+        # level, so unittest never collected it; its tuple unpacking came from a per-goal variant (8c089431) that
+        # is not on main.
+        agg = aggregate_layer_telemetry(results)
         self.assertEqual(len(agg), 2)
         self.assertEqual(agg[0]["layer_index"], 0)
         self.assertEqual(agg[0]["tasks"], 4)
@@ -148,8 +151,7 @@ def test_aggregate_layer_telemetry_deterministic(self):
         self.assertAlmostEqual(agg[0]["verification_rate"], 1.0, places=4)
         self.assertEqual(agg[1]["layer_index"], 1)
         self.assertEqual(agg[1]["tasks"], 1)
-        # Per-goal telemetry also returned (key is "unknown" since input lacks "goal" field)
-        self.assertIn("unknown", per_goal)
+        self.assertEqual(agg, aggregate_layer_telemetry(list(reversed(results))))  # order of goals does not matter
 
 
 class TestConcurrentGoalsExecution(unittest.TestCase):
