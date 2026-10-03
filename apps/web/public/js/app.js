@@ -5,6 +5,7 @@
 import { AnalyticsDashboardUI } from './analytics-ui.js';
 import { TimelineUI } from './timeline-ui.js';
 import { SharingUI } from './sharing-ui.js';
+import { TemplateBrowserUI } from './template-browser-ui.js';
 
 const state = {
   ws: null,
@@ -2093,6 +2094,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new AnalyticsDashboardUI();
     new TimelineUI();
     new SharingUI();
+    new TemplateBrowserUI();
   } catch (err) {
     console.error('Failed to initialize dashboard UIs:', err);
   }

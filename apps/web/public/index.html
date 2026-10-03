@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/css/analytics-dashboard.css">
   <link rel="stylesheet" href="/css/timeline-dashboard.css">
   <link rel="stylesheet" href="/css/sharing-dashboard.css">
+  <link rel="stylesheet" href="/css/template-browser.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/enterprise.js"></script>
   <!-- ES module: think-cube-render.js imports think-cube-state.js and, in a browser, assigns
@@ -56,6 +57,7 @@
         <button id="performance-analytics-button" class="btn-icon" title="Performance analytics">📈</button>
         <button id="timeline-button" class="btn-icon" title="Execution timeline">⏱</button>
         <button id="share-button" class="btn-icon" title="Share & export">🔗</button>
+        <button id="templates-button" class="btn-icon" title="Workflow templates">📚</button>
         <button id="execution-logs-button" class="btn-icon" title="Execution logs">📋</button>
         <button id="integrations-button" class="btn-icon" title="Integrations">🔗</button>
         <button id="collaboration-button" class="btn-icon" title="Collaboration">👥</button>
@@ -342,6 +344,17 @@
           </div>
           <div id="sharing-container" class="sharing-container">
             <div class="loading">Loading sharing options...</div>
+          </div>
+        </div>
+
+        <!-- Template Browser Panel -->
+        <div class="panel" id="template-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">📚</span> Workflow Templates</h3>
+            <button id="close-templates" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="template-container" class="template-container">
+            <div class="loading">Loading templates...</div>
           </div>
         </div>
 
