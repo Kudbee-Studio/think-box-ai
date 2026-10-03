@@ -3024,7 +3024,7 @@ Python (`python-security-extended`, 41 findings) is not part of this PR; it belo
 Local CodeQL (`python-security-extended`, 41 findings) and `bandit -lll -iii`; full table and evidence in `docs/evidence/pr338-codeql-python.md`.
 
 - Box URL checks (`kilo_substrate_checklist.is_live_box_url`, the governance and live-exec prerequisites) look at the parsed host's suffix over https; `".box.upstash.com" in url` accepted lookalike hosts.
-- `backend/main.py` `/stream` no longer streams `str(e)` to the client; the detail goes to `logger.exception`.
+- `backend/main.py` `/stream` sends and logs only the provider error's type (`The model stream failed (RuntimeError).`), never its text: it can carry upstream URLs or key fragments, and the logger has no redaction (0.4).
 - `scripts/setup.py` never prints the generated `THINKBOX_API_KEY` and creates `.env` with `O_EXCL`, mode `0600`. `scripts/verify_upcloud_credentials.py` prints no part of the token.
 - `run_id` (demo proof route; router not mounted today) and `job_id` (UPM store path, via `validate_job_id`) are checked before they become paths.
 - `thinkbox/intelligence.py`: concept-id `md5(..., usedforsecurity=False)` (same ids; FIPS builds no longer raise).
