@@ -8,6 +8,7 @@ import express, { type Request as ExpressRequest, type Response } from 'express'
 type Request = ExpressRequest<Record<string, string>>;
 import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
+import { stripTypeScriptTypes } from 'node:module';
 import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { XMLParser } from 'fast-xml-parser';
@@ -147,6 +148,19 @@ app.use((req: Request, res: Response, next) => {
 app.use(express.json());
 // Express 5 leaves req.body undefined for body-less requests (v4 gave {}); keep v4 behavior so handlers answer 400, not 500.
 app.use((req: Request, _res: Response, next) => { if (req.body === undefined) req.body = {}; next(); });
+// Dashboard modules import these browser-side services as ../services/<name>.js; the sources are TypeScript, so serve them with types stripped.
+const BROWSER_SERVICES = ['analytics', 'run-sharing', 'template-manager', 'timeline'];
+const browserServiceJs = new Map<string, string>();
+app.get('/services/:name.js', (req: Request, res: Response) => {
+  const name = req.params.name;
+  if (!BROWSER_SERVICES.includes(name)) return res.status(404).end();
+  let js = browserServiceJs.get(name);
+  if (js === undefined) {
+    js = stripTypeScriptTypes(fs.readFileSync(path.join(__dirname, 'services', `${name}.ts`), 'utf8'));
+    browserServiceJs.set(name, js);
+  }
+  res.type('application/javascript').send(js);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── In-memory state ───────────────────────────────────────────

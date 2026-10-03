@@ -62,8 +62,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 1599px) {
   .model-selector label, .agent-selector label { display: none; }
 }
-/* Narrower screens: the toolbar gets its own row rather than hiding buttons off-screen */
-@media (max-width: 1439px) {
+/* Below ~1760px the toolbar (15 icon buttons, Think Tokens, status, Clear) cannot share a row with the pickers:
+   it gets its own row rather than hiding buttons behind an invisible scrollbar */
+@media (max-width: 1759px) {
   .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
   .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; overflow: visible; }
 }

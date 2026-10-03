@@ -1,11 +1,13 @@
 /* Timeline Dashboard UI Styles */
 
 #timeline-panel {
-  position: absolute;
-  top: 50px;
-  right: 510px;
-  width: 500px;
-  max-height: calc(100vh - 60px);
+  --bg-card: var(--bg-panel);
+  --border-color: var(--border-light);
+  position: fixed;
+  top: 84px;
+  right: 16px;
+  width: min(500px, calc(100vw - 32px));
+  max-height: calc(100vh - 100px);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -274,43 +276,8 @@
   font-size: 13px;
 }
 
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  #timeline-panel {
-    --bg-card: #1a1a1a;
-    --bg-secondary: #242424;
-    --bg-tertiary: #2a2a2a;
-    --text-primary: #e0e0e0;
-    --text-secondary: #b0b0b0;
-    --border-color: #404040;
-    --accent-primary: #06b6d4;
-    --warning: #f59e0b;
-    --error: #ef4444;
-  }
-}
-
-/* Light Mode */
-@media (prefers-color-scheme: light) {
-  #timeline-panel {
-    --bg-card: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --bg-tertiary: #eeeeee;
-    --text-primary: #1a1a1a;
-    --text-secondary: #666666;
-    --border-color: #e0e0e0;
-    --accent-primary: #0ea5e9;
-    --warning: #f59e0b;
-    --error: #ef4444;
-  }
-}
-
 /* Mobile Responsive */
 @media (max-width: 1024px) {
-  #timeline-panel {
-    right: 0;
-    width: calc(100vw - 20px);
-  }
-
   .timeline-stats {
     grid-template-columns: 1fr;
   }

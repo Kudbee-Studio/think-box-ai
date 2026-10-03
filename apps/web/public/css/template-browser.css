@@ -1,11 +1,13 @@
 /* Template Browser UI Styles */
 
 #template-panel {
-  position: absolute;
-  top: 50px;
-  right: 1490px;
-  width: 520px;
-  max-height: calc(100vh - 60px);
+  --bg-card: var(--bg-panel);
+  --border-color: var(--border-light);
+  position: fixed;
+  top: 84px;
+  right: 16px;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 100px);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -238,41 +240,8 @@
   font-size: 12px;
 }
 
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  #template-panel {
-    --bg-card: #1a1a1a;
-    --bg-secondary: #242424;
-    --bg-tertiary: #2a2a2a;
-    --bg-primary: #1f1f1f;
-    --text-primary: #e0e0e0;
-    --text-secondary: #b0b0b0;
-    --border-color: #404040;
-    --accent-primary: #06b6d4;
-  }
-}
-
-/* Light Mode */
-@media (prefers-color-scheme: light) {
-  #template-panel {
-    --bg-card: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --bg-tertiary: #eeeeee;
-    --bg-primary: #fafafa;
-    --text-primary: #1a1a1a;
-    --text-secondary: #666666;
-    --border-color: #e0e0e0;
-    --accent-primary: #0ea5e9;
-  }
-}
-
 /* Mobile Responsive */
 @media (max-width: 1400px) {
-  #template-panel {
-    right: 0;
-    width: calc(100vw - 20px);
-  }
-
   .filter-group {
     grid-template-columns: 1fr;
   }

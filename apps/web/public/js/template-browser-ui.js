@@ -234,12 +234,3 @@ export class TemplateBrowserUI {
     console.log(`[${type}] ${message}`);
   }
 }
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new TemplateBrowserUI();
-  });
-} else {
-  new TemplateBrowserUI();
-}
