@@ -1,7 +1,7 @@
 // Analytics Panel - Dashboard visualization component
 
-import { getAnalyticsService } from '../services/analytics';
-import { getUserPreferencesService } from '../services/user-preferences';
+import { getAnalyticsService, type KPICard } from '../services/analytics.js';
+import { getUserPreferencesService } from '../services/user-preferences.js';
 
 export class AnalyticsPanel {
   private container: HTMLElement | null = null;
@@ -88,7 +88,7 @@ export class AnalyticsPanel {
     `;
   }
 
-  private buildKPICard(kpi: any): string {
+  private buildKPICard(kpi: KPICard): string {
     const trendClass = kpi.trend
       ? kpi.trend > 0
         ? 'trend-up'
@@ -131,8 +131,8 @@ export class AnalyticsPanel {
 
     this.drawLineChart(
       ctx,
-      data.map((d) => d.value),
-      data.map((d) => d.label),
+      data.map((d: any) => d.value),
+      data.map((d: any) => d.label),
       '#06b6d4'
     );
   }

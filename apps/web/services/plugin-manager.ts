@@ -1,6 +1,6 @@
 // Plugin Manager - Registry, Lifecycle, and Event Bus
 
-import type { Plugin, PluginAPI, PluginManifest, PluginContext, PluginPanel, PluginCommand } from '../types/plugin';
+import type { Plugin, PluginAPI, PluginManifest, PluginContext, PluginPanel, PluginCommand } from '../types/plugin.js';
 
 const STORAGE_KEY = 'kudbee_plugins';
 
