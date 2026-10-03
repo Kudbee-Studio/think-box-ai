@@ -224,7 +224,7 @@ class Client {
   async files(quiet = false): Promise<void> {
     try {
       const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw await httpError(res);
       const { files } = (await res.json()) as { files: Array<{ path: string; size: number }> };
       if (!files?.length) {
         if (!quiet) console.log(c.dim('  (workspace empty)'));
@@ -241,7 +241,7 @@ class Client {
   async cat(file: string): Promise<void> {
     try {
       const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw await httpError(res);
       const body = (await res.json()) as { content?: string; error?: string };
       console.log(body.content ?? c.red(body.error ?? 'error'));
     } catch (err) {
