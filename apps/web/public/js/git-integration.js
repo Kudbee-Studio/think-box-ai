@@ -76,7 +76,7 @@ class GitIntegration {
 
         <div class="git-clone-form">
           <label>Repository URL
-            <input type="text" id="git-url" value="${url}" placeholder="https://github.com/owner/repo.git">
+            <input type="text" id="git-url" value="${this.escapeHtml(url)}" placeholder="https://github.com/owner/repo.git">
           </label>
 
           <label>Branch (optional)
