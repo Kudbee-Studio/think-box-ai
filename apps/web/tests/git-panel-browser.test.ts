@@ -98,13 +98,13 @@ test('the browser panel opens a file through the real route and gets content + l
 
   // Capture what the panel hands to its editor without needing real rendering.
   const panel = loadPanel();
-  let editor: { path: string; content: string; language: string } | null = null;
-  panel.showFileEditor = (p: string, content: string, language: string) => { editor = { path: p, content, language }; };
+  const seen: { editor?: { path: string; content: string; language: string } } = {};
+  panel.showFileEditor = (p: string, content: string, language: string) => { seen.editor = { path: p, content, language }; };
 
   await panel.openFile('src/demo.ts');
-  assert.ok(editor, 'openFile should reach the editor');
-  assert.equal(editor!.content, 'export const n = 1;');
-  assert.equal(editor!.language, 'typescript');
+  assert.ok(seen.editor, 'openFile should reach the editor');
+  assert.equal(seen.editor?.content, 'export const n = 1;');
+  assert.equal(seen.editor?.language, 'typescript');
 });
 
 test('the browser panel path-traversal read is refused at the API boundary and the canary never leaks', async () => {
