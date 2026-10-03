@@ -25,7 +25,6 @@ from thinkbox.beyond_kilo_lint import (
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_eval_scope import evaluated_once
-from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_pr169_combined_post168_lane import GATE_ID as PRIOR_UMBRELLA_GATE_ID
 
@@ -218,11 +217,7 @@ def hermetic_beyond_kilo_lint_check(
     environ: Mapping[str, str] | None = None,
 ) -> BeyondKiloLintResult:
     env = environ if environ is not None else os.environ
-    return memoized_hermetic_check(
-        GATE_ID,
-        env,
-        lambda: evaluate_beyond_kilo_lint(detect_matrix_mode(env), env),
-    )
+    return evaluate_beyond_kilo_lint(detect_matrix_mode(env), env)
 
 
 @evaluated_once

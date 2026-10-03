@@ -44,7 +44,7 @@ not Live proof; hermetic work stays **TEST VERIFIED** max (`live_verified: false
 | 21 | **Runbook H-family** — hermetic prerequisites H1–H32 stay aligned with merged PR numbers. |
 | 22 | **No fake Box smoke** — Live proof requires founder Box URL, token, and `THINKBOX_SWARM_LIVE_ACK`. |
 | 23 | **Bounded subprocess** — hermetic lint and spine helpers use `kilo_hermetic_subprocess` timeouts. |
-| 24 | **Memoized hermetic checks** — nested gate evaluators use `kilo_hermetic_gate_memo` to avoid CI hangs. |
+| 24 | **Each gate runs once per call** — gate functions are `@evaluated_once` (`kilo_eval_scope`): shared inside one outermost call, never across calls, so a spine summary takes under a second and no process-wide cache can serve a stale verdict. |
 | 25 | **Wave manifest frozen** — `data/kilo_beyond_kilo_lint/wave1_scope.json` lists exactly 25 paths; gate tests enforce parity. |
 
 ---

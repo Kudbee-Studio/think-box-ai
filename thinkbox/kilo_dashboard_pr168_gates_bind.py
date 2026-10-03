@@ -27,7 +27,6 @@ from thinkbox.kilo_dashboard_slots import (
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_eval_scope import evaluated_once
-from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_operator_audit_flip_post167 import (
     hermetic_live_proof_operator_audit_flip_post167_check,
 )
@@ -182,11 +181,7 @@ def hermetic_dashboard_pr168_gates_bind_check(
     environ: Mapping[str, str] | None = None,
 ) -> DashboardPr168BindResult:
     env = environ if environ is not None else os.environ
-    return memoized_hermetic_check(
-        GATE_ID,
-        env,
-        lambda: evaluate_dashboard_pr168_gates_bind(detect_matrix_mode(env), env),
-    )
+    return evaluate_dashboard_pr168_gates_bind(detect_matrix_mode(env), env)
 
 
 @evaluated_once

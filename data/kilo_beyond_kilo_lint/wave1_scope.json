@@ -11,7 +11,7 @@
     "thinkbox/beyond_kilo_lint.py",
     "thinkbox/kilo_beyond_kilo_lint.py",
     "thinkbox/kilo_hermetic_subprocess.py",
-    "thinkbox/kilo_hermetic_gate_memo.py",
+    "thinkbox/kilo_eval_scope.py",
     "thinkbox/kilo_live_proof_readiness.py",
     "thinkbox/kilo_env_matrix.py",
     "thinkbox/kilo_substrate_checklist.py",

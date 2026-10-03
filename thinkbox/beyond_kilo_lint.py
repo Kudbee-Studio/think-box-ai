@@ -33,13 +33,13 @@ __all__ = (
 BEYOND_KILO_LINT_LABEL = "beyond-kilo-lint-readiness"
 BEYOND_KILO_LINT_VERSION = "3"
 
-# PR #174 wave 1 + PR #175 wave 2 (37 modules). Manifests:
+# PR #174 wave 1 + PR #175 wave 2 (38 modules). Manifests:
 # data/kilo_beyond_kilo_lint/wave1_scope.json, wave2_scope.json
 LINT_SCOPE_REL_PATHS: tuple[str, ...] = (
     "thinkbox/beyond_kilo_lint.py",
     "thinkbox/kilo_beyond_kilo_lint.py",
     "thinkbox/kilo_hermetic_subprocess.py",
-    "thinkbox/kilo_hermetic_gate_memo.py",
+    "thinkbox/kilo_eval_scope.py",
     "thinkbox/kilo_live_proof_readiness.py",
     "thinkbox/kilo_env_matrix.py",
     "thinkbox/kilo_substrate_checklist.py",

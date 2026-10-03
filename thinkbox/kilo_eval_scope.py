@@ -51,7 +51,7 @@ def evaluated_once(fn: F) -> F:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         cache: dict[object, Any] | None = getattr(_scope, "cache", None)
         owner = cache is None
-        if owner:
+        if cache is None:
             cache = _scope.cache = {}
         try:
             try:

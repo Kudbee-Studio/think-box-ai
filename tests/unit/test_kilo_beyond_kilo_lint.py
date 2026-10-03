@@ -6,17 +6,10 @@ import json
 import unittest
 
 from thinkbox import kilo_beyond_kilo_lint as lint_gate
-from thinkbox.kilo_hermetic_gate_memo import clear_hermetic_gate_memo
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 
 class TestKiloBeyondKiloLintGate(unittest.TestCase):
-    def setUp(self) -> None:
-        clear_hermetic_gate_memo()
-
-    def tearDown(self) -> None:
-        clear_hermetic_gate_memo()
-
     def test_gate_id(self) -> None:
         self.assertEqual(lint_gate.GATE_ID, "beyond-kilo-lint-readiness")
         self.assertEqual(lint_gate.PR_NUMBER, 170)

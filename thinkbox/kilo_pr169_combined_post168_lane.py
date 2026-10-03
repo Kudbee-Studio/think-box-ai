@@ -19,7 +19,6 @@ from thinkbox.kilo_dashboard_pr168_gates_bind import (
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_eval_scope import evaluated_once
-from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_operator_audit_flip_post168 import (
     GATE_ID as THEME_A_GATE_ID,
     hermetic_live_proof_operator_audit_flip_post168_check,
@@ -188,11 +187,7 @@ def hermetic_pr169_combined_post168_lane_check(
     environ: Mapping[str, str] | None = None,
 ) -> Pr169CombinedResult:
     env = environ if environ is not None else os.environ
-    return memoized_hermetic_check(
-        GATE_ID,
-        env,
-        lambda: evaluate_pr169_combined_post168_lane(detect_matrix_mode(env), env),
-    )
+    return evaluate_pr169_combined_post168_lane(detect_matrix_mode(env), env)
 
 
 @evaluated_once

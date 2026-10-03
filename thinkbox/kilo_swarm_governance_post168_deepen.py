@@ -10,7 +10,6 @@ from typing import Any, Mapping, MutableMapping
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
 from thinkbox.kilo_eval_scope import evaluated_once
-from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_swarm_governance_post167_deepen import (
     GATE_ID as POST167_SWARM_GATE,
@@ -137,11 +136,7 @@ def hermetic_swarm_governance_post168_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> SwarmGovPost168Result:
     env = environ if environ is not None else os.environ
-    return memoized_hermetic_check(
-        GATE_ID,
-        env,
-        lambda: evaluate_swarm_governance_post168_deepen(detect_matrix_mode(env), env),
-    )
+    return evaluate_swarm_governance_post168_deepen(detect_matrix_mode(env), env)
 
 
 @evaluated_once
