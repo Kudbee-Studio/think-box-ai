@@ -144,6 +144,14 @@ def validate_proof_document(payload: Mapping[str, Any]) -> list[str]:
             f"total_calls {recon.get('total_calls')} != primary+validators ({expected})"
         )
 
+    # A run whose validator wave did not run is valid only when it says so (partial_run, PR #253).
+    declared = payload.get("declared_validator_workers")
+    if declared is not None and int(declared) != val and payload.get("partial_run") is not True:
+        errors.append(
+            f"validator wave skipped without partial_run: total_calls {recon.get('total_calls')} "
+            f"!= primary+declared validators ({prim + int(declared)})"
+        )
+
     return errors
 
 
