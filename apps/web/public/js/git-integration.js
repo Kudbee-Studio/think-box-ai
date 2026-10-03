@@ -277,7 +277,7 @@ class GitIntegration {
         <div class="modal-header">
           <div>
             <span class="modal-eyebrow">📝 FILE EDITOR</span>
-            <h2>${fileName}</h2>
+            <h2>${this.escapeHtml(fileName)}</h2>
           </div>
           <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
         </div>
@@ -289,12 +289,13 @@ class GitIntegration {
 
         <div class="modal-actions">
           <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
-          <button class="btn-primary" onclick="gitIntegration.saveFile('${filePath}', this)">Save</button>
+          <button class="btn-primary" data-action="save">Save</button>
         </div>
       </section>
     `;
 
     document.body.appendChild(dialog);
+    dialog.querySelector('[data-action="save"]').addEventListener('click', (event) => this.saveFile(filePath, event.currentTarget));
   }
 
   /**

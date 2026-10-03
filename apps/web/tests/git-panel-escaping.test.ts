@@ -46,3 +46,10 @@ test('the file tree escapes file and folder names (a repository can contain a fi
   assert.ok(fn.includes('<span class="name">${this.escapeHtml(item.name)}</span>'));
   assert.ok(fn.includes('<div class="repo-name">${this.escapeHtml(prefix)}</div>'));
 });
+
+test('the file editor escapes the file name and never puts the file path into inline JavaScript', () => {
+  const fn = src.slice(src.indexOf('showFileEditor(filePath, content, language) {'), src.indexOf('async saveFile(filePath, button)'));
+  assert.ok(fn.includes('<h2>${this.escapeHtml(fileName)}</h2>'), 'the heading must escape the file name');
+  assert.ok(!fn.includes("saveFile('${filePath}'"), 'the path is interpolated into an inline onclick');
+  assert.match(fn, /addEventListener\('click', \(event\) => this\.saveFile\(filePath, event\.currentTarget\)\)/);
+});
