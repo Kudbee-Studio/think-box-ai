@@ -1,5 +1,7 @@
 """Tests for verify_chain — gap/tamper/fork detection."""
 
+import os
+import tempfile
 import unittest
 from thinkbox.agent.control_plane.store import ActionReceiptStore
 from thinkbox.agent.control_plane.verify_chain import verify_chain, ChainResult
@@ -11,6 +13,12 @@ class TestVerifyChain(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.store.close()
+
+    def _tmp_db(self) -> str:
+        # A fresh folder per test, removed afterwards (tempfile.mktemp is racy and the file was never deleted).
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        return os.path.join(folder.name, "receipts.db")
 
     def test_empty_chain_valid(self) -> None:
         result = verify_chain(self.store)
@@ -25,8 +33,8 @@ class TestVerifyChain(unittest.TestCase):
         self.assertEqual(result.receipts, 2)
 
     def test_detects_hash_tamper(self) -> None:
-        import sqlite3, tempfile
-        path = tempfile.mktemp(suffix=".db")
+        import sqlite3
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         store.append("capacity", "allowed", "ok", "simulated")
@@ -40,8 +48,8 @@ class TestVerifyChain(unittest.TestCase):
         store.close()
 
     def test_detects_gap(self) -> None:
-        import sqlite3, tempfile
-        path = tempfile.mktemp(suffix=".db")
+        import sqlite3
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         r2 = store.append("capacity", "allowed", "ok", "simulated")
@@ -55,8 +63,8 @@ class TestVerifyChain(unittest.TestCase):
         store.close()
 
     def test_detects_fork(self) -> None:
-        import sqlite3, tempfile
-        path = tempfile.mktemp(suffix=".db")
+        import sqlite3
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         r1 = store.append("capacity", "allowed", "ok", "simulated")
@@ -70,8 +78,8 @@ class TestVerifyChain(unittest.TestCase):
         store.close()
 
     def test_issue_messages_present(self) -> None:
-        import sqlite3, tempfile
-        path = tempfile.mktemp(suffix=".db")
+        import sqlite3
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         store.append("capacity", "allowed", "ok", "simulated")
