@@ -193,7 +193,7 @@ class GitIntegration {
         <div class="file-tree-entry">
           ${toggle}
           <span class="icon">${icon}</span>
-          <span class="name">${item.name}</span>
+          <span class="name">${this.escapeHtml(item.name)}</span>
           ${item.size ? `<span class="size">${this.formatSize(item.size)}</span>` : ''}
         </div>
       `;
@@ -218,7 +218,7 @@ class GitIntegration {
       const repoNode = document.createElement('div');
       repoNode.className = 'file-tree-repo';
       repoNode.dataset.repo = prefix;
-      repoNode.innerHTML = `<div class="repo-name">${prefix}</div>`;
+      repoNode.innerHTML = `<div class="repo-name">${this.escapeHtml(prefix)}</div>`;
 
       const treeRoot = createTreeNode(node, 0);
       repoNode.appendChild(treeRoot);

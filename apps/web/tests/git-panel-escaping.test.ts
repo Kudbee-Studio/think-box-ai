@@ -39,3 +39,10 @@ test('git panel escapeHtml escapes quotes as well as < > &, so it is safe inside
   assert.equal(p.escapeHtml(`a"b'c<d>&e`), 'a&quot;b&#39;c&lt;d&gt;&amp;e');
   assert.equal(p.escapeHtml(undefined), '');
 });
+
+test('the file tree escapes file and folder names (a repository can contain a file named <img src=x onerror=...>)', () => {
+  const fn = src.slice(src.indexOf('renderFileTree(node'), src.indexOf('handleFileTreeClick(event)'));
+  assert.ok(!fn.includes('<span class="name">${item.name}</span>'), 'item.name reaches innerHTML raw');
+  assert.ok(fn.includes('<span class="name">${this.escapeHtml(item.name)}</span>'));
+  assert.ok(fn.includes('<div class="repo-name">${this.escapeHtml(prefix)}</div>'));
+});
