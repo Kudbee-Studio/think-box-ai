@@ -1,0 +1,146 @@
+{
+ "model": "smollm2:360m",
+ "repo": "facebook/react",
+ "runs": 20,
+ "passed": 11,
+ "pass_rate": 0.55,
+ "dropped_reasons": {
+  "it mixed \"…\" (from #37744) with a different pull request": 2,
+  "the sentence was too long to check": 1,
+  "it gave a link that is not in the data": 1,
+  "it named none of the listed pull requests": 5
+ },
+ "avg_ms": 3460,
+ "facts": "Open pull requests in facebook/react (live from GitHub just now): 5.\n- #37745 \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" by dependabot[bot], updated 2026-10-02T21:14:01Z https://github.com/react/react/pull/37745\n- #37744 \"[Compiler] Fix use-before-initialization crash in the snap runner's non-watch mode\" by Irish-Joseph, updated 2026-10-02T21:06:17Z https://github.com/react/react/pull/37744\n- #37743 \"[Perf Track] Don't re-diff the same value pair when it is aliased under multiple props\" by Irish-Joseph, updated 2026-10-02T20:19:35Z https://github.com/react/react/pull/37743\n- #37742 \"[DevTools] Resolve MemoComponent wrappers in inspectHooksOfFiber\" by Irish-Joseph, updated 2026-10-02T20:19:31Z https://github.com/react/react/pull/37742\n- #37741 \"[DOM] Attach the document-level selectionchange listener when the root is the document\" by Irish-Joseph, updated 2026-10-02T20:19:29Z https://github.com/react/react/pull/37741",
+ "rows": [
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": true,
+   "sentence": "We are on the 37742 PR named \"Resolve MemoComponent wrappers in inspectHooksOfFiber\".",
+   "ms": 2395
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": true,
+   "sentence": "Based on the open pull requests, the following pull requests are open: - #37745 \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" - #37744 \"Fix use-before-initialization crash in the snap runner's non-watch mode\" - #37743",
+   "ms": 4438
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": true,
+   "sentence": "We are working on the #37745 PR titled \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" and the #37744 PR titled \"Fix use-before-initialization crash in the snap runner's non-watch mode\" with PR numbers 5.",
+   "ms": 3196
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": false,
+   "why": "it mixed \"use-before-initialization\" (from #37744) with a different pull request",
+   "sentence": "We are currently on PR #37745: Bump undici from 6.23.0 to 6.29.0 in /compiler. This pull request is related to fixing the use-before-initialization crash in the snap runner's non-watch mode.",
+   "ms": 2645
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": false,
+   "why": "the sentence was too long to check",
+   "sentence": "Open pull requests in Facebook/React (live from GitHub just now) are: - #37745 \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" by dependabot[bot], pulled on 2026-10-02T21:14:01Z. - #37744 \"[Compiler] Fix use-before-init",
+   "ms": 11008
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": true,
+   "sentence": "We are working on PR #37745, which is the \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" PR.",
+   "ms": 1848
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": true,
+   "sentence": "\"37745\" Here are the pull requests: - #37745: \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" by dependabot[bot] - #37744: \"Fix use-before-initialization crash in the snap runner's non-watch mode\" by Irish-Joseph, updat",
+   "ms": 4865
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": false,
+   "why": "it gave a link that is not in the data",
+   "sentence": "Open pull requests from GitHub are available at https://github.com/react/react/pull/*. Here are the pull requests: 5, 37745, 37744, 37743, 37742",
+   "ms": 2552
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": false,
+   "why": "it named none of the listed pull requests",
+   "sentence": "We are currently working on the \"Bump undici from 6.23.0 to 6.29.0\" PR in the /compiler pull request.",
+   "ms": 1587
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": true,
+   "sentence": "We are on PR #37745.",
+   "ms": 566
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": true,
+   "sentence": "The open pull requests from the `facebook/react` branch are: - #37745: Bump undici from 6.23.0 to 6.29.0 in /compiler - #37744: Fix use-before-initialization crash in the snap runner's non-watch mode - #37743: Don't re-d",
+   "ms": 5284
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": false,
+   "why": "it named none of the listed pull requests",
+   "sentence": "We are working on the `Compiler` PR from the commit 5.",
+   "ms": 770
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": true,
+   "sentence": "We're on PR #37745. Using the data, the relevant pull requests are: - #37745 \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" - #37744 \"[Compiler] Fix use-before-initialization crash in the snap runner's non-watch mode\" ",
+   "ms": 6240
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": true,
+   "sentence": "The live pull requests from Facebook/React are 5. The open pull requests are #37745 \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" and #37744 \"Fix use-before-initialization crash in the snap runner's non-watch mode\" by",
+   "ms": 4236
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": false,
+   "why": "it named none of the listed pull requests",
+   "sentence": "We are working on the [Compiler] PR, specifically the [Compiler] feature update that will fix the use-before-initialization crash in the snap runner's non-watch mode and improve the performance of the snap runner. This i",
+   "ms": 2428
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": true,
+   "sentence": "We are on PR #37745, which is the \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" pull request.",
+   "ms": 1857
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": true,
+   "sentence": "Based on the information provided, the following pull requests are open: - #37745: \"Bump undici from 6.23.0 to 6.29.0 in /compiler\" - #37744: \"Fix use-before-initialization crash in the snap runner's non-watch mode\" - #3",
+   "ms": 6805
+  },
+  {
+   "goal": "what PR are we working on?",
+   "ok": false,
+   "why": "it named none of the listed pull requests",
+   "sentence": "We are working on a pull request titled \"Bump undici from 6.23.0 to 6.29.0\" that is currently live.",
+   "ms": 1555
+  },
+  {
+   "goal": "WHAT PR ARE WE ON",
+   "ok": false,
+   "why": "it mixed \"use-before-initialization\" (from #37744) with a different pull request",
+   "sentence": "We're on PR #37745, which is related to fix a use-before-initialization crash in the snap runner's non-watch mode by fixing the \"Bump undici from 6.23.0 to 6.29.0\" pull request. The pull request includes multiple issues ",
+   "ms": 4076
+  },
+  {
+   "goal": "which pull requests are open?",
+   "ok": false,
+   "why": "it named none of the listed pull requests",
+   "sentence": "Open pull requests in Facebook/React (live from GitHub just now): 5.",
+   "ms": 857
+  }
+ ]
+}

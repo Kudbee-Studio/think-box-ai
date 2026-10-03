@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
 import { isComplexGoal } from './goal-routing.ts';
+import { matchRecipe } from './local-recipes.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
@@ -925,7 +926,8 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
     };
   }
 
-  const isComplex = isComplexGoal(goal);
+  // A common live question (open PRs, workspace files, a named file) is a local recipe: the server makes the lookup and the local model words the answer.
+  const isComplex = isComplexGoal(goal) && !(local && matchRecipe(goal));
   const complexity: 'simple' | 'complex' = isComplex ? 'complex' : 'simple';
   const estimatedTokensIfFullModel = isComplex ? 2500 : 1500;
 

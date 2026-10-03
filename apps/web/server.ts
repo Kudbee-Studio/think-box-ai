@@ -33,7 +33,8 @@ import type {
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
-import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, runToolAgent } from './agent.ts';
+import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
+import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, MEMORY_LAYERS, type MemoryLayer } from './memory.ts';
@@ -52,7 +53,7 @@ import { createLiveStateClassifier } from './evidence.ts';
 import { TOKEN_HEADER, ensureLocalToken, tokensMatch } from './local-token.ts';
 import { createTokenModels } from './think-token-model.ts';
 import { readTokenCube, readTokens } from './think-token-reader.ts';
-import { resolveLocalModel } from './local-model.ts';
+import { LOCAL_CHAT_OPTIONS, resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
 import {
@@ -123,10 +124,7 @@ const wss = new WebSocketServer({
 const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 // A local Ollama model is a plain chat here: no tools are attached. Telling a small model to "use the available plugins" made it invent a
 // tool plan (fake http requests and plugin names) for goals like "what is 2 plus 2".
-// A local Ollama model is a plain chat, exactly like `ollama run <model> "..."` in a terminal, where small models answer well: no system prompt, no
-// tool list, default sampling. Telling a 360M model to "use the available plugins", or adding long instructions or a repeat penalty, made it invent a
-// fake tool plan or answer with nothing. Only a reply cap (stops a runaway "0000000000") and a 2048 context (more of the model fits a 2 GiB GPU).
-export const LOCAL_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 };
+// A local Ollama model is a plain chat, exactly like `ollama run <model>` in a terminal (see LOCAL_CHAT_OPTIONS in local-model.ts).
 const janusBaseUrl = process.env.JANUS_BASE_URL || 'http://127.0.0.1:8001';
 
 /** Janus is opt-in (default off). CVE-2026-69112 in pinned `accelerate`; see docs/SECURITY.md. */
@@ -986,7 +984,18 @@ export class AgentSession {
     let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string } | undefined = first;
     try {
       while (next) {
-        // A local chat has no tools: a goal that needs tools or live state goes to the worker agent, or fails plainly. It is never answered from the model's head.
+        // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
+        const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
+        if (recipe && next.model && recipeAvailable(recipe, KNOWN_REPO)) {
+          this.config.model = next.model;
+          this.config.provider = 'ollama';
+          this.broadcast({ type: 'status', data: 'running' });
+          const result = await this.runRecipeGoal(next.goal, recipe, next.task);
+          this.broadcast({ type: 'result', data: result });
+          next = this.queue.shift();
+          continue;
+        }
+        // A local chat has no tools: any other goal that needs tools or live state goes to the worker agent, or fails plainly. It is never answered from the model's head.
         const escalation = next.model && !isInceptionModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
         if (escalation?.error) {
           if (next.task) this.updateTask(next.task.id, { status: 'failed', error: escalation.error });
@@ -1022,6 +1031,67 @@ export class AgentSession {
     const model = INCEPTION_MODELS[0];
     this.addThought({ type: 'routing', content: `Routed to ${model} instead of ${localModel}: ${why}. A local chat has no tools and cannot check live state.`, status: 'info' });
     return { model };
+  }
+
+  /**
+   * A local-model goal that matches a recipe: the tool runs in code through the same governed path as the worker agent (approval, confinement,
+   * audit), the local model words a sentence from the result, and the sentence is shown only if everything it states is in the data. $0; the
+   * answer always includes the data itself so it can be checked.
+   */
+  private async runRecipeGoal(goal: string, recipe: RecipeMatch, queuedTask?: Task): Promise<PluginResult> {
+    const model = this.config.model;
+    this.status = 'running';
+    this.abort = new AbortController();
+    const task = this.beginTask(goal, queuedTask);
+    const record = this.newRun(goal, task.id);
+    this.addThought({ type: 'goal', content: `Local recipe "${recipe.label}" (${model}): the lookup runs in code, ${model} only words the answer. ${goal}`, status: 'info', run_id: record.id });
+    this.broadcast({ type: 'run_update', data: record });
+    const fail = (error: string): PluginResult => {
+      runStore.finish(record, { status: 'failed', error, failure_kind: classifyFailure(error, false) });
+      this.updateTask(task.id, { status: 'failed', error });
+      this.status = 'idle';
+      return { success: false, error, run_id: record.id };
+    };
+    try {
+      const hooks = this.agentHooks(record, this.abort.signal);
+      const gov = await runGovernedTool(recipe.tool, recipeToolArgs(recipe, KNOWN_REPO, process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
+      if (gov.output.ok !== true) return fail(String(gov.output.error ?? 'the lookup failed'));
+      const built = buildFacts(recipe, gov.output, KNOWN_REPO);
+      if ('error' in built) return fail(built.error);
+      const rule = sentenceRule(recipe, built.facts);
+      let reply = '';
+      let modelError = '';
+      const askedAt = Date.now();
+      if (!rule.skipModel) {
+        await streamOllama(model, [{ role: 'user', content: buildPrompt(goal, built.facts, recipe) }], (token) => { reply += token; }, (done) => { if (done.error) modelError = done.error; });
+      }
+      const checked = rule.skipModel ? { ok: false as const, why: 'there was nothing to word' }
+        : modelError ? { ok: false as const, why: `the model call failed (${modelError})` }
+        : groundedAnswer(reply, built.facts, { cite: rule.cite });
+      this.addThought({
+        type: 'reasoning',
+        content: checked.ok
+          ? `${model} wrote the sentence${rule.cite ? '; it names a listed item and every number and link in it is in the data.' : '; only the numbers and links in it can be checked.'}`
+          : rule.skipModel ? 'Nothing to summarise: showing the data itself.' : `${model}'s sentence was not used: ${checked.why}. Showing the data itself.`,
+        status: checked.ok ? 'success' : 'info',
+      });
+      const sentence = checked.ok ? (rule.uncheckedLabel ? `Summary by ${model} (only numbers and links in it are checked):\n${checked.text}` : checked.text) : '';
+      const final = sentence ? `${sentence}\n\n${built.facts}` : built.facts;
+      this.broadcast({ type: 'stream', data: final });
+      runStore.addEvent(record, { kind: 'model', step: 2, latency_ms: Date.now() - askedAt, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: final.slice(0, 2000) });
+      runStore.finish(record, { status: 'completed', result: final });
+      this.updateTask(task.id, { status: 'completed', result: final });
+      this.status = 'idle';
+      return { success: true, result: final, streamed: true, recipe: recipe.id, grounded: checked.ok, run_id: record.id, duration_ms: record.duration_ms, steps: 2, tool_calls: 1, tokens: 0, cost_usd: 0 };
+    } catch (err) {
+      if (this.abort?.signal.aborted) {
+        runStore.finish(record, { status: 'stopped', error: 'Stopped by user' });
+        this.updateTask(task.id, { status: 'failed', error: 'Stopped by user' });
+        this.status = 'idle';
+        return { success: false, error: 'Stopped by user', run_id: record.id };
+      }
+      return fail(errorMessage(err));
+    }
   }
 
   /** Reuses the task created at enqueue time, or creates one for a goal that starts immediately. */
@@ -1124,6 +1194,52 @@ export class AgentSession {
     pending.resolve(approved);
   }
 
+  /** The hooks every tool run gets: workspace confinement, approvals, budget, memory. The worker agent and the local recipes share them. */
+  private agentHooks(record: RunRecord, signal: AbortSignal, profile?: (typeof AGENT_PROFILES)[string]): AgentHooks {
+    return {
+      workspace: sessionWorkspace(this.id),
+      resolvePath: (relativePath) => {
+        // The agent's file tools must not follow a symlink out (e.g. one inside a cloned repository).
+        const destination = safeWorkspacePath(this.id, relativePath);
+        assertRealInsideSync(sessionWorkspace(this.id), destination);
+        return destination;
+      },
+      onThought: (thought) => this.addThought(thought),
+      onEvent: (event) => {
+        runStore.addEvent(record, event);
+        this.broadcast({ type: 'run_update', data: { ...record, steps: undefined } });
+      },
+      onFilesChanged: () => this.broadcast({ type: 'files_changed' }),
+      signal,
+      checkBudget: () =>
+        dailyBudgetUsd > 0 && runStore.costToday() >= dailyBudgetUsd
+          ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
+          : null,
+      approvedDomains: this.approvedDomains,
+      allowedTools: profile?.allowedTools,
+      requestApproval: (tool, args, reason) => this.requestApproval(record.id, tool, args, reason),
+      remember: async (title, content, tags) => {
+        const item = await memoryStore.write('org', { title, content, tags, source: `agent run:${record.id.slice(0, 8)}` });
+        this.broadcast({ type: 'memory_changed', data: { id: item.id } });
+        return { id: item.id, layer: item.layer, path: item.path, note: 'Saved as unverified org memory; a human can promote it.' };
+      },
+      recall: async (query, limit) => {
+        const { hits, backend } = await memoryStore.search(query, { topK: limit });
+        return {
+          backend,
+          results: hits.map(({ item, score }) => ({ id: item.id, layer: item.layer, title: item.title, score: Math.round(score * 1000) / 1000, content: item.content.slice(0, 800) })),
+        };
+      },
+      rssFeed: async (url, limit) => {
+        const rss = plugins.get('rss_feed');
+        if (!rss) throw new Error('rss_feed plugin missing');
+        const result = await rss.execute({ url, limit });
+        if (!result.success) throw new Error(String(result.error));
+        return result as Record<string, unknown>;
+      },
+    };
+  }
+
   async runAgentGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
     this.status = 'running';
     this.abort = new AbortController();
@@ -1177,48 +1293,7 @@ export class AgentSession {
       }
       const liveFlags = await liveStateFlags([...recalled.hits.map((h) => ({ key: h.item.id, text: `${h.item.title} ${h.item.content}` })), ...thinkTokens.map((t) => ({ key: t.id, text: `${t.title} ${t.content}` }))]);
       const plannerContext = [repoContextLine(KNOWN_REPO), MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
-      const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, {
-        workspace: sessionWorkspace(this.id),
-        resolvePath: (relativePath) => {
-          // The agent's file tools must not follow a symlink out (e.g. one inside a cloned repository).
-          const destination = safeWorkspacePath(this.id, relativePath);
-          assertRealInsideSync(sessionWorkspace(this.id), destination);
-          return destination;
-        },
-        onThought: (thought) => this.addThought(thought),
-        onEvent: (event) => {
-          runStore.addEvent(record, event);
-          this.broadcast({ type: 'run_update', data: { ...record, steps: undefined } });
-        },
-        onFilesChanged: () => this.broadcast({ type: 'files_changed' }),
-        signal: this.abort.signal,
-        checkBudget: () =>
-          dailyBudgetUsd > 0 && runStore.costToday() >= dailyBudgetUsd
-            ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
-            : null,
-        approvedDomains: this.approvedDomains,
-        allowedTools: profile?.allowedTools,
-        requestApproval: (tool, args, reason) => this.requestApproval(record.id, tool, args, reason),
-        remember: async (title, content, tags) => {
-          const item = await memoryStore.write('org', { title, content, tags, source: `agent run:${record.id.slice(0, 8)}` });
-          this.broadcast({ type: 'memory_changed', data: { id: item.id } });
-          return { id: item.id, layer: item.layer, path: item.path, note: 'Saved as unverified org memory; a human can promote it.' };
-        },
-        recall: async (query, limit) => {
-          const { hits, backend } = await memoryStore.search(query, { topK: limit });
-          return {
-            backend,
-            results: hits.map(({ item, score }) => ({ id: item.id, layer: item.layer, title: item.title, score: Math.round(score * 1000) / 1000, content: item.content.slice(0, 800) })),
-          };
-        },
-        rssFeed: async (url, limit) => {
-          const rss = plugins.get('rss_feed');
-          if (!rss) throw new Error('rss_feed plugin missing');
-          const result = await rss.execute({ url, limit });
-          if (!result.success) throw new Error(String(result.error));
-          return result as Record<string, unknown>;
-        },
-      }, plannerContext);
+      const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, this.agentHooks(record, this.abort.signal, profile), plannerContext);
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)), ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}) });
       await this.recordEpisode(record);
