@@ -182,12 +182,3 @@ export class AnalyticsDashboardUI {
     `;
   }
 }
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new AnalyticsDashboardUI();
-  });
-} else {
-  new AnalyticsDashboardUI();
-}

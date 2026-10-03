@@ -118,3 +118,28 @@ test('demo panels carry the demo banner and never ask for a secret or claim a co
   const css = read('css/polish.css');
   assert.match(css, /\.demo-banner\s*\{/, 'demo banner is styled');
 });
+
+test('every relative import in public/js resolves to a served file (one 404 stops app.js and kills the whole dashboard)', () => {
+  const server = fs.readFileSync(path.resolve(pub, '..', 'server.ts'), 'utf8');
+  const served = new Set((server.match(/BROWSER_SERVICES = \[([^\]]*)\]/)?.[1] ?? '').match(/'([^']+)'/g)?.map((x) => x.slice(1, -1)) ?? []);
+  for (const file of fs.readdirSync(path.join(pub, 'js')).filter((f) => f.endsWith('.js'))) {
+    const src = read(`js/${file}`);
+    for (const m of src.matchAll(/^import\s[^;]*?from\s+'(\.[^']+)'/gm)) {
+      const target = path.posix.normalize(path.posix.join('js', m[1]));
+      const service = target.match(/^services\/([\w-]+)\.js$/);
+      if (service) {
+        assert.ok(served.has(service[1]), `js/${file} imports ${m[1]} but the server does not serve it`);
+        assert.ok(fs.existsSync(path.resolve(pub, '..', 'services', `${service[1]}.ts`)), `js/${file}: services/${service[1]}.ts is missing`);
+      } else {
+        assert.ok(fs.existsSync(path.join(pub, target)), `js/${file} imports ${m[1]} which does not exist`);
+      }
+    }
+  }
+});
+
+test('the dashboard UI modules do not instantiate themselves: app.js owns construction (a second instance doubles every click handler)', () => {
+  for (const [file, cls] of [['analytics-ui', 'AnalyticsDashboardUI'], ['timeline-ui', 'TimelineUI'], ['sharing-ui', 'SharingUI'], ['template-browser-ui', 'TemplateBrowserUI']]) {
+    assert.doesNotMatch(read(`js/${file}.js`), new RegExp(`^\\s*new ${cls}\\(`, 'm'), `${file}.js constructs ${cls} itself`);
+    assert.equal(read('js/app.js').split(`new ${cls}()`).length - 1, 1, `app.js must construct ${cls} exactly once`);
+  }
+});

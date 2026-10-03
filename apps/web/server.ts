@@ -8,6 +8,7 @@ import express, { type Request as ExpressRequest, type Response } from 'express'
 type Request = ExpressRequest<Record<string, string>>;
 import { createServer, type IncomingMessage } from 'http';
 import { randomUUID } from 'node:crypto';
+import { stripTypeScriptTypes } from 'node:module';
 import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { XMLParser } from 'fast-xml-parser';
@@ -32,6 +33,7 @@ import type {
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
+import type { MCPServer } from './mcp-registry.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
@@ -146,6 +148,19 @@ app.use((req: Request, res: Response, next) => {
 app.use(express.json());
 // Express 5 leaves req.body undefined for body-less requests (v4 gave {}); keep v4 behavior so handlers answer 400, not 500.
 app.use((req: Request, _res: Response, next) => { if (req.body === undefined) req.body = {}; next(); });
+// Dashboard modules import these browser-side services as ../services/<name>.js; the sources are TypeScript, so serve them with types stripped.
+const BROWSER_SERVICES = ['analytics', 'run-sharing', 'template-manager', 'timeline'];
+const browserServiceJs = new Map<string, string>();
+app.get('/services/:name.js', (req: Request, res: Response) => {
+  const name = req.params.name;
+  if (!BROWSER_SERVICES.includes(name)) return res.status(404).end();
+  let js = browserServiceJs.get(name);
+  if (js === undefined) {
+    js = stripTypeScriptTypes(fs.readFileSync(path.join(__dirname, 'services', `${name}.ts`), 'utf8'));
+    browserServiceJs.set(name, js);
+  }
+  res.type('application/javascript').send(js);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── In-memory state ───────────────────────────────────────────
@@ -327,8 +342,8 @@ async function discoverMCPSkills(): Promise<any[]> {
   }
 }
 
-function groupSkillsByCategory(skills: any[]): Record<string, any[]> {
-  const groups: Record<string, any[]> = {};
+function groupSkillsByCategory(skills: MCPServer[]): Record<string, MCPServer[]> {
+  const groups: Record<string, MCPServer[]> = {};
   for (const skill of skills) {
     const cat = skill.category || 'Other';
     if (!groups[cat]) groups[cat] = [];
@@ -337,11 +352,11 @@ function groupSkillsByCategory(skills: any[]): Record<string, any[]> {
   return groups;
 }
 
-function filterSkills(skills: any[], query: string): any[] {
+function filterSkills(skills: MCPServer[], query: string): MCPServer[] {
   if (!query) return skills;
   const q = query.toLowerCase();
   return skills.filter(
-    (s: any) =>
+    (s) =>
       s.name.toLowerCase().includes(q) ||
       s.description?.toLowerCase().includes(q) ||
       s.tags?.some((t: string) => t.toLowerCase().includes(q))
@@ -968,7 +983,7 @@ export class AgentSession {
    * Single entry point for goals. A session runs one goal at a time: concurrent runs would share the
    * abort controller and approval map, so extra goals wait in `queue` as visible "queued" tasks.
    */
-  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, any>, agentProfile?: string): { queued: boolean; position: number; task_id?: string } {
+  submitGoal(goal: string, model?: string, routeTelemetry?: Record<string, unknown>, agentProfile?: string): { queued: boolean; position: number; task_id?: string } {
     if (this.busy) {
       const task = this.addTask({ description: goal, status: 'queued' });
       this.queue.push({ goal, model, task, routeTelemetry, agentProfile });
@@ -979,9 +994,9 @@ export class AgentSession {
     return { queued: false, position: 0 };
   }
 
-  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }): Promise<void> {
+  private async drain(first: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, unknown>; agentProfile?: string }): Promise<void> {
     this.busy = true;
-    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, any>; agentProfile?: string } | undefined = first;
+    let next: { goal: string; model?: string; task?: Task; routeTelemetry?: Record<string, unknown>; agentProfile?: string } | undefined = first;
     try {
       while (next) {
         // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
@@ -1819,7 +1834,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       }
 
       // Helper to safely truncate strings
-      const safeString = (v: any, maxLen: number = 50000): string => {
+      const safeString = (v: unknown, maxLen: number = 50000): string => {
         if (typeof v !== 'string') return '';
         return v.slice(0, maxLen);
       };
@@ -1831,7 +1846,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         case 'run_goal': {
-          const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? msg.routeTelemetry : undefined;
+          const telemetry = msg.routeTelemetry && typeof msg.routeTelemetry === 'object' ? (msg.routeTelemetry as Record<string, unknown>) : undefined;
           const agentProfile = typeof msg.agent === 'string' && msg.agent in AGENT_PROFILES ? msg.agent : undefined;
           if (typeof msg.agent === 'string' && msg.agent && !agentProfile) {
             // Respond via the same 'result' contract client.run() already awaits —
@@ -1843,7 +1858,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             break;
           }
           // Defensive: Truncate goal to prevent memory issues
-          session.submitGoal(safeString(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry as any, agentProfile);
+          session.submitGoal(safeString(msg.goal), typeof msg.model === 'string' && msg.model ? msg.model : undefined, telemetry, agentProfile);
           break;
         }
 
@@ -2011,7 +2026,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 
         case 'search_mcp_skills': {
           try {
-            const query = (msg as any).query || '';
+            const query = (msg.query as string | undefined) || '';
             const skills = await discoverMCPSkills();
             const matches = filterSkills(skills, query);
             if (matches.length === 0) {
@@ -2165,7 +2180,7 @@ app.get('/api/middleware/test', async (_req: Request, res: Response) => {
 });
 
 let lastCpu = { usage: process.cpuUsage(), at: Date.now() };
-let statsCache = { data: null as any, at: 0 };
+let statsCache: { data: Record<string, unknown> | null; at: number } = { data: null, at: 0 };
 
 app.get('/api/stats', (_req: Request, res: Response) => {
   // Cache stats for 500ms to reduce computation on rapid dashboard polls
@@ -2200,13 +2215,17 @@ app.get('/api/stats', (_req: Request, res: Response) => {
   res.json(stats);
 });
 
-let runsListCache = { data: null as any, at: 0 };
+let runsListCache: { data: Record<string, unknown> | null; at: number } = { data: null, at: 0 };
 app.get('/api/runs', (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   const now = Date.now();
   // Cache runs list for 1s; on rapid polls this cuts response time significantly
-  if (runsListCache.data && now - runsListCache.at < 1000 && (runsListCache.data as any).runs.length === runStore.list(1).length) {
-    return res.json(runsListCache.data);
+  if (runsListCache.data && now - runsListCache.at < 1000) {
+    const cached = runsListCache.data as Record<string, unknown>;
+    const cachedRuns = cached.runs as Array<Record<string, unknown>>;
+    if (cachedRuns.length === runStore.list(1).length) {
+      return res.json(runsListCache.data);
+    }
   }
   const data = { runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
   runsListCache = { data, at: now };
@@ -2527,7 +2546,10 @@ app.get('/api/memory/notes', async (req: Request, res: Response) => {
 app.post('/api/memory/notes', async (req: Request, res: Response) => {
   try {
     const sessionId = req.query.sessionId as string;
-    const { title, content, layer = 'session' } = req.body as any;
+    const body = req.body as Record<string, unknown>;
+    const title = body.title as string | undefined;
+    const content = body.content as string | undefined;
+    const layer = (body.layer as string | undefined) ?? 'session';
 
     if (!sessionId || !title || !content) {
       return res.status(400).json({ error: 'sessionId, title, content required' });
@@ -2538,7 +2560,7 @@ app.post('/api/memory/notes', async (req: Request, res: Response) => {
     await persistence.saveMemoryNote({
       id,
       sessionId,
-      layer: layer as any,
+      layer: layer as MemoryLayer,
       title,
       content,
       createdAt: now,

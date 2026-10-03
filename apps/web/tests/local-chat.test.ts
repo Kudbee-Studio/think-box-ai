@@ -108,6 +108,6 @@ test('earlier answers are replayed as assistant turns, not as raw JSON user mess
 test('the CLI and dashboard terminals do not print a streamed answer a second time', () => {
   const cli = fs.readFileSync(path.join(appDir, 'cli.ts'), 'utf8');
   const app = fs.readFileSync(path.join(appDir, 'public/js/app.js'), 'utf8');
-  assert.match(cli, /r\.streamed \? 'done'/);
+  assert.match(cli, /result\.streamed.*\? 'done'/);
   assert.match(app, /r\.streamed \? 'Done'/);
 });

@@ -9,7 +9,7 @@ export class PluginManager {
   private pluginInstances: Map<string, Plugin> = new Map();
   private panels: Map<string, PluginPanel> = new Map();
   private commands: Map<string, PluginCommand> = new Map();
-  private eventHandlers: Map<string, Set<(data: any) => void>> = new Map();
+  private eventHandlers: Map<string, Set<(data: unknown) => void>> = new Map();
 
   constructor() {
     this.loadFromStorage();
@@ -132,7 +132,7 @@ export class PluginManager {
   }
 
   // Execute command
-  async executeCommand(name: string, ...args: any[]): Promise<any> {
+  async executeCommand(name: string, ...args: unknown[]): Promise<unknown> {
     const cmd = this.commands.get(name);
     if (!cmd) throw new Error(`Command ${name} not found`);
     return cmd.execute(...args);
@@ -160,7 +160,7 @@ export class PluginManager {
         return context?.settings || {};
       },
 
-      updateStorage: async (data: Record<string, any>) => {
+      updateStorage: async (data: Record<string, unknown>) => {
         const context = this.registry.get(pluginId);
         if (context) {
           context.settings = { ...context.settings, ...data };
@@ -168,7 +168,7 @@ export class PluginManager {
         }
       },
 
-      onMessage: (type: string, handler: (data: any) => void) => {
+      onMessage: (type: string, handler: (data: unknown) => void) => {
         const key = `${pluginId}:${type}`;
         if (!this.eventHandlers.has(key)) {
           this.eventHandlers.set(key, new Set());
@@ -176,7 +176,7 @@ export class PluginManager {
         this.eventHandlers.get(key)!.add(handler);
       },
 
-      sendMessage: (type: string, data: any) => {
+      sendMessage: (type: string, data: unknown) => {
         const key = `${pluginId}:${type}`;
         const handlers = this.eventHandlers.get(key);
         if (handlers) {
@@ -209,14 +209,14 @@ export class PluginManager {
         this.panels.delete(fullId);
       },
 
-      log: (level: 'info' | 'warn' | 'error', message: string, data?: any) => {
+      log: (level: 'info' | 'warn' | 'error', message: string, data?: unknown) => {
         this.log(pluginId, level, message, data);
       },
     };
   }
 
   // Private: Logging
-  private log(pluginId: string, level: string, message: string, data?: any): void {
+  private log(pluginId: string, level: string, message: string, data?: unknown): void {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${pluginId}] [${level.toUpperCase()}]`;
     if (data) {
@@ -241,12 +241,12 @@ export class PluginManager {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const data = JSON.parse(stored);
-        data.plugins.forEach((p: { id: string; context: PluginContext }) => {
+        const data = JSON.parse(stored) as { plugins: Array<{ id: string; context: PluginContext }> };
+        data.plugins.forEach((p) => {
           this.registry.set(p.id, p.context);
         });
       } catch (err) {
-        console.error('Failed to load plugins from storage:', err);
+        this.log('plugin-manager', 'error', 'Failed to load plugins from storage', err instanceof Error ? err.message : String(err));
       }
     }
   }

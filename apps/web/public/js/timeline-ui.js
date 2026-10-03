@@ -164,12 +164,3 @@ export class TimelineUI {
     return urlParams.get('runId') || null;
   }
 }
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new TimelineUI();
-  });
-} else {
-  new TimelineUI();
-}

@@ -18,6 +18,7 @@ import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, re
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
+import type { Thought, WsMessage } from './types.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -45,11 +46,11 @@ const c = {
 
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
+interface PluginInfo { name: string; icon?: string; permission: string; description: string }
 type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
-interface Msg { type: string; data?: any }
 
 async function serverUp(): Promise<boolean> {
   try {
@@ -87,8 +88,8 @@ async function ensureServer(): Promise<void> {
   throw new Error(`Server did not start; see ${path.join(logDir, 'server.log')}`);
 }
 
-function printThought(t: any): void {
-  const text = String(t.content ?? t.plugin ?? '').replace(/\s+/g, ' ');
+function printThought(t: Thought): void {
+  const text = String((t.content ?? t.plugin) as string ?? '').replace(/\s+/g, ' ');
   switch (t.type) {
     case 'tool_call':
       console.log(c.cyan(`  ⚙ ${text}`));
@@ -107,7 +108,9 @@ function printThought(t: any): void {
       break;
     case 'think_token':
       // Same id, status and lesson text the dashboard shows; `kudbee tokens show <id>` prints the rest.
-      console.log(t.tokenId ? c.green(`  🧩 ${t.tokenId} [${t.tokenStatus ?? 'saved'}] ${text}`) : c.dim(`  🧩 ${text}`));
+      const tokenId = (t.tokenId as string | undefined);
+      const tokenStatus = (t.tokenStatus as string | undefined) ?? 'saved';
+      console.log(tokenId ? c.green(`  🧩 ${tokenId} [${tokenStatus}] ${text}`) : c.dim(`  🧩 ${text}`));
       break;
     default:
       console.log(c.dim(`  · ${text}`));
@@ -119,12 +122,12 @@ class Client {
   sessionId = '';
   model = '';
   models: Model[] = [];
-  plugins: any[] = [];
+  plugins: PluginInfo[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
   routeTelemetry?: RouteTelemtry;
   /** Tool-scoped agent lane (e.g. 'hermes'). Undefined = full worker agent. */
   agent?: string;
-  private waiters: Array<{ type: string; resolve: (m: Msg) => void }> = [];
+  private waiters: Array<{ type: string; resolve: (m: WsMessage) => void }> = [];
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -146,19 +149,20 @@ class Client {
       this.ws.on('error', onError);
       this.ws.on('message', (raw) => {
         try {
-          const msg = JSON.parse(raw.toString()) as Msg;
+          const msg = JSON.parse(raw.toString()) as WsMessage;
           if (msg.type === 'init') {
-            this.sessionId = msg.data.sessionId;
-            this.models = msg.data.models ?? [];
-            this.plugins = msg.data.plugins ?? [];
-            this.model = msg.data.config?.model ?? this.models[0]?.name ?? '';
+            const init = (msg.data ?? {}) as { sessionId?: string; models?: Model[]; plugins?: PluginInfo[]; config?: { model?: string } };
+            this.sessionId = init.sessionId ?? '';
+            this.models = init.models ?? [];
+            this.plugins = init.plugins ?? [];
+            this.model = init.config?.model ?? this.models[0]?.name ?? '';
             if (!resolved) {
               resolved = true;
               this.ws.removeListener('error', onError);
               resolve();
             }
           } else if (msg.type === 'thought') {
-            printThought(msg.data);
+            printThought(msg.data as Thought);
           } else if (msg.type === 'approval_request') {
             this.onApproval(msg.data as ApprovalRequest);
           } else if (msg.type === 'stream') {
@@ -173,7 +177,7 @@ class Client {
     });
   }
 
-  wait(type: string): Promise<Msg> {
+  wait(type: string): Promise<WsMessage> {
     return new Promise((resolve) => this.waiters.push({ type, resolve }));
   }
 
@@ -192,23 +196,24 @@ class Client {
     this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry, agent: this.agent });
     let { data: r } = await Promise.race([
       done,
-      new Promise<Msg>((_, reject) =>
+      new Promise<WsMessage>((_, reject) =>
         setTimeout(() => reject(new Error('Run timeout: server did not respond within 60 minutes')), 60 * 60 * 1000)
       )
     ]);
     console.log();
     // The final answer is always printed, including after an evidence-check retry or a FLAGGED replacement.
-    if (Array.isArray(r.evidence_conflicts) && r.evidence_conflicts.length) {
-      console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String(r.evidence_conflicts[0]).slice(0, 200)}); final answer below.`));
+    const result = r as Record<string, unknown>;
+    if (Array.isArray(result.evidence_conflicts) && result.evidence_conflicts.length) {
+      console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String((result.evidence_conflicts as unknown[])[0]).slice(0, 200)}); final answer below.`));
     }
     // A streamed (local chat) answer is already on screen token by token; do not print it again.
-    if (r.success) console.log(`${c.green('✓')} ${r.streamed ? 'done' : String(r.result ?? '').trim() || '(the agent returned no answer text)'}`);
-    else console.log(c.red(`✗ ${r.error ?? 'the run failed without an error message'}`));
-    if (r.steps !== undefined) {
-      console.log(c.dim(`  ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${usd(r.cost_usd)} · ${((r.duration_ms ?? 0) / 1000).toFixed(1)}s · run ${String(r.run_id).slice(0, 8)}`));
+    if (result.success) console.log(`${c.green('✓')} ${(result.streamed as boolean) ? 'done' : String(result.result ?? '').trim() || '(the agent returned no answer text)'}`);
+    else console.log(c.red(`✗ ${result.error ?? 'the run failed without an error message'}`));
+    if (result.steps !== undefined) {
+      console.log(c.dim(`  ${result.steps} step(s) · ${result.tool_calls} tool call(s) · ${result.tokens} tokens · ${usd(result.cost_usd as number)} · ${(((result.duration_ms as number) ?? 0) / 1000).toFixed(1)}s · run ${String(result.run_id).slice(0, 8)}`));
     }
     await this.files(true);
-    return Boolean(r.success);
+    return Boolean(result.success);
   }
 
   async files(quiet = false): Promise<void> {
@@ -523,11 +528,11 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         const done = client.wait('plugin_result');
         client.send({ type: 'plugin_execute', plugin: pluginName, input });
         // Wait up to 30 seconds for plugin result
-        let result: any;
+        let result: unknown;
         try {
-          const response = await Promise.race<Msg>([
+          const response = await Promise.race<WsMessage>([
             done,
-            new Promise<Msg>((_, reject) =>
+            new Promise<WsMessage>((_, reject) =>
               setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
             ),
           ]);
@@ -537,18 +542,19 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           console.log(c.red(`Error: ${timeoutErr instanceof Error ? timeoutErr.message : 'Plugin execution timeout (30s)'}`));
           break;
         }
-        if (result?.success) {
+        const pluginResult = result as Record<string, unknown>;
+        if (pluginResult?.success) {
           console.log(c.green(`✓ ${pluginName} executed successfully`));
-          if (result.output) {
-            const formatted = typeof result.output === 'string'
-              ? result.output
-              : JSON.stringify(result.output, null, 2);
+          if (pluginResult.output) {
+            const formatted = typeof pluginResult.output === 'string'
+              ? pluginResult.output
+              : JSON.stringify(pluginResult.output, null, 2);
             console.log(c.dim('Output:'));
             console.log(`  ${formatted.split('\n').join('\n  ')}`);
           }
         } else {
           console.log(c.red(`✗ Plugin execution failed: ${pluginName}`));
-          if (result?.error) console.log(c.dim(`  Error: ${result.error}`));
+          if (pluginResult?.error) console.log(c.dim(`  Error: ${pluginResult.error}`));
         }
       } catch (err) {
         console.log(c.red('Error: Invalid JSON input'));
