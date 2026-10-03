@@ -554,6 +554,8 @@ function sendThinkTokenMessage(message) {
   state.ws.send(JSON.stringify(message));
   return true;
 }
+// app.js is an ES module, so its functions are not globals; the classic script think-token-dashboard.js reaches this one through window.
+window.sendThinkTokenMessage = sendThinkTokenMessage;
 
 function sendTaskAction(action, payload = {}) {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
