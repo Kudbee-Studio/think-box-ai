@@ -107,6 +107,43 @@ class TestConfig(_RepoCase):
             ).is_complete()
         )
 
+    def test_from_env_reads_non_root_user_and_known_hosts(self) -> None:
+        cfg = UpCloudSSHExecutionConfig.from_env(
+            {
+                "UPCLOUD_SERVER_IP": "209.50.51.174",
+                "UPCLOUD_SSH_USER": "hermes",
+                "UPCLOUD_SSH_KEY_PATH": str(self.key),
+                "UPCLOUD_SSH_HARDENED": "1",
+                "UPCLOUD_SSH_KNOWN_HOSTS": "/etc/ssh/known_hosts",
+            }
+        )
+        self.assertEqual(cfg.username, "hermes")
+        self.assertTrue(cfg.hardened)
+        self.assertEqual(cfg.known_hosts_path, "/etc/ssh/known_hosts")
+        self.assertTrue(cfg.is_non_root())
+        self.assertTrue(cfg.is_complete())
+
+    def test_hardened_without_known_hosts_is_incomplete(self) -> None:
+        cfg = UpCloudSSHExecutionConfig.from_env(
+            {
+                "UPCLOUD_SERVER_IP": "209.50.51.174",
+                "UPCLOUD_SSH_KEY_PATH": str(self.key),
+                "UPCLOUD_SSH_HARDENED": "true",
+            }
+        )
+        self.assertTrue(cfg.hardened)
+        self.assertEqual(cfg.known_hosts_path, "")
+        self.assertFalse(cfg.is_complete())
+
+    def test_hardened_flag_accepts_common_truthy_values(self) -> None:
+        for value in ("1", "true", "YES", "on"):
+            cfg = UpCloudSSHExecutionConfig.from_env({"UPCLOUD_SSH_HARDENED": value})
+            self.assertTrue(cfg.hardened, msg=value)
+        self.assertFalse(UpCloudSSHExecutionConfig.from_env({"UPCLOUD_SSH_HARDENED": "0"}).hardened)
+
+    def test_root_is_not_non_root(self) -> None:
+        self.assertFalse(UpCloudSSHExecutionConfig(username="root").is_non_root())
+
 
 class TestAdapterExecute(_RepoCase):
     def test_success_writes_verified_artifact_and_checkpoint(self) -> None:

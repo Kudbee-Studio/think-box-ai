@@ -3054,3 +3054,11 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 - Tests: `python3 -m unittest tests.unit.test_live_proof_bundle` → 17/17 OK; 40/40 with the SSH provider and adapter suites.
 - **UNPROVEN:** the bundle from a real worker-02 run. This worktree's `UPCLOUD_SERVER_IP` is the historical dead host `212.147.250.183` and `UPCLOUD_SSH_KEY_PATH=~/.ssh/kilo-upcloud` does not exist (key purged in PR #271). The runner fails closed with `upcloud-ssh not configured`. To produce the real bundle, set the worker-02 env and run `python3 scripts/run_live_proof_bundle.py --command hostname`, then commit `docs/evidence/live-proof/`.
 - Evidence: `docs/evidence/pr340-live-proof-bundle.md`. FOUR-STATE: CODE COMPLETE / TEST VERIFIED; not LIVE VERIFIED; not PRODUCTION READY.
+
+### SSH hardening (Phase 3 item 3, folded into PR #340)
+
+- `thinkbox/cloud_execution/providers/ssh_remote.py`: `SSHWorkerConfig` gains `hardened: bool` and `known_hosts_path: str`. Hardened `_ssh_argv` emits `-o StrictHostKeyChecking=yes` + `-o UserKnownHostsFile=<path>` and never `accept-new`; `validate()` fails closed (typed `InvalidSSHConfig`) when hardened without a known_hosts source.
+- `thinkbox/upcloud_ssh_execution_adapter.py`: `UpCloudSSHExecutionConfig` reads `UPCLOUD_SSH_HARDENED` (1/true/yes/on) and `UPCLOUD_SSH_KNOWN_HOSTS`; `is_complete()` returns False for hardened-without-known_hosts. `is_non_root()` makes the non-root expectation explicit; the `root` default is a development default, **not** the recommended production configuration. The username stays parameterized via `UPCLOUD_SSH_USER`.
+- Tests: new focused tests in `test_cloud_execution_ssh_provider.py` and `test_upcloud_ssh_execution_adapter.py`; mutation proof (removing the pinning branch fails 2 tests). Regression set 103/103 OK.
+- **Never** fall back to `accept-new` in hardened mode. A trusted known_hosts file is sufficient for this phase; no fingerprint handling was added.
+- FOUR-STATE: CODE COMPLETE / TEST VERIFIED; the pinned path is **not LIVE VERIFIED** (no real worker-02 run); not PRODUCTION READY. The dead host `212.147.250.183` and the purged key `~/.ssh/kilo-upcloud` were not touched or revived.

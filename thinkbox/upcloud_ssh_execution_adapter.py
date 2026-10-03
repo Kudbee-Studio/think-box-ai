@@ -48,6 +48,12 @@ UPCLOUD_SSH_PROVIDER = "upcloud-ssh"
 SSH_TRANSPORT_ERROR_EXIT = 255  # ssh(1) exits 255 on its own connection/auth errors
 TIMEOUT_EXIT = 124  # SSHCloudExecutionProvider's timeout exit code
 
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def _is_truthy(value: str) -> bool:
+    return value.strip().lower() in _TRUTHY
+
 
 @dataclass(frozen=True)
 class UpCloudSSHExecutionConfig:
@@ -55,19 +61,30 @@ class UpCloudSSHExecutionConfig:
     username: str = "root"
     private_key_path: str = ""
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    hardened: bool = False
+    known_hosts_path: str = ""
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> UpCloudSSHExecutionConfig:
         env = os.environ if environ is None else environ
         key = env.get("UPCLOUD_SSH_KEY_PATH", "").strip()
+        known_hosts = env.get("UPCLOUD_SSH_KNOWN_HOSTS", "").strip()
         return cls(
             host=env.get("UPCLOUD_SERVER_IP", "").strip(),
             username=env.get("UPCLOUD_SSH_USER", "").strip() or "root",
             private_key_path=os.path.expanduser(key) if key else "",
+            hardened=_is_truthy(env.get("UPCLOUD_SSH_HARDENED", "")),
+            known_hosts_path=os.path.expanduser(known_hosts) if known_hosts else "",
         )
 
     def is_complete(self) -> bool:
+        if self.hardened and not self.known_hosts_path:
+            # Fail closed: hardened mode needs a trusted host-key source.
+            return False
         return bool(self.host and self.username and self.private_key_path and Path(self.private_key_path).is_file())
+
+    def is_non_root(self) -> bool:
+        return bool(self.username) and self.username != "root"
 
 
 class UpCloudSSHExecutionAdapter:
@@ -124,7 +141,13 @@ class UpCloudSSHExecutionAdapter:
 
         cfg = self._config
         ssh = self._provider_factory(
-            SSHWorkerConfig(host=cfg.host, username=cfg.username, private_key_path=cfg.private_key_path)
+            SSHWorkerConfig(
+                host=cfg.host,
+                username=cfg.username,
+                private_key_path=cfg.private_key_path,
+                hardened=cfg.hardened,
+                known_hosts_path=cfg.known_hosts_path,
+            )
         )
         cwd = Path(self._repo.path)
         try:

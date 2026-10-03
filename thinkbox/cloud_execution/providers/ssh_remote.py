@@ -32,13 +32,22 @@ PROVIDER_NAME = "ssh_remote"
 @dataclass(frozen=True)
 class SSHWorkerConfig:
     """Remote worker connection config. No secret material lives here — only a
-    path to a private key file that must already exist on disk."""
+    path to a private key file that must already exist on disk.
+
+    When ``hardened`` is set, the host key must be verified against a trusted
+    ``known_hosts`` file (``known_hosts_path``): the connection then uses
+    ``StrictHostKeyChecking=yes`` + ``UserKnownHostsFile=<path>`` and never falls
+    back to ``accept-new``. Hardened mode without a known_hosts source fails
+    closed in :meth:`validate`.
+    """
 
     host: str
     username: str = "root"
     private_key_path: str = ""
     port: int = 22
     connect_timeout_s: float = 10.0
+    hardened: bool = False
+    known_hosts_path: str = ""
 
     def validate(self) -> None:
         if not self.host:
@@ -48,6 +57,14 @@ class SSHWorkerConfig:
         if not self.username:
             raise CloudExecutionError(
                 error_type="InvalidSSHConfig", context={"reason": "username is required"}
+            )
+        if self.hardened and not self.known_hosts_path:
+            raise CloudExecutionError(
+                error_type="InvalidSSHConfig",
+                context={
+                    "reason": "hardened mode requires a known_hosts_path to pin the host key",
+                    "hint": "set UPCLOUD_SSH_KNOWN_HOSTS to a trusted known_hosts file",
+                },
             )
 
 
@@ -80,10 +97,15 @@ class SSHCloudExecutionProvider(CloudExecutionProvider):
         argv = [
             "ssh",
             "-o", "BatchMode=yes",
-            "-o", "StrictHostKeyChecking=accept-new",
             "-o", f"ConnectTimeout={int(cfg.connect_timeout_s)}",
             "-p", str(cfg.port),
         ]
+        if cfg.hardened:
+            # Pin the host key: never trust-on-first-use on a hardened connection.
+            argv += ["-o", "StrictHostKeyChecking=yes"]
+            argv += ["-o", f"UserKnownHostsFile={cfg.known_hosts_path}"]
+        else:
+            argv += ["-o", "StrictHostKeyChecking=accept-new"]
         if cfg.private_key_path:
             argv += ["-i", cfg.private_key_path]
         argv.append(f"{cfg.username}@{cfg.host}")

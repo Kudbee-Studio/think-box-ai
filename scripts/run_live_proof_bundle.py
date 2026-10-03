@@ -72,20 +72,39 @@ def main() -> int:
     repo = Repository(REPO_ROOT)
     adapter = UpCloudSSHExecutionAdapter(repo=repo)
     if not adapter.is_configured():
+        cfg = adapter._config  # read-only diagnostic; no secret values are printed
+        hardened_without_known_hosts = cfg.hardened and not cfg.known_hosts_path
         print(
             json.dumps(
                 {
                     "ok": False,
                     "error": "upcloud-ssh not configured",
                     "required": ["UPCLOUD_SERVER_IP set to the worker-02 address", "UPCLOUD_SSH_KEY_PATH existing file"],
-                    "hint": "the env in this worktree points at the historical dead host; set the worker-02 values",
+                    "hardened": cfg.hardened,
+                    "hardened_without_known_hosts": hardened_without_known_hosts,
+                    "hint": (
+                        "hardened mode requires UPCLOUD_SSH_KNOWN_HOSTS to pin the host key"
+                        if hardened_without_known_hosts
+                        else "the env in this worktree points at the historical dead host; set the worker-02 values"
+                    ),
                 },
                 indent=2,
             )
         )
         return 3
 
-    print(json.dumps({"ok": True, "phase": "ready", "command": args.command, "dry_run": args.dry_run}, indent=2))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "phase": "ready",
+                "command": args.command,
+                "dry_run": args.dry_run,
+                "hardened": adapter._config.hardened,
+            },
+            indent=2,
+        )
+    )
     if args.dry_run:
         return 0
 
