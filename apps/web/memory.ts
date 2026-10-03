@@ -179,7 +179,11 @@ export class MemoryStore {
     if (this.upstashOptIn) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
     for (const layer of MEMORY_LAYERS) fs.mkdirSync(path.join(root, layer), { recursive: true });
     const readme = path.join(root, 'README.md');
-    if (!fs.existsSync(readme)) fs.writeFileSync(readme, README);
+    try {
+      fs.writeFileSync(readme, README, { flag: 'wx' });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
     this.loadAll();
   }
 
