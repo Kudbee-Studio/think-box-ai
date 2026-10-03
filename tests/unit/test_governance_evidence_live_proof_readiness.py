@@ -67,6 +67,16 @@ class TestGovernanceEvidenceLiveProofReadiness(unittest.TestCase):
         }
         self.assertTrue(live_proof_prereqs_satisfied(env))
 
+    def test_live_prereqs_reject_a_url_that_only_contains_the_box_suffix(self) -> None:
+        # CodeQL py/incomplete-url-substring-sanitization: ".box.upstash.com" in url accepted these.
+        for url in (
+            "https://evil.example/?x=.box.upstash.com",
+            "https://x.box.upstash.com.evil.example",
+            "http://x.preview.box.upstash.com",
+        ):
+            env = {FOUNDER_ACK_ENV: "true", BOX_URL_ENV: url}
+            self.assertFalse(live_proof_prereqs_satisfied(env), url)
+
     def test_readiness_fixture_suite_closed(self) -> None:
         pos, neg, errors = run_readiness_fixture_suite()
         self.assertFalse(errors, msg=errors)

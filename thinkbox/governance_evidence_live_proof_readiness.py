@@ -20,7 +20,7 @@ from thinkbox.kilo_governance_evidence import (
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode
 from thinkbox.kilo_live_proof_exec import FOUNDER_ACK_ENV
-from thinkbox.kilo_substrate_checklist import BOX_URL_ENV
+from thinkbox.kilo_substrate_checklist import BOX_URL_ENV, is_live_box_url
 
 __all__ = (
     "GOVERNANCE_EVIDENCE_LIVE_PROOF_READINESS_LABEL",
@@ -95,7 +95,7 @@ def live_proof_prereqs_satisfied(environ: Mapping[str, str]) -> bool:
     """True when founder ack and public Box URL are both present (live prep only)."""
     ack = _founder_ack_truthy(environ.get(FOUNDER_ACK_ENV))
     url = (environ.get(BOX_URL_ENV) or "").strip()
-    return ack and bool(url) and ".box.upstash.com" in url
+    return ack and is_live_box_url(url)
 
 
 def documented_live_prereqs() -> dict[str, str]:
