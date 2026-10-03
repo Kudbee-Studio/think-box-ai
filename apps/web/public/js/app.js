@@ -591,7 +591,7 @@ function renderThoughts() {
 
   const visibleThoughts = state.thoughts.filter(thought => state.thoughtFilter === 'all' || thought.status === state.thoughtFilter);
   container.innerHTML = visibleThoughts.slice(-50).reverse().map(thought => `
-    <div class="thought-item ${thought.status || 'info'}">
+    <div class="thought-item ${escapeHtml(thought.status || 'info')}">
       <div class="thought-header">
         <span class="thought-type">${escapeHtml(thought.type || 'thought')}</span>
         <span>${formatThoughtTime(thought.timestamp)}</span>
