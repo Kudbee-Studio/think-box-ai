@@ -130,24 +130,43 @@ class Client {
       // client as the CLI, so the run is labeled and mirrored live in the dashboard terminal.
       const token = readLocalToken(DATA_DIR);
       this.ws = new WebSocket(WS_URL, { origin: new URL(HOST).origin, ...(token ? { headers: { [TOKEN_HEADER]: token } } : {}) });
-      this.ws.on('error', reject);
-      this.ws.on('message', (raw) => {
-        const msg = JSON.parse(raw.toString()) as Msg;
-        if (msg.type === 'init') {
-          this.sessionId = msg.data.sessionId;
-          this.models = msg.data.models ?? [];
-          this.plugins = msg.data.plugins ?? [];
-          this.model = msg.data.config?.model ?? this.models[0]?.name ?? '';
-          resolve();
-        } else if (msg.type === 'thought') {
-          printThought(msg.data);
-        } else if (msg.type === 'approval_request') {
-          this.onApproval(msg.data as ApprovalRequest);
-        } else if (msg.type === 'stream') {
-          process.stdout.write(String(msg.data));
+
+      let resolved = false;
+      const onError = (err: Error) => {
+        if (!resolved) {
+          resolved = true;
+          reject(err);
+        } else {
+          console.log(c.red(`WebSocket error: ${err.message}`));
         }
-        const i = this.waiters.findIndex((w) => w.type === msg.type);
-        if (i >= 0) this.waiters.splice(i, 1)[0].resolve(msg);
+      };
+
+      this.ws.on('error', onError);
+      this.ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString()) as Msg;
+          if (msg.type === 'init') {
+            this.sessionId = msg.data.sessionId;
+            this.models = msg.data.models ?? [];
+            this.plugins = msg.data.plugins ?? [];
+            this.model = msg.data.config?.model ?? this.models[0]?.name ?? '';
+            if (!resolved) {
+              resolved = true;
+              this.ws.removeListener('error', onError);
+              resolve();
+            }
+          } else if (msg.type === 'thought') {
+            printThought(msg.data);
+          } else if (msg.type === 'approval_request') {
+            this.onApproval(msg.data as ApprovalRequest);
+          } else if (msg.type === 'stream') {
+            process.stdout.write(String(msg.data));
+          }
+          const i = this.waiters.findIndex((w) => w.type === msg.type);
+          if (i >= 0) this.waiters.splice(i, 1)[0].resolve(msg);
+        } catch (parseErr) {
+          console.log(c.red(`Error parsing WebSocket message: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`));
+        }
       });
     });
   }
