@@ -2,7 +2,7 @@
 
 class IntegrationConnectors {
   constructor() {
-    this.integrations = JSON.parse(localStorage.getItem('kudbee-integrations') || '{}');
+    this.integrations = readStoredJson('kudbee-integrations', {});
     this.connectors = {
       slack: { icon: '💬', name: 'Slack', description: 'Post updates to Slack channels' },
       github: { icon: '🐙', name: 'GitHub', description: 'Sync issues and pull requests' },

@@ -2,9 +2,9 @@
 
 class CollaborationDashboard {
   constructor() {
-    this.agents = JSON.parse(localStorage.getItem('kudbee-agents') || '[]');
-    this.tasks = JSON.parse(localStorage.getItem('kudbee-collab-tasks') || '[]');
-    this.sessions = JSON.parse(localStorage.getItem('kudbee-sessions') || '[]');
+    this.agents = readStoredJson('kudbee-agents', []);
+    this.tasks = readStoredJson('kudbee-collab-tasks', []);
+    this.sessions = readStoredJson('kudbee-sessions', []);
     this.setupEventListeners();
   }
 

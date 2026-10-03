@@ -9,23 +9,21 @@ class PerformanceAnalytics {
   }
 
   loadMetrics() {
-    const stored = localStorage.getItem('kudbee-perf-metrics');
-    return stored ? JSON.parse(stored) : {
+    return readStoredJson('kudbee-perf-metrics', {
       runs: [],
       tokens: { saved: 0, spent: 0 },
       latencies: [],
       costs: { daily: {}, monthly: {} }
-    };
+    });
   }
 
   loadCosts() {
-    const stored = localStorage.getItem('kudbee-costs');
-    return stored ? JSON.parse(stored) : {
+    return readStoredJson('kudbee-costs', {
       localModel: { costPer1k: 0.01 },
       mercury2: { costPer1k: 0.10 },
       opus: { costPer1k: 0.15 },
       current: {}
-    };
+    });
   }
 
   setupEventListeners() {

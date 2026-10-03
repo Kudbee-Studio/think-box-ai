@@ -2,7 +2,7 @@
 
 class ExecutionLogs {
   constructor() {
-    this.logs = JSON.parse(localStorage.getItem('kudbee-exec-logs') || '[]');
+    this.logs = readStoredJson('kudbee-exec-logs', []);
     this.filters = { level: 'all', service: 'all', status: 'all', search: '' };
     this.setupEventListeners();
   }

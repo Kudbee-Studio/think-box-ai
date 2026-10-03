@@ -2979,3 +2979,12 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - Dashboard header dropdowns (`public/js/app.js`): choosing a model now updates `state.config.model` and sends `update_config`, so `/model`, `/config` and `/session` agree with the dropdown (before, they kept showing the old model and the server session kept the old one). `renderAgents` now reads the selection before rebuilding the options, so the chosen agent survives a refresh. Tests: `tests/dashboard-selects.test.ts`; also checked in Chromium against the real server (dropdown to `beta:2b`, `/config` showed `qwen2.5:1.5b` before the fix and `beta:2b` after).
 - Scanned with no change needed: `medication.ts`, `net-guard.ts` (re-checks private addresses on every redirect hop), `governed-bridge.ts`, `memory.ts`, `services/plugins.ts`.
 - No behavior change on success paths. Tests 509/509, `tsc` and lint clean.
+
+---
+
+## Dashboard storage hardening (PR #337)
+
+- `public/js/enterprise.js` now defines `readStoredJson(key, fallback)`: corrupt, wrong-shaped (e.g. a stored `null`) or blocked `localStorage` returns the fallback instead of throwing. The Approvals, Performance, Execution Logs, Integrations, Collaboration and Settings panels use it for every stored read.
+- `Enterprise.init()` (runs on every page load): a stored `null` no longer turns the session/audit lists into `null` (the next `.push` crashed `init`), and `theme.load()` / `theme.set()` no longer throw when storage is blocked or full (`set` used to throw before firing `themeChanged`).
+- Test: `tests/dashboard-panel-storage.test.ts` loads each real panel script in a sandbox with corrupt, `null` and throwing storage (18 cases). Checked in Chromium against the real server with 12 corrupted keys: old code started 2 of 6 panels and logged 6 page errors; new code starts all 6 with 0 errors.
+- Tests 527/527, `tsc` and lint clean.
