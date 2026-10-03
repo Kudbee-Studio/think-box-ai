@@ -40,7 +40,7 @@ test('every this.method() a panel constructor calls is defined on its class', ()
 
 test('the hidden attribute wins over component display rules', () => {
   const last = stylesheets.at(-1)!;
-  assert.equal(last, 'css/polish.css', 'polish.css must load last');
+  assert.equal(last, 'css/enterprise-polish.css', 'enterprise-polish.css must load last');
   assert.match(read(last), /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
 });
 
