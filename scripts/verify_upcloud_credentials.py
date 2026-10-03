@@ -39,9 +39,8 @@ def verify_upcloud_credentials():
         print("   Set THINKBOX_UPCLOUD_API_TOKEN or UPCLOUD_API")
         return 1
 
-    # Redact token for logging
-    token_preview = f"{token[:8]}...{token[-4:]}" if len(token) > 20 else "***"
-    print(f"🔐 Token loaded (preview: {token_preview})")
+    # No part of the token is printed, not even a prefix or suffix (AGENTS.md 0.4).
+    print(f"🔐 Token loaded ({len(token)} characters)")
 
     # Attempt safe read-only API call
     try:
