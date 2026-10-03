@@ -243,6 +243,15 @@ test('API errors fail the run with the HTTP status', async () => {
   assert.match(String(result.error), /Inception API HTTP 500/);
 });
 
+test('a 200 reply with no choices fails the run with a clear error, not a TypeError', async () => {
+  mock.script([{ noChoices: true }]);
+  const { hooks } = makeHooks();
+  const result = await run('anything', hooks);
+  assert.equal(result.success, false);
+  assert.match(String(result.error), /no choices/i);
+  assert.doesNotMatch(String(result.error), /Cannot read properties/);
+});
+
 test('malformed tool arguments become a tool error, not a crash', async () => {
   mock.script([call('write_file', '{"path": "a.txt", "content": '), say('recovered')]);
   const { hooks } = makeHooks();

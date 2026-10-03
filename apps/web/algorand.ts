@@ -53,6 +53,11 @@ async function getJson(url: string, signal?: AbortSignal): Promise<any> {
   return body;
 }
 
+function present<T>(value: T | undefined | null, what: string): T {
+  if (value === undefined || value === null) throw new Error(`Algorand API returned no ${what}`);
+  return value;
+}
+
 function need(value: unknown, pattern: RegExp | 'id', label: string): string {
   const text = String(value ?? '').trim();
   if (pattern === 'id') {
@@ -75,7 +80,6 @@ export function parseAction(value: unknown): AlgorandAction {
   return action as AlgorandAction;
 }
 
-/** Throws on input that can never succeed, so callers can reject it before any approval prompt or request. */
 /** Untrusted input (tool arguments or a URL query); every field is checked at runtime. */
 export interface AlgorandInput {
   action?: unknown;
@@ -86,6 +90,7 @@ export interface AlgorandInput {
   limit?: unknown;
 }
 
+/** Throws on input that can never succeed, so callers can reject it before any approval prompt or request. */
 export function validateAlgorandInput(input: AlgorandInput): void {
   const action = parseAction(input.action);
   parseNetwork(input.network);
@@ -130,7 +135,7 @@ export async function algorandQuery(
     }
     case 'asset': {
       const id = need(input.id, 'id', 'asset id');
-      const { params: p } = await getJson(`${algod}/v2/assets/${id}`, options.signal);
+      const p = present((await getJson(`${algod}/v2/assets/${id}`, options.signal)).params, 'asset params');
       return {
         network,
         asset_id: Number(id),
@@ -145,7 +150,7 @@ export async function algorandQuery(
     }
     case 'application': {
       const id = need(input.id, 'id', 'application id');
-      const { params: p } = await getJson(`${algod}/v2/applications/${id}`, options.signal);
+      const p = present((await getJson(`${algod}/v2/applications/${id}`, options.signal)).params, 'application params');
       return {
         network,
         application_id: Number(id),
@@ -158,7 +163,7 @@ export async function algorandQuery(
     }
     case 'transaction': {
       const txid = need(input.txid, TXID, 'transaction id');
-      const { transaction: t } = await getJson(`${indexer}/v2/transactions/${txid}`, options.signal);
+      const t = present((await getJson(`${indexer}/v2/transactions/${txid}`, options.signal)).transaction, 'transaction');
       return { network, ...summarizeTransaction(t) };
     }
     case 'account_transactions': {

@@ -1,6 +1,7 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
+import { parseOllamaLine } from './ollama-line.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
 // Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
@@ -377,8 +378,8 @@ async function streamOllama(
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
       for (const line of lines) {
-        if (!line.trim()) continue;
-        const json = JSON.parse(line) as OllamaTokenMessage;
+        const json = parseOllamaLine<OllamaTokenMessage>(line);
+        if (!json) continue;
         if (json.message?.content) {
           onToken(json.message.content);
         }

@@ -893,7 +893,9 @@ async function runSlashCommand(command) {
       const query = args.join(' ').trim();
       const params = new URLSearchParams({ limit: '10' });
       if (query) params.set('q', query);
-      const { items, backend } = await (await fetch(`/api/memory?${params}`, { cache: 'no-store' })).json();
+      const memRes = await fetch(`/api/memory?${params}`, { cache: 'no-store' });
+      if (!memRes.ok) throw new Error(`memory search failed (HTTP ${memRes.status})`);
+      const { items, backend } = await memRes.json();
       appendTerminalMessage('system', items.length
         ? [`🧠 ${query ? `Memory search "${query}" (${backend})` : 'Recent memories'}:`, ...items.map(item =>
           `  [${item.layer}] ${item.title}${item.score !== undefined ? ` · ${Number(item.score).toFixed(2)}` : ''}\n      ${item.id}`)].join('\n')
@@ -1145,7 +1147,9 @@ async function runSlashCommand(command) {
       const params = new URLSearchParams({ limit: '20' });
       if (layer && valid.includes(layer)) params.set('layer', layer);
       try {
-        const { items, backend } = await (await fetch(`/api/memory?${params}`, { cache: 'no-store' })).json();
+        const notesRes = await fetch(`/api/memory?${params}`, { cache: 'no-store' });
+        if (!notesRes.ok) throw new Error(`notes request failed (HTTP ${notesRes.status})`);
+        const { items, backend } = await notesRes.json();
         if (!items.length) {
           appendTerminalMessage('system', `📝 No notes${layer ? ` in ${layer}` : ''} yet.`);
           return true;
@@ -1187,7 +1191,9 @@ async function runSlashCommand(command) {
         }
         appendTerminalMessage('system', `⏳ governed job ${job.engine_id} → ${job.execution_substrate} (receipt ${job.receipt_id})`);
         for (let i = 0; i < 40; i += 1) {
-          const st = await (await fetch(`/api/governed/run/${job.engine_id}`, { headers, cache: 'no-store' })).json();
+          const pollRes = await fetch(`/api/governed/run/${job.engine_id}`, { headers, cache: 'no-store' });
+          if (!pollRes.ok) throw new Error(`governed job poll failed (HTTP ${pollRes.status})`);
+          const st = await pollRes.json();
           if (st?.poll?.terminal) {
             const proof = st.result?.execution_proof || {};
             appendTerminalMessage('system', [
@@ -1799,11 +1805,11 @@ function renderAgents(agents) {
   const select = document.getElementById('agent-select');
   const opts = [{ id: '', name: '(default worker)', description: 'full tool access' }];
   opts.push(...agents);
+  const previous = select.value;
   select.innerHTML = opts.map(a => {
     const label = a.id ? `${a.name} — ${a.description}` : a.name;
     return `<option value="${escapeHtml(a.id)}">${escapeHtml(label)}</option>`;
   }).join('');
-  const previous = select.value;
   if (opts.some(a => a.id === previous)) select.value = previous;
 }
 
@@ -1870,6 +1876,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('clear-chat').addEventListener('click', clearTerminal);
   document.getElementById('refresh-models').addEventListener('click', loadModels);
+  document.getElementById('model-select').addEventListener('change', event => {
+    const name = event.target.value;
+    if (!name) return;
+    state.config.model = name;
+    if (state.ws?.readyState === WebSocket.OPEN) {
+      state.ws.send(JSON.stringify({ type: 'update_config', config: { model: name } }));
+    }
+  });
   document.getElementById('refresh-files').addEventListener('click', refreshFiles);
   document.getElementById('upload-files').addEventListener('click', () => document.getElementById('file-upload-input').click());
   document.getElementById('upload-repo').addEventListener('click', () => document.getElementById('repo-upload-input').click());
