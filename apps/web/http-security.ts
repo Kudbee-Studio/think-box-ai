@@ -11,7 +11,9 @@ export interface HeaderReq { method?: string; headers: Record<string, string | s
  * only to ourselves.
  */
 export function contentSecurityPolicy(port: number): string {
-  const ws = `ws://127.0.0.1:${port} ws://localhost:${port}`;
+  // `[::1]` is the IPv6 loopback name the Host/Origin gate also accepts (server.ts LOOPBACK_HOSTNAMES);
+  // the dashboard connects to `ws://${location.hostname}:${port}/ws`, which is `[::1]` when opened at http://[::1]/.
+  const ws = `ws://127.0.0.1:${port} ws://localhost:${port} ws://[::1]:${port}`;
   return [
     "default-src 'self'",
     "script-src 'self'",
