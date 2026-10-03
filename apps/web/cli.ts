@@ -1045,9 +1045,20 @@ async function main(): Promise<void> {
       return client.answer(req.id, false);
     }
     const ask = readline.createInterface({ input: process.stdin, output: process.stdout });
+    let answered = false;
+
+    const cleanup = (approved: boolean) => {
+      if (!answered) {
+        answered = true;
+        ask.removeAllListeners();
+        ask.close();
+        client.answer(req.id, approved);
+      }
+    };
+
+    ask.on('error', () => cleanup(false));
     ask.question(c.yellow('    Approve? [y/N] '), (reply) => {
-      ask.close();
-      client.answer(req.id, /^y(es)?$/i.test(reply.trim()));
+      cleanup(/^y(es)?$/i.test(reply.trim()));
     });
   };
   if (goal.startsWith('/')) {
