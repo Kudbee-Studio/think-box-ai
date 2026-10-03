@@ -1,0 +1,128 @@
+# PR #345: Phase 3 Evidence & Analysis Checkpoint
+
+**Date:** 2026-10-03  
+**Branch:** `feat/pr345-p3-evidence-and-analysis`  
+**Status:** DRAFT — exploratory checkpoint while waiting on founder gates
+
+---
+
+## Current State Summary
+
+### Phase 3 Implementation (exhausted lanes — waiting for founder decisions)
+
+| Item | Status | Evidence | Gate |
+|------|--------|----------|------|
+| 1. Governed upcloud-ssh execution | ✅ CODE / TEST / LIVE VERIFIED | #280–#289, merged; real worker-02 | None — ready to ship |
+| 2. Dashboard lockdown (#290) + polish (#292, #296, #298) | ✅ CODE / TEST VERIFIED | Cross-origin hole closed; 6 dead panels wired | None — ready to ship |
+| 2b. Workspace-confined file tools; `update_config` allow-list | ✅ CODE / TEST VERIFIED | Race tests 400 iterations, 0 leaks (#302) | None — ready to ship |
+| 3. SSH hardening (host-key pinning, non-root) | ✅ CODE / TEST VERIFIED | #340 merged | **FOUNDER GATE:** real worker-02 live evidence needed |
+| 4. Live-proof bundle builder + operator runner | ✅ CODE / TEST VERIFIED | #340 merged; redaction + hermetic runner | **FOUNDER GATE:** real worker-02 live evidence needed |
+| 5. Think Token (#288) — wire / decouple / drop decision | ⏭ REQUIRES DECISION | ADR 028 & 029 Proposed, not chosen | **FOUNDER DECISION:** architectural choice required |
+| 6. Git panel browser test | ✅ CODE / TEST VERIFIED | #341 merged; node:vm + real server | None — ready to ship |
+| 7. Dashboard auth + HTTPS (before remote/shared deployment) | ⏸ DEFERRED | Not started | **FOUNDER DECISION:** deferral must be explicitly lifted |
+
+---
+
+## Founder Gate Status (from AGENTS.md §0.11)
+
+### (a) Item 5 — Think Token Architectural Decision
+
+**What:** ADRs 028 and 029 propose wiring the learning library into `AgentSession` (changes agent prompts). The roadmap does not choose wire / decouple / drop.
+
+**Next step:** Founder decides. Once decided:
+- **Wire:** implement coupling into agent lifecycle
+- **Decouple:** finalize as standalone, optional library
+- **Drop:** retire the code and remove from memory
+
+**Evidence needed:** none yet — this is a design choice
+
+---
+
+### (b) Items 3 & 4 — Real Worker-02 Live Evidence
+
+**What:** SSH hardening (#340) and live-proof bundle (#340) are CODE/TEST VERIFIED but need real execution on worker-02.
+
+**Current barrier:** `UPCLOUD_SERVER_IP` in this worktree is historical dead host `212.147.250.183`; `UPCLOUD_SSH_KEY_PATH` does not exist (purged in PR #271).
+
+**Next step (founder):** Restore worker-02 SSH credentials (or provide temporary access), then:
+```bash
+python3 scripts/run_live_proof_bundle.py --command hostname
+# Expect: real output from worker-02
+# Then: git add docs/evidence/live-proof/ && git commit
+```
+
+**After:** items 3 & 4 move to LIVE VERIFIED
+
+---
+
+### (c) Item 7 — Dashboard Auth Deferral Lift
+
+**What:** Dashboard authentication + HTTPS are deferred by founder decision (2026-09-30). Required before any remote or shared deployment.
+
+**Current status:** Deferred (not authorized)
+
+**Next step:** Founder explicitly lifts the deferral, then:
+- Implement user authentication (OAuth2 or session-based)
+- Add HTTPS requirement
+- Create PR for review
+
+---
+
+## Open Founder Infrastructure Decisions
+
+From STATUS.md §14:
+- Delete orphan server `00068975`?
+- Keep or delete worker-01 (account `kudbee`)?
+- Add SSH-only firewall on worker-02?
+
+---
+
+## What This PR Does
+
+This is a **docs-only, evidence-gathering checkpoint** while Phase 3 implementation waits. It:
+
+1. ✅ Consolidates the current gate status in one place
+2. ✅ Lists exact founder decisions needed + next steps for each
+3. ✅ Tracks which infrastructure/credentials are missing
+4. ✅ Provides a repeatable runbook for founder when decisions are made
+
+**This PR has no code changes.** It is a living document and can be updated as events unfold.
+
+---
+
+## Four-State Classification
+
+| State | Status |
+|-------|--------|
+| CODE COMPLETE | N/A (docs only) |
+| TEST VERIFIED | N/A (docs only) |
+| LIVE VERIFIED | ✅ Evidence sourced from merged PRs #340, #341, #342; no new execution |
+| PRODUCTION READY | ❌ Not applicable — waiting on founder gates |
+
+---
+
+## Next Actions (Founder/Agent)
+
+1. **Founder decides on Item 5** (wire/decouple/drop Think Token)
+   → Implementation PR becomes authorized
+2. **Founder provides worker-02 SSH access** (restore credentials)
+   → Run `scripts/run_live_proof_bundle.py` to generate live evidence
+   → Items 3 & 4 move to LIVE VERIFIED
+3. **Founder lifts Item 7 deferral** (auth + HTTPS)
+   → Implementation PR becomes authorized
+4. **Founder decides on infrastructure** (delete servers, firewall rules)
+   → Operations work follows
+
+---
+
+## Related Documentation
+
+- `AGENTS.md` §0.11 — Roadmap authorization rules
+- `docs/roadmaps/ROADMAP.md` — Phase 3 current status
+- `STATUS.md` — Detailed merge state + CI notes
+- `docs/enterprise/roadmap.md` — E0–E6 phases (proposed; awaits founder approval)
+- ADR 028 & 029 — Think Token design space (Proposed)
+
+---
+
+Generated by Claude Haiku 4.5 — evidence checkpoint while waiting on founder gates.
