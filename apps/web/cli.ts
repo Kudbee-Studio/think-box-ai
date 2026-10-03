@@ -264,6 +264,17 @@ async function showRun(prefix: string): Promise<void> {
 async function interactiveModelSelect(client: Client): Promise<boolean> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
+    const cleanup = () => {
+      rl.removeAllListeners();
+      rl.close();
+    };
+
+    rl.on('error', (err) => {
+      cleanup();
+      console.log(c.red(`Error: ${err instanceof Error ? err.message : String(err)}`));
+      resolve(false);
+    });
+
     console.log(c.bold('\n🤖 SELECT MODEL\n'));
     const agents = client.models.filter((m) => m.agent);
     const local = client.models.filter((m) => !m.agent);
@@ -282,7 +293,7 @@ async function interactiveModelSelect(client: Client): Promise<boolean> {
     }
 
     rl.question(c.cyan('\n  Choose (number or name): '), (input) => {
-      rl.close();
+      cleanup();
       const choice = input.trim().toLowerCase();
       const idx = parseInt(choice, 10) - 1;
       const all = [...agents, ...local];
@@ -487,12 +498,13 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
               setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
             ),
           ]);
-          result = response.data;
+          result = response?.data;
+          if (!result) throw new Error('No response data from plugin');
         } catch (timeoutErr) {
-          console.log(c.red('Error: Plugin execution timed out (30s)'));
+          console.log(c.red(`Error: ${timeoutErr instanceof Error ? timeoutErr.message : 'Plugin execution timeout (30s)'}`));
           break;
         }
-        if (result.success) {
+        if (result?.success) {
           console.log(c.green(`✓ ${pluginName} executed successfully`));
           if (result.output) {
             const formatted = typeof result.output === 'string'
@@ -503,7 +515,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           }
         } else {
           console.log(c.red(`✗ Plugin execution failed: ${pluginName}`));
-          if (result.error) console.log(c.dim(`  Error: ${result.error}`));
+          if (result?.error) console.log(c.dim(`  Error: ${result.error}`));
         }
       } catch (err) {
         console.log(c.red('Error: Invalid JSON input'));
