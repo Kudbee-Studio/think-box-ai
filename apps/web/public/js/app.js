@@ -1365,6 +1365,7 @@ async function testMiddleware() {
     const query = state.sessionId ? `?session_id=${encodeURIComponent(state.sessionId)}` : '';
     const response = await fetch(`/api/middleware/test${query}`, { cache: 'no-store' });
     const result = await response.json();
+    if (!response.ok || !Array.isArray(result.checks)) throw new Error(result.error || `HTTP ${response.status}`);
     appendTerminalMessage(result.passed ? 'system' : 'error', [
       `Middleware test: ${result.passed ? 'PASSED' : 'FAILED'}`,
       ...result.checks.map(check => `${check.status === 'ok' ? '✓' : '✗'} ${check.name}: ${check.error || `${check.http_status} (${check.latency_ms}ms)`}`),

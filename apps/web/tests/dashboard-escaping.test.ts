@@ -36,3 +36,10 @@ test('the mock dashboard shows a thought\'s text with textContent, never as HTML
   assert.ok(!src.includes('${thought.text || \'thinking...\'}'), 'thought.text is interpolated raw into innerHTML');
   assert.ok(src.includes("textContent = thought.text || 'thinking...'"));
 });
+
+test('the middleware test reports an HTTP or malformed reply clearly instead of crashing on result.checks.map', () => {
+  const src = read('app.js');
+  const i = src.indexOf('/api/middleware/test');
+  const body = src.slice(i, i + 700);
+  assert.match(body, /!response\.ok \|\| !Array\.isArray\(result\.checks\)/);
+});
