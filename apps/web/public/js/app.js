@@ -267,7 +267,7 @@ function appendTerminalMessage(role, content) {
 
   const header = document.createElement('div');
   header.className = 'message-header';
-  header.innerHTML = `<span class="message-role">${role}</span><span class="message-time">${new Date().toLocaleTimeString()}</span>`;
+  header.innerHTML = `<span class="message-role">${escapeHtml(role)}</span><span class="message-time">${new Date().toLocaleTimeString()}</span>`;
 
   const body = document.createElement('div');
   body.className = 'message-content';
@@ -384,7 +384,7 @@ function clearTerminal() {
       <div class="welcome-line">🐝 kudbEE — Agent OS</div>
       <div class="welcome-line">Type a goal and press Run to start.</div>
       <div class="welcome-line">Make sure Ollama is running: <code>ollama serve</code></div>
-      <div class="welcome-line">Backend: ${window.location.origin}/ws</div>
+      <div class="welcome-line">Backend: ${escapeHtml(window.location.origin)}/ws</div>
     </div>
   `;
   state.thoughts = [];
@@ -516,10 +516,10 @@ function runProgressLine(task) {
   if (!run) return '';
   if (task.status === 'running' && !run.ended_at) {
     const elapsed = ((Date.now() - run.started_at) / 1000).toFixed(0);
-    return `<div class="task-progress">Step ${run.current_step || 1} · ${escapeHtml(run.current_action || 'thinking')} · ${elapsed}s</div>`;
+    return `<div class="task-progress">Step ${Number(run.current_step) || 1} · ${escapeHtml(run.current_action || 'thinking')} · ${Number(elapsed) || 0}s</div>`;
   }
   if (run.ended_at) {
-    return `<div class="task-progress">${run.current_step} step(s) · ${run.tool_calls} tool(s) · ${formatUsd(run.cost_usd)} · ${((run.duration_ms || 0) / 1000).toFixed(1)}s · timeline ›</div>`;
+    return `<div class="task-progress">${Number(run.current_step) || 0} step(s) · ${Number(run.tool_calls) || 0} tool(s) · ${formatUsd(run.cost_usd)} · ${((run.duration_ms || 0) / 1000).toFixed(1)}s · timeline ›</div>`;
   }
   return '';
 }
@@ -680,7 +680,7 @@ async function refreshFiles() {
   // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
   const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
   tree.innerHTML = visibleFiles.length
-    ? visibleFiles.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${formatBytes(file.size)}</small></button>`).join('')
+    ? visibleFiles.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${escapeHtml(formatBytes(file.size))}</small></button>`).join('')
     : '<div class="file-tree-empty">No files in workspace</div>';
 }
 
@@ -1364,7 +1364,7 @@ async function refreshConnectionMonitor() {
           <div class="plugin-name">${escapeHtml(check.name)}</div>
           <div class="plugin-desc">${escapeHtml(check.error || `${check.latency_ms}ms`)}</div>
         </div>
-        <span class="plugin-badge ${check.status}">${escapeHtml(check.status)}</span>
+        <span class="plugin-badge ${escapeHtml(check.status)}">${escapeHtml(check.status)}</span>
       </div>
     `).join('');
     updated.textContent = `Agent ${snapshot.agent.id.slice(0, 8)}`;
@@ -1466,14 +1466,14 @@ async function refreshStats() {
     const max = Math.max(1, ...s.hourly.map(h => h.runs));
     document.getElementById('sparkline').innerHTML = s.hourly.map((h, i) => {
       const hoursAgo = 23 - i;
-      const title = `${hoursAgo === 0 ? 'This hour' : `${hoursAgo}h ago`}: ${h.runs} run(s), ${h.failed} failed, ${formatUsd(h.cost_usd)}`;
+      const title = escapeHtml(`${hoursAgo === 0 ? 'This hour' : `${hoursAgo}h ago`}: ${h.runs} run(s), ${h.failed} failed, ${formatUsd(h.cost_usd)}`);
       if (!h.runs) return `<div class="bar empty" title="${title}"></div>`;
       const fail = h.failed ? ` has-fail" style="height:${(h.runs / max) * 100}%;--fail:${(h.failed / h.runs) * 100}%` : `" style="height:${(h.runs / max) * 100}%`;
       return `<div class="bar${fail}" title="${title}"></div>`;
     }).join('');
 
     document.getElementById('metric-failures').innerHTML = Object.entries(s.failures || {})
-      .map(([kind, count]) => `<span title="Failure type">${escapeHtml(kind)} × ${count}</span>`).join('');
+      .map(([kind, count]) => `<span title="Failure type">${escapeHtml(kind)} × ${escapeHtml(count)}</span>`).join('');
 
     // Independent try/catch: a token-stats hiccup shouldn't flip the whole
     // metrics panel to "Offline" for an unrelated endpoint.
@@ -1516,7 +1516,7 @@ async function refreshTokenSavings() {
     const max = Math.max(1, ...bars);
     document.getElementById('token-savings-sparkline').innerHTML = bars.length
       ? bars.map((saved) => {
-          const title = saved > 0 ? `est. ${saved.toLocaleString()} tokens saved` : 'no local route (Mercury-2 used)';
+          const title = saved > 0 ? escapeHtml(`est. ${saved.toLocaleString()} tokens saved`) : 'no local route (Mercury-2 used)';
           const cls = saved > 0 ? 'savings' : 'fallback';
           const height = saved > 0 ? (saved / max) * 100 : 8;
           return `<div class="bar ${cls}" style="height:${height}%" title="${title}"></div>`;
@@ -1548,9 +1548,9 @@ async function refreshRuns() {
     container.innerHTML = runs.length
       ? runs.map(run => `
         <button type="button" class="run-item" data-run="${escapeHtml(run.id)}" title="${escapeHtml(run.goal)}">
-          <span class="run-dot ${run.status}"></span>
+          <span class="run-dot ${escapeHtml(run.status)}"></span>
           <span class="goal">${escapeHtml(run.goal)}</span>
-          <small>${formatUsd(run.cost_usd)} · ${run.status === 'running' ? 'live' : formatMs(run.duration_ms)}</small>
+          <small>${formatUsd(run.cost_usd)} · ${run.status === 'running' ? 'live' : escapeHtml(formatMs(run.duration_ms))}</small>
         </button>`).join('')
       : '<div class="empty-state">No runs yet</div>';
   } catch {
@@ -1580,7 +1580,7 @@ async function openRun(runId) {
   ];
   const answer = run.result || run.error;
   document.getElementById('run-summary').innerHTML = kpis
-    .map(([label, value]) => `<div class="kpi"><span>${label}</span><strong>${escapeHtml(String(value))}</strong></div>`).join('')
+    .map(([label, value]) => `<div class="kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`).join('')
     + (run.files.length ? `<div class="run-answer">📁 Files: ${run.files.map(escapeHtml).join(', ')}</div>` : '')
     + (run.recalled?.length ? `<div class="run-answer">🧠 Recalled: ${run.recalled.map(escapeHtml).join(', ')}</div>` : '')
     + (answer ? `<div class="run-answer ${run.error ? 'error' : ''}">${escapeHtml(answer)}</div>` : '');
@@ -1589,14 +1589,14 @@ async function openRun(runId) {
     if (step.kind === 'model') {
       const calls = step.tool_calls.length ? `→ ${step.tool_calls.join(', ')}` : '→ final answer';
       return `<div class="tl-item model">
-        <div class="tl-head"><span>🧠 Step ${step.step} · ${escapeHtml(run.model)} ${escapeHtml(calls)}</span><small>${formatMs(step.latency_ms)} · ${step.prompt_tokens}+${step.completion_tokens} tok · ${formatUsd(step.cost_usd)}</small></div>
+        <div class="tl-head"><span>🧠 Step ${Number(step.step) || 0} · ${escapeHtml(run.model)} ${escapeHtml(calls)}</span><small>${escapeHtml(formatMs(step.latency_ms))} · ${Number(step.prompt_tokens) || 0}+${Number(step.completion_tokens) || 0} tok · ${formatUsd(step.cost_usd)}</small></div>
         ${step.content ? `<div class="tl-body">${escapeHtml(step.content)}</div>` : ''}
       </div>`;
     }
     const cls = step.approval === 'denied' ? 'denied' : step.ok ? '' : 'fail';
-    const tag = step.approval ? `<span class="tl-tag ${step.approval}">${step.approval}</span>` : '';
+    const tag = step.approval ? `<span class="tl-tag ${escapeHtml(step.approval)}">${escapeHtml(step.approval)}</span>` : '';
     return `<div class="tl-item tool ${cls}">
-      <div class="tl-head"><span>${step.ok ? '✓' : '✗'} ${escapeHtml(step.name)}${tag}</span><small>${formatMs(step.latency_ms)}</small></div>
+      <div class="tl-head"><span>${step.ok ? '✓' : '✗'} ${escapeHtml(step.name)}${tag}</span><small>${escapeHtml(formatMs(step.latency_ms))}</small></div>
       <div class="tl-body">${escapeHtml(JSON.stringify(step.args))}${step.approval_reason ? `\n⚖ ${escapeHtml(step.approval_reason)}` : ''}\n→ ${escapeHtml(step.error || step.output)}</div>
     </div>`;
   }).join('') : '<div class="empty-state">No steps recorded yet</div>';
@@ -1674,7 +1674,7 @@ async function refreshMemory() {
     container.innerHTML = items.length
       ? items.map(item => `
         <button type="button" class="memory-item" data-memory-id="${escapeHtml(item.id)}" title="${escapeHtml(item.path)}">
-          <strong><span class="memory-layer ${item.layer}">${item.layer}</span>${escapeHtml(item.title)}</strong>
+          <strong><span class="memory-layer ${escapeHtml(item.layer)}">${escapeHtml(item.layer)}</span>${escapeHtml(item.title)}</strong>
           <small>${item.score !== undefined ? `score ${Number(item.score).toFixed(2)} · ` : ''}${escapeHtml(item.content)}</small>
         </button>`).join('')
       : `<div class="empty-state">${state.memoryQuery ? `No matches (${escapeHtml(backend)})` : 'No memories yet — finished runs are saved here automatically'}</div>`;

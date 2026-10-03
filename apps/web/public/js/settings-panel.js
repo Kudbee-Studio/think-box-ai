@@ -52,7 +52,7 @@ class SettingsPanel {
             <span class="modal-eyebrow">PREFERENCES</span>
             <h2 id="settings-title">Settings & Preferences</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="settings-tabs">
@@ -67,7 +67,7 @@ class SettingsPanel {
             <h3>Appearance</h3>
             <label>
               Theme
-              <select id="theme-select" onchange="settingsPanel.updateSetting('theme', this.value)">
+              <select id="theme-select" data-setting="theme">
                 <option value="auto" ${this.settings.theme === 'auto' ? 'selected' : ''}>Auto (system)</option>
                 <option value="light" ${this.settings.theme === 'light' ? 'selected' : ''}>Light</option>
                 <option value="dark" ${this.settings.theme === 'dark' ? 'selected' : ''}>Dark</option>
@@ -75,15 +75,14 @@ class SettingsPanel {
             </label>
             <label>
               Font Size
-              <select id="font-select" onchange="settingsPanel.updateSetting('fontSize', this.value)">
+              <select id="font-select" data-setting="fontSize">
                 <option value="small" ${this.settings.fontSize === 'small' ? 'selected' : ''}>Small</option>
                 <option value="medium" ${this.settings.fontSize === 'medium' ? 'selected' : ''}>Medium</option>
                 <option value="large" ${this.settings.fontSize === 'large' ? 'selected' : ''}>Large</option>
               </select>
             </label>
             <label>
-              <input type="checkbox" id="compact-mode" ${this.settings.compactMode ? 'checked' : ''}
-                onchange="settingsPanel.updateSetting('compactMode', this.checked)">
+              <input type="checkbox" id="compact-mode" ${this.settings.compactMode ? 'checked' : ''} data-setting="compactMode">
               Compact mode
             </label>
           </div>
@@ -91,18 +90,15 @@ class SettingsPanel {
           <div class="settings-section" data-section="notifications">
             <h3>Notifications</h3>
             <label>
-              <input type="checkbox" id="notifications-enabled" ${this.settings.notifications ? 'checked' : ''}
-                onchange="settingsPanel.updateSetting('notifications', this.checked)">
+              <input type="checkbox" id="notifications-enabled" ${this.settings.notifications ? 'checked' : ''} data-setting="notifications">
               Enable notifications
             </label>
             <label>
-              <input type="checkbox" id="sound-enabled" ${this.settings.soundEnabled ? 'checked' : ''}
-                onchange="settingsPanel.updateSetting('soundEnabled', this.checked)">
+              <input type="checkbox" id="sound-enabled" ${this.settings.soundEnabled ? 'checked' : ''} data-setting="soundEnabled">
               Sound effects
             </label>
             <label>
-              <input type="checkbox" id="show-tips" ${this.settings.showTips ? 'checked' : ''}
-                onchange="settingsPanel.updateSetting('showTips', this.checked)">
+              <input type="checkbox" id="show-tips" ${this.settings.showTips ? 'checked' : ''} data-setting="showTips">
               Show helpful tips
             </label>
           </div>
@@ -132,25 +128,24 @@ class SettingsPanel {
           <div class="settings-section" data-section="advanced">
             <h3>Advanced</h3>
             <label>
-              <input type="checkbox" id="auto-save" ${this.settings.autoSave ? 'checked' : ''}
-                onchange="settingsPanel.updateSetting('autoSave', this.checked)">
+              <input type="checkbox" id="auto-save" ${this.settings.autoSave ? 'checked' : ''} data-setting="autoSave">
               Auto-save drafts
             </label>
             <label>
               Language
-              <select id="language-select" onchange="settingsPanel.updateSetting('language', this.value)">
+              <select id="language-select" data-setting="language">
                 <option value="en" ${this.settings.language === 'en' ? 'selected' : ''}>English</option>
                 <option value="es" ${this.settings.language === 'es' ? 'selected' : ''}>Español</option>
                 <option value="fr" ${this.settings.language === 'fr' ? 'selected' : ''}>Français</option>
                 <option value="de" ${this.settings.language === 'de' ? 'selected' : ''}>Deutsch</option>
               </select>
             </label>
-            <button class="btn-danger" onclick="settingsPanel.resetSettings()">Reset to defaults</button>
+            <button class="btn-danger" data-action="reset">Reset to defaults</button>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Done</button>
+          <button class="btn-secondary" data-action="close">Done</button>
         </div>
       </section>
     `;
@@ -166,7 +161,18 @@ class SettingsPanel {
     });
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) { modal.remove(); return; }
+      const actionEl = e.target.closest ? e.target.closest('[data-action]') : null;
+      if (!actionEl || !modal.contains(actionEl)) return;
+      if (actionEl.dataset.action === 'close') modal.remove();
+      else if (actionEl.dataset.action === 'reset') this.resetSettings();
+    });
+
+    modal.addEventListener('change', (e) => {
+      const el = e.target;
+      const key = el && el.dataset ? el.dataset.setting : null;
+      if (!key) return;
+      this.updateSetting(key, el.type === 'checkbox' ? el.checked : el.value);
     });
 
     return modal;

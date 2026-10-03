@@ -40,7 +40,7 @@ class IntegrationConnectors {
             <span class="modal-eyebrow">INTEGRATIONS · DEMO</span>
             <h2>Integrations</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="demo-banner" role="note">Demo data - not connected to real services</div>
@@ -48,13 +48,13 @@ class IntegrationConnectors {
         <div class="integrations-container">
           <div class="connectors-grid">
             ${Object.entries(this.connectors).map(([key, connector]) => `
-                <div class="connector-card" data-connector="${key}">
+                <div class="connector-card" data-connector="${escapeHtml(key)}">
                   <div class="connector-icon">${connector.icon}</div>
-                  <h3>${connector.name}</h3>
-                  <p>${connector.description}</p>
+                  <h3>${escapeHtml(connector.name)}</h3>
+                  <p>${escapeHtml(connector.description)}</p>
                   <div class="connector-status">
                     <span class="status-badge disconnected">○ Not connected</span>
-                    <button class="btn-secondary" type="button" disabled title="Demo only: kudbEE has no ${connector.name} integration yet">Simulated (demo)</button>
+                    <button class="btn-secondary" type="button" disabled title="Demo only: kudbEE has no ${escapeHtml(connector.name)} integration yet">Simulated (demo)</button>
                   </div>
                 </div>
               `).join('')}
@@ -62,16 +62,31 @@ class IntegrationConnectors {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) { modal.remove(); return; }
+      this.handleModalAction(e, modal);
     });
 
     document.body.appendChild(modal);
+  }
+
+  handleModalAction(e, modal) {
+    const el = e.target.closest ? e.target.closest('[data-action]') : null;
+    if (!el || !modal.contains(el)) return;
+    const action = el.dataset.action;
+    if (action === 'close') modal.remove();
+    else if (action === 'save-config') this.saveConfig(el.dataset.service);
+    else if (action === 'save-automation') this.saveAutomation();
+    else if (action === 'update-automation') this.updateAutomation(el.dataset.service, Number(el.dataset.index));
+    else if (action === 'template') {
+      const msg = document.getElementById('automation-message');
+      if (msg) msg.value = el.dataset.template;
+    }
   }
 
   disconnect(service) {
@@ -90,8 +105,8 @@ class IntegrationConnectors {
     configModal.innerHTML = `
       <section class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
-          <h2>Configure ${this.connectors[service].name}</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <h2>Configure ${escapeHtml(this.connectors[service].name)}</h2>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="config-form">
@@ -115,20 +130,21 @@ class IntegrationConnectors {
             <legend>Advanced</legend>
             <label>
               Sync interval (minutes):
-              <input type="number" value="${connector.config?.syncInterval || 15}" min="1" max="1440">
+              <input type="number" value="${Number(connector.config?.syncInterval) || 15}" min="1" max="1440">
             </label>
           </fieldset>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-primary" onclick="integrationConnectors.saveConfig('${service}')">Save</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-primary" data-action="save-config" data-service="${escapeHtml(service)}">Save</button>
         </div>
       </section>
     `;
 
     configModal.addEventListener('click', (e) => {
-      if (e.target === configModal) configModal.remove();
+      if (e.target === configModal) { configModal.remove(); return; }
+      this.handleModalAction(e, configModal);
     });
 
     document.body.appendChild(configModal);
@@ -154,7 +170,7 @@ class IntegrationConnectors {
       <section class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h2>Create Automation</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="automation-form">
@@ -174,7 +190,7 @@ class IntegrationConnectors {
               <option value="">Choose service...</option>
               ${Object.entries(this.integrations)
                 .filter(([_, int]) => int.connected)
-                .map(([key, int]) => `<option value="${key}">${this.connectors[key].name}</option>`)
+                .map(([key, int]) => `<option value="${escapeHtml(key)}">${escapeHtml(this.connectors[key]?.name || key)}</option>`)
                 .join('')}
             </select>
           </label>
@@ -186,20 +202,21 @@ class IntegrationConnectors {
 
           <div class="templates">
             <span>Templates:</span>
-            <button class="template-btn" onclick="document.getElementById('automation-message').value = 'Task {task_name} completed successfully'">Task Completed</button>
-            <button class="template-btn" onclick="document.getElementById('automation-message').value = '⚠️ Error: {error_message}'">Error Alert</button>
+            <button class="template-btn" data-action="template" data-template="Task {task_name} completed successfully">Task Completed</button>
+            <button class="template-btn" data-action="template" data-template="⚠️ Error: {error_message}">Error Alert</button>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-success" onclick="integrationConnectors.saveAutomation()">Create</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-success" data-action="save-automation">Create</button>
         </div>
       </section>
     `;
 
     automationModal.addEventListener('click', (e) => {
-      if (e.target === automationModal) automationModal.remove();
+      if (e.target === automationModal) { automationModal.remove(); return; }
+      this.handleModalAction(e, automationModal);
     });
 
     document.body.appendChild(automationModal);
@@ -214,7 +231,7 @@ class IntegrationConnectors {
       <section class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h2>Edit Automation</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
         <div class="automation-form">
           <label>
@@ -228,17 +245,18 @@ class IntegrationConnectors {
           </label>
           <label>
             Message:
-            <textarea id="automation-message" placeholder="Enter message...">${automation.message || ''}</textarea>
+            <textarea id="automation-message" placeholder="Enter message...">${escapeHtml(automation.message || '')}</textarea>
           </label>
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-success" onclick="integrationConnectors.updateAutomation('${service}', ${index})">Update</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-success" data-action="update-automation" data-service="${escapeHtml(service)}" data-index="${Number(index) || 0}">Update</button>
         </div>
       </section>
     `;
     automationModal.addEventListener('click', (e) => {
-      if (e.target === automationModal) automationModal.remove();
+      if (e.target === automationModal) { automationModal.remove(); return; }
+      this.handleModalAction(e, automationModal);
     });
     document.body.appendChild(automationModal);
   }

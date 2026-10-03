@@ -48,11 +48,11 @@ class RunReplay {
 
       item.innerHTML = `
         <div class="tl-head">
-          <span>${event.type === 'tool' ? '🔧' : event.type === 'thought' ? '💭' : '→'} ${event.title || 'Step'}</span>
+          <span>${event.type === 'tool' ? '🔧' : event.type === 'thought' ? '💭' : '→'} ${this.escapeHtml(event.title || 'Step')}</span>
           <small>${this.formatTime(event.timestamp)}</small>
         </div>
         ${event.content ? `<div class="tl-body">${this.escapeHtml(event.content)}</div>` : ''}
-        ${event.status ? `<span class="tl-tag ${event.status}">${event.status.toUpperCase()}</span>` : ''}
+        ${event.status ? `<span class="tl-tag ${this.escapeHtml(event.status)}">${this.escapeHtml(String(event.status).toUpperCase())}</span>` : ''}
       `;
 
       item.addEventListener('click', () => this.selectStep(index));
@@ -105,14 +105,14 @@ class RunReplay {
 
     if (details) {
       details.innerHTML = `
-        <h4>${step.title}</h4>
+        <h4>${this.escapeHtml(step.title)}</h4>
         <dl>
-          <dt>Type</dt><dd>${step.type}</dd>
-          <dt>Status</dt><dd><span class="status-badge ${step.status}">${step.status}</span></dd>
-          <dt>Duration</dt><dd>${step.duration}ms</dd>
-          ${step.toolName ? `<dt>Tool</dt><dd>${step.toolName}</dd>` : ''}
-          ${step.input ? `<dt>Input</dt><dd><pre>${JSON.stringify(step.input, null, 2)}</pre></dd>` : ''}
-          ${step.output ? `<dt>Output</dt><dd><pre>${JSON.stringify(step.output, null, 2)}</pre></dd>` : ''}
+          <dt>Type</dt><dd>${this.escapeHtml(step.type)}</dd>
+          <dt>Status</dt><dd><span class="status-badge ${this.escapeHtml(step.status)}">${this.escapeHtml(step.status)}</span></dd>
+          <dt>Duration</dt><dd>${Number(step.duration) || 0}ms</dd>
+          ${step.toolName ? `<dt>Tool</dt><dd>${this.escapeHtml(step.toolName)}</dd>` : ''}
+          ${step.input ? `<dt>Input</dt><dd><pre>${this.escapeHtml(JSON.stringify(step.input, null, 2))}</pre></dd>` : ''}
+          ${step.output ? `<dt>Output</dt><dd><pre>${this.escapeHtml(JSON.stringify(step.output, null, 2))}</pre></dd>` : ''}
         </dl>
       `;
     }
@@ -172,9 +172,7 @@ class RunReplay {
   }
 
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   }
 }
 

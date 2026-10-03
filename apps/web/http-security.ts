@@ -5,17 +5,17 @@ export interface HeaderRes { setHeader(name: string, value: string): unknown; st
 export interface HeaderReq { method?: string; headers: Record<string, string | string[] | undefined> }
 
 /**
- * `script-src 'self'` blocks injected <script> elements and remote scripts. `script-src-attr 'unsafe-inline'` is a tracked
- * exception: the dashboard still has inline on*= handlers (see the ratchet in tests/http-security.test.ts); migrating them
- * lets this line be removed. Inline styles are allowed (generated markup uses style attributes). No eval, no plugins,
- * no <base>, no framing, forms only to ourselves.
+ * `script-src 'self'` blocks injected <script> elements and remote scripts, and `script-src-attr 'none'` blocks inline event-handler
+ * attributes (an injected <img onerror=...> does not run). The dashboard has no inline handlers; tests/http-security.test.ts fails if one
+ * is added. Inline styles are still allowed (generated markup uses style attributes). No eval, no plugins, no <base>, no framing, forms
+ * only to ourselves.
  */
 export function contentSecurityPolicy(port: number): string {
   const ws = `ws://127.0.0.1:${port} ws://localhost:${port}`;
   return [
     "default-src 'self'",
     "script-src 'self'",
-    "script-src-attr 'unsafe-inline'",
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",

@@ -225,4 +225,5 @@ class MemoryGraph {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.memoryGraph = new MemoryGraph();
+  document.getElementById('memory-graph-refresh')?.addEventListener('click', () => window.memoryGraph?.render());
 });

@@ -77,33 +77,33 @@ class PerformanceAnalytics {
             <span class="modal-eyebrow">ANALYTICS</span>
             <h2>Performance & Cost Analysis</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="analytics-dashboard">
           <div class="metrics-grid">
             <div class="metric-card">
               <div class="metric-label">Total Cost (30d)</div>
-              <div class="metric-value">$${this.calculateTotalCost()}</div>
+              <div class="metric-value">$${escapeHtml(this.calculateTotalCost())}</div>
               <div class="metric-trend" id="cost-trend">↔ Stable</div>
             </div>
 
             <div class="metric-card">
               <div class="metric-label">Tokens Used</div>
-              <div class="metric-value">${(this.metrics.tokens.spent / 1000).toFixed(1)}K</div>
-              <div class="metric-trend" id="token-trend">↑ +${this.getTokenTrend()}</div>
+              <div class="metric-value">${escapeHtml(((Number(this.metrics.tokens.spent) || 0) / 1000).toFixed(1))}K</div>
+              <div class="metric-trend" id="token-trend">↑ +${escapeHtml(this.getTokenTrend())}</div>
             </div>
 
             <div class="metric-card">
               <div class="metric-label">Avg Latency</div>
-              <div class="metric-value">${this.getAverageLatency()}ms</div>
-              <div class="metric-trend" id="latency-trend">↓ -${this.getLatencyTrend()}ms</div>
+              <div class="metric-value">${escapeHtml(this.getAverageLatency())}ms</div>
+              <div class="metric-trend" id="latency-trend">↓ -${escapeHtml(this.getLatencyTrend())}ms</div>
             </div>
 
             <div class="metric-card">
               <div class="metric-label">Local Model %</div>
-              <div class="metric-value">${this.getLocalModelPercentage()}%</div>
-              <div class="metric-trend" id="local-trend">💡 Savings: $${this.calculateSavings()}</div>
+              <div class="metric-value">${escapeHtml(this.getLocalModelPercentage())}%</div>
+              <div class="metric-trend" id="local-trend">💡 Savings: $${escapeHtml(this.calculateSavings())}</div>
             </div>
           </div>
 
@@ -125,11 +125,11 @@ class PerformanceAnalytics {
                 </div>
                 ${this.getModelEfficiency().map(m => `
                   <div class="efficiency-row">
-                    <span>${m.model}</span>
-                    <span>${m.runs}</span>
-                    <span>${m.tokensPerRun}</span>
-                    <span>${m.avgLatency}ms</span>
-                    <span>$${m.costPerRun}</span>
+                    <span>${escapeHtml(m.model)}</span>
+                    <span>${escapeHtml(m.runs)}</span>
+                    <span>${escapeHtml(m.tokensPerRun)}</span>
+                    <span>${escapeHtml(m.avgLatency)}ms</span>
+                    <span>$${escapeHtml(m.costPerRun)}</span>
                   </div>
                 `).join('')}
               </div>
@@ -143,7 +143,7 @@ class PerformanceAnalytics {
                 <li class="suggestion">
                   <span class="suggestion-impact">${s.impact}</span>
                   <span class="suggestion-text">${s.text}</span>
-                  <span class="suggestion-savings">Save: $${s.savings}</span>
+                  <span class="suggestion-savings">Save: $${escapeHtml(s.savings)}</span>
                 </li>
               `).join('')}
             </ul>
@@ -154,11 +154,11 @@ class PerformanceAnalytics {
             <div class="breakdown-bars">
               ${this.getCostBreakdown().map(item => `
                 <div class="breakdown-item">
-                  <span class="breakdown-label">${item.label}</span>
+                  <span class="breakdown-label">${escapeHtml(item.label)}</span>
                   <div class="breakdown-bar">
-                    <div class="breakdown-fill" style="width: ${item.percentage}%"></div>
+                    <div class="breakdown-fill" style="width: ${Number(item.percentage) || 0}%"></div>
                   </div>
-                  <span class="breakdown-value">$${item.cost} (${item.percentage}%)</span>
+                  <span class="breakdown-value">$${escapeHtml(item.cost)} (${escapeHtml(item.percentage)}%)</span>
                 </div>
               `).join('')}
             </div>
@@ -166,14 +166,18 @@ class PerformanceAnalytics {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="performanceAnalytics.exportMetrics()">Export Report</button>
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="export">Export Report</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
+      const actionEl = e.target.closest?.('[data-action]');
+      if (!actionEl || !modal.contains(actionEl)) return;
+      if (actionEl.dataset.action === 'close') modal.remove();
+      else if (actionEl.dataset.action === 'export') this.exportMetrics();
     });
 
     document.body.appendChild(modal);

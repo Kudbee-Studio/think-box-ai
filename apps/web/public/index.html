@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="/css/template-browser.css">
   <link rel="stylesheet" href="/css/enterprise-polish.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
+  <script src="/js/escape-html-global.js"></script>
   <script src="/js/enterprise.js"></script>
   <!-- ES module: think-cube-render.js imports think-cube-state.js and, in a browser, assigns
        window.ThinkCubeRenderer for the classic script think-token-dashboard.js to use. -->
@@ -122,7 +123,7 @@
         <div class="panel">
           <div class="panel-header">
             <h3><span class="icon">🕸</span> Memory Graph</h3>
-            <button class="btn-quiet" title="View graph" onclick="if(memoryGraph) memoryGraph.render()">Refresh</button>
+            <button id="memory-graph-refresh" class="btn-quiet" title="View graph">Refresh</button>
           </div>
           <div id="graph-legend" class="graph-legend" aria-label="Memory layers"></div>
           <canvas id="memory-graph-canvas" role="img" aria-label="Memory graph: memories grouped by layer, linked where they share tags"></canvas>

@@ -1,6 +1,7 @@
 // Template Browser UI - Workflow template discovery and management
 
 import { getTemplateManager } from '../services/template-manager.js';
+import { escapeHtml } from './escape-html.js';
 
 export class TemplateBrowserUI {
   constructor() {
@@ -109,28 +110,28 @@ export class TemplateBrowserUI {
       <div class="template-card">
         <div class="template-header-card">
           <h5>${this.escapeHtml(template.name)}</h5>
-          <button class="template-action" data-template-id="${template.id}" title="Use template">➔</button>
+          <button class="template-action" data-template-id="${this.escapeHtml(template.id)}" title="Use template">➔</button>
         </div>
 
         <p class="template-desc">${this.escapeHtml(template.description)}</p>
 
         <div class="template-meta">
           <span class="category-badge" style="background-color: ${categoryColor}20; color: ${categoryColor}">
-            ${template.category}
+            ${this.escapeHtml(template.category)}
           </span>
-          <span class="rating">${ratingStars} ${template.rating.toFixed(1)}</span>
-          <span class="usage">${template.usageCount || 0} uses</span>
+          <span class="rating">${ratingStars} ${(Number(template.rating) || 0).toFixed(1)}</span>
+          <span class="usage">${Number(template.usageCount) || 0} uses</span>
         </div>
 
         ${template.tags && template.tags.length > 0 ? `
           <div class="template-tags">
-            ${template.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            ${template.tags.map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
           </div>
         ` : ''}
 
         <div class="template-details">
-          <span class="detail">⚙️ ${template.steps || 0} steps</span>
-          <span class="detail">⏱ ${template.avgDuration || 0}ms avg</span>
+          <span class="detail">⚙️ ${Number(template.steps) || 0} steps</span>
+          <span class="detail">⏱ ${Number(template.avgDuration) || 0}ms avg</span>
           <span class="detail">📅 ${this.formatDate(template.createdAt)}</span>
         </div>
       </div>
@@ -224,9 +225,7 @@ export class TemplateBrowserUI {
   }
 
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return escapeHtml(text);
   }
 
   showNotification(message, type = 'info') {
