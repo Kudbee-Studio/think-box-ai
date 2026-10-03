@@ -85,8 +85,10 @@ async function load(env: Env): Promise<Embedder | null> {
     // Defensive: Handle missing optional dependency gracefully
     let lib: any;
     try {
-      // @ts-expect-error @huggingface/transformers is optional and may not be installed in CI
-      lib = await import('@huggingface/transformers');
+      // A variable specifier keeps TypeScript from resolving this optional package, so typecheck passes whether
+      // npm installed it (fresh CI install) or not (local). A @ts-expect-error fails in whichever case it doesn't match.
+      const optionalModule = '@huggingface/transformers';
+      lib = await import(optionalModule);
     } catch (importErr) {
       loadError = `Embedding module unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}. Semantic search disabled.`;
       return null;
