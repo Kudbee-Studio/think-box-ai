@@ -175,6 +175,15 @@ test('/model with no name shows the current and available models, like the dashb
   assert.doesNotMatch(text, /Unknown model "undefined"/);
 });
 
+test('/config prints the session\'s model, provider, session id and connection state, like the dashboard', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/config'], home)).stdout);
+  assert.match(text, /Configuration:/);
+  assert.match(text, /"sessionId": "[0-9a-f-]{36}"/);
+  assert.match(text, /"wsConnected": true/);
+  assert.match(text, /"model": "/);
+});
+
 test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
   const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));

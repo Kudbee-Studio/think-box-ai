@@ -397,6 +397,7 @@ ${c.bold('ANALYTICS & DEBUG')}
   /status             server health check
   /session            current session info (ID, model, agent, plugins)
   /capacity           server load: running agents, pending approvals, CPU, memory
+  /config             this session's model, provider, agent, session id, connection
   /plugin NAME JSON   run a plugin with JSON input
   /algo ACTION [ADDR] read-only Algorand queries
 
@@ -729,6 +730,19 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       } catch (err) {
         console.log(c.red(`Error fetching metrics: ${err instanceof Error ? err.message : String(err)}`));
       }
+      break;
+    }
+    case '/config': {
+      const provider = client.models.find((m) => m.name === client.model)?.provider;
+      const config = {
+        model: client.model,
+        provider: provider ?? null,
+        agent: client.agent ?? null,
+        sessionId: client.sessionId,
+        wsConnected: client.ws?.readyState === 1,
+        url: HOST,
+      };
+      console.log(`${c.bold('Configuration:')}\n${JSON.stringify(config, null, 2)}`);
       break;
     }
     case '/capacity': {
