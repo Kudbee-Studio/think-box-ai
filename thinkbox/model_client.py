@@ -17,7 +17,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator
 
-from .async_http import AsyncHttpClient, HttpConnectionError, HttpError, HttpTimeoutError
+from .async_http import AsyncHttpClient, HttpConnectionError, HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -289,12 +289,10 @@ class AsyncModelClient:
                 async for line in resp.aiter_lines():
                     if line:
                         yield line.encode() if isinstance(line, str) else line
+        except HttpConnectionError as e:  # before HttpError, its base, as in _post_json_with_backoff
+            raise self._error(f"unreachable at {url}: {e}", retryable=False) from e
         except HttpError as e:
-            is_transient = e.retryable
-            body = str(e)[:300]
-            raise self._error(f"HTTP {e.status_code}: {body}", retryable=is_transient) from e
-        except (HttpTimeoutError, HttpConnectionError) as e:
-            raise self._error(f"stream error: {e}", retryable=True) from e
+            raise self._error(f"stream error: {str(e)[:300]}", retryable=e.retryable) from e
 
     async def _ollama_stream(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:
         url = f"{self.config.base_url.rstrip('/')}/api/generate"

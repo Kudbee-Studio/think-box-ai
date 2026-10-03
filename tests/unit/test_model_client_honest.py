@@ -19,10 +19,10 @@ from thinkbox.model_client import (
 )
 
 
-def _resp(payload: dict) -> MagicMock:
+def _resp(payload: dict | None = None, *, body: bytes | None = None) -> MagicMock:
     resp = MagicMock()
     resp.status = 200  # a real urlopen response always has an int status
-    resp.read.return_value = json.dumps(payload).encode()
+    resp.read.return_value = json.dumps(payload).encode() if body is None else body
     resp.__enter__.return_value = resp
     return resp
 
@@ -165,6 +165,47 @@ class TestModelClientSuccess(unittest.TestCase):
             await client.close()
 
         asyncio.run(run())
+
+
+class TestModelClientStream(unittest.TestCase):
+    @staticmethod
+    def _collect(client: AsyncModelClient) -> str:
+        async def run() -> str:
+            return "".join([chunk async for chunk in client.stream("12*12")])
+
+        return asyncio.run(run())
+
+    @patch("urllib.request.urlopen")
+    def test_ollama_stream_yields_the_chunks(self, urlopen):
+        urlopen.return_value = _resp(body=b'{"response": "14"}\n{"response": "4"}\n{"done": true}\n')
+        self.assertEqual(self._collect(AsyncModelClient()), "144")
+        self.assertTrue(json.loads(urlopen.call_args[0][0].data)["stream"])
+
+    @patch("urllib.request.urlopen")
+    def test_openai_stream_yields_the_deltas(self, urlopen):
+        urlopen.return_value = _resp(body=(
+            b'data: {"choices": [{"delta": {"content": "14"}}]}\n\n'
+            b'data: {"choices": [{"delta": {"content": "4"}}]}\n\n'
+            b"data: [DONE]\n"
+        ))
+        cfg = ModelConfig(api_type="openai_compat", base_url="https://x/v1")
+        self.assertEqual(self._collect(AsyncModelClient(cfg)), "144")
+
+    @patch("urllib.request.urlopen", side_effect=urllib.error.URLError("Connection refused"))
+    def test_stream_unreachable_raises_non_retryable(self, _):
+        with self.assertRaises(ModelCallError) as ctx:
+            self._collect(AsyncModelClient())
+        self.assertFalse(ctx.exception.retryable)
+        self.assertIn("unreachable", str(ctx.exception))
+
+    @patch("urllib.request.urlopen", side_effect=_http_error(429, "slow down"))
+    def test_stream_http_429_is_retryable_with_its_body(self, _):
+        cfg = ModelConfig(api_type="openai_compat", base_url="https://x/v1")
+        with self.assertRaises(ModelCallError) as ctx:
+            self._collect(AsyncModelClient(cfg))
+        self.assertTrue(ctx.exception.retryable)
+        self.assertIn("429", str(ctx.exception))
+        self.assertIn("slow down", str(ctx.exception))
 
 
 class TestSwarmAndEngineHonesty(unittest.TestCase):
