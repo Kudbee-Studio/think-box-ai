@@ -186,21 +186,31 @@ class Client {
   }
 
   async files(quiet = false): Promise<void> {
-    const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files`);
-    const { files } = (await res.json()) as { files: Array<{ path: string; size: number }> };
-    if (!files.length) {
-      if (!quiet) console.log(c.dim('  (workspace empty)'));
-      return;
+    try {
+      const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { files } = (await res.json()) as { files: Array<{ path: string; size: number }> };
+      if (!files?.length) {
+        if (!quiet) console.log(c.dim('  (workspace empty)'));
+        return;
+      }
+      console.log(c.bold('  Workspace files:'));
+      for (const f of files) console.log(`    ${f.path} ${c.dim(`${f.size} B`)}`);
+      console.log(c.dim(`    ${path.join(__dirname, 'workspaces', this.sessionId)}`));
+    } catch (err) {
+      console.log(c.red(`Error listing files: ${err instanceof Error ? err.message : String(err)}`));
     }
-    console.log(c.bold('  Workspace files:'));
-    for (const f of files) console.log(`    ${f.path} ${c.dim(`${f.size} B`)}`);
-    console.log(c.dim(`    ${path.join(__dirname, 'workspaces', this.sessionId)}`));
   }
 
   async cat(file: string): Promise<void> {
-    const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
-    const body = (await res.json()) as { content?: string; error?: string };
-    console.log(body.content ?? c.red(body.error ?? 'error'));
+    try {
+      const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as { content?: string; error?: string };
+      console.log(body.content ?? c.red(body.error ?? 'error'));
+    } catch (err) {
+      console.log(c.red(`Error reading file: ${err instanceof Error ? err.message : String(err)}`));
+    }
   }
 }
 
@@ -210,31 +220,45 @@ function printApproval(req: ApprovalRequest): void {
 }
 
 async function showRuns(): Promise<void> {
-  const { runs } = (await (await fetch(`${HOST}/api/runs?limit=15`)).json()) as { runs: any[] };
-  if (!runs.length) return console.log(c.dim('  (no runs yet)'));
-  for (const r of runs) {
-    const color = r.status === 'completed' ? c.green : r.status === 'running' ? c.cyan : r.status === 'stopped' ? c.yellow : c.red;
-    console.log(`  ${r.id.slice(0, 8)} ${color(r.status.padEnd(9))} ${usd(r.cost_usd).padStart(8)} ${c.dim(`${((r.duration_ms ?? 0) / 1000).toFixed(1)}s`.padStart(6))}  ${r.goal.slice(0, 70)}`);
+  try {
+    const res = await fetch(`${HOST}/api/runs?limit=15`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runs } = (await res.json()) as { runs: any[] };
+    if (!runs?.length) return console.log(c.dim('  (no runs yet)'));
+    for (const r of runs) {
+      const color = r.status === 'completed' ? c.green : r.status === 'running' ? c.cyan : r.status === 'stopped' ? c.yellow : c.red;
+      console.log(`  ${r.id.slice(0, 8)} ${color(r.status.padEnd(9))} ${usd(r.cost_usd).padStart(8)} ${c.dim(`${((r.duration_ms ?? 0) / 1000).toFixed(1)}s`.padStart(6))}  ${r.goal.slice(0, 70)}`);
+    }
+  } catch (err) {
+    console.log(c.red(`Error fetching runs: ${err instanceof Error ? err.message : String(err)}`));
   }
 }
 
 async function showRun(prefix: string): Promise<void> {
-  const { runs } = (await (await fetch(`${HOST}/api/runs?limit=500`)).json()) as { runs: any[] };
-  const match = prefix && runs.find((r) => r.id.startsWith(prefix));
-  if (!match) return console.log(c.red('Usage: /run ID (first characters from /runs)'));
-  const run = (await (await fetch(`${HOST}/api/runs/${match.id}`)).json()) as any;
-  console.log(c.bold(run.goal));
-  console.log(c.dim(`  ${run.status} · ${run.model} · ${run.current_step} steps · ${run.tool_calls} tools · ${run.prompt_tokens + run.completion_tokens} tokens · ${usd(run.cost_usd)} · ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`));
-  for (const step of run.steps) {
-    if (step.kind === 'model') {
-      console.log(c.magenta(`  🧠 step ${step.step} ${step.latency_ms}ms ${step.prompt_tokens}+${step.completion_tokens} tok ${usd(step.cost_usd)} → ${step.tool_calls.join(', ') || 'answer'}`));
-    } else {
-      const mark = step.ok ? c.green('✓') : c.red('✗');
-      console.log(`     ${mark} ${step.name} ${c.dim(`${step.latency_ms}ms`)}${step.approval ? c.yellow(` [${step.approval}]`) : ''} ${c.dim(JSON.stringify(step.args).slice(0, 100))}`);
+  try {
+    const res = await fetch(`${HOST}/api/runs?limit=500`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runs } = (await res.json()) as { runs: any[] };
+    const match = prefix && runs?.find((r) => r.id.startsWith(prefix));
+    if (!match) return console.log(c.red('Usage: /run ID (first characters from /runs)'));
+    const runRes = await fetch(`${HOST}/api/runs/${match.id}`);
+    if (!runRes.ok) throw new Error(`HTTP ${runRes.status} fetching run detail`);
+    const run = (await runRes.json()) as any;
+    console.log(c.bold(run.goal));
+    console.log(c.dim(`  ${run.status} · ${run.model} · ${run.current_step} steps · ${run.tool_calls} tools · ${run.prompt_tokens + run.completion_tokens} tokens · ${usd(run.cost_usd)} · ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`));
+    for (const step of run.steps) {
+      if (step.kind === 'model') {
+        console.log(c.magenta(`  🧠 step ${step.step} ${step.latency_ms}ms ${step.prompt_tokens}+${step.completion_tokens} tok ${usd(step.cost_usd)} → ${step.tool_calls.join(', ') || 'answer'}`));
+      } else {
+        const mark = step.ok ? c.green('✓') : c.red('✗');
+        console.log(`     ${mark} ${step.name} ${c.dim(`${step.latency_ms}ms`)}${step.approval ? c.yellow(` [${step.approval}]`) : ''} ${c.dim(JSON.stringify(step.args).slice(0, 100))}`);
+      }
     }
+    if (run.result) console.log(`\n${run.result}`);
+    if (run.error) console.log(c.red(`\n${run.error}`));
+  } catch (err) {
+    console.log(c.red(`Error: ${err instanceof Error ? err.message : String(err)}`));
   }
-  if (run.result) console.log(`\n${run.result}`);
-  if (run.error) console.log(c.red(`\n${run.error}`));
 }
 
 async function interactiveModelSelect(client: Client): Promise<boolean> {
@@ -397,16 +421,21 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       }
       break;
     case '/agents': {
-      const res = await fetch(`${HOST}/api/agents`);
-      const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
-      console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
-      for (const a of agents) {
-        const mark = client.agent === a.id ? c.green('●') : ' ';
-        console.log(`  ${mark} ${c.bold(a.name)} ${c.dim(`(/agent ${a.id})`)}`);
-        console.log(c.dim(`      ${a.description}`));
-        console.log(c.dim(`      tools: ${a.allowedTools.join(', ')}`));
+      try {
+        const res = await fetch(`${HOST}/api/agents`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
+        console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
+        for (const a of agents) {
+          const mark = client.agent === a.id ? c.green('●') : ' ';
+          console.log(`  ${mark} ${c.bold(a.name)} ${c.dim(`(/agent ${a.id})`)}`);
+          console.log(c.dim(`      ${a.description}`));
+          console.log(c.dim(`      tools: ${a.allowedTools.join(', ')}`));
+        }
+        console.log(c.dim('\n  Use: /agent NAME  or  /agent  (clears — back to default worker)'));
+      } catch (err) {
+        console.log(c.red(`Error listing agents: ${err instanceof Error ? err.message : String(err)}`));
       }
-      console.log(c.dim('\n  Use: /agent NAME  or  /agent  (clears — back to default worker)'));
       break;
     }
     case '/agent':
@@ -414,14 +443,19 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         client.agent = undefined;
         console.log(c.green('🤖 Agent → default worker (full tools)'));
       } else {
-        const res = await fetch(`${HOST}/api/agents`);
-        const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
-        const match = agents.find((a) => a.id === args[0].toLowerCase());
-        if (!match) {
-          console.log(c.red(`Unknown agent "${args[0]}". See /agents.`));
-        } else {
-          client.agent = match.id;
-          console.log(c.green(`🤖 Agent → ${match.name} (read-only tool lane)`));
+        try {
+          const res = await fetch(`${HOST}/api/agents`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
+          const match = agents?.find((a) => a.id === args[0].toLowerCase());
+          if (!match) {
+            console.log(c.red(`Unknown agent "${args[0]}". See /agents.`));
+          } else {
+            client.agent = match.id;
+            console.log(c.green(`🤖 Agent → ${match.name} (read-only tool lane)`));
+          }
+        } catch (err) {
+          console.log(c.red(`Error selecting agent: ${err instanceof Error ? err.message : String(err)}`));
         }
       }
       break;
@@ -483,9 +517,16 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/cat':
       await client.cat(args.join(' '));
       break;
-    case '/status':
-      console.log(await (await fetch(`${HOST}/api/health`)).json());
+    case '/status': {
+      try {
+        const res = await fetch(`${HOST}/api/health`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        console.log(await res.json());
+      } catch (err) {
+        console.log(c.red(`Error checking status: ${err instanceof Error ? err.message : String(err)}`));
+      }
       break;
+    }
     case '/session': {
       const wsStatus = client.ws?.readyState === 1;
       console.log([
@@ -513,101 +554,137 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       await showRuns();
       break;
     case '/memory': {
-      const query = args.join(' ').trim();
-      const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
-      const { items, backend } = (await (await fetch(`${HOST}/api/memory?${params}`)).json()) as { items: any[]; backend: string };
-      if (!items.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
-      if (query && items.length) console.log(c.dim(`  search backend: ${backend}`));
-      const color: Record<string, (s: string) => string> = { verified: c.green, org: c.yellow, task: c.cyan };
-      for (const item of items) {
-        console.log(`  ${(color[item.layer] ?? c.dim)(item.layer.padEnd(8))} ${item.title}${item.score !== undefined ? c.dim(` · ${Number(item.score).toFixed(2)}`) : ''}`);
-        console.log(c.dim(`           ${item.id} — ${item.content.slice(0, 110)}`));
+      try {
+        const query = args.join(' ').trim();
+        const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
+        const res = await fetch(`${HOST}/api/memory?${params}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { items, backend } = (await res.json()) as { items: any[]; backend: string };
+        if (!items?.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
+        if (query && items?.length) console.log(c.dim(`  search backend: ${backend}`));
+        const color: Record<string, (s: string) => string> = { verified: c.green, org: c.yellow, task: c.cyan };
+        for (const item of items) {
+          console.log(`  ${(color[item.layer] ?? c.dim)(item.layer.padEnd(8))} ${item.title}${item.score !== undefined ? c.dim(` · ${Number(item.score).toFixed(2)}`) : ''}`);
+          console.log(c.dim(`           ${item.id} — ${item.content.slice(0, 110)}`));
+        }
+      } catch (err) {
+        console.log(c.red(`Error fetching memories: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }
     case '/notes': {
-      const layer = args[0] || '';
-      const params = new URLSearchParams({ limit: '20', sessionId });
-      if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
-        params.set('layer', layer);
-      }
-      const res = await fetch(`${HOST}/api/memory/notes?${params}`);
-      const data = (await res.json()) as any;
-      if (!res.ok || !data.notes?.length) {
-        console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
-        break;
-      }
-      for (const note of data.notes as any[]) {
-        const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer as string] || c.dim;
-        console.log(`  ${layerColor(note.layer.padEnd(8))} ${note.title}`);
-        console.log(c.dim(`    ${note.id} — ${note.content.slice(0, 80)}`));
+      try {
+        const layer = args[0] || '';
+        const params = new URLSearchParams({ limit: '20', sessionId });
+        if (layer && ['session', 'task', 'org', 'verified'].includes(layer)) {
+          params.set('layer', layer);
+        }
+        const res = await fetch(`${HOST}/api/memory/notes?${params}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as any;
+        if (!data.notes?.length) {
+          console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
+          break;
+        }
+        for (const note of data.notes as any[]) {
+          const layerColor = { session: c.cyan, task: c.magenta, org: c.yellow, verified: c.green }[note.layer as string] || c.dim;
+          console.log(`  ${layerColor(note.layer.padEnd(8))} ${note.title}`);
+          console.log(c.dim(`    ${note.id} — ${note.content.slice(0, 80)}`));
+        }
+      } catch (err) {
+        console.log(c.red(`Error fetching notes: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }
 
     case '/remember': {
-      const text = args.join(' ').trim();
-      if (!text) {
-        console.log(c.red('Usage: /remember TEXT'));
-        break;
+      try {
+        const text = args.join(' ').trim();
+        if (!text) {
+          console.log(c.red('Usage: /remember TEXT'));
+          break;
+        }
+        const [title, ...rest] = text.split(/\s+[-—:]\s+/);
+        const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
+        const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(sessionId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title || text.slice(0, 40),
+            content: rest.join(' - ') || text,
+            layer
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const item = (await res.json()) as any;
+        console.log(c.green(`  ✓ saved ${layer} note: ${item.id}`));
+      } catch (err) {
+        console.log(c.red(`Error saving note: ${err instanceof Error ? err.message : String(err)}`));
       }
-      const [title, ...rest] = text.split(/\s+[-—:]\s+/);
-      const layer = args.includes('--org') ? 'org' : args.includes('--task') ? 'task' : 'session';
-      const res = await fetch(`${HOST}/api/memory/notes?sessionId=${encodeURIComponent(sessionId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title || text.slice(0, 40),
-          content: rest.join(' - ') || text,
-          layer
-        }),
-      });
-      const item = (await res.json()) as any;
-      console.log(res.ok ? c.green(`  ✓ saved ${layer} note: ${item.id}`) : c.red(`  ✗ ${item.error}`));
       break;
     }
 
     case '/forget': {
-      const query = args.join(' ').trim();
-      if (!query) {
-        console.log(c.red('Usage: /forget ID|QUERY'));
-        break;
+      try {
+        const query = args.join(' ').trim();
+        if (!query) {
+          console.log(c.red('Usage: /forget ID|QUERY'));
+          break;
+        }
+        const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+        const result = (await res.json()) as any;
+        console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
+      } catch (err) {
+        console.log(c.red(`Error deleting note: ${err instanceof Error ? err.message : String(err)}`));
       }
-      const res = await fetch(`${HOST}/api/memory/notes/${encodeURIComponent(query)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
-      const result = (await res.json()) as any;
-      console.log(res.ok ? c.green(`  ✓ deleted: ${result.deleted ?? 'note'}`) : c.red(`  ✗ ${result.error}`));
       break;
     }
     case '/algo': {
-      const [action = 'status', target, maybeNetwork] = args;
-      const network = [target, maybeNetwork].find((v) => v === 'mainnet' || v === 'testnet') ?? 'testnet';
-      const aliases: Record<string, string> = { app: 'application', tx: 'transaction', txs: 'account_transactions', history: 'account_transactions' };
-      const resolved = aliases[action] ?? action;
-      const params = new URLSearchParams({ action: resolved, network });
-      if (target && target !== network) {
-        params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
+      try {
+        const [action = 'status', target, maybeNetwork] = args;
+        const network = [target, maybeNetwork].find((v) => v === 'mainnet' || v === 'testnet') ?? 'testnet';
+        const aliases: Record<string, string> = { app: 'application', tx: 'transaction', txs: 'account_transactions', history: 'account_transactions' };
+        const resolved = aliases[action] ?? action;
+        const params = new URLSearchParams({ action: resolved, network });
+        if (target && target !== network) {
+          params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
+        }
+        const res = await fetch(`${HOST}/api/algorand?${params}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as Record<string, unknown>;
+        console.log(JSON.stringify(body, null, 2));
+      } catch (err) {
+        console.log(c.red(`Error: ${err instanceof Error ? err.message : String(err)}`));
       }
-      const res = await fetch(`${HOST}/api/algorand?${params}`);
-      const body = (await res.json()) as Record<string, unknown>;
-      console.log(res.ok ? JSON.stringify(body, null, 2) : c.red(`  ${body.error}`));
       break;
     }
     case '/promote': {
-      const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
-      const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-      const item = (await res.json()) as any;
-      console.log(res.ok ? c.green(`  promoted → ${item.id}`) : c.red(`  ${item.error}`));
+      try {
+        const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
+        const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const item = (await res.json()) as any;
+        console.log(c.green(`  promoted → ${item.id}`));
+      } catch (err) {
+        console.log(c.red(`Error promoting note: ${err instanceof Error ? err.message : String(err)}`));
+      }
       break;
     }
     case '/run':
       await showRun(args[0] ?? '');
       break;
     case '/metrics': {
-      const m = (await (await fetch(`${HOST}/api/stats`)).json()) as any;
-      console.log(`  Runs ${m.runs_today} today / ${m.runs_total} total · success ${m.success_rate ?? '—'}% · p50 ${(m.p50_ms / 1000).toFixed(1)}s · p95 ${(m.p95_ms / 1000).toFixed(1)}s`);
-      console.log(`  Tokens today ${m.tokens_today} · cost today ${usd(m.cost_today_usd)} · all-time ${usd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${usd(m.budget_usd)}` : ''}`);
-      for (const [name, t] of Object.entries(m.tools as Record<string, any>)) {
-        console.log(c.dim(`  ${name.padEnd(12)} ${t.calls} calls · ${t.success_rate}% ok · ${t.avg_ms}ms avg${t.denied ? ` · ${t.denied} denied` : ''}`));
+      try {
+        const res = await fetch(`${HOST}/api/stats`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const m = (await res.json()) as any;
+        console.log(`  Runs ${m.runs_today} today / ${m.runs_total} total · success ${m.success_rate ?? '—'}% · p50 ${(m.p50_ms / 1000).toFixed(1)}s · p95 ${(m.p95_ms / 1000).toFixed(1)}s`);
+        console.log(`  Tokens today ${m.tokens_today} · cost today ${usd(m.cost_today_usd)} · all-time ${usd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${usd(m.budget_usd)}` : ''}`);
+        for (const [name, t] of Object.entries(m.tools as Record<string, any>)) {
+          console.log(c.dim(`  ${name.padEnd(12)} ${t.calls} calls · ${t.success_rate}% ok · ${t.avg_ms}ms avg${t.denied ? ` · ${t.denied} denied` : ''}`));
+        }
+      } catch (err) {
+        console.log(c.red(`Error fetching metrics: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }
