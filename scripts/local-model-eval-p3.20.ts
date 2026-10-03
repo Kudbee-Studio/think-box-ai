@@ -1,71 +1,50 @@
-// P3.20: Local model bake-off on smollm2:360m, qwen2.5:1.5b, qwen2.5:3b
-// 20 local-routable goals with OBJECTIVE pass checks committed BEFORE running.
-// Decision rules are written in advance; no goalpost-moving after results.
+// P3.20 eval set. Pass checks are fixed HERE, before any model is run; nothing below changes after seeing results.
+//
+// Three kinds of goal, matching how the product uses the local model:
+//   knowledge  - plain chat, objective expected answer (regex).
+//   data       - code made the lookup (a fixed fixture stands in for it); the model words it. PASS = the sentence passes groundedAnswer
+//                (every number/link is in the fixture) AND it contains at least one `must` fragment from the fixture.
+//   escalate   - the ROUTER must refuse to send it local (localConfidence below LOCAL_THRESHOLD). No model is run.
+// Default-model rule (fixed now): highest pass rate over knowledge+data goals with p95 latency <= 5000 ms; tie -> the smaller model.
 
-import fs from 'node:fs';
+export const LOCAL_THRESHOLD = 60;
 
-/**
- * DECISION RULES (locked before any runs):
- * - A local answer PASSES if it is factually correct AND cites the tool result it relies on (same as Mercury grounding).
- * - A local answer FAILS if it is wrong, vague, or does not cite its evidence.
- * - Goal routing passes if: goal is correctly classified as local-routable AND the local model was asked (not escalated).
- * - Model choice: highest pass rate with p95 latency ≤ 5s. If tied, smaller model wins.
- */
-
-interface GoalWithCheck {
+export interface Goal {
+  kind: 'knowledge' | 'data' | 'escalate';
   goal: string;
-  category: 'pr_status' | 'ci_status' | 'list_items' | 'recall_memory' | 'server_status' | 'simple_file';
-  expectedKey: string; // substring the answer must contain (the "evidence")
-  shouldRoute: 'local' | 'escalate';
-  reason: string;
+  expect?: RegExp;
+  facts?: string;
+  must?: RegExp;
 }
 
-const EVAL_SET: GoalWithCheck[] = [
-  // PR status (from local recipes)
-  { goal: 'What PR are we on?', category: 'pr_status', expectedKey: '#343', shouldRoute: 'local', reason: 'Open PR status is local-routable' },
-  { goal: 'How many pull requests are open right now?', category: 'pr_status', expectedKey: '1', shouldRoute: 'local', reason: 'PR count is local-routable' },
-  { goal: 'Which pull requests exist?', category: 'pr_status', expectedKey: 'kudbee-code-graph', shouldRoute: 'local', reason: 'List of PRs is local-routable' },
+const PRS = 'Open pull requests in Acme/widgets (live from GitHub just now): 2.\n- #331 "Add retry to the uploader" by sam, updated 2026-10-01T10:00:00Z https://github.com/Acme/widgets/pull/331\n- #330 "Fix flaky cache test" (draft) by lee, updated 2026-09-30T09:00:00Z https://github.com/Acme/widgets/pull/330';
+const MERGED = 'Last merged pull request in Acme/widgets (live from GitHub just now):\n- #329 "Polish the dashboard" by sam, merged 2026-10-01T08:00:00Z https://github.com/Acme/widgets/pull/329';
+const FILES = 'Workspace files (3):\n- notes.md (31 B)\n- data/out.csv (200 B)\n- src/main.ts (1200 B)';
+const CI = 'Latest CI run on main in Acme/widgets (live from GitHub just now):\n- "tests" failure, finished 2026-10-01T11:00:00Z https://github.com/Acme/widgets/actions/runs/777';
+const TOKENS = 'Think Tokens (3 accepted):\n- TT-000001 "Prefer list_files before read_file"\n- TT-000002 "Cite the fetched URL in answers"\n- TT-000003 "Stop after the file is written"';
+const SERVER = 'Server health (live just now): status ok, uptime 3600 s, port 3000.';
+const MEMORY = 'Recalled 2 memories:\n- "Decisions on record" (org): Neon rejected, test key rotated.\n- "Local model notes" (org): smollm2 is plain chat only.';
+const FILE = 'File notes.md (first 40 characters):\nShip the uploader retry on Friday.';
 
-  // CI / server status (live state, not a recipe yet but local-routable)
-  { goal: 'Is the server running?', category: 'server_status', expectedKey: 'port 3000', shouldRoute: 'local', reason: 'Server status is live state, local-routable' },
-  { goal: 'What is the health check status?', category: 'server_status', expectedKey: 'ok|running', shouldRoute: 'local', reason: 'Health status is local observable' },
-
-  // Recall memory (local memory search)
-  { goal: 'What decisions are on record about this project?', category: 'recall_memory', expectedKey: 'Neon|exposed|Rubik', shouldRoute: 'local', reason: 'Memory recall is local-routable' },
-  { goal: 'Tell me what I know about local models.', category: 'recall_memory', expectedKey: 'smollm|qwen|360M', shouldRoute: 'local', reason: 'Memory recall is local-routable' },
-
-  // List workspace files (from local recipes)
-  { goal: 'List the files in the workspace.', category: 'list_items', expectedKey: '.ts|.md|.json', shouldRoute: 'local', reason: 'File listing is local-routable' },
-  { goal: 'What files are in the current workspace?', category: 'list_items', expectedKey: 'agent|server|README', shouldRoute: 'local', reason: 'Workspace listing is local-routable' },
-
-  // Read a workspace file (from local recipes)
-  { goal: 'Read package.json and tell me the project name.', category: 'simple_file', expectedKey: 'think-box-ai|kudbee', shouldRoute: 'local', reason: 'Reading a named file is local-routable' },
-  { goal: 'What does the LICENSE file say?', category: 'simple_file', expectedKey: 'MIT|Apache|Copyright', shouldRoute: 'local', reason: 'Reading LICENSE is local-routable' },
-
-  // NOT local-routable (should escalate to Mercury)
-  { goal: 'Merge the current pull request.', category: 'pr_status', expectedKey: 'cannot', shouldRoute: 'escalate', reason: 'Merge is a mutation, requires worker agent' },
-  { goal: 'Create a new function in agent.ts that does X.', category: 'simple_file', expectedKey: 'cannot', shouldRoute: 'escalate', reason: 'Code generation requires worker agent' },
-  { goal: 'What is the weather today?', category: 'server_status', expectedKey: 'cannot', shouldRoute: 'escalate', reason: 'Live weather is not in workspace, escalate' },
-  { goal: 'Summarize the latest news.', category: 'server_status', expectedKey: 'cannot', shouldRoute: 'escalate', reason: 'News is not local data, escalate' },
-
-  // Mixed: local-routable but complex enough to test grounding
-  { goal: 'How many Think Tokens are stored and what was the last one about?', category: 'recall_memory', expectedKey: 'tt:|think.*token', shouldRoute: 'local', reason: 'Memory search + summary is local-routable if grounded' },
-  { goal: 'List the three largest files in the workspace.', category: 'list_items', expectedKey: 'node_modules|dist', shouldRoute: 'local', reason: 'File listing with filtering is local-routable' },
-
-  // Knowledge (not live state, should be local)
-  { goal: 'What is the capital of France?', category: 'recall_memory', expectedKey: 'Paris', shouldRoute: 'local', reason: 'General knowledge is local-routable' },
-  { goal: 'Explain what a TypeScript interface is.', category: 'recall_memory', expectedKey: 'type|contract|structure', shouldRoute: 'local', reason: 'Technical knowledge is local-routable' },
-  { goal: 'What is 2 plus 2?', category: 'recall_memory', expectedKey: '4', shouldRoute: 'local', reason: 'Math is local-routable' },
-  { goal: 'Translate "hello" to Spanish.', category: 'recall_memory', expectedKey: 'hola', shouldRoute: 'local', reason: 'Translation is local-routable' },
+export const EVAL_SET: Goal[] = [
+  { kind: 'knowledge', goal: 'What is the capital of France?', expect: /paris/i },
+  { kind: 'knowledge', goal: 'What is 2 plus 2?', expect: /\b4\b|four/i },
+  { kind: 'knowledge', goal: 'Translate "hello" to Spanish.', expect: /hola/i },
+  { kind: 'knowledge', goal: 'What is the chemical symbol for water?', expect: /H2O|H₂O/i },
+  { kind: 'knowledge', goal: 'Name the largest planet in our solar system.', expect: /jupiter/i },
+  { kind: 'knowledge', goal: 'What is 10 times 3?', expect: /\b30\b|thirty/i },
+  { kind: 'data', goal: 'WHAT PR ARE WE ON', facts: PRS, must: /#331|#330/ },
+  { kind: 'data', goal: 'which pull requests are open?', facts: PRS, must: /#331|#330/ },
+  { kind: 'data', goal: 'what was the last merged PR?', facts: MERGED, must: /#329/ },
+  { kind: 'data', goal: 'list my files', facts: FILES, must: /notes\.md|out\.csv|main\.ts/ },
+  { kind: 'data', goal: 'did CI pass on main?', facts: CI, must: /fail/i },
+  { kind: 'data', goal: 'list my Think Tokens', facts: TOKENS, must: /TT-00000[123]/ },
+  { kind: 'data', goal: 'is the server up?', facts: SERVER, must: /\bok\b|up|3000/i },
+  { kind: 'data', goal: 'what do you remember about local models?', facts: MEMORY, must: /smollm2|plain chat/i },
+  { kind: 'data', goal: 'read notes.md and tell me what it says', facts: FILE, must: /uploader|Friday/i },
+  { kind: 'escalate', goal: 'Merge the current pull request.' },
+  { kind: 'escalate', goal: 'Create a new function in agent.ts that retries failed fetches.' },
+  { kind: 'escalate', goal: 'What is the weather today?' },
+  { kind: 'escalate', goal: 'Summarize the latest news about AI.' },
+  { kind: 'escalate', goal: 'Refactor the memory module and write tests for it.' },
 ];
-
-console.log(`P3.20 Eval Set: ${EVAL_SET.length} goals`);
-console.log(`Local-routable: ${EVAL_SET.filter((g) => g.shouldRoute === 'local').length}`);
-console.log(`Should escalate: ${EVAL_SET.filter((g) => g.shouldRoute === 'escalate').length}`);
-console.log(
-  `\nGoals (decision rules locked):\n`,
-  EVAL_SET.map((g) => `  [${g.shouldRoute.toUpperCase()}] ${g.goal}`).join('\n')
-);
-
-// Export for the bake-off runner
-export { EVAL_SET };

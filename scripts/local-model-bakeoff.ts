@@ -1,135 +1,80 @@
-// P3.20: Run eval set on all three models, 2 reps each. Measure pass rate, latency, memory, fallbacks.
+// P3.20 bake-off. Runs the locked eval set (local-model-eval-p3.20.ts) on every model Ollama has among CANDIDATES, 2 reps each, with the server's
+// exact call (plain chat, LOCAL_CHAT_OPTIONS). Applies the pre-locked default-model rule. Usage:
+//   node --experimental-strip-types --no-warnings scripts/local-model-bakeoff.ts [out.json]
+import fs from 'node:fs';
+import { EVAL_SET, LOCAL_THRESHOLD } from './local-model-eval-p3.20.ts';
+import { buildPrompt, groundedAnswer } from '../apps/web/local-recipes.ts';
+import { LOCAL_CHAT_OPTIONS } from '../apps/web/local-model.ts';
+import { localConfidence } from '../apps/web/goal-routing.ts';
 
-import { EVAL_SET } from './local-model-eval-p3.20.ts';
-import { spawn } from 'node:child_process';
-import { execSync } from 'node:child_process';
-
-interface RunResult {
-  model: string;
-  goal: string;
-  passed: boolean;
-  latency_ms: number;
-  gpu_vram_pct: number;
-  fell_back_to_mercury: boolean;
-  answer: string;
-}
-
-const MODELS = ['smollm2:360m', 'qwen2.5:1.5b', 'qwen2.5:3b'];
+const base = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
+const CANDIDATES = ['smollm2:360m', 'qwen2.5:1.5b', 'qwen2.5:3b']; // ordered smallest first: ties go to the smaller
 const REPS = 2;
+const out = process.argv[2] || 'docs/evidence/p320-local-bakeoff-results.json';
 
-async function queryModel(model: string, goal: string): Promise<{ answer: string; latency_ms: number; fallback: boolean }> {
-  const start = Date.now();
+const installed = new Set(((await (await fetch(`${base}/api/tags`)).json()) as any).models.map((m: any) => m.name));
+const models = CANDIDATES.filter((m) => installed.has(m));
+const missing = CANDIDATES.filter((m) => !installed.has(m));
+if (missing.length) console.log('NOT INSTALLED (skipped):', missing.join(', '));
+
+async function ask(model: string, content: string) {
+  const t0 = Date.now();
   try {
-    // For MVP: use curl to the local ollama API directly
-    const response = await fetch('http://127.0.0.1:11434/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        messages: [{ role: 'user', content: goal }],
-        options: { num_predict: 512, num_ctx: 2048 },
-      }),
-    });
-    const json = (await response.json()) as any;
-    const latency = Date.now() - start;
-    return { answer: json.message?.content ?? '', latency_ms: latency, fallback: false };
+    const r = await fetch(`${base}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, stream: false, messages: [{ role: 'user', content }], options: LOCAL_CHAT_OPTIONS }) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return { text: String(((await r.json()) as any)?.message?.content ?? ''), ms: Date.now() - t0, failed: false };
   } catch (e) {
-    return { answer: `[Error: ${e}]`, latency_ms: Date.now() - start, fallback: true };
+    return { text: '', ms: Date.now() - t0, failed: true };
   }
 }
 
-function getGpuPercent(model: string): number {
-  try {
-    const ps = execSync('curl -s http://127.0.0.1:11434/api/ps').toString();
-    const models = JSON.parse(ps).models ?? [];
-    const m = models.find((x: any) => x.name === model);
-    return m ? Math.round((100 * (m.size_vram ?? 0)) / (m.size ?? 1)) : 0;
-  } catch {
-    return 0;
-  }
-}
+const pct = (xs: number[], p: number) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.ceil(p * s.length) - 1)] ?? 0; };
+const rows: any[] = [];
+const stats: any[] = [];
 
-function checkPass(goal: string, answer: string, expectedKey: string): boolean {
-  // Answer passes if it contains the expected key (evidence)
-  return new RegExp(expectedKey, 'i').test(answer);
-}
-
-async function runBakeoff() {
-  const results: RunResult[] = [];
-
-  console.log('🔬 P3.20 Local Model Bake-off\n');
-  console.log(`Models: ${MODELS.join(', ')}`);
-  console.log(`Reps: ${REPS} per model`);
-  console.log(`Goals: ${EVAL_SET.length} local-routable + escalate mix\n`);
-
-  for (const model of MODELS) {
-    console.log(`\n▶ ${model} (${REPS} reps)`);
-    const modelResults: RunResult[] = [];
-
-    for (let rep = 0; rep < REPS; rep++) {
-      for (const goal of EVAL_SET) {
-        const { answer, latency_ms, fallback } = await queryModel(model, goal.goal);
-        const passed = !fallback && checkPass(goal.goal, answer, goal.expectedKey);
-        modelResults.push({
-          model,
-          goal: goal.goal,
-          passed,
-          latency_ms,
-          gpu_vram_pct: getGpuPercent(model),
-          fell_back_to_mercury: fallback,
-          answer: answer.slice(0, 120),
-        });
-        results.push(modelResults[modelResults.length - 1]!);
+for (const model of models) {
+  console.log(`\n== ${model}`);
+  await ask(model, 'hi'); // load into memory; not measured
+  const mine: any[] = [];
+  for (let rep = 0; rep < REPS; rep += 1) {
+    for (const g of EVAL_SET.filter((x) => x.kind !== 'escalate')) {
+      const r = await ask(model, g.kind === 'data' ? buildPrompt(g.goal, g.facts!) : g.goal);
+      let pass = false;
+      let why = '';
+      if (r.failed) why = 'model call failed';
+      else if (g.kind === 'knowledge') { pass = g.expect!.test(r.text); if (!pass) why = 'wrong answer'; }
+      else {
+        const gr = groundedAnswer(r.text, g.facts!);
+        pass = gr.ok && g.must!.test(r.text);
+        if (!pass) why = gr.ok ? 'did not use the data' : gr.why;
       }
+      const row = { model, rep, kind: g.kind, goal: g.goal, pass, ...(pass ? {} : { why }), ms: r.ms, failed: r.failed, answer: r.text.replace(/\s+/g, ' ').slice(0, 200) };
+      mine.push(row); rows.push(row);
+      console.log(`${pass ? 'PASS' : 'fail'} ${String(r.ms).padStart(5)}ms [${g.kind}] ${g.goal}${pass ? '' : `  <- ${why}: ${row.answer.slice(0, 90)}`}`);
     }
-
-    const passRate = (modelResults.filter((r) => r.passed).length / modelResults.length) * 100;
-    const latencies = modelResults.map((r) => r.latency_ms).sort((a, b) => a - b);
-    const p95 = latencies[Math.floor(latencies.length * 0.95)];
-    console.log(`  Pass rate: ${passRate.toFixed(0)}%`);
-    console.log(`  Latency (p50/p95): ${latencies[Math.floor(latencies.length * 0.5)]}ms / ${p95}ms`);
-    console.log(`  GPU: ${modelResults[0]!.gpu_vram_pct}%`);
-    console.log(`  Fallbacks: ${modelResults.filter((r) => r.fell_back_to_mercury).length}`);
   }
-
-  // Determine winner: highest pass rate, p95 ≤ 5s, smaller model breaks ties
-  const modelStats = MODELS.map((model) => {
-    const modelRuns = results.filter((r) => r.model === model);
-    const passRate = (modelRuns.filter((r) => r.passed).length / modelRuns.length) * 100;
-    const p95 = modelRuns.map((r) => r.latency_ms).sort((a, b) => a - b)[Math.floor(modelRuns.length * 0.95)] ?? 999999;
-    const eligible = p95 <= 5000; // p95 ≤ 5s
-    return { model, passRate, p95, eligible };
-  });
-
-  console.log('\n📊 Summary\n');
-  modelStats.forEach((s) => {
-    console.log(`${s.model.padEnd(20)} | ${s.passRate.toFixed(0)}% pass | p95 ${s.p95}ms | ${s.eligible ? '✓' : '✗'}`);
-  });
-
-  const eligible = modelStats.filter((s) => s.eligible).sort((a, b) => b.passRate - a.passRate);
-  const winner = eligible[0];
-
-  if (winner) {
-    console.log(`\n🏆 Winner: ${winner.model} (${winner.passRate.toFixed(0)}% pass rate)`);
-  } else {
-    console.log('\n⚠️ No model met p95 ≤ 5s threshold; using smollm2:360m as fallback.');
-  }
-
-  // Save results
-  const report = {
-    timestamp: new Date().toISOString(),
-    models: MODELS,
-    reps: REPS,
-    eval_set_size: EVAL_SET.length,
-    results,
-    modelStats,
-    winner: winner?.model || 'smollm2:360m',
+  const ps = (await (await fetch(`${base}/api/ps`)).json() as any).models?.find((m: any) => m.name === model);
+  const s = {
+    model, runs: mine.length, passed: mine.filter((r) => r.pass).length,
+    pass_rate: mine.filter((r) => r.pass).length / mine.length,
+    knowledge_pass: mine.filter((r) => r.kind === 'knowledge' && r.pass).length / mine.filter((r) => r.kind === 'knowledge').length,
+    data_pass: mine.filter((r) => r.kind === 'data' && r.pass).length / mine.filter((r) => r.kind === 'data').length,
+    p50_ms: pct(mine.map((r) => r.ms), 0.5), p95_ms: pct(mine.map((r) => r.ms), 0.95),
+    gpu_pct: ps ? Math.round((100 * ps.size_vram) / ps.size) : null, loaded_mb: ps ? Math.round(ps.size / 1e6) : null,
+    failed_calls: mine.filter((r) => r.failed).length,
   };
-
-  const fs = await import('node:fs/promises');
-  await fs.writeFile('docs/evidence/p320-local-bakeoff-results.json', JSON.stringify(report, null, 2));
-  console.log(`\n✅ Results saved to docs/evidence/p320-local-bakeoff-results.json`);
+  stats.push(s);
 }
 
-runBakeoff().catch(console.error);
+// Router check (no model): every escalate goal must be refused by localConfidence.
+const routerChecks = EVAL_SET.filter((g) => g.kind === 'escalate').map((g) => ({ goal: g.goal, confidence: localConfidence(g.goal), refused: localConfidence(g.goal) < LOCAL_THRESHOLD }));
+
+const eligible = stats.filter((s) => s.p95_ms <= 5000);
+const winner = [...eligible].sort((a, b) => b.pass_rate - a.pass_rate || models.indexOf(a.model) - models.indexOf(b.model))[0] ?? null;
+const report = { timestamp: new Date().toISOString(), rule: 'highest pass rate with p95 <= 5000 ms; tie -> smaller model', threshold: LOCAL_THRESHOLD, models, missing, reps: REPS, stats, router_checks: routerChecks, winner: winner?.model ?? null, rows };
+fs.writeFileSync(out, JSON.stringify(report, null, 1));
+
+console.log('\nmodel          pass   knowledge  data   p50     p95     GPU   RAM      failed');
+for (const s of stats) console.log(`${s.model.padEnd(14)} ${(s.pass_rate * 100).toFixed(0).padStart(3)}%   ${(s.knowledge_pass * 100).toFixed(0).padStart(4)}%     ${(s.data_pass * 100).toFixed(0).padStart(3)}%  ${String(s.p50_ms).padStart(5)}ms ${String(s.p95_ms).padStart(6)}ms  ${s.gpu_pct ?? '?'}%  ${s.loaded_mb ?? '?'}MB  ${s.failed_calls}`);
+console.log('\nrouter refuses escalate goals:', routerChecks.map((r) => `${r.refused ? 'yes' : 'NO'}(${r.confidence})`).join(' '));
+console.log('winner:', winner?.model ?? 'none eligible (p95 > 5 s for all)');
