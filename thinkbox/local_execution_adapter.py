@@ -54,6 +54,33 @@ def intent_fingerprint(command: str) -> str:
     return _sha256_bytes(normalized.encode("utf-8"))[:16]
 
 
+def _upm_store(job_id: str) -> Path | None:
+    """Per-run UPM store ``/tmp/upm-store-<job_id>``; None when ``job_id`` is not a valid governed job id."""
+    # job_id becomes part of a path: apply the governed job id rule (H01, no "/") before using it.
+    if job_id:
+        from thinkbox.lifecycle_harden import LifecycleError, validate_job_id
+
+        try:
+            job_id = validate_job_id(job_id)
+        except LifecycleError:
+            return None
+    store_path = Path(tempfile.gettempdir()) / f"upm-store-{job_id}"
+    store_path.mkdir(parents=True, exist_ok=True)
+    return store_path
+
+
+def _upm_error_code(returncode: int, stderr: str) -> str:
+    """Error code for a failed ``upm install``, parsed from its stderr."""
+    stderr_lower = stderr.lower()
+    if "elock" in stderr_lower or "missing" in stderr_lower:
+        return "ELOCK"
+    if "eintegrity" in stderr_lower:
+        return "EINTEGRITY"
+    if "eoffline" in stderr_lower or "cannot reach" in stderr_lower:
+        return "EOFFLINE"
+    return f"UPM_ERROR_{returncode}"
+
+
 def _try_install_packages(
     cwd: Path,
     package_manager: str = "upm",
@@ -79,18 +106,10 @@ def _try_install_packages(
     if not lockfile.exists() and not pkg_json.exists():
         return False, "ELOCK"  # No lockfile or package manifest
 
-    # job_id becomes part of a path: apply the governed job id rule (H01, no "/") before using it.
-    if job_id:
-        from thinkbox.lifecycle_harden import LifecycleError, validate_job_id
-
-        try:
-            job_id = validate_job_id(job_id)
-        except LifecycleError:
-            return False, "invalid_job_id"
-
     # Prepare per-run store isolation
-    store_path = Path(tempfile.gettempdir()) / f"upm-store-{job_id}"
-    store_path.mkdir(parents=True, exist_ok=True)
+    store_path = _upm_store(job_id)
+    if store_path is None:
+        return False, "invalid_job_id"
 
     try:
         # Run UPM install with frozen-lockfile semantics
@@ -109,15 +128,7 @@ def _try_install_packages(
         )
 
         if result.returncode != 0:
-            # Parse UPM error codes from stderr
-            stderr_lower = result.stderr.lower()
-            if "elock" in stderr_lower or "missing" in stderr_lower:
-                return False, "ELOCK"
-            if "eintegrity" in stderr_lower:
-                return False, "EINTEGRITY"
-            if "eoffline" in stderr_lower or "cannot reach" in stderr_lower:
-                return False, "EOFFLINE"
-            return False, f"UPM_ERROR_{result.returncode}"
+            return False, _upm_error_code(result.returncode, result.stderr)
 
         # Parse success: extract package count from output
         # Typical output: "✓ installed · 115 pkgs · 25 skipped · 1.12s"
