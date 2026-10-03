@@ -209,14 +209,14 @@ export class PluginManager {
         this.panels.delete(fullId);
       },
 
-      log: (level: 'info' | 'warn' | 'error', message: string, data?: any) => {
+      log: (level: 'info' | 'warn' | 'error', message: string, data?: unknown) => {
         this.log(pluginId, level, message, data);
       },
     };
   }
 
   // Private: Logging
-  private log(pluginId: string, level: string, message: string, data?: any): void {
+  private log(pluginId: string, level: string, message: string, data?: unknown): void {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${pluginId}] [${level.toUpperCase()}]`;
     if (data) {
@@ -241,12 +241,12 @@ export class PluginManager {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const data = JSON.parse(stored);
-        data.plugins.forEach((p: { id: string; context: PluginContext }) => {
+        const data = JSON.parse(stored) as { plugins: Array<{ id: string; context: PluginContext }> };
+        data.plugins.forEach((p) => {
           this.registry.set(p.id, p.context);
         });
       } catch (err) {
-        console.error('Failed to load plugins from storage:', err);
+        this.log('plugin-manager', 'error', 'Failed to load plugins from storage', err instanceof Error ? err.message : String(err));
       }
     }
   }
