@@ -18,6 +18,7 @@ import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, re
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
+import type { Thought, WsMessage } from './types.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -49,7 +50,6 @@ type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
-interface Msg { type: string; data?: any }
 
 async function serverUp(): Promise<boolean> {
   try {
@@ -87,8 +87,8 @@ async function ensureServer(): Promise<void> {
   throw new Error(`Server did not start; see ${path.join(logDir, 'server.log')}`);
 }
 
-function printThought(t: any): void {
-  const text = String(t.content ?? t.plugin ?? '').replace(/\s+/g, ' ');
+function printThought(t: Thought): void {
+  const text = String((t.content ?? t.plugin) as string ?? '').replace(/\s+/g, ' ');
   switch (t.type) {
     case 'tool_call':
       console.log(c.cyan(`  ⚙ ${text}`));
@@ -107,7 +107,9 @@ function printThought(t: any): void {
       break;
     case 'think_token':
       // Same id, status and lesson text the dashboard shows; `kudbee tokens show <id>` prints the rest.
-      console.log(t.tokenId ? c.green(`  🧩 ${t.tokenId} [${t.tokenStatus ?? 'saved'}] ${text}`) : c.dim(`  🧩 ${text}`));
+      const tokenId = (t.tokenId as string | undefined);
+      const tokenStatus = (t.tokenStatus as string | undefined) ?? 'saved';
+      console.log(tokenId ? c.green(`  🧩 ${tokenId} [${tokenStatus}] ${text}`) : c.dim(`  🧩 ${text}`));
       break;
     default:
       console.log(c.dim(`  · ${text}`));
@@ -119,12 +121,12 @@ class Client {
   sessionId = '';
   model = '';
   models: Model[] = [];
-  plugins: any[] = [];
+  plugins: unknown[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
   routeTelemetry?: RouteTelemtry;
   /** Tool-scoped agent lane (e.g. 'hermes'). Undefined = full worker agent. */
   agent?: string;
-  private waiters: Array<{ type: string; resolve: (m: Msg) => void }> = [];
+  private waiters: Array<{ type: string; resolve: (m: WsMessage) => void }> = [];
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -146,21 +148,22 @@ class Client {
       this.ws.on('error', onError);
       this.ws.on('message', (raw) => {
         try {
-          const msg = JSON.parse(raw.toString()) as Msg;
+          const msg = JSON.parse(raw.toString()) as WsMessage;
           if (msg.type === 'init') {
-            this.sessionId = msg.data.sessionId;
-            this.models = msg.data.models ?? [];
-            this.plugins = msg.data.plugins ?? [];
-            this.model = msg.data.config?.model ?? this.models[0]?.name ?? '';
+            this.sessionId = (msg.sessionId as string) ?? '';
+            this.models = (msg.models as Model[] | undefined) ?? [];
+            this.plugins = (msg.plugins as unknown[] | undefined) ?? [];
+            const config = msg.config as Record<string, unknown> | undefined;
+            this.model = (config?.model as string | undefined) ?? this.models[0]?.name ?? '';
             if (!resolved) {
               resolved = true;
               this.ws.removeListener('error', onError);
               resolve();
             }
           } else if (msg.type === 'thought') {
-            printThought(msg.data);
+            printThought(msg as unknown as Thought);
           } else if (msg.type === 'approval_request') {
-            this.onApproval(msg.data as ApprovalRequest);
+            this.onApproval(msg as unknown as ApprovalRequest);
           } else if (msg.type === 'stream') {
             process.stdout.write(String(msg.data));
           }
@@ -173,7 +176,7 @@ class Client {
     });
   }
 
-  wait(type: string): Promise<Msg> {
+  wait(type: string): Promise<WsMessage> {
     return new Promise((resolve) => this.waiters.push({ type, resolve }));
   }
 
