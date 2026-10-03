@@ -29,9 +29,13 @@ THINKBOX_LOG_LEVEL=INFO
 
 def create_env_file(path: Path) -> bool:
     """Write a local .env with a fresh API key. False if it already exists. The key is never printed (AGENTS.md 0.4)."""
-    if path.exists():
+    try:
+        # O_EXCL: never overwrite; 0o600: the file holds a key, so only its owner may read it.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
         return False
-    path.write_text(ENV_TEMPLATE.format(api_key=f"tb_{secrets.token_urlsafe(32)}"))
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(ENV_TEMPLATE.format(api_key=f"tb_{secrets.token_urlsafe(32)}"))
     print(f"   Created {path} with a new THINKBOX_API_KEY (read it from the file)")
     return True
 

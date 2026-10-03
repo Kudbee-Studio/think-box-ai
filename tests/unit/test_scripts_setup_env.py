@@ -40,6 +40,11 @@ class TestSetupEnvFile(unittest.TestCase):
         self.assertNotIn(key, out.getvalue())
         self.assertIn(str(self.env), out.getvalue())
 
+    def test_the_env_file_is_readable_only_by_its_owner(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.setup.create_env_file(self.env)
+        self.assertEqual(self.env.stat().st_mode & 0o777, 0o600)
+
     def test_an_existing_env_file_is_left_alone(self) -> None:
         self.env.write_text("KEEP=1\n")
         with contextlib.redirect_stdout(io.StringIO()):
