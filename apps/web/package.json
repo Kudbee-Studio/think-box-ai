@@ -29,7 +29,9 @@
     "@types/node": "^22.20.4",
     "@types/ws": "^8.18.2",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "typescript": "^7.0.2"
+    "@vitest/ui": "^5.0.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "^4.3.0"
