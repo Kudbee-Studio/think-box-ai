@@ -172,3 +172,21 @@ class TestLocalExecutionAdapter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInstallStoreJobId(unittest.TestCase):
+    """job_id becomes part of /tmp/upm-store-<job_id>; a path-like id must not choose another folder."""
+
+    def test_a_path_like_job_id_is_refused_before_any_folder_is_created(self) -> None:
+        import tempfile as _tempfile
+        from pathlib import Path as _Path
+
+        from thinkbox.local_execution_adapter import _try_install_packages
+
+        with _tempfile.TemporaryDirectory() as cwd:
+            (_Path(cwd) / "upm.lock").write_text("{}")
+            escape = _Path(_tempfile.gettempdir()) / "upm-store-x" / ".." / "tb-escape-probe"
+            ok, status = _try_install_packages(_Path(cwd), job_id="x/../tb-escape-probe")
+            self.assertFalse(ok)
+            self.assertEqual(status, "invalid_job_id")
+            self.assertFalse(escape.resolve().exists(), "a folder was created outside upm-store-<job_id>")

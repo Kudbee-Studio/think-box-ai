@@ -79,6 +79,15 @@ def _try_install_packages(
     if not lockfile.exists() and not pkg_json.exists():
         return False, "ELOCK"  # No lockfile or package manifest
 
+    # job_id becomes part of a path: apply the governed job id rule (H01, no "/") before using it.
+    if job_id:
+        from thinkbox.lifecycle_harden import LifecycleError, validate_job_id
+
+        try:
+            job_id = validate_job_id(job_id)
+        except LifecycleError:
+            return False, "invalid_job_id"
+
     # Prepare per-run store isolation
     store_path = Path(tempfile.gettempdir()) / f"upm-store-{job_id}"
     store_path.mkdir(parents=True, exist_ok=True)
