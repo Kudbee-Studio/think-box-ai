@@ -30,6 +30,7 @@ from thinkbox.kilo_live_proof_readiness import REPO_ROOT, gate_for_pr, gate_ids
 from thinkbox.kilo_proof_schema import HALT_REASONS, redact_proof_summary
 from thinkbox.kilo_substrate_checklist import (
     BOX_URL_ENV,
+    is_live_box_url,
     redact_box_token,
     redact_box_url,
 )
@@ -300,7 +301,7 @@ def live_exec_env_ready(environ: Mapping[str, str]) -> bool:
     """True when founder ack and public Box URL are both present (live prep only)."""
     ack = _founder_ack_truthy(environ.get(FOUNDER_ACK_ENV))
     url = (environ.get(BOX_URL_ENV) or "").strip()
-    return ack and bool(url) and ".box.upstash.com" in url
+    return ack and is_live_box_url(url)
 
 
 def can_claim_live_verified(
