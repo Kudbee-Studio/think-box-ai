@@ -1,6 +1,6 @@
 # PR #338: Python CodeQL and bandit fixes
 
-Code head tested by the gates below: `184f2987`. The commit after it adds only this file, the files it links and `AGENTS.md`.
+Code head tested by the gates below: `e2af7b9d`. The commits after it add only this file, the files it links and `AGENTS.md`.
 
 ## What changed (18 code commits, each with a test that failed first unless noted)
 
@@ -21,8 +21,8 @@ Code head tested by the gates below: `184f2987`. The commit after it adds only t
 ## Gates (AGENTS.md 0.1)
 
 1. **Local checks.** `apps/web` is unchanged by this PR; there `npm test` 549/549, typecheck and lint are clean. Python: every changed module's test files were run on this branch and on `main` (results in the commit messages), plus the full suite below. `ruff` findings in each changed source file are the same as on `main` or fewer.
-2. **Local CI (`act`).** `test` / `web-typecheck` (the only workflow): green: checkout, setup-node 22, `npm install`, typecheck, tests 549/549, skipped none (act 0.2.89, real clone of `184f2987` with `origin` on GitHub). Log: `docs/evidence/ci-local/feat-pr338-codeql-python-act.log`. There is no workflow for the Python tests.
-3. **CodeQL against `main`.** Python, `python-code-scanning.qls`: PENDING for the final head `e2af7b9d`. At `184f298` (all fixes except the `/stream` correction): `main` 37 alerts, this PR 17, 0 new, 20 gone. SARIF: `pr338-codeql-python/codeql-pr338-python.sarif`. JavaScript: no file under `apps/web` changed, so the JavaScript scan is the one recorded for #337.
+2. **Local CI (`act`).** `test` / `web-typecheck` (the only workflow): green: checkout, setup-node 22, `npm install`, typecheck, tests 549/549, skipped none (act 0.2.89, real clone of the final code head `e2af7b9d` with `origin` on GitHub; also green at `184f2987`). Log: `docs/evidence/ci-local/feat-pr338-codeql-python-act.log`. There is no workflow for the Python tests.
+3. **CodeQL against `main`.** Python, `python-code-scanning.qls`: `main` 37 alerts, this PR 17, **0 new**, 20 gone (13 temp-file, 3 URL substring, 2 clear-text logging, 1 clear-text storage, 1 stack-trace exposure), at the final code head `e2af7b9d` and at `184f298` alike. The `job_id` and `run_id` path findings remain in CodeQL's count: it does not model `validate_job_id` or the `run_id` pattern as sanitizers. SARIF: `pr338-codeql-python/codeql-pr338-python.sarif`. JavaScript: no file under `apps/web` changed, so the JavaScript scan is the one recorded for #337.
 4. **Evidence.** This file and the PR body.
 5. **Diff review.** No secrets, no `.db`/`.env` files; guardrails 0.4 intact.
 
