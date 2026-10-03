@@ -71,7 +71,7 @@ class GitIntegration {
             <span class="modal-eyebrow">📦 GIT INTEGRATION</span>
             <h2>Clone Repository</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="git-clone-form">
@@ -95,13 +95,15 @@ class GitIntegration {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-primary" onclick="gitIntegration.cloneRepositoryFromDialog(this)">Clone</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-primary" data-action="clone">Clone</button>
         </div>
       </section>
     `;
 
     document.body.appendChild(dialog);
+    dialog.querySelectorAll('[data-action="close"]').forEach((btn) => btn.addEventListener('click', () => dialog.remove()));
+    dialog.querySelector('[data-action="clone"]').addEventListener('click', (event) => this.cloneRepositoryFromDialog(event.currentTarget));
     document.getElementById('git-url').focus();
   }
 
@@ -279,22 +281,23 @@ class GitIntegration {
             <span class="modal-eyebrow">📝 FILE EDITOR</span>
             <h2>${this.escapeHtml(fileName)}</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="file-editor">
-          <pre><code class="language-${language}">${this.escapeHtml(content)}</code></pre>
+          <pre><code class="language-${this.escapeHtml(language)}">${this.escapeHtml(content)}</code></pre>
           <textarea class="file-content" hidden>${this.escapeHtml(content)}</textarea>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
           <button class="btn-primary" data-action="save">Save</button>
         </div>
       </section>
     `;
 
     document.body.appendChild(dialog);
+    dialog.querySelectorAll('[data-action="close"]').forEach((btn) => btn.addEventListener('click', () => dialog.remove()));
     dialog.querySelector('[data-action="save"]').addEventListener('click', (event) => this.saveFile(filePath, event.currentTarget));
   }
 
@@ -376,7 +379,7 @@ class GitIntegration {
       <div class="file-tree-entry">
         <span class="icon">✨</span>
         <span class="name">${this.escapeHtml(file.path.split('/').pop())}</span>
-        <span class="badge">${file.language}</span>
+        <span class="badge">${this.escapeHtml(file.language)}</span>
       </div>
     `;
 

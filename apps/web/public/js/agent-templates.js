@@ -130,36 +130,42 @@ class AgentTemplates {
             <span class="modal-eyebrow">QUICK START</span>
             <h2>Agent Templates</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
         <div class="templates-grid">
           ${Object.values(this.templates).map(template => `
             <div class="template-card">
               <div class="template-header">
-                <span class="template-icon">${template.icon}</span>
-                <h3>${template.name}</h3>
+                <span class="template-icon">${escapeHtml(template.icon)}</span>
+                <h3>${escapeHtml(template.name)}</h3>
               </div>
-              <p class="template-desc">${template.description}</p>
+              <p class="template-desc">${escapeHtml(template.description)}</p>
               <div class="template-tools">
-                <strong>Tools:</strong> ${template.tools.slice(0, 3).join(', ')}${template.tools.length > 3 ? '...' : ''}
+                <strong>Tools:</strong> ${escapeHtml(template.tools.slice(0, 3).join(', '))}${template.tools.length > 3 ? '...' : ''}
               </div>
               <div class="template-model">
-                <strong>Model:</strong> ${template.model}
+                <strong>Model:</strong> ${escapeHtml(template.model)}
               </div>
-              <button class="btn-primary" onclick="agentTemplates.createAgentFromTemplate('${template.id}')">
+              <button class="btn-primary" data-action="use-template" data-template-id="${escapeHtml(template.id)}">
                 Use this template
               </button>
             </div>
           `).join('')}
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
+      const actionEl = e.target.closest?.('[data-action]');
+      if (!actionEl || !modal.contains(actionEl)) return;
+      if (actionEl.dataset.action === 'close') modal.remove();
+      else if (actionEl.dataset.action === 'use-template') {
+        this.createAgentFromTemplate(actionEl.dataset.templateId);
+      }
     });
 
     document.body.appendChild(modal);

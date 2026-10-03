@@ -61,7 +61,7 @@ class CollaborationDashboard {
             <span class="modal-eyebrow">COLLABORATION · DEMO</span>
             <h2>Multi-Agent Coordination</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="demo-banner" role="note">Demo data - not connected to real services</div>
@@ -93,23 +93,23 @@ class CollaborationDashboard {
             <h3>Agents</h3>
             <div class="agents-grid">
               ${this.agents.map(agent => `
-                <div class="agent-card" data-agent-id="${agent.id}">
+                <div class="agent-card" data-agent-id="${escapeHtml(agent.id)}">
                   <div class="agent-header">
-                    <span class="agent-name">${agent.name}</span>
-                    <span class="agent-status ${agent.status}">${agent.status}</span>
+                    <span class="agent-name">${escapeHtml(agent.name)}</span>
+                    <span class="agent-status ${escapeHtml(agent.status)}">${escapeHtml(agent.status)}</span>
                   </div>
-                  <div class="agent-template">${agent.template}</div>
+                  <div class="agent-template">${escapeHtml(agent.template)}</div>
                   ${agent.currentTask ? `
                     <div class="agent-task">
                       <span class="task-label">Current:</span>
-                      <span class="task-name">${agent.currentTask}</span>
+                      <span class="task-name">${escapeHtml(agent.currentTask)}</span>
                     </div>
                   ` : ''}
                   <div class="agent-stats">
-                    <span>✓ ${agent.tasksCompleted} completed</span>
+                    <span>✓ ${Number(agent.tasksCompleted) || 0} completed</span>
                   </div>
                   <div class="agent-actions">
-                    <button class="btn-secondary" onclick="collaborationDashboard.assignTask('${agent.id}')">Assign Task</button>
+                    <button class="btn-secondary" data-action="assign" data-agent-id="${escapeHtml(agent.id)}">Assign Task</button>
                   </div>
                 </div>
               `).join('')}
@@ -119,32 +119,32 @@ class CollaborationDashboard {
           <div class="tasks-panel">
             <h3>Task Queue</h3>
             <div class="task-filters">
-              <button class="filter-btn active" onclick="collaborationDashboard.filterTasks('all')">All</button>
-              <button class="filter-btn" onclick="collaborationDashboard.filterTasks('assigned')">Assigned</button>
-              <button class="filter-btn" onclick="collaborationDashboard.filterTasks('in_progress')">In Progress</button>
-              <button class="filter-btn" onclick="collaborationDashboard.filterTasks('completed')">Completed</button>
+              <button class="filter-btn active" data-action="filter" data-status="all">All</button>
+              <button class="filter-btn" data-action="filter" data-status="assigned">Assigned</button>
+              <button class="filter-btn" data-action="filter" data-status="in_progress">In Progress</button>
+              <button class="filter-btn" data-action="filter" data-status="completed">Completed</button>
             </div>
 
             <div class="tasks-list">
               ${this.tasks.slice(0, 10).map(task => `
-                <div class="task-item priority-${task.priority}">
+                <div class="task-item priority-${escapeHtml(task.priority)}">
                   <div class="task-header">
-                    <strong>${task.name}</strong>
-                    <span class="task-status">${task.status}</span>
+                    <strong>${escapeHtml(task.name)}</strong>
+                    <span class="task-status">${escapeHtml(task.status)}</span>
                   </div>
                   <div class="task-meta">
                     ${task.assignedTo ? `
-                      <span class="assigned-to">${this.getAgentName(task.assignedTo)}</span>
+                      <span class="assigned-to">${escapeHtml(this.getAgentName(task.assignedTo))}</span>
                     ` : ''}
-                    <span class="task-time">${new Date(task.assignedAt).toLocaleTimeString()}</span>
+                    <span class="task-time">${escapeHtml(new Date(task.assignedAt).toLocaleTimeString())}</span>
                   </div>
                   ${task.dependencies?.length > 0 ? `
-                    <div class="task-deps">Dependencies: ${task.dependencies.length}</div>
+                    <div class="task-deps">Dependencies: ${Number(task.dependencies.length) || 0}</div>
                   ` : ''}
                 </div>
               `).join('')}
             </div>
-            <button class="btn-primary" onclick="collaborationDashboard.createTask()">+ Create Task</button>
+            <button class="btn-primary" data-action="create-task">+ Create Task</button>
           </div>
 
           <div class="workflow-timeline">
@@ -154,10 +154,10 @@ class CollaborationDashboard {
                 <div class="timeline-item">
                   <div class="timeline-marker"></div>
                   <div class="timeline-content">
-                    <strong>${item.name}</strong>
-                    <span class="timeline-status">${item.status} · example</span>
+                    <strong>${escapeHtml(item.name)}</strong>
+                    <span class="timeline-status">${escapeHtml(item.status)} · example</span>
                     <div class="timeline-bar">
-                      <div class="progress-bar" style="width: ${item.progress}%"></div>
+                      <div class="progress-bar" style="width: ${Number(item.progress) || 0}%"></div>
                     </div>
                   </div>
                 </div>
@@ -167,16 +167,29 @@ class CollaborationDashboard {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) { modal.remove(); return; }
+      this.handleModalAction(e, modal);
     });
 
     document.body.appendChild(modal);
+  }
+
+  handleModalAction(e, modal) {
+    const el = e.target.closest ? e.target.closest('[data-action]') : null;
+    if (!el || !modal.contains(el)) return;
+    const action = el.dataset.action;
+    if (action === 'close') modal.remove();
+    else if (action === 'filter') this.filterTasks(el.dataset.status);
+    else if (action === 'assign') this.assignTask(el.dataset.agentId);
+    else if (action === 'create-task') this.createTask();
+    else if (action === 'submit-assign') this.submitTaskAssignment(el.dataset.agentId);
+    else if (action === 'create-new') this.createNewTask();
   }
 
   assignTask(agentId) {
@@ -186,7 +199,7 @@ class CollaborationDashboard {
       <section class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h2>Assign Task</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="task-form">
@@ -217,14 +230,15 @@ class CollaborationDashboard {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-success" onclick="collaborationDashboard.submitTaskAssignment('${agentId}')">Assign</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-success" data-action="submit-assign" data-agent-id="${escapeHtml(agentId)}">Assign</button>
         </div>
       </section>
     `;
 
     taskModal.addEventListener('click', (e) => {
-      if (e.target === taskModal) taskModal.remove();
+      if (e.target === taskModal) { taskModal.remove(); return; }
+      this.handleModalAction(e, taskModal);
     });
 
     document.body.appendChild(taskModal);
@@ -251,7 +265,7 @@ class CollaborationDashboard {
       <section class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h2>Create Task</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="task-form">
@@ -264,7 +278,7 @@ class CollaborationDashboard {
             Assign to:
             <select id="new-task-agent">
               <option value="">Any available agent</option>
-              ${this.getActiveAgents().map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+              ${this.getActiveAgents().map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('')}
             </select>
           </label>
 
@@ -279,14 +293,15 @@ class CollaborationDashboard {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
-          <button class="btn-success" onclick="collaborationDashboard.createNewTask()">Create</button>
+          <button class="btn-secondary" data-action="close">Cancel</button>
+          <button class="btn-success" data-action="create-new">Create</button>
         </div>
       </section>
     `;
 
     taskModal.addEventListener('click', (e) => {
-      if (e.target === taskModal) taskModal.remove();
+      if (e.target === taskModal) { taskModal.remove(); return; }
+      this.handleModalAction(e, taskModal);
     });
 
     document.body.appendChild(taskModal);
@@ -349,14 +364,14 @@ class CollaborationDashboard {
 
     const filtered = status === 'all' ? this.tasks : this.tasks.filter(t => t.status === status);
     tasksList.innerHTML = filtered.slice(0, 10).map(task => `
-      <div class="task-item priority-${task.priority}">
+      <div class="task-item priority-${escapeHtml(task.priority)}">
         <div class="task-header">
-          <strong>${task.name}</strong>
-          <span class="task-status">${task.status}</span>
+          <strong>${escapeHtml(task.name)}</strong>
+          <span class="task-status">${escapeHtml(task.status)}</span>
         </div>
         <div class="task-meta">
-          ${task.assignedTo ? `<span class="assigned-to">${this.getAgentName(task.assignedTo)}</span>` : ''}
-          <span class="task-time">${new Date(task.assignedAt).toLocaleTimeString()}</span>
+          ${task.assignedTo ? `<span class="assigned-to">${escapeHtml(this.getAgentName(task.assignedTo))}</span>` : ''}
+          <span class="task-time">${escapeHtml(new Date(task.assignedAt).toLocaleTimeString())}</span>
         </div>
       </div>
     `).join('');

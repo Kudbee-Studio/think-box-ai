@@ -89,7 +89,7 @@ class WorkflowBuilder {
     node.innerHTML = `
       <div class="node-header">
         <span class="node-icon">${this.getIcon(templateType)}</span>
-        <span class="node-label">${labels[templateType]}</span>
+        <span class="node-label">${escapeHtml(labels[templateType])}</span>
       </div>
       <div class="node-content">
         <input type="text" class="node-name" placeholder="Task name..." value="">

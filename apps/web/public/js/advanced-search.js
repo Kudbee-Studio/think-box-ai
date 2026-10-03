@@ -75,7 +75,7 @@ class AdvancedSearch {
             <span class="modal-eyebrow">SEARCH</span>
             <h2 id="search-title">Advanced Search</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="search-container">
@@ -87,7 +87,7 @@ class AdvancedSearch {
               placeholder="Search by keyword, tag, or semantic meaning..."
               autocomplete="off"
             >
-            <button class="btn-primary" onclick="advancedSearch.performSearch(document.getElementById('search-query-input').value)">
+            <button class="btn-primary" data-action="search">
               Search
             </button>
           </div>
@@ -95,7 +95,7 @@ class AdvancedSearch {
           <div class="search-filters">
             <label>
               Layer:
-              <select id="filter-layer" onchange="advancedSearch.updateFilter('layer', this.value)">
+              <select id="filter-layer">
                 <option value="all">All layers</option>
                 <option value="verified">Verified only</option>
                 <option value="org">Organization</option>
@@ -106,7 +106,7 @@ class AdvancedSearch {
 
             <label>
               Type:
-              <select id="filter-type" onchange="advancedSearch.updateFilter('type', this.value)">
+              <select id="filter-type">
                 <option value="all">All types</option>
                 <option value="memory">Memories</option>
                 <option value="run">Runs</option>
@@ -120,7 +120,6 @@ class AdvancedSearch {
                 type="text"
                 id="filter-tags"
                 placeholder="Comma-separated tags"
-                onchange="advancedSearch.updateFilter('tags', this.value.split(',').map(t => t.trim()))"
               >
             </label>
           </div>
@@ -131,13 +130,24 @@ class AdvancedSearch {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
+      const actionEl = e.target.closest?.('[data-action]');
+      if (!actionEl || !modal.contains(actionEl)) return;
+      if (actionEl.dataset.action === 'close') modal.remove();
+      else if (actionEl.dataset.action === 'search') {
+        this.performSearch(document.getElementById('search-query-input').value);
+      }
+    });
+    modal.querySelector('#filter-layer')?.addEventListener('change', (e) => this.updateFilter('layer', e.target.value));
+    modal.querySelector('#filter-type')?.addEventListener('change', (e) => this.updateFilter('type', e.target.value));
+    modal.querySelector('#filter-tags')?.addEventListener('change', (e) => {
+      this.updateFilter('tags', e.target.value.split(',').map(t => t.trim()));
     });
 
     document.body.appendChild(modal);
@@ -234,12 +244,12 @@ class AdvancedSearch {
           <div class="result-header">
             <span class="result-icon">${this.getTypeIcon(result.type)}</span>
             <h4>${this.highlightQuery(result.title)}</h4>
-            ${result.layer ? `<span class="memory-layer ${result.layer}">${result.layer}</span>` : ''}
+            ${result.layer ? `<span class="memory-layer ${escapeHtml(result.layer)}">${escapeHtml(result.layer)}</span>` : ''}
           </div>
-          <p class="result-content">${result.content.substring(0, 120)}...</p>
+          <p class="result-content">${escapeHtml(String(result.content || '').substring(0, 120))}...</p>
           <div class="result-meta">
             <span class="result-score">Relevance: ${Math.round(result.relevance)}%</span>
-            ${result.tags?.length > 0 ? `<span class="result-tags">${result.tags.slice(0, 2).join(', ')}</span>` : ''}
+            ${result.tags?.length > 0 ? `<span class="result-tags">${escapeHtml(result.tags.slice(0, 2).join(', '))}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -258,8 +268,10 @@ class AdvancedSearch {
 
   highlightQuery(text) {
     const query = document.getElementById('search-query-input')?.value;
-    if (!query) return text;
-    return text.replace(new RegExp(`(${query})`, 'gi'), '<mark>$1</mark>');
+    const str = String(text ?? '');
+    if (!query) return escapeHtml(str);
+    const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return str.split(re).map((part, i) => (i % 2 === 1 ? `<mark>${escapeHtml(part)}</mark>` : escapeHtml(part))).join('');
   }
 
   exportResults() {

@@ -31,23 +31,23 @@ class ApprovalWorkflow {
             <span class="modal-eyebrow">GOVERNANCE</span>
             <h2>Approval Workflows</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="approval-builder">
           <div class="workflow-templates">
             <h3>Quick Templates</h3>
             <div class="template-row">
-              <button class="template-chip" onclick="approvalWorkflow.createWorkflow('single', 'Single Approver')">
+              <button class="template-chip" data-action="create-workflow" data-type="single" data-name="Single Approver">
                 <span class="template-icon">👤</span> Single Approver
               </button>
-              <button class="template-chip" onclick="approvalWorkflow.createWorkflow('serial', 'Serial Chain')">
+              <button class="template-chip" data-action="create-workflow" data-type="serial" data-name="Serial Chain">
                 <span class="template-icon">⛓</span> Serial Chain
               </button>
-              <button class="template-chip" onclick="approvalWorkflow.createWorkflow('parallel', 'Parallel Vote')">
+              <button class="template-chip" data-action="create-workflow" data-type="parallel" data-name="Parallel Vote">
                 <span class="template-icon">🗳</span> Parallel Vote
               </button>
-              <button class="template-chip" onclick="approvalWorkflow.createWorkflow('hierarchical', 'Hierarchical')">
+              <button class="template-chip" data-action="create-workflow" data-type="hierarchical" data-name="Hierarchical">
                 <span class="template-icon">🏢</span> Hierarchical
               </button>
             </div>
@@ -59,19 +59,19 @@ class ApprovalWorkflow {
               ${Object.entries(this.workflows).map(([id, wf]) => `
                 <div class="workflow-card">
                   <div class="workflow-header">
-                    <strong>${wf.name}</strong>
-                    <span class="workflow-type">${wf.type}</span>
+                    <strong>${escapeHtml(wf.name)}</strong>
+                    <span class="workflow-type">${escapeHtml(wf.type)}</span>
                   </div>
                   <div class="workflow-stages">
                     ${wf.stages.map((stage, idx) => `
                       <div class="stage-indicator">
                         <span class="stage-number">${idx + 1}</span>
-                        <span class="stage-label">${stage.role}</span>
-                        <span class="stage-action">${stage.action}</span>
+                        <span class="stage-label">${escapeHtml(stage.role)}</span>
+                        <span class="stage-action">${escapeHtml(stage.action)}</span>
                       </div>
                     `).join('')}
                   </div>
-                  <button class="btn-danger" onclick="approvalWorkflow.deleteWorkflow('${id}')">Delete</button>
+                  <button class="btn-danger" data-action="delete-workflow" data-id="${escapeHtml(id)}">Delete</button>
                 </div>
               `).join('')}
             </div>
@@ -83,13 +83,13 @@ class ApprovalWorkflow {
               ${Object.entries(this.approvals).filter(([_, a]) => a.status === 'pending').map(([id, approval]) => `
                 <div class="approval-request">
                   <div class="approval-meta">
-                    <strong>${approval.taskName}</strong>
-                    <span class="approval-time">${new Date(approval.createdAt).toLocaleTimeString()}</span>
+                    <strong>${escapeHtml(approval.taskName)}</strong>
+                    <span class="approval-time">${escapeHtml(new Date(approval.createdAt).toLocaleTimeString())}</span>
                   </div>
-                  <div class="approval-detail">${approval.description}</div>
+                  <div class="approval-detail">${escapeHtml(approval.description)}</div>
                   <div class="approval-actions">
-                    <button class="btn-success" onclick="approvalWorkflow.approveRequest('${id}')">✓ Approve</button>
-                    <button class="btn-danger" onclick="approvalWorkflow.rejectRequest('${id}')">✗ Reject</button>
+                    <button class="btn-success" data-action="approve-request" data-id="${escapeHtml(id)}">✓ Approve</button>
+                    <button class="btn-danger" data-action="reject-request" data-id="${escapeHtml(id)}">✗ Reject</button>
                   </div>
                 </div>
               `).join('')}
@@ -98,13 +98,21 @@ class ApprovalWorkflow {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
+      const actionEl = e.target.closest?.('[data-action]');
+      if (!actionEl || !modal.contains(actionEl)) return;
+      const { action, id, type, name } = actionEl.dataset;
+      if (action === 'close') modal.remove();
+      else if (action === 'create-workflow') this.createWorkflow(type, name);
+      else if (action === 'delete-workflow') this.deleteWorkflow(id);
+      else if (action === 'approve-request') this.approveRequest(id);
+      else if (action === 'reject-request') this.rejectRequest(id);
     });
 
     document.body.appendChild(modal);
@@ -161,20 +169,20 @@ class ApprovalWorkflow {
       <section class="modal modal-approval" role="dialog" aria-modal="true">
         <div class="modal-header">
           <span class="modal-eyebrow">APPROVAL REQUIRED</span>
-          <h2>${task.title}</h2>
+          <h2>${escapeHtml(task.title)}</h2>
         </div>
 
         <div class="approval-content">
           <div class="approval-summary">
-            <p class="approval-description">${task.description}</p>
+            <p class="approval-description">${escapeHtml(task.description)}</p>
             <div class="approval-metadata">
               <div class="meta-item">
                 <span class="meta-label">Requested by:</span>
-                <span class="meta-value">${task.requestedBy}</span>
+                <span class="meta-value">${escapeHtml(task.requestedBy)}</span>
               </div>
               <div class="meta-item">
                 <span class="meta-label">Priority:</span>
-                <span class="meta-value badge-${task.priority}">${task.priority}</span>
+                <span class="meta-value badge-${escapeHtml(task.priority)}">${escapeHtml(task.priority)}</span>
               </div>
             </div>
           </div>
@@ -182,7 +190,7 @@ class ApprovalWorkflow {
           ${task.context ? `
             <div class="approval-context">
               <h4>Context</h4>
-              <pre><code>${JSON.stringify(task.context, null, 2)}</code></pre>
+              <pre><code>${escapeHtml(JSON.stringify(task.context, null, 2))}</code></pre>
             </div>
           ` : ''}
 
@@ -194,15 +202,22 @@ class ApprovalWorkflow {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-success" onclick="approvalWorkflow.approveTask('${task.id}')">Approve</button>
-          <button class="btn-warning" onclick="approvalWorkflow.requestChanges('${task.id}')">Request Changes</button>
-          <button class="btn-danger" onclick="approvalWorkflow.rejectTask('${task.id}')">Reject</button>
+          <button class="btn-success" data-action="approve-task" data-id="${escapeHtml(task.id)}">Approve</button>
+          <button class="btn-warning" data-action="request-changes" data-id="${escapeHtml(task.id)}">Request Changes</button>
+          <button class="btn-danger" data-action="reject-task" data-id="${escapeHtml(task.id)}">Reject</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.remove();
+      const actionEl = e.target.closest?.('[data-action]');
+      if (!actionEl || !modal.contains(actionEl)) return;
+      const { action, id, type, name } = actionEl.dataset;
+      if (action === 'close') modal.remove();
+      else if (action === 'approve-task') this.approveTask(id);
+      else if (action === 'request-changes') this.requestChanges(id);
+      else if (action === 'reject-task') this.rejectTask(id);
     });
 
     document.body.appendChild(modal);

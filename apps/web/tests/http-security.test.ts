@@ -29,12 +29,13 @@ function guard(method: string, headers: HeaderReq['headers']) {
   return { passed: called, code: out.code };
 }
 
-test('CSP: scripts only from self, no eval, no framing, no plugins, no <base>; inline handlers are the one tracked exception', () => {
+test('CSP: scripts only from self, no eval, no inline handlers, no framing, no plugins, no <base>', () => {
   const csp = contentSecurityPolicy(3000);
   const dir = (name: string) => csp.split('; ').find((d) => d.startsWith(`${name} `)) ?? '';
   assert.equal(dir('script-src'), "script-src 'self'");
   assert.doesNotMatch(csp, /unsafe-eval/);
-  assert.equal(dir('script-src-attr'), "script-src-attr 'unsafe-inline'");
+  assert.equal(dir('script-src-attr'), "script-src-attr 'none'");
+  for (const d of csp.split('; ').filter((x) => x.startsWith('script-src'))) assert.doesNotMatch(d, /unsafe-inline|unsafe-eval|https?:/, `${d} must not allow inline script, eval or remote script`);
   assert.equal(dir('frame-ancestors'), "frame-ancestors 'none'");
   assert.equal(dir('object-src'), "object-src 'none'");
   assert.equal(dir('base-uri'), "base-uri 'none'");
@@ -74,13 +75,15 @@ test('writes: a foreign, null or cross-site request is refused for every unsafe 
   assert.deepEqual(guard('POST', { origin: ['https://evil.example', 'http://127.0.0.1:3000'] }), { passed: false, code: 403 }, 'repeated Origin header: first value is judged');
 });
 
-test('ratchet: inline on*= handlers may only go down (each one needs script-src-attr unsafe-inline)', () => {
+test('no inline on*= handler anywhere in the front end (the CSP forbids them, so one would silently do nothing)', () => {
   const pub = path.join(appDir, 'public');
   const files = ['index.html', ...fs.readdirSync(path.join(pub, 'js')).filter((f) => f.endsWith('.js') && f !== 'app-mock.js').map((f) => `js/${f}`)];
-  const count = files.reduce((n, f) => n + (fs.readFileSync(path.join(pub, f), 'utf8').match(/\son(?:click|change|input|submit|keydown|keyup|mouseover|focus|blur)="/g)?.length ?? 0), 0);
-  const BASELINE = 81;
-  assert.ok(count <= BASELINE, `inline handlers grew from ${BASELINE} to ${count}: use addEventListener instead`);
-  if (count < BASELINE) assert.fail(`inline handlers dropped to ${count}: lower BASELINE in this test (and drop script-src-attr when it reaches 0)`);
+  const found: string[] = [];
+  for (const f of files) {
+    const text = fs.readFileSync(path.join(pub, f), 'utf8').split('\n');
+    text.forEach((line, i) => { if (/\son(?:click|change|input|submit|keydown|keyup|mouseover|focus|blur)=["']/.test(line) && !/^\s*(?:\/\/|\*)/.test(line)) found.push(`${f}:${i + 1}`); });
+  }
+  assert.deepEqual(found, [], `inline handlers: use addEventListener (data-action + a delegated listener)\n  ${found.join('\n  ')}`);
 });
 
 // ─── Real server ─────────────────────────────────────────────

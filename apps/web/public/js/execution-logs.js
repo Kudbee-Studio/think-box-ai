@@ -83,17 +83,17 @@ class ExecutionLogs {
             <span class="modal-eyebrow">OPERATIONS</span>
             <h2>Execution Logs</h2>
           </div>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="logs-controls">
           <div class="logs-search">
             <input id="logs-search-input" type="text" class="search-input" placeholder="Search logs..."
-              onkeyup="executionLogs.updateSearch(this.value)">
+              data-search="1">
           </div>
 
           <div class="logs-filters">
-            <select onchange="executionLogs.updateFilter('level', this.value)">
+            <select data-filter="level">
               <option value="all">All levels</option>
               <option value="DEBUG">Debug</option>
               <option value="INFO">Info</option>
@@ -101,7 +101,7 @@ class ExecutionLogs {
               <option value="ERROR">Error</option>
             </select>
 
-            <select onchange="executionLogs.updateFilter('service', this.value)">
+            <select data-filter="service">
               <option value="all">All services</option>
               <option value="agent">Agent</option>
               <option value="tools">Tools</option>
@@ -109,15 +109,15 @@ class ExecutionLogs {
               <option value="server">Server</option>
             </select>
 
-            <select onchange="executionLogs.updateFilter('status', this.value)">
+            <select data-filter="status">
               <option value="all">All status</option>
               <option value="success">Success</option>
               <option value="failed">Failed</option>
               <option value="error">Error</option>
             </select>
 
-            <button class="btn-secondary" onclick="executionLogs.clearLogs()">Clear Logs</button>
-            <button class="btn-secondary" onclick="executionLogs.exportLogs()">Export</button>
+            <button class="btn-secondary" data-action="clear">Clear Logs</button>
+            <button class="btn-secondary" data-action="export">Export</button>
           </div>
         </div>
 
@@ -133,18 +133,18 @@ class ExecutionLogs {
             </div>
 
             ${filtered.map(log => `
-              <div class="log-entry level-${log.level.toLowerCase()} status-${log.status}">
+              <div class="log-entry level-${escapeHtml(String(log.level).toLowerCase())} status-${escapeHtml(log.status)}">
                 <span class="col-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
                 <span class="col-level">
-                  <badge class="badge-${log.level.toLowerCase()}">${log.level}</badge>
+                  <badge class="badge-${escapeHtml(String(log.level).toLowerCase())}">${escapeHtml(log.level)}</badge>
                 </span>
-                <span class="col-service">${log.service}</span>
+                <span class="col-service">${escapeHtml(log.service)}</span>
                 <span class="col-message">
-                  <strong>${log.action}</strong>: ${log.message}
+                  <strong>${escapeHtml(log.action)}</strong>: ${escapeHtml(log.message)}
                 </span>
-                <span class="col-duration">${log.duration}ms</span>
+                <span class="col-duration">${Number(log.duration) || 0}ms</span>
                 <span class="col-actions">
-                  <button class="btn-icon" onclick="executionLogs.showDetails('${log.id}')">📋</button>
+                  <button class="btn-icon" data-action="details" data-log-id="${escapeHtml(log.id)}">📋</button>
                 </span>
               </div>
             `).join('')}
@@ -169,16 +169,35 @@ class ExecutionLogs {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) { modal.remove(); return; }
+      this.handleModalAction(e, modal);
+    });
+    modal.addEventListener('change', (e) => {
+      const filter = e.target && e.target.dataset ? e.target.dataset.filter : null;
+      if (filter) this.updateFilter(filter, e.target.value);
+    });
+    modal.addEventListener('keyup', (e) => {
+      if (e.target && e.target.dataset && e.target.dataset.search) this.updateSearch(e.target.value);
     });
 
     document.body.appendChild(modal);
+  }
+
+  handleModalAction(e, modal) {
+    const el = e.target.closest ? e.target.closest('[data-action]') : null;
+    if (!el || !modal.contains(el)) return;
+    const action = el.dataset.action;
+    if (action === 'close') modal.remove();
+    else if (action === 'clear') this.clearLogs();
+    else if (action === 'export') this.exportLogs();
+    else if (action === 'details') this.showDetails(el.dataset.logId);
+    else if (action === 'copy-id') this.copyLogId(el.dataset.logId);
   }
 
   getFilteredLogs() {
@@ -220,13 +239,13 @@ class ExecutionLogs {
       <section class="modal modal-log-details" role="dialog" aria-modal="true">
         <div class="modal-header">
           <h2>Log Details</h2>
-          <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
+          <button class="btn-icon" data-action="close">×</button>
         </div>
 
         <div class="log-details-content">
           <div class="detail-row">
             <span class="detail-label">ID:</span>
-            <code>${log.id}</code>
+            <code>${escapeHtml(log.id)}</code>
           </div>
           <div class="detail-row">
             <span class="detail-label">Timestamp:</span>
@@ -234,45 +253,46 @@ class ExecutionLogs {
           </div>
           <div class="detail-row">
             <span class="detail-label">Level:</span>
-            <badge class="badge-${log.level.toLowerCase()}">${log.level}</badge>
+            <badge class="badge-${escapeHtml(String(log.level).toLowerCase())}">${escapeHtml(log.level)}</badge>
           </div>
           <div class="detail-row">
             <span class="detail-label">Service:</span>
-            <span>${log.service}</span>
+            <span>${escapeHtml(log.service)}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Action:</span>
-            <code>${log.action}</code>
+            <code>${escapeHtml(log.action)}</code>
           </div>
           <div class="detail-row">
             <span class="detail-label">Status:</span>
-            <badge class="badge-${log.status}">${log.status}</badge>
+            <badge class="badge-${escapeHtml(log.status)}">${escapeHtml(log.status)}</badge>
           </div>
           <div class="detail-row full">
             <span class="detail-label">Message:</span>
-            <div class="detail-message">${log.message}</div>
+            <div class="detail-message">${escapeHtml(log.message)}</div>
           </div>
           ${Object.keys(log.metadata).length > 0 ? `
             <div class="detail-row full">
               <span class="detail-label">Metadata:</span>
-              <pre><code>${JSON.stringify(log.metadata, null, 2)}</code></pre>
+              <pre><code>${escapeHtml(JSON.stringify(log.metadata, null, 2))}</code></pre>
             </div>
           ` : ''}
           <div class="detail-row">
             <span class="detail-label">Duration:</span>
-            <span>${log.duration}ms</span>
+            <span>${Number(log.duration) || 0}ms</span>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="executionLogs.copyLogId('${log.id}')">Copy ID</button>
-          <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+          <button class="btn-secondary" data-action="copy-id" data-log-id="${escapeHtml(log.id)}">Copy ID</button>
+          <button class="btn-secondary" data-action="close">Close</button>
         </div>
       </section>
     `;
 
     detailModal.addEventListener('click', (e) => {
-      if (e.target === detailModal) detailModal.remove();
+      if (e.target === detailModal) { detailModal.remove(); return; }
+      this.handleModalAction(e, detailModal);
     });
 
     document.body.appendChild(detailModal);
