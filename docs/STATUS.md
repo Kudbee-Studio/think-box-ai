@@ -1,5 +1,10 @@
 # STATUS — Think Box AI
-## CURRENT (2026-10-03) — Phase 3 items 4 + 3: live-proof bundle builder and SSH hardening (branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
+## CURRENT (2026-10-03) — Phase 3 item 6: Git panel browser test (branch `feat/pr341-p3-git-panel-browser-test`)
+
+- **CODE COMPLETE / TEST VERIFIED:** `apps/web/tests/git-panel-browser.test.ts` loads the real dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own `/api/git` fetches against a real spawned `server.ts` (repo list, open-file content+language, in-workspace save, traversal refusal). 4/4 new; `git-routes` 7/7; mutation-proven.
+- **NOT LIVE VERIFIED** (local loopback only) / **NOT PRODUCTION READY.** Evidence: `docs/evidence/pr341-git-panel-browser-test.md`.
+
+## CURRENT (2026-10-03) — Phase 3 items 4 + 3: live-proof bundle builder and SSH hardening (PR **#340**, merged `d94afbbb`)
 
 - **CODE COMPLETE / TEST VERIFIED (item 4):** `thinkbox/live_proof_bundle.py` validates a raw governed `upcloud-ssh` artifact/receipt/checkpoint, re-hashes the artifact, redacts and refuses secrets, writes a committed bundle + Markdown; `scripts/run_live_proof_bundle.py` runs one exactly-allowed command then builds the bundle. 17/17 hermetic tests.
 - **CODE COMPLETE / TEST VERIFIED (item 3):** SSH host-key pinning (`StrictHostKeyChecking=yes` + `UserKnownHostsFile`, no `accept-new` when hardened) and non-root user support; hardened without a trusted known_hosts fails closed. 103/103 targeted + regression; mutation proof fails 2 tests.
