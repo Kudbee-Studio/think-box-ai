@@ -149,16 +149,6 @@ export class ThinkTokenPropagator {
       metadata: { ...token.metadata, contentType: token.content.type, artifacts: token.content.artifacts },
     };
     this.store.storePattern(pattern);
-
-    // Log usage for analytics
-    console.log({
-      event: 'token_usage',
-      workerId,
-      tokenId,
-      success,
-      newConfidence: token.evaluate(),
-      context
-    });
   }
 
   /**
@@ -204,7 +194,6 @@ export class ThinkTokenPropagator {
 
     if (scope === 'all') {
       // In production: publish to message queue (Redis, Kafka, etc.)
-      console.log(`[Propagation] Broadcasting token ${token.id} to all workers`);
       return { targetWorkers: -1, broadcastId }; // -1 = all
     } else {
       // Scope to workers with similar goals
@@ -213,7 +202,6 @@ export class ThinkTokenPropagator {
         .filter(t => t.metadata.originGoal.length > 0)
         .length;
 
-      console.log(`[Propagation] Broadcasting token ${token.id} to ${targets} similar workers`);
       return { targetWorkers: targets, broadcastId };
     }
   }
