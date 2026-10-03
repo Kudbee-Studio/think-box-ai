@@ -39,6 +39,51 @@ class TestSSHConfig(unittest.TestCase):
         with self.assertRaises(CloudExecutionError):
             SSHWorkerConfig(host="1.2.3.4", username="").validate()
 
+    def test_hardened_without_known_hosts_fails_closed(self) -> None:
+        with self.assertRaises(CloudExecutionError) as ctx:
+            SSHWorkerConfig(host="1.2.3.4", hardened=True).validate()
+        self.assertEqual(ctx.exception.error_type, "InvalidSSHConfig")
+        self.assertEqual(ctx.exception.context.get("reason"), "hardened mode requires a known_hosts_path to pin the host key")
+
+    def test_hardened_with_known_hosts_validates(self) -> None:
+        SSHWorkerConfig(host="1.2.3.4", hardened=True, known_hosts_path="/etc/ssh/known_hosts").validate()
+
+    def test_default_config_is_not_hardened(self) -> None:
+        self.assertFalse(SSHWorkerConfig(host="1.2.3.4").hardened)
+
+
+class TestSSHHostKeyPinning(unittest.TestCase):
+    def test_hardened_argv_pins_host_key(self) -> None:
+        cfg = SSHWorkerConfig(
+            host="203.0.113.10",
+            username="root",
+            private_key_path="/fake/id_rsa",
+            hardened=True,
+            known_hosts_path="/etc/ssh/known_hosts",
+        )
+        argv = SSHCloudExecutionProvider(cfg)._ssh_argv("hostname")
+        self.assertIn("StrictHostKeyChecking=yes", argv)
+        self.assertIn("UserKnownHostsFile=/etc/ssh/known_hosts", argv)
+
+    def test_hardened_argv_never_uses_accept_new(self) -> None:
+        cfg = SSHWorkerConfig(
+            host="203.0.113.10",
+            hardened=True,
+            known_hosts_path="/etc/ssh/known_hosts",
+        )
+        argv = SSHCloudExecutionProvider(cfg)._ssh_argv("hostname")
+        self.assertNotIn("StrictHostKeyChecking=accept-new", argv)
+        self.assertNotIn("accept-new", " ".join(argv))
+
+    def test_non_hardened_argv_keeps_accept_new(self) -> None:
+        argv = SSHCloudExecutionProvider(_config())._ssh_argv("hostname")
+        self.assertIn("StrictHostKeyChecking=accept-new", argv)
+
+    def test_non_root_username_reaches_target(self) -> None:
+        cfg = SSHWorkerConfig(host="203.0.113.10", username="hermes", private_key_path="/fake/id_rsa")
+        argv = SSHCloudExecutionProvider(cfg)._ssh_argv("hostname")
+        self.assertIn("hermes@203.0.113.10", argv)
+
 
 class TestSSHProviderRun(unittest.TestCase):
     def test_missing_command_rejected(self) -> None:

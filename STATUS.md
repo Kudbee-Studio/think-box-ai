@@ -1,3 +1,11 @@
+## CURRENT (2026-10-03) — Phase 3 items 4 + 3: live-proof bundle builder and SSH hardening (branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
+
+- **CODE COMPLETE / TEST VERIFIED (item 4):** `thinkbox/live_proof_bundle.py` validates raw artifact/receipt/checkpoint from a governed `upcloud-ssh` run, re-hashes the artifact, redacts and refuses secrets, and writes a committed bundle + Markdown. `scripts/run_live_proof_bundle.py` runs one exactly-allowed read-only command through the committed `UpCloudSSHExecutionAdapter`, then builds the bundle. 17/17 hermetic tests.
+- **CODE COMPLETE / TEST VERIFIED (item 3):** SSH host-key pinning (`StrictHostKeyChecking=yes` + `UserKnownHostsFile`, no `accept-new` when hardened) and explicit non-root user support. Hardened mode without a trusted known_hosts fails closed. New env `UPCLOUD_SSH_HARDENED`, `UPCLOUD_SSH_KNOWN_HOSTS`. Targeted + regression set **103/103 OK**; mutation proof fails 2 focused tests.
+- **UNPROVEN:** the bundle from a **real worker-02 run**, and the newly pinned SSH path live — this worktree's `UPCLOUD_SERVER_IP` is the historical dead host `212.147.250.183` and `UPCLOUD_SSH_KEY_PATH=~/.ssh/kilo-upcloud` does not exist (key purged in PR #271). The runner fails closed with `upcloud-ssh not configured`. **Not LIVE VERIFIED. NOT PRODUCTION READY.**
+- **CI:** GitHub Actions fails before executing steps (billing lock), not a code regression.
+- **Evidence:** `docs/evidence/pr340-live-proof-bundle.md`.
+
 ## CURRENT (2026-10-02) — ADR 029 P3.3: held-out eval, hygiene, Janus CVE (branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
 
 - **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (bounded):** push audit (no auto-push hook; `32ab41a1` likely another session); held-out retrieval hit@1 **6/8**, hit@3 **7/8** (no weight changes); held-out A/B 64 Mercury runs (**$0.069**); pooled P31+P33 related objectives **34/56 vs 34/56**, **p≈1.0** (not significant); Janus **opt-in** + CVE-2026-69112 documented; reduced-motion browser check on Think Tokens cube.

@@ -165,10 +165,13 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
 2. ✅ **Dashboard lockdown** (#290, merged): closed the cross-origin WebSocket → `shell_exec` hole the audit proved. Note: its `update_config` allow-list was not wired into the handler until #302 (open)
 2b. ✅ **Dashboard polish** (#292, merged; follow-ups: #296 merged, #298 terminal scroll open): six dead header panels wired,
    hidden buttons honoured, layout and scrolling fixed at desktop, tablet and phone widths
-3. ⏭ **SSH hardening for worker-02:** pin the host key (replace `StrictHostKeyChecking=accept-new`),
-   and use a non-root SSH user
-4. ⏭ **Committed live-proof bundle:** redacted receipt/artifact/checkpoint from a real worker-02 run, so
-   LIVE VERIFIED claims are independently checkable
+3. 🔨 **SSH hardening for worker-02:** host-key pinning (`StrictHostKeyChecking=yes` +
+   `UserKnownHostsFile`, no `accept-new` when hardened) and explicit non-root user support landed on
+   #340. Hardened mode without a trusted known_hosts source fails closed. The pinned path is **not
+   LIVE VERIFIED** (no real worker-02 run); CODE COMPLETE / TEST VERIFIED
+4. 🔨 **Committed live-proof bundle:** redacting builder + operator runner shipped (#340); the bundle from a
+   real worker-02 run is UNPROVEN (worktree has the dead host + no key). Run
+   `python3 scripts/run_live_proof_bundle.py --command hostname` with worker-02 env, then commit `docs/evidence/live-proof/`
 5. ⏭ **Think Token (#288):** decide whether to wire the learning library into `AgentSession` (changes
    agent prompts)
 6. ⏭ **Git panel browser test** (`/api/git`, mounted and hardened in #289)

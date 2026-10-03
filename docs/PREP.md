@@ -2,6 +2,20 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-10-03 (Phase 3 items 4 + 3; branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
+>
+> **CODE COMPLETE / TEST VERIFIED:** (item 4) redacting live-proof bundle builder
+> (`thinkbox/live_proof_bundle.py`) and one-command operator runner (`scripts/run_live_proof_bundle.py`)
+> that turns a real governed `upcloud-ssh` artifact/receipt/checkpoint into a committed, secret-free
+> bundle under `docs/evidence/live-proof/` (17/17 hermetic). (item 3) SSH host-key pinning
+> (`StrictHostKeyChecking=yes` + `UserKnownHostsFile`, never `accept-new` when hardened) and explicit
+> non-root user support, with hardened-without-known_hosts failing closed; new env `UPCLOUD_SSH_HARDENED`,
+> `UPCLOUD_SSH_KNOWN_HOSTS`; targeted + regression set 103/103, mutation proof fails 2 tests.
+> **UNPROVEN:** the real worker-02 bundle and the pinned SSH path live — this worktree has no worker-02
+> host/key (`UPCLOUD_SERVER_IP=212.147.250.183` is the dead host; key purged in PR #271). Run:
+> `python3 scripts/run_live_proof_bundle.py --command hostname` with worker-02 env set. Not LIVE VERIFIED;
+> not PRODUCTION READY. CI is billing-locked (jobs fail before any step).
+
 > ## ADDENDUM — 2026-10-02 (ADR 029 P3.3; branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
 >
 > **Local-only checkpoint** (commits on branch; **no push** until GitHub billing clears). Push audit: no in-repo auto-push; commit `32ab41a1` on origin likely from another agent session. Held-out retrieval **6/8 hit@1**, **7/8 hit@3**; held-out A/B **$0.069** / 64 runs; pooled P31+P33 **not significant**. Janus disabled by default + CVE doc. Web tests **380/380**. Next: single push → `gh pr checks 315` → merge if green.
