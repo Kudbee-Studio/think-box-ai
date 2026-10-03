@@ -1,0 +1,9 @@
+{
+  "label": "first-fix-b851dcfa",
+  "fileTreeName_xss1": true,
+  "cloneDialogAttr_xss2": true,
+  "cloneDialogValueIntact": false,
+  "editorHeading_xss3": true,
+  "editorSaveOnclick_xss4": true,
+  "generatedList_xss5": true
+}

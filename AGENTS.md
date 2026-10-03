@@ -2997,7 +2997,7 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 Fixed, each with a test that failed first (12 findings):
 - `agent.ts` `htmlToText`: `</script >` end tags were missed (bad-tag-filter); `&amp;` was decoded before `&lt;`/`&gt;` so `&amp;lt;` became `<` (double-escaping).
 - `memory.ts`: `README.md` is created with the `wx` flag instead of exists-then-write (file-system-race).
-- Dashboard: pasted URL in the git clone dialog, a thought's status in a `class`, offline page messages and mock-page thoughts were put into `innerHTML` unescaped (xss, xss-through-dom); `state.runProgress` is a prototype-less object (remote-property-injection).
+- Dashboard: pasted URL in the git clone dialog, a thought's status in a `class`, offline page messages and mock-page thoughts were put into `innerHTML` unescaped (xss, xss-through-dom); `state.runProgress` is a prototype-less object (remote-property-injection). My first clone-dialog fix was incomplete: the Git panel's own `escapeHtml` (`textContent` → `innerHTML`) leaves quotes, so `value="..."` still broke out; it now escapes quotes.
 - `git-repo-manager.ts`: four `console.warn/error` calls interpolated paths into the format string (tainted-format-string, log-injection).
 
 Reviewed and left unchanged, with the reason (33 findings):
@@ -3007,6 +3007,12 @@ Reviewed and left unchanged, with the reason (33 findings):
 - 2 `insecure-temporary-file`: the MCP cache is `~/.kudbee/mcp-cache`, not `/tmp`; the other is a test fixture in a `mkdtemp` directory.
 - 1 `missing-rate-limiting` (the server only accepts loopback hosts), 1 `loop-bound-injection` (linear FNV hash loop), 1 `polynomial-redos` (`slugify` collapses runs before the trim), 1 `missing-regexp-anchor` (a test assertion on message text).
 
+Found in review after the CodeQL run (CodeQL does not treat repository data as tainted in browser code):
+- Git panel (`public/js/git-integration.js`): file and folder names from a cloned repository, the editor heading, the generated-files list and the repo label reached `innerHTML` raw, and the editor's Save button put the file path into an inline `onclick`. All escaped; Save is wired with `addEventListener`. Chromium against the real server: 5 of 5 attacks ran on `main` and on the first fix, 0 of 5 now (`docs/evidence/pr337-dashboard-cli/`). Test: `tests/git-panel-escaping.test.ts`.
+- CI typecheck: a fresh `npm install` installs the optional `@huggingface/transformers`, which made the `@ts-expect-error` in `think-token-embed.ts` unused (TS2578) and failed `web-typecheck`; found with local `act`. The import now uses a variable specifier.
+
+Merge gates for this PR (0.1): local `act` green (549/549, log in `docs/evidence/ci-local/`), CodeQL code-scanning suite 35 alerts on `main` → 27 here with 0 new, evidence in `docs/evidence/pr337-dashboard-cli.md`.
+
 Python (`python-security-extended`, 41 findings) is not part of this PR; it belongs in its own PR. Real candidates: `backend/main.py:225` sends `str(e)` to the client; `.box.upstash.com in url` substring checks in `governance_evidence_live_proof_readiness.py`, `kilo_live_proof_exec.py` and `kilo_substrate_checklist.py`. The `experiments/templates/vulnerable_*` SQL injection findings are deliberate examples; `kilo_hermetic_subprocess.py` passes an argv list with no shell.
-- Tests 545/545, `tsc` and lint clean.
+- Tests 549/549, `tsc` and lint clean.
 - Left as gaps on purpose for a founder decision: `/logs` (a browser-stored audit log) and `/export` (a browser file download) only make sense in a browser, so they may belong under `surface-only`.
