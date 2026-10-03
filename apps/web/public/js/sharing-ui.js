@@ -1,6 +1,7 @@
 // Sharing UI - Run sharing and export functionality
 
 import { getRunSharingService } from '../services/run-sharing.js';
+import { escapeHtml } from './escape-html.js';
 
 export class SharingUI {
   constructor() {
@@ -54,7 +55,7 @@ export class SharingUI {
       <div class="sharing-dashboard">
         <div class="sharing-header">
           <h4>Share & Export</h4>
-          <span class="run-id">${runId.slice(0, 8)}</span>
+          <span class="run-id">${escapeHtml(runId.slice(0, 8))}</span>
         </div>
 
         <!-- Quick Share Section -->
@@ -122,7 +123,7 @@ export class SharingUI {
           <div class="snapshot-info">
             <div class="info-row">
               <span class="label">Run ID:</span>
-              <span class="value">${runId}</span>
+              <span class="value">${escapeHtml(runId)}</span>
             </div>
             <div class="info-row">
               <span class="label">Created:</span>
@@ -156,16 +157,16 @@ export class SharingUI {
       <div class="share-item">
         <div class="share-info">
           <div class="share-url">
-            <code>${share.shareLink}</code>
-            <button class="copy-btn" data-url="${share.shareLink}" title="Copy">📋</button>
+            <code>${escapeHtml(share.shareLink)}</code>
+            <button class="copy-btn" data-url="${escapeHtml(share.shareLink)}" title="Copy">📋</button>
           </div>
           <div class="share-meta">
-            <span class="badge badge-${share.accessLevel}">${share.accessLevel}</span>
+            <span class="badge badge-${escapeHtml(share.accessLevel)}">${escapeHtml(share.accessLevel)}</span>
             <span class="expiry">${expiryText}</span>
-            <span class="views">${share.viewCount || 0} views</span>
+            <span class="views">${Number(share.viewCount) || 0} views</span>
           </div>
         </div>
-        <button class="delete-share-btn" data-share-id="${share.id}" title="Delete">✕</button>
+        <button class="delete-share-btn" data-share-id="${escapeHtml(share.id)}" title="Delete">✕</button>
       </div>
     `;
   }

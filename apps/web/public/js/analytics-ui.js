@@ -1,6 +1,7 @@
 // Analytics Dashboard UI - Handle display and interaction
 
 import { getAnalyticsService } from '../services/analytics.js';
+import { escapeHtml } from './escape-html.js';
 import { TerminalDashboard } from './terminal-charts.js';
 
 export class AnalyticsDashboardUI {
@@ -73,9 +74,9 @@ export class AnalyticsDashboardUI {
           <div class="model-list">
             ${modelDist.map(m => `
               <div class="model-row">
-                <span class="model-name">${m.model}</span>
-                <div class="model-bar"><div class="model-fill" style="width: ${m.percentage}%"></div></div>
-                <span class="model-percent">${m.percentage}%</span>
+                <span class="model-name">${escapeHtml(m.model)}</span>
+                <div class="model-bar"><div class="model-fill" style="width: ${Number(m.percentage) || 0}%"></div></div>
+                <span class="model-percent">${Number(m.percentage) || 0}%</span>
               </div>
             `).join('')}
           </div>
@@ -88,8 +89,8 @@ export class AnalyticsDashboardUI {
             <div class="failure-list">
               ${failures.map(f => `
                 <div class="failure-row">
-                  <span class="failure-name">${f.category}</span>
-                  <span class="failure-count">${f.count}</span>
+                  <span class="failure-name">${escapeHtml(f.category)}</span>
+                  <span class="failure-count">${Number(f.count) || 0}</span>
                 </div>
               `).join('')}
             </div>
@@ -167,11 +168,11 @@ export class AnalyticsDashboardUI {
       : '';
 
     return `
-      <div class="analytics-kpi kpi-${kpi.color}">
-        <div class="kpi-icon">${kpi.icon}</div>
+      <div class="analytics-kpi kpi-${escapeHtml(kpi.color)}">
+        <div class="kpi-icon">${escapeHtml(kpi.icon)}</div>
         <div class="kpi-content">
-          <div class="kpi-label">${kpi.title}</div>
-          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-label">${escapeHtml(kpi.title)}</div>
+          <div class="kpi-value">${escapeHtml(kpi.value)}</div>
           ${kpi.trend !== undefined ? `
             <div class="kpi-trend ${trendClass}">
               ${kpi.trend > 0 ? '↑' : '↓'} ${Math.abs(kpi.trend)}%

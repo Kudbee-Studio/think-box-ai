@@ -89,7 +89,9 @@ export function tokenize(text: string): string[] {
 /** FNV-1a 32-bit, masked to 31 bits so every index is a valid non-negative sparse dimension. */
 function termIndex(term: string): number {
   let hash = 0x811c9dc5;
-  for (let i = 0; i < term.length; i++) {
+  // A term is a word; hash at most its first 256 characters so one huge "word" cannot stall a query.
+  const length = Math.min(term.length, 256);
+  for (let i = 0; i < length; i++) {
     hash ^= term.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
@@ -98,8 +100,10 @@ function termIndex(term: string): number {
 
 function sparseVector(tokens: string[], query: boolean): { indices: number[]; values: number[] } {
   const counts = new Map<number, number>();
-  for (const token of tokens) {
-    const index = termIndex(token);
+  // A query or note can be arbitrarily long; the first 5000 terms are plenty to rank on and bound the work per call.
+  const limit = Math.min(tokens.length, 5000);
+  for (let i = 0; i < limit; i++) {
+    const index = termIndex(tokens[i]!);
     counts.set(index, (counts.get(index) ?? 0) + 1);
   }
   const indices = [...counts.keys()].sort((a, b) => a - b);
@@ -109,7 +113,7 @@ function sparseVector(tokens: string[], query: boolean): { indices: number[]; va
 }
 
 function slugify(text: string): string {
-  const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  const slug = text.slice(0, 400).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
   return slug || 'memory';
 }
 
@@ -294,6 +298,8 @@ export class MemoryStore {
   }
 
   async write(layer: MemoryLayer, input: { title: string; content: string; tags?: string[]; source?: string; slug?: string }): Promise<MemoryItem> {
+    // The type says MemoryLayer, but callers pass request data; the layer becomes a directory name, so check it at runtime.
+    if (!MEMORY_LAYERS.includes(layer)) throw new Error(`Unknown memory layer '${String(layer).slice(0, 40)}'`);
     const now = new Date().toISOString();
     let slug = input.slug ? slugify(input.slug) : slugify(input.title);
     // A new title that collides with an existing file gets a short content hash instead of overwriting it.

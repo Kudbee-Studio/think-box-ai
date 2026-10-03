@@ -2,6 +2,7 @@ import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './govern
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
 import { parseOllamaLine } from './ollama-line.ts';
+import { rateLimit, rejectCrossOriginWrites, securityHeaders } from './http-security.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
 // Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
@@ -145,6 +146,13 @@ app.use((req: Request, res: Response, next) => {
   if (isAllowedHost(req.headers.host, PORT_NUM)) return next();
   res.status(421).json({ error: 'misdirected_request', detail: 'The dashboard is local-only; use http://127.0.0.1 on its port' });
 });
+app.disable('x-powered-by');
+app.use(securityHeaders(PORT_NUM));
+app.use(rejectCrossOriginWrites((origin) => isAllowedOrigin(origin, PORT_NUM)));
+// Caps (10 s windows). The whole API is generous (the dashboard polls); the file-system routes walk or write the workspace, so they are tighter.
+app.use('/api', rateLimit({ windowMs: 10_000, max: 1000 }));
+app.use('/api/sessions/:id/files', rateLimit({ windowMs: 10_000, max: 120 }));
+app.use('/services', rateLimit({ windowMs: 10_000, max: 120 }));
 app.use(express.json());
 // Express 5 leaves req.body undefined for body-less requests (v4 gave {}); keep v4 behavior so handlers answer 400, not 500.
 app.use((req: Request, _res: Response, next) => { if (req.body === undefined) req.body = {}; next(); });
@@ -201,13 +209,16 @@ const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
 
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function sessionWorkspace(sessionId: string): string {
+  // Session ids are server-made UUIDs; refuse anything else here so no caller can build a workspace path from a stray string.
+  if (!SESSION_ID_RE.test(sessionId)) throw new Error('Invalid session id');
   return path.join(workspaceRoot, sessionId);
 }
 
 /** Live or past session: run history keeps pointing at workspaces after the socket closes. */
 function workspaceExists(sessionId: string): boolean {
-  return /^[0-9a-f-]{36}$/.test(sessionId) && (sessions.has(sessionId) || fs.existsSync(sessionWorkspace(sessionId)));
+  return SESSION_ID_RE.test(sessionId) && (sessions.has(sessionId) || fs.existsSync(sessionWorkspace(sessionId)));
 }
 
 function safeWorkspacePath(sessionId: string, relativePath: string): string {
@@ -215,7 +226,8 @@ function safeWorkspacePath(sessionId: string, relativePath: string): string {
   if (!normalized || normalized.split('/').some(part => part === '..')) throw new Error('Invalid workspace path');
   const root = path.resolve(sessionWorkspace(sessionId));
   const destination = path.resolve(root, normalized);
-  if (destination !== root && !destination.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
+  if (destination === root) return destination;
+  if (!destination.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
   return destination;
 }
 
