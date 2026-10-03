@@ -195,7 +195,7 @@ class Client {
     this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry, agent: this.agent });
     let { data: r } = await Promise.race([
       done,
-      new Promise<Msg>((_, reject) =>
+      new Promise<WsMessage>((_, reject) =>
         setTimeout(() => reject(new Error('Run timeout: server did not respond within 60 minutes')), 60 * 60 * 1000)
       )
     ]);
@@ -526,11 +526,11 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         const done = client.wait('plugin_result');
         client.send({ type: 'plugin_execute', plugin: pluginName, input });
         // Wait up to 30 seconds for plugin result
-        let result: any;
+        let result: unknown;
         try {
-          const response = await Promise.race<Msg>([
+          const response = await Promise.race<WsMessage>([
             done,
-            new Promise<Msg>((_, reject) =>
+            new Promise<WsMessage>((_, reject) =>
               setTimeout(() => reject(new Error('Plugin execution timeout')), 30000)
             ),
           ]);
