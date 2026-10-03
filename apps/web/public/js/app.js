@@ -14,7 +14,7 @@ const state = {
   thoughtFilter: 'all',
   pluginQuery: '',
   runs: [],
-  runProgress: {},
+  runProgress: Object.create(null),
   approvals: [],
   openRunId: null,
   memoryLayer: '',

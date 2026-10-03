@@ -19,3 +19,8 @@ test('a thought\'s status is escaped before it is used in the thought-item class
   assert.ok(!src.includes('class="thought-item ${thought.status'), 'thought.status is interpolated raw into a class attribute');
   assert.ok(src.includes("class=\"thought-item ${escapeHtml(thought.status || 'info')}\""));
 });
+
+test('run progress is kept in a prototype-less object, so a run id like __proto__ or constructor cannot touch or inherit from Object.prototype', () => {
+  const src = read('app.js');
+  assert.ok(src.includes('runProgress: Object.create(null)'), 'state.runProgress must not be a plain {}');
+});
