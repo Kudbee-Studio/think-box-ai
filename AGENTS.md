@@ -2987,6 +2987,26 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - `public/js/enterprise.js` now defines `readStoredJson(key, fallback)`: corrupt, wrong-shaped (e.g. a stored `null`) or blocked `localStorage` returns the fallback instead of throwing. The Approvals, Performance, Execution Logs, Integrations, Collaboration and Settings panels use it for every stored read.
 - `Enterprise.init()` (runs on every page load): a stored `null` no longer turns the session/audit lists into `null` (the next `.push` crashed `init`), and `theme.load()` / `theme.set()` no longer throw when storage is blocked or full (`set` used to throw before firing `themeChanged`).
 - Test: `tests/dashboard-panel-storage.test.ts` loads each real panel script in a sandbox with corrupt, `null` and throwing storage (18 cases). Checked in Chromium against the real server with 12 corrupted keys: old code started 2 of 6 panels and logged 6 page errors; new code starts all 6 with 0 errors.
-- Tests 527/527, `tsc` and lint clean.
 - CLI `/capacity` (new, in `/help`): prints the server's running agents, pending approvals, CPU/RSS and system memory from `/api/stats`, the same numbers the dashboard `/capacity` shows. Parity gap closed (`MAX_GAPS` 6 → 5; remaining: `/config`, `/export`, `/logs`, `/remote`, `/specialists`). Test: `tests/cli-link.test.ts` runs the real CLI against the real server. Tests 528/528.
+- CLI `/config` (new, in `/help`): model, provider, agent, session id, connection state and server URL as JSON; the dashboard's `/config` also shows the theme (browser-only). Parity gap closed (`MAX_GAPS` 5 → 4; remaining: `/export`, `/logs`, `/remote`, `/specialists`). CLI `/model` with no name now lists the current and available models (it printed `Unknown model "undefined"`).
+- CLI errors: `http-error.ts` `httpError()` keeps the server's own message and appends the status (`address is not a valid Algorand address (HTTP 400)`). An earlier pass had reduced these to a bare `HTTP 400` in `/algo`, `/promote`, `/remember`, `/cat` and others; all CLI commands use `httpError()` now. Tests: `tests/http-error.test.ts`, `tests/cli-link.test.ts`.
+- Also fixed: `/api/middleware/test` reply handling in the dashboard terminal (clear error instead of `result.checks.map` TypeError).
+
+### CodeQL (run locally, CodeQL 2.27.1, `javascript-security-extended`, all 138 files of `apps/web`: 45 findings)
+
+Fixed, each with a test that failed first (12 findings):
+- `agent.ts` `htmlToText`: `</script >` end tags were missed (bad-tag-filter); `&amp;` was decoded before `&lt;`/`&gt;` so `&amp;lt;` became `<` (double-escaping).
+- `memory.ts`: `README.md` is created with the `wx` flag instead of exists-then-write (file-system-race).
+- Dashboard: pasted URL in the git clone dialog, a thought's status in a `class`, offline page messages and mock-page thoughts were put into `innerHTML` unescaped (xss, xss-through-dom); `state.runProgress` is a prototype-less object (remote-property-injection).
+- `git-repo-manager.ts`: four `console.warn/error` calls interpolated paths into the format string (tainted-format-string, log-injection).
+
+Reviewed and left unchanged, with the reason (33 findings):
+- 17 `path-injection`: session ids must match a UUID pattern before any workspace path is built (`workspaceExists`); `workspace-fs.ts` is the confinement layer itself (realpath, `isInside`, `O_NOFOLLOW`), which CodeQL does not model as a sanitizer; the clone URL must match the strict GitHub pattern before its repo name becomes a path; memory `layer` is checked against `MEMORY_LAYERS` and `slug` goes through `slugify`.
+- 7 `request-forgery`: fixed hosts with ids/addresses validated by regex (`algorand.ts`), or a server-issued session id in a same-origin dashboard URL (`app.js`).
+- 3 `http-to-file-access`: writing fetched or model data to files is the `write_file`/memory feature, behind the approval gate; not changed.
+- 2 `insecure-temporary-file`: the MCP cache is `~/.kudbee/mcp-cache`, not `/tmp`; the other is a test fixture in a `mkdtemp` directory.
+- 1 `missing-rate-limiting` (the server only accepts loopback hosts), 1 `loop-bound-injection` (linear FNV hash loop), 1 `polynomial-redos` (`slugify` collapses runs before the trim), 1 `missing-regexp-anchor` (a test assertion on message text).
+
+Python (`python-security-extended`, 41 findings) is not part of this PR; it belongs in its own PR. Real candidates: `backend/main.py:225` sends `str(e)` to the client; `.box.upstash.com in url` substring checks in `governance_evidence_live_proof_readiness.py`, `kilo_live_proof_exec.py` and `kilo_substrate_checklist.py`. The `experiments/templates/vulnerable_*` SQL injection findings are deliberate examples; `kilo_hermetic_subprocess.py` passes an argv list with no shell.
+- Tests 545/545, `tsc` and lint clean.
 - Left as gaps on purpose for a founder decision: `/logs` (a browser-stored audit log) and `/export` (a browser file download) only make sense in a browser, so they may belong under `surface-only`.
