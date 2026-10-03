@@ -3,9 +3,10 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-JOBS_DIR = Path(__file__).resolve().parent.parent / "jobs"
+# The repository's jobs/ folder (this file moved into tests/unit/, so parent.parent became tests/).
+JOBS_DIR = Path(__file__).resolve().parents[2] / "jobs"
 SCHEMA_PATH = JOBS_DIR / "schema.json"
 
 
@@ -39,8 +40,9 @@ def test_runner_job_blocked_when_gpu_stopped():
 
 
 def test_all_jobs_have_valid_verdict():
-    schema = load_json(SCHEMA_DIR)
-    valid_verdicts = ["succeeded", "failed", "unproven", "blocked"]
+    schema = load_json(SCHEMA_PATH)
+    valid_verdicts = schema["properties"]["evaluation"]["properties"]["verdict"]["enum"]
+    assert valid_verdicts == ["succeeded", "failed", "unproven", "blocked"]
     for state in ["done", "blocked", "queue", "templates"]:
         state_dir = JOBS_DIR / state
         if not state_dir.is_dir():
