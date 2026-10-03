@@ -77,20 +77,22 @@ const runGoal = (base: string, goal: string): Promise<any[]> => new Promise((res
   });
 });
 
-test('with a worker agent: "WHAT PR ARE WE ON" on the local model is routed to mercury-2, the local model is never asked, and a thought says why', async () => {
+// "WHAT PR ARE WE ON" is a local recipe now (P3.19). These tests use live-state goals that are not recipes, so they still escalate.
+const ESCALATED_GOAL = 'Is the build server up right now?';
+test('with a worker agent: a live-state goal on the local model is routed to mercury-2, the local model is never asked, and a thought says why', async () => {
   const base = await startServer(true);
   chats.length = 0;
-  mock.script([say('We are on PR #330.')]);
-  const messages = await runGoal(base, 'WHAT PR ARE WE ON');
+  mock.script([say('The build server is up.')]);
+  const messages = await runGoal(base, ESCALATED_GOAL);
   // (After the run the Think Token pipeline may use the local model as an extraction fallback; that is not the goal being chatted.)
-  assert.ok(!chats.some((c) => c.messages.at(-1)?.content === 'WHAT PR ARE WE ON'), 'the goal was never sent to the small model as a chat');
+  assert.ok(!chats.some((c) => c.messages.at(-1)?.content === ESCALATED_GOAL), 'the goal was never sent to the small model as a chat');
   const routed = messages.filter((m) => m.type === 'thought').map((m) => m.data).find((t) => t.type === 'routing');
   assert.ok(routed, 'a routing thought is shown');
   assert.match(routed.content, /Routed to mercury-2 instead of smollm2:360m/);
-  assert.match(routed.content, /pull requests|repository/);
+  assert.match(routed.content, /live state/);
   const result = messages.find((m) => m.type === 'result').data;
   assert.equal(result.success, true);
-  assert.match(String(result.result), /PR #330/);
+  assert.match(String(result.result), /build server is up/);
   assert.ok(mock.requests.length >= 1, 'the worker agent answered');
 });
 
@@ -108,8 +110,8 @@ test('with a worker agent: a plain knowledge goal stays on the local model, no r
 test('without a worker agent: the goal fails with a plain explanation, and the small model is never asked', async () => {
   const base = await startServer(false);
   chats.length = 0;
-  const messages = await runGoal(base, 'WHAT PR ARE WE ON');
-  assert.ok(!chats.some((c) => c.messages.at(-1)?.content === 'WHAT PR ARE WE ON'), 'no made-up answer: the goal was never chatted');
+  const messages = await runGoal(base, ESCALATED_GOAL);
+  assert.ok(!chats.some((c) => c.messages.at(-1)?.content === ESCALATED_GOAL), 'no made-up answer: the goal was never chatted');
   const result = messages.find((m) => m.type === 'result').data;
   assert.equal(result.success, false);
   assert.match(result.error, /needs tools or live data/);
