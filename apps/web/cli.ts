@@ -73,7 +73,7 @@ async function ensureServer(): Promise<void> {
   // on 127.0.0.1 with the same data directory and talks to it like any other client. A separate in-process copy would be a second engine.
   console.log(c.yellow(`Agent OS is not running at ${HOST}: starting it on 127.0.0.1 with the same database (${DATA_DIR}); it stays up, so the dashboard shows this run too.`));
   process.stdout.write(c.dim('Starting kudbEE Agent OS… '));
-  spawn(process.execPath, ['--experimental-strip-types', path.join(__dirname, 'server.ts')], {
+  spawn(process.execPath, [path.join(__dirname, 'launch.mjs'), 'server'], {
     cwd: __dirname,
     detached: true,
     stdio: ['ignore', log, log],

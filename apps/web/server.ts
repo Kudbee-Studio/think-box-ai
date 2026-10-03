@@ -7,13 +7,12 @@ import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsi
 import express, { type Request as ExpressRequest, type Response } from 'express';
 // Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
 type Request = ExpressRequest<Record<string, string>>;
-import { createServer, type IncomingMessage } from 'http';
+import type { IncomingMessage } from 'node:http';
+import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
 import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
-import { XMLParser } from 'fast-xml-parser';
-import multer from 'multer';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
@@ -105,6 +104,9 @@ export function isAllowedOrigin(origin: string | undefined, port: number): boole
 
 const LOCAL_TOKEN = ensureLocalToken(process.env.KUDBEE_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data'));
 const app = express();
+// `import { createServer } from 'http'` makes Node build an ES-module facade of node:http, which evaluates every lazy getter on it
+// and loads undici (~55 ms at startup). A require() of the same builtin does not.
+const { createServer } = createRequire(import.meta.url)('node:http') as typeof import('node:http');
 const server = createServer(app);
 // CLI identity: a client that sends the local token (see local-token.ts) is the kudbee CLI. An invalid token is refused; no token means a browser/dashboard.
 const cliUpgrades = new WeakSet<IncomingMessage>();
@@ -139,8 +141,19 @@ function janusEnabled(): boolean {
 // already-installed Ollama model; the app never pulls models. See local-model.ts.
 const defaultLocalModel = resolveLocalModel();
 const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 500 } });
-const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
+/** multer (~35 ms to load) is only needed when someone uploads: build the instance on the first upload request. */
+function lazyUpload(limits: { fileSize: number; files: number }) {
+  let instance: Promise<import('multer').Multer> | undefined;
+  const get = () => (instance ??= import('multer').then(({ default: multer }) => multer({ storage: multer.memoryStorage(), limits })));
+  const wrap = (pick: (m: import('multer').Multer) => import('express').RequestHandler): import('express').RequestHandler =>
+    (req, res, next) => { get().then((m) => pick(m)(req, res, next), next); };
+  return {
+    single: (field: string) => wrap((m) => m.single(field)),
+    array: (field: string, max: number) => wrap((m) => m.array(field, max)),
+  };
+}
+const upload = lazyUpload({ fileSize: 50 * 1024 * 1024, files: 500 });
+const imageUpload = lazyUpload({ fileSize: 12 * 1024 * 1024, files: 1 });
 
 app.use((req: Request, res: Response, next) => {
   if (isAllowedHost(req.headers.host, PORT_NUM)) return next();
@@ -608,6 +621,7 @@ registerPlugin('rss_feed', {
       }, input.allowPrivateNetwork === true);
       if (!response.ok) return { success: false, error: `Feed returned HTTP ${response.status}` };
       const xml = await response.text();
+      const { XMLParser } = await import('fast-xml-parser'); // loaded on first feed read, not at startup
       const document = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' }).parse(xml) as Record<string, any>;
       const rss = document.rss?.channel;
       const atom = document.feed;
@@ -713,7 +727,9 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
   }
 }
 
-const KNOWN_REPO = detectRepo();
+// Only read when a goal runs, so the `git remote get-url` spawn is not paid at startup.
+let knownRepo: string | null | undefined;
+const getKnownRepo = (): string | null => (knownRepo === undefined ? (knownRepo = detectRepo()) : knownRepo);
 memoryStore.semantic = createMemorySemantic({ memory: memoryStore, tokens: tokenStore, peek: () => peekEmbedder(), state: () => embedderState() });
 
 let liveClassifier: Promise<((texts: string[]) => Promise<boolean[]>) | null> | null = null;
@@ -1013,7 +1029,7 @@ export class AgentSession {
       while (next) {
         // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
         const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
-        if (recipe && next.model && recipeAvailable(recipe, KNOWN_REPO)) {
+        if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
           this.config.model = next.model;
           this.config.provider = 'ollama';
           this.broadcast({ type: 'status', data: 'running' });
@@ -1081,9 +1097,9 @@ export class AgentSession {
     };
     try {
       const hooks = this.agentHooks(record, this.abort.signal);
-      const gov = await runGovernedTool(recipe.tool, recipeToolArgs(recipe, KNOWN_REPO, process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
+      const gov = await runGovernedTool(recipe.tool, recipeToolArgs(recipe, getKnownRepo(), process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
       if (gov.output.ok !== true) return fail(String(gov.output.error ?? 'the lookup failed'));
-      const built = buildFacts(recipe, gov.output, KNOWN_REPO);
+      const built = buildFacts(recipe, gov.output, getKnownRepo());
       if ('error' in built) return fail(built.error);
       const rule = sentenceRule(recipe, built.facts);
       let reply = '';
@@ -1319,7 +1335,7 @@ export class AgentSession {
         this.addThought({ type: 'think_token', content: `Using ${thinkTokens.length} Think Token${thinkTokens.length === 1 ? '' : 's'}: ${thinkTokens.map((t) => `tt:${t.id}`).join(', ')}`, status: 'info' });
       }
       const liveFlags = await liveStateFlags([...recalled.hits.map((h) => ({ key: h.item.id, text: `${h.item.title} ${h.item.content}` })), ...thinkTokens.map((t) => ({ key: t.id, text: `${t.title} ${t.content}` }))]);
-      const plannerContext = [repoContextLine(KNOWN_REPO), MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
+      const plannerContext = [repoContextLine(getKnownRepo()), MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
       const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, this.agentHooks(record, this.abort.signal, profile), plannerContext);
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
       runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)), ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}) });
