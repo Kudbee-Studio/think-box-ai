@@ -151,20 +151,20 @@ class Client {
         try {
           const msg = JSON.parse(raw.toString()) as WsMessage;
           if (msg.type === 'init') {
-            this.sessionId = (msg.sessionId as string) ?? '';
-            this.models = (msg.models as Model[] | undefined) ?? [];
-            this.plugins = (msg.plugins as PluginInfo[] | undefined) ?? [];
-            const config = msg.config as Record<string, unknown> | undefined;
-            this.model = (config?.model as string | undefined) ?? this.models[0]?.name ?? '';
+            const init = (msg.data ?? {}) as { sessionId?: string; models?: Model[]; plugins?: PluginInfo[]; config?: { model?: string } };
+            this.sessionId = init.sessionId ?? '';
+            this.models = init.models ?? [];
+            this.plugins = init.plugins ?? [];
+            this.model = init.config?.model ?? this.models[0]?.name ?? '';
             if (!resolved) {
               resolved = true;
               this.ws.removeListener('error', onError);
               resolve();
             }
           } else if (msg.type === 'thought') {
-            printThought(msg as unknown as Thought);
+            printThought(msg.data as Thought);
           } else if (msg.type === 'approval_request') {
-            this.onApproval(msg as unknown as ApprovalRequest);
+            this.onApproval(msg.data as ApprovalRequest);
           } else if (msg.type === 'stream') {
             process.stdout.write(String(msg.data));
           }
