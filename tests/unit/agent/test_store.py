@@ -1,7 +1,9 @@
 """Tests for ActionReceiptStore — append-only + hash-chain continuity."""
 
 import json
+import os
 import sqlite3
+import tempfile
 import unittest
 from thinkbox.agent.control_plane.store import ActionReceiptStore, Receipt
 
@@ -12,6 +14,12 @@ class TestActionReceiptStore(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.store.close()
+
+    def _tmp_db(self) -> str:
+        # A fresh folder per test, removed afterwards (tempfile.mktemp is racy and the file was never deleted).
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        return os.path.join(folder.name, "receipts.db")
 
     def test_append_single_receipt(self) -> None:
         r = self.store.append("admit", "allowed", "admission granted", "verified")
@@ -36,8 +44,7 @@ class TestActionReceiptStore(unittest.TestCase):
         self.assertTrue(self.store.verify())
 
     def test_verify_detects_hash_tamper(self) -> None:
-        import tempfile
-        path = tempfile.mktemp(suffix=".db")
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         store.append("capacity", "allowed", "ok", "simulated")
@@ -49,8 +56,7 @@ class TestActionReceiptStore(unittest.TestCase):
         store.close()
 
     def test_verify_detects_gap(self) -> None:
-        import tempfile
-        path = tempfile.mktemp(suffix=".db")
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         r2 = store.append("capacity", "allowed", "ok", "simulated")
@@ -62,8 +68,7 @@ class TestActionReceiptStore(unittest.TestCase):
         store.close()
 
     def test_verify_detects_fork(self) -> None:
-        import tempfile
-        path = tempfile.mktemp(suffix=".db")
+        path = self._tmp_db()
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         r1 = store.append("capacity", "allowed", "ok", "simulated")
