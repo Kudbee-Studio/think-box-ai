@@ -67,7 +67,7 @@ class ConceptExtractor:
                 if name and name not in seen:
                     seen.add(name)
                     concepts.append(ConceptNode(
-                        concept_id=f"concept_{hashlib.md5(name.encode()).hexdigest()[:12]}",
+                        concept_id=f"concept_{hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()[:12]}",
                         name=name,
                         concept_type=concept_type,
                     ))

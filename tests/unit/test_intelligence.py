@@ -406,3 +406,25 @@ class TestZeroKnowledgeProofs(unittest.TestCase):
         proof = ZeroKnowledgeProofs.create_proof("secret", "challenge")
         self.assertTrue(ZeroKnowledgeProofs.verify_proof(proof, "challenge"))
         self.assertFalse(ZeroKnowledgeProofs.verify_proof(proof, "other"))
+
+
+class TestConceptIdHashFips(unittest.TestCase):
+    """concept ids are fingerprints, not security: md5 must say so, or FIPS builds raise ValueError."""
+
+    def test_concept_ids_are_unchanged_and_work_where_md5_is_refused_for_security(self) -> None:
+        import hashlib
+        from unittest.mock import patch
+
+        from thinkbox.intelligence import ConceptExtractor
+
+        real_md5 = hashlib.md5
+
+        def fips_md5(data=b"", *, usedforsecurity=True):
+            if usedforsecurity:
+                raise ValueError("[digital envelope routines] unsupported")  # what a FIPS OpenSSL build does
+            return real_md5(data, usedforsecurity=False)
+
+        with patch("hashlib.md5", fips_md5):
+            concepts = ConceptExtractor().extract("def compute_total(x): pass")
+        ids = {c.name: c.concept_id for c in concepts}
+        self.assertEqual(ids["compute_total"], "concept_" + real_md5(b"compute_total").hexdigest()[:12])
