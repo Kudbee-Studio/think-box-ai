@@ -16,6 +16,7 @@ import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
+import { httpError } from './http-error.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -47,18 +48,6 @@ type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
-
-/** An Error for a failed response: the server's own `error`/`message` when it sent one, else just `HTTP <status>`. */
-async function httpError(res: Response): Promise<Error> {
-  let detail = '';
-  try {
-    const body = (await res.json()) as { error?: unknown; message?: unknown };
-    detail = String(body.error ?? body.message ?? '');
-  } catch {
-    // not a JSON body
-  }
-  return new Error(detail ? `${detail} (HTTP ${res.status})` : `HTTP ${res.status}`);
-}
 interface Msg { type: string; data?: any }
 
 async function serverUp(): Promise<boolean> {
