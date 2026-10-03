@@ -30,3 +30,9 @@ test('the offline page shows message text with textContent, never as HTML', () =
   assert.ok(!html.includes('<div class="message-content">${text}</div>'), 'message text is interpolated raw into innerHTML');
   assert.ok(html.includes("querySelector('.message-content').textContent = text"));
 });
+
+test('the mock dashboard shows a thought\'s text with textContent, never as HTML', () => {
+  const src = read('app-mock.js');
+  assert.ok(!src.includes('${thought.text || \'thinking...\'}'), 'thought.text is interpolated raw into innerHTML');
+  assert.ok(src.includes("textContent = thought.text || 'thinking...'"));
+});

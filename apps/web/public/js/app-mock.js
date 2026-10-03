@@ -255,7 +255,10 @@ function addThought(thought) {
     const item = document.createElement('div');
     item.className = 'thought-item';
     item.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee;';
-    item.innerHTML = `<div class="thought-text">${thought.text || 'thinking...'}</div>`;
+    const body = document.createElement('div');
+    body.className = 'thought-text';
+    body.textContent = thought.text || 'thinking...';
+    item.appendChild(body);
     list.appendChild(item);
   }
   const count = document.getElementById('thought-count');
