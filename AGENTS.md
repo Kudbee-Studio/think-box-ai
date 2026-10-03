@@ -2966,3 +2966,11 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 
 **Command parity gap closed:** `/sessions` moved from gap to 'both' in `command-parity.ts` (gaps: 7 → 6, 45% reduction).
 
+
+---
+
+## Error hardening: stream parsing and dashboard fetches (PR #336)
+
+- `apps/web/ollama-line.ts` `parseOllamaLine()`: one garbled line in Ollama's NDJSON chat stream is skipped; before, it threw and aborted the whole local answer. Test: `tests/ollama-line.test.ts`.
+- Dashboard terminal `/memory`, `/notes` and the `/remote` governed-job poll now check `res.ok` and report `HTTP <status>` instead of a "Cannot read properties of undefined" message.
+- No behavior change on success paths. Tests 504/504, `tsc` and lint clean.
