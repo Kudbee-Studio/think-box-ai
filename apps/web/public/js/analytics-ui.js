@@ -1,6 +1,7 @@
 // Analytics Dashboard UI - Handle display and interaction
 
 import { getAnalyticsService } from '../services/analytics.js';
+import { TerminalDashboard } from './terminal-charts.js';
 
 export class AnalyticsDashboardUI {
   constructor() {
@@ -9,6 +10,7 @@ export class AnalyticsDashboardUI {
     this.container = document.getElementById('analytics-container');
     this.analyticsButton = document.getElementById('performance-analytics-button');
     this.closeButton = document.getElementById('close-analytics');
+    this.terminalDashboard = null;
 
     this.init();
   }
@@ -54,6 +56,12 @@ export class AnalyticsDashboardUI {
 
     this.container.innerHTML = `
       <div class="analytics-dashboard">
+        <!-- View Toggle -->
+        <div class="analytics-view-toggle">
+          <button class="view-btn active" data-view="cards">📊 Cards</button>
+          <button class="view-btn" data-view="terminal">⌨️ Terminal</button>
+        </div>
+
         <!-- KPI Cards -->
         <div class="analytics-kpis">
           ${kpis.map(kpi => this.buildKPICard(kpi)).join('')}
@@ -109,7 +117,48 @@ export class AnalyticsDashboardUI {
           </div>
         </div>
       </div>
+
+      <!-- Terminal View -->
+      <div class="analytics-terminal" id="terminal-view" style="display:none;">
+        <div id="terminal-content"></div>
+      </div>
     `;
+
+    // Attach view toggle listeners
+    this.attachViewToggleListeners(kpis, modelDist, failures);
+  }
+
+  attachViewToggleListeners(kpis, modelDist, failures) {
+    const viewBtns = this.container.querySelectorAll('.view-btn');
+    const dashboardDiv = this.container.querySelector('.analytics-dashboard');
+    const terminalDiv = this.container.querySelector('.analytics-terminal');
+
+    viewBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (btn.dataset.view === 'terminal') {
+          dashboardDiv.style.display = 'none';
+          terminalDiv.style.display = 'block';
+          this.renderTerminalView(kpis, modelDist, failures);
+        } else {
+          dashboardDiv.style.display = 'block';
+          terminalDiv.style.display = 'none';
+        }
+      });
+    });
+
+    // Listen for THINK token updates to refresh analytics
+    window.addEventListener('think-tokens:message', () => this.updateDashboard());
+  }
+
+  renderTerminalView(kpis, modelDist, failures) {
+    const terminalContent = this.container.querySelector('#terminal-content');
+    if (!terminalContent) return;
+
+    this.terminalDashboard = new TerminalDashboard(terminalContent);
+    this.terminalDashboard.displayAnalytics(kpis, modelDist, failures);
   }
 
   buildKPICard(kpi) {
