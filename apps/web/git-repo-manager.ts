@@ -245,7 +245,7 @@ export class GitRepoManager {
   /**
    * Check repository status
    */
-  getRepositoryStatus(localPath: string): { isDirty: boolean; changes: string[] } {
+  getRepositoryStatus(localPath: string): { isDirty: boolean; changes: string[]; error?: string } {
     localPath = this.confine(localPath);
     try {
       const status = execSync('git status --porcelain', {
@@ -264,7 +264,8 @@ export class GitRepoManager {
         changes
       };
     } catch (error) {
-      return { isDirty: false, changes: [] };
+      // Not "clean": git could not tell us (not a repository, git missing, permissions). Say so rather than report an empty diff.
+      return { isDirty: false, changes: [], error: error instanceof Error ? error.message.split('\n')[0] : String(error) };
     }
   }
 

@@ -3,6 +3,7 @@ import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
 import { parseOllamaLine } from './ollama-line.ts';
 import { rateLimit, rejectCrossOriginWrites, securityHeaders } from './http-security.ts';
+import { describeError, installProcessHandlers, jsonErrorHandler } from './error-handling.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
 // Express 5 types route params as string | string[]; every route here uses plain named params, which are always strings.
@@ -722,8 +723,8 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
     await ensureEmbeddings(tokenStore, embedder);
     const [goalVector] = await embedder.embed([goal]);
     return goalVector ? { goalVector, embedModel: embedder.model } : { why: 'no goal vector' };
-  } catch {
-    return { why: 'embedding error' };
+  } catch (err) {
+    return { why: `embedding error: ${describeError(err)}` };
   }
 }
 
@@ -741,7 +742,7 @@ async function liveStateFlags(entries: Array<{ key: string; text: string }>): Pr
   try {
     const embedder = peekEmbedder();
     if (!embedder || !entries.length) return undefined;
-    liveClassifier ??= createLiveStateClassifier(embedder).catch(() => null);
+    liveClassifier ??= createLiveStateClassifier(embedder).catch((err) => { console.warn(`[memory] live-state classifier unavailable, recalled memories will not be labeled: ${describeError(err)}`); return null; });
     const classify = await liveClassifier;
     if (!classify) return undefined;
     const flags = await classify(entries.map((e) => e.text));
@@ -1818,15 +1819,16 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   session.ws = ws;
   if (cliUpgrades.has(req)) session.client = 'cli';
   sessions.set(sessionId, session);
-  void fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true });
+  fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true }).catch((err) => console.error(`[session ${sessionId.slice(0, 8)}] could not create the workspace: ${describeError(err)}`));
 
   // Restore dashboard state from persistent storage
   const savedState = await persistence.restoreDashboardState(sessionId);
   if (savedState?.settings) {
     try {
       Object.assign(session.config, sanitizeConfigPatch(savedState.settings));
-    } catch {
+    } catch (err) {
       // Saved settings from before validation (or edited on disk) are ignored, not applied.
+      console.warn(`[session ${sessionId.slice(0, 8)}] ignoring saved dashboard settings: ${describeError(err)}`);
     }
   }
 
@@ -1968,12 +1970,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           }
           Object.assign(session.config, patch);
           // Save config to persistent storage (debounced)
-          void persistence.saveDashboardState({
+          Promise.resolve(persistence.saveDashboardState({
             sessionId,
             settings: session.config,
             lastUpdate: Date.now(),
             createdAt: Date.now()
-          });
+          })).catch((err) => console.error(`[session ${sessionId.slice(0, 8)}] could not save dashboard settings: ${describeError(err)}`));
           ws.send(JSON.stringify({ type: 'config_updated', data: session.config }));
           break;
         }
@@ -2691,6 +2693,12 @@ if (!isLoopbackAddress(LISTEN_ADDR) && process.env.KUDBEE_ALLOW_NON_LOOPBACK !==
   console.error('Bind to 127.0.0.1 (default). Set KUDBEE_ALLOW_NON_LOOPBACK=1 only if you accept exposing an unauthenticated dashboard.');
   process.exit(1);
 }
+// The net under every handler: an unknown /api path answers JSON, a rejected or throwing handler answers JSON without a stack, and a stray
+// rejection is logged instead of killing the server (see error-handling.ts).
+app.use('/api', (_req: Request, res: Response) => { res.status(404).json({ error: 'not_found' }); });
+app.use(jsonErrorHandler());
+installProcessHandlers(process);
+
 server.listen(PORT_NUM, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
   console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
