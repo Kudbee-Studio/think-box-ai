@@ -247,7 +247,7 @@ function printApproval(req: ApprovalRequest): void {
 async function showRuns(): Promise<void> {
   try {
     const res = await fetch(`${HOST}/api/runs?limit=15`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw await httpError(res);
     const { runs } = (await res.json()) as { runs: any[] };
     if (!runs?.length) return console.log(c.dim('  (no runs yet)'));
     for (const r of runs) {
@@ -262,12 +262,12 @@ async function showRuns(): Promise<void> {
 async function showRun(prefix: string): Promise<void> {
   try {
     const res = await fetch(`${HOST}/api/runs?limit=500`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw await httpError(res);
     const { runs } = (await res.json()) as { runs: any[] };
     const match = prefix && runs?.find((r) => r.id.startsWith(prefix));
     if (!match) return console.log(c.red('Usage: /run ID (first characters from /runs)'));
     const runRes = await fetch(`${HOST}/api/runs/${match.id}`);
-    if (!runRes.ok) throw new Error(`HTTP ${runRes.status} fetching run detail`);
+    if (!runRes.ok) throw await httpError(runRes);
     const run = (await runRes.json()) as any;
     console.log(c.bold(run.goal));
     console.log(c.dim(`  ${run.status} · ${run.model} · ${run.current_step} steps · ${run.tool_calls} tools · ${run.prompt_tokens + run.completion_tokens} tokens · ${usd(run.cost_usd)} · ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`));
@@ -460,7 +460,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/agents': {
       try {
         const res = await fetch(`${HOST}/api/agents`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
         console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
         for (const a of agents) {
@@ -482,7 +482,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       } else {
         try {
           const res = await fetch(`${HOST}/api/agents`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) throw await httpError(res);
           const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
           const match = agents?.find((a) => a.id === args[0].toLowerCase());
           if (!match) {
@@ -558,7 +558,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/status': {
       try {
         const res = await fetch(`${HOST}/api/health`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         console.log(await res.json());
       } catch (err) {
         console.log(c.red(`Error checking status: ${err instanceof Error ? err.message : String(err)}`));
@@ -596,7 +596,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         const query = args.join(' ').trim();
         const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
         const res = await fetch(`${HOST}/api/memory?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const { items, backend } = (await res.json()) as { items: any[]; backend: string };
         if (!items?.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
         if (query && items?.length) console.log(c.dim(`  search backend: ${backend}`));
@@ -618,7 +618,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           params.set('layer', layer);
         }
         const res = await fetch(`${HOST}/api/memory/notes?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const data = (await res.json()) as any;
         if (!data.notes?.length) {
           console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
@@ -714,7 +714,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/metrics': {
       try {
         const res = await fetch(`${HOST}/api/stats`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const m = (await res.json()) as any;
         console.log(`  Runs ${m.runs_today} today / ${m.runs_total} total · success ${m.success_rate ?? '—'}% · p50 ${(m.p50_ms / 1000).toFixed(1)}s · p95 ${(m.p95_ms / 1000).toFixed(1)}s`);
         console.log(`  Tokens today ${m.tokens_today} · cost today ${usd(m.cost_today_usd)} · all-time ${usd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${usd(m.budget_usd)}` : ''}`);
@@ -729,7 +729,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/capacity': {
       try {
         const res = await fetch(`${HOST}/api/stats`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const cap = ((await res.json()) as any).capacity;
         if (!cap) throw new Error('the server reported no capacity data');
         console.log(c.bold('  Capacity (server)'));
