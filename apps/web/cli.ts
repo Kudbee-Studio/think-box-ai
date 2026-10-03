@@ -336,6 +336,7 @@ ${c.bold('ANALYTICS & DEBUG')}
   /metrics            agent KPIs (runs, tokens, cost, success rate)
   /status             server health check
   /session            current session info (ID, model, agent, plugins)
+  /plugin NAME JSON   run a plugin with JSON input
   /algo ACTION [ADDR] read-only Algorand queries
 
 ${c.bold('SYSTEM')}
