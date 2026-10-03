@@ -779,7 +779,17 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         }
 
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        let answered = false;
+        rl.on('error', () => {
+          if (!answered) {
+            answered = true;
+            rl.close();
+            console.log(c.red('  Error reading input'));
+          }
+        });
         rl.question(c.cyan('\n  Pick (number or search): '), async (input) => {
+          if (answered) return;
+          answered = true;
           rl.close();
           const num = parseInt(input, 10);
           if (!isNaN(num) && num >= 1 && num < index) {
@@ -1089,6 +1099,13 @@ async function main(): Promise<void> {
   console.log(`${c.yellow('🐝 kudbEE Agent OS')} ${c.dim(`— session ${client.sessionId.slice(0, 8)} · model ${client.model} · ${HOST}`)}`);
   console.log(c.dim('Type a goal, or /help. Ctrl+C to exit.'));
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: c.yellow('kudbee› ') });
+  rl.on('error', (err) => {
+    console.log(c.red(`Error: ${err instanceof Error ? err.message : String(err)}`));
+    process.exit(1);
+  });
+  rl.on('close', () => {
+    process.exit(0);
+  });
   rl.prompt();
   let inFlight = 0;
   const pending: ApprovalRequest[] = [];
