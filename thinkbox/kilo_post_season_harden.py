@@ -112,7 +112,9 @@ class PostSeasonHardenEvidence:
     checklist_ok: bool
     live_api_called: bool = False
     four_state_max: str = "TEST_VERIFIED"
-    ci_manifest_applies: bool = True  # False when the workflow runs no Python (the required steps are not demanded of it)
+    ci_manifest_applies: bool = (
+        True  # False when the workflow runs no Python (the required steps are not demanded of it)
+    )
 
 
 @dataclass(frozen=True)
@@ -131,10 +133,7 @@ def validate_ci_workflow_manifest(text: str) -> tuple[bool, tuple[PostSeasonHard
     from thinkbox.kilo_pr172_ci_spine_trust import validate_pr172_ci_workflow_manifest
 
     ok, pr172_violations = validate_pr172_ci_workflow_manifest(text)
-    violations = tuple(
-        PostSeasonHardenViolation(code=v.code, message=v.message, path=v.path)
-        for v in pr172_violations
-    )
+    violations = tuple(PostSeasonHardenViolation(code=v.code, message=v.message, path=v.path) for v in pr172_violations)
     return (ok, violations)
 
 

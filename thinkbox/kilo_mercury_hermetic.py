@@ -140,9 +140,7 @@ class MercuryHermeticEvidence:
             "model": self.model,
             "evidence_label": self.evidence_label,
             "live_api_called": self.live_api_called,
-            "governance_evidence": (
-                self.governance_evidence.to_dict() if self.governance_evidence else None
-            ),
+            "governance_evidence": (self.governance_evidence.to_dict() if self.governance_evidence else None),
         }
 
 
@@ -165,10 +163,7 @@ class MercuryHermeticResult:
             "governance_evidence_ok": self.governance_evidence_ok,
             "env_matrix_ok": self.env_matrix_ok,
             "substrate_checklist_ok": self.substrate_checklist_ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "env_key": v.env_key}
-                for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "env_key": v.env_key} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "gate_id": GATE_ID,
             "pr_number": PR_NUMBER,
@@ -359,10 +354,7 @@ def evaluate_mercury_hermetic(
         violations.append(
             MercuryHermeticViolation(
                 code="mercury_mock_not_configured",
-                message=(
-                    f"{_MOCK_ENV_KEY}=hermetic or mock:// provider URL required "
-                    "in hermetic mercury paths"
-                ),
+                message=(f"{_MOCK_ENV_KEY}=hermetic or mock:// provider URL required in hermetic mercury paths"),
                 env_key=_MOCK_ENV_KEY,
             )
         )
@@ -431,10 +423,7 @@ def _forbidden_live_provider_key_in_hermetic(
         hits.append(
             MercuryHermeticViolation(
                 code="forbidden_live_provider_without_mock",
-                message=(
-                    f"{key} present without {_MOCK_ENV_KEY} or mock:// URL "
-                    "in hermetic operator paths"
-                ),
+                message=(f"{key} present without {_MOCK_ENV_KEY} or mock:// URL in hermetic operator paths"),
                 env_key=key,
             )
         )
@@ -455,9 +444,7 @@ def hermetic_mercury_operator_check(
     violations.extend(_forbidden_live_provider_key_in_hermetic(env))
 
     live_gate = align_live_gate_stub(env)
-    mock_ok = mock_client_configured(env) or not any(
-        (env.get(k) or "").strip() for k in _PROVIDER_KEYS
-    )
+    mock_ok = mock_client_configured(env) or not any((env.get(k) or "").strip() for k in _PROVIDER_KEYS)
 
     evidence = MercuryHermeticEvidence(
         gate_id=GATE_ID,
@@ -537,20 +524,13 @@ def mercury_hermetic_contract_summary(
         k: redact_secret_value(k, env.get(k))
         for k in sorted(
             set(env.keys())
-            & (
-                _SECRET_ENV_KEYS
-                | {_MOCK_ENV_KEY, "THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"}
-            )
+            & (_SECRET_ENV_KEYS | {_MOCK_ENV_KEY, "THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"})
         )
     }
     if "UPSTASH_PUBLIC_BOX_URL" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(
-            env.get("UPSTASH_PUBLIC_BOX_URL") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(env.get("UPSTASH_PUBLIC_BOX_URL") or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     fixture_ids = sorted(bounded_mercury_fixtures().keys())
     return {
         "gate_id": GATE_ID,

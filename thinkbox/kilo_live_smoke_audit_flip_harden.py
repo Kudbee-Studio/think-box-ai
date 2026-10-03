@@ -95,9 +95,7 @@ class LiveSmokeAuditFlipHardenResult:
 def minimal_live_smoke_audit_flip_harden_environ(
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    base: MutableMapping[str, str] = dict(
-        minimal_governance_evidence_live_proof_readiness_environ()
-    )
+    base: MutableMapping[str, str] = dict(minimal_governance_evidence_live_proof_readiness_environ())
     if extra:
         base.update(extra)
     return dict(base)
@@ -114,9 +112,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[LiveSmokeAuditFl
     if doc.get("live_api_called") is True:
         violations.append(LiveSmokeAuditFlipHardenViolation(code="live_api", message="false"))
     if doc.get("correlation_label") != CORRELATION_LABEL:
-        violations.append(
-            LiveSmokeAuditFlipHardenViolation(code="correlation_label", message="label")
-        )
+        violations.append(LiveSmokeAuditFlipHardenViolation(code="correlation_label", message="label"))
     prior = doc.get("prior_gate_ids") or []
     for required in (PRIOR_GATE_ID, SMOKE_GATE_ID, OPERATOR_GATE_ID):
         if required not in prior:
@@ -188,15 +184,7 @@ def evaluate_live_smoke_audit_flip_harden(
         violations.append(LiveSmokeAuditFlipHardenViolation(code="fixture", message=err))
 
     snippet_ok = correlation_contract_snippet().get("live_verified") is False
-    ok = (
-        gov.ok
-        and smoke.ok
-        and op.ok
-        and snippet_ok
-        and not fixture_errors
-        and pos >= 2
-        and len(violations) == 0
-    )
+    ok = gov.ok and smoke.ok and op.ok and snippet_ok and not fixture_errors and pos >= 2 and len(violations) == 0
     evidence = LiveSmokeAuditFlipHardenEvidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

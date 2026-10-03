@@ -47,7 +47,9 @@ GATE_ID = "substrate-checklist"
 PR_NUMBER = 143
 
 BOX_URL_ENV = "UPSTASH_PUBLIC_BOX_URL"
-BOX_TOKEN_ENV = "UPSTASH_PUBLIC_BOX_TOKEN"  # the name of an environment variable, not a secret  # noqa: S105  # nosec B105
+BOX_TOKEN_ENV = (
+    "UPSTASH_PUBLIC_BOX_TOKEN"  # the name of an environment variable, not a secret  # noqa: S105  # nosec B105
+)
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _HERMETIC_URL_TOKENS = frozenset({"mock", "hermetic", "dry-run", "disabled"})
@@ -94,10 +96,7 @@ class SubstrateChecklistResult:
             "ok": self.ok,
             "env_matrix_ok": self.env_matrix_ok,
             "violation_count": len(self.violations),
-            "violations": [
-                {"code": v.code, "message": v.message, "env_key": v.env_key}
-                for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "env_key": v.env_key} for v in self.violations],
             "entries": self.entries,
             "gate_id": GATE_ID,
             "pr_number": PR_NUMBER,
@@ -414,9 +413,7 @@ def substrate_checklist_contract_summary(
         "hermetic_operator_ok": operator.ok,
         "hermetic_env_matrix_ok": operator.env_matrix_ok,
         "live_proof_prep_ok": prep.ok,
-        "live_proof_prep_missing": [
-            v.env_key for v in prep.violations if v.code == "required_missing"
-        ],
+        "live_proof_prep_missing": [v.env_key for v in prep.violations if v.code == "required_missing"],
         "hermetic_violation_codes": sorted({v.code for v in operator.violations}),
         "entries_redacted": operator.entries,
         "four_state_max": "TEST_VERIFIED",

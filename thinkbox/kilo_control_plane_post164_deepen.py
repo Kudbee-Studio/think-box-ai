@@ -82,9 +82,7 @@ class ControlPlanePost164DeepenResult:
 def minimal_control_plane_post164_deepen_environ(
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    base: MutableMapping[str, str] = dict(
-        minimal_governance_evidence_live_proof_readiness_environ()
-    )
+    base: MutableMapping[str, str] = dict(minimal_governance_evidence_live_proof_readiness_environ())
     if extra:
         base.update(extra)
     return dict(base)
@@ -149,9 +147,7 @@ def evaluate_control_plane_post164_deepen(
     if not gov.ok:
         violations.append(ControlPlanePost164DeepenViolation(code="prior", message=PRIOR_GATE_ID))
 
-    mod_blob = (REPO_ROOT / Path("thinkbox/control_plane_post164_deepen.py")).read_text(
-        encoding="utf-8"
-    )
+    mod_blob = (REPO_ROOT / Path("thinkbox/control_plane_post164_deepen.py")).read_text(encoding="utf-8")
     if not post164_deepen_markers_present(mod_blob):
         violations.append(ControlPlanePost164DeepenViolation(code="markers", message="markers"))
 

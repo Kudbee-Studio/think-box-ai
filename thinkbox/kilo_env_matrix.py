@@ -100,10 +100,7 @@ class EnvMatrixResult:
             "mode": self.mode.value,
             "ok": self.ok,
             "violation_count": len(self.violations),
-            "violations": [
-                {"code": v.code, "message": v.message, "env_key": v.env_key}
-                for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "env_key": v.env_key} for v in self.violations],
             "entries": self.entries,
             "gate_id": GATE_ID,
             "pr_number": PR_NUMBER,
@@ -176,17 +173,13 @@ KILO_ENV_CONTRACTS: tuple[EnvVarContract, ...] = (
         key="THINKBOX_KILO_CLAIM_LIVE",
         category=EnvCategory.FEATURE_FLAG,
         description="Must never affirm KILO LIVE VERIFIED via env.",
-        forbidden_in=frozenset(
-            {EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI, EnvMatrixMode.LIVE_PROOF_PREP}
-        ),
+        forbidden_in=frozenset({EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI, EnvMatrixMode.LIVE_PROOF_PREP}),
     ),
     EnvVarContract(
         key="THINKBOX_KILO_PRODUCTION_READY",
         category=EnvCategory.FEATURE_FLAG,
         description="Must never affirm KILO PRODUCTION READY via env.",
-        forbidden_in=frozenset(
-            {EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI, EnvMatrixMode.LIVE_PROOF_PREP}
-        ),
+        forbidden_in=frozenset({EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI, EnvMatrixMode.LIVE_PROOF_PREP}),
     ),
     EnvVarContract(
         key="UPSTASH_PUBLIC_BOX_URL",
@@ -534,9 +527,7 @@ def env_matrix_contract_summary(
         "detected_mode": mode.value,
         "hermetic_operator_ok": hermetic.ok,
         "live_proof_prep_ok": prep.ok,
-        "live_proof_prep_missing": [
-            v.env_key for v in prep.violations if v.code == "required_missing"
-        ],
+        "live_proof_prep_missing": [v.env_key for v in prep.violations if v.code == "required_missing"],
         "hermetic_violation_codes": sorted({v.code for v in hermetic.violations}),
         "contract_count": len([c for c in KILO_ENV_CONTRACTS if not c.is_prefix]),
         "four_state_max": "TEST_VERIFIED",

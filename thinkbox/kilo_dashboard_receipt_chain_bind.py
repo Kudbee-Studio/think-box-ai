@@ -114,19 +114,11 @@ def minimal_dashboard_receipt_chain_bind_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[DashboardReceiptChainBindViolation]:
     violations: list[DashboardReceiptChainBindViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(
-            DashboardReceiptChainBindViolation(code="gate_id_mismatch", message="checklist gate_id")
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="gate_id_mismatch", message="checklist gate_id"))
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(
-            DashboardReceiptChainBindViolation(
-                code="pr_number_mismatch", message="checklist pr_number"
-            )
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="pr_number_mismatch", message="checklist pr_number"))
     if doc.get("live_verified") is True:
-        violations.append(
-            DashboardReceiptChainBindViolation(code="live_verified_true", message="must stay false")
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="live_verified_true", message="must stay false"))
     if doc.get("four_state_max") != "TEST_VERIFIED":
         violations.append(
             DashboardReceiptChainBindViolation(
@@ -135,9 +127,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[DashboardReceipt
             )
         )
     if doc.get("end_link_api") != END_LINK_API_LABEL:
-        violations.append(
-            DashboardReceiptChainBindViolation(code="end_link_api", message="end_link_api label")
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="end_link_api", message="end_link_api label"))
     prior = doc.get("prior_gate_ids") or []
     if PRIOR_GATE_ID not in prior:
         violations.append(
@@ -173,13 +163,9 @@ def _check_files() -> list[DashboardReceiptChainBindViolation]:
             doc = json.loads(checklist.read_text(encoding="utf-8"))
             violations.extend(validate_checklist_document(doc))
         except json.JSONDecodeError:
-            violations.append(
-                DashboardReceiptChainBindViolation(code="checklist_json", message="invalid JSON")
-            )
+            violations.append(DashboardReceiptChainBindViolation(code="checklist_json", message="invalid JSON"))
     else:
-        violations.append(
-            DashboardReceiptChainBindViolation(code="checklist_missing", message=str(CHECKLIST_REL))
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="checklist_missing", message=str(CHECKLIST_REL)))
     return violations
 
 
@@ -232,9 +218,7 @@ def run_bind_fixture_suite() -> tuple[int, int, list[str]]:
 
     st = get_control_plane_receipt_store()
     if st.count() == 0:
-        st.append(
-            "dashboard_bind_probe", "OK", "hermetic", "simulated", metadata={"agent_id": "pr156"}
-        )
+        st.append("dashboard_bind_probe", "OK", "hermetic", "simulated", metadata={"agent_id": "pr156"})
     client = DashboardReceiptChainClient()
     probes = client.fetch_probes()
     if probes.head is not None or probes.tail is not None:
@@ -291,11 +275,7 @@ def evaluate_dashboard_receipt_chain_bind(
 
     bind_ok = not fixture_errors and pos >= 4 and neg >= 1
     if not bind_ok:
-        violations.append(
-            DashboardReceiptChainBindViolation(
-                code="fixture_suite_weak", message="bind fixtures weak"
-            )
-        )
+        violations.append(DashboardReceiptChainBindViolation(code="fixture_suite_weak", message="bind fixtures weak"))
 
     ui_ok = len(ui_violations) == 0
     ok = prior.ok and bind_ok and ui_ok and not file_violations and not fixture_errors

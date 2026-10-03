@@ -67,9 +67,7 @@ PR_NUMBER = 148
 _FIXTURES_REL = Path("data/kilo_proof_schema/fixtures")
 _VERIFY_SCRIPT_REL = Path("scripts/verify_kilo_proof_schema.py")
 
-FOUR_STATE_VALUES: frozenset[str] = frozenset(
-    {"CODE_COMPLETE", "TEST_VERIFIED", "LIVE_VERIFIED", "PRODUCTION_READY"}
-)
+FOUR_STATE_VALUES: frozenset[str] = frozenset({"CODE_COMPLETE", "TEST_VERIFIED", "LIVE_VERIFIED", "PRODUCTION_READY"})
 
 CUE_TYPES: frozenset[str] = frozenset(
     {
@@ -82,9 +80,7 @@ CUE_TYPES: frozenset[str] = frozenset(
     }
 )
 
-HALT_REASONS: frozenset[str] = frozenset(
-    {"sentinel", "dod_met", "max_cycles", "user_stop", "blocker"}
-)
+HALT_REASONS: frozenset[str] = frozenset({"sentinel", "dod_met", "max_cycles", "user_stop", "blocker"})
 
 INJECTED_CUE_TYPES: frozenset[str] = frozenset(CUE_TYPES - {"user"})
 
@@ -147,9 +143,7 @@ class ProofValidationResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "ordered_gate_ids": list(self.ordered_gate_ids),
         }
 
@@ -198,9 +192,7 @@ class ProofSchemaResult:
             "mode": self.mode.value,
             "ok": self.ok,
             "swarm_instrumentation_ok": self.swarm_instrumentation_ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "gate_id": GATE_ID,
             "pr_number": PR_NUMBER,
@@ -492,9 +484,7 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
             hits.append(_violation("missing_required", f"missing required field {key}", key))
 
     if doc.get("schema_version") != "kilo-proof-v1":
-        hits.append(
-            _violation("schema_version", "schema_version must be kilo-proof-v1", "schema_version")
-        )
+        hits.append(_violation("schema_version", "schema_version must be kilo-proof-v1", "schema_version"))
 
     gate_id = doc.get("gate_id")
     if gate_id is not None and gate_id not in KNOWN_ARC_GATE_IDS:
@@ -516,9 +506,7 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
         )
 
     dod = doc.get("definition_of_done") or []
-    dod_all_met = isinstance(dod, list) and all(
-        isinstance(item, Mapping) and item.get("met") is True for item in dod
-    )
+    dod_all_met = isinstance(dod, list) and all(isinstance(item, Mapping) and item.get("met") is True for item in dod)
 
     if four_state in ("LIVE_VERIFIED", "PRODUCTION_READY"):
         if live_verified is not True:
@@ -538,9 +526,7 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
                 )
             )
 
-    if live_verified is True and (
-        not dod_all_met or four_state not in ("LIVE_VERIFIED", "PRODUCTION_READY")
-    ):
+    if live_verified is True and (not dod_all_met or four_state not in ("LIVE_VERIFIED", "PRODUCTION_READY")):
         hits.append(
             _violation(
                 "live_verified_without_dod",
@@ -553,11 +539,7 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
     if isinstance(prior, list):
         for idx, gid in enumerate(prior):
             if gid not in KNOWN_ARC_GATE_IDS:
-                hits.append(
-                    _violation(
-                        "unknown_prior_gate", f"unknown prior gate {gid}", f"prior_gate_ids[{idx}]"
-                    )
-                )
+                hits.append(_violation("unknown_prior_gate", f"unknown prior gate {gid}", f"prior_gate_ids[{idx}]"))
         if doc.get("gate_id") == GATE_ID and "swarm-instrumentation" not in prior:
             hits.append(
                 _violation(
@@ -575,17 +557,11 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
         else:
             for idx, gate in enumerate(gates):
                 if not isinstance(gate, Mapping):
-                    hits.append(
-                        _violation("gate_shape", f"gate entry {idx} not object", f"gates[{idx}]")
-                    )
+                    hits.append(_violation("gate_shape", f"gate entry {idx} not object", f"gates[{idx}]"))
                     continue
                 gid = gate.get("gate_id")
                 if gid not in KNOWN_ARC_GATE_IDS:
-                    hits.append(
-                        _violation(
-                            "unknown_gate_node", f"unknown gate {gid}", f"gates[{idx}].gate_id"
-                        )
-                    )
+                    hits.append(_violation("unknown_gate_node", f"unknown gate {gid}", f"gates[{idx}].gate_id"))
                 if gate.get("hermetic_operator_ok") is not True:
                     hits.append(
                         _violation(
@@ -610,11 +586,7 @@ def validate_proof_document(doc: Mapping[str, Any]) -> ProofValidationResult:
                 continue
             cue_type = cue.get("cue_type")
             if cue_type not in CUE_TYPES:
-                hits.append(
-                    _violation(
-                        "unknown_cue_type", f"unknown cue_type {cue_type}", f"cues[{idx}].cue_type"
-                    )
-                )
+                hits.append(_violation("unknown_cue_type", f"unknown cue_type {cue_type}", f"cues[{idx}].cue_type"))
                 continue
             counts = cue.get("counts_as_user_intent")
             if cue_type == "user":
@@ -667,9 +639,7 @@ def run_fixture_suite() -> tuple[int, int, list[str]]:
                 negative += 1
         else:
             if not result.ok:
-                errors.append(
-                    f"{path.name}: expected valid but failed: {[v.code for v in result.violations]}"
-                )
+                errors.append(f"{path.name}: expected valid but failed: {[v.code for v in result.violations]}")
             else:
                 positive += 1
     return positive, negative, errors
@@ -721,9 +691,7 @@ def evaluate_proof_schema(
 
     contract_ok, contract_detail = _schema_contract_check()
     if not contract_ok:
-        violations.append(
-            ProofSchemaViolation(code="schema_contract_failed", message=contract_detail)
-        )
+        violations.append(ProofSchemaViolation(code="schema_contract_failed", message=contract_detail))
 
     pos = neg = 0
     fixture_errors: list[str] = []
@@ -807,13 +775,9 @@ def proof_schema_contract_summary(
         if k.startswith(("INCEPTION", "THINKBOX_", "UPSTASH_", "GOVERNANCE"))
     }
     if "UPSTASH_PUBLIC_BOX_URL" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(
-            env.get("UPSTASH_PUBLIC_BOX_URL") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(env.get("UPSTASH_PUBLIC_BOX_URL") or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,

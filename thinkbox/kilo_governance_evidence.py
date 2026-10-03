@@ -150,10 +150,7 @@ class GovernanceEvidenceResult:
             "env_matrix_ok": self.env_matrix_ok,
             "substrate_checklist_ok": self.substrate_checklist_ok,
             "violation_count": len(self.violations),
-            "violations": [
-                {"code": v.code, "message": v.message, "env_key": v.env_key}
-                for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "env_key": v.env_key} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "gate_id": GATE_ID,
             "pr_number": PR_NUMBER,
@@ -479,10 +476,7 @@ def governance_evidence_contract_summary(
     gate = gate_for_pr(PR_NUMBER)
     redacted_env_sample = {
         k: redact_secret_value(k, env.get(k))
-        for k in sorted(
-            set(env.keys())
-            & (_SECRET_ENV_KEYS | {"THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"})
-        )
+        for k in sorted(set(env.keys()) & (_SECRET_ENV_KEYS | {"THINKBOX_SWARM_LIVE_ACK", "THINKBOX_KILO_MATRIX_MODE"}))
     }
     return {
         "gate_id": GATE_ID,

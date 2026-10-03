@@ -296,9 +296,7 @@ def _build_spine_contract_summary_body() -> dict[str, object]:
     end_link_api_ops_harden_summary = end_link_api_ops_harden_contract_summary()
     receipt_chain_end_link_era_close_summary = receipt_chain_end_link_era_close_contract_summary()
     control_plane_e2e_deepen_summary = control_plane_e2e_deepen_contract_summary()
-    governance_evidence_live_proof_readiness_summary = (
-        governance_evidence_live_proof_readiness_contract_summary()
-    )
+    governance_evidence_live_proof_readiness_summary = governance_evidence_live_proof_readiness_contract_summary()
     pr165_combined_summary = pr165_combined_harden_era_chronicle_contract_summary()
     pr166_combined_summary = pr166_combined_post165_lane_contract_summary()
     pr167_combined_summary = pr167_combined_post166_lane_contract_summary()

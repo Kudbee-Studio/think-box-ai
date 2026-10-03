@@ -72,9 +72,7 @@ PR_NUMBER = 150
 FOUNDER_ACK_ENV = "THINKBOX_SWARM_LIVE_ACK"
 
 ARC_SEASON_COMPLETE = "kilo-live-proof-arc-141-150-season-closed"
-CLOUD_BOT_STANDBY_AFTER_MERGE = (
-    "After PR #150 merge: Cloud Bot on standby — no #151 unless founder asks."
-)
+CLOUD_BOT_STANDBY_AFTER_MERGE = "After PR #150 merge: Cloud Bot on standby — no #151 unless founder asks."
 
 _FIXTURES_REL = Path("data/kilo_live_proof_exec/fixtures")
 _VERIFY_SCRIPT_REL = Path("scripts/verify_kilo_live_proof_exec.py")
@@ -143,9 +141,7 @@ class PlanValidationResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "ordered_step_ids": list(self.ordered_step_ids),
         }
 
@@ -197,9 +193,7 @@ class LiveProofExecResult:
             "mode": self.mode.value,
             "ok": self.ok,
             "dashboard_slots_ok": self.dashboard_slots_ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
         }
 
@@ -337,11 +331,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
             hits.append(_violation("missing_required", f"missing {key}", key))
 
     if doc.get("schema_version") != "kilo-live-proof-exec-v1":
-        hits.append(
-            _violation(
-                "schema_version", "schema_version must be kilo-live-proof-exec-v1", "schema_version"
-            )
-        )
+        hits.append(_violation("schema_version", "schema_version must be kilo-live-proof-exec-v1", "schema_version"))
 
     if doc.get("gate_id") != GATE_ID:
         hits.append(_violation("gate_id_mismatch", f"gate_id must be {GATE_ID}", "gate_id"))
@@ -360,11 +350,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
         )
 
     if doc.get("box_url_env_key") != BOX_URL_ENV:
-        hits.append(
-            _violation(
-                "box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"
-            )
-        )
+        hits.append(_violation("box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"))
 
     if doc.get("live_api_called") is True:
         hits.append(
@@ -416,11 +402,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
             )
         for idx, gid in enumerate(prior):
             if gid not in gate_ids():
-                hits.append(
-                    _violation(
-                        "unknown_prior_gate", f"unknown gate {gid}", f"prior_gate_ids[{idx}]"
-                    )
-                )
+                hits.append(_violation("unknown_prior_gate", f"unknown gate {gid}", f"prior_gate_ids[{idx}]"))
         if GATE_ID in prior_set:
             hits.append(
                 _violation(
@@ -430,9 +412,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
                 )
             )
     else:
-        hits.append(
-            _violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids")
-        )
+        hits.append(_violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids"))
 
     halt_allowed = doc.get("halt_reasons_allowed") or []
     if isinstance(halt_allowed, list):
@@ -446,11 +426,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
                     )
                 )
     else:
-        hits.append(
-            _violation(
-                "halt_reasons_type", "halt_reasons_allowed must be array", "halt_reasons_allowed"
-            )
-        )
+        hits.append(_violation("halt_reasons_type", "halt_reasons_allowed must be array", "halt_reasons_allowed"))
 
     marker = doc.get("season_arc_marker")
     if marker != ARC_SEASON_COMPLETE:
@@ -466,18 +442,14 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
     ordered: list[str] = []
     if isinstance(steps, list):
         if len(steps) < 3:
-            hits.append(
-                _violation("steps_too_few", "steps must include bounded smoke chain", "steps")
-            )
+            hits.append(_violation("steps_too_few", "steps must include bounded smoke chain", "steps"))
         for idx, step in enumerate(steps):
             if not isinstance(step, Mapping):
                 hits.append(_violation("step_shape", f"step {idx} not object", f"steps[{idx}]"))
                 continue
             sid = step.get("step_id")
             if not sid:
-                hits.append(
-                    _violation("step_id_missing", "step_id required", f"steps[{idx}].step_id")
-                )
+                hits.append(_violation("step_id_missing", "step_id required", f"steps[{idx}].step_id"))
             else:
                 ordered.append(str(sid))
             net = step.get("network")
@@ -494,9 +466,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
 
     artifacts = doc.get("artifact_paths") or []
     if not isinstance(artifacts, list) or not artifacts:
-        hits.append(
-            _violation("artifact_paths_empty", "artifact_paths must be non-empty", "artifact_paths")
-        )
+        hits.append(_violation("artifact_paths_empty", "artifact_paths must be non-empty", "artifact_paths"))
     else:
         for idx, ap in enumerate(artifacts):
             if not isinstance(ap, str) or not ap.startswith("data/thinkboxmd/"):
@@ -514,10 +484,7 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
 
 def minimal_valid_execution_plan_document() -> dict[str, Any]:
     """Minimal hermetic execution plan (no live_verified, no live API)."""
-    steps = [
-        {"step_id": s["step_id"], "action": s["action"], "network": s["network"]}
-        for s in bounded_smoke_steps()
-    ]
+    steps = [{"step_id": s["step_id"], "action": s["action"], "network": s["network"]} for s in bounded_smoke_steps()]
     return {
         "schema_version": "kilo-live-proof-exec-v1",
         "plan_id": "kilo_live_proof_exec_plan_hermetic_minimal",
@@ -566,9 +533,7 @@ def run_fixture_suite() -> tuple[int, int, list[str]]:
         result = validate_execution_plan_document(doc)
         if name.startswith("valid_"):
             if not result.ok:
-                errors.append(
-                    f"{name}: expected valid got {','.join(v.code for v in result.violations)}"
-                )
+                errors.append(f"{name}: expected valid got {','.join(v.code for v in result.violations)}")
             else:
                 positive += 1
         elif name.startswith("invalid_"):
@@ -617,9 +582,7 @@ def evaluate_live_proof_exec(
 
     contract_ok, contract_detail = _plan_contract_check()
     if not contract_ok:
-        violations.append(
-            LiveProofExecViolation(code="plan_contract_failed", message=contract_detail)
-        )
+        violations.append(LiveProofExecViolation(code="plan_contract_failed", message=contract_detail))
 
     pos = neg = 0
     fixture_errors: list[str] = []
@@ -710,9 +673,7 @@ def live_proof_exec_contract_summary(
     if BOX_URL_ENV in env:
         redacted_env_sample[BOX_URL_ENV] = redact_box_url(env.get(BOX_URL_ENV) or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,

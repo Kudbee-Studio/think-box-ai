@@ -80,9 +80,7 @@ def validate_wave2_scope_manifest(
     full_paths = tuple(doc.get("scope_paths") or [])
 
     if len(additive) != doc.get("additive_scope_count"):
-        violations.append(
-            LintScopeWave2Violation(code="additive_count", message="additive mismatch")
-        )
+        violations.append(LintScopeWave2Violation(code="additive_count", message="additive mismatch"))
 
     for rel in wave1_paths:
         if rel not in LINT_SCOPE_REL_PATHS:

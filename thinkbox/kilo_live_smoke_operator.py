@@ -113,9 +113,7 @@ class SmokeOperatorWriteResult:
         return {
             "ok": self.ok,
             "path": str(self.path) if self.path else None,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
         }
 
 
@@ -161,9 +159,7 @@ class SmokeOperatorResult:
             "mode": self.mode.value,
             "ok": self.ok,
             "smoke_evidence_layer_ok": self.smoke_evidence_layer_ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
         }
 
@@ -221,9 +217,7 @@ def parse_receipt_etag_pairs(
             )
         )
     if not r_list:
-        violations.append(
-            SmokeOperatorViolation(code="receipt_ids_empty", message="receipt_ids required")
-        )
+        violations.append(SmokeOperatorViolation(code="receipt_ids_empty", message="receipt_ids required"))
     if not e_list:
         violations.append(SmokeOperatorViolation(code="etags_empty", message="etags required"))
     return r_list, e_list, violations
@@ -358,9 +352,7 @@ def write_audit_flip_candidate_file(
     candidate["operator_pr_number"] = PR_NUMBER
     candidate["prior_pass"] = str(audit_prior_rel)
     candidate_path.parent.mkdir(parents=True, exist_ok=True)
-    candidate_path.write_text(
-        json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    candidate_path.write_text(json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return candidate_path, candidate
 
 
@@ -379,9 +371,7 @@ def run_operator_fixture_suite() -> tuple[int, int, list[str]]:
             doc = payload.get("document") or {}
             result = write_smoke_evidence_artifact(doc, path=None)
             if not result.ok:
-                errors.append(
-                    f"{name}: expected write ok got {','.join(v.code for v in result.violations)}"
-                )
+                errors.append(f"{name}: expected write ok got {','.join(v.code for v in result.violations)}")
             else:
                 positive += 1
                 if result.path and result.path.is_file():
@@ -464,9 +454,7 @@ def evaluate_live_smoke_operator(
         )
     cli_path = REPO_ROOT / OPERATOR_CLI_REL
     if not cli_path.is_file():
-        violations.append(
-            SmokeOperatorViolation(code="cli_missing", message=f"missing {OPERATOR_CLI_REL}")
-        )
+        violations.append(SmokeOperatorViolation(code="cli_missing", message=f"missing {OPERATOR_CLI_REL}"))
 
     pos = neg = 0
     fixture_errors: list[str] = []
@@ -477,9 +465,7 @@ def evaluate_live_smoke_operator(
 
     roundtrip_ok, roundtrip_detail = _hermetic_roundtrip_write()
     if not roundtrip_ok:
-        violations.append(
-            SmokeOperatorViolation(code="hermetic_roundtrip_failed", message=roundtrip_detail)
-        )
+        violations.append(SmokeOperatorViolation(code="hermetic_roundtrip_failed", message=roundtrip_detail))
 
     evidence = SmokeOperatorEvidence(
         gate_id=GATE_ID,

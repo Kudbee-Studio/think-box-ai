@@ -313,12 +313,7 @@ def evaluate_swarm_instrumentation(
         live_api_called=False,
     )
 
-    ok = (
-        mercury.ok
-        and contract_ok
-        and passed == EXPECTED_HERMETIC_PASS_COUNT
-        and not live_swarm_invoked
-    )
+    ok = mercury.ok and contract_ok and passed == EXPECTED_HERMETIC_PASS_COUNT and not live_swarm_invoked
     if ok:
         violations = []
 
@@ -401,12 +396,7 @@ def hermetic_swarm_operator_check(
         live_api_called=False,
     )
 
-    ok = (
-        mercury.ok
-        and contract_ok
-        and passed == EXPECTED_HERMETIC_PASS_COUNT
-        and len(violations) == 0
-    )
+    ok = mercury.ok and contract_ok and passed == EXPECTED_HERMETIC_PASS_COUNT and len(violations) == 0
     return SwarmInstrumentationResult(
         mode=mode,
         ok=ok,
@@ -455,17 +445,11 @@ def swarm_instrumentation_contract_summary(
     )
     gate = gate_for_pr(PR_NUMBER)
     catalog = swarm_instrumentation_catalog()
-    redacted_env_sample = {
-        k: redact_secret_value(k, env.get(k)) for k in sorted(set(env.keys()) & _SECRET_ENV_KEYS)
-    }
+    redacted_env_sample = {k: redact_secret_value(k, env.get(k)) for k in sorted(set(env.keys()) & _SECRET_ENV_KEYS)}
     if "UPSTASH_PUBLIC_BOX_URL" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(
-            env.get("UPSTASH_PUBLIC_BOX_URL") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(env.get("UPSTASH_PUBLIC_BOX_URL") or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,

@@ -108,23 +108,13 @@ def minimal_control_plane_api_environ(
 def validate_checklist_document(doc: Mapping[str, Any]) -> list[ControlPlaneApiViolation]:
     violations: list[ControlPlaneApiViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(
-            ControlPlaneApiViolation(code="gate_id_mismatch", message="checklist gate_id")
-        )
+        violations.append(ControlPlaneApiViolation(code="gate_id_mismatch", message="checklist gate_id"))
     if doc.get("pr_number") != PR_NUMBER:
-        violations.append(
-            ControlPlaneApiViolation(code="pr_number_mismatch", message="checklist pr_number")
-        )
+        violations.append(ControlPlaneApiViolation(code="pr_number_mismatch", message="checklist pr_number"))
     if doc.get("live_verified") is True:
-        violations.append(
-            ControlPlaneApiViolation(code="live_verified_true", message="must stay false")
-        )
+        violations.append(ControlPlaneApiViolation(code="live_verified_true", message="must stay false"))
     if doc.get("four_state_max") != "TEST_VERIFIED":
-        violations.append(
-            ControlPlaneApiViolation(
-                code="four_state", message="four_state_max must be TEST_VERIFIED"
-            )
-        )
+        violations.append(ControlPlaneApiViolation(code="four_state", message="four_state_max must be TEST_VERIFIED"))
     return violations
 
 
@@ -153,13 +143,9 @@ def _check_files_present() -> list[ControlPlaneApiViolation]:
             doc = json.loads(checklist.read_text(encoding="utf-8"))
             violations.extend(validate_checklist_document(doc))
         except json.JSONDecodeError:
-            violations.append(
-                ControlPlaneApiViolation(code="checklist_json", message="invalid checklist JSON")
-            )
+            violations.append(ControlPlaneApiViolation(code="checklist_json", message="invalid checklist JSON"))
     else:
-        violations.append(
-            ControlPlaneApiViolation(code="checklist_missing", message=f"missing {CHECKLIST_REL}")
-        )
+        violations.append(ControlPlaneApiViolation(code="checklist_missing", message=f"missing {CHECKLIST_REL}"))
     return violations
 
 
@@ -168,9 +154,7 @@ def _check_route_wiring() -> list[ControlPlaneApiViolation]:
     main_text = (REPO_ROOT / "backend/main.py").read_text(encoding="utf-8")
     if "control_plane_api" not in main_text:
         violations.append(
-            ControlPlaneApiViolation(
-                code="main_router_missing", message="main.py must include control_plane_api"
-            )
+            ControlPlaneApiViolation(code="main_router_missing", message="main.py must include control_plane_api")
         )
     cp_text = (REPO_ROOT / "backend/api/v1/control_plane.py").read_text(encoding="utf-8")
     for marker in _REQUIRED_ROUTE_MARKERS:
@@ -265,14 +249,12 @@ def evaluate_control_plane_api(
     contract_ok = not fixture_errors and pos >= 2 and neg >= 2
     if not contract_ok:
         violations.append(
-            ControlPlaneApiViolation(
-                code="contract_suite_weak", message="contract fixtures insufficient"
-            )
+            ControlPlaneApiViolation(code="contract_suite_weak", message="contract fixtures insufficient")
         )
 
-    route_ok = len(route_violations) == 0 and "control_plane_api" in (
-        REPO_ROOT / "backend/main.py"
-    ).read_text(encoding="utf-8")
+    route_ok = len(route_violations) == 0 and "control_plane_api" in (REPO_ROOT / "backend/main.py").read_text(
+        encoding="utf-8"
+    )
 
     evidence = ControlPlaneApiEvidence(
         gate_id=GATE_ID,

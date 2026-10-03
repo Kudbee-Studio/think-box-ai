@@ -143,9 +143,7 @@ class SlotValidationResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "ordered_slot_ids": list(self.ordered_slot_ids),
             "occupancy": dict(self.occupancy),
         }
@@ -274,9 +272,7 @@ def validate_slot_registry_document(
     )
     for key in required_top:
         if key not in doc:
-            violations.append(
-                DashboardSlotsViolation(code="missing_required", message=f"missing {key}", path=key)
-            )
+            violations.append(DashboardSlotsViolation(code="missing_required", message=f"missing {key}", path=key))
 
     if doc.get("gate_id") != GATE_ID:
         violations.append(
@@ -317,17 +313,11 @@ def validate_slot_registry_document(
 
     dumped = json.dumps(doc)
     if _SECRET_PATTERN.search(dumped):
-        violations.append(
-            DashboardSlotsViolation(
-                code="secret_like_literal", message="secret pattern in document"
-            )
-        )
+        violations.append(DashboardSlotsViolation(code="secret_like_literal", message="secret pattern in document"))
 
     slot_nodes = _slot_nodes_from_doc(doc)
     if not slot_nodes:
-        violations.append(
-            DashboardSlotsViolation(code="slots_empty", message="slots list required", path="slots")
-        )
+        violations.append(DashboardSlotsViolation(code="slots_empty", message="slots list required", path="slots"))
 
     seen_ids: set[str] = set()
     receipt_exclusive: dict[str, str] = {}
@@ -338,23 +328,17 @@ def validate_slot_registry_document(
         try:
             sid = _normalize_slot_id(str(slot.get("slot_id") or ""))
         except ValueError as exc:
-            violations.append(
-                DashboardSlotsViolation(code="slot_id_invalid", message=str(exc), path=path)
-            )
+            violations.append(DashboardSlotsViolation(code="slot_id_invalid", message=str(exc), path=path))
             continue
 
         if sid in seen_ids:
-            violations.append(
-                DashboardSlotsViolation(code="duplicate_slot_id", message=sid, path=path)
-            )
+            violations.append(DashboardSlotsViolation(code="duplicate_slot_id", message=sid, path=path))
         seen_ids.add(sid)
         ordered_ids.append(sid)
 
         kind = str(slot.get("kind") or "")
         if kind not in SLOT_KINDS:
-            violations.append(
-                DashboardSlotsViolation(code="unknown_slot_kind", message=kind, path=f"{path}.kind")
-            )
+            violations.append(DashboardSlotsViolation(code="unknown_slot_kind", message=kind, path=f"{path}.kind"))
 
         share = str(slot.get("share_policy") or SharePolicy.EXCLUSIVE.value)
         if share not in (SharePolicy.EXCLUSIVE.value, SharePolicy.SHARED_EXPLICIT.value):
@@ -368,11 +352,7 @@ def validate_slot_registry_document(
 
         bind = slot.get("bind")
         if not isinstance(bind, dict):
-            violations.append(
-                DashboardSlotsViolation(
-                    code="bind_missing", message="bind object required", path=path
-                )
-            )
+            violations.append(DashboardSlotsViolation(code="bind_missing", message="bind object required", path=path))
             occupancy[sid] = OccupancyState.UNBOUND.value
             continue
 
@@ -381,9 +361,7 @@ def validate_slot_registry_document(
         try:
             rk = normalize_receipt_key(receipt_raw) if receipt_raw else ""
         except ValueError as exc:
-            violations.append(
-                DashboardSlotsViolation(code="receipt_key_invalid", message=str(exc), path=path)
-            )
+            violations.append(DashboardSlotsViolation(code="receipt_key_invalid", message=str(exc), path=path))
             rk = ""
 
         if not rk or not etag:
@@ -405,9 +383,7 @@ def validate_slot_registry_document(
                 dashboard_revision=int(bind.get("dashboard_revision") or 0),
             )
         except ValueError as exc:
-            violations.append(
-                DashboardSlotsViolation(code="digest_identity_invalid", message=str(exc), path=path)
-            )
+            violations.append(DashboardSlotsViolation(code="digest_identity_invalid", message=str(exc), path=path))
             expected_digest = ""
 
         if digest_id and digest_id != expected_digest:
@@ -492,10 +468,7 @@ def validate_slot_registry_document(
                 for item in dod:
                     if not isinstance(item, dict):
                         continue
-                    if (
-                        item.get("met") is True
-                        and str(item.get("predicate") or "").lower().find("live") >= 0
-                    ):
+                    if item.get("met") is True and str(item.get("predicate") or "").lower().find("live") >= 0:
                         violations.append(
                             DashboardSlotsViolation(
                                 code="dod_display_live_claim",
@@ -754,9 +727,7 @@ def run_fixture_suite() -> tuple[int, int, list[str]]:
         result = validate_slot_registry_document(doc)
         if name.startswith("valid_"):
             if not result.ok:
-                errors.append(
-                    f"{name}: expected valid got {','.join(v.code for v in result.violations)}"
-                )
+                errors.append(f"{name}: expected valid got {','.join(v.code for v in result.violations)}")
             else:
                 positive += 1
         elif name.startswith("invalid_"):
@@ -813,9 +784,7 @@ def evaluate_dashboard_slots(
 
     contract_ok, contract_detail = _registry_contract_check()
     if not contract_ok:
-        violations.append(
-            DashboardSlotsViolation(code="registry_contract_failed", message=contract_detail)
-        )
+        violations.append(DashboardSlotsViolation(code="registry_contract_failed", message=contract_detail))
 
     pos = neg = 0
     fixture_errors: list[str] = []
@@ -899,13 +868,9 @@ def dashboard_slots_contract_summary(
         if k.startswith(("INCEPTION", "THINKBOX_", "UPSTASH_", "GOVERNANCE"))
     }
     if "UPSTASH_PUBLIC_BOX_URL" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(
-            env.get("UPSTASH_PUBLIC_BOX_URL") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_URL"] = redact_box_url(env.get("UPSTASH_PUBLIC_BOX_URL") or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,

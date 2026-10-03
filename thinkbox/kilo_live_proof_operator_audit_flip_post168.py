@@ -105,9 +105,7 @@ def validate_checklist_document(
     if doc.get("live_api_called") is True:
         violations.append(OperatorAuditFlipPost168Violation(code="live_api", message="false"))
     if doc.get("audit_flip_label") != OPERATOR_AUDIT_FLIP_POST168_LABEL:
-        violations.append(
-            OperatorAuditFlipPost168Violation(code="audit_flip_label", message="label")
-        )
+        violations.append(OperatorAuditFlipPost168Violation(code="audit_flip_label", message="label"))
     prior = doc.get("prior_gate_ids") or []
     for required in (
         POST167_THEME_A_GATE,
@@ -116,14 +114,10 @@ def validate_checklist_document(
         SMOKE_GATE_ID,
     ):
         if required not in prior:
-            violations.append(
-                OperatorAuditFlipPost168Violation(code="prior_missing", message=required)
-            )
+            violations.append(OperatorAuditFlipPost168Violation(code="prior_missing", message=required))
     expected = doc.get("required_checklist_items")
     if expected != len(operator_audit_flip_post168_checklist_items()):
-        violations.append(
-            OperatorAuditFlipPost168Violation(code="checklist_count", message="count")
-        )
+        violations.append(OperatorAuditFlipPost168Violation(code="checklist_count", message="count"))
     return violations
 
 
@@ -178,14 +172,7 @@ def evaluate_live_proof_operator_audit_flip_post168(
 
     refused_ok = audit_flip_refused_post168_without_artifacts({})
     items_ok = len(operator_audit_flip_post168_checklist_items()) >= 32
-    ok = (
-        post167_theme.ok
-        and refused_ok
-        and items_ok
-        and not fixture_errors
-        and pos >= 2
-        and len(violations) == 0
-    )
+    ok = post167_theme.ok and refused_ok and items_ok and not fixture_errors and pos >= 2 and len(violations) == 0
     evidence = OperatorAuditFlipPost168Evidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

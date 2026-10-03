@@ -482,9 +482,7 @@ def governance_evidence_live_proof_readiness_contract_summary(
         "pr162_layer_gate_id": PRIOR_E2E_GATE_ID,
         "governance_evidence_layer_gate_id": GOVERNANCE_EVIDENCE_GATE_ID,
         "governance_evidence_live_proof_readiness": GOVERNANCE_EVIDENCE_LIVE_PROOF_READINESS_LABEL,
-        "governance_evidence_live_proof_readiness_version": (
-            GOVERNANCE_EVIDENCE_LIVE_PROOF_READINESS_VERSION
-        ),
+        "governance_evidence_live_proof_readiness_version": (GOVERNANCE_EVIDENCE_LIVE_PROOF_READINESS_VERSION),
         "prior_gate_ids": list(PRIOR_GATE_IDS),
         "detected_mode": detect_matrix_mode(env).value,
         "hermetic_operator_ok": result.ok,

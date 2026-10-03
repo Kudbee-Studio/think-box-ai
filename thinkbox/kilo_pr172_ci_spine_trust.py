@@ -131,10 +131,7 @@ def validate_pr172_ci_workflow_manifest(
             violations.append(
                 CiSpineTrustViolation(
                     code="ci_workflow_redundant_verify_script",
-                    message=(
-                        f"CI must not duplicate spine-covered gate {script}; "
-                        "trust verify_kilo_spine.py"
-                    ),
+                    message=(f"CI must not duplicate spine-covered gate {script}; trust verify_kilo_spine.py"),
                     path=str(CI_WORKFLOW_REL),
                 )
             )

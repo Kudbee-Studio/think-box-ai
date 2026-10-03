@@ -162,9 +162,7 @@ def evaluate_live_proof_operator_prep_deepen(
         violations.append(OperatorPrepDeepenViolation(code="smoke_evidence", message=SMOKE_GATE_ID))
     op = hermetic_live_smoke_operator_check(env)
     if not op.ok:
-        violations.append(
-            OperatorPrepDeepenViolation(code="smoke_operator", message=OPERATOR_GATE_ID)
-        )
+        violations.append(OperatorPrepDeepenViolation(code="smoke_operator", message=OPERATOR_GATE_ID))
     harden = hermetic_live_smoke_audit_flip_harden_check(env)
     if not harden.ok:
         violations.append(
@@ -182,15 +180,7 @@ def evaluate_live_proof_operator_prep_deepen(
         violations.append(OperatorPrepDeepenViolation(code="fixture", message=err))
 
     items_ok = len(operator_prep_checklist_items()) >= 8
-    ok = (
-        smoke.ok
-        and op.ok
-        and harden.ok
-        and items_ok
-        and not fixture_errors
-        and pos >= 2
-        and len(violations) == 0
-    )
+    ok = smoke.ok and op.ok and harden.ok and items_ok and not fixture_errors and pos >= 2 and len(violations) == 0
     evidence = OperatorPrepDeepenEvidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

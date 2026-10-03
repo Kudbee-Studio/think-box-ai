@@ -87,9 +87,7 @@ class ReceiptChainEndLinkSeasonHardenResult:
 def minimal_receipt_chain_end_link_season_harden_environ(
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    base: MutableMapping[str, str] = dict(
-        minimal_governance_evidence_live_proof_readiness_environ()
-    )
+    base: MutableMapping[str, str] = dict(minimal_governance_evidence_live_proof_readiness_environ())
     if extra:
         base.update(extra)
     return dict(base)
@@ -100,13 +98,9 @@ def validate_checklist_document(
 ) -> list[ReceiptChainEndLinkSeasonHardenViolation]:
     violations: list[ReceiptChainEndLinkSeasonHardenViolation] = []
     if doc.get("gate_id") != GATE_ID:
-        violations.append(
-            ReceiptChainEndLinkSeasonHardenViolation(code="gate_id", message="gate_id")
-        )
+        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="gate_id", message="gate_id"))
     if doc.get("live_verified") is True:
-        violations.append(
-            ReceiptChainEndLinkSeasonHardenViolation(code="live_verified", message="false")
-        )
+        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="live_verified", message="false"))
     if doc.get("season_harden_label") != SEASON_HARDEN_LABEL:
         violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="label", message="label"))
     prior = doc.get("prior_gate_ids") or []
@@ -175,23 +169,13 @@ def evaluate_receipt_chain_end_link_season_harden(
         violations.extend(cv)
         season_doc_ok = len(cv) == 0
     else:
-        violations.append(
-            ReceiptChainEndLinkSeasonHardenViolation(code="checklist", message="missing")
-        )
+        violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="checklist", message="missing"))
 
     pos, neg, fixture_errors = run_season_harden_fixture_suite()
     for err in fixture_errors:
         violations.append(ReceiptChainEndLinkSeasonHardenViolation(code="fixture", message=err))
 
-    ok = (
-        era.ok
-        and gov.ok
-        and season_doc_ok
-        and pos >= 1
-        and neg >= 1
-        and not fixture_errors
-        and len(violations) == 0
-    )
+    ok = era.ok and gov.ok and season_doc_ok and pos >= 1 and neg >= 1 and not fixture_errors and len(violations) == 0
     evidence = ReceiptChainEndLinkSeasonHardenEvidence(
         gate_id=GATE_ID,
         pr_number=PR_NUMBER,

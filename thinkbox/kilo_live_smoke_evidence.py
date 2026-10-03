@@ -190,9 +190,7 @@ class LiveSmokeEvidenceResult:
             "mode": self.mode.value,
             "ok": self.ok,
             "post_season_harden_ok": self.post_season_harden_ok,
-            "violations": [
-                {"code": v.code, "message": v.message, "path": v.path} for v in self.violations
-            ],
+            "violations": [{"code": v.code, "message": v.message, "path": v.path} for v in self.violations],
             "evidence": self.evidence.to_dict() if self.evidence else None,
         }
 
@@ -239,11 +237,7 @@ def _validate_gate_chain_cues(
     if cues is None:
         return
     if not isinstance(cues, list):
-        hits.append(
-            _violation(
-                "gate_chain_cues_type", "cues must be array", f"gate_chain[{chain_idx}].cues"
-            )
-        )
+        hits.append(_violation("gate_chain_cues_type", "cues must be array", f"gate_chain[{chain_idx}].cues"))
         return
     for cue_idx, cue in enumerate(cues):
         if not isinstance(cue, Mapping):
@@ -326,11 +320,7 @@ def validate_smoke_evidence_document(
         )
 
     if doc.get("box_url_env_key") != BOX_URL_ENV:
-        hits.append(
-            _violation(
-                "box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"
-            )
-        )
+        hits.append(_violation("box_url_env_key", f"box_url_env_key must be {BOX_URL_ENV}", "box_url_env_key"))
 
     four_state = doc.get("four_state_max")
     if four_state in ("LIVE_VERIFIED", "PRODUCTION_READY"):
@@ -381,17 +371,11 @@ def validate_smoke_evidence_document(
                 )
             )
     else:
-        hits.append(
-            _violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids")
-        )
+        hits.append(_violation("prior_gate_ids_type", "prior_gate_ids must be array", "prior_gate_ids"))
 
     halt = doc.get("halt_reason")
     if halt is not None and halt not in HALT_REASONS:
-        hits.append(
-            _violation(
-                "unknown_halt_reason", f"halt_reason {halt} not in HALT_REASONS", "halt_reason"
-            )
-        )
+        hits.append(_violation("unknown_halt_reason", f"halt_reason {halt} not in HALT_REASONS", "halt_reason"))
 
     marker = doc.get("season_arc_marker")
     if marker != ARC_SEASON_COMPLETE:
@@ -437,9 +421,7 @@ def validate_smoke_evidence_document(
             )
         for idx, hop in enumerate(gate_chain):
             if not isinstance(hop, Mapping):
-                hits.append(
-                    _violation("gate_chain_shape", f"hop {idx} not object", f"gate_chain[{idx}]")
-                )
+                hits.append(_violation("gate_chain_shape", f"hop {idx} not object", f"gate_chain[{idx}]"))
                 continue
             gid = hop.get("gate_id")
             if not gid:
@@ -461,20 +443,14 @@ def validate_smoke_evidence_document(
                     )
                 )
             if not hop.get("etag"):
-                hits.append(
-                    _violation("gate_chain_etag", "etag required on hop", f"gate_chain[{idx}].etag")
-                )
+                hits.append(_violation("gate_chain_etag", "etag required on hop", f"gate_chain[{idx}].etag"))
             _validate_gate_chain_cues(hop.get("cues"), idx, hits)
     else:
         hits.append(_violation("gate_chain_type", "gate_chain must be array", "gate_chain"))
 
     endpoints = doc.get("redacted_endpoints") or {}
     if not isinstance(endpoints, Mapping):
-        hits.append(
-            _violation(
-                "redacted_endpoints_type", "redacted_endpoints must be object", "redacted_endpoints"
-            )
-        )
+        hits.append(_violation("redacted_endpoints_type", "redacted_endpoints must be object", "redacted_endpoints"))
     else:
         for key, value in endpoints.items():
             if not isinstance(value, str):
@@ -564,9 +540,7 @@ def run_fixture_suite() -> tuple[int, int, list[str]]:
         result = validate_smoke_evidence_document(doc)
         if name.startswith("valid_"):
             if not result.ok:
-                errors.append(
-                    f"{name}: expected valid got {','.join(v.code for v in result.violations)}"
-                )
+                errors.append(f"{name}: expected valid got {','.join(v.code for v in result.violations)}")
             else:
                 positive += 1
         elif name.startswith("invalid_"):
@@ -671,9 +645,7 @@ def evaluate_live_smoke_evidence(
 
     contract_ok, contract_detail = _contract_check()
     if not contract_ok:
-        violations.append(
-            LiveSmokeEvidenceViolation(code="contract_failed", message=contract_detail)
-        )
+        violations.append(LiveSmokeEvidenceViolation(code="contract_failed", message=contract_detail))
 
     pos = neg = 0
     fixture_errors: list[str] = []
@@ -762,9 +734,7 @@ def live_smoke_evidence_contract_summary(
     if BOX_URL_ENV in env:
         redacted_env_sample[BOX_URL_ENV] = redact_box_url(env.get(BOX_URL_ENV) or "")
     if "UPSTASH_PUBLIC_BOX_TOKEN" in env:
-        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(
-            env.get("UPSTASH_PUBLIC_BOX_TOKEN") or ""
-        )
+        redacted_env_sample["UPSTASH_PUBLIC_BOX_TOKEN"] = redact_box_token(env.get("UPSTASH_PUBLIC_BOX_TOKEN") or "")
     return {
         "gate_id": GATE_ID,
         "pr_number": PR_NUMBER,
