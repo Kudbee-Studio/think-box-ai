@@ -188,7 +188,12 @@ class Client {
     console.log(c.dim(`▶ ${this.agent ? `${this.agent} · ` : ''}${this.model} working…`));
     const done = this.wait('result');
     this.send({ type: 'run_goal', goal, model: this.model, routeTelemetry: this.routeTelemetry, agent: this.agent });
-    const { data: r } = await done;
+    let { data: r } = await Promise.race([
+      done,
+      new Promise<Msg>((_, reject) =>
+        setTimeout(() => reject(new Error('Run timeout: server did not respond within 60 minutes')), 60 * 60 * 1000)
+      )
+    ]);
     console.log();
     // The final answer is always printed, including after an evidence-check retry or a FLAGGED replacement.
     if (Array.isArray(r.evidence_conflicts) && r.evidence_conflicts.length) {
