@@ -21,6 +21,7 @@ from thinkbox.model_client import (
 
 def _resp(payload: dict) -> MagicMock:
     resp = MagicMock()
+    resp.status = 200  # a real urlopen response always has an int status
     resp.read.return_value = json.dumps(payload).encode()
     resp.__enter__.return_value = resp
     return resp
