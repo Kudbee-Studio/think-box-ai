@@ -1805,11 +1805,11 @@ function renderAgents(agents) {
   const select = document.getElementById('agent-select');
   const opts = [{ id: '', name: '(default worker)', description: 'full tool access' }];
   opts.push(...agents);
+  const previous = select.value;
   select.innerHTML = opts.map(a => {
     const label = a.id ? `${a.name} — ${a.description}` : a.name;
     return `<option value="${escapeHtml(a.id)}">${escapeHtml(label)}</option>`;
   }).join('');
-  const previous = select.value;
   if (opts.some(a => a.id === previous)) select.value = previous;
 }
 
@@ -1876,6 +1876,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('clear-chat').addEventListener('click', clearTerminal);
   document.getElementById('refresh-models').addEventListener('click', loadModels);
+  document.getElementById('model-select').addEventListener('change', event => {
+    const name = event.target.value;
+    if (!name) return;
+    state.config.model = name;
+    if (state.ws?.readyState === WebSocket.OPEN) {
+      state.ws.send(JSON.stringify({ type: 'update_config', config: { model: name } }));
+    }
+  });
   document.getElementById('refresh-files').addEventListener('click', refreshFiles);
   document.getElementById('upload-files').addEventListener('click', () => document.getElementById('file-upload-input').click());
   document.getElementById('upload-repo').addEventListener('click', () => document.getElementById('repo-upload-input').click());
