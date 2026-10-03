@@ -6,7 +6,7 @@
 
 ---
 
-## Environment Variables (36+ Active)
+## Environment Variables (29 Active in Codebase)
 
 ### Layered Configuration Strategy
 
@@ -61,26 +61,28 @@ export function resolveLocalModel(env: Record<string, string | undefined> = proc
 
 ---
 
-### 2. Server & Network (5 variables)
+### 2. Server & Network (3 variables)
 
 ```typescript
 PORT                              // Server port (default: 3000)
-HOST                              // Server host (default: 127.0.0.1)
-KUDBEE_URL                        // Full server URL (CLI uses this)
-DASHBOARD_ALLOW_NO_ORIGIN         // Allow requests without Origin header
-THINKBOX_ALLOWED_ORIGINS          // CORS origins (comma-separated)
+DASHBOARD_ALLOW_NO_ORIGIN         // Allow requests without Origin header (server.ts only)
+KUDBEE_URL                        // Full server URL (CLI only, not server.ts)
 ```
 
 **Initialization in server.ts:**
 ```typescript
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 
-// Loopback gating
+// Loopback gating (hardcoded host 127.0.0.1)
 if (!(isAllowedHost(req.headers.host, PORT_NUM) && 
       (isAllowedOrigin(origin, PORT_NUM) || 
        (!origin && process.env.DASHBOARD_ALLOW_NO_ORIGIN === '1')))) 
   return false;
+```
+
+**Initialization in cli.ts:**
+```typescript
+const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 ```
 
 **Test Impact:** Tests spawn server on dynamic port; set PORT explicitly.
@@ -326,9 +328,13 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     
     // Isolation for parallel tests
-    threads: true,
-    maxThreads: 4,
-    isolate: true,  // Each test in own context
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        maxThreads: 4,
+        minThreads: 1,
+      },
+    },
     
     // Environment setup per test
     setupFiles: ['tests/setup-env.ts'],  // Set test env vars
@@ -354,22 +360,25 @@ export default defineConfig({
 **Test setup file (tests/setup-env.ts):**
 
 ```typescript
-import { beforeEach, afterEach } from 'vitest'
+import { beforeEach, afterEach, describe } from 'vitest'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
+import { randomUUID } from 'crypto'
 
 // Create isolated temp directories per test
 let testDataDir: string
 
-beforeEach(async (context) => {
-  testDataDir = path.join(os.tmpdir(), `vitest-${context.task.name}`)
+beforeEach(async () => {
+  // Use test run ID for uniqueness (context.task.name not exposed in beforeEach)
+  const runId = randomUUID().split('-')[0]
+  testDataDir = path.join(os.tmpdir(), `vitest-${runId}`)
   fs.mkdirSync(testDataDir, { recursive: true })
   
   // Set test env vars
   process.env.KUDBEE_DATA_DIR = testDataDir
   process.env.KUDBEE_WORKSPACE_DIR = path.join(testDataDir, 'workspaces')
-  process.env.PORT = String(3000 + Math.random() * 1000) // Avoid port conflicts
+  process.env.PORT = String(3000 + Math.floor(Math.random() * 1000)) // Avoid port conflicts (integer)
   process.env.THINKBOX_EMBEDDINGS = 'off'  // Disable expensive feature
   process.env.INCEPTION_API_KEY = 'test-key'  // Mock
 })

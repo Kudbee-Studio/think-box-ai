@@ -80,9 +80,13 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     exclude: ['node_modules'],
     reporter: ['verbose'],
-    threads: true,
-    maxThreads: 4,
-    minThreads: 1,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        maxThreads: 4,
+        minThreads: 1,
+      },
+    },
   },
   resolve: {
     alias: {
