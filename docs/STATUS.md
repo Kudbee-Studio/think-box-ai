@@ -1,4 +1,10 @@
 # STATUS — Think Box AI
+## CURRENT (2026-10-03) — Phase 3 item 4: redacting live-proof bundle builder (branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
+
+- **CODE COMPLETE / TEST VERIFIED:** `thinkbox/live_proof_bundle.py` validates a raw governed `upcloud-ssh` artifact/receipt/checkpoint, re-hashes the artifact, redacts and refuses secrets, writes a committed bundle + Markdown; `scripts/run_live_proof_bundle.py` runs one exactly-allowed command then builds the bundle. 17/17 hermetic tests.
+- **UNPROVEN:** the bundle from a real worker-02 run — this worktree's `UPCLOUD_SERVER_IP` is the dead host `212.147.250.183` and the SSH key path does not exist. **Not LIVE VERIFIED. NOT PRODUCTION READY.**
+- **Evidence:** `docs/evidence/pr340-live-proof-bundle.md`.
+
 ## CURRENT (2026-10-02) — ADR 029 P3.3 (branch `feat/adr029-p3-proof-relationships`, draft PR **#315**)
 
 - **CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED (bounded):** held-out retrieval 6/8 hit@1, 7/8 hit@3; held-out A/B $0.069; pooled P31+P33 not significant; Janus opt-in + CVE; reduced-motion browser; push audit. Web **380/380**.

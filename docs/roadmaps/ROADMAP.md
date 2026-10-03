@@ -167,8 +167,9 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
    hidden buttons honoured, layout and scrolling fixed at desktop, tablet and phone widths
 3. ⏭ **SSH hardening for worker-02:** pin the host key (replace `StrictHostKeyChecking=accept-new`),
    and use a non-root SSH user
-4. ⏭ **Committed live-proof bundle:** redacted receipt/artifact/checkpoint from a real worker-02 run, so
-   LIVE VERIFIED claims are independently checkable
+4. 🔨 **Committed live-proof bundle:** redacting builder + operator runner shipped (#340); the bundle from a
+   real worker-02 run is UNPROVEN (worktree has the dead host + no key). Run
+   `python3 scripts/run_live_proof_bundle.py --command hostname` with worker-02 env, then commit `docs/evidence/live-proof/`
 5. ⏭ **Think Token (#288):** decide whether to wire the learning library into `AgentSession` (changes
    agent prompts)
 6. ⏭ **Git panel browser test** (`/api/git`, mounted and hardened in #289)

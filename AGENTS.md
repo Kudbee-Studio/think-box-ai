@@ -3044,3 +3044,13 @@ Local CodeQL (`python-security-extended`, 41 findings) and `bandit -lll -iii`; f
 - Not in this PR: the KILO gate chain (next PR: gates evaluated once per call, the CI manifest that #308 made untrue, the lint lane) and 6 functions over 60 lines that the Power of 10 ratchet reports.
 - If `pytest tests/unit` dies with `INTERNALERROR ... NoneType - int`, a `pytest-timeout` signal interrupted a slow test at a bad moment (Python 3.11); run the files that mention KILO in their own processes.
 - Running the suite: `pip install -e .[dev,test] pytest-timeout`, activate the virtualenv (KILO tests start `python3` from `PATH`), then `pytest tests/unit --timeout=60`.
+
+## Redacting live-proof bundle builder (Phase 3 item 4, PR #340)
+
+The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/checkpoint from a real governed `upcloud-ssh` run, so LIVE VERIFIED claims are independently checkable.
+
+- `thinkbox/live_proof_bundle.py` turns a raw run into that bundle: it re-hashes the artifact against `receipt.artifact_hash`, requires `status == COMPLETED` and `verified`, checks the provider is `upcloud-ssh`, copies only an allow-list of artifact fields, drops absolute paths and `remote_user`, and refuses any private-key block, bearer token, API key, Upstash token or `.ssh/` path. It writes a bundle JSON plus a Markdown summary under `docs/evidence/live-proof/`.
+- `scripts/run_live_proof_bundle.py` is the one-command operator runner: it runs exactly one of the six allow-listed read-only commands through the committed `UpCloudSSHExecutionAdapter` (PR #282), then builds the bundle. No new execution path, endpoint or dependency.
+- Tests: `python3 -m unittest tests.unit.test_live_proof_bundle` → 17/17 OK; 40/40 with the SSH provider and adapter suites.
+- **UNPROVEN:** the bundle from a real worker-02 run. This worktree's `UPCLOUD_SERVER_IP` is the historical dead host `212.147.250.183` and `UPCLOUD_SSH_KEY_PATH=~/.ssh/kilo-upcloud` does not exist (key purged in PR #271). The runner fails closed with `upcloud-ssh not configured`. To produce the real bundle, set the worker-02 env and run `python3 scripts/run_live_proof_bundle.py --command hostname`, then commit `docs/evidence/live-proof/`.
+- Evidence: `docs/evidence/pr340-live-proof-bundle.md`. FOUR-STATE: CODE COMPLETE / TEST VERIFIED; not LIVE VERIFIED; not PRODUCTION READY.
