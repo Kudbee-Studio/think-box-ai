@@ -1,0 +1,23 @@
+# CodeQL 2.27.1, codeql/python-queries python-code-scanning.qls, one database per tree (database create --language=python, database analyze).
+# main 253e7154 against this branch 1e4690c8; compared by (rule, file, primaryLocationLineHash). SARIF of this branch: codeql-pr340-python.sarif
+
+base 17 alerts, head 17 alerts; new (by rule, file, fingerprint): 0; gone: 0
+by rule (head): {'py/sql-injection': 2, 'py/clear-text-logging-sensitive-data': 4, 'py/clear-text-storage-sensitive-data': 1, 'py/insecure-protocol': 2, 'py/path-injection': 7, 'py/command-line-injection': 1}
+
+# --- script (sarif_cmp.py) ---
+import json, sys, collections
+def load(p):
+    d = json.load(open(p)); out = []
+    for run in d["runs"]:
+        for r in run.get("results", []):
+            loc = r["locations"][0]["physicalLocation"]
+            out.append((r["ruleId"], loc["artifactLocation"]["uri"], r.get("partialFingerprints", {}).get("primaryLocationLineHash", "?"), loc["region"].get("startLine"), r["message"]["text"][:110]))
+    return out
+base, head = load(sys.argv[1]), load(sys.argv[2])
+bk = collections.Counter((a, b, c) for a, b, c, _, _ in base); hk = collections.Counter((a, b, c) for a, b, c, _, _ in head)
+new = [h for h in head if hk[(h[0], h[1], h[2])] > bk[(h[0], h[1], h[2])]]
+gone = [b for b in base if bk[(b[0], b[1], b[2])] > hk[(b[0], b[1], b[2])]]
+print(f"base {len(base)} alerts, head {len(head)} alerts; new (by rule, file, fingerprint): {len(new)}; gone: {len(gone)}")
+for n in new: print("  NEW ", n)
+for g in gone: print("  GONE", g)
+print("by rule (head):", dict(collections.Counter(h[0] for h in head)))

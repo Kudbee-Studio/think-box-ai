@@ -1,0 +1,110 @@
+# One KILO spine_contract_summary() on main (253e7154; the KILO modules are the same as at 83424359), under cProfile.
+# Profile taken with kilo_prof_save.py, analysed with kilo_prof_analyze.py (both below). "Self-time" is the time spent in a
+# function's own code, not in what it calls, so the categories add up to the total and nothing is counted twice.
+
+total self-time: 197.7s (224,540,958 calls)
+
+SELF-TIME BY CATEGORY
+     38.2s  19.3%  gate logic: thinkbox/kilo_*.py own code
+     35.6s  18.0%  filesystem I/O (open/read/stat/path handling)
+     34.6s  17.5%  persistence: SQLite (execute/executescript/connect)
+     27.3s  13.8%  interpreter/builtins (isinstance, len, dict/list ops, ...)
+     21.8s  11.0%  serialization: json encode/decode
+     15.1s   7.6%  documentation scanning: regex over doc text
+     12.3s   6.2%  environment: os.environ lookups
+     11.8s   6.0%  support modules: thinkbox/* (non-gate)
+      1.1s   0.6%  network
+      0.0s   0.0%  subprocesses
+
+TOP 12 FUNCTIONS BY SELF-TIME
+    18.8s   9.5%     69,552 calls  ~:0(<method 'executescript' of 'sqlite3.Connection' objects>)
+    12.8s   6.5%    704,559 calls  ~:0(<method 'search' of 're.Pattern' objects>)
+    11.5s   5.8%  1,201,291 calls  ~:0(<method 'execute' of 'sqlite3.Connection' objects>)
+     8.0s   4.0%    936,303 calls  json/encoder.py:205(iterencode)
+     5.4s   2.7%    638,248 calls  ~:0(<built-in method io.open>)
+     4.8s   2.4%  6,918,155 calls  <frozen os>:674(__getitem__)
+     4.6s   2.3%  1,340,869 calls  pathlib.py:56(parse_parts)
+     3.5s   1.8%    782,900 calls  json/decoder.py:343(raw_decode)
+     3.1s   1.6%  1,091,790 calls  ~:0(<built-in method posix.stat>)
+     3.0s   1.5%  6,918,155 calls  <frozen os>:756(encode)
+     2.8s   1.4%     70,709 calls  thinkbox/kilo_env_matrix.py:327(_check_forbidden_public_bind)
+     2.6s   1.3%  11,236,842 calls  <frozen os>:760(decode)
+
+GATE FUNCTIONS EXECUTED: 176 distinct, 376,591 executions in one spine_contract_summary()
+  evaluate_* : 47 distinct, 179,526 executions -> 3820 per gate on average
+  most re-evaluated evaluate_* functions:
+     54,426 x  evaluate_env_matrix   (own 0.02 ms/call, cumulative 0.3 ms/call)
+     15,086 x  evaluate_substrate_checklist   (own 0.01 ms/call, cumulative 0.3 ms/call)
+     15,084 x  evaluate_governance_evidence   (own 0.01 ms/call, cumulative 0.7 ms/call)
+      7,739 x  evaluate_proof_schema   (own 0.02 ms/call, cumulative 8.7 ms/call)
+      7,735 x  evaluate_dashboard_slots   (own 0.01 ms/call, cumulative 11.0 ms/call)
+      7,531 x  evaluate_live_proof_exec   (own 0.02 ms/call, cumulative 12.2 ms/call)
+  sum of per-call cumulative cost over the 47 distinct evaluate_* functions (upper bound for one pass, double counts nesting): 222.3s
+
+# What the categories are, checked in the profile rather than assumed
+#   network 1.1 s     urllib.parse only: urlparse/_hostinfo/hostname/_coerce_args, 188,688 calls each, re-parsing the same URL
+#                     strings. No socket or connect function was called; all 75 live_api_called values in the summary are False.
+#   subprocesses 0.0  nothing was spawned. The nested-e2e gate only asks whether it is enabled (nested_e2e_unittest_enabled,
+#                     3,655 calls); the lint lane runs only when KILO_BEYOND_KILO_LINT_EXECUTE=1.
+#   SQLite 34.6 s     the _migrate() of five local stores (flightrecorder 26,082 runs, experiments 17,388, metrics 8,694,
+#                     memory_evolution 8,694, reputation 8,694; 69,552 executescript calls in all), run by the hermetic
+#                     checks every time a gate body executes.
+#   doc scanning 15.1 s   regex search over documentation text (704,559 searches).
+#
+# Necessary versus redundant: one pass over the 176 distinct gate functions is necessary; everything else is the same
+# gate evaluated again with the same inputs. 376,591 executions of which 319 are the first for their inputs (below):
+# 99.92% of the gate executions are repeats; the same call took 197.7 s of self-time under the profiler before and takes
+# 1.1 s of wall time under the same profiler after (99.4% less).
+# Top five contributors, in order: sqlite executescript 18.8 s (9.5%), re.search 12.8 s (6.5%), sqlite execute 11.5 s
+# (5.8%), json iterencode 8.0 s (4.0%), io.open 5.4 s (2.7%). None of them is slow per call; each is called 10^5-10^6 times.
+
+# --- scripts ---
+## kilo_prof_save.py
+import cProfile, time
+from thinkbox import kilo_live_proof_readiness as spine
+pr = cProfile.Profile(); t = time.time(); pr.enable()
+summary = spine.spine_contract_summary()
+pr.disable(); pr.dump_stats("./kilo-spine.prof")
+print(f"wall {time.time()-t:.1f}s; summary keys: {len(summary)}")
+
+## kilo_prof_analyze.py
+import pstats, re, collections, sys
+st = pstats.Stats(sys.argv[1])
+rows = []   # (file, line, name, cc, nc, tt, ct)
+for (f, l, n), (cc, nc, tt, ct, callers) in st.stats.items():
+    rows.append((f, l, n, cc, nc, tt, ct))
+total_self = sum(r[5] for r in rows)
+def cat(f, n):
+    if "sqlite3" in n or "sqlite" in f: return "persistence: SQLite (execute/executescript/connect)"
+    if "'search' of 're.Pattern'" in n or "'match' of 're.Pattern'" in n or "'sub' of 're.Pattern'" in n or "'finditer'" in n or "'findall'" in n or f.endswith("/re/__init__.py") or "/re/_" in f or f.endswith("re.py") or "sre_" in f or "_compile" in n and "re" in f:
+        return "documentation scanning: regex over doc text"
+    if "/json/" in f or "json" in n.lower() and "built-in" in n: return "serialization: json encode/decode"
+    if "<frozen os>" in f or "os.environ" in n: return "environment: os.environ lookups"
+    if "io.open" in n or "posix." in n or "pathlib" in f or "genericpath" in f or "posixpath" in f or "io.TextIOWrapper" in n or "_io." in n or "FileIO" in n:
+        return "filesystem I/O (open/read/stat/path handling)"
+    if "subprocess" in f or "subprocess" in n: return "subprocesses"
+    if "socket" in f or "urllib" in f or "http" in f or "ssl" in f: return "network"
+    if "/thinkbox/kilo_" in f: return "gate logic: thinkbox/kilo_*.py own code"
+    if "/thinkbox/" in f: return "support modules: thinkbox/* (non-gate)"
+    return "interpreter/builtins (isinstance, len, dict/list ops, ...)"
+bycat = collections.Counter()
+for f, l, n, cc, nc, tt, ct in rows: bycat[cat(f, n)] += tt
+print(f"total self-time: {total_self:.1f}s ({st.total_calls:,} calls)\n")
+print("SELF-TIME BY CATEGORY")
+for c, t in bycat.most_common(): print(f"  {t:7.1f}s {100*t/total_self:5.1f}%  {c}")
+print("\nTOP 12 FUNCTIONS BY SELF-TIME")
+for f, l, n, cc, nc, tt, ct in sorted(rows, key=lambda r: -r[5])[:12]:
+    short = f.split("/site-packages/")[-1].split("/think-box-ai/")[-1].split("/lib/python3.11/")[-1]
+    print(f"  {tt:6.1f}s {100*tt/total_self:5.1f}%  {nc:>9,} calls  {short}:{l}({n})")
+# gate functions
+GATE = re.compile(r"^(hermetic_.*_check|evaluate_.*|.*_contract_summary|.*_gate_closed)$")
+gates = [(f, n, nc, tt, ct) for f, l, n, cc, nc, tt, ct in rows if "/thinkbox/kilo_" in f and GATE.match(n)]
+ev = [g for g in gates if g[1].startswith("evaluate_")]
+print(f"\nGATE FUNCTIONS EXECUTED: {len(gates)} distinct, {sum(g[2] for g in gates):,} executions in one spine_contract_summary()")
+print(f"  evaluate_* : {len(ev)} distinct, {sum(g[2] for g in ev):,} executions -> {sum(g[2] for g in ev)/max(1,len(ev)):.0f} per gate on average")
+print("  most re-evaluated evaluate_* functions:")
+for f, n, nc, tt, ct in sorted(ev, key=lambda g: -g[2])[:6]:
+    print(f"    {nc:>7,} x  {n}   (own {tt/nc*1000:.2f} ms/call, cumulative {ct/nc*1000:.1f} ms/call)")
+# estimated work if each distinct evaluate ran once = sum over distinct of (cumulative per call) is double counting; use own time per call x1 plus callee categories unknown -> use cumulative of leaf-most only
+dist_cost = sum(g[4]/g[2] for g in ev if g[2] > 0)
+print(f"  sum of per-call cumulative cost over the {len(ev)} distinct evaluate_* functions (upper bound for one pass, double counts nesting): {dist_cost:.1f}s")

@@ -1,0 +1,203 @@
+# What can a KILO gate read or change, and how do the tests treat it? Inspected before the cache was designed (this branch's tree).
+# Two AST scans (scripts below) over thinkbox/kilo_*.py and over every test that mentions KILO.
+
+## 1. Statements that change something outside their function (kilo_purity_reach.py)
+605 functions in thinkbox/kilo_*.py; 220 are @evaluated_once gates; 576 are reachable from a gate
+9 functions contain such a statement:
+  kilo_governance_evidence._iso_timestamp: ['datetime.now']; gate=False; reachable from a gate=True
+  kilo_hermetic_subprocess.enable_nested_e2e_unittest: ['os.environ[...] =']; gate=False; reachable from a gate=False
+  kilo_hermetic_subprocess.run_bounded_command: ['Popen', 'subprocess.Popen']; gate=False; reachable from a gate=True
+  kilo_live_proof_readiness._spine_fast_mode_context: ['os.environ.pop', 'os.environ[...] =']; gate=False; reachable from a gate=True
+  kilo_live_smoke_operator._hermetic_roundtrip_write: ['unlink() on a path']; gate=False; reachable from a gate=True
+  kilo_live_smoke_operator.default_artifact_path: ['datetime.now']; gate=False; reachable from a gate=True
+  kilo_live_smoke_operator.run_operator_fixture_suite: ['unlink() on a path']; gate=False; reachable from a gate=True
+  kilo_live_smoke_operator.write_audit_flip_candidate_file: ['mkdir() on a path', 'write_text() on a path']; gate=False; reachable from a gate=True
+  kilo_live_smoke_operator.write_smoke_evidence_artifact: ['mkdir() on a path', 'write_text() on a path']; gate=False; reachable from a gate=True
+
+## 2. The tests that exercise the gates (kilo_purity_inventory.py, last block)
+tests that mention KILO: 112 files
+   mock.patch / patch.object / monkeypatch: 6 uses in 5 files
+   patch.dict(os.environ ...): 2 uses in 1 files
+   importlib.reload / sys.modules edits: 0 uses in 0 files
+   temp dirs and files: 78 uses in 6 files
+   writes a file the gate reads (write_text/write_bytes): 0 uses in 0 files
+   call-count assertions: 1 uses in 1 files
+
+The uses of patching in the tests that existed before this PR, in full:
+  tests/unit/test_beyond_kilo_lint.py:59                  patch of beyond_kilo_lint.detect_lint_tool -> None (a lint tool "missing")
+  tests/unit/test_kilo_live_proof_readiness_pr153.py:34   patch of kilo_live_smoke_operator.hermetic_live_smoke_evidence_operator_check
+                                                          -> Mock(ok=False), around one evaluate_live_smoke_operator() call
+No test reloads a module, edits sys.modules, or writes a file for a gate to read. 78 temp-dir uses in 6 files build private
+roots (the live-smoke operator's writers take a path). The counts in block 2 include this PR's own new tests.
+
+## What this decided
+1. Nine of 605 functions have effects, none of them a gate (gate=False in every row). Four are the live-smoke operator's file
+   helpers: two write an artifact and an audit-flip candidate (under data/thinkboxmd/artifacts/ and next to the audit prior
+   pass), the two that call them (the round-trip and the fixture suite) delete what was written before returning. One starts a
+   bounded subprocess (run_bounded_command), one sets KILO_SPINE_FAST and restores it in try/finally, two read the clock
+   (_iso_timestamp, and the stamp in default_artifact_path's file name) and one sets an environment variable and is not
+   reachable from any gate (enable_nested_e2e_unittest). A gate's verdict therefore depends on repository files and the
+   environment, and on nothing that a sibling gate leaves behind.
+2. The SQLite behind the profile's 34.6 s is not shared state: swarm_instrumentation_checks builds every store with
+   ":memory:" (FlightRecorder, MetricsStore, MemoryEvolution, ReputationLedger, ExperimentStore), once per check.
+3. Tests patch module attributes and REPO_ROOT around a single outermost call. So the cache must not outlive that call, or a
+   test (or an operator editing a file between two runs) would be answered from an earlier verdict. That excludes a
+   process-wide memo, which is what kilo_hermetic_gate_memo.py was: keyed by gate id and environment, "unless cleared", and
+   cleared by one test file only. It is deleted; test_kilo_gate_staleness.py shows a verdict following a REPO_ROOT change.
+4. The environment is part of the key (KILO_SPINE_FAST is set and restored inside a call, and helpers read os.environ
+   directly, not only their `environ` argument), arguments are part of the key, results are copied on the way out (a caller
+   that edits a returned dict must not change what a later caller receives), an exception is never cached, and an argument
+   that cannot be keyed makes the call run directly.
+
+# --- scripts ---
+## kilo_purity_reach.py
+"""Every statement in thinkbox/kilo_*.py that can change something outside the function: writes a file, deletes or moves one,
+sets the environment, starts a process, opens a database or a socket, reads the clock or a random source.
+For each: the enclosing function, whether it is an @evaluated_once gate, and whether any gate can reach it (name-based call
+graph over all kilo_* modules, so it over-reports rather than misses)."""
+import ast, collections, pathlib
+
+root = pathlib.Path("thinkbox")
+PATH_WRITERS = {"write_text", "write_bytes", "unlink", "mkdir", "rmdir", "touch", "rename", "chmod", "symlink_to"}
+OS_WRITERS = {"remove", "rename", "replace", "makedirs", "mkdir", "chmod", "putenv", "unsetenv", "system", "unlink", "rmdir"}
+ENV_WRITERS = {"update", "pop", "clear", "setdefault", "popitem"}
+funcs = {}
+for path in sorted(root.glob("kilo_*.py")):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.FunctionDef):
+            deco = {getattr(d, "id", getattr(d, "attr", None)) for d in node.decorator_list}
+            funcs[(path.stem, node.name)] = (node, "evaluated_once" in deco)
+
+def effects(node):
+    found = set()
+    for c in ast.walk(node):
+        if isinstance(c, ast.Call):
+            f = c.func
+            name = f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else None)
+            owner = ast.unparse(f.value) if isinstance(f, ast.Attribute) else ""
+            if name in PATH_WRITERS and owner not in {"os"} and not owner.startswith(("os.", "str")):
+                found.add(f"{name}() on a path")
+            if owner == "os" and name in OS_WRITERS: found.add(f"os.{name}")
+            if owner == "os.environ" and name in ENV_WRITERS: found.add(f"os.environ.{name}")
+            if owner.split(".")[0] in {"shutil", "tempfile", "subprocess", "socket", "urllib", "random", "uuid"}: found.add(f"{owner}.{name}")
+            if name in {"Popen", "mkdtemp", "mkstemp", "TemporaryDirectory", "NamedTemporaryFile", "urlopen", "uuid4"}: found.add(name)
+            if owner == "sqlite3" and name == "connect": found.add("sqlite3.connect")
+            if owner in {"datetime", "datetime.datetime"} and name in {"now", "utcnow"}: found.add(f"{owner}.{name}")
+            if owner == "time" and name in {"time", "sleep", "monotonic", "perf_counter"}: found.add(f"time.{name}")
+            if name == "open" and (owner in {"", "io", "Path"} or owner.endswith(("path", "Path", "p"))):
+                mode = ""
+                if len(c.args) >= 2 and isinstance(c.args[1], ast.Constant): mode = str(c.args[1].value)
+                for kw in c.keywords:
+                    if kw.arg == "mode" and isinstance(kw.value, ast.Constant): mode = str(kw.value.value)
+                if any(ch in mode for ch in "wax+"): found.add(f"open(mode={mode!r})")
+        if isinstance(c, ast.Assign):
+            for t in c.targets:
+                if isinstance(t, ast.Subscript) and ast.unparse(t.value) == "os.environ": found.add("os.environ[...] =")
+                if isinstance(t, ast.Attribute) and ast.unparse(t).startswith(("os.", "sys.")): found.add(f"assigns {ast.unparse(t)}")
+        if isinstance(c, ast.Delete):
+            for t in c.targets:
+                if isinstance(t, ast.Subscript) and ast.unparse(t.value) == "os.environ": found.add("del os.environ[...]")
+        if isinstance(c, ast.Global): found.add("global " + ",".join(c.names))
+    return found
+
+names = collections.defaultdict(list)
+for k in funcs: names[k[1]].append(k)
+calls_of = {k: {(c.func.id if isinstance(c.func, ast.Name) else c.func.attr) for c in ast.walk(n) if isinstance(c, ast.Call) and isinstance(c.func, (ast.Name, ast.Attribute))} for k, (n, _) in funcs.items()}
+def reach(start):
+    seen, stack = set(), [start]
+    while stack:
+        k = stack.pop()
+        if k in seen: continue
+        seen.add(k); [stack.extend(names.get(n, ())) for n in calls_of.get(k, ())]
+    return seen
+gates = [k for k, (_, g) in funcs.items() if g]
+reachable = set().union(*(reach(g) for g in gates))
+print(f"{len(funcs)} functions in thinkbox/kilo_*.py; {len(gates)} are @evaluated_once gates; {len(reachable)} are reachable from a gate")
+rows = []
+for k, (node, is_gate) in sorted(funcs.items()):
+    e = effects(node)
+    if e: rows.append((k, e, is_gate, k in reachable))
+print(f"{len(rows)} functions contain such a statement:")
+for (m, n), e, g, r in rows:
+    print(f"  {m}.{n}: {sorted(e)}; gate={g}; reachable from a gate={r}")
+
+## kilo_purity_inventory.py
+"""What can a KILO gate read or change? (AST scan of thinkbox/kilo_*.py, and of the tests that exercise them)."""
+import ast, collections, pathlib, re, sys
+
+root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+MUTATORS = {
+    "write_text": "writes a file", "write_bytes": "writes a file", "mkdir": "creates a directory", "unlink": "deletes a file",
+    "rmtree": "deletes a tree", "remove": "deletes a file", "rename": "moves a file", "replace": "moves a file", "touch": "creates a file",
+    "chmod": "changes permissions", "putenv": "sets an environment variable", "setdefault": "env/dict write", "popen": "starts a process",
+    "run": "starts a process", "check_output": "starts a process", "Popen": "starts a process", "connect": "opens a connection",
+    "urlopen": "network", "mkdtemp": "temp dir", "mkstemp": "temp file", "TemporaryDirectory": "temp dir", "NamedTemporaryFile": "temp file",
+    "reload": "reloads a module", "now": "reads the clock", "utcnow": "reads the clock", "time": "reads the clock", "uuid4": "random", "random": "random",
+}
+NOT_MUTATING_NAMES = {"run": {"run_fixture_suite", "run_tool"}}  # filled by inspection only where the name is ambiguous
+
+gate_re = re.compile(r"^(hermetic_.*_check|evaluate_.*|.*_contract_summary|.*_gate_closed)$")
+by_kind = collections.defaultdict(lambda: collections.defaultdict(set))
+gate_modules = 0
+env_writes = []
+globals_written = []
+for path in sorted((root / "thinkbox").glob("kilo_*.py")):
+    if path.name == "kilo_eval_scope.py":
+        continue
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    if any(isinstance(n, ast.FunctionDef) and gate_re.match(n.name) for n in tree.body):
+        gate_modules += 1
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            f = node.func
+            name = f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else None)
+            owner = ast.unparse(f.value) if isinstance(f, ast.Attribute) else ""
+            if name in MUTATORS:
+                # `run`/`time`/`replace`/`remove`/`connect`/`now` are only counted on the owners that really do it
+                if name in {"run", "check_output", "Popen", "popen"} and not owner.startswith(("subprocess", "sp")):
+                    continue
+                if name in {"time", "now", "utcnow"} and not (owner in {"time", "datetime", "datetime.datetime", "dt"}):
+                    continue
+                if name in {"replace", "remove"} and owner in {"", "str"} :
+                    continue
+                if name in {"replace"} and not owner.endswith(("Path", "path", "p", "target", "tmp", "dest")) and "Path" not in owner:
+                    continue
+                if name == "connect" and "sqlite3" not in owner:
+                    continue
+                if name == "random" and not owner.startswith("random"):
+                    continue
+                by_kind[MUTATORS[name]][path.name].add(f"{owner + '.' if owner else ''}{name}")
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Subscript) and ast.unparse(t.value) in {"os.environ"}:
+                    env_writes.append(path.name)
+        if isinstance(node, ast.Global):
+            globals_written.append((path.name, node.names))
+print(f"thinkbox/kilo_*.py: {len(list((root / 'thinkbox').glob('kilo_*.py')))} modules, {gate_modules} with gate functions")
+print(f"os.environ[...] = ... in any KILO module: {len(env_writes)}   `global` statements: {len(globals_written)}")
+for kind in sorted(by_kind):
+    mods = by_kind[kind]
+    print(f"\n{kind}: {len(mods)} modules")
+    for m, calls in sorted(mods.items())[:40]:
+        print(f"   {m}: {', '.join(sorted(calls))}")
+
+# the tests
+patch = collections.Counter(); files = collections.defaultdict(set)
+pat = {
+    "mock.patch / patch.object / monkeypatch": re.compile(r"\b(mock\.patch|patch\.object|monkeypatch\.)"),
+    "patch.dict(os.environ ...)": re.compile(r"patch\.dict\(\s*os\.environ|monkeypatch\.(setenv|delenv)"),
+    "importlib.reload / sys.modules edits": re.compile(r"importlib\.reload|sys\.modules\["),
+    "temp dirs and files": re.compile(r"tempfile\.|tmp_path|TemporaryDirectory"),
+    "writes a file the gate reads (write_text/write_bytes)": re.compile(r"\.write_text\(|\.write_bytes\("),
+    "call-count assertions": re.compile(r"call_count|assert_called|assert_not_called|assertEqual\(len\(calls\)"),
+}
+tests = [p for p in sorted((root / "tests").rglob("test_*.py")) if "kilo" in p.read_text(encoding="utf-8", errors="replace").lower()]
+for p in tests:
+    text = p.read_text(encoding="utf-8", errors="replace")
+    for label, rx in pat.items():
+        n = len(rx.findall(text))
+        if n:
+            patch[label] += n; files[label].add(p.name)
+print(f"\ntests that mention KILO: {len(tests)} files")
+for label in pat:
+    print(f"   {label}: {patch[label]} uses in {len(files[label])} files")

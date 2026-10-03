@@ -1,0 +1,105 @@
+# The beyond-KILO lint lane (PR #170, scope waves #174 and #175): ruff check, ruff format --check, mypy --follow-imports=skip,
+# bandit -q -r ... -c pyproject.toml, over the 38 modules in LINT_SCOPE_REL_PATHS. Pinned in pyproject: ruff 0.16.9, bandit 1.9.4.
+# Run the way the lane runs it (beyond_kilo_lint.execute_beyond_kilo_lint_suite with KILO_BEYOND_KILO_LINT_EXECUTE=1 CI=1), then
+# counted per tool (lint_counts.sh). Same virtualenv, same tool versions, both trees.
+
+## main 253e7154: the lane's own report
+scope: 38 modules
+ruff: ok=False skipped=False returncode=1
+  12 output lines; first 6:
+    SIM103 Return the condition directly
+       --> thinkbox/beyond_kilo_lint.py:109:5
+        |
+    107 |       if _is_truthy(environ.get("CI")):
+    108 |           return True
+    109 | /     if _is_truthy(environ.get("KILO_BEYOND_KILO_LINT_REQUIRE_TOOLS")):
+mypy: ok=True skipped=False returncode=0
+bandit: ok=False skipped=False returncode=1
+  7 output lines; first 6:
+    Run started:2026-10-03 08:52:38.956389+00:00
+    Test results:
+    >> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+       Severity: Medium   Confidence: Medium
+       CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
+       More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b104_hardcoded_bind_all_interfaces.html
+violations: 2
+
+## main 253e7154: counted per tool
+scope: 38 modules
+--- ruff check: findings by rule
+      6 PIE810
+      5 SIM102
+      4 SIM103
+      3 S105
+      1 SIM110
+      1 S104
+      1 C416
+ruff check total: 21
+--- ruff format --check: 31 files would be reformatted, 7 files already formatted
+--- mypy --follow-imports=skip: Success: no issues found in 38 source files
+--- bandit: issues by test id
+   7 B105 hardcoded_password_string
+   1 B104 hardcoded_bind_all_interfaces
+   1 B404 blacklist
+   1 B603 subprocess_without_shell_equals_true
+bandit total: 10
+
+## this branch 1e4690c8: the lane's own report
+scope: 38 modules
+ruff: ok=True skipped=False returncode=0
+mypy: ok=True skipped=False returncode=0
+bandit: ok=True skipped=False returncode=0
+violations: 0
+
+## this branch 1e4690c8: counted per tool
+scope: 38 modules
+--- ruff check: findings by rule
+ruff check total: 0
+--- ruff format --check: 38 files already formatted
+--- mypy --follow-imports=skip: Success: no issues found in 38 source files
+--- bandit: issues by test id
+bandit total: 0
+
+# Why nobody saw it: the lane stops at the first failing tool, and ruff check fails first, so main's 31 unformatted files never
+# showed (ruff format --check is run only when ruff check passes). The tests that run the lane (test_kilo_beyond_kilo_lint.py,
+# the pr170/pr174/pr175 spine tests) sit behind the 60 s spine timeouts. It went red when #280 widened the ruff rule set
+# (2026-09-29, SIM added) and nothing re-ran it after #308 took the KILO steps out of CI; the tool versions did not change.
+# The 21 ruff findings are rewritten with the same behavior (merged conditions, `return cond`, any(...), startswith((a, b)),
+# dict(os.environ)) except where the rule is a false positive: S104 in a check that forbids "0.0.0.0" and S105 on a path glob
+# and an env var name carry a reason, noqa and nosec.
+# Bandit's 10: B105 x7 (a string-keyed "token_*" identity map, now a frozenset allow-list; a sample audit pass id "pr151", now
+# derived from _DEFAULT_AUDIT_PRIOR), B104 (as above), B404 and B603 (the bounded subprocess helper: nosec with its reason).
+
+# --- scripts ---
+## lint_lane.py
+"""Run the KILO beyond-lint lane (ruff check, ruff format --check, mypy, bandit over the 38-module scope) in this tree."""
+import os, sys
+from thinkbox import beyond_kilo_lint as lint
+env = {**os.environ, "KILO_BEYOND_KILO_LINT_EXECUTE": "1", "CI": "1"}
+results, violations = lint.execute_beyond_kilo_lint_suite(env)
+print(f"scope: {len(lint.LINT_SCOPE_REL_PATHS)} modules")
+for r in results:
+    print(f"{r.tool}: ok={r.ok} skipped={r.skipped} returncode={r.returncode}")
+    if not r.ok:
+        lines = [l for l in r.detail.splitlines() if l.strip()]
+        print(f"  {len(lines)} output lines; first 6:")
+        for l in lines[:6]: print("   ", l[:170])
+print(f"violations: {len(violations)}")
+
+## lint_counts.sh
+#!/usr/bin/env bash
+# usage: lint_counts.sh <tree>; counts what each lint-lane tool reports for the 38-module scope in that tree
+cd "$1"
+SCOPE=$(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. python -c "from thinkbox.beyond_kilo_lint import LINT_SCOPE_REL_PATHS as p; print(' '.join(p))")
+echo "scope: $(echo $SCOPE | wc -w) modules"
+echo "--- ruff check: findings by rule"
+ruff check $SCOPE --output-format=concise 2>/dev/null | grep -E '^[^ ]+:[0-9]+:[0-9]+: ' | sed -E 's/^[^ ]+ ([A-Z]+[0-9]+).*/\1/' | sort | uniq -c | sort -rn
+echo "ruff check total: $(ruff check $SCOPE --output-format=concise 2>/dev/null | grep -cE '^[^ ]+:[0-9]+:[0-9]+: ')"
+echo "--- ruff format --check: $(ruff format --check $SCOPE 2>&1 | tail -1)"
+echo "--- mypy --follow-imports=skip: $(mypy --follow-imports=skip $SCOPE 2>&1 | tail -1)"
+echo "--- bandit: issues by test id"
+bandit -q -r $SCOPE -c pyproject.toml -f json 2>/dev/null | python -c "
+import json,sys,collections
+d=json.load(sys.stdin); c=collections.Counter(r['test_id']+' '+r['test_name'] for r in d['results'])
+for k,v in c.most_common(): print(f'{v:4d} {k}')
+print('bandit total:', len(d['results']))"

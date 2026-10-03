@@ -1,0 +1,10 @@
+# The KILO test group on this branch (1e4690c8), one pytest process, virtualenv active:
+#   python -m pytest <the 106 files that mention KILO> <the 5 new test files> --timeout=120 -q
+# 868 passed, 0 failed, 0 errors, 0 skipped, 65.35 s. 111 test modules; the slowest single test 3.0 s.
+# (main, same group, one process per file at 20 s: 839 tests, 727 passed, 61 failed, 51 timed out; see
+#  ../pr339-python-unit-failures/kilo-group-main-vs-339.txt. 839 + the 29 new tests = 868.)
+........................................................................ [ 99%]
+....                                                                     [100%]
+868 passed in 65.35s (0:01:05)
+
+# slowest five tests (junit-kilo-final.xml): 3.03 s, 3.01 s, 2.93 s, 2.12 s, 2.04 s, all lint-lane or verify-script subprocess tests

@@ -1,0 +1,87 @@
+# Is the cached evaluation the same evaluation? The whole spine_contract_summary() dictionary, flattened to leaf values.
+# Three trees, one call each (kilo_dump_summary.py writes the JSON; summary_categorise.py compares):
+#   main        253e7154
+#   memo-only   main plus the two commits that add @evaluated_once (4ed7ccf3, 19a8f2d0) and nothing else
+#   this branch 1e4690c8 (memo-only plus the root-cause fixes)
+
+## main against memo-only: the cache changes no value
+byte-identical: 53341 bytes, kilo-summary-main340.json vs kilo-summary-memo340.json: 1274 and 1274 leaf values; 0 differ
+
+## main against this branch: every difference is a root-cause fix
+1274 leaf values on main, 1240 on this branch; 202 differ:
+    13  a prior-layer flag flips False -> True (*_ok)
+    72  verdict flips False -> True (gate_closed_default, hermetic_operator_ok)
+   103  a violation code disappears (hermetic_violation_codes)
+    14  listed individually below
+values that go from True to False: none
+gates whose verdict flips: 19
+
+listed individually:
+  beyond_kilo_lint_readiness.contract_snippet.scope_paths[3]: 'thinkbox/kilo_hermetic_gate_memo.py' -> 'thinkbox/kilo_eval_scope.py'
+  post_season_harden.ci_manifest_applies: '<absent>' -> False
+  pr166_combined_post165_lane.theme_c.bound_slots[0].occupancy: 'stale' -> 'bound'
+  pr166_combined_post165_lane.theme_c.bound_slots[1].occupancy: 'stale' -> 'bound'
+  pr166_combined_post165_lane.theme_c.bound_slots[2].occupancy: 'stale' -> 'bound'
+  pr166_combined_post165_lane.theme_c.bound_slots[3].occupancy: 'stale' -> 'bound'
+  pr167_combined_post166_lane.theme_c.bound_slots[0].occupancy: 'stale' -> 'bound'
+  pr167_combined_post166_lane.theme_c.bound_slots[1].occupancy: 'stale' -> 'bound'
+  pr167_combined_post166_lane.theme_c.bound_slots[2].occupancy: 'stale' -> 'bound'
+  pr167_combined_post166_lane.theme_c.bound_slots[3].occupancy: 'stale' -> 'bound'
+  pr168_combined_post167_lane.theme_c.bound_slots[0].occupancy: 'stale' -> 'bound'
+  pr168_combined_post167_lane.theme_c.bound_slots[1].occupancy: 'stale' -> 'bound'
+  pr168_combined_post167_lane.theme_c.bound_slots[2].occupancy: 'stale' -> 'bound'
+  pr168_combined_post167_lane.theme_c.bound_slots[3].occupancy: 'stale' -> 'bound'
+
+The 202 differences, read:
+  - 19 blocks of the summary (PR #151 post-season harden and the 18 layers built on it) flip from failing to passing; on this
+    branch none fails. On main the first failed with ci_workflow_missing_snippet (the six Python steps the manifest demands of a
+    workflow that has had no Python job since #308) and every later one reports its prior layer failed (post_season_layer_failed,
+    prior_docs_gate_failed, receipt_chain_etag_failed, ...). The 103 violation codes that disappear are that one failure
+    propagated up the chain.
+  - the 12 bound_slots occupancy values go 'stale' -> 'bound' for the same reason: occupancy is "bound" if the gate's hermetic
+    check passes, else "stale" (dashboard_pr165_gates_bind.slot_status_for_gate).
+  - post_season_harden.ci_manifest_applies is a new field (False: the workflow runs no Python).
+  - beyond_kilo_lint_readiness.contract_snippet.scope_paths[3] names the new module instead of the deleted memo module.
+  - nothing goes from True to False, and every other value in the summary is unchanged.
+  The PR #173 README check is not part of the spine summary; its fix is covered by test_kilo_pr173_readme_scope.py.
+
+# --- scripts ---
+## summary_categorise.py
+import json, re, collections, sys
+def flat(v, prefix=""):
+    if isinstance(v, dict):
+        for k in sorted(v): yield from flat(v[k], f"{prefix}.{k}" if prefix else k)
+    elif isinstance(v, list):
+        if not v: yield prefix, []
+        for i, x in enumerate(v): yield from flat(x, f"{prefix}[{i}]")
+    else: yield prefix, v
+a = dict(flat(json.load(open(sys.argv[1])))); b = dict(flat(json.load(open(sys.argv[2]))))
+diff = [(k, a.get(k, "<absent>"), b.get(k, "<absent>")) for k in sorted(set(a) | set(b)) if a.get(k, "<absent>") != b.get(k, "<absent>")]
+cat = collections.defaultdict(list)
+for k, x, y in diff:
+    leaf = k.split(".")[-1]
+    if leaf in ("gate_closed_default", "hermetic_operator_ok"): cat["verdict flips False -> True (gate_closed_default, hermetic_operator_ok)"].append((k, x, y))
+    elif leaf.startswith("hermetic_violation_codes"): cat["a violation code disappears (hermetic_violation_codes)"].append((k, x, y))
+    elif x is False and y is True and leaf.endswith(("_ok", "_layer_ok")): cat["a prior-layer flag flips False -> True (*_ok)"].append((k, x, y))
+    else: cat["listed individually below"].append((k, x, y))
+print(f"{len(a)} leaf values on main, {len(b)} on this branch; {len(diff)} differ:")
+for c, items in cat.items(): print(f"  {len(items):4d}  {c}")
+print("values that go from True to False:", [k for k, x, y in diff if x is True and y is False] or "none")
+print("gates whose verdict flips:", len({k.split('.')[0] for k, _, _ in cat['verdict flips False -> True (gate_closed_default, hermetic_operator_ok)']}))
+print("\nlisted individually:")
+for k, x, y in cat["listed individually below"]: print(f"  {k}: {x!r} -> {y!r}")
+
+## summary_diff.py
+import json, sys
+def flat(v, prefix=""):
+    if isinstance(v, dict):
+        for k in sorted(v): yield from flat(v[k], f"{prefix}.{k}" if prefix else k)
+    elif isinstance(v, list):
+        if not v: yield prefix, []
+        for i, x in enumerate(v): yield from flat(x, f"{prefix}[{i}]")
+    else: yield prefix, v
+a = dict(flat(json.load(open(sys.argv[1])))); b = dict(flat(json.load(open(sys.argv[2]))))
+keys = sorted(set(a) | set(b))
+diff = [(k, a.get(k, "<absent>"), b.get(k, "<absent>")) for k in keys if a.get(k, "<absent>") != b.get(k, "<absent>")]
+print(f"{sys.argv[1].split('/')[-1]} vs {sys.argv[2].split('/')[-1]}: {len(a)} and {len(b)} leaf values; {len(diff)} differ")
+for k, x, y in diff[:60]: print(f"   {k}: {str(x)[:80]!r} -> {str(y)[:80]!r}")

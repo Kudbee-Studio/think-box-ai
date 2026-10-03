@@ -1,0 +1,15 @@
+# The whole tests/unit suite as ONE pytest process on this branch (1e4690c8), virtualenv active:
+#   python -m pytest tests/unit --timeout=60 -q -p no:cacheprovider --tb=line
+# On main this could not be run as one process: the slow KILO spine tests hit pytest-timeout and, when its signal landed in a
+# certain place, Python 3.11 handed pytest a traceback frame with no line number and pytest died with INTERNALERROR
+# (TypeError ... NoneType - int) at about 39% (#338, and the first run of #339). Here the run passes that point and finishes.
+
+=========================== short test summary info ============================
+FAILED tests/unit/test_power_of_ten.py::TestRepoRatchet::test_no_new_violations
+1 failed, 4680 passed, 1 skipped, 3 xfailed, 17 warnings, 25 subtests passed in 117.51s (0:01:57)
+
+# the one failure is the Power of 10 ratchet (6 functions over 60 lines), the next PR:
+FAILED tests/unit/test_power_of_ten.py::TestRepoRatchet::test_no_new_violations
+
+# junit totals: tests=4710, failures=1, errors=0, skipped=4, time=117.497
+# slowest five tests: 3.1s TestCampaign::test_infinite_loop_mutant_counts_as_killed_by_timeout; 2.9s TestPr175LintScopeWave2Lane::test_beyond_kilo_lint_v3_execute; 2.9s TestPr174LintScopeWave1Lane::test_beyond_kilo_lint_still_passes_with_wave1; 2.9s TestPr170BeyondKiloLintLane::test_verify_script_exit_zero; 2.4s TestRecovery::test_half_open_recovery

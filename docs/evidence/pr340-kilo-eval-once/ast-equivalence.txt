@@ -1,0 +1,45 @@
+# The two mechanical commits change no program, only what they say. Compared with ast.dump before and after, docstring text
+# ignored (a formatter re-indents docstrings); for the decorating commit the @evaluated_once decorator and its import are
+# removed from the "after" tree first.
+#   70110f01  style: ruff format of the 38 lint-scope modules
+#   19a8f2d0  perf: @evaluated_once on 220 gate functions in 78 modules
+
+format commit 70110f01: 31 files, 31 identical AST (modulo docstring text), 0 different
+decorate commit 19a8f2d0: 78 files, 78 identical AST (modulo the decorator, its import and docstring text), 0 different
+
+# --- script ---
+"""Check that a commit changes no AST node other than what is named (decorator/import; docstring text for a formatter)."""
+import ast, subprocess, sys
+
+def show(rev, path):
+    r = subprocess.run(["git", "show", f"{rev}:{path}"], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else None
+
+def strip(tree, drop_decorator=False, drop_import=False):
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+            body = node.body
+            if body and isinstance(body[0], ast.Expr) and isinstance(getattr(body[0], "value", None), ast.Constant) and isinstance(body[0].value.value, str):
+                body[0].value.value = "<doc>"
+        if drop_decorator and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            node.decorator_list = [d for d in node.decorator_list if not (isinstance(d, ast.Name) and d.id == "evaluated_once")]
+        if drop_import and isinstance(node, ast.Module):
+            node.body = [n for n in node.body if not (isinstance(n, ast.ImportFrom) and n.module == "thinkbox.kilo_eval_scope")]
+    return tree
+
+def check(commit, drop_decorator, drop_import):
+    files = subprocess.run(["git", "diff", "--name-only", f"{commit}~1", commit, "--", "thinkbox"], capture_output=True, text=True).stdout.split()
+    same = diff = 0; bad = []
+    for f in files:
+        before, after = show(f"{commit}~1", f), show(commit, f)
+        if before is None or after is None: bad.append((f, "added/removed")); continue
+        a = ast.dump(strip(ast.parse(before)))
+        b = ast.dump(strip(ast.parse(after), drop_decorator, drop_import))
+        if a == b: same += 1
+        else: diff += 1; bad.append((f, "AST differs"))
+    return len(files), same, diff, bad
+
+for label, commit, dd, di in (("format", "70110f01", False, False), ("decorate", "19a8f2d0", True, True)):
+    n, same, diff, bad = check(commit, dd, di)
+    print(f"{label} commit {commit}: {n} files, {same} identical AST (modulo {'docstring text' if not dd else 'the decorator, its import and docstring text'}), {diff} different")
+    for f, why in bad[:10]: print("   ", f, why)

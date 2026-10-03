@@ -1,0 +1,73 @@
+# Mutation checks, run on this branch's final tree: one edit to the code under test, then the test file that should catch it.
+# 10 of 10 caught. Each edit is applied, the file run, and the original restored (git status clean afterwards).
+# (The earlier mutation sets are in the commit messages: 8 for the cache, 5 for the CI manifest, 3 for the PR #173 README check,
+# all killed; the first cache set let "no copy on a hit" survive, which is why test_a_caller_cannot_change_what_later_callers_
+# receive now edits a cache-served result.)
+
+CAUGHT: a cache hit returns the stored object, not a copy
+    test_kilo_eval_scope.py: 1 failed in 0.13s
+    failed: test_a_caller_cannot_change_what_later_callers_receive
+CAUGHT: the first result is stored without a copy
+    test_kilo_eval_scope.py: 1 failed in 0.13s
+    failed: test_a_caller_cannot_change_what_later_callers_receive
+CAUGHT: the environment is not part of the key
+    test_kilo_eval_scope.py: 1 failed, 7 passed in 0.14s
+    failed: test_the_whole_environment_is_part_of_the_key
+CAUGHT: keyword arguments are not part of the key
+    test_kilo_eval_scope.py: 1 failed, 3 passed in 0.14s
+    failed: test_arguments_are_part_of_the_key
+CAUGHT: positional arguments are not part of the key
+    test_kilo_eval_scope.py: 1 failed, 3 passed in 0.13s
+    failed: test_arguments_are_part_of_the_key
+CAUGHT: the cache outlives the outermost call
+    test_kilo_eval_scope.py: 1 failed, 4 passed in 0.15s
+    failed: test_each_outermost_call_evaluates_afresh
+CAUGHT: the scope is shared by all threads
+    test_kilo_eval_scope.py: 1 failed, 9 passed in 0.15s
+    failed: test_threads_do_not_share_a_scope
+CAUGHT: evaluate_env_matrix loses its decorator
+    test_kilo_gates_evaluated_once.py: 1 failed in 1.19s
+    failed: test_a_spine_summary_runs_each_gate_a_bounded_number_of_times
+CAUGHT: the CI manifest always applies
+    test_kilo_ci_manifest_applicability.py: 1 failed, 1 passed in 0.18s
+    failed: test_a_web_only_workflow_has_no_python_steps_to_check
+CAUGHT: the CI manifest never applies
+    test_kilo_ci_manifest_applicability.py: 1 failed, 1 passed in 0.17s
+    failed: test_a_web_only_workflow_has_no_python_steps_to_check
+
+# --- script ---
+"""Mutation checks for PR #340: apply one edit to the code under test, run the test file that should catch it, restore."""
+import pathlib, re, subprocess, sys
+
+ROOT = pathlib.Path(".").resolve()
+SCOPE = "thinkbox/kilo_eval_scope.py"
+ENV = "thinkbox/kilo_env_matrix.py"
+PR172 = "thinkbox/kilo_pr172_ci_spine_trust.py"
+MUTATIONS = [
+    ("a cache hit returns the stored object, not a copy", SCOPE, "return copy.deepcopy(cache[key])", "return cache[key]", "tests/unit/test_kilo_eval_scope.py"),
+    ("the first result is stored without a copy", SCOPE, "cache[key] = copy.deepcopy(result)", "cache[key] = result", "tests/unit/test_kilo_eval_scope.py"),
+    ("the environment is not part of the key", SCOPE, "tuple(sorted(os.environ.items()))", "()", "tests/unit/test_kilo_eval_scope.py"),
+    ("keyword arguments are not part of the key", SCOPE, "_key(kwargs)", "()", "tests/unit/test_kilo_eval_scope.py"),
+    ("positional arguments are not part of the key", SCOPE, "_key(args)", "()", "tests/unit/test_kilo_eval_scope.py"),
+    ("the cache outlives the outermost call", SCOPE, "                _scope.cache = None", "                pass", "tests/unit/test_kilo_eval_scope.py"),
+    ("the scope is shared by all threads", SCOPE, "_scope = threading.local()", "import types as _t\n_scope = _t.SimpleNamespace()", "tests/unit/test_kilo_eval_scope.py"),
+    ("evaluate_env_matrix loses its decorator", ENV, "@evaluated_once\ndef evaluate_env_matrix(", "def evaluate_env_matrix(", "tests/unit/test_kilo_gates_evaluated_once.py"),
+    ("the CI manifest always applies", PR172, "def ci_runs_python(text: str) -> bool:", "def ci_runs_python(text: str) -> bool:\n    return True", "tests/unit/test_kilo_ci_manifest_applicability.py"),
+    ("the CI manifest never applies", PR172, "def ci_runs_python(text: str) -> bool:", "def ci_runs_python(text: str) -> bool:\n    return False", "tests/unit/test_kilo_ci_manifest_applicability.py"),
+]
+def run(test):
+    r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "-x", "--no-header", "-p", "no:cacheprovider", "--timeout=120", "--tb=no", "-rf"],
+                       capture_output=True, text=True, env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONPATH": str(ROOT)})
+    failed = re.findall(r"^FAILED (\S+)", r.stdout, re.M)
+    return r.returncode, failed, r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+for label, path, old, new, test in MUTATIONS:
+    p = ROOT / path; src = p.read_text(encoding="utf-8")
+    if old not in src:
+        print(f"SKIPPED (pattern not found): {label}"); continue
+    p.write_text(src.replace(old, new, 1), encoding="utf-8")
+    try:
+        rc, failed, tail = run(test)
+    finally:
+        p.write_text(src, encoding="utf-8")
+    verdict = "CAUGHT" if rc != 0 else "SURVIVED"
+    print(f"{verdict}: {label}\n    {test.split('/')[-1]}: {tail}" + ("".join(f"\n    failed: {f.split('::')[-1]}" for f in failed[:3])))

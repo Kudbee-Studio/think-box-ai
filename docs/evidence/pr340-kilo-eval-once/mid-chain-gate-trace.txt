@@ -1,0 +1,84 @@
+# One mid-chain gate traced: evaluate_live_smoke_evidence (PR #152, thinkbox/kilo_live_smoke_evidence.py).
+# Static facts from the AST of this branch; executions from main's saved profile and a fresh profile of this branch.
+
+evaluate_live_smoke_evidence  (thinkbox/kilo_live_smoke_evidence.py:625), decorators ['evaluated_once']
+  arguments: ['mode', 'environ', 'run_fixtures']
+  reads directly: nothing but its arguments
+  gate functions it calls (fan-out 1): ['hermetic_post_season_harden_operator_check']
+  gate functions that call it (fan-in 2): ['hermetic_live_smoke_evidence_operator_check', 'live_smoke_evidence_gate_closed']
+  re-entry/termination: gate call graph has 220 nodes and no cycle (a DAG: every gate calls only earlier layers)
+  executions in one spine_contract_summary(): main 7,525  ->  this branch 3   (cumulative on main: 107.7 s)
+  who called it on main: hermetic_live_smoke_evidence_operator_check x7,524, live_smoke_evidence_gate_closed x1
+  who called it here:    wrapper x3
+
+# Reading it (source: kilo_live_smoke_evidence.py:625-700)
+entry condition   none of its own: it runs whenever a layer above it asks. It is called by the operator check (once per
+                  operator check) and by the gate-closed check (twice: the operator check and a direct call in another mode).
+inputs            mode, environ (or os.environ), and, through helpers that are not gates, the repository files
+                  (_contract_check) and the fixture directory (run_fixture_suite). It makes no network call.
+children          one gate: hermetic_post_season_harden_operator_check (the PR #151 layer, which is the root of the chain), and
+                  pure helpers (validate_smoke_evidence_document, audit_flip_candidate, minimal documents).
+re-entry          every layer above PR #152 reaches it through its own prior-layer call, and every contract summary calls the
+                  operator check and then the gate-closed check, which calls both again. The calls multiply by layer: 7,525
+                  executions on main, 7,524 of them from the operator check alone.
+state mutation    none. It builds documents in memory and returns a result. (Of all 605 functions in thinkbox/kilo_*.py only
+                  seven write, delete, set the environment or start a process: purity-inventory.txt.)
+memoization       none on main. This branch: once per distinct (arguments, environment) inside one outermost call; 3 here.
+termination       the gate call graph has 220 nodes and no cycle, so a gate calls only earlier layers.
+fan-out           1 gate child; fan-in 2. The explosion is not fan-out, it is depth times repetition: each of ~176 layers
+                  re-runs everything beneath it, and the work grows with the number of paths through the DAG.
+requests          one spine_contract_summary() is one "request": 7,525 evaluations of this gate on main, 3 here.
+
+# --- script ---
+"""Trace one mid-chain KILO gate: entry, inputs, children, re-entry, state, termination, fan-out and executions per request.
+usage (from a tree): kilo_trace_gate.py <function name> <baseline .prof>"""
+import ast, cProfile, collections, pathlib, pstats, re, sys
+
+target, prof = sys.argv[1], sys.argv[2]
+GATE = re.compile(r"^(hermetic_.*_check|evaluate_.*|.*_contract_summary|.*_gate_closed)$")
+root = pathlib.Path("thinkbox")
+defs = {}
+for path in sorted(root.glob("kilo_*.py")):
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.FunctionDef) and GATE.match(node.name):
+            defs[node.name] = (path, node)
+path, node = defs[target]
+calls = lambda n: sorted({(c.func.id if isinstance(c.func, ast.Name) else c.func.attr) for c in ast.walk(n) if isinstance(c, ast.Call) and isinstance(c.func, (ast.Name, ast.Attribute))})
+children = [c for c in calls(node) if c in defs and c != target]
+callers = sorted(k for k, (_, n) in defs.items() if target in calls(n) and k != target)
+reads = sorted({ast.unparse(c.func) for c in ast.walk(node) if isinstance(c, ast.Call) and ast.unparse(c.func).endswith(("read_text", "open", "is_file", "exists", "glob", "environ.get", "os.getenv"))})
+deco = [ast.unparse(d) for d in node.decorator_list]
+print(f"{target}  ({path}:{node.lineno}), decorators {deco}")
+print(f"  arguments: {[a.arg for a in node.args.args + node.args.kwonlyargs]}")
+print(f"  reads directly: {reads or 'nothing but its arguments'}")
+print(f"  gate functions it calls (fan-out {len(children)}): {children}")
+print(f"  gate functions that call it (fan-in {len(callers)}): {callers}")
+# cycles anywhere in the gate graph (name-based, so conservative)
+graph = {k: [c for c in calls(n) if c in defs and c != k] for k, (_, n) in defs.items()}
+state, cycle = {}, []
+def dfs(u, stack):
+    state[u] = 1
+    for v in graph[u]:
+        if state.get(v) == 1: cycle.append(stack + [u, v]); return
+        if v not in state: dfs(v, stack + [u])
+        if cycle: return
+    state[u] = 2
+for k in graph:
+    if k not in state: dfs(k, [])
+    if cycle: break
+print(f"  re-entry/termination: gate call graph has {len(defs)} nodes and {'a CYCLE ' + ' -> '.join(cycle[0]) if cycle else 'no cycle (a DAG: every gate calls only earlier layers)'}")
+# measured, one spine_contract_summary()
+def stat_of(st, name):
+    out = collections.Counter(); by_caller = collections.Counter()
+    for (f, l, n), (cc, nc, tt, ct, cs) in st.stats.items():
+        if n == name and "/thinkbox/kilo_" in f:
+            out["n"] += nc; out["cum"] += ct
+            for (cf, cl, cn), v in cs.items(): by_caller[cn] += v[0]
+    return out, by_caller
+before, bc = stat_of(pstats.Stats(prof), target)
+from thinkbox import kilo_live_proof_readiness as spine
+pr = cProfile.Profile(); pr.enable(); spine.spine_contract_summary(); pr.disable()
+after, ac = stat_of(pstats.Stats(pr), target)
+print(f"  executions in one spine_contract_summary(): main {before['n']:,}  ->  this branch {after['n']}   (cumulative on main: {before['cum']:.1f} s)")
+print("  who called it on main:", ", ".join(f"{k} x{v:,}" for k, v in bc.most_common(5)))
+print("  who called it here:   ", ", ".join(f"{k} x{v}" for k, v in ac.most_common(5)))
