@@ -24,3 +24,9 @@ test('run progress is kept in a prototype-less object, so a run id like __proto_
   const src = read('app.js');
   assert.ok(src.includes('runProgress: Object.create(null)'), 'state.runProgress must not be a plain {}');
 });
+
+test('the offline page shows message text with textContent, never as HTML', () => {
+  const html = fs.readFileSync(path.join(js, '../index-offline.html'), 'utf8');
+  assert.ok(!html.includes('<div class="message-content">${text}</div>'), 'message text is interpolated raw into innerHTML');
+  assert.ok(html.includes("querySelector('.message-content').textContent = text"));
+});
