@@ -24,6 +24,13 @@ from thinkbox.experiment import (
 from thinkbox.dashboard_state import get_dashboard_state
 
 
+
+def _new_db_path() -> str:
+    """Create the temp .db atomically (tempfile.mktemp only returns a name another process could take first)."""
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    return path
+
 class TestParameterProvenance(unittest.TestCase):
     def test_create_parameter(self):
         param = ParameterProvenance(
@@ -152,7 +159,7 @@ class TestAgentSessionRecord(unittest.TestCase):
 
 class TestExperimentDB(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp_db = tempfile.mktemp(suffix=".db")
+        self.tmp_db = _new_db_path()
         self.db = ExperimentDB(db_path=self.tmp_db)
 
     def tearDown(self) -> None:
@@ -276,7 +283,7 @@ class TestExperimentDB(unittest.TestCase):
 
 class TestExperimentManager(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp_db = tempfile.mktemp(suffix=".db")
+        self.tmp_db = _new_db_path()
         self.tmp_artifacts = tempfile.mkdtemp()
         self.manager = ExperimentManager(db_path=self.tmp_db, artifacts_dir=self.tmp_artifacts)
 
@@ -431,7 +438,7 @@ class TestDashboardIntegration(unittest.TestCase):
 
 class TestZeroServerExecution(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp_db = tempfile.mktemp(suffix=".db")
+        self.tmp_db = _new_db_path()
         self.tmp_artifacts = tempfile.mkdtemp()
         self.manager = ExperimentManager(db_path=self.tmp_db, artifacts_dir=self.tmp_artifacts)
 
