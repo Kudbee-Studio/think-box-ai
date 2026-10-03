@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="/css/polish.css">
   <link rel="stylesheet" href="/css/enterprise-polish.css">
   <link rel="stylesheet" href="/css/analytics-dashboard.css">
+  <link rel="stylesheet" href="/css/timeline-dashboard.css">
+  <link rel="stylesheet" href="/css/sharing-dashboard.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/enterprise.js"></script>
   <!-- ES module: think-cube-render.js imports think-cube-state.js and, in a browser, assigns
@@ -52,6 +54,8 @@
         <button id="agent-templates-button" class="btn-icon" title="Agent templates">🤖</button>
         <button id="approval-workflow-button" class="btn-icon" title="Approval workflows">🗳</button>
         <button id="performance-analytics-button" class="btn-icon" title="Performance analytics">📈</button>
+        <button id="timeline-button" class="btn-icon" title="Execution timeline">⏱</button>
+        <button id="share-button" class="btn-icon" title="Share & export">🔗</button>
         <button id="execution-logs-button" class="btn-icon" title="Execution logs">📋</button>
         <button id="integrations-button" class="btn-icon" title="Integrations">🔗</button>
         <button id="collaboration-button" class="btn-icon" title="Collaboration">👥</button>
@@ -316,6 +320,28 @@
           </div>
           <div id="analytics-container" class="analytics-container">
             <div class="loading">Loading analytics...</div>
+          </div>
+        </div>
+
+        <!-- Timeline Panel -->
+        <div class="panel" id="timeline-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">📈</span> Execution Timeline</h3>
+            <button id="close-timeline" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="timeline-container" class="timeline-container">
+            <div class="loading">Loading timeline...</div>
+          </div>
+        </div>
+
+        <!-- Sharing Panel -->
+        <div class="panel" id="sharing-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">🔗</span> Share & Export</h3>
+            <button id="close-sharing" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="sharing-container" class="sharing-container">
+            <div class="loading">Loading sharing options...</div>
           </div>
         </div>
 
