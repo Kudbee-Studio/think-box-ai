@@ -322,6 +322,7 @@ ${c.bold('OPERATIONS')}
   /tokens [QUERY]     Think Tokens (lessons): list or search; /lessons is the same
   /token TT-ID        one Think Token in full
   /runs               run history (15 latest)
+  /sessions           session history (same as /runs)
   /run ID             detailed step-by-step trace
 
 ${c.bold('MEMORY & KNOWLEDGE')}
@@ -507,6 +508,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       tokensCommand(['show', ...args]);
       break;
     case '/runs':
+    case '/sessions':
       await showRuns();
       break;
     case '/memory': {
