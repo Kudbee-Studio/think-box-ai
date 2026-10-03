@@ -122,6 +122,16 @@ class TestLiveEnvReadiness(unittest.TestCase):
         )
         self.assertTrue(live_exec.live_exec_env_ready(env))
 
+    def test_live_exec_env_rejects_a_url_that_only_contains_the_box_suffix(self) -> None:
+        # CodeQL py/incomplete-url-substring-sanitization: ".box.upstash.com" in url accepted these.
+        for url in (
+            "https://evil.example/?x=.box.upstash.com",
+            "https://x.box.upstash.com.evil.example",
+            "http://x.preview.box.upstash.com",
+        ):
+            env = {live_exec.FOUNDER_ACK_ENV: "true", BOX_URL_ENV: url}
+            self.assertFalse(live_exec.live_exec_env_ready(env), url)
+
     def test_hermetic_mode_rejects_live_env_ready(self) -> None:
         env = live_exec.minimal_live_proof_exec_environ(
             {

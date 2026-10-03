@@ -3016,3 +3016,17 @@ Merge gates for this PR (0.1): local `act` green (549/549, log in `docs/evidence
 Python (`python-security-extended`, 41 findings) is not part of this PR; it belongs in its own PR. Real candidates: `backend/main.py:225` sends `str(e)` to the client; `.box.upstash.com in url` substring checks in `governance_evidence_live_proof_readiness.py`, `kilo_live_proof_exec.py` and `kilo_substrate_checklist.py`. The `experiments/templates/vulnerable_*` SQL injection findings are deliberate examples; `kilo_hermetic_subprocess.py` passes an argv list with no shell.
 - Tests 549/549, `tsc` and lint clean.
 - Left as gaps on purpose for a founder decision: `/logs` (a browser-stored audit log) and `/export` (a browser file download) only make sense in a browser, so they may belong under `surface-only`.
+
+---
+
+## Python CodeQL and bandit fixes (PR #338)
+
+Local CodeQL (`python-security-extended`, 41 findings) and `bandit -lll -iii`; full table and evidence in `docs/evidence/pr338-codeql-python.md`.
+
+- Box URL checks (`kilo_substrate_checklist.is_live_box_url`, the governance and live-exec prerequisites) look at the parsed host's suffix over https; `".box.upstash.com" in url` accepted lookalike hosts.
+- `backend/main.py` `/stream` no longer streams `str(e)` to the client; the detail goes to `logger.exception`.
+- `scripts/setup.py` never prints the generated `THINKBOX_API_KEY` and creates `.env` with `O_EXCL`, mode `0600`. `scripts/verify_upcloud_credentials.py` prints no part of the token.
+- `run_id` (demo proof route; router not mounted today) and `job_id` (UPM store path, via `validate_job_id`) are checked before they become paths.
+- `thinkbox/intelligence.py`: concept-id `md5(..., usedforsecurity=False)` (same ids; FIPS builds no longer raise).
+- Python test environment: `httpx2` is in the `dev`/`test` extras (the backend tests could not be collected without it); `tests/unit/demo` and `tests/unit/byoc` are packages (their `test_e2e.py` collided); no test uses `tempfile.mktemp`.
+- There is no CI workflow for the Python tests. Running `tests/unit` needs `pip install -e .[dev,test]`; several tests hang (spine/instrumentation), so use `pytest-timeout`.

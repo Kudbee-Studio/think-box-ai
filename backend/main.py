@@ -218,8 +218,12 @@ async def stream_goal(goal: str, model: str = "ollama") -> StreamingResponse:
             ]):
                 yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        except Exception as exc:
+            # The exception text can carry upstream URLs, response bodies or key fragments (AGENTS.md 0.4):
+            # only its type is logged and sent.
+            kind = type(exc).__name__
+            logger.error("stream_goal: model stream failed (%s)", kind)  # noqa: TRY400 - not .exception: its text may hold key fragments
+            yield f"data: {json.dumps({'type': 'error', 'error': f'The model stream failed ({kind}).'})}\n\n"
 
     return StreamingResponse(
         event_generator(),

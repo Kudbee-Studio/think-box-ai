@@ -422,9 +422,11 @@ class TestPopulationArena(unittest.TestCase):
 
     def test_arena_lifecycle_transitions(self) -> None:
         import shutil
+        import os
         import tempfile
         from thinkbox.pop_arena import ArenaConfig, ArenaRun
-        tmp = tempfile.mktemp(suffix=".db")
+        fd, tmp = tempfile.mkstemp(suffix=".db")  # created atomically; mktemp only returned a name
+        os.close(fd)
         art = tempfile.mkdtemp()
         try:
             run = ArenaRun(ArenaConfig(), db_path=tmp, artifacts_dir=art)
@@ -443,10 +445,12 @@ class TestPopulationArena(unittest.TestCase):
 
     def test_arena_aggregate_rebuilds_from_storage(self) -> None:
         import shutil
+        import os
         import tempfile
         from thinkbox.experiment import ExperimentManager
         from thinkbox.pop_arena import ArenaConfig, ArenaRun, build_population
-        tmp = tempfile.mktemp(suffix=".db")
+        fd, tmp = tempfile.mkstemp(suffix=".db")  # created atomically; mktemp only returned a name
+        os.close(fd)
         art = tempfile.mkdtemp()
         try:
             run = ArenaRun(ArenaConfig(), db_path=tmp, artifacts_dir=art)
