@@ -84,8 +84,15 @@ export class RunStore {
           run.failure_kind = 'interrupted';
         }
       }
-    } catch {
+    } catch (err) {
       this.runs = [];
+      // A missing file is a fresh install. Anything else (truncated or hand-edited JSON, a permission error) must not be lost:
+      // the next save() would overwrite the file, so keep a copy and say so.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        const kept = `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+        try { fs.copyFileSync(file, kept); } catch { /* unreadable: nothing to keep */ }
+        console.warn(`[runs] could not read ${file} (${err instanceof Error ? err.message : String(err)}); starting empty, original kept at ${kept}`);
+      }
     }
   }
 

@@ -101,3 +101,11 @@ apps/web/think-tokens.db*
 docs/evidence/**/*.db-shm
 docs/evidence/**/*.db-wal
 docs/evidence/**/*.bak-pre-*
+
+# launch.mjs: pre-stripped JS built next to the TypeScript sources (apps/web/launch.mjs)
+apps/web/.js-build.json
+apps/web/*.js
+apps/web/sdk/*.js
+apps/web/services/*.js
+apps/web/panels/*.js
+apps/web/types/*.js

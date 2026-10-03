@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types server.ts",
-    "start": "node --experimental-strip-types server.ts",
+    "dev": "node launch.mjs server",
+    "start": "node launch.mjs server",
     "typecheck": "tsgo --noEmit",
     "typecheck:tsc": "tsc --noEmit",
     "lint": "tsgo --noEmit --noUnusedLocals",

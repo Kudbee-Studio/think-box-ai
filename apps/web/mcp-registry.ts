@@ -251,8 +251,9 @@ export class MCPRegistry {
         path.join(this.cacheDir, 'servers.json'),
         JSON.stringify({ servers, timestamp: Date.now() }, null, 2),
       );
-    } catch {
-      // Silently fail cache save; discovery still works without persistence
+    } catch (err) {
+      // Discovery still works without the cache, but say why it is not being kept.
+      console.warn(`[mcp-registry] could not save the server cache: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
