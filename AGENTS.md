@@ -3030,3 +3030,15 @@ Local CodeQL (`python-security-extended`, 41 findings) and `bandit -lll -iii`; f
 - `thinkbox/intelligence.py`: concept-id `md5(..., usedforsecurity=False)` (same ids; FIPS builds no longer raise).
 - Python test environment: `httpx2` is in the `dev`/`test` extras (the backend tests could not be collected without it); `tests/unit/demo` and `tests/unit/byoc` are packages (their `test_e2e.py` collided); no test uses `tempfile.mktemp`.
 - There is no CI workflow for the Python tests. Running `tests/unit` needs `pip install -e .[dev,test]`; several tests hang (spine/instrumentation), so use `pytest-timeout`.
+
+## Python unit suite fixes (PR #339)
+
+`main` had 172 failing `tests/unit` tests in #338's run. Fixed here by root cause, each with a test that failed first; evidence in `docs/evidence/pr339-python-unit-failures.md`.
+
+- Model client (`thinkbox/model_client.py`, `thinkbox/async_http.py`): a refused connection fails at once as non-retryable `unreachable at <url>`. It used to be retried with 2 + 4 + 8 + 16 s of backoff (`HttpConnectionError` subclasses `HttpError`, so the transient branch caught it), so every call to a stopped Ollama took about 30 s (`thinkbox model check`: 33 s, now 0.0 s) and most engine tests hit the timeout. Transient statuses (408, 429, 5xx) and timeouts keep the backoff. `close()` works (it called a nonexistent `aclose()`), and so does `stream()` (`AsyncHttpClient.stream` was `async def`, which `async with` rejects).
+- `jobs/schema.json` is restored (it never reached `main`'s history, which starts at #264); `tests/unit/test_jobs.py` reads the repository's `jobs/`.
+- `validate_proof_document` rejects a swarm proof whose declared validators did not all run unless it is labeled `partial_run` (#253's labeled partial runs still validate: 38/38).
+- Tests: urlopen mocks carry `.status`; the box route tests check the served paths (`/think/box-status/status`, `/think/box-mercury/status|results`); the layer-telemetry test runs (it sat at module level); the dry-run tests use the interpreter that runs them.
+- Docs: `docs/INDEX.md` is generated; run `python3 scripts/generate_docs_index.py` after adding or removing a `.md` file (#337 and #338 did not). Five padding files from #333 to #335 are removed and the #333/#334 evidence carries correction notes.
+- Left failing, founder decisions: the KILO gate chain (the PR #151 gate requires six steps in `.github/workflows/test.yml` that #308 removed, every later gate requires the one before, and #316's README dropped the markers PR #173 checks; one spine summary takes about 170 s because each gate re-evaluates every earlier one), and 6 functions over 60 lines that the Power of 10 ratchet reports (they grew after its baseline, #280).
+- Running the suite: `pip install -e .[dev,test] pytest-timeout`, activate the virtualenv (KILO tests start `python3` from `PATH`), then `pytest tests/unit --timeout=60`.

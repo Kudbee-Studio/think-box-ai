@@ -1,0 +1,42 @@
+# AsyncModelClient against a local fake Ollama on a real socket (scratch script fake_ollama_stream.py, copied below the output)
+== 83424359
+generate -> '144'
+stream -> ERROR TypeError 'coroutine' object does not support the asynchronous context manager protocol
+close -> ERROR AttributeError 'AsyncHttpClient' object has no attribute 'aclose'
+== bdcf3e4e
+generate -> '144'
+stream -> '144'
+close -> ok
+
+# --- script ---
+"""Fake Ollama on 127.0.0.1 for a socket-level check of AsyncModelClient.stream() and close()."""
+import asyncio, json, sys, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+class H(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        self.send_response(200); self.send_header("Content-Type", "application/x-ndjson"); self.end_headers()
+        if body.get("stream"):
+            for part in ("14", "4"):
+                self.wfile.write(json.dumps({"response": part}).encode() + b"\n")
+            self.wfile.write(b'{"done": true}\n')
+        else:
+            self.wfile.write(json.dumps({"response": "144"}).encode())
+    def log_message(self, *a): pass
+
+srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+from thinkbox.model_client import AsyncModelClient, ModelConfig
+
+async def main():
+    c = AsyncModelClient(ModelConfig(base_url=f"http://127.0.0.1:{srv.server_address[1]}", model="m"))
+    for name, coro in (("generate", c.generate("12*12")),):
+        try: print(name, "->", repr(await coro))
+        except Exception as e: print(name, "-> ERROR", type(e).__name__, str(e)[:120])
+    try: print("stream ->", repr("".join([t async for t in c.stream("12*12")])))
+    except Exception as e: print("stream -> ERROR", type(e).__name__, str(e)[:120])
+    try: await c.close(); print("close -> ok")
+    except Exception as e: print("close -> ERROR", type(e).__name__, str(e)[:120])
+
+asyncio.run(main()); srv.shutdown()

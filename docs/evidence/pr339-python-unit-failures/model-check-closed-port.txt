@@ -1,0 +1,14 @@
+# thinkbox model check against a closed port (127.0.0.1:9), main 83424359 vs this branch bdcf3e4e
+# command: python -m thinkbox.cli model check --provider ollama --base-url http://127.0.0.1:9
+== 83424359
+Provider: ollama @ http://127.0.0.1:9
+Model:    llama3.1:8b
+API key:  not set
+FAIL (33.14s): ollama:llama3.1:8b HTTP None: Connection error: [Errno 111] Connection refused
+exit=1 wall=33.508909948s
+== bdcf3e4e
+Provider: ollama @ http://127.0.0.1:9
+Model:    llama3.1:8b
+API key:  not set
+FAIL (0.00s): ollama:llama3.1:8b unreachable at http://127.0.0.1:9/api/generate: Connection error: [Errno 111] Connection refused
+exit=1 wall=.212113265s
