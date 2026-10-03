@@ -447,7 +447,12 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       break;
     }
     case '/model':
-      if (!client.models.some((m) => m.name === args[0])) {
+      if (!args[0]) {
+        console.log(`Current model: ${c.bold(client.model || '(none)')}`);
+        console.log('Available:');
+        for (const m of client.models) console.log(`    ${m.name === client.model ? c.green('●') : ' '} ${m.name}`);
+        console.log(c.dim('Usage: /model NAME'));
+      } else if (!client.models.some((m) => m.name === args[0])) {
         console.log(c.red(`Unknown model "${args[0]}". Available:`));
         for (const m of client.models) console.log(`    ${m.name}`);
       } else {
