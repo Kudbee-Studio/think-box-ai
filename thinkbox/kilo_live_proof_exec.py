@@ -80,7 +80,7 @@ _FIXTURES_REL = Path("data/kilo_live_proof_exec/fixtures")
 _VERIFY_SCRIPT_REL = Path("scripts/verify_kilo_live_proof_exec.py")
 _ARTIFACT_DIR_REL = Path("data/thinkboxmd/artifacts")
 _ARTIFACT_GLOB = "kilo_live_proof_*.json"
-_AUDIT_PASS_GLOB = "docs/audit/passes/*-pr150.json"
+_AUDIT_PASS_GLOB = "docs/audit/passes/*-pr150.json"  # a path glob, not a password  # noqa: S105  # nosec B105
 
 _REQUIRED_PRIOR: tuple[str, ...] = tuple(gid for gid in gate_ids() if gid != GATE_ID)
 REQUIRED_PRIOR_GATE_IDS: frozenset[str] = frozenset(_REQUIRED_PRIOR)
@@ -376,15 +376,14 @@ def validate_execution_plan_document(doc: Mapping[str, Any]) -> PlanValidationRe
         )
 
     four_state = doc.get("four_state_max")
-    if four_state not in ("TEST_VERIFIED", "CODE_COMPLETE"):
-        if four_state in ("LIVE_VERIFIED", "PRODUCTION_READY"):
-            hits.append(
-                _violation(
-                    "four_state_cap_exceeded",
-                    "hermetic plan four_state_max must not claim LIVE/PRODUCTION",
-                    "four_state_max",
-                )
+    if four_state not in ("TEST_VERIFIED", "CODE_COMPLETE") and four_state in ("LIVE_VERIFIED", "PRODUCTION_READY"):
+        hits.append(
+            _violation(
+                "four_state_cap_exceeded",
+                "hermetic plan four_state_max must not claim LIVE/PRODUCTION",
+                "four_state_max",
             )
+        )
 
     if doc.get("live_verified") is True:
         hits.append(
@@ -639,14 +638,13 @@ def evaluate_live_proof_exec(
             )
         )
 
-    if resolved_mode in (EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI):
-        if live_exec_env_ready(env):
-            violations.append(
-                LiveProofExecViolation(
-                    code="live_env_in_hermetic_mode",
-                    message="founder ack + Box URL must not satisfy live prep in hermetic modes",
-                )
+    if resolved_mode in (EnvMatrixMode.HERMETIC_UNIT, EnvMatrixMode.HERMETIC_CI) and live_exec_env_ready(env):
+        violations.append(
+            LiveProofExecViolation(
+                code="live_env_in_hermetic_mode",
+                message="founder ack + Box URL must not satisfy live prep in hermetic modes",
             )
+        )
 
     exec_ready = live_exec_env_ready(env)
 

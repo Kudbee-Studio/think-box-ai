@@ -47,7 +47,7 @@ GATE_ID = "substrate-checklist"
 PR_NUMBER = 143
 
 BOX_URL_ENV = "UPSTASH_PUBLIC_BOX_URL"
-BOX_TOKEN_ENV = "UPSTASH_PUBLIC_BOX_TOKEN"
+BOX_TOKEN_ENV = "UPSTASH_PUBLIC_BOX_TOKEN"  # the name of an environment variable, not a secret  # noqa: S105  # nosec B105
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _HERMETIC_URL_TOKENS = frozenset({"mock", "hermetic", "dry-run", "disabled"})
@@ -139,7 +139,7 @@ def is_hermetic_box_url(url: str) -> bool:
         return True
     if _PLACEHOLDER_URL.search(url):
         return True
-    if lowered.startswith("http://") or lowered.startswith("https://"):
+    if lowered.startswith(("http://", "https://")):
         return _is_loopback_url(url)
     return False
 
@@ -165,11 +165,9 @@ def is_hermetic_box_token(token: str) -> bool:
     lowered = token.strip().lower()
     if lowered in _HERMETIC_URL_TOKENS:
         return True
-    if lowered.startswith("mock_") or lowered.startswith("hermetic_"):
+    if lowered.startswith(("mock_", "hermetic_")):
         return True
-    if lowered in {"token", "test-token", "placeholder"}:
-        return True
-    return False
+    return lowered in {"token", "test-token", "placeholder"}
 
 
 def is_live_box_token(token: str) -> bool:

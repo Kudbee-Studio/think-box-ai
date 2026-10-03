@@ -332,16 +332,19 @@ def evaluate_governance_evidence(
 
     decision = _admission_for_token(token_value, agent_id, capability, tokens, identities, now=now)
     if not decision.allowed:
-        code_map = {
-            "token_missing": "token_missing",
-            "token_invalid_or_expired": "token_invalid_or_expired",
-            "token_agent_mismatch": "token_agent_mismatch",
-            "capability_not_granted": "capability_not_granted",
-            "admission_context_missing": "admission_context_missing",
-        }
+        # A known denial reason is its own violation code; anything else is a generic denial.
+        known_reasons = frozenset(
+            {
+                "token_missing",
+                "token_invalid_or_expired",
+                "token_agent_mismatch",
+                "capability_not_granted",
+                "admission_context_missing",
+            }
+        )
         violations.append(
             GovernanceViolation(
-                code=code_map.get(decision.reason, "admission_denied"),
+                code=decision.reason if decision.reason in known_reasons else "admission_denied",
                 message=f"admission denied: {decision.reason}",
             )
         )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
-import subprocess
+import subprocess  # a bounded helper, no shell  # nosec B404
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -69,7 +69,7 @@ def run_bounded_command(
     timeout_seconds: int = DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS,
 ) -> BoundedSubprocessResult:
     """Run *cmd* with wall-clock timeout and process-group teardown on expiry."""
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # an argv list from the caller, no shell  # nosec B603
         list(cmd),
         cwd=str(cwd),
         stdout=subprocess.PIPE,

@@ -349,7 +349,7 @@ def _forbidden_live_provider_in_operator(
         raw = (env.get(key) or "").strip()
         if not raw or len(raw) < 12:
             continue
-        if raw.startswith("mock_") or raw.startswith("test_"):
+        if raw.startswith(("mock_", "test_")):
             continue
         hits.append(
             SwarmInstrumentationViolation(

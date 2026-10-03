@@ -77,7 +77,7 @@ _FIXTURES_REL = Path("data/kilo_live_smoke_evidence/fixtures")
 _VERIFY_SCRIPT_REL = Path("scripts/verify_kilo_live_smoke_evidence.py")
 _ARTIFACT_DIR_REL = Path("data/thinkboxmd/artifacts")
 EVIDENCE_ARTIFACT_GLOB = "kilo_live_smoke_*.json"
-AUDIT_PASS_GLOB = "docs/audit/passes/*-pr152*.json"
+AUDIT_PASS_GLOB = "docs/audit/passes/*-pr152*.json"  # a path glob, not a password  # noqa: S105  # nosec B105
 _DEFAULT_AUDIT_PRIOR = "docs/audit/passes/2026-09-23-pr151.json"
 
 _ARC_GATE_IDS: tuple[str, ...] = tuple(gate_ids())
@@ -342,15 +342,14 @@ def validate_smoke_evidence_document(
             )
         )
 
-    if doc.get("live_verified") is True:
-        if not can_flip_audit_live_verified(doc, artifact_exists=artifact_exists):
-            hits.append(
-                _violation(
-                    "live_verified_without_evidence",
-                    "live_verified requires founder ack marker, box url flag, live_api_called, artifact",
-                    "live_verified",
-                )
+    if doc.get("live_verified") is True and not can_flip_audit_live_verified(doc, artifact_exists=artifact_exists):
+        hits.append(
+            _violation(
+                "live_verified_without_evidence",
+                "live_verified requires founder ack marker, box url flag, live_api_called, artifact",
+                "live_verified",
             )
+        )
 
     if doc.get("live_api_called") is True and doc.get("live_verified") is not True:
         hits.append(
@@ -410,15 +409,20 @@ def validate_smoke_evidence_document(
         hits.append(_violation("receipt_ids_empty", "receipt_ids must be non-empty", "receipt_ids"))
     if not isinstance(etags, list) or not etags:
         hits.append(_violation("etags_empty", "etags must be non-empty", "etags"))
-    if isinstance(receipt_ids, list) and isinstance(etags, list) and receipt_ids and etags:
-        if len(receipt_ids) != len(etags):
-            hits.append(
-                _violation(
-                    "receipt_etag_length_mismatch",
-                    "receipt_ids and etags must have equal length",
-                    "receipt_ids",
-                )
+    if (
+        isinstance(receipt_ids, list)
+        and isinstance(etags, list)
+        and receipt_ids
+        and etags
+        and len(receipt_ids) != len(etags)
+    ):
+        hits.append(
+            _violation(
+                "receipt_etag_length_mismatch",
+                "receipt_ids and etags must have equal length",
+                "receipt_ids",
             )
+        )
 
     chain_ids: list[str] = []
     gate_chain = doc.get("gate_chain") or []
@@ -689,10 +693,9 @@ def evaluate_live_smoke_evidence(
         )
 
     # Hermetic default audit flip must refuse without founder artifact
-    audit_sample = {
-        "pass_id": "pr151",
-        "four_state": {"code_complete": True, "test_verified": True, "live_verified": False},
-    }
+    four_state = {"code_complete": True, "test_verified": True, "live_verified": False}
+    default_prior_pass = Path(_DEFAULT_AUDIT_PRIOR).stem.rsplit("-", 1)[-1]  # "pr151"
+    audit_sample = {"pass_id": default_prior_pass, "four_state": four_state}
     flip = audit_flip_candidate(minimal_doc, audit_sample, artifact_exists=False)
     if flip.get("audit_flip_status") != "refused":
         violations.append(

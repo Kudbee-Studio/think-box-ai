@@ -249,10 +249,7 @@ def _forbidden_live_dashboard_claim(text: str) -> bool:
     lowered = text.lower()
     if "live_verified" in lowered and "true" in lowered:
         return True
-    for lit in _FORBIDDEN_LITERAL_CLAIMS:
-        if lit in text:
-            return True
-    return False
+    return any(lit in text for lit in _FORBIDDEN_LITERAL_CLAIMS)
 
 
 def validate_slot_registry_document(

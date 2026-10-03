@@ -104,18 +104,12 @@ def _is_truthy(value: str | None) -> bool:
 
 def lint_tools_required(environ: Mapping[str, str]) -> bool:
     """Fail closed on missing linters when CI or explicit operator ack is set."""
-    if _is_truthy(environ.get("CI")):
-        return True
-    if _is_truthy(environ.get("KILO_BEYOND_KILO_LINT_REQUIRE_TOOLS")):
-        return True
-    return False
+    return _is_truthy(environ.get("CI")) or _is_truthy(environ.get("KILO_BEYOND_KILO_LINT_REQUIRE_TOOLS"))
 
 
 def lint_execution_enabled(environ: Mapping[str, str]) -> bool:
     """Run ruff/mypy/bandit subprocesses (verify script / explicit operator only)."""
-    if _is_truthy(environ.get("KILO_BEYOND_KILO_LINT_EXECUTE")):
-        return True
-    return False
+    return _is_truthy(environ.get("KILO_BEYOND_KILO_LINT_EXECUTE"))
 
 
 def detect_lint_tool(name: str) -> str | None:
@@ -297,7 +291,7 @@ def lint_results_to_json(results: Sequence[LintToolResult]) -> list[dict[str, ob
 
 
 if __name__ == "__main__":  # pragma: no cover
-    env = dict(**{k: v for k, v in __import__("os").environ.items()})
+    env = dict(__import__("os").environ)
     env["KILO_BEYOND_KILO_LINT_EXECUTE"] = "1"
     runs, viols = execute_beyond_kilo_lint_suite(env)
     print(json.dumps({"results": lint_results_to_json(runs), "violations": len(viols)}, indent=2))

@@ -203,7 +203,7 @@ def mock_client_configured(environ: Mapping[str, str]) -> bool:
         value = (environ.get(key) or "").strip()
         if value.startswith("mock://"):
             return True
-        if value.startswith("http://127.0.0.1") or value.startswith("http://localhost"):
+        if value.startswith(("http://127.0.0.1", "http://localhost")):
             return True
     return False
 
@@ -426,7 +426,7 @@ def _forbidden_live_provider_key_in_hermetic(
         raw = (env.get(key) or "").strip()
         if not raw or len(raw) < _KEY_MIN_LEN:
             continue
-        if raw.startswith("mock_") or raw.startswith("test_"):
+        if raw.startswith(("mock_", "test_")):
             continue
         hits.append(
             MercuryHermeticViolation(

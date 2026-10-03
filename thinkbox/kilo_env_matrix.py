@@ -137,11 +137,7 @@ def _is_loopback_url(url: str) -> bool:
     except ValueError:
         return False
     host = (parsed.hostname or "").lower()
-    if host in _LOOPBACK_HOSTS:
-        return True
-    if host.endswith(".localhost"):
-        return True
-    return False
+    return host in _LOOPBACK_HOSTS or host.endswith(".localhost")
 
 
 def _mock_endpoint_ok(value: str) -> bool:
@@ -150,7 +146,7 @@ def _mock_endpoint_ok(value: str) -> bool:
         return True
     if value.startswith("mock://"):
         return True
-    if value.startswith("http://") or value.startswith("https://"):
+    if value.startswith(("http://", "https://")):
         return _is_loopback_url(value)
     return True
 
@@ -337,7 +333,7 @@ def _check_forbidden_public_bind(environ: Mapping[str, str]) -> list[MatrixViola
             continue
         if value.startswith("mock://"):
             continue
-        if "0.0.0.0" in value:
+        if "0.0.0.0" in value:  # the check forbids this address, it binds nothing  # noqa: S104  # nosec B104
             violations.append(
                 MatrixViolation(
                     code="forbidden_public_bind",
@@ -364,15 +360,14 @@ def _check_contract_violations(
 ) -> list[MatrixViolation]:
     violations: list[MatrixViolation] = []
     keys = _matching_keys(environ, contract)
-    if mode in contract.required_in:
-        if not keys or not any(_env_get(environ, k) for k in keys):
-            violations.append(
-                MatrixViolation(
-                    code="required_missing",
-                    message=f"{contract.key} required for mode {mode.value}",
-                    env_key=contract.key,
-                )
+    if mode in contract.required_in and (not keys or not any(_env_get(environ, k) for k in keys)):
+        violations.append(
+            MatrixViolation(
+                code="required_missing",
+                message=f"{contract.key} required for mode {mode.value}",
+                env_key=contract.key,
             )
+        )
     if mode in contract.forbidden_in:
         for key in keys:
             value = _env_get(environ, key)
