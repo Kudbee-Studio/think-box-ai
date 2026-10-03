@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -22,6 +23,9 @@ from thinkbox.agent.control_plane.demo_proof import emit_proof_bundle
 logger = logging.getLogger(__name__)
 
 demo_router = APIRouter(prefix="/demo")
+
+# run_id becomes a folder under data/proofs/, so it may not be ".", ".." or contain path or control characters.
+_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 
 @demo_router.get("/runs")
@@ -53,6 +57,8 @@ async def get_run(run_id: str) -> dict[str, Any]:
 @demo_router.get("/runs/{run_id}/proof")
 async def get_run_proof(run_id: str) -> dict[str, Any]:
     """Get proof bundle for a demo run (evidence_label=simulated)."""
+    if not _RUN_ID.fullmatch(run_id):
+        raise HTTPException(status_code=400, detail="invalid run_id")
     store = ActionReceiptStore(":memory:")
     from thinkbox.agent.control_plane.kernel_hooks import HookContext, on_admit
     on_admit(store, HookContext(agent_id=run_id, action="admit", evidence_label="simulated"))
