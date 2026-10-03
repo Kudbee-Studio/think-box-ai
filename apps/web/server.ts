@@ -32,6 +32,7 @@ import type {
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
+import type { MCPServer } from './mcp-registry.ts';
 import { SDK_VERSION, loadConfigFromEnv } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';

@@ -46,6 +46,7 @@ const c = {
 
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
+interface PluginInfo { name: string; icon?: string; permission: string; description: string }
 type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
@@ -121,7 +122,7 @@ class Client {
   sessionId = '';
   model = '';
   models: Model[] = [];
-  plugins: unknown[] = [];
+  plugins: PluginInfo[] = [];
   onApproval: (req: ApprovalRequest) => void = (req) => this.answer(req.id, false);
   routeTelemetry?: RouteTelemtry;
   /** Tool-scoped agent lane (e.g. 'hermes'). Undefined = full worker agent. */
@@ -152,7 +153,7 @@ class Client {
           if (msg.type === 'init') {
             this.sessionId = (msg.sessionId as string) ?? '';
             this.models = (msg.models as Model[] | undefined) ?? [];
-            this.plugins = (msg.plugins as unknown[] | undefined) ?? [];
+            this.plugins = (msg.plugins as PluginInfo[] | undefined) ?? [];
             const config = msg.config as Record<string, unknown> | undefined;
             this.model = (config?.model as string | undefined) ?? this.models[0]?.name ?? '';
             if (!resolved) {
@@ -201,17 +202,18 @@ class Client {
     ]);
     console.log();
     // The final answer is always printed, including after an evidence-check retry or a FLAGGED replacement.
-    if (Array.isArray(r.evidence_conflicts) && r.evidence_conflicts.length) {
-      console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String(r.evidence_conflicts[0]).slice(0, 200)}); final answer below.`));
+    const result = r as Record<string, unknown>;
+    if (Array.isArray(result.evidence_conflicts) && result.evidence_conflicts.length) {
+      console.log(c.yellow(`  ⚖ evidence check: the first answer conflicted with this run's tool results (${String((result.evidence_conflicts as unknown[])[0]).slice(0, 200)}); final answer below.`));
     }
     // A streamed (local chat) answer is already on screen token by token; do not print it again.
-    if (r.success) console.log(`${c.green('✓')} ${r.streamed ? 'done' : String(r.result ?? '').trim() || '(the agent returned no answer text)'}`);
-    else console.log(c.red(`✗ ${r.error ?? 'the run failed without an error message'}`));
-    if (r.steps !== undefined) {
-      console.log(c.dim(`  ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${usd(r.cost_usd)} · ${((r.duration_ms ?? 0) / 1000).toFixed(1)}s · run ${String(r.run_id).slice(0, 8)}`));
+    if (result.success) console.log(`${c.green('✓')} ${(result.streamed as boolean) ? 'done' : String(result.result ?? '').trim() || '(the agent returned no answer text)'}`);
+    else console.log(c.red(`✗ ${result.error ?? 'the run failed without an error message'}`));
+    if (result.steps !== undefined) {
+      console.log(c.dim(`  ${result.steps} step(s) · ${result.tool_calls} tool call(s) · ${result.tokens} tokens · ${usd(result.cost_usd as number)} · ${(((result.duration_ms as number) ?? 0) / 1000).toFixed(1)}s · run ${String(result.run_id).slice(0, 8)}`));
     }
     await this.files(true);
-    return Boolean(r.success);
+    return Boolean(result.success);
   }
 
   async files(quiet = false): Promise<void> {
@@ -540,18 +542,19 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           console.log(c.red(`Error: ${timeoutErr instanceof Error ? timeoutErr.message : 'Plugin execution timeout (30s)'}`));
           break;
         }
-        if (result?.success) {
+        const pluginResult = result as Record<string, unknown>;
+        if (pluginResult?.success) {
           console.log(c.green(`✓ ${pluginName} executed successfully`));
-          if (result.output) {
-            const formatted = typeof result.output === 'string'
-              ? result.output
-              : JSON.stringify(result.output, null, 2);
+          if (pluginResult.output) {
+            const formatted = typeof pluginResult.output === 'string'
+              ? pluginResult.output
+              : JSON.stringify(pluginResult.output, null, 2);
             console.log(c.dim('Output:'));
             console.log(`  ${formatted.split('\n').join('\n  ')}`);
           }
         } else {
           console.log(c.red(`✗ Plugin execution failed: ${pluginName}`));
-          if (result?.error) console.log(c.dim(`  Error: ${result.error}`));
+          if (pluginResult?.error) console.log(c.dim(`  Error: ${pluginResult.error}`));
         }
       } catch (err) {
         console.log(c.red('Error: Invalid JSON input'));
