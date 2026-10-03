@@ -27,6 +27,11 @@ export interface RunSnapshot {
   anonymized: boolean;
 }
 
+// Exported HTML is opened from disk and shared: every run-derived value (goal, model, agent output) is untrusted text.
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+}
+
 export class RunSharingService {
   private shareLinks: Map<string, RunShareLink> = new Map();
   private snapshots: Map<string, RunSnapshot> = new Map();
@@ -153,7 +158,7 @@ export class RunSharingService {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Run Report - ${snapshot.goal}</title>
+  <title>Run Report - ${escapeHtml(snapshot.goal)}</title>
   <style>
     body { font-family: system-ui, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
     .summary { background: #f0f9ff; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
@@ -166,8 +171,8 @@ export class RunSharingService {
 <body>
   <h1>Run Report</h1>
   <div class="summary">
-    <p><strong>Goal:</strong> ${snapshot.goal}</p>
-    <p><strong>Model:</strong> ${snapshot.model}</p>
+    <p><strong>Goal:</strong> ${escapeHtml(snapshot.goal)}</p>
+    <p><strong>Model:</strong> ${escapeHtml(snapshot.model)}</p>
     <p><strong>Duration:</strong> ${Math.round(snapshot.duration / 1000)}s</p>
     <p><strong>Status:</strong> ${snapshot.success ? '✅ Success' : '❌ Failed'}</p>
     <p><strong>Generated:</strong> ${new Date(snapshot.timestamp).toISOString()}</p>
@@ -178,10 +183,10 @@ export class RunSharingService {
 
     snapshot.messages.forEach((msg) => {
       const time = new Date(msg.timestamp).toLocaleTimeString();
-      html += `<div class="message ${msg.role}">
-    <strong>${msg.role.toUpperCase()}</strong>
-    <span class="time">${time}</span>
-    <p>${msg.content}</p>
+      html += `<div class="message ${escapeHtml(msg.role)}">
+    <strong>${escapeHtml(msg.role.toUpperCase())}</strong>
+    <span class="time">${escapeHtml(time)}</span>
+    <p>${escapeHtml(msg.content)}</p>
   </div>
 `;
     });

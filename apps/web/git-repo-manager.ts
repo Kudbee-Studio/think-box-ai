@@ -56,6 +56,19 @@ export class GitRepoManager {
   }
 
   /**
+   * Lexical confinement for every method that lists, syncs or deletes a directory: the path must be strictly inside the base
+   * directory (the base itself only where listing it is meant). The routes only pass paths looked up from validated repository
+   * names, but `deleteRepository` runs `rm -rf`, so the method does not rely on its callers.
+   */
+  private confine(candidate: string, { allowRoot = false } = {}): string {
+    const root = path.resolve(this.baseDir);
+    const target = path.resolve(root, candidate);
+    if (allowRoot && target === root) return target;
+    if (!target.startsWith(root + path.sep)) throw new GitInputError('Path is outside the workspace');
+    return target;
+  }
+
+  /**
    * Clone a git repository
    */
   async cloneRepository(config: GitRepoConfig): Promise<RepositoryState> {
@@ -70,7 +83,7 @@ export class GitRepoManager {
     }
     const repoName = this.extractRepoName(config.url);
     if (repoName.startsWith('.')) throw new GitInputError('Invalid repository name');
-    const localPath = config.localPath || path.join(this.baseDir, repoName);
+    const localPath = this.confine(config.localPath || path.join(this.baseDir, repoName));
 
     const state: RepositoryState = {
       url: config.url,
@@ -114,6 +127,7 @@ export class GitRepoManager {
    * Sync repository with remote
    */
   private async syncRepository(localPath: string): Promise<void> {
+    localPath = this.confine(localPath);
     try {
       execSync('git fetch origin', { cwd: localPath, stdio: 'pipe' });
       execSync('git pull origin', { cwd: localPath, stdio: 'pipe' });
@@ -178,7 +192,7 @@ export class GitRepoManager {
       return node;
     };
 
-    return buildTree(localPath, 0);
+    return buildTree(this.confine(localPath, { allowRoot: true }), 0);
   }
 
   /**
@@ -188,7 +202,8 @@ export class GitRepoManager {
   resolveInside(filePath: string): string {
     const root = fs.realpathSync(path.resolve(this.baseDir));
     const target = path.resolve(root, filePath);
-    if (target !== root && !target.startsWith(root + path.sep)) throw new GitInputError('Path is outside the workspace');
+    if (target === root) return target;
+    if (!target.startsWith(root + path.sep)) throw new GitInputError('Path is outside the workspace');
     // Refuse symlinks that leave the workspace: check the deepest existing ancestor.
     let probe = target;
     while (!fs.existsSync(probe) && probe !== root) probe = path.dirname(probe);
@@ -231,6 +246,7 @@ export class GitRepoManager {
    * Check repository status
    */
   getRepositoryStatus(localPath: string): { isDirty: boolean; changes: string[] } {
+    localPath = this.confine(localPath);
     try {
       const status = execSync('git status --porcelain', {
         cwd: localPath,
@@ -313,10 +329,11 @@ export class GitRepoManager {
   deleteRepository(repoName: string): boolean {
     const state = this.repos.get(repoName);
     if (!state) return false;
+    const localPath = this.confine(state.localPath);
 
     try {
-      if (fs.existsSync(state.localPath)) {
-        fs.rmSync(state.localPath, { recursive: true, force: true });
+      if (fs.existsSync(localPath)) {
+        fs.rmSync(localPath, { recursive: true, force: true });
       }
       this.repos.delete(repoName);
       return true;

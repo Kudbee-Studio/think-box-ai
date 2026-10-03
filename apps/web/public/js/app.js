@@ -31,6 +31,12 @@ const state = {
   }
 };
 
+// Session ids are server-made UUIDs. The id arrives over the WebSocket, so check its shape once and encode it into every URL it appears in.
+const SESSION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function sessionApi() {
+  return `/api/sessions/${encodeURIComponent(state.sessionId)}`;
+}
+
 function connectWebSocket() {
   const sdk = window.KudbeeSdkBrowser?.loadConfig?.() ?? null;
   const wsUrl = sdk?.wsUrl ?? `ws://${window.location.hostname}:${window.location.port || 3000}/ws`;
@@ -74,7 +80,7 @@ function handleMessage(msg) {
   window.KudbeeTerminal?.ingest(msg, { provider: state.config?.provider });
   switch (msg.type) {
     case 'init':
-      state.sessionId = msg.data.sessionId;
+      state.sessionId = SESSION_ID_PATTERN.test(String(msg.data.sessionId)) ? msg.data.sessionId : null;
       state.plugins = msg.data.plugins || [];
       state.models = msg.data.models || [];
       state.config = { ...state.config, ...(msg.data.config || {}) };
@@ -86,7 +92,7 @@ function handleMessage(msg) {
       renderTasks();
       renderModels();
       setStatus('idle', 'Ready');
-      appendTerminalMessage('system', `Session: ${state.sessionId.slice(0, 8)}`);
+      appendTerminalMessage(state.sessionId ? 'system' : 'error', state.sessionId ? `Session: ${state.sessionId.slice(0, 8)}` : 'The server sent an invalid session id; reload the page.');
       refreshFiles();
       break;
 
@@ -323,7 +329,7 @@ async function analyzeImage(file) {
   appendTerminalMessage('user', `Analyze image: ${file.name}`);
   setStatus('running', 'Analyzing image');
   try {
-    const response = await fetch(`/api/sessions/${state.sessionId}/images/analyze`, { method: 'POST', body: form });
+    const response = await fetch(`${sessionApi()}/images/analyze`, { method: 'POST', body: form });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || response.statusText);
     appendTerminalImage('assistant', result.answer, result.imageUrl, file.name);
@@ -348,7 +354,7 @@ async function generateImage() {
   appendTerminalMessage('user', `Generate image: ${prompt}`);
   setStatus('running', 'Generating image');
   try {
-    const response = await fetch(`/api/sessions/${state.sessionId}/images/generate`, {
+    const response = await fetch(`${sessionApi()}/images/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),
@@ -666,7 +672,7 @@ function submitPluginTest() {
 
 async function refreshFiles() {
   if (!state.sessionId) return;
-  const response = await fetch(`/api/sessions/${state.sessionId}/files`, { cache: 'no-store' });
+  const response = await fetch(`${sessionApi()}/files`, { cache: 'no-store' });
   if (!response.ok) return;
   const data = await response.json();
   const tree = document.getElementById('file-tree');
@@ -688,7 +694,7 @@ async function uploadFiles(fileList) {
   if (!state.sessionId || !fileList.length) return;
   const form = new FormData();
   Array.from(fileList).forEach(file => form.append('files', file, file.webkitRelativePath || file.name));
-  const response = await fetch(`/api/sessions/${state.sessionId}/files`, { method: 'POST', body: form });
+  const response = await fetch(`${sessionApi()}/files`, { method: 'POST', body: form });
   const result = await response.json();
   if (!response.ok) {
     appendTerminalMessage('error', `Upload failed: ${result.error || response.statusText}`);
@@ -701,11 +707,11 @@ async function uploadFiles(fileList) {
 async function previewFile(filePath) {
   const extension = filePath.split('.').pop().toLowerCase();
   if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension)) {
-    const imageUrl = `/api/sessions/${state.sessionId}/files/raw?path=${encodeURIComponent(filePath)}`;
+    const imageUrl = `${sessionApi()}/files/raw?path=${encodeURIComponent(filePath)}`;
     appendTerminalImage('system', filePath, imageUrl, filePath);
     return;
   }
-  const response = await fetch(`/api/sessions/${state.sessionId}/files/content?path=${encodeURIComponent(filePath)}`);
+  const response = await fetch(`${sessionApi()}/files/content?path=${encodeURIComponent(filePath)}`);
   const result = await response.json();
   if (!response.ok) {
     appendTerminalMessage('error', `Preview failed: ${result.error}`);
@@ -1307,7 +1313,7 @@ async function uploadTaskImage(file, taskId) {
   const form = new FormData();
   form.append('image', file);
   try {
-    const response = await fetch(`/api/sessions/${state.sessionId}/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+    const response = await fetch(`${sessionApi()}/tasks/${encodeURIComponent(taskId)}/attachments`, { method: 'POST', body: form });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || response.statusText);
     appendTerminalMessage('system', `Attached ${file.name} to task ${taskId.slice(0, 8)}.`);

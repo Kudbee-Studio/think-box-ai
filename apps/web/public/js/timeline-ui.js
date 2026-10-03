@@ -1,6 +1,7 @@
 // Timeline UI - Step-level execution visualization
 
 import { getTimelineService } from '../services/timeline.js';
+import { escapeHtml } from './escape-html.js';
 
 export class TimelineUI {
   constructor() {
@@ -58,7 +59,7 @@ export class TimelineUI {
       <div class="timeline">
         <div class="timeline-header">
           <h4>Execution Timeline</h4>
-          <span class="run-id">${runId.slice(0, 8)}</span>
+          <span class="run-id">${escapeHtml(runId.slice(0, 8))}</span>
         </div>
 
         <div class="timeline-stats">
@@ -77,13 +78,13 @@ export class TimelineUI {
         </div>
 
         <div class="timeline-items">
-          ${steps.map((step, idx) => this.buildTimelineItem(step, idx)).join('')}
+          ${steps.map((step, idx) => this.buildTimelineItem(step, idx, steps.length)).join('')}
         </div>
       </div>
     `;
   }
 
-  buildTimelineItem(step, index) {
+  buildTimelineItem(step, index, total) {
     const statusColor = {
       'pending': '#64748b',
       'running': '#3b82f6',
@@ -97,19 +98,19 @@ export class TimelineUI {
       : 0;
 
     return `
-      <div class="timeline-item" data-status="${step.status}">
+      <div class="timeline-item" data-status="${escapeHtml(step.status)}">
         <div class="timeline-dot" style="background-color: ${statusColor}"></div>
         <div class="timeline-content">
           <div class="step-header">
             <span class="step-num">Step ${index + 1}</span>
-            <span class="step-name">${step.name}</span>
-            <span class="step-status">${step.status}</span>
+            <span class="step-name">${escapeHtml(step.name)}</span>
+            <span class="step-status">${escapeHtml(step.status)}</span>
           </div>
 
           ${step.tool ? `
             <div class="step-tool">
               <span class="tool-icon">⚙️</span>
-              <span class="tool-name">${step.tool}</span>
+              <span class="tool-name">${escapeHtml(step.tool)}</span>
             </div>
           ` : ''}
 
@@ -121,7 +122,7 @@ export class TimelineUI {
           ${step.approvalWaitTime ? `
             <div class="step-approval">
               <span class="approval-label">⏳ Approval wait:</span>
-              <span class="approval-time">${step.approvalWaitTime}ms</span>
+              <span class="approval-time">${Number(step.approvalWaitTime) || 0}ms</span>
             </div>
           ` : ''}
 
@@ -129,7 +130,7 @@ export class TimelineUI {
             <div class="step-result">
               <details>
                 <summary>Result</summary>
-                <pre>${JSON.stringify(step.result, null, 2)}</pre>
+                <pre>${escapeHtml(JSON.stringify(step.result, null, 2))}</pre>
               </details>
             </div>
           ` : ''}
@@ -138,13 +139,13 @@ export class TimelineUI {
             <div class="step-error">
               <details>
                 <summary>Error</summary>
-                <pre>${step.error}</pre>
+                <pre>${escapeHtml(step.error)}</pre>
               </details>
             </div>
           ` : ''}
         </div>
 
-        ${index < steps.length - 1 ? '<div class="timeline-connector"></div>' : ''}
+        ${index < total - 1 ? '<div class="timeline-connector"></div>' : ''}
       </div>
     `;
   }

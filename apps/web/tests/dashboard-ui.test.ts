@@ -164,3 +164,11 @@ test('every window.X function a script feature-detects is assigned somewhere (ap
   const browserBuiltins = new Set(['matchMedia', 'requestAnimationFrame', 'cancelAnimationFrame', 'getSelection', 'requestIdleCallback']);
   for (const name of [...wanted].filter((n) => !browserBuiltins.has(n))) assert.match(all, new RegExp(`window\\.${name}\\s*=(?!=)`), `window.${name} is used but never assigned`);
 });
+
+test('app.js builds every /api/sessions URL through sessionApi() (UUID-checked once, encoded each time)', () => {
+  const app = read('js/app.js');
+  assert.doesNotMatch(app, /\/api\/sessions\/\$\{state\.sessionId\}/, 'a session URL interpolates the raw id');
+  assert.match(app, /SESSION_ID_PATTERN = \/\^\[0-9a-f\]\{8\}-/, 'the id shape is checked');
+  assert.match(app, /state\.sessionId = SESSION_ID_PATTERN\.test\(/, 'the check runs where the id arrives');
+  assert.match(app, /\$\{sessionApi\(\)\}\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/attachments/, 'task ids are encoded');
+});
