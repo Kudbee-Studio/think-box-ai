@@ -14,7 +14,7 @@ export interface PluginManifest {
   entrypoint?: string;
   homepage?: string;
   minDashboardVersion?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface PluginContext {
@@ -22,7 +22,7 @@ export interface PluginContext {
   enabled: boolean;
   installedAt: number;
   lastUpdated: number;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export interface PluginPanel {
@@ -36,7 +36,7 @@ export interface PluginPanel {
 export interface PluginCommand {
   name: string;
   description: string;
-  execute(...args: any[]): Promise<any>;
+  execute(...args: unknown[]): Promise<unknown>;
 }
 
 export interface PluginAPI {
@@ -45,12 +45,12 @@ export interface PluginAPI {
   setEnabled(enabled: boolean): Promise<void>;
 
   // Storage
-  getStorage(): Record<string, any>;
-  updateStorage(data: Record<string, any>): Promise<void>;
+  getStorage(): Record<string, unknown>;
+  updateStorage(data: Record<string, unknown>): Promise<void>;
 
   // Events
-  onMessage(type: string, handler: (data: any) => void): void;
-  sendMessage(type: string, data: any): void;
+  onMessage(type: string, handler: (data: unknown) => void): void;
+  sendMessage(type: string, data: unknown): void;
 
   // Dashboard integration
   registerPanel(panel: PluginPanel): Promise<void>;
@@ -58,7 +58,7 @@ export interface PluginAPI {
   unregisterPanel(panelId: string): Promise<void>;
 
   // Telemetry
-  log(level: 'info' | 'warn' | 'error', message: string, data?: any): void;
+  log(level: 'info' | 'warn' | 'error', message: string, data?: unknown): void;
 }
 
 export interface Plugin {

@@ -9,7 +9,7 @@ export class PluginManager {
   private pluginInstances: Map<string, Plugin> = new Map();
   private panels: Map<string, PluginPanel> = new Map();
   private commands: Map<string, PluginCommand> = new Map();
-  private eventHandlers: Map<string, Set<(data: any) => void>> = new Map();
+  private eventHandlers: Map<string, Set<(data: unknown) => void>> = new Map();
 
   constructor() {
     this.loadFromStorage();
@@ -132,7 +132,7 @@ export class PluginManager {
   }
 
   // Execute command
-  async executeCommand(name: string, ...args: any[]): Promise<any> {
+  async executeCommand(name: string, ...args: unknown[]): Promise<unknown> {
     const cmd = this.commands.get(name);
     if (!cmd) throw new Error(`Command ${name} not found`);
     return cmd.execute(...args);
@@ -160,7 +160,7 @@ export class PluginManager {
         return context?.settings || {};
       },
 
-      updateStorage: async (data: Record<string, any>) => {
+      updateStorage: async (data: Record<string, unknown>) => {
         const context = this.registry.get(pluginId);
         if (context) {
           context.settings = { ...context.settings, ...data };
@@ -168,7 +168,7 @@ export class PluginManager {
         }
       },
 
-      onMessage: (type: string, handler: (data: any) => void) => {
+      onMessage: (type: string, handler: (data: unknown) => void) => {
         const key = `${pluginId}:${type}`;
         if (!this.eventHandlers.has(key)) {
           this.eventHandlers.set(key, new Set());
@@ -176,7 +176,7 @@ export class PluginManager {
         this.eventHandlers.get(key)!.add(handler);
       },
 
-      sendMessage: (type: string, data: any) => {
+      sendMessage: (type: string, data: unknown) => {
         const key = `${pluginId}:${type}`;
         const handlers = this.eventHandlers.get(key);
         if (handlers) {
