@@ -7,6 +7,7 @@ remain on disk for local runs.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ __all__ = (
     "PR_NUMBER",
     "REQUIRED_CI_SNIPPETS",
     "CiSpineTrustViolation",
+    "ci_runs_python",
     "ci_spine_trust_contract_summary",
     "validate_pr172_ci_workflow_manifest",
 )
@@ -38,6 +40,10 @@ REQUIRED_CI_SNIPPETS: tuple[str, ...] = (
     "verify_kilo_beyond_kilo_lint.py",
     "scan_doc_secrets.py",
 )
+
+# A workflow "runs Python" when it sets up Python or calls python or pip. The unit-and-integration job that carried the
+# KILO steps above was removed in PR #308; the workflow is web-only since, and the steps cannot be required of it.
+_RUNS_PYTHON = re.compile(r"setup-python|\bpython3?\b|\bpip3?\b")
 
 FORBIDDEN_REDUNDANT_CI_VERIFY_SCRIPTS: tuple[str, ...] = (
     "verify_kilo_post_season_harden.py",
@@ -90,12 +96,20 @@ class CiSpineTrustViolation:
     path: str | None = None
 
 
+def ci_runs_python(text: str) -> bool:
+    """True when the workflow runs Python, so the required KILO steps apply to it."""
+    return _RUNS_PYTHON.search(text) is not None
+
+
 def validate_pr172_ci_workflow_manifest(
     text: str,
 ) -> tuple[bool, tuple[CiSpineTrustViolation, ...]]:
-    """Ensure PR CI matches spine-trust + explicit beyond-KILO lint execute."""
+    """Ensure PR CI matches spine-trust + explicit beyond-KILO lint execute.
+
+    The required steps apply only to a workflow that runs Python; the forbidden patterns always apply.
+    """
     violations: list[CiSpineTrustViolation] = []
-    for snippet in REQUIRED_CI_SNIPPETS:
+    for snippet in REQUIRED_CI_SNIPPETS if ci_runs_python(text) else ():
         if snippet not in text:
             violations.append(
                 CiSpineTrustViolation(
@@ -146,6 +160,7 @@ def ci_spine_trust_contract_summary(
         "four_state_max": "TEST_VERIFIED",
         "combined_umbrella_nested": False,
         "ci_workflow_rel": str(CI_WORKFLOW_REL),
+        "ci_runs_python": ci_runs_python(workflow_text),
         "required_ci_snippets": list(REQUIRED_CI_SNIPPETS),
         "forbidden_redundant_script_count": len(FORBIDDEN_REDUNDANT_CI_VERIFY_SCRIPTS),
         "violation_count": len(violations),

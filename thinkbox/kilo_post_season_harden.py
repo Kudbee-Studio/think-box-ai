@@ -112,6 +112,7 @@ class PostSeasonHardenEvidence:
     checklist_ok: bool
     live_api_called: bool = False
     four_state_max: str = "TEST_VERIFIED"
+    ci_manifest_applies: bool = True  # False when the workflow runs no Python (the required steps are not demanded of it)
 
 
 @dataclass(frozen=True)
@@ -216,6 +217,8 @@ def evaluate_post_season_harden(
     run_checklist: bool = True,
 ) -> PostSeasonHardenResult:
     """Evaluate post-season harden gate (hermetic only)."""
+    from thinkbox.kilo_pr172_ci_spine_trust import ci_runs_python
+
     resolved = PostSeasonHardenMode(mode.value) if isinstance(mode, EnvMatrixMode) else mode
     violations: list[PostSeasonHardenViolation] = []
 
@@ -231,9 +234,12 @@ def evaluate_post_season_harden(
 
     ci_path = REPO_ROOT / CI_WORKFLOW_REL
     ci_ok = False
+    ci_applies = True
     if ci_path.is_file():
-        ci_ok, ci_v = validate_ci_workflow_manifest(ci_path.read_text(encoding="utf-8"))
+        ci_text = ci_path.read_text(encoding="utf-8")
+        ci_ok, ci_v = validate_ci_workflow_manifest(ci_text)
         violations.extend(ci_v)
+        ci_applies = ci_runs_python(ci_text)
     else:
         violations.append(
             PostSeasonHardenViolation(
@@ -317,6 +323,7 @@ def evaluate_post_season_harden(
         spine_scripts_present=scripts_ok,
         branch_hygiene_script_present=hygiene_ok,
         checklist_ok=checklist_ok,
+        ci_manifest_applies=ci_applies,
     )
     return PostSeasonHardenResult(
         mode=resolved,
@@ -370,6 +377,7 @@ def post_season_harden_contract_summary(
         "hermetic_operator_ok": operator.ok,
         "live_proof_exec_ok": operator.live_proof_exec_ok,
         "ci_workflow_rel": str(CI_WORKFLOW_REL),
+        "ci_manifest_applies": operator.evidence.ci_manifest_applies if operator.evidence else True,
         "branch_hygiene_script": str(BRANCH_HYGIENE_SCRIPT_REL),
         "post_season_checklist": str(POST_SEASON_CHECKLIST_REL),
         "spine_verify_script_count": len(SPINE_VERIFY_SCRIPTS),
