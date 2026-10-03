@@ -46,4 +46,4 @@ export const PARITY: Record<string, Parity> = {
 };
 
 /** The number of gaps at the time this map was written. A new gap must be fixed (or consciously raise this number in a reviewed change). */
-export const MAX_GAPS = 8;
+export const MAX_GAPS = 6;
