@@ -3628,7 +3628,7 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **FOUR-STATE:** CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED for the items above; PRODUCTION READY: NO.
 
 
-## 2026-10-03 — Phase 3 item 4: redacting live-proof bundle builder (branch `feat/pr340-p3-live-proof-bundle`, PR #340)
+## 2026-10-03 — Phase 3 item 4: redacting live-proof bundle builder (PR #340, merged `d94afbbb`)
 
 - **Changed:** `thinkbox/live_proof_bundle.py` validates a raw governed `upcloud-ssh` artifact/receipt/checkpoint produced by a real run: it re-hashes the artifact against the receipt's `artifact_hash`, requires `status == COMPLETED` and `verified`, checks the provider, copies only an allow-listed set of artifact fields, drops absolute paths and `remote_user`, refuses any private-key block / bearer token / API key / `.ssh/` path, and writes a bundle JSON plus a Markdown summary under `docs/evidence/live-proof/`. `scripts/run_live_proof_bundle.py` runs one exactly-allowed read-only command through the committed `UpCloudSSHExecutionAdapter` (PR #282) and then builds the bundle. No new execution path, endpoint or dependency.
 - **Tests:** `python3 -m unittest tests.unit.test_live_proof_bundle` → 17/17 OK; 40/40 with the SSH provider and adapter suites. Covers valid run, hash mismatch, non-COMPLETED, unverified receipt, wrong provider, secret in stdout, missing artifact, absolute-path stripping, unknown-field dropping, unknown-host redaction, missing-checkpoint warning, writers, and secret-scan patterns.
@@ -3645,3 +3645,13 @@ python3 experiments/verify_swarm_proof.py data/thinkboxmd/big_swarm_<timestamp>.
 - **Blocked / UNPROVEN:** the pinned SSH path and the item-4 bundle against a real worker-02 run. The worktree still has the historical dead host `212.147.250.183` / `kudbee-host-v1` and no `~/.ssh/kilo-upcloud` (purged in PR #271). No live UpCloud execution, no live credentials, no host/key fabrication.
 - **CI:** GitHub Actions jobs fail before executing any step — the documented billing-lock signature, not a code regression.
 - **FOUR-STATE:** item 3 CODE COMPLETE / TEST VERIFIED, LIVE VERIFIED: NO; item 4 CODE COMPLETE / TEST VERIFIED, real bundle UNPROVEN; PR #340 not PRODUCTION READY. Evidence: `docs/evidence/pr340-live-proof-bundle.md`.
+
+## 2026-10-03 — Phase 3 item 6: Git panel browser test (branch `feat/pr341-p3-git-panel-browser-test`)
+
+- **Changed:** new `apps/web/tests/git-panel-browser.test.ts` loads the real dashboard panel `public/js/git-integration.js` into a `node:vm` sandbox (the convention used by `think-token-dashboard.test.ts` and `git-panel-escaping.test.ts`) and binds the sandbox `fetch` to a real spawned `server.ts` (the spawn pattern from `git-routes.test.ts`). It drives the panel's own `/api/git` fetches: `loadRepositories` (GET /repos), `openFile` (GET /file → content + detected language), in-workspace `saveFile` (POST /save, read-back), and the traversal refusal (absolute canary, `../`, nested `../../` → 400/403, never reaches the editor).
+- **No route/UI/security change; no new dependency or framework.** The repo has no browser-automation dep; headless Chrome is run manually, so a `node:vm` load of the real module against a real server is the reusable, CI-able mechanism.
+- **Tests:** new browser test 4/4 OK; existing `tests/git-routes.test.ts` 7/7 OK; related git/dashboard regression green. Mutation proof: dropping `language` from the `/api/git/file` response fails 2 tests; disabling `resolveInside` confinement in `git-repo-manager.ts` fails the traversal test. Both restored.
+- **Environment note:** this worktree had no `apps/web/node_modules`; `better-sqlite3` v13.0.3 publishes no prebuilt binary for Node 22.23 (ABI 127), so the sandbox toolchain was installed and the module compiled from source. Environment setup only, not a repo change.
+- **Known flaky (pre-existing, unrelated):** a 7-suite combined run showed one `local-only` "Janus image service is opt-in" failure from concurrent server spawns; it passes in isolation and in repeated pair runs.
+- **Blocked / not claimed:** LIVE VERIFIED — this is a local loopback HTTP/module run with no external service. PRODUCTION READY: NO.
+- **FOUR-STATE:** item 6 CODE COMPLETE / TEST VERIFIED; not LIVE VERIFIED; not PRODUCTION READY. Evidence: `docs/evidence/pr341-git-panel-browser-test.md`.

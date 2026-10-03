@@ -174,7 +174,10 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
    `python3 scripts/run_live_proof_bundle.py --command hostname` with worker-02 env, then commit `docs/evidence/live-proof/`
 5. ⏭ **Think Token (#288):** decide whether to wire the learning library into `AgentSession` (changes
    agent prompts)
-6. ⏭ **Git panel browser test** (`/api/git`, mounted and hardened in #289)
+6. 🔨 **Git panel browser test** (`/api/git`, mounted and hardened in #289): `tests/git-panel-browser.test.ts`
+   loads the real dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own
+   `/api/git` fetches against a real spawned `server.ts` — repo list, open-file (content+language),
+   in-workspace save, and the traversal refusal. CODE COMPLETE / TEST VERIFIED (local HTTP; not LIVE VERIFIED)
 7. ⏭ **Dashboard authentication + HTTPS** before any remote/shared deployment
 
 Founder decisions still open: delete the orphan server `00068975`; keep or delete worker-01; an SSH-only

@@ -1,4 +1,10 @@
-## CURRENT (2026-10-03) — Phase 3 items 4 + 3: live-proof bundle builder and SSH hardening (branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
+## CURRENT (2026-10-03) — Phase 3 item 6: Git panel browser test (branch `feat/pr341-p3-git-panel-browser-test`)
+
+- **CODE COMPLETE / TEST VERIFIED:** `apps/web/tests/git-panel-browser.test.ts` loads the real dashboard panel (`public/js/git-integration.js`) into `node:vm` and drives its own `/api/git` fetches against a real spawned `server.ts`: repo list, open-file (content+language), in-workspace save + read-back, and the traversal refusal. 4/4 new; `git-routes` 7/7; mutation-proven (drop `language` → 2 fails; disable `resolveInside` → traversal fails).
+- **NOT LIVE VERIFIED** — local loopback only, no external service. **NOT PRODUCTION READY.**
+- **Evidence:** `docs/evidence/pr341-git-panel-browser-test.md`.
+
+## CURRENT (2026-10-03) — Phase 3 items 4 + 3: live-proof bundle builder and SSH hardening (PR **#340**, merged `d94afbbb`)
 
 - **CODE COMPLETE / TEST VERIFIED (item 4):** `thinkbox/live_proof_bundle.py` validates raw artifact/receipt/checkpoint from a governed `upcloud-ssh` run, re-hashes the artifact, redacts and refuses secrets, and writes a committed bundle + Markdown. `scripts/run_live_proof_bundle.py` runs one exactly-allowed read-only command through the committed `UpCloudSSHExecutionAdapter`, then builds the bundle. 17/17 hermetic tests.
 - **CODE COMPLETE / TEST VERIFIED (item 3):** SSH host-key pinning (`StrictHostKeyChecking=yes` + `UserKnownHostsFile`, no `accept-new` when hardened) and explicit non-root user support. Hardened mode without a trusted known_hosts fails closed. New env `UPCLOUD_SSH_HARDENED`, `UPCLOUD_SSH_KNOWN_HOSTS`. Targeted + regression set **103/103 OK**; mutation proof fails 2 focused tests.
