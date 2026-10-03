@@ -50,13 +50,6 @@ CHRONICLE_DOC_RELS: tuple[Path, ...] = (
     RUNBOOK_REL,
 )
 
-README_HONESTY_MARKERS: tuple[str, ...] = (
-    "one implementation PR at a time",
-    "single-theme",
-    "fast-by-default",
-    "--e2e",
-)
-
 
 @dataclass(frozen=True)
 class ChronicleHonestyViolation:
@@ -141,16 +134,10 @@ def validate_chronicle_documents(
             )
         )
 
+    # The README is checked for pointers and claims. It is no longer required to restate the KILO-era process rules
+    # (one single-theme PR at a time, fast-by-default CI, --e2e opt-in): PR #316 rewrote the README for the product,
+    # AGENTS.md 0.2 replaced that process, and PR #308 removed the CI they described.
     readme = _doc_text(docs, README_REL)
-    for marker in README_HONESTY_MARKERS:
-        if marker.lower() not in readme.lower():
-            violations.append(
-                ChronicleHonestyViolation(
-                    code="readme_honesty_marker_missing",
-                    message=f"README must mention: {marker}",
-                    path=str(README_REL),
-                )
-            )
     for required in (
         "docs/roadmaps/kilo-post-170-pr-roadmap.md",
         "verify_kilo_spine.py",
