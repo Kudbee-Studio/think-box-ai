@@ -2899,3 +2899,70 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 
 **Command parity gap closed:** `/plugin` moved from gap to 'both' in `command-parity.ts` (gaps: 11 → 8, 27% reduction).
 
+---
+
+## Session Info Display (P3.11 feature: `/session`)
+
+**CLI and Dashboard parity (2026-10-03):**
+- `/session` added to CLI (`cli.ts`) to match dashboard (`app.js`)
+- Displays current session metadata: ID, model, agent, plugins, WebSocket status
+- Color-coded output for readability (cyan ID, green model, yellow agent, magenta plugin count)
+- Live WebSocket connection status indicator (green=Connected, red=Disconnected)
+- Helps users understand their current execution context at a glance
+
+**Usage:**
+```
+/session
+```
+
+**Output:**
+```
+🐝 kudbEE Agent OS — Session
+  Session ID: <cyan-session-uuid>
+  Model: <green-model-name>
+  Agent: <yellow-agent-profile>
+  Plugins: <magenta-count>
+  WebSocket: <green>Connected</green> or <red>Disconnected</red>
+
+  Use /model NAME to switch · /agent NAME to select an agent profile
+```
+
+**Implementation:**
+- Reads `sessionId`, `client.model`, `client.agent`, `client.plugins` from session context
+- Checks `client.ws?.readyState === 1` for live WebSocket status
+- Uses color helpers (`c.cyan`, `c.green`, `c.yellow`, `c.magenta`) for formatting
+- Non-blocking, immediate response (no I/O required)
+
+**Command parity gap closed:** `/session` moved from gap to 'both' in `command-parity.ts` (gaps: 8 → 7, 36% reduction).
+
+---
+
+## Session History Display (P3.11 feature: `/sessions`)
+
+**CLI and Dashboard parity (2026-10-03):**
+- `/sessions` added to CLI as an alias for `/runs` (`cli.ts`) to match dashboard (`app.js`)
+- Displays 15 most recent session runs with metadata
+- Provides quick access to run history without typing `/runs`
+- Accessible from both CLI and dashboard terminal
+
+**Usage:**
+```
+/sessions
+/runs    (equivalent command)
+```
+
+**Output:**
+```
+🐝 Session History (15 most recent)
+[Run ID]  [Goal]  [Status]  [Model]  [Time]
+...
+```
+
+**Implementation:**
+- `/sessions` case statement delegates to `showRuns()` function
+- Aliases map to the same backend endpoint (`/api/runs`)
+- Shows identical output to `/runs` command
+- Filtered to show last 15 entries for brevity
+
+**Command parity gap closed:** `/sessions` moved from gap to 'both' in `command-parity.ts` (gaps: 7 → 6, 45% reduction).
+
