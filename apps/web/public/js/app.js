@@ -14,7 +14,7 @@ const state = {
   thoughtFilter: 'all',
   pluginQuery: '',
   runs: [],
-  runProgress: {},
+  runProgress: Object.create(null),
   approvals: [],
   openRunId: null,
   memoryLayer: '',
@@ -591,7 +591,7 @@ function renderThoughts() {
 
   const visibleThoughts = state.thoughts.filter(thought => state.thoughtFilter === 'all' || thought.status === state.thoughtFilter);
   container.innerHTML = visibleThoughts.slice(-50).reverse().map(thought => `
-    <div class="thought-item ${thought.status || 'info'}">
+    <div class="thought-item ${escapeHtml(thought.status || 'info')}">
       <div class="thought-header">
         <span class="thought-type">${escapeHtml(thought.type || 'thought')}</span>
         <span>${formatThoughtTime(thought.timestamp)}</span>
@@ -1365,6 +1365,7 @@ async function testMiddleware() {
     const query = state.sessionId ? `?session_id=${encodeURIComponent(state.sessionId)}` : '';
     const response = await fetch(`/api/middleware/test${query}`, { cache: 'no-store' });
     const result = await response.json();
+    if (!response.ok || !Array.isArray(result.checks)) throw new Error(result.error || `HTTP ${response.status}`);
     appendTerminalMessage(result.passed ? 'system' : 'error', [
       `Middleware test: ${result.passed ? 'PASSED' : 'FAILED'}`,
       ...result.checks.map(check => `${check.status === 'ok' ? '✓' : '✗'} ${check.name}: ${check.error || `${check.http_status} (${check.latency_ms}ms)`}`),

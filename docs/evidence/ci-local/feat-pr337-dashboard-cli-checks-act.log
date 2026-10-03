@@ -1,0 +1,814 @@
+time="2026-10-03T01:30:39Z" level=info msg="Using docker host 'unix:///var/run/docker.sock', and daemon socket 'unix:///var/run/docker.sock'"
+[test/web-typecheck] ⭐ Run Set up job
+[test/web-typecheck] 🚀  Start image=catthehacker/ubuntu:act-latest
+[test/web-typecheck]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[test/web-typecheck]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[test/web-typecheck]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[test/web-typecheck]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[test/web-typecheck]   ✅  Success - Set up job
+[test/web-typecheck]   ☁  git clone 'https://github.com/actions/setup-node' # ref=v4
+[test/web-typecheck] ⭐ Run Main actions/checkout@v4
+[test/web-typecheck]   🐳  docker cp src=/tmp/claude-0/-home-user-think-box-ai/3d4ade5f-27eb-571f-bfc7-18d47e68091f/scratchpad/clone337/. dst=/tmp/claude-0/-home-user-think-box-ai/3d4ade5f-27eb-571f-bfc7-18d47e68091f/scratchpad/clone337
+[test/web-typecheck]   ✅  Success - Main actions/checkout@v4 [942.430873ms]
+[test/web-typecheck] ⭐ Run Main actions/setup-node@v4
+[test/web-typecheck]   🐳  docker cp src=/root/.cache/act/actions-setup-node@v4/ dst=/var/run/act/actions/actions-setup-node@v4/
+[test/web-typecheck]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.19.0/x64/bin/node /var/run/act/actions/actions-setup-node@v4/dist/setup/index.js] user= workdir=
+[test/web-typecheck]   | Found in cache @ /opt/hostedtoolcache/node/22.23.3/x64
+[test/web-typecheck]   | (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+[test/web-typecheck]   | (Use `node --trace-deprecation ...` to show where the warning was created)
+[test/web-typecheck]   ❓  ::group::Environment details
+[test/web-typecheck]   | node: v22.23.3
+[test/web-typecheck]   | npm: 10.9.9
+[test/web-typecheck]   | yarn: 
+[test/web-typecheck]   ❓  ::endgroup::
+[test/web-typecheck]   ❓ add-matcher /run/act/actions/actions-setup-node@v4/.github/tsc.json
+[test/web-typecheck]   ❓ add-matcher /run/act/actions/actions-setup-node@v4/.github/eslint-stylish.json
+[test/web-typecheck]   ❓ add-matcher /run/act/actions/actions-setup-node@v4/.github/eslint-compact.json
+[test/web-typecheck]   ✅  Success - Main actions/setup-node@v4 [981.602006ms]
+[test/web-typecheck]   ⚙  ::set-output:: node-version=v22.23.3
+[test/web-typecheck]   ⚙  ::add-path:: /opt/hostedtoolcache/node/22.23.3/x64/bin
+[test/web-typecheck] ⭐ Run Main Install dependencies
+[test/web-typecheck]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=apps/web
+[test/web-typecheck]   | 
+[test/web-typecheck]   | added 164 packages, and audited 165 packages in 19s
+[test/web-typecheck]   | 
+[test/web-typecheck]   | 48 packages are looking for funding
+[test/web-typecheck]   |   run `npm fund` for details
+[test/web-typecheck]   | 
+[test/web-typecheck]   | found 0 vulnerabilities
+[test/web-typecheck]   ✅  Success - Main Install dependencies [19.512379758s]
+[test/web-typecheck] ⭐ Run Main Typecheck (TypeScript 7 native / tsgo)
+[test/web-typecheck]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=apps/web
+[test/web-typecheck]   | 
+[test/web-typecheck]   | > thinkbox-web@0.1.0 typecheck
+[test/web-typecheck]   | > tsgo --noEmit
+[test/web-typecheck]   | 
+[test/web-typecheck]   ✅  Success - Main Typecheck (TypeScript 7 native / tsgo) [661.15674ms]
+[test/web-typecheck] ⭐ Run Main Agent OS tests (hermetic, mocked Inception)
+[test/web-typecheck]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/4] user= workdir=apps/web
+[test/web-typecheck]   | 
+[test/web-typecheck]   | > thinkbox-web@0.1.0 test
+[test/web-typecheck]   | > node --experimental-strip-types --no-warnings --test --test-timeout=30000 --test-reporter=spec "tests/*.test.ts"
+[test/web-typecheck]   | 
+[test/web-typecheck]   | ✔ plain answer: one step, tokens and cost from usage (54.65732ms)
+[test/web-typecheck]   | ✔ costUsd uses per-million pricing and is 0 for unknown models (0.664935ms)
+[test/web-typecheck]   | ✔ write_file writes inside the workspace and is traced (19.328234ms)
+[test/web-typecheck]   | ✔ write_file outside the workspace is rejected as a tool error (15.698924ms)
+[test/web-typecheck]   | ✔ overwrite needs approval; denial leaves the file unchanged (15.848317ms)
+[test/web-typecheck]   | ✔ overwrite proceeds when approved (25.526043ms)
+[test/web-typecheck]   | ✔ first contact with a domain needs approval once per session (32.684456ms)
+[test/web-typecheck]   | ✔ fetch_url rejects non-http schemes (15.484255ms)
+[test/web-typecheck]   | ✔ remember is refused without observed evidence and disabled after two refusals (9.1852ms)
+[test/web-typecheck]   | ✔ remember does not accept a file the run wrote itself as evidence (13.003272ms)
+[test/web-typecheck]   | ✔ remember is allowed after reading a file that existed before the run (5.561802ms)
+[test/web-typecheck]   | ✔ remember is allowed after a fetch, and when the user explicitly asks (10.268087ms)
+[test/web-typecheck]   | ✔ remember requires an evidence argument (5.422991ms)
+[test/web-typecheck]   | ✔ budget exhaustion stops before any model call (4.537777ms)
+[test/web-typecheck]   | ✔ stop aborts the in-flight model request quickly (103.534683ms)
+[test/web-typecheck]   | ✔ step limit ends a run that never answers (18.289587ms)
+[test/web-typecheck]   | ✔ API errors fail the run with the HTTP status (3.434553ms)
+[test/web-typecheck]   | ✔ a 200 reply with no choices fails the run with a clear error, not a TypeError (3.224118ms)
+[test/web-typecheck]   | ✔ malformed tool arguments become a tool error, not a crash (17.001362ms)
+[test/web-typecheck]   | ✔ memory context is added to the system prompt (7.366177ms)
+[test/web-typecheck]   | ✔ algorand lookups go through the new-domain approval gate (7.288673ms)
+[test/web-typecheck]   | ✔ invalid algorand input is rejected before any network call (5.213883ms)
+[test/web-typecheck]   | ✔ HERMES allowlist is exactly algorand, recall, remember (0.437529ms)
+[test/web-typecheck]   | ✔ a HERMES run only offers its allowlisted tools to the model (3.188281ms)
+[test/web-typecheck]   | ✔ HERMES gets its role context in the system prompt (5.017083ms)
+[test/web-typecheck]   | ✔ a disallowed tool call is rejected before the approval gate, even if the model hallucinates it (6.100958ms)
+[test/web-typecheck]   | ✔ HERMES can still use algorand and remember normally (6.455497ms)
+[test/web-typecheck]   | ✔ the default (no agentProfile) run is unrestricted, unaffected by HERMES existing (5.332704ms)
+[test/web-typecheck]   | ✔ ASCLEPIUS allowlist is exactly medication, recall, remember (0.455459ms)
+[test/web-typecheck]   | ✔ an ASCLEPIUS run only offers its allowlisted tools to the model (12.474921ms)
+[test/web-typecheck]   | ✔ ASCLEPIUS gets its safety-critical role context in the system prompt (3.184832ms)
+[test/web-typecheck]   | ✔ ASCLEPIUS cannot write files even if the model hallucinates the call (4.794121ms)
+[test/web-typecheck]   | ✔ ASCLEPIUS can still use medication normally, through the approval gate (5.360487ms)
+[test/web-typecheck]   | ✔ invalid medication input is rejected before any network call or approval prompt (8.763252ms)
+[test/web-typecheck]   | ✔ status summarises the node (34.309829ms)
+[test/web-typecheck]   | ✔ account converts microAlgos and lists holdings (9.522928ms)
+[test/web-typecheck]   | ✔ asset applies decimals to the total (7.46726ms)
+[test/web-typecheck]   | ✔ application decodes global state (6.715625ms)
+[test/web-typecheck]   | ✔ transaction summary includes payment amount, time and note (4.439056ms)
+[test/web-typecheck]   | ✔ not found is reported clearly (2.994087ms)
+[test/web-typecheck]   | ✔ a 200 reply with an empty body is a clear error, not a TypeError (13.503508ms)
+[test/web-typecheck]   | ✔ invalid input is rejected without any request (0.648534ms)
+[test/web-typecheck]   | ✔ decodeState keeps binary keys and values readable (0.448236ms)
+[test/web-typecheck]   | ✔ indexer actions target the indexer host (0.395629ms)
+[test/web-typecheck]   | ✔ npm test runs every test file with a per-test timeout (1-120 s) (0.726361ms)
+[test/web-typecheck]   | ✔ the server creates the token file with mode 0600; reading and comparing it works; nothing prints it (496.104215ms)
+[test/web-typecheck]   | ✔ isLoopbackUrl accepts only this machine (0.325427ms)
+[test/web-typecheck]   | ✔ a wrong token is refused; the right token and no token are both accepted (CLI vs dashboard) (23.064976ms)
+[test/web-typecheck]   | ✔ a goal run through a CLI session shows up live in a subscribed dashboard, labeled; an unsubscribed one hears nothing; approvals stay private (321.0054ms)
+[test/web-typecheck]   | ✔ a goal run from a dashboard session is not mirrored (only CLI runs are) (307.837993ms)
+[test/web-typecheck]   | ✔ the kudbee CLI refuses a non-loopback KUDBEE_URL without sending anything, and connects to the loopback server with the token (445.323906ms)
+[test/web-typecheck]   | ✔ /capacity prints the same server capacity numbers the dashboard shows (360.812695ms)
+[test/web-typecheck]   | ✔ /algo shows the server's own error message, not just "HTTP 400" (243.188896ms)
+[test/web-typecheck]   | ✔ /promote shows the server's own error message, not just "HTTP 400" (294.629826ms)
+[test/web-typecheck]   | ✔ /cat shows the server's own error message, not just "HTTP 400" (262.286301ms)
+[test/web-typecheck]   | ✔ /model with no name shows the current and available models, like the dashboard (240.354409ms)
+[test/web-typecheck]   | ✔ /config prints the session's model, provider, session id and connection state, like the dashboard (243.093123ms)
+[test/web-typecheck]   | ✔ live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent (729.618812ms)
+[test/web-typecheck]   | ▶ CLI Memory Commands
+[test/web-typecheck]   |   ▶ /remember command
+[test/web-typecheck]   |     ✔ saves a note to session layer (1.059415ms)
+[test/web-typecheck]   |     ✔ saves a note with task layer (0.722683ms)
+[test/web-typecheck]   |   ✔ /remember command (2.239325ms)
+[test/web-typecheck]   |   ▶ /notes command
+[test/web-typecheck]   |     ✔ lists notes for a session (1.664078ms)
+[test/web-typecheck]   |     ✔ filters by layer (0.689683ms)
+[test/web-typecheck]   |     ✔ respects limit parameter (0.987913ms)
+[test/web-typecheck]   |   ✔ /notes command (3.64242ms)
+[test/web-typecheck]   |   ▶ /forget command
+[test/web-typecheck]   |     ✔ deletes a note by ID (0.56045ms)
+[test/web-typecheck]   |   ✔ /forget command (0.780546ms)
+[test/web-typecheck]   |   ▶ persistence across sessions
+[test/web-typecheck]   |     ✔ survives process restart (8.001727ms)
+[test/web-typecheck]   |   ✔ persistence across sessions (8.119755ms)
+[test/web-typecheck]   | ✔ CLI Memory Commands (33.635908ms)
+[test/web-typecheck]   | ✔ every slash command on either surface is declared in the parity map, and the map names no command that no longer exists (1.248908ms)
+[test/web-typecheck]   | ✔ "both" commands exist on both surfaces; one-sided commands exist only where declared; claimed counterparts are present in the other surface's source (0.545154ms)
+[test/web-typecheck]   | ✔ the capabilities the founder named are implemented on both surfaces (7.051602ms)
+[test/web-typecheck]   | ✔ known gaps may only shrink (0.379358ms)
+[test/web-typecheck]   | ✔ the git clone dialog escapes the pasted URL before putting it in the input value (1.584624ms)
+[test/web-typecheck]   | ✔ a thought's status is escaped before it is used in the thought-item class attribute (0.914682ms)
+[test/web-typecheck]   | ✔ run progress is kept in a prototype-less object, so a run id like __proto__ or constructor cannot touch or inherit from Object.prototype (0.857749ms)
+[test/web-typecheck]   | ✔ the offline page shows message text with textContent, never as HTML (0.610865ms)
+[test/web-typecheck]   | ✔ the mock dashboard shows a thought's text with textContent, never as HTML (0.388285ms)
+[test/web-typecheck]   | ✔ the middleware test reports an HTTP or malformed reply clearly instead of crashing on result.checks.map (1.299556ms)
+[test/web-typecheck]   | ✔ audit attack: cross-origin, no-Origin and wrong-Host WebSocket upgrades are refused (508.176597ms)
+[test/web-typecheck]   | ✔ DASHBOARD_ALLOW_NO_ORIGIN=1 admits a no-Origin client but still refuses a foreign one (648.301546ms)
+[test/web-typecheck]   | ✔ every HTTP route refuses a non-loopback Host (DNS rebinding) and serves loopback Hosts (806.326187ms)
+[test/web-typecheck]   | ✔ shell_exec is disabled by default and never runs (660.091716ms)
+[test/web-typecheck]   | ✔ enabled shell_exec still requires human approval: denied never runs, approved runs (1103.072142ms)
+[test/web-typecheck]   | ✔ file_read/file_write are confined to the session workspace (672.367302ms)
+[test/web-typecheck]   | ✔ a caller cannot point plugins at another session (800.23676ms)
+[test/web-typecheck]   | ▶ dashboard menus
+[test/web-typecheck]   |   ✔ declares a dark colour scheme so native popups are dark (2.948526ms)
+[test/web-typecheck]   |   ✔ gives every select option an explicit dark background and light text, in the last stylesheet that styles options (0.971214ms)
+[test/web-typecheck]   |   ✔ no stylesheet turns the page light (no light colour-scheme) (1.103793ms)
+[test/web-typecheck]   | ✔ dashboard menus (5.855666ms)
+[test/web-typecheck]   | ▶ System Health
+[test/web-typecheck]   |   ✔ styles its rows and status badges in a stylesheet the page actually loads (they were only in main.css, which is not linked) (1.224453ms)
+[test/web-typecheck]   |   ✔ every class app.js builds for health rows and badges has a rule (2.298427ms)
+[test/web-typecheck]   | ✔ System Health (4.177415ms)
+[test/web-typecheck]   | ▶ thought times and ported component styles (P3.17)
+[test/web-typecheck]   |   ✔ a thought keeps the timestamp the server put inside its data, and an invalid one shows nothing instead of "Invalid Date" (13.30537ms)
+[test/web-typecheck]   |   ✔ every component class app.js builds has a rule in a stylesheet the page loads (5.739308ms)
+[test/web-typecheck]   |   ✔ the ported rules use only variables the loaded theme defines (the old --border-color is not defined there) (0.634911ms)
+[test/web-typecheck]   | ✔ thought times and ported component styles (P3.17) (19.994561ms)
+[test/web-typecheck]   | ✔ approval-workflow.js still starts when localStorage holds corrupt JSON (3.315901ms)
+[test/web-typecheck]   | ✔ approval-workflow.js still starts when localStorage holds valid JSON of the wrong shape (null) (1.207242ms)
+[test/web-typecheck]   | ✔ approval-workflow.js still starts when localStorage holds storage that throws (blocked) (2.086401ms)
+[test/web-typecheck]   | ✔ performance-analytics.js still starts when localStorage holds corrupt JSON (1.522504ms)
+[test/web-typecheck]   | ✔ performance-analytics.js still starts when localStorage holds valid JSON of the wrong shape (null) (1.278242ms)
+[test/web-typecheck]   | ✔ performance-analytics.js still starts when localStorage holds storage that throws (blocked) (1.488552ms)
+[test/web-typecheck]   | ✔ execution-logs.js still starts when localStorage holds corrupt JSON (1.387954ms)
+[test/web-typecheck]   | ✔ execution-logs.js still starts when localStorage holds valid JSON of the wrong shape (null) (1.054035ms)
+[test/web-typecheck]   | ✔ execution-logs.js still starts when localStorage holds storage that throws (blocked) (2.32394ms)
+[test/web-typecheck]   | ✔ integration-connectors.js still starts when localStorage holds corrupt JSON (1.972719ms)
+[test/web-typecheck]   | ✔ integration-connectors.js still starts when localStorage holds valid JSON of the wrong shape (null) (1.08622ms)
+[test/web-typecheck]   | ✔ integration-connectors.js still starts when localStorage holds storage that throws (blocked) (0.922912ms)
+[test/web-typecheck]   | ✔ collaboration-dashboard.js still starts when localStorage holds corrupt JSON (1.309445ms)
+[test/web-typecheck]   | ✔ collaboration-dashboard.js still starts when localStorage holds valid JSON of the wrong shape (null) (1.171129ms)
+[test/web-typecheck]   | ✔ collaboration-dashboard.js still starts when localStorage holds storage that throws (blocked) (1.207849ms)
+[test/web-typecheck]   | ✔ settings-panel.js still starts when localStorage holds corrupt JSON (1.359315ms)
+[test/web-typecheck]   | ✔ settings-panel.js still starts when localStorage holds valid JSON of the wrong shape (null) (0.868178ms)
+[test/web-typecheck]   | ✔ settings-panel.js still starts when localStorage holds storage that throws (blocked) (1.10027ms)
+[test/web-typecheck]   | ✔ choosing a model in the header dropdown updates state.config.model and the server session (so /model, /config and /session agree with it) (0.990099ms)
+[test/web-typecheck]   | ✔ renderAgents reads the current selection before it rebuilds the options, so the chosen agent survives a refresh (0.36435ms)
+[test/web-typecheck]   | ✔ panel scripts wire their header button directly, not in a nested DOMContentLoaded (5.822242ms)
+[test/web-typecheck]   | ✔ every this.method() a panel constructor calls is defined on its class (2.876435ms)
+[test/web-typecheck]   | ✔ the hidden attribute wins over component display rules (0.397808ms)
+[test/web-typecheck]   | ✔ no secondary stylesheet redefines the shared .btn-quiet globally (0.403651ms)
+[test/web-typecheck]   | ✔ every class-based stylesheet and script referenced by index.html exists (0.569923ms)
+[test/web-typecheck]   | ✔ escapeHtml escapes quotes so a value cannot break out of an HTML attribute (1.14817ms)
+[test/web-typecheck]   | ✔ every capped-height region scrolls: a max-height always comes with overflow auto/scroll (2.900322ms)
+[test/web-typecheck]   | ✔ model and agent pickers stay visible below 1024px (0.509696ms)
+[test/web-typecheck]   | ✔ command buttons and shortcuts never overwrite the goal being typed (1.207555ms)
+[test/web-typecheck]   | ✔ the terminal panel fills .center so its own overflow:auto can actually scroll (1.259384ms)
+[test/web-typecheck]   | ✔ demo panels carry the demo banner and never ask for a secret or claim a connection (0.639476ms)
+[test/web-typecheck]   | ✔ freshnessLabel: dated always; live-state text older than 24 h is STALE; other old text is just dated; undated live-state is STALE (18.156137ms)
+[test/web-typecheck]   | ✔ the planner context labels a recalled live-state memory STALE and a fresh one not; tokens carry their save date (15.066816ms)
+[test/web-typecheck]   | ✔ the system rule says tool results from this run outrank memory (0.255263ms)
+[test/web-typecheck]   | ✔ conflictCandidate: only when a tool said nothing/failed AND the answer asserts a concrete state without saying so (6.756795ms)
+[test/web-typecheck]   | ✔ non-empty conflicts: a PR number, status or count that is nowhere in this run's tool output makes the answer a candidate; supported claims do not (1.548509ms)
+[test/web-typecheck]   | ✔ INCIDENT REPLAY: stale "#304 draft" memory + API returns [] -> the wrong answer is caught, retried, and the final answer says no open PRs (72.167538ms)
+[test/web-typecheck]   | ✔ CI status: memory says green, the API returns no runs -> corrected (21.791743ms)
+[test/web-typecheck]   | ✔ server status: memory says running, the health check returns 503 -> corrected (12.946914ms)
+[test/web-typecheck]   | ✔ if the retry still conflicts, the answer is replaced by what the tools said and flagged (19.830243ms)
+[test/web-typecheck]   | ✔ no extra model call when the answer agrees with the tools or says nothing was found (9.238221ms)
+[test/web-typecheck]   | ✔ an unusable judge reply leaves the answer alone (no silent rewrite) (19.760427ms)
+[test/web-typecheck]   | ✔ freshnessLabel honors an explicit live flag over the keyword list (0.162673ms)
+[test/web-typecheck]   | ✔ the live-state classifier says "live" when a text is closer to a live example than to any static one (0.743824ms)
+[test/web-typecheck]   | ✔ superseded memories are never recalled and identical recalls collapse to the newest (0.4241ms)
+[test/web-typecheck]   | ✔ a PR number mentioned in order to deny it ("no open PR like #304") is not an unsupported claim (0.126874ms)
+[test/web-typecheck]   | ✔ REST file routes refuse symlinks that lead out of the workspace (403) (857.473239ms)
+[test/web-typecheck]   | ✔ file_read survives a 400-iteration symlink flip race (file and directory swaps): 0 leaks (3011.56834ms)
+[test/web-typecheck]   | ✔ update_config rejects unknown keys and out-of-range values; valid changes still apply (638.521028ms)
+[test/web-typecheck]   | ✔ update_config refuses prototype-reaching keys, unknown keys and non-object input (818.406011ms)
+[test/web-typecheck]   | ✔ update_config enforces the documented bounds exactly (maxIterations 1-50, temperature 0-2, provider, model) (644.654795ms)
+[test/web-typecheck]   | ✔ update_config applies nothing when any key in the patch is rejected (629.47966ms)
+[test/web-typecheck]   | ✔ http_request / rss_feed to loopback need approval; a caller cannot pre-approve itself (692.09114ms)
+[test/web-typecheck]   | ✔ fetchChecked re-checks every redirect hop and refuses a bounce into a private address (26.594269ms)
+[test/web-typecheck]   | ✔ isPrivateAddress covers loopback, RFC 1918, link-local, CGNAT, IPv6 local and IPv4-mapped forms (4.993813ms)
+[test/web-typecheck]   | ✔ the agent's own read_file/write_file tools do not follow a symlink out of the workspace (825.541802ms)
+[test/web-typecheck]   | ✔ getFileTree skips a broken symlink and still lists every other entry (13.698053ms)
+[test/web-typecheck]   | ✔ git-repo-manager never interpolates a value into the format string of console.warn/error/log (1.230504ms)
+[test/web-typecheck]   | ✔ git panel escapeHtml escapes quotes as well as < > &, so it is safe inside value="..." and class="..." (2.036444ms)
+[test/web-typecheck]   | ✔ the file tree escapes file and folder names (a repository can contain a file named <img src=x onerror=...>) (0.17446ms)
+[test/web-typecheck]   | ✔ the file editor escapes the file name and never puts the file path into inline JavaScript (0.218887ms)
+[test/web-typecheck]   | ✔ the generated-files list escapes the file name the agent chose (0.12242ms)
+[test/web-typecheck]   | ✔ routes are mounted (were 404 before) (674.128521ms)
+[test/web-typecheck]   | ✔ validators accept public github https repos and normal branches only (0.471172ms)
+[test/web-typecheck]   | ✔ clone: shell metacharacters in url/branch are rejected (400) and nothing executes (72.99656ms)
+[test/web-typecheck]   | ✔ files: absolute paths, .. and outside targets are refused; canary untouched (59.300381ms)
+[test/web-typecheck]   | ✔ files: a symlink inside the workspace pointing outside is refused (7.733641ms)
+[test/web-typecheck]   | ✔ files: save and read inside the workspace work (relative and absolute-inside) (8.046719ms)
+[test/web-typecheck]   | ✔ a POST with no body at all is a 400, not a 500 (Express 5 leaves req.body undefined) (6.425719ms)
+[test/web-typecheck]   | ▶ needsToolsOrLiveData
+[test/web-typecheck]   |   ✔ lets plain knowledge and chat goals stay on the local model (2.964965ms)
+[test/web-typecheck]   |   ✔ sends repository, live-state, date, file, web, action, image and system goals to the worker agent, with a reason (0.558068ms)
+[test/web-typecheck]   |   ✔ handles empty, non-string and hostile input (1.629725ms)
+[test/web-typecheck]   | ✔ needsToolsOrLiveData (6.063164ms)
+[test/web-typecheck]   | ▶ isComplexGoal (the CLI rule)
+[test/web-typecheck]   |   ✔ keeps the old rule: complexity words, long goals and code (0.971552ms)
+[test/web-typecheck]   |   ✔ and now also treats tool or live-data goals as complex, so the CLI and the server agree (0.386258ms)
+[test/web-typecheck]   | ✔ isComplexGoal (the CLI rule) (1.587364ms)
+[test/web-typecheck]   | ✔ submits allow-listed command through admission token then governed /api/v1/run with upcloud-ssh fixed (81.746865ms)
+[test/web-typecheck]   | ✔ client cannot choose substrate, agent, token or capability (17.027007ms)
+[test/web-typecheck]   | ✔ rejects commands outside the allow-list without contacting the backend (19.5899ms)
+[test/web-typecheck]   | ✔ rejects requests without the dashboard client header (3.264186ms)
+[test/web-typecheck]   | ✔ surfaces backend governance denial as 403 without leaking the token (9.394757ms)
+[test/web-typecheck]   | ✔ status proxy validates engine id and returns backend status (10.701785ms)
+[test/web-typecheck]   | ✔ unconfigured bridge (no API key) fails closed with 503 (4.751317ms)
+[test/web-typecheck]   | ✔ htmlToText drops script and style blocks even when the end tag has spaces or attributes (1.493337ms)
+[test/web-typecheck]   | ✔ htmlToText decodes an entity once: &amp;lt; stays the text "&lt;", it does not become "<" (0.164784ms)
+[test/web-typecheck]   | ✔ httpError keeps the server's message and adds the status (30.384307ms)
+[test/web-typecheck]   | ✔ httpError falls back to the bare status for a non-JSON body or a JSON body without a message (0.912193ms)
+[test/web-typecheck]   | ✔ janus_service pins the model weights to a 40-hex commit and passes it to from_pretrained (0.883495ms)
+[test/web-typecheck]   | ✔ janus_service refuses any model id other than the allowed one (0.17961ms)
+[test/web-typecheck]   | ✔ parseRepo understands https, ssh and bare owner/name; detectRepo prefers KUDBEE_REPO and reads this checkout's git remote otherwise (49.026118ms)
+[test/web-typecheck]   | ✔ the live trace: every earlier failed or empty result is superseded by the later successful page, so it cannot make the correct answer a conflict candidate (3.188128ms)
+[test/web-typecheck]   | ✔ replay: an earlier 404 then a later 200 page; the answer holds an unverifiable status word, so a model is asked, it is shown the earlier failure as superseded, says no conflict, and the answer is kept (no retry) (52.672595ms)
+[test/web-typecheck]   | ✔ empty workspace: after list_files returns nothing, read_file on a guessed name is refused without touching the file system; writing the file first makes reading it fine (40.433274ms)
+[test/web-typecheck]   | ✔ a non-empty workspace is unaffected: reading a missing file still gives the ordinary error (34.848616ms)
+[test/web-typecheck]   | ✔ the local model gets a plain chat like `ollama run`: no system prompt, no plugin list, no "execute step by step", default sampling (711.826401ms)
+[test/web-typecheck]   | ✔ the answer reaches the client once as a stream; the thought and the result do not repeat it (19.340683ms)
+[test/web-typecheck]   | ✔ earlier answers are replayed as assistant turns, not as raw JSON user messages (16.468539ms)
+[test/web-typecheck]   | ✔ the CLI and dashboard terminals do not print a streamed answer a second time (0.966719ms)
+[test/web-typecheck]   | ✔ with a worker agent: "WHAT PR ARE WE ON" on the local model is routed to mercury-2, the local model is never asked, and a thought says why (552.237942ms)
+[test/web-typecheck]   | ✔ with a worker agent: a plain knowledge goal stays on the local model, no routing thought, Mercury untouched (505.607157ms)
+[test/web-typecheck]   | ✔ without a worker agent: the goal fails with a plain explanation, and the small model is never asked (500.295186ms)
+[test/web-typecheck]   | ✔ non-loopback bind is refused (dashboard is local-only) (484.315271ms)
+[test/web-typecheck]   | ✔ dashboard API and WebSocket work locally without login (689.383014ms)
+[test/web-typecheck]   | ✔ governed bridge controls still apply on the real server (1332.46161ms)
+[test/web-typecheck]   | ✔ Janus image service is opt-in (disabled by default) (1203.643045ms)
+[test/web-typecheck]   | ✔ MCPRegistry.discoverServers returns array of servers with required fields (45.333846ms)
+[test/web-typecheck]   | ✔ MCPRegistry.groupByCategory organizes servers correctly (0.381461ms)
+[test/web-typecheck]   | ✔ MCPRegistry.filter searches by name (0.217169ms)
+[test/web-typecheck]   | ✔ MCPRegistry.filter searches by description (0.23343ms)
+[test/web-typecheck]   | ✔ MCPRegistry.filter searches by tags (0.244142ms)
+[test/web-typecheck]   | ✔ MCPRegistry.filter is case-insensitive (0.183279ms)
+[test/web-typecheck]   | ✔ MCPRegistry caches servers locally (4.693032ms)
+[test/web-typecheck]   | ✔ MCPRegistry detects cache expiry (24h TTL) (0.308861ms)
+[test/web-typecheck]   | ✔ MCPRegistry handles network errors gracefully (0.442758ms)
+[test/web-typecheck]   | ✔ MCPRegistry.inferCategory categorizes servers correctly (0.28162ms)
+[test/web-typecheck]   | ✔ lookup returns the requested label section for a known drug (24.388172ms)
+[test/web-typecheck]   | ✔ lookup defaults to drug_interactions but honours an explicit section (4.769523ms)
+[test/web-typecheck]   | ✔ unknown drug returns found:false, not a thrown error (3.362316ms)
+[test/web-typecheck]   | ✔ every response carries the openFDA disclaimer verbatim (10.674142ms)
+[test/web-typecheck]   | ✔ compare fetches each drug independently and never computes a verdict (7.538595ms)
+[test/web-typecheck]   | ✔ compare rejects fewer than 2 or more than 5 drugs before any network call (0.677017ms)
+[test/web-typecheck]   | ✔ invalid input is rejected without any request (0.351368ms)
+[test/web-typecheck]   | ✔ ambiguous flags when more than one label matched (4.568546ms)
+[test/web-typecheck]   | ▶ Memory Graph layout
+[test/web-typecheck]   |   ✔ places 60 nodes in the real 329x260 canvas with no overlaps and every node inside (161.103856ms)
+[test/web-typecheck]   |   ✔ keeps every node inside the cerebrum, at several canvas sizes (1030.798636ms)
+[test/web-typecheck]   |   ✔ puts verified memories in the frontal lobe and org memories above the task mass (64.579843ms)
+[test/web-typecheck]   |   ✔ is deterministic and does not depend on input order (93.247479ms)
+[test/web-typecheck]   |   ✔ gathers each layer around its own anchor (cluster centers are apart) (77.432751ms)
+[test/web-typecheck]   |   ✔ pulls tag-linked nodes of one layer closer than unlinked ones (15.556739ms)
+[test/web-typecheck]   |   ✔ handles nothing, one node, identical ids hashing alike, and a tiny canvas without NaN or a crash (2005.96011ms)
+[test/web-typecheck]   |   ✔ radius grows with tags but stays between 4 and 8 (0.251867ms)
+[test/web-typecheck]   | ✔ Memory Graph layout (3450.201706ms)
+[test/web-typecheck]   | ▶ Memory Graph renderer
+[test/web-typecheck]   |   ✔ shows details through textContent only, so a hostile title or tag is shown literally (1.77144ms)
+[test/web-typecheck]   |   ✔ sizes the canvas to its box, links only on informative shared tags, and draws without throwing (12.958214ms)
+[test/web-typecheck]   |   ✔ has no innerHTML, no console logging and no fake interaction left (0.295414ms)
+[test/web-typecheck]   |   ✔ the page loads the layout before the renderer and gives the graph a legend (0.381253ms)
+[test/web-typecheck]   | ✔ Memory Graph renderer (15.703832ms)
+[test/web-typecheck]   | ✔ MemoryStore writes README.md once and never overwrites an edited one (22.680052ms)
+[test/web-typecheck]   | ▶ Memory Restart Proof (E2E)
+[test/web-typecheck]   |   ✔ survives full restart: write → close → reopen → verify (23.299668ms)
+[test/web-typecheck]   |   ✔ handles multiple sessions independently (9.185537ms)
+[test/web-typecheck]   |   ✔ run history aggregates correctly on restart (10.315347ms)
+[test/web-typecheck]   |   ✔ org/verified/task notes survive a brand-new sessionId (recall hotfix) (12.413478ms)
+[test/web-typecheck]   | ✔ Memory Restart Proof (E2E) (56.550787ms)
+[test/web-typecheck]   | ✔ with vectors: cosine ranks first and is labeled; a lesson sharing no word with the query is found; superseded memories are never returned (22.270757ms)
+[test/web-typecheck]   | ✔ BM25 only breaks ties inside a cosine bucket, and exact keyword matches the model scored low still follow the vector hits (9.375648ms)
+[test/web-typecheck]   | ✔ without vectors the label says why (model loading / embeddings off) and ranking is BM25; with no provider at all it is plain local-bm25 (10.325343ms)
+[test/web-typecheck]   | ✔ Upstash is opt-in: with its URL and token set but no KUDBEE_MEMORY_BACKEND=upstash, recall and writes never contact it (13.51417ms)
+[test/web-typecheck]   | ✔ memory embeddings live in SQLite: stored per model, re-embedded only when the text hash changes, pruned when a memory is gone (8.25608ms)
+[test/web-typecheck]   | ✔ P3.12 eval queries are paraphrases: each shares at most one distinctive word with its expected memory (1.523409ms)
+[test/web-typecheck]   | ✔ tokenize drops stopwords and folds simple plurals (1.509603ms)
+[test/web-typecheck]   | ✔ layers are folders of Markdown files with front matter, plus a README (23.572399ms)
+[test/web-typecheck]   | ✔ files are the source of truth: a new store reloads them, including hand edits (7.957019ms)
+[test/web-typecheck]   | ✔ search ranks by relevance and honours the layer filter (7.027301ms)
+[test/web-typecheck]   | ✔ a colliding title does not overwrite an existing memory (5.941813ms)
+[test/web-typecheck]   | ✔ promote moves org → verified; other layers cannot be promoted (11.890196ms)
+[test/web-typecheck]   | ✔ remove deletes the file and the index entry (4.619403ms)
+[test/web-typecheck]   | ✔ prompt context labels trust and strips past-run answers (7.729275ms)
+[test/web-typecheck]   | ✔ upstash: sparse vectors are upserted and queries use IDF weighting and layer filters (72.774139ms)
+[test/web-typecheck]   | ✔ upstash outage falls back to the local index and reports the vector as offline (27.300194ms)
+[test/web-typecheck]   | ✔ P3.10: a superseded memory stays on disk but is never recalled, and two identical task episodes recall as one (19.619686ms)
+[test/web-typecheck]   | ✔ parseOllamaLine parses a good line and skips blank or garbled ones instead of throwing (2.553589ms)
+[test/web-typecheck]   | ▶ PersistenceLayer
+[test/web-typecheck]   |   ▶ Dashboard State
+[test/web-typecheck]   |     ✔ saves and restores dashboard state (21.865095ms)
+[test/web-typecheck]   |     ✔ returns null for non-existent session (17.482898ms)
+[test/web-typecheck]   |     ✔ updates existing state (11.562977ms)
+[test/web-typecheck]   |   ✔ Dashboard State (51.94943ms)
+[test/web-typecheck]   |   ▶ Run Metadata
+[test/web-typecheck]   |     ✔ saves and retrieves run metadata (8.822515ms)
+[test/web-typecheck]   |     ✔ lists runs for a session (9.063878ms)
+[test/web-typecheck]   |     ✔ limits run list (8.346762ms)
+[test/web-typecheck]   |   ✔ Run Metadata (26.655143ms)
+[test/web-typecheck]   |   ▶ Memory Notes
+[test/web-typecheck]   |     ✔ saves and retrieves memory note (13.10159ms)
+[test/web-typecheck]   |     ✔ lists notes by layer (10.386646ms)
+[test/web-typecheck]   |     ✔ updates memory note (10.399218ms)
+[test/web-typecheck]   |   ✔ Memory Notes (34.300913ms)
+[test/web-typecheck]   |   ▶ Persistence across restarts
+[test/web-typecheck]   |     ✔ data survives database close and reopen (18.931997ms)
+[test/web-typecheck]   |   ✔ Persistence across restarts (19.020753ms)
+[test/web-typecheck]   |   ▶ Stats
+[test/web-typecheck]   |     ✔ reports database statistics (9.025816ms)
+[test/web-typecheck]   |   ✔ Stats (9.13822ms)
+[test/web-typecheck]   | ✔ PersistenceLayer (141.75376ms)
+[test/web-typecheck]   | ✔ costUsd prices mercury-2 at $0.25 / $0.75 per million tokens; unknown (local) models are free (0.749351ms)
+[test/web-typecheck]   | ✔ the run record sums per-step costs and tokens, and the run totals feed the cost report (2.197698ms)
+[test/web-typecheck]   | ✔ classifyFailure maps errors to failure kinds (1.034077ms)
+[test/web-typecheck]   | ✔ events accumulate tokens, cost, tool calls, approvals and written files (5.553591ms)
+[test/web-typecheck]   | ✔ stats: success rate, percentiles, failures, per-tool numbers and hourly buckets (1.809217ms)
+[test/web-typecheck]   | ✔ history persists and interrupted runs are marked on reload (401.89491ms)
+[test/web-typecheck]   | ✔ a corrupt history file starts empty instead of crashing (0.730443ms)
+[test/web-typecheck]   | ✔ costToday only counts runs started today (0.52936ms)
+[test/web-typecheck]   | ✔ recordGoalExecution stores session learning via the real store method (valid input) (13.557678ms)
+[test/web-typecheck]   | ✔ recordGoalExecution records a failed outcome (success=false) (21.574707ms)
+[test/web-typecheck]   | ✔ recordGoalExecution propagates the store error instead of swallowing it (error path) (6.285322ms)
+[test/web-typecheck]   | ✔ init advertises mercury-2 as the default worker model and the plugins (507.376745ms)
+[test/web-typecheck]   | ✔ a goal runs end to end: file written, run persisted, episode saved to task memory (66.031909ms)
+[test/web-typecheck]   | ✔ run_specialists executes the selected contract and persists its attributable JSON artifact (36.451044ms)
+[test/web-typecheck]   | ✔ specialist WebSocket failure chain preserves Builder evidence, Tester failure, and independent Validator read (73.577438ms)
+[test/web-typecheck]   | ✔ proof acceptance gates real Think Token persistence and event emission (57.124116ms)
+[test/web-typecheck]   | ✔ the next related goal recalls the earlier episode into the system prompt (23.376512ms)
+[test/web-typecheck]   | ✔ approval request over WebSocket: a denied overwrite keeps the original file (29.965253ms)
+[test/web-typecheck]   | ✔ stop ends a slow run and it is recorded as stopped (222.919565ms)
+[test/web-typecheck]   | ✔ stats reflect the runs; memory is local even though Upstash variables are set (opt-in only) (9.561551ms)
+[test/web-typecheck]   | ✔ memory REST: add, search (local), promote, delete; bad input rejected (48.649379ms)
+[test/web-typecheck]   | ✔ workspace routes reject non-session ids and path traversal (22.707375ms)
+[test/web-typecheck]   | ✔ goals sent while one runs are queued and run in order, one at a time (352.229718ms)
+[test/web-typecheck]   | ✔ stop aborts the running goal and cancels everything queued behind it (339.283007ms)
+[test/web-typecheck]   | ✔ REST run endpoint goes through the queue and answers 202 (29.933271ms)
+[test/web-typecheck]   | ▶ Specialist registration
+[test/web-typecheck]   |   ✔ all 12 requested specialists are registered, each with a unique id (0.825939ms)
+[test/web-typecheck]   |   ✔ every specialist defines all required contract fields, none empty (1.361517ms)
+[test/web-typecheck]   |   ✔ capability discovery: every specialist is findable by its own capability text (0.262711ms)
+[test/web-typecheck]   | ✔ Specialist registration (3.241503ms)
+[test/web-typecheck]   | ▶ Director selection
+[test/web-typecheck]   |   ✔ selects Researcher for a research-shaped intent (0.903021ms)
+[test/web-typecheck]   |   ✔ selects Builder and auto-adds Validator and Security (never Builder alone) (0.566844ms)
+[test/web-typecheck]   |   ✔ does not hard-code every job to use every agent (0.194524ms)
+[test/web-typecheck]   |   ✔ is deterministic: same intent text always selects the same specialists (0.743471ms)
+[test/web-typecheck]   |   ✔ blocks (does not silently run empty-handed) when no capability matches (0.268063ms)
+[test/web-typecheck]   |   ✔ every selection includes a rationale naming why each specialist was chosen (0.261841ms)
+[test/web-typecheck]   | ✔ Director selection (3.377913ms)
+[test/web-typecheck]   | ▶ Evidence requirements and independent validation
+[test/web-typecheck]   |   ✔ no specialist may claim success without evidence: empty evidence fails validation (0.154279ms)
+[test/web-typecheck]   |   ✔ evidence without a concrete reference fails validation (0.067392ms)
+[test/web-typecheck]   |   ✔ Validator must independently verify: Validator cannot validate its own evidence (0.179615ms)
+[test/web-typecheck]   |   ✔ well-formed evidence with a concrete reference passes (0.057654ms)
+[test/web-typecheck]   | ✔ Evidence requirements and independent validation (0.574394ms)
+[test/web-typecheck]   | ▶ Proof Keeper integrity
+[test/web-typecheck]   |   ✔ Proof Keeper cannot manufacture evidence: refuses with zero evidence even if told valid (0.163828ms)
+[test/web-typecheck]   |   ✔ Proof Keeper refuses to produce a proof artifact when validation did not pass (0.060979ms)
+[test/web-typecheck]   |   ✔ produces a proof artifact only once validation genuinely passed, referencing the real evidence (0.088041ms)
+[test/web-typecheck]   | ✔ Proof Keeper integrity (0.380145ms)
+[test/web-typecheck]   | ▶ Handoff contracts (valid/invalid)
+[test/web-typecheck]   |   ✔ a listed handoff is valid: Researcher -> Builder (0.106068ms)
+[test/web-typecheck]   |   ✔ an unlisted handoff is rejected: Proof Keeper -> Builder (Proof Keeper hands off to nothing) (0.041197ms)
+[test/web-typecheck]   |   ✔ rejects a handoff to an unknown specialist id (0.071955ms)
+[test/web-typecheck]   | ✔ Handoff contracts (valid/invalid) (0.339124ms)
+[test/web-typecheck]   | ▶ Disruptor/Validator/Security independence from Builder
+[test/web-typecheck]   |   ✔ rejects a composition where Disruptor and Builder share the same acting identity (0.260919ms)
+[test/web-typecheck]   |   ✔ accepts a composition where Disruptor and Builder are different acting identities (0.153315ms)
+[test/web-typecheck]   |   ✔ rejects Validator sharing identity with Builder (0.074039ms)
+[test/web-typecheck]   |   ✔ rejects Proof Keeper sharing identity with Builder (0.114251ms)
+[test/web-typecheck]   | ✔ Disruptor/Validator/Security independence from Builder (0.694392ms)
+[test/web-typecheck]   | ▶ Failed-agent recovery
+[test/web-typecheck]   |   ✔ a specialist with no evidence is not silently promoted to success (0.078241ms)
+[test/web-typecheck]   |   ✔ one specialist failing does not corrupt validation of another specialist's good evidence (8.357052ms)
+[test/web-typecheck]   | ✔ Failed-agent recovery (8.52185ms)
+[test/web-typecheck]   | ▶ Honest architecture boundary
+[test/web-typecheck]   |   ✔ this module makes no claim of concurrent multi-box execution (0.161067ms)
+[test/web-typecheck]   | ✔ Honest architecture boundary (0.225379ms)
+[test/web-typecheck]   | ▶ specialist execution adapter
+[test/web-typecheck]   |   ✔ allocates one independently attributable Think Box job per selected contract (1.4638ms)
+[test/web-typecheck]   |   ✔ executes independent boxes concurrently and preserves each run identity (6.907451ms)
+[test/web-typecheck]   |   ✔ plans contract handoffs into dependent waves and runs independent reviewers concurrently (2.193005ms)
+[test/web-typecheck]   |   ✔ runs separate specialist allocations through concurrent real runToolAgent loops (78.084906ms)
+[test/web-typecheck]   |   ✔ real runtime failure experiment preserves A evidence, records B failure, and C independently reads A artifact (32.457103ms)
+[test/web-typecheck]   |   ✔ derives evidence from actual model/tool events, not success status or free-text output (0.481807ms)
+[test/web-typecheck]   |   ✔ preserves successful evidence when another specialist fails, and replays identical state (0.422359ms)
+[test/web-typecheck]   |   ✔ uses independentValidate and rejects Validator self-evidence (0.216382ms)
+[test/web-typecheck]   |   ✔ Proof Keeper refuses proof when any selected specialist failed, even if A evidence validates (0.507228ms)
+[test/web-typecheck]   | ✔ specialist execution adapter (124.153308ms)
+[test/web-typecheck]   |     perf: append120k=173ms windows=2.3ms search=8.5ms relayout=0.9ms
+[test/web-typecheck]   | ✔ classification: real server events map to the seven prefixes and seven system parts (1.81762ms)
+[test/web-typecheck]   | ✔ escaping/XSS: hostile output stays plain data and the view never uses an HTML sink (1.779495ms)
+[test/web-typecheck]   | ✔ auto-follow: pauses when the user scrolls up, resumes at the bottom, ignores its own pinning (0.226234ms)
+[test/web-typecheck]   | ✔ search: case-insensitive, all matches, capped, stepping wraps, highlight segments cover the text (15.134329ms)
+[test/web-typecheck]   | ✔ buffer: wrap rows, step groups collapse and expand, max buffer trims the oldest lines (7.075682ms)
+[test/web-typecheck]   | ✔ stream: tokens extend one line, newlines start new lines, caps hold (5.039947ms)
+[test/web-typecheck]   | ✔ performance: a 50k-line buffer appends, windows and searches within budget (187.27678ms)
+[test/web-typecheck]   | ✔ wiring: markup, stylesheet and module are present; reduced motion and the keyboard contract are in the source (0.794389ms)
+[test/web-typecheck]   | ▶ cube pulses for real token events
+[test/web-typecheck]   |   ✔ learned lights exactly the tokenState cells with glow = score, twists, then clears (4.661772ms)
+[test/web-typecheck]   |   ✔ used lights the relationship cells and does not twist (0.765668ms)
+[test/web-typecheck]   |   ✔ rejects an unknown kind and clamps the glow into 0.1..1 (0.930003ms)
+[test/web-typecheck]   |   ✔ queues pulses one at a time: the second starts only after the first clears (1.666468ms)
+[test/web-typecheck]   |   ✔ a burst keeps only the newest few instead of animating for minutes (0.726074ms)
+[test/web-typecheck]   |   ✔ reduced motion: no twist, a longer plain highlight (0.654335ms)
+[test/web-typecheck]   |   ✔ never changes the deterministic cube state or its recorded events, and survives a repaint mid-pulse (1.54427ms)
+[test/web-typecheck]   | ✔ cube pulses for real token events (12.075552ms)
+[test/web-typecheck]   | ▶ Think Cube state engine
+[test/web-typecheck]   |   ✔ initial state: 100 cells, idle stage, nothing active/locked/disrupted (1.574204ms)
+[test/web-typecheck]   |   ✔ every one of the 10 roles owns exactly 10 of the 100 cells (0.215391ms)
+[test/web-typecheck]   |   ✔ cells are deterministically distributed across 6 faces with no cell left out (0.323712ms)
+[test/web-typecheck]   |   ✔ intent: activates all 10 identity cells and resets everything else for a fresh token (0.579451ms)
+[test/web-typecheck]   |   ✔ cell activation: decompose activates exactly N jobState cells for N opportunities (0.249355ms)
+[test/web-typecheck]   |   ✔ decompose clamps to the 10 available jobState cells even if asked for more (0.227196ms)
+[test/web-typecheck]   |   ✔ information propagation: execution activates propagation cells progressively by step, replacing the prior step (0.257169ms)
+[test/web-typecheck]   |   ✔ evidence: locks evidence cells and marks them active, one per piece of evidence (0.234772ms)
+[test/web-typecheck]   |   ✔ challenge state: marks validation cells disrupted for each vulnerability (0.510254ms)
+[test/web-typecheck]   |   ✔ repair state: clears disruption from every disrupted cell without deactivating it (0.5262ms)
+[test/web-typecheck]   |   ✔ jury: a failing verdict leaves disruption visible; a passing verdict clears it (0.438254ms)
+[test/web-typecheck]   |   ✔ verified/proof state: locks memory and outcome cells and marks the cube stable (0.216087ms)
+[test/web-typecheck]   |   ✔ think_token: locks tokenState cells into a coherent final state and keeps the token id (0.126531ms)
+[test/web-typecheck]   |   ✔ harvest then commons: relationship cells activate, then become marked shared (0.130259ms)
+[test/web-typecheck]   |   ✔ the full named lifecycle runs end to end without throwing and ends stable with a coherent token (0.408658ms)
+[test/web-typecheck]   |   ✔ reset/replay: returns to a fresh idle state, indistinguishable from createInitialCubeState() (4.925402ms)
+[test/web-typecheck]   |   ✔ an unknown stage throws rather than silently doing nothing (0.30047ms)
+[test/web-typecheck]   |   ✔ applyEvent never mutates the state object it was given (pure reducer) (1.875236ms)
+[test/web-typecheck]   |   ✔ deterministic rendering/state mapping: cellsToRenderProps is pure and total over all 100 cells (0.78083ms)
+[test/web-typecheck]   |   ✔ summarize reports what is active, verified, disrupted and shared for a status line (0.22605ms)
+[test/web-typecheck]   | ✔ Think Cube state engine (16.669017ms)
+[test/web-typecheck]   | ✔ swarm records actual allocated box/specialist identities and lights only those box cells (0.143618ms)
+[test/web-typecheck]   | ✔ the layout: exactly 100 distinct documented cells, ten rows of ten, each with a source and a description (1.747549ms)
+[test/web-typecheck]   | ✔ total and honest: any token maps to 100 cells; a fresh token has data only where data exists, everything else is "empty", never a stand-in (15.027707ms)
+[test/web-typecheck]   | ✔ stable: the same token and clock give byte-identical cells (14.080583ms)
+[test/web-typecheck]   | ✔ changes only where the data changed: a new use flips the use/score/receipt cells and nothing about identity, lesson, challenge or links (9.073923ms)
+[test/web-typecheck]   | ✔ feedback changes the feedback cells only; a link changes the link cells of both ends only (42.688729ms)
+[test/web-typecheck]   | ✔ cell events: every learning step records which cells changed in SQLite, with one ledger receipt naming the cause; nothing is recorded when nothing changed; the chain still verifies (13.138584ms)
+[test/web-typecheck]   | ✔ merged and linked tokens record cell events for both ends; a merge flips the health cells (22.757734ms)
+[test/web-typecheck]   | ✔ the 54-sticker view: total (every cell lands on exactly one sticker), stable, six faces of nine, every sticker covers one or two cells (29.948013ms)
+[test/web-typecheck]   | ✔ the reader gives the CLI and the dashboard one projection: 100 cells, 54 stickers, the latest change; the ASCII grid marks changed cells and empty cells (14.010598ms)
+[test/web-typecheck]   | ✔ lesson failure modes are read from the lesson text only (0.479134ms)
+[test/web-typecheck]   | ✔ buildCells on hostile input values stays total and only ever produces strings (3.587351ms)
+[test/web-typecheck]   | ✔ the WebSocket cube request is validated like every other token message (0.659378ms)
+[test/web-typecheck]   | ✔ CLI: `kudbee token cube TT-id` prints the ASCII grid, `--events` the recorded changes with receipts, `--json` the same projection as the reader (928.558461ms)
+[test/web-typecheck]   | ✔ a token that predates the cube gets a silent baseline snapshot, so its first real change is attributed to its real cause (29.513066ms)
+[test/web-typecheck]   | ▶ Think Tokens view: data honesty
+[test/web-typecheck]   |   ✔ listens only to the three real sources; no timer exists until the view is open, and none dispatches an event (4.954142ms)
+[test/web-typecheck]   |   ✔ has no in-memory token list: token:created is gone and the persisted list is the only source (0.89521ms)
+[test/web-typecheck]   |   ✔ feeds every real thought to the live cube exactly once (0.91644ms)
+[test/web-typecheck]   |   ✔ counts are labeled by source: saved tokens come from SQLite, Energy Core is session-only (2.022538ms)
+[test/web-typecheck]   |   ✔ merged view: one header button, no separate Tokens modal or panel script, and the old panel file is gone (0.297359ms)
+[test/web-typecheck]   | ✔ Think Tokens view: data honesty (10.072775ms)
+[test/web-typecheck]   | ▶ Think Tokens view: saved tokens (persisted list)
+[test/web-typecheck]   |   ✔ requests the list when opened and renders each token with id, kind, status, score, lesson, breakdown, run, challenge, receipt (6.240182ms)
+[test/web-typecheck]   |   ✔ shows a token's links with kind, direction, weight and evidence, and says so when there are none (1.456975ms)
+[test/web-typecheck]   |   ✔ openWithQuery (the terminal /tokens, /token and /lessons commands) opens the view with the search or TT-id already typed and asks for that list (1.175911ms)
+[test/web-typecheck]   |   ✔ marks template-extracted tokens as not model-written, and shows legacy ids and uses (3.881186ms)
+[test/web-typecheck]   |   ✔ token text is only ever textContent: hostile content makes no element and never reaches innerHTML (1.499617ms)
+[test/web-typecheck]   |   ✔ ignores malformed token lists instead of rendering them (1.072786ms)
+[test/web-typecheck]   |   ✔ shows distinct loading, empty, filtered-empty and error states (1.836448ms)
+[test/web-typecheck]   |   ✔ search and filter send the right request; the id-like search highlights the matching card (1.737691ms)
+[test/web-typecheck]   |   ✔ accept / retire / thumbs send one validated action and show the approval and result messages (2.985136ms)
+[test/web-typecheck]   |   ✔ retired tokens offer no Accept or Retire; accepted tokens offer Retire only (1.106113ms)
+[test/web-typecheck]   |   ✔ export labels its scope as persisted tokens and contains what is shown (1.39426ms)
+[test/web-typecheck]   | ✔ Think Tokens view: saved tokens (persisted list) (25.017018ms)
+[test/web-typecheck]   | ▶ Think Tokens view: real token events (P2)
+[test/web-typecheck]   |   ✔ a valid think_token_learned pulses the cube by score, records the token, counts it and reloads the list (1.276268ms)
+[test/web-typecheck]   |   ✔ a think_token_used pulses the relationship cells and updates the last token's use count (0.972761ms)
+[test/web-typecheck]   |   ✔ malformed, oversized or forged events are ignored: no pulse, no counter, no list reload (3.275881ms)
+[test/web-typecheck]   |   ✔ events work with no cube loaded, without throwing (1.04129ms)
+[test/web-typecheck]   | ✔ Think Tokens view: real token events (P2) (6.760158ms)
+[test/web-typecheck]   | ▶ Think Tokens view: Energy Core is built only from real signals
+[test/web-typecheck]   |   ✔ reads zero and idle when nothing has happened (0.772032ms)
+[test/web-typecheck]   |   ✔ events per minute counts only real thoughts in the last 60 seconds, and decays to idle (0.911228ms)
+[test/web-typecheck]   |   ✔ intensity is capped at 1; the event buffer is bounded (3.209654ms)
+[test/web-typecheck]   |   ✔ runs running come from real run_update statuses and drop out when the run finishes (0.897925ms)
+[test/web-typecheck]   |   ✔ last proof is the time of the last real proof_accepted thought; nothing else sets it (0.957328ms)
+[test/web-typecheck]   |   ✔ renders its stats into the view (1.05801ms)
+[test/web-typecheck]   | ✔ Think Tokens view: Energy Core is built only from real signals (8.105237ms)
+[test/web-typecheck]   | ▶ Think Tokens view: current run
+[test/web-typecheck]   |   ✔ goal sets running and the job id; completion signals set completed; a new goal resets the error (0.907797ms)
+[test/web-typecheck]   |   ✔ shows the real run id (plain runs now carry one) and the error as an alert (1.208193ms)
+[test/web-typecheck]   |   ✔ survives a goal with a non-string or missing run id (0.803589ms)
+[test/web-typecheck]   | ✔ Think Tokens view: current run (3.060577ms)
+[test/web-typecheck]   | ▶ Think Tokens view: controls, demo isolation, unavailable cube
+[test/web-typecheck]   |   ✔ main controls drive the live cube; demo is not among them and runs on a separate cube (1.325556ms)
+[test/web-typecheck]   |   ✔ the legend names only decompose, repair and commons as never backend-driven (0.84432ms)
+[test/web-typecheck]   |   ✔ says so when the cube module did not load, and still handles every event (2.734167ms)
+[test/web-typecheck]   |   ✔ opening twice reuses the same modal and cube; closing stops the repaint timer (0.871898ms)
+[test/web-typecheck]   |   ✔ clicking a close button closes it (0.893841ms)
+[test/web-typecheck]   | ✔ Think Tokens view: controls, demo isolation, unavailable cube (6.902182ms)
+[test/web-typecheck]   | ▶ Think Tokens view: no inline handlers and responsive CSS (static checks, not a browser run)
+[test/web-typecheck]   |   ✔ the modal skeleton has no inline event handlers (1.92081ms)
+[test/web-typecheck]   |   ✔ declares breakpoints at 1024px, 768px and 480px and collapses to one column at 1024px (0.234141ms)
+[test/web-typecheck]   |   ✔ reduced motion disables the Energy Core animation and the cube twist (0.361246ms)
+[test/web-typecheck]   | ✔ Think Tokens view: no inline handlers and responsive CSS (static checks, not a browser run) (2.644159ms)
+[test/web-typecheck]   | ▶ Think Tokens view: the 100-cell cube
+[test/web-typecheck]   |   ✔ opens on demand: asks the server for the cube, shows a loading line, then 100 cells and a 54-sticker view with changed cells marked and empty cells dim (6.007778ms)
+[test/web-typecheck]   |   ✔ hovering, focusing or tapping a cell shows its field, value, source and meaning; a sticker shows the cells it folds together (3.812284ms)
+[test/web-typecheck]   |   ✔ is text-only (a hostile cell value is shown literally), ignores malformed cubes, and hides again on a second click (1.986705ms)
+[test/web-typecheck]   |   ✔ an open cube refreshes when its token is used (so changed cells pulse as it happens); a closed one does not (1.775836ms)
+[test/web-typecheck]   |   ✔ draws the token's links as lines (width = weight) next to the cube (3.337972ms)
+[test/web-typecheck]   |   ✔ the styles keep it reduced-motion safe and usable on a phone: no pulse or spin under prefers-reduced-motion (the cube lays out flat), cells shrink to ten columns at 520 px (0.544597ms)
+[test/web-typecheck]   | ✔ Think Tokens view: the 100-cell cube (17.811579ms)
+[test/web-typecheck]   | ▶ app.js routing
+[test/web-typecheck]   |   ✔ forwards every message type the Think Tokens view handles (the live run found think_token_cube was not routed) (0.931315ms)
+[test/web-typecheck]   | ✔ app.js routing (1.018269ms)
+[test/web-typecheck]   | ▶ main dashboard dock (below the Memory Graph)
+[test/web-typecheck]   |   ✔ loads the tokens itself, shows the best accepted token's cube without opening the modal, and follows the token that was just used (2.25059ms)
+[test/web-typecheck]   |   ✔ a viewer's pick sticks: later uses of other tokens do not move the dock (1.086008ms)
+[test/web-typecheck]   |   ✔ the page has the dock under the Memory Graph and app.js is wired to it (0.288877ms)
+[test/web-typecheck]   | ✔ main dashboard dock (below the Memory Graph) (3.786486ms)
+[test/web-typecheck]   | ✔ run -> save -> accept (approval gated) -> next run uses it, cites the id, and bumps uses (778.459445ms)
+[test/web-typecheck]   | ✔ security: malformed and oversized Think Token WebSocket payloads are rejected and change nothing (22.404387ms)
+[test/web-typecheck]   | ✔ security: Host/Origin gating still refuses a foreign Origin for the Think Token socket (2.225177ms)
+[test/web-typecheck]   | [Propagation] Broadcasting token token-tools-70aef020-e6b4-4544-9544-455873925d0c to 1 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-1',
+[test/web-typecheck]   |   tokenId: 'token-tools-70aef020-e6b4-4544-9544-455873925d0c',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-decision-487dcbf4-6d70-4095-8f4b-eb491bd9eee2 to 2 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-1',
+[test/web-typecheck]   |   tokenId: 'token-decision-487dcbf4-6d70-4095-8f4b-eb491bd9eee2',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-tools-bf471a09-3577-466d-b3a7-0fbc0ccbc0d9 to 1 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-evidence',
+[test/web-typecheck]   |   tokenId: 'token-tools-bf471a09-3577-466d-b3a7-0fbc0ccbc0d9',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-decision-7e1a0dd3-cb4c-47b9-be23-9b4186a7a577 to 2 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-evidence',
+[test/web-typecheck]   |   tokenId: 'token-decision-7e1a0dd3-cb4c-47b9-be23-9b4186a7a577',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-tools-afe9563d-8145-4d26-8976-22306fe6cd74 to 1 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-4',
+[test/web-typecheck]   |   tokenId: 'token-tools-afe9563d-8145-4d26-8976-22306fe6cd74',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-decision-ab7f4fc8-3948-4221-96ab-69f8ccfec7f9 to 2 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-4',
+[test/web-typecheck]   |   tokenId: 'token-decision-ab7f4fc8-3948-4221-96ab-69f8ccfec7f9',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-tools-3ea33880-4417-4563-a6cd-9a692e1caa63 to 1 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-restart',
+[test/web-typecheck]   |   tokenId: 'token-tools-3ea33880-4417-4563-a6cd-9a692e1caa63',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | [Propagation] Broadcasting token token-decision-7560f356-a462-4e8f-8a20-16b54e87a212 to 2 similar workers
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'sess-restart',
+[test/web-typecheck]   |   tokenId: 'token-decision-7560f356-a462-4e8f-8a20-16b54e87a212',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'worker-a',
+[test/web-typecheck]   |   tokenId: 'token-tools-43cc1e20-8ded-446f-9ad7-41969ecfc1f8',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.73,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'worker-b',
+[test/web-typecheck]   |   tokenId: 'token-tools-43cc1e20-8ded-446f-9ad7-41969ecfc1f8',
+[test/web-typecheck]   |   success: true,
+[test/web-typecheck]   |   newConfidence: 0.76,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | {
+[test/web-typecheck]   |   event: 'token_usage',
+[test/web-typecheck]   |   workerId: 'worker-c',
+[test/web-typecheck]   |   tokenId: 'token-tools-43cc1e20-8ded-446f-9ad7-41969ecfc1f8',
+[test/web-typecheck]   |   success: false,
+[test/web-typecheck]   |   newConfidence: 0.5566666666666666,
+[test/web-typecheck]   |   context: undefined
+[test/web-typecheck]   | }
+[test/web-typecheck]   | ▶ Think Token lifecycle (#288)
+[test/web-typecheck]   |   ✔ a candidate token from a real tool-call sequence meets the factory quality gate (3.808473ms)
+[test/web-typecheck]   |   ✔ successful execution -> token created and persisted (learned_patterns row exists) (23.262388ms)
+[test/web-typecheck]   |   ✔ failed execution -> no token is created, even with the same thought content (6.758785ms)
+[test/web-typecheck]   |   ✔ a candidate that fails the factory quality gate produces no token even on success (9.492841ms)
+[test/web-typecheck]   |   ✔ evidence association: the persisted pattern carries the origin session, goal and artifacts (9.263225ms)
+[test/web-typecheck]   |   ✔ retrieval through the normal application path (getTopPatterns / getPatternsByType) (8.160453ms)
+[test/web-typecheck]   |   ✔ survives a full restart: write -> close -> reopen the same file -> still retrievable (8.290457ms)
+[test/web-typecheck]   |   ✔ duplicate/replay: reusing the same token id upserts instead of duplicating a row (7.06687ms)
+[test/web-typecheck]   | ✔ Think Token lifecycle (#288) (77.554532ms)
+[test/web-typecheck]   | ✔ a real run saves a TT token (run_id, evidence, model, challenge, receipt) and emits learned events built from the row (890.199264ms)
+[test/web-typecheck]   | ✔ the next related run is handed the accepted token, cites its TT id, emits used, and writes a think_token_uses row (27.632907ms)
+[test/web-typecheck]   | ✔ CLI and dashboard API show identical fields for the same token and run (1120.530053ms)
+[test/web-typecheck]   | ✔ security: forged events, malformed ids and oversized payloads are rejected; nothing is created and no event is broadcast (830.590421ms)
+[test/web-typecheck]   | ✔ a failing extraction model leaves a labeled template candidate (never auto-accepted) and a receipted model failure (301.31682ms)
+[test/web-typecheck]   | ✔ when the model finds nothing new, the run says so explicitly and saves nothing (no template fallback) (468.126448ms)
+[test/web-typecheck]   | ✔ ids: TT-000001 format, strictly increasing, unique (30.780386ms)
+[test/web-typecheck]   | ✔ ids: normalizeTokenId accepts TT-42, tt-000042, 42 and legacy ids; rejects garbage (0.209857ms)
+[test/web-typecheck]   | ✔ ids: never reused after the token is deleted, retired or rejected (8.884704ms)
+[test/web-typecheck]   | ✔ ids: a duplicate lesson returns the existing id and counts a sighting instead of minting a new one (4.136543ms)
+[test/web-typecheck]   | ✔ ids: survive a restart and keep counting (23.591137ms)
+[test/web-typecheck]   | [think-token] local model 'qwen2.5:1.5b' unavailable (model 'qwen2.5:1.5b' not installed); skipping it for 60s
+[test/web-typecheck]   | ✔ ids: four processes writing to one database at once get 100 distinct, gap-free numbers (526.802599ms)
+[test/web-typecheck]   | ✔ lifecycle: candidate -> extracted -> scored -> challenged -> accepted, every step a ledger entry (8.666192ms)
+[test/web-typecheck]   | ✔ lifecycle: a failed challenge ends in rejected, and rejected tokens are never retrieved (8.435762ms)
+[test/web-typecheck]   | ✔ lifecycle: illegal transitions are refused and receipted as rejected (5.466531ms)
+[test/web-typecheck]   | ✔ lifecycle: operators can only accept or retire, retired is final, and template tokens never advance on their own (7.137865ms)
+[test/web-typecheck]   | ✔ score: the breakdown is stored next to the score and reproduces 0.525 for a fresh token (5.210294ms)
+[test/web-typecheck]   | ✔ migration: v1 database (hash ids) -> TT ids; legacy ids kept; old ledger untouched and still verifies (39.095455ms)
+[test/web-typecheck]   | ✔ extractor: a lesson that cites a tool the run never called fails (cited and mentioned) (1.806213ms)
+[test/web-typecheck]   | ✔ challenge: generic and template lessons are rejected deterministically, before any model is asked (3.688869ms)
+[test/web-typecheck]   | ✔ pipeline: Mercury extracts a specific lesson, it is scored, challenged by a second call and accepted; models are recorded (12.490876ms)
+[test/web-typecheck]   | ✔ pipeline: the extractor prompt carries the real run (tools, args, files) and not the paths or secrets in it (11.282465ms)
+[test/web-typecheck]   | ✔ pipeline: lessons citing a missing tool, or phrased as the old template, are dropped before they become tokens (and receipted) (8.915695ms)
+[test/web-typecheck]   | ✔ pipeline: a failed model challenge rejects the token; an unreachable challenge model leaves it scored, never accepted (15.378628ms)
+[test/web-typecheck]   | ✔ retry: one transient Mercury failure (an empty reply, seen in a live run) is retried and the token is still challenged and accepted (12.154077ms)
+[test/web-typecheck]   | ✔ fallback: Mercury missing or erroring uses the local model; both missing keeps the labeled template as a candidate (22.211027ms)
+[test/web-typecheck]   | ✔ novelty: accepted lessons reach both the extraction and the challenge prompts so repeats can be skipped (21.791713ms)
+[test/web-typecheck]   | ✔ novelty: a lesson the reviewer calls a repeat is rejected, and a missing answer leaves it unchallenged (42.22239ms)
+[test/web-typecheck]   | ✔ no-new-lessons: an empty answer, or a model that answered with something unusable, saves nothing and never falls back to the template (5.564649ms)
+[test/web-typecheck]   | ✔ caps: the per-run and per-day model call caps stop further calls and are receipted (10.522779ms)
+[test/web-typecheck]   | ✔ key: never appears in logs, database rows, events, formatted output or errors (46.314073ms)
+[test/web-typecheck]   | ✔ key: missing means no Mercury caller (the local model is used); the local caller never pulls a model (2.302624ms)
+[test/web-typecheck]   | ✔ reader: one projection shows id, title, lesson, status, score breakdown, run id and receipt (9.327882ms)
+[test/web-typecheck]   | ✔ similarity: identical text is 1, a related pair clears the threshold, an unrelated pair does not (2.214885ms)
+[test/web-typecheck]   | ✔ similarity: empty pool, empty text and punctuation-only text are 0, never NaN (0.271061ms)
+[test/web-typecheck]   | ✔ similarity: symmetric (0.305653ms)
+[test/web-typecheck]   | ✔ score: breakdown components reproduce the score, with and without propagation (0.607082ms)
+[test/web-typecheck]   | ✔ score: the bonus is capped, only the last 12 credits count, and the score stays within 0..1 (0.225903ms)
+[test/web-typecheck]   | ✔ links: shared tool tags and similar lesson text link; an unrelated token does not; ids are stored in canonical order (47.025472ms)
+[test/web-typecheck]   | ✔ links: linking twice changes nothing (no duplicate rows, no ledger spam) (55.629884ms)
+[test/web-typecheck]   | ✔ links: rejected, retired and candidate tokens are never linked; unknown ids and bad kinds are refused (32.310216ms)
+[test/web-typecheck]   | ✔ links: tokens used by the same run become co_used, and the weight grows with the number of shared runs (43.329081ms)
+[test/web-typecheck]   | ✔ propagation: using a token credits its linked neighbors once per run; the stored breakdown reproduces the score (44.975933ms)
+[test/web-typecheck]   | ✔ propagation: credits survive a later rescore (feedback) and the list view, are skipped for tokens used in the same run, and skip retired tokens (67.478165ms)
+[test/web-typecheck]   | ✔ propagation: depth 1 only, so a link cycle cannot loop (47.628479ms)
+[test/web-typecheck]   | ✔ lifecycle: a scored token cannot be rejected directly; it has to be challenged first (9.258461ms)
+[test/web-typecheck]   | ✔ unsafe advice: destructive or secret-leaking lessons fail the specificity check even when they cite real tools; sound ones pass (2.529326ms)
+[test/web-typecheck]   | ✔ challenge can say no: a model verdict of not-specific / not-novel fails the lesson with a stored reason (4.790867ms)
+[test/web-typecheck]   | ✔ pipeline: a modelled token is tagged tool:<name> and linked to an existing accepted token that shares a tool (34.16607ms)
+[test/web-typecheck]   | ✔ pipeline: a rejected token is never linked (16.126634ms)
+[test/web-typecheck]   | ✔ re-challenge: a stuck scored token is checked against its own run record and accepted on a pass (10.330751ms)
+[test/web-typecheck]   | ✔ re-challenge: a failing verdict rejects with the stored reason, via challenged (never scored -> rejected) (9.404931ms)
+[test/web-typecheck]   | ✔ re-challenge: no run record, or no model, leaves the token scored; it is never force-rejected (16.093085ms)
+[test/web-typecheck]   | ✔ re-challenge: a lesson that now fails a deterministic check is rejected without a model call (7.919202ms)
+[test/web-typecheck]   | ✔ local model: after an outage it is skipped for the backoff window, then probed again (1.718442ms)
+[test/web-typecheck]   | ✔ reader: the API token carries its links, the detail text lists them, and readTokenLinks matches (31.582818ms)
+[test/web-typecheck]   | ✔ CLI: kudbee tokens links prints the same links as the reader, as JSON and as text (729.872956ms)
+[test/web-typecheck]   | ✔ dedupe: near-duplicates with the same tool set merge into the best-scored token, retired and linked merged_into (29.483602ms)
+[test/web-typecheck]   | ✔ dedupe: similar text with a different tool set, or a dissimilar token with the same tools, is not merged (19.480547ms)
+[test/web-typecheck]   | ✔ dedupe: a token whose tags name no known tool is never merged (14.86785ms)
+[test/web-typecheck]   | ✔ links: with known tools given, bare tool-name tags (tokens saved before P3) also produce same_tool links (26.651966ms)
+[test/web-typecheck]   | ✔ retrieval: a goal that can hit a failure mode surfaces the lesson about it ahead of a generic write_file lesson (23.866728ms)
+[test/web-typecheck]   | ✔ retrieval: a lesson with no failure-mode match that only names a very common tool ranks below a more specific one (45.280199ms)
+[test/web-typecheck]   | ✔ retrieval: near-duplicates are not returned together (diverse), but are when diversity is off (24.392932ms)
+[test/web-typecheck]   | ✔ retrieval: only accepted tokens, none for an empty store or a goal with no overlap (10.493328ms)
+[test/web-typecheck]   | ✔ tool idf: a tool every token names scores 0, a rare one scores near 1; bare tags count only for known tools (0.56215ms)
+[test/web-typecheck]   | ✔ links: a tool nearly every token names (write_file) cannot make a same_tool link on its own, but a rare shared tool can (30.365267ms)
+[test/web-typecheck]   | ✔ challenge: an unusable reply gets one retry; a good second reply is used; two bad ones leave the lesson unjudged (never accepted) (3.337872ms)
+[test/web-typecheck]   | ✔ retrieval clock: the same seed and the same frozen clock give the same ranks twice, and the clock decides recency (14.730105ms)
+[test/web-typecheck]   | ✔ held-out P3.5 set: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string (34.458909ms)
+[test/web-typecheck]   | ✔ held-out P3.6 set 2: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string (32.293441ms)
+[test/web-typecheck]   | ✔ held-out P3.7 set 3: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string (25.944603ms)
+[test/web-typecheck]   | ✔ held-out P3.8 set 4: each goal shares at most one distinctive word with its marked lesson, and no path, file name or quoted string (25.319415ms)
+[test/web-typecheck]   | ✔ held-out sets use different lessons (0.891949ms)
+[test/web-typecheck]   | ✔ vectors round-trip through a BLOB unchanged, and cosine of unit vectors is the dot product (1.630075ms)
+[test/web-typecheck]   | ✔ ensureEmbeddings embeds accepted tokens once, re-embeds when the text changes, and skips non-accepted tokens (48.78464ms)
+[test/web-typecheck]   | ✔ hybrid ranking finds a lesson that shares no words with the goal; lexical ranking does not; the lexical flag forces the old ranker (53.21583ms)
+[test/web-typecheck]   | ✔ hybrid ranking is deterministic under a frozen clock (24.171468ms)
+[test/web-typecheck]   | ✔ schema v6: a v2 database gets a consistent backup before it migrates, and nothing is lost; a current or in-memory database makes no backup (34.012839ms)
+[test/web-typecheck]   | ✔ the embedder is optional: THINKBOX_EMBEDDINGS=off gives null without loading anything (0.265201ms)
+[test/web-typecheck]   | ✔ peekEmbedder never waits: it returns null until the load has finished, and null forever when embeddings are off (0.449496ms)
+[test/web-typecheck]   | ✔ when_to_use is stored beside the lesson (not inside it), screened, and part of the embedded text (4.131594ms)
+[test/web-typecheck]   | ✔ setting retrieval text makes the token need a new embedding (9.284907ms)
+[test/web-typecheck]   | ✔ backfillRetrievalText asks the model about the lesson only, stores the text, skips unusable replies, and leaves lessons that already have text alone (14.973255ms)
+[test/web-typecheck]   | ✔ extraction asks for when_to_use and stores it with the new token (13.62551ms)
+[test/web-typecheck]   | ✔ P3.8: cosine is the default ranker; all four stay selectable; cosine ranks by similarity alone and returns nothing for an unrelated goal (20.764472ms)
+[test/web-typecheck]   | ✔ P3.8: cosine-tiebreak orders lessons whose cosine is within 0.02 by BM25, and plain cosine does not (13.625538ms)
+[test/web-typecheck]   | ✔ schema: migrateUp is idempotent and migrateDown rolls everything back (8.746474ms)
+[test/web-typecheck]   | ✔ schema: the table rejects a status or kind outside the allowed set (1.649674ms)
+[test/web-typecheck]   | ✔ gate: writes become candidates only, are deduped by content hash, and return a receipt (9.236398ms)
+[test/web-typecheck]   | ✔ gate: oversized, malformed, privileged and directive drafts are rejected and the rejection is receipted (3.133461ms)
+[test/web-typecheck]   | ✔ gate: secrets are redacted before storage (3.805737ms)
+[test/web-typecheck]   | ✔ ledger: chain verifies, and any tampering is detected (5.473144ms)
+[test/web-typecheck]   | ✔ score: the documented formula, bounds, decay, reuse, feedback (0.474338ms)
+[test/web-typecheck]   | ✔ store: use, outcome and feedback update counters and score through the ledger (8.574061ms)
+[test/web-typecheck]   | ✔ retrieval: only accepted tokens, ranked by keyword/tag match, capped at k (13.477892ms)
+[test/web-typecheck]   | ✔ prompt block: states the token is advisory and cites ids (3.437882ms)
+[test/web-typecheck]   | ✔ extractor: deterministic, successful runs only, capped, and carries run evidence (5.873018ms)
+[test/web-typecheck]   | ✔ extractor: template drafts are labeled, and the gate refuses an unknown or spoofed extractor (3.019645ms)
+[test/web-typecheck]   | ✔ ws validation: accepts well-formed messages and rejects oversized, malformed and extra-key payloads (0.763482ms)
+[test/web-typecheck]   | ▶ Token Routing & Telemetry
+[test/web-typecheck]   |   ▶ selectModelForGoal routing heuristics
+[test/web-typecheck]   |     ✔ routes simple goals to the cheap local model (1.291668ms)
+[test/web-typecheck]   |     ✔ routes complex code generation to Mercury-2 (0.483371ms)
+[test/web-typecheck]   |     ✔ routes research tasks to Mercury-2 (0.318385ms)
+[test/web-typecheck]   |     ✔ handles manual override via route_reason (0.180136ms)
+[test/web-typecheck]   |     ✔ detects long goals as complex (0.338559ms)
+[test/web-typecheck]   |     ✔ detects JSON in goal as complex (0.10154ms)
+[test/web-typecheck]   |     ✔ detects code blocks as complex (0.341597ms)
+[test/web-typecheck]   |   ✔ selectModelForGoal routing heuristics (3.837319ms)
+[test/web-typecheck]   |   ▶ local model availability (Qwen2.5 1.5B route + Ollama fallback)
+[test/web-typecheck]   |     ✔ routes simple goal to qwen2.5:1.5b when the local model is pulled (0.488058ms)
+[test/web-typecheck]   |     ✔ falls back to Mercury-2 with honest zero savings when local model is absent (0.209308ms)
+[test/web-typecheck]   |     ✔ does not fall back for complex goals even without a local model (0.288745ms)
+[test/web-typecheck]   |     ✔ ignores unrelated Ollama models when picking the cheap route (0.225018ms)
+[test/web-typecheck]   |     ✔ manual override is unaffected by local model availability (0.132172ms)
+[test/web-typecheck]   |   ✔ local model availability (Qwen2.5 1.5B route + Ollama fallback) (1.699273ms)
+[test/web-typecheck]   |   ▶ Token telemetry calculations
+[test/web-typecheck]   |     ✔ calculates savings for simple → local route (0.147542ms)
+[test/web-typecheck]   |     ✔ calculates no savings for complex → mercury route (0.112177ms)
+[test/web-typecheck]   |   ✔ Token telemetry calculations (0.394997ms)
+[test/web-typecheck]   |   ▶ run_metadata persistence
+[test/web-typecheck]   |     ✔ includes routing telemetry in metrics (0.161807ms)
+[test/web-typecheck]   |     ✔ persists telemetry across run completion (0.07922ms)
+[test/web-typecheck]   |   ✔ run_metadata persistence (0.363853ms)
+[test/web-typecheck]   |   ▶ KPI aggregation
+[test/web-typecheck]   |     ✔ aggregates token savings across multiple runs (0.111636ms)
+[test/web-typecheck]   |     ✔ calculates sparkline data correctly (0.621847ms)
+[test/web-typecheck]   |     ✔ handles empty run history (0.08601ms)
+[test/web-typecheck]   |   ✔ KPI aggregation (0.919582ms)
+[test/web-typecheck]   | ✔ Token Routing & Telemetry (9.239734ms)
+[test/web-typecheck]   | ▶ Token Stats Integration
+[test/web-typecheck]   |   ✔ saves telemetry fields to run_metadata (1.139033ms)
+[test/web-typecheck]   |   ✔ aggregates token savings across runs (1.062165ms)
+[test/web-typecheck]   |   ✔ tracks route_reason (auto vs manual) (0.659312ms)
+[test/web-typecheck]   |   ✔ sparkline is chronological (oldest→newest), not DB order (newest→oldest) (2.38646ms)
+[test/web-typecheck]   |   ✔ survives restart with telemetry intact (10.076687ms)
+[test/web-typecheck]   | ✔ Token Stats Integration (29.839233ms)
+[test/web-typecheck]   | ℹ tests 549
+[test/web-typecheck]   | ℹ suites 48
+[test/web-typecheck]   | ℹ pass 549
+[test/web-typecheck]   | ℹ fail 0
+[test/web-typecheck]   | ℹ cancelled 0
+[test/web-typecheck]   | ℹ skipped 0
+[test/web-typecheck]   | ℹ todo 0
+[test/web-typecheck]   | ℹ duration_ms 20213.294979
+[test/web-typecheck]   ✅  Success - Main Agent OS tests (hermetic, mocked Inception) [20.484547156s]
+[test/web-typecheck] ⭐ Run Post actions/setup-node@v4
+[test/web-typecheck]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.19.0/x64/bin/node /var/run/act/actions/actions-setup-node@v4/dist/cache-save/index.js] user= workdir=
+[test/web-typecheck]   | (node:1274) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+[test/web-typecheck]   | (Use `node --trace-deprecation ...` to show where the warning was created)
+[test/web-typecheck]   ✅  Success - Post actions/setup-node@v4 [219.151503ms]
+[test/web-typecheck] ⭐ Run Complete job
+[test/web-typecheck] Cleaning up container for job web-typecheck
+[test/web-typecheck]   ✅  Success - Complete job
+[test/web-typecheck] 🏁  Job succeeded
+act exit: 0

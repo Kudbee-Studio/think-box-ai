@@ -16,6 +16,7 @@ import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
+import { httpError } from './http-error.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -212,7 +213,7 @@ class Client {
   async files(quiet = false): Promise<void> {
     try {
       const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw await httpError(res);
       const { files } = (await res.json()) as { files: Array<{ path: string; size: number }> };
       if (!files?.length) {
         if (!quiet) console.log(c.dim('  (workspace empty)'));
@@ -229,7 +230,7 @@ class Client {
   async cat(file: string): Promise<void> {
     try {
       const res = await fetch(`${HOST}/api/sessions/${this.sessionId}/files/content?path=${encodeURIComponent(file)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw await httpError(res);
       const body = (await res.json()) as { content?: string; error?: string };
       console.log(body.content ?? c.red(body.error ?? 'error'));
     } catch (err) {
@@ -246,7 +247,7 @@ function printApproval(req: ApprovalRequest): void {
 async function showRuns(): Promise<void> {
   try {
     const res = await fetch(`${HOST}/api/runs?limit=15`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw await httpError(res);
     const { runs } = (await res.json()) as { runs: any[] };
     if (!runs?.length) return console.log(c.dim('  (no runs yet)'));
     for (const r of runs) {
@@ -261,12 +262,12 @@ async function showRuns(): Promise<void> {
 async function showRun(prefix: string): Promise<void> {
   try {
     const res = await fetch(`${HOST}/api/runs?limit=500`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw await httpError(res);
     const { runs } = (await res.json()) as { runs: any[] };
     const match = prefix && runs?.find((r) => r.id.startsWith(prefix));
     if (!match) return console.log(c.red('Usage: /run ID (first characters from /runs)'));
     const runRes = await fetch(`${HOST}/api/runs/${match.id}`);
-    if (!runRes.ok) throw new Error(`HTTP ${runRes.status} fetching run detail`);
+    if (!runRes.ok) throw await httpError(runRes);
     const run = (await runRes.json()) as any;
     console.log(c.bold(run.goal));
     console.log(c.dim(`  ${run.status} · ${run.model} · ${run.current_step} steps · ${run.tool_calls} tools · ${run.prompt_tokens + run.completion_tokens} tokens · ${usd(run.cost_usd)} · ${((run.duration_ms ?? 0) / 1000).toFixed(1)}s`));
@@ -395,6 +396,8 @@ ${c.bold('ANALYTICS & DEBUG')}
   /metrics            agent KPIs (runs, tokens, cost, success rate)
   /status             server health check
   /session            current session info (ID, model, agent, plugins)
+  /capacity           server load: running agents, pending approvals, CPU, memory
+  /config             this session's model, provider, agent, session id, connection
   /plugin NAME JSON   run a plugin with JSON input
   /algo ACTION [ADDR] read-only Algorand queries
 
@@ -445,7 +448,12 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       break;
     }
     case '/model':
-      if (!client.models.some((m) => m.name === args[0])) {
+      if (!args[0]) {
+        console.log(`Current model: ${c.bold(client.model || '(none)')}`);
+        console.log('Available:');
+        for (const m of client.models) console.log(`    ${m.name === client.model ? c.green('●') : ' '} ${m.name}`);
+        console.log(c.dim('Usage: /model NAME'));
+      } else if (!client.models.some((m) => m.name === args[0])) {
         console.log(c.red(`Unknown model "${args[0]}". Available:`));
         for (const m of client.models) console.log(`    ${m.name}`);
       } else {
@@ -458,7 +466,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/agents': {
       try {
         const res = await fetch(`${HOST}/api/agents`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string; description: string; allowedTools: string[] }> };
         console.log(c.bold('\n  Worker agent (default)') + c.dim(' — full tool access'));
         for (const a of agents) {
@@ -480,7 +488,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       } else {
         try {
           const res = await fetch(`${HOST}/api/agents`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) throw await httpError(res);
           const { agents } = (await res.json()) as { agents: Array<{ id: string; name: string }> };
           const match = agents?.find((a) => a.id === args[0].toLowerCase());
           if (!match) {
@@ -556,7 +564,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/status': {
       try {
         const res = await fetch(`${HOST}/api/health`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         console.log(await res.json());
       } catch (err) {
         console.log(c.red(`Error checking status: ${err instanceof Error ? err.message : String(err)}`));
@@ -594,7 +602,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         const query = args.join(' ').trim();
         const params = new URLSearchParams({ limit: '10', ...(query ? { q: query } : {}) });
         const res = await fetch(`${HOST}/api/memory?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const { items, backend } = (await res.json()) as { items: any[]; backend: string };
         if (!items?.length) console.log(c.dim(`  (no memories${query ? ` match "${query}"` : ''})`));
         if (query && items?.length) console.log(c.dim(`  search backend: ${backend}`));
@@ -616,7 +624,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           params.set('layer', layer);
         }
         const res = await fetch(`${HOST}/api/memory/notes?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const data = (await res.json()) as any;
         if (!data.notes?.length) {
           console.log(c.dim(`  (no notes${layer ? ` in ${layer}` : ''})`));
@@ -651,7 +659,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
             layer
           }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const item = (await res.json()) as any;
         console.log(c.green(`  ✓ saved ${layer} note: ${item.id}`));
       } catch (err) {
@@ -686,7 +694,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
         }
         const res = await fetch(`${HOST}/api/algorand?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const body = (await res.json()) as Record<string, unknown>;
         console.log(JSON.stringify(body, null, 2));
       } catch (err) {
@@ -698,7 +706,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       try {
         const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
         const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const item = (await res.json()) as any;
         console.log(c.green(`  promoted → ${item.id}`));
       } catch (err) {
@@ -712,7 +720,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/metrics': {
       try {
         const res = await fetch(`${HOST}/api/stats`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const m = (await res.json()) as any;
         console.log(`  Runs ${m.runs_today} today / ${m.runs_total} total · success ${m.success_rate ?? '—'}% · p50 ${(m.p50_ms / 1000).toFixed(1)}s · p95 ${(m.p95_ms / 1000).toFixed(1)}s`);
         console.log(`  Tokens today ${m.tokens_today} · cost today ${usd(m.cost_today_usd)} · all-time ${usd(m.cost_total_usd)}${m.budget_usd ? ` · budget ${usd(m.budget_usd)}` : ''}`);
@@ -721,6 +729,35 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         }
       } catch (err) {
         console.log(c.red(`Error fetching metrics: ${err instanceof Error ? err.message : String(err)}`));
+      }
+      break;
+    }
+    case '/config': {
+      const provider = client.models.find((m) => m.name === client.model)?.provider;
+      const config = {
+        model: client.model,
+        provider: provider ?? null,
+        agent: client.agent ?? null,
+        sessionId: client.sessionId,
+        wsConnected: client.ws?.readyState === 1,
+        url: HOST,
+      };
+      console.log(`${c.bold('Configuration:')}\n${JSON.stringify(config, null, 2)}`);
+      break;
+    }
+    case '/capacity': {
+      try {
+        const res = await fetch(`${HOST}/api/stats`);
+        if (!res.ok) throw await httpError(res);
+        const cap = ((await res.json()) as any).capacity;
+        if (!cap) throw new Error('the server reported no capacity data');
+        console.log(c.bold('  Capacity (server)'));
+        console.log(`  Agents running: ${cap.running_agents} of ${cap.connected_sessions} connected session(s)`);
+        console.log(`  Pending approvals: ${cap.pending_approvals}`);
+        console.log(`  Server CPU: ${cap.server_cpu_pct}% · RSS ${cap.server_rss_mb} MB`);
+        console.log(`  System memory: ${cap.system_mem_used_pct}% of ${cap.system_mem_total_gb} GB · load ${(cap.load_avg ?? []).join(' / ')} · ${cap.cores} cores`);
+      } catch (err) {
+        console.log(c.red(`Error fetching capacity: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }

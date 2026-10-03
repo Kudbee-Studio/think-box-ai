@@ -1,0 +1,9 @@
+{
+  "label": "current",
+  "fileTreeName_xss1": false,
+  "cloneDialogAttr_xss2": false,
+  "cloneDialogValueIntact": true,
+  "editorHeading_xss3": false,
+  "editorSaveOnclick_xss4": false,
+  "generatedList_xss5": false
+}

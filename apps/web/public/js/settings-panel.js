@@ -7,8 +7,7 @@ class SettingsPanel {
   }
 
   loadSettings() {
-    const stored = localStorage.getItem('kudbee-settings');
-    return stored ? JSON.parse(stored) : {
+    return readStoredJson('kudbee-settings', {
       theme: 'auto',
       fontSize: 'medium',
       notifications: true,
@@ -19,7 +18,7 @@ class SettingsPanel {
       compactMode: false,
       showTips: true,
       language: 'en'
-    };
+    });
   }
 
   saveSettings() {

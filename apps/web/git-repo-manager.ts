@@ -118,7 +118,7 @@ export class GitRepoManager {
       execSync('git fetch origin', { cwd: localPath, stdio: 'pipe' });
       execSync('git pull origin', { cwd: localPath, stdio: 'pipe' });
     } catch (error) {
-      console.warn(`Failed to sync repository at ${localPath}:`, error);
+      console.warn('Failed to sync repository at %s:', localPath, error);
     }
   }
 
@@ -171,7 +171,7 @@ export class GitRepoManager {
             }
           }
         } catch (error) {
-          console.warn(`Failed to read directory ${dirPath}:`, error);
+          console.warn('Failed to read directory %s:', dirPath, error);
         }
       }
 
@@ -301,7 +301,7 @@ export class GitRepoManager {
         }
       }
     } catch (error) {
-      console.warn(`Failed to count files in ${dirPath}:`, error);
+      console.warn('Failed to count files in %s:', dirPath, error);
     }
 
     return count;
@@ -321,7 +321,7 @@ export class GitRepoManager {
       this.repos.delete(repoName);
       return true;
     } catch (error) {
-      console.error(`Failed to delete repository: ${error}`);
+      console.error('Failed to delete repository:', error);
       return false;
     }
   }

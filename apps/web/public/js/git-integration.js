@@ -76,7 +76,7 @@ class GitIntegration {
 
         <div class="git-clone-form">
           <label>Repository URL
-            <input type="text" id="git-url" value="${url}" placeholder="https://github.com/owner/repo.git">
+            <input type="text" id="git-url" value="${this.escapeHtml(url)}" placeholder="https://github.com/owner/repo.git">
           </label>
 
           <label>Branch (optional)
@@ -193,7 +193,7 @@ class GitIntegration {
         <div class="file-tree-entry">
           ${toggle}
           <span class="icon">${icon}</span>
-          <span class="name">${item.name}</span>
+          <span class="name">${this.escapeHtml(item.name)}</span>
           ${item.size ? `<span class="size">${this.formatSize(item.size)}</span>` : ''}
         </div>
       `;
@@ -218,7 +218,7 @@ class GitIntegration {
       const repoNode = document.createElement('div');
       repoNode.className = 'file-tree-repo';
       repoNode.dataset.repo = prefix;
-      repoNode.innerHTML = `<div class="repo-name">${prefix}</div>`;
+      repoNode.innerHTML = `<div class="repo-name">${this.escapeHtml(prefix)}</div>`;
 
       const treeRoot = createTreeNode(node, 0);
       repoNode.appendChild(treeRoot);
@@ -277,7 +277,7 @@ class GitIntegration {
         <div class="modal-header">
           <div>
             <span class="modal-eyebrow">📝 FILE EDITOR</span>
-            <h2>${fileName}</h2>
+            <h2>${this.escapeHtml(fileName)}</h2>
           </div>
           <button class="btn-icon" onclick="this.closest('.modal-backdrop').remove()">×</button>
         </div>
@@ -289,12 +289,13 @@ class GitIntegration {
 
         <div class="modal-actions">
           <button class="btn-secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
-          <button class="btn-primary" onclick="gitIntegration.saveFile('${filePath}', this)">Save</button>
+          <button class="btn-primary" data-action="save">Save</button>
         </div>
       </section>
     `;
 
     document.body.appendChild(dialog);
+    dialog.querySelector('[data-action="save"]').addEventListener('click', (event) => this.saveFile(filePath, event.currentTarget));
   }
 
   /**
@@ -363,7 +364,7 @@ class GitIntegration {
       sectionNode = document.createElement('div');
       sectionNode.className = 'file-tree-section';
       sectionNode.dataset.section = section;
-      sectionNode.innerHTML = `<div class="section-name">${section}</div>`;
+      sectionNode.innerHTML = `<div class="section-name">${this.escapeHtml(section)}</div>`;
       fileTreeContainer.appendChild(sectionNode);
     }
 
@@ -374,7 +375,7 @@ class GitIntegration {
     fileNode.innerHTML = `
       <div class="file-tree-entry">
         <span class="icon">✨</span>
-        <span class="name">${file.path.split('/').pop()}</span>
+        <span class="name">${this.escapeHtml(file.path.split('/').pop())}</span>
         <span class="badge">${file.language}</span>
       </div>
     `;
@@ -471,9 +472,9 @@ class GitIntegration {
    * Escape HTML
    */
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Quotes too: this output also goes inside value="..." attributes (textContent -> innerHTML leaves quotes as-is).
+    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(text ?? '').replace(/[&<>"']/g, ch => entities[ch]);
   }
 }
 

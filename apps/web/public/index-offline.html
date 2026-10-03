@@ -210,8 +210,9 @@
           <span class="message-role">${role}</span>
           <span class="message-time">${new Date().toLocaleTimeString()}</span>
         </div>
-        <div class="message-content">${text}</div>
+        <div class="message-content"></div>
       `;
+      msg.querySelector('.message-content').textContent = text;
       terminal.appendChild(msg);
       terminal.scrollTop = terminal.scrollHeight;
     }

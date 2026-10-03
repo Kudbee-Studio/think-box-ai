@@ -135,6 +135,55 @@ const runCli = (args: string[], home: string): Promise<{ status: number | null; 
 });
 const strip = (t: string): string => t.replace(/\x1b\[[0-9;]*m/g, '');
 
+test('/capacity prints the same server capacity numbers the dashboard shows', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const out = await runCli(['/capacity'], home);
+  const text = strip(out.stdout);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(text, /Capacity \(server\)/);
+  assert.match(text, /Agents running: \d+ of \d+ connected session/);
+  assert.match(text, /Pending approvals: \d+/);
+  assert.match(text, /System memory: [\d.]+% of [\d.]+ GB/);
+  assert.doesNotMatch(text, /Error fetching capacity|undefined|NaN/);
+});
+
+test('/algo shows the server\'s own error message, not just "HTTP 400"', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const algo = strip((await runCli(['/algo', 'account', 'notanaddress'], home)).stdout);
+  assert.match(algo, /^Error: address is not a valid Algorand address \(HTTP 400\)$/m);
+});
+
+test('/promote shows the server\'s own error message, not just "HTTP 400"', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/promote', 'org/does-not-exist'], home)).stdout);
+  assert.match(text, /^Error promoting note: .{3,} \(HTTP 400\)$/m);
+  assert.doesNotMatch(text, /Error promoting note: HTTP 400/);
+});
+
+test('/cat shows the server\'s own error message, not just "HTTP 400"', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/cat', 'nope.txt'], home)).stdout);
+  assert.match(text, /^Error reading file: .{3,} \(HTTP 400\)$/m);
+  assert.doesNotMatch(text, /Error reading file: HTTP 400/);
+});
+
+test('/model with no name shows the current and available models, like the dashboard', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/model'], home)).stdout);
+  assert.match(text, /Current model: \S+/);
+  assert.match(text, /Usage: \/model NAME/);
+  assert.doesNotMatch(text, /Unknown model "undefined"/);
+});
+
+test('/config prints the session\'s model, provider, session id and connection state, like the dashboard', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/config'], home)).stdout);
+  assert.match(text, /Configuration:/);
+  assert.match(text, /"sessionId": "[0-9a-f-]{36}"/);
+  assert.match(text, /"wsConnected": true/);
+  assert.match(text, /"model": "/);
+});
+
 test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
   const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));

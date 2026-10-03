@@ -2,8 +2,8 @@
 
 class ApprovalWorkflow {
   constructor() {
-    this.workflows = JSON.parse(localStorage.getItem('kudbee-approval-workflows') || '{}');
-    this.approvals = JSON.parse(localStorage.getItem('kudbee-approvals') || '{}');
+    this.workflows = readStoredJson('kudbee-approval-workflows', {});
+    this.approvals = readStoredJson('kudbee-approvals', {});
     this.setupEventListeners();
   }
 

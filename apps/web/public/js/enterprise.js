@@ -1,5 +1,20 @@
 /* THINK BOX AI — Enterprise Features Module */
 
+// Reads JSON from localStorage. Corrupt, wrong-shaped (e.g. a stored `null`) or blocked storage gives `fallback` instead of throwing,
+// so one bad value cannot stop a header panel from starting.
+function readStoredJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const value = JSON.parse(raw);
+    const isObject = value !== null && typeof value === 'object';
+    const ok = Array.isArray(fallback) ? Array.isArray(value) : isObject && !Array.isArray(value);
+    return ok ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 const Enterprise = {
   // 1. ADVANCED SESSION MANAGEMENT
   sessionManager: {
@@ -33,12 +48,7 @@ const Enterprise = {
     },
 
     load() {
-      try {
-        const saved = localStorage.getItem('enterprise_sessions');
-        if (saved) this.sessions = JSON.parse(saved);
-      } catch (e) {
-        console.error('Session load failed:', e);
-      }
+      this.sessions = readStoredJson('enterprise_sessions', this.sessions);
     }
   },
 
@@ -139,12 +149,7 @@ const Enterprise = {
     },
 
     load() {
-      try {
-        const saved = localStorage.getItem('enterprise_audit');
-        if (saved) this.logs = JSON.parse(saved);
-      } catch (e) {
-        console.error('Audit log load failed:', e);
-      }
+      this.logs = readStoredJson('enterprise_audit', this.logs);
     }
   },
 
@@ -216,7 +221,11 @@ const Enterprise = {
     set(theme) {
       this.current = theme;
       document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('theme', theme);
+      try {
+        localStorage.setItem('theme', theme);
+      } catch {
+        // storage blocked or full: the theme still applies for this page
+      }
       const event = new CustomEvent('themeChanged', { detail: theme });
       document.dispatchEvent(event);
     },
@@ -227,8 +236,13 @@ const Enterprise = {
     },
 
     load() {
-      const saved = localStorage.getItem('theme') || 'dark';
-      this.set(saved);
+      let saved = null;
+      try {
+        saved = localStorage.getItem('theme');
+      } catch {
+        // storage blocked: use the default
+      }
+      this.set(saved || 'dark');
     }
   },
 
