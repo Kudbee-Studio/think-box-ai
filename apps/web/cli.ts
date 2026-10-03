@@ -664,7 +664,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
             layer
           }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const item = (await res.json()) as any;
         console.log(c.green(`  ✓ saved ${layer} note: ${item.id}`));
       } catch (err) {
@@ -711,7 +711,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       try {
         const id = args[0]?.startsWith('org/') ? args[0] : `org/${args[0] ?? ''}`;
         const res = await fetch(`${HOST}/api/memory/promote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const item = (await res.json()) as any;
         console.log(c.green(`  promoted → ${item.id}`));
       } catch (err) {

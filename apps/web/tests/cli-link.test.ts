@@ -153,6 +153,13 @@ test('/algo shows the server\'s own error message, not just "HTTP 400"', async (
   assert.match(algo, /^Error: address is not a valid Algorand address \(HTTP 400\)$/m);
 });
 
+test('/promote shows the server\'s own error message, not just "HTTP 400"', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const text = strip((await runCli(['/promote', 'org/does-not-exist'], home)).stdout);
+  assert.match(text, /^Error promoting note: .{3,} \(HTTP 400\)$/m);
+  assert.doesNotMatch(text, /Error promoting note: HTTP 400/);
+});
+
 test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
   const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));
