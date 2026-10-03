@@ -28,6 +28,13 @@ founder can grant it (`gh auth refresh -s workflow`). Bypassing gates is covered
 
 Run `act` ONCE per PR, at the end. Commit locally and push ONCE. No WIP pushes, empty commits or CI re-runs. Batch any review fixes into one push. Pack related work into one PR (docs ride along with the code PR).
 
+Running `act` in the Claude cloud container (verified 2026-10-03, `docs/evidence/ci-local/feat-pr348-code-cleanup-act.log`): the image has Docker binaries but no daemon, and `act` is not installed.
+1. `curl -sSL https://github.com/nektos/act/releases/latest/download/act_Linux_x86_64.tar.gz | tar xz act` and put it on `PATH`.
+2. `dockerd --iptables=false --ip-masq=false --bridge=none --storage-driver=vfs &`, then `docker pull catthehacker/ubuntu:act-22.04`.
+3. `git clone` the PR head to a scratch directory and `git remote set-url origin https://github.com/<owner>/<repo>.git` (a test reads the checkout's remote and fails on a local-path origin).
+4. Write a minimal event file (`{"pull_request":{"number":N,"head":{"ref":"<branch>"},"base":{"ref":"main"}}}`); `-e /dev/null` makes `actions/setup-node` crash on an empty payload.
+5. Run `env -u GITHUB_TOKEN -u GH_TOKEN -u GIT_ASKPASS act pull_request -P ubuntu-latest=catthehacker/ubuntu:act-22.04 --pull=false --network host --container-options "--network=host -v /root/.ccr/ca-bundle.crt:/ca.crt:ro" --env NODE_EXTRA_CA_CERTS=/ca.crt --env SSL_CERT_FILE=/ca.crt --env npm_config_cafile=/ca.crt --env HTTPS_PROXY=$https_proxy --env https_proxy=$https_proxy --env NO_PROXY=localhost,127.0.0.1,::1 -e <event.json>`. The session `GITHUB_TOKEN` is scoped to this repo only, so `act` must not send it when it clones `actions/*`; the CA bundle is needed because the egress proxy re-signs HTTPS.
+
 Local CodeQL recipe: download `codeql-linux64.zip` from `github/codeql-cli-binaries`, `codeql pack download codeql/javascript-queries`, then
 `codeql database create --language=javascript-typescript --source-root=apps/web` and `codeql database analyze ... codeql/javascript-queries:codeql-suites/javascript-code-scanning.qls`.
 Compare with the open alerts on `main` (`gh api repos/<owner>/<repo>/code-scanning/alerts?ref=refs/heads/main`). A finding that already exists on `main` is not new, but editing an alert's line can make it look new, so keep route-handler lines unchanged when you can.
