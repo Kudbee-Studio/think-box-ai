@@ -15,6 +15,27 @@ def run(cmd: str, **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, shell=True, **kwargs)
 
 
+ENV_TEMPLATE = """# Think Box AI — Local Development
+THINKBOX_DEFAULT_PROVIDER=openai_compat
+THINKBOX_DEFAULT_MODEL=gpt-4o-mini
+THINKBOX_OPENAI_COMPAT_API_KEY=
+THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.openai.com/v1
+THINKBOX_API_KEY={api_key}
+THINKBOX_RATE_LIMIT=100
+THINKBOX_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+THINKBOX_LOG_LEVEL=INFO
+"""
+
+
+def create_env_file(path: Path) -> bool:
+    """Write a local .env with a fresh API key. False if it already exists. The key is never printed (AGENTS.md 0.4)."""
+    if path.exists():
+        return False
+    path.write_text(ENV_TEMPLATE.format(api_key=f"tb_{secrets.token_urlsafe(32)}"))
+    print(f"   Created {path} with a new THINKBOX_API_KEY (read it from the file)")
+    return True
+
+
 def main() -> None:
     print("Think Box AI — Local Setup")
     print("=" * 40)
@@ -28,21 +49,7 @@ def main() -> None:
 
     # 2. Create .env if missing
     print("\n2. Checking .env...")
-    if not Path(".env").exists():
-        api_key = f"tb_{secrets.token_urlsafe(32)}"
-        env_content = f"""# Think Box AI — Local Development
-THINKBOX_DEFAULT_PROVIDER=openai_compat
-THINKBOX_DEFAULT_MODEL=gpt-4o-mini
-THINKBOX_OPENAI_COMPAT_API_KEY=
-THINKBOX_OPENAI_COMPAT_BASE_URL=https://api.openai.com/v1
-THINKBOX_API_KEY={api_key}
-THINKBOX_RATE_LIMIT=100
-THINKBOX_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
-THINKBOX_LOG_LEVEL=INFO
-"""
-        Path(".env").write_text(env_content)
-        print(f"   Created .env with API key: {api_key}")
-    else:
+    if not create_env_file(Path(".env")):
         print("   .env already exists")
 
     # 3. Install dependencies
