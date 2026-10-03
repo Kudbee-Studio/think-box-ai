@@ -334,6 +334,7 @@ ${c.bold('MEMORY & KNOWLEDGE')}
 ${c.bold('ANALYTICS & DEBUG')}
   /metrics            agent KPIs (runs, tokens, cost, success rate)
   /status             server health check
+  /session            current session info (ID, model, agent, plugins)
   /algo ACTION [ADDR] read-only Algorand queries
 
 ${c.bold('SYSTEM')}
@@ -483,6 +484,20 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/status':
       console.log(await (await fetch(`${HOST}/api/health`)).json());
       break;
+    case '/session': {
+      const wsStatus = client.ws?.readyState === 1;
+      console.log([
+        c.bold('🐝 kudbEE Agent OS — Session'),
+        `  Session ID: ${c.cyan(sessionId || '(disconnected)')}`,
+        `  Model: ${client.model ? c.green(client.model) : c.dim('(not selected)')}`,
+        `  Agent: ${c.yellow(client.agent || 'default worker (full tools)')}`,
+        `  Plugins: ${c.magenta(String(client.plugins.length))}`,
+        `  WebSocket: ${wsStatus ? c.green('Connected') : c.red('Disconnected')}`,
+        '',
+        c.dim(`  Use /model NAME to switch · /agent NAME to select an agent profile`),
+      ].join('\n'));
+      break;
+    }
     // Think Tokens are the lessons the agent learned: same store and formatter as `kudbee tokens ...` and the dashboard's Think Tokens view.
     case '/tokens':
     case '/lessons':
