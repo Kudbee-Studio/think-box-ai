@@ -25,7 +25,6 @@ export interface TimelineRun {
 
 export class TimelineService {
   private runs: Map<string, TimelineRun> = new Map();
-  private currentStep: TimelineStep | null = null;
 
   constructor() {
     this.loadFromStorage();
@@ -66,7 +65,6 @@ export class TimelineService {
     };
 
     run.steps.push(fullStep);
-    this.currentStep = fullStep;
     this.saveToStorage();
     return fullStep;
   }

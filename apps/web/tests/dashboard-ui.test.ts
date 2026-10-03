@@ -143,3 +143,24 @@ test('the dashboard UI modules do not instantiate themselves: app.js owns constr
     assert.equal(read('js/app.js').split(`new ${cls}()`).length - 1, 1, `app.js must construct ${cls} exactly once`);
   }
 });
+
+test('header toolbar icons are SVG (not emoji) and no two buttons share the same icon', () => {
+  const buttons = [...html.matchAll(/<button id="([\w-]+)" class="btn-icon"[^>]*>(<svg[\s\S]*?<\/svg>)<\/button>/g)];
+  assert.ok(buttons.length >= 13, `expected the header icon buttons to use SVG, found ${buttons.length}`);
+  const seen = new Map<string, string>();
+  for (const [, id, svg] of buttons) {
+    assert.ok(!seen.has(svg), `${id} and ${seen.get(svg)} use the same icon`);
+    seen.set(svg, id);
+  }
+  const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
+  assert.doesNotMatch(header.replace(/<svg[\s\S]*?<\/svg>/g, ''), /<button id="[\w-]+" class="btn-icon"[^>]*>\s*[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/u, 'a header icon button still uses an emoji');
+});
+
+test('every window.X function a script feature-detects is assigned somewhere (app.js is a module: its functions are not globals)', () => {
+  const files = fs.readdirSync(path.join(pub, 'js')).filter((f) => f.endsWith('.js') && f !== 'app-mock.js');
+  const all = files.map((f) => read(`js/${f}`)).join('\n');
+  const wanted = new Set([...all.matchAll(/typeof window\.(\w+) === 'function'/g)].map((m) => m[1]));
+  assert.ok(wanted.has('sendThinkTokenMessage'), 'expected think-token-dashboard.js to feature-detect window.sendThinkTokenMessage');
+  const browserBuiltins = new Set(['matchMedia', 'requestAnimationFrame', 'cancelAnimationFrame', 'getSelection', 'requestIdleCallback']);
+  for (const name of [...wanted].filter((n) => !browserBuiltins.has(n))) assert.match(all, new RegExp(`window\\.${name}\\s*=(?!=)`), `window.${name} is used but never assigned`);
+});

@@ -554,6 +554,8 @@ function sendThinkTokenMessage(message) {
   state.ws.send(JSON.stringify(message));
   return true;
 }
+// app.js is an ES module, so its functions are not globals; the classic script think-token-dashboard.js reaches this one through window.
+window.sendThinkTokenMessage = sendThinkTokenMessage;
 
 function sendTaskAction(action, payload = {}) {
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
@@ -669,8 +671,10 @@ async function refreshFiles() {
   const data = await response.json();
   const tree = document.getElementById('file-tree');
   renderGitRepositories(data.files);
-  tree.innerHTML = data.files.length
-    ? data.files.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${formatBytes(file.size)}</small></button>`).join('')
+  // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
+  const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
+  tree.innerHTML = visibleFiles.length
+    ? visibleFiles.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${formatBytes(file.size)}</small></button>`).join('')
     : '<div class="file-tree-empty">No files in workspace</div>';
 }
 
