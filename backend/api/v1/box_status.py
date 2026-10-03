@@ -1,4 +1,4 @@
-"""API GET /think/box-status — live substrate + model status."""
+"""API GET /think/box-status/status — live substrate + model status."""
 
 from __future__ import annotations
 

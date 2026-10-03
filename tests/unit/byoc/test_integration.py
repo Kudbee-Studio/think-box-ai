@@ -90,11 +90,12 @@ class TestStashBoxMercuryIntegration(unittest.TestCase):
 
 
 class TestBoxMercuryApiShape(unittest.TestCase):
+    # A route's path includes its APIRouter prefix, so these are the URLs the app serves.
     def test_box_status_endpoint_shape(self):
         try:
             from backend.api.v1.box_status import box_status_router
             routes = [r.path for r in box_status_router.routes if hasattr(r, 'path')]
-            self.assertIn("/status", routes)
+            self.assertIn("/think/box-status/status", routes)
         except (ImportError, ModuleNotFoundError):
             self.skipTest("box_status API not available (fastapi not installed)")
 
@@ -102,8 +103,8 @@ class TestBoxMercuryApiShape(unittest.TestCase):
         try:
             from backend.api.v1.box_mercury import box_mercury_router
             routes = [r.path for r in box_mercury_router.routes if hasattr(r, 'path')]
-            self.assertIn("/status", routes)
-            self.assertIn("/results", routes)
+            self.assertIn("/think/box-mercury/status", routes)
+            self.assertIn("/think/box-mercury/results", routes)
         except (ImportError, ModuleNotFoundError):
             self.skipTest("box_mercury API not available (fastapi not installed)")
 
