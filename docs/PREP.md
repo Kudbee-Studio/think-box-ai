@@ -4,7 +4,7 @@
 
 > ## ADDENDUM — 2026-10-03 (Phase 3 roadmap reconciliation; branch `feat/pr342-p3-roadmap-reconciliation`, PR **#342**)
 >
-> **Docs/governance only, no application code.** Brings the roadmap/status in line with the merged state: items 3, 4 (tooling) and 6 are merged (`d94afbbb` #340, `e458a13e` #341); item 3 LIVE VERIFIED and item 4's real bundle remain **founder-gated** (real worker-02); item 5 is **FOUNDER DECISION REQUIRED**; item 7 is **DEFERRED**. The stale "Next: Phase 3, item 2 → 3" line is replaced with the current gate. `AGENTS.md` §0.12 now requires a roadmap-authorization check before any new engineering PR. No new implementation lane is authorized until a gate changes.
+> **Docs/governance only, no application code.** Brings the roadmap/status in line with the merged state: items 3, 4 (tooling) and 6 are merged (`d94afbbb` #340, `e458a13e` #341); item 3 LIVE VERIFIED and item 4's real bundle remain **founder-gated** (real worker-02); item 5 is **FOUNDER DECISION REQUIRED**; item 7 is **DEFERRED**. The stale "Next: Phase 3, item 2 → 3" line is replaced with the current gate. `AGENTS.md` §0.11 now requires a roadmap-authorization check before any new engineering PR. No new implementation lane is authorized until a gate changes.
 
 > ## ADDENDUM — 2026-10-03 (Phase 3 items 4 + 3; branch `feat/pr340-p3-live-proof-bundle`, PR **#340**)
 >

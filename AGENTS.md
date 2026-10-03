@@ -71,7 +71,7 @@ If a gate cannot run (for example Docker is not installed, so `act` cannot run),
 
 Pull `main`, delete the branch, and start the next queued prompt.
 
-### 0.12 Roadmap authorization before a new engineering PR (founder rule, 2026-10-03)
+### 0.11 Roadmap authorization before a new engineering PR (founder rule, 2026-10-03)
 
 A PR number existing is not authorization to open a PR. Before starting a new implementation lane, confirm the work is **authorized**:
 
@@ -81,7 +81,7 @@ A PR number existing is not authorization to open a PR. Before starting a new im
 - Preserve the four-state evidence model (CODE COMPLETE / TEST VERIFIED / LIVE VERIFIED / PRODUCTION READY); never claim LIVE VERIFIED without real external evidence.
 - A docs/governance reconciliation is itself a legitimate, narrowly scoped PR (no application code) when the repository's state documentation disagrees with the merged state.
 
-### 0.11 Fresh evidence beats memory (ADR 029 P3.9)
+### 0.12 Fresh evidence beats memory (ADR 029 P3.9)
 
 The worker's system prompt (`evidence.ts` `EVIDENCE_RULE`) says tool results from the current run outrank recalled memories and lessons. Recalled memories and lessons show their date; live-state text (open PRs, CI, servers, balances) older than 24 h is labeled `STALE, verify with a tool`. Before the final answer, `agent.ts` checks it against the run's own tool results (empty/failed result + an answer that asserts state), retries once with the conflict spelled out, and otherwise answers from the tool result flagged `FLAGGED:`; the run record keeps `evidence_conflicts`, which the Think Token extractor can learn from. Do not seed a "current state" memory without a date and a re-check hint. P3.10 extended the check to answers that name a PR number, status or count found nowhere in a non-empty tool output (a model confirms before anything changes), classifies live-state memories by embedding similarity (keyword list as fallback), never recalls memories marked `superseded` (tag, or a title starting `[SUPERSEDED`), and collapses duplicate recalls (same task goal, or same text).
 

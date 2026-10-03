@@ -22,11 +22,20 @@ cannot conclude that items 3/4/6 are still queued or that "Next: Phase 3, item 2
 | File | Change |
 |------|--------|
 | `docs/roadmaps/ROADMAP.md` | Phase 3 rewritten to merged state; explicit gate statement; stale "Next:" replaced |
-| `AGENTS.md` | New §0.12: roadmap-authorization check before any engineering PR; no empty/speculative PRs; four-state preserved |
+| `AGENTS.md` | New §0.11: roadmap-authorization check before any engineering PR; no empty/speculative PRs; four-state preserved |
 | `STATUS.md`, `docs/STATUS.md` | New CURRENT block: merged state + gate |
 | `docs/PREP.md` | New addendum: reconciliation scope + gate |
 | `docs/CONTINUITY.md` | Append-only entry for this reconciliation |
 | `docs/INDEX.md` | Regenerated |
+
+## Post-review correction (2026-10-03)
+
+Review of #342 found the new authorization rule numbered §0.12 while sitting between §0.9 and §0.11,
+which read out of sequence. It was renumbered to **§0.11** and the existing "Fresh evidence beats memory"
+section renumbered to **§0.12**, so the order reads 0.9 → 0.10 → 0.11 → 0.12. Wording of both sections is
+unchanged; only the numbers moved. Cross-references in `STATUS.md`, `docs/STATUS.md`, `docs/PREP.md`, this
+file, and the `docs/CONTINUITY.md` entry for this PR were updated §0.12 → §0.11. Documentation-only; no
+application code or tests changed.
 
 ## Phase 3 state recorded
 

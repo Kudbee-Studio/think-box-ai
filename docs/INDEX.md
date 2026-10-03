@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (256 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (257 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (53)
+- [Other documents in docs/](#other-documents-in-docs) (54)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -313,6 +313,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/pr339-python-unit-failures.md](evidence/pr339-python-unit-failures.md) | PR #339: failing Python unit tests on main, fixed by root cause | Code head tested by the gates below: 29457c3b. The commits after it change only documentation (this file, the files... |
 | [docs/evidence/pr340-live-proof-bundle.md](evidence/pr340-live-proof-bundle.md) | PR #340: Phase 3 items 4 + 3 — live-proof bundle builder and SSH hardening | The bundle from a real worker-02 run is UNPROVEN, and the newly pinned SSH path is not |
 | [docs/evidence/pr341-git-panel-browser-test.md](evidence/pr341-git-panel-browser-test.md) | PR #341: Phase 3 item 6 — Git panel browser test (/api/git) | and not PRODUCTION READY. |
+| [docs/evidence/pr342-roadmap-reconciliation.md](evidence/pr342-roadmap-reconciliation.md) | PR #342: Phase 3 roadmap/evidence reconciliation (docs-only) | LIVE VERIFIED: N/A. PRODUCTION READY: NO. |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
 | [docs/gcode-mastery.md](gcode-mastery.md) | G-Code Mastery Curriculum — 2-Week Daily Drills | For: Dominick (CNC beginner → solid) |
 | [docs/harvest-replay.md](harvest-replay.md) | Harvest & Replay | Harvest once on the GPU; re-score forever offline. This closes the loop |

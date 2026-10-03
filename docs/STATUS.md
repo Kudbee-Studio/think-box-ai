@@ -3,7 +3,7 @@
 
 - **Docs-only reconciliation** (no application code): Phase 3 items 3, 4 (tooling) and 6 are merged on `main` (`d94afbbb` #340, `e458a13e` #341); the roadmap/status now match, and the stale "Next: Phase 3, item 2 → 3" line is replaced with the current founder gate.
 - **Merged state:** items 1, 2, 2b, 3, 6 CODE COMPLETE / TEST VERIFIED (item 1 also LIVE VERIFIED); item 4 tooling CODE COMPLETE / TEST VERIFIED (real worker-02 bundle **UNPROVEN**); item 3 **LIVE VERIFIED UNPROVEN**.
-- **Gate:** item 5 **FOUNDER DECISION REQUIRED**; items 3/4 LIVE VERIFIED founder-gated (real worker-02); item 7 **DEFERRED**. No new implementation lane is authorized until a gate changes. Evidence: `docs/roadmaps/ROADMAP.md`, `AGENTS.md` §0.12, `docs/CONTINUITY.md`.
+- **Gate:** item 5 **FOUNDER DECISION REQUIRED**; items 3/4 LIVE VERIFIED founder-gated (real worker-02); item 7 **DEFERRED**. No new implementation lane is authorized until a gate changes. Evidence: `docs/roadmaps/ROADMAP.md`, `AGENTS.md` §0.11, `docs/CONTINUITY.md`.
 
 ## CURRENT (2026-10-03) — Phase 3 item 6: Git panel browser test (PR **#341**, merged `e458a13e`)
 
