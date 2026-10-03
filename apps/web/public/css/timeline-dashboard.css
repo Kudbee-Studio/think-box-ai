@@ -255,7 +255,7 @@
   padding: 6px 8px;
   background: var(--bg-secondary);
   border-radius: 3px;
-  overflow-x: auto;
+  overflow: auto;
   max-height: 150px;
   font-size: 10px;
   color: var(--text-secondary);
