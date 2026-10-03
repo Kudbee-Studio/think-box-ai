@@ -156,7 +156,7 @@ def is_live_box_url(url: str) -> bool:
         return False
     if _is_loopback_url(url):
         return False
-    return host.endswith(_BOX_HOST_SUFFIX) or ".preview.box.upstash.com" in host
+    return host.endswith(_BOX_HOST_SUFFIX)
 
 
 def is_hermetic_box_token(token: str) -> bool:

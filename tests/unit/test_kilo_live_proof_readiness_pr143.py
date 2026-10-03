@@ -174,6 +174,15 @@ class TestSubstrateGate(unittest.TestCase):
     def test_is_live_box_url_rejects_loopback(self) -> None:
         self.assertFalse(substrate.is_live_box_url("https://127.0.0.1/box"))
 
+    def test_is_live_box_url_rejects_hosts_that_only_contain_the_box_suffix(self) -> None:
+        # CodeQL py/incomplete-url-substring-sanitization: the host must end with the Box suffix.
+        for url in (
+            "https://x.preview.box.upstash.com.evil.example",
+            "https://evil.example/.preview.box.upstash.com",
+            "https://x.box.upstash.com.evil.example",
+        ):
+            self.assertFalse(substrate.is_live_box_url(url), url)
+
     def test_production_pair_blocked_in_ci(self) -> None:
         env = {
             "CI": "true",
