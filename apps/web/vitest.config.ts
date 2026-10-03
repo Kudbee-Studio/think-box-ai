@@ -7,14 +7,6 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     exclude: ['node_modules'],
-    reporter: ['verbose'],
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        maxThreads: 4,
-        minThreads: 1,
-      },
-    },
     // Node.js test API compatibility
     setupFiles: ['tests/vitest-setup.ts'],
     testTimeout: 30000,
