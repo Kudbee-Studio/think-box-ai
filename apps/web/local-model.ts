@@ -5,7 +5,7 @@
 // The default is only a fallback name; the app never pulls models. Run `ollama list` and set
 // THINKBOX_LOCAL_MODEL to a model you already have.
 
-export const DEFAULT_LOCAL_MODEL = 'qwen2.5:1.5b';
+export const DEFAULT_LOCAL_MODEL = 'qwen2.5:1.5b' // P3.20 winner;
 
 export function resolveLocalModel(env: Record<string, string | undefined> = process.env): string {
   return (env.THINKBOX_LOCAL_MODEL || env.KUDBEE_LOCAL_MODEL || DEFAULT_LOCAL_MODEL).trim() || DEFAULT_LOCAL_MODEL;

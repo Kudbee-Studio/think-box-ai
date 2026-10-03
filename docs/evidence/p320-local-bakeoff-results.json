@@ -1,0 +1,996 @@
+{
+ "timestamp": "2026-10-03T16:30:09.716Z",
+ "rule": "highest pass rate with p95 <= 5000 ms; tie -> smaller model",
+ "threshold": 60,
+ "models": [
+  "smollm2:360m",
+  "qwen2.5:1.5b",
+  "qwen2.5:3b"
+ ],
+ "missing": [],
+ "reps": 2,
+ "stats": [
+  {
+   "model": "smollm2:360m",
+   "runs": 30,
+   "passed": 23,
+   "pass_rate": 0.7666666666666667,
+   "knowledge_pass": 0.9166666666666666,
+   "data_pass": 0.6666666666666666,
+   "p50_ms": 1616,
+   "p95_ms": 3573,
+   "gpu_pct": 69,
+   "loaded_mb": 988,
+   "failed_calls": 0
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "runs": 30,
+   "passed": 26,
+   "pass_rate": 0.8666666666666667,
+   "knowledge_pass": 1,
+   "data_pass": 0.7777777777777778,
+   "p50_ms": 1556,
+   "p95_ms": 4169,
+   "gpu_pct": 50,
+   "loaded_mb": 1320,
+   "failed_calls": 0
+  },
+  {
+   "model": "qwen2.5:3b",
+   "runs": 30,
+   "passed": 28,
+   "pass_rate": 0.9333333333333333,
+   "knowledge_pass": 1,
+   "data_pass": 0.8888888888888888,
+   "p50_ms": 4154,
+   "p95_ms": 8091,
+   "gpu_pct": 31,
+   "loaded_mb": 2122,
+   "failed_calls": 0
+  }
+ ],
+ "router_checks": [
+  {
+   "goal": "Merge the current pull request.",
+   "confidence": 25,
+   "refused": true
+  },
+  {
+   "goal": "Create a new function in agent.ts that retries failed fetches.",
+   "confidence": 25,
+   "refused": true
+  },
+  {
+   "goal": "What is the weather today?",
+   "confidence": 25,
+   "refused": true
+  },
+  {
+   "goal": "Summarize the latest news about AI.",
+   "confidence": 25,
+   "refused": true
+  },
+  {
+   "goal": "Refactor the memory module and write tests for it.",
+   "confidence": 25,
+   "refused": true
+  }
+ ],
+ "winner": "qwen2.5:1.5b",
+ "rows": [
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 380,
+   "failed": false,
+   "answer": "The capital of France is Paris."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 403,
+   "failed": false,
+   "answer": "2 + 2 equals 4."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": false,
+   "why": "wrong answer",
+   "ms": 343,
+   "failed": false,
+   "answer": "Mundo, hecho."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 453,
+   "failed": false,
+   "answer": "Water's chemical symbol is H₂O."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 677,
+   "failed": false,
+   "answer": "Hugging Face The largest planet in our solar system is Jupiter."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 1449,
+   "failed": false,
+   "answer": "3 * 10 = 30"
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 1510,
+   "failed": false,
+   "answer": "We're on the #330 PR related to fixing the flaky cache test in Acme/widgets, which was recently updated on GitHub."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 1584,
+   "failed": false,
+   "answer": "From the given data, we can see that the 'Add retry to the uploader' pull request is open and the 'Fix flaky cache test' pull request is also open."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 2318,
+   "failed": false,
+   "answer": "The last merged PR in Acme/widgets is 329 from Sam, pulled in 2026-10-01T08:00:00Z."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": true,
+   "ms": 2829,
+   "failed": false,
+   "answer": "I would list my files as follows: Workspace files (3): - notes.md (31 B) - data/out.csv (200 B) - src/main.ts (1200 B)"
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 1659,
+   "failed": false,
+   "answer": "Yes, the CI pass on main due to the \"tests\" failure in the latest CI run on main."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 2573,
+   "failed": false,
+   "answer": "To answer this question, I can look up the token names \"Prefer list_files\" and \"Cite the fetched URL in answers.\" These are considered Think Tokens since they are not a simple keyword or phrase."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": true,
+   "ms": 992,
+   "failed": false,
+   "answer": "Yes, the server is up and running."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 2214,
+   "failed": false,
+   "answer": "Based on the recall data, I remember that \"Decisions on record\" refers to a test result where Neon was rejected, and \"Local model notes\" is a plain chat log."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 0,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": true,
+   "ms": 1699,
+   "failed": false,
+   "answer": "Reading the notes from Ship the uploader, we see a failure in the uploader's task due to a missing file note."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 2532,
+   "failed": false,
+   "answer": "As an AI, I don't have access to real-world information. I can provide you with information from the Hugging Face dataset. The capital of France is Paris."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 1405,
+   "failed": false,
+   "answer": "Based on the standard numerical representation of the numbers 2 and 2, the result is 4."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": true,
+   "ms": 1616,
+   "failed": false,
+   "answer": "\"Hola\" is translated to \"Hello\" in Spanish."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 991,
+   "failed": false,
+   "answer": "The chemical symbol for water is H2O."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 503,
+   "failed": false,
+   "answer": "The largest planet in our solar system is Jupiter."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 961,
+   "failed": false,
+   "answer": "10 times 3 is 30."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 2594,
+   "failed": false,
+   "answer": "We are on the #331 \"Add retry to the uploader\" PR in Acme/widgets. The PR has been updated to fix the flaky cache test PR."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 1423,
+   "failed": false,
+   "answer": "The live pull requests in Acme/widgets are 2. These pull requests are open, as they have been made available to the public for review by the community."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": true,
+   "ms": 1871,
+   "failed": false,
+   "answer": "The last merged PR is #329 from the Acme/widgets GitHub pull request."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": true,
+   "ms": 2700,
+   "failed": false,
+   "answer": "My files are: - notes.md (31 B) - data/out.csv (200 B) - src/main.ts (1200 B)"
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 3573,
+   "failed": false,
+   "answer": "No, CI passed on main using only this data. The latest CI run on main in Acme/widgets was \"tests\" failure, with a time of 2026-10-01T11:00:00Z."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": false,
+   "why": "it stated \"1\", which is not in the data",
+   "ms": 3658,
+   "failed": false,
+   "answer": "1. TT-000001: \"Prefer list_files before read_file\" 2. TT-000002: \"Cite the fetched URL in answers\" 3. TT-000003: \"Stop after the file is written\""
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": true,
+   "ms": 2179,
+   "failed": false,
+   "answer": "Yes, the server is up with a 3600-second uptime and a port 3000 connection."
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 3067,
+   "failed": false,
+   "answer": "I remember that Neon rejected the \"Decisions on record\" and \"Local model notes\" due to the rotation of the test key. The local model notes were plain chat, and Neon had to switch to plain chat to avoi"
+  },
+  {
+   "model": "smollm2:360m",
+   "rep": 1,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 2526,
+   "failed": false,
+   "answer": "The data only mentions that the user is currently reading notes from the file notes.md, but it does not mention anything about the time the user is reading or the date they are reading."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 1013,
+   "failed": false,
+   "answer": "The capital of France is Paris."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 1058,
+   "failed": false,
+   "answer": "2 plus 2 is equal to 4."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": true,
+   "ms": 895,
+   "failed": false,
+   "answer": "\"Hello\" in Spanish is \"hola\"."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 890,
+   "failed": false,
+   "answer": "The chemical symbol for water is H2O."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 911,
+   "failed": false,
+   "answer": "The largest planet in our solar system is Jupiter."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 889,
+   "failed": false,
+   "answer": "10 times 3 is 30."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 2160,
+   "failed": false,
+   "answer": "We are currently on PR #330 in the \"Add flaky cache test\" branch."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": true,
+   "ms": 1628,
+   "failed": false,
+   "answer": "Two pull requests are open in Acme/widgets: #331 by sam and #330 by lee."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 3036,
+   "failed": false,
+   "answer": "The last merged pull request was \"Polish the dashboard\" by sam, merged on 2026-10-01T08:00:00Z."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": false,
+   "why": "it stated \"1\", which is not in the data",
+   "ms": 3020,
+   "failed": false,
+   "answer": "Based on the live data, my files include: - notes.md, 31 bytes - data/out.csv, 200 bytes - src/main.ts, 1,200 bytes"
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 3998,
+   "failed": false,
+   "answer": "No, CI did not pass on main. The latest CI run on the main branch of Acme/widgets finished with a \"tests\" failure at 2026-10-01T11:00:00Z, indicating an unsuccessful build."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 2569,
+   "failed": false,
+   "answer": "My Think Tokens are \"Prefer list_files before read_file\", \"Cite the fetched URL in answers\", and \"Stop after the file is written\"."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": true,
+   "ms": 2385,
+   "failed": false,
+   "answer": "Yes, the server is up and running as the status is reported as \"status ok\" and the uptime is 3600 seconds."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 1736,
+   "failed": false,
+   "answer": "Based on the data provided, local models are restricted to plain chat functionality."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": true,
+   "ms": 1654,
+   "failed": false,
+   "answer": "The file notes.md contains the instruction to ship the uploader and retry on Friday."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 1183,
+   "failed": false,
+   "answer": "The capital of France is Paris."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 766,
+   "failed": false,
+   "answer": "2 plus 2 is 4."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": true,
+   "ms": 1037,
+   "failed": false,
+   "answer": "The translation of \"hello\" to Spanish is \"hola\"."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 1115,
+   "failed": false,
+   "answer": "The chemical symbol for water is H2O."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 1488,
+   "failed": false,
+   "answer": "The largest planet in our solar system is Jupiter. It is several times larger than all other planets combined."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 1124,
+   "failed": false,
+   "answer": "10 times 3 is 30."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 2484,
+   "failed": false,
+   "answer": "We are currently on PR #330 in the \"Fix flaky cache test\" branch of the Acme/widgets repository."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": true,
+   "ms": 1556,
+   "failed": false,
+   "answer": "The pull requests #331 and #330 are open, as indicated by the live data."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": false,
+   "why": "did not use the data",
+   "ms": 2653,
+   "failed": false,
+   "answer": "The last merged pull request was \"Polish the dashboard\" by sam, merged on 2026-10-01T08:00:00Z."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": true,
+   "ms": 2440,
+   "failed": false,
+   "answer": "The current workspace contains three files: notes.md (31 bytes), data/out.csv (200 bytes), and src/main.ts (1200 bytes)."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 4169,
+   "failed": false,
+   "answer": "The CI run on the \"tests\" failure was completed on 2026-10-01T11:00:00Z. The CI run on main in Acme/widgets finished after the requested live data point, indicating that the CI did not pass on the mai"
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": true,
+   "ms": 5946,
+   "failed": false,
+   "answer": "Based on the provided list of accepted Think Tokens (TT-000001, TT-000002, TT-000003), my Think Tokens are: - TT-000001 \"Prefer list_files before read_file\" - TT-000002 \"Cite the fetched URL in answer"
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": true,
+   "ms": 2121,
+   "failed": false,
+   "answer": "The server is up, as indicated by a live status of 3600 seconds and a healthy port 3000."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 1054,
+   "failed": false,
+   "answer": "Local models are typically used for plain chat functionality."
+  },
+  {
+   "model": "qwen2.5:1.5b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": true,
+   "ms": 1430,
+   "failed": false,
+   "answer": "The notes.md file indicates that the uploader is being retried due to Friday."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 1414,
+   "failed": false,
+   "answer": "The capital of France is Paris."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 1594,
+   "failed": false,
+   "answer": "2 plus 2 is 4."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": true,
+   "ms": 2074,
+   "failed": false,
+   "answer": "The translation of \"hello\" to Spanish is \"hola\"."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 4270,
+   "failed": false,
+   "answer": "The chemical symbol for water is not a single symbol, but rather a shorthand notation used in chemical formulas. Water is represented by the chemical formula H2O."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 1863,
+   "failed": false,
+   "answer": "The largest planet in our solar system is Jupiter."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 1760,
+   "failed": false,
+   "answer": "10 times 3 is 30."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 6940,
+   "failed": false,
+   "answer": "We are currently on PR #331, \"Add retry to the uploader\", by sam, updated on 2026-10-01T10:00:00Z."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": true,
+   "ms": 8091,
+   "failed": false,
+   "answer": "The open pull requests in the Acme/widgets repository are #331 \"Add retry to the uploader\" by sam, updated on 2026-10-01T10:00:00Z, and #330 \"Fix flaky cache test\" by lee, though it is marked as a dra"
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": true,
+   "ms": 7683,
+   "failed": false,
+   "answer": "The last merged Pull Request (PR) in the Acme/widgets repository was #329, titled \"Polish the dashboard,\" merged by the user sam on 2026-10-01T08:00:00Z."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": true,
+   "ms": 5565,
+   "failed": false,
+   "answer": "You have three files in your workspace: - notes.md (31 B) - data/out.csv (200 B) - src/main.ts (1200 B)"
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 7494,
+   "failed": false,
+   "answer": "No, the CI failed on the main branch of the Acme/widgets repository, as indicated by the \"tests\" failure reported in the latest run, which finished on 2026-10-01T11:00:00Z."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": true,
+   "ms": 8088,
+   "failed": false,
+   "answer": "Your Think Tokens are as follows: - TT-000001 \"Prefer list_files before read_file\" - TT-000002 \"Cite the fetched URL in answers\" - TT-000003 \"Stop after the file is written\""
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": false,
+   "why": "it stated \"1\", which is not in the data",
+   "ms": 7011,
+   "failed": false,
+   "answer": "Yes, the server is up and running. The server health report indicates that the status is ok, the uptime is 3600 seconds (which is 1 hour), and the port 3000 is available, suggesting normal operation."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 4154,
+   "failed": false,
+   "answer": "From the data provided, you remember that the local model named smollm2 is only for plain chat purposes."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 0,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": true,
+   "ms": 3292,
+   "failed": false,
+   "answer": "The first part of the file notes.md states \"Ship the uploader retry on Friday.\""
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the capital of France?",
+   "pass": true,
+   "ms": 1618,
+   "failed": false,
+   "answer": "The capital of France is Paris."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 2 plus 2?",
+   "pass": true,
+   "ms": 1467,
+   "failed": false,
+   "answer": "2 plus 2 is 4."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Translate \"hello\" to Spanish.",
+   "pass": true,
+   "ms": 1602,
+   "failed": false,
+   "answer": "\"Hello\" in Spanish is \"Hola\"."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is the chemical symbol for water?",
+   "pass": true,
+   "ms": 6849,
+   "failed": false,
+   "answer": "Water does not have a chemical symbol in the traditional sense, as it is not a chemical element. It is a compound composed of hydrogen and oxygen, represented by the chemical formula H2O. Each atom of"
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "Name the largest planet in our solar system.",
+   "pass": true,
+   "ms": 1843,
+   "failed": false,
+   "answer": "The largest planet in our solar system is Jupiter."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "knowledge",
+   "goal": "What is 10 times 3?",
+   "pass": true,
+   "ms": 1730,
+   "failed": false,
+   "answer": "10 times 3 is 30."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "WHAT PR ARE WE ON",
+   "pass": true,
+   "ms": 7284,
+   "failed": false,
+   "answer": "We are on pull request #331, \"Add retry to the uploader\" by sam, which was updated on 2026-10-01T10:00:00Z."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "which pull requests are open?",
+   "pass": true,
+   "ms": 11353,
+   "failed": false,
+   "answer": "The open pull requests in the Acme/widgets repository are #331 \"Add retry to the uploader\" by sam, updated on 2026-10-01T10:00:00Z, and #330 \"Fix flaky cache test\" by lee, which is in draft status and"
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what was the last merged PR?",
+   "pass": true,
+   "ms": 5966,
+   "failed": false,
+   "answer": "The last merged pull request in the Acme/widgets repository was #329, titled \"Polish the dashboard,\" merged by sam on 2026-10-01T08:00:00Z."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my files",
+   "pass": true,
+   "ms": 4095,
+   "failed": false,
+   "answer": "You have the following files in your workspace: notes.md (31 B), data/out.csv (200 B), and src/main.ts (1200 B)."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "did CI pass on main?",
+   "pass": true,
+   "ms": 7163,
+   "failed": false,
+   "answer": "Based on the provided data, the latest CI run on the main branch of the Acme/widgets repository had a failure in the \"tests\" step, which finished on 2026-10-01T11:00:00Z. Therefore, CI did not pass on"
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "list my Think Tokens",
+   "pass": true,
+   "ms": 6251,
+   "failed": false,
+   "answer": "Your Think Tokens are TT-000001 \"Prefer list_files before read_file\", TT-000002 \"Cite the fetched URL in answers\", and TT-000003 \"Stop after the file is written\"."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "is the server up?",
+   "pass": false,
+   "why": "it stated \"1\", which is not in the data",
+   "ms": 4405,
+   "failed": false,
+   "answer": "Yes, the server is up and running as the status is reported as \"ok\" with an uptime of 3600 seconds, indicating it has been operational for 1 hour."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "what do you remember about local models?",
+   "pass": true,
+   "ms": 2487,
+   "failed": false,
+   "answer": "You remember that the local model named smollm2 can only be used for plain text chat."
+  },
+  {
+   "model": "qwen2.5:3b",
+   "rep": 1,
+   "kind": "data",
+   "goal": "read notes.md and tell me what it says",
+   "pass": true,
+   "ms": 2440,
+   "failed": false,
+   "answer": "The first 40 characters of the file notes.md say \"Ship the uploader retry on Friday.\""
+  }
+ ]
+}

@@ -36,3 +36,39 @@ export function needsToolsOrLiveData(goal: string): string | null {
 export function isComplexGoal(goal: string): boolean {
   return COMPLEX_PATTERNS.some((p) => p.test(goal)) || goal.length > 150 || needsToolsOrLiveData(goal) !== null;
 }
+
+/** Confidence (0-100) that a local model can handle this goal reliably. For P3.20 routing. */
+export function localConfidence(goal: string): number {
+  const text = String(goal ?? '');
+
+  // Anything needing tools or live data: low confidence unless it's a known recipe
+  if (needsToolsOrLiveData(text)) {
+    const recipes = /\b(what pr|list files|list workspace|read.*\.md|read.*\.json|read.*\.ts|open pr|pull requests|current pr)\b/i;
+    if (recipes.test(text)) return 75; // Known recipes have decent confidence
+    return 25; // Unknown live-data goals: risky
+  }
+
+  // Plain knowledge questions: high confidence
+  if (/\b(what is|define|explain|tell me|translate|how to|write|say|count|calculate|2\s?plus|capital of)\b/i.test(text)) {
+    return 90;
+  }
+
+  // Complex code/analysis: low confidence
+  if (isComplexGoal(text)) return 30;
+
+  // Default: medium-high (most things will work at some level)
+  return 70;
+}
+
+/** Ground an answer in evidence: check that it cites a fact from the tool result. Used for P3.20 grounding. */
+export function groundAnswer(answer: string, evidence: string[]): { ok: boolean; why?: string } {
+  const answerLower = answer.toLowerCase();
+  // If answer contains a key fact from evidence, it's grounded
+  for (const fact of evidence) {
+    if (answerLower.includes(fact.toLowerCase())) return { ok: true };
+  }
+  // If no evidence was provided, we can't check grounding (will show data anyway)
+  if (evidence.length === 0) return { ok: true };
+  // Ungrounded
+  return { ok: false, why: 'answer did not cite the supporting data' };
+}
