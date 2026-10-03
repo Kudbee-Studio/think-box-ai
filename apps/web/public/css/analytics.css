@@ -1,0 +1,379 @@
+/* Analytics Dashboard Styling */
+
+.analytics-dashboard {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* KPI Cards Row */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  transition: all 0.2s ease;
+}
+
+.kpi-card:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+
+.kpi-card.kpi-success {
+  border-left: 4px solid var(--success);
+}
+
+.kpi-card.kpi-warning {
+  border-left: 4px solid var(--warning);
+}
+
+.kpi-card.kpi-error {
+  border-left: 4px solid var(--error);
+}
+
+.kpi-card.kpi-info {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.kpi-icon {
+  font-size: 28px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.kpi-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.kpi-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.kpi-trend {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.kpi-trend.trend-up {
+  color: var(--success);
+}
+
+.kpi-trend.trend-down {
+  color: var(--error);
+}
+
+/* Charts Grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 16px;
+}
+
+.chart-container {
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.chart-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chart-range {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 200px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.02);
+}
+
+/* Model Distribution */
+.model-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.model-bar {
+  flex: 1;
+  height: 24px;
+  background: rgba(6, 182, 212, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.model-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.model-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.model-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.model-stats {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.model-percentage {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Failure Analysis */
+.failure-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.failure-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.failure-category {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.failure-category strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.failure-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.failure-bar {
+  height: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.failure-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--error) 0%, var(--warning) 100%);
+  transition: width 0.3s ease;
+}
+
+.failure-percentage {
+  font-size: 11px;
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* Week Comparison */
+.comparison-card {
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.comparison-header {
+  margin-bottom: 16px;
+}
+
+.comparison-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.comparison-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.comparison-item {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  text-align: center;
+  border: 1px solid var(--border-light);
+}
+
+.comparison-item.improvement-positive {
+  border-color: var(--success);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.comparison-item.improvement-negative {
+  border-color: var(--error);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.comparison-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.comparison-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comparison-item.improvement-positive .comparison-value {
+  color: var(--success);
+}
+
+.comparison-item.improvement-negative .comparison-value {
+  color: var(--error);
+}
+
+/* Controls */
+.analytics-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.analytics-controls .btn-secondary {
+  flex: 1;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .analytics-dashboard {
+    padding: 8px;
+    gap: 12px;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-canvas {
+    height: 150px;
+  }
+
+  .analytics-controls {
+    flex-direction: column;
+  }
+}
+
+/* Empty State */
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Dark Mode Override */
+@media (prefers-color-scheme: dark) {
+  .analytics-dashboard {
+    background: transparent;
+  }
+
+  .chart-canvas {
+    background: rgba(6, 182, 212, 0.02);
+  }
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  .chart-canvas {
+    background: rgba(6, 182, 212, 0.05);
+  }
+}
+
+/* Print Styles */
+@media print {
+  .analytics-controls {
+    display: none;
+  }
+
+  .chart-container {
+    page-break-inside: avoid;
+  }
+}

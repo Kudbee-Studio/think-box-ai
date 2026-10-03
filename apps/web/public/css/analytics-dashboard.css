@@ -1,0 +1,337 @@
+/* Analytics Dashboard UI Styles */
+
+/* View Toggle */
+.analytics-view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.view-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.view-btn.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+}
+
+/* Terminal View */
+.analytics-terminal {
+  padding: 0;
+}
+
+#terminal-content {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  background: #1a1a1a;
+  color: #00d600;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #00d600;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@media (prefers-color-scheme: light) {
+  #terminal-content {
+    background: #f5f5f5;
+    color: #333333;
+    border-color: #cccccc;
+  }
+}
+
+#analytics-dashboard-panel {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 500px;
+  max-height: calc(100vh - 60px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+#analytics-dashboard-panel[hidden] {
+  display: none;
+}
+
+.analytics-dashboard {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* KPI Cards */
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.analytics-kpi {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+}
+
+.analytics-kpi.kpi-blue {
+  border-left: 3px solid #06b6d4;
+}
+
+.analytics-kpi.kpi-green {
+  border-left: 3px solid #10b981;
+}
+
+.analytics-kpi.kpi-orange {
+  border-left: 3px solid #f59e0b;
+}
+
+.analytics-kpi.kpi-red {
+  border-left: 3px solid #ef4444;
+}
+
+.kpi-icon {
+  font-size: 20px;
+  min-width: 24px;
+}
+
+.kpi-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.kpi-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.kpi-trend {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.kpi-trend.trend-up {
+  color: #10b981;
+}
+
+.kpi-trend.trend-down {
+  color: #ef4444;
+}
+
+/* Analytics Sections */
+.analytics-section {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.analytics-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.analytics-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+/* Model Distribution */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.model-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.model-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-bar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.model-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.model-percent {
+  color: var(--text-secondary);
+  text-align: right;
+  font-weight: 500;
+}
+
+/* Failure List */
+.failure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.failure-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.failure-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.failure-count {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Week Comparison */
+.comparison-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.comparison-item {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.comparison-item span {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.comparison-item strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comparison-item strong.change-positive {
+  color: #10b981;
+}
+
+.comparison-item strong.change-negative {
+  color: #ef4444;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  #analytics-dashboard-panel {
+    --bg-card: #1a1a1a;
+    --bg-secondary: #242424;
+    --bg-tertiary: #2a2a2a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+  }
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  #analytics-dashboard-panel {
+    --bg-card: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --bg-tertiary: #eeeeee;
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --border-color: #e0e0e0;
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  #analytics-dashboard-panel {
+    width: calc(100vw - 20px);
+    right: 10px;
+  }
+
+  .analytics-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-row {
+    grid-template-columns: 1fr;
+  }
+}

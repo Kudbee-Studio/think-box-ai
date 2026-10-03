@@ -13,6 +13,10 @@
   <link rel="stylesheet" href="/css/terminal.css">
   <link rel="stylesheet" href="/css/polish.css">
   <link rel="stylesheet" href="/css/enterprise-polish.css">
+  <link rel="stylesheet" href="/css/analytics-dashboard.css">
+  <link rel="stylesheet" href="/css/timeline-dashboard.css">
+  <link rel="stylesheet" href="/css/sharing-dashboard.css">
+  <link rel="stylesheet" href="/css/template-browser.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/enterprise.js"></script>
   <!-- ES module: think-cube-render.js imports think-cube-state.js and, in a browser, assigns
@@ -27,7 +31,7 @@
         <div class="logo">🐝</div>
         <div class="title">
           <h1>kudbEE</h1>
-          <span class="subtitle">Agent OS <span class="live-mark">LIVE</span></span>
+          <span class="subtitle">Agent OS <span class="live-mark">LIVE</span> <span class="version-badge">v0.01</span></span>
         </div>
       </div>
       <div class="header-center">
@@ -51,6 +55,9 @@
         <button id="agent-templates-button" class="btn-icon" title="Agent templates">🤖</button>
         <button id="approval-workflow-button" class="btn-icon" title="Approval workflows">🗳</button>
         <button id="performance-analytics-button" class="btn-icon" title="Performance analytics">📈</button>
+        <button id="timeline-button" class="btn-icon" title="Execution timeline">⏱</button>
+        <button id="share-button" class="btn-icon" title="Share & export">🔗</button>
+        <button id="templates-button" class="btn-icon" title="Workflow templates">📚</button>
         <button id="execution-logs-button" class="btn-icon" title="Execution logs">📋</button>
         <button id="integrations-button" class="btn-icon" title="Integrations">🔗</button>
         <button id="collaboration-button" class="btn-icon" title="Collaboration">👥</button>
@@ -307,6 +314,50 @@
           <div id="metric-failures" class="failure-tags"></div>
         </div>
 
+        <!-- Analytics Dashboard Panel -->
+        <div class="panel" id="analytics-dashboard-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">📊</span> Analytics Dashboard</h3>
+            <button id="close-analytics" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="analytics-container" class="analytics-container">
+            <div class="loading">Loading analytics...</div>
+          </div>
+        </div>
+
+        <!-- Timeline Panel -->
+        <div class="panel" id="timeline-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">📈</span> Execution Timeline</h3>
+            <button id="close-timeline" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="timeline-container" class="timeline-container">
+            <div class="loading">Loading timeline...</div>
+          </div>
+        </div>
+
+        <!-- Sharing Panel -->
+        <div class="panel" id="sharing-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">🔗</span> Share & Export</h3>
+            <button id="close-sharing" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="sharing-container" class="sharing-container">
+            <div class="loading">Loading sharing options...</div>
+          </div>
+        </div>
+
+        <!-- Template Browser Panel -->
+        <div class="panel" id="template-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">📚</span> Workflow Templates</h3>
+            <button id="close-templates" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="template-container" class="template-container">
+            <div class="loading">Loading templates...</div>
+          </div>
+        </div>
+
         <div class="panel">
           <div class="panel-header">
             <h3><span class="icon">⟳</span> Run History</h3>
@@ -498,6 +549,6 @@
 <script src="/js/think-token-dashboard.js"></script>
 <script type="module" src="/js/terminal-view.js"></script>
 <script src="/js/git-integration.js"></script>
-<script src="/js/app.js"></script>
+<script type="module" src="/js/app.js"></script>
 </body>
 </html>

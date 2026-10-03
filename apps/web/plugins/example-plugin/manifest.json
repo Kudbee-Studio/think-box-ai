@@ -1,0 +1,16 @@
+{
+  "id": "example-plugin",
+  "name": "Example Plugin",
+  "version": "0.1.0",
+  "description": "Template example plugin for kudbEE dashboard",
+  "author": "kudbEE Team",
+  "permissions": ["read_only"],
+  "capabilities": ["panel", "command"],
+  "entrypoint": "plugin.js",
+  "homepage": "https://github.com/kudbee-studio/think-box-ai",
+  "minDashboardVersion": "0.01",
+  "config": {
+    "theme": "dark",
+    "refreshInterval": 5000
+  }
+}

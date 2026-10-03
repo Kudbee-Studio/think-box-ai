@@ -2,6 +2,11 @@
 
 // `Enterprise` is declared globally by enterprise.js (loaded first); redeclaring it here is a SyntaxError.
 
+import { AnalyticsDashboardUI } from './analytics-ui.js';
+import { TimelineUI } from './timeline-ui.js';
+import { SharingUI } from './sharing-ui.js';
+import { TemplateBrowserUI } from './template-browser-ui.js';
+
 const state = {
   ws: null,
   sessionId: null,
@@ -2083,6 +2088,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   Enterprise.auditLog.log('system', 'kudbEE Agent OS started', 'info');
+
+  // Initialize Dashboard UIs
+  try {
+    new AnalyticsDashboardUI();
+    new TimelineUI();
+    new SharingUI();
+    new TemplateBrowserUI();
+  } catch (err) {
+    console.error('Failed to initialize dashboard UIs:', err);
+  }
 
   appendTerminalMessage('system', [
     '╔══════════════════════════════════════════════════════════════╗',

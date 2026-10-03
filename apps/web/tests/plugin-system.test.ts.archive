@@ -1,0 +1,22 @@
+import { describe, it } from 'node:test';
+import { expect } from './test-helpers';
+import { PluginManager } from '../services/plugin-manager';
+
+describe('Plugin System', () => {
+  it('initializes plugin manager', () => {
+    const manager = new PluginManager();
+    const plugins = manager.listPlugins();
+    expect(plugins.length).toBe(0);
+  });
+
+  it('lists panels', () => {
+    const manager = new PluginManager();
+    const panels = manager.listPanels();
+    expect(panels).toBeInstanceOf(Array);
+  });
+
+  it('lists commands', () => {
+    const manager = new PluginManager();
+    const commands = manager.listCommands();
+    expect(commands).toBeInstanceOf(Array);
+  });
