@@ -151,7 +151,12 @@ export class GitRepoManager {
 
           for (const entry of entries) {
             const entryPath = path.join(dirPath, entry.name);
-            const entryStat = fs.statSync(entryPath);
+            let entryStat: fs.Stats;
+            try {
+              entryStat = fs.statSync(entryPath);
+            } catch {
+              continue; // broken symlink or entry removed mid-listing: skip it, keep the rest
+            }
 
             if (entry.isDirectory()) {
               node.children!.push(buildTree(entryPath, depth + 1));

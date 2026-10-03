@@ -11,7 +11,11 @@ let endpoints: AlgorandEndpoints;
 let server: http.Server;
 const hits: string[] = [];
 
+const EMPTY_TXID = 'C'.repeat(52);
 const routes: Record<string, unknown> = {
+  '/v2/assets/777': {},
+  '/v2/applications/777': {},
+  [`/v2/transactions/${EMPTY_TXID}`]: {},
   '/v2/status': { 'last-round': 123, 'time-since-last-round': 2_000_000_000, 'catchup-time': 0, 'last-version': 'v1' },
   [`/v2/accounts/${ADDR}?exclude=created-apps,created-assets`]: {
     amount: 2_500_000,
@@ -88,6 +92,12 @@ test('transaction summary includes payment amount, time and note', async () => {
 
 test('not found is reported clearly', async () => {
   await assert.rejects(algorandQuery({ action: 'asset', id: '999' }, { endpoints }), /Not found on Algorand: no such thing/);
+});
+
+test('a 200 reply with an empty body is a clear error, not a TypeError', async () => {
+  for (const input of [{ action: 'asset', id: '777' }, { action: 'application', id: '777' }, { action: 'transaction', txid: EMPTY_TXID }]) {
+    await assert.rejects(algorandQuery(input, { endpoints }), (err: Error) => /Algorand API returned no/.test(err.message) && !/Cannot read/.test(err.message), input.action);
+  }
 });
 
 test('invalid input is rejected without any request', async () => {

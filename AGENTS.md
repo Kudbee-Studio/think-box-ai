@@ -2974,4 +2974,7 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 - `apps/web/ollama-line.ts` `parseOllamaLine()`: one garbled line in Ollama's NDJSON chat stream is skipped; before, it threw and aborted the whole local answer. Test: `tests/ollama-line.test.ts`.
 - Dashboard terminal `/memory`, `/notes` and the `/remote` governed-job poll now check `res.ok` and report `HTTP <status>` instead of a "Cannot read properties of undefined" message.
 - `agent.ts` `chatCompletion`: an HTTP 200 reply with no `choices` now fails the run with `Inception API returned no choices: ...` instead of `Cannot read properties of undefined (reading 'message')`. Test: `tests/agent.test.ts` (mock reply `noChoices`).
-- No behavior change on success paths. Tests 505/505, `tsc` and lint clean.
+- `algorand.ts`: an HTTP 200 reply with an empty body on `asset`, `application` or `transaction` now fails with `Algorand API returned no <what>` instead of a TypeError. Test: `tests/algorand.test.ts`.
+- `git-repo-manager.ts` `getFileTree`: a broken symlink (or an entry removed mid-listing) no longer drops the rest of that directory from the tree; only the bad entry is skipped. Test: `tests/git-file-tree.test.ts`.
+- Scanned with no change needed: `medication.ts`, `net-guard.ts` (re-checks private addresses on every redirect hop), `governed-bridge.ts`, `memory.ts`, `services/plugins.ts`.
+- No behavior change on success paths. Tests 507/507, `tsc` and lint clean.
