@@ -157,9 +157,9 @@ class AsyncModelClient:
         return self._client
 
     async def close(self) -> None:
-        """Close the client connection pool."""
+        """Close the HTTP client (AsyncHttpClient.close; it has no httpx-style aclose). Safe to call twice."""
         if self._client:
-            await self._client.aclose()
+            await self._client.close()
             self._client = None
 
     async def generate(self, prompt: str, **kwargs: Any) -> str:

@@ -158,6 +158,14 @@ class TestModelClientSuccess(unittest.TestCase):
         self.assertEqual(body["options"], {"temperature": 0.5, "num_predict": 7})
         self.assertIsNone(urlopen.call_args[0][0].get_header("Authorization"))
 
+    def test_close_then_close_again(self):
+        async def run() -> None:
+            client = AsyncModelClient()
+            await client.close()
+            await client.close()
+
+        asyncio.run(run())
+
 
 class TestSwarmAndEngineHonesty(unittest.TestCase):
     def test_unreachable_model_is_failure_without_speculation(self):
