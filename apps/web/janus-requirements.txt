@@ -2,5 +2,5 @@ fastapi==0.115.12
 accelerate==0.29.3
 numpy==1.26.4
 pillow==11.1.0
-transformers==4.38.2
+transformers==5.10.1
 uvicorn[standard]==0.34.0
