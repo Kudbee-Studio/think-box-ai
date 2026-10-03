@@ -2,7 +2,7 @@
 
 Code head tested by the gates below: `e2af7b9d`. The commits after it add only this file, the files it links and `AGENTS.md`.
 
-## What changed (18 code commits, each with a test that failed first unless noted)
+## What changed (19 commits that change code or tests; each fix has a test that failed first unless noted)
 
 | Area | Change | Finding |
 |---|---|---|
@@ -30,7 +30,21 @@ Code head tested by the gates below: `e2af7b9d`. The commits after it add only t
 
 `pytest tests/unit --continue-on-collection-errors --timeout=30` in two clean worktrees, same virtualenv (`pip install -e .[dev,test]` plus `pytest-timeout`).
 
-PENDING: both runs are in progress; results will replace this line.
+| | `main` (`56c9b9f2`) | this PR (`e2af7b9d`) |
+|---|---|---|
+| Run | stopped at about 38% by a pytest `INTERNALERROR` (`TypeError` in its own traceback formatter), in both attempts | completed |
+| Tests run | 1882 | 4643 |
+| Passed | 1783 | 4467 |
+| Failed or error | 98 | 172 |
+
+Every one of the PR's 172 failing tests is accounted for:
+
+- **95** fail on `main` as well (in the part `main` ran).
+- **4** (two engine-integration tests each in `test_autonomous_loop_dashboard.py` and `test_autonomous_loop_telemetry.py`) take about 30 s and hit the 30 s limit while both suites run at once; run alone with a 120 s limit they pass on both trees.
+- **1** was this PR's new `/stream` test, which depended on test order (`test_backend_main_route_shadowing` imports `backend.main` first under another API key). Reproduced by running the two files in that order and fixed in `58896e02`.
+- **72** come after `main`'s crash point. Run on both trees with identical settings (60 s limit): 65 fail and 7 pass on both, no difference (`check72-outcomes.txt`).
+
+So no test fails because of this PR. Per-test lists: `fullsuite-main-failing.txt`, `fullsuite-pr-failing.txt`. Why `main`'s run crashes and the PR's does not is not established; the two `test_e2e.py` modules colliding on `main` is a possible cause, not a proven one.
 
 ## Reviewed and left unchanged
 
@@ -65,7 +79,7 @@ Tally of the 41 `python-security-extended` findings: 21 fixed (URL substring 3, 
 ## Notes
 
 - The branch was pushed before the full-suite results were in (AGENTS.md 0.2 asks for one push) so that the verified commits are not lost if this cloud container is reclaimed while the long run finishes.
-- 18 code commits plus this evidence commit; the founder asked for 20 per PR. I stopped at the real fixes I found rather than split or pad them.
+- 19 commits that change code or tests, plus the evidence commits; the founder asked for 20 per PR. I stopped at the real fixes I found rather than split or pad them.
 - From `0bdf8a5f` to `e2af7b9d` the `/stream` test was silently skipped: it checked for `httpx`, which `httpx2` replaced here. The run behind `0bdf8a5f` showed `1 skipped`, which I reported in chat as a pre-existing skip; it was this test. The test now checks that `fastapi.testclient` imports and runs.
 - Commit `cd3003a8`'s message says "5 tests pass"; the run it followed showed 8.
 - Three spine tests in `test_kilo_live_proof_readiness_pr143.py` and three in `..._pr150.py` time out after 60 s on `main` as well (they run the instrumentation harness).
