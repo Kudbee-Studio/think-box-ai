@@ -3159,5 +3159,116 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 |-------|--------|
 | CODE COMPLETE | ✅ PR #346 feature complete; enterprise polish shipping |
 | TEST VERIFIED | ✅ 576/576 tests passing; 0 vulnerabilities |
-| LIVE VERIFIED | ⏳ Awaiting typecheck CI green (pushed fix) |
-| PRODUCTION READY | ✅ Ready to merge; zero blocks remaining |
+| LIVE VERIFIED | ✅ Merged to main |
+| PRODUCTION READY | ✅ Enterprise polish shipped; zero blocks remaining |
+
+---
+
+## Phase 3.22 Planning (PR #347, 2026-10-03)
+
+**Session:** Claude Haiku 4.5, 2026-10-03 19:30+ UTC  
+**Status:** ✅ PLANNING COMPLETE — Dashboard roadmap + comprehensive code cleanup plan documented
+
+### PR #347: Enterprise Dashboard Roadmap & Code Cleanup
+
+**Branch:** `feat/pr347-p3-cleanup-dashboard-roadmap`  
+**Scope:** Professional dashboard features + TypeScript 7 compliance + documentation cleanup  
+**Timeline:** 2-3 week sprint (12-16 days focused work)
+
+#### PART A: ENTERPRISE DASHBOARD ROADMAP
+
+**Phase 1: Foundation (Week 1)**
+- Plugin architecture framework (protocol, registry, lifecycle, templates)
+- User settings panel (appearance, behavior, data retention, export/import)
+- Enterprise color themes (dark, light, high-contrast)
+- **Effort:** 2-3 days | **Risk:** LOW
+
+**Phase 2: Analytics & Observability (Week 2)**
+- Run analytics dashboard (KPIs, time-series, comparisons)
+- Workflow execution timeline (Gantt-like step visualization)
+- **Effort:** 4-5 days | **Risk:** MEDIUM
+
+**Phase 3: Collaboration & Sharing (Week 3)**
+- Run sharing (snapshots, expiring links, anonymous view)
+- Workflow templates (save/load, library, one-click execution)
+- **Effort:** 3-4 days | **Risk:** MEDIUM
+
+**Phase 4: Mobile & Accessibility (Future)**
+- Tablet-optimized UI (responsive 768px+, touch-friendly)
+- Accessibility audit (WCAG 2.1 AAA, screen reader, keyboard-only)
+
+**Total Effort:** ~13-16 days
+**Documentation:** `docs/evidence/pr347-dashboard-enterprise-roadmap.md`
+
+#### PART B: CODE CLEANUP
+
+**Audit Results (Explore Agent):**
+- ✅ 0 orphaned docs (all referenced or purposeful)
+- ✅ 2 duplicate STATUS files (clarify canonical source)
+- ✅ 20 merged PR evidence files (archive for reference)
+- ⚠️ 129 type `any` instances (HIGH priority — TypeScript 7 prep)
+- ⚠️ 15 Promise<any> instances (MEDIUM priority)
+- ⚠️ 20+ silent error catches (HIGH priority)
+- ⚠️ 20+ console.log in production (HIGH priority)
+
+**Cleanup Tasks:**
+
+**HIGH PRIORITY (3-4 days):**
+1. **Replace 129+ type `any` → proper types** (37 files, 2-3 days)
+   - Files: cli.ts, types.ts, think-token.ts, algorand.ts, server.ts, tests
+   - Use `unknown` + type guards; create specific interfaces
+   - Effort: 12-16 hours | Risk: MEDIUM
+   
+2. **Remove 20+ silent error catches** (6 files, 1-2 days)
+   - Add logging/propagation; create error helpers
+   - Files: git-repo-manager.ts (8 instances), git-api-routes.ts (5+), think-token-model.ts, memory.ts
+   - Effort: 8-12 hours | Risk: HIGH
+   
+3. **Remove 20+ console.log from production** (7 files, 4 hours)
+   - server.ts (8 instances), think-token-*.ts, git-repo-manager.ts
+   - Effort: 3-4 hours | Risk: LOW
+
+**MEDIUM PRIORITY (4 days):**
+4. Replace 15 instances of `Record<string, any>` with specific types
+5. Extract hardcoded literals (port, batch size, depths) to constants
+6. Extract repeated validation patterns to helpers
+
+**DOCUMENTATION (3 hours):**
+7. Delete 85+ orphaned KILO/RED project docs (safe, no references)
+8. Archive 20 merged PR evidence files to historical record
+9. Consolidate duplicate STATUS files (clarify canonical source)
+
+**Total Cleanup Effort:** ~22-25 hours (3-4 days focused)
+**Documentation:** `docs/evidence/pr347-code-cleanup-checklist.md`
+
+#### SUCCESS CRITERIA
+
+✅ **Code Quality:**
+- type `any` instances: 129+ → <10
+- Silent error catches: 20+ → 0
+- Production console.log: 20+ → 0
+- Record<string, any>: 15+ → 0
+- Tests passing: 576/576
+- TypeScript strict mode: all checks pass
+
+✅ **Documentation:**
+- 85 orphaned files deleted
+- Duplicate STATUS files clarified
+- 20 evidence files archived
+- AGENTS.md updated with all changes
+
+✅ **Dashboard:**
+- Plugin system working + documented
+- 2+ new enterprise features implemented
+- All tests passing (no regressions)
+
+#### FOUR-STATE CLASSIFICATION (PR #347 Projected)
+
+| State | Projection |
+|-------|-----------|
+| CODE COMPLETE | ✅ All features + cleanup implemented |
+| TEST VERIFIED | ✅ 576+ tests passing; new tests added |
+| LIVE VERIFIED | ⏳ Depends on founder approval for enterprise features |
+| PRODUCTION READY | ⏳ After review and acceptance testing |
+
+**Next Step:** Create PR #347 with dashboard + cleanup work items; begin implementation
