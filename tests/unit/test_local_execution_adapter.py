@@ -170,10 +170,6 @@ class TestLocalExecutionAdapter(unittest.TestCase):
         self.assertIn("unsupported_package_manager", receipt.error)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestInstallStoreJobId(unittest.TestCase):
     """job_id becomes part of /tmp/upm-store-<job_id>; a path-like id must not choose another folder."""
 
@@ -190,3 +186,34 @@ class TestInstallStoreJobId(unittest.TestCase):
             self.assertFalse(ok)
             self.assertEqual(status, "invalid_job_id")
             self.assertFalse(escape.resolve().exists(), "a folder was created outside upm-store-<job_id>")
+
+
+class TestUpmHelpers(unittest.TestCase):
+    """The store folder and error codes of _try_install_packages, split out of it (Power of 10 P4: 76 lines)."""
+
+    def test_error_code_from_stderr(self) -> None:
+        from thinkbox.local_execution_adapter import _upm_error_code
+
+        self.assertEqual(_upm_error_code(1, "ERR ELOCK lockfile out of date"), "ELOCK")
+        self.assertEqual(_upm_error_code(1, "package missing from lockfile"), "ELOCK")
+        self.assertEqual(_upm_error_code(1, "EINTEGRITY sha512 mismatch"), "EINTEGRITY")
+        self.assertEqual(_upm_error_code(1, "cannot reach registry"), "EOFFLINE")
+        self.assertEqual(_upm_error_code(7, "boom"), "UPM_ERROR_7")
+
+    def test_store_is_per_job_under_the_temp_dir(self) -> None:
+        import tempfile as _tempfile
+        from pathlib import Path as _Path
+
+        from thinkbox.local_execution_adapter import _upm_store
+
+        store = _upm_store("job_helpers_probe")
+        try:
+            self.assertEqual(store, _Path(_tempfile.gettempdir()) / "upm-store-job_helpers_probe")
+            self.assertTrue(store.is_dir())
+        finally:
+            store.rmdir()
+        self.assertIsNone(_upm_store("x/../y"))
+
+
+if __name__ == "__main__":
+    unittest.main()

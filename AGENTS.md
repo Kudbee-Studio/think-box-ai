@@ -3024,9 +3024,23 @@ Python (`python-security-extended`, 41 findings) is not part of this PR; it belo
 Local CodeQL (`python-security-extended`, 41 findings) and `bandit -lll -iii`; full table and evidence in `docs/evidence/pr338-codeql-python.md`.
 
 - Box URL checks (`kilo_substrate_checklist.is_live_box_url`, the governance and live-exec prerequisites) look at the parsed host's suffix over https; `".box.upstash.com" in url` accepted lookalike hosts.
-- `backend/main.py` `/stream` no longer streams `str(e)` to the client; the detail goes to `logger.exception`.
+- `backend/main.py` `/stream` sends and logs only the provider error's type (`The model stream failed (RuntimeError).`), never its text: it can carry upstream URLs or key fragments, and the logger has no redaction (0.4).
 - `scripts/setup.py` never prints the generated `THINKBOX_API_KEY` and creates `.env` with `O_EXCL`, mode `0600`. `scripts/verify_upcloud_credentials.py` prints no part of the token.
 - `run_id` (demo proof route; router not mounted today) and `job_id` (UPM store path, via `validate_job_id`) are checked before they become paths.
 - `thinkbox/intelligence.py`: concept-id `md5(..., usedforsecurity=False)` (same ids; FIPS builds no longer raise).
 - Python test environment: `httpx2` is in the `dev`/`test` extras (the backend tests could not be collected without it); `tests/unit/demo` and `tests/unit/byoc` are packages (their `test_e2e.py` collided); no test uses `tempfile.mktemp`.
 - There is no CI workflow for the Python tests. Running `tests/unit` needs `pip install -e .[dev,test]`; several tests hang (spine/instrumentation), so use `pytest-timeout`.
+
+## Python unit suite fixes (PR #339)
+
+`main` had 172 failing `tests/unit` tests in #338's run. Fixed here by root cause, each with a test that failed first; evidence in `docs/evidence/pr339-python-unit-failures.md`.
+
+- Model client (`thinkbox/model_client.py`, `thinkbox/async_http.py`): a refused connection fails at once as non-retryable `unreachable at <url>`. It used to be retried with 2 + 4 + 8 + 16 s of backoff (`HttpConnectionError` subclasses `HttpError`, so the transient branch caught it), so every call to a stopped Ollama took about 30 s (`thinkbox model check`: 33 s, now 0.0 s) and most engine tests hit the timeout. Transient statuses (408, 429, 5xx) and timeouts keep the backoff. `close()` works (it called a nonexistent `aclose()`), and so does `stream()` (`AsyncHttpClient.stream` was `async def`, which `async with` rejects).
+- `jobs/schema.json` is restored (it never reached `main`'s history, which starts at #264); `tests/unit/test_jobs.py` reads the repository's `jobs/`.
+- `validate_proof_document` rejects a swarm proof whose declared validators did not all run unless it is labeled `partial_run` (#253's labeled partial runs still validate: 38/38).
+- Tests: urlopen mocks carry `.status`; the box route tests check the served paths (`/think/box-status/status`, `/think/box-mercury/status|results`); the layer-telemetry test runs (it sat at module level); the dry-run tests use the interpreter that runs them.
+- Docs: `docs/INDEX.md` is generated; run `python3 scripts/generate_docs_index.py` after adding or removing a `.md` file (#337 and #338 did not). Five padding files from #333 to #335 are removed and the #333/#334 evidence carries correction notes.
+- `thinkbox/repository.py`: job, worktree-metadata and checkpoint files are written atomically (temp file, `fsync`, `os.replace`), and every job read-modify-write (`create_job`, `update_job`, the job part of `checkpoint`, `ensure_job`) runs under the instance lock plus an `flock` on `.thinkbox/jobs/.lock`, re-entrant per instance. `open_lifecycle_repo()` makes a new `Repository` per call, so before this racing workers shared no lock: readers saw empty job files, jobs were re-created over their transitions, and one claim could be won by 6 of 6 instances (found as the flaky `test_concurrent_resume_single_claim`). Use `ensure_job` for get-or-create, never `job_status` then `create_job`. Job files are `0600`.
+- Not in this PR: the KILO gate chain (next PR: gates evaluated once per call, the CI manifest that #308 made untrue, the lint lane) and 6 functions over 60 lines that the Power of 10 ratchet reports.
+- If `pytest tests/unit` dies with `INTERNALERROR ... NoneType - int`, a `pytest-timeout` signal interrupted a slow test at a bad moment (Python 3.11); run the files that mention KILO in their own processes.
+- Running the suite: `pip install -e .[dev,test] pytest-timeout`, activate the virtualenv (KILO tests start `python3` from `PATH`), then `pytest tests/unit --timeout=60`.

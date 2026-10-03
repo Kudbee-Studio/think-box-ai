@@ -166,6 +166,35 @@ class TestLifecycleResume(unittest.TestCase):
         assert loaded is not None
         self.assertEqual(resume_claim_count(loaded["transitions"]), 1)
 
+    def test_concurrent_resume_runs_the_job_exactly_once_every_round(self) -> None:
+        # Production opens a new Repository per call (open_lifecycle_repo), so racing workers share no in-process
+        # lock. Four workers, one barrier, fifteen rounds: one claim, one execution, no worker sees an empty job.
+        for round_no in range(15):
+            job_id = f"job_stress_{round_no}"
+            self._queue(job_id, command="echo RACE")
+            barrier = threading.Barrier(4)
+            results: list[object] = []
+
+            def _worker() -> None:
+                repo = open_lifecycle_repo(self._repo_path)
+                barrier.wait()
+                results.append(resume_queued_job(repo, job_id, exec_command="echo RACE"))
+
+            threads = [threading.Thread(target=_worker) for _ in range(4)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            outcomes = sorted(item.outcome for item in results)  # type: ignore[attr-defined]
+            self.assertEqual(outcomes.count(OUTCOME_COMPLETED), 1, f"round {round_no}: {outcomes}")
+            self.assertTrue(set(outcomes) <= {OUTCOME_COMPLETED, OUTCOME_CAS_LOST, OUTCOME_SKIPPED}, f"round {round_no}: {outcomes}")
+            executed = sum(1 for item in results if getattr(item, "executed", False))
+            self.assertEqual(executed, 1, f"round {round_no}: executed {executed} times")
+            loaded = load_lifecycle(open_lifecycle_repo(self._repo_path), job_id)
+            assert loaded is not None
+            self.assertEqual(resume_claim_count(loaded["transitions"]), 1, f"round {round_no}")
+            self.assertEqual([t["phase"] for t in loaded["transitions"]], [PHASE_ADMISSION, PHASE_QUEUED, PHASE_RUNNING, PHASE_COMPLETED])
+
     def test_admission_only_never_executes(self) -> None:
         repo = open_lifecycle_repo(self._repo_path)
         persist_lifecycle_phase(

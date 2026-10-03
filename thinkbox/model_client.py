@@ -17,7 +17,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Any, AsyncGenerator
 
-from .async_http import AsyncHttpClient, HttpConnectionError, HttpError, HttpTimeoutError
+from .async_http import AsyncHttpClient, HttpConnectionError, HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +157,9 @@ class AsyncModelClient:
         return self._client
 
     async def close(self) -> None:
-        """Close the client connection pool."""
+        """Close the HTTP client (AsyncHttpClient.close; it has no httpx-style aclose). Safe to call twice."""
         if self._client:
-            await self._client.aclose()
+            await self._client.close()
             self._client = None
 
     async def generate(self, prompt: str, **kwargs: Any) -> str:
@@ -213,16 +213,18 @@ class AsyncModelClient:
                     return resp.json()
                 except HttpError as e:
                     raise self._error(f"non-JSON response: {resp.text()[:200]!r}", retryable=True) from e
+            except HttpConnectionError as e:
+                # Nothing answered (refused, DNS, no route). Backing off only delayed this same failure by
+                # about 30 s; whether to try again is the caller's decision. Caught before HttpError, its base.
+                raise self._error(f"unreachable at {url}: {e}", retryable=False) from e
             except HttpError as e:
-                is_transient = e.retryable
-                error_msg = f"HTTP {e.status_code}: {str(e)[:300]}"
-
-                if is_transient and attempt < max_attempts - 1:
+                # Transient statuses (408, 429, 5xx) and timeouts are retried with backoff.
+                if e.retryable and attempt < max_attempts - 1:
                     # Apply jitter: ±20%
                     jitter = backoff * 0.2 * (2 * random.random() - 1)
                     sleep_time = max(0.1, backoff + jitter)
                     logger.warning(
-                        f"[{self.config.api_type}] transient error {e.status_code}; "
+                        f"[{self.config.api_type}] transient error ({e.status_code or type(e).__name__}); "
                         f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
                     )
                     await asyncio.sleep(sleep_time)
@@ -230,21 +232,8 @@ class AsyncModelClient:
                     attempt += 1
                     continue
 
-                raise self._error(error_msg, retryable=is_transient) from e
-            except (HttpTimeoutError, HttpConnectionError) as e:
-                if attempt < max_attempts - 1:
-                    jitter = backoff * 0.2 * (2 * random.random() - 1)
-                    sleep_time = max(0.1, backoff + jitter)
-                    logger.warning(
-                        f"[{self.config.api_type}] network error ({type(e).__name__}); "
-                        f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
-                    )
-                    await asyncio.sleep(sleep_time)
-                    backoff = min(backoff * 2, max_backoff)
-                    attempt += 1
-                    continue
-
-                raise self._error(f"unreachable at {url}: {e}", retryable=True) from e
+                # str(e) already starts with "HTTP <status>:" for a status error.
+                raise self._error(str(e)[:300], retryable=e.retryable) from e
 
         raise self._error(f"max retries exceeded for {url}", retryable=True)
 
@@ -300,12 +289,10 @@ class AsyncModelClient:
                 async for line in resp.aiter_lines():
                     if line:
                         yield line.encode() if isinstance(line, str) else line
+        except HttpConnectionError as e:  # before HttpError, its base, as in _post_json_with_backoff
+            raise self._error(f"unreachable at {url}: {e}", retryable=False) from e
         except HttpError as e:
-            is_transient = e.retryable
-            body = str(e)[:300]
-            raise self._error(f"HTTP {e.status_code}: {body}", retryable=is_transient) from e
-        except (HttpTimeoutError, HttpConnectionError) as e:
-            raise self._error(f"stream error: {e}", retryable=True) from e
+            raise self._error(f"stream error: {str(e)[:300]}", retryable=e.retryable) from e
 
     async def _ollama_stream(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:
         url = f"{self.config.base_url.rstrip('/')}/api/generate"

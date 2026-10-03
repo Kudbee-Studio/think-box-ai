@@ -342,7 +342,16 @@ class TestValidatorWaveConsistency(unittest.TestCase):
         if not artifact.is_file():
             self.skipTest("validator wave skip artifact not present")
         payload, errors = load_and_validate_proof(artifact)
-        self.assertTrue(len(errors) > 0, "Validator wave skip should be detected by proof validation")
+        # PR #253 recorded this run as partial (0 of 32 declared validators ran) so that it validates as an
+        # honest record of 224 calls; AGENTS.md and STATUS.md say all 38 proofs validate.
+        self.assertEqual(errors, [])
+        self.assertIs(payload["partial_run"], True)
+        self.assertEqual(payload["declared_validator_workers"], 32)
+        self.assertEqual(payload["reconciliation"]["validator_calls"], 0)
+        # The same skip without the label is detected.
+        unlabeled = {k: v for k, v in payload.items() if k not in ("partial_run", "partial_run_reason")}
+        errors = validate_proof_document(unlabeled)
+        self.assertTrue(errors, "an unlabeled validator wave skip must not validate")
         error_text = " ".join(errors).lower()
         self.assertTrue("total_calls" in error_text or "primary" in error_text,
                         f"Error should mention worker count mismatch: {errors}")

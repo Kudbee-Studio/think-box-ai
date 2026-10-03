@@ -6,7 +6,7 @@ import asyncio
 import unittest
 
 from thinkbox.async_http import AsyncHttpClient
-from thinkbox.model_client import AsyncModelClient, ModelConfig
+from thinkbox.model_client import AsyncModelClient, ModelCallError, ModelConfig
 
 
 class TestConnectionPool(unittest.TestCase):

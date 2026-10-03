@@ -8,9 +8,13 @@ their IDs are recorded here.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
+import tempfile
 import threading
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,10 +22,34 @@ from typing import Any
 
 from thinkbox.git_engine import GitEngine
 
+try:
+    import fcntl
+except ImportError:  # no flock (Windows): callers in one process are still serialized by the instance lock
+    fcntl = None  # type: ignore[assignment]
+
 METADATA_VERSION = "stage1"
 METADATA_FILE = ".thinkbox/repository.json"
 CHECKPOINT_DIR = ".thinkbox/checkpoints"
 JOB_DIR = ".thinkbox/jobs"
+JOB_LOCK_FILE = ".lock"
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` so a concurrent reader sees the old file or the new one, never a half-written file.
+
+    ``Path.write_text`` truncates first: a reader between the truncate and the write got an empty file, which
+    ``_load_job`` reported as "no such job".
+    """
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())  # the rename must not outlive the data after a crash
+        Path(tmp_name).replace(path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
 def _now() -> str:
@@ -223,6 +251,7 @@ class Repository:
         self._git = git_engine or GitEngine(self._path)
         self._enforce_git = enforce_git
         self._lock = threading.RLock()
+        self._job_lock_depth = 0  # nesting of _exclusive_jobs() in the thread that holds self._lock
         self._ensure_dir()
         with self._lock:
             self._worktree = self._load_or_create()
@@ -266,11 +295,7 @@ class Repository:
 
     def _save(self, worktree: Worktree) -> None:
         worktree.updated_at = _now()
-        metadata_path = self._metadata_path()
-        metadata_path.write_text(
-            json.dumps(worktree.snapshot(), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        _atomic_write_text(self._metadata_path(), json.dumps(worktree.snapshot(), indent=2, sort_keys=True))
 
     def refresh_git_state(self) -> GitState:
         with self._lock:
@@ -357,17 +382,15 @@ class Repository:
                 metadata=metadata or {},
             )
             checkpoint_path = self._checkpoints_dir() / f"{checkpoint.checkpoint_id}.json"
-            checkpoint_path.write_text(
-                json.dumps(checkpoint.snapshot(), indent=2, sort_keys=True),
-                encoding="utf-8",
-            )
+            _atomic_write_text(checkpoint_path, json.dumps(checkpoint.snapshot(), indent=2, sort_keys=True))
             if job_id:
-                job = self._load_job(job_id)
-                if job is None:
-                    raise FileNotFoundError(f"job not found: {job_id}")
-                if checkpoint.checkpoint_id not in job.checkpoint_ids:
-                    job.checkpoint_ids.append(checkpoint.checkpoint_id)
-                self._save_job(job)
+                with self._exclusive_jobs():
+                    job = self._load_job(job_id)
+                    if job is None:
+                        raise FileNotFoundError(f"job not found: {job_id}")
+                    if checkpoint.checkpoint_id not in job.checkpoint_ids:
+                        job.checkpoint_ids.append(checkpoint.checkpoint_id)
+                    self._save_job(job)
             return checkpoint
 
     def checkpoints(self) -> list[Checkpoint]:
@@ -403,6 +426,33 @@ class Repository:
     def _job_path(self, job_id: str) -> Path:
         return self._jobs_dir() / f"{job_id}.json"
 
+    @contextlib.contextmanager
+    def _exclusive_jobs(self) -> Iterator[None]:
+        """Serialize job read-modify-write across every Repository instance and process on this worktree.
+
+        ``open_lifecycle_repo`` returns a new instance per call, so the per-instance lock alone let several callers
+        pass the same compare-and-set (a queued job was claimed by all six of six racing callers).
+        """
+        with self._lock:
+            if fcntl is None or self._job_lock_depth > 0:
+                # flock is per open file description: a nested acquisition (ensure_job -> create_job) would block on
+                # the outer one, so only the outermost call takes the file lock.
+                self._job_lock_depth += 1
+                try:
+                    yield
+                finally:
+                    self._job_lock_depth -= 1
+                return
+            self._jobs_dir().mkdir(parents=True, exist_ok=True)
+            with (self._jobs_dir() / JOB_LOCK_FILE).open("a+", encoding="utf-8") as handle:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                self._job_lock_depth = 1
+                try:
+                    yield
+                finally:
+                    self._job_lock_depth = 0
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
     def _load_job(self, job_id: str) -> Job | None:
         job_file = self._job_path(job_id)
         if not job_file.exists():
@@ -416,10 +466,7 @@ class Repository:
     def _save_job(self, job: Job) -> None:
         job.updated_at = _now()
         self._jobs_dir().mkdir(parents=True, exist_ok=True)
-        self._job_path(job.job_id).write_text(
-            json.dumps(job.snapshot(), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        _atomic_write_text(self._job_path(job.job_id), json.dumps(job.snapshot(), indent=2, sort_keys=True))
 
     def create_job(
         self,
@@ -428,7 +475,7 @@ class Repository:
         name: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> Job:
-        with self._lock:
+        with self._exclusive_jobs():
             if job_id is None:
                 job_id = _id("job")
             job = Job(
@@ -444,6 +491,18 @@ class Repository:
             self._worktree.status = "active"
             self._save(self._worktree)
             return replace(job)
+
+    def ensure_job(self, job_id: str, intent: str = "", name: str = "") -> dict[str, Any]:
+        """The job's snapshot, creating the job first when it does not exist.
+
+        Atomic across instances: concurrent callers get the same job, and an existing job (its metadata and
+        intent) is never reset, which ``create_job`` with an existing id would do.
+        """
+        with self._exclusive_jobs():
+            job = self._load_job(job_id)
+            if job is None:
+                job = self.create_job(job_id=job_id, intent=intent, name=name)
+            return job.snapshot()
 
     def list_job_ids(self) -> list[str]:
         """Return persisted job ids (H14 list surface)."""
@@ -470,7 +529,7 @@ class Repository:
         require_lifecycle_phase: str | None = None,
         require_lease_id: str | None = None,
     ) -> dict[str, Any] | None:
-        with self._lock:
+        with self._exclusive_jobs():
             job = self._load_job(job_id)
             if job is None:
                 return None

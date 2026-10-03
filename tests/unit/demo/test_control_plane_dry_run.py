@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 from thinkbox.control_plane_dry_run import (
@@ -11,6 +12,11 @@ from thinkbox.control_plane_dry_run import (
     build_dry_run_four_state,
     run_control_plane_dry_run,
 )
+
+
+def _env_with_this_python() -> dict[str, str]:
+    """The demo script runs `python3`: make that the interpreter running these tests (a venv's, say)."""
+    return {**os.environ, "PATH": os.pathsep.join([str(Path(sys.executable).parent), os.environ.get("PATH", "")])}
 
 
 class TestControlPlaneDryRun(unittest.TestCase):
@@ -47,6 +53,7 @@ class TestControlPlaneDryRun(unittest.TestCase):
         proc = subprocess.run(
             ["bash", str(path)],
             cwd=Path.cwd(),
+            env=_env_with_this_python(),
             capture_output=True,
             text=True,
             timeout=120,
@@ -59,7 +66,7 @@ class TestControlPlaneDryRun(unittest.TestCase):
 class TestDryRunModuleEntrypoint(unittest.TestCase):
     def test_main_module_exit_zero(self) -> None:
         proc = subprocess.run(
-            ["python3", "-m", "thinkbox.control_plane_dry_run"],
+            [sys.executable, "-m", "thinkbox.control_plane_dry_run"],
             capture_output=True,
             text=True,
             timeout=60,

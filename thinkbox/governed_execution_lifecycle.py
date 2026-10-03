@@ -129,14 +129,8 @@ def persist_lifecycle_phase(
     artifact_hash = validate_artifact_hash(artifact_hash)
     goal = bound_goal(goal)
     result = redact_lifecycle_result(result)
-    existing = repo.job_status(job_id)
-    if existing is None:
-        repo.create_job(
-            job_id=job_id,
-            intent=(goal or "governed-execution")[:120],
-            name="governed-lifecycle",
-        )
-    snap = repo.job_status(job_id) or {}
+    # One atomic get-or-create: two callers that both saw "no job" used to both create it, the second erasing the first's transitions.
+    snap = repo.ensure_job(job_id, intent=(goal or "governed-execution")[:120], name="governed-lifecycle")
     meta = dict(snap.get("metadata") or {})
     life = recover_corrupt_lifecycle_blob(meta.get(LIFECYCLE_META_KEY))
     current_phase = str(life.get("phase") or "")

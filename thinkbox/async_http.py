@@ -101,14 +101,17 @@ class AsyncHttpClient:
         """Perform an async POST request."""
         return await self._post_impl(url, json_data, headers, stream=False)
 
-    async def stream(
+    def stream(
         self,
         method: str,
         url: str,
         json_data: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> AsyncStreamContext:
-        """Start a streaming request context."""
+        """Start a streaming request context: ``async with client.stream(...) as resp``.
+
+        A plain method: as ``async def`` it returned a coroutine, which ``async with`` rejects.
+        """
         return AsyncStreamContext(
             self, method.upper(), url, json_data, headers
         )

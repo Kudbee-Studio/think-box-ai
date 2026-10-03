@@ -1,0 +1,6 @@
+# KILO group (106 files mentioning KILO), one pytest process per file, 20 s per-test timeout, main 83424359 vs #339 code head 29457c3b.
+# main: 829 tests {'pass': 719, 'fail': 62, 'timeout': 48}
+# #339: 839 tests {'pass': 727, 'fail': 61, 'timeout': 51}
+# status changed: {('fail', 'pass'): 1}
+# regressions (pass -> fail): none
+fail->pass	tests.unit.test_swarm_stats.TestValidatorWaveConsistency::test_validator_wave_skip_is_detected

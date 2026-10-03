@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (249 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (254 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (46)
+- [Other documents in docs/](#other-documents-in-docs) (51)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -306,6 +306,11 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/p316-local-chat.md](evidence/p316-local-chat.md) | P3.16: the local model in the Agent OS (CLI and dashboard) | Founder: "the CLI works with the model, not the Agent OS dashboard", and ollama run smollm2:360m "..." in a terminal... |
 | [docs/evidence/p317-dashboard-polish.md](evidence/p317-dashboard-polish.md) | P3.17: dashboard polish ("Invalid Date" and unstyled panels) | Founder asked for a polish pass on the Agent OS dashboard: the "Invalid Date" on thought cards and panels that look... |
 | [docs/evidence/p318-local-escalation.md](evidence/p318-local-escalation.md) | P3.18: goals that need tools or live data are escalated off the local model | Founder: on the dashboard, "WHAT PR ARE WE ON" run on smollm2:360m returned a confident essay about machine... |
+| [docs/evidence/pr333-plugin-command.md](evidence/pr333-plugin-command.md) | PR #333: /plugin Command Implementation | Branch: feat/pr333-plugin-command |
+| [docs/evidence/pr334-session-command.md](evidence/pr334-session-command.md) | PR #334: /session Command Implementation | - Display current session info: ID, model, agent, plugins, WebSocket status |
+| [docs/evidence/pr337-dashboard-cli.md](evidence/pr337-dashboard-cli.md) | PR #337: dashboard and CLI hardening, CodeQL fixes, /capacity and /config | Code head tested by every gate below: 59de351. Commits after it add only this file, the files it links and AGENTS.md... |
+| [docs/evidence/pr338-codeql-python.md](evidence/pr338-codeql-python.md) | PR #338: Python CodeQL and bandit fixes | Code head tested by the gates below: e2af7b9d. The commits after it add only this file, the files it links and... |
+| [docs/evidence/pr339-python-unit-failures.md](evidence/pr339-python-unit-failures.md) | PR #339: failing Python unit tests on main, fixed by root cause | Code head tested by the gates below: bdcf3e4e. The commits after it change only documentation (this file, the files... |
 | [docs/gcode-checklist.md](gcode-checklist.md) | G-Code "Read This Block" Checklist — One-Page Safety Check | Read this before running ANY G-code program. |
 | [docs/gcode-mastery.md](gcode-mastery.md) | G-Code Mastery Curriculum — 2-Week Daily Drills | For: Dominick (CNC beginner → solid) |
 | [docs/harvest-replay.md](harvest-replay.md) | Harvest & Replay | Harvest once on the GPU; re-score forever offline. This closes the loop |

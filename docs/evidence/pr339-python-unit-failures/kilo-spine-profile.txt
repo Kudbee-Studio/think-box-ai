@@ -1,0 +1,42 @@
+# One KILO spine_contract_summary() call under cProfile, branch bdcf3e4e (the KILO modules are the same as on main).
+# Script: the block after the output. Paths shortened to repo-relative.
+
+first gate (PR #151 post-season harden): PostSeasonHardenResult(mode=<PostSeasonHardenMode.HERMETIC_UNIT: 'hermetic_unit'>, ok=False, live_proof_exec_ok=True, violations=(PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference python3 -m unittest discover', path='.github/workflows/test.yml'), PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference verify_kilo_spine.py', path='.github/workflows/test.yml'), PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference pip install -e ".[lint]"', path='.github/workflows/test.yml'), PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference KILO_BEYOND_KILO_LINT_EXECUTE=1', path='.github/workflows/test.yml'), PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference verify_kilo_beyond_kilo_lint.py', path='.github/workflows/test.yml'), PostSeasonHardenViolation(code='ci_workflow_missing_snippet', message='CI workflow must reference scan_doc_secrets.py', path='.github/workflows/test.yml')), evidence=PostSeasonHardenEvidence(live_proof_exec_ok=True, ci_workflow_ok=False, spine_scripts_present=True, branch_hygiene_script_present=True, checklist_ok=True, live_api_called=False, four_state_max='TEST_VERIFIED'))
+spine_contract_summary(): 176.6 s
+         224508032 function calls (221946683 primitive calls) in 174.913 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1583 to 132 due to restriction <'kilo_.*(evaluate|hermetic)'>
+   List reduced from 132 to 14 due to restriction <14>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      133    0.001    0.000  121.354    0.912 thinkbox/kilo_pr166_combined_post165_lane.py:172(hermetic_pr166_combined_post165_lane_check)
+      133    0.005    0.000  121.351    0.912 thinkbox/kilo_pr166_combined_post165_lane.py:120(evaluate_pr166_combined_post165_lane)
+       21    0.000    0.000  110.967    5.284 thinkbox/kilo_pr167_combined_post166_lane.py:172(hermetic_pr167_combined_post166_lane_check)
+       21    0.001    0.000  110.966    5.284 thinkbox/kilo_pr167_combined_post166_lane.py:120(evaluate_pr167_combined_post166_lane)
+     3651    0.017    0.000  103.447    0.028 thinkbox/kilo_governance_evidence_live_proof_readiness.py:454(hermetic_governance_evidence_live_proof_readiness_check)
+     3651    0.133    0.000  103.391    0.028 thinkbox/kilo_governance_evidence_live_proof_readiness.py:326(evaluate_governance_evidence_live_proof_readiness)
+      731    0.005    0.000  100.589    0.138 thinkbox/kilo_pr165_combined_harden_era_chronicle.py:180(hermetic_pr165_combined_harden_era_chronicle_check)
+      731    0.027    0.000  100.574    0.138 thinkbox/kilo_pr165_combined_harden_era_chronicle.py:119(evaluate_pr165_combined_harden_era_chronicle)
+     4556    0.010    0.000   97.307    0.021 thinkbox/kilo_end_link_api_ops_harden.py:311(hermetic_end_link_api_ops_harden_check)
+     4556    0.064    0.000   97.263    0.021 thinkbox/kilo_end_link_api_ops_harden.py:261(evaluate_end_link_api_ops_harden)
+     4558    0.010    0.000   95.279    0.021 thinkbox/kilo_receipt_chain_end_link_docs.py:418(hermetic_receipt_chain_end_link_docs_check)
+     4558    0.119    0.000   95.236    0.021 thinkbox/kilo_receipt_chain_end_link_docs.py:357(evaluate_receipt_chain_end_link_docs)
+     7524    0.032    0.000   95.211    0.013 thinkbox/kilo_live_smoke_evidence.py:725(hermetic_live_smoke_evidence_operator_check)
+     7525    0.111    0.000   95.130    0.013 thinkbox/kilo_live_smoke_evidence.py:645(evaluate_live_smoke_evidence)
+
+
+
+
+# --- script ---
+"""Profile one KILO spine_contract_summary() call: wall time and how often each gate is re-evaluated."""
+import cProfile, io, pstats, time
+from thinkbox import kilo_live_proof_readiness as spine
+from thinkbox import kilo_post_season_harden as first
+print("first gate (PR #151 post-season harden):", first.hermetic_post_season_harden_operator_check())
+t = time.time(); pr = cProfile.Profile(); pr.enable()
+spine.spine_contract_summary()
+pr.disable()
+print(f"spine_contract_summary(): {time.time() - t:.1f} s")
+out = io.StringIO(); pstats.Stats(pr, stream=out).sort_stats("cumulative").print_stats(r"kilo_.*(evaluate|hermetic)", 14)
+print(out.getvalue())

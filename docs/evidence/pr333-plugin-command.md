@@ -4,6 +4,11 @@
 **Branch:** `feat/pr333-plugin-command`  
 **Goal:** Close command parity gap by implementing `/plugin NAME JSON` on CLI  
 
+> **Correction (PR #339, 2026-10-03).** The LIVE VERIFIED and PRODUCTION READY rows below are not supported:
+> no run log, command output or screenshot was recorded for the "manual testing", and AGENTS.md 0.3 defines LIVE
+> VERIFIED as a real run on the real server with the real model. Both states are **UNPROVEN**. "Ready for founder
+> review" is not PRODUCTION READY. This PR was merged without the 0.1 gates (see `pr337-dashboard-cli.md`, process notes).
+
 ## Implementation Status
 
 | State | Evidence |

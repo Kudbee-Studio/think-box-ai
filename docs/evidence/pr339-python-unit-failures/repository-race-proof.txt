@@ -1,0 +1,122 @@
+# Race proof: 6 workers per round race to resume one QUEUED job through the production path (resume_queued_job, a new Repository per worker).
+# Left: main 83424359. Right: the fix (this branch). Same script, 100 rounds each; the script follows below.
+
+== 83424359
+rounds=100 workers_per_round=6
+executions per round (executions: rounds): {0: 1, 1: 99}
+rounds with exactly one execution: 99/100; total executions: 99; max in one round: 1
+claims recorded per job (claims: jobs): {-1: 4, 1: 96}
+worker outcomes: {'cas_lost': 499, 'completed': 99}; worker exceptions: {'FileNotFoundError': 1, 'LifecycleError': 1}
+observer reads: 18322; reads that found no job: 862
+RESULT: FAIL
+== 1a001d9b + the repository fix
+rounds=100 workers_per_round=6
+executions per round (executions: rounds): {1: 100}
+rounds with exactly one execution: 100/100; total executions: 100; max in one round: 1
+claims recorded per job (claims: jobs): {1: 100}
+worker outcomes: {'cas_lost': 500, 'completed': 100}; worker exceptions: 0
+observer reads: 17336; reads that found no job: 0
+RESULT: PASS (one claim, one execution, no empty reads, every round)
+
+# --- script (race_proof.py) ---
+"""Race proof for resume -> claim -> CAS -> lifecycle transition, through the production path.
+
+Six workers, each with its own Repository (open_lifecycle_repo returns a new one per call, as in production), race to
+resume one QUEUED job. An observer thread reads the job file the whole time. Per round and in total we count how many
+workers executed the job, how many claims the job's transitions record, and how often the observer found no job.
+
+usage: PYTHONPATH=<tree> python race_proof.py [rounds]
+"""
+import subprocess
+import sys
+import tempfile
+import threading
+from collections import Counter
+from pathlib import Path
+
+from thinkbox.execution_authorization import authorization_record
+from thinkbox.governed_execution_lifecycle import (
+    PHASE_ADMISSION, PHASE_QUEUED, load_lifecycle, open_lifecycle_repo, persist_lifecycle_phase,
+)
+from thinkbox.governed_job_execution import SUBSTRATE_LOCAL
+from thinkbox.lifecycle_resume import OUTCOME_COMPLETED, resume_claim_count, resume_queued_job
+
+ROUNDS = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+WORKERS = 6
+COMMAND = "echo RACE"
+
+tmp = tempfile.TemporaryDirectory()
+repo_path = Path(tmp.name) / "repo"
+repo_path.mkdir()
+for cmd in (["git", "init", "-q", "-b", "main"], ["git", "config", "user.name", "T"], ["git", "config", "user.email", "t@e.x"],
+            ["git", "commit", "-q", "--allow-empty", "-m", "i"]):
+    subprocess.run(cmd, cwd=repo_path, check=True)
+
+
+def queue(job_id):
+    repo = open_lifecycle_repo(repo_path)
+    persist_lifecycle_phase(repo, job_id, PHASE_ADMISSION, goal="race", receipt_id="tb_rcpt_race", experiment_id="tb_exp_r",
+                            session_id="tb_sess_r", execution_substrate=SUBSTRATE_LOCAL,
+                            admission_binding=authorization_record(agent_id="a", capability="goal:execute",
+                                                                   execution_substrate=SUBSTRATE_LOCAL, exec_command=COMMAND))
+    persist_lifecycle_phase(repo, job_id, PHASE_QUEUED, receipt_id="tb_rcpt_race", execution_substrate=SUBSTRATE_LOCAL)
+
+
+executions = Counter()
+claims = Counter()
+outcomes = Counter()
+observer_reads = 0
+observer_missing = 0
+errors = Counter()
+for n in range(ROUNDS):
+    job_id = f"job_proof_{n}"
+    queue(job_id)
+    barrier = threading.Barrier(WORKERS + 1)
+    results = []
+    stop = threading.Event()
+    seen = {"reads": 0, "missing": 0}
+
+    def observer():
+        repo = open_lifecycle_repo(repo_path)
+        barrier.wait()
+        while not stop.is_set():
+            seen["reads"] += 1
+            if repo.job_status(job_id) is None:
+                seen["missing"] += 1
+
+    def worker():
+        repo = open_lifecycle_repo(repo_path)
+        barrier.wait()
+        try:
+            results.append(resume_queued_job(repo, job_id, exec_command=COMMAND))
+        except Exception as exc:  # a worker must lose cleanly, not crash
+            errors[type(exc).__name__] += 1
+
+    watcher = threading.Thread(target=observer)
+    threads = [threading.Thread(target=worker) for _ in range(WORKERS)]
+    watcher.start()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    stop.set()
+    watcher.join()
+    observer_reads += seen["reads"]
+    observer_missing += seen["missing"]
+    executions[sum(1 for r in results if r.executed)] += 1
+    for r in results:
+        outcomes[r.outcome] += 1
+    loaded = load_lifecycle(open_lifecycle_repo(repo_path), job_id)
+    claims[resume_claim_count(loaded["transitions"]) if loaded else -1] += 1
+
+total_exec = sum(k * v for k, v in executions.items())
+print(f"rounds={ROUNDS} workers_per_round={WORKERS}")
+print(f"executions per round (executions: rounds): {dict(sorted(executions.items()))}")
+print(f"rounds with exactly one execution: {executions.get(1, 0)}/{ROUNDS}; total executions: {total_exec}; "
+      f"max in one round: {max(executions) if executions else 0}")
+print(f"claims recorded per job (claims: jobs): {dict(sorted(claims.items()))}")
+print(f"worker outcomes: {dict(sorted(outcomes.items()))}; worker exceptions: {dict(errors) or 0}")
+print(f"observer reads: {observer_reads}; reads that found no job: {observer_missing}")
+ok = executions.get(1, 0) == ROUNDS and set(claims) == {1} and observer_missing == 0 and not errors
+print("RESULT:", "PASS (one claim, one execution, no empty reads, every round)" if ok else "FAIL")
+tmp.cleanup()
