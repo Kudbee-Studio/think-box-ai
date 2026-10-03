@@ -21,6 +21,7 @@ dependencies = [
 dev = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
+    "httpx2>=2.13",  # fastapi/starlette TestClient; backend tests cannot be collected without it
     "ruff==0.16.9",
     "mypy==2.3.1",
     "bandit==1.9.4",
@@ -33,6 +34,7 @@ lint = [
 test = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
+    "httpx2>=2.13",  # fastapi/starlette TestClient; backend tests cannot be collected without it
 ]
 
 [project.scripts]
