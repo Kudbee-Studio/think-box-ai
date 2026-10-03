@@ -395,6 +395,7 @@ ${c.bold('ANALYTICS & DEBUG')}
   /metrics            agent KPIs (runs, tokens, cost, success rate)
   /status             server health check
   /session            current session info (ID, model, agent, plugins)
+  /capacity           server load: running agents, pending approvals, CPU, memory
   /plugin NAME JSON   run a plugin with JSON input
   /algo ACTION [ADDR] read-only Algorand queries
 
@@ -721,6 +722,22 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
         }
       } catch (err) {
         console.log(c.red(`Error fetching metrics: ${err instanceof Error ? err.message : String(err)}`));
+      }
+      break;
+    }
+    case '/capacity': {
+      try {
+        const res = await fetch(`${HOST}/api/stats`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const cap = ((await res.json()) as any).capacity;
+        if (!cap) throw new Error('the server reported no capacity data');
+        console.log(c.bold('  Capacity (server)'));
+        console.log(`  Agents running: ${cap.running_agents} of ${cap.connected_sessions} connected session(s)`);
+        console.log(`  Pending approvals: ${cap.pending_approvals}`);
+        console.log(`  Server CPU: ${cap.server_cpu_pct}% · RSS ${cap.server_rss_mb} MB`);
+        console.log(`  System memory: ${cap.system_mem_used_pct}% of ${cap.system_mem_total_gb} GB · load ${(cap.load_avg ?? []).join(' / ')} · ${cap.cores} cores`);
+      } catch (err) {
+        console.log(c.red(`Error fetching capacity: ${err instanceof Error ? err.message : String(err)}`));
       }
       break;
     }

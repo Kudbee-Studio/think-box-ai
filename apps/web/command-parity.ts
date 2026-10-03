@@ -22,7 +22,7 @@ export const CORE: Array<{ capability: string; cli: string; dashboard: string }>
 
 export const PARITY: Record<string, Parity> = {
   // both sides
-  '/agent': { kind: 'both' }, '/algo': { kind: 'both' }, '/help': { kind: 'both' }, '/lessons': { kind: 'both' }, '/memory': { kind: 'both' }, '/metrics': { kind: 'both' },
+  '/agent': { kind: 'both' }, '/algo': { kind: 'both' }, '/capacity': { kind: 'both' }, '/help': { kind: 'both' }, '/lessons': { kind: 'both' }, '/memory': { kind: 'both' }, '/metrics': { kind: 'both' },
   '/model': { kind: 'both' }, '/models': { kind: 'both' }, '/notes': { kind: 'both' }, '/plugin': { kind: 'both' }, '/plugins': { kind: 'both' }, '/promote': { kind: 'both' }, '/remember': { kind: 'both' },
   '/run': { kind: 'both' }, '/runs': { kind: 'both' }, '/select': { kind: 'both' }, '/session': { kind: 'both' }, '/sessions': { kind: 'both' }, '/skill': { kind: 'both' }, '/skills': { kind: 'both' }, '/status': { kind: 'both' }, '/token': { kind: 'both' }, '/tokens': { kind: 'both' },
   // CLI commands whose dashboard counterpart is a view or control
@@ -37,7 +37,6 @@ export const PARITY: Record<string, Parity> = {
   '/clear': { kind: 'surface-only', reason: 'clears the dashboard terminal pane' }, '/refresh': { kind: 'surface-only', reason: 'repaints the dashboard' },
   '/shortcuts': { kind: 'surface-only', reason: 'dashboard keyboard shortcuts' }, '/theme': { kind: 'surface-only', reason: 'dashboard theme' },
   // real gaps (tracked; may only shrink)
-  '/capacity': { kind: 'gap', note: 'dashboard-only capacity view' },
   '/config': { kind: 'gap', note: 'dashboard-only settings command' },
   '/export': { kind: 'gap', note: 'dashboard-only export' },
   '/logs': { kind: 'gap', note: 'dashboard-only execution logs' },
@@ -46,4 +45,4 @@ export const PARITY: Record<string, Parity> = {
 };
 
 /** The number of gaps at the time this map was written. A new gap must be fixed (or consciously raise this number in a reviewed change). */
-export const MAX_GAPS = 6;
+export const MAX_GAPS = 5;

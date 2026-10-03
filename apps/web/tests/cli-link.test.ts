@@ -135,6 +135,18 @@ const runCli = (args: string[], home: string): Promise<{ status: number | null; 
 });
 const strip = (t: string): string => t.replace(/\x1b\[[0-9;]*m/g, '');
 
+test('/capacity prints the same server capacity numbers the dashboard shows', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const out = await runCli(['/capacity'], home);
+  const text = strip(out.stdout);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(text, /Capacity \(server\)/);
+  assert.match(text, /Agents running: \d+ of \d+ connected session/);
+  assert.match(text, /Pending approvals: \d+/);
+  assert.match(text, /System memory: [\d.]+% of [\d.]+ GB/);
+  assert.doesNotMatch(text, /Error fetching capacity|undefined|NaN/);
+});
+
 test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
   const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));
