@@ -47,6 +47,18 @@ type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
+
+/** An Error for a failed response: the server's own `error`/`message` when it sent one, else just `HTTP <status>`. */
+async function httpError(res: Response): Promise<Error> {
+  let detail = '';
+  try {
+    const body = (await res.json()) as { error?: unknown; message?: unknown };
+    detail = String(body.error ?? body.message ?? '');
+  } catch {
+    // not a JSON body
+  }
+  return new Error(detail ? `${detail} (HTTP ${res.status})` : `HTTP ${res.status}`);
+}
 interface Msg { type: string; data?: any }
 
 async function serverUp(): Promise<boolean> {
@@ -687,7 +699,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
           params.set(['account', 'account_transactions'].includes(resolved) ? 'address' : resolved === 'transaction' ? 'txid' : 'id', target);
         }
         const res = await fetch(`${HOST}/api/algorand?${params}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw await httpError(res);
         const body = (await res.json()) as Record<string, unknown>;
         console.log(JSON.stringify(body, null, 2));
       } catch (err) {

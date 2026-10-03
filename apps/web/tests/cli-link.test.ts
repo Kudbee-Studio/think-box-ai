@@ -147,6 +147,12 @@ test('/capacity prints the same server capacity numbers the dashboard shows', as
   assert.doesNotMatch(text, /Error fetching capacity|undefined|NaN/);
 });
 
+test('/algo shows the server\'s own error message, not just "HTTP 400"', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
+  const algo = strip((await runCli(['/algo', 'account', 'notanaddress'], home)).stdout);
+  assert.match(algo, /^Error: address is not a valid Algorand address \(HTTP 400\)$/m);
+});
+
 test('live-run fixes through the real server and CLI: the planner is told the known repository; the final answer is printed after an evidence-check retry; no repeated Ollama warning when Ollama is absent', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-home-'));
   const verdict = (conflict: boolean, detail: string) => say(JSON.stringify({ conflict, detail }));
