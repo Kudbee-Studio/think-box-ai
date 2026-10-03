@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,7 @@ class TestExportProofBundle(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.store.close()
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_export_creates_files(self) -> None:
         self.store.append("admit", "allowed", "ok", "verified")
@@ -46,8 +48,8 @@ class TestExportProofBundle(unittest.TestCase):
         self.assertTrue(manifest["chain_valid"])
 
     def test_export_with_tamper_shows_invalid(self) -> None:
-        import sqlite3, tempfile
-        path = tempfile.mktemp(suffix=".db")
+        import sqlite3
+        path = os.path.join(self.tmpdir, "tamper.db")
         store = ActionReceiptStore(path)
         store.append("admit", "allowed", "ok", "verified")
         conn = sqlite3.connect(path)
