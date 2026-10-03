@@ -364,7 +364,7 @@ class GitIntegration {
       sectionNode = document.createElement('div');
       sectionNode.className = 'file-tree-section';
       sectionNode.dataset.section = section;
-      sectionNode.innerHTML = `<div class="section-name">${section}</div>`;
+      sectionNode.innerHTML = `<div class="section-name">${this.escapeHtml(section)}</div>`;
       fileTreeContainer.appendChild(sectionNode);
     }
 
@@ -375,7 +375,7 @@ class GitIntegration {
     fileNode.innerHTML = `
       <div class="file-tree-entry">
         <span class="icon">✨</span>
-        <span class="name">${file.path.split('/').pop()}</span>
+        <span class="name">${this.escapeHtml(file.path.split('/').pop())}</span>
         <span class="badge">${file.language}</span>
       </div>
     `;

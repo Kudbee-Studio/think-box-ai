@@ -53,3 +53,11 @@ test('the file editor escapes the file name and never puts the file path into in
   assert.ok(!fn.includes("saveFile('${filePath}'"), 'the path is interpolated into an inline onclick');
   assert.match(fn, /addEventListener\('click', \(event\) => this\.saveFile\(filePath, event\.currentTarget\)\)/);
 });
+
+test('the generated-files list escapes the file name the agent chose', () => {
+  const fn = src.slice(src.indexOf('addFileToTree(file, section) {'));
+  const body = fn.slice(0, fn.indexOf('\n  }\n'));
+  assert.ok(!body.includes("${file.path.split('/').pop()}"), 'the agent-chosen file name reaches innerHTML raw');
+  assert.ok(body.includes("${this.escapeHtml(file.path.split('/').pop())}"));
+  assert.ok(body.includes('<div class="section-name">${this.escapeHtml(section)}</div>'));
+});
