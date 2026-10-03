@@ -53,18 +53,20 @@ html, body { max-width: 100%; overflow-x: hidden; }
   /* flex-start + auto margin: when the toolbar overflows, it scrolls from its first button instead of
      clipping it (flex-end overflow is unreachable). */
   min-width: 0; flex: 0 1 auto; margin-left: auto; justify-content: flex-start;
-  gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 2px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 2px;
 }
 .header-right::-webkit-scrollbar { display: none; }
 .header-right > * { flex-shrink: 0; }
-.header-right .btn-icon { width: 34px; height: 34px; font-size: 15px; }
+.header-right { gap: 4px; }
+.header-right .btn-icon { width: 30px; height: 30px; padding: 0; border-radius: 7px; }
+.btn-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .header-right .btn-secondary { padding: 7px 12px; white-space: nowrap; }
 @media (max-width: 1599px) {
   .model-selector label, .agent-selector label { display: none; }
 }
-/* Below ~1760px the toolbar (15 icon buttons, Think Tokens, status, Clear) cannot share a row with the pickers:
+/* Below ~1680px the toolbar (15 icon buttons, Think Tokens, status, Clear) cannot share a row with the pickers:
    it gets its own row rather than hiding buttons behind an invisible scrollbar */
-@media (max-width: 1759px) {
+@media (max-width: 1679px) {
   .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
   .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; overflow: visible; }
 }

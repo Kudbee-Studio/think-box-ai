@@ -67,6 +67,9 @@ Nothing in this repository may push to a remote on commit, hook, or timer. Only 
 While GitHub Actions is billing-locked, merging with `--admin` is ALLOWED only after gates 1 to 5 in 0.1 pass, and the PR body must say "CI bypassed: founder authorization, billing lock; local act gate passed." Any other `--admin` or bypass is FORBIDDEN (the breach of 2026-10-02 is recorded in `docs/evidence/adr-029-p3/merge-breach.md`). When billing clears, gate 2 becomes "GitHub CI green" again and this section expires.
 If a gate cannot run (for example Docker is not installed, so `act` cannot run), the gate has not passed: the PR waits.
 
+**Recognizing the billing lock (2026-10-03).** Red CI on this repository is currently a GitHub billing error, not a code failure. The signature: every job, including CodeQL and runs on `main`, ends `failure` within 2 to 4 seconds with no steps executed and no downloadable logs (seen on `main` run 1331, PR #346 and every PR #347/#348 commit). Do not debug, re-run or push to "fix" it (0.2 forbids CI re-runs). Report it as "CI: billing lock, not a code result" and prove the change with the local gates in 0.1: tests, typecheck, `act` (install nektos/act; Docker is present on the cloud image but `act` is not) and the evidence table. A job that runs for minutes and then fails is a real failure; the lock is the instant one. This note expires with 0.8 when billing clears.
+
+
 ### 0.9 After merge
 
 Pull `main`, delete the branch, and start the next queued prompt.
