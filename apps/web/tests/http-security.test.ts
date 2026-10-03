@@ -41,9 +41,10 @@ test('CSP: scripts only from self, no eval, no inline handlers, no framing, no p
   assert.equal(dir('base-uri'), "base-uri 'none'");
   assert.equal(dir('form-action'), "form-action 'self'");
   assert.equal(dir('default-src'), "default-src 'self'");
-  assert.match(dir('connect-src'), /ws:\/\/127\.0\.0\.1:3000 ws:\/\/localhost:3000/);
-  assert.doesNotMatch(csp, /https?:\/\/(?!127\.0\.0\.1|localhost)/, 'no third-party origin is allowed');
+  assert.match(dir('connect-src'), /ws:\/\/127\.0\.0\.1:3000 ws:\/\/localhost:3000 ws:\/\/\[::1\]:3000/);
+  assert.doesNotMatch(csp, /https?:\/\/(?!127\.0\.0\.1|localhost|\[::1\])/, 'no third-party origin is allowed');
   assert.match(contentSecurityPolicy(8123), /ws:\/\/127\.0\.0\.1:8123/);
+  assert.match(contentSecurityPolicy(8123), /ws:\/\/\[::1\]:8123/);
 });
 
 test('securityHeaders sets every header and calls next', () => {

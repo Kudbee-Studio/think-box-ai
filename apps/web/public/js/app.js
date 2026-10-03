@@ -311,7 +311,7 @@ function appendTerminalImage(role, content, imageUrl, alt) {
   body.textContent = content;
   const image = document.createElement('img');
   image.className = 'terminal-image';
-  image.src = imageUrl;
+  if (isSafeImageUrl(imageUrl)) image.src = imageUrl;
   image.alt = alt;
   message.append(header, body, image);
   terminal.appendChild(message);
@@ -482,7 +482,7 @@ function renderTasks() {
       <button type="button" class="task-action" data-task-action="${task.status === 'running' ? 'done' : 'start'}" data-task-id="${escapeHtml(task.id)}">${task.status === 'running' ? 'Complete' : 'Start'}</button>
       <button type="button" class="task-action" data-task-action="block" data-task-id="${escapeHtml(task.id)}">Block</button>
     `;
-    const attachments = (task.attachments || []).map(image => `<img class="task-attachment" src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.filename)}" loading="lazy">`).join('');
+    const attachments = (task.attachments || []).filter(image => isSafeImageUrl(image.imageUrl)).map(image => `<img class="task-attachment" src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.filename)}" loading="lazy">`).join('');
     const activity = (task.activity || []).slice(-5).reverse().map(item => `<div class="task-activity-row"><span>${escapeHtml(item.action)}</span><small>${escapeHtml(item.actor)} · ${new Date(item.timestamp).toLocaleString()}</small>${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}</div>`).join('');
     return `
       <article class="task-item ${escapeHtml(task.status)} priority-${escapeHtml(task.priority || 'medium')}" data-task="${escapeHtml(task.id)}"${state.runProgress[task.id] ? ` data-run="${escapeHtml(task.id)}" title="Click to open run timeline"` : ''}>
@@ -1878,6 +1878,14 @@ function stopGoal() {
 function escapeHtml(text) {
   const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   return String(text ?? '').replace(/[&<>"']/g, ch => entities[ch]);
+}
+
+// An image URL is only rendered when it is a same-origin path (`/api/...`) or an inline `data:image/*`.
+// The server builds attachment URLs itself, but the client does not assume that: a `javascript:`/`vbscript:`/
+// absolute or `data:text/html` value must never reach an <img>. `//host/x` is protocol-relative, i.e. absolute,
+// so a single leading slash only (the negative lookahead rejects a second slash). CSP `img-src` is the backstop.
+function isSafeImageUrl(url) {
+  return typeof url === 'string' && /^\/(?!\/)|^data:image\//.test(url);
 }
 
 // ─── Event Listeners ───────────────────────────────────────────
