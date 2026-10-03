@@ -26,10 +26,10 @@ class TestStreamErrorRedaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         try:
-            importlib.import_module("fastapi")
-            importlib.import_module("httpx")
-        except ImportError as exc:  # pragma: no cover - needs the test dependencies
-            raise unittest.SkipTest(f"fastapi/httpx not installed: {exc}") from exc
+            # The TestClient import itself fails without its HTTP client (httpx2, or httpx on older Starlette).
+            importlib.import_module("fastapi.testclient")
+        except (ImportError, RuntimeError) as exc:  # pragma: no cover - needs the test dependencies
+            raise unittest.SkipTest(f"fastapi TestClient unavailable: {exc}") from exc
         cls._env = patch.dict(os.environ, {"THINKBOX_API_KEY": _KEY})
         cls._env.start()
         cls.main = importlib.import_module("backend.main")
@@ -43,13 +43,18 @@ class TestStreamErrorRedaction(unittest.TestCase):
         from fastapi.testclient import TestClient
 
         fake_ctx = SimpleNamespace(provider=_FailingProvider(), tool_registry=None)
-        with patch.object(self.main, "ctx", fake_ctx):
+        with patch.object(self.main, "ctx", fake_ctx), self.assertLogs("thinkbox.backend.main", level="ERROR") as logs:
             client = TestClient(self.main.app)  # no `with`: the startup bootstrap does not run
             res = client.get("/stream", params={"goal": "say hi"}, headers={self.header: _KEY})
         self.assertEqual(res.status_code, 200, res.text)
         self.assertIn('"type": "error"', res.text)
+        self.assertIn("RuntimeError", res.text)
+        logged = "\n".join(logs.output)
+        self.assertIn("RuntimeError", logged)
+        # Upstream error text can echo key fragments (AGENTS.md 0.4: keys are never printed or logged).
         for fragment in ("sk-test-0123", "10.0.0.5", "upstream 401"):
             self.assertNotIn(fragment, res.text)
+            self.assertNotIn(fragment, logged)
 
 
 if __name__ == "__main__":
