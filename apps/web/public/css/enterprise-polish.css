@@ -2,6 +2,11 @@
    Enhances main-pro.css and polish.css with enterprise-grade design patterns.
    Loaded AFTER polish.css for proper cascade precedence. */
 
+/* The HTML `hidden` attribute must win over component display rules (.btn-secondary, forms, …).
+   This rule is duplicated from polish.css to ensure it remains the final override
+   even as additional stylesheets are added. */
+[hidden] { display: none !important; }
+
 /* ─── SECTION 1: BUTTON STATES & INTERACTIONS ─── */
 
 /* Primary buttons: enhanced hover, active, and focus states */
