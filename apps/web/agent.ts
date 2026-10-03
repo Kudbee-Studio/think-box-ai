@@ -506,8 +506,12 @@ async function chat(
     choices: Array<{ message: AgentMessage }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
+  const message = data.choices?.[0]?.message;
+  if (!message) {
+    throw new Error(`Inception API returned no choices: ${truncate(JSON.stringify(data), 300)}`);
+  }
   return {
-    message: data.choices[0].message,
+    message,
     prompt: data.usage?.prompt_tokens ?? 0,
     completion: data.usage?.completion_tokens ?? 0,
   };

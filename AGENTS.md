@@ -2973,4 +2973,5 @@ Dashboard CLI: `/help`, `/algo`, `/memory`, `/remember`, `/promote`, `/metrics`,
 
 - `apps/web/ollama-line.ts` `parseOllamaLine()`: one garbled line in Ollama's NDJSON chat stream is skipped; before, it threw and aborted the whole local answer. Test: `tests/ollama-line.test.ts`.
 - Dashboard terminal `/memory`, `/notes` and the `/remote` governed-job poll now check `res.ok` and report `HTTP <status>` instead of a "Cannot read properties of undefined" message.
-- No behavior change on success paths. Tests 504/504, `tsc` and lint clean.
+- `agent.ts` `chatCompletion`: an HTTP 200 reply with no `choices` now fails the run with `Inception API returned no choices: ...` instead of `Cannot read properties of undefined (reading 'message')`. Test: `tests/agent.test.ts` (mock reply `noChoices`).
+- No behavior change on success paths. Tests 505/505, `tsc` and lint clean.

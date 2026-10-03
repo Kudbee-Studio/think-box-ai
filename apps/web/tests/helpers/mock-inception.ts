@@ -7,6 +7,8 @@ export interface ScriptedReply {
   content?: string | null;
   tool_calls?: Array<{ name: string; args: Record<string, unknown> | string }>;
   status?: number;
+  /** HTTP 200 whose body has no usable choices (some providers do this instead of an error status). */
+  noChoices?: boolean;
   delayMs?: number;
   usage?: { prompt_tokens: number; completion_tokens: number };
 }
@@ -50,6 +52,11 @@ export async function startMockInception(): Promise<MockInception> {
           if (reply.status && reply.status !== 200) {
             res.writeHead(reply.status, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: { message: 'mock failure' } }));
+            return;
+          }
+          if (reply.noChoices) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ choices: [], error: { message: 'mock empty' } }));
             return;
           }
           const tool_calls = reply.tool_calls?.map((tc) => ({
