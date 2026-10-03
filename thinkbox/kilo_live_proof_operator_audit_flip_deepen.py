@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_operator_prep_deepen import (
     GATE_ID as PREP_DEEPEN_GATE,
 )
@@ -169,6 +170,7 @@ def run_audit_flip_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_live_proof_operator_audit_flip_deepen(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -245,6 +247,7 @@ def evaluate_live_proof_operator_audit_flip_deepen(
     )
 
 
+@evaluated_once
 def hermetic_live_proof_operator_audit_flip_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> OperatorAuditFlipDeepenResult:
@@ -252,12 +255,14 @@ def hermetic_live_proof_operator_audit_flip_deepen_check(
     return evaluate_live_proof_operator_audit_flip_deepen(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def live_proof_operator_audit_flip_deepen_gate_closed() -> bool:
     return hermetic_live_proof_operator_audit_flip_deepen_check(
         minimal_live_proof_operator_audit_flip_deepen_environ(),
     ).ok
 
 
+@evaluated_once
 def live_proof_operator_audit_flip_deepen_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

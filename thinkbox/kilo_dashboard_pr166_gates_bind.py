@@ -25,6 +25,7 @@ from thinkbox.kilo_dashboard_slots import (
     hermetic_dashboard_slots_operator_check,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_operator_prep_deepen import (
     hermetic_live_proof_operator_prep_deepen_check,
 )
@@ -120,6 +121,7 @@ def _theme_hermetic_map(env: Mapping[str, str]) -> dict[str, bool]:
     }
 
 
+@evaluated_once
 def evaluate_dashboard_pr166_gates_bind(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -171,6 +173,7 @@ def evaluate_dashboard_pr166_gates_bind(
     )
 
 
+@evaluated_once
 def hermetic_dashboard_pr166_gates_bind_check(
     environ: Mapping[str, str] | None = None,
 ) -> DashboardPr166BindResult:
@@ -178,12 +181,14 @@ def hermetic_dashboard_pr166_gates_bind_check(
     return evaluate_dashboard_pr166_gates_bind(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def dashboard_pr166_gates_bind_gate_closed() -> bool:
     return hermetic_dashboard_pr166_gates_bind_check(
         minimal_dashboard_pr166_gates_bind_environ(),
     ).ok
 
 
+@evaluated_once
 def dashboard_pr166_gates_bind_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

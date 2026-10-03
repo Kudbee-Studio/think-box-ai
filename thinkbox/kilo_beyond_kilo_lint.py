@@ -24,6 +24,7 @@ from thinkbox.beyond_kilo_lint import (
     validate_lint_scope_paths,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_pr169_combined_post168_lane import GATE_ID as PRIOR_UMBRELLA_GATE_ID
@@ -147,6 +148,7 @@ def run_beyond_kilo_lint_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_beyond_kilo_lint(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -211,6 +213,7 @@ def evaluate_beyond_kilo_lint(
     )
 
 
+@evaluated_once
 def hermetic_beyond_kilo_lint_check(
     environ: Mapping[str, str] | None = None,
 ) -> BeyondKiloLintResult:
@@ -222,10 +225,12 @@ def hermetic_beyond_kilo_lint_check(
     )
 
 
+@evaluated_once
 def beyond_kilo_lint_gate_closed() -> bool:
     return hermetic_beyond_kilo_lint_check(minimal_beyond_kilo_lint_environ()).ok
 
 
+@evaluated_once
 def beyond_kilo_lint_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

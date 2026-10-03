@@ -23,6 +23,7 @@ from thinkbox.kilo_env_matrix import (
     hermetic_operator_check,
     minimal_hermetic_environ,
 )
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import gate_for_pr
 
 __all__ = (
@@ -334,6 +335,7 @@ def _matrix_violations_to_substrate(
     ]
 
 
+@evaluated_once
 def evaluate_substrate_checklist(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -361,6 +363,7 @@ def evaluate_substrate_checklist(
     )
 
 
+@evaluated_once
 def hermetic_substrate_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> SubstrateChecklistResult:
@@ -383,6 +386,7 @@ def hermetic_substrate_operator_check(
     )
 
 
+@evaluated_once
 def substrate_checklist_gate_closed() -> bool:
     """True when PR #143 gate passes under hermetic_unit with clean env."""
     gate = gate_for_pr(PR_NUMBER)
@@ -394,6 +398,7 @@ def substrate_checklist_gate_closed() -> bool:
     return op.ok and unit.ok
 
 
+@evaluated_once
 def substrate_checklist_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

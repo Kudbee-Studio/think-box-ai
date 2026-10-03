@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 GATE_ID = "cloud-execution-worker-orchestrator"
@@ -76,6 +77,7 @@ def validate_features_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def cloud_execution_worker_orchestrator_contract_summary(
     repo_root: Path | None = None,
 ) -> dict[str, Any]:

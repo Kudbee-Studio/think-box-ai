@@ -25,6 +25,7 @@ from thinkbox.kilo_dashboard_slots import (
     redact_dashboard_slots_summary,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import redact_secret_value
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT, gate_for_pr, gate_ids
 from thinkbox.kilo_proof_schema import HALT_REASONS, redact_proof_summary
@@ -592,6 +593,7 @@ def _plan_contract_check() -> tuple[bool, str]:
     return True, "execution plan contract present"
 
 
+@evaluated_once
 def evaluate_live_proof_exec(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -671,6 +673,7 @@ def evaluate_live_proof_exec(
     )
 
 
+@evaluated_once
 def hermetic_live_proof_exec_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> LiveProofExecResult:
@@ -678,6 +681,7 @@ def hermetic_live_proof_exec_operator_check(
     return evaluate_live_proof_exec(detect_matrix_mode(env), env, run_fixtures=True)
 
 
+@evaluated_once
 def live_proof_exec_gate_closed() -> bool:
     gate = gate_for_pr(PR_NUMBER)
     if gate is None or gate.gate_id != GATE_ID:
@@ -692,6 +696,7 @@ def redact_live_proof_exec_summary(text: str) -> str:
     return redact_proof_summary(redact_dashboard_slots_summary(text))
 
 
+@evaluated_once
 def live_proof_exec_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

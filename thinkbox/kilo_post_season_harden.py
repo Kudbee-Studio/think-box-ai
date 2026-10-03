@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_exec import (
     hermetic_live_proof_exec_operator_check,
     minimal_live_proof_exec_environ,
@@ -207,6 +208,7 @@ def _check_spine_scripts_present() -> tuple[bool, tuple[PostSeasonHardenViolatio
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def evaluate_post_season_harden(
     mode: EnvMatrixMode | PostSeasonHardenMode,
     environ: Mapping[str, str],
@@ -336,6 +338,7 @@ def minimal_post_season_harden_environ(
     return env
 
 
+@evaluated_once
 def hermetic_post_season_harden_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> PostSeasonHardenResult:
@@ -343,6 +346,7 @@ def hermetic_post_season_harden_operator_check(
     return evaluate_post_season_harden(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def post_season_harden_gate_closed() -> bool:
     env = minimal_post_season_harden_environ()
     unit = evaluate_post_season_harden(EnvMatrixMode.HERMETIC_UNIT, env)
@@ -350,6 +354,7 @@ def post_season_harden_gate_closed() -> bool:
     return unit.ok and op.ok
 
 
+@evaluated_once
 def post_season_harden_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

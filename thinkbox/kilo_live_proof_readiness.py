@@ -43,6 +43,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from thinkbox.kilo_eval_scope import evaluated_once
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 RUNBOOK_REL = Path("docs/runbooks/kilo-live-proof-readiness.md")
@@ -212,6 +214,7 @@ def _spine_fast_mode_context(fast: bool) -> Iterator[None]:
             os.environ["KILO_SPINE_FAST"] = previous
 
 
+@evaluated_once
 def spine_contract_summary(fast: bool = False) -> dict[str, object]:
     """Hermetic summary for CLI/dashboard consumers (no I/O beyond spine reads).
 

@@ -32,6 +32,7 @@ from thinkbox.kilo_end_link_deepen import (
     minimal_end_link_deepen_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -266,6 +267,7 @@ def run_operator_ux_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_end_link_operator_ux(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -318,6 +320,7 @@ def evaluate_end_link_operator_ux(
     )
 
 
+@evaluated_once
 def hermetic_end_link_operator_ux_check(
     environ: Mapping[str, str] | None = None,
 ) -> EndLinkOperatorUxResult:
@@ -325,10 +328,12 @@ def hermetic_end_link_operator_ux_check(
     return evaluate_end_link_operator_ux(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def end_link_operator_ux_gate_closed() -> bool:
     return hermetic_end_link_operator_ux_check(minimal_end_link_operator_ux_environ()).ok
 
 
+@evaluated_once
 def end_link_operator_ux_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

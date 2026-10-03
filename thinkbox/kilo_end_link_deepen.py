@@ -29,6 +29,7 @@ from thinkbox.kilo_api_ops_harden import (
     minimal_api_ops_harden_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -238,6 +239,7 @@ def run_deepen_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_end_link_deepen(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -288,6 +290,7 @@ def evaluate_end_link_deepen(
     )
 
 
+@evaluated_once
 def hermetic_end_link_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> EndLinkDeepenResult:
@@ -295,10 +298,12 @@ def hermetic_end_link_deepen_check(
     return evaluate_end_link_deepen(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def end_link_deepen_gate_closed() -> bool:
     return hermetic_end_link_deepen_check(minimal_end_link_deepen_environ()).ok
 
 
+@evaluated_once
 def end_link_deepen_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

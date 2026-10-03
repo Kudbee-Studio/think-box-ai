@@ -20,6 +20,7 @@ from thinkbox.kilo_dashboard_pr165_gates_bind import (
     hermetic_dashboard_pr165_gates_bind_check,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_operator_prep_deepen import (
     GATE_ID as THEME_A_GATE_ID,
     hermetic_live_proof_operator_prep_deepen_check,
@@ -117,6 +118,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[Pr166CombinedVio
     return violations
 
 
+@evaluated_once
 def evaluate_pr166_combined_post165_lane(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -169,6 +171,7 @@ def evaluate_pr166_combined_post165_lane(
     )
 
 
+@evaluated_once
 def hermetic_pr166_combined_post165_lane_check(
     environ: Mapping[str, str] | None = None,
 ) -> Pr166CombinedResult:
@@ -176,10 +179,12 @@ def hermetic_pr166_combined_post165_lane_check(
     return evaluate_pr166_combined_post165_lane(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def pr166_combined_post165_lane_gate_closed() -> bool:
     return hermetic_pr166_combined_post165_lane_check(minimal_pr166_combined_environ()).ok
 
 
+@evaluated_once
 def pr166_combined_post165_lane_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

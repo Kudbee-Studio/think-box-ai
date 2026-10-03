@@ -15,6 +15,7 @@ from thinkbox.kilo_control_plane_post164_deepen import (
     minimal_control_plane_post164_deepen_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence_live_proof_readiness import GATE_ID as PRIOR_GATE_ID
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_audit_flip_harden import (
@@ -116,6 +117,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[Pr165CombinedVio
     return violations
 
 
+@evaluated_once
 def evaluate_pr165_combined_harden_era_chronicle(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -177,6 +179,7 @@ def evaluate_pr165_combined_harden_era_chronicle(
     )
 
 
+@evaluated_once
 def hermetic_pr165_combined_harden_era_chronicle_check(
     environ: Mapping[str, str] | None = None,
 ) -> Pr165CombinedResult:
@@ -184,10 +187,12 @@ def hermetic_pr165_combined_harden_era_chronicle_check(
     return evaluate_pr165_combined_harden_era_chronicle(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def pr165_combined_harden_era_chronicle_gate_closed() -> bool:
     return hermetic_pr165_combined_harden_era_chronicle_check(minimal_pr165_combined_environ()).ok
 
 
+@evaluated_once
 def pr165_combined_harden_era_chronicle_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

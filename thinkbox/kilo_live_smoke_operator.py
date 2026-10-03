@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_exec import FOUNDER_ACK_ENV, live_exec_env_ready
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_evidence import (
@@ -430,6 +431,7 @@ def _hermetic_roundtrip_write() -> tuple[bool, str]:
     return True, "hermetic roundtrip ok"
 
 
+@evaluated_once
 def evaluate_live_smoke_operator(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -500,6 +502,7 @@ def evaluate_live_smoke_operator(
     )
 
 
+@evaluated_once
 def hermetic_live_smoke_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> SmokeOperatorResult:
@@ -509,6 +512,7 @@ def hermetic_live_smoke_operator_check(
     return evaluate_live_smoke_operator(detect_matrix_mode(env), env, run_fixtures=True)
 
 
+@evaluated_once
 def live_smoke_operator_gate_closed() -> bool:
     env = minimal_live_smoke_operator_environ()
     op = hermetic_live_smoke_operator_check(env)
@@ -522,6 +526,7 @@ def redact_operator_summary(text: str) -> str:
     return redact_smoke_evidence_summary(text)
 
 
+@evaluated_once
 def live_smoke_operator_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

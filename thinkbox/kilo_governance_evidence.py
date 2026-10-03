@@ -25,6 +25,7 @@ from thinkbox.kilo_env_matrix import (
     detect_matrix_mode,
     evaluate_env_matrix,
 )
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import gate_for_pr
 from thinkbox.kilo_substrate_checklist import (
     SubstrateViolation,
@@ -301,6 +302,7 @@ def build_live_burst_evidence(
     )
 
 
+@evaluated_once
 def evaluate_governance_evidence(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -386,6 +388,7 @@ def _violations_for_hermetic_operator(env: Mapping[str, str]) -> list[Governance
     return hits
 
 
+@evaluated_once
 def hermetic_governance_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> GovernanceEvidenceResult:
@@ -428,6 +431,7 @@ def hermetic_governance_operator_check(
     )
 
 
+@evaluated_once
 def governance_evidence_gate_closed() -> bool:
     """True when PR #145 gate passes under hermetic_unit with clean env."""
     gate = gate_for_pr(PR_NUMBER)
@@ -460,6 +464,7 @@ def governance_evidence_gate_closed() -> bool:
     return op.ok and unit.ok
 
 
+@evaluated_once
 def governance_evidence_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

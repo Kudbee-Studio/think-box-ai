@@ -24,6 +24,7 @@ from thinkbox.end_link_api_ops_harden import (
     validate_chain_filter_query,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_receipt_chain_end_link_docs import (
     GATE_ID as PRIOR_GATE_ID,
@@ -258,6 +259,7 @@ def run_api_ops_harden_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_end_link_api_ops_harden(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -308,6 +310,7 @@ def evaluate_end_link_api_ops_harden(
     )
 
 
+@evaluated_once
 def hermetic_end_link_api_ops_harden_check(
     environ: Mapping[str, str] | None = None,
 ) -> EndLinkApiOpsHardenResult:
@@ -315,10 +318,12 @@ def hermetic_end_link_api_ops_harden_check(
     return evaluate_end_link_api_ops_harden(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def end_link_api_ops_harden_gate_closed() -> bool:
     return hermetic_end_link_api_ops_harden_check(minimal_end_link_api_ops_harden_environ()).ok
 
 
+@evaluated_once
 def end_link_api_ops_harden_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

@@ -18,6 +18,7 @@ from thinkbox.control_plane_post164_deepen import (
     validate_post164_request_envelope,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence_live_proof_readiness import (
     GATE_ID as PRIOR_GATE_ID,
 )
@@ -135,6 +136,7 @@ def run_post164_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_control_plane_post164_deepen(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -179,6 +181,7 @@ def evaluate_control_plane_post164_deepen(
     )
 
 
+@evaluated_once
 def hermetic_control_plane_post164_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> ControlPlanePost164DeepenResult:
@@ -186,12 +189,14 @@ def hermetic_control_plane_post164_deepen_check(
     return evaluate_control_plane_post164_deepen(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def control_plane_post164_deepen_gate_closed() -> bool:
     return hermetic_control_plane_post164_deepen_check(
         minimal_control_plane_post164_deepen_environ(),
     ).ok
 
 
+@evaluated_once
 def control_plane_post164_deepen_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

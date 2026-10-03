@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.think_job_lifecycle_fixes.negotiation import (
     GATE_ID,
@@ -143,6 +144,7 @@ def validate_local_setup_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def local_environment_contract_summary(
     repo_root: Path | None = None,
     *,
@@ -170,6 +172,7 @@ def local_environment_contract_summary(
     }
 
 
+@evaluated_once
 def think_job_lifecycle_fixes_contract_summary(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     fixes_ok, violations = validate_fixes_manifest(repo_root=root)

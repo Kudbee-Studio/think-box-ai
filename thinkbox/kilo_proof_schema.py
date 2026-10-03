@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import redact_secret_value
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT, gate_for_pr, gate_ids
 from thinkbox.kilo_substrate_checklist import redact_box_token, redact_box_url
@@ -695,6 +696,7 @@ def _schema_contract_check() -> tuple[bool, str]:
     return True, "schema contract present"
 
 
+@evaluated_once
 def evaluate_proof_schema(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -761,6 +763,7 @@ def evaluate_proof_schema(
     )
 
 
+@evaluated_once
 def hermetic_proof_schema_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> ProofSchemaResult:
@@ -769,6 +772,7 @@ def hermetic_proof_schema_operator_check(
     return evaluate_proof_schema(detect_matrix_mode(env), env, run_fixtures=True)
 
 
+@evaluated_once
 def proof_schema_gate_closed() -> bool:
     """True when PR #148 gate passes under hermetic operator + unit evaluation."""
     gate = gate_for_pr(PR_NUMBER)
@@ -785,6 +789,7 @@ def redact_proof_summary(text: str) -> str:
     return redact_swarm_summary(text)
 
 
+@evaluated_once
 def proof_schema_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

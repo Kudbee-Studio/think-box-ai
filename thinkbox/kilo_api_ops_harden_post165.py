@@ -21,6 +21,7 @@ from thinkbox.kilo_api_ops_harden import (
     minimal_api_ops_harden_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_pr165_combined_harden_era_chronicle import (
     GATE_ID as PR165_GATE_ID,
@@ -134,6 +135,7 @@ def run_post165_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_api_ops_harden_post165(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -176,6 +178,7 @@ def evaluate_api_ops_harden_post165(
     )
 
 
+@evaluated_once
 def hermetic_api_ops_harden_post165_check(
     environ: Mapping[str, str] | None = None,
 ) -> ApiOpsPost165Result:
@@ -183,10 +186,12 @@ def hermetic_api_ops_harden_post165_check(
     return evaluate_api_ops_harden_post165(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def api_ops_harden_post165_gate_closed() -> bool:
     return hermetic_api_ops_harden_post165_check(minimal_api_ops_harden_post165_environ()).ok
 
 
+@evaluated_once
 def api_ops_harden_post165_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

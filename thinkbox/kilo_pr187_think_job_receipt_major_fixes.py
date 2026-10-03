@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.think_job_run_receipt_deepen.negotiation import THINK_JOB_RUN_RECEIPT_DEEPEN_VERSION
 
@@ -94,6 +95,7 @@ def validate_fixes_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def think_job_receipt_major_fixes_contract_summary(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     fixes_ok, violations = validate_fixes_manifest(repo_root=root)

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_operator_audit_flip_post167 import (
     GATE_ID as POST167_THEME_A_GATE,
@@ -150,6 +151,7 @@ def run_audit_flip_post168_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_live_proof_operator_audit_flip_post168(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -199,6 +201,7 @@ def evaluate_live_proof_operator_audit_flip_post168(
     )
 
 
+@evaluated_once
 def hermetic_live_proof_operator_audit_flip_post168_check(
     environ: Mapping[str, str] | None = None,
 ) -> OperatorAuditFlipPost168Result:
@@ -210,12 +213,14 @@ def hermetic_live_proof_operator_audit_flip_post168_check(
     )
 
 
+@evaluated_once
 def live_proof_operator_audit_flip_post168_gate_closed() -> bool:
     return hermetic_live_proof_operator_audit_flip_post168_check(
         minimal_live_proof_operator_audit_flip_post168_environ(),
     ).ok
 
 
+@evaluated_once
 def live_proof_operator_audit_flip_post168_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

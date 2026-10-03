@@ -30,6 +30,7 @@ from thinkbox.kilo_control_plane_e2e_deepen import (
     minimal_control_plane_e2e_deepen_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import (
     GATE_ID as GOVERNANCE_EVIDENCE_GATE_ID,
 )
@@ -323,6 +324,7 @@ def run_readiness_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_governance_evidence_live_proof_readiness(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -451,6 +453,7 @@ def evaluate_governance_evidence_live_proof_readiness(
     )
 
 
+@evaluated_once
 def hermetic_governance_evidence_live_proof_readiness_check(
     environ: Mapping[str, str] | None = None,
 ) -> GovernanceEvidenceLiveProofReadinessResult:
@@ -458,12 +461,14 @@ def hermetic_governance_evidence_live_proof_readiness_check(
     return evaluate_governance_evidence_live_proof_readiness(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def governance_evidence_live_proof_readiness_gate_closed() -> bool:
     return hermetic_governance_evidence_live_proof_readiness_check(
         minimal_governance_evidence_live_proof_readiness_environ()
     ).ok
 
 
+@evaluated_once
 def governance_evidence_live_proof_readiness_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

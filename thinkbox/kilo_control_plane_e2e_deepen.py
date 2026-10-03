@@ -26,6 +26,7 @@ from thinkbox.kilo_end_link_api_ops_harden import (
     minimal_end_link_api_ops_harden_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_hermetic_subprocess import (
     DEFAULT_E2E_UNITTEST_TIMEOUT_SECONDS,
     e2e_unittest_skipped_by_default,
@@ -239,6 +240,7 @@ def run_hermetic_e2e_unittest_suite() -> tuple[bool, str]:
     return True, log
 
 
+@evaluated_once
 def evaluate_control_plane_e2e_deepen(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -308,6 +310,7 @@ def evaluate_control_plane_e2e_deepen(
     )
 
 
+@evaluated_once
 def hermetic_control_plane_e2e_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> ControlPlaneE2eDeepenResult:
@@ -315,10 +318,12 @@ def hermetic_control_plane_e2e_deepen_check(
     return evaluate_control_plane_e2e_deepen(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def control_plane_e2e_deepen_gate_closed() -> bool:
     return hermetic_control_plane_e2e_deepen_check(minimal_control_plane_e2e_deepen_environ()).ok
 
 
+@evaluated_once
 def control_plane_e2e_deepen_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

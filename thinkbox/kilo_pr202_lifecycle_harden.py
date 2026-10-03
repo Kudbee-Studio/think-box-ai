@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.lifecycle_harden import EXPECTED_HARDEN_COUNT, GATE_ID, HARDENS, PR_NUMBER, harden_ids
 
@@ -52,6 +53,7 @@ def validate_hardens_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def lifecycle_harden_contract_summary(repo_root: Path | None = None) -> dict[str, Any]:
     ok, violations = validate_hardens_manifest(repo_root=repo_root)
     return {

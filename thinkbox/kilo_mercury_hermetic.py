@@ -21,6 +21,7 @@ from thinkbox.kilo_env_matrix import (
     EnvMatrixMode,
     detect_matrix_mode,
 )
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import (
     GovernanceEvidenceResult,
     LiveBurstEvidence,
@@ -319,6 +320,7 @@ def _mode_from_matrix(
     return detect_matrix_mode(environ)
 
 
+@evaluated_once
 def evaluate_mercury_hermetic(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -439,6 +441,7 @@ def _forbidden_live_provider_key_in_hermetic(
     return hits
 
 
+@evaluated_once
 def hermetic_mercury_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> MercuryHermeticResult:
@@ -481,6 +484,7 @@ def hermetic_mercury_operator_check(
     )
 
 
+@evaluated_once
 def mercury_hermetic_gate_closed() -> bool:
     """True when PR #146 gate passes under hermetic_unit with clean env + mock."""
     gate = gate_for_pr(PR_NUMBER)
@@ -513,6 +517,7 @@ def mercury_hermetic_gate_closed() -> bool:
     return op.ok and unit.ok
 
 
+@evaluated_once
 def mercury_hermetic_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kudbee_sdk_longrange_energy.negotiation import SDK_LR_ENERGY_VERSION
 
@@ -161,6 +162,7 @@ def validate_features_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def kudbee_sdk_longrange_energy_contract_summary(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root if repo_root is not None else REPO_ROOT
     ok, violations = validate_features_manifest(repo_root=root)

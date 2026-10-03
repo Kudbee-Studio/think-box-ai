@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import redact_secret_value
 from thinkbox.kilo_live_proof_exec import (
     ARC_SEASON_COMPLETE,
@@ -642,6 +643,7 @@ def _contract_check() -> tuple[bool, str]:
     return True, "smoke evidence contract present"
 
 
+@evaluated_once
 def evaluate_live_smoke_evidence(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -722,6 +724,7 @@ def evaluate_live_smoke_evidence(
     )
 
 
+@evaluated_once
 def hermetic_live_smoke_evidence_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> LiveSmokeEvidenceResult:
@@ -729,6 +732,7 @@ def hermetic_live_smoke_evidence_operator_check(
     return evaluate_live_smoke_evidence(detect_matrix_mode(env), env, run_fixtures=True)
 
 
+@evaluated_once
 def live_smoke_evidence_gate_closed() -> bool:
     env = minimal_live_smoke_evidence_environ()
     op = hermetic_live_smoke_evidence_operator_check(env)
@@ -740,6 +744,7 @@ def redact_smoke_evidence_summary(text: str) -> str:
     return redact_proof_summary(text)
 
 
+@evaluated_once
 def live_smoke_evidence_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

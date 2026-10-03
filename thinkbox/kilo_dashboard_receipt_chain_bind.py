@@ -20,6 +20,7 @@ from thinkbox.dashboard_receipt_chain_client import (
 )
 from thinkbox.end_link_api import END_LINK_API_LABEL, build_end_link_path
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_receipt_chain_etag import (
     GATE_ID as PRIOR_GATE_ID,
@@ -261,6 +262,7 @@ def run_bind_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_dashboard_receipt_chain_bind(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -314,6 +316,7 @@ def evaluate_dashboard_receipt_chain_bind(
     )
 
 
+@evaluated_once
 def hermetic_dashboard_receipt_chain_bind_check(
     environ: Mapping[str, str] | None = None,
 ) -> DashboardReceiptChainBindResult:
@@ -321,12 +324,14 @@ def hermetic_dashboard_receipt_chain_bind_check(
     return evaluate_dashboard_receipt_chain_bind(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def dashboard_receipt_chain_bind_gate_closed() -> bool:
     return hermetic_dashboard_receipt_chain_bind_check(
         minimal_dashboard_receipt_chain_bind_environ(),
     ).ok
 
 
+@evaluated_once
 def dashboard_receipt_chain_bind_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

@@ -21,6 +21,7 @@ from thinkbox.kilo_end_link_operator_ux import (
     minimal_end_link_operator_ux_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -354,6 +355,7 @@ def run_docs_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_receipt_chain_end_link_docs(
     mode: EnvMatrixMode,
     environ: Mapping[str, str],
@@ -415,6 +417,7 @@ def evaluate_receipt_chain_end_link_docs(
     )
 
 
+@evaluated_once
 def hermetic_receipt_chain_end_link_docs_check(
     environ: Mapping[str, str] | None = None,
 ) -> ReceiptChainEndLinkDocsResult:
@@ -422,12 +425,14 @@ def hermetic_receipt_chain_end_link_docs_check(
     return evaluate_receipt_chain_end_link_docs(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def receipt_chain_end_link_docs_gate_closed() -> bool:
     return hermetic_receipt_chain_end_link_docs_check(
         minimal_receipt_chain_end_link_docs_environ(),
     ).ok
 
 
+@evaluated_once
 def receipt_chain_end_link_docs_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

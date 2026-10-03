@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence_live_proof_readiness import (
     GATE_ID as PRIOR_GATE_ID,
 )
@@ -146,6 +147,7 @@ def run_season_harden_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_receipt_chain_end_link_season_harden(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -205,6 +207,7 @@ def evaluate_receipt_chain_end_link_season_harden(
     )
 
 
+@evaluated_once
 def hermetic_receipt_chain_end_link_season_harden_check(
     environ: Mapping[str, str] | None = None,
 ) -> ReceiptChainEndLinkSeasonHardenResult:
@@ -212,12 +215,14 @@ def hermetic_receipt_chain_end_link_season_harden_check(
     return evaluate_receipt_chain_end_link_season_harden(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def receipt_chain_end_link_season_harden_gate_closed() -> bool:
     return hermetic_receipt_chain_end_link_season_harden_check(
         minimal_receipt_chain_end_link_season_harden_environ(),
     ).ok
 
 
+@evaluated_once
 def receipt_chain_end_link_season_harden_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

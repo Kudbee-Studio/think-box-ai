@@ -18,6 +18,7 @@ from thinkbox.kilo_dashboard_pr168_gates_bind import (
     hermetic_dashboard_pr168_gates_bind_check,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_hermetic_gate_memo import memoized_hermetic_check
 from thinkbox.kilo_live_proof_operator_audit_flip_post168 import (
     GATE_ID as THEME_A_GATE_ID,
@@ -117,6 +118,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[Pr169CombinedVio
     return violations
 
 
+@evaluated_once
 def evaluate_pr169_combined_post168_lane(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -181,6 +183,7 @@ def evaluate_pr169_combined_post168_lane(
     )
 
 
+@evaluated_once
 def hermetic_pr169_combined_post168_lane_check(
     environ: Mapping[str, str] | None = None,
 ) -> Pr169CombinedResult:
@@ -192,6 +195,7 @@ def hermetic_pr169_combined_post168_lane_check(
     )
 
 
+@evaluated_once
 def pr169_combined_post168_lane_gate_closed() -> bool:
     return hermetic_pr169_combined_post168_lane_check(minimal_pr169_combined_environ()).ok
 
@@ -206,6 +210,7 @@ def _theme_lane_summary(gate_id: str, *, hermetic_ok: bool) -> dict[str, Any]:
     }
 
 
+@evaluated_once
 def pr169_combined_post168_lane_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Any
 from urllib.parse import urlparse
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import gate_for_pr
 
 __all__ = (
@@ -431,6 +432,7 @@ def _check_contract_violations(
     return violations
 
 
+@evaluated_once
 def evaluate_env_matrix(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -458,6 +460,7 @@ _OPERATOR_FORBIDDEN_EXACT: tuple[str, ...] = (
 )
 
 
+@evaluated_once
 def hermetic_operator_check(environ: Mapping[str, str] | None = None) -> EnvMatrixResult:
     """Spine/CI operator check: forbidden live defaults only (not provider key presence)."""
     env: Mapping[str, str] = environ if environ is not None else os.environ
@@ -500,6 +503,7 @@ def hermetic_operator_check(environ: Mapping[str, str] | None = None) -> EnvMatr
     )
 
 
+@evaluated_once
 def env_matrix_gate_closed() -> bool:
     """True when PR #142 ``env-matrix`` gate passes under hermetic_unit defaults."""
     gate = gate_for_pr(PR_NUMBER)
@@ -519,6 +523,7 @@ def env_matrix_gate_closed() -> bool:
     return evaluate_env_matrix(EnvMatrixMode.HERMETIC_UNIT, clean).ok
 
 
+@evaluated_once
 def env_matrix_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

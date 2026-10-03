@@ -29,6 +29,7 @@ from thinkbox.kilo_dashboard_receipt_chain_bind import (
     minimal_dashboard_receipt_chain_bind_environ,
 )
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -227,6 +228,7 @@ def run_harden_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_api_ops_harden(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -277,6 +279,7 @@ def evaluate_api_ops_harden(
     )
 
 
+@evaluated_once
 def hermetic_api_ops_harden_check(
     environ: Mapping[str, str] | None = None,
 ) -> ApiOpsHardenResult:
@@ -284,10 +287,12 @@ def hermetic_api_ops_harden_check(
     return evaluate_api_ops_harden(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def api_ops_harden_gate_closed() -> bool:
     return hermetic_api_ops_harden_check(minimal_api_ops_harden_environ()).ok
 
 
+@evaluated_once
 def api_ops_harden_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

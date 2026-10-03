@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import (
     REPO_ROOT,
     find_affirmative_kilo_live_claims,
@@ -210,6 +211,7 @@ def validate_chronicle_documents(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def chronicle_honesty_contract_summary(
     docs: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

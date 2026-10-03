@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -126,6 +127,7 @@ def validate_pr172_ci_workflow_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def ci_spine_trust_contract_summary(
     workflow_text: str | None = None,
 ) -> dict[str, Any]:

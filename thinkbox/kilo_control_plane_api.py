@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 from thinkbox.kilo_live_smoke_operator import (
     GATE_ID as OPERATOR_GATE_ID,
@@ -233,6 +234,7 @@ def run_contract_fixture_suite() -> tuple[int, int, list[str]]:
     return positive, negative, errors
 
 
+@evaluated_once
 def evaluate_control_plane_api(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -290,6 +292,7 @@ def evaluate_control_plane_api(
     )
 
 
+@evaluated_once
 def hermetic_control_plane_api_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> ControlPlaneApiResult:
@@ -297,11 +300,13 @@ def hermetic_control_plane_api_operator_check(
     return evaluate_control_plane_api(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def control_plane_api_gate_closed() -> bool:
     env = minimal_control_plane_api_environ()
     return hermetic_control_plane_api_operator_check(env).ok
 
 
+@evaluated_once
 def control_plane_api_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

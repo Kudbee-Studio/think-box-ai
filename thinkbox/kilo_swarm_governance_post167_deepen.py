@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import (
     GATE_ID as GOV_EVIDENCE_GATE,
     governance_evidence_contract_summary,
@@ -123,6 +124,7 @@ def validate_checklist_document(doc: Mapping[str, Any]) -> list[SwarmGovPost167V
     return violations
 
 
+@evaluated_once
 def evaluate_swarm_governance_post167_deepen(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -189,6 +191,7 @@ def evaluate_swarm_governance_post167_deepen(
     )
 
 
+@evaluated_once
 def hermetic_swarm_governance_post167_deepen_check(
     environ: Mapping[str, str] | None = None,
 ) -> SwarmGovPost167Result:
@@ -196,12 +199,14 @@ def hermetic_swarm_governance_post167_deepen_check(
     return evaluate_swarm_governance_post167_deepen(detect_matrix_mode(env), env)
 
 
+@evaluated_once
 def swarm_governance_post167_deepen_gate_closed() -> bool:
     return hermetic_swarm_governance_post167_deepen_check(
         minimal_swarm_governance_post167_deepen_environ(),
     ).ok
 
 
+@evaluated_once
 def swarm_governance_post167_deepen_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:

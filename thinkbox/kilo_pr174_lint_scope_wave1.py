@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.beyond_kilo_lint import LINT_SCOPE_REL_PATHS
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT
 
 __all__ = (
@@ -126,6 +127,7 @@ def validate_wave1_scope_manifest(
     return (len(violations) == 0, tuple(violations))
 
 
+@evaluated_once
 def lint_scope_wave1_contract_summary(
     repo_root: Path | None = None,
 ) -> dict[str, Any]:

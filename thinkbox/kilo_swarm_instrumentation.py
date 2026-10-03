@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from thinkbox.kilo_env_matrix import EnvMatrixMode, detect_matrix_mode
+from thinkbox.kilo_eval_scope import evaluated_once
 from thinkbox.kilo_governance_evidence import redact_secret_value
 from thinkbox.kilo_live_proof_readiness import REPO_ROOT, gate_for_pr
 from thinkbox.kilo_mercury_hermetic import (
@@ -255,6 +256,7 @@ def _run_instrumentation_with_violations(
     return results, passed
 
 
+@evaluated_once
 def evaluate_swarm_instrumentation(
     mode: EnvMatrixMode | None = None,
     environ: Mapping[str, str] | None = None,
@@ -359,6 +361,7 @@ def _forbidden_live_provider_in_operator(
     return hits
 
 
+@evaluated_once
 def hermetic_swarm_operator_check(
     environ: Mapping[str, str] | None = None,
 ) -> SwarmInstrumentationResult:
@@ -418,6 +421,7 @@ def hermetic_swarm_operator_check(
     )
 
 
+@evaluated_once
 def swarm_instrumentation_gate_closed() -> bool:
     """True when PR #147 gate passes under hermetic operator + unit evaluation."""
     gate = gate_for_pr(PR_NUMBER)
@@ -434,6 +438,7 @@ def redact_swarm_summary(text: str) -> str:
     return redact_mercury_summary(text)
 
 
+@evaluated_once
 def swarm_instrumentation_contract_summary(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
