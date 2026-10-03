@@ -8,7 +8,7 @@ import json
 import unittest
 import urllib.error
 from contextlib import redirect_stdout
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from thinkbox.model_client import (
     INCEPTION_BASE_URL,
@@ -87,12 +87,25 @@ class TestModelClientFailures(unittest.TestCase):
         self.assertFalse(ctx.exception.retryable)
         self.assertIn("unreachable", str(ctx.exception))
 
+    @patch("thinkbox.model_client.asyncio.sleep", new_callable=AsyncMock)
+    @patch("urllib.request.urlopen", side_effect=urllib.error.URLError("Connection refused"))
+    def test_unreachable_fails_on_the_first_attempt(self, urlopen, sleep):
+        # Nothing is listening: backing off (2 + 4 + 8 + 16 s) only delayed the same failure by about 30 s.
+        with self.assertRaises(ModelCallError):
+            self._run(AsyncModelClient().generate("hi"))
+        self.assertEqual(urlopen.call_count, 1)
+        sleep.assert_not_awaited()
+
+    @patch("thinkbox.model_client.asyncio.sleep", new_callable=AsyncMock)
     @patch("urllib.request.urlopen", side_effect=_http_error(500))
-    def test_http_500_retryable(self, _):
+    def test_http_500_retryable(self, urlopen, sleep):
         cfg = ModelConfig(api_type="openai_compat", base_url="https://x/v1")
         with self.assertRaises(ModelCallError) as ctx:
             self._run(AsyncModelClient(cfg).generate("hi"))
         self.assertTrue(ctx.exception.retryable)
+        self.assertEqual(urlopen.call_count, 5)  # a transient status is retried with backoff
+        self.assertEqual(sleep.await_count, 4)
+        self.assertNotIn("HTTP 500: HTTP 500", str(ctx.exception))
 
     @patch("urllib.request.urlopen", side_effect=_http_error(401, "bad key"))
     def test_http_401_not_retryable_and_body_surfaced(self, _):

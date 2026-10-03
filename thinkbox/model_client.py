@@ -213,16 +213,18 @@ class AsyncModelClient:
                     return resp.json()
                 except HttpError as e:
                     raise self._error(f"non-JSON response: {resp.text()[:200]!r}", retryable=True) from e
+            except HttpConnectionError as e:
+                # Nothing answered (refused, DNS, no route). Backing off only delayed this same failure by
+                # about 30 s; whether to try again is the caller's decision. Caught before HttpError, its base.
+                raise self._error(f"unreachable at {url}: {e}", retryable=False) from e
             except HttpError as e:
-                is_transient = e.retryable
-                error_msg = f"HTTP {e.status_code}: {str(e)[:300]}"
-
-                if is_transient and attempt < max_attempts - 1:
+                # Transient statuses (408, 429, 5xx) and timeouts are retried with backoff.
+                if e.retryable and attempt < max_attempts - 1:
                     # Apply jitter: ±20%
                     jitter = backoff * 0.2 * (2 * random.random() - 1)
                     sleep_time = max(0.1, backoff + jitter)
                     logger.warning(
-                        f"[{self.config.api_type}] transient error {e.status_code}; "
+                        f"[{self.config.api_type}] transient error ({e.status_code or type(e).__name__}); "
                         f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
                     )
                     await asyncio.sleep(sleep_time)
@@ -230,21 +232,8 @@ class AsyncModelClient:
                     attempt += 1
                     continue
 
-                raise self._error(error_msg, retryable=is_transient) from e
-            except (HttpTimeoutError, HttpConnectionError) as e:
-                if attempt < max_attempts - 1:
-                    jitter = backoff * 0.2 * (2 * random.random() - 1)
-                    sleep_time = max(0.1, backoff + jitter)
-                    logger.warning(
-                        f"[{self.config.api_type}] network error ({type(e).__name__}); "
-                        f"backoff {sleep_time:.1f}s (attempt {attempt + 1}/{max_attempts})"
-                    )
-                    await asyncio.sleep(sleep_time)
-                    backoff = min(backoff * 2, max_backoff)
-                    attempt += 1
-                    continue
-
-                raise self._error(f"unreachable at {url}: {e}", retryable=True) from e
+                # str(e) already starts with "HTTP <status>:" for a status error.
+                raise self._error(str(e)[:300], retryable=e.retryable) from e
 
         raise self._error(f"max retries exceeded for {url}", retryable=True)
 
