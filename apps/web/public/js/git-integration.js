@@ -471,9 +471,9 @@ class GitIntegration {
    * Escape HTML
    */
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Quotes too: this output also goes inside value="..." attributes (textContent -> innerHTML leaves quotes as-is).
+    const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(text ?? '').replace(/[&<>"']/g, ch => entities[ch]);
   }
 }
 
