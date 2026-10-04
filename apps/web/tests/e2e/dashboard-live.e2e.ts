@@ -100,6 +100,7 @@ async function openPage(browser: Browser, vp: (typeof VIEWPORTS)[number]): Promi
       if (t) new MutationObserver((r) => { (window as any).__tbRebuilds += r.filter((x) => x.type === 'childList').length; }).observe(t, { childList: true });
     });
   });
+  ctx.setDefaultTimeout(8000);
   const page = await ctx.newPage();
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push({ viewport: vp.name, text: m.text().slice(0, 300) }); });
   page.on('pageerror', (e) => consoleErrors.push({ viewport: vp.name, text: `PAGEERROR ${e.message}`.slice(0, 300) }));
@@ -196,13 +197,16 @@ async function winManager(page: Page, vp: (typeof VIEWPORTS)[number]): Promise<s
   return `3 windows opened, dragged, resized, maximized, minimized, closed, layout restored after reload (${restored.length} windows); header toggle opens/closes without duplicates`;
 }
 
+// Windows cascade, so a lower window's own close button can sit under the one above it; the taskbar's x always works.
 async function closeAllWindows(page: Page) {
-  for (let i = 0; i < 6; i++) {
-    const btn = page.locator('[data-wm-managed="1"]:not([hidden]) .wm-close').first();
-    if (!(await btn.count())) break;
-    await btn.click().catch(() => {});
+  for (let i = 0; i < 20; i++) {
+    const btn = page.locator('.wm-task-close').first();
+    if (!(await btn.count())) return;
+    await btn.click({ timeout: 3000 }).catch(() => {});
     await sleep(150);
   }
+  const left = await wins(page);
+  log(`closeAllWindows left ${left.filter((w) => w.visible).map((w) => w.key).join(', ') || 'nothing visible'}`);
 }
 
 async function workflows(page: Page, tag: string): Promise<string> {
@@ -279,7 +283,7 @@ async function agentTracking(page: Page, vp: (typeof VIEWPORTS)[number]): Promis
   await page.waitForFunction(() => document.querySelector('.wm-agent-badge')?.textContent?.trim() === '1 running', null, { timeout: 8000 });
   const badge = (await page.locator('.wm-agent-badge').innerText()).trim();
   await page.click('.wm-agent-badge');
-  await page.locator('.agent-menu-item').first().click({ timeout: 5000 });
+  await page.locator('.agent-menu-item.agent-status-running').first().click({ timeout: 5000 });
   const gov = page.locator('.governance-window:not([hidden])').first();
   await gov.waitFor({ state: 'visible', timeout: 5000 });
   const govText = await gov.innerText();
@@ -288,6 +292,7 @@ async function agentTracking(page: Page, vp: (typeof VIEWPORTS)[number]): Promis
 
   const approve = gov.locator('.gov-approve');
   await approve.waitFor({ state: 'visible', timeout: 15000 });
+  await approve.scrollIntoViewIfNeeded();
   const ab = (await approve.boundingBox())!;
   const topEl = await page.evaluate(({ x, y }) => { const e = document.elementFromPoint(x, y) as HTMLElement | null; return e?.closest('.gov-approve') ? 'approve' : (e?.className || e?.tagName || 'none'); }, { x: ab.x + ab.width / 2, y: ab.y + ab.height / 2 });
   await shot(page, `${vp.name}-governance-approval-pending.png`);
@@ -299,9 +304,8 @@ async function agentTracking(page: Page, vp: (typeof VIEWPORTS)[number]): Promis
   await submitGoal(page, `Write ${f2} twice (rejected run ${vp.name})`);
   await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('.wm-agent-badge')?.textContent?.trim() || ''), null, { timeout: 8000 });
   await page.click('.wm-agent-badge');
-  await page.locator('.agent-menu-item').first().click({ timeout: 5000 });
-  const gov2 = page.locator('.governance-window:not([hidden])').first();
-  const reject = gov2.locator('.gov-reject');
+  await page.locator('.agent-menu-item.agent-status-running').first().click({ timeout: 5000 });
+  const reject = page.locator('.governance-window:not([hidden]) .gov-reject:visible').first();
   await reject.waitFor({ state: 'visible', timeout: 15000 });
   await reject.click();
   await page.waitForFunction((t) => (document.querySelector('#terminal') as HTMLElement | null)?.innerText.includes(`Rejected run ${t} noted the denial.`), vp.name, { timeout: 20000 });
@@ -358,8 +362,8 @@ async function profiles(page: Page, vp: (typeof VIEWPORTS)[number]): Promise<str
   assert(imported.status === 201, `import status ${imported.status}: ${JSON.stringify(imported.body)}`);
   const importedMemory = (await json(`/api/profiles/${imported.body.id}/export`)).body.memory.org.map((i: any) => i.title);
   assert(importedMemory.includes(`${a} only fact`), 'imported profile lacks the memory');
-  const bad = await post('/api/profiles/import', { format: 'kudbee-profile', memory: { org: [{ id: 'org/../../etc/x', title: 't', content: 'x'.repeat(30000) }] } });
-  assert(bad.status === 400, `oversized import was not refused (status ${bad.status})`);
+  const bad = await page.request.post(`${base}/api/profiles/import`, { data: { format: 'kudbee-profile', memory: { org: [{ id: 'org/../../etc/x', title: 't', content: 'x'.repeat(30000) }] } } });
+  assert(bad.status() === 400, `oversized import was not refused (status ${bad.status()})`);
   return `created ${a} and ${b} from the header switcher; memory and runs stay inside their profile and return on switch back; export -> import into a new profile keeps the memory (API-level: the dashboard has no export/import control); an oversized import is refused with 400`;
 }
 
@@ -437,6 +441,7 @@ async function main() {
       await closeAllWindows(page);
       await step(vp.name, 'b workflows', page, () => workflows(page, vp.name));
       await step(vp.name, 'c agent tracking and approvals', page, () => agentTracking(page, vp));
+      await closeAllWindows(page);
       await step(vp.name, 'd profiles', page, () => profiles(page, vp));
       await step(vp.name, 'e layout after approvals', page, () => layout(page, vp));
       await ctx.close();
