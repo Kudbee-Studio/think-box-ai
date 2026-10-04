@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { createHash } from 'node:crypto';
 import { freshnessLabel } from './evidence.ts';
+import { writeConfined } from './workspace-fs.ts';
 
 export type MemoryLayer = 'task' | 'org' | 'verified';
 export const MEMORY_LAYERS: MemoryLayer[] = ['verified', 'org', 'task'];
@@ -353,7 +354,7 @@ export class MemoryStore {
       content: input.content.slice(0, 20000),
       path: `${id}.md`,
     };
-    await fs.promises.writeFile(path.join(this.rootDir, item.path), serialize(item), 'utf8');
+    await writeConfined(this.rootDir, path.join(this.rootDir, item.path), serialize(item));
     this.items.set(id, item);
     this.rebuildStats();
     if (this.usesUpstash) {

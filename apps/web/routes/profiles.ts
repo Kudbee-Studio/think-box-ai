@@ -5,8 +5,9 @@
 import type { Express, Response } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MEMORY_LAYERS, type MemoryLayer } from '../memory.ts';
+import { MEMORY_LAYERS } from '../memory.ts';
 import { type ProfileExport, type ProfileManager } from '../profile-manager.ts';
+import { parseProfileBundle, writeProfileMemory, writeProfileRuns } from '../profile-import.ts';
 import type { RunStore } from '../runs.ts';
 import { errorMessage } from '../types.ts';
 import type { BroadcastingSession, Request } from './types.ts';
@@ -107,13 +108,12 @@ export function registerProfileRoutes(app: Express, deps: ProfileRouteDeps): voi
     res.json(profileManager.export(id, memory, runs));
   });
 
-  app.post('/api/profiles/import', (req: Request, res: Response) => {
+  app.post('/api/profiles/import', async (req: Request, res: Response) => {
     try {
-      const bundle = req.body as ProfileExport;
-      if (!bundle || bundle.format !== 'kudbee-profile') return res.status(400).json({ error: 'Not a kudbee profile export' });
-      const profile = profileManager.import(bundle, bundle.memory, bundle.runs);
-      writeProfileMemory(path.join(profilesDir, profile.id, 'memory'), bundle.memory ?? {});
-      writeProfileRuns(path.join(profilesDir, profile.id, 'runs.json'), bundle.runs ?? []);
+      const bundle = parseProfileBundle(req.body);
+      const profile = profileManager.import({ format: 'kudbee-profile', profile: bundle.profile } as ProfileExport, {}, []);
+      await writeProfileMemory(path.join(profilesDir, profile.id, 'memory'), bundle.memory);
+      await writeProfileRuns(path.join(profilesDir, profile.id), bundle.runs);
       if (profileManager.getActiveId() === profile.id) activateProfile(profile.id);
       broadcast('profiles_changed', { id: profile.id });
       res.status(201).json(profile);
@@ -157,41 +157,4 @@ function readProfileRuns(file: string): Array<Record<string, unknown>> {
   } catch {
     return [];
   }
-}
-
-/** Write imported memory items into a profile's folder, skipping anything already present by id. */
-function writeProfileMemory(root: string, memory: ProfileExport['memory']): void {
-  for (const layer of MEMORY_LAYERS) {
-    const items = memory[layer] ?? [];
-    fs.mkdirSync(path.join(root, layer), { recursive: true });
-    for (const item of items) writeMemoryFile(root, layer, item);
-  }
-}
-
-function writeMemoryFile(root: string, layer: MemoryLayer, item: ProfileExport['memory'][string][number]): void {
-  const slug = String(item.id).slice(`${layer}/`.length).replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 60) || 'memory';
-  const oneLine = (value: string) => String(value ?? '').replace(/\s+/g, ' ').trim();
-  const body = `---
-id: ${layer}/${slug}
-layer: ${layer}
-title: ${oneLine(item.title)}
-tags: ${(item.tags ?? []).map(oneLine).join(', ')}
-source: ${oneLine(item.source)}
-created: ${oneLine(item.created)}
-updated: ${oneLine(item.updated)}
----
-${String(item.content ?? '').trim()}
-`;
-  try {
-    fs.writeFileSync(path.join(root, layer, `${slug}.md`), body, { flag: 'wx' });
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-  }
-}
-
-function writeProfileRuns(file: string, runs: Array<Record<string, unknown>>): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(runs));
-  fs.renameSync(tmp, file);
 }
