@@ -1,0 +1,262 @@
+/* Window manager — floating windows + taskbar for the dashboard.
+   A panel still builds its own .modal-backdrop; when the window manager adopts it (.wm-managed) the fixed full-screen
+   overlay becomes a positioned card with a title bar. Loaded before enterprise-polish.css so [hidden] still wins last. */
+
+.modal-backdrop.wm-managed {
+  position: fixed;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  pointer-events: auto;
+  min-width: 220px;
+  min-height: 120px;
+}
+
+.modal-backdrop.wm-managed .modal {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: auto;
+}
+
+.modal-backdrop.wm-managed.wm-active {
+  border-color: var(--accent-primary, #58a6ff);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.62);
+}
+
+/* Drawer panels (timeline, sharing, templates, analytics) become the same kind of window. */
+.panel.wm-managed {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  background: var(--bg-panel, #101725);
+  min-width: 220px;
+  min-height: 120px;
+}
+
+.panel.wm-managed.wm-active {
+  border-color: var(--accent-primary, #58a6ff);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.62);
+}
+
+.panel.wm-managed > .panel-header {
+  flex: 0 0 auto;
+}
+
+.panel.wm-managed > .analytics-container,
+.panel.wm-managed > .timeline-container,
+.panel.wm-managed > .sharing-container,
+.panel.wm-managed > .template-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Title bar */
+.wm-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 6px 0 12px;
+  background: linear-gradient(180deg, #1b2740, #141d31);
+  border-bottom: 1px solid var(--border-light, #26344d);
+  color: #cfe0ff;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wm-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wm-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.wm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #b9c9e6;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wm-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.wm-btn.wm-close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+/* Resize grip */
+.wm-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 0 55%, rgba(255, 255, 255, 0.28) 55% 65%, transparent 65%);
+}
+
+.wm-managed.wm-minimized {
+  height: 32px !important;
+}
+
+.wm-managed.wm-minimized > :not(.wm-titlebar):not(.wm-resize) {
+  display: none !important;
+}
+
+.wm-managed.wm-maximized {
+  border-radius: 0;
+}
+
+/* Taskbar */
+.wm-taskbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px;
+  background: linear-gradient(180deg, rgba(16, 23, 38, 0.97), rgba(10, 15, 25, 0.99));
+  border-top: 1px solid var(--border-light, #26344d);
+  color: #c7d5ee;
+  font-size: 12px;
+  z-index: 9000;
+}
+
+.wm-taskbar-windows {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.wm-taskbar-empty {
+  color: #6b7a94;
+  font-style: italic;
+  padding-left: 4px;
+}
+
+.wm-task-item {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.wm-task-item.is-active {
+  border-color: var(--accent-primary, #58a6ff);
+  background: rgba(88, 166, 255, 0.16);
+}
+
+.wm-task-item.is-minimized .wm-task-open {
+  opacity: 0.6;
+}
+
+.wm-task-open {
+  max-width: 180px;
+  padding: 5px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.wm-task-open:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wm-task-close {
+  padding: 5px 8px;
+  border: 0;
+  background: none;
+  color: #9fb0cc;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wm-task-close:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+.wm-taskbar-agents {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: #8fa2c0;
+}
+
+.wm-agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4b5a74;
+}
+
+.wm-agent-label {
+  font-weight: 600;
+}
+
+.wm-agent-empty {
+  color: #6b7a94;
+}

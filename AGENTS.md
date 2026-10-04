@@ -1660,6 +1660,18 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — Dashboard window manager + taskbar (P3)
+
+- **What changed (UI only):**
+  - `apps/web/public/js/window-manager-core.js` (new): pure logic — window key derivation, default cascade placement, clamping, corrupt-safe localStorage parse/serialize, and the persisted `open`/`opener` fields.
+  - `apps/web/public/js/window-manager.js` (new, classic script): adopts each visible panel (`.modal-backdrop`, and the `.panel[id$="-panel"]` drawers) into a floating window with a title bar (minimize/maximize/close), drag, resize, z-index focus, and a fixed bottom **taskbar**. A capture-phase click on a `header button[id$="-button"]` closes the window it opened and suppresses the panel's own open click, so the header buttons toggle instead of stacking modals. Windows reopen at their saved position on reload by clicking their saved opener button. No panel internals were edited; closing clicks the panel's own close control so its cleanup still runs.
+  - `apps/web/public/css/window-manager.css` (new): window chrome + taskbar; converts the fixed full-screen modal overlay into a positioned card and the grid `.panel` drawers into floating windows.
+  - `apps/web/public/index.html`: links the stylesheet (before `enterprise-polish.css`, which must stay last) and the two scripts (before the `app.js` module).
+  - Taskbar includes an **Agents** area as a placeholder ("none running"); no tracking logic yet (follow-up).
+- **Tests:** `tests/window-manager-core.test.ts` (8) and `tests/window-manager.test.ts` (8, a small fake DOM loaded in a `vm`): open 3+ windows, drag/resize, focus z-index, minimize/maximize, close/reopen, reload restores position, header-button toggle, duplicate drop, `approval-modal` stays a modal, hidden panels ignored until shown, drawer panels adopted. All dashboard static guards (`dashboard-ui`, `dashboard-menus`, `frontend-xss-guard`, `http-security`, `panel-xss`) pass.
+- **Verification:** `npm run typecheck` and `npm run lint` clean; window-manager tests 16/16; full suite 783/785 with 2 flaky server-boot failures that pass 14/14 in isolation (env contention, not this change).
+- **Four-state:** CODE COMPLETE / TEST VERIFIED (unit + static guards). Not LIVE VERIFIED (no real-browser run in this environment); not PRODUCTION READY. Agent tracking is a placeholder.
+
 ### 2026-10-04 — Coverage toward 90%: flush V8 coverage from spawned processes + targeted unit tests
 
 - **What changed:**
