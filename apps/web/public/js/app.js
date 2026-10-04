@@ -1830,6 +1830,30 @@ function renderAgents(agents) {
 }
 
 // ─── Actions ───────────────────────────────────────────────────
+// One place that validates and sends a goal. runGoal() and runWorkflow() both go through it.
+function submitGoal(goal) {
+  if (!goal) return false;
+  if (!state.models.length) {
+    appendTerminalMessage('error', 'No model is available. Set INCEPTION_API_KEY in .env or start Ollama, then refresh models.');
+    return false;
+  }
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+    appendTerminalMessage('error', `Not connected to kudbEE backend at ${window.location.origin}`);
+    return false;
+  }
+
+  appendTerminalMessage('user', goal);
+  if (!state.isRunning) setStatus('running', 'Running');
+
+  state.ws.send(JSON.stringify({
+    type: 'run_goal',
+    goal,
+    model: document.getElementById('model-select').value,
+    agent: document.getElementById('agent-select').value || undefined,
+  }));
+  return true;
+}
+
 function runGoal() {
   const input = document.getElementById('goal-input');
   const goal = input.value.trim();
@@ -1843,26 +1867,21 @@ function runGoal() {
     input.value = '';
     return;
   }
-  if (!state.models.length) {
-    appendTerminalMessage('error', 'No model is available. Set INCEPTION_API_KEY in .env or start Ollama, then refresh models.');
-    return;
+  if (submitGoal(goal)) input.value = '';
+}
+
+// A saved workflow becomes a plain-text plan and runs like any other goal (no backend workflow engine yet).
+function runWorkflow(workflow) {
+  const store = window.WorkflowStore;
+  if (!workflow || !store) {
+    appendTerminalMessage('error', 'That workflow could not be run.');
+    return false;
   }
-  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-    appendTerminalMessage('error', `Not connected to kudbEE backend at ${window.location.origin}`);
-    return;
+  if (!workflow.nodes || workflow.nodes.length === 0) {
+    appendTerminalMessage('error', `Workflow "${workflow.name || 'untitled'}" has no steps.`);
+    return false;
   }
-
-  appendTerminalMessage('user', goal);
-  if (!state.isRunning) setStatus('running', 'Running');
-
-  state.ws.send(JSON.stringify({
-    type: 'run_goal',
-    goal,
-    model: document.getElementById('model-select').value,
-    agent: document.getElementById('agent-select').value || undefined,
-  }));
-
-  input.value = '';
+  return submitGoal(store.composeGoal(workflow));
 }
 
 function stopGoal() {
@@ -2106,6 +2125,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   Enterprise.auditLog.log('system', 'kudbEE Agent OS started', 'info');
+
+  // Workflow builder save + Actions menu run. The builder dispatches; app.js owns persistence and the run.
+  window.addEventListener('workflow:created', (e) => {
+    const store = window.WorkflowStore;
+    const saved = store ? store.saveWorkflow(localStorage, e.detail) : e.detail;
+    if (!saved) {
+      appendTerminalMessage('error', 'Could not save that workflow.');
+      return;
+    }
+    appendTerminalMessage('system', `Workflow "${saved.name}" saved (${saved.nodes.length} step(s)).`);
+    runWorkflow(saved);
+  });
+  window.addEventListener('workflow:run', (e) => {
+    const workflow = e.detail;
+    if (!workflow) return;
+    appendTerminalMessage('system', `Running workflow "${workflow.name}"...`);
+    runWorkflow(workflow);
+  });
 
   // Initialize Dashboard UIs
   try {

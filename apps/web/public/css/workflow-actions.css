@@ -1,0 +1,84 @@
+/* Actions menu + workflow load list. Loaded before enterprise-polish.css. Uses only theme variables. */
+
+.action-menu {
+  min-width: 240px;
+  max-width: 360px;
+  padding: 4px;
+  background: var(--bg-secondary, #141d31);
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.action-menu-header {
+  padding: 6px 8px;
+  color: var(--text-secondary, #8fa2c0);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.action-menu-empty {
+  padding: 8px;
+  color: var(--text-secondary, #8fa2c0);
+  font-style: italic;
+}
+
+.action-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #e6eefc);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.action-menu-item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.action-menu-new {
+  color: var(--accent-primary, #58a6ff);
+}
+
+.action-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-light, #2b3a55);
+}
+
+.workflow-status {
+  padding: 6px 2px;
+  color: var(--text-secondary, #8fa2c0);
+  font-size: 12px;
+}
+
+.workflow-load-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.workflow-load-item {
+  padding: 6px 8px;
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 6px;
+  background: var(--bg-tertiary, #101725);
+  color: var(--text-primary, #e6eefc);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-load-item:hover {
+  border-color: var(--accent-primary, #58a6ff);
+}
