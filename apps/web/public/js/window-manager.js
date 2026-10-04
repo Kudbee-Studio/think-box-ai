@@ -35,6 +35,12 @@
 
   WindowManager.prototype._vw = function () { return (this.win && this.win.innerWidth) || 1280; };
   WindowManager.prototype._vh = function () { return (this.win && this.win.innerHeight) || 800; };
+  // Where the page header ends: new windows open below it so they never cover the buttons that open the next window.
+  WindowManager.prototype._topOffset = function () {
+    var header = this.doc.querySelector ? this.doc.querySelector('header') : null;
+    var rect = header && header.getBoundingClientRect ? header.getBoundingClientRect() : null;
+    return rect && rect.bottom > 0 ? Math.min(Math.round(rect.bottom) + 12, Math.round(this._vh() / 3)) : 72;
+  };
 
   WindowManager.prototype._read = function () {
     try { return this.storage ? this.storage.getItem(LAYOUT_KEY) : null; } catch (err) { return null; }
@@ -161,6 +167,9 @@
       el.style.height = 'calc(100vh - ' + TASKBAR_HEIGHT + 'px)';
     } else {
       if (el.classList) el.classList.remove('wm-maximized');
+      // A layout saved on a wider screen must not leave the window hanging off a narrower one.
+      l.w = Core.clamp(l.w, MIN_W, Math.max(MIN_W, this._vw()));
+      l.x = Core.clamp(l.x, 0, Math.max(0, this._vw() - l.w));
       this._applyPosition(rec);
       el.style.height = l.h + 'px';
     }
@@ -189,10 +198,10 @@
       el: el,
       title: title,
       opener: this.pendingOpener || null,
-      layout: saved ? Core.normalizeLayout(saved) : Core.defaultLayout(this._count(), this._vw(), this._vh()),
+      layout: saved ? Core.normalizeLayout(saved) : Core.defaultLayout(this._count(), this._vw(), this._vh(), this._topOffset()),
       restore: null
     };
-    rec.layout = rec.layout || Core.defaultLayout(this._count(), this._vw(), this._vh());
+    rec.layout = rec.layout || Core.defaultLayout(this._count(), this._vw(), this._vh(), this._topOffset());
     this.pendingOpener = null;
     this.windows[key] = rec;
     rec.layout.open = true;
@@ -284,7 +293,7 @@
     var l = rec.layout;
     l.maximized = false;
     if (rec.el.classList) rec.el.classList.remove('wm-maximized');
-    l.x = Core.clamp(x, 0, Math.max(0, this._vw() - 80));
+    l.x = Core.clamp(x, 0, Math.max(0, this._vw() - l.w));
     l.y = Core.clamp(y, 0, Math.max(0, this._vh() - TASKBAR_HEIGHT - 40));
     this._applyPosition(rec);
   };
@@ -295,6 +304,7 @@
     rec.layout.maximized = false;
     rec.layout.w = Core.clamp(w, MIN_W, Math.max(MIN_W, this._vw()));
     rec.layout.h = Core.clamp(h, MIN_H, Math.max(MIN_H, this._vh() - TASKBAR_HEIGHT));
+    rec.layout.x = Core.clamp(rec.layout.x, 0, Math.max(0, this._vw() - rec.layout.w));
     this._applyLayout(rec);
   };
 
@@ -503,12 +513,15 @@
     this.markPersistent();
     this.scan();
     if (this.doc.addEventListener) this.doc.addEventListener('click', function (e) { self._onCaptureClick(e); }, true);
-    this.restore();
     if (this.win && this.win.addEventListener) this.win.addEventListener('resize', function () { Object.keys(self.windows).forEach(function (k) { self.dragTo(k, self.windows[k].layout.x, self.windows[k].layout.y); }); });
+    // The observer must exist BEFORE restore(): restore clicks the saved panels open, and a panel nobody adopts stays a full-screen
+    // backdrop that covers the whole dashboard.
     if (typeof root.MutationObserver === 'function' && this.doc.body) {
       this.observer = new root.MutationObserver(function (records) { self._onMutations(records); });
       this.observer.observe(this.doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     }
+    this.restore();
+    this.scan();
   };
 
   root.WindowManager = WindowManager;

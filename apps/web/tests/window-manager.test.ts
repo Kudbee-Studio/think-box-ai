@@ -100,11 +100,11 @@ class Storage {
   setItem(k: string, v: string): void { this.m[k] = String(v); }
 }
 
-function boot(): { WM: new (o: unknown) => unknown; doc: Doc; storage: Storage; win: { innerWidth: number; innerHeight: number; addEventListener(): void; removeEventListener(): void } } {
+function boot(extra: Record<string, unknown> = {}): { WM: new (o: unknown) => unknown; doc: Doc; storage: Storage; win: { innerWidth: number; innerHeight: number; addEventListener(): void; removeEventListener(): void } } {
   const doc = new Doc();
   const storage = new Storage();
   const win = { innerWidth: 1200, innerHeight: 800, addEventListener() {}, removeEventListener() {} };
-  const sandbox: Record<string, unknown> = { document: doc, localStorage: storage, console: { log() {}, warn() {}, error() {} }, setTimeout: () => 0 };
+  const sandbox: Record<string, unknown> = { document: doc, localStorage: storage, console: { log() {}, warn() {}, error() {} }, setTimeout: () => 0, ...extra };
   vm.createContext(sandbox);
   sandbox.window = sandbox;
   for (const f of ['window-manager-core.js', 'window-manager.js']) vm.runInContext(fs.readFileSync(path.join(jsDir, f), 'utf8'), sandbox, { filename: f });
@@ -359,4 +359,30 @@ test('mutations inside the taskbar itself are ignored by the observer callback',
   m._syncTaskbar = () => { syncs += 1; real(); };
   m._onMutations([{ type: 'childList', target: m.taskbarWindows, addedNodes: [], removedNodes: [] }]);
   assert.equal(syncs, 1, 'only the single trailing sync, no scan of the taskbar nodes');
+});
+
+test('a window cannot be dragged or resized partly off the right edge of the viewport', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'search-modal', 'Advanced Search');
+  const key = m.adopt(el);
+  m.dragTo(key, 99999, 10);
+  let s = m.getState()[0];
+  assert.ok(s.x + s.w <= win.innerWidth, `x ${s.x} + w ${s.w} > ${win.innerWidth}`);
+  m.resizeTo(key, win.innerWidth, 300);
+  s = m.getState()[0];
+  assert.ok(s.x + s.w <= win.innerWidth, 'after resize the window still fits');
+});
+
+test('install() starts observing BEFORE it restores saved windows, so a restored panel is adopted instead of left as a full-screen backdrop', () => {
+  const order: string[] = [];
+  class FakeObserver { constructor() { order.push('observer-created'); } observe() { order.push('observing'); } }
+  const { WM, doc, storage, win } = boot({ MutationObserver: FakeObserver });
+  const m: any = new WM({ document: doc, window: win, storage });
+  const realRestore = m.restore.bind(m);
+  m.restore = () => { order.push('restore'); realRestore(); };
+  m.install();
+  assert.ok(order.indexOf('observing') !== -1 && order.indexOf('restore') !== -1, `order was ${order.join(',')}`);
+  assert.ok(order.indexOf('observing') < order.indexOf('restore'), `observer started after restore: ${order.join(',')}`);
 });
