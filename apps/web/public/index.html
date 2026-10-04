@@ -511,19 +511,19 @@
         <div class="workflow-sidebar">
           <h4>Task Templates</h4>
           <div id="workflow-templates" class="workflow-templates">
-            <div class="workflow-template" data-template="sequential">
+            <div class="workflow-template" data-template="sequential" draggable="true" tabindex="0" role="button" aria-label="Add sequential step">
               <span class="icon">→</span>
               <span>Sequential</span>
             </div>
-            <div class="workflow-template" data-template="parallel">
+            <div class="workflow-template" data-template="parallel" draggable="true" tabindex="0" role="button" aria-label="Add parallel step">
               <span class="icon">⇄</span>
               <span>Parallel</span>
             </div>
-            <div class="workflow-template" data-template="conditional">
+            <div class="workflow-template" data-template="conditional" draggable="true" tabindex="0" role="button" aria-label="Add conditional step">
               <span class="icon">◇</span>
               <span>Conditional</span>
             </div>
-            <div class="workflow-template" data-template="loop">
+            <div class="workflow-template" data-template="loop" draggable="true" tabindex="0" role="button" aria-label="Add loop step">
               <span class="icon">⟳</span>
               <span>Loop</span>
             </div>
@@ -531,7 +531,7 @@
         </div>
         <div class="workflow-canvas">
           <div id="workflow-canvas-area" class="canvas-area">
-            <div class="canvas-placeholder">Drag templates here to build workflow</div>
+            <div class="canvas-placeholder">Drag a template here, or click one, to build the workflow</div>
           </div>
         </div>
         <div class="workflow-properties">

@@ -52,3 +52,12 @@ test('the Actions menu builds its items with createElement/textContent, not inne
   assert.match(action, /createElement\('button'\)/);
   assert.match(action, /textContent =/);
 });
+
+test('workflow templates can really be used: draggable in the markup, and click or Enter adds a step (a <div> is not draggable by default)', () => {
+  for (const type of ['sequential', 'parallel', 'conditional', 'loop']) {
+    assert.match(html, new RegExp(`<div class="workflow-template" data-template="${type}" draggable="true" tabindex="0" role="button"`), `${type} template must be draggable and focusable`);
+  }
+  assert.match(builder, /setAttribute\('draggable', 'true'\)/);
+  assert.match(builder, /template\.addEventListener\('click', \(\) => this\.addNode\(type\)\)/);
+  assert.match(builder, /e\.key === 'Enter' \|\| e\.key === ' '/);
+});

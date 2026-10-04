@@ -214,28 +214,21 @@ async function workflows(page: Page, tag: string): Promise<string> {
   await page.click('#create-workflow');
   await page.waitForSelector('#workflow-modal:not([hidden])', { timeout: 5000 }).catch(() => {});
   await page.locator('#workflow-modal').waitFor({ state: 'visible', timeout: 5000 });
+  // The panel shows first and the window manager turns it into a window a moment later; dragging before that moves the drop target.
+  await page.waitForSelector('#workflow-modal[data-wm-managed="1"] .wm-titlebar', { timeout: 5000 });
+  await sleep(250);
   const tpl = page.locator('.workflow-template[data-template="sequential"]');
   const canvas = page.locator('#workflow-canvas-area');
-  const tb = (await tpl.boundingBox())!;
-  const cb = (await canvas.boundingBox())!;
-  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(tb.x + tb.width / 2 + 10, tb.y + tb.height / 2 + 10, { steps: 4 });
-  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2, { steps: 12 });
-  await page.mouse.up();
-  let dropped = (await page.locator('.workflow-node').count()) > 0;
-  let dragKind = 'real mouse drag';
-  if (!dropped) {
-    dragKind = 'synthetic drag events (the real mouse drag did not register in headless Chromium)';
-    await page.evaluate(() => {
-      const t = document.querySelector('.workflow-template[data-template="sequential"]')!;
-      const c = document.getElementById('workflow-canvas-area')!;
-      const dt = new DataTransfer();
-      const ev = (type: string) => new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt });
-      t.dispatchEvent(ev('dragstart')); c.dispatchEvent(ev('dragenter')); c.dispatchEvent(ev('dragover')); c.dispatchEvent(ev('drop')); t.dispatchEvent(ev('dragend'));
-    });
-    dropped = (await page.locator('.workflow-node').count()) > 0;
-  }
+  assert((await tpl.getAttribute('draggable')) === 'true', 'workflow templates are not draggable');
+  const wide = Number(tag) >= 600; // a phone has no HTML5 drag; click and keyboard are its paths
+  if (wide) await tpl.dragTo(canvas);
+  const dropped = !wide || (await page.locator('.workflow-node').count()) > 0;
+  await page.locator('.workflow-template[data-template="parallel"]').click();
+  await page.locator('.workflow-template[data-template="loop"]').focus();
+  await page.keyboard.press('Enter');
+  const nodes = await page.locator('.workflow-node').count();
+  const expected = wide ? 3 : 2;
+  assert(nodes === expected, `${wide ? 'drag + click + keyboard' : 'click + keyboard'} should give ${expected} steps, got ${nodes}`);
   assert(dropped, 'no workflow node was added by dropping a template on the canvas');
   await page.fill('#workflow-name', name);
   await page.fill('#workflow-desc', `Say hello from ${tag}`);
@@ -260,7 +253,7 @@ async function workflows(page: Page, tag: string): Promise<string> {
   const loaded = await page.inputValue('#workflow-name');
   assert(loaded === name, `loaded workflow name is "${loaded}", wanted "${name}"`);
   await page.click('#cancel-workflow').catch(() => {});
-  return `built, saved and listed in the Actions menu; saving it ran it once and the Actions menu ran it again, each through the real server with the answer reaching the terminal; Load restored "${name}" into the builder; template added by ${dragKind}`;
+  return `built, saved and listed in the Actions menu; saving it ran it once and the Actions menu ran it again, each through the real server with the answer reaching the terminal; Load restored "${name}" into the builder; steps added by ${wide ? 'drag, ' : ''}click and keyboard Enter`;
 }
 
 async function submitGoal(page: Page, goal: string) {
@@ -309,8 +302,7 @@ async function agentTracking(page: Page, vp: (typeof VIEWPORTS)[number]): Promis
   await reject.waitFor({ state: 'visible', timeout: 15000 });
   await reject.click();
   await page.waitForFunction((t) => (document.querySelector('#terminal') as HTMLElement | null)?.innerText.includes(`Rejected run ${t} noted the denial.`), vp.name, { timeout: 20000 });
-  const onDisk = fs.existsSync(tmpRoot) ? 'checked' : 'skipped';
-  return `badge "${badge}" while running; governance window showed steps and tokens; Approve (not covered by the approval modal) let the run finish; Reject on a second run ended it with the denial (workspace check ${onDisk})`;
+  return `badge "${badge}" while running; governance window showed steps and tokens; Approve (not covered by the approval modal) let the run finish; Reject on a second run ended it with the denial`;
 }
 
 async function profiles(page: Page, vp: (typeof VIEWPORTS)[number]): Promise<string> {
