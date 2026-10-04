@@ -1,5 +1,5 @@
 // Opt-in live proof (npm run test:live-lookup): every live_lookup recipe against the REAL GitHub API for this repository, through the governed tool
-// path, with no model involved. Writes docs/evidence/p3.22-model-integration/live-lookup.json.
+// path, with no model involved. Writes docs/evidence/model-integration/live-lookup.json.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { newRunContext, runGovernedTool } from '../../agent.ts';
@@ -18,7 +18,7 @@ for (const recipe of LOOKUP_RECIPES) {
   results.push({ recipe, ok: g.output.ok, error: g.output.ok ? undefined : g.output.error, latency_ms: g.latency_ms, approval: g.approval ?? null, items: evidence?.items?.length, evidence, facts: evidence ? renderFacts(evidence) : undefined });
   console.log(`${g.output.ok ? 'ok  ' : 'FAIL'} ${recipe.padEnd(12)} ${g.latency_ms}ms ${evidence ? `${evidence.items.length} item(s)` : g.output.error}`);
 }
-const out = path.resolve(here, '../../../../docs/evidence/p3.22-model-integration/live-lookup.json');
+const out = path.resolve(here, '../../../../docs/evidence/model-integration/live-lookup.json');
 await writeEvidence(path.dirname(out), out, { generated_at: new Date().toISOString(), repo: process.env.KUDBEE_REPO, source: 'https://api.github.com (unauthenticated)', approvals, results });
 console.log(`wrote ${out}`);
 process.exit(results.every((r: any) => r.ok) ? 0 : 1);

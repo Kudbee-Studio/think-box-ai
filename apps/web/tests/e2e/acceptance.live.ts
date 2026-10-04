@@ -2,7 +2,7 @@
 //   1. "What is the last PR?" through Mercury, Gemma and Qwen: plan -> submit -> approve -> live convoy -> evidence -> grounding.
 //   2. A goal that needs real multi-worker execution (specialists fetch a real page): DRY RUN (nothing runs) -> QUEUED APPROVAL (blocked while pending) -> approve -> LIVE.
 // Tool approvals are granted by this script (stand-in for the human reviewer) and every grant is recorded. Spend is capped (KUDBEE_DAILY_BUDGET_USD).
-// The Mercury key is read from the repo .env and never printed or written. Output: docs/evidence/p3.22-model-integration/live-acceptance.json
+// The Mercury key is read from the repo .env and never printed or written. Output: docs/evidence/model-integration/live-acceptance.json
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,7 +13,7 @@ import { readJsonIfPresent, readTextIfPresent, writeEvidence } from '../helpers/
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = path.resolve(appDir, '../..');
-const OUT = path.join(repoRoot, 'docs/evidence/p3.22-model-integration/live-acceptance.json');
+const OUT = path.join(repoRoot, 'docs/evidence/model-integration/live-acceptance.json');
 const CAP = process.env.ACCEPTANCE_CAP_USD || '0.20';
 const only = process.argv.slice(2);
 

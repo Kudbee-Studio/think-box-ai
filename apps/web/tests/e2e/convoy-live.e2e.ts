@@ -2,7 +2,7 @@
 // Fake GitHub + fake Ollama + scripted Mercury stand-in (no provider contacted, $0). Proves in a REAL browser: PLAN ONLY is unmistakable and
 // runs nothing, submit queues PENDING, approving goes through the dashboard, the tool approval is shown, LIVE EXECUTION runs real workers through the
 // governed tool, ONE convoy row with drill-down (runs -> tools -> evidence), and GROUNDING FAILED is shown as a failure.
-// Writes docs/evidence/p3.22-model-integration/convoy-e2e.json + screenshots. Needs Chromium (see the P3.21 evidence README).
+// Writes docs/evidence/model-integration/convoy-e2e.json + screenshots. Needs Chromium (see the P3.21 evidence README).
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -14,7 +14,7 @@ import { call, say, startMockInception, type MockInception } from '../helpers/mo
 import { writeEvidence } from '../helpers/evidence-file.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const OUT = path.resolve(appDir, '../../docs/evidence/p3.22-model-integration');
+const OUT = path.resolve(appDir, '../../docs/evidence/model-integration');
 const QWEN = 'qwen2.5:3b';
 const VIEWPORTS = [{ name: '1440', width: 1440, height: 900 }, { name: '390', width: 390, height: 844 }];
 const pr = (n: number, o: Record<string, unknown> = {}) => ({ number: n, title: `PR ${n}`, state: 'closed', merged_at: '2026-10-04T10:00:00Z', draft: false, user: { login: 'dev' }, head: { ref: `feat/pr${n}` }, updated_at: '2026-10-04T10:00:00Z', html_url: `https://github.com/Acme/widgets/pull/${n}`, ...o });

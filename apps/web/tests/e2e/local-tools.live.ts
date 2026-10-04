@@ -1,6 +1,6 @@
 // Opt-in live proof (npm run test:live-local-tools): REAL Ollama models call live_lookup against the REAL GitHub API through the governed path.
 // Approvals are granted by this script (stand-in for the human reviewer) and each grant is recorded. Writes
-// docs/evidence/p3.22-model-integration/local-tools-live.json. Usage: node ... local-tools.live.ts [model ...] [-- goal]
+// docs/evidence/model-integration/local-tools-live.json. Usage: node ... local-tools.live.ts [model ...] [-- goal]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { newRunContext } from '../../agent.ts';
@@ -17,7 +17,7 @@ const goals = split < 0 ? ['What is the last PR?'] : args.slice(split + 1);
 process.env.KUDBEE_REPO = process.env.KUDBEE_REPO || 'Kudbee-Studio/think-box-ai';
 delete process.env.KUDBEE_GITHUB_API;
 const clients = createModelClients({ ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434', janusBaseUrl: 'http://127.0.0.1:9', janusEnabled: () => false });
-const out = path.resolve(here, '../../../../docs/evidence/p3.22-model-integration/local-tools-live.json');
+const out = path.resolve(here, '../../../../docs/evidence/model-integration/local-tools-live.json');
 const previous = readJsonIfPresent<{ runs?: unknown[] }>(out, { runs: [] });
 const runs: unknown[] = [];
 for (const model of models.length ? models : ['qwen2.5:3b', 'gemma3:4b']) {
