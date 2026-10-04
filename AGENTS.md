@@ -388,6 +388,7 @@ npm test                 # unit + real-server integration, about 25 s; tests tak
 npm run test:coverage    # c8; the line threshold is 90%
 npm run test:e2e         # opt-in: real Chromium (Playwright) against the real server; writes docs/evidence/p3.21-dashboard-live/
 npm run test:e2e:convoy   # opt-in: the Convoys window in real Chromium; writes docs/evidence/model-integration/
+npm run test:e2e:convoy-real   # opt-in: the same window against REAL GitHub + Ollama + Mercury (spend capped by ACCEPTANCE_CAP_USD, default $0.05)
 npm run test:live-lookup        # opt-in: the 5 live_lookup recipes against the real GitHub API (no model)
 npm run test:live-local-tools   # opt-in: real Ollama models call live_lookup (needs the models in `ollama list`; Gemma is slow)
 npm run test:live-acceptance    # opt-in: real Ollama + GitHub + Mercury (key from the repo .env, never printed); spend capped by ACCEPTANCE_CAP_USD, default $0.20
@@ -1672,6 +1673,12 @@ or execution event MUST update canonical dashboard state in real-time.
 **Standing rule (founder, 2026-09-27):** every change to the Agent OS web
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
+
+### 2026-10-05 — Real-browser proof with real models; two grounding false alarms fixed
+
+- **What changed:** `apps/web/tests/e2e/convoy-real.e2e.ts` (`npm run test:e2e:convoy-real`, opt-in) drives the Convoys window in real Chromium against a real server, real GitHub, real Ollama and real Mercury (spend capped, key from the repo `.env`, never printed), clicking plan, submit, approve and the tool approval through the UI, and compares the answer with GitHub's own newest PR. Mercury and Qwen both end COMPLETED and GROUNDED (`docs/evidence/model-integration/convoy-real-e2e.json`, `real-*.png`). The clicker is Playwright, not a person.
+- **Fix (`grounding.ts`):** real Mercury answers exposed two false alarms. Verbatim PR titles are now ignored for the state, branch and number checks (a PR titled "...queued approvals" is not a claim that something is queued); a slash word is a branch only when it starts like one or follows "branch"; a parenthetical state list ("(open, closed, or merged)") asserts nothing; markdown field lines (`State: Merged`) are checked against the PR named above them; clauses split per line. Invented ids, branches and wrong states still fail (tests).
+- **Tests:** grounding 17 to 24; `npm test` 1003/1003. **Four-state:** the real-model dashboard approval path is now LIVE VERIFIED at 1440 px (automated click); touch input and a person at the keyboard remain UNPROVEN.
 
 ### 2026-10-05 — Model integration tranche: `live_lookup`, local tool calling, grounding, convoys, Mayor, queued approvals (list items 2, 3, 4, 11, 12, 13, 14)
 
