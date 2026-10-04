@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-04T22:41:04.080Z",
+  "generated_at": "2026-10-04T23:23:08.667Z",
   "repo": "Kudbee-Studio/think-box-ai",
   "source": "https://api.github.com (unauthenticated)",
   "approvals": [
@@ -12,17 +12,17 @@
     {
       "recipe": "latest_pr",
       "ok": true,
-      "latency_ms": 371,
+      "latency_ms": 377,
       "approval": "approved",
       "items": 5,
       "evidence": {
         "recipe": "latest_pr",
         "repo": "Kudbee-Studio/think-box-ai",
         "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=all&sort=created&direction=desc&per_page=5",
-        "fetched_at": "2026-10-04T22:41:03.215Z",
+        "fetched_at": "2026-10-04T23:23:07.823Z",
         "http_status": 200,
         "tool_calls": 1,
-        "latency_ms": 364,
+        "latency_ms": 370,
         "complete": true,
         "items": [
           {
@@ -87,17 +87,17 @@
     {
       "recipe": "open_prs",
       "ok": true,
-      "latency_ms": 190,
+      "latency_ms": 223,
       "approval": null,
       "items": 1,
       "evidence": {
         "recipe": "open_prs",
         "repo": "Kudbee-Studio/think-box-ai",
         "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open&per_page=5",
-        "fetched_at": "2026-10-04T22:41:03.411Z",
+        "fetched_at": "2026-10-04T23:23:08.051Z",
         "http_status": 200,
         "tool_calls": 1,
-        "latency_ms": 188,
+        "latency_ms": 221,
         "complete": true,
         "items": [
           {
@@ -118,17 +118,17 @@
     {
       "recipe": "ci_status",
       "ok": true,
-      "latency_ms": 274,
+      "latency_ms": 222,
       "approval": null,
       "items": 5,
       "evidence": {
         "recipe": "ci_status",
         "repo": "Kudbee-Studio/think-box-ai",
         "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/actions/runs?per_page=5&exclude_pull_requests=true",
-        "fetched_at": "2026-10-04T22:41:03.685Z",
+        "fetched_at": "2026-10-04T23:23:08.274Z",
         "http_status": 200,
         "tool_calls": 1,
-        "latency_ms": 273,
+        "latency_ms": 222,
         "complete": true,
         "items": [
           {
@@ -194,17 +194,17 @@
     {
       "recipe": "open_issues",
       "ok": true,
-      "latency_ms": 257,
+      "latency_ms": 261,
       "approval": null,
       "items": 5,
       "evidence": {
         "recipe": "open_issues",
         "repo": "Kudbee-Studio/think-box-ai",
         "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/issues?state=open&per_page=10",
-        "fetched_at": "2026-10-04T22:41:03.941Z",
+        "fetched_at": "2026-10-04T23:23:08.534Z",
         "http_status": 200,
         "tool_calls": 1,
-        "latency_ms": 255,
+        "latency_ms": 259,
         "complete": true,
         "items": [
           {
@@ -259,17 +259,17 @@
     {
       "recipe": "branches",
       "ok": true,
-      "latency_ms": 137,
+      "latency_ms": 131,
       "approval": null,
       "items": 10,
       "evidence": {
         "recipe": "branches",
         "repo": "Kudbee-Studio/think-box-ai",
         "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/branches?per_page=10",
-        "fetched_at": "2026-10-04T22:41:04.079Z",
+        "fetched_at": "2026-10-04T23:23:08.666Z",
         "http_status": 200,
         "tool_calls": 1,
-        "latency_ms": 136,
+        "latency_ms": 130,
         "complete": true,
         "items": [
           {

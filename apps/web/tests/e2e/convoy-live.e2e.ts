@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { call, say, startMockInception, type MockInception } from '../helpers/mock-inception.ts';
+import { writeEvidence } from '../helpers/evidence-file.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = path.resolve(appDir, '../../docs/evidence/p3.22-model-integration');
@@ -184,7 +185,7 @@ async function main() {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
   results.push({ viewport: 'all', step: 'console errors', status: consoleErrors.length ? 'FAIL' : 'PASS', note: consoleErrors.length ? consoleErrors.slice(0, 5).join(' | ') : 'none' });
-  fs.writeFileSync(path.join(OUT, 'convoy-e2e.json'), `${JSON.stringify({ generated_at: new Date().toISOString(), note: 'real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in', passed: results.filter((r) => r.status === 'PASS').length, total: results.length, results }, null, 2)}\n`);
+  await writeEvidence(OUT, path.join(OUT, 'convoy-e2e.json'), { generated_at: new Date().toISOString(), note: 'real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in', passed: results.filter((r) => r.status === 'PASS').length, total: results.length, results });
   log(`${results.filter((r) => r.status === 'PASS').length}/${results.length} passed`);
   process.exit(results.every((r) => r.status === 'PASS') ? 0 : 1);
 }

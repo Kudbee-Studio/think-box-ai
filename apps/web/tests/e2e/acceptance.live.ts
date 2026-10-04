@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { readJsonIfPresent, readTextIfPresent, writeEvidence } from '../helpers/evidence-file.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = path.resolve(appDir, '../..');
@@ -16,7 +17,7 @@ const OUT = path.join(repoRoot, 'docs/evidence/p3.22-model-integration/live-acce
 const CAP = process.env.ACCEPTANCE_CAP_USD || '0.20';
 const only = process.argv.slice(2);
 
-const dotenv = fs.existsSync(path.join(repoRoot, '.env')) ? fs.readFileSync(path.join(repoRoot, '.env'), 'utf8') : '';
+const dotenv = readTextIfPresent(path.join(repoRoot, '.env'));
 const keyOf = (name: string): string => dotenv.match(new RegExp(`^${name}=(.+)$`, 'm'))?.[1]?.trim().replace(/^["']|["']$/g, '') ?? '';
 const inceptionKey = process.env.INCEPTION_API_KEY || keyOf('INCEPTION_API_KEY');
 if (!inceptionKey) { console.error('No INCEPTION_API_KEY in the environment or the repo .env: cannot run Mercury'); process.exit(2); }
@@ -74,7 +75,8 @@ async function governed() {
   const goal = 'Write a file notes.md containing exactly one sentence that says what a convoy is in this project';
   const before = await counters();
   const watcher = session(); await watcher.ready;
-  const wsListBefore = fs.existsSync(path.join(tmp, 'ws')) ? fs.readdirSync(path.join(tmp, 'ws')).length : 0;
+  const countWorkspaces = (): number => { try { return fs.readdirSync(path.join(tmp, 'ws')).length; } catch { return 0; } };
+  const wsListBefore = countWorkspaces();
   // 1. DRY RUN
   const planned = (await post('/api/convoys/plan', { goal, model: 'mercury-2' })).body.convoy;
   await sleep(1500);
@@ -82,7 +84,7 @@ async function governed() {
   const dry = { convoy_id: planned.id, state: planned.state, mode: planned.mode, plan_only: planned.plan.plan_only, side_effects: planned.plan.side_effects, executable: planned.plan.executable, blocked: planned.plan.blocked_reasons,
     added_by_mayor: planned.plan.added_by_mayor, workers: planned.plan.workers.map((w: any) => ({ id: w.id, model: w.model, tools: w.tools, permission: w.permission, wave: w.wave, depends_on: w.depends_on, estimated_cost_usd: w.estimated_cost_usd, cost_basis: w.cost_basis })), waves: planned.plan.waves, budget: planned.plan.budget, budget_use: planned.plan.budget_use, expected_convoy: planned.plan.expected_convoy,
     policy: { decision: planned.policy.decision, risk: planned.policy.risk, rules: planned.policy.rules.map((r: any) => r.id) },
-    nothing_ran: { runs_before: before.runs, runs_after: afterPlan.runs, tool_approvals_asked: watcher.approvals.length, convoy_updates_seen: watcher.messages.filter((m) => m.type === 'convoy_update').length, workspaces_before: wsListBefore, workspaces_after: fs.existsSync(path.join(tmp, 'ws')) ? fs.readdirSync(path.join(tmp, 'ws')).length : 0 } };
+    nothing_ran: { runs_before: before.runs, runs_after: afterPlan.runs, tool_approvals_asked: watcher.approvals.length, convoy_updates_seen: watcher.messages.filter((m) => m.type === 'convoy_update').length, workspaces_before: wsListBefore, workspaces_after: countWorkspaces() } };
   console.log(`DRY RUN   state=${planned.state} workers=${planned.plan.workers.map((w: any) => w.id).join('+')} executable=${planned.plan.executable} runs ${before.runs}->${afterPlan.runs}`);
   if (!planned.plan.executable) return { goal, dry_run: dry, stopped: 'plan not executable', blocked: planned.plan.blocked_reasons };
   // 2. QUEUED APPROVAL
@@ -107,15 +109,15 @@ async function governed() {
 
 async function main() {
   for (let i = 0; i < 100; i++) { try { if ((await fetch(`${base}/api/health`)).ok) break; } catch { /* starting */ } await sleep(150); }
-  const out: any = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { last_pr: {} };
+  const out: any = readJsonIfPresent(OUT, { last_pr: {} });
   out.generated_at = new Date().toISOString();
   out.setup = { repo: 'Kudbee-Studio/think-box-ai', github: 'real api.github.com (unauthenticated)', ollama: 'real local Ollama', mercury: 'real Inception mercury-2', spend_cap_usd: Number(CAP), approvals: 'granted by the script as a stand-in for the human reviewer; every grant is recorded' };
   for (const [name, model, ms] of [['qwen', 'qwen2.5:3b', 300_000], ['gemma', 'gemma3:4b', 900_000], ['mercury', 'mercury-2', 180_000]] as const) {
     if (only.length && !only.includes(name)) continue;
     out.last_pr[name] = await lastPr(model, ms).catch((e) => ({ model, error: String(e) }));
-    fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, `${JSON.stringify(out, null, 2)}\n`);
+    await writeEvidence(path.dirname(OUT), OUT, out);
   }
-  if (!only.length || only.includes('governed')) { out.governed = await governed().catch((e) => ({ error: String(e) })); fs.writeFileSync(OUT, `${JSON.stringify(out, null, 2)}\n`); }
+  if (!only.length || only.includes('governed')) { out.governed = await governed().catch((e) => ({ error: String(e) })); await writeEvidence(path.dirname(OUT), OUT, out); }
   process.exit(0);
 }
 main().catch((e) => { console.error(e); process.exit(2); });

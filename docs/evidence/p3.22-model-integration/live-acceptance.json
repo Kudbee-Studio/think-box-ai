@@ -2,13 +2,13 @@
   "last_pr": {
     "qwen": {
       "model": "qwen2.5:3b",
-      "convoy_id": "5613ca15-d733-4469-bbbf-33f493f8d628",
+      "convoy_id": "a0930a73-7ed1-4057-82ae-e3dd31a9e688",
       "state": "COMPLETED",
       "outcome": "success",
       "plan_state": "PLANNED",
       "submitted_state": "PENDING",
-      "wall_ms": 26083,
-      "run_ms": 25955,
+      "wall_ms": 26685,
+      "run_ms": 26462,
       "worker": {
         "id": "lookup-1",
         "model": "qwen2.5:3b",
@@ -23,7 +23,7 @@
           "cost_usd": 0,
           "tool_calls": 1,
           "tokens": 1226,
-          "duration_ms": 25953
+          "duration_ms": 26460
         }
       ],
       "tool_or_recipe": {
@@ -32,7 +32,7 @@
           "recipe": "latest_pr"
         },
         "ok": true,
-        "latency_ms": 350,
+        "latency_ms": 314,
         "approval": "approved"
       },
       "tool_calls": 1,
@@ -57,10 +57,10 @@
           "recipe": "latest_pr",
           "repo": "Kudbee-Studio/think-box-ai",
           "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=all&sort=created&direction=desc&per_page=5",
-          "fetched_at": "2026-10-04T23:09:30.459Z",
+          "fetched_at": "2026-10-04T23:23:50.411Z",
           "http_status": 200,
           "tool_calls": 1,
-          "latency_ms": 341,
+          "latency_ms": 304,
           "complete": true,
           "items": [
             {
@@ -123,7 +123,7 @@
       ],
       "approvals_prompted": [
         {
-          "at": "2026-10-04T23:09:30.116Z",
+          "at": "2026-10-04T23:23:50.105Z",
           "tool": "live_lookup",
           "reason": "First network access to api.github.com in this session",
           "granted": true
@@ -149,7 +149,7 @@
           "seq": 2,
           "state": "PENDING",
           "by": "system",
-          "note": "queued for human approval until 2026-10-04T23:24:15.962Z (risk low)"
+          "note": "queued for human approval until 2026-10-04T23:38:35.708Z (risk low)"
         },
         {
           "seq": 3,
@@ -514,7 +514,7 @@
       ]
     }
   },
-  "generated_at": "2026-10-04T23:17:44.177Z",
+  "generated_at": "2026-10-04T23:23:35.613Z",
   "setup": {
     "repo": "Kudbee-Studio/think-box-ai",
     "github": "real api.github.com (unauthenticated)",
