@@ -11,6 +11,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
 import { WebSocket } from 'ws';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9';
@@ -28,7 +29,7 @@ function env(extra: Record<string, string>): NodeJS.ProcessEnv {
 }
 
 async function start(extra: Record<string, string> = {}): Promise<{ proc: ChildProcess; url: string }> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], { cwd: appDir, env: env({ PORT: String(port), ...extra }), stdio: 'ignore' });
   const url = `http://127.0.0.1:${port}`;
   for (const end = Date.now() + 15000; Date.now() < end; await new Promise((r) => setTimeout(r, 150))) {

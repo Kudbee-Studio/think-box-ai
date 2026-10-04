@@ -11,9 +11,9 @@ export interface HeaderReq { method?: string; headers: Record<string, string | s
  * only to ourselves.
  */
 export function contentSecurityPolicy(port: number): string {
-  // `[::1]` is the IPv6 loopback name the Host/Origin gate also accepts (server.ts LOOPBACK_HOSTNAMES);
-  // the dashboard connects to `ws://${location.hostname}:${port}/ws`, which is `[::1]` when opened at http://[::1]/.
-  const ws = `ws://127.0.0.1:${port} ws://localhost:${port} ws://[::1]:${port}`;
+  // The Host/Origin gate also accepts `[::1]` (server.ts LOOPBACK_HOSTNAMES), but a bracketed IPv6 literal is not valid in a CSP source list:
+  // Chromium reports a console error and ignores it. A dashboard opened at http://[::1]:PORT/ reaches its own WebSocket through 'self'.
+  const ws = `ws://127.0.0.1:${port} ws://localhost:${port}`;
   return [
     "default-src 'self'",
     "script-src 'self'",

@@ -9,6 +9,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
@@ -26,7 +27,7 @@ test('server.ts does not eagerly import the startup-heavy modules (http facade, 
 });
 
 async function start(): Promise<{ url: string; port: number; workspaces: string }> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const dead = 'http://127.0.0.1:9';
   const workspaces = path.join(tmp, 'w');
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {

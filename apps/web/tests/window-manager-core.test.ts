@@ -13,7 +13,7 @@ vm.runInContext(src, sandbox, { filename: 'window-manager-core.js' });
 const core = sandbox.WindowManagerCore as {
   slugify(s: unknown): string;
   clamp(n: unknown, min: number, max: number): number;
-  defaultLayout(i: number, w: number, h: number): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean };
+  defaultLayout(i: number, w: number, h: number, top?: number): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean };
   normalizeLayout(raw: unknown): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean } | null;
   parseLayouts(json: string): Record<string, { x: number; y: number; w: number; h: number }>;
   serializeLayouts(map: Record<string, unknown>): string;
@@ -73,4 +73,13 @@ test('serializeLayouts round-trips through parseLayouts and drops unknown fields
   const back = core.parseLayouts(json);
   assert.equal(JSON.stringify(back['search-modal']), JSON.stringify({ x: 12, y: 34, w: 300, h: 200, maximized: true, minimized: false, open: false, opener: null }));
   assert.equal(json.includes('junk'), false);
+});
+
+test('defaultLayout opens below the header when told where it ends, and still stays on screen', () => {
+  const below = core.defaultLayout(0, 1440, 900, 140);
+  assert.ok(below.y >= 140, `window starts at y=${below.y}, over the header`);
+  assert.ok(below.y + below.h <= 900);
+  assert.equal(core.defaultLayout(0, 1440, 900).y, 72, 'without an offset it keeps the old position');
+  const low = core.defaultLayout(0, 600, 400, 390);
+  assert.ok(low.y + low.h <= 400, 'a header that is too tall cannot push the window off the bottom');
 });

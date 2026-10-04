@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { GITHUB_HTTPS_URL, SAFE_BRANCH } from '../git-repo-manager.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string, server: ChildProcess, base: string, canary: string, gitRoot: string;
@@ -19,7 +20,7 @@ before(async () => {
   canary = path.join(tmp, 'outside-secret.txt');
   fs.writeFileSync(canary, 'TOP-SECRET-CANARY');
   gitRoot = path.join(tmp, 'ws', '_git');
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir, stdio: 'ignore',

@@ -124,3 +124,17 @@ test('an unknown message type changes nothing', () => {
   assert.equal(changes.length, 0);
   assert.equal(reg.list().length, 0);
 });
+
+test('a status:running that arrives before the next run exists does not revive the finished agent (no ghost "2 running")', () => {
+  const { reg } = make();
+  reg.ingest({ type: 'run_update', data: { id: 'run-1', status: 'running', goal: 'first' } });
+  reg.ingest({ type: 'result', data: { success: true } });
+  assert.equal(reg.runningCount(), 0);
+  reg.ingest({ type: 'status', data: 'running' });
+  assert.equal(reg.runningCount(), 0, 'nothing is running yet: the finished agent stays finished');
+  reg.ingest({ type: 'run_update', data: { id: 'run-2', status: 'running', goal: 'second' } });
+  assert.equal(reg.runningCount(), 1, 'exactly one agent runs');
+  reg.ingest({ type: 'result', data: { success: true } });
+  assert.equal(reg.runningCount(), 0, 'and it finishes cleanly');
+  assert.equal(reg.get('run-1').status, 'idle');
+});

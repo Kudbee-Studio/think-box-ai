@@ -1,0 +1,28 @@
+.startup-error {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  width: min(560px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 16px 20px;
+  border: 1px solid #c0392b;
+  border-radius: 10px;
+  background: #1c1111;
+  color: #f5d6d2;
+  font-family: system-ui, sans-serif;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.startup-error h2 { margin: 0 0 8px; font-size: 16px; }
+.startup-error ul { margin: 0 0 8px; padding-left: 18px; font-size: 14px; }
+.startup-error p { margin: 0 0 12px; font-size: 13px; opacity: 0.85; }
+.startup-retry {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}

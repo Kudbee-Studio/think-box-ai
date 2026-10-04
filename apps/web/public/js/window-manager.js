@@ -35,6 +35,23 @@
 
   WindowManager.prototype._vw = function () { return (this.win && this.win.innerWidth) || 1280; };
   WindowManager.prototype._vh = function () { return (this.win && this.win.innerHeight) || 800; };
+  // A panel may ask for a larger first-open window with data-wm-size="WIDTHxHEIGHT" (the workflow builder is three columns wide).
+  WindowManager.prototype._sizeHint = function (el, layout) {
+    var m = el && el.dataset && el.dataset.wmSize ? /^(\d{3,4})x(\d{3,4})$/.exec(el.dataset.wmSize) : null;
+    if (!m) return layout;
+    layout.w = Core.clamp(Number(m[1]), MIN_W, Math.max(MIN_W, this._vw() - 16));
+    layout.h = Core.clamp(Number(m[2]), MIN_H, Math.max(MIN_H, this._vh() - TASKBAR_HEIGHT - 16));
+    layout.x = Core.clamp(layout.x, 0, Math.max(0, this._vw() - layout.w));
+    layout.y = Core.clamp(layout.y, 0, Math.max(0, this._vh() - TASKBAR_HEIGHT - layout.h));
+    return layout;
+  };
+
+  // Where the page header ends: new windows open below it so they never cover the buttons that open the next window.
+  WindowManager.prototype._topOffset = function () {
+    var header = this.doc.querySelector ? this.doc.querySelector('header') : null;
+    var rect = header && header.getBoundingClientRect ? header.getBoundingClientRect() : null;
+    return rect && rect.bottom > 0 ? Math.min(Math.round(rect.bottom) + 12, Math.round(this._vh() / 3)) : 72;
+  };
 
   WindowManager.prototype._read = function () {
     try { return this.storage ? this.storage.getItem(LAYOUT_KEY) : null; } catch (err) { return null; }
@@ -161,6 +178,9 @@
       el.style.height = 'calc(100vh - ' + TASKBAR_HEIGHT + 'px)';
     } else {
       if (el.classList) el.classList.remove('wm-maximized');
+      // A layout saved on a wider screen must not leave the window hanging off a narrower one.
+      l.w = Core.clamp(l.w, MIN_W, Math.max(MIN_W, this._vw()));
+      l.x = Core.clamp(l.x, 0, Math.max(0, this._vw() - l.w));
       this._applyPosition(rec);
       el.style.height = l.h + 'px';
     }
@@ -188,11 +208,12 @@
       key: key,
       el: el,
       title: title,
-      opener: this.pendingOpener || null,
-      layout: saved ? Core.normalizeLayout(saved) : Core.defaultLayout(this._count(), this._vw(), this._vh()),
+      // A saved layout remembers its own opener: restore() clicks several openers in one tick, so the shared pendingOpener would land on the wrong window.
+      opener: (saved && saved.opener) || this.pendingOpener || null,
+      layout: saved ? Core.normalizeLayout(saved) : this._sizeHint(el, Core.defaultLayout(this._count(), this._vw(), this._vh(), this._topOffset())),
       restore: null
     };
-    rec.layout = rec.layout || Core.defaultLayout(this._count(), this._vw(), this._vh());
+    rec.layout = rec.layout || Core.defaultLayout(this._count(), this._vw(), this._vh(), this._topOffset());
     this.pendingOpener = null;
     this.windows[key] = rec;
     rec.layout.open = true;
@@ -212,11 +233,28 @@
     if (!el || !el.dataset || !el.dataset.wmKey) return;
     var key = el.dataset.wmKey;
     if (this.windows[key] && this.windows[key].el === el) {
+      var rec = this.windows[key];
       delete this.windows[key];
       if (this.layouts[key]) { this.layouts[key].open = false; this._write(); }
       if (this.active === key) this.active = null;
+      // A panel that stays in the page (closed by hiding it) must not keep its "managed" marker or the next open would be skipped:
+      // no registry entry, no taskbar item, dead title-bar buttons. Strip the chrome so the next adopt() starts clean.
+      if (rec.chrome && el.parentNode) this._stripChrome(rec);
     }
     this._syncTaskbar();
+  };
+
+  WindowManager.prototype._stripChrome = function (rec) {
+    var el = rec.el;
+    var c = rec.chrome;
+    try {
+      if (c.bar && c.bar.parentNode) c.bar.parentNode.removeChild(c.bar);
+      if (c.grip && c.grip.parentNode) c.grip.parentNode.removeChild(c.grip);
+    } catch (err) { /* ignore */ }
+    if (el.dataset) { delete el.dataset.wmManaged; }
+    if (el.classList) { el.classList.remove('wm-managed'); el.classList.remove('wm-active'); el.classList.remove('wm-minimized'); el.classList.remove('wm-maximized'); }
+    if (el.style) { el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.height = ''; el.style.zIndex = ''; }
+    rec.chrome = null;
   };
 
   WindowManager.prototype.close = function (key) {
@@ -261,6 +299,7 @@
     rec.layout.minimized = !rec.layout.minimized;
     this._applyLayout(rec);
     this._save(key);
+    this._syncTaskbar();
   };
 
   WindowManager.prototype.toggleMaximize = function (key) {
@@ -283,7 +322,7 @@
     var l = rec.layout;
     l.maximized = false;
     if (rec.el.classList) rec.el.classList.remove('wm-maximized');
-    l.x = Core.clamp(x, 0, Math.max(0, this._vw() - 80));
+    l.x = Core.clamp(x, 0, Math.max(0, this._vw() - l.w));
     l.y = Core.clamp(y, 0, Math.max(0, this._vh() - TASKBAR_HEIGHT - 40));
     this._applyPosition(rec);
   };
@@ -294,6 +333,7 @@
     rec.layout.maximized = false;
     rec.layout.w = Core.clamp(w, MIN_W, Math.max(MIN_W, this._vw()));
     rec.layout.h = Core.clamp(h, MIN_H, Math.max(MIN_H, this._vh() - TASKBAR_HEIGHT));
+    rec.layout.x = Core.clamp(rec.layout.x, 0, Math.max(0, this._vw() - rec.layout.w));
     this._applyLayout(rec);
   };
 
@@ -375,8 +415,13 @@
     if (!this.taskbarWindows) return;
     var self = this;
     var container = this.taskbarWindows;
-    while (container.firstChild) container.removeChild(container.firstChild);
     var keys = Object.keys(this.windows);
+    // Rebuilding the taskbar mutates the document the observer watches; skip the rebuild when nothing it shows changed,
+    // otherwise every rebuild would trigger another one and the page would never yield.
+    var signature = keys.map(function (k) { var r = self.windows[k]; return [k, r.title, self.active === k ? 1 : 0, r.layout.minimized ? 1 : 0].join('\u0001'); }).join('\u0002');
+    if (signature === this._taskbarSignature) return;
+    this._taskbarSignature = signature;
+    while (container.firstChild) container.removeChild(container.firstChild);
     var empty = this.doc.createElement('span');
     empty.className = 'wm-taskbar-empty';
     empty.textContent = keys.length ? '' : 'No windows open';
@@ -456,6 +501,7 @@
   WindowManager.prototype._onMutations = function (records) {
     for (var r = 0; r < records.length; r++) {
       var rec = records[r];
+      if (this.taskbar && rec.target && this.taskbar.contains && this.taskbar.contains(rec.target)) continue; // our own taskbar edits
       if (rec.type === 'childList') {
         var added = rec.addedNodes || [];
         for (var a = 0; a < added.length; a++) if (a in added || added[a]) this._scanNode(added[a]);
@@ -496,12 +542,15 @@
     this.markPersistent();
     this.scan();
     if (this.doc.addEventListener) this.doc.addEventListener('click', function (e) { self._onCaptureClick(e); }, true);
-    this.restore();
     if (this.win && this.win.addEventListener) this.win.addEventListener('resize', function () { Object.keys(self.windows).forEach(function (k) { self.dragTo(k, self.windows[k].layout.x, self.windows[k].layout.y); }); });
+    // The observer must exist BEFORE restore(): restore clicks the saved panels open, and a panel nobody adopts stays a full-screen
+    // backdrop that covers the whole dashboard.
     if (typeof root.MutationObserver === 'function' && this.doc.body) {
       this.observer = new root.MutationObserver(function (records) { self._onMutations(records); });
       this.observer.observe(this.doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     }
+    this.restore();
+    this.scan();
   };
 
   root.WindowManager = WindowManager;

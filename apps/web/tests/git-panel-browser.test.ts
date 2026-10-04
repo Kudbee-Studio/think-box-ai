@@ -15,6 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const panelSrc = fs.readFileSync(path.join(appDir, 'public/js/git-integration.js'), 'utf8');
@@ -71,7 +72,7 @@ before(async () => {
   canary = path.join(tmp, 'outside-secret.txt');
   fs.writeFileSync(canary, 'TOP-SECRET-CANARY');
   gitRoot = path.join(tmp, 'ws', '_git');
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir, stdio: 'ignore',

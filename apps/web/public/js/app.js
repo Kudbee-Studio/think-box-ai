@@ -46,6 +46,7 @@ function connectWebSocket() {
 
   state.ws.onopen = () => {
     console.log('kudbEE WebSocket connected');
+    window.startupGuard?.ok('connection');
     document.getElementById('header-connection').innerHTML = '<span class="connection-dot"></span> Connected';
     appendTerminalMessage('system', '🐝 Connected to kudbEE backend');
     // Live link: also show goals run from the kudbee CLI (same engine and data) in this terminal.
@@ -64,6 +65,7 @@ function connectWebSocket() {
   };
 
   state.ws.onerror = () => {
+    window.startupGuard?.fail('connection', 'WebSocket error');
     appendTerminalMessage('error', `WebSocket connection error — check ${backendUrl}/api/health`);
   };
 
@@ -93,9 +95,17 @@ function handleMessage(msg) {
       renderPlugins();
       renderTasks();
       renderModels();
+      window.startupGuard?.ok('models');
       setStatus('idle', 'Ready');
       appendTerminalMessage(state.sessionId ? 'system' : 'error', state.sessionId ? `Session: ${state.sessionId.slice(0, 8)}` : 'The server sent an invalid session id; reload the page.');
       refreshFiles();
+      break;
+
+    case 'profile_changed':
+      // Another client switched the active profile. Re-read memory and runs, which are now that profile's.
+      refreshMemory();
+      refreshRuns();
+      if (window.profileSwitcher && window.profileSwitcher.store) void window.profileSwitcher.store.refresh();
       break;
 
     case 'mirror': {
@@ -1831,6 +1841,17 @@ function renderAgents(agents) {
   if (opts.some(a => a.id === previous)) select.value = previous;
 }
 
+// Named profiles: each has isolated memory and run history. Switching re-points the server's stores,
+// so memory and run panels are re-read once the switch lands.
+function initProfileSwitcher() {
+  if (!window.ProfileStore || !window.mountProfileSwitcher) return;
+  const store = new window.ProfileStore({
+    onChange: () => { refreshMemory(); refreshRuns(); },
+  });
+  window.profileSwitcher = { store };
+  void window.mountProfileSwitcher(store, { prompt: (message, initial) => window.prompt(message, initial) });
+}
+
 // ─── Actions ───────────────────────────────────────────────────
 // One place that validates and sends a goal. runGoal() and runWorkflow() both go through it.
 function submitGoal(goal) {
@@ -2024,6 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshStats();
   refreshRuns();
   loadAgents();  // Load available agent profiles
+  initProfileSwitcher();
   setInterval(refreshStats, 3000);
   setInterval(refreshRuns, 10000);
   setInterval(() => { if (state.isRunning) tickRunningTasks(); }, 1000);

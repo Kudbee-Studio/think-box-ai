@@ -53,7 +53,7 @@
     var el = doc.createElement('div');
     el.className = 'modal-backdrop governance-window';
     el.id = safeId(id);
-    if (el.dataset) el.dataset.agentId = String(id);
+    if (el.dataset) { el.dataset.agentId = String(id); el.dataset.wmSize = '520x560'; } // tall enough for the Approve/Reject row without scrolling
 
     var section = doc.createElement('section');
     section.className = 'modal modal-wide governance-modal';

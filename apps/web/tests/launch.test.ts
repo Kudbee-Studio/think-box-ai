@@ -3,13 +3,14 @@
 // output, files that must not be built, the fallback, and a real server started both ways.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { stopProcs } from './helpers/stop-proc.ts';
+import { stopProc, stopProcs } from './helpers/stop-proc.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { ensureBuilt, listSources, toJs } from '../launch.mjs';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
@@ -100,8 +101,8 @@ async function waitHealthy(url: string): Promise<void> {
   throw new Error('server did not start');
 }
 
-function launch(extraEnv: Record<string, string>): { url: string; proc: ChildProcess } {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+async function launch(extraEnv: Record<string, string>): Promise<{ url: string; proc: ChildProcess }> {
+  const port = await freePort();
   const dead = 'http://127.0.0.1:9';
   const proc = spawn(process.execPath, ['--no-warnings', 'launch.mjs', 'server'], {
     cwd: appDir,
@@ -117,7 +118,7 @@ function launch(extraEnv: Record<string, string>): { url: string; proc: ChildPro
 }
 
 test('real server through launch.mjs: starts from the built JS, serves the dashboard, and the data/workspace paths are the configured ones', async () => {
-  const { url } = launch({});
+  const { url } = await launch({});
   await waitHealthy(url);
   const page = await fetch(url);
   assert.equal(page.status, 200);
@@ -127,9 +128,20 @@ test('real server through launch.mjs: starts from the built JS, serves the dashb
 });
 
 test('real server through launch.mjs with KUDBEE_NO_BUILD=1 falls back to --experimental-strip-types and still works', async () => {
-  const { url } = launch({ KUDBEE_NO_BUILD: '1' });
+  const { url } = await launch({ KUDBEE_NO_BUILD: '1' });
   await waitHealthy(url);
   assert.equal((await fetch(`${url}/api/health`)).status, 200);
+});
+
+test('stopping the launcher on the KUDBEE_NO_BUILD fallback path stops the server too (no orphan holding the port)', async () => {
+  const { url, proc } = await launch({ KUDBEE_NO_BUILD: '1' });
+  await waitHealthy(url);
+  await stopProc(proc);
+  let refused = false;
+  for (const end = Date.now() + 6000; Date.now() < end && !refused; await new Promise((r) => setTimeout(r, 150))) {
+    refused = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(1000) }).then(() => false, () => true);
+  }
+  assert.ok(refused, 'the server is still answering after the launcher was stopped');
 });
 
 test('the generated files are git-ignored, and npm start and the CLI server auto-start use the launcher', () => {

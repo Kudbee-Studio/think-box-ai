@@ -25,16 +25,17 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  // Cascade new windows down the right side, never off the viewport.
-  function defaultLayout(index, viewportWidth, viewportHeight) {
+  // Cascade new windows from just below the header (`topOffset`), never off the viewport.
+  function defaultLayout(index, viewportWidth, viewportHeight, topOffset) {
     var vw = Number(viewportWidth) > 0 ? Number(viewportWidth) : 1280;
     var vh = Number(viewportHeight) > 0 ? Number(viewportHeight) : 800;
     var w = Math.min(460, Math.max(300, Math.round(vw * 0.38)));
     var h = Math.min(360, Math.max(220, Math.round(vh * 0.46)));
     var step = ((index || 0) % 8) * 26;
+    var top = Number(topOffset) > 0 ? Number(topOffset) : 72;
     return {
       x: clamp(96 + step, 8, Math.max(8, vw - w - 8)),
-      y: clamp(72 + step, 8, Math.max(8, vh - h - 64)),
+      y: clamp(top + step, 8, Math.max(8, vh - h - 64)),
       w: w,
       h: h,
       maximized: false,

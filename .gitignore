@@ -107,5 +107,6 @@ apps/web/.js-build.json
 apps/web/*.js
 apps/web/sdk/*.js
 apps/web/services/*.js
+apps/web/routes/*.js
 apps/web/panels/*.js
 apps/web/types/*.js

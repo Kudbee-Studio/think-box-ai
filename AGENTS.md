@@ -380,6 +380,15 @@ python3 -m pytest tests/integration/   # Requires SQLite
 python3 -m pytest tests/                # All tests
 ```
 
+The web app (`apps/web`) uses Node's test runner:
+
+```bash
+cd apps/web
+npm test                 # unit + real-server integration, about 25 s; tests take their ports from tests/helpers/free-port.ts
+npm run test:coverage    # c8; the line threshold is 90%
+npm run test:e2e         # opt-in: real Chromium (Playwright) against the real server; writes docs/evidence/p3.21-dashboard-live/
+```
+
 ### 3.5 Mocking
 
 - Mock providers in unit tests. Do not make real HTTP calls.
@@ -1659,6 +1668,33 @@ or execution event MUST update canonical dashboard state in real-time.
 **Standing rule (founder, 2026-09-27):** every change to the Agent OS web
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
+
+### 2026-10-04 — P3.21 dashboard live verification, #359 CodeQL fix, startup guard, flake fix (#360; supersedes #359)
+
+- **What changed:**
+  - **Live browser run (new, opt-in):** `apps/web/tests/e2e/dashboard-live.e2e.ts` (`cd apps/web && npx playwright install chromium && npm run test:e2e`) drives real Chromium at 1440/1024/390 px against the real `server.ts` with a scripted model (no provider, $0). Steps: watchdog (page answers within 3 s, no taskbar render loop), window manager, workflows, agent tracking with Approve and Reject from the governance window, profiles, layout overlap, startup guard, console errors, and a proof that the pre-fix #356 window manager freezes the page. Evidence and screenshots: `docs/evidence/p3.21-dashboard-live/` (`README.md` has the four-state table, root causes and UNPROVEN list). Playwright is a dev dependency of `apps/web` only; never part of `npm test`.
+  - **Freeze regression from #356 (fixed):** `_syncTaskbar` rebuilt the taskbar inside the `MutationObserver`'s subtree and every callback called it again, an endless loop (spinner, models never loaded). It now skips an unchanged rebuild and ignores its own mutations. Fake-DOM tests cannot catch this class of bug: **dashboard changes need a real-browser run before they are called LIVE VERIFIED.**
+  - **Other dashboard fixes found live:** windows open below the header and stay inside the viewport; restored windows are adopted after a reload and keep their own opener; a static panel closed by hiding it is registered again on reopen; panels can request a first-open size (`data-wm-size`; the workflow builder and governance window use it); the workflow builder stacks in a narrow window, its Load list no longer collapses, and its templates are really draggable (`draggable="true"`) with click and Enter/Space as alternatives; the agent registry no longer revives a finished agent as a ghost "running" agent.
+  - **Startup guard (new):** `public/js/startup-guard.js` shows an error panel naming the missing piece (WebSocket connection or model list) with a Retry button when boot does not finish in 5 s, or on any uncaught error or rejection during boot. The panel clears itself when the piece arrives. No silent spinner.
+  - **CodeQL (#359 import hardening):** `apps/web/profile-import.ts` validates an imported profile bundle against a strict bounded schema (layers from the fixed list, slug sanitised, size and count caps) and writes only through `writeConfined`; `MemoryStore.write` uses the same helper. Local CodeQL, diffed against main: JS/TS 36 to 35, python 21 to 21, zero new alerts.
+  - **CSP:** `ws://[::1]:PORT` removed from `connect-src` (Chromium rejects a bracketed IPv6 source; `'self'` covers an IPv6 page). No looser than before.
+  - **Flakes (root causes):** 21 test files used `20000+random()` ports in parallel, now `tests/helpers/free-port.ts`; `launch.mjs` fallback used `spawnSync` and orphaned the server when stopped, now an async spawn that forwards SIGINT/SIGTERM/SIGHUP. The five generated `apps/web/routes/*.js` mirrors are no longer tracked (gitignored).
+- **Tests:** new `profile-import` (7), `startup-guard` (6), window-manager (+7), window-manager-core (+1), agent-registry (+1), launch (+1), workflow-integration (+1) tests; the live script is separate (`npm run test:e2e`, 24 steps).
+- **Verification (clean worktree):** typecheck and lint clean; `npm test` 869/869 three times in a row with no leaked process; coverage 90.67% lines; `npm audit` 0 vulnerabilities; CodeQL as above.
+- **Four-state:** see `docs/evidence/p3.21-dashboard-live/README.md`. LIVE VERIFIED means real Chromium plus real server with a scripted model; not PRODUCTION READY. UNPROVEN: a real Mercury or Ollama model in the dashboard, real touch input, non-Chromium browsers, GitHub CI (billing lock), profile export/import from the UI (no control exists).
+
+### 2026-10-04 — Switchable profiles with persistent memory (P3)
+
+- **What changed (backend + header UI; each profile has isolated memory, run history and settings):**
+  - `apps/web/profile-manager.ts` (new): `Profile` store in SQLite (same `kudbee.db`) with an in-memory cache. `Profile {id(UUID), name, description, created_at, updated_at, is_active, settings}`; `create`/`get`/`list`/`update`/`delete`/`setActive` + `export`/`import` (import always gets a fresh UUID and an `(imported)` name). A fresh database gets one active `Default` profile; the last profile cannot be deleted; deleting the active one falls back to another and persists the pointer.
+  - `apps/web/memory.ts`: `MemoryStore` now takes a `profileId` and its root is per profile (`profileMemoryRoot(baseDir, id)` = `profiles/<id>/memory`, UUID-validated). `switchTo(root, profileId)` re-points and reloads the same object, so route handlers that captured it keep seeing the active profile. Memory files are never shared between profiles.
+  - `apps/web/runs.ts`: `RunRecord.profile_id` + `RunStore` profile scope (`setProfile`, `activeProfile`). `list`/`get`/`stats`/`costToday` see only the active profile's runs; `create` stamps new runs; `flush()` writes pending saves before a switch.
+  - `apps/web/routes/profiles.ts` (new): `GET/POST /api/profiles`, `GET /api/profiles/active`, `GET/PATCH/DELETE /api/profiles/:id`, `POST /api/profiles/:id/activate`, `GET /api/profiles/:id/export`, `POST /api/profiles/import`.
+  - `apps/web/server.ts`: creates the manager first, roots the shared `MemoryStore`/`RunStore` at the active profile, and `activateProfile()` re-points them + broadcasts `profile_changed`. The `init` message carries `profiles` and `activeProfile`; a session baseline applies the active profile's settings.
+  - `apps/web/public/js/profile-switcher.js` (new, classic script): pure `ProfileStore` (list/active/create/setActive/rename/remove/export/import over the API) plus `mountProfileSwitcher` for the header dropdown (+ New). `app.js` mounts it and re-reads memory/runs on `profile_changed`; `index.html` gains the `#profile-switcher` control; `public/css/profile-switcher.css` (new) mirrors `.agent-selector` with theme variables.
+- **Tests:** `tests/profile-manager.test.ts` (7), `tests/profile-isolation.test.ts` (3: memory invisible across profiles + restored on switch, run filtering, UUID guard), `tests/profile-switcher.test.ts` (4), `tests/profile-server.test.ts` (2: real server — Alpha memory/run isolated from Beta, restored on switch back, export/import new UUID; `/api/runs` scoped). 16 new tests.
+- **Verification:** `npm run typecheck` and `npm run lint` clean; new tests 16/16; static dashboard guards (frontend-xss-guard, dashboard-ui, http-security, panel-xss, command-parity, extracted-modules) all pass. Full suite 832/838; the 6 non-passing are the documented environment flakes (file-confinement/server-boot undici crash, think-token-p1-integration), reproduced on `main` (814/822).
+- **Four-state:** CODE COMPLETE / TEST VERIFIED (unit + real-server integration). Not LIVE VERIFIED (no real-browser run of the switcher); not PRODUCTION READY. The dashboard is still local-only; memory notes in `PersistenceLayer` remain session-keyed (the layered markdown memory is the profile-scoped store).
 
 ### 2026-10-04 — Agent tracking + governance window (P3)
 

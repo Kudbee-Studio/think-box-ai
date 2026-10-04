@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { stopProc } from './helpers/stop-proc.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9';
@@ -17,7 +18,7 @@ let base: string;
 
 before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-smoke-'));
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

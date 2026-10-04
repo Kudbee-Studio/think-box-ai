@@ -32,7 +32,15 @@ class WorkflowBuilder {
     // Drag and drop
     if (this.templates && this.templates.length > 0) {
       this.templates.forEach(template => {
+        // The elements are <div>s: without draggable="true" the browser never starts a drag, so a mouse user could not add a step at all.
+        template.setAttribute('draggable', 'true');
         template.addEventListener('dragstart', (e) => this.handleDragStart(e));
+        // Click or Enter/Space adds the step too (keyboard and touch have no drag).
+        const type = template.dataset.template;
+        template.addEventListener('click', () => this.addNode(type));
+        template.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.addNode(type); }
+        });
       });
     }
 
@@ -107,7 +115,7 @@ class WorkflowBuilder {
       node.remove();
       this.workflowNodes = this.workflowNodes.filter(n => n.id !== nodeId);
       if (this.workflowNodes.length === 0) {
-        this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag templates here to build workflow</div>';
+        this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag a template here, or click one, to build the workflow</div>';
       }
     });
 
@@ -133,7 +141,7 @@ class WorkflowBuilder {
     this.modal.removeAttribute('hidden');
     this.workflowNodes = [];
     this.editingId = null;
-    this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag templates here to build workflow</div>';
+    this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag a template here, or click one, to build the workflow</div>';
     this.nameInput.value = '';
     this.descInput.value = '';
     if (this.loadListEl) this.loadListEl.innerHTML = '';
@@ -217,7 +225,7 @@ class WorkflowBuilder {
     this.canvasArea.innerHTML = '';
     (workflow.nodes || []).forEach((node) => this.addNode(node.type, node));
     if (this.workflowNodes.length === 0) {
-      this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag templates here to build workflow</div>';
+      this.canvasArea.innerHTML = '<div class="canvas-placeholder">Drag a template here, or click one, to build the workflow</div>';
     }
     this.setStatus(`Editing "${workflow.name}". Save to update it.`);
   }

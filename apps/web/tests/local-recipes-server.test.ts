@@ -10,6 +10,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { startMockInception, type MockInception } from './helpers/mock-inception.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = 'smollm2:360m';
@@ -50,7 +51,7 @@ before(async () => {
   const ollamaUrl = `http://127.0.0.1:${(ollama.address() as { port: number }).port}`;
   const githubUrl = `http://127.0.0.1:${(github.address() as { port: number }).port}`;
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-recipes-'));
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

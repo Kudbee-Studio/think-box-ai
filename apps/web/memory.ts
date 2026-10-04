@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { createHash } from 'node:crypto';
 import { freshnessLabel } from './evidence.ts';
+import { writeConfined } from './workspace-fs.ts';
 
 export type MemoryLayer = 'task' | 'org' | 'verified';
 export const MEMORY_LAYERS: MemoryLayer[] = ['verified', 'org', 'task'];
@@ -157,8 +158,16 @@ that is rebuilt from these files on server start. Edit or delete files freely.
 Session memory (the live conversation) lives only in the running session.
 `;
 
+/** Root for a profile's memory layers: profiles/<id>/memory. The id is a server-made UUID, never caller text. */
+export function profileMemoryRoot(baseDir: string, profileId: string): string {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileId)) throw new Error('Invalid profile id');
+  return path.join(baseDir, profileId, 'memory');
+}
+
 export class MemoryStore {
-  readonly root: string;
+  private rootDir: string;
+  /** The profile this store serves; 'default' when the server did not scope it to one. */
+  private profileId: string;
   private readonly items = new Map<string, MemoryItem>();
   private docFreq = new Map<string, number>();
   private tokenCache = new Map<string, string[]>();
@@ -173,14 +182,40 @@ export class MemoryStore {
     synced: 0,
   };
 
-  constructor(root: string, env: NodeJS.ProcessEnv = process.env) {
-    this.root = root;
+  constructor(root: string, env: NodeJS.ProcessEnv = process.env, profileId = 'default') {
+    this.rootDir = root;
+    this.profileId = profileId;
     this.vectorUrl = env.UPSTASH_VECTOR_REST_URL?.replace(/\/+$/, '');
     this.vectorToken = env.UPSTASH_VECTOR_REST_TOKEN;
     this.namespace = env.KUDBEE_VECTOR_NAMESPACE || 'kudbee-memory';
     // Local is the default. The Upstash adapter stays in the code but is used only when asked for explicitly: KUDBEE_MEMORY_BACKEND=upstash (and its URL and token).
     this.upstashOptIn = env.KUDBEE_MEMORY_BACKEND === 'upstash' && Boolean(this.vectorUrl && this.vectorToken);
     if (this.upstashOptIn) this.vectorStatus = { backend: 'upstash-sparse', ok: false, synced: 0 };
+    for (const layer of MEMORY_LAYERS) fs.mkdirSync(path.join(root, layer), { recursive: true });
+    const readme = path.join(root, 'README.md');
+    try {
+      fs.writeFileSync(readme, README, { flag: 'wx' });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+    this.loadAll();
+  }
+
+  get root(): string {
+    return this.rootDir;
+  }
+
+  getProfileId(): string {
+    return this.profileId;
+  }
+
+  /**
+   * Point this store at another profile's memory folder and reload. The object identity is kept so route
+   * handlers that captured it once keep seeing the active profile's memory after a switch.
+   */
+  switchTo(root: string, profileId: string): void {
+    this.rootDir = root;
+    this.profileId = profileId;
     for (const layer of MEMORY_LAYERS) fs.mkdirSync(path.join(root, layer), { recursive: true });
     const readme = path.join(root, 'README.md');
     try {
@@ -205,12 +240,12 @@ export class MemoryStore {
   private loadAll(): void {
     this.items.clear();
     for (const layer of MEMORY_LAYERS) {
-      for (const file of fs.readdirSync(path.join(this.root, layer))) {
+      for (const file of fs.readdirSync(path.join(this.rootDir, layer))) {
         if (!file.endsWith('.md')) continue;
         const rel = `${layer}/${file}`;
-        const { meta, body } = parseFile(fs.readFileSync(path.join(this.root, rel), 'utf8'));
+        const { meta, body } = parseFile(fs.readFileSync(path.join(this.rootDir, rel), 'utf8'));
         const id = `${layer}/${file.slice(0, -3)}`;
-        const stat = fs.statSync(path.join(this.root, rel));
+        const stat = fs.statSync(path.join(this.rootDir, rel));
         this.items.set(id, {
           id,
           layer,
@@ -319,7 +354,7 @@ export class MemoryStore {
       content: input.content.slice(0, 20000),
       path: `${id}.md`,
     };
-    await fs.promises.writeFile(path.join(this.root, item.path), serialize(item), 'utf8');
+    await writeConfined(this.rootDir, path.join(this.rootDir, item.path), serialize(item));
     this.items.set(id, item);
     this.rebuildStats();
     if (this.usesUpstash) {
@@ -336,7 +371,7 @@ export class MemoryStore {
   async remove(id: string): Promise<boolean> {
     const item = this.items.get(id);
     if (!item) return false;
-    await fs.promises.rm(path.join(this.root, item.path), { force: true });
+    await fs.promises.rm(path.join(this.rootDir, item.path), { force: true });
     this.items.delete(id);
     this.rebuildStats();
     if (this.usesUpstash) {

@@ -100,11 +100,11 @@ class Storage {
   setItem(k: string, v: string): void { this.m[k] = String(v); }
 }
 
-function boot(): { WM: new (o: unknown) => unknown; doc: Doc; storage: Storage; win: { innerWidth: number; innerHeight: number; addEventListener(): void; removeEventListener(): void } } {
+function boot(extra: Record<string, unknown> = {}): { WM: new (o: unknown) => unknown; doc: Doc; storage: Storage; win: { innerWidth: number; innerHeight: number; addEventListener(): void; removeEventListener(): void } } {
   const doc = new Doc();
   const storage = new Storage();
   const win = { innerWidth: 1200, innerHeight: 800, addEventListener() {}, removeEventListener() {} };
-  const sandbox: Record<string, unknown> = { document: doc, localStorage: storage, console: { log() {}, warn() {}, error() {} }, setTimeout: () => 0 };
+  const sandbox: Record<string, unknown> = { document: doc, localStorage: storage, console: { log() {}, warn() {}, error() {} }, setTimeout: () => 0, ...extra };
   vm.createContext(sandbox);
   sandbox.window = sandbox;
   for (const f of ['window-manager-core.js', 'window-manager.js']) vm.runInContext(fs.readFileSync(path.join(jsDir, f), 'utf8'), sandbox, { filename: f });
@@ -333,4 +333,121 @@ test('a second element for the same panel is dropped instead of shown twice, and
   const approval = makeModal(doc, 'approval-modal', 'Approval');
   assert.equal(m.adopt(approval.el), null);
   assert.equal(approval.el.parentNode, doc.body, 'approval-modal stays a modal');
+});
+
+test('syncing an unchanged taskbar does not touch the DOM (a rebuild inside the observed body re-triggered the observer forever and froze the page)', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'search-modal', 'Advanced Search');
+  m.adopt(el);
+  const wins = m.taskbarWindows;
+  const first = wins.firstChild;
+  m._syncTaskbar();
+  m._syncTaskbar();
+  assert.equal(wins.firstChild, first, 'the taskbar nodes were kept, not rebuilt');
+  m.toggleMinimize('search-modal');
+  assert.notEqual(wins.firstChild, first, 'a real change (minimized) does rebuild it');
+});
+
+test('mutations inside the taskbar itself are ignored by the observer callback', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  let syncs = 0;
+  const real = m._syncTaskbar.bind(m);
+  m._syncTaskbar = () => { syncs += 1; real(); };
+  m._onMutations([{ type: 'childList', target: m.taskbarWindows, addedNodes: [], removedNodes: [] }]);
+  assert.equal(syncs, 1, 'only the single trailing sync, no scan of the taskbar nodes');
+});
+
+test('a window cannot be dragged or resized partly off the right edge of the viewport', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'search-modal', 'Advanced Search');
+  const key = m.adopt(el);
+  m.dragTo(key, 99999, 10);
+  let s = m.getState()[0];
+  assert.ok(s.x + s.w <= win.innerWidth, `x ${s.x} + w ${s.w} > ${win.innerWidth}`);
+  m.resizeTo(key, win.innerWidth, 300);
+  s = m.getState()[0];
+  assert.ok(s.x + s.w <= win.innerWidth, 'after resize the window still fits');
+});
+
+test('install() starts observing BEFORE it restores saved windows, so a restored panel is adopted instead of left as a full-screen backdrop', () => {
+  const order: string[] = [];
+  class FakeObserver { constructor() { order.push('observer-created'); } observe() { order.push('observing'); } }
+  const { WM, doc, storage, win } = boot({ MutationObserver: FakeObserver });
+  const m: any = new WM({ document: doc, window: win, storage });
+  const realRestore = m.restore.bind(m);
+  m.restore = () => { order.push('restore'); realRestore(); };
+  m.install();
+  assert.ok(order.indexOf('observing') !== -1 && order.indexOf('restore') !== -1, `order was ${order.join(',')}`);
+  assert.ok(order.indexOf('observing') < order.indexOf('restore'), `observer started after restore: ${order.join(',')}`);
+});
+
+test('after a reload each restored window keeps ITS OWN opener, so a header button closes the window it opened', () => {
+  const { WM, doc: _unused, storage, win } = boot();
+  void _unused;
+  const seed = new Doc();
+  const m1: any = new WM({ document: seed, window: win, storage });
+  m1.buildTaskbar();
+  const ids = [['advanced-search-button', 'search-modal', 'Advanced Search'], ['execution-logs-button', 'logs-modal', 'Execution Logs']];
+  const header1 = seed.createElement('header'); seed.body.appendChild(header1);
+  for (const [btnId, modalId, title] of ids) {
+    const b = seed.createElement('button'); b.id = btnId; header1.appendChild(b);
+    b.addEventListener('click', () => { makeModal(seed, modalId, title); });
+    m1.pendingOpener = btnId; b.click(); m1.scan(); m1._save(modalId);
+  }
+  const doc2 = new Doc();
+  const m2: any = new WM({ document: doc2, window: win, storage });
+  const header2 = doc2.createElement('header'); doc2.body.appendChild(header2);
+  for (const [btnId, modalId, title] of ids) {
+    const b = doc2.createElement('button'); b.id = btnId; header2.appendChild(b);
+    b.addEventListener('click', () => { makeModal(doc2, modalId, title); });
+  }
+  m2.install();
+  m2.scan();
+  assert.equal(m2.keyForOpener('advanced-search-button'), 'search-modal');
+  assert.equal(m2.keyForOpener('execution-logs-button'), 'logs-modal');
+});
+
+test('a panel can ask for a larger first-open window with data-wm-size, still clamped to the viewport', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const big = makeModal(doc, 'workflow-modal', 'Create task workflow');
+  big.el.dataset.wmSize = '760x560';
+  const key = m.adopt(big.el);
+  assert.equal(m.getLayout(key).w, 760);
+  assert.equal(m.getLayout(key).h, 560);
+  const huge = makeModal(doc, 'huge-modal', 'Huge');
+  huge.el.dataset.wmSize = '3000x3000';
+  const hk = m.adopt(huge.el);
+  assert.ok(m.getLayout(hk).w <= win.innerWidth && m.getLayout(hk).h <= win.innerHeight);
+  const bad = makeModal(doc, 'bad-modal', 'Bad');
+  bad.el.dataset.wmSize = 'nonsense';
+  assert.ok(m.getLayout(m.adopt(bad.el)).w <= 460, 'a malformed hint is ignored');
+});
+
+test('a panel that stays in the page and is closed by hiding it is a full window again when it is reopened (taskbar entry, working title bar)', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'workflow-modal', 'Create task workflow');
+  el.dataset.wmPersistent = '1';
+  m.adopt(el);
+  assert.equal(m.getState().length, 1);
+  el.hidden = true;
+  m.unadopt(el);
+  assert.equal(m.getState().length, 0);
+  assert.equal(el.querySelectorAll('.wm-titlebar').length, 0, 'the old title bar was removed, not left to stack');
+  el.hidden = false;
+  m.scan();
+  assert.equal(m.getState().length, 1, 'reopened panel is registered again');
+  assert.equal(m.taskbar.querySelectorAll('.wm-task-item').length, 1, 'and has its taskbar entry');
+  assert.equal(el.querySelectorAll('.wm-titlebar').length, 1, 'exactly one title bar');
+  m.toggleMinimize('workflow-modal');
+  assert.equal(m.getLayout('workflow-modal').minimized, true, 'its controls work');
 });

@@ -13,6 +13,8 @@ export interface RunRecord {
   model: string;
   provider: string;
   status: RunStatus;
+  /** Profile this run belongs to; runs are listed per active profile. */
+  profile_id?: string;
   started_at: number;
   ended_at?: number;
   duration_ms?: number;
@@ -70,9 +72,15 @@ export class RunStore {
   private runs: RunRecord[] = [];
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly file: string;
+  /**
+   * Runs belong to a profile. When set, list/stats/cost see only that profile's runs; create stamps new runs
+   * with it. Switching profiles updates this pointer (see setProfile) so a shared file keeps every run.
+   */
+  private profileId: string | undefined;
 
-  constructor(file: string) {
+  constructor(file: string, profileId?: string) {
     this.file = file;
+    this.profileId = profileId;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     try {
       this.runs = JSON.parse(fs.readFileSync(file, 'utf8')) as RunRecord[];
@@ -96,7 +104,22 @@ export class RunStore {
     }
   }
 
+  /** Point the store at a profile (no argument = all profiles). Called when the active profile changes. */
+  setProfile(profileId?: string): void {
+    this.flush();
+    this.profileId = profileId;
+  }
+
+  get activeProfile(): string | undefined {
+    return this.profileId;
+  }
+
+  private visible(): RunRecord[] {
+    return this.profileId ? this.runs.filter((run) => run.profile_id === this.profileId) : this.runs;
+  }
+
   create(run: RunRecord): RunRecord {
+    if (this.profileId && run.profile_id === undefined) run.profile_id = this.profileId;
     this.runs.push(run);
     if (this.runs.length > MAX_RUNS) this.runs.splice(0, this.runs.length - MAX_RUNS);
     this.save();
@@ -104,11 +127,11 @@ export class RunStore {
   }
 
   get(id: string): RunRecord | undefined {
-    return this.runs.find((run) => run.id === id);
+    return this.visible().find((run) => run.id === id);
   }
 
   list(limit = 50): RunRecord[] {
-    return this.runs.slice(-limit).reverse();
+    return this.visible().slice(-limit).reverse();
   }
 
   addEvent(run: RunRecord, event: AgentEvent): void {
@@ -139,7 +162,7 @@ export class RunStore {
   }
 
   costSince(since: number): number {
-    return this.runs.filter((run) => run.started_at >= since).reduce((sum, run) => sum + run.cost_usd, 0);
+    return this.visible().filter((run) => run.started_at >= since).reduce((sum, run) => sum + run.cost_usd, 0);
   }
 
   costToday(): number {
@@ -147,8 +170,9 @@ export class RunStore {
   }
 
   stats(): Record<string, unknown> {
-    const finished = this.runs.filter((run) => run.status !== 'running');
-    const today = this.runs.filter((run) => run.started_at >= startOfToday());
+    const visible = this.visible();
+    const finished = visible.filter((run) => run.status !== 'running');
+    const today = visible.filter((run) => run.started_at >= startOfToday());
     const durations = finished.map((run) => run.duration_ms ?? 0).sort((a, b) => a - b);
     const succeeded = finished.filter((run) => run.status === 'completed').length;
     const failures: Record<string, number> = {};
@@ -156,7 +180,7 @@ export class RunStore {
 
     const tools: Record<string, { calls: number; ok: number; total_ms: number; denied: number }> = {};
     const models: Record<string, { calls: number; total_ms: number }> = {};
-    for (const run of this.runs) {
+    for (const run of visible) {
       for (const step of run.steps) {
         if (step.kind === 'tool') {
           const t = (tools[step.name] ??= { calls: 0, ok: 0, total_ms: 0, denied: 0 });
@@ -176,7 +200,7 @@ export class RunStore {
     const hourMs = 3_600_000;
     const now = Date.now();
     const hourly = Array.from({ length: 24 }, () => ({ runs: 0, failed: 0, cost_usd: 0 }));
-    for (const run of this.runs) {
+    for (const run of visible) {
       const age = Math.floor((now - run.started_at) / hourMs);
       if (age < 0 || age >= 24) continue;
       const bucket = hourly[23 - age];
@@ -186,9 +210,9 @@ export class RunStore {
     }
 
     return {
-      runs_total: this.runs.length,
+      runs_total: visible.length,
       runs_today: today.length,
-      running: this.runs.filter((run) => run.status === 'running').length,
+      running: visible.filter((run) => run.status === 'running').length,
       success_rate: finished.length ? Math.round((succeeded / finished.length) * 1000) / 10 : null,
       failed: finished.length - succeeded,
       failures,
@@ -197,7 +221,7 @@ export class RunStore {
       avg_steps: finished.length ? Math.round((finished.reduce((s, r) => s + r.current_step, 0) / finished.length) * 10) / 10 : 0,
       tokens_today: today.reduce((sum, run) => sum + run.prompt_tokens + run.completion_tokens, 0),
       cost_today_usd: this.costToday(),
-      cost_total_usd: this.runs.reduce((sum, run) => sum + run.cost_usd, 0),
+      cost_total_usd: visible.reduce((sum, run) => sum + run.cost_usd, 0),
       tools: Object.fromEntries(
         Object.entries(tools).map(([name, t]) => [name, { calls: t.calls, success_rate: Math.round((t.ok / t.calls) * 100), avg_ms: Math.round(t.total_ms / t.calls), denied: t.denied }]),
       ),
@@ -206,13 +230,25 @@ export class RunStore {
     };
   }
 
+  /** Write any pending save immediately. Called before a profile switch so nothing is lost on restart. */
+  flush(): void {
+    if (!this.saveTimer) return;
+    clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    this.writeNow();
+  }
+
   private save(): void {
     if (this.saveTimer) return;
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null;
-      const tmp = `${this.file}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(this.runs));
-      fs.renameSync(tmp, this.file);
+      this.writeNow();
     }, 250);
+  }
+
+  private writeNow(): void {
+    const tmp = `${this.file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(this.runs));
+    fs.renameSync(tmp, this.file);
   }
 }

@@ -2,6 +2,19 @@
 
 **Date:** 2026-09-15
 
+> ## ADDENDUM — 2026-10-04 (Switchable profiles with persistent memory; agent OS web surface)
+>
+> **CODE COMPLETE / TEST VERIFIED (unit + real-server integration).** Named profiles each own isolated
+> memory (per-profile Markdown folders) and run history (profile-scoped `RunStore`), with SQLite-backed
+> profile CRUD and export/import under a fresh UUID. Backend: `apps/web/profile-manager.ts`,
+> `apps/web/routes/profiles.ts`, `MemoryStore.switchTo`/`profileMemoryRoot`, `RunStore.setProfile`/
+> `flush`, `server.ts` `activateProfile()` + `profiles`/`activeProfile` in the WS `init`. Frontend:
+> `public/js/profile-switcher.js` + header control + `profile-switcher.css`. 16 new tests
+> (`profile-manager` 7, `profile-isolation` 3, `profile-switcher` 4, `profile-server` 2). Full suite
+> 832/838; the 6 non-passing are the documented environment flakes (file-confinement/server-boot undici
+> crash, think-token-p1-integration), reproduced on `main` (814/822). **Not LIVE VERIFIED** (no
+> real-browser run of the switcher); **not PRODUCTION READY**. Dashboard remains local-only.
+
 > ## ADDENDUM — 2026-10-03 (Phase 3 roadmap reconciliation; branch `feat/pr342-p3-roadmap-reconciliation`, PR **#342**)
 >
 > **Docs/governance only, no application code.** Brings the roadmap/status in line with the merged state: items 3, 4 (tooling) and 6 are merged (`d94afbbb` #340, `e458a13e` #341); item 3 LIVE VERIFIED and item 4's real bundle remain **founder-gated** (real worker-02); item 5 is **FOUNDER DECISION REQUIRED**; item 7 is **DEFERRED**. The stale "Next: Phase 3, item 2 → 3" line is replaced with the current gate. `AGENTS.md` §0.11 now requires a roadmap-authorization check before any new engineering PR. No new implementation lane is authorized until a gate changes.
