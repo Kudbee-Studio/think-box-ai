@@ -260,3 +260,13 @@
 .wm-agent-empty {
   color: #6b7a94;
 }
+
+/* The workflow builder is a three-column grid sized for a full-screen modal; in a floating window the canvas and the name field
+   were squeezed to a sliver. Stack the columns whenever the window itself is narrow (a container query on the window's own width). */
+.modal-backdrop.wm-managed .modal { container-type: inline-size; }
+@container (max-width: 680px) {
+  .workflow-container { grid-template-columns: 1fr; height: auto; }
+  .workflow-sidebar, .workflow-properties { overflow: visible; }
+  .workflow-templates, #workflow-templates { display: flex; flex-wrap: wrap; gap: 8px; }
+  .canvas-area { min-height: 140px; }
+}

@@ -197,7 +197,8 @@
       key: key,
       el: el,
       title: title,
-      opener: this.pendingOpener || null,
+      // A saved layout remembers its own opener: restore() clicks several openers in one tick, so the shared pendingOpener would land on the wrong window.
+      opener: (saved && saved.opener) || this.pendingOpener || null,
       layout: saved ? Core.normalizeLayout(saved) : Core.defaultLayout(this._count(), this._vw(), this._vh(), this._topOffset()),
       restore: null
     };

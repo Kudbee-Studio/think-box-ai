@@ -386,3 +386,29 @@ test('install() starts observing BEFORE it restores saved windows, so a restored
   assert.ok(order.indexOf('observing') !== -1 && order.indexOf('restore') !== -1, `order was ${order.join(',')}`);
   assert.ok(order.indexOf('observing') < order.indexOf('restore'), `observer started after restore: ${order.join(',')}`);
 });
+
+test('after a reload each restored window keeps ITS OWN opener, so a header button closes the window it opened', () => {
+  const { WM, doc: _unused, storage, win } = boot();
+  void _unused;
+  const seed = new Doc();
+  const m1: any = new WM({ document: seed, window: win, storage });
+  m1.buildTaskbar();
+  const ids = [['advanced-search-button', 'search-modal', 'Advanced Search'], ['execution-logs-button', 'logs-modal', 'Execution Logs']];
+  const header1 = seed.createElement('header'); seed.body.appendChild(header1);
+  for (const [btnId, modalId, title] of ids) {
+    const b = seed.createElement('button'); b.id = btnId; header1.appendChild(b);
+    b.addEventListener('click', () => { makeModal(seed, modalId, title); });
+    m1.pendingOpener = btnId; b.click(); m1.scan(); m1._save(modalId);
+  }
+  const doc2 = new Doc();
+  const m2: any = new WM({ document: doc2, window: win, storage });
+  const header2 = doc2.createElement('header'); doc2.body.appendChild(header2);
+  for (const [btnId, modalId, title] of ids) {
+    const b = doc2.createElement('button'); b.id = btnId; header2.appendChild(b);
+    b.addEventListener('click', () => { makeModal(doc2, modalId, title); });
+  }
+  m2.install();
+  m2.scan();
+  assert.equal(m2.keyForOpener('advanced-search-button'), 'search-modal');
+  assert.equal(m2.keyForOpener('execution-logs-button'), 'logs-modal');
+});
