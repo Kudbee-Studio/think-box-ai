@@ -119,9 +119,13 @@ test('a sentence that invents a PR number is dropped and the data itself is show
     const r = result(messages);
     assert.equal(r.success, true);
     assert.equal(r.grounded, false);
-    assert.doesNotMatch(r.result, /999|merged/);
-    assert.match(r.result, /^Open pull requests in Acme\/widgets/);
-    assert.ok(messages.some((m) => m.type === 'thought' && /sentence was not used: it stated "999"/.test(m.data?.content ?? '')));
+    assert.match(r.result, /^GROUNDING FAILED \(unsupported_claim\)/);
+    assert.match(r.result, /- id: pr 999/);
+    assert.doesNotMatch(r.result, /We are on PR #999, which is merged/, 'the unsupported sentence is not shown');
+    assert.match(r.result, /Open pull requests in Acme\/widgets \(live from GitHub just now\): 1\./, 'the evidence is');
+    assert.equal(r.grounding.status, 'GROUNDING FAILED');
+    assert.equal(r.grounding.classification, 'unsupported_claim');
+    assert.ok(messages.some((m) => m.type === 'thought' && /GROUNDING FAILED: smollm2:360m's sentence was not used/.test(m.data?.content ?? '')));
   } finally { modelReply = 'We are on PR #330, a draft.'; }
 });
 
@@ -189,7 +193,9 @@ test('"what is the last PR?" asks for any state and reports the newest one as me
     modelReply = 'The last PR was #360, dashboard live-verify.';
     const older = result(await run('what is the last PR?'));
     assert.equal(older.grounded, false, 'a sentence about an older PR is not used');
-    assert.match(older.result, /^Most recent pull requests/);
+    assert.match(older.result, /^GROUNDING FAILED/);
+    assert.match(older.result, /does not name the newest pull request \(#361\)/);
+    assert.match(older.result, /- #361 "router and recipes" \(merged\)/);
   } finally { githubBody = null; modelReply = 'We are on PR #330, a draft.'; }
 });
 
@@ -202,8 +208,10 @@ test('"did CI pass?": the newest run\'s verdict comes from the data, and a flipp
     assert.deepEqual(githubHits, ['/repos/Acme/widgets/actions/runs?per_page=5&exclude_pull_requests=true']);
     assert.equal(flipped.recipe, 'ci_status');
     assert.equal(flipped.grounded, false);
-    assert.doesNotMatch(flipped.result, /passed/);
+    assert.match(flipped.result, /^GROUNDING FAILED/);
+    assert.doesNotMatch(flipped.result, /Yes, CI passed on run 812/, 'the flipped sentence is not shown');
     assert.match(flipped.result, /The newest run: failure\./);
+    assert.equal(flipped.grounding.status, 'GROUNDING FAILED');
     modelReply = 'No, the newest CI run on main failed (run 812).';
     const honest = result(await run('did CI pass?'));
     assert.equal(honest.grounded, true);

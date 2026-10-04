@@ -92,29 +92,6 @@ describe('groundedAnswer', () => {
     assert.equal(groundedAnswer('   ', facts).ok, false);
     assert.equal(groundedAnswer('word '.repeat(200), facts).ok, false);
   });
-  it('can require that the sentence names a listed pull request', () => {
-    assert.equal(groundedAnswer('We are working on a compiler fix.', facts, { cite: 'pr' as const }).ok, false);
-    assert.equal(groundedAnswer('We are on PR #330.', facts, { cite: 'pr' as const }).ok, true);
-    assert.equal(groundedAnswer('We are on pull request 330.', facts, { cite: 'pr' as const }).ok, true);
-    assert.equal(groundedAnswer('We are working on a compiler fix.', 'Open pull requests in A/b (live from GitHub just now): none.', { cite: 'pr' as const }).ok, true, 'nothing to cite when none are open');
-    assert.equal(groundedAnswer('We are working on a compiler fix.', facts).ok, true, 'optional');
-  });
-  it('rejects a sentence that pairs one PR\'s number with another PR\'s title (real mix-ups from the local model)', () => {
-    const real = [
-      '- #37745 "Bump undici from 6.23.0 to 6.29.0 in /compiler" by d, updated 2026-10-02T21:14:01Z https://github.com/react/react/pull/37745',
-      '- #37744 "[Compiler] Fix use-before-initialization crash in the snap runner\'s non-watch mode" by i, updated 2026-10-02T21:06:17Z https://github.com/react/react/pull/37744',
-      '- #37743 "[Perf Track] Don\'t re-diff the same value pair when it is aliased under multiple props" by i, updated 2026-10-02T20:19:35Z https://github.com/react/react/pull/37743',
-      '- #37742 "[DevTools] Resolve MemoComponent wrappers in inspectHooksOfFiber" by i, updated 2026-10-02T20:19:31Z https://github.com/react/react/pull/37742',
-    ].join('\n');
-    const data = `Open pull requests in facebook/react (live from GitHub just now): 4.\n${real}`;
-    const opts = { cite: 'pr' as const };
-    assert.equal(groundedAnswer('Our pull request, #37742, is related to resolving the use-before-initialization issue in snap runner\'s non-watch mode', data, opts).ok, false);
-    assert.equal(groundedAnswer('We are working on the #37742 [Perf Track] PR from the 6.29.0 branch.', data, opts).ok, false);
-    assert.equal(groundedAnswer('We are on PR #37742.', data, opts).ok, true);
-    assert.equal(groundedAnswer('We are on PR #37744, which fixes a use-before-initialization crash in the snap runner.', data, opts).ok, true);
-    assert.equal(groundedAnswer('The open pull requests are #37745 (Bump undici) and #37744 (Fix use-before-initialization crash).', data, opts).ok, true);
-    assert.equal(groundedAnswer('We are on PR #37745 and PR #37744.', data, opts).ok, true);
-  });
   it('requires a sentence about listed files to name one, and skips the model when there is nothing to word', () => {
     const files = 'Workspace files (2):\n- notes.md (31 B)\n- data/out.csv (200 B)';
     assert.equal(groundedAnswer('You have notes.md and an output file.', files, { cite: 'file' }).ok, true);
@@ -184,30 +161,12 @@ describe('GitHub recipes beyond open PRs', () => {
     assert.match(f, /^- #361 "wip router" \(open, draft\)/m);
     assert.ok(f.indexOf('#360') < f.indexOf('#359'));
   });
-  it('requires the answer to the newest-PR question to name the newest one', () => {
-    const f = facts('what is the last PR', prs);
-    const rule = sentenceRule(matchRecipe('what is the last PR')!, f);
-    assert.equal(rule.cite, 'pr_newest');
-    assert.equal(groundedAnswer('The last PR is #360, P3.21 dashboard live-verify, and it is merged.', f, rule).ok, true);
-    const older = groundedAnswer('The last PR was #359, profiles.', f, rule);
-    assert.equal(older.ok, false);
-    assert.match((older as any).why, /did not name the newest one \(#360\)/);
-    assert.equal(groundedAnswer('The last PR is #999.', f, rule).ok, false);
-  });
   it('drops the pull requests the issues endpoint mixes in, and says when there are none', () => {
     const f = facts('what issues are open', [{ number: 12, title: 'a real issue', user: { login: 'a' }, updated_at: '2026-10-01', html_url: 'https://github.com/Acme/widgets/issues/12' }, { number: 13, title: 'actually a PR', pull_request: {}, user: { login: 'a' } }]);
     assert.match(f, /- #12 "a real issue"/);
     assert.doesNotMatch(f, /#13/);
     assert.match(facts('what issues are open', [{ number: 13, title: 'a PR', pull_request: {} }]), /Open issues in Acme\/widgets \(live from GitHub just now\): none\./);
     assert.equal(sentenceRule(matchRecipe('what issues are open')!, 'Open issues in A/b (live from GitHub just now): none.').skipModel, true);
-  });
-  it('lists branches and requires the sentence to name one', () => {
-    const f = facts('list the branches', [{ name: 'main', protected: true }, { name: 'feat/router' }]);
-    assert.match(f, /^- main \(protected\)$/m);
-    assert.match(f, /^- feat\/router$/m);
-    assert.equal(groundedAnswer('There are two branches, main and feat/router.', f, { cite: 'branch' }).ok, true);
-    assert.equal(groundedAnswer('There are a couple of branches.', f, { cite: 'branch' }).ok, false);
-    assert.equal(groundedAnswer('There are 3 branches: main, feat/router and dev.', f, { cite: 'branch' }).ok, false);
   });
   describe('CI', () => {
     const run = (conclusion: string | null, status = 'completed') => ({ workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status, conclusion, run_number: 812, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/actions/runs/1' }, { name: 'CI', head_branch: 'feat/x', event: 'pull_request', status: 'completed', conclusion: 'success', run_number: 811, updated_at: '2026-10-03', html_url: 'https://github.com/Acme/widgets/actions/runs/0' }] });
@@ -216,16 +175,6 @@ describe('GitHub recipes beyond open PRs', () => {
       assert.match(facts('did CI pass?', run('failure')), /The newest run: failure\./);
       assert.match(facts('did CI pass?', run(null, 'in_progress')), /The newest run: in_progress\./);
       assert.match(facts('did CI pass?', run('success')), /^- "CI" on main \(push\): success, run 812/m);
-    });
-    it('rejects a sentence that flips or omits the verdict', () => {
-      const failed = facts('did CI pass?', run('failure'));
-      assert.equal(groundedAnswer('No, the newest CI run on main failed (run 812).', failed, { cite: 'ci' }).ok, true);
-      assert.match((groundedAnswer('Yes, CI passed on run 812.', failed, { cite: 'ci' }) as any).why, /contradicts the data/);
-      assert.match((groundedAnswer('CI ran on main.', failed, { cite: 'ci' }) as any).why, /did not state the newest run's result/);
-      const green = facts('did CI pass?', run('success'));
-      assert.equal(groundedAnswer('Yes, the newest run (812) passed.', green, { cite: 'ci' }).ok, true);
-      assert.equal(groundedAnswer('The newest run failed.', green, { cite: 'ci' }).ok, false);
-      assert.equal(groundedAnswer('It is still running.', facts('did CI pass?', run(null, 'in_progress')), { cite: 'ci' }).ok, true);
     });
     it('shows an empty list, an unreadable reply and an HTTP error plainly', () => {
       assert.match((buildFacts(m, { status: 200, text: '{"workflow_runs":[]}' }, repo) as any).facts, /CI runs in Acme\/widgets \(live from GitHub just now\): none\./);

@@ -41,7 +41,9 @@ import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
-import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
+import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
+import { renderFacts, type LookupEvidence } from './live-lookup.ts';
+import { isGithubRecipe, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, profileMemoryRoot } from './memory.ts';
@@ -986,9 +988,14 @@ export class AgentSession {
     };
     try {
       const hooks = this.agentHooks(record, this.abort.signal);
-      const gov = await runGovernedTool(recipe.tool, recipeToolArgs(recipe, getKnownRepo(), process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
+      // The GitHub recipes use the one shared live_lookup tool (normalized evidence); the file recipes keep their own tools.
+      const lookup = isGithubRecipe(recipe);
+      const gov = lookup
+        ? await runGovernedTool('live_lookup', { recipe: recipe.id }, hooks, newRunContext(), 1)
+        : await runGovernedTool(recipe.tool, recipeToolArgs(recipe, getKnownRepo(), process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
       if (gov.output.ok !== true) return fail(String(gov.output.error ?? 'the lookup failed'));
-      const built = buildFacts(recipe, gov.output, getKnownRepo());
+      const evidence = lookup ? ((gov.output as { evidence?: LookupEvidence }).evidence ?? null) : null;
+      const built = evidence ? { facts: renderFacts(evidence) } : buildFacts(recipe, gov.output, getKnownRepo());
       if ('error' in built) return fail(built.error);
       const rule = sentenceRule(recipe, built.facts);
       let reply = '';
@@ -997,24 +1004,30 @@ export class AgentSession {
       if (!rule.skipModel) {
         await streamOllama(model, [{ role: 'user', content: buildPrompt(goal, built.facts, recipe) }], (token) => { reply += token; }, (done) => { if (done.error) modelError = done.error; });
       }
-      const checked = rule.skipModel ? { ok: false as const, why: 'there was nothing to word' }
-        : modelError ? { ok: false as const, why: `the model call failed (${modelError})` }
-        : groundedAnswer(reply, built.facts, { cite: rule.cite });
+      let grounding: GroundingResult | null = null;
+      let checked: { ok: true; text: string } | { ok: false; why: string };
+      if (rule.skipModel) checked = { ok: false, why: 'there was nothing to word' };
+      else if (modelError) checked = { ok: false, why: `the model call failed (${modelError})` };
+      else if (evidence) {
+        grounding = validateGrounding(reply, [evidence]);
+        checked = grounding.status === 'GROUNDED' ? { ok: true, text: reply.replace(/\s+/g, ' ').trim() } : { ok: false, why: grounding.unsupported.map((u) => `${u.kind} ${u.claim}`).join('; ') };
+      } else checked = groundedAnswer(reply, built.facts, { cite: rule.cite === 'file' ? 'file' : undefined });
       this.addThought({
         type: 'reasoning',
         content: checked.ok
           ? `${model} wrote the sentence${rule.cite ? '; it names a listed item and every number and link in it is in the data.' : '; only the numbers and links in it can be checked.'}`
-          : rule.skipModel ? 'Nothing to summarise: showing the data itself.' : `${model}'s sentence was not used: ${checked.why}. Showing the data itself.`,
+          : rule.skipModel ? 'Nothing to summarise: showing the data itself.' : grounding ? `GROUNDING FAILED: ${model}'s sentence was not used (${checked.why}). Showing the evidence itself.` : `${model}'s sentence was not used: ${checked.why}. Showing the data itself.`,
         status: checked.ok ? 'success' : 'info',
       });
       const sentence = checked.ok ? (rule.uncheckedLabel ? `Summary by ${model} (only numbers and links in it are checked):\n${checked.text}` : checked.text) : '';
-      const final = sentence ? `${sentence}\n\n${built.facts}` : built.facts;
+      const final = grounding && !checked.ok ? presentAnswer(reply, [evidence!], grounding).display : sentence ? `${sentence}\n\n${built.facts}` : built.facts;
+      if (grounding) record.grounding = { ...grounding, evidence_recipe: recipe.id };
       this.broadcast({ type: 'stream', data: final });
       runStore.addEvent(record, { kind: 'model', step: 2, latency_ms: Date.now() - askedAt, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: final.slice(0, 2000) });
       runStore.finish(record, { status: 'completed', result: final });
       this.updateTask(task.id, { status: 'completed', result: final });
       this.status = 'idle';
-      return { success: true, result: final, streamed: true, recipe: recipe.id, grounded: checked.ok, run_id: record.id, duration_ms: record.duration_ms, steps: 2, tool_calls: 1, tokens: 0, cost_usd: 0 };
+      return { success: true, result: final, streamed: true, recipe: recipe.id, grounded: checked.ok, ...(grounding ? { grounding } : {}), run_id: record.id, duration_ms: record.duration_ms, steps: 2, tool_calls: 1, tokens: 0, cost_usd: 0 };
     } catch (err) {
       if (this.abort?.signal.aborted) {
         runStore.finish(record, { status: 'stopped', error: 'Stopped by user' });

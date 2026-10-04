@@ -3,7 +3,7 @@
 // confinement, audit) and the local model only writes a sentence from the result. The sentence is checked against the data; if it states a number
 // or link that is not in the data, the data itself is shown instead. Nothing here runs a tool or calls a model.
 
-import { lookupMaxChars, lookupUrl, normalizeLookup, parseJsonArrayPrefix, renderFacts, type LookupRecipe } from './live-lookup.ts';
+import { lookupMaxChars, lookupUrl, normalizeLookup, parseJsonArrayPrefix, renderFacts, type LookupEvidence, type LookupRecipe } from './live-lookup.ts';
 export { parseJsonArrayPrefix };
 
 export type RecipeId = 'open_prs' | 'latest_pr' | 'ci_status' | 'open_issues' | 'branches' | 'list_files' | 'read_file';
@@ -48,6 +48,9 @@ export function matchRecipe(goal: string): RecipeMatch | null {
   return null;
 }
 
+/** The GitHub recipes run through the shared live_lookup tool (one governed path, normalized evidence, the shared grounding validator). */
+export const isGithubRecipe = (match: RecipeMatch): boolean => GITHUB_RECIPES.has(match.id);
+
 /** Whether this recipe can run here: the PR recipe needs to know which GitHub repository to ask. */
 export function recipeAvailable(match: RecipeMatch, repo: string | null | undefined): boolean {
   return !GITHUB_RECIPES.has(match.id) || Boolean(repo && /^[\w.-]+\/[\w.-]+$/.test(repo));
@@ -63,12 +66,18 @@ export type Facts = { facts: string } | { error: string };
 
 const oneLine = (text: unknown, max: number): string => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
+/** The structured evidence for a GitHub recipe (one normalizer for every model), or the explicit reason there is none. null for the file recipes. */
+export function buildEvidence(match: RecipeMatch, output: Record<string, unknown>, repo?: string | null, latencyMs = 0): { evidence: LookupEvidence } | { error: string } | null {
+  if (!GITHUB_RECIPES.has(match.id)) return null;
+  const normalized = normalizeLookup({ recipe: match.id as LookupRecipe, repo: String(repo ?? '') }, { status: output.status, text: output.text, url: String(output.url ?? ''), fetched_at: new Date().toISOString(), latency_ms: latencyMs });
+  return normalized.ok ? { evidence: normalized.evidence } : { error: normalized.error };
+}
+
 /** The data, as plain lines, built by code from the tool output (never by the model). */
 export function buildFacts(match: RecipeMatch, output: Record<string, unknown>, repo?: string | null): Facts {
   if (GITHUB_RECIPES.has(match.id)) {
-    // One normalizer for every model: the structured evidence is built in live-lookup.ts and rendered here as the plain lines a small model words.
-    const normalized = normalizeLookup({ recipe: match.id as LookupRecipe, repo: String(repo ?? '') }, { status: output.status, text: output.text, url: String(output.url ?? ''), fetched_at: new Date().toISOString(), latency_ms: 0 });
-    return normalized.ok ? { facts: renderFacts(normalized.evidence) } : { error: normalized.error };
+    const built = buildEvidence(match, output, repo);
+    return built && 'evidence' in built ? { facts: renderFacts(built.evidence) } : { error: (built as { error: string }).error };
   }
   if (match.id === 'list_files') {
     const files = Array.isArray(output.files) ? (output.files as Array<{ path: string; size: number }>) : [];
@@ -108,18 +117,13 @@ export function sentenceRule(match: RecipeMatch, facts: string): SentenceRule {
 }
 
 const NUMBER = /\d+(?:\.\d+)?/g;
-/** Distinctive lower-case words (5+ letters) of a title or sentence. */
-function titleWords(text: string): Set<string> {
-  return new Set((text.toLowerCase().match(/[a-z][a-z0-9-]{4,}/g) ?? []).filter((w) => !COMMON.has(w)));
-}
-const COMMON = new Set(['about', 'after', 'being', 'could', 'first', 'their', 'there', 'these', 'those', 'which', 'would', 'where', 'while', 'with', 'pull', 'request', 'requests', 'based', 'open', 'data', 'live', 'github', 'working', 'currently', 'listed', 'number']);
 const URL_RE = /https?:\/\/[^\s)"']+/g;
 
 /**
  * Accept the model's sentence only if every number and link it states is in the data. A sentence that invents a PR number, a size or a URL is
  * dropped (the caller shows the data itself). An error-looking, empty or very long reply is dropped too.
  */
-export function groundedAnswer(answer: string, facts: string, opts: { cite?: SentenceRule['cite'] } = {}): { ok: true; text: string } | { ok: false; why: string } {
+export function groundedAnswer(answer: string, facts: string, opts: { cite?: 'file' } = {}): { ok: true; text: string } | { ok: false; why: string } {
   const text = String(answer ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim();
   if (!text) return { ok: false, why: 'the model returned nothing' };
   if (/^\[Error:/i.test(text)) return { ok: false, why: 'the model call failed' };
@@ -132,31 +136,6 @@ export function groundedAnswer(answer: string, facts: string, opts: { cite?: Sen
     const names = [...facts.matchAll(/^- (.+) \(\d+ B\)$/gm)].map((m) => m[1]!.toLowerCase());
     const lower = text.toLowerCase();
     if (names.length && !names.some((n) => lower.includes(n) || lower.includes(n.split('/').pop()!))) return { ok: false, why: 'it named none of the listed files' };
-  }
-  if (opts.cite === 'branch') {
-    const names = [...facts.matchAll(/^- (\S+)/gm)].map((m) => m[1]!.toLowerCase());
-    const lower = text.toLowerCase();
-    if (names.length && !names.some((n) => lower.includes(n))) return { ok: false, why: 'it named none of the listed branches' };
-  }
-  if (opts.cite === 'ci') {
-    // The newest run's verdict is stated in the data; a sentence that says the opposite is wrong, not just vague.
-    const verdict = facts.match(/The newest run: ([a-z_]+)\./)?.[1] ?? '';
-    const says = { pass: /\b(pass(ed|es|ing)?|green|succe(ss|eded|ssful(ly)?)|succeeds)\b/i.test(text), fail: /\b(fail(ed|s|ing|ure)?|red|broken)\b/i.test(text), running: /\b(running|in progress|queued|pending)\b/i.test(text) };
-    const actual = verdict === 'success' ? 'pass' : ['failure', 'timed_out', 'startup_failure'].includes(verdict) ? 'fail' : ['in_progress', 'queued', 'waiting', 'pending'].includes(verdict) ? 'running' : '';
-    if (actual && (['pass', 'fail', 'running'] as const).some((k) => says[k] && k !== actual)) return { ok: false, why: `it contradicts the data (the newest run is "${verdict}")` };
-    if (actual && !says[actual]) return { ok: false, why: `it did not state the newest run's result ("${verdict}")` };
-  }
-  if (opts.cite === 'pr' || opts.cite === 'pr_newest') {
-    const prs = [...facts.matchAll(/^- #(\d+) "([^"\n]*)"/gm)].map((m) => ({ n: m[1]!, words: titleWords(m[2]!) }));
-    const listed = prs.map((p) => p.n);
-    const cited = listed.filter((n) => new RegExp(`(^|[^\\d])${n}([^\\d]|$)`).test(text));
-    if (listed.length && !cited.length) return { ok: false, why: 'it named none of the listed items' };
-    if (opts.cite === 'pr_newest' && listed.length && !cited.includes(listed[0]!)) return { ok: false, why: `it did not name the newest one (#${listed[0]})` };
-    // A small model often pairs one PR's number with another PR's title. A distinctive word that belongs only to PRs the sentence does not cite is that mix-up.
-    for (const w of titleWords(text)) {
-      const owners = prs.filter((p) => p.words.has(w));
-      if (owners.length && !owners.some((p) => cited.includes(p.n))) return { ok: false, why: `it mixed "${w}" (from #${owners[0]!.n}) with a different pull request` };
-    }
   }
   return { ok: true, text };
 }
