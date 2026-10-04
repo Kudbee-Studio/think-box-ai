@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="/css/sharing-dashboard.css">
   <link rel="stylesheet" href="/css/template-browser.css">
   <link rel="stylesheet" href="/css/window-manager.css">
+  <link rel="stylesheet" href="/css/workflow-actions.css">
   <link rel="stylesheet" href="/css/enterprise-polish.css">
   <script src="/js/kudbee-sdk-browser.js"></script>
   <script src="/js/escape-html-global.js"></script>
@@ -270,7 +271,7 @@
           </div>
           <div class="task-actions-bar">
             <button id="create-workflow" class="btn-secondary" type="button" title="Create task workflow">+ Workflow</button>
-            <button id="bulk-actions" class="btn-secondary" type="button" title="Bulk operations" disabled>⋯ Actions</button>
+            <button id="bulk-actions" class="btn-secondary" type="button" title="Run a saved workflow">⋯ Actions</button>
           </div>
           <div id="task-list" class="task-list">
             <div class="empty-state">No tasks yet</div>
@@ -526,16 +527,21 @@
           <h4>Properties</h4>
           <label>Workflow name <input id="workflow-name" type="text" placeholder="My workflow"></label>
           <label>Description <textarea id="workflow-desc" placeholder="What does this workflow do?"></textarea></label>
+          <div id="workflow-status" class="workflow-status" hidden></div>
+          <div id="workflow-load-list" class="workflow-load-list"></div>
         </div>
       </div>
       <div class="modal-actions">
         <button id="cancel-workflow" class="btn-secondary">Cancel</button>
+        <button id="load-workflow" class="btn-secondary" type="button">Load</button>
         <button id="save-workflow" class="btn-primary">Save workflow</button>
       </div>
     </section>
   </div>
 
+<script src="/js/workflow-store.js"></script>
 <script src="/js/workflow-builder.js"></script>
+<script src="/js/action-button.js"></script>
 <script src="/js/metrics-dashboard.js"></script>
 <script src="/js/run-replay.js"></script>
 <script src="/js/memory-graph-layout.js"></script>

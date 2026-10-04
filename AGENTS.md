@@ -1660,6 +1660,19 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — Workflow builder save/load + Actions button (P3)
+
+- **What changed (UI + localStorage only; no backend workflow engine):**
+  - `apps/web/public/js/workflow-store.js` (new): localStorage CRUD for workflows (`kudbee:workflows:<id>`), `listWorkflows`/`getWorkflow`/`saveWorkflow`/`deleteWorkflow`, corrupt-safe reads, and `composeGoal` (turns a workflow into the plain-text plan used as the run goal). Loaded as a classic script (`window.WorkflowStore`) and node-importable.
+  - `apps/web/public/js/action-button.js` (new): enables the previously permanently-disabled `#bulk-actions` "⋯ Actions" button and opens a dropdown listing saved workflows; picking one dispatches `workflow:run`, and a "＋ New workflow" item opens the builder. Built only with `createElement`/`textContent`.
+  - `apps/web/public/js/workflow-builder.js`: Save now dispatches `workflow:created` with `{id,name,description,nodes}` (persistence moved to app.js); added a **Load** button that lists saved workflows and loads one back into the canvas for editing (`addNode` now accepts an existing node); validation uses the modal's status line instead of `alert()`; removed the `console.log`.
+  - `apps/web/public/js/app.js`: `submitGoal()` (one validated `run_goal` send) now backs `runGoal()`; new `runWorkflow()` composes the plan via `WorkflowStore` and runs it; `workflow:created` saves to localStorage, shows the terminal confirmation and queues the run; `workflow:run` (from the Actions menu) runs the workflow.
+  - `apps/web/public/css/workflow-actions.css` (new): Actions-menu and workflow-load-list styles (theme variables only), linked before `enterprise-polish.css`.
+  - `apps/web/public/index.html`: `#bulk-actions` no longer ships `disabled`; links the new CSS/scripts; adds the Load button, `#workflow-status` and `#workflow-load-list`.
+- **Tests:** `tests/workflow-store.test.ts` (8), `tests/action-button.test.ts` (7, a small fake DOM in a `vm`), `tests/workflow-integration.test.ts` (5 static guards: wiring, save→run_goal, no `alert`, no `innerHTML` in the menu). All dashboard guards (`dashboard-ui`, `dashboard-menus`, `frontend-xss-guard`, `http-security`, `panel-xss`) pass.
+- **Verification:** `npm run typecheck` and `npm run lint` clean; new tests 19/19 and guards 56/56. The full-suite run showed only the standing environment flakes (`file-confinement` / `server.test.ts` server-boot contention and the `think-token-p1-integration` set); each passes in isolation after clearing leaked node processes.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED (unit + static guards). Not LIVE VERIFIED (no real-browser run in this environment); not PRODUCTION READY. Running a workflow dispatches a normal goal — there is no backend workflow engine yet.
+
 ### 2026-10-04 — Dashboard window manager + taskbar (P3)
 
 - **What changed (UI only):**
