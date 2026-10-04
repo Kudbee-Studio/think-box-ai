@@ -412,3 +412,42 @@ test('after a reload each restored window keeps ITS OWN opener, so a header butt
   assert.equal(m2.keyForOpener('advanced-search-button'), 'search-modal');
   assert.equal(m2.keyForOpener('execution-logs-button'), 'logs-modal');
 });
+
+test('a panel can ask for a larger first-open window with data-wm-size, still clamped to the viewport', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const big = makeModal(doc, 'workflow-modal', 'Create task workflow');
+  big.el.dataset.wmSize = '760x560';
+  const key = m.adopt(big.el);
+  assert.equal(m.getLayout(key).w, 760);
+  assert.equal(m.getLayout(key).h, 560);
+  const huge = makeModal(doc, 'huge-modal', 'Huge');
+  huge.el.dataset.wmSize = '3000x3000';
+  const hk = m.adopt(huge.el);
+  assert.ok(m.getLayout(hk).w <= win.innerWidth && m.getLayout(hk).h <= win.innerHeight);
+  const bad = makeModal(doc, 'bad-modal', 'Bad');
+  bad.el.dataset.wmSize = 'nonsense';
+  assert.ok(m.getLayout(m.adopt(bad.el)).w <= 460, 'a malformed hint is ignored');
+});
+
+test('a panel that stays in the page and is closed by hiding it is a full window again when it is reopened (taskbar entry, working title bar)', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'workflow-modal', 'Create task workflow');
+  el.dataset.wmPersistent = '1';
+  m.adopt(el);
+  assert.equal(m.getState().length, 1);
+  el.hidden = true;
+  m.unadopt(el);
+  assert.equal(m.getState().length, 0);
+  assert.equal(el.querySelectorAll('.wm-titlebar').length, 0, 'the old title bar was removed, not left to stack');
+  el.hidden = false;
+  m.scan();
+  assert.equal(m.getState().length, 1, 'reopened panel is registered again');
+  assert.equal(m.taskbar.querySelectorAll('.wm-task-item').length, 1, 'and has its taskbar entry');
+  assert.equal(el.querySelectorAll('.wm-titlebar').length, 1, 'exactly one title bar');
+  m.toggleMinimize('workflow-modal');
+  assert.equal(m.getLayout('workflow-modal').minimized, true, 'its controls work');
+});
