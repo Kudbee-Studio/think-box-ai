@@ -40,6 +40,7 @@ import type {
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
+import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
@@ -642,6 +643,8 @@ export class AgentSession {
   status = 'idle';
   abort: AbortController | null = null;
   /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
+  /** The routing decision of the goal being drained; newRun() copies it onto the run record. */
+  private route: RouteDecision | null = null;
   readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }> = [];
   private busy = false;
   readonly approvedDomains = new Set<string>();
@@ -911,10 +914,12 @@ export class AgentSession {
         const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
         if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
           this.config.model = next.model;
+          this.route = recipeRoute(next.model, recipe.id, recipe.label);
           this.config.provider = 'ollama';
           this.broadcast({ type: 'status', data: 'running' });
           const result = await this.runRecipeGoal(next.goal, recipe, next.task);
-          this.broadcast({ type: 'result', data: result });
+          this.broadcast({ type: 'result', data: { ...result, route: this.route ?? undefined } });
+          this.route = null;
           next = this.queue.shift();
           continue;
         }
@@ -922,18 +927,22 @@ export class AgentSession {
         const escalation = next.model && !isInceptionModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
         if (escalation?.error) {
           if (next.task) this.updateTask(next.task.id, { status: 'failed', error: escalation.error });
-          this.broadcast({ type: 'result', data: { success: false, error: escalation.error } });
+          this.broadcast({ type: 'result', data: { success: false, error: escalation.error, route: refusedRoute(next.model!, escalation.error) } });
           next = this.queue.shift();
           continue;
         }
+        const requested = next.model;
         if (escalation?.model) next = { ...next, model: escalation.model };
         if (next.model) {
           this.config.model = next.model;
           this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
         }
+        this.route = escalation?.model && requested ? escalatedRoute(requested, escalation.model, escalation.why ?? 'it needs tools or live data')
+          : isInceptionModel(this.config.model) ? agentRoute(this.config.model) : localChatRoute(this.config.model);
         this.broadcast({ type: 'status', data: 'running' });
         const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
-        this.broadcast({ type: 'result', data: result });
+        this.broadcast({ type: 'result', data: { ...result, route: this.route ?? undefined } });
+        this.route = null;
         next = this.queue.shift();
       }
     } finally {
@@ -945,7 +954,7 @@ export class AgentSession {
    * A goal picked for a local model that needs tools or live data (a repo, files, the web, today's date...). With a worker agent configured it is
    * sent there and the thought line says why; without one it fails with an explanation instead of a confident made-up answer. null = stay local.
    */
-  private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string } | null {
+  private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string; why?: string } | null {
     const why = needsToolsOrLiveData(goal);
     if (!why) return null;
     if (!inceptionConfigured()) {
@@ -953,7 +962,7 @@ export class AgentSession {
     }
     const model = INCEPTION_MODELS[0];
     this.addThought({ type: 'routing', content: `Routed to ${model} instead of ${localModel}: ${why}. A local chat has no tools and cannot check live state.`, status: 'info' });
-    return { model };
+    return { model, why };
   }
 
   /**
@@ -1090,6 +1099,7 @@ export class AgentSession {
       goal,
       model: this.config.model,
       provider: this.config.provider,
+      route: this.route ?? undefined,
       status: 'running',
       started_at: Date.now(),
       steps: [],

@@ -103,6 +103,7 @@ test('"WHAT PR ARE WE ON": the lookup needs approval like any network access, th
   assert.equal(r.success, true);
   assert.equal(r.recipe, 'open_prs');
   assert.equal(r.grounded, true);
+  assert.deepEqual({ path: r.route.path, model: r.route.model, recipe: r.route.recipe }, { path: 'recipe', model: MODEL, recipe: 'open_prs' });
   assert.equal(r.streamed, true);
   assert.equal(r.cost_usd, 0);
   assert.match(r.result, /^We are on PR #330, a draft\.\n\nOpen pull requests in Acme\/widgets \(live from GitHub just now\): 1\./);

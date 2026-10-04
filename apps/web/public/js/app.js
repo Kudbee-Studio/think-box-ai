@@ -221,15 +221,16 @@ function handleMessage(msg) {
       const stats = r.steps !== undefined
         ? `\n— ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${formatUsd(r.cost_usd)} · ${((r.duration_ms || 0) / 1000).toFixed(1)}s`
         : '';
+      const routeLine = window.routeLabel ? window.routeLabel(r.route) : '';
       if (r.cancelled) {
         appendTerminalMessage('system', `⊘ ${r.error}`);
       } else if (r.success) {
         setStatus('idle', 'Completed');
         // A streamed (local chat) answer is already in the terminal token by token; show only the completion line.
-        appendTerminalMessage('assistant', `✓ ${r.streamed ? 'Done' : r.result || 'Done'}${stats}`);
+        appendTerminalMessage('assistant', `✓ ${r.streamed ? 'Done' : r.result || 'Done'}${stats}${routeLine ? `\n${routeLine}` : ''}`);
       } else {
         setStatus('error', 'Failed');
-        appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}`);
+        appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}${routeLine ? `\n${routeLine}` : ''}`);
       }
       refreshFiles();
       refreshStats();

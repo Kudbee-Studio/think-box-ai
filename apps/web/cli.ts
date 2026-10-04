@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
 import { isComplexGoal } from './goal-routing.ts';
+import { routeLabel } from './route-decision.ts';
 import { matchRecipe } from './local-recipes.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
@@ -213,6 +214,8 @@ class Client {
     if (result.steps !== undefined) {
       console.log(c.dim(`  ${result.steps} step(s) · ${result.tool_calls} tool call(s) · ${result.tokens} tokens · ${usd(result.cost_usd as number)} · ${(((result.duration_ms as number) ?? 0) / 1000).toFixed(1)}s · run ${String(result.run_id).slice(0, 8)}`));
     }
+    const routed = routeLabel(result.route);
+    if (routed) console.log(c.dim(`  ${routed}`));
     await this.files(true);
     return Boolean(result.success);
   }

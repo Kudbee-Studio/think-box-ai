@@ -1669,6 +1669,12 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — One routing decision per goal (list item 1)
+
+- **What changed:** `apps/web/route-decision.ts` (Layer 1, pure) defines `RouteDecision {path, model, requested_model?, reason, recipe?}` with five paths: `recipe`, `local_chat`, `escalated`, `agent`, `refused`. `server.ts` `drain()` sets it at every branch; `newRun()` copies it onto the run record (`RunRecord.route`, so `/api/runs/:id` and the history carry it) and the `result` message carries it too, including the refusal when no worker agent is configured. The dashboard result line (`public/js/route-label.js`, a classic-script mirror of `routeLabel()`) and the CLI result line print the same `route: recipe · smollm2:360m · latest_pr` text. Existing thoughts are unchanged.
+- **Tests:** `tests/route-decision.test.ts` (3; also proves the browser mirror prints the same text), plus route assertions in `tests/local-escalation.test.ts` (escalated, local chat, refused, run history) and `tests/local-recipes-server.test.ts` (recipe).
+- **Not done / UNPROVEN:** confidence, latency and cost are not in the record yet (cost and duration stay on the run); the CLI's own pre-routing (`selectModelForGoal`) still decides the requested model separately; the dashboard line was not checked in a real browser.
+
 ### 2026-10-04 — Live-data recipes for local models: latest PR (any state), CI, issues, branches (list item 2, with item 4's grounding)
 
 - **What changed:** `apps/web/local-recipes.ts` gains four GitHub recipes next to open PRs, list files and read file. `latest_pr` ("what is the last PR?") asks `pulls?state=all` newest first and states each PR as merged, open (draft) or closed without merging; before this, "last PR" fell into the open-PR recipe and a merged PR was reported as missing. `ci_status` reads the newest workflow runs and states the newest run's verdict in code. `open_issues` drops the pull requests the issues endpoint mixes in. `branches` lists the first ten. All run through `runGovernedTool` like the existing recipes (approval, confinement, audit), cost $0 and never involve the worker agent.
