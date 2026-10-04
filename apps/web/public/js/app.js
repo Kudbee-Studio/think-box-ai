@@ -76,6 +76,8 @@ function connectWebSocket() {
 }
 
 function handleMessage(msg) {
+  // Feed the agent registry first: it folds run/task/think-cube/approval messages into tracked agents and fires `agents:changed`.
+  if (window.agentRegistry) window.agentRegistry.ingest(msg);
   // Real server events (thoughts, approvals, memory, Think Tokens) become terminal lines; other message types are shown by their handlers below.
   window.KudbeeTerminal?.ingest(msg, { provider: state.config?.provider });
   switch (msg.type) {
@@ -2142,6 +2144,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!workflow) return;
     appendTerminalMessage('system', `Running workflow "${workflow.name}"...`);
     runWorkflow(workflow);
+  });
+
+  // The governance window's Approve/Reject buttons dispatch this; the dashboard owns the WebSocket response.
+  window.addEventListener('approval:resolved', (e) => {
+    const d = e.detail || {};
+    if (!d.id) return;
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      state.ws.send(JSON.stringify({ type: 'approval_response', id: d.id, approved: !!d.approved }));
+    }
   });
 
   // Initialize Dashboard UIs

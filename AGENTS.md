@@ -1660,6 +1660,18 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — Agent tracking + governance window (P3)
+
+- **What changed (UI + local events only; no backend agent management):**
+  - `apps/web/public/js/agent-registry.js` (new): in-memory registry fed by WebSocket messages. `ingest` maps `run_update`/`think_cube:run`, `task`/`task_update`, `think_token_cube`, `think_token_used`, `specialist_result`, `approval_request`, `approval_resolved`, `status` and `result` into records `{id,status(running|idle|paused|failed),run_id,goal,steps_completed,tokens_used,think_box_id,approval_pending,approvals}` and dispatches `agents:changed` (only when a stable signature changes; `updated_at` is ignored). Classic script (`window.agentRegistry`) + node-importable.
+  - `apps/web/public/js/agent-taskbar.js` (new): takes over the window manager's `#wm-taskbar-agents` slot, shows a **"N running"** badge and a dropdown of tracked agents (status class + goal + run id); clicking an agent dispatches `agent:open`.
+  - `apps/web/public/js/governance-window.js` (new): a per-agent `.modal-backdrop` window (so the window manager adopts it) showing status, goal, current step, run, tokens used, pending approvals (with **Approve/Reject** that dispatch `approval:resolved`) and a Think Box view (the cube renderer when present, else a token tree). Listens to `agent:open` and refreshes on `agents:changed`; close removes it.
+  - `apps/web/public/js/app.js`: every WebSocket message now goes to `window.agentRegistry.ingest(msg)`; a new `approval:resolved` listener sends the `approval_response` over the socket.
+  - `apps/web/public/css/agent-tracking.css` (new) + `apps/web/public/index.html`: styles (theme vars only) and the three scripts, loaded after the window manager and before the `app.js` module.
+- **Tests:** `tests/helper/fake-dom.ts` (shared fake DOM + event target), `tests/agent-registry.test.ts` (11), `tests/agent-taskbar.test.ts` (4), `tests/governance-window.test.ts` (7), `tests/agent-tracking-integration.test.ts` (5 static guards).
+- **Verification:** `npm run typecheck` and `npm run lint` clean; new tests 26/26; all dashboard guards 75/75. Full-suite failures are the standing environment flakes.
+- **Four-state:** CODE COMPLETE / TEST VERIFIED (unit + static guards). Not LIVE VERIFIED (no real-browser run); not PRODUCTION READY. Tracking is client-side only — the server still owns real agent state.
+
 ### 2026-10-04 — Workflow builder save/load + Actions button (P3)
 
 - **What changed (UI + localStorage only; no backend workflow engine):**
