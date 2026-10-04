@@ -66,7 +66,12 @@
   gap: 4px;
   max-height: 150px;
   overflow: auto;
+  /* In the properties column (a height-limited flex column) the list shrank to 0px and its items hung out of view. */
+  flex: 0 0 auto;
+  min-height: 0;
 }
+
+.workflow-properties > * { flex-shrink: 0; }
 
 .workflow-load-item {
   padding: 6px 8px;

@@ -190,7 +190,9 @@
 
   AgentRegistry.prototype._fromStatus = function (d) {
     var status = normalizeStatus(d);
-    var agent = this._lastRunning() || this._last() || this._ensure('session');
+    // The server sends `status: running` just BEFORE the run record exists. Attaching it to the last finished agent revived it as a
+    // ghost that never finished ("2 running" for one goal), so only a currently running agent is updated here.
+    var agent = this._lastRunning();
     if (!agent) return false;
     agent.status = status;
     agent.updated_at = this.now();
