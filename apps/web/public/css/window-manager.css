@@ -32,6 +32,10 @@
   overflow: auto;
 }
 
+/* The approval modal is not a window (the manager skips it), so it keeps the page-level z-index of .modal-backdrop. Managed windows start at z-index
+   1000, which let any open window cover the Approve button (found live with the Convoys window at 390 px). A tool approval is blocking: above everything. */
+#approval-modal.modal-backdrop { z-index: 100000; }
+
 .modal-backdrop.wm-managed.wm-active {
   border-color: var(--accent-primary, #58a6ff);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.62);

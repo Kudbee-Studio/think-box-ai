@@ -101,6 +101,14 @@ function handleMessage(msg) {
       refreshFiles();
       break;
 
+    // Convoys: the Convoys window listens for these (it is its own panel, not part of the terminal stream).
+    case 'convoy_update':
+      window.dispatchEvent(new CustomEvent('convoy:update', { detail: msg.data }));
+      break;
+    case 'convoy_error':
+      window.dispatchEvent(new CustomEvent('convoy:error', { detail: msg.data }));
+      break;
+
     case 'profile_changed':
       // Another client switched the active profile. Re-read memory and runs, which are now that profile's.
       refreshMemory();
@@ -2167,6 +2175,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!workflow) return;
     appendTerminalMessage('system', `Running workflow "${workflow.name}"...`);
     runWorkflow(workflow);
+  });
+
+  // The Convoys window's "Approve and run LIVE" button dispatches this; approving only ever happens over this authenticated socket.
+  window.addEventListener('convoy:approve', (e) => {
+    const d = e.detail || {};
+    if (d.id && state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: 'convoy_approve', id: d.id }));
   });
 
   // The governance window's Approve/Reject buttons dispatch this; the dashboard owns the WebSocket response.

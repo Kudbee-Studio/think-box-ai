@@ -9,6 +9,7 @@ import { createModelClients } from './ollama-client.ts';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.ts';
 import { registerMemoryRoutes } from './routes/memory.ts';
 import { registerProfileRoutes } from './routes/profiles.ts';
+import { registerConvoyRoutes } from './routes/convoys.ts';
 import { registerRunsRoutes } from './routes/runs.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
@@ -40,6 +41,9 @@ import type {
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
+import { ConvoyError, ConvoyStore } from './convoy.ts';
+import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
+import { evaluatePolicy, planConvoy } from './mayor.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
 import { renderFacts, type LookupEvidence } from './live-lookup.ts';
@@ -216,6 +220,7 @@ const profilesDir = path.join(dataDir, 'profiles');
 const profileManager = new ProfileManager(profilesDir, dataDir);
 const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
+const convoyStore = new ConvoyStore(path.join(profilesDir, activeProfileId, 'convoys.json'), activeProfileId);
 const memoryStore = new MemoryStore(profileMemoryRoot(profilesDir, activeProfileId), process.env, activeProfileId);
 void memoryStore.syncVectors();
 
@@ -226,6 +231,7 @@ void memoryStore.syncVectors();
 function activateProfile(profileId: string): void {
   const profile = profileManager.setActive(profileId);
   runStore.setProfile(profile.id);
+  convoyStore.setProfile(profile.id);
   memoryStore.switchTo(profileMemoryRoot(profilesDir, profile.id), profile.id);
   void memoryStore.syncVectors();
   for (const session of sessions.values()) session.broadcast({ type: 'profile_changed', data: { id: profile.id, name: profile.name } });
@@ -349,7 +355,7 @@ async function runGitAction(sessionId: string, action: string, input: PluginInpu
 }
 
 // ─── Ollama integration ────────────────────────────────────────
-const { requestJanus, listModels, streamOllama } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
+const { requestJanus, listModels, streamOllama, chatOnce, modelCapabilities } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
 // ─── Plugin system ─────────────────────────────────────────────
 function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enabled = true): void {
   plugins.set(name, {
@@ -1331,8 +1337,37 @@ export class AgentSession {
     }
   }
 
-  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    const jobId = randomUUID();
+  /**
+   * Run an APPROVED convoy with the real workers (convoy-runner.ts). The tool approvals of each worker go to THIS session's human, exactly like any
+   * other run; an approved convoy never bypasses the runtime gates.
+   */
+  async runConvoy(id: string): Promise<void> {
+    const convoy = convoyStore.get(id);
+    const first = convoy?.plan.workers[0];
+    if (first?.model && first.kind === 'specialist') { this.config.model = first.model; this.config.provider = isInceptionModel(first.model) ? 'inception' : 'ollama'; }
+    this.abort = new AbortController();
+    const deps: RunnerDeps = {
+      store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, repo: getKnownRepo(),
+      isLocalModel: (model) => !isInceptionModel(model),
+      newChildRun: (goal, runId, model, convoyId, workerId) => {
+        const record = this.newRun(goal, runId);
+        record.model = model;
+        record.provider = isInceptionModel(model) ? 'inception' : 'ollama';
+        record.jobId = convoyId;
+        record.specialistId = workerId;
+        return record;
+      },
+      hooksFor: (record, signal, allowedTools) => ({ ...this.agentHooks(record, signal), allowedTools }),
+      runAgent: (goal, model, hooks) => runToolAgent(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
+      runSpecialists: (goal, convoyId) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId }),
+      broadcast: (message) => this.broadcast(message as Parameters<AgentSession['broadcast']>[0]),
+      signal: this.abort.signal,
+    };
+    try { await executeConvoy(deps, id); } finally { this.abort = null; }
+  }
+
+  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}, options: { jobId?: string } = {}): Promise<Record<string, unknown>> {
+    const jobId = options.jobId ?? randomUUID();
     const startedAt = Date.now();
     const selection = selectSpecialists(intent, opportunity);
     const eventLog: Array<Record<string, unknown>> = [];
@@ -1806,6 +1841,19 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           break;
         }
 
+        // Approving AND running a convoy only happens here: this socket passed the origin/token check at upgrade, so it is a human operator's session.
+        case 'convoy_approve': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          try {
+            const c = convoyStore.decide(id, 'approve', 'human', safeString(msg.note).slice(0, 300));
+            session.broadcast({ type: 'convoy_update', data: summarizeConvoy(c) });
+            void session.runConvoy(id).catch((err) => ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err) } })));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err), code: err instanceof ConvoyError ? err.code : undefined } }));
+          }
+          break;
+        }
+
         case 'run_specialists': {
           const intentRaw = msg.intent ?? msg.goal ?? '';
           const intent = safeString(intentRaw).trim();
@@ -2030,6 +2078,29 @@ registerDiagnosticsRoutes(app, { sessions, plugins, serverStartedAt, monitorAgen
 registerRunsRoutes(app, { runStore, persistence });
 registerMemoryRoutes(app, { memoryStore, persistence, sessions });
 registerProfileRoutes(app, { profileManager, runStore, sessions, activateProfile, profilesDir });
+
+/** The measured average cost of a completed run on this model, or null: a plan never invents a number. */
+function costOfModel(model: string | null): { usd: number | null; basis: string } {
+  if (!model) return { usd: null, basis: 'no model' };
+  if (!isInceptionModel(model)) return { usd: 0, basis: 'local model, no API cost' };
+  const costs = runStore.list(200).filter((r) => r.model === model && r.status === 'completed' && r.cost_usd > 0).map((r) => r.cost_usd);
+  return costs.length ? { usd: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 1e6) / 1e6, basis: `average of ${costs.length} measured ${model} run(s)` } : { usd: null, basis: `no measured ${model} runs yet` };
+}
+
+registerConvoyRoutes(app, {
+  convoyStore,
+  runStore,
+  plan: (goal, model, budget) => {
+    const agentModel = inceptionConfigured() ? INCEPTION_MODELS[0]! : null;
+    const result = planConvoy({
+      goal, budget, lookupModel: model || agentModel || resolveLocalModel(), agentModel, isLocalModel: (m) => !isInceptionModel(m),
+      availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
+    });
+    if (!result.ok) return result;
+    return { ok: true, convoy: convoyStore.create(result.plan.goal, result.plan, evaluatePolicy(result.plan)) };
+  },
+  isHuman: (req) => isAllowedOrigin(typeof req.headers.origin === 'string' ? req.headers.origin : undefined, PORT_NUM) || tokensMatch(LOCAL_TOKEN, String(req.headers[TOKEN_HEADER] ?? '')),
+});
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {

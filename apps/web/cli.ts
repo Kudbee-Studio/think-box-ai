@@ -13,6 +13,7 @@ import { WebSocket } from 'ws';
 import MCPRegistry from './mcp-registry.ts';
 import { isComplexGoal } from './goal-routing.ts';
 import { routeLabel } from './route-decision.ts';
+import { modeLabel, type ConvoyState } from './convoy.ts';
 import { matchRecipe } from './local-recipes.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
@@ -254,6 +255,84 @@ function printApproval(req: ApprovalRequest): void {
   console.log(c.dim(`    ${JSON.stringify(req.args).slice(0, 300)}`));
 }
 
+const CONVOY_TERMINAL = new Set(['COMPLETED', 'PARTIAL', 'FAILED', 'REJECTED', 'EXPIRED', 'CANCELLED']);
+const usdOrUnmeasured = (n: unknown): string => (typeof n === 'number' ? usd(n) : 'unmeasured');
+
+function printConvoy(cv: any): void {
+  const live = !['PLANNED', 'PENDING', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(cv.state);
+  console.log(`${(live ? c.red : c.cyan)(`[${modeLabel(cv.state as ConvoyState)}]`)} ${c.bold(cv.goal)} ${c.dim(`${String(cv.id).slice(0, 8)} · ${cv.state}${cv.outcome ? ` · ${cv.outcome}` : ''}`)}`);
+  const plan = cv.plan;
+  if (plan) {
+    for (const w of plan.workers) console.log(`    ${c.dim(`wave ${w.wave}`)} ${w.name} ${c.dim(`on ${w.model ?? 'no model'} · tools ${w.tools.join(', ') || 'none'} · ${w.permission} · est ${usdOrUnmeasured(w.estimated_cost_usd)}`)}`);
+    const u = plan.budget_use;
+    console.log(c.dim(`    budget: ${u.worst_case_workers}/${plan.budget.max_workers} workers possible · est ${usdOrUnmeasured(u.estimated_cost_usd)} (worst ${usdOrUnmeasured(u.worst_case_cost_usd)}) of $${plan.budget.max_cost_usd} · up to ${u.estimated_tool_calls}/${plan.budget.max_tool_calls} tool calls`));
+    if (plan.escalation) console.log(c.dim(`    fallback: ${plan.escalation.model} if ${plan.escalation.when}`));
+    for (const r of plan.blocked_reasons) console.log(c.red(`    blocked: ${r}`));
+  }
+  if (cv.policy) console.log(c.dim(`    policy: ${cv.policy.decision} · risk ${cv.policy.risk}`));
+  if (cv.approval) console.log(c.dim(`    approval: ${cv.approval.state}${cv.approval.decided_by ? ` by ${cv.approval.decided_by}` : ` until ${new Date(cv.approval.expires_at).toISOString()}`}`));
+  if (cv.grounding) console.log((cv.grounding.status === 'GROUNDED' ? c.green : c.red)(`    ${cv.grounding.status}${(cv.grounding.unsupported ?? []).map((x: any) => `\n      ${x.kind}: ${x.claim}`).join('')}`));
+  if (cv.final_answer) console.log(`    ${c.green('answer:')} ${String(cv.final_answer).slice(0, 400)}`);
+  if (cv.error) console.log(c.red(`    ${cv.error}`));
+  if (live && typeof cv.cost_usd === 'number') console.log(c.dim(`    ${usd(cv.cost_usd)} · ${cv.tool_calls} tool call(s) · ${cv.tokens} tokens`));
+}
+
+async function convoyCommand(args: string[], client: Client): Promise<void> {
+  const sub = (args[0] ?? 'list').toLowerCase();
+  const api = async (path: string, method = 'GET', body?: unknown): Promise<any> => {
+    const token = readLocalToken(DATA_DIR);
+    const res = await fetch(`${HOST}/api/convoys${path}`, { method, headers: { 'content-type': 'application/json', ...(token ? { [TOKEN_HEADER]: token } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const data = (await res.json()) as any;
+    if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+    return data;
+  };
+  const resolveId = async (prefix: string | undefined): Promise<string> => {
+    const { convoys } = await api('');
+    const hit = prefix && convoys.find((x: any) => x.id.startsWith(prefix));
+    if (!hit) throw new Error('Usage: /convoy <show|submit|approve|reject> ID (first characters from /convoy list)');
+    return hit.id;
+  };
+  try {
+    if (sub === 'plan') {
+      const goal = args.slice(1).join(' ').trim();
+      if (!goal) return console.log(c.red('Usage: /convoy plan GOAL'));
+      const { convoy } = await api('/plan', 'POST', { goal, model: client.model });
+      printConvoy(convoy);
+      console.log(c.dim(convoy.plan.executable ? `  Next: /convoy submit ${convoy.id.slice(0, 8)} (queues it for your approval; still runs nothing)` : '  This plan cannot run as it is (see blocked above).'));
+    } else if (sub === 'list') {
+      const { convoys } = await api('');
+      if (!convoys.length) return console.log(c.dim('  (no convoys yet; /convoy plan GOAL)'));
+      for (const x of convoys) console.log(`  ${x.id.slice(0, 8)} ${(['PLANNED', 'PENDING', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(x.state) ? c.cyan : c.red)(modeLabel(x.state).padEnd(40))} ${x.state.padEnd(9)} ${usd(x.cost_usd).padStart(8)}  ${String(x.goal).slice(0, 60)}`);
+    } else if (sub === 'show') {
+      const { convoy } = await api(`/${await resolveId(args[1])}`);
+      printConvoy(convoy);
+      for (const r of convoy.runs ?? []) console.log(c.dim(`    run ${String(r.id).slice(0, 8)} ${r.model} ${r.status} ${usd(r.cost_usd)} · ${r.steps.filter((s: any) => s.kind === 'tool').map((s: any) => `${s.name}${s.ok ? '' : ' FAILED'}`).join(', ') || 'no tools'}`));
+      for (const e of convoy.events) console.log(c.dim(`    ${e.seq}. ${e.state} by ${e.by} #${String(e.hash).slice(0, 8)} ${e.note}`));
+    } else if (sub === 'submit') {
+      const { convoy } = await api(`/${await resolveId(args[1])}/submit`, 'POST');
+      printConvoy(convoy);
+      console.log(c.dim(`  Waiting for your decision: /convoy approve ${convoy.id.slice(0, 8)} or /convoy reject ${convoy.id.slice(0, 8)}`));
+    } else if (sub === 'reject') {
+      const { convoy } = await api(`/${await resolveId(args[1])}/reject`, 'POST', {});
+      printConvoy(convoy);
+    } else if (sub === 'approve') {
+      const id = await resolveId(args[1]);
+      client.send({ type: 'convoy_approve', id });
+      console.log(c.red('  LIVE EXECUTION: approved; real workers are starting (tool approvals will still ask).'));
+      let last = '';
+      for (let i = 0; i < 1800; i += 1) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const { convoy } = await api(`/${id}`);
+        if (convoy.state !== last) { last = convoy.state; console.log(c.dim(`  ${convoy.state}`)); }
+        if (CONVOY_TERMINAL.has(convoy.state)) { printConvoy(convoy); return; }
+      }
+      console.log(c.yellow('  Still running after 30 minutes; check /convoy show.'));
+    } else console.log(c.red('Usage: /convoy plan GOAL | list | show ID | submit ID | approve ID | reject ID'));
+  } catch (err) {
+    console.log(c.red(`  ${err instanceof Error ? err.message : String(err)}`));
+  }
+}
+
 async function showRuns(): Promise<void> {
   try {
     const res = await fetch(`${HOST}/api/runs?limit=15`);
@@ -394,6 +473,14 @@ ${c.bold('OPERATIONS')}
   /runs               run history (15 latest)
   /sessions           session history (same as /runs)
   /run ID             detailed step-by-step trace
+
+${c.bold('CONVOYS (Mayor plans, human approves)')}
+  /convoy plan GOAL   PLAN ONLY: the Mayor plans workers, budget and policy; nothing runs
+  /convoy [list]      one line per convoy, marked PLAN ONLY or LIVE EXECUTION
+  /convoy show ID     plan, policy, approval, runs, evidence chain
+  /convoy submit ID   queue the plan for approval (still runs nothing)
+  /convoy approve ID  approve AND run it LIVE (you are the human; tool approvals still ask)
+  /convoy reject ID   reject a pending plan
 
 ${c.bold('MEMORY & KNOWLEDGE')}
   /memory [QUERY]     search organizational memory (Upstash + BM25)
@@ -607,6 +694,9 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
     case '/runs':
     case '/sessions':
       await showRuns();
+      break;
+    case '/convoy':
+      await convoyCommand(args, client);
       break;
     case '/memory': {
       try {

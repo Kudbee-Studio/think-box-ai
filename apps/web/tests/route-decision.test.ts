@@ -40,3 +40,17 @@ describe('route decision', () => {
     }
   });
 });
+
+describe('convoy mode label: the dashboard badge and the CLI say the same thing', () => {
+  it('PLAN ONLY and LIVE EXECUTION are worded identically on both surfaces, for every state', async () => {
+    const { modeLabel } = await import('../convoy.ts');
+    const w: Record<string, any> = {};
+    vm.runInNewContext(fs.readFileSync(new URL('../public/js/convoy-window.js', import.meta.url), 'utf8'), { window: w, globalThis: w });
+    for (const state of ['PLANNED', 'PENDING', 'APPROVED', 'RUNNING', 'COMPLETED', 'PARTIAL', 'FAILED', 'REJECTED', 'EXPIRED', 'CANCELLED']) {
+      assert.equal(w.convoyModeBadge({ state }).text, modeLabel(state as any), state);
+    }
+    assert.match(modeLabel('PLANNED' as any), /^PLAN ONLY/);
+    assert.equal(modeLabel('RUNNING' as any), 'LIVE EXECUTION');
+    assert.doesNotMatch(modeLabel('PLANNED' as any) + modeLabel('PENDING' as any), /LIVE/);
+  });
+});

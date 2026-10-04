@@ -451,3 +451,11 @@ test('a panel that stays in the page and is closed by hiding it is a full window
   m.toggleMinimize('workflow-modal');
   assert.equal(m.getLayout('workflow-modal').minimized, true, 'its controls work');
 });
+
+test('the approval modal stays above every managed window: window-manager.css gives #approval-modal a z-index far above the managers range (1000 and up)', () => {
+  const css = fs.readFileSync(path.resolve(jsDir, '../css/window-manager.css'), 'utf8');
+  const m = css.match(/#approval-modal\.modal-backdrop\s*\{\s*z-index:\s*(\d+)/);
+  assert.ok(m, 'rule exists');
+  assert.ok(Number(m![1]) > 50_000, 'far above managed windows, which start at 1000 and grow with each focus');
+  assert.match(fs.readFileSync(path.resolve(jsDir, 'window-manager.js'), 'utf8'), /skip = options\.skip \|\| \{ 'approval-modal': true \}/, 'the modal is still not adopted as a window');
+});

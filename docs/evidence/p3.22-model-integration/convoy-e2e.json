@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-10-04T23:03:47.662Z",
+  "note": "real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in",
+  "passed": 13,
+  "total": 13,
+  "results": [
+    {
+      "viewport": "1440",
+      "step": "a plan only",
+      "status": "PASS",
+      "note": "badge \"PLAN ONLY — NOTHING HAS RUN\"; no worker, model, network or run record was created",
+      "screenshot": "convoy-1440-a-plan-only.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "b queued approval",
+      "status": "PASS",
+      "note": "badge \"PENDING APPROVAL — NOTHING RUNS YET\"; approval PENDING with expiry; execution blocked",
+      "screenshot": "convoy-1440-b-queued-approval.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "c live run",
+      "status": "PASS",
+      "note": "badge \"LIVE EXECUTION\"; COMPLETED; GROUNDED; the human approval is in the evidence chain",
+      "screenshot": "convoy-1440-c-live-run.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "d one row and drill down",
+      "status": "PASS",
+      "note": "one convoy row; drill-down: run -> tool call and its output -> evidence items (#361 merged)",
+      "screenshot": "convoy-1440-d-one-row-and-drill-down.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "e grounding failed is a failure",
+      "status": "PASS",
+      "note": "a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer",
+      "screenshot": "convoy-1440-e-grounding-failed-is-a-failure.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "f layout",
+      "status": "PASS",
+      "note": "window fits (right edge 855 of 1440)",
+      "screenshot": "convoy-1440-f-layout.png"
+    },
+    {
+      "viewport": "390",
+      "step": "a plan only",
+      "status": "PASS",
+      "note": "badge \"PLAN ONLY — NOTHING HAS RUN\"; no worker, model, network or run record was created",
+      "screenshot": "convoy-390-a-plan-only.png"
+    },
+    {
+      "viewport": "390",
+      "step": "b queued approval",
+      "status": "PASS",
+      "note": "badge \"PENDING APPROVAL — NOTHING RUNS YET\"; approval PENDING with expiry; execution blocked",
+      "screenshot": "convoy-390-b-queued-approval.png"
+    },
+    {
+      "viewport": "390",
+      "step": "c live run",
+      "status": "PASS",
+      "note": "badge \"LIVE EXECUTION\"; COMPLETED; GROUNDED; the human approval is in the evidence chain",
+      "screenshot": "convoy-390-c-live-run.png"
+    },
+    {
+      "viewport": "390",
+      "step": "d one row and drill down",
+      "status": "PASS",
+      "note": "one convoy row; drill-down: run -> tool call and its output -> evidence items (#361 merged)",
+      "screenshot": "convoy-390-d-one-row-and-drill-down.png"
+    },
+    {
+      "viewport": "390",
+      "step": "e grounding failed is a failure",
+      "status": "PASS",
+      "note": "a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer",
+      "screenshot": "convoy-390-e-grounding-failed-is-a-failure.png"
+    },
+    {
+      "viewport": "390",
+      "step": "f layout",
+      "status": "PASS",
+      "note": "window fits (right edge 389 of 390)",
+      "screenshot": "convoy-390-f-layout.png"
+    },
+    {
+      "viewport": "all",
+      "step": "console errors",
+      "status": "PASS",
+      "note": "none"
+    }
+  ]
+}

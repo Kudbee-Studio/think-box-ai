@@ -87,6 +87,8 @@ export interface AgentHooks {
    *  or otherwise disallowed tool call is rejected before it ever reaches the approval gate —
    *  the model isn't even offered the tool in its function list, but this is the hard backstop. */
   allowedTools?: string[];
+  /** Called with the FULL output of every governed tool call (the stored event output is truncated), so callers can keep structured evidence. */
+  onToolOutput?: (name: string, args: Record<string, unknown>, output: Record<string, unknown>) => void;
   /** Additional role context for a contract-backed specialist run. */
   roleContext?: string;
 }
@@ -572,6 +574,7 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
     hooks.onThought({ type: 'tool_result', plugin: name, content: `${name} ✗ ${error}`, status: 'error' });
   }
   const latency_ms = Date.now() - toolStartedAt;
+  hooks.onToolOutput?.(name, args, output);
   hooks.onEvent({
     kind: 'tool',
     step,

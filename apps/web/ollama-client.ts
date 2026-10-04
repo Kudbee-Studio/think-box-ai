@@ -10,6 +10,15 @@ export interface OllamaTag {
   [key: string]: unknown;
 }
 
+export interface OllamaChatTurn {
+  content: string;
+  tool_calls: Array<{ function?: { name?: unknown; arguments?: unknown } }>;
+  prompt_tokens: number;
+  completion_tokens: number;
+  latency_ms: number;
+  error?: string;
+}
+
 export interface ModelClientConfig {
   ollamaBaseUrl: string;
   janusBaseUrl: string;
@@ -107,5 +116,51 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
       onDone({ error: message });
     }
   }
-  return { listOllamaModels, requestJanus, listModels, streamOllama };
+
+  const capabilityCache = new Map<string, string[]>();
+  /** What Ollama says the model can do (`completion`, `tools`, `vision` ...). Empty when Ollama or the model cannot be reached; cached per model. */
+  async function modelCapabilities(model: string): Promise<string[]> {
+    const hit = capabilityCache.get(model);
+    if (hit) return hit;
+    try {
+      const res = await fetch(`${ollamaBaseUrl}/api/show`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model }), signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return [];
+      const data = (await res.json()) as { capabilities?: unknown };
+      const caps = Array.isArray(data.capabilities) ? data.capabilities.map(String) : [];
+      capabilityCache.set(model, caps);
+      return caps;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * One non-streaming chat turn that may carry native `tools` or a constrained `format` (JSON schema). Returns the raw message, any tool calls, and the
+   * measured token counts and time; never throws (a failure is `error`).
+   */
+  async function chatOnce(model: string, messages: unknown[], opts: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number } = {}): Promise<OllamaChatTurn> {
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages, stream: false, ...(opts.tools ? { tools: opts.tools } : {}), ...(opts.format ? { format: opts.format } : {}), options: { ...LOCAL_CHAT_OPTIONS, num_predict: opts.numPredict ?? 256, temperature: 0 } }),
+        signal: AbortSignal.any([...(opts.signal ? [opts.signal] : []), AbortSignal.timeout(opts.timeoutMs ?? 240_000)]),
+      });
+      const text = await res.text();
+      let body: any = {};
+      try { body = JSON.parse(text); } catch { /* handled below */ }
+      if (!res.ok || body.error) return { content: '', tool_calls: [], prompt_tokens: 0, completion_tokens: 0, latency_ms: Date.now() - startedAt, error: String(body.error ?? `Ollama returned HTTP ${res.status}: ${text.slice(0, 200)}`) };
+      return {
+        content: String(body.message?.content ?? ''),
+        tool_calls: Array.isArray(body.message?.tool_calls) ? body.message.tool_calls : [],
+        prompt_tokens: Number(body.prompt_eval_count) || 0,
+        completion_tokens: Number(body.eval_count) || 0,
+        latency_ms: Date.now() - startedAt,
+      };
+    } catch (err) {
+      return { content: '', tool_calls: [], prompt_tokens: 0, completion_tokens: 0, latency_ms: Date.now() - startedAt, error: errorMessage(err) };
+    }
+  }
+  return { listOllamaModels, requestJanus, listModels, streamOllama, modelCapabilities, chatOnce };
 }

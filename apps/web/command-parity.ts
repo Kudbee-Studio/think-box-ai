@@ -30,6 +30,7 @@ export const PARITY: Record<string, Parity> = {
   '/files': { kind: 'counterpart', side: 'cli', what: 'the dashboard Files panel', proof: 'refreshFiles' },
   '/cat': { kind: 'counterpart', side: 'cli', what: 'the dashboard file viewer', proof: 'files/content' },
   '/forget': { kind: 'counterpart', side: 'cli', what: 'delete in the dashboard memory panel', proof: 'deleteMemory' },
+  '/convoy': { kind: 'counterpart', side: 'cli', what: 'the dashboard Convoys window (plan, submit, approve, drill-down)', proof: 'convoy:approve' },
   '/stop': { kind: 'counterpart', side: 'cli', what: 'the dashboard Stop button', proof: "type: 'stop'" },
   // terminal-only
   '/quit': { kind: 'surface-only', reason: 'exits the CLI process' }, '/exit': { kind: 'surface-only', reason: 'exits the CLI process' },
