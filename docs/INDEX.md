@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (276 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (277 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (71)
+- [Other documents in docs/](#other-documents-in-docs) (72)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -307,6 +307,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/p3.11-cli-link-audit.md](evidence/p3.11-cli-link-audit.md) | P3.11: one engine, one database: audit and link (2026-10-02) | Mercury spend: about $0.06 of the $0.15 cap (CLI proof runs, answer-check re-runs, goal-check reviews). The real... |
 | [docs/evidence/p3.12-vector-memory.md](evidence/p3.12-vector-memory.md) | P3.12: local vector memory (SQLite, no Upstash) and the live-run fixes (2026-10-02) | Mercury spend: about $0.03 of the $0.10 cap (two live runs on :3000, one CLI run). The real database was backed up... |
 | [docs/evidence/p3.21-dashboard-live/README.md](evidence/p3.21-dashboard-live/README.md) | P3.21 dashboard live verification (#360) | Real Chromium (Playwright, headless) against the real server.ts at 1440, 1024 and 390 px wide. |
+| [docs/evidence/p3.22-model-integration/README.md](evidence/p3.22-model-integration/README.md) | Model integration tranche: live-data tool, local tool calling, grounding, convoys, Mayor, queued approvals | Branch feat/live-data-recipes. Everything below was run on this machine on 2026-10-04 and 2026-10-05 (UTC). |
 | [docs/evidence/p313b-memory-graph.md](evidence/p313b-memory-graph.md) | P3.13b: Memory Graph as a brain, without the layering | Founder feedback (2026-10-02): the Memory Graph was too layered, needed to be fixed and professional, and should... |
 | [docs/evidence/p316-local-chat.md](evidence/p316-local-chat.md) | P3.16: the local model in the Agent OS (CLI and dashboard) | Founder: "the CLI works with the model, not the Agent OS dashboard", and ollama run smollm2:360m "..." in a terminal... |
 | [docs/evidence/p317-dashboard-polish.md](evidence/p317-dashboard-polish.md) | P3.17: dashboard polish ("Invalid Date" and unstyled panels) | Founder asked for a polish pass on the Agent OS dashboard: the "Invalid Date" on thought cards and panels that look... |
