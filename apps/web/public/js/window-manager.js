@@ -261,6 +261,7 @@
     rec.layout.minimized = !rec.layout.minimized;
     this._applyLayout(rec);
     this._save(key);
+    this._syncTaskbar();
   };
 
   WindowManager.prototype.toggleMaximize = function (key) {
@@ -375,8 +376,13 @@
     if (!this.taskbarWindows) return;
     var self = this;
     var container = this.taskbarWindows;
-    while (container.firstChild) container.removeChild(container.firstChild);
     var keys = Object.keys(this.windows);
+    // Rebuilding the taskbar mutates the document the observer watches; skip the rebuild when nothing it shows changed,
+    // otherwise every rebuild would trigger another one and the page would never yield.
+    var signature = keys.map(function (k) { var r = self.windows[k]; return [k, r.title, self.active === k ? 1 : 0, r.layout.minimized ? 1 : 0].join('\u0001'); }).join('\u0002');
+    if (signature === this._taskbarSignature) return;
+    this._taskbarSignature = signature;
+    while (container.firstChild) container.removeChild(container.firstChild);
     var empty = this.doc.createElement('span');
     empty.className = 'wm-taskbar-empty';
     empty.textContent = keys.length ? '' : 'No windows open';
@@ -456,6 +462,7 @@
   WindowManager.prototype._onMutations = function (records) {
     for (var r = 0; r < records.length; r++) {
       var rec = records[r];
+      if (this.taskbar && rec.target && this.taskbar.contains && this.taskbar.contains(rec.target)) continue; // our own taskbar edits
       if (rec.type === 'childList') {
         var added = rec.addedNodes || [];
         for (var a = 0; a < added.length; a++) if (a in added || added[a]) this._scanNode(added[a]);

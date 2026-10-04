@@ -334,3 +334,29 @@ test('a second element for the same panel is dropped instead of shown twice, and
   assert.equal(m.adopt(approval.el), null);
   assert.equal(approval.el.parentNode, doc.body, 'approval-modal stays a modal');
 });
+
+test('syncing an unchanged taskbar does not touch the DOM (a rebuild inside the observed body re-triggered the observer forever and froze the page)', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  const { el } = makeModal(doc, 'search-modal', 'Advanced Search');
+  m.adopt(el);
+  const wins = m.taskbarWindows;
+  const first = wins.firstChild;
+  m._syncTaskbar();
+  m._syncTaskbar();
+  assert.equal(wins.firstChild, first, 'the taskbar nodes were kept, not rebuilt');
+  m.toggleMinimize('search-modal');
+  assert.notEqual(wins.firstChild, first, 'a real change (minimized) does rebuild it');
+});
+
+test('mutations inside the taskbar itself are ignored by the observer callback', () => {
+  const { WM, doc, storage, win } = boot();
+  const m: any = new WM({ document: doc, window: win, storage });
+  m.buildTaskbar();
+  let syncs = 0;
+  const real = m._syncTaskbar.bind(m);
+  m._syncTaskbar = () => { syncs += 1; real(); };
+  m._onMutations([{ type: 'childList', target: m.taskbarWindows, addedNodes: [], removedNodes: [] }]);
+  assert.equal(syncs, 1, 'only the single trailing sync, no scan of the taskbar nodes');
+});
