@@ -2,6 +2,7 @@
 // Unit tests use fakes; the last block boots the REAL server.ts on a random loopback port (never 3000, never the network).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { stopProcs } from './helpers/stop-proc.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -91,7 +92,7 @@ test('no inline on*= handler anywhere in the front end (the CSP forbids them, so
 let tmp: string;
 const procs: ChildProcess[] = [];
 before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-sec-')); });
-after(() => { for (const p of procs) p.kill('SIGKILL'); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 async function start(): Promise<{ url: string; port: number }> {
   const port = 20000 + Math.floor(Math.random() * 20000);

@@ -9,7 +9,8 @@
     "typecheck": "tsgo --noEmit",
     "typecheck:tsc": "tsc --noEmit",
     "lint": "tsgo --noEmit --noUnusedLocals",
-    "test": "node --experimental-strip-types --no-warnings --test --test-timeout=30000 --test-reporter=spec \"tests/*.test.ts\""
+    "test": "node --experimental-strip-types --no-warnings --test --test-timeout=30000 --test-reporter=spec \"tests/*.test.ts\"",
+    "test:coverage": "c8 --all --include='*.ts' --include='routes/*.ts' --exclude='tests/**' --exclude='routes/types.ts' --exclude='**/*.d.ts' --exclude='vitest.config.ts' --reporter=text --reporter=json-summary --report-dir=.coverage node --experimental-strip-types --no-warnings --test --test-timeout=60000 \"tests/*.test.ts\""
   },
   "engines": {
     "node": ">=22.6"
@@ -30,6 +31,7 @@
     "@types/ws": "^8.18.2",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "@vitest/ui": "^5.0.3",
+    "c8": "^10.1.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },

@@ -1660,6 +1660,16 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — Coverage toward 90%: flush V8 coverage from spawned processes + targeted unit tests
+
+- **What changed:**
+  - `apps/web/coverage-flush.ts` (new): `installCoverageFlush()` installs SIGTERM/SIGINT handlers that make a clean exit so V8 writes `NODE_V8_COVERAGE`; it is a no-op unless the variable is set. Wired into `server.ts` and `cli.ts`.
+  - `apps/web/tests/helpers/stop-proc.ts` (new): spawns are stopped with SIGTERM and the test awaits `exit` (with a SIGKILL fallback), so a child's coverage file lands before the run ends. The five suites that used `kill('SIGKILL')` (`error-handling`, `http-security`, `launch`, `routes-extracted`, `startup-lazy-loading`) now use it.
+  - `package.json`: adds dev dependency `c8` and `npm run test:coverage` (c8 merges the main test process with every spawned server/CLI process; scope is `apps/web/*.ts` + `routes/*.ts`, excluding tests, `routes/types.ts` and `.d.ts`).
+  - New unit tests (existing tests untouched): `learning-extractor`, `workspace-fs`, `git-repo-manager`, `worker-initialization`, `mcp-registry-discovery`, plus `goal-routing-extra`, `memory-semantic-extra`, `net-guard`, `cli-commands`, `learning-store`, `think-token-propagation`, `think-token-factory`, `server-routes-smoke`, `server-learning-integration-unit`, `git-api-routes`, `runs-routes`, `mcp-skills`.
+- **Coverage (core app code, lines):** 72.6% before → **90.57%** (12,642 / 13,959) after; branches 83.43%, functions 95.05%, statements 90.56%. Full run: 758 tests, 757 pass, 1 environment-failed (the file-system rate-limit test under load; passes in isolation).
+- **Four-state:** CODE COMPLETE / TEST VERIFIED. Not LIVE VERIFIED. The flush hook changes nothing unless `NODE_V8_COVERAGE` is set.
+
 ### 2026-09-30 — Specialist execution adapter (branch `docs/enterprise-agent-os-plan`)
 
 - **Changed:** `apps/web/specialist-executor.ts` allocates one unique box/session ID per selected contract, builds handoff dependency waves from each receiver's `acceptsFrom`, and executes independent ready specialists concurrently via the existing `runToolAgent`. `server.ts` exposes this as WebSocket `run_specialists`; each run gets its own confined workspace and `RunStore` metadata (`jobId`, `specialistId`, `thinkBoxId`). No specialist contract or second runtime was introduced.

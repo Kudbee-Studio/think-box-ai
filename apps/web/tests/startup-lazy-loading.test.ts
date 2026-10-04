@@ -2,6 +2,7 @@
 // (the first upload loads multer, the next reuses it) and that nobody re-adds the eager imports.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { stopProcs } from './helpers/stop-proc.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +14,7 @@ const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
 const procs: ChildProcess[] = [];
 before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-lazy-')); });
-after(() => { for (const p of procs) p.kill('SIGKILL'); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 test('server.ts does not eagerly import the startup-heavy modules (http facade, multer, fast-xml-parser)', () => {
   const src = fs.readFileSync(path.join(appDir, 'server.ts'), 'utf8');

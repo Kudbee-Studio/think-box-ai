@@ -18,6 +18,7 @@ import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, re
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
+import { installCoverageFlush } from './coverage-flush.ts';
 import type { Thought, WsMessage } from './types.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
@@ -1074,6 +1075,8 @@ function tokensCommand(args: string[]): number {
 }
 
 async function main(): Promise<void> {
+  // A spawned CLI is stopped by a signal in tests; make that a clean exit so NODE_V8_COVERAGE is written (coverage only).
+  installCoverageFlush();
   if (!isLoopbackUrl(HOST)) {
     console.error(c.red(`kudbee: KUDBEE_URL must point to this machine (127.0.0.1 or localhost); refusing ${HOST}`));
     process.exit(2);
