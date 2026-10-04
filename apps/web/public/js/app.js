@@ -46,6 +46,7 @@ function connectWebSocket() {
 
   state.ws.onopen = () => {
     console.log('kudbEE WebSocket connected');
+    window.startupGuard?.ok('connection');
     document.getElementById('header-connection').innerHTML = '<span class="connection-dot"></span> Connected';
     appendTerminalMessage('system', '🐝 Connected to kudbEE backend');
     // Live link: also show goals run from the kudbee CLI (same engine and data) in this terminal.
@@ -64,6 +65,7 @@ function connectWebSocket() {
   };
 
   state.ws.onerror = () => {
+    window.startupGuard?.fail('connection', 'WebSocket error');
     appendTerminalMessage('error', `WebSocket connection error — check ${backendUrl}/api/health`);
   };
 
@@ -93,6 +95,7 @@ function handleMessage(msg) {
       renderPlugins();
       renderTasks();
       renderModels();
+      window.startupGuard?.ok('models');
       setStatus('idle', 'Ready');
       appendTerminalMessage(state.sessionId ? 'system' : 'error', state.sessionId ? `Session: ${state.sessionId.slice(0, 8)}` : 'The server sent an invalid session id; reload the page.');
       refreshFiles();
