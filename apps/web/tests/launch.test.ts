@@ -3,6 +3,7 @@
 // output, files that must not be built, the fallback, and a real server started both ways.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { stopProcs } from './helpers/stop-proc.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,7 +15,7 @@ const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
 const procs: ChildProcess[] = [];
 before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-launch-')); });
-after(() => { for (const p of procs) p.kill('SIGKILL'); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 function project(files: Record<string, string>): string {
   const root = fs.mkdtempSync(path.join(tmp, 'p-'));

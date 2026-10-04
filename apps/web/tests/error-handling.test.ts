@@ -3,6 +3,7 @@
 // boot the REAL server.ts on a random loopback port.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { stopProcs } from './helpers/stop-proc.ts';
 import { EventEmitter } from 'node:events';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,7 +18,7 @@ const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
 const procs: ChildProcess[] = [];
 before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-err-')); });
-after(() => { for (const p of procs) p.kill('SIGKILL'); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 test('describeError: Error message, name when the message is empty, strings, objects, and values JSON cannot hold', () => {
   assert.equal(describeError(new Error('boom')), 'boom');

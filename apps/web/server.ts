@@ -72,9 +72,13 @@ import {
   validateSpecialistEvidence,
 } from './specialist-executor.ts';
 import { createInitialCubeState, applyEvent as applyThinkCubeEvent } from './public/js/think-cube-state.js';
+import { installCoverageFlush } from './coverage-flush.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// A spawned server is stopped by a signal; make that a clean exit so NODE_V8_COVERAGE is written (test coverage only).
+installCoverageFlush();
 
 // Secrets stay server-side: the repo-root .env is read here and never sent to the browser.
 for (const envPath of [path.join(__dirname, '.env'), path.resolve(__dirname, '../../.env')]) {

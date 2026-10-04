@@ -3,6 +3,7 @@
 // /api/runs/:id, so ":id" captured "history" and the endpoint always answered 404 "Run not found".
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { stopProcs } from './helpers/stop-proc.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -33,7 +34,7 @@ before(async () => {
   }
   throw new Error('server did not start');
 });
-after(() => { for (const p of procs) p.kill('SIGKILL'); fs.rmSync(tmp, { recursive: true, force: true }); });
+after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 const json = { 'Content-Type': 'application/json' };
 const get = async (p: string) => { const r = await fetch(url + p); return { status: r.status, body: await r.json() as any }; };
