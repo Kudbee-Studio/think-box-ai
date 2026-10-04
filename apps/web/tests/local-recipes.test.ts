@@ -138,3 +138,105 @@ describe('groundedAnswer', () => {
     assert.doesNotMatch(prompt, /plugin|tool call|step by step/i);
   });
 });
+
+describe('GitHub recipes beyond open PRs', () => {
+  const repo = 'Acme/widgets';
+  const prs = [
+    { number: 360, title: 'P3.21: dashboard live-verify', state: 'closed', merged_at: '2026-10-04T10:00:00Z', draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/360' },
+    { number: 359, title: 'profiles', state: 'closed', merged_at: null, draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-03T10:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/359' },
+    { number: 361, title: 'wip router', state: 'open', merged_at: null, draft: true, user: { login: 'a' }, updated_at: '2026-10-04T11:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/361' },
+  ];
+  const facts = (goal: string, items: unknown) => (buildFacts(matchRecipe(goal)!, { status: 200, text: JSON.stringify(items) }, repo) as any).facts as string;
+
+  it('sends "last / latest / newest PR" to the any-state recipe and keeps "open PRs" on the open recipe', () => {
+    for (const goal of ['what is the last PR?', 'what was the latest pull request', 'show me the most recent PR', 'which is the newest PR', 'what was the previous PR']) assert.equal(matchRecipe(goal)?.id, 'latest_pr', goal);
+    for (const goal of ['what PR are we on', 'which pull requests are open', 'any PRs open right now?']) assert.equal(matchRecipe(goal)?.id, 'open_prs', goal);
+  });
+  it('matches CI, issue and branch questions', () => {
+    for (const goal of ['did CI pass?', 'what is the CI status', 'is the build status green', 'are the checks failing', 'how is the pipeline']) assert.equal(matchRecipe(goal)?.id, 'ci_status', goal);
+    for (const goal of ['what issues are open', 'list the open issues', 'how many issues are there']) assert.equal(matchRecipe(goal)?.id, 'open_issues', goal);
+    for (const goal of ['list the branches', 'which branches exist', 'how many branches are there']) assert.equal(matchRecipe(goal)?.id, 'branches', goal);
+  });
+  it('never turns a request to change something into a lookup', () => {
+    for (const goal of ['rerun CI', 're-run the failed checks', 'trigger the pipeline', 'cancel the workflow run', 'retry the build status check', 'close the issues', 'create an issue about the bug', 'delete the old branches', 'merge the latest PR', 'fix the failing checks', 'what is a branch in git', 'explain CI']) {
+      assert.equal(matchRecipe(goal), null, goal);
+    }
+  });
+  it('builds the GitHub URLs and needs a repo for every GitHub recipe', () => {
+    const urls: Record<string, string> = {
+      'what is the last PR': 'https://api.github.com/repos/Acme/widgets/pulls?state=all&sort=created&direction=desc&per_page=5',
+      'did CI pass': 'https://api.github.com/repos/Acme/widgets/actions/runs?per_page=5&exclude_pull_requests=true',
+      'what issues are open': 'https://api.github.com/repos/Acme/widgets/issues?state=open&per_page=10',
+      'list the branches': 'https://api.github.com/repos/Acme/widgets/branches?per_page=10',
+    };
+    for (const [goal, url] of Object.entries(urls)) {
+      const m = matchRecipe(goal)!;
+      assert.equal(recipeToolArgs(m, repo).url, url, goal);
+      assert.equal(recipeAvailable(m, null), false, goal);
+      assert.equal(recipeAvailable(m, repo), true, goal);
+    }
+  });
+  it('states each pull request with its real state, newest first', () => {
+    const f = facts('what is the last PR', prs);
+    assert.match(f, /Most recent pull requests in Acme\/widgets, any state, newest first/);
+    assert.match(f, /^- #360 "P3\.21: dashboard live-verify" \(merged\) by KudbeeZero/m);
+    assert.match(f, /^- #359 "profiles" \(closed without merging\)/m);
+    assert.match(f, /^- #361 "wip router" \(open, draft\)/m);
+    assert.ok(f.indexOf('#360') < f.indexOf('#359'));
+  });
+  it('requires the answer to the newest-PR question to name the newest one', () => {
+    const f = facts('what is the last PR', prs);
+    const rule = sentenceRule(matchRecipe('what is the last PR')!, f);
+    assert.equal(rule.cite, 'pr_newest');
+    assert.equal(groundedAnswer('The last PR is #360, P3.21 dashboard live-verify, and it is merged.', f, rule).ok, true);
+    const older = groundedAnswer('The last PR was #359, profiles.', f, rule);
+    assert.equal(older.ok, false);
+    assert.match((older as any).why, /did not name the newest one \(#360\)/);
+    assert.equal(groundedAnswer('The last PR is #999.', f, rule).ok, false);
+  });
+  it('drops the pull requests the issues endpoint mixes in, and says when there are none', () => {
+    const f = facts('what issues are open', [{ number: 12, title: 'a real issue', user: { login: 'a' }, updated_at: '2026-10-01', html_url: 'https://github.com/Acme/widgets/issues/12' }, { number: 13, title: 'actually a PR', pull_request: {}, user: { login: 'a' } }]);
+    assert.match(f, /- #12 "a real issue"/);
+    assert.doesNotMatch(f, /#13/);
+    assert.match(facts('what issues are open', [{ number: 13, title: 'a PR', pull_request: {} }]), /Open issues in Acme\/widgets \(live from GitHub just now\): none\./);
+    assert.equal(sentenceRule(matchRecipe('what issues are open')!, 'Open issues in A/b (live from GitHub just now): none.').skipModel, true);
+  });
+  it('lists branches and requires the sentence to name one', () => {
+    const f = facts('list the branches', [{ name: 'main', protected: true }, { name: 'feat/router' }]);
+    assert.match(f, /^- main \(protected\)$/m);
+    assert.match(f, /^- feat\/router$/m);
+    assert.equal(groundedAnswer('There are two branches, main and feat/router.', f, { cite: 'branch' }).ok, true);
+    assert.equal(groundedAnswer('There are a couple of branches.', f, { cite: 'branch' }).ok, false);
+    assert.equal(groundedAnswer('There are 3 branches: main, feat/router and dev.', f, { cite: 'branch' }).ok, false);
+  });
+  describe('CI', () => {
+    const run = (conclusion: string | null, status = 'completed') => ({ workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status, conclusion, run_number: 812, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/actions/runs/1' }, { name: 'CI', head_branch: 'feat/x', event: 'pull_request', status: 'completed', conclusion: 'success', run_number: 811, updated_at: '2026-10-03', html_url: 'https://github.com/Acme/widgets/actions/runs/0' }] });
+    const m = matchRecipe('did CI pass?')!;
+    it('states the verdict of the newest run in code', () => {
+      assert.match(facts('did CI pass?', run('failure')), /The newest run: failure\./);
+      assert.match(facts('did CI pass?', run(null, 'in_progress')), /The newest run: in_progress\./);
+      assert.match(facts('did CI pass?', run('success')), /^- "CI" on main \(push\): success, run 812/m);
+    });
+    it('rejects a sentence that flips or omits the verdict', () => {
+      const failed = facts('did CI pass?', run('failure'));
+      assert.equal(groundedAnswer('No, the newest CI run on main failed (run 812).', failed, { cite: 'ci' }).ok, true);
+      assert.match((groundedAnswer('Yes, CI passed on run 812.', failed, { cite: 'ci' }) as any).why, /contradicts the data/);
+      assert.match((groundedAnswer('CI ran on main.', failed, { cite: 'ci' }) as any).why, /did not state the newest run's result/);
+      const green = facts('did CI pass?', run('success'));
+      assert.equal(groundedAnswer('Yes, the newest run (812) passed.', green, { cite: 'ci' }).ok, true);
+      assert.equal(groundedAnswer('The newest run failed.', green, { cite: 'ci' }).ok, false);
+      assert.equal(groundedAnswer('It is still running.', facts('did CI pass?', run(null, 'in_progress')), { cite: 'ci' }).ok, true);
+    });
+    it('shows an empty list, an unreadable reply and an HTTP error plainly', () => {
+      assert.match((buildFacts(m, { status: 200, text: '{"workflow_runs":[]}' }, repo) as any).facts, /CI runs in Acme\/widgets \(live from GitHub just now\): none\./);
+      assert.match((buildFacts(m, { status: 200, text: '{"workflow_runs":[{"name"' }, repo) as any).error, /cut off or malformed/);
+      assert.match((buildFacts(m, { status: 403, text: '{}' }, repo) as any).error, /HTTP 403 for Acme\/widgets's workflow runs/);
+      assert.equal(sentenceRule(m, 'CI runs in A/b (live from GitHub just now): none.').skipModel, true);
+    });
+  });
+  it('tells the model to name the newest PR and to state the CI result', () => {
+    assert.match(buildPrompt('what is the last PR', facts('what is the last PR', prs), matchRecipe('what is the last PR')!), /first one listed is the newest/);
+    assert.match(buildPrompt('did CI pass', 'x\n- "CI" on main', matchRecipe('did CI pass')!), /passed, failed or is still running/);
+    assert.match(buildPrompt('what issues are open', '- #12 "a"', matchRecipe('what issues are open')!), /issue number/);
+  });
+});

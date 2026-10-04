@@ -25,6 +25,7 @@ let tmp = '';
 let modelReply = 'We are on PR #330, a draft.';
 const chats: any[] = [];
 const githubHits: string[] = [];
+let githubBody: unknown = null;
 
 before(async () => {
   mock = await startMockInception();
@@ -45,7 +46,7 @@ before(async () => {
   github = http.createServer((req, res) => {
     githubHits.push(String(req.url));
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify(prs));
+    res.end(JSON.stringify(githubBody ?? prs));
   });
   await Promise.all([new Promise<void>((r) => ollama.listen(0, '127.0.0.1', r)), new Promise<void>((r) => github.listen(0, '127.0.0.1', r))]);
   const ollamaUrl = `http://127.0.0.1:${(ollama.address() as { port: number }).port}`;
@@ -165,4 +166,46 @@ test('a goal that changes something is not a recipe: it is routed to the worker 
   const messages = await run('merge the open PR');
   assert.ok(mock.requests.length > before, 'mercury answered');
   assert.notEqual(result(messages).recipe, 'open_prs');
+});
+
+test('"what is the last PR?" asks for any state and reports the newest one as merged, not "open"', async () => {
+  chats.length = 0; githubHits.length = 0;
+  githubBody = [
+    { number: 361, title: 'router and recipes', state: 'closed', merged_at: '2026-10-04T12:00:00Z', draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-04T12:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/361' },
+    { number: 360, title: 'dashboard live-verify', state: 'closed', merged_at: '2026-10-04T10:00:00Z', draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/360' },
+  ];
+  modelReply = 'The last PR is #361, router and recipes, and it is merged.';
+  const before = mock.requests.length;
+  try {
+    const r = result(await run('what is the last PR?'));
+    assert.deepEqual(githubHits, ['/repos/Acme/widgets/pulls?state=all&sort=created&direction=desc&per_page=5']);
+    assert.equal(r.recipe, 'latest_pr');
+    assert.equal(r.grounded, true);
+    assert.equal(r.cost_usd, 0);
+    assert.match(r.result, /^The last PR is #361, router and recipes, and it is merged\.\n\nMost recent pull requests in Acme\/widgets, any state, newest first/);
+    assert.match(r.result, /^- #361 "router and recipes" \(merged\)/m);
+    assert.equal(mock.requests.length, before, 'no worker agent');
+    modelReply = 'The last PR was #360, dashboard live-verify.';
+    const older = result(await run('what is the last PR?'));
+    assert.equal(older.grounded, false, 'a sentence about an older PR is not used');
+    assert.match(older.result, /^Most recent pull requests/);
+  } finally { githubBody = null; modelReply = 'We are on PR #330, a draft.'; }
+});
+
+test('"did CI pass?": the newest run\'s verdict comes from the data, and a flipped sentence is dropped', async () => {
+  chats.length = 0; githubHits.length = 0;
+  githubBody = { workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status: 'completed', conclusion: 'failure', run_number: 812, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/actions/runs/1' }] };
+  try {
+    modelReply = 'Yes, CI passed on run 812.';
+    const flipped = result(await run('did CI pass?'));
+    assert.deepEqual(githubHits, ['/repos/Acme/widgets/actions/runs?per_page=5&exclude_pull_requests=true']);
+    assert.equal(flipped.recipe, 'ci_status');
+    assert.equal(flipped.grounded, false);
+    assert.doesNotMatch(flipped.result, /passed/);
+    assert.match(flipped.result, /The newest run: failure\./);
+    modelReply = 'No, the newest CI run on main failed (run 812).';
+    const honest = result(await run('did CI pass?'));
+    assert.equal(honest.grounded, true);
+    assert.match(honest.result, /^No, the newest CI run on main failed/);
+  } finally { githubBody = null; modelReply = 'We are on PR #330, a draft.'; }
 });
