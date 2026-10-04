@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
 import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
+import { LOOKUP_RECIPES, lookupMaxChars, lookupUrl, normalizeLookup, validateLookupArgs } from './live-lookup.ts';
+import { detectRepo } from './repo-context.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
@@ -85,6 +87,8 @@ export interface AgentHooks {
    *  or otherwise disallowed tool call is rejected before it ever reaches the approval gate —
    *  the model isn't even offered the tool in its function list, but this is the hard backstop. */
   allowedTools?: string[];
+  /** Called with the FULL output of every governed tool call (the stored event output is truncated), so callers can keep structured evidence. */
+  onToolOutput?: (name: string, args: Record<string, unknown>, output: Record<string, unknown>) => void;
   /** Additional role context for a contract-backed specialist run. */
   roleContext?: string;
 }
@@ -149,6 +153,21 @@ export const TOOLS = [
         type: 'object',
         properties: { url: { type: 'string', description: 'http(s) URL' } },
         required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'live_lookup',
+      description: "Look up live state of this project's GitHub repository in one call: latest_pr (newest pull request in ANY state: merged, open or closed), open_prs, ci_status (newest workflow runs, optionally for one branch), open_issues, branches. Returns structured evidence (ids, urls, state, timestamps). Prefer this over fetch_url for these questions.",
+      parameters: {
+        type: 'object',
+        properties: {
+          recipe: { type: 'string', enum: [...LOOKUP_RECIPES], description: 'Which lookup to run' },
+          branch: { type: 'string', description: 'ci_status only: limit to one branch' },
+        },
+        required: ['recipe'],
       },
     },
   },
@@ -367,6 +386,11 @@ function hostOf(rawUrl: unknown): string | null {
 }
 
 /** Governance gate: returns why a call needs human approval, or null when it may run. */
+/** The GitHub API the live lookups ask (tests point it at a fake server). */
+function githubApiBase(): string {
+  return process.env.KUDBEE_GITHUB_API || 'https://api.github.com';
+}
+
 function approvalReason(name: string, args: Record<string, unknown>, hooks: AgentHooks): string | null {
   if (name === 'write_file') {
     try {
@@ -377,6 +401,10 @@ function approvalReason(name: string, args: Record<string, unknown>, hooks: Agen
   }
   if (name === 'fetch_url' || name === 'read_rss') {
     const host = hostOf(args.url);
+    if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
+  }
+  if (name === 'live_lookup') {
+    const host = hostOf(githubApiBase());
     if (host && !hooks.approvedDomains.has(host)) return `First network access to ${host} in this session`;
   }
   if (name === 'algorand') {
@@ -406,7 +434,7 @@ function normalizePath(value: unknown): string {
 }
 
 function isObservation(name: string, args: Record<string, unknown>, context: RunContext): boolean {
-  if (name === 'fetch_url' || name === 'read_rss' || name === 'algorand' || name === 'medication') return true;
+  if (name === 'fetch_url' || name === 'live_lookup' || name === 'read_rss' || name === 'algorand' || name === 'medication') return true;
   if (name === 'read_file') return !context.written.has(normalizePath(args.path));
   return false;
 }
@@ -448,6 +476,17 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       // Internal callers (local recipes) may ask for more than the default 12000 characters; the model-facing tool schema has no such argument.
       const maxChars = Math.min(Math.max(Number(args.max_chars) || 12000, 1000), 120000);
       return { url: url.toString(), status: response.status, content_type: type, text: truncate(text, maxChars) };
+    }
+    case 'live_lookup': {
+      const checked = validateLookupArgs(args, detectRepo());
+      if (!checked.ok) throw new Error(`live_lookup: ${checked.error}`);
+      const url = lookupUrl(checked.args, githubApiBase());
+      const startedAt = Date.now();
+      const response = await fetch(url, { headers: { 'User-Agent': 'kudbEE-Worker/1.0', Accept: 'application/vnd.github+json' }, signal: AbortSignal.any([hooks.signal, AbortSignal.timeout(15000)]) });
+      const text = truncate(await response.text(), lookupMaxChars(checked.args.recipe));
+      const normalized = normalizeLookup(checked.args, { status: response.status, text, url, fetched_at: new Date().toISOString(), latency_ms: Date.now() - startedAt });
+      if (!normalized.ok) throw new Error(`live_lookup: ${normalized.error}`);
+      return { recipe: checked.args.recipe, evidence: normalized.evidence };
     }
     case 'read_rss': {
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
@@ -521,7 +560,7 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
       hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
       approval = (await hooks.requestApproval(name, args, reason)) ? 'approved' : 'denied';
       if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
-      const host = name === 'algorand' ? algorandTarget(args) : name === 'medication' ? medicationTarget(args) : hostOf(args.url);
+      const host = name === 'algorand' ? algorandTarget(args) : name === 'medication' ? medicationTarget(args) : name === 'live_lookup' ? hostOf(githubApiBase()) : hostOf(args.url);
       if (host) hooks.approvedDomains.add(host);
     }
     output = { ok: true, ...(await executeTool(name, args, hooks, context)) };
@@ -535,6 +574,7 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
     hooks.onThought({ type: 'tool_result', plugin: name, content: `${name} ✗ ${error}`, status: 'error' });
   }
   const latency_ms = Date.now() - toolStartedAt;
+  hooks.onToolOutput?.(name, args, output);
   hooks.onEvent({
     kind: 'tool',
     step,

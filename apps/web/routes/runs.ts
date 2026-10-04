@@ -20,11 +20,14 @@ export function registerRunsRoutes(app: Express, deps: RunsRouteDeps): void {
     if (runsListCache.data && now - runsListCache.at < 1000) {
       const cached = runsListCache.data as Record<string, unknown>;
       const cachedRuns = cached.runs as Array<Record<string, unknown>>;
-      if (cachedRuns.length === runStore.list(1).length) {
+      if (req.query.children !== '1' && cachedRuns.length === Math.min(limit, runStore.list(500).filter((run) => !run.jobId).length)) {
         return res.json(runsListCache.data);
       }
     }
-    const data = { runs: runStore.list(limit).map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
+    // Runs that belong to a convoy / specialist job (jobId) are that parent's children: the dashboard shows the parent row and drills down to them,
+    // so they are not listed as competing top-level runs unless asked for (?children=1).
+    const top = req.query.children === '1' ? runStore.list(limit) : runStore.list(500).filter((run) => !run.jobId).slice(0, limit);
+    const data = { runs: top.map((run) => ({ ...run, steps: undefined, step_count: run.steps.length })) };
     runsListCache = { data, at: now };
     res.json(data);
   });

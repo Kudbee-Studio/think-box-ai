@@ -1,0 +1,253 @@
+{
+  "generated_at": "2026-10-04T22:51:57.933Z",
+  "repo": "Kudbee-Studio/think-box-ai",
+  "source": "real Ollama + real GitHub API; approvals granted by the script",
+  "runs": [
+    {
+      "model": "qwen2.5:3b",
+      "goal": "What is the last PR?",
+      "approvals": [
+        {
+          "tool": "live_lookup",
+          "reason": "First network access to api.github.com in this session"
+        }
+      ],
+      "wall_ms": 26579,
+      "success": true,
+      "mode": "native",
+      "evidence": [
+        {
+          "recipe": "latest_pr",
+          "repo": "Kudbee-Studio/think-box-ai",
+          "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=all&sort=created&direction=desc&per_page=5",
+          "fetched_at": "2026-10-04T22:48:17.313Z",
+          "http_status": 200,
+          "tool_calls": 1,
+          "latency_ms": 378,
+          "complete": true,
+          "items": [
+            {
+              "kind": "pr",
+              "number": 360,
+              "title": "#360 P3.21: dashboard live-verify + flake fix",
+              "state": "merged",
+              "draft": false,
+              "author": "KudbeeZero",
+              "head_ref": "feat/pr360-p3.21-dashboard-live",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/360",
+              "updated_at": "2026-10-04T22:23:14Z"
+            },
+            {
+              "kind": "pr",
+              "number": 359,
+              "title": "#359 P3: switchable profiles with persistent memory",
+              "state": "closed",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr359-p3-switchable-profiles",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/359",
+              "updated_at": "2026-10-04T17:06:28Z"
+            },
+            {
+              "kind": "pr",
+              "number": 358,
+              "title": "#358 P3: agent tracking + governance window",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr358-p3-agent-tracking",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/358",
+              "updated_at": "2026-10-04T02:13:15Z"
+            },
+            {
+              "kind": "pr",
+              "number": 357,
+              "title": "#357 P3: workflow save/load + Actions button",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr357-p3-workflow-actions",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/357",
+              "updated_at": "2026-10-04T01:59:46Z"
+            },
+            {
+              "kind": "pr",
+              "number": 356,
+              "title": "#356 P3: dashboard window manager + taskbar",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr356-p3-window-manager",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/356",
+              "updated_at": "2026-10-04T01:35:16Z"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "mode": "native",
+          "latency_ms": 14539,
+          "prompt_tokens": 320,
+          "completion_tokens": 21,
+          "raw": "[{\"id\":\"call_cp6uetof\",\"function\":{\"index\":0,\"name\":\"live_lookup\",\"arguments\":{\"recipe\":\"latest_pr\"}}}]",
+          "request": {
+            "recipe": "latest_pr",
+            "repo": "Kudbee-Studio/think-box-ai"
+          },
+          "outcome": "tool_ok"
+        },
+        {
+          "step": 2,
+          "mode": "native",
+          "latency_ms": 11617,
+          "prompt_tokens": 821,
+          "completion_tokens": 64,
+          "raw": "\"The last Pull Request (PR) in the repository is #360, titled \\\"P3.21: dashboard live-verify + flake fix\\\", which was merged. It was updated on 2026-10-04T22:23:14Z.\"",
+          "outcome": "answer"
+        }
+      ],
+      "tool_calls": 1,
+      "prompt_tokens": 1141,
+      "completion_tokens": 85,
+      "latency_ms": 26547,
+      "grounding": {
+        "status": "GROUNDED",
+        "classification": "ok",
+        "unsupported": [],
+        "checked": {
+          "numbers": 7,
+          "urls": 0,
+          "ids": 1,
+          "branches": 0,
+          "states": 1
+        }
+      },
+      "answer": "The last Pull Request (PR) in the repository is #360, titled \"P3.21: dashboard live-verify + flake fix\", which was merged. It was updated on 2026-10-04T22:23:14Z."
+    },
+    {
+      "model": "gemma3:4b",
+      "goal": "What is the last PR?",
+      "approvals": [
+        {
+          "tool": "live_lookup",
+          "reason": "First network access to api.github.com in this session"
+        }
+      ],
+      "wall_ms": 208612,
+      "success": true,
+      "mode": "constrained",
+      "evidence": [
+        {
+          "recipe": "latest_pr",
+          "repo": "Kudbee-Studio/think-box-ai",
+          "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=all&sort=created&direction=desc&per_page=5",
+          "fetched_at": "2026-10-04T22:49:32.529Z",
+          "http_status": 200,
+          "tool_calls": 1,
+          "latency_ms": 387,
+          "complete": true,
+          "items": [
+            {
+              "kind": "pr",
+              "number": 360,
+              "title": "#360 P3.21: dashboard live-verify + flake fix",
+              "state": "merged",
+              "draft": false,
+              "author": "KudbeeZero",
+              "head_ref": "feat/pr360-p3.21-dashboard-live",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/360",
+              "updated_at": "2026-10-04T22:23:14Z"
+            },
+            {
+              "kind": "pr",
+              "number": 359,
+              "title": "#359 P3: switchable profiles with persistent memory",
+              "state": "closed",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr359-p3-switchable-profiles",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/359",
+              "updated_at": "2026-10-04T17:06:28Z"
+            },
+            {
+              "kind": "pr",
+              "number": 358,
+              "title": "#358 P3: agent tracking + governance window",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr358-p3-agent-tracking",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/358",
+              "updated_at": "2026-10-04T02:13:15Z"
+            },
+            {
+              "kind": "pr",
+              "number": 357,
+              "title": "#357 P3: workflow save/load + Actions button",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr357-p3-workflow-actions",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/357",
+              "updated_at": "2026-10-04T01:59:46Z"
+            },
+            {
+              "kind": "pr",
+              "number": 356,
+              "title": "#356 P3: dashboard window manager + taskbar",
+              "state": "merged",
+              "draft": false,
+              "author": "kilo-code-bot[bot]",
+              "head_ref": "feat/pr356-p3-window-manager",
+              "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/356",
+              "updated_at": "2026-10-04T01:35:16Z"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "mode": "constrained",
+          "latency_ms": 62803,
+          "prompt_tokens": 172,
+          "completion_tokens": 12,
+          "raw": "{\"action\":\"call\",\"recipe\":\"latest_pr\"}",
+          "request": {
+            "recipe": "latest_pr",
+            "repo": "Kudbee-Studio/think-box-ai"
+          },
+          "outcome": "tool_ok"
+        },
+        {
+          "step": 2,
+          "mode": "constrained",
+          "latency_ms": 145341,
+          "prompt_tokens": 721,
+          "completion_tokens": 65,
+          "raw": "{\"action\":\"answer\",\"answer\":\"The last pull request is #360, titled \\\"P3.21: dashboard live-verify + flake fix\\\", which was merged by KudbeeZero on 2026-10-04T22:23:14Z.\"}",
+          "outcome": "answer"
+        }
+      ],
+      "tool_calls": 1,
+      "prompt_tokens": 893,
+      "completion_tokens": 77,
+      "latency_ms": 208560,
+      "grounding": {
+        "status": "GROUNDED",
+        "classification": "ok",
+        "unsupported": [],
+        "checked": {
+          "numbers": 7,
+          "urls": 0,
+          "ids": 1,
+          "branches": 0,
+          "states": 1
+        }
+      },
+      "answer": "The last pull request is #360, titled \"P3.21: dashboard live-verify + flake fix\", which was merged by KudbeeZero on 2026-10-04T22:23:14Z."
+    }
+  ]
+}

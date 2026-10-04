@@ -1,0 +1,41 @@
+/* Convoys window: Mayor plans and the convoys they become. Theme variables only. */
+.convoy-body { display: flex; flex-direction: column; gap: 12px; overflow: auto; padding: 4px 2px; }
+.convoy-form, .convoy-form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.convoy-form { flex-direction: column; align-items: stretch; }
+.convoy-goal { flex: 1 1 280px; min-width: 0; }
+.convoy-model { flex: 0 1 180px; min-width: 0; }
+.convoy-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--text-muted, #8a93a6); }
+.convoy-field input { width: 90px; }
+.convoy-hint { font-size: 12px; color: var(--text-muted, #8a93a6); }
+.convoy-error { padding: 8px 10px; border-radius: 6px; background: rgba(220, 70, 70, .15); border: 1px solid rgba(220, 70, 70, .5); }
+.convoy-list { display: flex; flex-direction: column; gap: 6px; }
+.convoy-empty { color: var(--text-muted, #8a93a6); font-size: 13px; }
+.convoy-row { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-light, #2a3142); background: transparent; color: inherit; cursor: pointer; }
+.convoy-row-selected { border-color: var(--accent-primary, #6aa9ff); }
+.convoy-row-goal { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convoy-row-meta { grid-column: 1 / -1; font-size: 12px; color: var(--text-muted, #8a93a6); }
+.convoy-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.convoy-badge-big { font-size: 13px; padding: 4px 12px; }
+.convoy-badge-plan { background: rgba(80, 140, 255, .18); color: #7fb0ff; border: 1px solid rgba(80, 140, 255, .6); }
+.convoy-badge-pending { background: rgba(240, 190, 60, .18); color: #f0be3c; border: 1px solid rgba(240, 190, 60, .6); }
+.convoy-badge-live { background: rgba(255, 120, 60, .2); color: #ff9a62; border: 1px solid rgba(255, 120, 60, .7); }
+.convoy-badge-stopped { background: rgba(150, 150, 160, .18); color: #aab; border: 1px solid rgba(150, 150, 160, .5); }
+.convoy-detail { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-light, #2a3142); padding-top: 10px; }
+.convoy-detail-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.convoy-state { font-weight: 600; }
+.convoy-goal-text { font-size: 15px; font-weight: 600; }
+.convoy-id, .convoy-line, .convoy-event { font-size: 12px; color: var(--text-muted, #8a93a6); overflow-wrap: anywhere; }
+.convoy-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.convoy-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin: 0 0 4px; color: var(--text-muted, #8a93a6); }
+.convoy-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.convoy-table th, .convoy-table td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border-light, #2a3142); overflow-wrap: anywhere; }
+.convoy-blocked, .convoy-grounding-failed, .convoy-unsupported { color: #ff7b7b; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.convoy-grounded { color: #5fd38d; font-size: 12px; font-weight: 600; }
+.convoy-rule { font-size: 12px; overflow-wrap: anywhere; }
+.convoy-rule-deny { color: #ff7b7b; }
+.convoy-rule-require_approval { color: #f0be3c; }
+.convoy-answer { padding: 8px 10px; border-radius: 6px; background: rgba(95, 211, 141, .1); white-space: pre-wrap; overflow-wrap: anywhere; }
+.convoy-run, .convoy-evidence { border: 1px solid var(--border-light, #2a3142); border-radius: 6px; padding: 4px 8px; margin: 4px 0; font-size: 12px; }
+.convoy-tool { font-weight: 600; margin-top: 4px; }
+.convoy-tool-output { max-height: 160px; overflow: auto; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(0, 0, 0, .25); padding: 6px; border-radius: 4px; }
+.convoy-item { overflow-wrap: anywhere; }

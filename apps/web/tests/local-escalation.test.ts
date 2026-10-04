@@ -94,6 +94,12 @@ test('with a worker agent: a live-state goal on the local model is routed to mer
   const result = messages.find((m) => m.type === 'result').data;
   assert.equal(result.success, true);
   assert.match(String(result.result), /build server is up/);
+  assert.equal(result.route.path, 'escalated');
+  assert.equal(result.route.requested_model, 'smollm2:360m');
+  assert.equal(result.route.model, 'mercury-2');
+  assert.match(result.route.reason, /live state/);
+  const run = await (await fetch(`${base}/api/runs/${result.run_id}`)).json() as any;
+  assert.equal((run.run ?? run).route.path, 'escalated', 'the run history holds the same record');
   assert.ok(mock.requests.length >= 1, 'the worker agent answered');
 });
 
@@ -105,7 +111,9 @@ test('with a worker agent: a plain knowledge goal stays on the local model, no r
   assert.ok(chats.some((c) => c.messages.at(-1)?.content === 'What is 2 plus 2? Answer in one short sentence.'), 'chatted locally');
   assert.equal(mock.requests.length, before, 'Mercury untouched');
   assert.ok(!messages.some((m) => m.type === 'thought' && m.data?.type === 'routing'));
-  assert.equal(messages.find((m) => m.type === 'result').data.result, 'It is 4.');
+  const plain = messages.find((m) => m.type === 'result').data;
+  assert.equal(plain.result, 'It is 4.');
+  assert.deepEqual({ path: plain.route.path, model: plain.route.model }, { path: 'local_chat', model: 'smollm2:360m' });
 });
 
 test('without a worker agent: the goal fails with a plain explanation, and the small model is never asked', async () => {
@@ -117,4 +125,7 @@ test('without a worker agent: the goal fails with a plain explanation, and the s
   assert.equal(result.success, false);
   assert.match(result.error, /needs tools or live data/);
   assert.match(result.error, /INCEPTION_API_KEY/);
+  assert.equal(result.route.path, 'refused');
+  assert.equal(result.route.model, null);
+  assert.equal(result.route.requested_model, 'smollm2:360m');
 });

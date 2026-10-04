@@ -11,7 +11,11 @@
     "lint": "tsgo --noEmit --noUnusedLocals",
     "test": "node --experimental-strip-types --no-warnings --test --test-timeout=30000 --test-reporter=spec \"tests/*.test.ts\"",
     "test:coverage": "c8 --all --include='*.ts' --include='routes/*.ts' --exclude='tests/**' --exclude='routes/types.ts' --exclude='**/*.d.ts' --exclude='vitest.config.ts' --reporter=text --reporter=json-summary --report-dir=.coverage node --experimental-strip-types --no-warnings --test --test-timeout=60000 \"tests/*.test.ts\"",
-    "test:e2e": "node --experimental-strip-types --no-warnings tests/e2e/dashboard-live.e2e.ts"
+    "test:e2e": "node --experimental-strip-types --no-warnings tests/e2e/dashboard-live.e2e.ts",
+    "test:live-lookup": "node --experimental-strip-types --no-warnings tests/e2e/live-lookup.live.ts",
+    "test:live-local-tools": "node --experimental-strip-types --no-warnings tests/e2e/local-tools.live.ts",
+    "test:e2e:convoy": "node --experimental-strip-types --no-warnings tests/e2e/convoy-live.e2e.ts",
+    "test:live-acceptance": "node --experimental-strip-types --no-warnings tests/e2e/acceptance.live.ts"
   },
   "engines": {
     "node": ">=22.6"

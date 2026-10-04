@@ -9,6 +9,7 @@ import { createModelClients } from './ollama-client.ts';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.ts';
 import { registerMemoryRoutes } from './routes/memory.ts';
 import { registerProfileRoutes } from './routes/profiles.ts';
+import { registerConvoyRoutes } from './routes/convoys.ts';
 import { registerRunsRoutes } from './routes/runs.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
@@ -40,7 +41,13 @@ import type {
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
-import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
+import { ConvoyError, ConvoyStore } from './convoy.ts';
+import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
+import { evaluatePolicy, planConvoy } from './mayor.ts';
+import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
+import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
+import { renderFacts, type LookupEvidence } from './live-lookup.ts';
+import { isGithubRecipe, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, profileMemoryRoot } from './memory.ts';
@@ -213,6 +220,7 @@ const profilesDir = path.join(dataDir, 'profiles');
 const profileManager = new ProfileManager(profilesDir, dataDir);
 const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
+const convoyStore = new ConvoyStore(path.join(profilesDir, activeProfileId, 'convoys.json'), activeProfileId);
 const memoryStore = new MemoryStore(profileMemoryRoot(profilesDir, activeProfileId), process.env, activeProfileId);
 void memoryStore.syncVectors();
 
@@ -223,6 +231,7 @@ void memoryStore.syncVectors();
 function activateProfile(profileId: string): void {
   const profile = profileManager.setActive(profileId);
   runStore.setProfile(profile.id);
+  convoyStore.setProfile(profile.id);
   memoryStore.switchTo(profileMemoryRoot(profilesDir, profile.id), profile.id);
   void memoryStore.syncVectors();
   for (const session of sessions.values()) session.broadcast({ type: 'profile_changed', data: { id: profile.id, name: profile.name } });
@@ -346,7 +355,7 @@ async function runGitAction(sessionId: string, action: string, input: PluginInpu
 }
 
 // ─── Ollama integration ────────────────────────────────────────
-const { requestJanus, listModels, streamOllama } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
+const { requestJanus, listModels, streamOllama, chatOnce, modelCapabilities } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
 // ─── Plugin system ─────────────────────────────────────────────
 function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enabled = true): void {
   plugins.set(name, {
@@ -642,6 +651,8 @@ export class AgentSession {
   status = 'idle';
   abort: AbortController | null = null;
   /** Goals waiting behind the running one; drained strictly in order, one at a time per session. */
+  /** The routing decision of the goal being drained; newRun() copies it onto the run record. */
+  private route: RouteDecision | null = null;
   readonly queue: Array<{ goal: string; model?: string; task: Task; routeTelemetry?: Record<string, any>; agentProfile?: string }> = [];
   private busy = false;
   readonly approvedDomains = new Set<string>();
@@ -911,10 +922,12 @@ export class AgentSession {
         const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
         if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
           this.config.model = next.model;
+          this.route = recipeRoute(next.model, recipe.id, recipe.label);
           this.config.provider = 'ollama';
           this.broadcast({ type: 'status', data: 'running' });
           const result = await this.runRecipeGoal(next.goal, recipe, next.task);
-          this.broadcast({ type: 'result', data: result });
+          this.broadcast({ type: 'result', data: { ...result, route: this.route ?? undefined } });
+          this.route = null;
           next = this.queue.shift();
           continue;
         }
@@ -922,18 +935,22 @@ export class AgentSession {
         const escalation = next.model && !isInceptionModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
         if (escalation?.error) {
           if (next.task) this.updateTask(next.task.id, { status: 'failed', error: escalation.error });
-          this.broadcast({ type: 'result', data: { success: false, error: escalation.error } });
+          this.broadcast({ type: 'result', data: { success: false, error: escalation.error, route: refusedRoute(next.model!, escalation.error) } });
           next = this.queue.shift();
           continue;
         }
+        const requested = next.model;
         if (escalation?.model) next = { ...next, model: escalation.model };
         if (next.model) {
           this.config.model = next.model;
           this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
         }
+        this.route = escalation?.model && requested ? escalatedRoute(requested, escalation.model, escalation.why ?? 'it needs tools or live data')
+          : isInceptionModel(this.config.model) ? agentRoute(this.config.model) : localChatRoute(this.config.model);
         this.broadcast({ type: 'status', data: 'running' });
         const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
-        this.broadcast({ type: 'result', data: result });
+        this.broadcast({ type: 'result', data: { ...result, route: this.route ?? undefined } });
+        this.route = null;
         next = this.queue.shift();
       }
     } finally {
@@ -945,7 +962,7 @@ export class AgentSession {
    * A goal picked for a local model that needs tools or live data (a repo, files, the web, today's date...). With a worker agent configured it is
    * sent there and the thought line says why; without one it fails with an explanation instead of a confident made-up answer. null = stay local.
    */
-  private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string } | null {
+  private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string; why?: string } | null {
     const why = needsToolsOrLiveData(goal);
     if (!why) return null;
     if (!inceptionConfigured()) {
@@ -953,7 +970,7 @@ export class AgentSession {
     }
     const model = INCEPTION_MODELS[0];
     this.addThought({ type: 'routing', content: `Routed to ${model} instead of ${localModel}: ${why}. A local chat has no tools and cannot check live state.`, status: 'info' });
-    return { model };
+    return { model, why };
   }
 
   /**
@@ -977,9 +994,14 @@ export class AgentSession {
     };
     try {
       const hooks = this.agentHooks(record, this.abort.signal);
-      const gov = await runGovernedTool(recipe.tool, recipeToolArgs(recipe, getKnownRepo(), process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
+      // The GitHub recipes use the one shared live_lookup tool (normalized evidence); the file recipes keep their own tools.
+      const lookup = isGithubRecipe(recipe);
+      const gov = lookup
+        ? await runGovernedTool('live_lookup', { recipe: recipe.id }, hooks, newRunContext(), 1)
+        : await runGovernedTool(recipe.tool, recipeToolArgs(recipe, getKnownRepo(), process.env.KUDBEE_GITHUB_API), hooks, newRunContext(), 1);
       if (gov.output.ok !== true) return fail(String(gov.output.error ?? 'the lookup failed'));
-      const built = buildFacts(recipe, gov.output, getKnownRepo());
+      const evidence = lookup ? ((gov.output as { evidence?: LookupEvidence }).evidence ?? null) : null;
+      const built = evidence ? { facts: renderFacts(evidence) } : buildFacts(recipe, gov.output, getKnownRepo());
       if ('error' in built) return fail(built.error);
       const rule = sentenceRule(recipe, built.facts);
       let reply = '';
@@ -988,24 +1010,30 @@ export class AgentSession {
       if (!rule.skipModel) {
         await streamOllama(model, [{ role: 'user', content: buildPrompt(goal, built.facts, recipe) }], (token) => { reply += token; }, (done) => { if (done.error) modelError = done.error; });
       }
-      const checked = rule.skipModel ? { ok: false as const, why: 'there was nothing to word' }
-        : modelError ? { ok: false as const, why: `the model call failed (${modelError})` }
-        : groundedAnswer(reply, built.facts, { cite: rule.cite });
+      let grounding: GroundingResult | null = null;
+      let checked: { ok: true; text: string } | { ok: false; why: string };
+      if (rule.skipModel) checked = { ok: false, why: 'there was nothing to word' };
+      else if (modelError) checked = { ok: false, why: `the model call failed (${modelError})` };
+      else if (evidence) {
+        grounding = validateGrounding(reply, [evidence]);
+        checked = grounding.status === 'GROUNDED' ? { ok: true, text: reply.replace(/\s+/g, ' ').trim() } : { ok: false, why: grounding.unsupported.map((u) => `${u.kind} ${u.claim}`).join('; ') };
+      } else checked = groundedAnswer(reply, built.facts, { cite: rule.cite === 'file' ? 'file' : undefined });
       this.addThought({
         type: 'reasoning',
         content: checked.ok
           ? `${model} wrote the sentence${rule.cite ? '; it names a listed item and every number and link in it is in the data.' : '; only the numbers and links in it can be checked.'}`
-          : rule.skipModel ? 'Nothing to summarise: showing the data itself.' : `${model}'s sentence was not used: ${checked.why}. Showing the data itself.`,
+          : rule.skipModel ? 'Nothing to summarise: showing the data itself.' : grounding ? `GROUNDING FAILED: ${model}'s sentence was not used (${checked.why}). Showing the evidence itself.` : `${model}'s sentence was not used: ${checked.why}. Showing the data itself.`,
         status: checked.ok ? 'success' : 'info',
       });
       const sentence = checked.ok ? (rule.uncheckedLabel ? `Summary by ${model} (only numbers and links in it are checked):\n${checked.text}` : checked.text) : '';
-      const final = sentence ? `${sentence}\n\n${built.facts}` : built.facts;
+      const final = grounding && !checked.ok ? presentAnswer(reply, [evidence!], grounding).display : sentence ? `${sentence}\n\n${built.facts}` : built.facts;
+      if (grounding) record.grounding = { ...grounding, evidence_recipe: recipe.id };
       this.broadcast({ type: 'stream', data: final });
       runStore.addEvent(record, { kind: 'model', step: 2, latency_ms: Date.now() - askedAt, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: final.slice(0, 2000) });
       runStore.finish(record, { status: 'completed', result: final });
       this.updateTask(task.id, { status: 'completed', result: final });
       this.status = 'idle';
-      return { success: true, result: final, streamed: true, recipe: recipe.id, grounded: checked.ok, run_id: record.id, duration_ms: record.duration_ms, steps: 2, tool_calls: 1, tokens: 0, cost_usd: 0 };
+      return { success: true, result: final, streamed: true, recipe: recipe.id, grounded: checked.ok, ...(grounding ? { grounding } : {}), run_id: record.id, duration_ms: record.duration_ms, steps: 2, tool_calls: 1, tokens: 0, cost_usd: 0 };
     } catch (err) {
       if (this.abort?.signal.aborted) {
         runStore.finish(record, { status: 'stopped', error: 'Stopped by user' });
@@ -1090,6 +1118,7 @@ export class AgentSession {
       goal,
       model: this.config.model,
       provider: this.config.provider,
+      route: this.route ?? undefined,
       status: 'running',
       started_at: Date.now(),
       steps: [],
@@ -1308,10 +1337,43 @@ export class AgentSession {
     }
   }
 
-  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    const jobId = randomUUID();
+  /**
+   * Run an APPROVED convoy with the real workers (convoy-runner.ts). The tool approvals of each worker go to THIS session's human, exactly like any
+   * other run; an approved convoy never bypasses the runtime gates.
+   */
+  async runConvoy(id: string): Promise<void> {
+    const convoy = convoyStore.get(id);
+    const first = convoy?.plan.workers[0];
+    if (first?.model && first.kind === 'specialist') { this.config.model = first.model; this.config.provider = isInceptionModel(first.model) ? 'inception' : 'ollama'; }
+    this.abort = new AbortController();
+    const deps: RunnerDeps = {
+      store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, repo: getKnownRepo(),
+      isLocalModel: (model) => !isInceptionModel(model),
+      newChildRun: (goal, runId, model, convoyId, workerId) => {
+        const record = this.newRun(goal, runId);
+        record.model = model;
+        record.provider = isInceptionModel(model) ? 'inception' : 'ollama';
+        record.jobId = convoyId;
+        record.specialistId = workerId;
+        return record;
+      },
+      hooksFor: (record, signal, allowedTools) => ({ ...this.agentHooks(record, signal), allowedTools }),
+      runAgent: (goal, model, hooks) => runToolAgent(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
+      runSpecialists: (goal, convoyId, specialists) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId, specialists }),
+      broadcast: (message) => this.broadcast(message as Parameters<AgentSession['broadcast']>[0]),
+      signal: this.abort.signal,
+    };
+    try { await executeConvoy(deps, id); } finally { this.abort = null; }
+  }
+
+  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}, options: { jobId?: string; specialists?: string[] } = {}): Promise<Record<string, unknown>> {
+    const jobId = options.jobId ?? randomUUID();
     const startedAt = Date.now();
-    const selection = selectSpecialists(intent, opportunity);
+    // A convoy runs EXACTLY the specialists its approved plan named (the Director's text match must not add or drop any); a plain job still selects from the text.
+    const planned = options.specialists?.filter((id) => id in SPECIALISTS);
+    const selection = planned?.length
+      ? { selected: [...new Set(planned)].sort(), rationale: Object.fromEntries(planned.map((id) => [id, 'named by the approved convoy plan'])), blocked: false }
+      : selectSpecialists(intent, opportunity);
     const eventLog: Array<Record<string, unknown>> = [];
     let sequence = 0;
     const recordEvent = (event: Record<string, unknown>): void => {
@@ -1783,6 +1845,19 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           break;
         }
 
+        // Approving AND running a convoy only happens here: this socket passed the origin/token check at upgrade, so it is a human operator's session.
+        case 'convoy_approve': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          try {
+            const c = convoyStore.decide(id, 'approve', 'human', safeString(msg.note).slice(0, 300));
+            session.broadcast({ type: 'convoy_update', data: summarizeConvoy(c) });
+            void session.runConvoy(id).catch((err) => ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err) } })));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err), code: err instanceof ConvoyError ? err.code : undefined } }));
+          }
+          break;
+        }
+
         case 'run_specialists': {
           const intentRaw = msg.intent ?? msg.goal ?? '';
           const intent = safeString(intentRaw).trim();
@@ -2007,6 +2082,29 @@ registerDiagnosticsRoutes(app, { sessions, plugins, serverStartedAt, monitorAgen
 registerRunsRoutes(app, { runStore, persistence });
 registerMemoryRoutes(app, { memoryStore, persistence, sessions });
 registerProfileRoutes(app, { profileManager, runStore, sessions, activateProfile, profilesDir });
+
+/** The measured average cost of a completed run on this model, or null: a plan never invents a number. */
+function costOfModel(model: string | null): { usd: number | null; basis: string } {
+  if (!model) return { usd: null, basis: 'no model' };
+  if (!isInceptionModel(model)) return { usd: 0, basis: 'local model, no API cost' };
+  const costs = runStore.list(200).filter((r) => r.model === model && r.status === 'completed' && r.cost_usd > 0).map((r) => r.cost_usd);
+  return costs.length ? { usd: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 1e6) / 1e6, basis: `average of ${costs.length} measured ${model} run(s)` } : { usd: null, basis: `no measured ${model} runs yet` };
+}
+
+registerConvoyRoutes(app, {
+  convoyStore,
+  runStore,
+  plan: (goal, model, budget) => {
+    const agentModel = inceptionConfigured() ? INCEPTION_MODELS[0]! : null;
+    const result = planConvoy({
+      goal, budget, lookupModel: model || agentModel || resolveLocalModel(), agentModel, isLocalModel: (m) => !isInceptionModel(m),
+      availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
+    });
+    if (!result.ok) return result;
+    return { ok: true, convoy: convoyStore.create(result.plan.goal, result.plan, evaluatePolicy(result.plan)) };
+  },
+  isHuman: (req) => isAllowedOrigin(typeof req.headers.origin === 'string' ? req.headers.origin : undefined, PORT_NUM) || tokensMatch(LOCAL_TOKEN, String(req.headers[TOKEN_HEADER] ?? '')),
+});
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {

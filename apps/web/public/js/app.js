@@ -101,6 +101,14 @@ function handleMessage(msg) {
       refreshFiles();
       break;
 
+    // Convoys: the Convoys window listens for these (it is its own panel, not part of the terminal stream).
+    case 'convoy_update':
+      window.dispatchEvent(new CustomEvent('convoy:update', { detail: msg.data }));
+      break;
+    case 'convoy_error':
+      window.dispatchEvent(new CustomEvent('convoy:error', { detail: msg.data }));
+      break;
+
     case 'profile_changed':
       // Another client switched the active profile. Re-read memory and runs, which are now that profile's.
       refreshMemory();
@@ -221,15 +229,16 @@ function handleMessage(msg) {
       const stats = r.steps !== undefined
         ? `\n— ${r.steps} step(s) · ${r.tool_calls} tool call(s) · ${r.tokens} tokens · ${formatUsd(r.cost_usd)} · ${((r.duration_ms || 0) / 1000).toFixed(1)}s`
         : '';
+      const routeLine = window.routeLabel ? window.routeLabel(r.route) : '';
       if (r.cancelled) {
         appendTerminalMessage('system', `⊘ ${r.error}`);
       } else if (r.success) {
         setStatus('idle', 'Completed');
         // A streamed (local chat) answer is already in the terminal token by token; show only the completion line.
-        appendTerminalMessage('assistant', `✓ ${r.streamed ? 'Done' : r.result || 'Done'}${stats}`);
+        appendTerminalMessage('assistant', `✓ ${r.streamed ? 'Done' : r.result || 'Done'}${stats}${routeLine ? `\n${routeLine}` : ''}`);
       } else {
         setStatus('error', 'Failed');
-        appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}`);
+        appendTerminalMessage('error', `✗ ${r.error || 'Goal failed'}${stats}${routeLine ? `\n${routeLine}` : ''}`);
       }
       refreshFiles();
       refreshStats();
@@ -2166,6 +2175,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!workflow) return;
     appendTerminalMessage('system', `Running workflow "${workflow.name}"...`);
     runWorkflow(workflow);
+  });
+
+  // The Convoys window's "Approve and run LIVE" button dispatches this; approving only ever happens over this authenticated socket.
+  window.addEventListener('convoy:approve', (e) => {
+    const d = e.detail || {};
+    if (d.id && state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: 'convoy_approve', id: d.id }));
   });
 
   // The governance window's Approve/Reject buttons dispatch this; the dashboard owns the WebSocket response.

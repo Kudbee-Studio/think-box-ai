@@ -36,6 +36,10 @@ export interface RunRecord {
   evidence_conflicts?: string[];
   error?: string;
   failure_kind?: string;
+  /** The grounding verdict for this run's answer (grounding.ts): status, classification, unsupported claims. */
+  grounding?: Record<string, any>;
+  /** Who answered and why (route-decision.ts): the same record for every path. */
+  route?: Record<string, any>;
   /** Feature 5: model routing decision + estimated token savings for this run. */
   routeTelemetry?: Record<string, any>;
   /** HERMES etc: which named tool-scoped agent profile ran this goal, if any. */

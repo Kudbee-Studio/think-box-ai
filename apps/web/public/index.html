@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/css/window-manager.css">
   <link rel="stylesheet" href="/css/workflow-actions.css">
   <link rel="stylesheet" href="/css/agent-tracking.css">
+  <link rel="stylesheet" href="/css/convoy.css">
   <link rel="stylesheet" href="/css/profile-switcher.css">
   <link rel="stylesheet" href="/css/enterprise-polish.css">
   <script src="/js/startup-guard.js"></script>
@@ -67,6 +68,7 @@
         <span id="header-connection" class="connection-pill"><span class="connection-dot"></span> Connected</span>
         <button id="advanced-search-button" class="btn-icon" title="Advanced search" aria-label="Advanced search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
         <button id="agent-templates-button" class="btn-icon" title="Agent templates" aria-label="Agent templates"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="3.8" r="1"/><path d="M9 14h.01M15 14h.01"/></svg></button>
+        <button id="convoys-button" class="btn-icon" title="Convoys: Mayor plans and queued approvals" aria-label="Convoys"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M7.5 8.5 11 15.5M16.5 8.5 13 15.5M8 7h8"/></svg></button>
         <button id="approval-workflow-button" class="btn-icon" title="Approval workflows" aria-label="Approval workflows"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.5 3.2 8 7.5 9.5 4.3-1.5 7.5-5 7.5-9.5V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg></button>
         <button id="performance-analytics-button" class="btn-icon" title="Performance analytics" aria-label="Performance analytics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></button>
         <button id="timeline-button" class="btn-icon" title="Execution timeline" aria-label="Execution timeline"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
@@ -574,6 +576,8 @@
   <script src="/js/agent-taskbar.js"></script>
   <script src="/js/profile-switcher.js"></script>
   <script src="/js/governance-window.js"></script>
+  <script src="/js/convoy-window.js"></script>
+  <script src="/js/route-label.js"></script>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

@@ -25,6 +25,7 @@ let tmp = '';
 let modelReply = 'We are on PR #330, a draft.';
 const chats: any[] = [];
 const githubHits: string[] = [];
+let githubBody: unknown = null;
 
 before(async () => {
   mock = await startMockInception();
@@ -45,7 +46,7 @@ before(async () => {
   github = http.createServer((req, res) => {
     githubHits.push(String(req.url));
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify(prs));
+    res.end(JSON.stringify(githubBody ?? prs));
   });
   await Promise.all([new Promise<void>((r) => ollama.listen(0, '127.0.0.1', r)), new Promise<void>((r) => github.listen(0, '127.0.0.1', r))]);
   const ollamaUrl = `http://127.0.0.1:${(ollama.address() as { port: number }).port}`;
@@ -102,6 +103,7 @@ test('"WHAT PR ARE WE ON": the lookup needs approval like any network access, th
   assert.equal(r.success, true);
   assert.equal(r.recipe, 'open_prs');
   assert.equal(r.grounded, true);
+  assert.deepEqual({ path: r.route.path, model: r.route.model, recipe: r.route.recipe }, { path: 'recipe', model: MODEL, recipe: 'open_prs' });
   assert.equal(r.streamed, true);
   assert.equal(r.cost_usd, 0);
   assert.match(r.result, /^We are on PR #330, a draft\.\n\nOpen pull requests in Acme\/widgets \(live from GitHub just now\): 1\./);
@@ -117,9 +119,13 @@ test('a sentence that invents a PR number is dropped and the data itself is show
     const r = result(messages);
     assert.equal(r.success, true);
     assert.equal(r.grounded, false);
-    assert.doesNotMatch(r.result, /999|merged/);
-    assert.match(r.result, /^Open pull requests in Acme\/widgets/);
-    assert.ok(messages.some((m) => m.type === 'thought' && /sentence was not used: it stated "999"/.test(m.data?.content ?? '')));
+    assert.match(r.result, /^GROUNDING FAILED \(unsupported_claim\)/);
+    assert.match(r.result, /- id: pr 999/);
+    assert.doesNotMatch(r.result, /We are on PR #999, which is merged/, 'the unsupported sentence is not shown');
+    assert.match(r.result, /Open pull requests in Acme\/widgets \(live from GitHub just now\): 1\./, 'the evidence is');
+    assert.equal(r.grounding.status, 'GROUNDING FAILED');
+    assert.equal(r.grounding.classification, 'unsupported_claim');
+    assert.ok(messages.some((m) => m.type === 'thought' && /GROUNDING FAILED: smollm2:360m's sentence was not used/.test(m.data?.content ?? '')));
   } finally { modelReply = 'We are on PR #330, a draft.'; }
 });
 
@@ -165,4 +171,50 @@ test('a goal that changes something is not a recipe: it is routed to the worker 
   const messages = await run('merge the open PR');
   assert.ok(mock.requests.length > before, 'mercury answered');
   assert.notEqual(result(messages).recipe, 'open_prs');
+});
+
+test('"what is the last PR?" asks for any state and reports the newest one as merged, not "open"', async () => {
+  chats.length = 0; githubHits.length = 0;
+  githubBody = [
+    { number: 361, title: 'router and recipes', state: 'closed', merged_at: '2026-10-04T12:00:00Z', draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-04T12:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/361' },
+    { number: 360, title: 'dashboard live-verify', state: 'closed', merged_at: '2026-10-04T10:00:00Z', draft: false, user: { login: 'KudbeeZero' }, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/pull/360' },
+  ];
+  modelReply = 'The last PR is #361, router and recipes, and it is merged.';
+  const before = mock.requests.length;
+  try {
+    const r = result(await run('what is the last PR?'));
+    assert.deepEqual(githubHits, ['/repos/Acme/widgets/pulls?state=all&sort=created&direction=desc&per_page=5']);
+    assert.equal(r.recipe, 'latest_pr');
+    assert.equal(r.grounded, true);
+    assert.equal(r.cost_usd, 0);
+    assert.match(r.result, /^The last PR is #361, router and recipes, and it is merged\.\n\nMost recent pull requests in Acme\/widgets, any state, newest first/);
+    assert.match(r.result, /^- #361 "router and recipes" \(merged\)/m);
+    assert.equal(mock.requests.length, before, 'no worker agent');
+    modelReply = 'The last PR was #360, dashboard live-verify.';
+    const older = result(await run('what is the last PR?'));
+    assert.equal(older.grounded, false, 'a sentence about an older PR is not used');
+    assert.match(older.result, /^GROUNDING FAILED/);
+    assert.match(older.result, /does not name the newest pull request \(#361\)/);
+    assert.match(older.result, /- #361 "router and recipes" \(merged\)/);
+  } finally { githubBody = null; modelReply = 'We are on PR #330, a draft.'; }
+});
+
+test('"did CI pass?": the newest run\'s verdict comes from the data, and a flipped sentence is dropped', async () => {
+  chats.length = 0; githubHits.length = 0;
+  githubBody = { workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status: 'completed', conclusion: 'failure', run_number: 812, updated_at: '2026-10-04T10:00:00Z', html_url: 'https://github.com/Acme/widgets/actions/runs/1' }] };
+  try {
+    modelReply = 'Yes, CI passed on run 812.';
+    const flipped = result(await run('did CI pass?'));
+    assert.deepEqual(githubHits, ['/repos/Acme/widgets/actions/runs?per_page=5&exclude_pull_requests=true']);
+    assert.equal(flipped.recipe, 'ci_status');
+    assert.equal(flipped.grounded, false);
+    assert.match(flipped.result, /^GROUNDING FAILED/);
+    assert.doesNotMatch(flipped.result, /Yes, CI passed on run 812/, 'the flipped sentence is not shown');
+    assert.match(flipped.result, /The newest run: failure\./);
+    assert.equal(flipped.grounding.status, 'GROUNDING FAILED');
+    modelReply = 'No, the newest CI run on main failed (run 812).';
+    const honest = result(await run('did CI pass?'));
+    assert.equal(honest.grounded, true);
+    assert.match(honest.result, /^No, the newest CI run on main failed/);
+  } finally { githubBody = null; modelReply = 'We are on PR #330, a draft.'; }
 });
