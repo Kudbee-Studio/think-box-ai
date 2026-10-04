@@ -275,6 +275,10 @@ test('LIVE RUN, Mercury worker agent: the same live_lookup tool through the agen
   assert.equal(w.grounding.status, 'GROUNDED');
   assert.equal(c.evidence[0].items[0].number, 361);
   assert.equal(c.runs[0].steps.find((s: any) => s.kind === 'tool').name, 'live_lookup');
+  // the next plan estimates a lookup from MEASURED lookup runs, not from all Mercury runs
+  const next = await plan('What is the last PR?', 'mercury-2');
+  assert.equal(next.plan.workers[0].estimated_cost_usd, Math.round(w.cost_usd * 1e6) / 1e6);
+  assert.match(next.plan.workers[0].cost_basis, /average of 1 measured mercury-2 lookup run\(s\)/);
 });
 
 test('GROUNDING FAILED on a local worker escalates once to the worker agent through the same path; both workers stay on the record', async () => {

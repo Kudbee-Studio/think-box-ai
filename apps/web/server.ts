@@ -2084,11 +2084,13 @@ registerMemoryRoutes(app, { memoryStore, persistence, sessions });
 registerProfileRoutes(app, { profileManager, runStore, sessions, activateProfile, profilesDir });
 
 /** The measured average cost of a completed run on this model, or null: a plan never invents a number. */
-function costOfModel(model: string | null): { usd: number | null; basis: string } {
+function costOfModel(model: string | null, kind: 'lookup' | 'specialist' = 'lookup'): { usd: number | null; basis: string } {
   if (!model) return { usd: null, basis: 'no model' };
   if (!isInceptionModel(model)) return { usd: 0, basis: 'local model, no API cost' };
-  const costs = runStore.list(200).filter((r) => r.model === model && r.status === 'completed' && r.cost_usd > 0).map((r) => r.cost_usd);
-  return costs.length ? { usd: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 1e6) / 1e6, basis: `average of ${costs.length} measured ${model} run(s)` } : { usd: null, basis: `no measured ${model} runs yet` };
+  // A lookup costs a fraction of a specialist job; averaging them together made estimates 10x off. Estimate from runs of the same kind of worker.
+  const isLookup = (r: { specialistId?: string }): boolean => String(r.specialistId ?? '').startsWith('lookup') || String(r.specialistId ?? '').startsWith('escalation');
+  const costs = runStore.list(500).filter((r) => r.model === model && r.status === 'completed' && r.cost_usd > 0 && Boolean(r.jobId) && isLookup(r) === (kind === 'lookup')).map((r) => r.cost_usd);
+  return costs.length ? { usd: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 1e6) / 1e6, basis: `average of ${costs.length} measured ${model} ${kind} run(s)` } : { usd: null, basis: `no measured ${model} ${kind} runs yet` };
 }
 
 registerConvoyRoutes(app, {
