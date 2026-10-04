@@ -98,6 +98,13 @@ function handleMessage(msg) {
       refreshFiles();
       break;
 
+    case 'profile_changed':
+      // Another client switched the active profile. Re-read memory and runs, which are now that profile's.
+      refreshMemory();
+      refreshRuns();
+      if (window.profileSwitcher && window.profileSwitcher.store) void window.profileSwitcher.store.refresh();
+      break;
+
     case 'mirror': {
       // A run started from the kudbee CLI, relayed by the server. Shown as labeled terminal lines only: it never changes this session's status or input.
       const inner = msg.data?.message;
@@ -1831,6 +1838,17 @@ function renderAgents(agents) {
   if (opts.some(a => a.id === previous)) select.value = previous;
 }
 
+// Named profiles: each has isolated memory and run history. Switching re-points the server's stores,
+// so memory and run panels are re-read once the switch lands.
+function initProfileSwitcher() {
+  if (!window.ProfileStore || !window.mountProfileSwitcher) return;
+  const store = new window.ProfileStore({
+    onChange: () => { refreshMemory(); refreshRuns(); },
+  });
+  window.profileSwitcher = { store };
+  void window.mountProfileSwitcher(store, { prompt: (message, initial) => window.prompt(message, initial) });
+}
+
 // ─── Actions ───────────────────────────────────────────────────
 // One place that validates and sends a goal. runGoal() and runWorkflow() both go through it.
 function submitGoal(goal) {
@@ -2024,6 +2042,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshStats();
   refreshRuns();
   loadAgents();  // Load available agent profiles
+  initProfileSwitcher();
   setInterval(refreshStats, 3000);
   setInterval(refreshRuns, 10000);
   setInterval(() => { if (state.isRunning) tickRunningTasks(); }, 1000);

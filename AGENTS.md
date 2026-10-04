@@ -1660,6 +1660,19 @@ or execution event MUST update canonical dashboard state in real-time.
 surface, worker agent, or `kudbee` CLI gets an entry here: what changed, where,
 how it was verified, and what is still open. Newest entry first.
 
+### 2026-10-04 — Switchable profiles with persistent memory (P3)
+
+- **What changed (backend + header UI; each profile has isolated memory, run history and settings):**
+  - `apps/web/profile-manager.ts` (new): `Profile` store in SQLite (same `kudbee.db`) with an in-memory cache. `Profile {id(UUID), name, description, created_at, updated_at, is_active, settings}`; `create`/`get`/`list`/`update`/`delete`/`setActive` + `export`/`import` (import always gets a fresh UUID and an `(imported)` name). A fresh database gets one active `Default` profile; the last profile cannot be deleted; deleting the active one falls back to another and persists the pointer.
+  - `apps/web/memory.ts`: `MemoryStore` now takes a `profileId` and its root is per profile (`profileMemoryRoot(baseDir, id)` = `profiles/<id>/memory`, UUID-validated). `switchTo(root, profileId)` re-points and reloads the same object, so route handlers that captured it keep seeing the active profile. Memory files are never shared between profiles.
+  - `apps/web/runs.ts`: `RunRecord.profile_id` + `RunStore` profile scope (`setProfile`, `activeProfile`). `list`/`get`/`stats`/`costToday` see only the active profile's runs; `create` stamps new runs; `flush()` writes pending saves before a switch.
+  - `apps/web/routes/profiles.ts` (new): `GET/POST /api/profiles`, `GET /api/profiles/active`, `GET/PATCH/DELETE /api/profiles/:id`, `POST /api/profiles/:id/activate`, `GET /api/profiles/:id/export`, `POST /api/profiles/import`.
+  - `apps/web/server.ts`: creates the manager first, roots the shared `MemoryStore`/`RunStore` at the active profile, and `activateProfile()` re-points them + broadcasts `profile_changed`. The `init` message carries `profiles` and `activeProfile`; a session baseline applies the active profile's settings.
+  - `apps/web/public/js/profile-switcher.js` (new, classic script): pure `ProfileStore` (list/active/create/setActive/rename/remove/export/import over the API) plus `mountProfileSwitcher` for the header dropdown (+ New). `app.js` mounts it and re-reads memory/runs on `profile_changed`; `index.html` gains the `#profile-switcher` control; `public/css/profile-switcher.css` (new) mirrors `.agent-selector` with theme variables.
+- **Tests:** `tests/profile-manager.test.ts` (7), `tests/profile-isolation.test.ts` (3: memory invisible across profiles + restored on switch, run filtering, UUID guard), `tests/profile-switcher.test.ts` (4), `tests/profile-server.test.ts` (2: real server — Alpha memory/run isolated from Beta, restored on switch back, export/import new UUID; `/api/runs` scoped). 16 new tests.
+- **Verification:** `npm run typecheck` and `npm run lint` clean; new tests 16/16; static dashboard guards (frontend-xss-guard, dashboard-ui, http-security, panel-xss, command-parity, extracted-modules) all pass. Full suite 832/838; the 6 non-passing are the documented environment flakes (file-confinement/server-boot undici crash, think-token-p1-integration), reproduced on `main` (814/822).
+- **Four-state:** CODE COMPLETE / TEST VERIFIED (unit + real-server integration). Not LIVE VERIFIED (no real-browser run of the switcher); not PRODUCTION READY. The dashboard is still local-only; memory notes in `PersistenceLayer` remain session-keyed (the layered markdown memory is the profile-scoped store).
+
 ### 2026-10-04 — Agent tracking + governance window (P3)
 
 - **What changed (UI + local events only; no backend agent management):**

@@ -1,3 +1,9 @@
+## CURRENT (2026-10-04) — Switchable profiles with persistent memory (agent OS web surface, branch `kilo/able-codec-tjy`)
+
+- **CODE COMPLETE / TEST VERIFIED:** named profiles each with isolated memory (per-profile Markdown folders) and profile-scoped run history, SQLite-backed profile CRUD, export/import with a fresh UUID, and a header profile switcher. Backend `apps/web/profile-manager.ts` + `apps/web/routes/profiles.ts`; `MemoryStore.switchTo`/`profileMemoryRoot`; `RunStore.setProfile`/`flush`; `server.ts` `activateProfile()`; frontend `public/js/profile-switcher.js` + `profile-switcher.css`.
+- **Tests:** 16 new (`profile-manager` 7, `profile-isolation` 3, `profile-switcher` 4, `profile-server` 2). Full suite 832/838; the 6 non-passing are documented environment flakes (file-confinement/server-boot undici crash, think-token-p1-integration), reproduced on `main` (814/822).
+- **NOT LIVE VERIFIED** (no real-browser run of the switcher); **NOT PRODUCTION READY**. Dashboard remains local-only.
+
 ## CURRENT (2026-10-03) — Phase 3 implementation lanes exhausted; roadmap reconciled (branch `feat/pr342-p3-roadmap-reconciliation`, PR **#342**)
 
 - **Docs-only reconciliation** (no application code): Phase 3 items 3, 4 (tooling) and 6 are merged on `main` (`d94afbbb` #340, `e458a13e` #341) and the roadmap/status now say so; the stale "Next: Phase 3, item 2 → 3" line is replaced with the current founder gate.

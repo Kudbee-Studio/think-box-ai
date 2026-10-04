@@ -8,6 +8,7 @@ import { discoverMCPSkills, filterSkills, groupSkillsByCategory } from './mcp-sk
 import { createModelClients } from './ollama-client.ts';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.ts';
 import { registerMemoryRoutes } from './routes/memory.ts';
+import { registerProfileRoutes } from './routes/profiles.ts';
 import { registerRunsRoutes } from './routes/runs.ts';
 import { FileTooLargeError, WorkspacePathError, assertRealInside, assertRealInsideSync, readConfined, unlinkConfined, writeConfined } from './workspace-fs.ts';
 import express, { type Request as ExpressRequest, type Response } from 'express';
@@ -42,7 +43,8 @@ import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isIncepti
 import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
-import { MemoryStore } from './memory.ts';
+import { MemoryStore, profileMemoryRoot } from './memory.ts';
+import { ProfileManager } from './profile-manager.ts';
 import { createMemorySemantic } from './memory-semantic.ts';
 import { detectRepo, repoContextLine } from './repo-context.ts';
 import { algorandQuery } from './algorand.ts';
@@ -204,9 +206,27 @@ const monitorAgent = {
 };
 const serverStartedAt = Date.now();
 const dataDir = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
-const runStore = new RunStore(path.join(dataDir, 'runs.json'));
-const memoryStore = new MemoryStore(process.env.KUDBEE_MEMORY_DIR || path.join(dataDir, 'memory'));
+// Profiles: named operating contexts. Each profile owns its memory folder and run file; the active
+// profile decides which the server reads/writes. The manager is created first so the stores can be
+// scoped to the currently active profile.
+const profilesDir = path.join(dataDir, 'profiles');
+const profileManager = new ProfileManager(profilesDir, dataDir);
+const activeProfileId = profileManager.getActiveId();
+const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
+const memoryStore = new MemoryStore(profileMemoryRoot(profilesDir, activeProfileId), process.env, activeProfileId);
 void memoryStore.syncVectors();
+
+/**
+ * Switch the active profile everywhere the server reads memory and runs. The stores keep their object
+ * identity (route modules and the agent session captured them once), so this only re-points them.
+ */
+function activateProfile(profileId: string): void {
+  const profile = profileManager.setActive(profileId);
+  runStore.setProfile(profile.id);
+  memoryStore.switchTo(profileMemoryRoot(profilesDir, profile.id), profile.id);
+  void memoryStore.syncVectors();
+  for (const session of sessions.values()) session.broadcast({ type: 'profile_changed', data: { id: profile.id, name: profile.name } });
+}
 
 // ─── Persistent storage (SQLite) ────────────────────────────────
 const persistence = new PersistenceLayer(dataDir);
@@ -1684,6 +1704,12 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   sessions.set(sessionId, session);
   fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true }).catch((err) => console.error(`[session ${sessionId.slice(0, 8)}] could not create the workspace: ${describeError(err)}`));
 
+  // The active profile's settings are the baseline for a session; a saved per-session patch wins.
+  try {
+    Object.assign(session.config, sanitizeConfigPatch(profileManager.active().settings));
+  } catch (err) {
+    console.warn(`[session ${sessionId.slice(0, 8)}] ignoring active profile settings: ${describeError(err)}`);
+  }
   // Restore dashboard state from persistent storage
   const savedState = await persistence.restoreDashboardState(sessionId);
   if (savedState?.settings) {
@@ -1701,6 +1727,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
       data: {
         sessionId,
         config: session.config,
+        profiles: profileManager.list(),
+        activeProfile: profileManager.active(),
         models: await listModels(),
         plugins: getPlugins(),
         files: Array.from(session.files.entries()),
@@ -1978,6 +2006,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
 registerDiagnosticsRoutes(app, { sessions, plugins, serverStartedAt, monitorAgent, port: PORT, ollamaBaseUrl, janusBaseUrl, janusEnabled, runStore, memoryStore, dailyBudgetUsd });
 registerRunsRoutes(app, { runStore, persistence });
 registerMemoryRoutes(app, { memoryStore, persistence, sessions });
+registerProfileRoutes(app, { profileManager, runStore, sessions, activateProfile, profilesDir });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {
