@@ -27,7 +27,7 @@ export interface RunnerDeps {
   /** The Mercury worker agent loop (agent.ts runToolAgent) for one goal. */
   runAgent: (goal: string, model: string, hooks: AgentHooks) => Promise<AgentRunResult>;
   /** The existing specialist job, with the convoy id as its job id. Resolves to the job artifact. */
-  runSpecialists: (goal: string, convoyId: string) => Promise<Record<string, any>>;
+  runSpecialists: (goal: string, convoyId: string, specialists: string[]) => Promise<Record<string, any>>;
   broadcast: (message: { type: string; data: unknown }) => void;
   signal: AbortSignal;
   now?: () => number;
@@ -165,7 +165,7 @@ async function runSpecialistConvoy(deps: RunnerDeps, c: ConvoyRecord, update: ()
   const { store, runStore } = deps;
   for (const w of c.workers) w.status = 'running';
   update();
-  const artifact = await deps.runSpecialists(c.goal, c.id);
+  const artifact = await deps.runSpecialists(c.goal, c.id, c.workers.map((w) => w.id)); // exactly the approved plan's workers
   const executions: Array<Record<string, any>> = Array.isArray(artifact.specialistsExecuted) ? artifact.specialistsExecuted : [];
   for (const w of c.workers) {
     const e = executions.find((x) => x.specialistId === w.id);

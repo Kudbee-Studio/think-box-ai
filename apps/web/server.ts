@@ -1359,17 +1359,21 @@ export class AgentSession {
       },
       hooksFor: (record, signal, allowedTools) => ({ ...this.agentHooks(record, signal), allowedTools }),
       runAgent: (goal, model, hooks) => runToolAgent(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
-      runSpecialists: (goal, convoyId) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId }),
+      runSpecialists: (goal, convoyId, specialists) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId, specialists }),
       broadcast: (message) => this.broadcast(message as Parameters<AgentSession['broadcast']>[0]),
       signal: this.abort.signal,
     };
     try { await executeConvoy(deps, id); } finally { this.abort = null; }
   }
 
-  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}, options: { jobId?: string } = {}): Promise<Record<string, unknown>> {
+  async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}, options: { jobId?: string; specialists?: string[] } = {}): Promise<Record<string, unknown>> {
     const jobId = options.jobId ?? randomUUID();
     const startedAt = Date.now();
-    const selection = selectSpecialists(intent, opportunity);
+    // A convoy runs EXACTLY the specialists its approved plan named (the Director's text match must not add or drop any); a plain job still selects from the text.
+    const planned = options.specialists?.filter((id) => id in SPECIALISTS);
+    const selection = planned?.length
+      ? { selected: [...new Set(planned)].sort(), rationale: Object.fromEntries(planned.map((id) => [id, 'named by the approved convoy plan'])), blocked: false }
+      : selectSpecialists(intent, opportunity);
     const eventLog: Array<Record<string, unknown>> = [];
     let sequence = 0;
     const recordEvent = (event: Record<string, unknown>): void => {

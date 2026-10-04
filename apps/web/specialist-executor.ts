@@ -176,10 +176,14 @@ export function createRunToolAgentExecutor(options: RunToolAgentExecutorOptions)
       `Evidence requirements: ${allocation.contract.evidenceRequirements.join('; ') || 'none'}`,
       `Success criteria: ${allocation.contract.successCriteria}`,
       `Failure behavior: ${allocation.contract.failureBehavior}`,
+      `You may call ONLY these tools: ${allocation.contract.toolsRequired.join(', ') || 'none'}. Any other tool call fails and is recorded against you.`,
+      typeof allocation.input.artifact_path === 'string' ? `The artifact to work on is "${allocation.input.artifact_path}" in your workspace. Use exactly that path; do not guess another file name.` : '',
       'Report only work supported by actual model or tool events. Do not claim a tool ran unless its result is in this run.',
-    ].join('\n');
+    ].filter(Boolean).join('\n');
     const result = await runToolAgent(
-      `${allocation.intent}\n\nSpecialist input:\n${JSON.stringify(allocation.input)}`,
+      // Each specialist gets ITS task, with the overall intent as context only: given the bare job text, a Validator or Security worker tries to do the
+      // Builder's job ("write notes.md") instead of checking it (found in the live acceptance run).
+      `Overall job (context only; the other specialists do their own parts): ${allocation.intent}\n\nYOUR TASK as ${allocation.contract.name}: ${allocation.contract.capability}\nProduce: ${allocation.contract.expectedOutputs.join('; ')}\nDo not do another specialist's work. Use only your tools, on the inputs below.\n\nSpecialist input:\n${JSON.stringify(allocation.input)}`,
       options.model,
       options.maxIterations,
       options.temperature,

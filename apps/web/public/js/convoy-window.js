@@ -255,8 +255,10 @@
     var use = c.plan && c.plan.budget_use || {};
     var bud = c.worker_budget || {};
     plan.appendChild(this._el('div', 'convoy-line', 'Worker budget: ' + (use.worst_case_workers || 0) + ' of ' + bud.max_workers + ' worker(s) possible · est. ' + usd(use.estimated_cost_usd) + ' (worst case ' + usd(use.worst_case_cost_usd) + ') of $' + bud.max_cost_usd + ' · up to ' + (use.estimated_tool_calls || 0) + ' of ' + bud.max_tool_calls + ' tool calls'));
+    (c.plan && c.plan.added_by_mayor || []).forEach(function (a) { plan.appendChild(self._el('div', 'convoy-line', 'Added by the Mayor: ' + a.id + ' (' + a.reason + ')')); });
     if (c.plan && c.plan.escalation) plan.appendChild(this._el('div', 'convoy-line', 'Fallback: ' + c.plan.escalation.model + ' if ' + c.plan.escalation.when));
     plan.appendChild(this._el('div', 'convoy-line', 'Expected: 1 dashboard row, ' + (c.plan && c.plan.expected_convoy ? c.plan.expected_convoy.children : 0) + ' child run(s), ' + (c.plan && c.plan.expected_convoy ? c.plan.expected_convoy.waves : 0) + ' wave(s)'));
+    (c.plan && c.plan.warnings || []).forEach(function (w) { plan.appendChild(self._el('div', 'convoy-line', 'Note: ' + w)); });
     (c.plan && c.plan.blocked_reasons || []).forEach(function (r) { plan.appendChild(self._el('div', 'convoy-blocked', 'Blocked: ' + r)); });
     box.appendChild(plan);
 

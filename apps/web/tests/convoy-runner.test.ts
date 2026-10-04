@@ -89,7 +89,7 @@ describe('specialist convoys map the existing specialist job result without hidi
 
   it('success: every worker completed and the proof was accepted; costs and tool calls are summed from the children', async () => {
     const t = setup(goal, undefined, { max_workers: 12, max_cost_usd: 1, max_tool_calls: 100 });
-    const c = await executeConvoy(t.deps({ runSpecialists: async (_g, id) => { assert.equal(id, t.c.id, 'the convoy id is the job id'); return { status: 'COMPLETED', specialistsExecuted: ids(t).map((i) => exec(i, 'completed')) }; } }), t.c.id);
+    const c = await executeConvoy(t.deps({ runSpecialists: async (_g, id, specialists) => { assert.equal(id, t.c.id, 'the convoy id is the job id'); assert.deepEqual(specialists, ids(t), 'exactly the approved plan\'s workers run'); return { status: 'COMPLETED', specialistsExecuted: ids(t).map((i) => exec(i, 'completed')) }; } }), t.c.id);
     assert.equal(c.state, 'COMPLETED');
     assert.equal(c.outcome, 'success');
     assert.equal(c.cost_usd, Math.round(0.002 * ids(t).length * 1e6) / 1e6);

@@ -144,7 +144,8 @@ export const SPECIALISTS: Readonly<Record<string, SpecialistContract>> = Object.
   validator: {
     id: 'validator', name: 'Validator',
     capability: 'Independently re-checks evidence other specialists submitted; never trusts a self-report.',
-    allowedInputs: ['claims_with_evidence'],
+    // The proof requires the Validator to independently READ the artifact it checks, so it must be told which one (artifact_path); without it a real model guesses a file name.
+    allowedInputs: ['claims_with_evidence', 'artifact_path'],
     expectedOutputs: ['validation_result'],
     evidenceRequirements: ['Validator\'s own independent re-check of the underlying evidence, not a re-statement of the original claim'],
     successCriteria: 'Validation result is reproducible by re-running the same check against the same evidence.',

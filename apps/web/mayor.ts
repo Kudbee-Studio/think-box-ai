@@ -60,6 +60,8 @@ export interface ConvoyPlan {
   waves: string[][];
   /** Specialists the Director would pick that need no model (the orchestrator handles them). */
   handled_by_orchestrator: string[];
+  /** Workers the Mayor added to the Director's selection, and why (the specialist proof refuses a job without an independent Validator). */
+  added_by_mayor: Array<{ id: string; reason: string }>;
   /** Local-model grounding failures are retried once on this model through the same governed path, when one is configured. */
   escalation: { model: string; when: string } | null;
   budget: WorkerBudget;
@@ -67,6 +69,8 @@ export interface ConvoyPlan {
   expected_convoy: { dashboard_rows: 1; children: number; waves: number };
   executable: boolean;
   blocked_reasons: string[];
+  /** Things the approver should know that do not block the plan. */
+  warnings: string[];
 }
 
 export interface PolicyRule { id: string; effect: 'require_approval' | 'deny' | 'info'; reason: string; workers?: string[] }
@@ -108,6 +112,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   const workers: PlannedWorker[] = [];
   const waves: string[][] = [];
   let handled: string[] = [];
+  const added: Array<{ id: string; reason: string }> = [];
 
   const recipe = matchRecipe(goal);
   if (recipe && isGithubRecipe(recipe)) {
@@ -123,7 +128,14 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     const selection = selectSpecialists(goal);
     if (selection.blocked) blocked.push(selection.blockedReason ?? 'no specialist matched this goal');
     else {
-      const contracts = selection.selected.map((id) => SPECIALISTS[id]!);
+      // The specialist proof refuses a job with no independent Validator execution, so a plan without one could never complete: add it, as the Director
+      // already does when a Builder is selected. The reason is part of the plan the human approves.
+      const selected = new Set(selection.selected);
+      if (!selected.has('validator') && [...selected].some((id) => SPECIALISTS[id]!.modelRequirements !== 'none')) {
+        selected.add('validator');
+        added.push({ id: 'validator', reason: 'no specialist may claim success without independent verification: the job proof needs a successful Validator execution' });
+      }
+      const contracts = [...selected].sort().map((id) => SPECIALISTS[id]!);
       handled = contracts.filter((c) => c.modelRequirements === 'none').map((c) => c.id);
       const runnable = contracts.filter((c) => c.modelRequirements !== 'none');
       if (!input.agentModel) blocked.push('no worker-agent model is configured (set INCEPTION_API_KEY)');
@@ -147,6 +159,13 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     }
   }
 
+  const warnings: string[] = [];
+  if (workers.some((w) => w.kind === 'specialist') && !workers.some((w) => w.tools.includes('write_file'))) {
+    warnings.push('No worker writes an artifact, so the Validator may have nothing to check and the specialist job proof can end PARTIAL even if every worker succeeds.');
+  }
+  if (workers.some((w) => w.id === 'researcher')) {
+    warnings.push('The Researcher is read-only, so its evidence has no artifact for the Validator to re-read; the existing job proof refuses such evidence and the convoy can end PARTIAL even though every worker succeeded.');
+  }
   const escalation = workers[0]?.kind === 'lookup' && workers[0].model && input.isLocalModel(workers[0].model) && input.agentModel
     ? { model: input.agentModel, when: 'the local model fails the grounding check or cannot complete the lookup' } : null;
   const known = workers.every((w) => w.estimated_cost_usd !== null);
@@ -162,11 +181,11 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   return {
     ok: true,
     plan: {
-      plan_only: true, side_effects: 'none', goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, escalation, budget,
+      plan_only: true, side_effects: 'none', goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, added_by_mayor: added, escalation, budget,
       budget_use: { workers: workers.length, worst_case_workers: worstWorkers, estimated_cost_usd: estimatedCost, worst_case_cost_usd: worstCost, estimated_tool_calls: estimatedCalls },
       expected_convoy: { dashboard_rows: 1, children: workers.length, waves: waves.length },
       executable: blocked.length === 0 && workers.length > 0,
-      blocked_reasons: workers.length || blocked.length ? blocked : ['nothing to plan'],
+      blocked_reasons: workers.length || blocked.length ? blocked : ['nothing to plan'], warnings,
     },
   };
 }

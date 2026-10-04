@@ -266,7 +266,9 @@ function printConvoy(cv: any): void {
     for (const w of plan.workers) console.log(`    ${c.dim(`wave ${w.wave}`)} ${w.name} ${c.dim(`on ${w.model ?? 'no model'} · tools ${w.tools.join(', ') || 'none'} · ${w.permission} · est ${usdOrUnmeasured(w.estimated_cost_usd)}`)}`);
     const u = plan.budget_use;
     console.log(c.dim(`    budget: ${u.worst_case_workers}/${plan.budget.max_workers} workers possible · est ${usdOrUnmeasured(u.estimated_cost_usd)} (worst ${usdOrUnmeasured(u.worst_case_cost_usd)}) of $${plan.budget.max_cost_usd} · up to ${u.estimated_tool_calls}/${plan.budget.max_tool_calls} tool calls`));
+    for (const a of plan.added_by_mayor ?? []) console.log(c.dim(`    added by the Mayor: ${a.id} (${a.reason})`));
     if (plan.escalation) console.log(c.dim(`    fallback: ${plan.escalation.model} if ${plan.escalation.when}`));
+    for (const w of plan.warnings ?? []) console.log(c.yellow(`    note: ${w}`));
     for (const r of plan.blocked_reasons) console.log(c.red(`    blocked: ${r}`));
   }
   if (cv.policy) console.log(c.dim(`    policy: ${cv.policy.decision} · risk ${cv.policy.risk}`));

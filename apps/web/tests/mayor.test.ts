@@ -65,6 +65,21 @@ describe('planConvoy: specialist work', () => {
     assert.equal(p.expected_convoy.dashboard_rows, 1);
     assert.equal(p.expected_convoy.children, p.workers.length);
   });
+  it('adds the Validator the specialist proof needs, with the reason, when the Director did not select one', () => {
+    const p = plan('Research the latest release notes and summarize them');
+    assert.deepEqual(p.workers.map((w: any) => w.id).sort(), ['researcher', 'synthesizer', 'validator']);
+    assert.equal(p.added_by_mayor.length, 1);
+    assert.equal(p.added_by_mayor[0].id, 'validator');
+    assert.match(p.added_by_mayor[0].reason, /independent verification/);
+    const withBuilder = plan('Research the latest release notes and write a short summary report');
+    assert.deepEqual(withBuilder.added_by_mayor, [], 'the Director already selected it');
+  });
+  it('warns when no worker writes an artifact (the proof needs something for the Validator to check) and not when one does', () => {
+    assert.match(plan('Research the latest release notes and summarize them').warnings.join(), /No worker writes an artifact/);
+    assert.deepEqual(plan('What is the last PR?').warnings, [], 'a lookup convoy has no proof step');
+    assert.match(plan('Research the latest release notes and write a short summary report').warnings.join(), /Researcher is read-only/);
+    assert.deepEqual(plan('Write a file notes.md with one sentence about convoys').warnings, [], 'builder + validator + security: the designed, checkable path');
+  });
   it('enforces the worker budget: too many workers makes the plan not executable, with the numbers', () => {
     const p = plan(goal, { budget: { max_workers: 1 } });
     assert.equal(p.executable, false);

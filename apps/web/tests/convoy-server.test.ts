@@ -363,6 +363,7 @@ test('a specialist convoy runs the existing specialist job with the convoy id as
   const c = (await get(`/api/convoys/${c0.id}`)).convoy;
   assert.ok(['COMPLETED', 'PARTIAL', 'FAILED'].includes(c.state));
   assert.ok(c.workers.some((w: any) => w.run_id), 'children are linked');
+  assert.deepEqual(c.runs.map((run: any) => run.specialistId).sort(), c0.plan.workers.map((w: any) => w.id).sort(), 'exactly the approved plan\'s workers ran: none added, none dropped');
   assert.ok(c.runs.every((run: any) => run.jobId === c.id), 'each child run carries the convoy id');
   assert.ok(!(await get('/api/runs')).runs.some((x: any) => x.jobId === c.id), 'no child run is a top-level row');
   assert.deepEqual(c.chain, { ok: true });
