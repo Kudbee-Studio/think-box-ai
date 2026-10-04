@@ -1,0 +1,132 @@
+/* Agent tracking + governance window. Loaded before enterprise-polish.css. Theme variables only. */
+
+.wm-agent-badge {
+  padding: 3px 8px;
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 999px;
+  background: var(--bg-tertiary, #101725);
+  color: var(--text-secondary, #8fa2c0);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.wm-agent-badge.is-running {
+  border-color: #4ade80;
+  color: #86efac;
+}
+
+.agent-menu {
+  position: absolute;
+  right: 10px;
+  bottom: 42px;
+  z-index: 9600;
+  min-width: 260px;
+  max-width: 380px;
+  max-height: 50vh;
+  overflow: auto;
+  padding: 4px;
+  background: var(--bg-secondary, #141d31);
+  border: 1px solid var(--border-light, #2b3a55);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.agent-menu-empty {
+  padding: 8px;
+  color: var(--text-secondary, #8fa2c0);
+  font-style: italic;
+}
+
+.agent-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #e6eefc);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.agent-menu-item:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.agent-status-running {
+  border-left-color: #4ade80;
+}
+
+.agent-status-failed {
+  border-left-color: var(--error, #e5484d);
+}
+
+.agent-status-paused {
+  border-left-color: #f5a623;
+}
+
+.gov-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.gov-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gov-label {
+  color: var(--text-secondary, #8fa2c0);
+}
+
+.gov-value {
+  color: var(--text-primary, #e6eefc);
+  text-align: right;
+  word-break: break-word;
+}
+
+.gov-approval {
+  padding: 10px;
+  border: 1px solid var(--error, #e5484d);
+  border-radius: 8px;
+  background: rgba(229, 72, 77, 0.08);
+}
+
+.gov-approval-text {
+  margin-bottom: 8px;
+  color: var(--error, #e5484d);
+  font-weight: 600;
+}
+
+.gov-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gov-thinkbox {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light, #2b3a55);
+}
+
+.gov-thinkbox h4 {
+  margin: 0 0 6px;
+}
+
+.gov-thinkbox-tree {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.gov-thinkbox-empty {
+  color: var(--text-secondary, #8fa2c0);
+}
