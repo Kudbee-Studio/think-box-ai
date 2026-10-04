@@ -1,0 +1,330 @@
+{
+  "generated_at": "2026-10-04T22:41:04.080Z",
+  "repo": "Kudbee-Studio/think-box-ai",
+  "source": "https://api.github.com (unauthenticated)",
+  "approvals": [
+    {
+      "tool": "live_lookup",
+      "reason": "First network access to api.github.com in this session"
+    }
+  ],
+  "results": [
+    {
+      "recipe": "latest_pr",
+      "ok": true,
+      "latency_ms": 371,
+      "approval": "approved",
+      "items": 5,
+      "evidence": {
+        "recipe": "latest_pr",
+        "repo": "Kudbee-Studio/think-box-ai",
+        "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=all&sort=created&direction=desc&per_page=5",
+        "fetched_at": "2026-10-04T22:41:03.215Z",
+        "http_status": 200,
+        "tool_calls": 1,
+        "latency_ms": 364,
+        "complete": true,
+        "items": [
+          {
+            "kind": "pr",
+            "number": 360,
+            "title": "#360 P3.21: dashboard live-verify + flake fix",
+            "state": "merged",
+            "draft": false,
+            "author": "KudbeeZero",
+            "head_ref": "feat/pr360-p3.21-dashboard-live",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/360",
+            "updated_at": "2026-10-04T22:23:14Z"
+          },
+          {
+            "kind": "pr",
+            "number": 359,
+            "title": "#359 P3: switchable profiles with persistent memory",
+            "state": "closed",
+            "draft": false,
+            "author": "kilo-code-bot[bot]",
+            "head_ref": "feat/pr359-p3-switchable-profiles",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/359",
+            "updated_at": "2026-10-04T17:06:28Z"
+          },
+          {
+            "kind": "pr",
+            "number": 358,
+            "title": "#358 P3: agent tracking + governance window",
+            "state": "merged",
+            "draft": false,
+            "author": "kilo-code-bot[bot]",
+            "head_ref": "feat/pr358-p3-agent-tracking",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/358",
+            "updated_at": "2026-10-04T02:13:15Z"
+          },
+          {
+            "kind": "pr",
+            "number": 357,
+            "title": "#357 P3: workflow save/load + Actions button",
+            "state": "merged",
+            "draft": false,
+            "author": "kilo-code-bot[bot]",
+            "head_ref": "feat/pr357-p3-workflow-actions",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/357",
+            "updated_at": "2026-10-04T01:59:46Z"
+          },
+          {
+            "kind": "pr",
+            "number": 356,
+            "title": "#356 P3: dashboard window manager + taskbar",
+            "state": "merged",
+            "draft": false,
+            "author": "kilo-code-bot[bot]",
+            "head_ref": "feat/pr356-p3-window-manager",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/356",
+            "updated_at": "2026-10-04T01:35:16Z"
+          }
+        ]
+      },
+      "facts": "Most recent pull requests in Kudbee-Studio/think-box-ai, any state, newest first (live from GitHub just now, showing 5). The first line is the newest:\n- #360 \"#360 P3.21: dashboard live-verify + flake fix\" (merged) by KudbeeZero, updated 2026-10-04T22:23:14Z https://github.com/Kudbee-Studio/think-box-ai/pull/360 branch feat/pr360-p3.21-dashboard-live\n- #359 \"#359 P3: switchable profiles with persistent memory\" (closed without merging) by kilo-code-bot[bot], updated 2026-10-04T17:06:28Z https://github.com/Kudbee-Studio/think-box-ai/pull/359 branch feat/pr359-p3-switchable-profiles\n- #358 \"#358 P3: agent tracking + governance window\" (merged) by kilo-code-bot[bot], updated 2026-10-04T02:13:15Z https://github.com/Kudbee-Studio/think-box-ai/pull/358 branch feat/pr358-p3-agent-tracking\n- #357 \"#357 P3: workflow save/load + Actions button\" (merged) by kilo-code-bot[bot], updated 2026-10-04T01:59:46Z https://github.com/Kudbee-Studio/think-box-ai/pull/357 branch feat/pr357-p3-workflow-actions\n- #356 \"#356 P3: dashboard window manager + taskbar\" (merged) by kilo-code-bot[bot], updated 2026-10-04T01:35:16Z https://github.com/Kudbee-Studio/think-box-ai/pull/356 branch feat/pr356-p3-window-manager"
+    },
+    {
+      "recipe": "open_prs",
+      "ok": true,
+      "latency_ms": 190,
+      "approval": null,
+      "items": 1,
+      "evidence": {
+        "recipe": "open_prs",
+        "repo": "Kudbee-Studio/think-box-ai",
+        "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/pulls?state=open&per_page=5",
+        "fetched_at": "2026-10-04T22:41:03.411Z",
+        "http_status": 200,
+        "tool_calls": 1,
+        "latency_ms": 188,
+        "complete": true,
+        "items": [
+          {
+            "kind": "pr",
+            "number": 353,
+            "title": "build(deps): bump transformers from 4.38.2 to 5.10.1 in /apps/web",
+            "state": "open",
+            "draft": false,
+            "author": "dependabot[bot]",
+            "head_ref": "dependabot/pip/apps/web/transformers-5.10.1",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/pull/353",
+            "updated_at": "2026-10-03T22:45:28Z"
+          }
+        ]
+      },
+      "facts": "Open pull requests in Kudbee-Studio/think-box-ai (live from GitHub just now): 1.\n- #353 \"build(deps): bump transformers from 4.38.2 to 5.10.1 in /apps/web\" by dependabot[bot], updated 2026-10-03T22:45:28Z https://github.com/Kudbee-Studio/think-box-ai/pull/353 branch dependabot/pip/apps/web/transformers-5.10.1"
+    },
+    {
+      "recipe": "ci_status",
+      "ok": true,
+      "latency_ms": 274,
+      "approval": null,
+      "items": 5,
+      "evidence": {
+        "recipe": "ci_status",
+        "repo": "Kudbee-Studio/think-box-ai",
+        "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/actions/runs?per_page=5&exclude_pull_requests=true",
+        "fetched_at": "2026-10-04T22:41:03.685Z",
+        "http_status": 200,
+        "tool_calls": 1,
+        "latency_ms": 273,
+        "complete": true,
+        "items": [
+          {
+            "kind": "run",
+            "name": "test",
+            "branch": "main",
+            "event": "push",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_number": 1385,
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239804826",
+            "updated_at": "2026-10-04T22:23:04Z"
+          },
+          {
+            "kind": "run",
+            "name": "Push on main",
+            "branch": "main",
+            "event": "dynamic",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_number": 1051,
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239804495",
+            "updated_at": "2026-10-04T22:23:04Z"
+          },
+          {
+            "kind": "run",
+            "name": "test",
+            "branch": "feat/pr360-p3.21-dashboard-live",
+            "event": "pull_request",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_number": 1384,
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239410440",
+            "updated_at": "2026-10-04T22:16:54Z"
+          },
+          {
+            "kind": "run",
+            "name": "PR #360",
+            "branch": "refs/pull/360/head",
+            "event": "dynamic",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_number": 1050,
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239408529",
+            "updated_at": "2026-10-04T22:16:54Z"
+          },
+          {
+            "kind": "run",
+            "name": "test",
+            "branch": "feat/pr360-p3.21-dashboard-live",
+            "event": "push",
+            "status": "completed",
+            "conclusion": "failure",
+            "run_number": 1383,
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239407415",
+            "updated_at": "2026-10-04T22:16:52Z"
+          }
+        ],
+        "verdict": "failure"
+      },
+      "facts": "Latest CI runs in Kudbee-Studio/think-box-ai, newest first (live from GitHub just now). The newest run: failure.\n- \"test\" on main (push): failure, run 1385, updated 2026-10-04T22:23:04Z https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239804826\n- \"Push on main\" on main (dynamic): failure, run 1051, updated 2026-10-04T22:23:04Z https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239804495\n- \"test\" on feat/pr360-p3.21-dashboard-live (pull_request): failure, run 1384, updated 2026-10-04T22:16:54Z https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239410440\n- \"PR #360\" on refs/pull/360/head (dynamic): failure, run 1050, updated 2026-10-04T22:16:54Z https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239408529\n- \"test\" on feat/pr360-p3.21-dashboard-live (push): failure, run 1383, updated 2026-10-04T22:16:52Z https://github.com/Kudbee-Studio/think-box-ai/actions/runs/37239407415"
+    },
+    {
+      "recipe": "open_issues",
+      "ok": true,
+      "latency_ms": 257,
+      "approval": null,
+      "items": 5,
+      "evidence": {
+        "recipe": "open_issues",
+        "repo": "Kudbee-Studio/think-box-ai",
+        "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/issues?state=open&per_page=10",
+        "fetched_at": "2026-10-04T22:41:03.941Z",
+        "http_status": 200,
+        "tool_calls": 1,
+        "latency_ms": 255,
+        "complete": true,
+        "items": [
+          {
+            "kind": "issue",
+            "number": 59,
+            "title": "Frontend: 10x the graphics, make the links actually work",
+            "state": "open",
+            "author": "KudbeeZero",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/issues/59",
+            "updated_at": "2026-09-01T13:31:11Z"
+          },
+          {
+            "kind": "issue",
+            "number": 21,
+            "title": "Phase 4 Milestone: Cloud Sandbox + CLI Remote + Edge",
+            "state": "open",
+            "author": "kilo-code-bot[bot]",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/issues/21",
+            "updated_at": "2026-08-20T23:39:19Z"
+          },
+          {
+            "kind": "issue",
+            "number": 20,
+            "title": "Phase 3 Milestone: Multi-Agent + Canvases + Next.js 16.3",
+            "state": "open",
+            "author": "kilo-code-bot[bot]",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/issues/20",
+            "updated_at": "2026-08-20T23:39:08Z"
+          },
+          {
+            "kind": "issue",
+            "number": 17,
+            "title": "Phase 4: ESP32-S3 Edge Agent (28.9M Parameter LLM)",
+            "state": "open",
+            "author": "kilo-code-bot[bot]",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/issues/17",
+            "updated_at": "2026-08-20T23:38:26Z"
+          },
+          {
+            "kind": "issue",
+            "number": 16,
+            "title": "Phase 4: kudbEE CLI — Remote Connection & Auto-Discovery",
+            "state": "open",
+            "author": "kilo-code-bot[bot]",
+            "url": "https://github.com/Kudbee-Studio/think-box-ai/issues/16",
+            "updated_at": "2026-08-20T23:38:13Z"
+          }
+        ]
+      },
+      "facts": "Open issues in Kudbee-Studio/think-box-ai (live from GitHub just now, newest first, showing 5):\n- #59 \"Frontend: 10x the graphics, make the links actually work\" by KudbeeZero, updated 2026-09-01T13:31:11Z https://github.com/Kudbee-Studio/think-box-ai/issues/59\n- #21 \"Phase 4 Milestone: Cloud Sandbox + CLI Remote + Edge\" by kilo-code-bot[bot], updated 2026-08-20T23:39:19Z https://github.com/Kudbee-Studio/think-box-ai/issues/21\n- #20 \"Phase 3 Milestone: Multi-Agent + Canvases + Next.js 16.3\" by kilo-code-bot[bot], updated 2026-08-20T23:39:08Z https://github.com/Kudbee-Studio/think-box-ai/issues/20\n- #17 \"Phase 4: ESP32-S3 Edge Agent (28.9M Parameter LLM)\" by kilo-code-bot[bot], updated 2026-08-20T23:38:26Z https://github.com/Kudbee-Studio/think-box-ai/issues/17\n- #16 \"Phase 4: kudbEE CLI — Remote Connection & Auto-Discovery\" by kilo-code-bot[bot], updated 2026-08-20T23:38:13Z https://github.com/Kudbee-Studio/think-box-ai/issues/16"
+    },
+    {
+      "recipe": "branches",
+      "ok": true,
+      "latency_ms": 137,
+      "approval": null,
+      "items": 10,
+      "evidence": {
+        "recipe": "branches",
+        "repo": "Kudbee-Studio/think-box-ai",
+        "source_url": "https://api.github.com/repos/Kudbee-Studio/think-box-ai/branches?per_page=10",
+        "fetched_at": "2026-10-04T22:41:04.079Z",
+        "http_status": 200,
+        "tool_calls": 1,
+        "latency_ms": 136,
+        "complete": true,
+        "items": [
+          {
+            "kind": "branch",
+            "name": "agent/dashboard-command-center/kilo-20260916",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "agent-template/dashboard-evolution",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "chore/deps-upgrade",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "chore/p34-postmerge-audit",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "claude/model-run-env-vars-ljvknb",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "claude-kudbee/gitrepo-integration-289",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "claude-kudbee/gracious-bohr-7sx86a",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "claude-kudbee/gracious-einstein-8xyjnb",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "claude-kudbee/thoughts-streaming-288",
+            "protected": false
+          },
+          {
+            "kind": "branch",
+            "name": "convoy/compute-fabric-foundation-secrets-abstra/74f72471/head",
+            "protected": false
+          }
+        ]
+      },
+      "facts": "Branches in Kudbee-Studio/think-box-ai (live from GitHub just now, the first 10):\n- agent/dashboard-command-center/kilo-20260916\n- agent-template/dashboard-evolution\n- chore/deps-upgrade\n- chore/p34-postmerge-audit\n- claude/model-run-env-vars-ljvknb\n- claude-kudbee/gitrepo-integration-289\n- claude-kudbee/gracious-bohr-7sx86a\n- claude-kudbee/gracious-einstein-8xyjnb\n- claude-kudbee/thoughts-streaming-288\n- convoy/compute-fabric-foundation-secrets-abstra/74f72471/head"
+    }
+  ]
+}

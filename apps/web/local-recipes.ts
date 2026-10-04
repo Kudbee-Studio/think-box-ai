@@ -3,6 +3,9 @@
 // confinement, audit) and the local model only writes a sentence from the result. The sentence is checked against the data; if it states a number
 // or link that is not in the data, the data itself is shown instead. Nothing here runs a tool or calls a model.
 
+import { lookupMaxChars, lookupUrl, normalizeLookup, parseJsonArrayPrefix, renderFacts, type LookupRecipe } from './live-lookup.ts';
+export { parseJsonArrayPrefix };
+
 export type RecipeId = 'open_prs' | 'latest_pr' | 'ci_status' | 'open_issues' | 'branches' | 'list_files' | 'read_file';
 
 /** Recipes that ask GitHub (fetch_url) about the known repository. */
@@ -51,110 +54,22 @@ export function recipeAvailable(match: RecipeMatch, repo: string | null | undefi
 }
 
 export function recipeToolArgs(match: RecipeMatch, repo: string | null | undefined, githubBase = 'https://api.github.com'): Record<string, unknown> {
-  const api = `${githubBase.replace(/\/$/, '')}/repos/${repo}`;
-  if (match.id === 'open_prs') return { url: `${api}/pulls?state=open&per_page=5`, max_chars: 120000 };
-  if (match.id === 'latest_pr') return { url: `${api}/pulls?state=all&sort=created&direction=desc&per_page=5`, max_chars: 120000 };
-  if (match.id === 'ci_status') return { url: `${api}/actions/runs?per_page=5&exclude_pull_requests=true`, max_chars: 120000 };
-  if (match.id === 'open_issues') return { url: `${api}/issues?state=open&per_page=10`, max_chars: 120000 };
-  if (match.id === 'branches') return { url: `${api}/branches?per_page=10`, max_chars: 40000 };
+  if (GITHUB_RECIPES.has(match.id)) return { url: lookupUrl({ recipe: match.id as LookupRecipe, repo: String(repo) }, githubBase), max_chars: lookupMaxChars(match.id as LookupRecipe) };
   if (match.id === 'read_file') return { path: match.path };
   return {};
 }
 
 export type Facts = { facts: string } | { error: string };
 
-/**
- * The complete objects of a JSON array, even when the text was cut off mid-way (a real GitHub pull-request object is 10 KB or more, so a few of
- * them can exceed the fetch limit). Quote- and escape-aware; returns what parsed and whether the whole array was there.
- */
-export function parseJsonArrayPrefix(text: string): { items: unknown[]; complete: boolean } | null {
-  const src = String(text ?? '');
-  const open = src.indexOf('[');
-  if (open < 0 || src.slice(0, open).trim()) return null;
-  const items: unknown[] = [];
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  let start = -1;
-  for (let i = open; i < src.length; i += 1) {
-    const ch = src[i]!;
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === '\\') escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === '[' || ch === '{') {
-      depth += 1;
-      if (depth === 2 && ch === '{') start = i;
-    } else if (ch === ']' || ch === '}') {
-      depth -= 1;
-      if (depth === 1 && ch === '}' && start >= 0) {
-        try { items.push(JSON.parse(src.slice(start, i + 1))); } catch { return items.length ? { items, complete: false } : null; }
-        start = -1;
-      }
-      if (depth === 0) return { items, complete: true };
-    }
-  }
-  return { items, complete: false };
-}
-
 const oneLine = (text: unknown, max: number): string => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-
-const GITHUB_BAD = (repo: string | null | undefined, what: string, status: unknown): string => `GitHub answered HTTP ${String(status)} for ${repo}'s ${what}, so there is nothing to report.`;
-const CUT_OFF = 'The GitHub reply could not be read as JSON (it was cut off or malformed).';
-
-/** Pull requests (any state), issues and branches: one numbered or named line per item, built by code. */
-function listFacts(match: RecipeMatch, output: Record<string, unknown>, repo?: string | null): Facts {
-  const what = match.id === 'latest_pr' ? 'latest pull requests' : match.id === 'open_issues' ? 'open issues' : 'branches';
-  if (Number(output.status) !== 200) return { error: GITHUB_BAD(repo, what, output.status) };
-  const parsed = parseJsonArrayPrefix(String(output.text ?? ''));
-  if (!parsed) return { error: /^\s*\{/.test(String(output.text ?? '')) ? `The GitHub reply was not a list of ${what}.` : CUT_OFF };
-  // The issues endpoint also returns pull requests; they are not issues.
-  const items = (match.id === 'open_issues' ? parsed.items.filter((i: any) => !i?.pull_request) : parsed.items) as any[];
-  const note = parsed.complete ? '' : ' (the reply was longer than the limit and was cut off)';
-  if (!items.length) return parsed.complete ? { facts: `${what[0]!.toUpperCase()}${what.slice(1)} in ${repo} (live from GitHub just now): none.` } : { error: CUT_OFF };
-  if (match.id === 'branches') {
-    const lines = items.slice(0, 10).map((b) => `- ${oneLine(b?.name, 100)}${b?.protected ? ' (protected)' : ''}`);
-    return { facts: `Branches in ${repo} (live from GitHub just now, the first ${lines.length}${note}):\n${lines.join('\n')}` };
-  }
-  if (match.id === 'open_issues') {
-    const lines = items.slice(0, 5).map((i) => `- #${Number(i?.number)} "${oneLine(i?.title, 120)}" by ${oneLine(i?.user?.login, 40) || 'unknown'}, updated ${oneLine(i?.updated_at, 20)} ${oneLine(i?.html_url, 120)}`);
-    return { facts: `Open issues in ${repo} (live from GitHub just now, newest first, showing ${lines.length}${note}):\n${lines.join('\n')}` };
-  }
-  const state = (pr: any): string => (pr?.merged_at ? 'merged' : pr?.state === 'open' ? (pr?.draft ? 'open, draft' : 'open') : 'closed without merging');
-  const lines = items.slice(0, 5).map((pr) => `- #${Number(pr?.number)} "${oneLine(pr?.title, 120)}" (${state(pr)}) by ${oneLine(pr?.user?.login, 40) || 'unknown'}, updated ${oneLine(pr?.updated_at, 20)} ${oneLine(pr?.html_url, 120)}`);
-  return { facts: `Most recent pull requests in ${repo}, any state, newest first (live from GitHub just now, showing ${lines.length}${note}). The first line is the newest:\n${lines.join('\n')}` };
-}
-
-/** The newest workflow runs, with the verdict of the newest one stated by code so a model cannot flip it. */
-function ciFacts(output: Record<string, unknown>, repo?: string | null): Facts {
-  if (Number(output.status) !== 200) return { error: GITHUB_BAD(repo, 'workflow runs', output.status) };
-  let body: any;
-  try { body = JSON.parse(String(output.text ?? '')); } catch { return { error: CUT_OFF }; }
-  const runs: any[] = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
-  if (!runs.length) return { facts: `CI runs in ${repo} (live from GitHub just now): none.` };
-  const verdict = (r: any): string => (r?.status === 'completed' ? oneLine(r?.conclusion, 20) || 'completed' : oneLine(r?.status, 20) || 'unknown');
-  const lines = runs.slice(0, 5).map((r) => `- "${oneLine(r?.name, 60)}" on ${oneLine(r?.head_branch, 60)} (${oneLine(r?.event, 20)}): ${verdict(r)}, run ${Number(r?.run_number)}, updated ${oneLine(r?.updated_at, 20)} ${oneLine(r?.html_url, 120)}`);
-  return { facts: `Latest CI runs in ${repo}, newest first (live from GitHub just now). The newest run: ${verdict(runs[0])}.\n${lines.join('\n')}` };
-}
 
 /** The data, as plain lines, built by code from the tool output (never by the model). */
 export function buildFacts(match: RecipeMatch, output: Record<string, unknown>, repo?: string | null): Facts {
-  if (match.id === 'open_prs') {
-    if (Number(output.status) !== 200) return { error: `GitHub answered HTTP ${String(output.status)} for ${repo}'s open pull requests, so there is nothing to report.` };
-    const text = String(output.text ?? '');
-    const parsed = parseJsonArrayPrefix(text);
-    if (!parsed) return { error: /^\s*\{/.test(text) ? 'The GitHub reply was not a list of pull requests.' : 'The GitHub reply could not be read as JSON (it was cut off or malformed).' };
-    const list = parsed.items;
-    if (!list.length) return parsed.complete ? { facts: `Open pull requests in ${repo} (live from GitHub just now): none.` } : { error: 'The GitHub reply could not be read as JSON (it was cut off or malformed).' };
-    const lines = list.slice(0, 5).map((pr: any) => `- #${Number(pr?.number)} "${oneLine(pr?.title, 120)}"${pr?.draft ? ' (draft)' : ''} by ${oneLine(pr?.user?.login, 40) || 'unknown'}, updated ${oneLine(pr?.updated_at, 20)} ${oneLine(pr?.html_url, 120)}`.trim());
-    const head = parsed.complete ? `${list.length}.` : `showing the first ${list.length} (the reply was longer than the limit and was cut off).`;
-    return { facts: `Open pull requests in ${repo} (live from GitHub just now): ${head}\n${lines.join('\n')}` };
+  if (GITHUB_RECIPES.has(match.id)) {
+    // One normalizer for every model: the structured evidence is built in live-lookup.ts and rendered here as the plain lines a small model words.
+    const normalized = normalizeLookup({ recipe: match.id as LookupRecipe, repo: String(repo ?? '') }, { status: output.status, text: output.text, url: String(output.url ?? ''), fetched_at: new Date().toISOString(), latency_ms: 0 });
+    return normalized.ok ? { facts: renderFacts(normalized.evidence) } : { error: normalized.error };
   }
-  if (match.id === 'latest_pr' || match.id === 'open_issues' || match.id === 'branches') return listFacts(match, output, repo);
-  if (match.id === 'ci_status') return ciFacts(output, repo);
   if (match.id === 'list_files') {
     const files = Array.isArray(output.files) ? (output.files as Array<{ path: string; size: number }>) : [];
     if (!files.length) return { facts: 'The workspace is empty.' };

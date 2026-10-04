@@ -268,7 +268,7 @@ test('memory context is added to the system prompt', async () => {
   assert.equal(system.role, 'system');
   assert.match(String(system.content), /Relevant memories:\n- \[VERIFIED \(trust\)\] Use hnrss\.org/);
   const toolNames = (mock.requests[0].tools as Array<{ function: { name: string } }>).map((t) => t.function.name);
-  assert.deepEqual(toolNames.sort(), ['algorand', 'fetch_url', 'list_files', 'medication', 'read_file', 'read_rss', 'recall', 'remember', 'write_file']);
+  assert.deepEqual(toolNames.sort(), ['algorand', 'fetch_url', 'list_files', 'live_lookup', 'medication', 'read_file', 'read_rss', 'recall', 'remember', 'write_file']);
 });
 
 test('algorand lookups go through the new-domain approval gate', async () => {
