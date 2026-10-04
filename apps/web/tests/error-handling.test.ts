@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { describeError, installProcessHandlers, jsonErrorHandler, type ErrRes } from '../error-handling.ts';
 import { RunStore } from '../runs.ts';
 import { GitRepoManager } from '../git-repo-manager.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
@@ -138,7 +139,7 @@ test('git status: a directory git cannot read reports an error instead of an emp
 
 // ─── Real server ─────────────────────────────────────────────
 async function start(): Promise<{ url: string; port: number }> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const dead = 'http://127.0.0.1:9';
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

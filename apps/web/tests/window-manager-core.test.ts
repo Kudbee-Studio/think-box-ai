@@ -13,7 +13,7 @@ vm.runInContext(src, sandbox, { filename: 'window-manager-core.js' });
 const core = sandbox.WindowManagerCore as {
   slugify(s: unknown): string;
   clamp(n: unknown, min: number, max: number): number;
-  defaultLayout(i: number, w: number, h: number): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean };
+  defaultLayout(i: number, w: number, h: number, top?: number): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean };
   normalizeLayout(raw: unknown): { x: number; y: number; w: number; h: number; maximized: boolean; minimized: boolean } | null;
   parseLayouts(json: string): Record<string, { x: number; y: number; w: number; h: number }>;
   serializeLayouts(map: Record<string, unknown>): string;

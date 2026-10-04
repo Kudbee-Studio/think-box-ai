@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { startMockInception, type MockInception } from './helpers/mock-inception.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9';
@@ -21,7 +22,7 @@ before(async () => {
   mock = await startMockInception();
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-cli-cmd-'));
   dataDir = path.join(tmp, 'data');
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

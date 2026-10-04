@@ -13,7 +13,8 @@
 // Tests and `tsgo` keep using the .ts sources; the generated .js files are git-ignored.
 import { stripTypeScriptTypes } from 'node:module';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -89,8 +90,11 @@ async function main() {
     await import(pathToFileURL(built).href);
     return;
   }
-  const result = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings', path.join(here, `${entry}.ts`), ...args], { stdio: 'inherit' });
-  process.exit(result.status ?? 1);
+  // Not spawnSync: a blocked launcher cannot forward SIGTERM, so stopping it left the server running as an orphan that kept its port.
+  const child = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', path.join(here, `${entry}.ts`), ...args], { stdio: 'inherit' });
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { child.kill(sig); });
+  child.on('error', () => process.exit(1));
+  child.on('exit', (code, signal) => process.exit(code ?? (signal ? 128 + (os.constants.signals[signal] ?? 0) : 1)));
 }
 
 if (process.argv[1] && pathToFileURL(fs.realpathSync(process.argv[1])).href === import.meta.url) await main();

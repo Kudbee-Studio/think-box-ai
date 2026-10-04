@@ -9,6 +9,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = 'smollm2:360m';
@@ -38,7 +39,7 @@ before(async () => {
   await new Promise<void>((r) => ollama.listen(0, '127.0.0.1', r));
   const ollamaUrl = `http://127.0.0.1:${(ollama.address() as { port: number }).port}`;
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-local-chat-'));
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

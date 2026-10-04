@@ -95,7 +95,7 @@ before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-sec-')); });
 after(async () => { await stopProcs(procs); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 async function start(): Promise<{ url: string; port: number }> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const dead = 'http://127.0.0.1:9';
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,
@@ -134,6 +134,7 @@ test('real server: security headers on the page and the API, no X-Powered-By, an
 
 // ─── Rate limiting ───────────────────────────────────────────
 import { rateLimit } from '../http-security.ts';
+import { freePort } from './helpers/free-port.ts';
 
 function hit(limiter: ReturnType<typeof rateLimit>, headers: HeaderReq['headers'] = {}) {
   const { res, headers: out, out: result } = fakeRes();

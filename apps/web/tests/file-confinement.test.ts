@@ -12,6 +12,7 @@ import type { AddressInfo } from 'node:net';
 import { WebSocket } from 'ws';
 import { fetchChecked, isPrivateAddress } from '../net-guard.ts';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEAD = 'http://127.0.0.1:9';
@@ -22,7 +23,7 @@ const procs: ChildProcess[] = [];
 interface Server { url: string; port: number; workspaces: string }
 
 async function start(extra: Record<string, string> = {}): Promise<Server> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const dir = fs.mkdtempSync(path.join(tmp, 's-'));
   const workspaces = path.join(dir, 'w');
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {

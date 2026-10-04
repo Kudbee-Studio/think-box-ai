@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let tmp: string;
@@ -16,7 +17,7 @@ const procs: ChildProcess[] = [];
 let url = '';
 before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-routes-'));
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const dead = 'http://127.0.0.1:9';
   const proc = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,

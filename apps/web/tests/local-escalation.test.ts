@@ -10,6 +10,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { startMockInception, say, type MockInception } from './helpers/mock-inception.ts';
+import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = 'smollm2:360m';
@@ -48,7 +49,7 @@ after(async () => {
 });
 
 async function startServer(withWorkerAgent: boolean): Promise<string> {
-  const port = 20000 + Math.floor(Math.random() * 20000);
+  const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
   const dir = fs.mkdtempSync(path.join(tmp, 's-'));
   const server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
