@@ -9,6 +9,7 @@
 // live-data lookups (answer judged by the grounding validator) and read-only repository investigation (a FINDING judged against the repo evidence).
 
 import { TOOLS, runGovernedTool, type AgentHooks, type RunContext } from './agent.ts';
+import { runRepoAssist } from './investigation-assist.ts';
 import { runAbsenceCheck, type AbsenceCheck } from './absence.ts';
 import { parseFinding, validateFinding, validateGrounding, type GroundingResult, type RepoFinding } from './grounding.ts';
 import { LOOKUP_RECIPES, renderFacts, validateLookupArgs, type LookupEvidence } from './live-lookup.ts';
@@ -29,7 +30,7 @@ export interface LocalToolStep {
   /** The model's raw request or answer text/arguments, kept for the record. */
   raw: string;
   request?: Record<string, unknown>;
-  outcome: 'tool_ok' | 'tool_failed' | 'tool_denied' | 'malformed' | 'answer' | 'no_tool_call' | 'model_error';
+  outcome: 'tool_ok' | 'tool_failed' | 'tool_denied' | 'malformed' | 'answer' | 'no_tool_call' | 'model_error' | 'recovery_retry' | 'recovery_assist';
   error?: string;
   latency_ms: number;
   prompt_tokens: number;
@@ -52,6 +53,8 @@ export interface LocalToolResult<E = LookupEvidence> {
   grounding: GroundingResult | null;
   /** For a claim that something is missing: which path ran (engine search, or could not check and needs a stronger lane). */
   absence?: { path: AbsenceCheck['path']; symbol?: string; aliases: string[]; contradicted: number; searches: number; reason?: string };
+  /** Empty-reply recovery: which step ran ('retry' = one forced retry, 'engine_assist' = the engine ran the first tool), and whether the run was recovered by it. */
+  recovery?: { path: 'retry' | 'engine_assist' | 'exhausted'; retries: number; assist_calls: number; recovered_by?: 'retry' | 'engine_assist' };
   failure?: { kind: LocalFailureKind; message: string };
 }
 
@@ -79,6 +82,8 @@ export interface LoopSpec<E> {
   repairHint: string;
   /** Judge the model's final text or structured report against the evidence. */
   /** Runs before judge, may add evidence (the engine's own searches) and returns whatever judge needs. */
+  /** For goal shapes the engine knows: run the first read-only tool itself, through `call`, when the model gave nothing usable. Returns how many calls it made. */
+  assist?: (goal: string, call: (tool: 'repo_search' | 'repo_read', args: Record<string, unknown>) => Promise<RepoEvidence | null>) => Promise<number>;
   prepare?: (final: { text: string } | { args: unknown }, evidence: E[]) => Promise<unknown>;
   judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
 }
@@ -183,6 +188,7 @@ export function repoSpec(opts: { engineAbsence?: boolean } = {}): LoopSpec<RepoE
     evidenceOf: (o) => ((o as { evidence?: RepoEvidence }).evidence ?? null),
     render: renderRepoEvidence,
     repairHint: 'Tools: repo_search {query, path?} and repo_read {path, start?, end?}.',
+    assist: runRepoAssist,
     prepare: opts.engineAbsence === false ? undefined : async (final, evidence) => {
       if (!('args' in final)) return undefined;
       const parsed = parseFinding(final.args);
@@ -224,6 +230,7 @@ export function parseNativeTurnFor(turn: OllamaChatTurn, spec: LoopSpec<unknown>
 
 export function parseConstrainedTurnFor(turn: OllamaChatTurn, spec: LoopSpec<unknown>): ParsedTurn {
   const raw = turn.content.slice(0, 600);
+  if (!turn.content.trim()) return { kind: 'empty', raw };
   let body: any;
   try { body = JSON.parse(turn.content); } catch { return { kind: 'malformed', reason: 'the reply was not valid JSON', raw }; }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { kind: 'malformed', reason: 'the reply was not a JSON object', raw };
@@ -273,12 +280,50 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
   const evidence: E[] = [];
   const messages: unknown[] = [{ role: 'system', content: mode === 'native' ? spec.system : spec.constrainedSystem }, { role: 'user', content: goal }];
   let absence: LocalToolResult<E>['absence'];
+  // empty-reply recovery budget: ONE forced retry and ONE engine assist per run
+  let retried = false; let assisted = false; let assistCalls = 0; let recoveryPath: 'retry' | 'engine_assist' | 'exhausted' | undefined;
   let toolCalls = 0; let promptTokens = 0; let completionTokens = 0; let repairs = 0; let groundingRetries = 0;
-  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, tool_calls: toolCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...partial });
+  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, tool_calls: toolCalls + assistCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...(recoveryPath ? { recovery: { path: recoveryPath, retries: retried ? 1 : 0, assist_calls: assistCalls, ...(recoveryPath !== 'exhausted' && partial.success ? { recovered_by: recoveryPath } : {}) } } : {}), ...partial });
   const fail = (kind: LocalFailureKind, message: string): LocalToolResult<E> => done({ failure: { kind, message } });
   const noun = spec.terminalTool ? 'report' : 'answer';
 
-  for (let step = 1; step <= maxSteps + 2; step += 1) {
+  /** An empty reply, or an answer with no tool call, is recoverable on an investigation goal: one forced retry, then the engine runs the first tool itself. */
+  const recover = async (raw: string, base: Omit<LocalToolStep, 'raw' | 'outcome'>, why: string): Promise<'again' | null> => {
+    if (!spec.terminalTool) return null;
+    const looked = evidence.length > 0;
+    if (!retried) {
+      retried = true; recoveryPath = 'retry';
+      steps.push({ ...base, raw, outcome: 'recovery_retry', error: why });
+      if (raw.trim() && raw.trim() !== '""') messages.push({ role: 'assistant', content: raw });
+      messages.push({ role: 'user', content: looked ? `Your last reply was empty. Either call repo_search or repo_read, or report your finding with report_finding. Use only paths the tools returned.` : `Your last reply had no tool call. You MUST call repo_search or repo_read now, before any claim. Use only paths named in the goal or returned by a tool.` });
+      return 'again';
+    }
+    if (!assisted && spec.assist) {
+      assisted = true;
+      const call = async (tool: 'repo_search' | 'repo_read', args: Record<string, unknown>): Promise<RepoEvidence | null> => {
+        assistCalls += 1;
+        const gov = await runGovernedTool(tool, args, hooks, context, toolCalls + assistCalls);
+        if (gov.approval === 'denied' || gov.output.ok !== true) return null;
+        const found = spec.evidenceOf(gov.output);
+        if (!found) return null;
+        evidence.push(found);
+        return found as unknown as RepoEvidence;
+      };
+      const before = evidence.length;
+      await spec.assist(goal, call);
+      if (evidence.length > before) {
+        recoveryPath = 'engine_assist';
+        steps.push({ ...base, raw, outcome: 'recovery_assist', error: `the engine ran ${assistCalls} read-only tool call(s) itself` });
+        const facts = evidence.slice(before).map((e) => spec.render(e)).join('\n\n');
+        messages.push({ role: 'user', content: `The system ran these read-only tools for you; their results are the only evidence you have:\n${facts}\n\nNow report ONE finding that is grounded in this evidence (file, line, exact quote, claim), or report found=false with a reason. Do not use any path that is not shown above.` });
+        return 'again';
+      }
+    }
+    recoveryPath = 'exhausted';
+    return null;
+  };
+
+  for (let step = 1; step <= maxSteps + 4; step += 1) {
     // Until a tool call has returned something there is nothing to report: the report option is not offered at all (a model offered it first invents a finding).
     const looked = evidence.length > 0;
     const tools = looked || !spec.terminalTool ? spec.nativeTools : spec.nativeTools.filter((t) => (t as { function?: { name?: string } }).function?.name !== spec.terminalTool);
@@ -290,7 +335,10 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
     const parsed = mode === 'native' ? parseNativeTurnFor(turn, spec as LoopSpec<unknown>) : parseConstrainedTurnFor(turn, spec as LoopSpec<unknown>);
 
     if (parsed.kind === 'answer' || parsed.kind === 'final') {
-      if (!evidence.length) { steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: `gave a ${noun} without calling a tool` }); return fail('no_tool_call', `${model} gave a ${noun} without looking anything up, so it cannot be verified`); }
+      if (!evidence.length) {
+        if (await recover(parsed.raw, base, `gave a ${noun} without calling a tool`) === 'again') continue;
+        steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: `gave a ${noun} without calling a tool` }); return fail('no_tool_call', `${model} gave a ${noun} without looking anything up, so it cannot be verified`);
+      }
       const finalArg = parsed.kind === 'answer' ? { text: parsed.text } : { args: parsed.args };
       const extra = spec.prepare ? await spec.prepare(finalArg, evidence) : undefined;
       const check = extra as AbsenceCheck | undefined;
@@ -317,7 +365,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
       steps.push({ ...base, raw: parsed.raw, outcome: 'answer' });
       return done({ success: true, ...(judged.answer !== undefined ? { answer: judged.answer } : {}), ...(judged.finding ? { finding: judged.finding } : {}), grounding: judged.grounding });
     }
-    if (parsed.kind === 'empty') { steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: 'empty reply' }); return fail('no_tool_call', `${model} returned neither a tool call nor a ${noun}`); }
+    if (parsed.kind === 'empty') { if (await recover(parsed.raw, base, 'empty reply') === 'again') continue; steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: 'empty reply' }); return fail('no_tool_call', `${model} returned neither a tool call nor a ${noun}`); }
 
     // A request: validate before anything runs.
     const checked = parsed.kind === 'call' ? spec.checkCall(parsed.name, parsed.request) : null;

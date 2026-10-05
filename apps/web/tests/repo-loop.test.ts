@@ -104,6 +104,73 @@ for (const m of MODELS) {
       assert.equal(result.absence?.path, 'escalate');
       assert.equal(result.steps.filter((s) => s.outcome === 'malformed').length, 0, 'the model cannot fix this, so no retry round is spent');
     });
+    describe('empty-reply recovery (P3.26)', () => {
+      const goal = 'Find an exported function in src/alpha.ts that has no test.';
+      const empty = () => turn({});
+      it('an empty first reply gets ONE forced retry that requires a tool call, and the run recovers', async () => {
+        const { chat, requests } = scripted(m.caps as unknown as string[], [empty(), m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...good, absence_search: undefined })]);
+        const { result } = await drive(m, chat, goal);
+        assert.equal(result.success, true, JSON.stringify(result.failure));
+        assert.equal(result.grounding?.status, 'GROUNDED', JSON.stringify(result.grounding?.unsupported));
+        assert.deepEqual(result.recovery, { path: 'retry', retries: 1, assist_calls: 0, recovered_by: 'retry' });
+        assert.equal(result.steps[0]!.outcome, 'recovery_retry');
+        assert.match(JSON.stringify(requests[1]!.messages), /You MUST call repo_search or repo_read now/);
+      });
+      it('a report with no tool call first is treated the same way', async () => {
+        const { chat } = scripted(m.caps as unknown as string[], [m.finish(good), m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish(good)]);
+        const { result } = await drive(m, chat, goal);
+        assert.equal(result.success, true, JSON.stringify(result.failure));
+        assert.equal(result.recovery?.path, 'retry');
+        assert.equal(result.recovery?.recovered_by, 'retry');
+      });
+      it('still empty after the retry: the engine runs the first tool itself, attaches the evidence, and the model only has to report', async () => {
+        const { chat, requests } = scripted(m.caps as unknown as string[], [empty(), empty(), m.finish({ found: true, file: 'src/alpha.ts', line: 4, quote: 'export function orphan() {', claim: 'The function `orphan` has no tests.' })]);
+        const { result, events } = await drive(m, chat, goal);
+        assert.equal(result.success, true, JSON.stringify(result.failure));
+        assert.equal(result.grounding?.status, 'GROUNDED', JSON.stringify(result.grounding?.unsupported));
+        assert.equal(result.recovery?.path, 'engine_assist');
+        assert.equal(result.recovery?.recovered_by, 'engine_assist');
+        assert.equal(result.recovery!.assist_calls >= 3, true, 'one read plus a tests search per exported function');
+        assert.ok(events.filter((e) => e.kind === 'tool').length >= 3, 'the engine calls went through the governed path');
+        assert.match(JSON.stringify(requests[2]!.messages), /The system ran these read-only tools for you/);
+        assert.equal(result.evidence[0]!.tool, 'repo_read');
+      });
+      it('the budget is capped: one retry, one engine assist, then a classified failure that is flagged for a stronger lane', async () => {
+        const { chat, requests } = scripted(m.caps as unknown as string[], [empty(), empty(), empty(), empty()]);
+        const { result } = await drive(m, chat, goal);
+        assert.equal(result.success, false);
+        assert.equal(result.failure?.kind, 'no_tool_call');
+        assert.equal(result.recovery?.path, 'exhausted');
+        assert.equal(result.recovery?.retries, 1);
+        assert.equal(requests.length, 3, 'first reply, the retry, and the reply after the engine assist; nothing more');
+        assert.equal(result.steps.filter((s) => s.outcome === 'recovery_retry').length, 1);
+        assert.equal(result.steps.filter((s) => s.outcome === 'recovery_assist').length, 1);
+      });
+      it('a goal shape the engine does not know gets the retry but no assist, then fails honestly', async () => {
+        const { chat } = scripted(m.caps as unknown as string[], [empty(), empty()]);
+        const { result } = await drive(m, chat, 'Tell me something interesting about this codebase.');
+        assert.equal(result.success, false);
+        assert.equal(result.recovery?.path, 'exhausted');
+        assert.equal(result.recovery?.assist_calls, 0);
+      });
+      it('an invented path is never rescued: a read of it fails, and a finding that cites it is GROUNDING FAILED even after the engine assist', async () => {
+        const read = scripted(m.caps as unknown as string[], [empty(), m.call('repo_read', { path: 'apps/web/tests/alpha.test.ts' })]);
+        const r1 = await drive(m, read.chat, goal);
+        assert.equal(r1.result.failure?.kind, 'tool_failed');
+        assert.match(r1.result.failure!.message, /not found/);
+        const lie = { found: true, file: 'src/invented.ts', line: 1, quote: 'export function ghost() {', claim: 'The function `ghost` has no tests.' };
+        const cited = scripted(m.caps as unknown as string[], [empty(), empty(), m.finish(lie), m.finish(lie)]);
+        const r2 = await drive(m, cited.chat, goal);
+        assert.equal(r2.result.grounding?.status, 'GROUNDING FAILED');
+        assert.ok(r2.result.grounding!.unsupported.some((u) => u.kind === 'file'));
+      });
+      it('a goal that is answered normally never triggers recovery', async () => {
+        const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_search', { query: 'orphan', path: '' }), m.finish({ found: true, file: 'src/alpha.ts', line: 4, quote: 'export function orphan() {', claim: 'orphan is defined here' })]);
+        const { result } = await drive(m, chat, 'Which file defines orphan?');
+        assert.equal(result.success, true, JSON.stringify(result.failure));
+        assert.equal(result.recovery, undefined);
+      });
+    });
     it('"nothing worth reporting" after looking is an honest result', async () => {
       const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts' }), m.finish({ found: false, reason: 'every exported function is exercised' })]);
       const { result } = await drive(m, chat);
@@ -112,7 +179,7 @@ for (const m of MODELS) {
       assert.equal(result.grounding?.status, 'GROUNDED');
     });
     it('a finding with no looking at all is a failure', async () => {
-      const { chat } = scripted(m.caps as unknown as string[], [m.finish(good)]);
+      const { chat } = scripted(m.caps as unknown as string[], [m.finish(good), m.finish(good)]);
       const { result } = await drive(m, chat);
       assert.equal(result.success, false);
       assert.equal(result.failure?.kind, 'no_tool_call');
