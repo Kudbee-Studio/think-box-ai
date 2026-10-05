@@ -147,7 +147,7 @@ describe('repository investigation plans (OBSERVE)', () => {
   const goal = 'Find one function in apps/web that has no test';
   it('matches investigation goals and nothing else: not GitHub questions, not change requests', () => {
     for (const g of [goal, 'Inspect the code for unused exports', 'Which files have a TODO?', 'audit the source for duplicated code', 'find untested modules']) assert.equal(matchRepoGoal(g), true, g);
-    for (const g of ['What is the last PR?', 'did CI pass', 'fix the failing test', 'write a file notes.md', 'delete the unused functions', 'find the weather', 'hello', '', 'find a function at https://x.io/a.ts', 'x'.repeat(700)]) assert.equal(matchRepoGoal(g), false, g);
+    for (const g of ['What is the last PR?', 'did CI pass', 'fix the failing test', 'write a file notes.md', 'delete the unused functions', 'find the weather', 'hello', 'list the files in my workspace', 'show me what is in the workspace folder', 'read notes.md', '', 'find a function at https://x.io/a.ts', 'x'.repeat(700)]) assert.equal(matchRepoGoal(g), false, g);
   });
   it('is one read-only worker on a local model with the two repo tools, in OBSERVE mode, low risk, and no escalation', () => {
     const p = plan(goal, { lookupModel: 'qwen2.5:3b' });

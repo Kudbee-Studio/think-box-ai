@@ -1,0 +1,195 @@
+{
+  "generated_at": "2026-10-05T01:18:03.224Z",
+  "note": "real Chromium, real server, real GitHub, real Ollama, real Mercury; all clicks through the dashboard UI by Playwright (not a person); spend cap $0.05",
+  "passed": true,
+  "console_errors": [],
+  "results": [
+    {
+      "model": "mercury-2",
+      "steps": [
+        {
+          "step": "plan",
+          "note": "PLAN ONLY — NOTHING HAS RUN",
+          "at_ms": 1310
+        },
+        {
+          "step": "submit",
+          "note": "PENDING APPROVAL — NOTHING RUNS YET",
+          "at_ms": 1846
+        },
+        {
+          "step": "approve clicked",
+          "note": "convoy approved from the dashboard",
+          "at_ms": 2025
+        },
+        {
+          "step": "tool approval clicked",
+          "note": "⚖ First network access to api.github.com in this session",
+          "at_ms": 3951
+        },
+        {
+          "step": "done",
+          "note": "COMPLETED · success, GROUNDED, answer names #363, $0.000622",
+          "at_ms": 5852
+        }
+      ],
+      "plan_badge": "PLAN ONLY — NOTHING HAS RUN",
+      "convoy_id": "ee8da809-8761-4383-8571-26b01b78f27f",
+      "plan_shot": "real-mercury-2-1-plan-only.png",
+      "pending_shot": "real-mercury-2-2-pending.png",
+      "tool_approval_text": "⚖ First network access to api.github.com in this session",
+      "tool_approval_shot": "real-mercury-2-3-tool-approval.png",
+      "state": "COMPLETED · success",
+      "live_badge": "LIVE EXECUTION",
+      "wall_ms": 4949,
+      "final_shot": "real-mercury-2-4-live-result.png",
+      "github_newest": {
+        "number": 363,
+        "state": "open, draft"
+      },
+      "final_answer": "The most recent pull request in the **Kudbee‑Studio/think‑box‑ai** repository is:\n\n- **PR #363** – “M1: read‑only repo investigation by a local worker (OBSERVE); persist dashboard thoughts”  \n- **State:** Open (draft)  \n- **Author:** KudbeeZero  \n- **Head branch:** `feat/think-token-observe-loop`  \n- **URL:** https://github.com/Kudbee-Studio/think-box-ai/pull/363  \n\nThis is the latest PR according to the GitHub API (sorted by creation date, descending).",
+      "grounding": "GROUNDED",
+      "cost_usd": 0.000622,
+      "tokens": 2023,
+      "tool_calls": 1,
+      "workers": [
+        {
+          "id": "lookup-1",
+          "model": "mercury-2",
+          "status": "completed"
+        }
+      ],
+      "answer_names_github_newest": true,
+      "evidence_newest": 363,
+      "chain": {
+        "ok": true
+      },
+      "think_mode": "learn",
+      "learned_tokens": [
+        {
+          "id": "TT-000001",
+          "kind": "lesson",
+          "status": "candidate",
+          "title": "Ground \"What is the last PR?\" in evidence"
+        }
+      ],
+      "job_state": {
+        "stage": "think_token",
+        "verdict": "pass",
+        "stable": true,
+        "summary": {
+          "activeCount": 44,
+          "lockedCount": 31,
+          "disruptedCount": 0,
+          "sharedCount": 0
+        },
+        "driven": [
+          "intent",
+          "decompose",
+          "swarm",
+          "execution",
+          "evidence",
+          "jury",
+          "proof",
+          "think_token"
+        ]
+      },
+      "jobstate_shot": "real-mercury-2-5-think-token.png",
+      "status": "PASS"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "steps": [
+        {
+          "step": "plan",
+          "note": "PLAN ONLY — NOTHING HAS RUN",
+          "at_ms": 1252
+        },
+        {
+          "step": "submit",
+          "note": "PENDING APPROVAL — NOTHING RUNS YET",
+          "at_ms": 1835
+        },
+        {
+          "step": "approve clicked",
+          "note": "convoy approved from the dashboard",
+          "at_ms": 2049
+        },
+        {
+          "step": "tool approval clicked",
+          "note": "⚖ First network access to api.github.com in this session",
+          "at_ms": 20646
+        },
+        {
+          "step": "done",
+          "note": "COMPLETED · success, GROUNDED, answer names #363, $0",
+          "at_ms": 32791
+        }
+      ],
+      "plan_badge": "PLAN ONLY — NOTHING HAS RUN",
+      "convoy_id": "ba44ebdc-9bbc-4609-90ba-62be35a720e6",
+      "plan_shot": "real-qwen2-5-3b-1-plan-only.png",
+      "pending_shot": "real-qwen2-5-3b-2-pending.png",
+      "tool_approval_text": "⚖ First network access to api.github.com in this session",
+      "tool_approval_shot": "real-qwen2-5-3b-3-tool-approval.png",
+      "state": "COMPLETED · success",
+      "live_badge": "LIVE EXECUTION",
+      "wall_ms": 31695,
+      "final_shot": "real-qwen2-5-3b-4-live-result.png",
+      "github_newest": {
+        "number": 363,
+        "state": "open, draft"
+      },
+      "final_answer": "The last Pull Request (PR) in the repository is #363, titled \"M1: read-only repo investigation by a local worker (OBSERVE); persist dashboard thoughts\" and it is currently in the open and draft state.",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "tokens": 1217,
+      "tool_calls": 1,
+      "workers": [
+        {
+          "id": "lookup-1",
+          "model": "qwen2.5:3b",
+          "status": "completed"
+        }
+      ],
+      "answer_names_github_newest": true,
+      "evidence_newest": 363,
+      "chain": {
+        "ok": true
+      },
+      "think_mode": "learn",
+      "learned_tokens": [
+        {
+          "id": "TT-000001",
+          "kind": "lesson",
+          "status": "candidate",
+          "title": "Ground \"What is the last PR?\" in evidence",
+          "duplicate": true
+        }
+      ],
+      "job_state": {
+        "stage": "think_token",
+        "verdict": "pass",
+        "stable": true,
+        "summary": {
+          "activeCount": 44,
+          "lockedCount": 31,
+          "disruptedCount": 0,
+          "sharedCount": 0
+        },
+        "driven": [
+          "intent",
+          "decompose",
+          "swarm",
+          "execution",
+          "evidence",
+          "jury",
+          "proof",
+          "think_token"
+        ]
+      },
+      "jobstate_shot": "real-qwen2-5-3b-5-think-token.png",
+      "status": "PASS"
+    }
+  ]
+}

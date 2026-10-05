@@ -172,6 +172,93 @@ async function main() {
         return 'a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer';
       });
 
+      await step(vp.name, 'g think token mode and job state', page, async () => {
+        // modes: OBSERVE and LEARN can be chosen, SIMULATE and AUTONOMOUS are shown but disabled
+        assert((await page.locator('#convoy-mode-simulate').isDisabled()) && (await page.locator('#convoy-mode-autonomous').isDisabled()), 'SIMULATE and AUTONOMOUS must not be selectable yet');
+        assert(await page.locator('#convoy-mode-observe').isChecked(), 'OBSERVE is the default');
+        await page.check('#convoy-mode-learn');
+        qwenScript = [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')];
+        await plan(page, 'What is the last PR?');
+        await page.waitForFunction(() => /PLAN ONLY/.test(document.querySelector('#convoy-detail .convoy-badge-big')?.textContent || ''), null, { timeout: 8000 });
+        const planned = await page.locator('#convoy-detail').innerText();
+        assert(/MODE LEARN/i.test(planned), `the plan shows it was planned under LEARN; page said: ${planned.slice(0, 400).replace(/\n/g, ' | ')}`);
+        await page.click('#convoy-submit');
+        await page.waitForSelector('#convoy-approve');
+        await page.click('#convoy-approve');
+        await page.waitForFunction(() => /COMPLETED/.test(document.querySelector('#convoy-detail .convoy-state')?.textContent || ''), null, { timeout: 25000 }).catch(async () => { await approveToolIfAsked(page); });
+        await page.waitForFunction(() => /COMPLETED/.test(document.querySelector('#convoy-detail .convoy-state')?.textContent || ''), null, { timeout: 25000 });
+        const js = page.locator('#convoy-jobstate');
+        const text = await js.innerText();
+        assert(/STABLE/.test(text) && /verdict pass/.test(text), `job state text was: ${text.slice(0, 200)}`);
+        assert((await js.locator('.convoy-cell').count()) === 100, 'the job state draws 100 cells');
+        assert((await js.locator('.convoy-cell.is-locked').count()) > 0, 'verified cells are locked');
+        assert(/CANDIDATE/.test(text), 'the learned Think Token is a CANDIDATE, never accepted');
+        assert(/Stages with no signal for a convoy stay off: repair, harvest, commons/.test(text), 'it says which stages have no signal');
+        assert((await page.locator('#convoy-stop').count()) === 0, 'no Stop button once finished');
+        return 'LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token';
+      });
+
+      await step(vp.name, 'h agent board and outcome review', page, async () => {
+        const lanes = await page.locator('#convoy-board .convoy-lane').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.lane));
+        assert(JSON.stringify(lanes) === JSON.stringify(['ready', 'open', 'review', 'finished']), `lanes were ${lanes}`);
+        const heads = (await page.locator('#convoy-board .convoy-lane-head').allInnerTexts()).join(' | ');
+        assert(/READY/.test(heads) && /OPEN/.test(heads) && /REVIEW/.test(heads) && /FINISHED/.test(heads), `lane heads: ${heads}`);
+        const card = page.locator('#convoy-board .convoy-lane-review .convoy-card').first();
+        await card.waitFor({ state: 'visible', timeout: 8000 });
+        const convoy = (await card.getAttribute('data-convoy-id')) || '';
+        assert(/awaiting human review/.test(await card.innerText()), 'a REVIEW card says it awaits a human');
+        await card.locator('.convoy-card-accept').click();
+        await page.waitForFunction((id) => !!document.querySelector(`#convoy-board .convoy-lane-finished .convoy-card[data-convoy-id="${id}"]`), convoy, { timeout: 8000 });
+        const done = await page.locator(`#convoy-board .convoy-lane-finished .convoy-card[data-convoy-id="${convoy}"]`).first().innerText();
+        assert(/outcome accepted/.test(done), `finished card said: ${done}`);
+        assert((await page.locator(`#convoy-board .convoy-lane-review .convoy-card[data-convoy-id="${convoy}"]`).count()) === 0, 'it left REVIEW');
+        const api = ((await (await fetch(`${base}/api/convoys/${convoy}`)).json()) as any).convoy;
+        assert(api.review.state === 'accepted' && api.review.decided_by === 'human' && api.chain.ok, 'recorded as a human decision in an intact chain');
+        return `lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED ("${done.replace(/\n/g, ' ')}"); the decision is a human entry in the chain`;
+      });
+
+      await step(vp.name, 'i layered agent windows', page, async () => {
+        // the header chip and the goal bar reach the same features
+        const chip = await page.locator('#convoy-chip').innerText().catch(() => '');
+        if (vp.width > 700) assert(/READY \d+ · OPEN \d+ · REVIEW \d+/.test(chip), `the header chip said "${chip}"`);
+        // a board card is an agent: clicking it opens its own window
+        const card = page.locator('#convoy-board .convoy-lane-finished .convoy-card-open').first();
+        await card.click();
+        await page.waitForSelector('.process-window-agent', { state: 'visible', timeout: 8000 });
+        await page.waitForSelector('.process-window-agent .pw-lane', { timeout: 8000 });
+        const agentText = await page.locator('.process-window-agent .pw-body').innerText();
+        for (const must of ['FINISHED', 'Bead', 'tb-', 'Goal', 'Grounding', 'GROUNDED']) assert(agentText.includes(must) || agentText.toUpperCase().includes(must.toUpperCase()), `the agent window lacks "${must}": ${agentText.slice(0, 300)}`);
+        // deeper: Run steps, then a Tool call, then Evidence, each its own window layered over the last
+        await page.locator('.process-window-agent .pw-go-run').click();
+        await page.waitForSelector('.process-window-run .pw-step-tool', { state: 'visible', timeout: 8000 });
+        await page.locator('.process-window-run .pw-step-tool').first().click();
+        await page.waitForSelector('.process-window-tool .pw-go-evidence', { state: 'visible', timeout: 8000 });
+        await page.locator('.process-window-tool .pw-go-evidence').click();
+        await page.waitForSelector('.process-window-evidence .pw-item', { state: 'visible', timeout: 8000 });
+        const stack = await page.evaluate(() => ['agent', 'run', 'tool', 'evidence'].map((k) => { const el = document.querySelector(`.process-window-${k}`) as HTMLElement | null; return { k, z: Number(el?.style.zIndex || 0), visible: !!el && !el.hidden }; }));
+        assert(stack.every((x) => x.visible), `not all four windows are open: ${JSON.stringify(stack)}`);
+        assert(stack[0]!.z < stack[1]!.z && stack[1]!.z < stack[2]!.z && stack[2]!.z < stack[3]!.z, `the windows are not layered in order: ${JSON.stringify(stack)}`);
+        await shot(page, `convoy-${vp.name}-i-four-layered-windows.png`);
+        const evText = await page.locator('.process-window-evidence .pw-body').innerText();
+        assert(/#361/.test(evText) && /merged/.test(evText), `the evidence window did not show the PR: ${evText.slice(0, 200)}`);
+        const toolText = await page.locator('.process-window-tool').innerText();
+        assert(/live_lookup/.test(toolText) && /Arguments/i.test(toolText), 'the tool window shows the call and its arguments');
+        // re-opening an open window brings it forward instead of making a copy
+        await page.locator('.process-window-agent .pw-go-run').click().catch(() => undefined);
+        assert((await page.locator('.process-window-run').count()) === 1, 'a window must not be opened twice');
+        // closing the deepest one leaves the others
+        await page.locator('.process-window-evidence .pw-close').click();
+        assert((await page.locator('.process-window-evidence').count()) === 0 && (await page.locator('.process-window-tool').count()) === 1, 'closing one window leaves the rest');
+        // the goal bar plans a convoy with what is typed there
+        await page.locator('.process-window .pw-close').evaluateAll((els) => els.forEach((e) => (e as HTMLElement).click()));
+        await page.fill('#goal-input', 'What is the last PR?').catch(() => undefined);
+        await page.click('#plan-convoy');
+        await page.waitForSelector('#convoy-goal', { state: 'visible', timeout: 8000 });
+        const preset = await page.inputValue('#convoy-goal');
+        assert(preset === 'What is the last PR?', `the goal bar goal did not reach the planner: "${preset}"`);
+        return `card -> Agent -> Run steps -> Tool call -> Evidence opened as four layered windows (z ${stack.map((x) => x.z).join(' < ')}); no duplicates; closing one keeps the rest; "Plan as convoy" carries the goal over; chip "${chip}"`;
+      });
+
       await step(vp.name, 'f layout', page, async () => {
         const overflow = await page.evaluate(() => { const w = document.querySelector('#convoy-window .modal') as HTMLElement | null; const r = w?.getBoundingClientRect(); return { right: r ? Math.round(r.right) : -1, vw: window.innerWidth, scrollX: document.documentElement.scrollWidth - window.innerWidth }; });
         assert(overflow.right <= overflow.vw + 1, `the Convoys window is wider than the viewport (right ${overflow.right} > ${overflow.vw})`);

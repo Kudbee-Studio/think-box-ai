@@ -3,6 +3,10 @@
 import type { Express, Response } from 'express';
 import { ConvoyError, verifyChain, type ConvoyRecord, type ConvoyStore } from '../convoy.ts';
 import { summarize } from '../convoy-runner.ts';
+import { projectJobState } from '../convoy-job-state.ts';
+import { boardFor, laneOf } from '../convoy-board.ts';
+import { beadsFor, type BeadStatus } from '../convoy-beads.ts';
+import { THINK_MODES, type ThinkMode } from '../mayor.ts';
 import type { RunRecord, RunStore } from '../runs.ts';
 import type { Request } from './types.ts';
 
@@ -10,7 +14,7 @@ export interface ConvoyRouteDeps {
   convoyStore: ConvoyStore;
   runStore: RunStore;
   /** Builds a plan (and stores it as PLAN ONLY). Nothing runs. */
-  plan: (goal: string, model: string | undefined, budget: unknown) => { ok: true; convoy: ConvoyRecord } | { ok: false; error: string };
+  plan: (goal: string, model: string | undefined, budget: unknown, mode: ThinkMode | undefined) => { ok: true; convoy: ConvoyRecord } | { ok: false; error: string };
   /** True when the request comes from the dashboard origin or carries the local token: a human operator, not some other local process. */
   isHuman: (req: Request) => boolean;
 }
@@ -20,7 +24,8 @@ const status = (e: ConvoyError): number => (e.code === 'not_found' ? 404 : e.cod
 /** The detail view: the convoy, plus each child run with its steps (tools and their output), which is the drill-down. */
 export function convoyDetail(c: ConvoyRecord, runStore: RunStore): Record<string, unknown> {
   const runs = c.run_ids.map((id) => runStore.get(id)).filter((r): r is RunRecord => Boolean(r));
-  return { ...c, chain: verifyChain(c), summary: summarize(c), runs };
+  const lanes = Object.fromEntries(c.workers.map((w) => [w.id, laneOf(c, w)]));
+  return { ...c, chain: verifyChain(c), summary: summarize(c), job_state: projectJobState(c), lanes, runs };
 }
 
 export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void {
@@ -33,7 +38,8 @@ export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void 
   // Dry run: the Mayor plans, the policy is evaluated, a PLAN ONLY convoy is stored. No worker starts, nothing is approved.
   app.post('/api/convoys/plan', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const result = deps.plan(typeof body.goal === 'string' ? body.goal : '', typeof body.model === 'string' ? body.model : undefined, body.worker_budget);
+    if (body.mode !== undefined && !THINK_MODES.includes(body.mode as ThinkMode)) return res.status(400).json({ error: `mode must be one of ${THINK_MODES.join(', ')}` });
+    const result = deps.plan(typeof body.goal === 'string' ? body.goal : '', typeof body.model === 'string' ? body.model : undefined, body.worker_budget, body.mode as ThinkMode | undefined);
     if (!result.ok) return res.status(400).json({ error: result.error });
     res.status(201).json({ convoy: convoyDetail(result.convoy, runStore) });
   });
@@ -41,6 +47,25 @@ export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void 
   app.get('/api/convoys', (req: Request, res: Response) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     res.json({ convoys: convoyStore.list(limit).map(summarize) });
+  });
+
+  // Beads: every convoy and every worker as a Gas City-style work item (id, type, status open/in_progress/closed, blockers, ready). A view over convoys.
+  // ?status=open|in_progress|closed  ?ready=1  ?type=convoy|task
+  app.get('/api/beads', (req: Request, res: Response) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : '';
+    const type = typeof req.query.type === 'string' ? req.query.type : '';
+    if (status && !['open', 'in_progress', 'closed'].includes(status)) return res.status(400).json({ error: 'status must be open, in_progress or closed' });
+    if (type && !['convoy', 'task'].includes(type)) return res.status(400).json({ error: 'type must be convoy or task' });
+    let beads = beadsFor(convoyStore.list(100));
+    if (status) beads = beads.filter((b) => b.status === (status as BeadStatus));
+    if (type) beads = beads.filter((b) => b.type === type);
+    if (req.query.ready === '1') beads = beads.filter((b) => b.ready);
+    res.json({ beads, counts: { open: beads.filter((b) => b.status === 'open').length, in_progress: beads.filter((b) => b.status === 'in_progress').length, closed: beads.filter((b) => b.status === 'closed').length, ready: beads.filter((b) => b.ready).length } });
+  });
+
+  // The agent board: READY / OPEN / REVIEW / FINISHED for every worker of the recent convoys. Registered before :id so it is not captured by it.
+  app.get('/api/convoys/board', (_req: Request, res: Response) => {
+    res.json(boardFor(convoyStore.list(100)));
   });
 
   app.get('/api/convoys/:id', (req: Request, res: Response) => {

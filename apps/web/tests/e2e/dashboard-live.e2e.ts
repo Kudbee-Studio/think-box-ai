@@ -283,26 +283,28 @@ async function agentTracking(page: Page, vp: (typeof VIEWPORTS)[number]): Promis
   assert(/step/i.test(govText) && /token/i.test(govText), `governance window lacks steps/tokens: ${govText.slice(0, 160).replace(/\n/g, ' | ')}`);
   await alive(page, 'governance window open');
 
-  const approve = gov.locator('.gov-approve');
+  // The approval modal is deliberately the topmost layer (window-manager.css: it is not a managed window), so the decision the run is waiting for can never be
+  // hidden behind an agent window. Its Approve button must be the element a user actually reaches; the governance window's own Approve sits beneath it.
+  await gov.locator('.gov-approve').waitFor({ state: 'visible', timeout: 15000 });
+  const approve = page.locator('#approval-modal:not([hidden]) #approve-approval');
   await approve.waitFor({ state: 'visible', timeout: 15000 });
-  await approve.scrollIntoViewIfNeeded();
   const ab = (await approve.boundingBox())!;
-  const topEl = await page.evaluate(({ x, y }) => { const e = document.elementFromPoint(x, y) as HTMLElement | null; return e?.closest('.gov-approve') ? 'approve' : (e?.className || e?.tagName || 'none'); }, { x: ab.x + ab.width / 2, y: ab.y + ab.height / 2 });
+  const topEl = await page.evaluate(({ x, y }) => { const e = document.elementFromPoint(x, y) as HTMLElement | null; return e?.closest('#approve-approval') ? 'approve' : (e?.className || e?.tagName || 'none'); }, { x: ab.x + ab.width / 2, y: ab.y + ab.height / 2 });
   await shot(page, `${vp.name}-governance-approval-pending.png`);
-  assert(topEl === 'approve', `the Approve button is covered by "${topEl}" (z-index / overlap)`);
+  assert(topEl === 'approve', `the approval modal's Approve button is covered by "${topEl}" (z-index / overlap)`);
   await approve.click();
   await page.waitForFunction((t) => (document.querySelector('#terminal') as HTMLElement | null)?.innerText.includes(`Approved run ${t} finished.`), vp.name, { timeout: 20000 });
   await page.waitForFunction(() => document.querySelector('.wm-agent-badge')?.textContent?.trim() === '0 running', null, { timeout: 8000 });
+  // Close the first agent's governance window: at narrower widths it would sit over the goal bar's Run button.
+  await page.locator('.governance-window:not([hidden]) .gov-close').first().click({ timeout: 5000 });
 
   await submitGoal(page, `Write ${f2} twice (rejected run ${vp.name})`);
   await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('.wm-agent-badge')?.textContent?.trim() || ''), null, { timeout: 8000 });
-  await page.click('.wm-agent-badge');
-  await page.locator('.agent-menu-item.agent-status-running').first().click({ timeout: 5000 });
-  const reject = page.locator('.governance-window:not([hidden]) .gov-reject:visible').first();
+  const reject = page.locator('#approval-modal:not([hidden]) #deny-approval');
   await reject.waitFor({ state: 'visible', timeout: 15000 });
   await reject.click();
   await page.waitForFunction((t) => (document.querySelector('#terminal') as HTMLElement | null)?.innerText.includes(`Rejected run ${t} noted the denial.`), vp.name, { timeout: 20000 });
-  return `badge "${badge}" while running; governance window showed steps and tokens; Approve (not covered by the approval modal) let the run finish; Reject on a second run ended it with the denial`;
+  return `badge "${badge}" while running; governance window showed steps and tokens; the approval modal was the topmost layer and its Approve let the run finish; Deny on a second run ended it with the denial`;
 }
 
 async function profiles(page: Page, vp: (typeof VIEWPORTS)[number]): Promise<string> {

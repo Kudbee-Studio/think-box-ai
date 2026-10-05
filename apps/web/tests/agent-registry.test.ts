@@ -138,3 +138,41 @@ test('a status:running that arrives before the next run exists does not revive t
   assert.equal(reg.runningCount(), 0, 'and it finishes cleanly');
   assert.equal(reg.get('run-1').status, 'idle');
 });
+
+const convoyUpdate = (lanes: Array<[string, string, string | null]>, o: Record<string, unknown> = {}) => ({
+  type: 'convoy_update',
+  data: { id: 'f0e1d2c3-aaaa-bbbb-cccc-ddddeeeeffff', goal: 'What is the last PR?', think_mode: 'learn', workers: lanes.map(([id, status, lane]) => ({ id, name: `Worker ${id}`, model: 'qwen2.5:3b', status, lane, run_id: `run-${id}`, bead: `tb-f0e1d2c3.${id}` })), ...o },
+});
+
+test('convoy workers are agents: each carries its lane, bead and convoy, and the lane decides the status', () => {
+  const { reg, changes } = make();
+  assert.equal(reg.ingest(convoyUpdate([['a', 'running', 'open'], ['b', 'pending', 'ready'], ['c', 'completed', 'review'], ['d', 'completed', 'finished'], ['e', 'failed', 'finished'], ['f', 'pending', null]])), true);
+  const by = (w: string) => reg.get(`convoy:f0e1d2c3:${w}`);
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e', 'f'].map((w) => by(w).status), ['running', 'idle', 'paused', 'idle', 'failed', 'paused']);
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e', 'f'].map((w) => by(w).lane), ['open', 'ready', 'review', 'finished', 'finished', 'none']);
+  assert.equal(by('a').bead, 'tb-f0e1d2c3.a');
+  assert.equal(by('a').convoy_id, 'f0e1d2c3-aaaa-bbbb-cccc-ddddeeeeffff');
+  assert.equal(by('a').worker_id, 'a');
+  assert.equal(by('a').goal, 'What is the last PR?');
+  assert.equal(reg.runningCount(), 1, 'only OPEN workers are running');
+  assert.equal(changes.length, 1);
+});
+
+test('a worker moving between lanes updates the same agent (no duplicate), and a repeated update is not a change', () => {
+  const { reg, changes } = make();
+  reg.ingest(convoyUpdate([['a', 'running', 'open']]));
+  assert.equal(reg.ingest(convoyUpdate([['a', 'running', 'open']])), false, 'same facts, no change event');
+  reg.ingest(convoyUpdate([['a', 'completed', 'review']]));
+  assert.equal(reg.list().length, 1);
+  assert.equal(reg.get('convoy:f0e1d2c3:a').lane, 'review');
+  assert.equal(reg.runningCount(), 0);
+  reg.ingest(convoyUpdate([['a', 'completed', 'finished']]));
+  assert.equal(reg.get('convoy:f0e1d2c3:a').status, 'idle');
+  assert.equal(changes.length, 3);
+});
+
+test('a malformed convoy update is ignored, not fatal', () => {
+  const { reg } = make();
+  for (const bad of [{ type: 'convoy_update', data: null }, { type: 'convoy_update', data: { id: 'x' } }, { type: 'convoy_update', data: { workers: [] } }, { type: 'convoy_update' }]) assert.doesNotThrow(() => reg.ingest(bad));
+  assert.equal(reg.list().length, 0);
+});

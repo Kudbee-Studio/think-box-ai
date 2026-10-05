@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { startMockInception, say, call, type MockInception } from './helpers/mock-inception.ts';
 import type { AgentHooks } from '../agent.ts';
 import { conflictCandidate, supersededFlags, type ToolEvidence } from '../evidence.ts';
@@ -17,7 +18,13 @@ test('parseRepo understands https, ssh and bare owner/name; detectRepo prefers K
   for (const bad of ['', 'not a repo', 'https://example.com/a/b', 'a/b/c', null, undefined]) assert.equal(parseRepo(bad as string), null, String(bad));
   assert.equal(detectRepo({ KUDBEE_REPO: 'Acme/widgets' }), 'Acme/widgets');
   assert.equal(detectRepo({ KUDBEE_REPO: 'garbage' }, os.tmpdir()), null, 'a bad override falls through to git, and a directory with no repo gives null');
-  assert.equal(detectRepo({}, path.resolve(import.meta.dirname, '..')), 'Kudbee-Studio/think-box-ai');
+  // Hermetic: a throwaway repo whose remote is the GitHub one (the real checkout's origin can be anything, e.g. a GitLab mirror).
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'detect-repo-'));
+  try {
+    execFileSync('git', ['init', '-q', scratch]);
+    execFileSync('git', ['-C', scratch, 'remote', 'add', 'origin', 'git@github.com:Kudbee-Studio/think-box-ai.git']);
+    assert.equal(detectRepo({}, scratch), 'Kudbee-Studio/think-box-ai');
+  } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
   assert.match(repoContextLine('Acme/widgets'), /KNOWN REPOSITORY: .*Acme\/widgets.*never guess/);
   assert.equal(repoContextLine(null), '');
 });

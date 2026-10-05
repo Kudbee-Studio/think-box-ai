@@ -10,6 +10,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import Database from 'better-sqlite3';
 import { call, say, startMockInception, type MockInception } from './helpers/mock-inception.ts';
 import { freePort } from './helpers/free-port.ts';
 
@@ -371,4 +372,140 @@ test('a specialist convoy runs the existing specialist job with the convoy id as
   assert.ok(c.runs.every((run: any) => run.jobId === c.id), 'each child run carries the convoy id');
   assert.ok(!(await get('/api/runs')).runs.some((x: any) => x.jobId === c.id), 'no child run is a top-level row');
   assert.deepEqual(c.chain, { ok: true });
+});
+
+const tokenRows = (): Array<{ id: string; status: string; extractor: string; kind: string; title: string; source_run_id: string }> => {
+  const db = new Database(path.join(tmp, 'data', 'think-tokens.db'), { readonly: true, fileMustExist: false });
+  try { return db.prepare('select id, status, extractor, kind, title, source_run_id from think_tokens').all() as any; } catch { return []; } finally { db.close(); }
+};
+
+test('LEARN mode: a verified lookup convoy leaves deterministic Think Token CANDIDATES (no model, never accepted); OBSERVE leaves none', async () => {
+  const before = tokenRows().length;
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const observe = await runConvoy('What is the last PR?', QWEN);
+  assert.equal(observe.detail.state, 'COMPLETED');
+  assert.equal(observe.detail.plan.think_mode, 'observe');
+  assert.equal(tokenRows().length, before, 'OBSERVE learns nothing');
+  assert.equal(observe.detail.learned_tokens, undefined);
+
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const c0 = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'learn' })).body.convoy;
+  assert.equal(c0.plan.think_mode, 'learn');
+  assert.ok(c0.policy.rules.some((r: any) => r.id === 'mode-learn' && /never auto-accepted/.test(r.reason)));
+  await post(`/api/convoys/${c0.id}/submit`);
+  const s = session(); await s.ready;
+  s.send({ type: 'convoy_approve', id: c0.id });
+  await s.waitFor(finished(c0.id));
+  const learned = s.messages.filter((m) => m.type === 'think_token_learned');
+  s.close();
+  const c = (await get(`/api/convoys/${c0.id}`)).convoy;
+  assert.equal(c.outcome, 'success');
+  assert.ok(c.learned_tokens.length >= 1, 'a candidate was written');
+  assert.ok(c.learned_tokens.every((t: any) => t.status === 'candidate'), JSON.stringify(c.learned_tokens));
+  // the same lesson learned again is reported as already known, not as a new token
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const again = await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'learn' });
+  await post(`/api/convoys/${again.body.convoy.id}/submit`);
+  const s2 = session(); await s2.ready; s2.send({ type: 'convoy_approve', id: again.body.convoy.id }); await s2.waitFor(finished(again.body.convoy.id)); s2.close();
+  const c2 = (await get(`/api/convoys/${again.body.convoy.id}`)).convoy;
+  assert.ok(c2.learned_tokens.length >= 1 && c2.learned_tokens.every((t: any) => t.duplicate === true), JSON.stringify(c2.learned_tokens));
+  assert.deepEqual(new Set(c2.learned_tokens.map((t: any) => t.id)), new Set(c.learned_tokens.map((t: any) => t.id)), 'the same tokens');
+  const rows = tokenRows().filter((r) => c.run_ids.includes(r.source_run_id));
+  assert.ok(rows.length >= 1);
+  assert.ok(rows.every((r) => r.status === 'candidate' && r.extractor === 'template'), 'deterministic, never auto-accepted');
+  assert.ok(learned.length >= 1, 'the dashboard was told');
+  // the job state is projected from the convoy and includes the learned token
+  assert.equal(c.job_state.cells.length, 100);
+  assert.equal(c.job_state.verdict, 'pass');
+  assert.ok(c.job_state.signals.driven.includes('think_token'));
+  assert.equal(c.job_state.facts.learned_tokens, c.learned_tokens.length);
+});
+
+test('mode is validated: an unknown mode is a 400, SIMULATE and AUTONOMOUS plan as not executable, and stopping a convoy that is not running is an error', async () => {
+  assert.equal((await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'yolo' })).status, 400);
+  for (const mode of ['simulate', 'autonomous']) {
+    const c = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode })).body.convoy;
+    assert.equal(c.plan.executable, false, mode);
+    assert.match(c.plan.blocked_reasons.join(), /not available yet/);
+    assert.equal((await post(`/api/convoys/${c.id}/submit`)).status, 409);
+  }
+  const s = session(); await s.ready;
+  s.send({ type: 'convoy_stop', id: 'nope' });
+  assert.match((await s.waitFor((m) => m.type === 'convoy_error')).data.error, /not running/);
+  s.close();
+});
+
+test('BOARD and REVIEW: a finished convoy waits in REVIEW; accepting keeps its candidates, rejecting retires ONLY the ones it created; every decision is human and in the chain', async () => {
+  const learnConvoy = async (goal: string) => {
+    turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The newest PR is #361, PR 361, and it is merged.')]);
+    const c0 = (await post('/api/convoys/plan', { goal, model: QWEN, mode: 'learn' })).body.convoy;
+    await post(`/api/convoys/${c0.id}/submit`);
+    const s = session(); await s.ready; s.send({ type: 'convoy_approve', id: c0.id }); await s.waitFor(finished(c0.id)); s.close();
+    return (await get(`/api/convoys/${c0.id}`)).convoy;
+  };
+  const a = await learnConvoy('What is the newest PR?');
+  const b = await learnConvoy('What is the most recent PR?');
+  for (const c of [a, b]) {
+    assert.equal(c.outcome, 'success');
+    assert.equal(c.review.state, 'pending');
+    assert.equal(c.lanes['lookup-1'].lane, 'review');
+    assert.ok(c.learned_tokens.length >= 1 && c.learned_tokens.every((t: any) => !t.duplicate));
+  }
+  const board = await get('/api/convoys/board');
+  assert.ok(board.lanes.review.some((x: any) => x.convoy_id === a.id && x.detail === 'awaiting human review'));
+  assert.ok(board.counts.review >= 2);
+  assert.equal(board.counts.open, 0);
+
+  const s = session(); await s.ready;
+  // a human accepts ONE of A's lessons before rejecting the outcome: rejecting must not retire it (judged by current status, not the status saved at learn time)
+  const keptId = a.learned_tokens[0].id;
+  { const wdb = new Database(path.join(tmp, 'data', 'think-tokens.db')); try { wdb.prepare("update think_tokens set status = 'accepted' where id = ?").run(keptId); } finally { wdb.close(); } }
+  // reject A: its own still-undecided candidates are retired
+  s.send({ type: 'convoy_review', id: a.id, decision: 'reject', note: 'off-topic' });
+  await s.waitFor((m) => m.type === 'convoy_update' && m.data.id === a.id && m.data.review === 'rejected');
+  // accept B: its candidates stay candidates (accepting an outcome does not accept a lesson)
+  s.send({ type: 'convoy_review', id: b.id, decision: 'accept' });
+  await s.waitFor((m) => m.type === 'convoy_update' && m.data.id === b.id && m.data.review === 'accepted');
+  const ar = (await get(`/api/convoys/${a.id}`)).convoy; const br = (await get(`/api/convoys/${b.id}`)).convoy;
+  assert.equal(ar.review.state, 'rejected');
+  assert.equal(ar.review.decided_by, 'human');
+  assert.equal(ar.review.note, 'off-topic');
+  assert.equal(br.review.state, 'accepted');
+  assert.deepEqual([ar.chain, br.chain], [{ ok: true }, { ok: true }]);
+  assert.match(ar.events.at(-1).note, /outcome rejected by human: off-topic/);
+  assert.equal(ar.lanes['lookup-1'].lane, 'finished');
+  assert.equal(ar.lanes['lookup-1'].detail, 'completed, outcome rejected');
+  const status = (id: string) => tokenRows().find((r) => r.id === id)?.status;
+  assert.equal(status(keptId), 'accepted', 'a lesson a human already accepted survives rejecting the outcome');
+  assert.ok(ar.learned_tokens.filter((t: any) => t.id !== keptId).every((t: any) => status(t.id) === 'retired'), 'rejecting retired this convoy\'s undecided candidates');
+  assert.ok(br.learned_tokens.every((t: any) => status(t.id) === 'candidate'), 'accepting did not touch them');
+  assert.ok(ar.learned_tokens.filter((t: any) => t.id !== keptId).every((t: any) => t.status === 'retired'), 'the convoy record says so too');
+  assert.equal(ar.learned_tokens.find((t: any) => t.id === keptId).status, 'accepted');
+  // bad requests are explicit errors
+  for (const [msg, why] of [[{ id: a.id, decision: 'accept' }, /already rejected/], [{ id: 'nope', decision: 'accept' }, /unknown convoy/], [{ id: a.id, decision: 'maybe' }, /accept or reject/]] as const) {
+    s.send({ type: 'convoy_review', ...msg });
+    const err = await s.waitFor((m) => m.type === 'convoy_error' && why.test(m.data.error));
+    assert.ok(err);
+  }
+  s.close();
+  const after = await get('/api/convoys/board');
+  assert.ok(after.lanes.finished.some((x: any) => x.convoy_id === a.id) && after.lanes.finished.some((x: any) => x.convoy_id === b.id));
+  assert.ok(!after.lanes.review.some((x: any) => x.convoy_id === a.id || x.convoy_id === b.id));
+});
+
+test('BEADS API: every convoy and worker is a bead; filters and counts work; a bad filter is a 400', async () => {
+  const all = await get('/api/beads');
+  assert.ok(all.beads.length >= 2);
+  assert.ok(all.beads.every((b: any) => /^tb-[0-9a-f]{8}(\.[\w-]+)?$/.test(b.id) && ['convoy', 'task'].includes(b.type) && ['open', 'in_progress', 'closed'].includes(b.status)));
+  assert.equal(all.counts.open + all.counts.in_progress + all.counts.closed, all.beads.length);
+  const tasks = await get('/api/beads?type=task');
+  assert.ok(tasks.beads.every((b: any) => b.type === 'task' && b.parent && all.beads.some((x: any) => x.id === b.parent && x.children.includes(b.id))));
+  assert.ok((await get('/api/beads?status=closed')).beads.every((b: any) => b.status === 'closed'));
+  assert.ok((await get('/api/beads?ready=1')).beads.every((b: any) => b.ready === true && b.status === 'open'));
+  assert.equal((await fetch(`${base}/api/beads?status=done`)).status, 400);
+  assert.equal((await fetch(`${base}/api/beads?type=bead`)).status, 400);
+  const board = await get('/api/convoys/board');
+  const card = Object.values(board.lanes as Record<string, any[]>).flat()[0];
+  assert.match(card.bead, /^tb-[0-9a-f]{8}\.[\w-]+$/);
+  assert.ok(all.beads.some((b: any) => b.id === card.bead), 'a board card is a bead');
 });

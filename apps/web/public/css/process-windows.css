@@ -1,0 +1,27 @@
+/* Layered process windows: Agent > Run steps > Tool call > Evidence. Theme variables only. */
+.pw-body { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding: 4px 2px; }
+.pw-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pw-state { font-weight: 600; font-size: 13px; }
+.pw-lane { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .05em; border: 1px solid; }
+.pw-lane-ready { color: #7fb0ff; background: rgba(80, 140, 255, .15); border-color: rgba(80, 140, 255, .6); }
+.pw-lane-open { color: #ff9a62; background: rgba(255, 120, 60, .18); border-color: rgba(255, 120, 60, .7); }
+.pw-lane-review { color: #f0be3c; background: rgba(240, 190, 60, .16); border-color: rgba(240, 190, 60, .6); }
+.pw-lane-finished { color: #5fd38d; background: rgba(95, 211, 141, .14); border-color: rgba(95, 211, 141, .6); }
+.pw-lane-none { color: #aab; background: rgba(150, 150, 160, .14); border-color: rgba(150, 150, 160, .5); }
+.pw-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; font-size: 12px; }
+.pw-label { color: var(--text-muted, #8a93a6); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.pw-value { overflow-wrap: anywhere; }
+.pw-ok { color: #5fd38d; font-weight: 600; }
+.pw-bad { color: #ff7b7b; font-weight: 600; }
+.pw-muted { color: var(--text-muted, #8a93a6); font-size: 12px; overflow-wrap: anywhere; }
+.pw-error { padding: 8px 10px; border-radius: 6px; background: rgba(220, 70, 70, .15); border: 1px solid rgba(220, 70, 70, .5); }
+.pw-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.pw-steps { display: flex; flex-direction: column; gap: 4px; }
+.pw-step { text-align: left; font-size: 12px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-light, #2a3142); background: transparent; color: inherit; overflow-wrap: anywhere; }
+.pw-step-tool { cursor: pointer; }
+.pw-step-tool:hover { border-color: var(--accent-primary, #58a6ff); }
+.pw-step-bad { border-color: rgba(255, 123, 123, .7); }
+.pw-pre { max-height: 200px; overflow: auto; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(0, 0, 0, .25); padding: 6px; border-radius: 4px; margin: 0; }
+.pw-evidence { border: 1px solid var(--border-light, #2a3142); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.pw-item { overflow-wrap: anywhere; font-size: 12px; }
+.wm-agent-badge.has-review { box-shadow: 0 0 0 1px #f0be3c; color: #f0be3c; }

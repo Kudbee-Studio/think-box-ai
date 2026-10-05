@@ -1,6 +1,6 @@
 # Documentation index
 
-Every tracked Markdown file in this repository, by area (278 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
+Every tracked Markdown file in this repository, by area (279 files). **Generated** by `python3 scripts/generate_docs_index.py`; do not edit by hand. A test fails when this page is stale, so run the script whenever you add, move or rename a `.md` file.
 
 ## Where Markdown lives, and why
 
@@ -43,7 +43,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 - [Audits and reviews](#audits-and-reviews) (32)
 - [Research and strategy](#research-and-strategy) (4)
 - [Archive](#archive) (3)
-- [Other documents in docs/](#other-documents-in-docs) (73)
+- [Other documents in docs/](#other-documents-in-docs) (74)
 - [Agent definitions](#agent-definitions) (17)
 - [Evidence and data documents](#evidence-and-data-documents) (16)
 - [Tests and examples](#tests-and-examples) (2)
@@ -305,6 +305,7 @@ These files used to sit at the repository root. Older notes and chronicle entrie
 | [docs/evidence/dashboard-enterprise-enhancements.md](evidence/dashboard-enterprise-enhancements.md) | Dashboard Enterprise Polish — Visual & UX Enhancements | Enhanced the kudbEE dashboard with enterprise-grade visual refinements and professional micro-interactions. These... |
 | [docs/evidence/docs-sync-2026-10-01.md](evidence/docs-sync-2026-10-01.md) | Docs sync — 2026-10-01 | Rides along with the ADR-029 P1/P2 PR (no separate PR, one push). No code behavior changes come from this part. |
 | [docs/evidence/model-integration/m1-observe.md](evidence/model-integration/m1-observe.md) | M1: read-only repository investigation by a local worker (OBSERVE mode) | Branch feat/think-token-observe-loop. First slice of the autonomous-coding roadmap from the architecture audit.... |
+| [docs/evidence/model-integration/m2-think-token-lanes.md](evidence/model-integration/m2-think-token-lanes.md) | M2: job state, LEARN mode, and the READY / OPEN / REVIEW / FINISHED board | Branch feat/think-token-m2-lanes (stacked on #363). Nothing is merged or written to the repository by any of this. |
 | [docs/evidence/model-integration/README.md](evidence/model-integration/README.md) | Model integration tranche: live-data tool, local tool calling, grounding, convoys, Mayor, queued approvals | Branch feat/live-data-recipes. Everything below was run on this machine on 2026-10-04 and 2026-10-05 (UTC). |
 | [docs/evidence/p3.11-cli-link-audit.md](evidence/p3.11-cli-link-audit.md) | P3.11: one engine, one database: audit and link (2026-10-02) | Mercury spend: about $0.06 of the $0.15 cap (CLI proof runs, answer-check re-runs, goal-check reviews). The real... |
 | [docs/evidence/p3.12-vector-memory.md](evidence/p3.12-vector-memory.md) | P3.12: local vector memory (SQLite, no Upstash) and the live-run fixes (2026-10-02) | Mercury spend: about $0.03 of the $0.10 cap (two live runs on :3000, one CLI run). The real database was backed up... |

@@ -18,6 +18,7 @@ const REPO = 'Kudbee-Studio/think-box-ai';
 const CAP = process.env.ACCEPTANCE_CAP_USD || '0.05';
 const key = process.env.INCEPTION_API_KEY || readTextIfPresent(path.join(repoRoot, '.env')).match(/^INCEPTION_API_KEY=(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, '') || '';
 if (!key) { console.error('No INCEPTION_API_KEY in the environment or the repo .env'); process.exit(2); }
+const MODE = process.env.CONVOY_MODE === 'learn' ? 'learn' : 'observe';
 const MODELS = (process.argv.slice(2).length ? process.argv.slice(2) : ['mercury-2', 'qwen2.5:3b']);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (s: string) => console.log(`[real-e2e ${new Date().toISOString().slice(11, 19)}] ${s}`);
@@ -68,6 +69,7 @@ async function main() {
       await page.waitForSelector('#convoy-window', { state: 'visible' });
       await page.fill('#convoy-goal', 'What is the last PR?');
       await page.fill('#convoy-model', model);
+      await page.check(`#convoy-mode-${MODE}`);
       await page.click('#convoy-plan');
       await page.waitForSelector('#convoy-detail');
       let badge = await page.locator('#convoy-detail .convoy-badge-big').innerText();
@@ -100,6 +102,15 @@ async function main() {
       r.answer_names_github_newest = new RegExp(`#${truth.number}\\b`).test(detail.final_answer ?? '');
       r.evidence_newest = detail.evidence?.[0]?.items?.[0]?.number ?? null;
       r.chain = detail.chain;
+      r.think_mode = detail.plan.think_mode; r.learned_tokens = detail.learned_tokens ?? null; r.job_state = detail.job_state && { stage: detail.job_state.stage, verdict: detail.job_state.verdict, stable: detail.job_state.stable, summary: detail.job_state.summary, driven: detail.job_state.signals.driven };
+      if (MODE === 'learn') {
+        assert(detail.plan.think_mode === 'learn', 'planned under LEARN');
+        assert(Array.isArray(detail.learned_tokens) && detail.learned_tokens.length >= 1, `LEARN wrote no Think Token candidate (${detail.learn_error ?? 'none'})`);
+        assert(detail.learned_tokens.every((t: any) => t.status === 'candidate'), 'a learned token must be a candidate');
+        const tab = await page.locator('#convoy-jobstate').innerText();
+        assert(/CANDIDATE/.test(tab) && /STABLE/.test(tab), `the Think Token section did not show a stable job with a candidate: ${tab.slice(0, 200)}`);
+        r.jobstate_shot = await shot(page, `real-${tag}-5-think-token.png`);
+      }
       assert(badge === 'LIVE EXECUTION', `badge was "${badge}"`);
       assert(/COMPLETED/.test(state), `convoy ended ${state}: ${detail.error ?? ''}`);
       assert(/GROUNDED/.test(text), 'the page does not show GROUNDED');
@@ -119,7 +130,7 @@ async function main() {
     }
   } finally { await browser.close(); }
   const ok = results.length === MODELS.length && results.every((r) => r.status === 'PASS') && !consoleErrors.length;
-  await writeEvidence(OUT, path.join(OUT, 'convoy-real-e2e.json'), { generated_at: new Date().toISOString(), note: 'real Chromium, real server, real GitHub, real Ollama, real Mercury; all clicks through the dashboard UI by Playwright (not a person); spend cap $' + CAP, passed: ok, console_errors: consoleErrors, results });
+  await writeEvidence(OUT, path.join(OUT, MODE === 'learn' ? 'convoy-real-learn-e2e.json' : 'convoy-real-e2e.json'), { generated_at: new Date().toISOString(), note: 'real Chromium, real server, real GitHub, real Ollama, real Mercury; all clicks through the dashboard UI by Playwright (not a person); spend cap $' + CAP, passed: ok, console_errors: consoleErrors, results });
   log(ok ? 'ALL PASS' : 'FAILED');
   process.exit(ok ? 0 : 1);
 }

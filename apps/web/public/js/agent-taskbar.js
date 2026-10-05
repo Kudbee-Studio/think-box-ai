@@ -60,8 +60,9 @@
     var count = detail.runningCount || 0;
     var badge = doc.createElement('button');
     badge.type = 'button';
-    badge.className = 'wm-agent-badge' + (count ? ' is-running' : '');
-    badge.textContent = count + ' running';
+    var inReview = (detail.agents || []).filter(function (a) { return a && a.lane === 'review'; }).length;
+    badge.className = 'wm-agent-badge' + (count ? ' is-running' : '') + (inReview ? ' has-review' : '');
+    badge.textContent = count + ' running' + (inReview ? ' \u00B7 ' + inReview + ' to review' : '');
     badge.setAttribute('aria-label', count + ' agents running');
     badge.setAttribute('aria-expanded', this.menuOpen ? 'true' : 'false');
     badge.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.toggleMenu(detail); });
@@ -102,7 +103,8 @@
         item.setAttribute('role', 'menuitem');
         var goal = agent.goal ? String(agent.goal) : String(agent.id || 'agent');
         var run = agent.run_id ? ' · ' + String(agent.run_id).slice(0, 8) : '';
-        item.textContent = goal + ' · ' + String(agent.status || 'idle') + run;
+        var lane = agent.lane && agent.lane !== 'none' ? '[' + String(agent.lane).toUpperCase() + '] ' : '';
+        item.textContent = lane + (agent.worker_name ? agent.worker_name + ' — ' : '') + goal + ' · ' + String(agent.status || 'idle') + run;
         item.addEventListener('click', function (e) {
           if (e && e.stopPropagation) e.stopPropagation();
           self.openAgent(agent.id);

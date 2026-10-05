@@ -9,7 +9,7 @@ import type { AgentEvent } from './agent.ts';
 import { LIMITS, keywords, redact, type TokenDraft } from './think-token-store.ts';
 
 export const MAX_PER_RUN = 3;
-const EVIDENCE_TOOLS = new Set(['fetch_url', 'read_rss', 'read_file']);
+const EVIDENCE_TOOLS = new Set(['fetch_url', 'read_rss', 'read_file', 'live_lookup', 'repo_search', 'repo_read']);
 
 export interface FinishedRun {
   id: string;

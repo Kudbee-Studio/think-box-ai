@@ -61,6 +61,18 @@ export interface ApprovalRecord {
   };
 }
 
+/**
+ * The human's decision on a finished convoy's OUTCOME (the plan was approved before it ran; this is the second look, at what it produced). A convoy whose
+ * outcome produced something to judge (success or partial) waits in REVIEW until a human accepts or rejects it; a failed one has nothing to accept.
+ */
+export interface ReviewRecord {
+  state: 'pending' | 'accepted' | 'rejected' | 'not_required';
+  requested_at?: number;
+  decided_at?: number;
+  decided_by?: string;
+  note?: string;
+}
+
 export interface WorkerRecord {
   id: string;
   kind: PlannedWorker['kind'];
@@ -89,6 +101,8 @@ export interface ConvoyRecord {
   plan: ConvoyPlan;
   policy: PolicyEvaluation;
   approval: ApprovalRecord | null;
+  /** Set when the convoy finishes: pending until a human accepts or rejects the outcome. */
+  review?: ReviewRecord;
   worker_budget: WorkerBudget;
   workers: WorkerRecord[];
   /** Child run ids (each run record holds its own steps, tools and evidence). */
@@ -96,6 +110,9 @@ export interface ConvoyRecord {
   evidence: LookupEvidence[];
   /** Repository investigations: what the read-only tools returned, the worker's finding, and the independent disk re-check of its quote. */
   repo_evidence: RepoEvidence[];
+  /** LEARN mode: the Think Token candidates the verified outcome produced (candidates only, never auto-accepted). */
+  learned_tokens?: Array<{ id: string; kind: string; status: string; title: string; /** The same lesson was already in the store: this is that token, not a new one. */ duplicate?: boolean }>;
+  learn_error?: string;
   finding?: RepoFinding;
   finding_check?: { disk_verified: boolean; reason?: string };
   cost_usd: number;
@@ -305,6 +322,20 @@ export class ConvoyStore {
     if (!TRANSITIONS[c.state].includes(to)) throw new ConvoyError(`a ${c.state} convoy cannot become ${to}`, 'bad_transition');
     this.aggregate(c);
     this.finishRecord(c, to, 'system', note, outcome, error);
+    // Something to judge (a result, even a partial one) waits for a human; a failure has nothing to accept.
+    c.review = outcome === 'success' || outcome === 'partial' ? { state: 'pending', requested_at: this.now() } : { state: 'not_required' };
+    this.save();
+    return c;
+  }
+
+  /** A human accepts or rejects the outcome of a finished convoy. Only `human`; once decided it cannot be changed. The decision joins the evidence chain. */
+  review(id: string, decision: 'accept' | 'reject', by: string, note = ''): ConvoyRecord {
+    const c = this.must(id);
+    if (!canApprove(by)) throw new ConvoyError(`"${by}" cannot ${decision} an outcome: only a human decides`, 'forbidden');
+    if (c.review?.state !== 'pending') throw new ConvoyError(c.review ? `this outcome is already ${c.review.state.replace('_', ' ')}` : 'this convoy has no outcome waiting for review', 'bad_transition');
+    c.review = { ...c.review, state: decision === 'accept' ? 'accepted' : 'rejected', decided_at: this.now(), decided_by: by, ...(note ? { note: note.slice(0, 300) } : {}) };
+    c.updated_at = this.now();
+    appendEvent(c, c.state, by, `outcome ${decision}ed by ${by}${note ? `: ${note.slice(0, 300)}` : ''}`, c.updated_at);
     this.save();
     return c;
   }

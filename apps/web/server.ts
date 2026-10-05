@@ -220,6 +220,8 @@ const profilesDir = path.join(dataDir, 'profiles');
 const profileManager = new ProfileManager(profilesDir, dataDir);
 const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
+/** Abort controllers of running convoys, so convoy_stop can stop exactly one. */
+const convoyAborts = new Map<string, AbortController>();
 const convoyStore = new ConvoyStore(path.join(profilesDir, activeProfileId, 'convoys.json'), activeProfileId);
 const memoryStore = new MemoryStore(profileMemoryRoot(profilesDir, activeProfileId), process.env, activeProfileId);
 void memoryStore.syncVectors();
@@ -1348,7 +1350,10 @@ export class AgentSession {
     const convoy = convoyStore.get(id);
     const first = convoy?.plan.workers[0];
     if (first?.model && first.kind === 'specialist') { this.config.model = first.model; this.config.provider = isInceptionModel(first.model) ? 'inception' : 'ollama'; }
-    this.abort = new AbortController();
+    // One abort controller per convoy, so an operator can stop exactly this convoy (convoy_stop).
+    const stopper = new AbortController();
+    convoyAborts.set(id, stopper);
+    this.abort = stopper;
     const deps: RunnerDeps = {
       store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, repo: getKnownRepo(),
       isLocalModel: (model) => !isInceptionModel(model),
@@ -1364,9 +1369,24 @@ export class AgentSession {
       runAgent: (goal, model, hooks) => runToolAgent(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
       runSpecialists: (goal, convoyId, specialists) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId, specialists }),
       broadcast: (message) => this.broadcast(message as Parameters<AgentSession['broadcast']>[0]),
-      signal: this.abort.signal,
+      signal: stopper.signal,
+      // LEARN mode: the existing Think Token pipeline with NO model, so it can only write deterministic candidates (never auto-accepted, no model spend).
+      learn: async (run) => {
+        const actor = `convoy:${id.slice(0, 8)}`;
+        // The run's outcome is recorded when a human reviews the convoy (convoy_review), not here: a success is only provisional until then.
+        const result = await processFinishedRun({ store: tokenStore, models: { mercury: null, local: null }, knownTools: TOOLS.map((t) => t.function.name) },
+          { id: run.id, goal: run.goal, success: true, steps: run.steps, files: run.files, result: run.result }, actor);
+        const out: Array<{ id: string; kind: string; status: string; title: string; duplicate?: boolean }> = [];
+        for (const t of result.tokens) {
+          const row = tokenStore.get(t.id);
+          if (!row) continue;
+          out.push({ id: row.id, kind: row.kind, status: row.status, title: row.title, ...(t.duplicate ? { duplicate: true } : {}) });
+          if (!t.duplicate) this.broadcast({ type: 'think_token_learned', data: tokenEvent(row, run.id, 0) });
+        }
+        return out;
+      },
     };
-    try { await executeConvoy(deps, id); } finally { this.abort = null; }
+    try { await executeConvoy(deps, id); } finally { this.abort = null; convoyAborts.delete(id); }
   }
 
   async runSpecialistJob(intent: string, opportunity?: string, jobContext: Record<string, unknown> = {}, options: { jobId?: string; specialists?: string[] } = {}): Promise<Record<string, unknown>> {
@@ -1849,6 +1869,46 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           break;
         }
 
+        // A human accepts or rejects what a finished convoy produced (the second look: the plan was approved before it ran). Rejecting also retires the
+        // Think Token candidates THIS convoy created (never a lesson that already existed); accepting an outcome does not accept a lesson.
+        case 'convoy_review': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const decision = msg.decision === 'accept' || msg.decision === 'reject' ? msg.decision : null;
+          try {
+            if (!decision) throw new ConvoyError('decision must be accept or reject', 'bad_transition');
+            const c = convoyStore.review(id, decision, 'human', safeString(msg.note).slice(0, 300));
+            const reviewActor = `convoy:${c.id.slice(0, 8)}`;
+            for (const runId of c.run_ids) tokenStore.recordOutcome(runId, decision === 'accept', reviewActor);
+            if (decision === 'reject') {
+              for (const t of c.learned_tokens ?? []) {
+                if (t.duplicate) continue;
+                // Judge by the token's CURRENT status: a token a human already accepted (or rejected/retired) is left alone.
+                const row = tokenStore.get(t.id);
+                if (!row) continue;
+                if (row.status !== 'accepted' && row.status !== 'retired' && row.status !== 'rejected') {
+                  const r = tokenStore.setStatus(t.id, 'retired', 'human');
+                  if (r.ok) t.status = 'retired';
+                } else t.status = row.status;
+              }
+              convoyStore.save();
+            }
+            session.broadcast({ type: 'convoy_update', data: summarizeConvoy(c) });
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err), code: err instanceof ConvoyError ? err.code : undefined } }));
+          }
+          break;
+        }
+
+        // Emergency stop for ONE convoy: its workers stop at their next step and the convoy ends FAILED ("stopped by operator"), keeping the evidence so far.
+        case 'convoy_stop': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const controller = convoyAborts.get(id);
+          if (!controller) { ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: 'that convoy is not running' } })); break; }
+          controller.abort();
+          session.addThought({ type: 'routing', content: `Convoy ${id.slice(0, 8)} stopped by the operator.`, status: 'info', jobId: id });
+          break;
+        }
+
         case 'clear_thoughts': {
           const removed = persistence.clearThoughts(profileManager.getActiveId());
           session.thoughts.length = 0;
@@ -2108,10 +2168,10 @@ function costOfModel(model: string | null, kindIn: 'lookup' | 'specialist' | 're
 registerConvoyRoutes(app, {
   convoyStore,
   runStore,
-  plan: (goal, model, budget) => {
+  plan: (goal, model, budget, mode) => {
     const agentModel = inceptionConfigured() ? INCEPTION_MODELS[0]! : null;
     const result = planConvoy({
-      goal, budget, lookupModel: model || agentModel || resolveLocalModel(), agentModel, isLocalModel: (m) => !isInceptionModel(m),
+      goal, budget, mode, lookupModel: model || agentModel || resolveLocalModel(), agentModel, isLocalModel: (m) => !isInceptionModel(m),
       availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
     });
     if (!result.ok) return result;

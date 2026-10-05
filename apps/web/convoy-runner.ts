@@ -8,6 +8,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { newRunContext, type AgentHooks, type AgentRunResult } from './agent.ts';
+import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
@@ -32,6 +33,8 @@ export interface RunnerDeps {
   broadcast: (message: { type: string; data: unknown }) => void;
   signal: AbortSignal;
   now?: () => number;
+  /** LEARN mode: turn one verified child run into Think Token candidates through the existing pipeline (no model is called). */
+  learn?: (run: RunRecord) => Promise<Array<{ id: string; kind: string; status: string; title: string; duplicate?: boolean }>>;
 }
 
 type Grounding = Pick<GroundingResult, 'status' | 'classification' | 'unsupported' | 'checked'>;
@@ -54,6 +57,17 @@ export async function executeConvoy(deps: RunnerDeps, convoyId: string): Promise
     for (const w of c.workers) if (w.status === 'running' || w.status === 'pending') w.status = 'failed';
     store.finish(c.id, 'failed', 'the convoy runner crashed', err instanceof Error ? err.message : String(err));
   }
+  // LEARN mode: only a VERIFIED success teaches anything. A failed, partial or ungrounded convoy produces no token candidates.
+  if (c.plan.think_mode === 'learn' && c.state === 'COMPLETED' && c.outcome === 'success' && deps.learn) {
+    try {
+      const learned: NonNullable<ConvoyRecord['learned_tokens']> = [];
+      for (const id of c.run_ids) { const run = deps.runStore.get(id); if (run) learned.push(...(await deps.learn(run))); }
+      c.learned_tokens = learned;
+    } catch (err) { c.learn_error = err instanceof Error ? err.message : String(err); }
+    store.save();
+  }
+  // An operator stop is reported as such, not as a generic failure.
+  if (deps.signal.aborted && c.state === 'FAILED' && !String(c.error ?? '').startsWith('stopped by operator')) { c.error = `stopped by operator: ${c.error ?? ''}`.trim(); store.save(); }
   update();
   return c;
 }
@@ -62,9 +76,9 @@ export async function executeConvoy(deps: RunnerDeps, convoyId: string): Promise
 export function summarize(c: ConvoyRecord): Record<string, unknown> {
   return {
     id: c.id, goal: c.goal, mode: c.mode, state: c.state, outcome: c.outcome ?? null, created_at: c.created_at, started_at: c.started_at ?? null, finished_at: c.finished_at ?? null,
-    workers: c.workers.map((w) => ({ id: w.id, name: w.name, model: w.model, status: w.status })), cost_usd: c.cost_usd, tool_calls: c.tool_calls, tokens: c.tokens,
+    workers: c.workers.map((w) => ({ id: w.id, name: w.name, model: w.model, status: w.status, lane: laneOf(c, w)?.lane ?? null, run_id: w.run_id ?? null, bead: beadId(c.id, w.id) })), review: c.review?.state ?? null, cost_usd: c.cost_usd, tool_calls: c.tool_calls, tokens: c.tokens,
     worker_duration_ms: c.worker_duration_ms, duration_ms: c.finished_at && c.started_at ? c.finished_at - c.started_at : null, risk: c.policy.risk,
-    grounding: c.grounding?.status ?? null, approval: c.approval?.state ?? null,
+    grounding: c.grounding?.status ?? null, approval: c.approval?.state ?? null, think_mode: c.plan.think_mode, learned_tokens: c.learned_tokens?.length ?? 0,
   };
 }
 

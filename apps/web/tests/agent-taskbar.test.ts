@@ -65,3 +65,13 @@ test('agent status is reflected in the menu item class', () => {
   assert.ok(items.some((i: any) => i.classList.contains('agent-status-running')));
   assert.ok(items.some((i: any) => i.classList.contains('agent-status-failed')));
 });
+
+test('the badge shows the review count and carries has-review while a result waits for a human', () => {
+  const { win, slot } = setup();
+  win.agentRegistry.ingest({ type: 'run_update', data: { id: 'run-9', status: 'running', goal: 'Deploy' } });
+  win.agentRegistry.list = () => [{ id: 'a', lane: 'review', status: 'completed' }];
+  win.dispatchEvent(new win.CustomEvent('agents:changed', { detail: { agents: [{ id: 'a', lane: 'review', status: 'completed' }], runningCount: 0 } }));
+  const badge = slot.querySelector('.wm-agent-badge');
+  assert.match(badge.textContent, /1 to review/);
+  assert.equal(badge.classList.contains('has-review'), true);
+});
