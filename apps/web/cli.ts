@@ -16,6 +16,7 @@ import { routeLabel } from './route-decision.ts';
 import { modeLabel, type ConvoyState } from './convoy.ts';
 import { matchRecipe } from './local-recipes.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
+import { loadMeasurements, pickMeasured } from './measured-routing.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
@@ -50,7 +51,7 @@ const c = {
 interface Model { name: string; provider?: string; agent?: boolean }
 interface ApprovalRequest { id: string; tool: string; args: Record<string, unknown>; reason: string; timeout_ms: number }
 interface PluginInfo { name: string; icon?: string; permission: string; description: string }
-type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local';
+type RouteReason = 'auto' | 'manual' | 'auto_fallback_no_local' | 'measured_lookup';
 interface RouteTelemtry { modelSelected: string; routeReason: RouteReason; complexity: 'simple' | 'complex'; estimatedTokensIfFullModel: number; estimatedTokensActual: number; tokensSavedEst: number }
 
 const usd = (v: number): string => (v >= 0.01 ? `$${v.toFixed(2)}` : `$${(v || 0).toFixed(4)}`);
@@ -1038,7 +1039,13 @@ function shouldWarnLocalModelToday(): boolean {
 function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   const agentModels = client.models.filter((m) => m.agent);
   const mercury = agentModels.find((m) => m.name === COMPLEX_MODEL) ?? agentModels[0];
-  const local = client.models.find((m) => !m.agent && sameLocalModel(LOCAL_MODEL, m.name));
+  // A live-data lookup goes to the installed local model the measured table qualifies for lookups (gemma3:4b at the time of writing), when there is one;
+  // otherwise the configured local model, as before.
+  const lookupGoal = Boolean(matchRecipe(goal));
+  const installedNames = client.models.filter((m) => !m.agent).map((m) => m.name);
+  const measured = lookupGoal ? pickMeasured('lookup', installedNames, loadMeasurements()) : null;
+  const measuredLocal = measured?.model ? client.models.find((m) => !m.agent && sameLocalModel(measured.model!, m.name)) : undefined;
+  const local = measuredLocal ?? client.models.find((m) => !m.agent && sameLocalModel(LOCAL_MODEL, m.name));
 
   // No enterprise agent model configured at all: nothing to route between.
   if (!mercury) {
@@ -1071,7 +1078,7 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
   } else if (local) {
     telemetry = {
       modelSelected: local.name,
-      routeReason: 'auto',
+      routeReason: measuredLocal ? 'measured_lookup' : 'auto',
       complexity,
       estimatedTokensIfFullModel,
       estimatedTokensActual: 800,
@@ -1101,7 +1108,7 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
       if (process.env.KUDBEE_VERBOSE === '1') console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected} (local model '${LOCAL_MODEL}' not installed)`));
     } else {
       const saved = telemetry.tokensSavedEst > 0 ? ` (est. saved ~${telemetry.tokensSavedEst} tokens)` : '';
-      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}`));
+      console.log(c.dim(`  💡 [${complexity}] → ${telemetry.modelSelected}${saved}${telemetry.routeReason === 'measured_lookup' && measured ? ` — ${measured.reason}` : ''}`));
     }
   }
 

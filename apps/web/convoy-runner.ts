@@ -12,7 +12,7 @@ import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
-import { repoSpec, runLocalToolLoop, type LocalChat } from './local-tools.ts';
+import { COLD_LOAD_MS, repoSpec, runLocalToolLoop, type LocalChat } from './local-tools.ts';
 import { REPO_TOOLS, repoRoot, verifyQuoteOnDisk, type RepoEvidence } from './repo-tools.ts';
 import type { RunRecord, RunStore } from './runs.ts';
 
@@ -145,6 +145,7 @@ async function runLookupWorker(deps: RunnerDeps, c: ConvoyRecord, worker: Worker
     if (deps.isLocalModel(model)) {
       const r = await runLocalToolLoop({ model, goal: c.goal, hooks, context: newRunContext(), chat: deps.chat, repo: deps.repo, signal: deps.signal });
       tokens = r.prompt_tokens + r.completion_tokens; toolCalls = r.tool_calls;
+      runStore.addEvent(record, { kind: 'model', step: r.steps.length + 3, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: routeLine('lookup', r.model, r.mode, r.latency_ms, r.cold_load_ms) });
       outcome = r.success ? { ok: true, answer: r.answer, grounding: r.grounding ? brief(r.grounding) : null, evidence: r.evidence } : { ok: false, grounding: null, evidence: r.evidence, failure: r.failure };
       for (const step of r.steps) runStore.addEvent(record, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['live_lookup'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
     } else {
@@ -212,6 +213,11 @@ async function runSpecialistConvoy(deps: RunnerDeps, c: ConvoyRecord, update: ()
  * own tool calls returned (grounding), and its quote is then re-read from disk by this code, outside the model's loop, before the convoy may succeed.
  * Nothing is written. A model that finds nothing and says so is a success; a fabricated file, line, quote or absence claim is not.
  */
+/** One line for the record: which model ran which lane, how long it took, and whether the model had to be loaded (cold) or was already warm. */
+export function routeLine(lane: 'lookup' | 'repo', model: string, mode: string, latencyMs: number, coldLoadMs: number): string {
+  return `route: lane=${lane} model=${model} mode=${mode} latency=${(latencyMs / 1000).toFixed(1)}s ${coldLoadMs >= COLD_LOAD_MS ? `cold (model load ${(coldLoadMs / 1000).toFixed(1)}s)` : 'warm'}`;
+}
+
 async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => void): Promise<void> {
   const { store, runStore } = deps;
   const worker = c.workers[0]!;
@@ -234,6 +240,7 @@ async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => vo
     const hooks = deps.hooksFor(record, deps.signal, [...REPO_TOOLS]);
     const r = await runLocalToolLoop<RepoEvidence>({ model, goal: c.goal, hooks, context: newRunContext(), chat: deps.chat, repo: null, spec: repoSpec(), maxSteps: 8, signal: deps.signal });
     evidence = r.evidence; tokens = r.prompt_tokens + r.completion_tokens; toolCalls = r.tool_calls;
+    runStore.addEvent(record, { kind: 'model', step: r.steps.length + 3, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: routeLine('repo', r.model, r.mode, r.latency_ms, r.cold_load_ms) });
     for (const step of r.steps) runStore.addEvent(record, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['repo'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
     if (r.recovery) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 2, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `empty-reply recovery: ${r.recovery.path}${r.recovery.recovered_by ? ` (recovered by ${r.recovery.recovered_by})` : r.recovery.path === 'exhausted' ? ' (needs a stronger lane; not auto-rerun yet)' : ''}, ${r.recovery.retries} retry, ${r.recovery.assist_calls} engine tool call(s)`.slice(0, 600) });
     if (r.absence) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 1, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `absence check: ${r.absence.path}${r.absence.symbol ? ` for ${r.absence.symbol}` : ''}${r.absence.aliases.length ? ` (aliases ${r.absence.aliases.join(', ')})` : ''}, ${r.absence.contradicted} contradicting reference(s), ${r.absence.searches} engine search(es)${r.absence.reason ? `; ${r.absence.reason}` : ''}`.slice(0, 600) });

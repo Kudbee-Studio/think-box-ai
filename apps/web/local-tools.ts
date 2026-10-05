@@ -35,10 +35,18 @@ export interface LocalToolStep {
   latency_ms: number;
   prompt_tokens: number;
   completion_tokens: number;
+  load_ms?: number;
 }
+
+/** A local model gets this long per call: a cold load of a 3-4 GB model on a small GPU took ~50 s, so the budget is generous and explicit. */
+export const LOCAL_CALL_TIMEOUT_MS = 120_000;
+/** A call that spent longer than this loading the model counts as a cold start. */
+export const COLD_LOAD_MS = 1500;
 
 export interface LocalToolResult<E = LookupEvidence> {
   success: boolean;
+  /** Total time Ollama spent loading the model across this run (0 = warm the whole time). */
+  cold_load_ms: number;
   model: string;
   mode: ToolMode;
   answer?: string;
@@ -264,6 +272,8 @@ export interface LocalToolOptions<E = LookupEvidence> {
   chat: LocalChat;
   repo: string | null;
   maxSteps?: number;
+  /** Per model call; defaults to LOCAL_CALL_TIMEOUT_MS (never the short capability-check timeout). */
+  callTimeoutMs?: number;
   signal?: AbortSignal;
   /** Which toolset this goal uses; live-data lookups by default. */
   spec?: LoopSpec<E>;
@@ -281,9 +291,9 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
   const messages: unknown[] = [{ role: 'system', content: mode === 'native' ? spec.system : spec.constrainedSystem }, { role: 'user', content: goal }];
   let absence: LocalToolResult<E>['absence'];
   // empty-reply recovery budget: ONE forced retry and ONE engine assist per run
-  let retried = false; let assisted = false; let assistCalls = 0; let recoveryPath: 'retry' | 'engine_assist' | 'exhausted' | undefined;
+  let loadMs = 0; let retried = false; let assisted = false; let assistCalls = 0; let recoveryPath: 'retry' | 'engine_assist' | 'exhausted' | undefined;
   let toolCalls = 0; let promptTokens = 0; let completionTokens = 0; let repairs = 0; let groundingRetries = 0;
-  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, tool_calls: toolCalls + assistCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...(recoveryPath ? { recovery: { path: recoveryPath, retries: retried ? 1 : 0, assist_calls: assistCalls, ...(recoveryPath !== 'exhausted' && partial.success ? { recovered_by: recoveryPath } : {}) } } : {}), ...partial });
+  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, cold_load_ms: loadMs, tool_calls: toolCalls + assistCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...(recoveryPath ? { recovery: { path: recoveryPath, retries: retried ? 1 : 0, assist_calls: assistCalls, ...(recoveryPath !== 'exhausted' && partial.success ? { recovered_by: recoveryPath } : {}) } } : {}), ...partial });
   const fail = (kind: LocalFailureKind, message: string): LocalToolResult<E> => done({ failure: { kind, message } });
   const noun = spec.terminalTool ? 'report' : 'answer';
 
@@ -328,9 +338,9 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
     const looked = evidence.length > 0;
     const tools = looked || !spec.terminalTool ? spec.nativeTools : spec.nativeTools.filter((t) => (t as { function?: { name?: string } }).function?.name !== spec.terminalTool);
     const format = looked || !spec.terminalTool ? spec.constrainedSchema : callOnly(spec.constrainedSchema);
-    const turn = await chat.chatOnce(model, messages, mode === 'native' ? { tools, signal: opts.signal } : { format, signal: opts.signal });
-    promptTokens += turn.prompt_tokens; completionTokens += turn.completion_tokens;
-    const base = { step, mode, latency_ms: turn.latency_ms, prompt_tokens: turn.prompt_tokens, completion_tokens: turn.completion_tokens };
+    const turn = await chat.chatOnce(model, messages, mode === 'native' ? { tools, signal: opts.signal, timeoutMs: opts.callTimeoutMs ?? LOCAL_CALL_TIMEOUT_MS } : { format, signal: opts.signal, timeoutMs: opts.callTimeoutMs ?? LOCAL_CALL_TIMEOUT_MS });
+    promptTokens += turn.prompt_tokens; completionTokens += turn.completion_tokens; loadMs += turn.load_ms ?? 0;
+    const base = { step, mode, latency_ms: turn.latency_ms, prompt_tokens: turn.prompt_tokens, completion_tokens: turn.completion_tokens, ...(turn.load_ms ? { load_ms: turn.load_ms } : {}) };
     if (turn.error) { steps.push({ ...base, raw: '', outcome: 'model_error', error: turn.error }); return fail('model_error', turn.error); }
     const parsed = mode === 'native' ? parseNativeTurnFor(turn, spec as LoopSpec<unknown>) : parseConstrainedTurnFor(turn, spec as LoopSpec<unknown>);
 
