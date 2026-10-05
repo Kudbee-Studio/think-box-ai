@@ -1029,7 +1029,7 @@ export class AgentSession {
       if (rule.skipModel) checked = { ok: false, why: 'there was nothing to word' };
       else if (modelError) checked = { ok: false, why: `the model call failed (${modelError})` };
       else if (evidence) {
-        grounding = validateGrounding(reply, [evidence]);
+        grounding = validateGrounding(reply, [evidence], { goal });
         checked = grounding.status === 'GROUNDED' ? { ok: true, text: reply.replace(/\s+/g, ' ').trim() } : { ok: false, why: grounding.unsupported.map((u) => `${u.kind} ${u.claim}`).join('; ') };
       } else checked = groundedAnswer(reply, built.facts, { cite: rule.cite === 'file' ? 'file' : undefined });
       this.addThought({
