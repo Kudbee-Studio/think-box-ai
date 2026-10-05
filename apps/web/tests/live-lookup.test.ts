@@ -2,7 +2,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runGovernedTool, newRunContext } from '../agent.ts';
-import { LOOKUP_RECIPES, lookupUrl, normalizeLookup, renderFacts, validateLookupArgs } from '../live-lookup.ts';
+import { LOOKUP_RECIPES, PAGE_SIZE, lookupUrl, normalizeLookup, renderFacts, validateLookupArgs } from '../live-lookup.ts';
 import { lookupHooks, startFakeGithub, type FakeGithub } from './helpers/lookup-hooks.ts';
 
 const REPO = 'Acme/widgets';
@@ -36,6 +36,23 @@ describe('lookupUrl', () => {
     assert.equal(u('latest_pr'), 'http://127.0.0.1:9/repos/Acme/widgets/pulls?state=all&sort=created&direction=desc&per_page=5');
     assert.equal(u('ci_status', 'feat/a b'), 'http://127.0.0.1:9/repos/Acme/widgets/actions/runs?per_page=5&exclude_pull_requests=true&branch=feat%2Fa%20b');
     assert.equal(u('branches'), 'http://127.0.0.1:9/repos/Acme/widgets/branches?per_page=10');
+  });
+});
+
+describe('a list that may hold more than it shows says so (evidence.more)', () => {
+  const issue = (n: number, o: Record<string, unknown> = {}) => ({ number: n, title: `issue ${n}`, state: 'open', user: { login: 'a' }, updated_at: 't', ...o });
+  it('every recipe asks GitHub for exactly PAGE_SIZE entries', () => {
+    for (const recipe of LOOKUP_RECIPES) assert.match(lookupUrl({ recipe, repo: REPO }), new RegExp(`per_page=${PAGE_SIZE[recipe]}(&|$)`), recipe);
+  });
+  it('a full page counts as "more" even when pull requests are filtered out of an issues list (the real GitHub case: 10 entries, 5 issues)', () => {
+    const page = [...Array.from({ length: 5 }, (_, i) => issue(i + 1)), ...Array.from({ length: 5 }, (_, i) => issue(100 + i, { pull_request: {} }))];
+    const r = normalizeLookup({ recipe: 'open_issues', repo: REPO }, reply(page)) as any;
+    assert.equal(r.evidence.items.length, 5); assert.equal(r.evidence.more, true);
+  });
+  it('a short list is complete; a full page of branches, and items dropped to the display limit, are "more"', () => {
+    assert.equal((normalizeLookup({ recipe: 'open_issues', repo: REPO }, reply([issue(1), issue(2)])) as any).evidence.more, false);
+    assert.equal((normalizeLookup({ recipe: 'branches', repo: REPO }, reply(Array.from({ length: 10 }, (_, i) => ({ name: `b${i}` })))) as any).evidence.more, true);
+    assert.equal((normalizeLookup({ recipe: 'open_issues', repo: REPO }, reply(Array.from({ length: 7 }, (_, i) => issue(i + 1)))) as any).evidence.more, true, '7 issues, 5 shown');
   });
 });
 

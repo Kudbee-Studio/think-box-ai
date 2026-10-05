@@ -93,7 +93,7 @@ export interface LoopSpec<E> {
   /** For goal shapes the engine knows: run the first read-only tool itself, through `call`, when the model gave nothing usable. Returns how many calls it made. */
   assist?: (goal: string, call: (tool: 'repo_search' | 'repo_read', args: Record<string, unknown>) => Promise<RepoEvidence | null>) => Promise<number>;
   prepare?: (final: { text: string } | { args: unknown }, evidence: E[]) => Promise<unknown>;
-  judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
+  judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown, goal?: string) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
 }
 
 const toolSchema = (name: string) => TOOLS.find((t) => t.function.name === name)!;
@@ -132,7 +132,7 @@ export function lookupSpec(repo: string | null): LoopSpec<LookupEvidence> {
     evidenceOf: (o) => ((o as { evidence?: LookupEvidence }).evidence ?? null),
     render: renderFacts,
     repairHint: `Valid recipes: ${LOOKUP_RECIPES.join(', ')}.`,
-    judge: (final, evidence) => ('text' in final ? { ok: true, answer: final.text, grounding: validateGrounding(final.text, evidence) } : { ok: false, error: 'a lookup ends with a plain answer' }),
+    judge: (final, evidence, _extra, goal) => ('text' in final ? { ok: true, answer: final.text, grounding: validateGrounding(final.text, evidence, { goal }) } : { ok: false, error: 'a lookup ends with a plain answer' }),
   };
 }
 
@@ -353,7 +353,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
       const extra = spec.prepare ? await spec.prepare(finalArg, evidence) : undefined;
       const check = extra as AbsenceCheck | undefined;
       if (check?.applies) absence = { path: check.path, ...(check.symbol ? { symbol: check.symbol } : {}), aliases: check.aliases, contradicted: check.contradicted.length, searches: check.searches.length, ...(check.reason ? { reason: check.reason } : {}) };
-      const judged = spec.judge(finalArg, evidence, extra);
+      const judged = spec.judge(finalArg, evidence, extra, goal);
       if (!judged.ok) {
         steps.push({ ...base, raw: parsed.raw, outcome: 'malformed', error: judged.error });
         if (repairs >= 1) return fail('malformed_tool_request', `${model} made an invalid ${noun} twice: ${judged.error}`);

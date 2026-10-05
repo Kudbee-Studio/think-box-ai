@@ -111,6 +111,75 @@ describe('validateGrounding: the repository name is not a clue about which PR (r
   });
 });
 
+// Cases from the real-model grounding audit (docs/evidence/p3.30-grounding-audit): correct answers the validator rejected, and wrong ones it let through.
+describe('validateGrounding: audit regressions (real Mercury / gemma / qwen answers, 2026-10-05)', () => {
+  const R = 'Kudbee-Studio/think-box-ai';
+  const mk = (recipe: LookupRecipe, body: unknown, o: { more?: boolean } = {}): LookupEvidence => {
+    const r = normalizeLookup({ recipe, repo: R }, { status: 200, text: JSON.stringify(body), url: `https://api.github.com/repos/${R}/x`, fetched_at: 't', latency_ms: 1 });
+    assert.ok(r.ok); const e = (r as any).evidence as LookupEvidence; return o.more === undefined ? e : { ...e, more: o.more };
+  };
+  const prs = mk('latest_pr', [368, 367, 366, 365, 364].map((n) => pr(n, `#${n} P3.${n - 340}: thing ${n}`, { html_url: `https://github.com/${R}/pull/${n}` })));
+  const g = (a: string, ev: LookupEvidence[], goal?: string) => validateGrounding(a, ev, { goal });
+
+  it('a question about PR #367 need not name the newest PR (#368); a question about the newest one still must', () => {
+    const a = 'PR #367 has been merged: https://github.com/Kudbee-Studio/think-box-ai/pull/367';
+    assert.equal(g(a, [prs], 'Is PR 367 merged?').status, 'GROUNDED');
+    assert.ok(g(a, [prs], 'What is the last PR?').unsupported.some((u) => /newest/.test(u.why)));
+    assert.ok(g(a, [prs]).unsupported.some((u) => /newest/.test(u.why)), 'no goal given: strict, as before');
+  });
+  it('"no PR is a draft" is a valid answer to a set question, including `"draft": false` printed from the data; a draft that exists still fails it', () => {
+    const none = mk('open_prs', []);
+    for (const a of ['There are no draft pull requests in this repository.', 'Each PR has `"draft": false`, so there are no draft pull requests.', 'None of the pull requests listed are in draft state.']) assert.equal(g(a, [prs, none], 'Which pull requests are drafts?').status, 'GROUNDED', a);
+    const withDraft = mk('latest_pr', [pr(5, 'five', { draft: true, merged_at: null, state: 'open' })]);
+    assert.ok(g('There are no draft pull requests.', [withDraft], 'Which pull requests are drafts?').unsupported.some((u) => u.kind === 'state'));
+  });
+  it('a flat "no open issues / PRs" while the evidence lists some is rejected', () => {
+    const issues = mk('open_issues', [{ number: 59, title: 'Frontend polish', state: 'open', user: { login: 'a' }, updated_at: 't' }]);
+    assert.ok(g('There are no open issues.', [issues], 'Are there any open issues?').unsupported.some((u) => u.kind === 'state'));
+    const openPrs = mk('open_prs', [pr(9, 'nine', { merged_at: null, state: 'open' })]);
+    assert.ok(g('There are no open pull requests.', [openPrs], 'Are any pull requests still open?').unsupported.some((u) => u.kind === 'state'));
+  });
+  it('an English word after "branch" is not a branch name ("branches currently present", "branch failed")', () => {
+    const branches = mk('branches', [{ name: 'main', protected: true }, { name: 'feat/a' }]);
+    assert.equal(g('Here are the branches currently present: `main` and `feat/a`.', [branches], 'What branches exist?').status, 'GROUNDED');
+    const ci = evidenceOf('ci_status', { workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status: 'completed', conclusion: 'failure', run_number: 9, html_url: 'https://github.com/Acme/widgets/actions/runs/9', updated_at: 't' }] }, 'main');
+    assert.equal(g('The latest CI run on the main branch failed, run 9.', [ci], 'Did the last CI run pass?').status, 'GROUNDED');
+    assert.ok(g('The latest CI run on branch feat/ghost failed, run 9.', [ci]).unsupported.some((u) => u.kind === 'branch'), 'a real-looking branch name is still checked');
+  });
+  it('a markdown table names issues by their bare number', () => {
+    const issues = mk('open_issues', [{ number: 59, title: 'Frontend: 10x the graphics', state: 'open', user: { login: 'a' }, updated_at: 't' }, { number: 21, title: 'Phase 4 Milestone', state: 'open', user: { login: 'b' }, updated_at: 't' }]);
+    const a = 'Yes, there are open issues:\n| # | Title |\n|---|---|\n| 59 | Frontend: 10x the graphics |\n| 21 | Phase 4 Milestone |';
+    assert.equal(g(a, [issues], 'Are there any open issues?').status, 'GROUNDED');
+  });
+  it('a table with bold bare numbers cites its issues, and "all three PRs" repeats the count the question asked for', () => {
+    const issues = mk('open_issues', [{ number: 59, title: 'Frontend: 10x the graphics', state: 'open', user: { login: 'a' }, updated_at: 't' }, { number: 21, title: 'Phase 4 Milestone', state: 'open', user: { login: 'b' }, updated_at: 't' }]);
+    assert.equal(g('Yes, there are open issues:\n| # | Title |\n|---|---|\n| **59** | Frontend: 10x the graphics |\n| **21** | Phase 4 Milestone |', [issues], 'Are there any open issues?').status, 'GROUNDED');
+    assert.equal(g('The three most recent PRs are #368, #367 and #366. All three PRs have been merged.', [prs], 'Tell me about the three most recent PRs.').status, 'GROUNDED');
+    assert.ok(g('All three PRs have been merged.', [prs], 'What is the last PR?').unsupported.some((u) => u.kind === 'number' || u.kind === 'citation'), 'without that question the count is not licensed');
+  });
+  it('a trailing full stop is not part of a branch name ("the main branch failed.")', () => {
+    const ci = evidenceOf('ci_status', { workflow_runs: [{ name: 'CI', head_branch: 'main', event: 'push', status: 'completed', conclusion: 'failure', run_number: 9, html_url: 'https://github.com/Acme/widgets/actions/runs/9', updated_at: 't' }] }, 'main');
+    assert.equal(g('The last CI run for the main branch failed. The newest failure was run 9.', [ci], 'Did the last CI run pass?').status, 'GROUNDED');
+  });
+  it('JSON literals (false/true/null) are not title words', () => {
+    assert.equal(g('PR #367 is merged and its draft flag is false.', [prs], 'Is PR 367 merged?').status, 'GROUNDED');
+  });
+  it('a count must equal the list (hedged "the 3 most recent" may be fewer), and a list that may hold more is not a total', () => {
+    const issues5 = mk('open_issues', [1, 2, 3, 4, 5].map((n) => ({ number: n, title: `issue ${n}`, state: 'open', user: { login: 'a' }, updated_at: 't' })), { more: true });
+    assert.ok(g('There are 3 open issues.', [issues5], 'How many issues are open?').unsupported.some((u) => u.kind === 'number'), 'not the list length');
+    assert.ok(g('There are 5 open issues.', [issues5], 'How many issues are open?').unsupported.some((u) => /not a total/.test(u.why)), 'the page may hold more');
+    assert.equal(g('The first 5 open issues are #1, #2, #3, #4 and #5.', [issues5], 'Which issues are open?').status, 'GROUNDED');
+    const exact = mk('open_issues', [1, 2].map((n) => ({ number: n, title: `issue ${n}`, state: 'open', user: { login: 'a' }, updated_at: 't' })), { more: false });
+    assert.equal(g('There are 2 open issues: #1 and #2.', [exact], 'How many issues are open?').status, 'GROUNDED');
+    assert.equal(g('The 3 most recent PRs are #368, #367 and #366.', [prs], 'Tell me about the three most recent PRs.').status, 'GROUNDED');
+  });
+  it('"main is not listed" from a full page of branches is not proof it does not exist', () => {
+    const page = mk('branches', Array.from({ length: 10 }, (_, i) => ({ name: `b${i}`, protected: false })), { more: true });
+    assert.ok(g('The `main` branch is not listed, so it is not protected. There are 10 branches.', [page], 'How many branches are there, and is main protected?').unsupported.length >= 1);
+    assert.ok(g('There are ten branches.', [page], 'How many branches are there?').unsupported.some((u) => /not a total/.test(u.why)));
+  });
+});
+
 describe('validateGrounding: CI verdict', () => {
   const run = (conclusion: string | null, status = 'completed') => evidenceOf('ci_status', { workflow_runs: [{ name: 'CI', head_branch: 'feat/x', event: 'push', status, conclusion, run_number: 9, html_url: 'https://github.com/Acme/widgets/actions/runs/9', updated_at: 't' }] }, 'feat/x');
   it('must state the newest run\'s verdict, and cannot flip it', () => {
@@ -130,7 +199,7 @@ describe('validateGrounding: no evidence, empty, error and oversized answers', (
   it('empty, error-looking and huge answers fail with their own class', () => {
     assert.equal(validateGrounding('   ', [latest]).classification, 'empty_answer');
     assert.equal(validateGrounding('[Error: connection refused]', [latest]).classification, 'unreadable_answer');
-    assert.equal(validateGrounding('word '.repeat(300), [latest]).classification, 'unreadable_answer');
+    assert.equal(validateGrounding('word '.repeat(400), [latest]).classification, 'unreadable_answer');
   });
 });
 

@@ -24,6 +24,8 @@ export interface LookupEvidence {
   http_status: number;
   /** false when the reply was longer than the fetch limit and only the complete leading objects were kept. */
   complete: boolean;
+  /** true when GitHub may hold more than the items shown: the reply was cut off, the page came back full (before pull requests were filtered out of an issues list), or items were dropped to the display limit. A count from this list is not a total. */
+  more?: boolean;
   items: LookupItem[];
   /** ci_status only: the newest run's result in one word (success, failure, in_progress ...). */
   verdict?: string;
@@ -60,14 +62,17 @@ export function validateLookupArgs(raw: unknown, knownRepo: string | null | unde
   return { ok: true, args };
 }
 
+/** How many items each recipe asks GitHub for. A list this long may be only the first page: a count taken from it is not a total. */
+export const PAGE_SIZE: Record<LookupRecipe, number> = { open_prs: 5, latest_pr: 5, ci_status: 5, open_issues: 10, branches: 10 };
+
 export function lookupUrl(args: LookupArgs, githubBase = 'https://api.github.com'): string {
   const api = `${githubBase.replace(/\/$/, '')}/repos/${args.repo}`;
   switch (args.recipe) {
-    case 'open_prs': return `${api}/pulls?state=open&per_page=5`;
-    case 'latest_pr': return `${api}/pulls?state=all&sort=created&direction=desc&per_page=5`;
-    case 'ci_status': return `${api}/actions/runs?per_page=5&exclude_pull_requests=true${args.branch ? `&branch=${encodeURIComponent(args.branch)}` : ''}`;
-    case 'open_issues': return `${api}/issues?state=open&per_page=10`;
-    case 'branches': return `${api}/branches?per_page=10`;
+    case 'open_prs': return `${api}/pulls?state=open&per_page=${PAGE_SIZE.open_prs}`;
+    case 'latest_pr': return `${api}/pulls?state=all&sort=created&direction=desc&per_page=${PAGE_SIZE.latest_pr}`;
+    case 'ci_status': return `${api}/actions/runs?per_page=${PAGE_SIZE.ci_status}&exclude_pull_requests=true${args.branch ? `&branch=${encodeURIComponent(args.branch)}` : ''}`;
+    case 'open_issues': return `${api}/issues?state=open&per_page=${PAGE_SIZE.open_issues}`;
+    case 'branches': return `${api}/branches?per_page=${PAGE_SIZE.branches}`;
   }
 }
 
@@ -144,7 +149,8 @@ export function normalizeLookup(args: LookupArgs, reply: LookupReply): { ok: tru
   if (args.recipe === 'branches') items = raw.slice(0, 10).map((b): LookupItem => ({ kind: 'branch', name: oneLine(b?.name, 100), protected: Boolean(b?.protected) }));
   else if (args.recipe === 'open_issues') items = raw.slice(0, 5).map((i): LookupItem => ({ kind: 'issue', number: Number(i?.number), title: oneLine(i?.title, 120), state: i?.state === 'closed' ? 'closed' : 'open', author: author(i), url: oneLine(i?.html_url, 160), updated_at: oneLine(i?.updated_at, 20) }));
   else items = raw.slice(0, 5).map((pr): LookupItem => ({ kind: 'pr', number: Number(pr?.number), title: oneLine(pr?.title, 120), state: pr?.merged_at ? 'merged' : pr?.state === 'open' ? 'open' : 'closed', draft: Boolean(pr?.draft), author: author(pr), head_ref: oneLine(pr?.head?.ref, 100), url: oneLine(pr?.html_url, 160), updated_at: oneLine(pr?.updated_at, 20) }));
-  return { ok: true, evidence: { ...base, complete: parsed.complete, items } };
+  const more = !parsed.complete || parsed.items.length >= PAGE_SIZE[args.recipe] || raw.length > items.length;
+  return { ok: true, evidence: { ...base, complete: parsed.complete, more, items } };
 }
 
 export function runVerdict(run: Extract<LookupItem, { kind: 'run' }>): string {

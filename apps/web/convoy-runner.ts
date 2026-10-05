@@ -157,7 +157,7 @@ async function runLookupWorker(deps: RunnerDeps, c: ConvoyRecord, worker: Worker
         const denied = failedTools.find((e) => /^Denied by human reviewer/.test(e));
         outcome = { ok: false, grounding: null, evidence, failure: denied ? { kind: 'tool_denied', message: denied } : failedTools.length ? { kind: 'tool_failed', message: failedTools[0]! } : { kind: 'no_tool_call', message: `${model} answered without looking anything up, so the answer cannot be verified` } };
       } else {
-        const g = validateGrounding(r.result ?? '', evidence);
+        const g = validateGrounding(r.result ?? '', evidence, { goal: c.goal });
         outcome = { ok: true, answer: r.result, grounding: brief(g), evidence };
       }
     }

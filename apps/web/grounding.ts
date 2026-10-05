@@ -4,7 +4,7 @@
 // unsupported claim is marked GROUNDING FAILED, the claims are named, and it is never shown as verified (presentAnswer shows the evidence instead).
 // This is a claim check against evidence, not a view into the model's reasoning: nothing here reads or displays chain of thought.
 
-import { renderFacts, type LookupEvidence, type LookupItem } from './live-lookup.ts';
+import { PAGE_SIZE, renderFacts, type LookupEvidence, type LookupItem } from './live-lookup.ts';
 import type { RepoEvidence } from './repo-tools.ts';
 import type { AbsenceCheck } from './absence.ts';
 
@@ -20,11 +20,11 @@ export interface GroundingResult {
   checked: { numbers: number; urls: number; ids: number; branches: number; states: number; quotes?: number; identifiers?: number; absence?: number };
 }
 
-const MAX_ANSWER_CHARS = 700;
+const MAX_ANSWER_CHARS = 1500;
 const URL_RE = /https?:\/\/[^\s)"'<>]+/g;
 const NEGATION = /\b(no|not|never|none|without|isn't|wasn't|aren't|weren't|hasn't|haven't|didn't|doesn't|cannot|can't|neither|nor)\b|n't\b|\bun$/i;
 const STOP = new Set(['the', 'is', 'of', 'was', 'for', 'in', 'on', 'and', 'has', 'that', 'which', 'with', 'are', 'a', 'an', 'name', 'names', 'list', 'lists', 'to', 'it', 'its', 'this', 'there', 'as', 'at', 'by', 'from', 'be', 'or']);
-const COMMON = new Set(['about', 'after', 'being', 'could', 'first', 'their', 'there', 'these', 'those', 'which', 'would', 'where', 'while', 'with', 'pull', 'request', 'requests', 'based', 'open', 'data', 'live', 'github', 'working', 'currently', 'listed', 'number', 'newest', 'latest', 'merged', 'closed', 'branch']);
+const COMMON = new Set(['about', 'after', 'being', 'could', 'first', 'their', 'there', 'these', 'those', 'which', 'would', 'where', 'while', 'with', 'pull', 'request', 'requests', 'based', 'open', 'data', 'live', 'github', 'working', 'currently', 'listed', 'number', 'newest', 'latest', 'merged', 'closed', 'branch', 'false', 'true', 'null', 'draft', 'drafts']);
 const WORD_NUMBER: Record<string, string> = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10' };
 
 type State = 'merged' | 'open' | 'closed' | 'draft' | 'passed' | 'failed' | 'running';
@@ -85,7 +85,22 @@ const mask = (text: string, start: number, len: number): string => text.slice(0,
  * Check `answer` against the evidence it claims to come from. `GROUNDED` means every number, link, id, branch name and state claim in the sentence
  * was found in (and, for states, attributed correctly to) the returned evidence, and that the sentence names something that was actually returned.
  */
-export function validateGrounding(answer: string, evidence: LookupEvidence[]): GroundingResult {
+/** What the question asked, read from its words. Only used to decide which checks make sense; never to excuse a wrong fact. */
+export function readGoal(goal: string | undefined): { given: boolean; specificNumber: string | null; asksNewest: boolean; asksSet: boolean; askedCount: number | null } {
+  const g = String(goal ?? '');
+  return {
+    given: Boolean(g.trim()),
+    specificNumber: g.match(/(?:#|\b(?:pr|pull request|issue)\s*)(\d{1,7})\b/i)?.[1] ?? null,
+    asksNewest: /\b(last|latest|newest|most recent|current)\b/i.test(g),
+    asksSet: /\b(which|are there|are any|is there|how many|any|list|drafts?|all)\b/i.test(g),
+    // "the three most recent PRs": the question itself fixes a count, which the answer may repeat ("all three PRs")
+    askedCount: (() => { const m = g.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\s+(?:most\s+recent|latest|newest|recent|open|draft)\b/i); return m ? Number(WORD_NUMBER[m[1]!.toLowerCase()] ?? m[1]) : null; })(),
+  };
+}
+const HEDGE = /\b(at least|first|latest|most recent|newest|recent|shown|listed|top|only|up to|so far)\b/i;
+
+export function validateGrounding(answer: string, evidence: LookupEvidence[], opts: { goal?: string } = {}): GroundingResult {
+  const ask = readGoal(opts.goal);
   const checked = { numbers: 0, urls: 0, ids: 0, branches: 0, states: 0 };
   const fail = (classification: GroundingResult['classification'], unsupported: UnsupportedClaim[]): GroundingResult => ({ status: 'GROUNDING FAILED', classification, unsupported, checked });
   const text = String(answer ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim();
@@ -131,6 +146,9 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     rest = mask(rest, m.index!, m[0].length);
   }
 
+  // a markdown table names an item by its bare number in a cell: `| 59 | Title |`
+  for (const m of [...rest.matchAll(/\|\s*[*_`#]*(\d{1,7})[*_`]*\s*\|/g)]) if (anyId.has(m[1]!)) { cited.add(m[1]!); checked.ids += 1; rest = mask(rest, m.index!, m[0].length); }
+
   // Verbatim titles are quoted data, not claims: from here on they are blanked for the branch, number and state checks (ids were read above, so naming a PR by its title still counts).
   const titles = items.flatMap((i) => ('title' in i ? [i.title] : []));
   rest = maskTitles(rest, titles);
@@ -145,26 +163,54 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     checked.branches += 1;
     if (!branches.has(n.toLowerCase()) && !facts.toLowerCase().includes(n.toLowerCase())) add('branch', n, 'this branch name is not in the tool evidence');
   };
-  for (const m of [...rest.matchAll(/\bbranch(?:es)?\s+(?:named\s+|called\s+)?[`'"]?([\w][\w./-]*)/gi)]) { claimBranch(m[1]!); rest = mask(rest, m.index!, m[0].length); }
+  for (const m of [...rest.matchAll(/\bbranch(?:es)?\s+(named\s+|called\s+)?([`'"])?([\w][\w./-]*)/gi)]) {
+    // "branches currently present", "branch failed": an English word after "branch" is not a branch name. A name counts when it is introduced ("named X"), quoted, or shaped like one.
+    const nm = m[3]!.replace(/[.,;:!?)]+$/, '');
+    if (m[1] || m[2] || /[/_.\-\d]/.test(nm) || /^(main|master|develop|dev|trunk)$/i.test(nm)) claimBranch(nm);
+    rest = mask(rest, m.index!, m[0].length);
+  }
   for (const m of [...rest.matchAll(/(?<![\w/:.-])[\w.-]+(?:\/[\w.-]+)+/g)]) { if (BRANCH_PREFIX.test(m[0])) claimBranch(m[0]); rest = mask(rest, m.index!, m[0].length); }
 
   // 4. counts in words ("two open PRs") and plain numbers
   const knownNumbers = new Set(facts.match(/\d+(?:\.\d+)*/g) ?? []);
   for (const e of evidence) knownNumbers.add(String(e.items.length));
-  for (const m of [...rest.matchAll(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:open\s+|recent\s+|latest\s+)?(prs?|pull requests?|issues?|branches|runs?|workflow runs?)\b/gi)]) {
+  const KIND_OF: Array<[RegExp, (i: LookupItem) => boolean]> = [[/^(prs?|pull requests?)$/i, (i) => i.kind === 'pr'], [/^issues?$/i, (i) => i.kind === 'issue'], [/^branches$/i, (i) => i.kind === 'branch'], [/^(runs?|workflow runs?)$/i, (i) => i.kind === 'run']];
+  for (const m of [...rest.matchAll(/\b(one|two|three|four|five|six|seven|eight|nine|ten|\d{1,3})\s+(?:(?:most\s+)?recent\s+|open\s+|latest\s+|newest\s+|draft\s+)?(prs?|pull requests?|issues?|branches|runs?|workflow runs?)\b/gi)]) {
     checked.numbers += 1;
-    const n = WORD_NUMBER[m[1]!.toLowerCase()]!;
-    if (!knownNumbers.has(n)) add('number', `${m[1]!.toLowerCase()} ${m[2]!.toLowerCase()}`, `${n} is not a count or value in the tool evidence`);
+    const n = WORD_NUMBER[m[1]!.toLowerCase()] ?? m[1]!;
+    // a count of a kind of item is a claim about that list: it must be the list's length (a hedged "the 3 most recent" may be fewer), and a list that fills its page is not a total
+    const pred = KIND_OF.find(([re]) => re.test(m[2]!))?.[1];
+    const lists = evidence.filter((e) => e.items.some((i) => pred?.(i)));
+    if (!pred || !lists.length) {
+      if (!knownNumbers.has(n)) add('number', `${m[1]!.toLowerCase()} ${m[2]!.toLowerCase()}`, `${n} is not a count or value in the tool evidence`);
+      continue;
+    }
+    rest = mask(rest, m.index! + m[0].search(/\S/), m[1]!.length); // judged here against the list; not again as a bare number
+    const hedged = HEDGE.test(rest.slice(Math.max(0, m.index! - 40), m.index! + m[0].length + 25)) || (ask.askedCount === Number(n));
+    const len = lists[0]!.items.filter(pred).length;
+    const capped = lists.some((e) => e.more ?? e.items.length >= PAGE_SIZE[e.recipe]);
+    const label = /^\d/.test(m[1]!) ? m[1]! : `${m[1]!.toLowerCase()} ${m[2]!.toLowerCase()}`;
+    if (Number(n) > len || (!hedged && Number(n) !== len)) add('number', label, `the tool evidence lists ${len} of that kind, not ${n}`);
+    else if (!hedged && capped) add('number', label, `the lookup returns only the first ${len}, so this is not a total (there may be more)`);
   }
+  // "main is not listed" / "no such branch" from a list that stops at its page size is not proof the branch does not exist
+  if (evidence.some((e) => e.recipe === 'branches' && (e.more ?? e.items.length >= PAGE_SIZE.branches)) && /\b(not listed|isn'?t listed|is not (?:in|among)|does not exist|doesn'?t exist|no such branch|not present)\b/i.test(rest)) add('absence', 'a branch is "not listed"', 'the lookup returns only the first page of branches, so a branch missing from it may still exist');
   for (const m of [...rest.matchAll(/\d+(?:\.\d+)*/g)]) {
     checked.numbers += 1;
     if (!knownNumbers.has(m[0])) add('number', m[0], 'this number is not in the tool evidence');
   }
 
+  // a flat denial ("no open issues", "no draft pull requests") while the evidence lists some is a contradiction
+  const listed = (recipe: string, kind: LookupItem['kind']): number => evidence.filter((e) => e.recipe === recipe).flatMap((e) => e.items).filter((i) => i.kind === kind).length;
+  if (listed('open_prs', 'pr') && /\b(?:no|zero|not any|none of)\b[^.\n]{0,20}\bopen\b[^.\n]{0,15}\b(?:pull requests?|prs?)\b/i.test(text)) add('state', 'no open pull requests', `the tool evidence lists ${listed('open_prs', 'pr')} open pull request(s)`);
+  if (listed('open_issues', 'issue') && /\b(?:no|zero|not any|none of)\b[^.\n]{0,20}\bopen\b[^.\n]{0,15}\bissues?\b/i.test(text)) add('state', 'no open issues', `the tool evidence lists ${listed('open_issues', 'issue')} open issue(s)`);
+  if (items.some((i) => i.kind === 'pr' && i.draft) && /\bno\s+drafts?\b|\bno\s+draft\s+(?:pull requests?|prs?)\b|\bnone\b[^.\n]{0,30}\bdrafts?\b/i.test(text)) add('state', 'no draft pull requests', 'the tool evidence lists a draft pull request');
+
   // 5. state claims, attributed per clause: a clause naming exactly one item must state that item's state
   const claimed: Array<{ state: State; clause: string; named?: string[] }> = [];
   let lastNamed: string[] = [];
-  const clauses = maskEnumerations(maskTitles(lined, titles)).split(/\n+|(?<=[.!?;])\s+|,\s+(?:and|but|while)\s+|\s+(?:and|but|while)\s+/i).filter((c) => c.trim());
+  // a field printed as `"draft": false` states that the state is NOT the case: it is not a claim of that state
+  const clauses = maskEnumerations(maskTitles(lined, titles).replace(/["'`]?\b(?:draft|merged|open|closed)\b["'`]?(?:\s+(?:flag|field|status|state|value))?\s*(?:[:=]|\bis\b|\bare\b)\s*["'`]?false\b/gi, (m) => ' '.repeat(m.length))).split(/\n+|(?<=[.!?;])\s+|,\s+(?:and|but|while)\s+|\s+(?:and|but|while)\s+/i).filter((c) => c.trim());
   const clauseIds = (clause: string): string[] => [...clause.matchAll(/(?:(?:pull requests?|prs?|issues?|runs?)\s+#?|#)(\d{1,7})\b/gi)].map((m) => m[1]!).filter((n) => anyId.has(n));
   for (const clause of clauses) {
     const own = clauseIds(clause);
@@ -172,7 +218,7 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     if (own.length) lastNamed = own;
     for (const { state, re } of STATE_WORDS) {
       for (const m of [...clause.matchAll(re)]) {
-        if (NEGATION.test(clause.slice(Math.max(0, m.index! - 25), m.index!)) || /\b(not|un)\s*$/i.test(clause.slice(0, m.index!))) continue;
+        if (NEGATION.test(clause.slice(Math.max(0, m.index! - 25), m.index!)) || /^\s*(?:none\b|nothing\b|neither\b|no\s+[a-z])/i.test(clause) || /\b(not|un)\s*$/i.test(clause.slice(0, m.index!))) continue;
         // "open pull requests" is a noun phrase naming the list, not a claim about one item
         if (state === 'open' && /^\s*(pull|prs?|issues?)\b/i.test(clause.slice(m.index! + m[0].length))) { if (!recipes.has('open_prs') && !recipes.has('open_issues') && !items.some((i) => itemSupports(i, 'open', ''))) { checked.states += 1; add('state', 'open', 'no open item is in the tool evidence'); } continue; }
         claimed.push({ state, clause, named: attributed });
@@ -194,9 +240,11 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
   if (numbered.length) {
     const listed = numbered.map((i) => String(i.number));
     const citedListed = listed.filter((n) => cited.has(n));
-    if (!citedListed.length) add('citation', '(no listed item named)', 'the sentence names none of the listed pull requests or issues');
+    if (!citedListed.length && !(ask.given && ask.asksSet)) add('citation', '(no listed item named)', 'the sentence names none of the listed pull requests or issues');
     const first = evidence.find((e) => e.recipe === 'latest_pr')?.items[0];
-    if (first && first.kind === 'pr' && !cited.has(String(first.number))) add('citation', `#${first.number}`, `the sentence does not name the newest pull request (#${first.number})`);
+    // the newest PR must be named when the question is about the newest one (or nothing is known about the question); a question about PR #N need not
+    const newestMatters = !ask.given || (ask.asksNewest && !ask.specificNumber);
+    if (newestMatters && first && first.kind === 'pr' && !cited.has(String(first.number))) add('citation', `#${first.number}`, `the sentence does not name the newest pull request (#${first.number})`);
     // A small model often pairs one PR's number with another PR's title: a distinctive word that belongs only to PRs the sentence does not cite is that mix-up.
     if (numbered.length > 1) {
       // a word that is part of the repository's own name ("think" in think-box-ai) is not a clue about which PR a sentence means
