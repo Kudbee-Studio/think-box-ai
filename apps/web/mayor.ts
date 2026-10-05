@@ -195,11 +195,12 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   if (workers.some((w) => w.id === 'researcher')) {
     warnings.push('The Researcher is read-only, so its evidence has no artifact for the Validator to re-read; the existing job proof refuses such evidence and the convoy can end PARTIAL even though every worker succeeded.');
   }
-  const escalation = workers[0]?.kind === 'lookup' && workers[0].model && input.isLocalModel(workers[0].model) && input.agentModel
-    ? { model: input.agentModel, when: 'the local model fails the grounding check or cannot complete the lookup' } : null;
+  const first = workers[0];
+  const escalation = (first?.kind === 'lookup' || first?.kind === 'repo') && first.model && input.isLocalModel(first.model) && input.agentModel
+    ? { model: input.agentModel, when: first.kind === 'repo' ? 'the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one' : 'the local model fails the grounding check or cannot complete the lookup' } : null;
   const known = workers.every((w) => w.estimated_cost_usd !== null);
   const estimatedCost = workers.length && known ? round6(workers.reduce((t, w) => t + (w.estimated_cost_usd ?? 0), 0)) : null;
-  const escalationCost = escalation ? input.costOf(escalation.model, 'lookup').usd : 0;
+  const escalationCost = escalation ? input.costOf(escalation.model, first?.kind === 'repo' ? 'repo' : 'lookup').usd : 0;
   const worstCost = estimatedCost === null || escalationCost === null ? null : round6(estimatedCost + escalationCost);
   const estimatedCalls = workers.reduce((t, w) => t + w.estimated_tool_calls, 0);
   const worstWorkers = workers.length + (escalation ? 1 : 0);
