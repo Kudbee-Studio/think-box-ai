@@ -29,6 +29,7 @@
     this.el = null;
     this.selected = null;
     this.convoys = [];
+    this.board = null;
     this.detail = null;
     this.error = '';
     // The form keeps what was typed across re-renders (a plan or a live update rebuilds the window).
@@ -103,20 +104,17 @@
 
   ConvoyWindow.prototype.refresh = function () {
     var self = this;
-    return this._json('/api/convoys').then(function (b) {
+    return this._json('/api/convoys/board').then(function (bd) { self.board = bd; }, function () { self.board = null; }).then(function () { return self._json('/api/convoys'); }).then(function (b) {
       self.convoys = b.convoys || [];
       if (self.selected) return self._json('/api/convoys/' + encodeURIComponent(self.selected)).then(function (d) { self.detail = d.convoy; });
       return null;
     }).then(function () { self.render(); }, function (err) { self.error = String(err && err.message || err); self.render(); });
   };
 
+  // Any live update can move a worker between lanes, so the board, the list and the open detail are all re-read.
   ConvoyWindow.prototype.onUpdate = function (summary) {
     if (!summary || !this.el) return;
-    var self = this;
-    var i = this.convoys.findIndex(function (c) { return c.id === summary.id; });
-    if (i >= 0) this.convoys[i] = summary; else this.convoys.unshift(summary);
-    if (this.selected === summary.id) this._json('/api/convoys/' + encodeURIComponent(summary.id)).then(function (d) { self.detail = d.convoy; self.render(); }, function () { self.render(); });
-    else this.render();
+    this.refresh();
   };
 
   ConvoyWindow.prototype.plan = function (goal, model, budget, mode) {
@@ -133,6 +131,39 @@
     return this._json('/api/convoys/' + encodeURIComponent(id) + '/' + action, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
       .then(function (b) { self.detail = b.convoy; return self.refresh(); })
       .catch(function (err) { self.error = String(err && err.message || err); self.render(); });
+  };
+
+  ConvoyWindow.prototype.review = function (id, decision) {
+    var EventCtor = this.win.CustomEvent || root.CustomEvent;
+    if (EventCtor && this.win.dispatchEvent) this.win.dispatchEvent(new EventCtor('convoy:review', { detail: { id: id, decision: decision } }));
+  };
+
+  /** READY / OPEN / REVIEW / FINISHED for every worker. REVIEW means a result is waiting for a human to accept or reject it. */
+  ConvoyWindow.prototype._board = function () {
+    var self = this; var b = this.board;
+    var wrap = this._el('div', 'convoy-board'); wrap.id = 'convoy-board'; wrap.setAttribute('aria-label', 'Agent board');
+    [['ready', 'READY', 'unblocked work waiting for an agent'], ['open', 'OPEN', 'an agent is working on it'], ['review', 'REVIEW', 'a result is waiting for a human to accept or reject it'], ['finished', 'FINISHED', 'accepted, rejected, failed or stopped']].forEach(function (lane) {
+      var col = self._el('div', 'convoy-lane convoy-lane-' + lane[0]); col.dataset.lane = lane[0]; col.title = lane[2];
+      col.appendChild(self._el('div', 'convoy-lane-head', lane[1] + ' \u00B7 ' + ((b.counts && b.counts[lane[0]]) || 0)));
+      ((b.lanes && b.lanes[lane[0]]) || []).slice(0, 6).forEach(function (card) {
+        var el = self._el('div', 'convoy-card'); el.dataset.convoyId = card.convoy_id;
+        var open = self._el('button', 'convoy-card-open', card.name + ' \u00B7 ' + (card.model || 'no model')); open.type = 'button';
+        open.addEventListener('click', function () { self.selected = card.convoy_id; self.detail = null; self.refresh(); });
+        el.appendChild(open);
+        el.appendChild(self._el('div', 'convoy-card-goal', card.goal));
+        el.appendChild(self._el('div', 'convoy-card-detail', card.detail));
+        if (lane[0] === 'review') {
+          var row = self._el('div', 'convoy-card-actions');
+          row.appendChild(self._button('Accept', 'btn-primary convoy-card-accept', function () { self.review(card.convoy_id, 'accept'); }));
+          row.appendChild(self._button('Reject', 'btn-secondary convoy-card-reject', function () { self.review(card.convoy_id, 'reject'); }));
+          el.appendChild(row);
+        }
+        col.appendChild(el);
+      });
+      wrap.appendChild(col);
+    });
+    if (b.not_ready) wrap.appendChild(self._el('div', 'convoy-line convoy-board-note', b.not_ready + ' worker(s) not on the board yet: their plan is waiting for approval or for a worker they depend on.'));
+    return wrap;
   };
 
   ConvoyWindow.prototype.stop = function (id) {
@@ -192,6 +223,7 @@
     if (!body) return;
     while (body.firstChild) body.removeChild(body.firstChild);
     if (this.error) body.appendChild(this._el('div', 'convoy-error', this.error)).setAttribute('role', 'alert');
+    if (this.board) body.appendChild(this._board());
     body.appendChild(this._form());
     body.appendChild(this._list());
     if (this.selected && this.detail && this.detail.id === this.selected) body.appendChild(this._detail(this.detail));
@@ -279,6 +311,10 @@
       actions.appendChild(this._button('Approve and run LIVE', 'btn-primary convoy-approve', function () { self.approve(c.id); }, 'convoy-approve'));
       actions.appendChild(this._button('Reject', 'btn-secondary convoy-reject', function () { self.act(c.id, 'reject'); }, 'convoy-reject'));
     }
+    if (c.review && c.review.state === 'pending') {
+      actions.appendChild(this._button('Accept outcome', 'btn-primary convoy-accept', function () { self.review(c.id, 'accept'); }, 'convoy-accept'));
+      actions.appendChild(this._button('Reject outcome', 'btn-secondary convoy-reject-outcome', function () { self.review(c.id, 'reject'); }, 'convoy-reject-outcome'));
+    }
     if (c.state === 'RUNNING') actions.appendChild(this._button('Stop convoy', 'btn-danger convoy-stop', function () { self.stop(c.id); }, 'convoy-stop'));
     if (c.state === 'PLANNED' || c.state === 'PENDING') actions.appendChild(this._button('Cancel', 'btn-secondary convoy-cancel', function () { self.act(c.id, 'cancel'); }, 'convoy-cancel'));
     if (actions.firstChild) box.appendChild(actions);
@@ -310,6 +346,14 @@
     var pol = this._section('Policy · risk ' + (c.policy ? c.policy.risk : '?') + ' · ' + (c.policy ? c.policy.decision : ''));
     (c.policy && c.policy.rules || []).forEach(function (r) { pol.appendChild(self._el('div', 'convoy-rule convoy-rule-' + r.effect, '[' + r.effect + '] ' + r.reason + (r.workers ? ' (' + r.workers.join(', ') + ')' : ''))); });
     box.appendChild(pol);
+
+    // outcome review: the second human look, at what the convoy produced
+    if (c.review && c.review.state !== 'not_required') {
+      var rv = this._section('Outcome review · ' + c.review.state);
+      rv.id = 'convoy-review';
+      rv.appendChild(this._el('div', 'convoy-line', c.review.state === 'pending' ? 'The result is waiting in REVIEW: a human accepts or rejects it. Rejecting also retires the Think Token candidates this convoy created.' : (c.review.state === 'accepted' ? 'Accepted' : 'Rejected') + ' by ' + (c.review.decided_by || 'human') + (c.review.note ? ': ' + c.review.note : '')));
+      box.appendChild(rv);
+    }
 
     // approval
     if (c.approval) {

@@ -434,3 +434,56 @@ test('mode is validated: an unknown mode is a 400, SIMULATE and AUTONOMOUS plan 
   assert.match((await s.waitFor((m) => m.type === 'convoy_error')).data.error, /not running/);
   s.close();
 });
+
+test('BOARD and REVIEW: a finished convoy waits in REVIEW; accepting keeps its candidates, rejecting retires ONLY the ones it created; every decision is human and in the chain', async () => {
+  const learnConvoy = async (goal: string) => {
+    turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The newest PR is #361, PR 361, and it is merged.')]);
+    const c0 = (await post('/api/convoys/plan', { goal, model: QWEN, mode: 'learn' })).body.convoy;
+    await post(`/api/convoys/${c0.id}/submit`);
+    const s = session(); await s.ready; s.send({ type: 'convoy_approve', id: c0.id }); await s.waitFor(finished(c0.id)); s.close();
+    return (await get(`/api/convoys/${c0.id}`)).convoy;
+  };
+  const a = await learnConvoy('What is the newest PR?');
+  const b = await learnConvoy('What is the most recent PR?');
+  for (const c of [a, b]) {
+    assert.equal(c.outcome, 'success');
+    assert.equal(c.review.state, 'pending');
+    assert.equal(c.lanes['lookup-1'].lane, 'review');
+    assert.ok(c.learned_tokens.length >= 1 && c.learned_tokens.every((t: any) => !t.duplicate));
+  }
+  const board = await get('/api/convoys/board');
+  assert.ok(board.lanes.review.some((x: any) => x.convoy_id === a.id && x.detail === 'awaiting human review'));
+  assert.ok(board.counts.review >= 2);
+  assert.equal(board.counts.open, 0);
+
+  const s = session(); await s.ready;
+  // reject A: its own candidates are retired
+  s.send({ type: 'convoy_review', id: a.id, decision: 'reject', note: 'off-topic' });
+  await s.waitFor((m) => m.type === 'convoy_update' && m.data.id === a.id && m.data.review === 'rejected');
+  // accept B: its candidates stay candidates (accepting an outcome does not accept a lesson)
+  s.send({ type: 'convoy_review', id: b.id, decision: 'accept' });
+  await s.waitFor((m) => m.type === 'convoy_update' && m.data.id === b.id && m.data.review === 'accepted');
+  const ar = (await get(`/api/convoys/${a.id}`)).convoy; const br = (await get(`/api/convoys/${b.id}`)).convoy;
+  assert.equal(ar.review.state, 'rejected');
+  assert.equal(ar.review.decided_by, 'human');
+  assert.equal(ar.review.note, 'off-topic');
+  assert.equal(br.review.state, 'accepted');
+  assert.deepEqual([ar.chain, br.chain], [{ ok: true }, { ok: true }]);
+  assert.match(ar.events.at(-1).note, /outcome rejected by human: off-topic/);
+  assert.equal(ar.lanes['lookup-1'].lane, 'finished');
+  assert.equal(ar.lanes['lookup-1'].detail, 'completed, outcome rejected');
+  const status = (id: string) => tokenRows().find((r) => r.id === id)?.status;
+  assert.ok(ar.learned_tokens.every((t: any) => status(t.id) === 'retired'), 'rejecting retired this convoy\'s candidates');
+  assert.ok(br.learned_tokens.every((t: any) => status(t.id) === 'candidate'), 'accepting did not touch them');
+  assert.ok(ar.learned_tokens.every((t: any) => t.status === 'retired'), 'the convoy record says so too');
+  // bad requests are explicit errors
+  for (const [msg, why] of [[{ id: a.id, decision: 'accept' }, /already rejected/], [{ id: 'nope', decision: 'accept' }, /unknown convoy/], [{ id: a.id, decision: 'maybe' }, /accept or reject/]] as const) {
+    s.send({ type: 'convoy_review', ...msg });
+    const err = await s.waitFor((m) => m.type === 'convoy_error' && why.test(m.data.error));
+    assert.ok(err);
+  }
+  s.close();
+  const after = await get('/api/convoys/board');
+  assert.ok(after.lanes.finished.some((x: any) => x.convoy_id === a.id) && after.lanes.finished.some((x: any) => x.convoy_id === b.id));
+  assert.ok(!after.lanes.review.some((x: any) => x.convoy_id === a.id || x.convoy_id === b.id));
+});

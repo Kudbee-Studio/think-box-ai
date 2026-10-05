@@ -273,6 +273,7 @@ function printConvoy(cv: any): void {
   }
   if (cv.policy) console.log(c.dim(`    policy: ${cv.policy.decision} · risk ${cv.policy.risk} · mode ${String(plan?.think_mode ?? 'observe').toUpperCase()}`));
   for (const t of cv.learned_tokens ?? []) console.log(c.dim(`    learned ${t.id} ${t.kind} ${String(t.status).toUpperCase()}: ${t.title}`));
+  if (cv.review && cv.review.state !== 'not_required') console.log(c.dim(`    outcome review: ${cv.review.state}${cv.review.decided_by ? ` by ${cv.review.decided_by}` : ' (waiting for a human)'}`));
   if (cv.approval) console.log(c.dim(`    approval: ${cv.approval.state}${cv.approval.decided_by ? ` by ${cv.approval.decided_by}` : ` until ${new Date(cv.approval.expires_at).toISOString()}`}`));
   if (cv.grounding) console.log((cv.grounding.status === 'GROUNDED' ? c.green : c.red)(`    ${cv.grounding.status}${(cv.grounding.unsupported ?? []).map((x: any) => `\n      ${x.kind}: ${x.claim}`).join('')}`));
   if (cv.final_answer) console.log(`    ${c.green('answer:')} ${String(cv.final_answer).slice(0, 400)}`);
@@ -310,6 +311,22 @@ async function convoyCommand(args: string[], client: Client): Promise<void> {
       const { convoys } = await api('');
       if (!convoys.length) return console.log(c.dim('  (no convoys yet; /convoy plan GOAL)'));
       for (const x of convoys) console.log(`  ${x.id.slice(0, 8)} ${(['PLANNED', 'PENDING', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(x.state) ? c.cyan : c.red)(modeLabel(x.state).padEnd(40))} ${x.state.padEnd(9)} ${usd(x.cost_usd).padStart(8)}  ${String(x.goal).slice(0, 60)}`);
+    } else if (sub === 'board') {
+      const board = await api('/board');
+      for (const lane of ['ready', 'open', 'review', 'finished'] as const) {
+        const cards = board.lanes[lane] as any[];
+        console.log(`${({ ready: c.cyan, open: c.yellow, review: c.magenta, finished: c.green } as const)[lane](c.bold(lane.toUpperCase()))} ${c.dim(`(${board.counts[lane]})`)}`);
+        for (const card of cards.slice(0, 8)) console.log(`    ${String(card.convoy_id).slice(0, 8)} ${card.name} ${c.dim(`on ${card.model ?? 'no model'} · ${card.detail} · ${String(card.goal).slice(0, 50)}`)}`);
+      }
+      if (board.not_ready) console.log(c.dim(`  ${board.not_ready} worker(s) not on the board yet (plan waiting for approval, or waiting for a worker they depend on)`));
+    } else if (sub === 'review') {
+      const id = await resolveId(args[1]);
+      const decision = args[2];
+      if (decision !== 'accept' && decision !== 'reject') return console.log(c.red('Usage: /convoy review ID accept|reject [NOTE]'));
+      client.send({ type: 'convoy_review', id, decision, note: args.slice(3).join(' ') });
+      await new Promise((r) => setTimeout(r, 800));
+      const { convoy } = await api(`/${id}`);
+      console.log(convoy.review?.state === (decision === 'accept' ? 'accepted' : 'rejected') ? c.green(`  outcome ${convoy.review.state} by ${convoy.review.decided_by}`) : c.red(`  not recorded (review is ${convoy.review?.state ?? 'absent'}; a finished convoy with a result can be reviewed once)`));
     } else if (sub === 'show') {
       const { convoy } = await api(`/${await resolveId(args[1])}`);
       printConvoy(convoy);
@@ -334,7 +351,7 @@ async function convoyCommand(args: string[], client: Client): Promise<void> {
         if (CONVOY_TERMINAL.has(convoy.state)) { printConvoy(convoy); return; }
       }
       console.log(c.yellow('  Still running after 30 minutes; check /convoy show.'));
-    } else console.log(c.red('Usage: /convoy plan GOAL | list | show ID | submit ID | approve ID | reject ID'));
+    } else console.log(c.red('Usage: /convoy plan [--mode learn] GOAL | list | board | show ID | submit ID | approve ID | reject ID | review ID accept|reject'));
   } catch (err) {
     console.log(c.red(`  ${err instanceof Error ? err.message : String(err)}`));
   }
@@ -486,6 +503,8 @@ ${c.bold('CONVOYS (Mayor plans, human approves)')}
   /convoy [list]      one line per convoy, marked PLAN ONLY or LIVE EXECUTION
   /convoy show ID     plan, policy, approval, runs, evidence chain
   /convoy submit ID   queue the plan for approval (still runs nothing)
+  /convoy board       READY / OPEN / REVIEW / FINISHED for every agent
+  /convoy review ID accept|reject [NOTE]   accept or reject what a finished convoy produced (you are the human)
   /convoy approve ID  approve AND run it LIVE (you are the human; tool approvals still ask)
   /convoy reject ID   reject a pending plan
 

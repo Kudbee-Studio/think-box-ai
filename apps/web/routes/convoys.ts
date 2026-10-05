@@ -4,6 +4,7 @@ import type { Express, Response } from 'express';
 import { ConvoyError, verifyChain, type ConvoyRecord, type ConvoyStore } from '../convoy.ts';
 import { summarize } from '../convoy-runner.ts';
 import { projectJobState } from '../convoy-job-state.ts';
+import { boardFor, laneOf } from '../convoy-board.ts';
 import { THINK_MODES, type ThinkMode } from '../mayor.ts';
 import type { RunRecord, RunStore } from '../runs.ts';
 import type { Request } from './types.ts';
@@ -22,7 +23,8 @@ const status = (e: ConvoyError): number => (e.code === 'not_found' ? 404 : e.cod
 /** The detail view: the convoy, plus each child run with its steps (tools and their output), which is the drill-down. */
 export function convoyDetail(c: ConvoyRecord, runStore: RunStore): Record<string, unknown> {
   const runs = c.run_ids.map((id) => runStore.get(id)).filter((r): r is RunRecord => Boolean(r));
-  return { ...c, chain: verifyChain(c), summary: summarize(c), job_state: projectJobState(c), runs };
+  const lanes = Object.fromEntries(c.workers.map((w) => [w.id, laneOf(c, w)]));
+  return { ...c, chain: verifyChain(c), summary: summarize(c), job_state: projectJobState(c), lanes, runs };
 }
 
 export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void {
@@ -44,6 +46,11 @@ export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void 
   app.get('/api/convoys', (req: Request, res: Response) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     res.json({ convoys: convoyStore.list(limit).map(summarize) });
+  });
+
+  // The agent board: READY / OPEN / REVIEW / FINISHED for every worker of the recent convoys. Registered before :id so it is not captured by it.
+  app.get('/api/convoys/board', (_req: Request, res: Response) => {
+    res.json(boardFor(convoyStore.list(100)));
   });
 
   app.get('/api/convoys/:id', (req: Request, res: Response) => {

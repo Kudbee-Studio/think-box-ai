@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-05T01:16:57.915Z",
+  "generated_at": "2026-10-05T01:22:55.670Z",
   "note": "real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in",
-  "passed": 15,
-  "total": 15,
+  "passed": 17,
+  "total": 17,
   "results": [
     {
       "viewport": "1440",
@@ -45,6 +45,13 @@
       "status": "PASS",
       "note": "LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token",
       "screenshot": "convoy-1440-g-think-token-mode-and-job-state.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "h agent board and outcome review",
+      "status": "PASS",
+      "note": "lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED (\"Live lookup (latest pull request (any state)) · qwen2.5:3b What is the last PR? completed, outcome accepted\"); the decision is a human entry in the chain",
+      "screenshot": "convoy-1440-h-agent-board-and-outcome-review.png"
     },
     {
       "viewport": "1440",
@@ -94,6 +101,13 @@
       "status": "PASS",
       "note": "LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token",
       "screenshot": "convoy-390-g-think-token-mode-and-job-state.png"
+    },
+    {
+      "viewport": "390",
+      "step": "h agent board and outcome review",
+      "status": "PASS",
+      "note": "lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED (\"Live lookup (latest pull request (any state)) · qwen2.5:3b What is the last PR? completed, outcome accepted\"); the decision is a human entry in the chain",
+      "screenshot": "convoy-390-h-agent-board-and-outcome-review.png"
     },
     {
       "viewport": "390",

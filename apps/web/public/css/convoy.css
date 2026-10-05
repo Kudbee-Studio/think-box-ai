@@ -50,3 +50,19 @@
 .convoy-cell.is-locked { background: rgba(95, 211, 141, .75); border-color: rgba(95, 211, 141, 1); }
 .convoy-cell.is-disrupted { background: rgba(255, 123, 123, .75); border-color: rgba(255, 123, 123, 1); }
 .convoy-learned { margin-top: 4px; }
+
+/* Agent board: READY / OPEN / REVIEW / FINISHED */
+.convoy-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.convoy-lane { border: 1px solid var(--border-light, #2a3142); border-radius: 8px; padding: 6px; min-width: 0; }
+.convoy-lane-head { font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-bottom: 4px; }
+.convoy-lane-ready .convoy-lane-head { color: #7fb0ff; }
+.convoy-lane-open .convoy-lane-head { color: #ff9a62; }
+.convoy-lane-review .convoy-lane-head { color: #f0be3c; }
+.convoy-lane-finished .convoy-lane-head { color: #5fd38d; }
+.convoy-card { border-radius: 6px; background: rgba(150, 160, 190, .08); padding: 4px 6px; margin-bottom: 4px; font-size: 11px; }
+.convoy-card-open { all: unset; cursor: pointer; font-weight: 600; display: block; overflow-wrap: anywhere; }
+.convoy-card-goal, .convoy-card-detail { color: var(--text-muted, #8a93a6); overflow-wrap: anywhere; }
+.convoy-card-actions { display: flex; gap: 4px; margin-top: 3px; }
+.convoy-card-actions button { font-size: 11px; padding: 2px 6px; }
+.convoy-board-note { grid-column: 1 / -1; }
+@media (max-width: 520px) { .convoy-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -2180,6 +2180,12 @@ document.addEventListener('DOMContentLoaded', () => {
     runWorkflow(workflow);
   });
 
+  // The Convoys window's Accept / Reject (outcome review) dispatch this; a human decision, over the authenticated socket.
+  window.addEventListener('convoy:review', (e) => {
+    const d = e.detail || {};
+    if (d.id && (d.decision === 'accept' || d.decision === 'reject') && state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: 'convoy_review', id: d.id, decision: d.decision }));
+  });
+
   // The Convoys window's Stop button dispatches this: an emergency stop of exactly that convoy.
   window.addEventListener('convoy:stop', (e) => {
     const d = e.detail || {};

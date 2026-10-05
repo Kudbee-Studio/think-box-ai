@@ -198,6 +198,25 @@ async function main() {
         return 'LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token';
       });
 
+      await step(vp.name, 'h agent board and outcome review', page, async () => {
+        const lanes = await page.locator('#convoy-board .convoy-lane').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.lane));
+        assert(JSON.stringify(lanes) === JSON.stringify(['ready', 'open', 'review', 'finished']), `lanes were ${lanes}`);
+        const heads = (await page.locator('#convoy-board .convoy-lane-head').allInnerTexts()).join(' | ');
+        assert(/READY/.test(heads) && /OPEN/.test(heads) && /REVIEW/.test(heads) && /FINISHED/.test(heads), `lane heads: ${heads}`);
+        const card = page.locator('#convoy-board .convoy-lane-review .convoy-card').first();
+        await card.waitFor({ state: 'visible', timeout: 8000 });
+        const convoy = (await card.getAttribute('data-convoy-id')) || '';
+        assert(/awaiting human review/.test(await card.innerText()), 'a REVIEW card says it awaits a human');
+        await card.locator('.convoy-card-accept').click();
+        await page.waitForFunction((id) => !!document.querySelector(`#convoy-board .convoy-lane-finished .convoy-card[data-convoy-id="${id}"]`), convoy, { timeout: 8000 });
+        const done = await page.locator(`#convoy-board .convoy-lane-finished .convoy-card[data-convoy-id="${convoy}"]`).first().innerText();
+        assert(/outcome accepted/.test(done), `finished card said: ${done}`);
+        assert((await page.locator(`#convoy-board .convoy-lane-review .convoy-card[data-convoy-id="${convoy}"]`).count()) === 0, 'it left REVIEW');
+        const api = ((await (await fetch(`${base}/api/convoys/${convoy}`)).json()) as any).convoy;
+        assert(api.review.state === 'accepted' && api.review.decided_by === 'human' && api.chain.ok, 'recorded as a human decision in an intact chain');
+        return `lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED ("${done.replace(/\n/g, ' ')}"); the decision is a human entry in the chain`;
+      });
+
       await step(vp.name, 'f layout', page, async () => {
         const overflow = await page.evaluate(() => { const w = document.querySelector('#convoy-window .modal') as HTMLElement | null; const r = w?.getBoundingClientRect(); return { right: r ? Math.round(r.right) : -1, vw: window.innerWidth, scrollX: document.documentElement.scrollWidth - window.innerWidth }; });
         assert(overflow.right <= overflow.vw + 1, `the Convoys window is wider than the viewport (right ${overflow.right} > ${overflow.vw})`);

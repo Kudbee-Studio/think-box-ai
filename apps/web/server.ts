@@ -1869,6 +1869,29 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           break;
         }
 
+        // A human accepts or rejects what a finished convoy produced (the second look: the plan was approved before it ran). Rejecting also retires the
+        // Think Token candidates THIS convoy created (never a lesson that already existed); accepting an outcome does not accept a lesson.
+        case 'convoy_review': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const decision = msg.decision === 'accept' || msg.decision === 'reject' ? msg.decision : null;
+          try {
+            if (!decision) throw new ConvoyError('decision must be accept or reject', 'bad_transition');
+            const c = convoyStore.review(id, decision, 'human', safeString(msg.note).slice(0, 300));
+            if (decision === 'reject') {
+              for (const t of c.learned_tokens ?? []) {
+                if (t.duplicate || t.status === 'retired') continue;
+                const r = tokenStore.setStatus(t.id, 'retired', 'human');
+                if (r.ok) t.status = 'retired';
+              }
+              convoyStore.save();
+            }
+            session.broadcast({ type: 'convoy_update', data: summarizeConvoy(c) });
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err), code: err instanceof ConvoyError ? err.code : undefined } }));
+          }
+          break;
+        }
+
         // Emergency stop for ONE convoy: its workers stop at their next step and the convoy ends FAILED ("stopped by operator"), keeping the evidence so far.
         case 'convoy_stop': {
           const id = typeof msg.id === 'string' ? msg.id : '';
