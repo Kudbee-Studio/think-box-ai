@@ -1681,6 +1681,47 @@ how it was verified, and what is still open. Newest entry first.
 - **Tests:** convoy-job-state, convoy-board, runner LEARN/stop, real-server board and review tests; Chromium 19/19; real-services LEARN run (Mercury and Qwen) passed.
 - **Not proven:** the REVIEW click against real models, the CLI board by hand, whether template candidates help any worker, SIMULATE/AUTONOMOUS (not built).
 
+### 2026-10-05 — Can a local model challenge a Think Token? Measured (same 10 true + 10 plausible-false lessons, pre-registered rule)
+
+- **Qwen 2.5 3B and Qwen 2.5 1.5B (real Ollama, $0):** both reject EVERY lesson. 3B: 20/20 good lessons wrongly rejected, 18/18 bad caught; 1.5B: the same. Neither is usable (0 unusable replies, so it is the verdict, not formatting). Neither meets the rule (reject at least 60% of bad, wrongly reject at most 10% of good), exactly like the earlier smollm2:360m result. A small local model collapses to "fail" under this prompt; a strong rejector that rejects everything is not a judge.
+- **Gemma 3 4B:** not measured. Every call hit the 30 s per-call limit on this 2 GiB GPU, so the run would only have shown "unusable"; stopped.
+- **Conclusion:** local models cannot decide whether a lesson is good. The only honest test of "does a token help" is the outcome A/B (next entry): same model and tasks, lesson on vs off.
+- Evidence: `docs/evidence/model-integration/local-challenge-qwen2.5-3b.json`, `...-1.5b.json`.
+
+### 2026-10-05 — Does a lesson improve Qwen 3B? Outcome A/B (6 trials per arm; baseline vs lesson vs generic-advice control)
+| Task | Baseline pass | Lesson pass | Control pass |
+|---|---|---|---|
+| ci | 0/6 (all ungrounded) | **6/6** | 0/6 (never called the tool) |
+| untested-function | 0/6 | 0/6 (all 6 ungrounded: right claim, wrong evidence) | 0/6 |
+- Measured: on `ci` the lesson turns 0/6 into 6/6 and the control does not, so it is the content, not "any added text". On `untested-function` the lesson changes the failure (nothing reported -> a claim the validator rejects) but does not fix it.
+- Limits: lessons are hand-written from the observed failure, not stored Think Tokens; one model, synthetic fixtures, 6 trials; the ci result is a sharp 6/6 vs 0/6 but on one task.
+- Evidence: `docs/evidence/model-integration/local-token-ab.json`. Next: run the same arms with a real stored token, and see why the untested-function claim is ungrounded.
+
+### 2026-10-05 — Local model eval: first live measurement (item 5/10)
+
+- **What:** `local-eval.ts` (8 deterministic tasks: 5 lookups against a fake GitHub, 3 repo investigations against a tiny repo on disk; each scored pass / wrong / ungrounded / failed) plus the opt-in runner `npm run test:live-eval -- <model> --trials N` (evidence: `docs/evidence/model-integration/local-eval.json`). Tests: `tests/local-eval.test.ts` (scripted good and bad models; proves the scoring tells them apart).
+- **Qwen 2.5 3B, 2 trials per task (real Ollama, no cost):** lookup 8/10 pass (1 ungrounded, 1 failed: the CI question, once answering without looking anything up), repo 4/6 pass (both "find a function with no test" trials ungrounded: the absence proof). Median 9.0 s lookup, 34.2 s repo. `sufficient()` says NO for both classes at this sample size (needs 6+ trials, 80% pass, zero ungrounded).
+- **Limits:** 2 trials per task is a small sample; one model so far (Gemma 3 4B, Qwen 1.5B not yet run); fixtures are synthetic, not the real repo.
+
+### 2026-10-05 — Model communication list (10 items): status tracker
+
+Original list (agreed after #360). Update this table whenever an item moves.
+
+| # | Item | Status |
+|---|---|---|
+| 1 | One routing decision per goal | partly: `route-decision.ts` record and tests exist; the #344 router gap is open |
+| 2 | Generic live-data recipes | done (`live_lookup`, merged) |
+| 3 | Tool calling for local models (Qwen native, Gemma constrained JSON) | done (merged) |
+| 4 | One grounding check for every model | done (`grounding.ts`, merged) |
+| 5 | Route from measurements | IN PROGRESS: `local-eval.ts` built and unit-tested (1111 tests); first live table below; routing does not read it yet |
+| 6 | Streaming and Stop for all models | not done; only a per-convoy stop exists |
+| 7 | Think Tokens in local prompts | not done; the earlier A/B found no retrieval benefit |
+| 8 | Health checks and a fallback chain | not started |
+| 9 | Shared memory contract | not started |
+| 10 | Standing regression set | IN PROGRESS together with item 5 (`npm run test:live-eval`, evidence in `docs/evidence/model-integration/local-eval.json`) |
+
+Working locally on branch `feat/local-model-eval` (no pushes or PRs for now, founder's instruction).
+
 ### 2026-10-05 — #365 P3.23 dashboard polish: one agent per convoy worker
 
 - **Fixed:** a convoy worker's child run also broadcasts its own `run_update`, and the agent registry turned that into a second agent, so one worker could be counted twice in the taskbar's "N running". The worker now owns its run (`_claimRun`): the standalone entry is folded in and later run updates for it are ignored. Standalone runs are unaffected.
