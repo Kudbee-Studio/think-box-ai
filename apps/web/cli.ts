@@ -271,7 +271,8 @@ function printConvoy(cv: any): void {
     for (const w of plan.warnings ?? []) console.log(c.yellow(`    note: ${w}`));
     for (const r of plan.blocked_reasons) console.log(c.red(`    blocked: ${r}`));
   }
-  if (cv.policy) console.log(c.dim(`    policy: ${cv.policy.decision} · risk ${cv.policy.risk}`));
+  if (cv.policy) console.log(c.dim(`    policy: ${cv.policy.decision} · risk ${cv.policy.risk} · mode ${String(plan?.think_mode ?? 'observe').toUpperCase()}`));
+  for (const t of cv.learned_tokens ?? []) console.log(c.dim(`    learned ${t.id} ${t.kind} ${String(t.status).toUpperCase()}: ${t.title}`));
   if (cv.approval) console.log(c.dim(`    approval: ${cv.approval.state}${cv.approval.decided_by ? ` by ${cv.approval.decided_by}` : ` until ${new Date(cv.approval.expires_at).toISOString()}`}`));
   if (cv.grounding) console.log((cv.grounding.status === 'GROUNDED' ? c.green : c.red)(`    ${cv.grounding.status}${(cv.grounding.unsupported ?? []).map((x: any) => `\n      ${x.kind}: ${x.claim}`).join('')}`));
   if (cv.final_answer) console.log(`    ${c.green('answer:')} ${String(cv.final_answer).slice(0, 400)}`);
@@ -296,9 +297,13 @@ async function convoyCommand(args: string[], client: Client): Promise<void> {
   };
   try {
     if (sub === 'plan') {
-      const goal = args.slice(1).join(' ').trim();
-      if (!goal) return console.log(c.red('Usage: /convoy plan GOAL'));
-      const { convoy } = await api('/plan', 'POST', { goal, model: client.model });
+      const rest = args.slice(1);
+      let mode: string | undefined;
+      const flag = rest.indexOf('--mode');
+      if (flag >= 0) { mode = rest[flag + 1]; rest.splice(flag, 2); }
+      const goal = rest.join(' ').trim();
+      if (!goal) return console.log(c.red('Usage: /convoy plan [--mode observe|learn] GOAL'));
+      const { convoy } = await api('/plan', 'POST', { goal, model: client.model, ...(mode ? { mode } : {}) });
       printConvoy(convoy);
       console.log(c.dim(convoy.plan.executable ? `  Next: /convoy submit ${convoy.id.slice(0, 8)} (queues it for your approval; still runs nothing)` : '  This plan cannot run as it is (see blocked above).'));
     } else if (sub === 'list') {
@@ -477,7 +482,7 @@ ${c.bold('OPERATIONS')}
   /run ID             detailed step-by-step trace
 
 ${c.bold('CONVOYS (Mayor plans, human approves)')}
-  /convoy plan GOAL   PLAN ONLY: the Mayor plans workers, budget and policy; nothing runs
+  /convoy plan [--mode observe|learn] GOAL   PLAN ONLY: the Mayor plans workers, budget and policy; nothing runs
   /convoy [list]      one line per convoy, marked PLAN ONLY or LIVE EXECUTION
   /convoy show ID     plan, policy, approval, runs, evidence chain
   /convoy submit ID   queue the plan for approval (still runs nothing)

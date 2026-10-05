@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-04T23:23:34.681Z",
+  "generated_at": "2026-10-05T01:16:57.915Z",
   "note": "real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in",
-  "passed": 13,
-  "total": 13,
+  "passed": 15,
+  "total": 15,
   "results": [
     {
       "viewport": "1440",
@@ -38,6 +38,13 @@
       "status": "PASS",
       "note": "a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer",
       "screenshot": "convoy-1440-e-grounding-failed-is-a-failure.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "g think token mode and job state",
+      "status": "PASS",
+      "note": "LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token",
+      "screenshot": "convoy-1440-g-think-token-mode-and-job-state.png"
     },
     {
       "viewport": "1440",
@@ -80,6 +87,13 @@
       "status": "PASS",
       "note": "a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer",
       "screenshot": "convoy-390-e-grounding-failed-is-a-failure.png"
+    },
+    {
+      "viewport": "390",
+      "step": "g think token mode and job state",
+      "status": "PASS",
+      "note": "LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token",
+      "screenshot": "convoy-390-g-think-token-mode-and-job-state.png"
     },
     {
       "viewport": "390",

@@ -10,6 +10,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
+import Database from 'better-sqlite3';
 import { call, say, startMockInception, type MockInception } from './helpers/mock-inception.ts';
 import { freePort } from './helpers/free-port.ts';
 
@@ -371,4 +372,65 @@ test('a specialist convoy runs the existing specialist job with the convoy id as
   assert.ok(c.runs.every((run: any) => run.jobId === c.id), 'each child run carries the convoy id');
   assert.ok(!(await get('/api/runs')).runs.some((x: any) => x.jobId === c.id), 'no child run is a top-level row');
   assert.deepEqual(c.chain, { ok: true });
+});
+
+const tokenRows = (): Array<{ id: string; status: string; extractor: string; kind: string; title: string; source_run_id: string }> => {
+  const db = new Database(path.join(tmp, 'data', 'think-tokens.db'), { readonly: true, fileMustExist: false });
+  try { return db.prepare('select id, status, extractor, kind, title, source_run_id from think_tokens').all() as any; } catch { return []; } finally { db.close(); }
+};
+
+test('LEARN mode: a verified lookup convoy leaves deterministic Think Token CANDIDATES (no model, never accepted); OBSERVE leaves none', async () => {
+  const before = tokenRows().length;
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const observe = await runConvoy('What is the last PR?', QWEN);
+  assert.equal(observe.detail.state, 'COMPLETED');
+  assert.equal(observe.detail.plan.think_mode, 'observe');
+  assert.equal(tokenRows().length, before, 'OBSERVE learns nothing');
+  assert.equal(observe.detail.learned_tokens, undefined);
+
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const c0 = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'learn' })).body.convoy;
+  assert.equal(c0.plan.think_mode, 'learn');
+  assert.ok(c0.policy.rules.some((r: any) => r.id === 'mode-learn' && /never auto-accepted/.test(r.reason)));
+  await post(`/api/convoys/${c0.id}/submit`);
+  const s = session(); await s.ready;
+  s.send({ type: 'convoy_approve', id: c0.id });
+  await s.waitFor(finished(c0.id));
+  const learned = s.messages.filter((m) => m.type === 'think_token_learned');
+  s.close();
+  const c = (await get(`/api/convoys/${c0.id}`)).convoy;
+  assert.equal(c.outcome, 'success');
+  assert.ok(c.learned_tokens.length >= 1, 'a candidate was written');
+  assert.ok(c.learned_tokens.every((t: any) => t.status === 'candidate'), JSON.stringify(c.learned_tokens));
+  // the same lesson learned again is reported as already known, not as a new token
+  turnQueue(QWEN, [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')]);
+  const again = await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'learn' });
+  await post(`/api/convoys/${again.body.convoy.id}/submit`);
+  const s2 = session(); await s2.ready; s2.send({ type: 'convoy_approve', id: again.body.convoy.id }); await s2.waitFor(finished(again.body.convoy.id)); s2.close();
+  const c2 = (await get(`/api/convoys/${again.body.convoy.id}`)).convoy;
+  assert.ok(c2.learned_tokens.length >= 1 && c2.learned_tokens.every((t: any) => t.duplicate === true), JSON.stringify(c2.learned_tokens));
+  assert.deepEqual(new Set(c2.learned_tokens.map((t: any) => t.id)), new Set(c.learned_tokens.map((t: any) => t.id)), 'the same tokens');
+  const rows = tokenRows().filter((r) => c.run_ids.includes(r.source_run_id));
+  assert.ok(rows.length >= 1);
+  assert.ok(rows.every((r) => r.status === 'candidate' && r.extractor === 'template'), 'deterministic, never auto-accepted');
+  assert.ok(learned.length >= 1, 'the dashboard was told');
+  // the job state is projected from the convoy and includes the learned token
+  assert.equal(c.job_state.cells.length, 100);
+  assert.equal(c.job_state.verdict, 'pass');
+  assert.ok(c.job_state.signals.driven.includes('think_token'));
+  assert.equal(c.job_state.facts.learned_tokens, c.learned_tokens.length);
+});
+
+test('mode is validated: an unknown mode is a 400, SIMULATE and AUTONOMOUS plan as not executable, and stopping a convoy that is not running is an error', async () => {
+  assert.equal((await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'yolo' })).status, 400);
+  for (const mode of ['simulate', 'autonomous']) {
+    const c = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode })).body.convoy;
+    assert.equal(c.plan.executable, false, mode);
+    assert.match(c.plan.blocked_reasons.join(), /not available yet/);
+    assert.equal((await post(`/api/convoys/${c.id}/submit`)).status, 409);
+  }
+  const s = session(); await s.ready;
+  s.send({ type: 'convoy_stop', id: 'nope' });
+  assert.match((await s.waitFor((m) => m.type === 'convoy_error')).data.error, /not running/);
+  s.close();
 });

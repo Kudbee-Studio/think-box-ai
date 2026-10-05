@@ -96,6 +96,9 @@ export interface ConvoyRecord {
   evidence: LookupEvidence[];
   /** Repository investigations: what the read-only tools returned, the worker's finding, and the independent disk re-check of its quote. */
   repo_evidence: RepoEvidence[];
+  /** LEARN mode: the Think Token candidates the verified outcome produced (candidates only, never auto-accepted). */
+  learned_tokens?: Array<{ id: string; kind: string; status: string; title: string; /** The same lesson was already in the store: this is that token, not a new one. */ duplicate?: boolean }>;
+  learn_error?: string;
   finding?: RepoFinding;
   finding_check?: { disk_verified: boolean; reason?: string };
   cost_usd: number;

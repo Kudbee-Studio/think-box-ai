@@ -172,6 +172,32 @@ async function main() {
         return 'a wrong answer from both workers ends FAILED with GROUNDING FAILED, the unsupported claims, and no verified answer';
       });
 
+      await step(vp.name, 'g think token mode and job state', page, async () => {
+        // modes: OBSERVE and LEARN can be chosen, SIMULATE and AUTONOMOUS are shown but disabled
+        assert((await page.locator('#convoy-mode-simulate').isDisabled()) && (await page.locator('#convoy-mode-autonomous').isDisabled()), 'SIMULATE and AUTONOMOUS must not be selectable yet');
+        assert(await page.locator('#convoy-mode-observe').isChecked(), 'OBSERVE is the default');
+        await page.check('#convoy-mode-learn');
+        qwenScript = [nativeCall({ recipe: 'latest_pr' }), nativeSay('The last PR is #361, PR 361, and it is merged.')];
+        await plan(page, 'What is the last PR?');
+        await page.waitForFunction(() => /PLAN ONLY/.test(document.querySelector('#convoy-detail .convoy-badge-big')?.textContent || ''), null, { timeout: 8000 });
+        const planned = await page.locator('#convoy-detail').innerText();
+        assert(/MODE LEARN/i.test(planned), `the plan shows it was planned under LEARN; page said: ${planned.slice(0, 400).replace(/\n/g, ' | ')}`);
+        await page.click('#convoy-submit');
+        await page.waitForSelector('#convoy-approve');
+        await page.click('#convoy-approve');
+        await page.waitForFunction(() => /COMPLETED/.test(document.querySelector('#convoy-detail .convoy-state')?.textContent || ''), null, { timeout: 25000 }).catch(async () => { await approveToolIfAsked(page); });
+        await page.waitForFunction(() => /COMPLETED/.test(document.querySelector('#convoy-detail .convoy-state')?.textContent || ''), null, { timeout: 25000 });
+        const js = page.locator('#convoy-jobstate');
+        const text = await js.innerText();
+        assert(/STABLE/.test(text) && /verdict pass/.test(text), `job state text was: ${text.slice(0, 200)}`);
+        assert((await js.locator('.convoy-cell').count()) === 100, 'the job state draws 100 cells');
+        assert((await js.locator('.convoy-cell.is-locked').count()) > 0, 'verified cells are locked');
+        assert(/CANDIDATE/.test(text), 'the learned Think Token is a CANDIDATE, never accepted');
+        assert(/Stages with no signal for a convoy stay off: repair, harvest, commons/.test(text), 'it says which stages have no signal');
+        assert((await page.locator('#convoy-stop').count()) === 0, 'no Stop button once finished');
+        return 'LEARN planned; SIMULATE and AUTONOMOUS disabled; job state shows 100 cells with verified cells, STABLE, verdict pass, and a CANDIDATE token';
+      });
+
       await step(vp.name, 'f layout', page, async () => {
         const overflow = await page.evaluate(() => { const w = document.querySelector('#convoy-window .modal') as HTMLElement | null; const r = w?.getBoundingClientRect(); return { right: r ? Math.round(r.right) : -1, vw: window.innerWidth, scrollX: document.documentElement.scrollWidth - window.innerWidth }; });
         assert(overflow.right <= overflow.vw + 1, `the Convoys window is wider than the viewport (right ${overflow.right} > ${overflow.vw})`);

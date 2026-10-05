@@ -223,3 +223,56 @@ describe('repository investigation convoys', () => {
     assert.equal(c.workers[0]!.failure?.kind, 'no_tool_call');
   });
 });
+
+describe('LEARN mode and the operator stop', () => {
+  const lookupMercury = (mode: string) => setup('What is the last PR?', (p) => { p.workers[0].model = 'mercury-2'; p.escalation = null; p.think_mode = mode; });
+  const okAgent = (runStore: any) => async () => ({ success: true, result: 'The last PR is #1.', steps: 1, tool_calls: 1, prompt_tokens: 1, completion_tokens: 1, tokens: 2, cost_usd: 0 });
+  const withEvidence = (deps: RunnerDeps, extra: Partial<RunnerDeps> = {}): RunnerDeps => ({
+    ...deps,
+    runAgent: async (_g, _m, hooks) => {
+      hooks.onToolOutput?.('live_lookup', {}, { ok: true, evidence: { recipe: 'latest_pr', repo: 'Acme/widgets', source_url: 'u', fetched_at: 't', http_status: 200, complete: true, items: [{ kind: 'pr', number: 1, title: 'one', state: 'merged', draft: false, author: 'a', head_ref: 'b', url: 'https://github.com/Acme/widgets/pull/1', updated_at: 't' }], tool_calls: 1, latency_ms: 1 } });
+      return { success: true, result: 'The last PR is #1, merged.', steps: 1, tool_calls: 1, prompt_tokens: 1, completion_tokens: 1, tokens: 2, cost_usd: 0 };
+    },
+    ...extra,
+  });
+  it('LEARN: a verified success runs the learner once per child run and records the candidates on the convoy', async () => {
+    const t = lookupMercury('learn');
+    const seen: string[] = [];
+    const c = await executeConvoy(withEvidence(t.deps(), { learn: async (run) => { seen.push(run.id); return [{ id: 'TT-000001', kind: 'tool_pattern', status: 'candidate', title: 'x' }]; } }), t.c.id);
+    assert.equal(c.outcome, 'success');
+    assert.deepEqual(seen, c.run_ids);
+    assert.deepEqual(c.learned_tokens, [{ id: 'TT-000001', kind: 'tool_pattern', status: 'candidate', title: 'x' }]);
+  });
+  it('OBSERVE never learns, even on success', async () => {
+    const t = lookupMercury('observe');
+    let calls = 0;
+    const c = await executeConvoy(withEvidence(t.deps(), { learn: async () => { calls += 1; return []; } }), t.c.id);
+    assert.equal(c.outcome, 'success');
+    assert.equal(calls, 0);
+    assert.equal(c.learned_tokens, undefined);
+  });
+  it('LEARN does not learn from a failed or ungrounded convoy', async () => {
+    const t = lookupMercury('learn');
+    let calls = 0;
+    const bad: RunnerDeps = { ...t.deps({ learn: async () => { calls += 1; return []; } }), runAgent: async (_g, _m, hooks) => { hooks.onToolOutput?.('live_lookup', {}, { ok: true, evidence: { recipe: 'latest_pr', repo: 'a/b', source_url: 'u', fetched_at: 't', http_status: 200, complete: true, items: [], tool_calls: 1, latency_ms: 1 } }); return { success: true, result: 'The last PR is #999.', steps: 1, tool_calls: 1, prompt_tokens: 1, completion_tokens: 1, tokens: 2, cost_usd: 0 }; } };
+    const c = await executeConvoy(bad, t.c.id);
+    assert.notEqual(c.outcome, 'success');
+    assert.equal(calls, 0);
+  });
+  it('a learner that throws does not change the outcome; the error is recorded', async () => {
+    const t = lookupMercury('learn');
+    const c = await executeConvoy(withEvidence(t.deps(), { learn: async () => { throw new Error('token store locked'); } }), t.c.id);
+    assert.equal(c.outcome, 'success');
+    assert.equal(c.state, 'COMPLETED');
+    assert.equal(c.learn_error, 'token store locked');
+  });
+  it('an operator stop ends the convoy FAILED and says it was stopped by the operator, keeping what ran', async () => {
+    const t = lookupMercury('observe');
+    const stopper = new AbortController();
+    const c = await executeConvoy(withEvidence(t.deps({ signal: stopper.signal }), { signal: stopper.signal, runAgent: async () => { stopper.abort(); throw new Error('This operation was aborted'); } }), t.c.id);
+    assert.equal(c.state, 'FAILED');
+    assert.match(c.error!, /^stopped by operator/);
+    assert.equal(c.workers[0]!.failure?.kind, 'stopped');
+    void okAgent;
+  });
+});
