@@ -1,0 +1,143 @@
+{
+  "primary": {
+    "complete": true,
+    "meta": {
+      "plan": "docs/evidence/p3.32-escalation/PLAN.md",
+      "set": "primary",
+      "goals": 15,
+      "goals_hash": "5549e075ffed09b5d0d3c22411fe24bc57b930f2dc87b1b9a67c562a94fd200a",
+      "local_model": "qwen2.5:3b",
+      "escalation_model": "mercury-2",
+      "seed": "1000 + index in the full AB goal list",
+      "max_steps": 8,
+      "cap_usd": 0.5,
+      "commit": "fad001a8",
+      "started_at": "2026-10-05T23:39:33.060Z"
+    },
+    "n": 15,
+    "local_pass": 9,
+    "local_ci": {
+      "lo": 0.357464427565077,
+      "hi": 0.8017577191740534
+    },
+    "final_pass": 14,
+    "final_ci": {
+      "lo": 0.7018292244757601,
+      "hi": 0.9881334113938051
+    },
+    "diff": 0.33333333333333337,
+    "ci_lo": 0.13333333333333333,
+    "ci_hi": 0.6,
+    "triggered": 6,
+    "escalated": 6,
+    "skipped_for_cap": 0,
+    "rescued": 5,
+    "lost": 0,
+    "false_accepts_local": 2,
+    "false_accepts_final": 0,
+    "spend_usd": 0.00826,
+    "mercury_pass_when_escalated": 5,
+    "kinds": {
+      "untested": {
+        "n": 5,
+        "local_pass": 0,
+        "final_pass": 5,
+        "triggered": 5
+      },
+      "constant": {
+        "n": 5,
+        "local_pass": 4,
+        "final_pass": 4,
+        "triggered": 1
+      },
+      "missing": {
+        "n": 5,
+        "local_pass": 5,
+        "final_pass": 5,
+        "triggered": 0
+      }
+    },
+    "triggers": {
+      "grounding failed": 2,
+      "reported no finding for a goal that expects one": 2,
+      "tool_failed: path not found: queue.test.ts": 1,
+      "malformed_tool_request: qwen2.5:3b made an invalid report tw": 1
+    },
+    "local_latency_mean_ms": 23987,
+    "mercury_latency_mean_ms": 2712
+  },
+  "secondary": {
+    "complete": true,
+    "meta": {
+      "plan": "docs/evidence/p3.32-escalation/PLAN.md",
+      "set": "secondary",
+      "goals": 20,
+      "goals_hash": "8db936784996284d9a91064e3728043de1a1064dd9b5e36d05dedfa4ba22c783",
+      "local_model": "qwen2.5:3b",
+      "escalation_model": "mercury-2",
+      "seed": "5000 + index in the full TRAIN goal list",
+      "max_steps": 8,
+      "cap_usd": 0.5,
+      "commit": "fad001a8",
+      "started_at": "2026-10-05T23:45:49.210Z"
+    },
+    "n": 20,
+    "local_pass": 11,
+    "local_ci": {
+      "lo": 0.3420820083075997,
+      "hi": 0.7418049791429071
+    },
+    "final_pass": 20,
+    "final_ci": {
+      "lo": 0.8388698745050667,
+      "hi": 1
+    },
+    "diff": 0.44999999999999996,
+    "ci_lo": 0.25,
+    "ci_hi": 0.65,
+    "triggered": 9,
+    "escalated": 9,
+    "skipped_for_cap": 0,
+    "rescued": 9,
+    "lost": 0,
+    "false_accepts_local": 7,
+    "false_accepts_final": 0,
+    "spend_usd": 0.011873,
+    "mercury_pass_when_escalated": 9,
+    "kinds": {
+      "untested": {
+        "n": 10,
+        "local_pass": 1,
+        "final_pass": 10,
+        "triggered": 9
+      },
+      "constant": {
+        "n": 5,
+        "local_pass": 5,
+        "final_pass": 5,
+        "triggered": 0
+      },
+      "missing": {
+        "n": 5,
+        "local_pass": 5,
+        "final_pass": 5,
+        "triggered": 0
+      }
+    },
+    "triggers": {
+      "reported no finding for a goal that expects one": 7,
+      "tool_failed: path not found: apps/web/tests": 1,
+      "malformed_tool_request: qwen2.5:3b made an invalid report tw": 1
+    },
+    "local_latency_mean_ms": 22887,
+    "mercury_latency_mean_ms": 2503
+  },
+  "decision": {
+    "testable": true,
+    "primary_better": true,
+    "secondary_ok": true,
+    "total_spend_usd": 0.020133,
+    "spend_under_cap": true,
+    "verdict": "PROVEN"
+  }
+}
