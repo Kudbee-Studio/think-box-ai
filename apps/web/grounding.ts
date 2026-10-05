@@ -61,7 +61,9 @@ function itemSupports(item: LookupItem, state: State, recipe: string): boolean {
 }
 
 const ids = (items: LookupItem[], kind: 'pr' | 'issue' | 'run'): Set<string> => new Set(items.flatMap((i) => (i.kind === kind ? [String(kind === 'run' ? (i as any).run_number : (i as any).number)] : [])));
-const titleWords = (text: string): Set<string> => new Set((text.toLowerCase().match(/[a-z][a-z0-9-]{4,}/g) ?? []).filter((w) => !COMMON.has(w)));
+/** Typographic hyphens (non-breaking, en/em dash, minus) read as the plain hyphen, so "think\u2011box\u2011ai" is one word, not "think". */
+const plainHyphens = (s: string): string => s.replace(/[\u2010-\u2015\u2212]/g, '-');
+const titleWords = (text: string): Set<string> => new Set((plainHyphens(text).toLowerCase().match(/[a-z][a-z0-9-]{4,}/g) ?? []).filter((w) => !COMMON.has(w)));
 /** A plain `a/b` word ("and/or", "creation/update") is not a branch reference; one that starts like a branch name is. */
 const BRANCH_PREFIX = /^(feat|feature|fix|bugfix|hotfix|chore|docs|test|tests|refactor|release|dependabot|renovate|revert|codex|claude)\//i;
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -197,7 +199,10 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     if (first && first.kind === 'pr' && !cited.has(String(first.number))) add('citation', `#${first.number}`, `the sentence does not name the newest pull request (#${first.number})`);
     // A small model often pairs one PR's number with another PR's title: a distinctive word that belongs only to PRs the sentence does not cite is that mix-up.
     if (numbered.length > 1) {
+      // a word that is part of the repository's own name ("think" in think-box-ai) is not a clue about which PR a sentence means
+      const repoWords = new Set(evidence.flatMap((e) => plainHyphens(e.repo).toLowerCase().split(/[^a-z0-9]+/)).filter(Boolean));
       for (const w of titleWords(text)) {
+        if (repoWords.has(w)) continue;
         const owners = numbered.filter((i) => titleWords(i.title).has(w));
         if (owners.length && !owners.some((o) => cited.has(String(o.number)))) { add('citation', w, `"${w}" belongs to #${owners[0]!.number}, which the sentence does not cite (a mixed-up pull request)`); break; }
       }
