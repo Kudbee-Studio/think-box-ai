@@ -60,8 +60,8 @@
     var count = detail.runningCount || 0;
     var badge = doc.createElement('button');
     badge.type = 'button';
-    badge.className = 'wm-agent-badge' + (count ? ' is-running' : '') + (inReview ? ' has-review' : '');
     var inReview = (detail.agents || []).filter(function (a) { return a && a.lane === 'review'; }).length;
+    badge.className = 'wm-agent-badge' + (count ? ' is-running' : '') + (inReview ? ' has-review' : '');
     badge.textContent = count + ' running' + (inReview ? ' \u00B7 ' + inReview + ' to review' : '');
     badge.setAttribute('aria-label', count + ' agents running');
     badge.setAttribute('aria-expanded', this.menuOpen ? 'true' : 'false');

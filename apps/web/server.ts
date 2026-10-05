@@ -1373,7 +1373,7 @@ export class AgentSession {
       // LEARN mode: the existing Think Token pipeline with NO model, so it can only write deterministic candidates (never auto-accepted, no model spend).
       learn: async (run) => {
         const actor = `convoy:${id.slice(0, 8)}`;
-        tokenStore.recordOutcome(run.id, true, actor);
+        // The run's outcome is recorded when a human reviews the convoy (convoy_review), not here: a success is only provisional until then.
         const result = await processFinishedRun({ store: tokenStore, models: { mercury: null, local: null }, knownTools: TOOLS.map((t) => t.function.name) },
           { id: run.id, goal: run.goal, success: true, steps: run.steps, files: run.files, result: run.result }, actor);
         const out: Array<{ id: string; kind: string; status: string; title: string; duplicate?: boolean }> = [];
@@ -1877,11 +1877,18 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           try {
             if (!decision) throw new ConvoyError('decision must be accept or reject', 'bad_transition');
             const c = convoyStore.review(id, decision, 'human', safeString(msg.note).slice(0, 300));
+            const reviewActor = `convoy:${c.id.slice(0, 8)}`;
+            for (const runId of c.run_ids) tokenStore.recordOutcome(runId, decision === 'accept', reviewActor);
             if (decision === 'reject') {
               for (const t of c.learned_tokens ?? []) {
-                if (t.duplicate || t.status === 'retired') continue;
-                const r = tokenStore.setStatus(t.id, 'retired', 'human');
-                if (r.ok) t.status = 'retired';
+                if (t.duplicate) continue;
+                // Judge by the token's CURRENT status: a token a human already accepted (or rejected/retired) is left alone.
+                const row = tokenStore.get(t.id);
+                if (!row) continue;
+                if (row.status !== 'accepted' && row.status !== 'retired' && row.status !== 'rejected') {
+                  const r = tokenStore.setStatus(t.id, 'retired', 'human');
+                  if (r.ok) t.status = 'retired';
+                } else t.status = row.status;
               }
               convoyStore.save();
             }

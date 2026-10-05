@@ -80,15 +80,20 @@
     this.refreshChip();
   };
 
-  ConvoyWindow.prototype.refreshChip = function () {
+  ConvoyWindow.prototype._chip = function (b) {
     var chip = this.doc.getElementById && this.doc.getElementById('convoy-chip');
-    if (!chip) return Promise.resolve();
-    return this._json('/api/convoys/board').then(function (b) {
-      var c = b.counts || {};
-      chip.textContent = 'READY ' + (c.ready || 0) + ' \u00B7 OPEN ' + (c.open || 0) + ' \u00B7 REVIEW ' + (c.review || 0);
-      chip.className = 'convoy-chip' + (c.review ? ' has-review' : '') + (c.open ? ' has-open' : '');
-      chip.setAttribute('aria-label', (c.ready || 0) + ' ready, ' + (c.open || 0) + ' open, ' + (c.review || 0) + ' waiting for review');
-    }, function () { /* the board is optional chrome: no chip text rather than an error */ });
+    if (!chip || !b) return;
+    var c = b.counts || {};
+    chip.textContent = 'READY ' + (c.ready || 0) + ' \u00B7 OPEN ' + (c.open || 0) + ' \u00B7 REVIEW ' + (c.review || 0);
+    chip.className = 'convoy-chip' + (c.review ? ' has-review' : '') + (c.open ? ' has-open' : '');
+    chip.setAttribute('aria-label', (c.ready || 0) + ' ready, ' + (c.open || 0) + ' open, ' + (c.review || 0) + ' waiting for review');
+  };
+
+  // The board is optional chrome: no chip text rather than an error. While the window is open, refresh() already refreshes the chip from the same board read.
+  ConvoyWindow.prototype.refreshChip = function () {
+    var self = this;
+    if (this.el) return Promise.resolve();
+    return this._json('/api/convoys/board').then(function (b) { self._chip(b); }, function () {});
   };
 
   ConvoyWindow.prototype.toggle = function () {
@@ -143,13 +148,21 @@
     });
   };
 
+  // One refresh in flight at a time: updates that arrive meanwhile collapse into a single follow-up, so responses never apply out of order.
   ConvoyWindow.prototype.refresh = function () {
     var self = this;
-    return this._json('/api/convoys/board').then(function (bd) { self.board = bd; }, function () { self.board = null; }).then(function () { return self._json('/api/convoys'); }).then(function (b) {
+    if (this._refreshing) { this._again = true; return this._refreshing; }
+    var p = this._json('/api/convoys/board').then(function (bd) { self.board = bd; self._chip(bd); }, function () { self.board = null; }).then(function () { return self._json('/api/convoys'); }).then(function (b) {
       self.convoys = b.convoys || [];
       if (self.selected) return self._json('/api/convoys/' + encodeURIComponent(self.selected)).then(function (d) { self.detail = d.convoy; });
       return null;
-    }).then(function () { self.render(); }, function (err) { self.error = String(err && err.message || err); self.render(); });
+    }).then(function () { self.render(); }, function (err) { self.error = String(err && err.message || err); self.render(); }).then(function () {
+      self._refreshing = null;
+      if (self._again) { self._again = false; return self.refresh(); }
+      return null;
+    });
+    this._refreshing = p;
+    return p;
   };
 
   // Any live update can move a worker between lanes, so the board, the list and the open detail are all re-read.

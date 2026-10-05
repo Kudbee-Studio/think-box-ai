@@ -40,7 +40,8 @@ export function matchRepoGoal(goal: string): boolean {
   const text = String(goal ?? '');
   if (!text.trim() || text.length > 600 || MUTATION.test(text) || /https?:\/\//i.test(text)) return false;
   const recipe = matchRecipe(text);
-  if (recipe && isGithubRecipe(recipe)) return false;
+  // Live GitHub questions and workspace file recipes (read a named file, list the workspace) have their own governed path.
+  if (recipe && (isGithubRecipe(recipe) || recipe.id === 'read_file' || (recipe.id === 'list_files' && /\b(workspace|folder)\b/i.test(text)))) return false;
   return REPO_VERB.test(text) && REPO_THING.test(text);
 }
 

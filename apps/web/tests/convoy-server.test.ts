@@ -457,7 +457,10 @@ test('BOARD and REVIEW: a finished convoy waits in REVIEW; accepting keeps its c
   assert.equal(board.counts.open, 0);
 
   const s = session(); await s.ready;
-  // reject A: its own candidates are retired
+  // a human accepts ONE of A's lessons before rejecting the outcome: rejecting must not retire it (judged by current status, not the status saved at learn time)
+  const keptId = a.learned_tokens[0].id;
+  { const wdb = new Database(path.join(tmp, 'data', 'think-tokens.db')); try { wdb.prepare("update think_tokens set status = 'accepted' where id = ?").run(keptId); } finally { wdb.close(); } }
+  // reject A: its own still-undecided candidates are retired
   s.send({ type: 'convoy_review', id: a.id, decision: 'reject', note: 'off-topic' });
   await s.waitFor((m) => m.type === 'convoy_update' && m.data.id === a.id && m.data.review === 'rejected');
   // accept B: its candidates stay candidates (accepting an outcome does not accept a lesson)
@@ -473,9 +476,11 @@ test('BOARD and REVIEW: a finished convoy waits in REVIEW; accepting keeps its c
   assert.equal(ar.lanes['lookup-1'].lane, 'finished');
   assert.equal(ar.lanes['lookup-1'].detail, 'completed, outcome rejected');
   const status = (id: string) => tokenRows().find((r) => r.id === id)?.status;
-  assert.ok(ar.learned_tokens.every((t: any) => status(t.id) === 'retired'), 'rejecting retired this convoy\'s candidates');
+  assert.equal(status(keptId), 'accepted', 'a lesson a human already accepted survives rejecting the outcome');
+  assert.ok(ar.learned_tokens.filter((t: any) => t.id !== keptId).every((t: any) => status(t.id) === 'retired'), 'rejecting retired this convoy\'s undecided candidates');
   assert.ok(br.learned_tokens.every((t: any) => status(t.id) === 'candidate'), 'accepting did not touch them');
-  assert.ok(ar.learned_tokens.every((t: any) => t.status === 'retired'), 'the convoy record says so too');
+  assert.ok(ar.learned_tokens.filter((t: any) => t.id !== keptId).every((t: any) => t.status === 'retired'), 'the convoy record says so too');
+  assert.equal(ar.learned_tokens.find((t: any) => t.id === keptId).status, 'accepted');
   // bad requests are explicit errors
   for (const [msg, why] of [[{ id: a.id, decision: 'accept' }, /already rejected/], [{ id: 'nope', decision: 'accept' }, /unknown convoy/], [{ id: a.id, decision: 'maybe' }, /accept or reject/]] as const) {
     s.send({ type: 'convoy_review', ...msg });

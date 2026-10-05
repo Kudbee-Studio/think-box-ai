@@ -1681,6 +1681,13 @@ how it was verified, and what is still open. Newest entry first.
 - **Tests:** convoy-job-state, convoy-board, runner LEARN/stop, real-server board and review tests; Chromium 19/19; real-services LEARN run (Mercury and Qwen) passed.
 - **Not proven:** the REVIEW click against real models, the CLI board by hand, whether template candidates help any worker, SIMULATE/AUTONOMOUS (not built).
 
+### 2026-10-05 — Review fixes on the agent board (#364)
+
+- **Rejecting an outcome** retires only this convoy's tokens that are still undecided (judged by the token's current status); a lesson a human already accepted stays accepted.
+- **Run outcomes** are recorded when a human reviews the convoy (accept = success, reject = failure), not when LEARN writes candidates, so a later rejection no longer leaves a recorded success.
+- **"List the files in my workspace"** goes to the workspace `list_files` recipe, not a repository investigation; the taskbar `has-review` class now applies; the Convoys window runs one refresh at a time (updates arriving meanwhile collapse into one follow-up) and reads the board once per refresh.
+- **Tests:** `npm test` 1103/1103; new regression tests in convoy-server, mayor and agent-taskbar. Branch naming from now on: PR number first (e.g. `365-feat-name`).
+
 ### 2026-10-05 — M1: read-only repository investigation by a local worker (OBSERVE); thoughts persisted
 
 - **What changed:** `repo-tools.ts` adds `repo_search` and `repo_read` (read-only, confined to the repo with symlink-safe reads; secrets, `.env`, keys, databases, `.git`, `node_modules` and the data folders are unreadable; size, match and time caps). They are in the one tool registry but **opt-in**: not offered, and refused, unless a run's allowlist names them. `grounding.ts` gains the finding contract (`RepoFinding`, `parseFinding`, `validateFinding`): file read, line returned, exact quote in the tool output, backticked identifiers present, and any claim of absence ("no tests", "unused", "without any tests", ...) backed by a recorded zero-hit, not-truncated `repo_search`. The runner re-reads the quote from disk before a convoy can succeed. `local-tools.ts` is generalized with a `LoopSpec` (live lookups and repo investigations share one loop; the report option is withheld until a tool call has returned something; one feedback round for an unsupported report). The Mayor has a `repo` worker kind (local models only) and a `think_mode` (OBSERVE and LEARN plan; SIMULATE and AUTONOMOUS are refused until they exist). Evidence: `docs/evidence/model-integration/m1-observe.md`.
