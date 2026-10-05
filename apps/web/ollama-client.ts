@@ -138,13 +138,13 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
    * One non-streaming chat turn that may carry native `tools` or a constrained `format` (JSON schema). Returns the raw message, any tool calls, and the
    * measured token counts and time; never throws (a failure is `error`).
    */
-  async function chatOnce(model: string, messages: unknown[], opts: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number } = {}): Promise<OllamaChatTurn> {
+  async function chatOnce(model: string, messages: unknown[], opts: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number; seed?: number } = {}): Promise<OllamaChatTurn> {
     const startedAt = Date.now();
     try {
       const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages, stream: false, ...(opts.tools ? { tools: opts.tools } : {}), ...(opts.format ? { format: opts.format } : {}), options: { ...LOCAL_CHAT_OPTIONS, num_predict: opts.numPredict ?? 256, temperature: 0 } }),
+        body: JSON.stringify({ model, messages, stream: false, ...(opts.tools ? { tools: opts.tools } : {}), ...(opts.format ? { format: opts.format } : {}), options: { ...LOCAL_CHAT_OPTIONS, num_predict: opts.numPredict ?? 256, temperature: 0, ...(opts.seed !== undefined ? { seed: opts.seed } : {}) } }),
         signal: AbortSignal.any([...(opts.signal ? [opts.signal] : []), AbortSignal.timeout(opts.timeoutMs ?? 240_000)]),
       });
       const text = await res.text();

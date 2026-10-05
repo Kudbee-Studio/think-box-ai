@@ -19,7 +19,7 @@ export type ToolMode = 'native' | 'constrained';
 export type LocalFailureKind = 'malformed_tool_request' | 'no_tool_call' | 'tool_denied' | 'tool_failed' | 'model_error' | 'step_limit';
 
 export interface LocalChat {
-  chatOnce: (model: string, messages: unknown[], opts?: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number }) => Promise<OllamaChatTurn>;
+  chatOnce: (model: string, messages: unknown[], opts?: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number; seed?: number }) => Promise<OllamaChatTurn>;
   modelCapabilities: (model: string) => Promise<string[]>;
 }
 
@@ -167,7 +167,8 @@ export const REPO_CONSTRAINED_SCHEMA = {
   required: ['action'],
 } as const;
 
-export function repoSpec(): LoopSpec<RepoEvidence> {
+/** `engineAbsence: false` turns the engine's own absence search off (the model must then run and quote the search itself): only the A/B uses it, to measure the engine. */
+export function repoSpec(opts: { engineAbsence?: boolean } = {}): LoopSpec<RepoEvidence> {
   return {
     nativeTools: [toolSchema('repo_search'), toolSchema('repo_read'), REPORT_FINDING_TOOL],
     system: REPO_SYSTEM,
@@ -182,7 +183,7 @@ export function repoSpec(): LoopSpec<RepoEvidence> {
     evidenceOf: (o) => ((o as { evidence?: RepoEvidence }).evidence ?? null),
     render: renderRepoEvidence,
     repairHint: 'Tools: repo_search {query, path?} and repo_read {path, start?, end?}.',
-    prepare: async (final, evidence) => {
+    prepare: opts.engineAbsence === false ? undefined : async (final, evidence) => {
       if (!('args' in final)) return undefined;
       const parsed = parseFinding(final.args);
       if (!parsed.ok) return undefined;
