@@ -31,6 +31,7 @@
     this.now = typeof options.now === 'function' ? options.now : function () { return Date.now(); };
     this.agents = {};
     this.order = [];
+    this.owned = new Set();
   }
 
   AgentRegistry.prototype.get = function (id) { return id && this.agents[id] ? this.agents[id] : null; };
@@ -131,6 +132,8 @@
   AgentRegistry.prototype._fromRun = function (d) {
     var id = d.id || d.run_id || d.runId;
     if (!id) return false;
+    // A convoy worker owns its child run: the worker agent (driven by the board lane) is the one agent, so the run is never a second one.
+    if (this.owned.has(String(id))) return false;
     this._ensure(String(id), {
       run_id: String(id),
       status: normalizeStatus(d.status),
@@ -210,8 +213,17 @@
       self._ensure('convoy:' + String(d.id).slice(0, 8) + ':' + w.id, { goal: d.goal, status: status, lane: lane, bead: w.bead, convoy_id: d.id, worker_id: w.id, worker_name: w.name, model: w.model, run_id: w.run_id, think_mode: d.think_mode });
       var agent = self.agents['convoy:' + String(d.id).slice(0, 8) + ':' + w.id];
       agent.status = status; agent.lane = lane;
+      if (w.run_id) self._claimRun(String(w.run_id));
     });
     return true;
+  };
+
+  // Fold a standalone run entry into the convoy worker that owns it, and remember the claim so later run updates for it are ignored.
+  AgentRegistry.prototype._claimRun = function (runId) {
+    this.owned.add(String(runId));
+    var agents = this.agents;
+    Object.keys(agents).forEach(function (key) { if (key === runId) delete agents[key]; });
+    this.order = this.order.filter(function (id) { return id !== runId; });
   };
 
   AgentRegistry.prototype._fromResult = function (d) {
@@ -288,6 +300,7 @@
   AgentRegistry.prototype.clear = function () {
     this.agents = {};
     this.order = [];
+    this.owned = new Set();
     this.emit({ agents: [], runningCount: 0 });
   };
 

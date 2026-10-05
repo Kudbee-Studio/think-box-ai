@@ -1,0 +1,385 @@
+{
+ "model": "qwen2.5:3b",
+ "mode": "schema",
+ "reps": 2,
+ "seconds": 345.2,
+ "model_calls": 38,
+ "avg_ms_per_call": 9084,
+ "gpu": [
+  {
+   "name": "qwen2.5:3b",
+   "size_mb": 2265,
+   "vram_mb": 635,
+   "on_gpu_pct": 28
+  }
+ ],
+ "good": {
+  "seen_by_model": 20,
+  "kept": 0,
+  "wrongly_rejected": 20
+ },
+ "bad": {
+  "seen_by_model": 18,
+  "caught": 18,
+  "wrongly_accepted": 0,
+  "rejected_by_deterministic_check_before_the_model": 1
+ },
+ "unusable": 0,
+ "bad_caught_rate": 1,
+ "good_wrong_reject_rate": 1,
+ "unusable_rate": 0,
+ "qualifies_as_first_pass_rejector": false,
+ "rows": [
+  {
+   "label": "good",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The lesson is about a failed read_file ca",
+   "ms": 27925
+  },
+  {
+   "label": "good",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The lesson is not applicable as the failu",
+   "ms": 9514
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it repeats the content of the run a",
+   "ms": 7190
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it repeats the content of the run a",
+   "ms": 5310
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 11003
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it repeats the lesson about verifyi",
+   "ms": 5333
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 9317
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 9102
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run failed to find config.yaml and co",
+   "ms": 9900
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The run successfully wrote summary.md despite the failed read_",
+   "ms": 7378
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 7044
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "repeats a known lesson: The lesson is supported by the run result where the config.json keys are cor",
+   "ms": 7056
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it reiterates the need for a single",
+   "ms": 9748
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as there are known lessons.",
+   "ms": 4655
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 10371
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 7572
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The lesson is not applicable as the error",
+   "ms": 10037
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The lesson is not applicable as the error",
+   "ms": 7658
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it repeats the lesson about verifyi",
+   "ms": 7979
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not specific, repeats a known lesson: The lesson is not novel as it repeats the lesson about verifyi",
+   "ms": 6150
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run failed",
+   "ms": 11269
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run failed",
+   "ms": 8512
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 8271
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 6136
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 8014
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 8760
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 9893
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 7816
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 8445
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 6884
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run failed",
+   "ms": 8678
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run failed",
+   "ms": 6975
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 0,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called",
+   "ms": 0
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 11964
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 7925
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is ",
+   "ms": 11046
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 7152
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 12261
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The run did no",
+   "ms": 14964
+  }
+ ]
+}

@@ -176,3 +176,22 @@ test('a malformed convoy update is ignored, not fatal', () => {
   for (const bad of [{ type: 'convoy_update', data: null }, { type: 'convoy_update', data: { id: 'x' } }, { type: 'convoy_update', data: { workers: [] } }, { type: 'convoy_update' }]) assert.doesNotThrow(() => reg.ingest(bad));
   assert.equal(reg.list().length, 0);
 });
+
+test("a convoy worker's child run is not a second agent: the worker owns its run, so it is counted once and cannot stay 'running' after the board says finished", () => {
+  const { reg } = make();
+  // the child run's own run_update arrives first (running), then the convoy says the worker is OPEN
+  reg.ingest({ type: 'run_update', data: { id: 'run-a', status: 'running', goal: 'What is the last PR?', jobId: 'f0e1d2c3-aaaa-bbbb-cccc-ddddeeeeffff' } });
+  assert.equal(reg.runningCount(), 1);
+  reg.ingest(convoyUpdate([['a', 'running', 'open']]));
+  assert.equal(reg.runningCount(), 1, 'one worker, one running agent (not two)');
+  assert.equal(reg.get('run-a'), null, 'the standalone run entry was folded into the worker');
+  // a late run_update for that run (running) must not resurrect a second agent, and the board decides when it is over
+  reg.ingest({ type: 'run_update', data: { id: 'run-a', status: 'running', jobId: 'f0e1d2c3-aaaa-bbbb-cccc-ddddeeeeffff' } });
+  assert.equal(reg.runningCount(), 1);
+  reg.ingest(convoyUpdate([['a', 'completed', 'finished']]));
+  assert.equal(reg.runningCount(), 0);
+  assert.equal(JSON.stringify(reg.list().map((a: any) => a.id)), JSON.stringify(['convoy:f0e1d2c3:a']));
+  // an unrelated standalone run is untouched
+  reg.ingest({ type: 'run_update', data: { id: 'run-z', status: 'running', goal: 'other' } });
+  assert.equal(reg.runningCount(), 1);
+});

@@ -1,0 +1,727 @@
+{
+  "generated_from": [
+    "raw-qwen2.5-1.5b.jsonl",
+    "raw-qwen2.5-3b.jsonl"
+  ],
+  "models": {
+    "qwen2.5:1.5b": {
+      "complete": true,
+      "goals": 30,
+      "retrieval_coverage": 26,
+      "store": {
+        "accepted": 15,
+        "ids": [
+          "TT-000005",
+          "TT-000006",
+          "TT-000007",
+          "TT-000009",
+          "TT-000010",
+          "TT-000012",
+          "TT-000013",
+          "TT-000014",
+          "TT-000015",
+          "TT-000017",
+          "TT-000018",
+          "TT-000019",
+          "TT-000020",
+          "TT-000021",
+          "TT-000022"
+        ],
+        "content_sha256": "415130183d199865178fef5865cb6cca534b78c1aa7b442fdd797c1160f16f60",
+        "embed_model": "Xenova/all-MiniLM-L6-v2"
+      },
+      "goals_hash": "8f0526aee8b66d80325b917740213082b6815851d5bf544bc0f134d5e5421b6c",
+      "commit": "9bd690d7",
+      "arms": {
+        "A": {
+          "n": 30,
+          "pass": 7,
+          "pass_rate": 0.23333333333333334,
+          "pass_ci": {
+            "lo": 0.11792239210501232,
+            "hi": 0.40928672330324267
+          },
+          "grounded": 7,
+          "grounded_rate": 0.23333333333333334,
+          "latency_ms": {
+            "mean": 6488,
+            "p50": 4547,
+            "p95": 13350
+          },
+          "outcomes": {
+            "pass": 7,
+            "wrong": 0,
+            "ungrounded": 0,
+            "failed": 23
+          }
+        },
+        "B": {
+          "n": 30,
+          "pass": 4,
+          "pass_rate": 0.13333333333333333,
+          "pass_ci": {
+            "lo": 0.05309569424218104,
+            "hi": 0.2968168394441695
+          },
+          "grounded": 4,
+          "grounded_rate": 0.13333333333333333,
+          "latency_ms": {
+            "mean": 7260,
+            "p50": 4539,
+            "p95": 17904
+          },
+          "outcomes": {
+            "pass": 4,
+            "wrong": 0,
+            "ungrounded": 0,
+            "failed": 26
+          }
+        },
+        "C": {
+          "n": 30,
+          "pass": 4,
+          "pass_rate": 0.13333333333333333,
+          "pass_ci": {
+            "lo": 0.05309569424218104,
+            "hi": 0.2968168394441695
+          },
+          "grounded": 4,
+          "grounded_rate": 0.13333333333333333,
+          "latency_ms": {
+            "mean": 6987,
+            "p50": 4773,
+            "p95": 15184
+          },
+          "outcomes": {
+            "pass": 4,
+            "wrong": 0,
+            "ungrounded": 0,
+            "failed": 26
+          }
+        }
+      },
+      "B_minus_A": {
+        "n": 30,
+        "diff": -0.1,
+        "lo": -0.23333333333333334,
+        "hi": 0.03333333333333333,
+        "fisher_p": 0.5061775943272568,
+        "pass_x": 7,
+        "pass_y": 4
+      },
+      "C_minus_B": {
+        "n": 30,
+        "diff": 0,
+        "lo": 0,
+        "hi": 0,
+        "fisher_p": 1,
+        "pass_x": 4,
+        "pass_y": 4
+      },
+      "C_minus_A": {
+        "n": 30,
+        "diff": -0.1,
+        "lo": -0.23333333333333334,
+        "hi": 0.03333333333333333,
+        "fisher_p": 0.5061775943272568,
+        "pass_x": 7,
+        "pass_y": 4
+      },
+      "subgroups": {
+        "lookup": {
+          "A": {
+            "n": 15,
+            "pass": 7,
+            "pass_rate": 0.4666666666666667,
+            "pass_ci": {
+              "lo": 0.24809225259746442,
+              "hi": 0.6988336984894921
+            },
+            "grounded": 7,
+            "grounded_rate": 0.4666666666666667,
+            "latency_ms": {
+              "mean": 3792,
+              "p50": 2645,
+              "p95": 13350
+            },
+            "outcomes": {
+              "pass": 7,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 8
+            }
+          },
+          "B": {
+            "n": 15,
+            "pass": 4,
+            "pass_rate": 0.26666666666666666,
+            "pass_ci": {
+              "lo": 0.1089727610318281,
+              "hi": 0.5195088965768675
+            },
+            "grounded": 4,
+            "grounded_rate": 0.26666666666666666,
+            "latency_ms": {
+              "mean": 4757,
+              "p50": 3181,
+              "p95": 17904
+            },
+            "outcomes": {
+              "pass": 4,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 11
+            }
+          },
+          "C": {
+            "n": 15,
+            "pass": 4,
+            "pass_rate": 0.26666666666666666,
+            "pass_ci": {
+              "lo": 0.1089727610318281,
+              "hi": 0.5195088965768675
+            },
+            "grounded": 4,
+            "grounded_rate": 0.26666666666666666,
+            "latency_ms": {
+              "mean": 4460,
+              "p50": 3325,
+              "p95": 14663
+            },
+            "outcomes": {
+              "pass": 4,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 11
+            }
+          }
+        },
+        "repo": {
+          "A": {
+            "n": 15,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.20388926630434784
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 9184,
+              "p50": 9448,
+              "p95": 17593
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 15
+            }
+          },
+          "B": {
+            "n": 15,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.20388926630434784
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 9764,
+              "p50": 8411,
+              "p95": 22100
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 15
+            }
+          },
+          "C": {
+            "n": 15,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.20388926630434784
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 9514,
+              "p50": 8431,
+              "p95": 18143
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 15
+            }
+          }
+        },
+        "untested_function": {
+          "A": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 11073,
+              "p50": 11237,
+              "p95": 12251
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 5
+            }
+          },
+          "B": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 15351,
+              "p50": 16785,
+              "p95": 22100
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 5
+            }
+          },
+          "C": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 0,
+            "grounded_rate": 0,
+            "latency_ms": {
+              "mean": 14037,
+              "p50": 14468,
+              "p95": 18143
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 5
+            }
+          },
+          "C_minus_B": {
+            "n": 5,
+            "diff": 0,
+            "lo": 0,
+            "hi": 0,
+            "fisher_p": 1,
+            "pass_x": 0,
+            "pass_y": 0
+          },
+          "B_minus_A": {
+            "n": 5,
+            "diff": 0,
+            "lo": 0,
+            "hi": 0,
+            "fisher_p": 1,
+            "pass_x": 0,
+            "pass_y": 0
+          }
+        }
+      },
+      "decisions": {
+        "testable": true,
+        "B_better_than_A": false,
+        "B_significantly_worse_than_A": false,
+        "engine_C_better_than_B_on_untested": false
+      },
+      "lookup_B_vs_C_same_outcome": "15/15",
+      "engine_absence_runs": {
+        "runs": 0,
+        "escalated": 0
+      }
+    },
+    "qwen2.5:3b": {
+      "complete": true,
+      "goals": 30,
+      "retrieval_coverage": 26,
+      "store": {
+        "accepted": 15,
+        "ids": [
+          "TT-000005",
+          "TT-000006",
+          "TT-000007",
+          "TT-000009",
+          "TT-000010",
+          "TT-000012",
+          "TT-000013",
+          "TT-000014",
+          "TT-000015",
+          "TT-000017",
+          "TT-000018",
+          "TT-000019",
+          "TT-000020",
+          "TT-000021",
+          "TT-000022"
+        ],
+        "content_sha256": "415130183d199865178fef5865cb6cca534b78c1aa7b442fdd797c1160f16f60",
+        "embed_model": "Xenova/all-MiniLM-L6-v2"
+      },
+      "goals_hash": "8f0526aee8b66d80325b917740213082b6815851d5bf544bc0f134d5e5421b6c",
+      "commit": "9bd690d7",
+      "arms": {
+        "A": {
+          "n": 30,
+          "pass": 18,
+          "pass_rate": 0.6,
+          "pass_ci": {
+            "lo": 0.42320052498273836,
+            "hi": 0.7540960567391659
+          },
+          "grounded": 20,
+          "grounded_rate": 0.6666666666666666,
+          "latency_ms": {
+            "mean": 14222,
+            "p50": 11576,
+            "p95": 35162
+          },
+          "outcomes": {
+            "pass": 18,
+            "wrong": 2,
+            "ungrounded": 4,
+            "failed": 6
+          }
+        },
+        "B": {
+          "n": 30,
+          "pass": 17,
+          "pass_rate": 0.5666666666666667,
+          "pass_ci": {
+            "lo": 0.3919700954540873,
+            "hi": 0.7262276256938489
+          },
+          "grounded": 22,
+          "grounded_rate": 0.7333333333333333,
+          "latency_ms": {
+            "mean": 15367,
+            "p50": 13206,
+            "p95": 36027
+          },
+          "outcomes": {
+            "pass": 17,
+            "wrong": 5,
+            "ungrounded": 1,
+            "failed": 7
+          }
+        },
+        "C": {
+          "n": 30,
+          "pass": 20,
+          "pass_rate": 0.6666666666666666,
+          "pass_ci": {
+            "lo": 0.48779725813830266,
+            "hi": 0.807697044731538
+          },
+          "grounded": 25,
+          "grounded_rate": 0.8333333333333334,
+          "latency_ms": {
+            "mean": 17154,
+            "p50": 13953,
+            "p95": 37446
+          },
+          "outcomes": {
+            "pass": 20,
+            "wrong": 5,
+            "ungrounded": 0,
+            "failed": 5
+          }
+        }
+      },
+      "B_minus_A": {
+        "n": 30,
+        "diff": -0.033333333333333326,
+        "lo": -0.23333333333333334,
+        "hi": 0.16666666666666666,
+        "fisher_p": 1,
+        "pass_x": 18,
+        "pass_y": 17
+      },
+      "C_minus_B": {
+        "n": 30,
+        "diff": 0.09999999999999998,
+        "lo": 0,
+        "hi": 0.2,
+        "fisher_p": 0.5959098408345967,
+        "pass_x": 17,
+        "pass_y": 20
+      },
+      "C_minus_A": {
+        "n": 30,
+        "diff": 0.06666666666666665,
+        "lo": -0.1,
+        "hi": 0.23333333333333334,
+        "fisher_p": 0.7891703517397958,
+        "pass_x": 18,
+        "pass_y": 20
+      },
+      "subgroups": {
+        "lookup": {
+          "A": {
+            "n": 15,
+            "pass": 8,
+            "pass_rate": 0.5333333333333333,
+            "pass_ci": {
+              "lo": 0.3011663015105079,
+              "hi": 0.7519077474025355
+            },
+            "grounded": 9,
+            "grounded_rate": 0.6,
+            "latency_ms": {
+              "mean": 11730,
+              "p50": 8370,
+              "p95": 33995
+            },
+            "outcomes": {
+              "pass": 8,
+              "wrong": 1,
+              "ungrounded": 3,
+              "failed": 3
+            }
+          },
+          "B": {
+            "n": 15,
+            "pass": 11,
+            "pass_rate": 0.7333333333333333,
+            "pass_ci": {
+              "lo": 0.4804911034231324,
+              "hi": 0.8910272389681718
+            },
+            "grounded": 11,
+            "grounded_rate": 0.7333333333333333,
+            "latency_ms": {
+              "mean": 15782,
+              "p50": 11837,
+              "p95": 37974
+            },
+            "outcomes": {
+              "pass": 11,
+              "wrong": 0,
+              "ungrounded": 1,
+              "failed": 3
+            }
+          },
+          "C": {
+            "n": 15,
+            "pass": 12,
+            "pass_rate": 0.8,
+            "pass_ci": {
+              "lo": 0.5481406466534955,
+              "hi": 0.9295257935638959
+            },
+            "grounded": 12,
+            "grounded_rate": 0.8,
+            "latency_ms": {
+              "mean": 15613,
+              "p50": 8680,
+              "p95": 38440
+            },
+            "outcomes": {
+              "pass": 12,
+              "wrong": 0,
+              "ungrounded": 0,
+              "failed": 3
+            }
+          }
+        },
+        "repo": {
+          "A": {
+            "n": 15,
+            "pass": 10,
+            "pass_rate": 0.6666666666666666,
+            "pass_ci": {
+              "lo": 0.41713125151212976,
+              "hi": 0.8482389930530876
+            },
+            "grounded": 11,
+            "grounded_rate": 0.7333333333333333,
+            "latency_ms": {
+              "mean": 16714,
+              "p50": 12303,
+              "p95": 40159
+            },
+            "outcomes": {
+              "pass": 10,
+              "wrong": 1,
+              "ungrounded": 1,
+              "failed": 3
+            }
+          },
+          "B": {
+            "n": 15,
+            "pass": 6,
+            "pass_rate": 0.4,
+            "pass_ci": {
+              "lo": 0.19824228082594664,
+              "hi": 0.642535572434923
+            },
+            "grounded": 11,
+            "grounded_rate": 0.7333333333333333,
+            "latency_ms": {
+              "mean": 14952,
+              "p50": 13896,
+              "p95": 29112
+            },
+            "outcomes": {
+              "pass": 6,
+              "wrong": 5,
+              "ungrounded": 0,
+              "failed": 4
+            }
+          },
+          "C": {
+            "n": 15,
+            "pass": 8,
+            "pass_rate": 0.5333333333333333,
+            "pass_ci": {
+              "lo": 0.3011663015105079,
+              "hi": 0.7519077474025355
+            },
+            "grounded": 13,
+            "grounded_rate": 0.8666666666666667,
+            "latency_ms": {
+              "mean": 18696,
+              "p50": 16798,
+              "p95": 37446
+            },
+            "outcomes": {
+              "pass": 8,
+              "wrong": 5,
+              "ungrounded": 0,
+              "failed": 2
+            }
+          }
+        },
+        "untested_function": {
+          "A": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 1,
+            "grounded_rate": 0.2,
+            "latency_ms": {
+              "mean": 12546,
+              "p50": 5164,
+              "p95": 35162
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 1,
+              "ungrounded": 1,
+              "failed": 3
+            }
+          },
+          "B": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 5,
+            "grounded_rate": 1,
+            "latency_ms": {
+              "mean": 15292,
+              "p50": 13932,
+              "p95": 19324
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 5,
+              "ungrounded": 0,
+              "failed": 0
+            }
+          },
+          "C": {
+            "n": 5,
+            "pass": 0,
+            "pass_rate": 0,
+            "pass_ci": {
+              "lo": 0,
+              "hi": 0.43449149475208104
+            },
+            "grounded": 5,
+            "grounded_rate": 1,
+            "latency_ms": {
+              "mean": 19755,
+              "p50": 15994,
+              "p95": 37446
+            },
+            "outcomes": {
+              "pass": 0,
+              "wrong": 5,
+              "ungrounded": 0,
+              "failed": 0
+            }
+          },
+          "C_minus_B": {
+            "n": 5,
+            "diff": 0,
+            "lo": 0,
+            "hi": 0,
+            "fisher_p": 1,
+            "pass_x": 0,
+            "pass_y": 0
+          },
+          "B_minus_A": {
+            "n": 5,
+            "diff": 0,
+            "lo": 0,
+            "hi": 0,
+            "fisher_p": 1,
+            "pass_x": 0,
+            "pass_y": 0
+          }
+        }
+      },
+      "decisions": {
+        "testable": true,
+        "B_better_than_A": false,
+        "B_significantly_worse_than_A": false,
+        "engine_C_better_than_B_on_untested": false
+      },
+      "lookup_B_vs_C_same_outcome": "14/15",
+      "engine_absence_runs": {
+        "runs": 1,
+        "escalated": 0
+      }
+    }
+  },
+  "learning_benefit": "UNPROVEN"
+}

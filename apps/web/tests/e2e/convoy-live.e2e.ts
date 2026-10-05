@@ -212,6 +212,11 @@ async function main() {
         const done = await page.locator(`#convoy-board .convoy-lane-finished .convoy-card[data-convoy-id="${convoy}"]`).first().innerText();
         assert(/outcome accepted/.test(done), `finished card said: ${done}`);
         assert((await page.locator(`#convoy-board .convoy-lane-review .convoy-card[data-convoy-id="${convoy}"]`).count()) === 0, 'it left REVIEW');
+        // The taskbar and the header chip are two views of one fact: nothing is running unless a worker is OPEN (a convoy's child runs are not extra agents).
+        await page.waitForFunction(() => /^0 running/.test(document.querySelector('.wm-agent-badge')?.textContent?.trim() || ''), null, { timeout: 8000 }).catch(() => {});
+        const badgeText = (await page.locator('.wm-agent-badge').innerText()).trim();
+        const chipOpen = Number(((await page.locator('#convoy-chip').innerText().catch(() => '')).match(/OPEN (\d+)/) || [])[1] ?? NaN);
+        if (vp.width > 700) assert(!Number.isNaN(chipOpen) && badgeText.startsWith(`${chipOpen} running`), `taskbar said "${badgeText}" but the board chip says OPEN ${chipOpen}`);
         const api = ((await (await fetch(`${base}/api/convoys/${convoy}`)).json()) as any).convoy;
         assert(api.review.state === 'accepted' && api.review.decided_by === 'human' && api.chain.ok, 'recorded as a human decision in an intact chain');
         return `lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED ("${done.replace(/\n/g, ' ')}"); the decision is a human entry in the chain`;

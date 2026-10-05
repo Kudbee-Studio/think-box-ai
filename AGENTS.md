@@ -1681,6 +1681,64 @@ how it was verified, and what is still open. Newest entry first.
 - **Tests:** convoy-job-state, convoy-board, runner LEARN/stop, real-server board and review tests; Chromium 19/19; real-services LEARN run (Mercury and Qwen) passed.
 - **Not proven:** the REVIEW click against real models, the CLI board by hand, whether template candidates help any worker, SIMULATE/AUTONOMOUS (not built).
 
+### 2026-10-05 — Can a local model challenge a Think Token? Measured (same 10 true + 10 plausible-false lessons, pre-registered rule)
+
+- **Qwen 2.5 3B and Qwen 2.5 1.5B (real Ollama, $0):** both reject EVERY lesson. 3B: 20/20 good lessons wrongly rejected, 18/18 bad caught; 1.5B: the same. Neither is usable (0 unusable replies, so it is the verdict, not formatting). Neither meets the rule (reject at least 60% of bad, wrongly reject at most 10% of good), exactly like the earlier smollm2:360m result. A small local model collapses to "fail" under this prompt; a strong rejector that rejects everything is not a judge.
+- **Gemma 3 4B:** not measured. Every call hit the 30 s per-call limit on this 2 GiB GPU, so the run would only have shown "unusable"; stopped.
+- **Conclusion:** local models cannot decide whether a lesson is good. The only honest test of "does a token help" is the outcome A/B (next entry): same model and tasks, lesson on vs off.
+- Evidence: `docs/evidence/model-integration/local-challenge-qwen2.5-3b.json`, `...-1.5b.json`.
+
+### 2026-10-05 — Does a lesson improve Qwen 3B? Outcome A/B (6 trials per arm; baseline vs lesson vs generic-advice control)
+| Task | Baseline pass | Lesson pass | Control pass |
+|---|---|---|---|
+| ci | 0/6 (all ungrounded) | **6/6** | 0/6 (never called the tool) |
+| untested-function | 0/6 | 0/6 (all 6 ungrounded: right claim, wrong evidence) | 0/6 |
+- Measured: on `ci` the lesson turns 0/6 into 6/6 and the control does not, so it is the content, not "any added text". On `untested-function` the lesson changes the failure (nothing reported -> a claim the validator rejects) but does not fix it.
+- Limits: lessons are hand-written from the observed failure, not stored Think Tokens; one model, synthetic fixtures, 6 trials; the ci result is a sharp 6/6 vs 0/6 but on one task.
+- Evidence: `docs/evidence/model-integration/local-token-ab.json`.
+- Why untested-function stays ungrounded (diagnosed with one traced trial): Qwen 3B finds the right function (`orphan()`, src/alpha.ts line 4, quote verified) and claims "no test", but never runs the tests-folder search and omits `absence_search`. The validator rejects it for exactly that: the claim is true but unproven. The base prompt and the retry message already tell the model to do this; a prose lesson does not make a 3B model do a two-step protocol. The validator behaved correctly; the gap is model capability, not grounding. Next: try a real stored Think Token, and consider whether routing should keep absence claims off 3B-class models.
+
+### 2026-10-05 — P3.24: engine-run absence search, and the real Think Token A/B (pre-registered)
+- **Built:** `absence.ts`. When a finding claims something is missing ("no test", "unused", "no callers"), the engine searches the repository itself, follows one level of aliases/re-exports, and attaches the searches to the evidence. A match makes the claim false; no match with an uncut search grounds it; no symbol or a cut-off search means "cannot check" -> `needs_escalation` (logged as `absence check: escalate`, no retry spent). The auto re-run on a stronger lane is NOT built: the convoy finishes `grounding_failed` with that reason. Tests: `tests/absence.test.ts` (11), `tests/repo-loop.test.ts` updated, full suite green.
+- **Pre-registered** in `docs/evidence/p3.24-ab/PLAN.md` before any run; 30 frozen goals (hash 8f0526ae...), real stored tokens retrieved by the real hybrid recall (26/30 goals retrieved at least one), arms A none / B tokens / C tokens + engine, seed per goal, temperature 0. Raw rows: `raw-*.jsonl`; analysis `RESULTS.md` / `results.json` from them only.
+- **Result (qwen2.5:3b, n=30 per arm):** pass A 18, B 17, C 20. B-A -3.3 pts (95% CI -23.3..+16.7, Fisher p=1.0). C-B +10.0 (CI 0..+20, p=0.60). **Learning benefit: UNPROVEN.** A retrieved token did not help; nothing here shows it hurt.
+- **Result (qwen2.5:1.5b):** pass A 7, B 4, C 4; 23-26 of 30 trials fail before an answer (no tool call or malformed request), so it cannot test either idea. B-A -10 (CI -23.3..+3.3, p=0.51).
+- **Engine:** worked when it ran (one false "no test" claim on `enqueue` was rejected with its two test references) but ran once in 90 3B trials: the model mostly reports "nothing found" on untested-function goals (0/5 in every arm), so there is little claim to ground. Engine benefit on untested-function: not shown (0/5 -> 0/5).
+- **Why the tokens could not help:** the 15 accepted tokens are about GitHub PR lookups, file listing and write_file, none about repo investigation or absence; they were written by earlier test runs, not curated for these goals.
+- **Gates (clean worktree at the final commit):** lint and `tsc`/`tsgo` clean; 1130 tests, 0 failing; c8 91.71% lines (`absence.ts` 100%); CodeQL JS/TS 33 vs main 33 and Python 21 vs 21, **0 new** (the first pass found 3 new, all fixed: an unescaped-backslash regex in `absence.ts`, a check-then-read race in the A/B runner, and a dynamic-key write in `agent-registry.js`). Commit `360a9409` is mislabelled: it holds the stats/fixtures; the pre-registration is `9bd690d7`.
+- **Not claimed:** that Think Tokens cannot help; only that these stored tokens did not help these goals. Next: tokens produced from repo-investigation failures by the real pipeline, then repeat the same plan.
+
+### 2026-10-05 — Local model eval: first live measurement (item 5/10)
+
+- **What:** `local-eval.ts` (8 deterministic tasks: 5 lookups against a fake GitHub, 3 repo investigations against a tiny repo on disk; each scored pass / wrong / ungrounded / failed) plus the opt-in runner `npm run test:live-eval -- <model> --trials N` (evidence: `docs/evidence/model-integration/local-eval.json`). Tests: `tests/local-eval.test.ts` (scripted good and bad models; proves the scoring tells them apart).
+- **Qwen 2.5 3B, 2 trials per task (real Ollama, no cost):** lookup 8/10 pass (1 ungrounded, 1 failed: the CI question, once answering without looking anything up), repo 4/6 pass (both "find a function with no test" trials ungrounded: the absence proof). Median 9.0 s lookup, 34.2 s repo. `sufficient()` says NO for both classes at this sample size (needs 6+ trials, 80% pass, zero ungrounded).
+- **Limits:** 2 trials per task is a small sample; one model so far (Gemma 3 4B, Qwen 1.5B not yet run); fixtures are synthetic, not the real repo.
+
+### 2026-10-05 — Model communication list (10 items): status tracker
+
+Original list (agreed after #360). Update this table whenever an item moves.
+
+| # | Item | Status |
+|---|---|---|
+| 1 | One routing decision per goal | partly: `route-decision.ts` record and tests exist; the #344 router gap is open |
+| 2 | Generic live-data recipes | done (`live_lookup`, merged) |
+| 3 | Tool calling for local models (Qwen native, Gemma constrained JSON) | done (merged) |
+| 4 | One grounding check for every model | done (`grounding.ts`, merged) |
+| 5 | Route from measurements | IN PROGRESS: `local-eval.ts` built and unit-tested (1111 tests); first live table below; routing does not read it yet |
+| 6 | Streaming and Stop for all models | not done; only a per-convoy stop exists |
+| 7 | Think Tokens in local prompts | not done; the earlier A/B found no retrieval benefit |
+| 8 | Health checks and a fallback chain | not started |
+| 9 | Shared memory contract | not started |
+| 10 | Standing regression set | IN PROGRESS together with item 5 (`npm run test:live-eval`, evidence in `docs/evidence/model-integration/local-eval.json`) |
+
+Working locally on branch `feat/local-model-eval` (no pushes or PRs for now, founder's instruction).
+
+### 2026-10-05 — #365 P3.23 dashboard polish: one agent per convoy worker
+
+- **Fixed:** a convoy worker's child run also broadcasts its own `run_update`, and the agent registry turned that into a second agent, so one worker could be counted twice in the taskbar's "N running". The worker now owns its run (`_claimRun`): the standalone entry is folded in and later run updates for it are ignored. Standalone runs are unaffected.
+- **Proof level:** unit test (TEST VERIFIED). The convoy e2e gained a check that the taskbar count equals the board chip's OPEN count, but it passes with and without this fix, so it is a sanity check, not proof of the bug.
+- **Not done:** inner close buttons duplicate the window manager's title-bar close on managed windows; hiding them touches every window and several e2e steps, so it is left for a separate PR.
+
 ### 2026-10-05 — Pre-merge gates for #363 / #364
 
 - **Gates run on 77e83738:** CodeQL 0 new (JS/TS 23 vs 23, Python 17 vs 17); convoy e2e 19/19; dashboard e2e 24/24 with the #360 watchdog and 0 console errors; `npm test` 1105/1105. #363 and #364 do not conflict; merge #363 first. Details and the four-state table: `docs/evidence/model-integration/README.md`.

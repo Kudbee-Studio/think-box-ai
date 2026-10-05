@@ -17,7 +17,11 @@
     "test:e2e:convoy": "node --experimental-strip-types --no-warnings tests/e2e/convoy-live.e2e.ts",
     "test:live-acceptance": "node --experimental-strip-types --no-warnings tests/e2e/acceptance.live.ts",
     "test:e2e:convoy-real": "node --experimental-strip-types --no-warnings tests/e2e/convoy-real.e2e.ts",
-    "test:live-observe": "node --experimental-strip-types --no-warnings tests/e2e/observe-live.ts"
+    "test:live-observe": "node --experimental-strip-types --no-warnings tests/e2e/observe-live.ts",
+    "test:live-eval": "node --experimental-strip-types --no-warnings tests/e2e/local-eval.live.ts",
+    "test:live-token-ab": "node --experimental-strip-types --no-warnings tests/e2e/local-token-ab.live.ts",
+    "test:live-token-ab3": "node --experimental-strip-types --no-warnings tests/e2e/token-ab.live.ts",
+    "test:live-token-ab3-report": "node --experimental-strip-types --no-warnings tests/e2e/token-ab-report.ts"
   },
   "engines": {
     "node": ">=22.6"

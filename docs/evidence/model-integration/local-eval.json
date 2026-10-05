@@ -1,0 +1,213 @@
+{
+  "generated_at": "2026-10-05T06:30:52.861Z",
+  "source": "real Ollama against the deterministic fixture world (fake GitHub API, tiny repo); no cost",
+  "trials_per_task": 2,
+  "summary": [
+    {
+      "model": "qwen2.5:3b",
+      "class": "lookup",
+      "trials": 10,
+      "pass": 8,
+      "pass_rate": 0.8,
+      "wrong": 0,
+      "ungrounded": 1,
+      "failed": 1,
+      "p50_ms": 9020,
+      "p95_ms": 40482,
+      "avg_tokens": 904
+    },
+    {
+      "model": "qwen2.5:3b",
+      "class": "repo",
+      "trials": 6,
+      "pass": 4,
+      "pass_rate": 0.667,
+      "wrong": 0,
+      "ungrounded": 2,
+      "failed": 0,
+      "p50_ms": 34214,
+      "p95_ms": 47716,
+      "avg_tokens": 2591
+    }
+  ],
+  "table": "| Model | Class | Trials | Pass | Wrong | Ungrounded | Failed | p50 | p95 | Avg tokens | Sufficient |\n|---|---|---|---|---|---|---|---|---|---|---|\n| qwen2.5:3b | lookup | 10 | 80% | 0 | 1 | 1 | 9.0s | 40.5s | 904 | no |\n| qwen2.5:3b | repo | 6 | 67% | 0 | 2 | 0 | 34.2s | 47.7s | 2591 | no |",
+  "trials": [
+    {
+      "model": "qwen2.5:3b",
+      "task": "last-pr",
+      "class": "lookup",
+      "latency_ms": 30835,
+      "tool_calls": 1,
+      "tokens": 1049,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names #363 and that it is open"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "last-pr",
+      "class": "lookup",
+      "latency_ms": 15990,
+      "tool_calls": 1,
+      "tokens": 1049,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names #363 and that it is open"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "open-prs",
+      "class": "lookup",
+      "latency_ms": 40482,
+      "tool_calls": 1,
+      "tokens": 1205,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names #363 and #361"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "open-prs",
+      "class": "lookup",
+      "latency_ms": 36096,
+      "tool_calls": 1,
+      "tokens": 1173,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names #363 and #361"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "ci",
+      "class": "lookup",
+      "latency_ms": 12234,
+      "tool_calls": 1,
+      "tokens": 843,
+      "mode": "native",
+      "outcome": "ungrounded",
+      "why": "branch did"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "ci",
+      "class": "lookup",
+      "latency_ms": 9020,
+      "tool_calls": 0,
+      "tokens": 787,
+      "mode": "native",
+      "outcome": "failed",
+      "why": "no_tool_call: qwen2.5:3b gave a answer without looking anything up, so it cannot be verified",
+      "failure": "no_tool_call"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "branches",
+      "class": "lookup",
+      "latency_ms": 7227,
+      "tool_calls": 1,
+      "tokens": 743,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names main and feat/pr363"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "branches",
+      "class": "lookup",
+      "latency_ms": 6561,
+      "tool_calls": 1,
+      "tokens": 743,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "names main and feat/pr363"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "no-issues",
+      "class": "lookup",
+      "latency_ms": 6286,
+      "tool_calls": 1,
+      "tokens": 723,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "says there are none"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "no-issues",
+      "class": "lookup",
+      "latency_ms": 5674,
+      "tool_calls": 1,
+      "tokens": 723,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "says there are none"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "find-constant",
+      "class": "repo",
+      "latency_ms": 41129,
+      "tool_calls": 1,
+      "tokens": 2255,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "src/beta.ts"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "find-constant",
+      "class": "repo",
+      "latency_ms": 34214,
+      "tool_calls": 1,
+      "tokens": 2252,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "src/beta.ts"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "untested-function",
+      "class": "repo",
+      "latency_ms": 47716,
+      "tool_calls": 2,
+      "tokens": 3429,
+      "mode": "native",
+      "outcome": "ungrounded",
+      "why": "absence test in src"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "untested-function",
+      "class": "repo",
+      "latency_ms": 47271,
+      "tool_calls": 2,
+      "tokens": 3429,
+      "mode": "native",
+      "outcome": "ungrounded",
+      "why": "absence test in src"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "honest-absence",
+      "class": "repo",
+      "latency_ms": 20573,
+      "tool_calls": 1,
+      "tokens": 2089,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "reported that it does not exist"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "task": "honest-absence",
+      "class": "repo",
+      "latency_ms": 20923,
+      "tool_calls": 1,
+      "tokens": 2089,
+      "mode": "native",
+      "outcome": "pass",
+      "why": "reported that it does not exist"
+    }
+  ]
+}

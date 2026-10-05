@@ -6,6 +6,7 @@
 
 import { renderFacts, type LookupEvidence, type LookupItem } from './live-lookup.ts';
 import type { RepoEvidence } from './repo-tools.ts';
+import type { AbsenceCheck } from './absence.ts';
 
 export type ClaimKind = 'number' | 'url' | 'id' | 'branch' | 'state' | 'citation' | 'file' | 'line' | 'quote' | 'identifier' | 'absence';
 export interface UnsupportedClaim { kind: ClaimKind; claim: string; why: string }
@@ -13,7 +14,7 @@ export interface UnsupportedClaim { kind: ClaimKind; claim: string; why: string 
 export interface GroundingResult {
   status: 'GROUNDED' | 'GROUNDING FAILED';
   /** ok | unsupported_claim | no_evidence | empty_answer | unreadable_answer */
-  classification: 'ok' | 'unsupported_claim' | 'no_evidence' | 'empty_answer' | 'unreadable_answer';
+  classification: 'ok' | 'unsupported_claim' | 'no_evidence' | 'empty_answer' | 'unreadable_answer' | 'needs_escalation';
   unsupported: UnsupportedClaim[];
   /** How many claims of each kind were found and checked (a count of what was verified, so "GROUNDED" is not an empty claim). */
   checked: { numbers: number; urls: number; ids: number; branches: number; states: number; quotes?: number; identifiers?: number; absence?: number };
@@ -278,7 +279,7 @@ const norm = (s: string): string => s.replace(/\s+/g, ' ').trim().toLowerCase();
 const ABSENCE_CLAIM = /\b(no|any|without|lacks?|lacking|missing|zero|not|never|isn't|aren't|n't)\b[^.;]{0,40}\b(tests?|tested|coverage|covered|used|called|imported|referenced|callers?|usages?|references?)\b|\b(untested|unused|uncovered|unreferenced|dead code)\b/i;
 
 /** Check a finding against the repo evidence the worker's own tool calls returned. */
-export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[]): GroundingResult {
+export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[], engine?: AbsenceCheck): GroundingResult {
   const checked = { numbers: 0, urls: 0, ids: 0, branches: 0, states: 0, quotes: 0, identifiers: 0, absence: 0 };
   if (!finding.found) return { status: 'GROUNDED', classification: 'ok', unsupported: [], checked };
   const unsupported: UnsupportedClaim[] = [];
@@ -314,8 +315,17 @@ export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[]):
 
   // a claim of absence needs a recorded search that found nothing
   const claimsAbsence = ABSENCE_CLAIM.test(String(finding.claim ?? ''));
-  if (claimsAbsence && !finding.absence_search) add('absence', String(finding.claim).slice(0, 80), 'a claim that something is missing or unused needs an absence_search that was run and found nothing');
-  if (finding.absence_search) {
+  let escalate = false;
+  if (engine?.applies) {
+    // the engine ran the search itself: its verdict replaces the model's own absence_search
+    checked.absence += 1;
+    if (!engine.ran) { escalate = true; add('absence', String(finding.claim).slice(0, 80), `the engine could not check this claim: ${engine.reason ?? 'unknown'}`); }
+    else if (engine.contradicted.length) {
+      const h = engine.contradicted[0]!;
+      add('absence', String(finding.claim).slice(0, 80), `the engine searched for ${engine.symbol}${engine.aliases.length ? ` (and ${engine.aliases.join(', ')})` : ''} and found ${engine.contradicted.length} reference(s), e.g. ${h.path}:${h.line}, so the claim is false`);
+    }
+  } else if (claimsAbsence && !finding.absence_search) add('absence', String(finding.claim).slice(0, 80), 'a claim that something is missing or unused needs an absence_search that was run and found nothing');
+  if (finding.absence_search && !engine?.applies) {
     checked.absence += 1;
     const want = { query: norm(finding.absence_search.query), path: finding.absence_search.path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '') };
     const proof = evidence.find((e) => e.tool === 'repo_search' && norm(e.query) === want.query && e.path.replace(/\/$/, '') === want.path);
@@ -323,5 +333,5 @@ export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[]):
     else if (proof.matches.length) add('absence', finding.absence_search.query, `the search found ${proof.matches.length} match(es), so it is not absent`);
     else if (proof.truncated) add('absence', finding.absence_search.query, 'the search was cut off, so it does not prove absence');
   }
-  return unsupported.length ? { status: 'GROUNDING FAILED', classification: 'unsupported_claim', unsupported, checked } : { status: 'GROUNDED', classification: 'ok', unsupported: [], checked };
+  return unsupported.length ? { status: 'GROUNDING FAILED', classification: escalate && unsupported.length === 1 ? 'needs_escalation' : 'unsupported_claim', unsupported, checked } : { status: 'GROUNDED', classification: 'ok', unsupported: [], checked };
 }

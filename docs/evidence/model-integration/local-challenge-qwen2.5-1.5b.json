@@ -1,0 +1,385 @@
+{
+ "model": "qwen2.5:1.5b",
+ "mode": "schema",
+ "reps": 2,
+ "seconds": 197.6,
+ "model_calls": 38,
+ "avg_ms_per_call": 5201,
+ "gpu": [
+  {
+   "name": "qwen2.5:1.5b",
+   "size_mb": 1431,
+   "vram_mb": 668,
+   "on_gpu_pct": 47
+  }
+ ],
+ "good": {
+  "seen_by_model": 20,
+  "kept": 0,
+  "wrongly_rejected": 20
+ },
+ "bad": {
+  "seen_by_model": 18,
+  "caught": 18,
+  "wrongly_accepted": 0,
+  "rejected_by_deterministic_check_before_the_model": 1
+ },
+ "unusable": 0,
+ "bad_caught_rate": 1,
+ "good_wrong_reject_rate": 1,
+ "unusable_rate": 0,
+ "qualifies_as_first_pass_rejector": false,
+ "rows": [
+  {
+   "label": "good",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the exact goal of ",
+   "ms": 24100
+  },
+  {
+   "label": "good",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the exact goal of ",
+   "ms": 4607
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not create a summary.md file ",
+   "ms": 6918
+  },
+  {
+   "label": "good",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the exact steps de",
+   "ms": 5294
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not verify the file creation ",
+   "ms": 3687
+  },
+  {
+   "label": "good",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not verify the file creation ",
+   "ms": 2648
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the specific lesso",
+   "ms": 4535
+  },
+  {
+   "label": "good",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson's goal ",
+   "ms": 4360
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not encounter an error with t",
+   "ms": 4638
+  },
+  {
+   "label": "good",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not fail due to the missing c",
+   "ms": 4306
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly followed the lesson by ",
+   "ms": 7050
+  },
+  {
+   "label": "good",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly followed the lesson by ",
+   "ms": 5508
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the specific lesso",
+   "ms": 6440
+  },
+  {
+   "label": "good",
+   "i": 6,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not create a summary.md file ",
+   "ms": 9367
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the specific lesso",
+   "ms": 5409
+  },
+  {
+   "label": "good",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the exact steps of",
+   "ms": 4635
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson or goal",
+   "ms": 9802
+  },
+  {
+   "label": "good",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the specific lesso",
+   "ms": 3980
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly wrote the summary.md fi",
+   "ms": 5475
+  },
+  {
+   "label": "good",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the exact steps of",
+   "ms": 4373
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not return evidence that the ",
+   "ms": 3842
+  },
+  {
+   "label": "bad",
+   "i": 0,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not return evidence that the ",
+   "ms": 3177
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run does not back up the previous ver",
+   "ms": 3780
+  },
+  {
+   "label": "bad",
+   "i": 1,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not automatically back up the",
+   "ms": 3325
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run does not verify the write_file ou",
+   "ms": 5668
+  },
+  {
+   "label": "bad",
+   "i": 2,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run does not verify the write_file ou",
+   "ms": 2828
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the specific lesso",
+   "ms": 3345
+  },
+  {
+   "label": "bad",
+   "i": 3,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly followed the lesson but",
+   "ms": 3122
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly wrote the summary file ",
+   "ms": 3727
+  },
+  {
+   "label": "bad",
+   "i": 4,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly wrote the summary file ",
+   "ms": 3166
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson, as it ",
+   "ms": 5440
+  },
+  {
+   "label": "bad",
+   "i": 5,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson, as it ",
+   "ms": 3960
+  },
+  {
+   "label": "bad",
+   "i": 6,
+   "r": 0,
+   "det": true,
+   "verdict": "fail",
+   "reason": "mentions tool \"fetch_url\" that the run never called",
+   "ms": 0
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson's goal ",
+   "ms": 4246
+  },
+  {
+   "label": "bad",
+   "i": 7,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly wrote the summary to a ",
+   "ms": 3135
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run does not verify a written file by",
+   "ms": 3819
+  },
+  {
+   "label": "bad",
+   "i": 8,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run does not verify a written file by",
+   "ms": 3084
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 0,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run correctly wrote the summary to a ",
+   "ms": 5643
+  },
+  {
+   "label": "bad",
+   "i": 9,
+   "r": 1,
+   "det": false,
+   "verdict": "fail",
+   "reason": "not true to the run, not specific, repeats a known lesson: The run did not follow the lesson or goal",
+   "ms": 5192
+  }
+ ]
+}

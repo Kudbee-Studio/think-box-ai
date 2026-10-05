@@ -9,6 +9,7 @@
 // live-data lookups (answer judged by the grounding validator) and read-only repository investigation (a FINDING judged against the repo evidence).
 
 import { TOOLS, runGovernedTool, type AgentHooks, type RunContext } from './agent.ts';
+import { runAbsenceCheck, type AbsenceCheck } from './absence.ts';
 import { parseFinding, validateFinding, validateGrounding, type GroundingResult, type RepoFinding } from './grounding.ts';
 import { LOOKUP_RECIPES, renderFacts, validateLookupArgs, type LookupEvidence } from './live-lookup.ts';
 import type { OllamaChatTurn } from './ollama-client.ts';
@@ -18,7 +19,7 @@ export type ToolMode = 'native' | 'constrained';
 export type LocalFailureKind = 'malformed_tool_request' | 'no_tool_call' | 'tool_denied' | 'tool_failed' | 'model_error' | 'step_limit';
 
 export interface LocalChat {
-  chatOnce: (model: string, messages: unknown[], opts?: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number }) => Promise<OllamaChatTurn>;
+  chatOnce: (model: string, messages: unknown[], opts?: { tools?: unknown[]; format?: unknown; signal?: AbortSignal; timeoutMs?: number; numPredict?: number; seed?: number }) => Promise<OllamaChatTurn>;
   modelCapabilities: (model: string) => Promise<string[]>;
 }
 
@@ -49,6 +50,8 @@ export interface LocalToolResult<E = LookupEvidence> {
   completion_tokens: number;
   latency_ms: number;
   grounding: GroundingResult | null;
+  /** For a claim that something is missing: which path ran (engine search, or could not check and needs a stronger lane). */
+  absence?: { path: AbsenceCheck['path']; symbol?: string; aliases: string[]; contradicted: number; searches: number; reason?: string };
   failure?: { kind: LocalFailureKind; message: string };
 }
 
@@ -75,7 +78,9 @@ export interface LoopSpec<E> {
   render: (e: E) => string;
   repairHint: string;
   /** Judge the model's final text or structured report against the evidence. */
-  judge: (final: { text: string } | { args: unknown }, evidence: E[]) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
+  /** Runs before judge, may add evidence (the engine's own searches) and returns whatever judge needs. */
+  prepare?: (final: { text: string } | { args: unknown }, evidence: E[]) => Promise<unknown>;
+  judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
 }
 
 const toolSchema = (name: string) => TOOLS.find((t) => t.function.name === name)!;
@@ -162,7 +167,8 @@ export const REPO_CONSTRAINED_SCHEMA = {
   required: ['action'],
 } as const;
 
-export function repoSpec(): LoopSpec<RepoEvidence> {
+/** `engineAbsence: false` turns the engine's own absence search off (the model must then run and quote the search itself): only the A/B uses it, to measure the engine. */
+export function repoSpec(opts: { engineAbsence?: boolean } = {}): LoopSpec<RepoEvidence> {
   return {
     nativeTools: [toolSchema('repo_search'), toolSchema('repo_read'), REPORT_FINDING_TOOL],
     system: REPO_SYSTEM,
@@ -177,11 +183,20 @@ export function repoSpec(): LoopSpec<RepoEvidence> {
     evidenceOf: (o) => ((o as { evidence?: RepoEvidence }).evidence ?? null),
     render: renderRepoEvidence,
     repairHint: 'Tools: repo_search {query, path?} and repo_read {path, start?, end?}.',
-    judge: (final, evidence) => {
+    prepare: opts.engineAbsence === false ? undefined : async (final, evidence) => {
+      if (!('args' in final)) return undefined;
+      const parsed = parseFinding(final.args);
+      if (!parsed.ok) return undefined;
+      const check = await runAbsenceCheck(parsed.finding);
+      // one record per distinct search: a retried report does not add the same engine search twice
+      for (const sr of check.searches) if (!evidence.some((e) => e.tool === 'repo_search' && e.query === sr.query && e.path === sr.path && (e as { engine?: boolean }).engine)) evidence.push({ ...sr, engine: true } as typeof sr);
+      return check;
+    },
+    judge: (final, evidence, extra) => {
       if (!('args' in final)) return { ok: false, error: 'an investigation ends with report_finding, not a plain answer' };
       const parsed = parseFinding(final.args);
       if (!parsed.ok) return { ok: false, error: `the finding is malformed: ${parsed.error}` };
-      return { ok: true, finding: parsed.finding, grounding: validateFinding(parsed.finding, evidence) };
+      return { ok: true, finding: parsed.finding, grounding: validateFinding(parsed.finding, evidence, extra as AbsenceCheck | undefined) };
     },
   };
 }
@@ -257,8 +272,9 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
   const steps: LocalToolStep[] = [];
   const evidence: E[] = [];
   const messages: unknown[] = [{ role: 'system', content: mode === 'native' ? spec.system : spec.constrainedSystem }, { role: 'user', content: goal }];
+  let absence: LocalToolResult<E>['absence'];
   let toolCalls = 0; let promptTokens = 0; let completionTokens = 0; let repairs = 0; let groundingRetries = 0;
-  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, tool_calls: toolCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...partial });
+  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, tool_calls: toolCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...partial });
   const fail = (kind: LocalFailureKind, message: string): LocalToolResult<E> => done({ failure: { kind, message } });
   const noun = spec.terminalTool ? 'report' : 'answer';
 
@@ -275,7 +291,11 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
 
     if (parsed.kind === 'answer' || parsed.kind === 'final') {
       if (!evidence.length) { steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: `gave a ${noun} without calling a tool` }); return fail('no_tool_call', `${model} gave a ${noun} without looking anything up, so it cannot be verified`); }
-      const judged = spec.judge(parsed.kind === 'answer' ? { text: parsed.text } : { args: parsed.args }, evidence);
+      const finalArg = parsed.kind === 'answer' ? { text: parsed.text } : { args: parsed.args };
+      const extra = spec.prepare ? await spec.prepare(finalArg, evidence) : undefined;
+      const check = extra as AbsenceCheck | undefined;
+      if (check?.applies) absence = { path: check.path, ...(check.symbol ? { symbol: check.symbol } : {}), aliases: check.aliases, contradicted: check.contradicted.length, searches: check.searches.length, ...(check.reason ? { reason: check.reason } : {}) };
+      const judged = spec.judge(finalArg, evidence, extra);
       if (!judged.ok) {
         steps.push({ ...base, raw: parsed.raw, outcome: 'malformed', error: judged.error });
         if (repairs >= 1) return fail('malformed_tool_request', `${model} made an invalid ${noun} twice: ${judged.error}`);
@@ -286,7 +306,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
       }
       // A report that did not trace to the evidence gets ONE round of feedback naming the unsupported claims, so the model can run the missing tool call
       // and report again. The retry is a step on the record; a second failure is returned as it is.
-      if (spec.terminalTool && judged.grounding.status !== 'GROUNDED' && groundingRetries < 1 && toolCalls < maxSteps) {
+      if (spec.terminalTool && judged.grounding.status !== 'GROUNDED' && judged.grounding.classification !== 'needs_escalation' && groundingRetries < 1 && toolCalls < maxSteps) {
         groundingRetries += 1;
         steps.push({ ...base, raw: parsed.raw, outcome: 'malformed', error: `not grounded: ${judged.grounding.unsupported.map((u) => `${u.kind} ${u.claim}`).join('; ')}` });
         messages.push({ role: 'assistant', content: mode === 'native' ? '' : parsed.raw, ...(mode === 'native' ? { tool_calls: turn.tool_calls } : {}) });
