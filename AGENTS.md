@@ -1705,6 +1705,7 @@ how it was verified, and what is still open. Newest entry first.
 - **Result (qwen2.5:1.5b):** pass A 7, B 4, C 4; 23-26 of 30 trials fail before an answer (no tool call or malformed request), so it cannot test either idea. B-A -10 (CI -23.3..+3.3, p=0.51).
 - **Engine:** worked when it ran (one false "no test" claim on `enqueue` was rejected with its two test references) but ran once in 90 3B trials: the model mostly reports "nothing found" on untested-function goals (0/5 in every arm), so there is little claim to ground. Engine benefit on untested-function: not shown (0/5 -> 0/5).
 - **Why the tokens could not help:** the 15 accepted tokens are about GitHub PR lookups, file listing and write_file, none about repo investigation or absence; they were written by earlier test runs, not curated for these goals.
+- **Gates (clean worktree at the final commit):** lint and `tsc`/`tsgo` clean; 1130 tests, 0 failing; c8 91.71% lines (`absence.ts` 100%); CodeQL JS/TS 33 vs main 33 and Python 21 vs 21, **0 new** (the first pass found 3 new, all fixed: an unescaped-backslash regex in `absence.ts`, a check-then-read race in the A/B runner, and a dynamic-key write in `agent-registry.js`). Commit `360a9409` is mislabelled: it holds the stats/fixtures; the pre-registration is `9bd690d7`.
 - **Not claimed:** that Think Tokens cannot help; only that these stored tokens did not help these goals. Next: tokens produced from repo-investigation failures by the real pipeline, then repeat the same plan.
 
 ### 2026-10-05 — Local model eval: first live measurement (item 5/10)
