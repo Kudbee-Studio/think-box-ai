@@ -16,6 +16,8 @@ export interface OllamaChatTurn {
   prompt_tokens: number;
   completion_tokens: number;
   latency_ms: number;
+  /** Milliseconds Ollama spent loading the model for this call (0 when it was already loaded): a cold start shows up here, not in generation. */
+  load_ms?: number;
   error?: string;
 }
 
@@ -157,6 +159,7 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
         prompt_tokens: Number(body.prompt_eval_count) || 0,
         completion_tokens: Number(body.eval_count) || 0,
         latency_ms: Date.now() - startedAt,
+        load_ms: Math.round((Number(body.load_duration) || 0) / 1e6),
       };
     } catch (err) {
       return { content: '', tool_calls: [], prompt_tokens: 0, completion_tokens: 0, latency_ms: Date.now() - startedAt, error: errorMessage(err) };

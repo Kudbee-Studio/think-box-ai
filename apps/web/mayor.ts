@@ -60,6 +60,8 @@ export interface ConvoyPlan {
   /** Always true here: this object describes work, it is not work. */
   plan_only: true;
   side_effects: 'none';
+  /** Which model runs the lookup/investigation and why (the measured table, the operator, or the default). */
+  routing: { source: 'operator' | 'measured' | 'default'; model: string | null; reason: string } | null;
   goal: string;
   created_at: number;
   workers: PlannedWorker[];
@@ -96,6 +98,8 @@ export interface PlanInput {
   mode?: ThinkMode;
   /** The model for a live-data lookup (whichever the operator picked: mercury-2, qwen2.5:3b, gemma3:4b ...). */
   lookupModel: string | null;
+  /** How the lookup model was chosen (operator, the measured table, or the default), and why. Shown on the plan; not used to decide anything here. */
+  routing?: { source: 'operator' | 'measured' | 'default'; model: string | null; reason: string };
   /** The worker-agent model for specialist work (and the escalation fallback). */
   agentModel: string | null;
   isLocalModel: (model: string) => boolean;
@@ -206,7 +210,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   return {
     ok: true,
     plan: {
-      plan_only: true, side_effects: 'none', goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, added_by_mayor: added, escalation, budget,
+      plan_only: true, side_effects: 'none', routing: input.routing ?? null, goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, added_by_mayor: added, escalation, budget,
       budget_use: { workers: workers.length, worst_case_workers: worstWorkers, estimated_cost_usd: estimatedCost, worst_case_cost_usd: worstCost, estimated_tool_calls: estimatedCalls },
       expected_convoy: { dashboard_rows: 1, children: workers.length, waves: waves.length },
       executable: blocked.length === 0 && workers.length > 0,

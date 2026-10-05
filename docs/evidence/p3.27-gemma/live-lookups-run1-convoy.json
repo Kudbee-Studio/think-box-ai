@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-10-05T18:44:21.179Z",
+  "note": "real Chromium, real server on 127.0.0.1:3000 (throwaway data, no Mercury key), real Ollama, real GitHub read-only API; model field blank so the measured table routes; only the first answer is checked against GitHub",
+  "passed": false,
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "results": [
+    {
+      "goal": "What is the last PR?",
+      "convoy_id": "058d7795-b373-498a-a529-76170133d2c1",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "state": "COMPLETED",
+      "grounding": "GROUNDED",
+      "final_answer": "The last pull request is #366, merged by KudbeeZero on 2026-10-05T18:09:21Z, which addresses an empty reply recovery for investigation goals.",
+      "worker_model": "gemma3:4b",
+      "worker_duration_ms": 72363,
+      "wall_ms": 74527,
+      "route_line": null,
+      "cost_usd": 0,
+      "routed_by_table": true,
+      "pass": true,
+      "github_newest": 366,
+      "answer_names_github_newest": true
+    },
+    {
+      "goal": "Which pull requests are open?",
+      "convoy_id": "058d7795-b373-498a-a529-76170133d2c1",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#approve-approval') to be visible\u001b[22m\n\u001b[2m    241 × locator resolved to hidden <button class=\"btn-primary\" id=\"approve-approval\">✓ Approve</button>\u001b[22m\n"
+    },
+    {
+      "goal": "Did the last CI run pass?",
+      "convoy_id": "18070e29-27a6-4c5c-87b8-4aaba334ea86",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#approve-approval') to be visible\u001b[22m\n\u001b[2m    241 × locator resolved to hidden <button class=\"btn-primary\" id=\"approve-approval\">✓ Approve</button>\u001b[22m\n"
+    },
+    {
+      "goal": "What branches exist?",
+      "convoy_id": "d9bc4525-ba64-4ccb-b62f-86919a9c105e",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#approve-approval') to be visible\u001b[22m\n\u001b[2m    240 × locator resolved to hidden <button class=\"btn-primary\" id=\"approve-approval\">✓ Approve</button>\u001b[22m\n"
+    },
+    {
+      "goal": "Are there any open issues?",
+      "convoy_id": "58357eba-db57-4eeb-a66e-7c0e3e058f63",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#approve-approval') to be visible\u001b[22m\n\u001b[2m    240 × locator resolved to hidden <button class=\"btn-primary\" id=\"approve-approval\">✓ Approve</button>\u001b[22m\n"
+    },
+    {
+      "goal": "Show me the most recent pull request.",
+      "convoy_id": "2431b9e1-5101-4493-9cce-3a99e0b65b43",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "planned_model": "gemma3:4b",
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#approve-approval') to be visible\u001b[22m\n\u001b[2m    241 × locator resolved to hidden <button class=\"btn-primary\" id=\"approve-approval\">✓ Approve</button>\u001b[22m\n"
+    }
+  ]
+}

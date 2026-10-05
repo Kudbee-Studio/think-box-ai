@@ -47,7 +47,8 @@ import { evaluatePolicy, planConvoy } from './mayor.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
 import { renderFacts, type LookupEvidence } from './live-lookup.ts';
-import { isGithubRecipe, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
+import { goalClassOf, loadMeasurements, pickMeasured, rerouteLookup } from './measured-routing.ts';
+import { isGithubRecipe, matchRepoGoal, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, profileMemoryRoot } from './memory.ts';
@@ -357,7 +358,7 @@ async function runGitAction(sessionId: string, action: string, input: PluginInpu
 }
 
 // ─── Ollama integration ────────────────────────────────────────
-const { requestJanus, listModels, streamOllama, chatOnce, modelCapabilities } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
+const { requestJanus, listModels, listOllamaModels, streamOllama, chatOnce, modelCapabilities } = createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled });
 // ─── Plugin system ─────────────────────────────────────────────
 function registerPlugin(name: string, config: Omit<PluginConfig, 'name'>, enabled = true): void {
   plugins.set(name, {
@@ -926,8 +927,16 @@ export class AgentSession {
         // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
         const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
         if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
-          this.config.model = next.model;
-          this.route = recipeRoute(next.model, recipe.id, recipe.label);
+          // The measured table decides which local model words a live lookup. A model it does not qualify is replaced by one it does, and the thought line says so.
+          refreshInstalledLocal();
+          const rerouted = rerouteLookup(next.model, installedLocal, loadMeasurements());
+          if (rerouted) {
+            this.addThought({ type: 'routing', content: `Routed to ${rerouted.model} instead of ${next.model}: ${rerouted.why}.`, status: 'info' });
+            next = { ...next, model: rerouted.model };
+          }
+          const recipeModel: string = rerouted?.model ?? next.model ?? defaultLocalModel;
+          this.config.model = recipeModel;
+          this.route = recipeRoute(recipeModel, recipe.id, recipe.label);
           this.config.provider = 'ollama';
           this.broadcast({ type: 'status', data: 'running' });
           const result = await this.runRecipeGoal(next.goal, recipe, next.task);
@@ -2165,13 +2174,34 @@ function costOfModel(model: string | null, kindIn: 'lookup' | 'specialist' | 're
   return costs.length ? { usd: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 1e6) / 1e6, basis: `average of ${costs.length} measured ${model} ${kind} run(s)` } : { usd: null, basis: `no measured ${model} ${kind} runs yet` };
 }
 
+// Installed local models, for routing from the measured table. Refreshed in the background (never awaited by a request); unknown until the first answer.
+let installedLocal: string[] | null = null;
+let installedAt = 0;
+function refreshInstalledLocal(): void {
+  if (Date.now() - installedAt < 30_000) return;
+  installedAt = Date.now();
+  void listOllamaModels().then((tags) => { installedLocal = tags.map((t) => t.name); }).catch(() => { /* Ollama down: stay unknown or keep the last list */ });
+}
+refreshInstalledLocal();
+
 registerConvoyRoutes(app, {
   convoyStore,
   runStore,
   plan: (goal, model, budget, mode) => {
     const agentModel = inceptionConfigured() ? INCEPTION_MODELS[0]! : null;
+    refreshInstalledLocal();
+    // The operator's choice wins. Otherwise the measured table decides (an installed local model that is measured sufficient for this class of goal);
+    // when nothing qualifies, the existing default applies and the reason says why the table did not decide.
+    let routing: { source: 'operator' | 'measured' | 'default'; model: string | null; reason: string };
+    if (model) routing = { source: 'operator', model, reason: 'chosen by the operator' };
+    else {
+      const recipe = matchRecipe(goal);
+      const cls = goalClassOf(!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal));
+      const pick = pickMeasured(cls, installedLocal, loadMeasurements());
+      routing = pick.model ? { source: 'measured', model: pick.model, reason: pick.reason } : { source: 'default', model: agentModel || resolveLocalModel(), reason: pick.reason };
+    }
     const result = planConvoy({
-      goal, budget, mode, lookupModel: model || agentModel || resolveLocalModel(), agentModel, isLocalModel: (m) => !isInceptionModel(m),
+      goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isInceptionModel(m),
       availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
     });
     if (!result.ok) return result;

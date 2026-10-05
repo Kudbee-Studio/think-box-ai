@@ -23,6 +23,8 @@
     "test:live-token-ab3": "node --experimental-strip-types --no-warnings tests/e2e/token-ab.live.ts",
     "test:live-repo-harvest": "node --experimental-strip-types --no-warnings tests/e2e/repo-token-harvest.live.ts",
     "test:live-repo-recovery": "node --experimental-strip-types --no-warnings tests/e2e/repo-recovery.live.ts",
+    "test:e2e:gemma-route": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/gemma-route-live.e2e.ts",
+    "export-routing-table": "node --experimental-strip-types --no-warnings tests/e2e/routing-table-export.ts",
     "test:live-token-ab3-report": "node --experimental-strip-types --no-warnings tests/e2e/token-ab-report.ts"
   },
   "engines": {
