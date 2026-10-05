@@ -217,6 +217,48 @@ async function main() {
         return `lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED ("${done.replace(/\n/g, ' ')}"); the decision is a human entry in the chain`;
       });
 
+      await step(vp.name, 'i layered agent windows', page, async () => {
+        // the header chip and the goal bar reach the same features
+        const chip = await page.locator('#convoy-chip').innerText().catch(() => '');
+        if (vp.width > 700) assert(/READY \d+ · OPEN \d+ · REVIEW \d+/.test(chip), `the header chip said "${chip}"`);
+        // a board card is an agent: clicking it opens its own window
+        const card = page.locator('#convoy-board .convoy-lane-finished .convoy-card-open').first();
+        await card.click();
+        await page.waitForSelector('.process-window-agent', { state: 'visible', timeout: 8000 });
+        await page.waitForSelector('.process-window-agent .pw-lane', { timeout: 8000 });
+        const agentText = await page.locator('.process-window-agent .pw-body').innerText();
+        for (const must of ['FINISHED', 'Bead', 'tb-', 'Goal', 'Grounding', 'GROUNDED']) assert(agentText.includes(must) || agentText.toUpperCase().includes(must.toUpperCase()), `the agent window lacks "${must}": ${agentText.slice(0, 300)}`);
+        // deeper: Run steps, then a Tool call, then Evidence, each its own window layered over the last
+        await page.locator('.process-window-agent .pw-go-run').click();
+        await page.waitForSelector('.process-window-run .pw-step-tool', { state: 'visible', timeout: 8000 });
+        await page.locator('.process-window-run .pw-step-tool').first().click();
+        await page.waitForSelector('.process-window-tool .pw-go-evidence', { state: 'visible', timeout: 8000 });
+        await page.locator('.process-window-tool .pw-go-evidence').click();
+        await page.waitForSelector('.process-window-evidence .pw-item', { state: 'visible', timeout: 8000 });
+        const stack = await page.evaluate(() => ['agent', 'run', 'tool', 'evidence'].map((k) => { const el = document.querySelector(`.process-window-${k}`) as HTMLElement | null; return { k, z: Number(el?.style.zIndex || 0), visible: !!el && !el.hidden }; }));
+        assert(stack.every((x) => x.visible), `not all four windows are open: ${JSON.stringify(stack)}`);
+        assert(stack[0]!.z < stack[1]!.z && stack[1]!.z < stack[2]!.z && stack[2]!.z < stack[3]!.z, `the windows are not layered in order: ${JSON.stringify(stack)}`);
+        await shot(page, `convoy-${vp.name}-i-four-layered-windows.png`);
+        const evText = await page.locator('.process-window-evidence .pw-body').innerText();
+        assert(/#361/.test(evText) && /merged/.test(evText), `the evidence window did not show the PR: ${evText.slice(0, 200)}`);
+        const toolText = await page.locator('.process-window-tool').innerText();
+        assert(/live_lookup/.test(toolText) && /Arguments/i.test(toolText), 'the tool window shows the call and its arguments');
+        // re-opening an open window brings it forward instead of making a copy
+        await page.locator('.process-window-agent .pw-go-run').click().catch(() => undefined);
+        assert((await page.locator('.process-window-run').count()) === 1, 'a window must not be opened twice');
+        // closing the deepest one leaves the others
+        await page.locator('.process-window-evidence .pw-close').click();
+        assert((await page.locator('.process-window-evidence').count()) === 0 && (await page.locator('.process-window-tool').count()) === 1, 'closing one window leaves the rest');
+        // the goal bar plans a convoy with what is typed there
+        await page.locator('.process-window .pw-close').evaluateAll((els) => els.forEach((e) => (e as HTMLElement).click()));
+        await page.fill('#goal-input', 'What is the last PR?').catch(() => undefined);
+        await page.click('#plan-convoy');
+        await page.waitForSelector('#convoy-goal', { state: 'visible', timeout: 8000 });
+        const preset = await page.inputValue('#convoy-goal');
+        assert(preset === 'What is the last PR?', `the goal bar goal did not reach the planner: "${preset}"`);
+        return `card -> Agent -> Run steps -> Tool call -> Evidence opened as four layered windows (z ${stack.map((x) => x.z).join(' < ')}); no duplicates; closing one keeps the rest; "Plan as convoy" carries the goal over; chip "${chip}"`;
+      });
+
       await step(vp.name, 'f layout', page, async () => {
         const overflow = await page.evaluate(() => { const w = document.querySelector('#convoy-window .modal') as HTMLElement | null; const r = w?.getBoundingClientRect(); return { right: r ? Math.round(r.right) : -1, vw: window.innerWidth, scrollX: document.documentElement.scrollWidth - window.innerWidth }; });
         assert(overflow.right <= overflow.vw + 1, `the Convoys window is wider than the viewport (right ${overflow.right} > ${overflow.vw})`);

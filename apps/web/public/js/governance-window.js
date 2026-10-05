@@ -33,6 +33,9 @@
     var registry = this._registry();
     var agent = registry && registry.get(String(id));
     if (!agent) return false;
+    // A convoy worker has its own layered process window (Agent > Run > Tool > Evidence) instead of the generic governance view.
+    var pw = this.win.processWindows || root.processWindows;
+    if (agent.convoy_id && pw) { pw.open('agent', { convoyId: agent.convoy_id, workerId: agent.worker_id }); return true; }
     var el = this.doc.getElementById ? this.doc.getElementById(safeId(id)) : null;
     if (!el) el = this._create(id);
     this._render(el, agent);

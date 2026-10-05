@@ -42,12 +42,53 @@
     var self = this;
     var button = this.doc.getElementById && this.doc.getElementById('convoys-button');
     if (button) button.addEventListener('click', function () { self.toggle(); });
+    // The goal bar: take the goal and model already typed there and plan them as a convoy (nothing runs until a human approves the plan).
+    var planBtn = this.doc.getElementById && this.doc.getElementById('plan-convoy');
+    if (planBtn) planBtn.addEventListener('click', function () {
+      var g = self.doc.getElementById('goal-input'); var m = self.doc.getElementById('model-select');
+      self.openWith({ goal: g && g.value ? g.value.trim() : '', model: m && m.value ? m.value : '' });
+    });
+    this._mountChip();
     if (this.win.addEventListener) {
-      this.win.addEventListener('convoy:update', function (e) { self.onUpdate(e && e.detail); });
+      this.win.addEventListener('convoy:update', function (e) { self.onUpdate(e && e.detail); self.refreshChip(); });
       this.win.addEventListener('convoy:error', function (e) { self.error = e && e.detail && e.detail.error ? String(e.detail.error) : 'convoy error'; self.render(); });
     }
     this.mounted = true;
     return true;
+  };
+
+  /** Open the window with a goal and model already filled in (from the goal bar). */
+  ConvoyWindow.prototype.openWith = function (preset) {
+    if (preset && typeof preset.goal === 'string' && preset.goal) this.form.goal = preset.goal;
+    if (preset && typeof preset.model === 'string' && preset.model) this.form.model = preset.model;
+    this.open();
+    var self = this;
+    var focus = function () { var input = self.doc.getElementById && self.doc.getElementById('convoy-goal'); if (input && input.focus) input.focus(); };
+    if (this.win.setTimeout) this.win.setTimeout(focus, 60); else focus();
+  };
+
+  /** The header chip: the board at a glance (READY / OPEN / REVIEW), and it asks for attention when a result is waiting for a human. */
+  ConvoyWindow.prototype._mountChip = function () {
+    var self = this;
+    if (!this.doc.getElementById || this.doc.getElementById('convoy-chip')) return;
+    var anchor = this.doc.getElementById('header-connection');
+    if (!anchor || !anchor.parentNode) return;
+    var chip = this._el('button', 'convoy-chip', 'Board');
+    chip.id = 'convoy-chip'; chip.type = 'button'; chip.title = 'Agent board: READY / OPEN / REVIEW. Click to open the Convoys window.';
+    chip.addEventListener('click', function () { self.open(); });
+    anchor.parentNode.insertBefore(chip, anchor);
+    this.refreshChip();
+  };
+
+  ConvoyWindow.prototype.refreshChip = function () {
+    var chip = this.doc.getElementById && this.doc.getElementById('convoy-chip');
+    if (!chip) return Promise.resolve();
+    return this._json('/api/convoys/board').then(function (b) {
+      var c = b.counts || {};
+      chip.textContent = 'READY ' + (c.ready || 0) + ' \u00B7 OPEN ' + (c.open || 0) + ' \u00B7 REVIEW ' + (c.review || 0);
+      chip.className = 'convoy-chip' + (c.review ? ' has-review' : '') + (c.open ? ' has-open' : '');
+      chip.setAttribute('aria-label', (c.ready || 0) + ' ready, ' + (c.open || 0) + ' open, ' + (c.review || 0) + ' waiting for review');
+    }, function () { /* the board is optional chrome: no chip text rather than an error */ });
   };
 
   ConvoyWindow.prototype.toggle = function () {
@@ -148,7 +189,12 @@
       ((b.lanes && b.lanes[lane[0]]) || []).slice(0, 6).forEach(function (card) {
         var el = self._el('div', 'convoy-card'); el.dataset.convoyId = card.convoy_id;
         var open = self._el('button', 'convoy-card-open', card.name + ' \u00B7 ' + (card.model || 'no model')); open.type = 'button';
-        open.addEventListener('click', function () { self.selected = card.convoy_id; self.detail = null; self.refresh(); });
+        // A card is an agent: its own window opens over this one, and goes deeper from there (Run steps, Tool call, Evidence).
+        open.addEventListener('click', function () {
+          self.selected = card.convoy_id; self.detail = null; self.refresh();
+          var pw = self.win.processWindows || root.processWindows;
+          if (pw) pw.open('agent', { convoyId: card.convoy_id, workerId: card.worker_id });
+        });
         el.appendChild(open);
         el.appendChild(self._el('div', 'convoy-card-goal', card.goal));
         el.appendChild(self._el('div', 'convoy-card-detail', card.detail));

@@ -6,7 +6,13 @@ import type { ConvoyRecord, WorkerRecord } from './convoy.ts';
 export type Lane = 'ready' | 'open' | 'review' | 'finished';
 export const LANES: readonly Lane[] = ['ready', 'open', 'review', 'finished'];
 
+/** The bead id of a convoy (`tb-1a2b3c4d`) or of one of its workers (`tb-1a2b3c4d.lookup-1`). */
+export const beadId = (convoyId: string, workerId?: string): string => `tb-${convoyId.slice(0, 8)}${workerId ? `.${workerId}` : ''}`;
+
 export interface BoardCard {
+  /** The worker's bead (see convoy-beads.ts). */
+  bead: string;
+  blocked_by: string[];
   convoy_id: string;
   goal: string;
   worker_id: string;
@@ -53,7 +59,7 @@ export function boardFor(convoys: ConvoyRecord[]): { lanes: Record<Lane, BoardCa
     for (const w of c.workers) {
       const l = laneOf(c, w);
       if (!l) { notReady += 1; continue; }
-      lanes[l.lane].push({ convoy_id: c.id, goal: c.goal.slice(0, 120), worker_id: w.id, name: w.name, model: w.model, kind: w.kind, lane: l.lane, detail: l.detail, at: c.updated_at });
+      lanes[l.lane].push({ bead: beadId(c.id, w.id), blocked_by: (c.plan.workers.find((p) => p.id === w.id)?.depends_on ?? []).map((d) => beadId(c.id, d)).filter((b) => { const dep = c.workers.find((x) => beadId(c.id, x.id) === b); return !dep || (dep.status !== 'completed' && dep.status !== 'failed' && dep.status !== 'skipped'); }), convoy_id: c.id, goal: c.goal.slice(0, 120), worker_id: w.id, name: w.name, model: w.model, kind: w.kind, lane: l.lane, detail: l.detail, at: c.updated_at });
     }
   }
   for (const lane of LANES) lanes[lane].sort((a, b) => b.at - a.at);

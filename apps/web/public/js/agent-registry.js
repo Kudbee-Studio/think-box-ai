@@ -199,6 +199,21 @@
     return true;
   };
 
+  // A convoy's workers are agents too: each carries its lane on the agent board (READY / OPEN / REVIEW / FINISHED) and its bead id, so the taskbar, the
+  // governance window and the layered process windows all speak about the same worker.
+  AgentRegistry.prototype._fromConvoy = function (d) {
+    if (!d || !d.id || !Array.isArray(d.workers)) return false;
+    var self = this;
+    d.workers.forEach(function (w) {
+      var lane = w.lane || 'none';
+      var status = lane === 'open' ? 'running' : lane === 'review' ? 'paused' : lane === 'ready' ? 'idle' : lane === 'finished' ? (w.status === 'failed' ? 'failed' : 'idle') : 'paused';
+      self._ensure('convoy:' + String(d.id).slice(0, 8) + ':' + w.id, { goal: d.goal, status: status, lane: lane, bead: w.bead, convoy_id: d.id, worker_id: w.id, worker_name: w.name, model: w.model, run_id: w.run_id, think_mode: d.think_mode });
+      var agent = self.agents['convoy:' + String(d.id).slice(0, 8) + ':' + w.id];
+      agent.status = status; agent.lane = lane;
+    });
+    return true;
+  };
+
   AgentRegistry.prototype._fromResult = function (d) {
     var agent = this._lastRunning() || this._last();
     if (!agent) return false;
@@ -232,6 +247,9 @@
       case 'specialist_result':
         handled = this._fromSpecialist(data);
         break;
+      case 'convoy_update':
+        handled = this._fromConvoy(data);
+        break;
       case 'approval_request':
         handled = this.addApproval(data.agentId || data.agent_id || data.sessionId, data);
         break;
@@ -260,7 +278,7 @@
   AgentRegistry.prototype._signature = function () {
     return JSON.stringify(this.list().map(function (a) {
       return {
-        id: a.id, status: a.status, run_id: a.run_id, goal: a.goal, steps_completed: a.steps_completed,
+        id: a.id, status: a.status, lane: a.lane, bead: a.bead, run_id: a.run_id, goal: a.goal, steps_completed: a.steps_completed,
         tokens_used: a.tokens_used, think_box_id: a.think_box_id, approval_pending: a.approval_pending,
         approvals: (a.approvals || []).map(function (x) { return { id: x.id, reason: x.reason, resolved: x.resolved }; })
       };

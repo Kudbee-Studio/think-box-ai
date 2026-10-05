@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-05T01:22:55.670Z",
+  "generated_at": "2026-10-05T01:32:15.648Z",
   "note": "real Chromium + real server.ts; fake GitHub, fake Ollama, scripted Mercury stand-in",
-  "passed": 17,
-  "total": 17,
+  "passed": 19,
+  "total": 19,
   "results": [
     {
       "viewport": "1440",
@@ -52,6 +52,13 @@
       "status": "PASS",
       "note": "lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED (\"Live lookup (latest pull request (any state)) · qwen2.5:3b What is the last PR? completed, outcome accepted\"); the decision is a human entry in the chain",
       "screenshot": "convoy-1440-h-agent-board-and-outcome-review.png"
+    },
+    {
+      "viewport": "1440",
+      "step": "i layered agent windows",
+      "status": "PASS",
+      "note": "card -> Agent -> Run steps -> Tool call -> Evidence opened as four layered windows (z 1017 < 1019 < 1021 < 1022); no duplicates; closing one keeps the rest; \"Plan as convoy\" carries the goal over; chip \"READY 0 · OPEN 0 · REVIEW 1\"",
+      "screenshot": "convoy-1440-i-layered-agent-windows.png"
     },
     {
       "viewport": "1440",
@@ -108,6 +115,13 @@
       "status": "PASS",
       "note": "lanes READY/OPEN/REVIEW/FINISHED; a REVIEW card was accepted by click and moved to FINISHED (\"Live lookup (latest pull request (any state)) · qwen2.5:3b What is the last PR? completed, outcome accepted\"); the decision is a human entry in the chain",
       "screenshot": "convoy-390-h-agent-board-and-outcome-review.png"
+    },
+    {
+      "viewport": "390",
+      "step": "i layered agent windows",
+      "status": "PASS",
+      "note": "card -> Agent -> Run steps -> Tool call -> Evidence opened as four layered windows (z 1017 < 1019 < 1021 < 1022); no duplicates; closing one keeps the rest; \"Plan as convoy\" carries the goal over; chip \"READY 0 · OPEN 0 · REVIEW 2\"",
+      "screenshot": "convoy-390-i-layered-agent-windows.png"
     },
     {
       "viewport": "390",

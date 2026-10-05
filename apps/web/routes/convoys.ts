@@ -5,6 +5,7 @@ import { ConvoyError, verifyChain, type ConvoyRecord, type ConvoyStore } from '.
 import { summarize } from '../convoy-runner.ts';
 import { projectJobState } from '../convoy-job-state.ts';
 import { boardFor, laneOf } from '../convoy-board.ts';
+import { beadsFor, type BeadStatus } from '../convoy-beads.ts';
 import { THINK_MODES, type ThinkMode } from '../mayor.ts';
 import type { RunRecord, RunStore } from '../runs.ts';
 import type { Request } from './types.ts';
@@ -46,6 +47,20 @@ export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void 
   app.get('/api/convoys', (req: Request, res: Response) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     res.json({ convoys: convoyStore.list(limit).map(summarize) });
+  });
+
+  // Beads: every convoy and every worker as a Gas City-style work item (id, type, status open/in_progress/closed, blockers, ready). A view over convoys.
+  // ?status=open|in_progress|closed  ?ready=1  ?type=convoy|task
+  app.get('/api/beads', (req: Request, res: Response) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : '';
+    const type = typeof req.query.type === 'string' ? req.query.type : '';
+    if (status && !['open', 'in_progress', 'closed'].includes(status)) return res.status(400).json({ error: 'status must be open, in_progress or closed' });
+    if (type && !['convoy', 'task'].includes(type)) return res.status(400).json({ error: 'type must be convoy or task' });
+    let beads = beadsFor(convoyStore.list(100));
+    if (status) beads = beads.filter((b) => b.status === (status as BeadStatus));
+    if (type) beads = beads.filter((b) => b.type === type);
+    if (req.query.ready === '1') beads = beads.filter((b) => b.ready);
+    res.json({ beads, counts: { open: beads.filter((b) => b.status === 'open').length, in_progress: beads.filter((b) => b.status === 'in_progress').length, closed: beads.filter((b) => b.status === 'closed').length, ready: beads.filter((b) => b.ready).length } });
   });
 
   // The agent board: READY / OPEN / REVIEW / FINISHED for every worker of the recent convoys. Registered before :id so it is not captured by it.

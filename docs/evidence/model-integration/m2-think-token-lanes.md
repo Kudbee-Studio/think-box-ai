@@ -47,3 +47,17 @@ Those notes say hosted Gas Town's Refinery merges by itself. I could not verify 
 - The CLI board and review commands are parity-tested but were not run by hand against a live server with real convoys.
 - Candidates come from the deterministic template extractor only, so they are generic ("Ground X in evidence"); whether such tokens ever help a worker is unproven (the repo's own A/B tests found no benefit from retrieving lessons).
 - SIMULATE and AUTONOMOUS do not exist yet.
+
+## Beads and dashboard integration (added in the same PR)
+
+**Beads.** `convoy-beads.ts` is a pure view that gives every convoy a *convoy bead* (`tb-1a2b3c4d`) and every worker a *task bead* under it (`tb-1a2b3c4d.lookup-1`), in Gas City's terms: status `open` → `in_progress` → `closed`, `blocked_by`, `ready` (open with no open blocker), and `waiting_for` (a human's approval of the plan, or other beads). A worker's result stays `in_progress` (lane REVIEW) until a human accepts or rejects it, then it closes. It is a view over the convoys, not a store, so it cannot drift from them. `GET /api/beads?status=&type=&ready=1` serves it; board cards carry their bead id and blockers. Not done: importing from or exporting to the real Beads (`bd`) ledger.
+
+**Layered process windows** (`public/js/process-windows.js`). Every agent has its own popup, and each step deeper opens another popup over it: **Agent** (lane, bead, blockers, model, cost, grounding, result, Accept/Reject, Stop) → **Run steps** → **Tool call** (arguments, output) → **Evidence** (lookup items or repo lines, the finding, the disk re-check). They are ordinary managed windows, so each has a title bar, a taskbar entry, drag and resize, and opens over the one that opened it; reopening one brings it forward, and open windows re-read the convoy on every update.
+
+**Where it plugs into the existing dashboard:**
+- the agent registry now ingests `convoy_update`, so convoy workers are agents with a lane and a bead; the taskbar shows `N running · M to review` and lane tags, and picking a convoy agent opens its Agent window (the generic governance window still serves other agents)
+- a header chip `READY n · OPEN n · REVIEW n` that pulses when a result waits for a human, and opens the Convoys window
+- a **Plan as convoy** button next to Run that carries the goal and model typed in the goal bar to the planner
+- board cards open the Agent window
+
+**Evidence:** Chromium at 1440 and 390 px, 19 of 19 steps, including a step that opens card → Agent → Run steps → Tool call → Evidence as four layered windows (z-order checked, no duplicates, closing one keeps the rest) and checks the chip and the goal-bar button (`convoy-1440-i-four-layered-windows.png`). Registry unit tests for convoy workers as agents. **UNPROVEN:** the layered windows against real-model runs in a browser (the browser run used fake services).

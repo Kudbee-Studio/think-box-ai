@@ -487,3 +487,20 @@ test('BOARD and REVIEW: a finished convoy waits in REVIEW; accepting keeps its c
   assert.ok(after.lanes.finished.some((x: any) => x.convoy_id === a.id) && after.lanes.finished.some((x: any) => x.convoy_id === b.id));
   assert.ok(!after.lanes.review.some((x: any) => x.convoy_id === a.id || x.convoy_id === b.id));
 });
+
+test('BEADS API: every convoy and worker is a bead; filters and counts work; a bad filter is a 400', async () => {
+  const all = await get('/api/beads');
+  assert.ok(all.beads.length >= 2);
+  assert.ok(all.beads.every((b: any) => /^tb-[0-9a-f]{8}(\.[\w-]+)?$/.test(b.id) && ['convoy', 'task'].includes(b.type) && ['open', 'in_progress', 'closed'].includes(b.status)));
+  assert.equal(all.counts.open + all.counts.in_progress + all.counts.closed, all.beads.length);
+  const tasks = await get('/api/beads?type=task');
+  assert.ok(tasks.beads.every((b: any) => b.type === 'task' && b.parent && all.beads.some((x: any) => x.id === b.parent && x.children.includes(b.id))));
+  assert.ok((await get('/api/beads?status=closed')).beads.every((b: any) => b.status === 'closed'));
+  assert.ok((await get('/api/beads?ready=1')).beads.every((b: any) => b.ready === true && b.status === 'open'));
+  assert.equal((await fetch(`${base}/api/beads?status=done`)).status, 400);
+  assert.equal((await fetch(`${base}/api/beads?type=bead`)).status, 400);
+  const board = await get('/api/convoys/board');
+  const card = Object.values(board.lanes as Record<string, any[]>).flat()[0];
+  assert.match(card.bead, /^tb-[0-9a-f]{8}\.[\w-]+$/);
+  assert.ok(all.beads.some((b: any) => b.id === card.bead), 'a board card is a bead');
+});

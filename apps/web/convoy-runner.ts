@@ -8,7 +8,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { newRunContext, type AgentHooks, type AgentRunResult } from './agent.ts';
-import { laneOf } from './convoy-board.ts';
+import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
@@ -76,7 +76,7 @@ export async function executeConvoy(deps: RunnerDeps, convoyId: string): Promise
 export function summarize(c: ConvoyRecord): Record<string, unknown> {
   return {
     id: c.id, goal: c.goal, mode: c.mode, state: c.state, outcome: c.outcome ?? null, created_at: c.created_at, started_at: c.started_at ?? null, finished_at: c.finished_at ?? null,
-    workers: c.workers.map((w) => ({ id: w.id, name: w.name, model: w.model, status: w.status, lane: laneOf(c, w)?.lane ?? null })), review: c.review?.state ?? null, cost_usd: c.cost_usd, tool_calls: c.tool_calls, tokens: c.tokens,
+    workers: c.workers.map((w) => ({ id: w.id, name: w.name, model: w.model, status: w.status, lane: laneOf(c, w)?.lane ?? null, run_id: w.run_id ?? null, bead: beadId(c.id, w.id) })), review: c.review?.state ?? null, cost_usd: c.cost_usd, tool_calls: c.tool_calls, tokens: c.tokens,
     worker_duration_ms: c.worker_duration_ms, duration_ms: c.finished_at && c.started_at ? c.finished_at - c.started_at : null, risk: c.policy.risk,
     grounding: c.grounding?.status ?? null, approval: c.approval?.state ?? null, think_mode: c.plan.think_mode, learned_tokens: c.learned_tokens?.length ?? 0,
   };
