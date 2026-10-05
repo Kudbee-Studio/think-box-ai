@@ -11,7 +11,8 @@ import { newRunContext, type AgentHooks, type AgentRunResult } from './agent.ts'
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
-import { runLocalToolLoop, type LocalChat } from './local-tools.ts';
+import { repoSpec, runLocalToolLoop, type LocalChat } from './local-tools.ts';
+import { REPO_TOOLS, repoRoot, verifyQuoteOnDisk, type RepoEvidence } from './repo-tools.ts';
 import type { RunRecord, RunStore } from './runs.ts';
 
 export interface RunnerDeps {
@@ -44,7 +45,9 @@ export async function executeConvoy(deps: RunnerDeps, convoyId: string): Promise
   const update = (): void => deps.broadcast({ type: 'convoy_update', data: summarize(c) });
   update();
   try {
-    if (c.plan.workers[0]?.kind === 'specialist') await runSpecialistConvoy(deps, c, update);
+    const kind = c.plan.workers[0]?.kind;
+    if (kind === 'specialist') await runSpecialistConvoy(deps, c, update);
+    else if (kind === 'repo') await runRepoConvoy(deps, c, update);
     else await runLookupConvoy(deps, c, update);
   } catch (err) {
     // An unexpected crash is a failure with its message, never a silent success; partial evidence on the record stays.
@@ -188,4 +191,72 @@ async function runSpecialistConvoy(deps: RunnerDeps, c: ConvoyRecord, update: ()
   else if (completed && budgetBlown) store.finish(c.id, 'partial', `completed, but spend $${c.cost_usd} exceeded the cost budget $${c.worker_budget.max_cost_usd}`, 'cost budget exceeded');
   else if (done > 0) store.finish(c.id, 'partial', `${done} of ${c.workers.length} worker(s) completed; partial evidence kept`, String(artifact.error ?? artifact.validation?.reason ?? 'one or more workers failed'));
   else store.finish(c.id, 'failed', 'no worker completed', String(artifact.error ?? 'all workers failed'));
+}
+
+/**
+ * A read-only repository investigation: one local worker looks with repo_search / repo_read and reports one finding. The finding must trace to what its
+ * own tool calls returned (grounding), and its quote is then re-read from disk by this code, outside the model's loop, before the convoy may succeed.
+ * Nothing is written. A model that finds nothing and says so is a success; a fabricated file, line, quote or absence claim is not.
+ */
+async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => void): Promise<void> {
+  const { store, runStore } = deps;
+  const worker = c.workers[0]!;
+  const model = worker.model!;
+  const now = deps.now ?? Date.now;
+  const startedAt = now();
+  worker.status = 'running';
+  const record = deps.newChildRun(c.goal, randomUUID(), model, c.id, worker.id);
+  worker.run_id = record.id;
+  c.run_ids.push(record.id);
+  store.save();
+  update();
+  let evidence: RepoEvidence[] = [];
+  let tokens = 0; let toolCalls = 0;
+  let failure: { kind: string; message: string } | undefined;
+  let grounding: Grounding | null = null;
+  let answer: string | undefined;
+  let diskCheck: { disk_verified: boolean; reason?: string } | undefined;
+  try {
+    const hooks = deps.hooksFor(record, deps.signal, [...REPO_TOOLS]);
+    const r = await runLocalToolLoop<RepoEvidence>({ model, goal: c.goal, hooks, context: newRunContext(), chat: deps.chat, repo: null, spec: repoSpec(), maxSteps: 8, signal: deps.signal });
+    evidence = r.evidence; tokens = r.prompt_tokens + r.completion_tokens; toolCalls = r.tool_calls;
+    for (const step of r.steps) runStore.addEvent(record, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['repo'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
+    if (!r.success) failure = r.failure;
+    else {
+      grounding = r.grounding ? brief(r.grounding) : null;
+      c.finding = r.finding;
+      if (r.finding && r.finding.found && grounding?.status === 'GROUNDED') {
+        const disk = await verifyQuoteOnDisk(String(r.finding.file), Number(r.finding.line), String(r.finding.quote), repoRoot());
+        diskCheck = { disk_verified: disk.ok, ...(disk.reason ? { reason: disk.reason } : {}) };
+        c.finding_check = diskCheck;
+      }
+      answer = r.finding?.found ? `${r.finding.file}:${r.finding.line} \u2014 ${r.finding.claim}` : `No finding: ${r.finding?.reason ?? ''}`;
+    }
+  } catch (err) {
+    failure = { kind: deps.signal.aborted ? 'stopped' : 'error', message: err instanceof Error ? err.message : String(err) };
+  }
+  c.repo_evidence.push(...evidence);
+  const ok = !failure;
+  worker.status = ok ? 'completed' : 'failed';
+  worker.cost_usd = 0; worker.tokens = tokens; worker.tool_calls = toolCalls; worker.duration_ms = now() - startedAt;
+  if (failure) worker.failure = failure;
+  if (grounding) worker.grounding = grounding;
+  if (answer) worker.answer = answer;
+  record.grounding = grounding ?? undefined;
+  runStore.finish(record, ok ? { status: 'completed', result: answer } : { status: 'failed', error: `${failure!.kind}: ${failure!.message}`, failure_kind: failure!.kind === 'stopped' ? 'stopped' : 'error' });
+  store.aggregate(c);
+  if (failure) { store.finish(c.id, 'failed', `worker failed: ${failure.kind}`, `${failure.kind}: ${failure.message}`); return; }
+  if (grounding?.status !== 'GROUNDED') {
+    c.grounding = grounding ?? undefined;
+    store.finish(c.id, 'grounding_failed', 'GROUNDING FAILED: the finding was not shown as verified', `GROUNDING FAILED (${grounding?.classification})`);
+    return;
+  }
+  if (c.finding?.found && !diskCheck?.disk_verified) {
+    c.grounding = grounding;
+    store.finish(c.id, 'grounding_failed', 'the quote could not be re-read from disk', `disk re-check failed: ${diskCheck?.reason ?? 'unknown'}`);
+    return;
+  }
+  c.grounding = grounding;
+  c.final_answer = answer;
+  store.finish(c.id, 'success', c.finding?.found ? 'finding grounded in the tool evidence and re-read from disk' : 'the worker looked and reported nothing worth flagging');
 }

@@ -10,6 +10,8 @@ import { evaluatePolicy, planConvoy } from '../mayor.ts';
 import { RunStore, type RunRecord } from '../runs.ts';
 import type { OllamaChatTurn } from '../ollama-client.ts';
 import { lookupHooks } from './helpers/lookup-hooks.ts';
+import fs0 from 'node:fs';
+import path0 from 'node:path';
 
 const turn = (o: Partial<OllamaChatTurn>): OllamaChatTurn => ({ content: '', tool_calls: [], prompt_tokens: 10, completion_tokens: 5, latency_ms: 1, ...o });
 
@@ -17,7 +19,7 @@ function setup(goal: string, tweak: (plan: any) => void = () => {}, budget?: unk
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-'));
   const store = new ConvoyStore(path.join(dir, 'c.json'));
   const runStore = new RunStore(path.join(dir, 'r.json'));
-  const planned = planConvoy({ goal, budget, lookupModel: 'gemma3:4b', agentModel: 'mercury-2', isLocalModel: (m) => !m.startsWith('mercury'), availableTools: ['live_lookup', 'fetch_url', 'read_rss', 'recall', 'read_file', 'write_file', 'remember'], now: 1, costOf: () => ({ usd: 0, basis: 'test' }) });
+  const planned = planConvoy({ goal, budget, lookupModel: 'gemma3:4b', agentModel: 'mercury-2', isLocalModel: (m) => !m.startsWith('mercury'), availableTools: ['live_lookup', 'repo_search', 'repo_read', 'fetch_url', 'read_rss', 'recall', 'read_file', 'write_file', 'remember'], now: 1, costOf: () => ({ usd: 0, basis: 'test' }) });
   assert.ok(planned.ok);
   const plan = (planned as any).plan;
   tweak(plan);
@@ -148,5 +150,76 @@ describe('summarize and live updates', () => {
     const row = summarize(c) as any;
     assert.deepEqual({ id: row.id, state: row.state, outcome: row.outcome, risk: row.risk, approval: row.approval }, { id: c.id, state: 'FAILED', outcome: 'failed', risk: 'low', approval: 'APPROVED' });
     assert.ok(row.duration_ms >= 0);
+  });
+});
+
+describe('repository investigation convoys', () => {
+  function repoSetup(model = 'qwen2.5:3b') {
+    const t = setup('Find one function that has no test', (p) => { p.workers = [{ ...p.workers[0], id: 'repo-1', kind: 'repo', name: 'Repository investigation (read-only)', model, tools: ['repo_search', 'repo_read'], permission: 'read_only' }]; p.escalation = null; p.think_mode = 'observe'; });
+    return t;
+  }
+  const root = fs0.mkdtempSync(path0.join(os.tmpdir(), 'runner-repo-'));
+  fs0.mkdirSync(path0.join(root, 'src'), { recursive: true });
+  fs0.mkdirSync(path0.join(root, 'tests'), { recursive: true });
+  fs0.writeFileSync(path0.join(root, 'src/alpha.ts'), 'export function alpha() {\n  return 1;\n}\nexport function orphan() {\n  return 7;\n}\n');
+  fs0.writeFileSync(path0.join(root, 'tests/alpha.test.ts'), 'alpha();\n');
+  const call = (name: string, args: object) => turn({ tool_calls: [{ function: { name, arguments: args } }] });
+  const script = (turns: OllamaChatTurn[]) => ({ modelCapabilities: async () => ['tools'], chatOnce: async () => turns.shift() ?? turn({ error: 'script exhausted' }) });
+  const good = { found: true, file: 'src/alpha.ts', line: 4, quote: 'export function orphan()', claim: 'The function `orphan` has no tests.', absence_search: { query: 'orphan', path: 'tests' } };
+  const run = (finish: object, mutate?: () => void) => {
+    process.env.KUDBEE_REPO_ROOT = root;
+    const t = repoSetup();
+    const chat = script([call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('repo_search', { query: 'orphan', path: 'tests' }), call('report_finding', finish), call('report_finding', finish)]);
+    return { t, promise: executeConvoy(t.deps({ chat }), t.c.id).finally(() => { delete process.env.KUDBEE_REPO_ROOT; mutate?.(); }) };
+  };
+  it('a grounded finding that is also on disk ends COMPLETED with the evidence, the finding and the disk check recorded', async () => {
+    const { t, promise } = run(good);
+    const c = await promise;
+    assert.equal(c.state, 'COMPLETED');
+    assert.equal(c.outcome, 'success');
+    assert.equal(c.finding?.file, 'src/alpha.ts');
+    assert.deepEqual(c.finding_check, { disk_verified: true });
+    assert.deepEqual(c.repo_evidence.map((e) => e.tool), ['repo_read', 'repo_search']);
+    assert.equal(c.grounding?.status, 'GROUNDED');
+    assert.equal(c.final_answer, 'src/alpha.ts:4 \u2014 The function `orphan` has no tests.');
+    assert.equal(c.cost_usd, 0);
+    assert.equal(c.tool_calls, 2);
+    assert.equal(c.workers[0]!.status, 'completed');
+    assert.equal(t.calls.agent, 0, 'no paid model was involved');
+    assert.equal(t.runStore.get(c.run_ids[0]!)?.jobId, c.id);
+  });
+  it('a fabricated line fails grounding: GROUNDING FAILED, no final answer, the evidence is kept', async () => {
+    const c = await run({ ...good, line: 5 }).promise;
+    assert.equal(c.state, 'FAILED');
+    assert.equal(c.outcome, 'grounding_failed');
+    assert.equal(c.final_answer, undefined);
+    assert.equal(c.repo_evidence.length, 2);
+    assert.ok(c.grounding!.unsupported.length > 0);
+    assert.equal(c.finding_check, undefined, 'the disk check only runs for a grounded finding');
+  });
+  it('a quote that no longer matches the disk (the file changed after the worker read it) is not a success', async () => {
+    process.env.KUDBEE_REPO_ROOT = root;
+    const t = repoSetup();
+    let read = 0;
+    const turns = [call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('repo_search', { query: 'orphan', path: 'tests' }), call('report_finding', good)];
+    const chat = { modelCapabilities: async () => ['tools'], chatOnce: async () => { read += 1; if (read === 3) fs0.writeFileSync(path0.join(root, 'src/alpha.ts'), 'export function other() {\n  return 1;\n}\n'); return turns.shift() ?? turn({ error: 'exhausted' }); } };
+    const c = await executeConvoy(t.deps({ chat }), t.c.id);
+    fs0.writeFileSync(path0.join(root, 'src/alpha.ts'), 'export function alpha() {\n  return 1;\n}\nexport function orphan() {\n  return 7;\n}\n');
+    delete process.env.KUDBEE_REPO_ROOT;
+    assert.equal(c.outcome, 'grounding_failed');
+    assert.equal(c.finding_check?.disk_verified, false);
+    assert.match(c.error!, /disk re-check failed/);
+    assert.equal(c.final_answer, undefined);
+  });
+  it('"nothing worth reporting" after looking completes with that said, and a model that never looks fails', async () => {
+    const none = await run({ found: false, reason: 'every function is exercised' }).promise;
+    assert.equal(none.outcome, 'success');
+    assert.equal(none.final_answer, 'No finding: every function is exercised');
+    process.env.KUDBEE_REPO_ROOT = root;
+    const t = repoSetup();
+    const c = await executeConvoy(t.deps({ chat: script([call('report_finding', good)]) }), t.c.id);
+    delete process.env.KUDBEE_REPO_ROOT;
+    assert.equal(c.state, 'FAILED');
+    assert.equal(c.workers[0]!.failure?.kind, 'no_tool_call');
   });
 });

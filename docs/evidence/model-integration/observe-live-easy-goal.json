@@ -1,0 +1,340 @@
+{
+  "generated_at": "2026-10-05T00:54:34.176Z",
+  "note": "real server, real Qwen via Ollama, the real repository; tool approvals (none expected for read-only tools) granted by the script",
+  "goal": "Find one exported function in apps/web/repo-tools.ts",
+  "model": "qwen2.5:3b",
+  "wall_ms": 160517,
+  "plan": {
+    "think_mode": "observe",
+    "workers": [
+      {
+        "id": "repo-1",
+        "kind": "repo",
+        "name": "Repository investigation (read-only)",
+        "model": "qwen2.5:3b",
+        "tools": [
+          "repo_search",
+          "repo_read"
+        ],
+        "permission": "read_only",
+        "depends_on": [],
+        "wave": 1,
+        "purpose": "Look at the real source with read-only tools and report one finding (file, line, exact quote, claim); the finding is checked against what the tools returned and re-read from disk",
+        "estimated_cost_usd": 0,
+        "cost_basis": "local model, no API cost",
+        "estimated_tool_calls": 8
+      }
+    ],
+    "budget_use": {
+      "workers": 1,
+      "worst_case_workers": 1,
+      "estimated_cost_usd": 0,
+      "worst_case_cost_usd": 0,
+      "estimated_tool_calls": 8
+    }
+  },
+  "policy": [
+    "human-approval",
+    "mode-observe",
+    "repo-read"
+  ],
+  "approvals_prompted": 0,
+  "state": "COMPLETED",
+  "outcome": "success",
+  "finding": {
+    "found": true,
+    "file": "apps/web/agent.ts",
+    "line": 20,
+    "quote": "export function costUsd(model: string, promptTokens: number, completionTokens: number): number",
+    "claim": "I found an exported function named costUsd in apps/web/agent.ts"
+  },
+  "finding_check": {
+    "disk_verified": true
+  },
+  "grounding": {
+    "status": "GROUNDED",
+    "classification": "ok",
+    "unsupported": [],
+    "checked": {
+      "numbers": 0,
+      "urls": 0,
+      "ids": 0,
+      "branches": 0,
+      "states": 0,
+      "quotes": 1,
+      "identifiers": 0,
+      "absence": 0
+    }
+  },
+  "final_answer": "apps/web/agent.ts:20 — I found an exported function named costUsd in apps/web/agent.ts",
+  "tool_calls": 1,
+  "tokens": 2285,
+  "cost_usd": 0,
+  "repo_evidence": [
+    {
+      "tool": "repo_search",
+      "query": "export function",
+      "path": "apps/web",
+      "matches": [
+        {
+          "path": "apps/web/agent.js",
+          "line": 20,
+          "text": "export function costUsd(model        , promptTokens        , completionTokens        )         {"
+        },
+        {
+          "path": "apps/web/agent.js",
+          "line": 26,
+          "text": "export function inceptionConfigured()          {"
+        },
+        {
+          "path": "apps/web/agent.js",
+          "line": 30,
+          "text": "export function isInceptionModel(model        )          {"
+        },
+        {
+          "path": "apps/web/agent.js",
+          "line": 365,
+          "text": "export function htmlToText(html        )         {"
+        },
+        {
+          "path": "apps/web/agent.js",
+          "line": 579,
+          "text": "export function newRunContext()             {"
+        },
+        {
+          "path": "apps/web/agent.ts",
+          "line": 20,
+          "text": "export function costUsd(model: string, promptTokens: number, completionTokens: number): number {"
+        },
+        {
+          "path": "apps/web/agent.ts",
+          "line": 26,
+          "text": "export function inceptionConfigured(): boolean {"
+        },
+        {
+          "path": "apps/web/agent.ts",
+          "line": 30,
+          "text": "export function isInceptionModel(model: string): boolean {"
+        },
+        {
+          "path": "apps/web/agent.ts",
+          "line": 365,
+          "text": "export function htmlToText(html: string): string {"
+        },
+        {
+          "path": "apps/web/agent.ts",
+          "line": 579,
+          "text": "export function newRunContext(): RunContext {"
+        },
+        {
+          "path": "apps/web/algorand.js",
+          "line": 24,
+          "text": "export function algorandHost(action                , network                 , endpoints = PUBLIC_ENDPOINTS)         {"
+        },
+        {
+          "path": "apps/web/algorand.js",
+          "line": 34,
+          "text": "export function decodeState(state                                                                                 = [])                                  {"
+        },
+        {
+          "path": "apps/web/algorand.js",
+          "line": 71,
+          "text": "export function parseNetwork(value         )                  {"
+        },
+        {
+          "path": "apps/web/algorand.js",
+          "line": 77,
+          "text": "export function parseAction(value         )                 {"
+        },
+        {
+          "path": "apps/web/algorand.js",
+          "line": 94,
+          "text": "export function validateAlgorandInput(input               )       {"
+        },
+        {
+          "path": "apps/web/algorand.ts",
+          "line": 24,
+          "text": "export function algorandHost(action: AlgorandAction, network: AlgorandNetwork, endpoints = PUBLIC_ENDPOINTS): string {"
+        },
+        {
+          "path": "apps/web/algorand.ts",
+          "line": 34,
+          "text": "export function decodeState(state: Array<{ key: string; value: { type: number; bytes?: string; uint?: number } }> = []): Record<string, string | number> {"
+        },
+        {
+          "path": "apps/web/algorand.ts",
+          "line": 71,
+          "text": "export function parseNetwork(value: unknown): AlgorandNetwork {"
+        },
+        {
+          "path": "apps/web/algorand.ts",
+          "line": 77,
+          "text": "export function parseAction(value: unknown): AlgorandAction {"
+        },
+        {
+          "path": "apps/web/algorand.ts",
+          "line": 94,
+          "text": "export function validateAlgorandInput(input: AlgorandInput): void {"
+        },
+        {
+          "path": "apps/web/config-patch.js",
+          "line": 7,
+          "text": "export function sanitizeConfigPatch(input         )                              {"
+        },
+        {
+          "path": "apps/web/config-patch.ts",
+          "line": 7,
+          "text": "export function sanitizeConfigPatch(input: unknown): Partial<AgentSessionConfig> {"
+        },
+        {
+          "path": "apps/web/convoy-runner.js",
+          "line": 59,
+          "text": "export function summarize(c              )                          {"
+        },
+        {
+          "path": "apps/web/convoy-runner.ts",
+          "line": 62,
+          "text": "export function summarize(c: ConvoyRecord): Record<string, unknown> {"
+        },
+        {
+          "path": "apps/web/convoy.js",
+          "line": 121,
+          "text": "export function verifyChain(c                                     )                                           {"
+        },
+        {
+          "path": "apps/web/convoy.js",
+          "line": 131,
+          "text": "export function modeLabel(state             )         {"
+        },
+        {
+          "path": "apps/web/convoy.ts",
+          "line": 126,
+          "text": "export function verifyChain(c: Pick<ConvoyRecord, 'id' | 'events'>): { ok: true } | { ok: false; at: number } {"
+        },
+        {
+          "path": "apps/web/convoy.ts",
+          "line": 136,
+          "text": "export function modeLabel(state: ConvoyState): string {"
+        },
+        {
+          "path": "apps/web/coverage-flush.js",
+          "line": 17,
+          "text": "export function installCoverageFlush(proc               = process)          {"
+        },
+        {
+          "path": "apps/web/coverage-flush.ts",
+          "line": 17,
+          "text": "export function installCoverageFlush(proc: CoverageProc = process): boolean {"
+        },
+        {
+          "path": "apps/web/error-handling.js",
+          "line": 9,
+          "text": "export function describeError(err         )         {"
+        },
+        {
+          "path": "apps/web/error-handling.js",
+          "line": 25,
+          "text": "export function jsonErrorHandler(log         = console) {"
+        },
+        {
+          "path": "apps/web/error-handling.js",
+          "line": 48,
+          "text": "export function installProcessHandlers(proc             , log         = console)             {"
+        },
+        {
+          "path": "apps/web/error-handling.ts",
+          "line": 9,
+          "text": "export function describeError(err: unknown): string {"
+        },
+        {
+          "path": "apps/web/error-handling.ts",
+          "line": 25,
+          "text": "export function jsonErrorHandler(log: Logger = console) {"
+        },
+        {
+          "path": "apps/web/error-handling.ts",
+          "line": 48,
+          "text": "export function installProcessHandlers(proc: ProcessLike, log: Logger = console): () => void {"
+        },
+        {
+          "path": "apps/web/evidence.js",
+          "line": 10,
+          "text": "export function isLiveStateText(text        )          {"
+        },
+        {
+          "path": "apps/web/evidence.js",
+          "line": 15,
+          "text": "export function freshnessLabel(when                                    , text        , now         = Date.now(), live          = isLiveStateText(text))         {"
+        },
+        {
+          "path": "apps/web/evidence.js",
+          "line": 35,
+          "text": "export function isNegativeEvidence(e              )          {"
+        },
+        {
+          "path": "apps/web/evidence.js",
+          "line": 56,
+          "text": "export function unsupportedClaims(answer        , evidence                )           {"
+        }
+      ],
+      "truncated": true,
+      "files_scanned": 230,
+      "fetched_at": "2026-10-05T00:52:30.119Z",
+      "tool_calls": 1,
+      "latency_ms": 546
+    }
+  ],
+  "steps": [
+    {
+      "kind": "tool",
+      "name": "repo_search",
+      "ok": true,
+      "args": {
+        "query": "export function",
+        "path": "apps/web"
+      }
+    },
+    {
+      "kind": "model",
+      "content": "tool_ok [{\"id\":\"call_7ucbkrwa\",\"function\":{\"index\":0,\"name\":\"repo_search\",\"arguments\":{\"path\":\"apps/web\",\"query\":\"export function\"}}}]"
+    },
+    {
+      "kind": "model",
+      "content": "answer [{\"id\":\"call_y9n6r37w\",\"function\":{\"index\":0,\"name\":\"report_finding\",\"arguments\":{\"line\":20,\"quote\":\"export function costUsd(model: string, promptTokens: number, completionTokens: number): number\",\"reason\":\"\",\"claim\":\"I found an exported function named costUsd in apps/web/agent.ts\",\"found\":tr"
+    }
+  ],
+  "independent_check": {
+    "file_exists": true,
+    "quote_at_line": true,
+    "absence_query": null,
+    "absence_scope": null,
+    "files_containing_query_in_scope": []
+  },
+  "events": [
+    {
+      "seq": 1,
+      "state": "PLANNED",
+      "by": "system"
+    },
+    {
+      "seq": 2,
+      "state": "PENDING",
+      "by": "system"
+    },
+    {
+      "seq": 3,
+      "state": "APPROVED",
+      "by": "human"
+    },
+    {
+      "seq": 4,
+      "state": "RUNNING",
+      "by": "system"
+    },
+    {
+      "seq": 5,
+      "state": "COMPLETED",
+      "by": "system"
+    }
+  ]
+}

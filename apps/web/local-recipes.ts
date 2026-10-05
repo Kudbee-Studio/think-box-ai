@@ -33,6 +33,17 @@ const FILE_NAME = /(?<![\w/@.:-])([\w][\w.-]*\.(?:md|txt|json|ts|js|mjs|py|csv|h
 const FILE_VERB = /\b(read|show|print|display|open|what'?s in|what is in|contents? of|summari[sz]e|tell me about|in)\b/i;
 const LIST_FILES = /\b(list|show|what|which)\b.{0,40}\b(files?|workspace|folder)\b/i;
 
+const REPO_VERB = /\b(find|inspect|investigate|audit|locate|identify|look for|search|which|list|check)\b/i;
+const REPO_THING = /\b(functions?|files?|modules?|exports?|tests?|untested|unused|code ?base|source|repo(sitory)? code|todo|fixme|dead code|duplicat\w+)\b/i;
+/** A goal that asks to INVESTIGATE this repository's source (read-only), not a live GitHub question and not a change request. */
+export function matchRepoGoal(goal: string): boolean {
+  const text = String(goal ?? '');
+  if (!text.trim() || text.length > 600 || MUTATION.test(text) || /https?:\/\//i.test(text)) return false;
+  const recipe = matchRecipe(text);
+  if (recipe && isGithubRecipe(recipe)) return false;
+  return REPO_VERB.test(text) && REPO_THING.test(text);
+}
+
 /** The recipe for this goal, or null (the goal then goes to the worker agent). */
 export function matchRecipe(goal: string): RecipeMatch | null {
   const text = String(goal ?? '');

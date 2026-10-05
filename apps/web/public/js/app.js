@@ -89,7 +89,8 @@ function handleMessage(msg) {
       state.models = msg.data.models || [];
       state.config = { ...state.config, ...(msg.data.config || {}) };
       state.tasks = msg.data.tasks || [];
-      state.thoughts = [];
+      // The server replays this profile's saved thoughts, so a reload or restart does not empty the panel.
+      state.thoughts = Array.isArray(msg.data.thoughts) ? msg.data.thoughts.filter((t) => t && typeof t === 'object') : [];
       renderTasks();
       renderThoughts();
       renderPlugins();
@@ -393,6 +394,8 @@ async function generateImage() {
 }
 
 function clearTerminal() {
+  // Clear means clear: the saved history goes too, or it would come back on the next reload.
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: 'clear_thoughts' }));
   if (window.KudbeeTerminal) {
     window.KudbeeTerminal.clear();
     state.thoughts = [];

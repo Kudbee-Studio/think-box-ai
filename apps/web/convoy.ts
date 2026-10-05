@@ -10,7 +10,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { LookupEvidence } from './live-lookup.ts';
-import type { GroundingResult } from './grounding.ts';
+import type { RepoEvidence } from './repo-tools.ts';
+import type { GroundingResult, RepoFinding } from './grounding.ts';
 import type { ConvoyPlan, PlannedWorker, PolicyEvaluation, WorkerBudget } from './mayor.ts';
 
 export type ConvoyMode = 'plan_only' | 'live';
@@ -93,6 +94,10 @@ export interface ConvoyRecord {
   /** Child run ids (each run record holds its own steps, tools and evidence). */
   run_ids: string[];
   evidence: LookupEvidence[];
+  /** Repository investigations: what the read-only tools returned, the worker's finding, and the independent disk re-check of its quote. */
+  repo_evidence: RepoEvidence[];
+  finding?: RepoFinding;
+  finding_check?: { disk_verified: boolean; reason?: string };
   cost_usd: number;
   tool_calls: number;
   tokens: number;
@@ -180,7 +185,7 @@ export class ConvoyStore {
       id: randomUUID(), goal, mode: 'plan_only', state: 'PLANNED', created_at: now, updated_at: now, profile_id: this.profileId,
       plan, policy, approval: null, worker_budget: plan.budget,
       workers: plan.workers.map((w) => ({ id: w.id, kind: w.kind, name: w.name, model: w.model, status: 'pending', cost_usd: 0, duration_ms: 0, tool_calls: 0, tokens: 0 })),
-      run_ids: [], evidence: [], cost_usd: 0, tool_calls: 0, tokens: 0, worker_duration_ms: 0, events: [],
+      run_ids: [], evidence: [], repo_evidence: [], cost_usd: 0, tool_calls: 0, tokens: 0, worker_duration_ms: 0, events: [],
     };
     appendEvent(c, 'PLANNED', 'system', 'plan created (PLAN ONLY: no worker started, nothing approved)', now);
     this.convoys.push(c);

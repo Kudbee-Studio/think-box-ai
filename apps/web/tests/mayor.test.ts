@@ -3,8 +3,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { evaluatePolicy, normalizeBudget, planConvoy, DEFAULT_BUDGET, type PlanInput } from '../mayor.ts';
+import { matchRepoGoal } from '../local-recipes.ts';
 
-const TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'live_lookup', 'read_rss', 'recall', 'remember', 'algorand', 'medication'];
+const TOOLS = ['list_files', 'read_file', 'write_file', 'fetch_url', 'live_lookup', 'repo_search', 'repo_read', 'read_rss', 'recall', 'remember', 'algorand', 'medication'];
 const input = (goal: string, o: Partial<PlanInput> = {}): PlanInput => ({
   goal, lookupModel: 'gemma3:4b', agentModel: 'mercury-2', isLocalModel: (m) => !m.startsWith('mercury'), availableTools: TOOLS, now: 1_000,
   costOf: (m) => (m === 'mercury-2' ? { usd: 0.004, basis: 'average of 1 measured mercury-2 run' } : m ? { usd: 0, basis: 'local model, no API cost' } : { usd: null, basis: 'no model' }), ...o,
@@ -139,5 +140,46 @@ describe('planning is side-effect free by construction', () => {
     const imports = [...src.matchAll(/^import .* from '([^']+)'/gm)].map((m) => m[1]!);
     assert.deepEqual(imports.sort(), ['./local-recipes.ts', './specialist-contracts.ts', './specialist-executor.ts']);
     for (const banned of [/\bfetch\(/, /\bfs\./, /child_process/, /node:http/, /writeFile/, /process\.env/, /Date\.now\(/, /spawn/]) assert.doesNotMatch(src, banned, String(banned));
+  });
+});
+
+describe('repository investigation plans (OBSERVE)', () => {
+  const goal = 'Find one function in apps/web that has no test';
+  it('matches investigation goals and nothing else: not GitHub questions, not change requests', () => {
+    for (const g of [goal, 'Inspect the code for unused exports', 'Which files have a TODO?', 'audit the source for duplicated code', 'find untested modules']) assert.equal(matchRepoGoal(g), true, g);
+    for (const g of ['What is the last PR?', 'did CI pass', 'fix the failing test', 'write a file notes.md', 'delete the unused functions', 'find the weather', 'hello', '', 'find a function at https://x.io/a.ts', 'x'.repeat(700)]) assert.equal(matchRepoGoal(g), false, g);
+  });
+  it('is one read-only worker on a local model with the two repo tools, in OBSERVE mode, low risk, and no escalation', () => {
+    const p = plan(goal, { lookupModel: 'qwen2.5:3b' });
+    assert.equal(p.think_mode, 'observe');
+    assert.deepEqual(p.workers.map((w: any) => [w.id, w.kind, w.model, w.tools, w.permission]), [['repo-1', 'repo', 'qwen2.5:3b', ['repo_search', 'repo_read'], 'read_only']]);
+    assert.equal(p.escalation, null);
+    assert.equal(p.executable, true);
+    const pol = evaluatePolicy(p);
+    assert.equal(pol.risk, 'low');
+    assert.equal(pol.decision, 'requires_approval');
+    assert.ok(pol.rules.some((r) => r.id === 'mode-observe' && /read-only/.test(r.reason)));
+    assert.ok(pol.rules.some((r) => r.id === 'repo-read' && /\.env/.test(r.reason)));
+    assert.ok(!pol.rules.some((r) => r.id === 'network-read'));
+  });
+  it('is not executable on Mercury in this version, without the repo tools, or without a model', () => {
+    assert.match(plan(goal, { lookupModel: 'mercury-2' }).blocked_reasons.join(), /runs on local models in this version/);
+    assert.match(plan(goal, { lookupModel: 'qwen2.5:3b', availableTools: ['live_lookup'] }).blocked_reasons.join(), /repository tools are not available/);
+    assert.match(plan(goal, { lookupModel: null }).blocked_reasons.join(), /no model is available/);
+  });
+  it('gates modes: observe and learn plan, simulate and autonomous are refused until they exist, and an unknown mode is an error', () => {
+    assert.equal(plan(goal, { lookupModel: 'qwen2.5:3b', mode: 'learn' }).executable, true);
+    assert.match(evaluatePolicy(plan(goal, { lookupModel: 'qwen2.5:3b', mode: 'learn' })).rules.find((r) => r.id === 'mode-learn')!.reason, /never auto-accepted/);
+    for (const mode of ['simulate', 'autonomous'] as const) {
+      const p = plan(goal, { lookupModel: 'qwen2.5:3b', mode });
+      assert.equal(p.executable, false);
+      assert.match(p.blocked_reasons.join(), new RegExp(`${mode.toUpperCase()} mode is not available yet`));
+      assert.equal(evaluatePolicy(p).decision, 'denied');
+    }
+    assert.equal(planConvoy(input(goal, { mode: 'yolo' as any })).ok, false);
+  });
+  it('a live GitHub question is still a lookup, and the default mode is observe', () => {
+    assert.equal(plan('What is the last PR?').workers[0].kind, 'lookup');
+    assert.equal(plan('What is the last PR?').think_mode, 'observe');
   });
 });

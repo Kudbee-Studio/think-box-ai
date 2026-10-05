@@ -5,6 +5,16 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { redact } from './think-token-store.ts';
+
+export const MAX_THOUGHT_JSON = 6000;
+export const MAX_THOUGHTS_PER_PROFILE = 5000;
+
+export interface StoredThought {
+  id: string;
+  timestamp: number;
+  [key: string]: unknown;
+}
 
 export interface DashboardState {
   sessionId: string;
@@ -87,6 +97,21 @@ export class PersistenceLayer {
       CREATE INDEX IF NOT EXISTS idx_run_created ON run_metadata(createdAt DESC);
     `);
 
+    // Thoughts: the dashboard's activity stream (tool calls, approvals, reasoning, errors). Kept per profile so a reload or restart does not lose them.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS thoughts (
+        id TEXT PRIMARY KEY,
+        profileId TEXT NOT NULL,
+        sessionId TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        type TEXT,
+        status TEXT,
+        runId TEXT,
+        json TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_thoughts_profile_ts ON thoughts(profileId, ts DESC);
+    `);
+
     // Memory notes: org/verified knowledge + task episodes
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS memory_notes (
@@ -104,6 +129,41 @@ export class PersistenceLayer {
       CREATE INDEX IF NOT EXISTS idx_memory_session ON memory_notes(sessionId);
       CREATE INDEX IF NOT EXISTS idx_memory_created ON memory_notes(createdAt DESC);
     `);
+  }
+
+  // ── Thoughts ──
+
+  /**
+   * Keep one thought. Secrets are redacted and the record is size-capped (a long output is cut, never dropped), and the per-profile history is bounded.
+   * Never throws: a full disk must not break a run.
+   */
+  saveThought(profileId: string, sessionId: string, thought: StoredThought): void {
+    try {
+      let json = redact(JSON.stringify(thought));
+      if (json.length > MAX_THOUGHT_JSON) {
+        const cut = { ...thought, content: `${String(thought.content ?? '').slice(0, 1500)}…[cut]`, output: undefined, input: undefined, execution: undefined, truncated: true };
+        json = redact(JSON.stringify(cut)).slice(0, MAX_THOUGHT_JSON);
+        try { JSON.parse(json); } catch { json = JSON.stringify({ id: thought.id, timestamp: thought.timestamp, type: thought.type, status: thought.status, content: 'thought too large to keep', truncated: true }); }
+      }
+      this.db.prepare('INSERT OR REPLACE INTO thoughts (id, profileId, sessionId, ts, type, status, runId, json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(thought.id, profileId, sessionId, thought.timestamp, String(thought.type ?? ''), String(thought.status ?? ''), String(thought.run_id ?? ''), json);
+      if (Math.random() < 0.02) this.db.prepare('DELETE FROM thoughts WHERE profileId = ? AND id NOT IN (SELECT id FROM thoughts WHERE profileId = ? ORDER BY ts DESC LIMIT ?)').run(profileId, profileId, MAX_THOUGHTS_PER_PROFILE);
+    } catch (err) {
+      console.warn(`[persistence] could not save a thought: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** The newest thoughts of a profile, oldest first (the order the dashboard shows them). */
+  recentThoughts(profileId: string, limit = 300): StoredThought[] {
+    const rows = this.db.prepare('SELECT json FROM thoughts WHERE profileId = ? ORDER BY ts DESC LIMIT ?').all(profileId, Math.min(Math.max(limit, 1), 1000)) as Array<{ json: string }>;
+    const out: StoredThought[] = [];
+    for (const row of rows) { try { out.push(JSON.parse(row.json) as StoredThought); } catch { /* a damaged row is skipped, not fatal */ } }
+    return out.reverse();
+  }
+
+  /** Remove a profile's saved thoughts (the dashboard's Clear). Returns how many were removed. */
+  clearThoughts(profileId: string): number {
+    return this.db.prepare('DELETE FROM thoughts WHERE profileId = ?').run(profileId).changes;
   }
 
   // ── Dashboard State ──
