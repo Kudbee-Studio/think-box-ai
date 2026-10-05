@@ -1,0 +1,325 @@
+{
+  "summary": {
+    "model": "qwen2.5:3b",
+    "train_goals_hash": "63695e0829b7d56bc3d7254acdf71efa40763244f841f85f50cc39a9b99b185f",
+    "runs": 20,
+    "passed": 10,
+    "tokens": {
+      "candidate": 1,
+      "extracted": 0,
+      "scored": 0,
+      "challenged": 0,
+      "accepted": 1,
+      "rejected": 5
+    },
+    "store": "/tmp/p325-8pL5tW/think-tokens.db"
+  },
+  "runs": [
+    {
+      "goal_id": "train-untested-ledger-1",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-ledger-2",
+      "outcome": "failed",
+      "why": "tool_failed: path not found: apps/web/tests",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-parser-1",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-parser-2",
+      "outcome": "failed",
+      "why": "no_tool_call: qwen2.5:3b returned neither a tool call nor a report",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-router-1",
+      "outcome": "failed",
+      "why": "no_tool_call: qwen2.5:3b returned neither a tool call nor a report",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-router-2",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-mailer-1",
+      "outcome": "failed",
+      "why": "no_tool_call: qwen2.5:3b returned neither a tool call nor a report",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-mailer-2",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-audit-1",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-untested-audit-2",
+      "outcome": "wrong",
+      "why": "reported nothing",
+      "pipeline": null
+    },
+    {
+      "goal_id": "train-constant-ledger",
+      "outcome": "pass",
+      "why": "src/ledger.ts = 500",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000001",
+            "status": "rejected",
+            "title": "Use repo_search to find constants defined in TypeScript files",
+            "content": "When you need to find a constant defined in a TypeScript file, use the repo_search tool to locate the file and the line where the constant is defined.",
+            "challenge": {
+              "verdict": "fail",
+              "reason": "not specific: The lesson is supported by the evidence in the run results.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 7384,
+                "tokens_in": 474,
+                "tokens_out": 29
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    },
+    {
+      "goal_id": "train-constant-parser",
+      "outcome": "pass",
+      "why": "src/parser.ts = 32",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000002",
+            "status": "accepted",
+            "title": "Use `repo_search` to find constants defined in TypeScript files",
+            "content": "When you need to find a constant defined in a TypeScript file, use `repo_search` to look for the file and the constant's definition.",
+            "challenge": {
+              "verdict": "pass",
+              "reason": "The lesson is supported by the evidence in the run results and is specific to finding constants defined in TypeScript files using `repo_search`.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 8676,
+                "tokens_in": 369,
+                "tokens_out": 49
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    },
+    {
+      "goal_id": "train-constant-router",
+      "outcome": "pass",
+      "why": "src/router.ts = 128",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000002",
+            "status": "accepted",
+            "title": "Use `repo_search` to find constants defined in TypeScript files",
+            "content": "When you need to find a constant defined in a TypeScript file, use `repo_search` to look for the file and the constant's definition.",
+            "challenge": {
+              "verdict": "pass",
+              "reason": "The lesson is supported by the evidence in the run results and is specific to finding constants defined in TypeScript files using `repo_search`.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 8676,
+                "tokens_in": 369,
+                "tokens_out": 49
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 3
+      }
+    },
+    {
+      "goal_id": "train-constant-mailer",
+      "outcome": "pass",
+      "why": "src/mailer.ts = 587",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000003",
+            "status": "rejected",
+            "title": "Use `repo_search` to find constants defined in TypeScript files",
+            "content": "When you need to find a constant like SMTP_PORT defined in a TypeScript file, use `repo_search` to locate the file and its definition.",
+            "challenge": {
+              "verdict": "fail",
+              "reason": "repeats a known lesson: The lesson is supported by the evidence in the run and is not novel compared to known lessons.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 8552,
+                "tokens_in": 431,
+                "tokens_out": 41
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    },
+    {
+      "goal_id": "train-constant-audit",
+      "outcome": "pass",
+      "why": "src/audit.ts = 90",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000004",
+            "status": "rejected",
+            "title": "Use `repo_search` to find constants defined in TypeScript files",
+            "content": "When you need to find a constant like `KEEP_DAYS` defined in a TypeScript file, use `repo_search` to locate the file and the constant's definition.",
+            "challenge": {
+              "verdict": "fail",
+              "reason": "repeats a known lesson: The lesson is supported by the evidence in the run results and is not novel compared to known lessons.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 8607,
+                "tokens_in": 435,
+                "tokens_out": 42
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    },
+    {
+      "goal_id": "train-missing-postGhost",
+      "outcome": "pass",
+      "why": "reported that it does not exist",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000005",
+            "status": "rejected",
+            "title": "Use `repo_search` to find functions defined in TypeScript files",
+            "content": "If you need to find a function defined in a TypeScript file, use `repo_search` to locate the file and the function's definition. This tool is particularly useful when the function is not found in the repository.",
+            "challenge": {
+              "verdict": "fail",
+              "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is not supported by the run results. The run did not find the function `postGhost` and did not use `repo_search` to find it. The known lessons are also not relevant to the current run.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 11437,
+                "tokens_in": 440,
+                "tokens_out": 67
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    },
+    {
+      "goal_id": "train-missing-tokenizeWeather",
+      "outcome": "pass",
+      "why": "reported that it does not exist",
+      "pipeline": {
+        "tokens": [],
+        "dropped": [
+          {
+            "title": "Use `repo_search` to find functions defined in TypeScript files",
+            "reasons": [
+              "cites file \"any TypeScript file\" that is not in the run"
+            ]
+          }
+        ],
+        "model_calls": 3
+      }
+    },
+    {
+      "goal_id": "train-missing-matchUnicorn",
+      "outcome": "pass",
+      "why": "reported that it does not exist",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000006",
+            "status": "candidate",
+            "title": "Ground \"Find a function named matchUnicorn.\" in evidence",
+            "content": "Goals like \"Find a function named matchUnicorn.\" were answered successfully using observed evidence from repo_search.",
+            "challenge": {
+              "verdict": null,
+              "reason": null,
+              "model": null,
+              "meta": {}
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 3
+      }
+    },
+    {
+      "goal_id": "train-missing-sendCarrierPigeon",
+      "outcome": "pass",
+      "why": "reported that it does not exist",
+      "pipeline": {
+        "tokens": [],
+        "dropped": [
+          {
+            "title": "(unusable reply)",
+            "reasons": [
+              "model reply was not the expected JSON"
+            ]
+          }
+        ],
+        "model_calls": 3
+      }
+    },
+    {
+      "goal_id": "train-missing-logTimeTravel",
+      "outcome": "pass",
+      "why": "reported that it does not exist",
+      "pipeline": {
+        "tokens": [
+          {
+            "id": "TT-000007",
+            "status": "rejected",
+            "title": "Use `repo_search` to find functions defined in TypeScript files",
+            "content": "If you need to find a function defined in a TypeScript file, use `repo_search` to look for the file and the function's definition. This tool is especially useful when you can't find the function in the repository.",
+            "challenge": {
+              "verdict": "fail",
+              "reason": "not true to the run, not specific, not supported by evidence, repeats a known lesson: The lesson is not supported by the run results. The run did not find the function 'logTimeTravel' in the repository, and the lesson provided is about finding constants, not functions.",
+              "model": "qwen2.5:3b",
+              "meta": {
+                "latency_ms": 10366,
+                "tokens_in": 447,
+                "tokens_out": 60
+              }
+            }
+          }
+        ],
+        "dropped": [],
+        "model_calls": 6
+      }
+    }
+  ]
+}

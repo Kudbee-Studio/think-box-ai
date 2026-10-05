@@ -21,6 +21,7 @@
     "test:live-eval": "node --experimental-strip-types --no-warnings tests/e2e/local-eval.live.ts",
     "test:live-token-ab": "node --experimental-strip-types --no-warnings tests/e2e/local-token-ab.live.ts",
     "test:live-token-ab3": "node --experimental-strip-types --no-warnings tests/e2e/token-ab.live.ts",
+    "test:live-repo-harvest": "node --experimental-strip-types --no-warnings tests/e2e/repo-token-harvest.live.ts",
     "test:live-token-ab3-report": "node --experimental-strip-types --no-warnings tests/e2e/token-ab-report.ts"
   },
   "engines": {
