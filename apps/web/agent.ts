@@ -6,6 +6,7 @@ import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwor
 import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
 import { LOOKUP_RECIPES, lookupMaxChars, lookupUrl, normalizeLookup, validateLookupArgs } from './live-lookup.ts';
 import { detectRepo } from './repo-context.ts';
+import { REPO_TOOLS, repoRead, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
@@ -108,6 +109,9 @@ export interface AgentRunResult {
   evidence_conflicts?: string[];
 }
 
+/** Tools that exist in the one registry but are offered, and callable, ONLY when a run's allowlist names them (repository access is never a default). */
+export const OPT_IN_TOOLS: ReadonlySet<string> = new Set<string>(REPO_TOOLS);
+
 export const TOOLS = [
   {
     type: 'function',
@@ -153,6 +157,37 @@ export const TOOLS = [
         type: 'object',
         properties: { url: { type: 'string', description: 'http(s) URL' } },
         required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'repo_search',
+      description: 'Search the repository source for a literal string (case-insensitive). Returns file:line: text for each match. A search with NO MATCHES is evidence that the text does not appear in that path. Read-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Literal text to find (2 to 120 characters, one line)' },
+          path: { type: 'string', description: 'Optional repo-relative folder or file to limit the search, for example apps/web/tests' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'repo_read',
+      description: 'Read numbered lines of one repository source file (at most 200 lines per call). Read-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Repo-relative file path, for example apps/web/live-lookup.ts' },
+          start: { type: 'integer', description: 'First line (default 1)' },
+          end: { type: 'integer', description: 'Last line (default start + 119)' },
+        },
+        required: ['path'],
       },
     },
   },
@@ -434,7 +469,7 @@ function normalizePath(value: unknown): string {
 }
 
 function isObservation(name: string, args: Record<string, unknown>, context: RunContext): boolean {
-  if (name === 'fetch_url' || name === 'live_lookup' || name === 'read_rss' || name === 'algorand' || name === 'medication') return true;
+  if (name === 'fetch_url' || name === 'live_lookup' || name === 'read_rss' || name === 'algorand' || name === 'medication' || OPT_IN_TOOLS.has(name)) return true;
   if (name === 'read_file') return !context.written.has(normalizePath(args.path));
   return false;
 }
@@ -476,6 +511,16 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       // Internal callers (local recipes) may ask for more than the default 12000 characters; the model-facing tool schema has no such argument.
       const maxChars = Math.min(Math.max(Number(args.max_chars) || 12000, 1000), 120000);
       return { url: url.toString(), status: response.status, content_type: type, text: truncate(text, maxChars) };
+    }
+    case 'repo_search': {
+      const checked = validateRepoSearchArgs(args);
+      if (!checked.ok) throw new Error(`repo_search: ${checked.error}`);
+      return { evidence: await repoSearch(checked.args) };
+    }
+    case 'repo_read': {
+      const checked = validateRepoReadArgs(args);
+      if (!checked.ok) throw new Error(`repo_read: ${checked.error}`);
+      return { evidence: await repoRead(checked.args) };
     }
     case 'live_lookup': {
       const checked = validateLookupArgs(args, detectRepo());
@@ -552,6 +597,9 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
     // Hard backstop: even a hallucinated or prompt-injected tool_call for a name outside
     // this run's allowlist is rejected before it ever reaches the approval gate — filtering
     // the model's function list is a UX nicety, not the actual security boundary.
+    if (OPT_IN_TOOLS.has(name) && !hooks.allowedTools?.includes(name)) {
+      throw new Error(`Tool '${name}' is not available to this run (repository tools are opt-in)`);
+    }
     if (hooks.allowedTools && !hooks.allowedTools.includes(name)) {
       throw new Error(`Tool '${name}' is not available to this agent profile`);
     }
@@ -639,7 +687,7 @@ export async function runToolAgent(
 
   if (!inceptionConfigured()) return finish({ success: false, error: 'INCEPTION_API_KEY is not set in .env' });
 
-  const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS;
+  const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS.filter((t) => !OPT_IN_TOOLS.has(t.function.name));
   const roleContext = hooks.roleContext ?? (hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined);
 
   const evidence: ToolEvidence[] = [];

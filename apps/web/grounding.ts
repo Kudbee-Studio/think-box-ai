@@ -5,8 +5,9 @@
 // This is a claim check against evidence, not a view into the model's reasoning: nothing here reads or displays chain of thought.
 
 import { renderFacts, type LookupEvidence, type LookupItem } from './live-lookup.ts';
+import type { RepoEvidence } from './repo-tools.ts';
 
-export type ClaimKind = 'number' | 'url' | 'id' | 'branch' | 'state' | 'citation';
+export type ClaimKind = 'number' | 'url' | 'id' | 'branch' | 'state' | 'citation' | 'file' | 'line' | 'quote' | 'identifier' | 'absence';
 export interface UnsupportedClaim { kind: ClaimKind; claim: string; why: string }
 
 export interface GroundingResult {
@@ -15,7 +16,7 @@ export interface GroundingResult {
   classification: 'ok' | 'unsupported_claim' | 'no_evidence' | 'empty_answer' | 'unreadable_answer';
   unsupported: UnsupportedClaim[];
   /** How many claims of each kind were found and checked (a count of what was verified, so "GROUNDED" is not an empty claim). */
-  checked: { numbers: number; urls: number; ids: number; branches: number; states: number };
+  checked: { numbers: number; urls: number; ids: number; branches: number; states: number; quotes?: number; identifiers?: number; absence?: number };
 }
 
 const MAX_ANSWER_CHARS = 700;
@@ -228,4 +229,99 @@ export function presentAnswer(answer: string, evidence: LookupEvidence[], result
   if (result.status === 'GROUNDED') return { verified: String(answer).trim(), display: `${String(answer).trim()}\n\n${facts}` };
   const claims = result.unsupported.map((u) => `- ${u.kind}: ${u.claim} (${u.why})`).join('\n');
   return { verified: null, display: `GROUNDING FAILED (${result.classification}). The model's sentence was not used because these claims are not supported by the evidence:\n${claims}\n\n${facts || 'No evidence was returned.'}` };
+}
+
+// ─── Repository findings ────────────────────────────────────────────────────
+// A worker that looked at the real repository reports a FINDING: a file, a line, an exact quote and a short claim. The same rule applies as for live
+// data: every part of it must trace to what the tools returned in this run (not to the model's memory), and a claim of absence ("no test covers this")
+// is only grounded by a recorded search that found nothing.
+
+export interface RepoFinding {
+  found: boolean;
+  file?: string;
+  line?: number;
+  quote?: string;
+  claim?: string;
+  /** For a claim that something does NOT exist: the search the worker ran to show it. Must be in the evidence with zero matches. */
+  absence_search?: { query: string; path: string };
+  /** When nothing was found: why, in the worker's words. */
+  reason?: string;
+}
+
+/** A finding from a model's raw arguments, strictly shaped. */
+export function parseFinding(raw: unknown): { ok: true; finding: RepoFinding } | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'the finding must be an object' };
+  const r = raw as Record<string, unknown>;
+  const extra = Object.keys(r).filter((k) => !['found', 'file', 'line', 'quote', 'claim', 'absence_search', 'reason'].includes(k));
+  if (extra.length) return { ok: false, error: `unknown field(s): ${extra.join(', ')}` };
+  if (typeof r.found !== 'boolean') return { ok: false, error: 'found must be true or false' };
+  const text = (v: unknown, max: number): string | undefined => (typeof v === 'string' && v.trim() && v.length <= max ? v : undefined);
+  if (!r.found) {
+    const reason = text(r.reason, 400);
+    return reason ? { ok: true, finding: { found: false, reason } } : { ok: false, error: 'when nothing was found, give a reason (up to 400 characters)' };
+  }
+  const file = text(r.file, 300); const quote = text(r.quote, 240); const claim = text(r.claim, 400);
+  if (!file) return { ok: false, error: 'file is required' };
+  if (typeof r.line !== 'number' || !Number.isInteger(r.line) || r.line < 1) return { ok: false, error: 'line must be a whole number of 1 or more' };
+  if (!quote) return { ok: false, error: 'quote is required (up to 240 characters, copied exactly from the line)' };
+  if (!claim) return { ok: false, error: 'claim is required (up to 400 characters)' };
+  let absence: RepoFinding['absence_search'];
+  if (r.absence_search !== undefined && r.absence_search !== null) {
+    const a = r.absence_search as Record<string, unknown>;
+    if (typeof a !== 'object' || typeof a.query !== 'string' || typeof a.path !== 'string') return { ok: false, error: 'absence_search must be {query, path}' };
+    absence = { query: a.query, path: a.path };
+  }
+  return { ok: true, finding: { found: true, file, line: r.line, quote, claim, ...(absence ? { absence_search: absence } : {}) } };
+}
+
+const norm = (s: string): string => s.replace(/\s+/g, ' ').trim().toLowerCase();
+const ABSENCE_CLAIM = /\b(no|any|without|lacks?|lacking|missing|zero|not|never|isn't|aren't|n't)\b[^.;]{0,40}\b(tests?|tested|coverage|covered|used|called|imported|referenced|callers?|usages?|references?)\b|\b(untested|unused|uncovered|unreferenced|dead code)\b/i;
+
+/** Check a finding against the repo evidence the worker's own tool calls returned. */
+export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[]): GroundingResult {
+  const checked = { numbers: 0, urls: 0, ids: 0, branches: 0, states: 0, quotes: 0, identifiers: 0, absence: 0 };
+  if (!finding.found) return { status: 'GROUNDED', classification: 'ok', unsupported: [], checked };
+  const unsupported: UnsupportedClaim[] = [];
+  const add = (kind: ClaimKind, claim: string, why: string): void => { unsupported.push({ kind, claim, why }); };
+  const file = String(finding.file ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
+  const line = Number(finding.line);
+  const quote = String(finding.quote ?? '');
+  // every line a tool returned, by file
+  const seen = new Map<string, Map<number, string>>();
+  const note = (p: string, n: number, t: string): void => { if (!seen.has(p)) seen.set(p, new Map()); seen.get(p)!.set(n, t); };
+  for (const e of evidence) {
+    if (e.tool === 'repo_read') for (const l of e.lines) note(e.path, l.n, l.text);
+    else for (const m of e.matches) note(m.path, m.line, m.text);
+  }
+  const everything = norm([...seen.values()].flatMap((m) => [...m.values()]).join('\n'));
+  if (!evidence.length) { add('citation', '(whole finding)', 'no repository tool was used, so nothing in the finding can be verified'); return { status: 'GROUNDING FAILED', classification: 'no_evidence', unsupported, checked }; }
+
+  checked.quotes += 1;
+  const lines = seen.get(file);
+  if (!lines) add('file', file, 'this file was never returned by a tool in this run');
+  else if (!lines.has(line)) add('line', `${file}:${line}`, `line ${line} of this file was not returned by any tool in this run`);
+  else {
+    // the quote may sit on the cited line or run across the next two
+    const window = norm([line, line + 1, line + 2].map((n) => lines.get(n) ?? '').join(' '));
+    if (!window.includes(norm(quote))) add('quote', quote.slice(0, 80), `this exact text is not at ${file}:${line} in the tool output`);
+  }
+
+  // identifiers the claim puts in backticks must appear in what the tools returned
+  for (const m of finding.claim?.matchAll(/`([^`\n]{2,80})`/g) ?? []) {
+    checked.identifiers += 1;
+    if (!everything.includes(norm(m[1]!))) add('identifier', m[1]!, 'this name does not appear anywhere in the tool output');
+  }
+
+  // a claim of absence needs a recorded search that found nothing
+  const claimsAbsence = ABSENCE_CLAIM.test(String(finding.claim ?? ''));
+  if (claimsAbsence && !finding.absence_search) add('absence', String(finding.claim).slice(0, 80), 'a claim that something is missing or unused needs an absence_search that was run and found nothing');
+  if (finding.absence_search) {
+    checked.absence += 1;
+    const want = { query: norm(finding.absence_search.query), path: finding.absence_search.path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '') };
+    const proof = evidence.find((e) => e.tool === 'repo_search' && norm(e.query) === want.query && e.path.replace(/\/$/, '') === want.path);
+    if (!proof || proof.tool !== 'repo_search') add('absence', `${finding.absence_search.query} in ${want.path || 'the repository'}`, 'no such search was run in this run');
+    else if (proof.matches.length) add('absence', finding.absence_search.query, `the search found ${proof.matches.length} match(es), so it is not absent`);
+    else if (proof.truncated) add('absence', finding.absence_search.query, 'the search was cut off, so it does not prove absence');
+  }
+  return unsupported.length ? { status: 'GROUNDING FAILED', classification: 'unsupported_claim', unsupported, checked } : { status: 'GROUNDED', classification: 'ok', unsupported: [], checked };
 }

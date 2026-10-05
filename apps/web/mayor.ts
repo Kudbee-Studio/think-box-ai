@@ -4,7 +4,7 @@
 // human approves (convoy.ts) before any worker starts. Planning has no side effects by construction: this module imports no filesystem, network,
 // process or model code, and takes everything it needs (models, available tools, measured costs, the clock) as arguments.
 
-import { matchRecipe, isGithubRecipe } from './local-recipes.ts';
+import { matchRecipe, matchRepoGoal, isGithubRecipe } from './local-recipes.ts';
 import { allocateSpecialistJobs, planSpecialistWaves } from './specialist-executor.ts';
 import { SPECIALISTS, selectSpecialists } from './specialist-contracts.ts';
 
@@ -32,9 +32,15 @@ export function normalizeBudget(raw: unknown): { ok: true; budget: WorkerBudget 
   return { ok: true, budget };
 }
 
+/** How much a convoy may do. OBSERVE reads only; LEARN also lets the outcome feed Think Token candidates. SIMULATE and AUTONOMOUS are not available yet. */
+export type ThinkMode = 'observe' | 'learn' | 'simulate' | 'autonomous';
+export const THINK_MODES: readonly ThinkMode[] = ['observe', 'learn', 'simulate', 'autonomous'];
+const AVAILABLE_MODES: readonly ThinkMode[] = ['observe', 'learn'];
+const REPO_TOOL_NAMES = ['repo_search', 'repo_read'];
+
 export interface PlannedWorker {
   id: string;
-  kind: 'lookup' | 'specialist';
+  kind: 'lookup' | 'specialist' | 'repo';
   name: string;
   /** The model that will run this worker (null when none is available: the plan is then not executable). */
   model: string | null;
@@ -69,6 +75,8 @@ export interface ConvoyPlan {
   expected_convoy: { dashboard_rows: 1; children: number; waves: number };
   executable: boolean;
   blocked_reasons: string[];
+  /** The control mode this convoy was planned under. */
+  think_mode: ThinkMode;
   /** Things the approver should know that do not block the plan. */
   warnings: string[];
 }
@@ -85,6 +93,7 @@ export interface PolicyEvaluation {
 export interface PlanInput {
   goal: string;
   budget?: unknown;
+  mode?: ThinkMode;
   /** The model for a live-data lookup (whichever the operator picked: mercury-2, qwen2.5:3b, gemma3:4b ...). */
   lookupModel: string | null;
   /** The worker-agent model for specialist work (and the escalation fallback). */
@@ -114,8 +123,24 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   let handled: string[] = [];
   const added: Array<{ id: string; reason: string }> = [];
 
+  const mode: ThinkMode = input.mode ?? 'observe';
+  if (!THINK_MODES.includes(mode)) return { ok: false, error: `mode must be one of ${THINK_MODES.join(', ')}` };
+  if (!AVAILABLE_MODES.includes(mode)) blocked.push(`${mode.toUpperCase()} mode is not available yet (only ${AVAILABLE_MODES.join(' and ')}): it needs a scratch workspace and a test runner`);
+
   const recipe = matchRecipe(goal);
-  if (recipe && isGithubRecipe(recipe)) {
+  if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
+    const missing = REPO_TOOL_NAMES.filter((t) => !input.availableTools.includes(t));
+    if (missing.length) blocked.push(`the repository tools are not available in this runtime: ${missing.join(', ')}`);
+    if (!input.lookupModel) blocked.push('no model is available to run the investigation');
+    else if (!input.isLocalModel(input.lookupModel)) blocked.push(`repository investigation runs on local models in this version; ${input.lookupModel} is not one (pick a local model)`);
+    const cost = input.costOf(input.lookupModel, 'repo');
+    workers.push({
+      id: 'repo-1', kind: 'repo', name: 'Repository investigation (read-only)', model: input.lookupModel, tools: [...REPO_TOOL_NAMES], permission: 'read_only', depends_on: [], wave: 1,
+      purpose: 'Look at the real source with read-only tools and report one finding (file, line, exact quote, claim); the finding is checked against what the tools returned and re-read from disk',
+      estimated_cost_usd: cost.usd, cost_basis: cost.basis, estimated_tool_calls: 8,
+    });
+    waves.push(['repo-1']);
+  } else if (recipe && isGithubRecipe(recipe)) {
     const cost = input.costOf(input.lookupModel, 'lookup');
     if (!input.lookupModel) blocked.push('no model is available to run the lookup');
     workers.push({
@@ -185,7 +210,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
       budget_use: { workers: workers.length, worst_case_workers: worstWorkers, estimated_cost_usd: estimatedCost, worst_case_cost_usd: worstCost, estimated_tool_calls: estimatedCalls },
       expected_convoy: { dashboard_rows: 1, children: workers.length, waves: waves.length },
       executable: blocked.length === 0 && workers.length > 0,
-      blocked_reasons: workers.length || blocked.length ? blocked : ['nothing to plan'], warnings,
+      blocked_reasons: workers.length || blocked.length ? blocked : ['nothing to plan'], think_mode: mode, warnings,
     },
   };
 }
@@ -200,9 +225,12 @@ export function evaluatePolicy(plan: ConvoyPlan): PolicyEvaluation {
   const restrictions = ['Tool calls still pass the runtime gates: allowlist, first network access per host, overwrite confirmation.', 'Workers are limited to the tools listed in the plan.'];
   const withTool = (set: Set<string>): string[] => plan.workers.filter((w) => w.tools.some((t) => set.has(t))).map((w) => w.id);
   const network = withTool(NETWORK_TOOLS);
+  const repoReaders = plan.workers.filter((w) => w.kind === 'repo').map((w) => w.id);
   const write = withTool(WRITE_TOOLS);
   const exec = plan.workers.filter((w) => w.tools.includes('exec')).map((w) => w.id);
   let risk: PolicyEvaluation['risk'] = 'low';
+  rules.push({ id: `mode-${plan.think_mode}`, effect: 'info', reason: plan.think_mode === 'observe' ? 'OBSERVE: read-only. No file is changed and nothing is learned from this convoy.' : plan.think_mode === 'learn' ? 'LEARN: read-only like OBSERVE, and the verified outcome may produce Think Token candidates (never auto-accepted).' : `${plan.think_mode.toUpperCase()}: not available yet.` });
+  if (repoReaders.length) rules.push({ id: 'repo-read', effect: 'info', reason: 'These workers read this repository\'s source through read-only tools. Secrets, .env files, keys, databases, .git and node_modules are not readable. Source text a local model reads stays on this machine.', workers: repoReaders });
   if (network.length) rules.push({ id: 'network-read', effect: 'info', reason: 'These workers read from the network; the first access to each host still asks for approval at run time.', workers: network });
   if (write.length) { risk = 'medium'; rules.push({ id: 'workspace-write', effect: 'require_approval', reason: 'These workers can write files or memory inside their own workspace.', workers: write }); restrictions.push('Writes stay inside the worker workspace; overwriting an existing file asks again.'); }
   if (exec.length) { risk = 'high'; rules.push({ id: 'command-execution', effect: 'deny', reason: 'Command execution is not available to convoys.', workers: exec }); }
