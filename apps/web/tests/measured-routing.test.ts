@@ -7,7 +7,7 @@ import path from 'node:path';
 import { newRunContext } from '../agent.ts';
 import { COLD_LOAD_MS, LOCAL_CALL_TIMEOUT_MS, lookupSpec, runLocalToolLoop, type LocalChat } from '../local-tools.ts';
 import { routeLine } from '../convoy-runner.ts';
-import { DEFAULT_EVAL_FILE, goalClassOf, loadMeasurements, pickMeasured, type Measurements } from '../measured-routing.ts';
+import { DEFAULT_EVAL_FILE, goalClassOf, loadMeasurements, pickMeasured, rerouteLookup, type Measurements } from '../measured-routing.ts';
 import { planConvoy } from '../mayor.ts';
 import type { Trial } from '../local-eval.ts';
 import type { OllamaChatTurn } from '../ollama-client.ts';
@@ -120,5 +120,27 @@ describe('the lookup lane: generous timeout, cold vs warm on the record', () => 
     assert.match(routeLine('lookup', 'gemma3:4b', 'constrained', 52_000, result.cold_load_ms), /^route: lane=lookup model=gemma3:4b mode=constrained latency=52\.0s cold \(model load 50\.5s\)$/);
     assert.match(routeLine('lookup', 'gemma3:4b', 'constrained', 8_300, 0), /latency=8\.3s warm$/);
     assert.equal(COLD_LOAD_MS, 1500);
+  });
+});
+
+describe('rerouteLookup: a chosen model the table does not qualify is replaced, visibly', () => {
+  const m = table([...many('gemma3:4b', 'lookup', 15, 15, 'constrained'), ...many('qwen2.5:3b', 'lookup', 8, 10, 'native', { ungrounded: 1 })]);
+  it('qwen2.5:3b (measured insufficient) -> gemma3:4b, and the reason names both measurements', () => {
+    const r = rerouteLookup('qwen2.5:3b', INSTALLED, m, {});
+    assert.equal(r?.model, 'gemma3:4b');
+    assert.match(r!.why, /gemma3:4b measured 15\/15 on lookup goals/);
+    assert.match(r!.why, /qwen2\.5:3b measured 7\/10 on lookups with 1 ungrounded, which does not meet the rule/);
+  });
+  it('a never-measured model is replaced too, and says it has no measurements', () => {
+    assert.match(rerouteLookup('smollm2:360m', [...INSTALLED, 'smollm2:360m'], m, {})!.why, /smollm2:360m has no lookup measurements/);
+  });
+  it('a model that already meets the rule is never replaced; nothing qualified or nothing known means leave it alone', () => {
+    assert.equal(rerouteLookup('gemma3:4b', INSTALLED, m, {}), null);
+    assert.equal(rerouteLookup('qwen2.5:3b', ['qwen2.5:3b', 'qwen2.5:1.5b'], m, {}), null, 'gemma is not installed');
+    assert.equal(rerouteLookup('qwen2.5:3b', null, m, {}), null);
+    assert.equal(rerouteLookup('qwen2.5:3b', INSTALLED, null, {}), null);
+  });
+  it('KUDBEE_MEASURED_ROUTING=off turns it off', () => {
+    assert.equal(rerouteLookup('qwen2.5:3b', INSTALLED, m, { KUDBEE_MEASURED_ROUTING: 'off' }), null);
   });
 });

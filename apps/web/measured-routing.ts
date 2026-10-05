@@ -49,3 +49,16 @@ export function pickMeasured(cls: TaskClass, installed: string[] | null, m: Meas
 
 /** A goal class from the goal text, using the same matchers the Mayor uses. Pure. */
 export function goalClassOf(isRepoGoal: boolean): TaskClass { return isRepoGoal ? 'repo' : 'lookup'; }
+
+/**
+ * A live-data lookup on a local model the table does NOT qualify (measured insufficient, or never measured): the installed model it does qualify, with the
+ * reason, or null (leave the choice alone). A model that is itself measured sufficient is never replaced. `KUDBEE_MEASURED_ROUTING=off` disables this.
+ */
+export function rerouteLookup(chosen: string, installed: string[] | null, m: Measurements | null, env: Record<string, string | undefined> = process.env): { model: string; why: string } | null {
+  if (env.KUDBEE_MEASURED_ROUTING === 'off') return null;
+  const pick = pickMeasured('lookup', installed, m);
+  if (!pick.model || sameLocalModel(pick.model, chosen)) return null;
+  const mine = m ? summarize(m.trials.filter((t) => sameLocalModel(t.model, chosen))).find((s) => s.class === 'lookup') : undefined;
+  const own = mine ? `${chosen} measured ${mine.pass}/${mine.trials} on lookups with ${mine.ungrounded} ungrounded, which does not meet the rule` : `${chosen} has no lookup measurements`;
+  return { model: pick.model, why: `${pick.reason}; ${own}` };
+}

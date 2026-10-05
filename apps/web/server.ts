@@ -47,7 +47,7 @@ import { evaluatePolicy, planConvoy } from './mayor.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
 import { renderFacts, type LookupEvidence } from './live-lookup.ts';
-import { goalClassOf, loadMeasurements, pickMeasured } from './measured-routing.ts';
+import { goalClassOf, loadMeasurements, pickMeasured, rerouteLookup } from './measured-routing.ts';
 import { isGithubRecipe, matchRepoGoal, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
@@ -927,8 +927,16 @@ export class AgentSession {
         // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
         const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
         if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
-          this.config.model = next.model;
-          this.route = recipeRoute(next.model, recipe.id, recipe.label);
+          // The measured table decides which local model words a live lookup. A model it does not qualify is replaced by one it does, and the thought line says so.
+          refreshInstalledLocal();
+          const rerouted = rerouteLookup(next.model, installedLocal, loadMeasurements());
+          if (rerouted) {
+            this.addThought({ type: 'routing', content: `Routed to ${rerouted.model} instead of ${next.model}: ${rerouted.why}.`, status: 'info' });
+            next = { ...next, model: rerouted.model };
+          }
+          const recipeModel: string = rerouted?.model ?? next.model ?? defaultLocalModel;
+          this.config.model = recipeModel;
+          this.route = recipeRoute(recipeModel, recipe.id, recipe.label);
           this.config.provider = 'ollama';
           this.broadcast({ type: 'status', data: 'running' });
           const result = await this.runRecipeGoal(next.goal, recipe, next.task);
