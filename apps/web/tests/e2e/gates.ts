@@ -92,26 +92,29 @@ function scan(bin: string, step: 'codeql-js' | 'codeql-py', source: string, sari
   } finally { fs.rmSync(db, { recursive: true, force: true }); }
 }
 
+/** Scans the commit `sha` from a clean checkout, so local-only files (other worktrees, scratch directories) never count as alerts. Returns an error text or null. */
+function scanCommit(bin: string, step: 'codeql-js' | 'codeql-py', sha: string, sarif: string, tag: string): string | null {
+  const wt = path.join(cache, `wt-${sha}`);
+  fs.rmSync(wt, { recursive: true, force: true });
+  const add = run('git', ['worktree', 'add', '--detach', wt, sha], root);
+  if (add.code !== 0) return `cannot check out ${sha}: ${tail(add.out)}`;
+  try { return scan(bin, step, wt, sarif, tag); } finally { run('git', ['worktree', 'remove', '--force', wt], root); }
+}
+
 function codeqlStep(step: 'codeql-js' | 'codeql-py'): void {
   const t = Date.now();
   const bin = findCodeql();
   if (!bin) return record(step, 'not_run', 'codeql not found (set CODEQL_BIN or install it under ~/tools/codeql)', t);
   const baseSarif = path.join(cache, `base-${baseSha}-${LANG[step].id}.sarif`);
   if (!fs.existsSync(baseSarif)) {
-    const wt = path.join(cache, `wt-${baseSha}`);
-    fs.rmSync(wt, { recursive: true, force: true });
-    const add = run('git', ['worktree', 'add', '--detach', wt, baseSha], root);
-    if (add.code !== 0) return record(step, 'not_run', `cannot check out base: ${tail(add.out)}`, t);
-    try {
-      const err = scan(bin, step, wt, baseSarif, `base-${baseSha}`);
-      if (err) { fs.rmSync(baseSarif, { force: true }); return record(step, 'not_run', `base scan: ${err}`, t); }
-    } finally { run('git', ['worktree', 'remove', '--force', wt], root); }
+    const err = scanCommit(bin, step, baseSha, baseSarif, `base-${baseSha}`);
+    if (err) { fs.rmSync(baseSarif, { force: true }); return record(step, 'not_run', `base scan: ${err}`, t); }
   }
   const headSarif = path.join(cache, `head-${head}-${LANG[step].id}.sarif`);
-  const err = scan(bin, step, root, headSarif, `head-${head}`);
+  const err = scanCommit(bin, step, head, headSarif, `head-${head}`);
   if (err) return record(step, 'not_run', `head scan: ${err}`, t);
   const v = alertVerdict(parseSarif(fs.readFileSync(baseSarif, 'utf8')), parseSarif(fs.readFileSync(headSarif, 'utf8')));
-  record(step, v.ok ? 'pass' : 'fail', v.detail, t);
+  record(step, v.ok ? 'pass' : 'fail', `${v.detail}${dirty ? ' (scanned the committed HEAD, not the uncommitted changes)' : ''}`, t);
 }
 
 const wanted = selectedSteps(opts);

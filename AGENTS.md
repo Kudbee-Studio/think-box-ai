@@ -20,6 +20,8 @@ An agent MAY merge its own PR (squash) when ALL of these pass on a clean worktre
 4. The PR body has EVIDENCE: a four-state table (CODE / TEST / LIVE / PROD), an `act` jobs table (ran / skipped / green), and anything unproven labeled UNPROVEN.
 5. Self-reviewed diff: no secrets or keys, no `.db` / `.db-wal` / `.db-shm` / `.neon` files, guardrails intact (0.4: SQLite only, dashboard 127.0.0.1, no Vercel, HERMES/Algorand read-only).
 
+While GitHub Actions is billing-locked, gates 1 and 3 run as one command: `cd apps/web && npm run gates` (lint, tsgo, tsc, the full suite with a 90% line floor, CodeQL JS/TS and Python against `--base`, default `main`). It refuses a dirty tree unless `--allow-dirty`, treats a step that could not run as a failure, lists skipped steps as NOT checked, and `--record` writes the result to `docs/evidence/gates/`. The `act` gate (2) is not part of it.
+
 If a gate fails, fix it in ONE batched push and re-check. If it cannot be fixed, leave the PR as a draft and report why. Scope: your own PRs only; it does not cover other
 people's PRs, credential or token-scope changes, or contact with live infrastructure. Changes to `.github/workflows/` need a token with the `workflow` scope; only the
 founder can grant it (`gh auth refresh -s workflow`). Bypassing gates is covered in 0.8.
