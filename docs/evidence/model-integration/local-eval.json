@@ -1,8 +1,21 @@
 {
-  "generated_at": "2026-10-05T06:30:52.861Z",
+  "generated_at": "2026-10-05T18:20:40.481Z",
   "source": "real Ollama against the deterministic fixture world (fake GitHub API, tiny repo); no cost",
-  "trials_per_task": 2,
+  "trials_per_task": 3,
   "summary": [
+    {
+      "model": "gemma3:4b",
+      "class": "lookup",
+      "trials": 15,
+      "pass": 15,
+      "pass_rate": 1,
+      "wrong": 0,
+      "ungrounded": 0,
+      "failed": 0,
+      "p50_ms": 13234,
+      "p95_ms": 64167,
+      "avg_tokens": 573
+    },
     {
       "model": "qwen2.5:3b",
       "class": "lookup",
@@ -28,9 +41,22 @@
       "p50_ms": 34214,
       "p95_ms": 47716,
       "avg_tokens": 2591
+    },
+    {
+      "model": "gemma3:4b",
+      "class": "repo",
+      "trials": 9,
+      "pass": 5,
+      "pass_rate": 0.556,
+      "wrong": 3,
+      "ungrounded": 0,
+      "failed": 1,
+      "p50_ms": 15604,
+      "p95_ms": 87853,
+      "avg_tokens": 1201
     }
   ],
-  "table": "| Model | Class | Trials | Pass | Wrong | Ungrounded | Failed | p50 | p95 | Avg tokens | Sufficient |\n|---|---|---|---|---|---|---|---|---|---|---|\n| qwen2.5:3b | lookup | 10 | 80% | 0 | 1 | 1 | 9.0s | 40.5s | 904 | no |\n| qwen2.5:3b | repo | 6 | 67% | 0 | 2 | 0 | 34.2s | 47.7s | 2591 | no |",
+  "table": "| Model | Class | Trials | Pass | Wrong | Ungrounded | Failed | p50 | p95 | Avg tokens | Sufficient |\n|---|---|---|---|---|---|---|---|---|---|---|\n| gemma3:4b | lookup | 15 | 100% | 0 | 0 | 0 | 13.2s | 64.2s | 573 | yes |\n| qwen2.5:3b | lookup | 10 | 80% | 0 | 1 | 1 | 9.0s | 40.5s | 904 | no |\n| qwen2.5:3b | repo | 6 | 67% | 0 | 2 | 0 | 34.2s | 47.7s | 2591 | no |\n| gemma3:4b | repo | 9 | 56% | 3 | 0 | 1 | 15.6s | 87.9s | 1201 | no |",
   "trials": [
     {
       "model": "qwen2.5:3b",
@@ -206,6 +232,271 @@
       "tool_calls": 1,
       "tokens": 2089,
       "mode": "native",
+      "outcome": "pass",
+      "why": "reported that it does not exist"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "last-pr",
+      "class": "lookup",
+      "latency_ms": 64167,
+      "tool_calls": 1,
+      "tokens": 725,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and that it is open"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "last-pr",
+      "class": "lookup",
+      "latency_ms": 13234,
+      "tool_calls": 1,
+      "tokens": 725,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and that it is open"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "last-pr",
+      "class": "lookup",
+      "latency_ms": 14184,
+      "tool_calls": 1,
+      "tokens": 725,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and that it is open"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "open-prs",
+      "class": "lookup",
+      "latency_ms": 19880,
+      "tool_calls": 1,
+      "tokens": 717,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and #361"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "open-prs",
+      "class": "lookup",
+      "latency_ms": 16776,
+      "tool_calls": 1,
+      "tokens": 717,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and #361"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "open-prs",
+      "class": "lookup",
+      "latency_ms": 15836,
+      "tool_calls": 1,
+      "tokens": 717,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names #363 and #361"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "ci",
+      "class": "lookup",
+      "latency_ms": 20681,
+      "tool_calls": 1,
+      "tokens": 548,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says it failed"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "ci",
+      "class": "lookup",
+      "latency_ms": 13956,
+      "tool_calls": 1,
+      "tokens": 527,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says it failed"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "ci",
+      "class": "lookup",
+      "latency_ms": 13148,
+      "tool_calls": 1,
+      "tokens": 527,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says it failed"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "branches",
+      "class": "lookup",
+      "latency_ms": 12552,
+      "tool_calls": 1,
+      "tokens": 450,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names main and feat/pr363"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "branches",
+      "class": "lookup",
+      "latency_ms": 8932,
+      "tool_calls": 1,
+      "tokens": 450,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names main and feat/pr363"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "branches",
+      "class": "lookup",
+      "latency_ms": 8475,
+      "tool_calls": 1,
+      "tokens": 450,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "names main and feat/pr363"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "no-issues",
+      "class": "lookup",
+      "latency_ms": 11614,
+      "tool_calls": 1,
+      "tokens": 441,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says there are none"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "no-issues",
+      "class": "lookup",
+      "latency_ms": 8320,
+      "tool_calls": 1,
+      "tokens": 441,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says there are none"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "no-issues",
+      "class": "lookup",
+      "latency_ms": 8365,
+      "tool_calls": 1,
+      "tokens": 441,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "says there are none"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "find-constant",
+      "class": "repo",
+      "latency_ms": 9591,
+      "tool_calls": 1,
+      "tokens": 334,
+      "mode": "constrained",
+      "outcome": "failed",
+      "why": "tool_failed: file not found: config.py",
+      "failure": "tool_failed"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "find-constant",
+      "class": "repo",
+      "latency_ms": 16138,
+      "tool_calls": 1,
+      "tokens": 795,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "src/beta.ts"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "find-constant",
+      "class": "repo",
+      "latency_ms": 15604,
+      "tool_calls": 1,
+      "tokens": 793,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "src/beta.ts"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "untested-function",
+      "class": "repo",
+      "latency_ms": 37117,
+      "tool_calls": 2,
+      "tokens": 2227,
+      "mode": "constrained",
+      "outcome": "wrong",
+      "why": "reported nothing"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "untested-function",
+      "class": "repo",
+      "latency_ms": 33246,
+      "tool_calls": 2,
+      "tokens": 2227,
+      "mode": "constrained",
+      "outcome": "wrong",
+      "why": "reported nothing"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "untested-function",
+      "class": "repo",
+      "latency_ms": 87853,
+      "tool_calls": 2,
+      "tokens": 2227,
+      "mode": "constrained",
+      "outcome": "wrong",
+      "why": "reported nothing"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "honest-absence",
+      "class": "repo",
+      "latency_ms": 11596,
+      "tool_calls": 1,
+      "tokens": 735,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "reported that it does not exist"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "honest-absence",
+      "class": "repo",
+      "latency_ms": 9600,
+      "tool_calls": 1,
+      "tokens": 736,
+      "mode": "constrained",
+      "outcome": "pass",
+      "why": "reported that it does not exist"
+    },
+    {
+      "model": "gemma3:4b",
+      "task": "honest-absence",
+      "class": "repo",
+      "latency_ms": 9791,
+      "tool_calls": 1,
+      "tokens": 736,
+      "mode": "constrained",
       "outcome": "pass",
       "why": "reported that it does not exist"
     }

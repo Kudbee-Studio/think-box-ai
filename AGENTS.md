@@ -3508,3 +3508,11 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 - **Finding:** empty first replies were a minor cause. The dominant failure (7/10) is the model looking and then reporting found=false, which neither recovery nor the engine absence search addresses. UNPROVEN: that any recovery lifts this skill; that a token could.
 - **Next (a different problem):** make "reported nothing" on a goal that asks for a function without a test a recoverable outcome too, e.g. the engine assist offering the list of exported functions with their tests-folder search results when the model reports found=false on an untested-function goal.
 
+### 2026-10-05 — Local eval: gemma3:4b measured (3 trials per task, 8 tasks); qwen2.5:3b was removed then being re-pulled (branch feat/pr367-p3.27-gemma-eval, local)
+- **Why it was "unmeasured" before:** gemma's earlier timeouts were its cold model load (about 50 s; the 3.3 GB model runs 98% on CPU on the 2 GiB GPU). Warm, a short call is under a second.
+- **Lookup (live GitHub data): 15/15 = 100%, 0 ungrounded, 0 failed, p50 13.2 s, p95 64.2 s (the cold first call).** It meets the `sufficient` rule (>=6 trials, >=80% pass, 0 ungrounded): the first local model that does. qwen2.5:3b earlier: 8/10, 1 ungrounded, so NO.
+- **Repo investigation: 5/9 = 56%.** Passes: find-constant 2/3 (one tool_failed on an invented `config.py`), honest-absence 3/3. **untested-function 0/3: "reported nothing"**, the same failure as qwen 3B, so it is the task shape, not one model.
+- **Routing implication (not wired):** the measured table now supports gemma3:4b for live-data lookups. Routing still does not read the table. Not claimed: that gemma is good at repo investigation.
+- Limits: 3 trials per task, synthetic fixtures, qwen 3B lookups had 10 trials from an earlier run. The qwen 3B pull was running during this eval (possible latency noise).
+- Evidence: `docs/evidence/model-integration/local-eval.json` (merged per-model trials).
+
