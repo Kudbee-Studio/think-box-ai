@@ -135,3 +135,48 @@ describe('presentAnswer: a failed sentence is never shown as verified', () => {
     assert.match(p.display, /- #361 "router and recipes" \(merged\)/);
   });
 });
+
+describe('validateGrounding: no false alarms on a correct answer (found by the real-browser run with real Mercury)', () => {
+  const real = evidenceOf('latest_pr', [
+    pr(361, 'Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals', { head: { ref: 'feat/live-data-recipes' } }),
+    pr(360, '#360 P3.21: dashboard live-verify + flake fix', { head: { ref: 'feat/pr360-p3.21-dashboard-live' } }),
+  ]);
+  // The exact answer real Mercury gave: correct, but it quotes a title containing "queued" and says "creation/update".
+  const mercury = 'The most recent pull request in the **Kudbee‑Studio/think‑box‑ai** repository is:\n\n- **PR #361** – “Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals”  \n- **State:** merged  \n- **Author:** dev  \n- **Updated at:** 2026‑10‑04 10:00:00 UTC  \n- **URL:** https://github.com/Acme/widgets/pull/361  \n\nThis is the latest PR (newest by creation/update time).';
+  it('a verbatim title with a state word in it ("queued approvals") is not a state claim', () => {
+    assert.deepEqual(claims(mercury, [real]), []);
+    assert.equal(validateGrounding(mercury, [real]).status, 'GROUNDED');
+  });
+  it('"and/or" and "creation/update" are not branch names, but an invented branch-looking name still fails', () => {
+    assert.equal(validateGrounding('The newest PR is #361, merged, by creation/update time and/or title.', [real]).status, 'GROUNDED');
+    assert.ok(claims('The newest PR is #361, merged, on feat/never-existed.', [real]).includes('branch:feat/never-existed'));
+    assert.ok(claims('The newest PR is #361, merged, on branch made-up.', [real]).includes('branch:made-up'));
+  });
+  it('a state word outside the title is still checked, and naming a PR only by its title still counts as naming it', () => {
+    assert.ok(claims('PR #361 is still queued for review.', [real]).includes('state:#361 running'));
+    assert.equal(validateGrounding('The newest is "Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals" (#361), merged.', [real]).status, 'GROUNDED');
+    assert.ok(claims('The newest is "#999 some invented title", merged.', [real]).includes('id:#999'), 'a fake id inside quotes is still an invented id');
+  });
+  it('title masking does not hide a wrong state attached to a quoted title', () => {
+    assert.ok(claims('PR #360 "#360 P3.21: dashboard live-verify + flake fix" is open.', [real]).includes('state:#360 open'));
+  });
+});
+
+describe('validateGrounding: list-style answers (second real Mercury answer from the browser run)', () => {
+  const ev = evidenceOf('latest_pr', [
+    pr(361, 'Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals'),
+    pr(360, 'dashboard live verify', { merged_at: null, state: 'open', draft: true }),
+  ]);
+  const mercury2 = 'The most recent pull request in the **Kudbee‑Studio/think‑box‑ai** repository is:\n\n- **PR #361** – *Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals*  \n- **State:** Merged  \n- **Author:** dev  \n- **Updated:** 2026‑10‑04 10:00:00 UTC  \n- **URL:** https://github.com/Acme/widgets/pull/361\n\nThis is the latest PR across all states (open, closed, or merged).';
+  it('a generic "(open, closed, or merged)" is not a claim about #361, and the State line is attributed to the PR above it', () => {
+    assert.deepEqual(claims(mercury2, [ev]), []);
+  });
+  it('a State line is checked against the PR named above it: "Merged" under an open draft fails', () => {
+    const wrong = '- **PR #360** – dashboard live verify\n- **State:** Merged\n- The newest is #361, merged.';
+    assert.ok(claims(wrong, [ev]).includes('state:#360 merged'));
+    assert.equal(validateGrounding('- **PR #361** – x\n- **State:** Merged', [ev]).status, 'GROUNDED');
+  });
+  it('only a parenthetical list is skipped: "#360 was merged and closed" is still checked', () => {
+    assert.ok(claims('The newest is #361, merged; #360 was merged and closed.', [ev]).includes('state:#360 merged'));
+  });
+});

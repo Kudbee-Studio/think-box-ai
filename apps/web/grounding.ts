@@ -60,6 +60,21 @@ function itemSupports(item: LookupItem, state: State, recipe: string): boolean {
 
 const ids = (items: LookupItem[], kind: 'pr' | 'issue' | 'run'): Set<string> => new Set(items.flatMap((i) => (i.kind === kind ? [String(kind === 'run' ? (i as any).run_number : (i as any).number)] : [])));
 const titleWords = (text: string): Set<string> => new Set((text.toLowerCase().match(/[a-z][a-z0-9-]{4,}/g) ?? []).filter((w) => !COMMON.has(w)));
+/** A plain `a/b` word ("and/or", "creation/update") is not a branch reference; one that starts like a branch name is. */
+const BRANCH_PREFIX = /^(feat|feature|fix|bugfix|hotfix|chore|docs|test|tests|refactor|release|dependabot|renovate|revert|codex|claude)\//i;
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Blank out verbatim item titles: a PR called "...queued approvals" must not read as a claim that something is queued. */
+function maskTitles(text: string, titles: string[]): string {
+  let out = text;
+  for (const title of titles) if (title.length >= 6) out = out.replace(new RegExp(escapeRe(title).replace(/\s+/g, '\\s+'), 'gi'), (m) => ' '.repeat(m.length));
+  return out;
+}
+const STATE_WORD = '(?:open|opened|closed|merged|draft)';
+/** "(open, closed, or merged)" lists the possible states; it asserts nothing about one item. Only a parenthetical list is skipped, so "#359 was merged and closed" is still checked. */
+const STATE_ENUMERATION = new RegExp(`\\(\\s*${STATE_WORD}(?:\\s*,\\s*(?:or\\s+|and\\s+)?${STATE_WORD}|\\s+(?:or|and)\\s+${STATE_WORD})+\\s*\\)`, 'gi');
+const maskEnumerations = (text: string): string => text.replace(STATE_ENUMERATION, (m) => ' '.repeat(m.length));
+/** A markdown field line ("- **State:** Merged", "State: Merged") describes the item named just above it. */
+const FIELD_LINE = /^[\s>*•-]*\**[A-Za-z][A-Za-z ]{1,24}:\**\s/;
 const mask = (text: string, start: number, len: number): string => text.slice(0, start) + ' '.repeat(len) + text.slice(start + len);
 
 /**
@@ -70,6 +85,8 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
   const checked = { numbers: 0, urls: 0, ids: 0, branches: 0, states: 0 };
   const fail = (classification: GroundingResult['classification'], unsupported: UnsupportedClaim[]): GroundingResult => ({ status: 'GROUNDING FAILED', classification, unsupported, checked });
   const text = String(answer ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim();
+  // Same text with its line breaks kept: a markdown list is read line by line when attributing states.
+  const lined = String(answer ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
   if (!text) return fail('empty_answer', [{ kind: 'citation', claim: '(empty)', why: 'the model returned nothing' }]);
   if (/^\[Error:/i.test(text)) return fail('unreadable_answer', [{ kind: 'citation', claim: text.slice(0, 80), why: 'the model call failed' }]);
   if (text.length > MAX_ANSWER_CHARS) return fail('unreadable_answer', [{ kind: 'citation', claim: `(${text.length} characters)`, why: 'the answer is too long to check claim by claim' }]);
@@ -110,6 +127,10 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     rest = mask(rest, m.index!, m[0].length);
   }
 
+  // Verbatim titles are quoted data, not claims: from here on they are blanked for the branch, number and state checks (ids were read above, so naming a PR by its title still counts).
+  const titles = items.flatMap((i) => ('title' in i ? [i.title] : []));
+  rest = maskTitles(rest, titles);
+
   // 3. branch names
   const branches = new Set<string>();
   for (const e of evidence) if (e.branch) branches.add(e.branch.toLowerCase());
@@ -121,7 +142,7 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
     if (!branches.has(n.toLowerCase()) && !facts.toLowerCase().includes(n.toLowerCase())) add('branch', n, 'this branch name is not in the tool evidence');
   };
   for (const m of [...rest.matchAll(/\bbranch(?:es)?\s+(?:named\s+|called\s+)?[`'"]?([\w][\w./-]*)/gi)]) { claimBranch(m[1]!); rest = mask(rest, m.index!, m[0].length); }
-  for (const m of [...rest.matchAll(/(?<![\w/:.-])[\w.-]+(?:\/[\w.-]+)+/g)]) { claimBranch(m[0]); rest = mask(rest, m.index!, m[0].length); }
+  for (const m of [...rest.matchAll(/(?<![\w/:.-])[\w.-]+(?:\/[\w.-]+)+/g)]) { if (BRANCH_PREFIX.test(m[0])) claimBranch(m[0]); rest = mask(rest, m.index!, m[0].length); }
 
   // 4. counts in words ("two open PRs") and plain numbers
   const knownNumbers = new Set(facts.match(/\d+(?:\.\d+)*/g) ?? []);
@@ -137,22 +158,25 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[]): G
   }
 
   // 5. state claims, attributed per clause: a clause naming exactly one item must state that item's state
-  const claimed: Array<{ state: State; clause: string }> = [];
-  const clauses = text.split(/(?<=[.!?;])\s+|,\s+(?:and|but|while)\s+|\s+(?:and|but|while)\s+/i);
+  const claimed: Array<{ state: State; clause: string; named?: string[] }> = [];
+  let lastNamed: string[] = [];
+  const clauses = maskEnumerations(maskTitles(lined, titles)).split(/\n+|(?<=[.!?;])\s+|,\s+(?:and|but|while)\s+|\s+(?:and|but|while)\s+/i).filter((c) => c.trim());
   const clauseIds = (clause: string): string[] => [...clause.matchAll(/(?:(?:pull requests?|prs?|issues?|runs?)\s+#?|#)(\d{1,7})\b/gi)].map((m) => m[1]!).filter((n) => anyId.has(n));
   for (const clause of clauses) {
+    const own = clauseIds(clause);
+    const attributed = own.length ? own : FIELD_LINE.test(clause) ? lastNamed : [];
+    if (own.length) lastNamed = own;
     for (const { state, re } of STATE_WORDS) {
       for (const m of [...clause.matchAll(re)]) {
         if (NEGATION.test(clause.slice(Math.max(0, m.index! - 25), m.index!)) || /\b(not|un)\s*$/i.test(clause.slice(0, m.index!))) continue;
         // "open pull requests" is a noun phrase naming the list, not a claim about one item
         if (state === 'open' && /^\s*(pull|prs?|issues?)\b/i.test(clause.slice(m.index! + m[0].length))) { if (!recipes.has('open_prs') && !recipes.has('open_issues') && !items.some((i) => itemSupports(i, 'open', ''))) { checked.states += 1; add('state', 'open', 'no open item is in the tool evidence'); } continue; }
-        claimed.push({ state, clause });
+        claimed.push({ state, clause, named: attributed });
       }
     }
   }
-  for (const { state, clause } of claimed) {
+  for (const { state, named = [] } of claimed) {
     checked.states += 1;
-    const named = clauseIds(clause);
     const pool = named.length ? items.filter((i) => (i.kind === 'run' ? named.includes(String(i.run_number)) : 'number' in i && named.includes(String(i.number)))) : items;
     const recipe = evidence.find((e) => e.items.some((i) => pool.includes(i)))?.recipe ?? [...recipes][0]!;
     if (!pool.some((i) => itemSupports(i, state, recipe))) {

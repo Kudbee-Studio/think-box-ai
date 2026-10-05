@@ -93,7 +93,7 @@ export interface PlanInput {
   /** Names of the tools this runtime really has (agent.ts TOOLS). */
   availableTools: string[];
   /** The measured average cost of one run on this model, or null when there are no measured runs. */
-  costOf: (model: string | null) => { usd: number | null; basis: string };
+  costOf: (model: string | null, kind: PlannedWorker['kind']) => { usd: number | null; basis: string };
   now: number;
 }
 
@@ -116,7 +116,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
 
   const recipe = matchRecipe(goal);
   if (recipe && isGithubRecipe(recipe)) {
-    const cost = input.costOf(input.lookupModel);
+    const cost = input.costOf(input.lookupModel, 'lookup');
     if (!input.lookupModel) blocked.push('no model is available to run the lookup');
     workers.push({
       id: 'lookup-1', kind: 'lookup', name: `Live lookup (${recipe.label})`, model: input.lookupModel, tools: ['live_lookup'], permission: 'read_only', depends_on: [], wave: 1,
@@ -142,7 +142,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
       const allocations = runnable.length ? allocateSpecialistJobs({ jobId: 'plan', intent: goal, specialists: runnable, jobContext: {} }) : [];
       let ordered: string[][] = [];
       try { ordered = planSpecialistWaves(allocations).map((w) => w.map((a) => a.specialistId)); } catch (err) { blocked.push((err as Error).message); }
-      const cost = input.costOf(input.agentModel);
+      const cost = input.costOf(input.agentModel, 'specialist');
       for (const [index, wave] of ordered.entries()) {
         for (const specialistId of wave) {
           const contract = SPECIALISTS[specialistId]!;
@@ -170,7 +170,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     ? { model: input.agentModel, when: 'the local model fails the grounding check or cannot complete the lookup' } : null;
   const known = workers.every((w) => w.estimated_cost_usd !== null);
   const estimatedCost = workers.length && known ? round6(workers.reduce((t, w) => t + (w.estimated_cost_usd ?? 0), 0)) : null;
-  const escalationCost = escalation ? input.costOf(escalation.model).usd : 0;
+  const escalationCost = escalation ? input.costOf(escalation.model, 'lookup').usd : 0;
   const worstCost = estimatedCost === null || escalationCost === null ? null : round6(estimatedCost + escalationCost);
   const estimatedCalls = workers.reduce((t, w) => t + w.estimated_tool_calls, 0);
   const worstWorkers = workers.length + (escalation ? 1 : 0);

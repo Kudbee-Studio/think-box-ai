@@ -71,6 +71,28 @@ The first live runs were not successes, and each failure was a real defect that 
 
 Intermediate live results are kept in `live-acceptance.json` (`governed_first_run_without_validator`).
 
+## Real-browser proof with real models (convoy-real-e2e.json, `real-*.png`)
+
+`npm run test:e2e:convoy-real`: real Chromium at 1440 px against a real `server.ts`, real GitHub, real Ollama (`qwen2.5:3b`) and real Mercury, no fakes. Every click is made through the dashboard: plan, submit, approve the convoy, and approve the tool access in the approval dialog. The clicker is Playwright, not a person. The page's answer is also compared with what GitHub itself reports as the newest PR, fetched independently by the script.
+
+| | Mercury | Qwen 2.5 3B |
+|---|---|---|
+| Badges seen | PLAN ONLY, then PENDING APPROVAL, then LIVE EXECUTION | same |
+| Tool approval dialog | "First network access to api.github.com", args `{"recipe": "latest_pr"}`, approved by click | same |
+| Result | COMPLETED, GROUNDED | COMPLETED, GROUNDED |
+| Evidence's newest PR vs GitHub's own | #361 = #361 | #361 = #361 |
+| Cost / wall time | $0.000693 / 4.9 s | $0 / 21.1 s |
+| Console errors | 0 | 0 |
+
+### What this run found: two false alarms in the grounding validator
+
+The first real runs failed with GROUNDING FAILED on **correct** Mercury answers. The validator was wrong, not the model:
+
+1. A PR title that contains a state word ("...queued approvals") was read as a claim that #361 is queued; "newest by creation/update time" was read as a branch named `creation/update`.
+2. A list-style answer ended with a generic "(open, closed, or merged)", and a markdown `State: Merged` line was not tied to the PR named above it (the validator also collapsed all line breaks, so a whole list was one clause).
+
+Fixed: verbatim item titles are ignored for the state, branch and number checks (a fake id inside a quoted title is still caught); a slash word is a branch only when it starts like one (`feat/...`) or follows the word "branch"; a parenthetical list of states asserts nothing; a field line is checked against the PR named above it; clauses are split per line. Both real Mercury answers are regression fixtures, with true-positive guards (an invented branch, a wrong state, a wrong State line, a fake id in quotes still fail). Validator tests: 17 to 24. The evidence file holds the passing run; the failing runs are described here.
+
 ## Tests
 
 - `npm test`: 996 of 996 pass (was 911 at the start of this tranche); typecheck and lint clean; coverage 91.2% lines, every new module at 98% or more.
@@ -79,8 +101,8 @@ Intermediate live results are kept in `live-acceptance.json` (`governed_first_ru
 
 ## UNPROVEN
 
-- The tool approvals in every live run were granted **by the script**, standing in for the human reviewer (each grant is recorded). The click-through is proven in real Chromium only against a fake GitHub, fake Ollama and a scripted Mercury stand-in.
-- No real model was driven through the dashboard UI in a browser; no real touch input at 390 px.
+- The tool approvals in the `live-acceptance` runs were granted **by the script**, standing in for the human reviewer (each grant is recorded). The click-through against real models is proven in real Chromium (section above), but the clicker is Playwright, not a person.
+- No real touch input at 390 px; the real-model browser run was at 1440 px only.
 - The CLI `/convoy` commands are unit-wired and parity-tested but were not run against a live server by hand.
 - Convoy cost budgets are enforced at plan time (worst case) and between workers; a specialist job runs as one call, so spend inside it is only checked after it finishes.
 - Convoy approval expiry (15 minutes) is proven with an injected clock, not waited out.

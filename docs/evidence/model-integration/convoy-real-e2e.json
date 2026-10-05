@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-10-04T23:43:26.181Z",
+  "note": "real Chromium, real server, real GitHub, real Ollama, real Mercury; all clicks through the dashboard UI by Playwright (not a person); spend cap $0.05",
+  "passed": true,
+  "console_errors": [],
+  "results": [
+    {
+      "model": "mercury-2",
+      "steps": [
+        {
+          "step": "plan",
+          "note": "PLAN ONLY — NOTHING HAS RUN",
+          "at_ms": 1273
+        },
+        {
+          "step": "submit",
+          "note": "PENDING APPROVAL — NOTHING RUNS YET",
+          "at_ms": 1956
+        },
+        {
+          "step": "approve clicked",
+          "note": "convoy approved from the dashboard",
+          "at_ms": 2222
+        },
+        {
+          "step": "tool approval clicked",
+          "note": "⚖ First network access to api.github.com in this session",
+          "at_ms": 4003
+        },
+        {
+          "step": "done",
+          "note": "COMPLETED · success, GROUNDED, answer names #361, $0.000693",
+          "at_ms": 5512
+        }
+      ],
+      "plan_badge": "PLAN ONLY — NOTHING HAS RUN",
+      "convoy_id": "a8f9d53f-f58c-4b56-aea0-5c099d8b240d",
+      "plan_shot": "real-mercury-2-1-plan-only.png",
+      "pending_shot": "real-mercury-2-2-pending.png",
+      "tool_approval_text": "⚖ First network access to api.github.com in this session",
+      "tool_approval_shot": "real-mercury-2-3-tool-approval.png",
+      "state": "COMPLETED · success",
+      "live_badge": "LIVE EXECUTION",
+      "wall_ms": 4939,
+      "final_shot": "real-mercury-2-4-live-result.png",
+      "github_newest": {
+        "number": 361,
+        "state": "merged"
+      },
+      "final_answer": "The most recent pull request in the **Kudbee‑Studio/think‑box‑ai** repository is:\n\n- **PR #361** – “Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals”  \n- **State:** merged  \n- **Author:** KudbeeZero  \n- **Head branch:** `feat/live-data-recipes`  \n- **URL:** https://github.com/Kudbee-Studio/think-box-ai/pull/361  \n- **Last updated:** 2026‑10‑04 23:37:52 UTC  \n\nThis is the newest PR across all states (open, closed, or merged).",
+      "grounding": "GROUNDED",
+      "cost_usd": 0.000693,
+      "tokens": 2163,
+      "tool_calls": 1,
+      "workers": [
+        {
+          "id": "lookup-1",
+          "model": "mercury-2",
+          "status": "completed"
+        }
+      ],
+      "answer_names_github_newest": true,
+      "evidence_newest": 361,
+      "chain": {
+        "ok": true
+      },
+      "status": "PASS"
+    },
+    {
+      "model": "qwen2.5:3b",
+      "steps": [
+        {
+          "step": "plan",
+          "note": "PLAN ONLY — NOTHING HAS RUN",
+          "at_ms": 1343
+        },
+        {
+          "step": "submit",
+          "note": "PENDING APPROVAL — NOTHING RUNS YET",
+          "at_ms": 2080
+        },
+        {
+          "step": "approve clicked",
+          "note": "convoy approved from the dashboard",
+          "at_ms": 2321
+        },
+        {
+          "step": "tool approval clicked",
+          "note": "⚖ First network access to api.github.com in this session",
+          "at_ms": 6301
+        },
+        {
+          "step": "done",
+          "note": "COMPLETED · success, GROUNDED, answer names #361, $0",
+          "at_ms": 21581
+        }
+      ],
+      "plan_badge": "PLAN ONLY — NOTHING HAS RUN",
+      "convoy_id": "fcdc60d5-c857-4a74-a050-d603128115d6",
+      "plan_shot": "real-qwen2-5-3b-1-plan-only.png",
+      "pending_shot": "real-qwen2-5-3b-2-pending.png",
+      "tool_approval_text": "⚖ First network access to api.github.com in this session",
+      "tool_approval_shot": "real-qwen2-5-3b-3-tool-approval.png",
+      "state": "COMPLETED · success",
+      "live_badge": "LIVE EXECUTION",
+      "wall_ms": 21086,
+      "final_shot": "real-qwen2-5-3b-4-live-result.png",
+      "github_newest": {
+        "number": 361,
+        "state": "merged"
+      },
+      "final_answer": "The last Pull Request (PR) in the repository is #361, titled \"Model integration: live_lookup, local tool calling, grounding, convoys, Mayor, queued approvals\" and it was merged. It was updated on 2026-10-04T23:37:52Z.",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "tokens": 1233,
+      "tool_calls": 1,
+      "workers": [
+        {
+          "id": "lookup-1",
+          "model": "qwen2.5:3b",
+          "status": "completed"
+        }
+      ],
+      "answer_names_github_newest": true,
+      "evidence_newest": 361,
+      "chain": {
+        "ok": true
+      },
+      "status": "PASS"
+    }
+  ]
+}
