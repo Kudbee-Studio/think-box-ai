@@ -28,6 +28,34 @@ Machine-readable results sit next to this file:
 
 LIVE VERIFIED here means real service evidence exists for that item. Nothing is PRODUCTION READY: CI did not run (account billing lock) and the list below is not proven.
 
+## Pre-merge gates for #363 and #364 (run on 77e83738 in clean worktrees, 2026-10-05)
+
+#364 contains #363's commit (#363 is an ancestor), so these runs cover both. `git merge-tree` shows no conflicts: #363 vs `main`, #364 vs `main`, #364 vs #363. Merge #363 first, then #364.
+
+| Item | CODE COMPLETE | TEST VERIFIED | LIVE VERIFIED | PRODUCTION READY |
+|---|---|---|---|---|
+| #363 read-only repo investigation (OBSERVE), persisted thoughts | yes | yes (`npm test` 1105/1105 with the gate fixes below; typecheck clean) | real Qwen 3B, real repo (m1-observe.md); the 3B model did not complete the absence-proof task | no |
+| #364 agent board, REVIEW lane, beads, layered windows, LEARN | yes | yes (same run; new convoy-window refresh-coalescing test, 2 cases) | real Mercury + Qwen convoys in LEARN mode; the human REVIEW click and layered windows ran against fake services in Chromium, not real models | no |
+| CodeQL (security-extended, local 2.27.1) | | JS/TS 23 alerts on the branch vs 23 on `main`, 0 new; Python 17 vs 17, 0 new (matched by rule and file) | | no |
+| Chromium: convoy e2e | | 19/19 steps at 1440 and 390 px | | no |
+| Chromium: dashboard e2e incl. the #360 watchdog | | 24/24 steps at 1440, 1024 and 390 px, 0 console errors ([dashboard-e2e-77e83738.json](dashboard-e2e-77e83738.json)) | | no |
+
+Nothing is PRODUCTION READY: GitHub Actions did not run on these PRs (the checks fail within seconds, consistent with the account billing lock; not confirmed from the job logs).
+
+**Found while gating, fixed in this push (tests only):**
+- `tests/e2e/dashboard-live.e2e.ts` step `c` still asserted the #360-era layout (the governance window's Approve above the approval modal). Both `main` and this branch fail it the same way (18/24, with the profiles step failing as a knock-on), because the approval modal is deliberately the topmost layer. The step now clicks the modal's Approve and Deny, asserts they are topmost, and closes the first agent's window before the second submit (at 1024 px it covered the Run button). This is a test correction, not a product change.
+- `tests/live-fixes.test.ts` read this checkout's real git remote, so it failed whenever `origin` is not the GitHub repo (it is a GitLab URL on this machine right now). It now builds a throwaway repo with a GitHub remote.
+
+## Needs founder sign-off: when a convoy run counts as a success (fix 2)
+
+**Before:** LEARN mode called `recordOutcome(run, success=true)` the moment it wrote Think Token candidates, i.e. before any human had looked at the result. A later REJECT retired the candidates but the runs stayed recorded as successes (inflating `success_runs` and the outcome:win cells of any token those runs had used).
+
+**Now:** the run outcome is recorded at the human review of the convoy (`convoy_review`): ACCEPT records success, REJECT records failure, for each child run that retrieved tokens (a run that used none has nothing to record). LEARN only writes candidates.
+
+**Runs that are never reviewed:** nothing is recorded. Their `think_token_uses` rows keep `success = NULL` (pending), so they add to neither `success_runs` nor `failed_runs`, do not move any token's score, and write no outcome cells or ledger entry. Their candidates stay `candidate` (never auto-accepted). The convoy stays in the REVIEW lane and the taskbar/header chip keep showing it until a human decides, so an unreviewed run is visible, not silently counted. The same holds for convoys that did not succeed (failed/ungrounded/stopped): they have no review and, as before, record no outcome.
+
+**Trade-off:** token scores now only move with human review, which is slower but means a rejected outcome can never have been counted as a win. If you would rather count unreviewed successes after a timeout, that is a separate, explicit decision; this PR does not do it.
+
 ## "What is the last PR?" on three models (live-acceptance.json)
 
 Same question, same governed tool, same evidence path, same grounding validator. Real GitHub reported #360 as the newest PR (merged); #359 is "closed without merging".

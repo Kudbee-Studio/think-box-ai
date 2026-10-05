@@ -1681,6 +1681,12 @@ how it was verified, and what is still open. Newest entry first.
 - **Tests:** convoy-job-state, convoy-board, runner LEARN/stop, real-server board and review tests; Chromium 19/19; real-services LEARN run (Mercury and Qwen) passed.
 - **Not proven:** the REVIEW click against real models, the CLI board by hand, whether template candidates help any worker, SIMULATE/AUTONOMOUS (not built).
 
+### 2026-10-05 — Pre-merge gates for #363 / #364
+
+- **Gates run on 77e83738:** CodeQL 0 new (JS/TS 23 vs 23, Python 17 vs 17); convoy e2e 19/19; dashboard e2e 24/24 with the #360 watchdog and 0 console errors; `npm test` 1105/1105. #363 and #364 do not conflict; merge #363 first. Details and the four-state table: `docs/evidence/model-integration/README.md`.
+- **Two stale tests fixed (no product change):** the dashboard e2e approval step now matches the approval-modal-on-top design, and `live-fixes.test.ts` no longer depends on the checkout's real git remote.
+- **Needs founder sign-off:** LEARN run outcomes are recorded at human review, not when candidates are written; unreviewed runs record nothing (see the evidence README).
+
 ### 2026-10-05 — Review fixes on the agent board (#364)
 
 - **Rejecting an outcome** retires only this convoy's tokens that are still undecided (judged by the token's current status); a lesson a human already accepted stays accepted.

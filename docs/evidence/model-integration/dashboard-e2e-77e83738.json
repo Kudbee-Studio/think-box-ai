@@ -1,0 +1,198 @@
+{
+ "generated": "2026-10-05T05:58:35.347Z",
+ "base": "own server, scripted model (no provider contacted, $0)",
+ "passed": 24,
+ "failed": 0,
+ "results": [
+  {
+   "viewport": "1440",
+   "step": "watchdog: responsive, no render loop",
+   "status": "PASS",
+   "note": "page answered within 3000 ms; 0 taskbar rebuilds/s at rest (limit 20)",
+   "screenshot": "1440-watchdog-responsive-no-render-loop.png",
+   "ms": 3256
+  },
+  {
+   "viewport": "1440",
+   "step": "a window manager",
+   "status": "PASS",
+   "note": "3 windows opened, dragged, resized, maximized, minimized, closed, layout restored after reload (2 windows); header toggle opens/closes without duplicates",
+   "screenshot": "1440-a-window-manager.png",
+   "ms": 3380
+  },
+  {
+   "viewport": "1440",
+   "step": "e layout without overlap",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (1440px)",
+   "screenshot": "1440-e-layout-without-overlap.png",
+   "ms": 263
+  },
+  {
+   "viewport": "1440",
+   "step": "b workflows",
+   "status": "PASS",
+   "note": "built, saved and listed in the Actions menu; saving it ran it once and the Actions menu ran it again, each through the real server with the answer reaching the terminal; Load restored \"E2E flow 1440\" into the builder; steps added by drag, click and keyboard Enter",
+   "screenshot": "1440-b-workflows.png",
+   "ms": 11276
+  },
+  {
+   "viewport": "1440",
+   "step": "c agent tracking and approvals",
+   "status": "PASS",
+   "note": "badge \"1 running\" while running; governance window showed steps and tokens; the approval modal was the topmost layer and its Approve let the run finish; Deny on a second run ended it with the denial",
+   "screenshot": "1440-c-agent-tracking-and-approvals.png",
+   "ms": 4706
+  },
+  {
+   "viewport": "1440",
+   "step": "d profiles",
+   "status": "PASS",
+   "note": "created Alpha-1440 and Beta-1440 from the header switcher; memory and runs stay inside their profile and return on switch back; export -> import into a new profile keeps the memory (API-level: the dashboard has no export/import control); an oversized import is refused with 400",
+   "screenshot": "1440-d-profiles.png",
+   "ms": 2290
+  },
+  {
+   "viewport": "1440",
+   "step": "e layout after approvals",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (1440px)",
+   "screenshot": "1440-e-layout-after-approvals.png",
+   "ms": 235
+  },
+  {
+   "viewport": "1024",
+   "step": "watchdog: responsive, no render loop",
+   "status": "PASS",
+   "note": "page answered within 3000 ms; 0 taskbar rebuilds/s at rest (limit 20)",
+   "screenshot": "1024-watchdog-responsive-no-render-loop.png",
+   "ms": 3166
+  },
+  {
+   "viewport": "1024",
+   "step": "a window manager",
+   "status": "PASS",
+   "note": "3 windows opened, dragged, resized, maximized, minimized, closed, layout restored after reload (2 windows); header toggle opens/closes without duplicates",
+   "screenshot": "1024-a-window-manager.png",
+   "ms": 2588
+  },
+  {
+   "viewport": "1024",
+   "step": "e layout without overlap",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (1024px)",
+   "screenshot": "1024-e-layout-without-overlap.png",
+   "ms": 167
+  },
+  {
+   "viewport": "1024",
+   "step": "b workflows",
+   "status": "PASS",
+   "note": "built, saved and listed in the Actions menu; saving it ran it once and the Actions menu ran it again, each through the real server with the answer reaching the terminal; Load restored \"E2E flow 1024\" into the builder; steps added by drag, click and keyboard Enter",
+   "screenshot": "1024-b-workflows.png",
+   "ms": 10760
+  },
+  {
+   "viewport": "1024",
+   "step": "c agent tracking and approvals",
+   "status": "PASS",
+   "note": "badge \"1 running\" while running; governance window showed steps and tokens; the approval modal was the topmost layer and its Approve let the run finish; Deny on a second run ended it with the denial",
+   "screenshot": "1024-c-agent-tracking-and-approvals.png",
+   "ms": 4025
+  },
+  {
+   "viewport": "1024",
+   "step": "d profiles",
+   "status": "PASS",
+   "note": "created Alpha-1024 and Beta-1024 from the header switcher; memory and runs stay inside their profile and return on switch back; export -> import into a new profile keeps the memory (API-level: the dashboard has no export/import control); an oversized import is refused with 400",
+   "screenshot": "1024-d-profiles.png",
+   "ms": 2114
+  },
+  {
+   "viewport": "1024",
+   "step": "e layout after approvals",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (1024px)",
+   "screenshot": "1024-e-layout-after-approvals.png",
+   "ms": 160
+  },
+  {
+   "viewport": "390",
+   "step": "watchdog: responsive, no render loop",
+   "status": "PASS",
+   "note": "page answered within 3000 ms; 0 taskbar rebuilds/s at rest (limit 20)",
+   "screenshot": "390-watchdog-responsive-no-render-loop.png",
+   "ms": 3108
+  },
+  {
+   "viewport": "390",
+   "step": "a window manager",
+   "status": "PASS",
+   "note": "3 windows opened, dragged, resized, maximized, minimized, closed, layout restored after reload (2 windows); header toggle opens/closes without duplicates",
+   "screenshot": "390-a-window-manager.png",
+   "ms": 1999
+  },
+  {
+   "viewport": "390",
+   "step": "e layout without overlap",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (390px)",
+   "screenshot": "390-e-layout-without-overlap.png",
+   "ms": 103
+  },
+  {
+   "viewport": "390",
+   "step": "b workflows",
+   "status": "PASS",
+   "note": "built, saved and listed in the Actions menu; saving it ran it once and the Actions menu ran it again, each through the real server with the answer reaching the terminal; Load restored \"E2E flow 390\" into the builder; steps added by click and keyboard Enter",
+   "screenshot": "390-b-workflows.png",
+   "ms": 9572
+  },
+  {
+   "viewport": "390",
+   "step": "c agent tracking and approvals",
+   "status": "PASS",
+   "note": "badge \"1 running\" while running; governance window showed steps and tokens; the approval modal was the topmost layer and its Approve let the run finish; Deny on a second run ended it with the denial",
+   "screenshot": "390-c-agent-tracking-and-approvals.png",
+   "ms": 6281
+  },
+  {
+   "viewport": "390",
+   "step": "d profiles",
+   "status": "PASS",
+   "note": "created Alpha-390 and Beta-390 from the header switcher; memory and runs stay inside their profile and return on switch back; export -> import into a new profile keeps the memory (API-level: the dashboard has no export/import control); an oversized import is refused with 400",
+   "screenshot": "390-d-profiles.png",
+   "ms": 2303
+  },
+  {
+   "viewport": "390",
+   "step": "e layout after approvals",
+   "status": "PASS",
+   "note": "no horizontal scroll; taskbar, profile switcher and model selector do not overlap; open windows stay inside the viewport (390px)",
+   "screenshot": "390-e-layout-after-approvals.png",
+   "ms": 64
+  },
+  {
+   "viewport": "1440",
+   "step": "g startup guard",
+   "status": "PASS",
+   "note": "with the WebSocket blocked the dashboard showed an error panel naming the missing model list with a Retry button; after unblocking, Retry loaded the dashboard and the panel disappeared",
+   "ms": 6152
+  },
+  {
+   "viewport": "1440",
+   "step": "w pre-fix freeze is caught by the watchdog",
+   "status": "PASS",
+   "note": "SKIPPED: origin/main not available locally",
+   "ms": 10
+  },
+  {
+   "viewport": "all",
+   "step": "e no console errors",
+   "status": "PASS",
+   "note": "zero console errors and zero uncaught page errors at 1440, 1024 and 390 px",
+   "ms": 0
+  }
+ ],
+ "consoleErrors": []
+}
