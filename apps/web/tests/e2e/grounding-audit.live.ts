@@ -10,6 +10,7 @@ import { validateGrounding } from '../../grounding.ts';
 import type { LookupEvidence } from '../../live-lookup.ts';
 import { lookupSpec, runLocalToolLoop } from '../../local-tools.ts';
 import { createModelClients } from '../../ollama-client.ts';
+import { writeConfined } from '../../workspace-fs.ts';
 import { lookupHooks } from '../helpers/lookup-hooks.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,8 @@ const REPO = 'Kudbee-Studio/think-box-ai';
 process.env.KUDBEE_REPO = REPO; delete process.env.KUDBEE_GITHUB_API;
 const out = path.resolve(here, '../../../../docs/evidence/p3.30-grounding-audit/runs.jsonl');
 fs.mkdirSync(path.dirname(out), { recursive: true });
+const written: string[] = [];
+const oneLine = (t: unknown): string => String(t ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ');
 const GOALS = [
   'What is the last PR?', 'Who wrote the newest pull request and when was it updated?', 'Tell me about the three most recent PRs.', 'Is PR 367 merged?',
   'Are any pull requests still open?', 'Which pull requests are drafts?', 'Did the last CI run pass?', 'What is the status of the latest workflow run?',
@@ -42,8 +45,8 @@ for (const model of chosen) for (const goal of GOALS) {
     }
   } catch (e) { failure = String((e as Error).message ?? e).slice(0, 300); }
   const g = answer && evidence.length ? validateGrounding(answer, evidence, { goal }) : null;
-  fs.appendFileSync(out, JSON.stringify({ model, goal, answer, failure, grounding: g && { status: g.status, classification: g.classification, unsupported: g.unsupported, checked: g.checked }, evidence, latency_ms: Date.now() - t0, cost_usd: cost, at: new Date().toISOString() }) + '\n');
+  written.push(JSON.stringify({ model, goal, answer, failure, grounding: g && { status: g.status, classification: g.classification, unsupported: g.unsupported, checked: g.checked }, evidence, latency_ms: Date.now() - t0, cost_usd: cost, at: new Date().toISOString() })); await writeConfined(path.dirname(out), out, `${written.join('\n')}\n`, { mkdirs: true });
   n += 1;
-  console.log(`[${n}/${chosen.length * GOALS.length}] ${model.padEnd(13)} ${goal.slice(0, 44).padEnd(44)} ${g ? g.status : (failure ?? 'no evidence').slice(0, 50)} ${g?.unsupported.map((u) => `${u.kind}:${u.claim}`).join('; ').slice(0, 80) ?? ''}`);
+  console.log(oneLine(`[${n}/${chosen.length * GOALS.length}] ${model.padEnd(13)} ${goal.slice(0, 44).padEnd(44)} ${g ? g.status : (failure ?? 'no evidence').slice(0, 50)} ${g?.unsupported.map((u) => `${u.kind}:${u.claim}`).join('; ').slice(0, 80) ?? ''}`));
 }
 process.exit(0);
