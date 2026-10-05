@@ -235,6 +235,7 @@ async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => vo
     const r = await runLocalToolLoop<RepoEvidence>({ model, goal: c.goal, hooks, context: newRunContext(), chat: deps.chat, repo: null, spec: repoSpec(), maxSteps: 8, signal: deps.signal });
     evidence = r.evidence; tokens = r.prompt_tokens + r.completion_tokens; toolCalls = r.tool_calls;
     for (const step of r.steps) runStore.addEvent(record, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['repo'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
+    if (r.absence) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 1, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `absence check: ${r.absence.path}${r.absence.symbol ? ` for ${r.absence.symbol}` : ''}${r.absence.aliases.length ? ` (aliases ${r.absence.aliases.join(', ')})` : ''}, ${r.absence.contradicted} contradicting reference(s), ${r.absence.searches} engine search(es)${r.absence.reason ? `; ${r.absence.reason}` : ''}`.slice(0, 600) });
     if (!r.success) failure = r.failure;
     else {
       grounding = r.grounding ? brief(r.grounding) : null;
@@ -262,7 +263,8 @@ async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => vo
   if (failure) { store.finish(c.id, 'failed', `worker failed: ${failure.kind}`, `${failure.kind}: ${failure.message}`); return; }
   if (grounding?.status !== 'GROUNDED') {
     c.grounding = grounding ?? undefined;
-    store.finish(c.id, 'grounding_failed', 'GROUNDING FAILED: the finding was not shown as verified', `GROUNDING FAILED (${grounding?.classification})`);
+    const escalate = grounding?.classification === 'needs_escalation';
+    store.finish(c.id, 'grounding_failed', escalate ? 'GROUNDING FAILED: this absence claim could not be checked here and needs a stronger lane (not auto-rerun yet)' : 'GROUNDING FAILED: the finding was not shown as verified', `GROUNDING FAILED (${grounding?.classification})`);
     return;
   }
   if (c.finding?.found && !diskCheck?.disk_verified) {

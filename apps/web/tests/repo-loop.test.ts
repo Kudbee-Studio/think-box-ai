@@ -48,7 +48,9 @@ for (const m of MODELS) {
       assert.equal(result.tool_calls, 2);
       assert.equal(result.grounding?.status, 'GROUNDED', JSON.stringify(result.grounding?.unsupported));
       assert.equal(result.finding?.file, 'src/alpha.ts');
-      assert.deepEqual(result.evidence.map((e) => e.tool), ['repo_read', 'repo_search']);
+      assert.deepEqual(result.evidence.map((e) => e.tool), ['repo_read', 'repo_search', 'repo_search'], 'the engine appended its own absence search to the evidence');
+      assert.equal(result.absence?.path, 'engine_search');
+      assert.equal(result.absence?.contradicted, 0);
       assert.equal(approvals.length, 0, 'read-only tools need no per-call approval (the convoy was approved)');
       assert.equal(events.filter((e) => e.kind === 'tool').length, 2, 'both went through the governed path');
       // nothing to report before anything was looked at: the report option is withheld on the first turn and offered afterwards
@@ -69,27 +71,38 @@ for (const m of MODELS) {
         assert.equal(result.grounding?.status, 'GROUNDING FAILED', JSON.stringify(bad));
       }
     });
-    it('one round of feedback: an unsupported absence claim is sent back, the model runs the missing search, and the second report is GROUNDED', async () => {
-      const { chat, requests } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...good, absence_search: undefined }), m.call('repo_search', { query: 'orphan', path: 'tests' }), m.finish(good)]);
+    it('the model no longer has to run the absence search: the engine runs it and the true claim is GROUNDED with no retry', async () => {
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...good, absence_search: undefined })]);
       const { result } = await drive(m, chat);
       assert.equal(result.success, true, JSON.stringify(result.failure));
-      assert.equal(result.grounding?.status, 'GROUNDED');
-      assert.deepEqual(result.steps.map((s) => s.outcome), ['tool_ok', 'malformed', 'tool_ok', 'answer']);
-      assert.match(result.steps[1]!.error!, /not grounded: absence/);
-      assert.match(JSON.stringify(requests[2]!.messages), /not accepted because these claims are not supported/);
+      assert.equal(result.grounding?.status, 'GROUNDED', JSON.stringify(result.grounding?.unsupported));
+      assert.deepEqual(result.steps.map((s) => s.outcome), ['tool_ok', 'answer']);
+      assert.equal(result.absence?.symbol, 'orphan');
+      assert.equal(result.grounding?.checked.absence, 1);
+    });
+    it('a false absence claim (a test exists) is rejected by the engine even when the model supplied a plausible absence_search', async () => {
+      const lie = { found: true, file: 'src/alpha.ts', line: 1, quote: 'export function alpha(x: number): number {', claim: 'The function `alpha` has no tests.', absence_search: { query: 'alpha', path: 'src/beta' } };
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish(lie), m.finish(lie)]);
+      const { result } = await drive(m, chat);
+      assert.equal(result.grounding?.status, 'GROUNDING FAILED');
+      assert.ok(result.grounding!.unsupported.some((u) => u.kind === 'absence' && /claim is false/.test(u.why) && /tests\/alpha\.test\.ts/.test(u.why)));
+      assert.ok(result.absence!.contradicted >= 1);
     });
     it('a second ungrounded report is returned as GROUNDING FAILED, not retried forever', async () => {
-      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...good, absence_search: undefined }), m.finish({ ...good, absence_search: undefined })]);
+      const bad = { ...good, line: 5 };
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish(bad), m.finish(bad)]);
       const { result } = await drive(m, chat);
       assert.equal(result.success, true);
       assert.equal(result.grounding?.status, 'GROUNDING FAILED');
       assert.equal(result.steps.filter((s) => s.outcome === 'malformed').length, 1);
     });
-    it('a claim of absence without the search that proves it fails', async () => {
-      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...good, absence_search: undefined }), m.finish({ ...good, absence_search: undefined })]);
+    it('a claim the engine cannot check (no symbol) is flagged for a stronger lane and is not retried', async () => {
+      const vague = { found: true, file: 'src/alpha.ts', line: 1, quote: '1 + 1', claim: 'Nothing in this folder has any tests.' };
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.finish({ ...vague, line: 2, quote: 'return x + 1;' })]);
       const { result } = await drive(m, chat);
-      assert.equal(result.grounding?.status, 'GROUNDING FAILED');
-      assert.ok(result.grounding!.unsupported.some((u) => u.kind === 'absence'));
+      assert.equal(result.grounding?.classification, 'needs_escalation');
+      assert.equal(result.absence?.path, 'escalate');
+      assert.equal(result.steps.filter((s) => s.outcome === 'malformed').length, 0, 'the model cannot fix this, so no retry round is spent');
     });
     it('"nothing worth reporting" after looking is an honest result', async () => {
       const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts' }), m.finish({ found: false, reason: 'every exported function is exercised' })]);

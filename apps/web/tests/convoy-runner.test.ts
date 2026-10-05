@@ -179,7 +179,7 @@ describe('repository investigation convoys', () => {
     assert.equal(c.outcome, 'success');
     assert.equal(c.finding?.file, 'src/alpha.ts');
     assert.deepEqual(c.finding_check, { disk_verified: true });
-    assert.deepEqual(c.repo_evidence.map((e) => e.tool), ['repo_read', 'repo_search']);
+    assert.deepEqual(c.repo_evidence.map((e) => e.tool), ['repo_read', 'repo_search', 'repo_search'], 'the last one is the engine\'s own absence search');
     assert.equal(c.grounding?.status, 'GROUNDED');
     assert.equal(c.final_answer, 'src/alpha.ts:4 \u2014 The function `orphan` has no tests.');
     assert.equal(c.cost_usd, 0);
@@ -193,7 +193,7 @@ describe('repository investigation convoys', () => {
     assert.equal(c.state, 'FAILED');
     assert.equal(c.outcome, 'grounding_failed');
     assert.equal(c.final_answer, undefined);
-    assert.equal(c.repo_evidence.length, 2);
+    assert.equal(c.repo_evidence.length, 3, 'the model\'s read, search, and one engine absence search (not repeated on the retry)');
     assert.ok(c.grounding!.unsupported.length > 0);
     assert.equal(c.finding_check, undefined, 'the disk check only runs for a grounded finding');
   });
