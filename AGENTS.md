@@ -1695,7 +1695,8 @@ how it was verified, and what is still open. Newest entry first.
 | untested-function | 0/6 | 0/6 (all 6 ungrounded: right claim, wrong evidence) | 0/6 |
 - Measured: on `ci` the lesson turns 0/6 into 6/6 and the control does not, so it is the content, not "any added text". On `untested-function` the lesson changes the failure (nothing reported -> a claim the validator rejects) but does not fix it.
 - Limits: lessons are hand-written from the observed failure, not stored Think Tokens; one model, synthetic fixtures, 6 trials; the ci result is a sharp 6/6 vs 0/6 but on one task.
-- Evidence: `docs/evidence/model-integration/local-token-ab.json`. Next: run the same arms with a real stored token, and see why the untested-function claim is ungrounded.
+- Evidence: `docs/evidence/model-integration/local-token-ab.json`.
+- Why untested-function stays ungrounded (diagnosed with one traced trial): Qwen 3B finds the right function (`orphan()`, src/alpha.ts line 4, quote verified) and claims "no test", but never runs the tests-folder search and omits `absence_search`. The validator rejects it for exactly that: the claim is true but unproven. The base prompt and the retry message already tell the model to do this; a prose lesson does not make a 3B model do a two-step protocol. The validator behaved correctly; the gap is model capability, not grounding. Next: try a real stored Think Token, and consider whether routing should keep absence claims off 3B-class models.
 
 ### 2026-10-05 — Local model eval: first live measurement (item 5/10)
 
