@@ -217,7 +217,7 @@ describe('repository investigation convoys', () => {
     assert.equal(none.final_answer, 'No finding: every function is exercised');
     process.env.KUDBEE_REPO_ROOT = root;
     const t = repoSetup();
-    const c = await executeConvoy(t.deps({ chat: script([call('report_finding', good)]) }), t.c.id);
+    const c = await executeConvoy(t.deps({ chat: script([call('report_finding', good), call('report_finding', good)]) }), t.c.id);
     delete process.env.KUDBEE_REPO_ROOT;
     assert.equal(c.state, 'FAILED');
     assert.equal(c.workers[0]!.failure?.kind, 'no_tool_call');

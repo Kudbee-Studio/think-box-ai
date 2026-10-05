@@ -186,7 +186,9 @@ describe('local tool calling', () => {
     assert.equal(result.tool_calls, 1);
   });
   it('constrained: non-JSON, a non-object and a bad action are malformed', () => {
-    for (const content of ['I will look it up', '[1]', '{"action":"explode"}', '']) assert.equal(parseConstrainedTurn(turn({ content })).kind, 'malformed', content);
+    for (const content of ['I will look it up', '[1]', '{"action":"explode"}']) assert.equal(parseConstrainedTurn(turn({ content })).kind, 'malformed', content);
+    assert.equal(parseConstrainedTurn(turn({ content: '' })).kind, 'empty', 'an empty reply is recoverable, not malformed');
+    assert.equal(parseConstrainedTurn(turn({ content: '   ' })).kind, 'empty');
     assert.equal(parseConstrainedTurn(turn({ content: '{"action":"answer","answer":"  "}' })).kind, 'empty');
     assert.equal(parseNativeTurn(turn({})).kind, 'empty');
   });
