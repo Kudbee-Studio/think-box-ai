@@ -50,24 +50,25 @@ try {
     const t0 = Date.now();
     try {
       await page.selectOption('#model-select', 'qwen2.5:3b');
-      const before = ((await page.locator('body').innerText()).match(/route: /g) ?? []).length;
+      const seenBefore = new Set((((await (await fetch(`${base}/api/runs`)).json()) as any).runs ?? []).map((x: any) => x.id));
       await page.fill('#goal-input', goal);
       await page.click('#run-goal');
-      let text = '';
-      for (let i = 0; i < 1200; i += 1) {
+      // the server's own run record is the authority: a NEW run for this goal, finished, and the model it ran on
+      let run: any = null;
+      for (let i = 0; i < 1200 && !(run && run.status !== 'running'); i += 1) {
         await approveIfShown(page);
-        text = await page.locator('body').innerText();
-        if ((text.match(/route: /g) ?? []).length > before) break;
+        const list = (((await (await fetch(`${base}/api/runs`)).json()) as any).runs ?? []) as any[];
+        run = list.find((x) => !seenBefore.has(x.id) && String(x.goal).trim().toLowerCase() === goal.toLowerCase()) ?? null;
         await sleep(500);
       }
-      const routes = [...text.matchAll(/route: [^\n]+/g)].map((m) => m[0]);
-      const tail = text.slice(text.lastIndexOf(goal.toUpperCase().slice(0, 12)) >= 0 ? text.lastIndexOf(goal.toUpperCase().slice(0, 12)) : 0);
-      r.route_line = routes.at(-1) ?? null; r.wall_ms = Date.now() - t0;
-      r.routed_thought = /Routed to gemma3:4b instead of qwen2\.5:3b/.test(tail);
-      r.reason_shown = (tail.match(/Routed to gemma3:4b instead of qwen2\.5:3b: [^\n]+/) ?? [null])[0];
-      r.answered_by_gemma = /gemma3:4b/.test(String(r.route_line));
-      r.grounded = !/GROUNDING FAILED/.test(tail);
-      r.pass = Boolean(r.routed_thought) && Boolean(r.answered_by_gemma) && Boolean(r.grounded);
+      const text = await page.locator('body').innerText();
+      r.run_status = run?.status ?? null; r.run_model = run?.model ?? null; r.run_duration_ms = run?.duration_ms ?? null; r.run_id = run?.id ?? null; r.wall_ms = Date.now() - t0;
+      r.route_line = ([...text.matchAll(/route: [^\n]+/g)].map((m) => m[0]).filter((l) => /gemma3|qwen|smollm/.test(l)).at(-1)) ?? null;
+      r.reason_shown = (text.match(/Routed to gemma3:4b instead of qwen2\.5:3b: [^\n]+/) ?? [null])[0];
+      r.routed_thought = Boolean(r.reason_shown);
+      r.answered_by_gemma = r.run_model === 'gemma3:4b';
+      r.grounded = !/GROUNDING FAILED/.test(String(run?.result ?? '')) && run?.status === 'completed';
+      r.pass = Boolean(r.answered_by_gemma) && Boolean(r.grounded);
       log(`${r.pass ? 'PASS' : 'FAIL'} chat "${goal}" ${r.route_line} ${r.wall_ms}ms`);
     } catch (e) { r.pass = false; r.error = String((e as Error).message ?? e).slice(0, 600); log(`FAIL chat "${goal}": ${String(r.error).slice(0, 200)}`); }
   }

@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-10-05T19:00:23.095Z",
+  "note": "real Chromium, real server on 127.0.0.1:3000 (throwaway data, no Mercury key), real Ollama, real GitHub read-only API; clicks by Playwright, not a person; chat goals start with qwen2.5:3b selected, convoy goals leave the model blank; only the first convoy answer is checked against GitHub, the rest are recorded not truth-checked",
+  "passed": false,
+  "console_errors": [],
+  "results": [
+    {
+      "path": "dashboard-chat",
+      "goal": "Which pull requests are open?",
+      "selected": "qwen2.5:3b",
+      "run_status": "completed",
+      "run_model": "gemma3:4b",
+      "run_duration_ms": 956,
+      "run_id": "afbc5ecd-8de0-4210-ab05-a324858252fc",
+      "wall_ms": 1953,
+      "route_line": "route: recipe · gemma3:4b · open_prs",
+      "reason_shown": "Routed to gemma3:4b instead of qwen2.5:3b: gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05); qwen2.5:3b measured 8/10 on lookups with 1 ungrounded, which does not meet the rule.",
+      "routed_thought": true,
+      "answered_by_gemma": true,
+      "grounded": true,
+      "pass": true
+    },
+    {
+      "path": "dashboard-chat",
+      "goal": "What branches exist?",
+      "selected": "qwen2.5:3b",
+      "run_status": "completed",
+      "run_model": "gemma3:4b",
+      "run_duration_ms": 64277,
+      "run_id": "917aaabb-6b39-4745-99e5-e1a3fb173563",
+      "wall_ms": 65494,
+      "route_line": "route: recipe · gemma3:4b · branches",
+      "reason_shown": "Routed to gemma3:4b instead of qwen2.5:3b: gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05); qwen2.5:3b measured 8/10 on lookups with 1 ungrounded, which does not meet the rule.",
+      "routed_thought": true,
+      "answered_by_gemma": true,
+      "grounded": false,
+      "pass": false
+    },
+    {
+      "path": "dashboard-chat",
+      "goal": "Did the last CI run pass?",
+      "selected": "qwen2.5:3b",
+      "run_status": "completed",
+      "run_model": "gemma3:4b",
+      "run_duration_ms": 8171,
+      "run_id": "91fd5d2b-bf6b-4ee4-ac27-fad41cf1d92c",
+      "wall_ms": 9742,
+      "route_line": "route: recipe · gemma3:4b · ci_status",
+      "reason_shown": "Routed to gemma3:4b instead of qwen2.5:3b: gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05); qwen2.5:3b measured 8/10 on lookups with 1 ungrounded, which does not meet the rule.",
+      "routed_thought": true,
+      "answered_by_gemma": true,
+      "grounded": true,
+      "pass": true
+    },
+    {
+      "path": "dashboard-chat",
+      "goal": "Are there any open issues?",
+      "selected": "qwen2.5:3b",
+      "run_status": "completed",
+      "run_model": "gemma3:4b",
+      "run_duration_ms": 10897,
+      "run_id": "ec9a3308-b9c2-4f49-b945-c39616196b47",
+      "wall_ms": 11787,
+      "route_line": "route: recipe · gemma3:4b · open_issues",
+      "reason_shown": "Routed to gemma3:4b instead of qwen2.5:3b: gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05); qwen2.5:3b measured 8/10 on lookups with 1 ungrounded, which does not meet the rule.",
+      "routed_thought": true,
+      "answered_by_gemma": true,
+      "grounded": true,
+      "pass": true
+    },
+    {
+      "path": "convoy",
+      "goal": "What is the last PR?",
+      "convoy_id": "ad636736-7198-4f69-a89c-14c0c67a1864",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "state": "COMPLETED",
+      "grounding": "GROUNDED",
+      "final_answer": "The last pull request is #366, merged by KudbeeZero on 2026-10-05T18:09:21Z, which addresses an empty reply recovery for investigation goals.",
+      "worker_model": "gemma3:4b",
+      "wall_ms": 23929,
+      "route_line": null,
+      "cost_usd": 0,
+      "routed_by_table": true,
+      "pass": true,
+      "github_newest": 366,
+      "answer_names_github_newest": true
+    },
+    {
+      "path": "convoy",
+      "goal": "Which pull requests are open?",
+      "convoy_id": "ad636736-7198-4f69-a89c-14c0c67a1864",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "state": "COMPLETED",
+      "grounding": "GROUNDED",
+      "final_answer": "The last pull request is #366, merged by KudbeeZero on 2026-10-05T18:09:21Z, which addresses an empty reply recovery for investigation goals.",
+      "worker_model": "gemma3:4b",
+      "wall_ms": 13565,
+      "route_line": null,
+      "cost_usd": 0,
+      "routed_by_table": true,
+      "pass": true
+    },
+    {
+      "path": "convoy",
+      "goal": "What branches exist?",
+      "convoy_id": "e8a285a5-7bc4-4908-861f-89513cc221e4",
+      "routing": {
+        "source": "measured",
+        "model": "gemma3:4b",
+        "reason": "gemma3:4b measured 15/15 on lookup goals with 0 ungrounded (p50 13.2s; local-eval.json, 2026-10-05)"
+      },
+      "state": "COMPLETED",
+      "grounding": "GROUNDED",
+      "final_answer": "There are no open pull requests in the Kudbee-Studio/think-box-ai repository.",
+      "worker_model": "gemma3:4b",
+      "wall_ms": 34874,
+      "route_line": null,
+      "cost_usd": 0,
+      "routed_by_table": true,
+      "pass": true
+    }
+  ]
+}
