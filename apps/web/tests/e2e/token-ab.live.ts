@@ -57,8 +57,9 @@ const coverage = AB_GOALS.filter((g) => retrieved.get(g.id)!.ids.length > 0).len
 console.log(`retrieval: ${coverage}/${AB_GOALS.length} goals retrieved at least one token (store: ${storeMeta.accepted} accepted)`);
 
 const done = new Set<string>();
-if (fs.existsSync(rawPath)) for (const l of fs.readFileSync(rawPath, 'utf8').split('\n').filter(Boolean)) { const r = JSON.parse(l); if (r.row) done.add(`${r.arm}|${r.goal_id}`); }
-if (!fs.existsSync(rawPath) || !fs.readFileSync(rawPath, 'utf8').includes('"meta"')) fs.appendFileSync(rawPath, JSON.stringify({ meta: { plan: 'docs/evidence/p3.24-ab/PLAN.md', model, goals_hash: goalsHash(), goals: AB_GOALS.length, store: storeMeta, retrieval_coverage: coverage, commit, started_at: new Date().toISOString(), seeds: 'seed = 1000 + goal index', temperature: 0 } }) + '\n');
+let existing = ''; try { existing = fs.readFileSync(rawPath, 'utf8'); } catch { /* first run: no file yet */ }
+for (const l of existing.split('\n').filter(Boolean)) { const r = JSON.parse(l); if (r.row) done.add(`${r.arm}|${r.goal_id}`); }
+if (!existing.includes('"meta"')) fs.appendFileSync(rawPath, JSON.stringify({ meta: { plan: 'docs/evidence/p3.24-ab/PLAN.md', model, goals_hash: goalsHash(), goals: AB_GOALS.length, store: storeMeta, retrieval_coverage: coverage, commit, started_at: new Date().toISOString(), seeds: 'seed = 1000 + goal index', temperature: 0 } }) + '\n');
 
 const order = AB_GOALS.flatMap((g, i) => (['A', 'B', 'C'] as Arm[]).map((arm) => ({ g, i, arm }))).filter((x) => !done.has(`${x.arm}|${x.g.id}`));
 const rand = rng(20261005); for (let i = order.length - 1; i > 0; i -= 1) { const j = Math.floor(rand() * (i + 1)); [order[i], order[j]] = [order[j]!, order[i]!]; }

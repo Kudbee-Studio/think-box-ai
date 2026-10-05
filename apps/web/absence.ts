@@ -40,6 +40,7 @@ export function claimKinds(claim: string): AbsenceKind[] {
   return kinds;
 }
 
+const escapeRe = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const IDENT = /^[A-Za-z_$][\w$]{1,79}$/;
 /** The symbol a claim is about: a `backticked` name, a name() in the claim, or the name declared on the quoted line. Pure. */
 export function extractSymbol(finding: Pick<RepoFinding, 'claim' | 'quote'>): string | null {
@@ -55,7 +56,7 @@ export const isTestPath = (p: string): boolean => /(^|\/)(tests?|__tests__|spec|
 
 /** Names the symbol is re-bound to: `X as Y`, `const Y = X`. One level; the aliases are searched too. */
 export function aliasesIn(symbol: string, hits: Hit[]): string[] {
-  const out = new Set<string>(); const s = symbol.replace(/[$]/g, '\\$&');
+  const out = new Set<string>(); const s = escapeRe(symbol);
   for (const h of hits) {
     for (const m of h.text.matchAll(new RegExp(`\\b${s}\\s+as\\s+([A-Za-z_$][\\w$]*)`, 'g'))) out.add(m[1]!);
     const bind = h.text.match(new RegExp(`\\b(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*${s}\\s*;?\\s*$`)); if (bind) out.add(bind[1]!);
@@ -64,7 +65,7 @@ export function aliasesIn(symbol: string, hits: Hit[]): string[] {
   return [...out].filter((a) => IDENT.test(a)).slice(0, 5);
 }
 
-const wordHit = (symbol: string, text: string): boolean => new RegExp(`(^|[^\\w$])${symbol.replace(/[$]/g, '\\$&')}([^\\w$]|$)`).test(text);
+const wordHit = (symbol: string, text: string): boolean => new RegExp(`(^|[^\\w$])${escapeRe(symbol)}([^\\w$]|$)`).test(text);
 
 const search = async (query: string, root: string): Promise<SearchEvidence> => (await repoSearch({ query, path: '' }, root)) as SearchEvidence;
 

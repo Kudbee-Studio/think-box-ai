@@ -31,7 +31,7 @@
     this.now = typeof options.now === 'function' ? options.now : function () { return Date.now(); };
     this.agents = {};
     this.order = [];
-    this.owned = {};
+    this.owned = new Set();
   }
 
   AgentRegistry.prototype.get = function (id) { return id && this.agents[id] ? this.agents[id] : null; };
@@ -133,7 +133,7 @@
     var id = d.id || d.run_id || d.runId;
     if (!id) return false;
     // A convoy worker owns its child run: the worker agent (driven by the board lane) is the one agent, so the run is never a second one.
-    if (this.owned[String(id)]) return false;
+    if (this.owned.has(String(id))) return false;
     this._ensure(String(id), {
       run_id: String(id),
       status: normalizeStatus(d.status),
@@ -220,7 +220,7 @@
 
   // Fold a standalone run entry into the convoy worker that owns it, and remember the claim so later run updates for it are ignored.
   AgentRegistry.prototype._claimRun = function (runId) {
-    this.owned[runId] = true;
+    this.owned.add(String(runId));
     if (this.agents[runId]) {
       delete this.agents[runId];
       this.order = this.order.filter(function (id) { return id !== runId; });
@@ -301,7 +301,7 @@
   AgentRegistry.prototype.clear = function () {
     this.agents = {};
     this.order = [];
-    this.owned = {};
+    this.owned = new Set();
     this.emit({ agents: [], runningCount: 0 });
   };
 
