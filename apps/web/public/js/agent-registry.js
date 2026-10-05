@@ -221,10 +221,9 @@
   // Fold a standalone run entry into the convoy worker that owns it, and remember the claim so later run updates for it are ignored.
   AgentRegistry.prototype._claimRun = function (runId) {
     this.owned.add(String(runId));
-    if (this.agents[runId]) {
-      delete this.agents[runId];
-      this.order = this.order.filter(function (id) { return id !== runId; });
-    }
+    var agents = this.agents;
+    Object.keys(agents).forEach(function (key) { if (key === runId) delete agents[key]; });
+    this.order = this.order.filter(function (id) { return id !== runId; });
   };
 
   AgentRegistry.prototype._fromResult = function (d) {
