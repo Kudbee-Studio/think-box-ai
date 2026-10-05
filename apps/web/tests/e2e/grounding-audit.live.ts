@@ -20,7 +20,7 @@ process.env.KUDBEE_REPO = REPO; delete process.env.KUDBEE_GITHUB_API;
 const out = path.resolve(here, '../../../../docs/evidence/p3.30-grounding-audit/runs.jsonl');
 fs.mkdirSync(path.dirname(out), { recursive: true });
 const written: string[] = [];
-const oneLine = (t: unknown): string => String(t ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ');
+const oneLine = (t: unknown): string => String(t ?? '').replace(/\r?\n|\r/g, ' ');
 const GOALS = [
   'What is the last PR?', 'Who wrote the newest pull request and when was it updated?', 'Tell me about the three most recent PRs.', 'Is PR 367 merged?',
   'Are any pull requests still open?', 'Which pull requests are drafts?', 'Did the last CI run pass?', 'What is the status of the latest workflow run?',
