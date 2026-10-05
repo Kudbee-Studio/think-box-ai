@@ -95,6 +95,22 @@ describe('validateGrounding: the sentence must name something that was returned'
   });
 });
 
+describe('validateGrounding: the repository name is not a clue about which PR (real Mercury answer, 2026-10-05)', () => {
+  const REAL = 'Kudbee-Studio/think-box-ai';
+  const ev = (() => {
+    const r = normalizeLookup({ recipe: 'latest_pr', repo: REAL }, { status: 200, text: JSON.stringify([pr(367, '#367 P3.28: route live-data lookups to gemma3:4b from the measured table', { html_url: `https://github.com/${REAL}/pull/367` }), pr(365, '#365 P3.24: grounded absence claims + real Think Token A/B (learning benefit UNPROVEN)')]), url: `https://api.github.com/repos/${REAL}/x`, fetched_at: '2026-10-05T12:00:00Z', latency_ms: 5 });
+    assert.ok(r.ok); return (r as any).evidence as LookupEvidence;
+  })();
+  it('the correct answer, with non-breaking hyphens in the repo name, is GROUNDED (it was flagged as a mixed-up pull request because of the word "think")', () => {
+    const answer = 'The most recent pull request in the **Kudbee\u2011Studio/think\u2011box\u2011ai** repository is #367, merged: https://github.com/Kudbee-Studio/think-box-ai/pull/367';
+    assert.equal(validateGrounding(answer, [ev]).status, 'GROUNDED', JSON.stringify(validateGrounding(answer, [ev]).unsupported));
+    assert.equal(validateGrounding('The newest PR in the think box ai repo is #367, merged.', [ev]).status, 'GROUNDED');
+  });
+  it('a real mix-up is still caught: #367 paired with words only #365 owns', () => {
+    assert.notEqual(validateGrounding('The newest PR is #367, merged, about grounded absence claims.', [ev]).status, 'GROUNDED');
+  });
+});
+
 describe('validateGrounding: CI verdict', () => {
   const run = (conclusion: string | null, status = 'completed') => evidenceOf('ci_status', { workflow_runs: [{ name: 'CI', head_branch: 'feat/x', event: 'push', status, conclusion, run_number: 9, html_url: 'https://github.com/Acme/widgets/actions/runs/9', updated_at: 't' }] }, 'feat/x');
   it('must state the newest run\'s verdict, and cannot flip it', () => {
