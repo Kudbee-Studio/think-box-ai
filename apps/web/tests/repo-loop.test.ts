@@ -154,7 +154,7 @@ for (const m of MODELS) {
         assert.equal(result.recovery?.assist_calls, 0);
       });
       it('an invented path is never rescued: a read of it fails, and a finding that cites it is GROUNDING FAILED even after the engine assist', async () => {
-        const read = scripted(m.caps as unknown as string[], [empty(), m.call('repo_read', { path: 'apps/web/tests/alpha.test.ts' })]);
+        const read = scripted(m.caps as unknown as string[], [empty(), m.call('repo_read', { path: 'apps/web/tests/alpha.test.ts' }), m.call('repo_read', { path: 'apps/web/tests/alpha.test.ts' }), m.call('repo_read', { path: 'apps/web/tests/alpha.test.ts' })]);
         const r1 = await drive(m, read.chat, goal);
         assert.equal(r1.result.failure?.kind, 'tool_failed');
         assert.match(r1.result.failure!.message, /not found/);
@@ -198,11 +198,37 @@ for (const m of MODELS) {
       assert.deepEqual(result.steps.map((s) => s.outcome), ['tool_ok', 'tool_ok', 'malformed', 'answer']);
       assert.match(JSON.stringify(requests[3]!.messages), /That report was invalid: the finding is malformed/);
     });
-    it('a missing file is a tool failure with its reason', async () => {
-      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/missing.ts' }), m.finish(good)]);
+    it('a missing path goes back to the model with what does exist; the model corrects it and the run finishes (P3.34)', async () => {
+      const { chat, requests } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/missing.ts' }), m.call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), m.call('repo_search', { query: 'orphan', path: 'tests' }), m.finish(good)]);
+      const { result } = await drive(m, chat);
+      assert.equal(result.success, true, JSON.stringify(result.failure));
+      assert.equal(result.tool_retries, 1);
+      assert.deepEqual(result.steps.map((st) => st.outcome).slice(0, 3), ['tool_failed', 'tool_ok', 'tool_ok']);
+      const back = JSON.stringify(requests[1]!.messages);
+      assert.match(back, /file not found: src\/missing\.ts\. In src: alpha\.ts/);
+      assert.match(back, /call the tool again/);
+      assert.equal(result.tool_calls, 3, 'the failed call still counts as a tool call');
+    });
+    it('a search of a guessed folder names the real ones (the P3.33 failure: "test" for "tests")', async () => {
+      const { chat, requests } = scripted(m.caps as unknown as string[], [m.call('repo_search', { query: 'orphan', path: 'test' }), m.call('repo_search', { query: 'orphan', path: 'tests' }), m.finish({ found: false, reason: 'covered' })]);
+      const { result } = await drive(m, chat);
+      assert.equal(result.tool_retries, 1);
+      assert.match(JSON.stringify(requests[1]!.messages), /path not found: test\. In the repository root: .*src\/.*tests\//);
+      assert.doesNotMatch(JSON.stringify(requests[1]!.messages), /\.env/);
+    });
+    it('after two handed-back errors the third ends the run as a tool failure with its reason', async () => {
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/a.ts' }), m.call('repo_read', { path: 'src/b.ts' }), m.call('repo_read', { path: 'src/c.ts' }), m.finish(good)]);
       const { result } = await drive(m, chat);
       assert.equal(result.failure?.kind, 'tool_failed');
-      assert.match(result.failure!.message, /not found/);
+      assert.match(result.failure!.message, /file not found: src\/c\.ts/);
+      assert.equal(result.tool_retries, 2);
+    });
+    it('an error that is not a missing path stays terminal', async () => {
+      const { chat } = scripted(m.caps as unknown as string[], [m.call('repo_read', { path: 'src/alpha.ts', start: 99, end: 120 }), m.finish(good)]);
+      const { result } = await drive(m, chat);
+      assert.equal(result.failure?.kind, 'tool_failed');
+      assert.match(result.failure!.message, /past the end of the file/);
+      assert.equal(result.tool_retries, undefined);
     });
   });
 }

@@ -136,3 +136,25 @@ describe('verifyQuoteOnDisk', () => {
   });
   it('normalize collapses whitespace and case', () => assert.equal(normalize('  A\n  b\tC '), 'a b c'));
 });
+
+describe('"not found" errors name what does exist (P3.34)', () => {
+  it('a guessed folder gets the real ones; hidden entries, secrets and excluded folders are never listed', async () => {
+    const err = await repoSearch({ query: 'alpha', path: 'test' }, root).then(() => '', (e: Error) => e.message);
+    assert.match(err, /^path not found: test\. In the repository root: /);
+    const listed = err.split('In the repository root: ')[1]!;
+    for (const shown of ['src/', 'tests/', 'README.md', 'config/']) assert.ok(listed.includes(shown), `${shown} in ${listed}`);
+    for (const hidden of ['.env', '.git', 'node_modules', 'data/', 'credentials']) assert.ok(!listed.includes(hidden), `${hidden} must not be listed: ${listed}`);
+  });
+  it('a missing file lists its nearest existing folder, and a missing folder falls back to the root', async () => {
+    assert.match(await repoRead({ path: 'src/alpa.ts', start: 1, end: 3 }, root).then(() => '', (e: Error) => e.message), /^file not found: src\/alpa\.ts\. In src: alpha\.ts, beta\.ts\.$/);
+    assert.match(await repoRead({ path: 'nodir/deep/x.ts', start: 1, end: 3 }, root).then(() => '', (e: Error) => e.message), /^file not found: nodir\/deep\/x\.ts\. In the repository root: /);
+  });
+  it('lists at most twelve entries and says nothing when the folder is empty', async () => {
+    for (let i = 0; i < 15; i += 1) write(`many/f${String(i).padStart(2, '0')}.ts`, 'x\n');
+    fs.mkdirSync(path.join(root, 'empty'), { recursive: true });
+    const err = await repoRead({ path: 'many/zz.ts', start: 1, end: 2 }, root).then(() => '', (e: Error) => e.message);
+    assert.equal(err.split('In many: ')[1]!.split(', ').length, 12);
+    assert.equal(await repoRead({ path: 'empty/zz.ts', start: 1, end: 2 }, root).then(() => '', (e: Error) => e.message), 'file not found: empty/zz.ts.');
+  });
+});
+

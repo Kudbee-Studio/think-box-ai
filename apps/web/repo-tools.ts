@@ -86,6 +86,20 @@ async function readTextFile(root: string, rel: string): Promise<string | null> {
   return looksBinary(buf) ? null : buf.toString('utf8');
 }
 
+/** For a "not found" error: what the nearest existing folder above the missing path holds, so a model can correct a guessed name. Hidden entries, secrets and excluded folders are never listed. */
+async function navigationHint(realRoot: string, rel: string): Promise<string> {
+  const parts = rel.split('/').filter(Boolean);
+  for (let n = parts.length - 1; n >= 0; n -= 1) {
+    const dir = parts.slice(0, n).join('/');
+    let entries: fs.Dirent[];
+    try { entries = await fs.promises.readdir(path.join(realRoot, dir), { withFileTypes: true }); } catch { continue; }
+    const names = entries.filter((e) => !e.isSymbolicLink() && !e.name.startsWith('.') && !SECRET_FILE.test(e.name) && (e.isDirectory() ? !EXCLUDED_DIRS.has(e.name) : TEXT_EXT.has(path.extname(e.name).toLowerCase())))
+      .map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort().slice(0, 12);
+    return names.length ? ` In ${dir || 'the repository root'}: ${names.join(', ')}.` : '';
+  }
+  return '';
+}
+
 /** Literal, case-insensitive search of the repository's text files. Symlinks are skipped; the walk is bounded in files, matches and time. */
 export async function repoSearch(args: { query: string; path: string }, root: string = repoRoot()): Promise<RepoEvidence> {
   const startedAt = Date.now();
@@ -125,7 +139,7 @@ export async function repoSearch(args: { query: string; path: string }, root: st
   let startIsFile = false;
   if (startRel) {
     const st = await fs.promises.lstat(path.join(realRoot, startRel)).catch(() => null);
-    if (!st) throw new RepoToolError(`path not found: ${startRel}`);
+    if (!st) throw new RepoToolError(`path not found: ${startRel}.${await navigationHint(realRoot, startRel)}`);
     if (st.isSymbolicLink()) throw new RepoToolError('refusing to follow a symlink');
     startIsFile = st.isFile();
   }
@@ -143,7 +157,7 @@ export async function repoRead(args: { path: string; start: number; end: number 
   const startedAt = Date.now();
   const realRoot = await fs.promises.realpath(root);
   const st = await fs.promises.lstat(path.join(realRoot, args.path)).catch(() => null);
-  if (!st) throw new RepoToolError(`file not found: ${args.path}`);
+  if (!st) throw new RepoToolError(`file not found: ${args.path}.${await navigationHint(realRoot, args.path)}`);
   if (st.isSymbolicLink()) throw new RepoToolError('refusing to follow a symlink');
   if (!st.isFile()) throw new RepoToolError(`not a file: ${args.path}`);
   if (st.size > LIMITS.maxFileBytes) throw new RepoToolError(`file is larger than ${LIMITS.maxFileBytes} bytes`);
