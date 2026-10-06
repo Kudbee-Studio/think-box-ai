@@ -9,13 +9,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTextIfPresent, writeEvidence } from '../helpers/evidence-file.ts';
-import { PACKAGE_JSON, TASKS, type Task } from '../helpers/local-sim-tasks.ts';
+import type { Task } from '../helpers/local-sim-tasks.ts';
 import { lookupHooks } from '../helpers/lookup-hooks.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = path.resolve(appDir, '../..');
 const OUT = path.join(repoRoot, process.env.P348_OUT || 'docs/evidence/p3.48-local-simulate');
 const LABEL = process.env.P348_RUN_LABEL || 'run';
+// P348_TASKSET=hard selects the P3.50 task set; the default is the P3.48 set (docs/evidence/p3.50-hard-tasks/PLAN.md)
+const TASKSET_FILE = process.env.P348_TASKSET === 'hard' ? 'hard-sim-tasks.ts' : 'local-sim-tasks.ts';
+const { PACKAGE_JSON, TASKS } = await import(`../helpers/${TASKSET_FILE}`) as typeof import('../helpers/local-sim-tasks.ts');
 const MODELS = (process.env.P348_MODELS || 'smollm2:360m,qwen2.5:1.5b,qwen2.5:3b,gemma3:4b,mercury-2').split(',');
 const ONLY = process.env.P348_TASKS ? new Set(process.env.P348_TASKS.split(',')) : null;
 const TIMEOUT_MS = Number(process.env.P348_TIMEOUT_MS) || 400_000; const MERCURY_CAP_USD = 0.20;
@@ -58,7 +61,7 @@ const realGit = (...a: string[]): string => git(repoRoot, ...a);
 const EXCLUDE = [`:(exclude)${path.relative(repoRoot, OUT)}`];
 const realState = (): string => createHash('sha256').update(realGit('status', '--porcelain', '--', '.', ...EXCLUDE) + realGit('diff', '--', '.', ...EXCLUDE) + realGit('rev-parse', 'HEAD')).digest('hex');
 const scratchDirs = (): number => fs.readdirSync(privateTmp).filter((n) => n.startsWith('kudbee-scratch-')).length;
-const tasksHash = createHash('sha256').update(fs.readFileSync(path.join(appDir, 'tests/helpers/local-sim-tasks.ts'))).digest('hex');
+const tasksHash = createHash('sha256').update(fs.readFileSync(path.join(appDir, 'tests/helpers', TASKSET_FILE))).digest('hex');
 const tasks: Task[] = TASKS.filter((t) => !ONLY || ONLY.has(t.id));
 
 function makeRepo(task: Task): { dir: string; sha: string } {
