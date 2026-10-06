@@ -6,7 +6,9 @@ import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwor
 import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
 import { LOOKUP_RECIPES, countUrl, lookupMaxChars, lookupUrl, normalizeLookup, parseTotal, validateLookupArgs, withTotal } from './live-lookup.ts';
 import { detectRepo } from './repo-context.ts';
-import { REPO_TOOLS, repoRead, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
+import { flaggedAnswer, validateCheckClaims } from './check-claims.ts';
+import { RUN_CHECKS_TOOL, prepareRunChecks, runScratch, slimReport, type ScratchReport } from './scratch-runner.ts';
+import { REPO_TOOLS, repoRead, repoRoot, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
@@ -110,7 +112,7 @@ export interface AgentRunResult {
 }
 
 /** Tools that exist in the one registry but are offered, and callable, ONLY when a run's allowlist names them (repository access is never a default). */
-export const OPT_IN_TOOLS: ReadonlySet<string> = new Set<string>(REPO_TOOLS);
+export const OPT_IN_TOOLS: ReadonlySet<string> = new Set<string>([...REPO_TOOLS, RUN_CHECKS_TOOL]);
 
 export const TOOLS = [
   {
@@ -188,6 +190,22 @@ export const TOOLS = [
           end: { type: 'integer', description: 'Last line (default start + 119)' },
         },
         required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: RUN_CHECKS_TOOL,
+      description: "Verify a change by running the repository's OWN checks (lint, typecheck, tsc, test, or named test files) in a throwaway copy of one commit, in a sandbox with no network and no credentials. Optionally apply a unified git diff to the copy first. Every call needs a human's approval, which shows the commit, the checks and the files the patch touches. Returns a report: each check's exit code and output, and `verified`. You may say the change is verified, or that a check passes, ONLY if the report says so, and you must say so if the patch edits tests, CI or gates. Nothing is pushed or changed in the real working tree.",
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string', description: 'Commit, branch or tag of the local repository (default HEAD). Uncommitted work is never included.' },
+          checks: { type: 'array', items: { type: 'string', enum: ['lint', 'typecheck', 'tsc', 'test'] }, description: 'Named checks to run (at most 6 checks in all).' },
+          test_files: { type: 'array', items: { type: 'string' }, description: 'Test files to run on their own, for example tests/gates.test.ts' },
+          patch: { type: 'string', description: 'Optional unified git diff (diff --git a/... b/...) applied to the copy only. Paths must be source text inside the repository.' },
+        },
       },
     },
   },
@@ -310,6 +328,9 @@ export const HERMES_ALLOWED_TOOLS = ['algorand', 'recall', 'remember'];
 
 export const ASCLEPIUS_ALLOWED_TOOLS = ['medication', 'recall', 'remember'];
 
+/** Read the repository and verify a change by running its own checks in a sandbox. It cannot edit anything, and every check run needs a human's approval. */
+export const VERIFIER_ALLOWED_TOOLS = ['repo_search', 'repo_read', RUN_CHECKS_TOOL];
+
 export const AGENT_PROFILES: Record<string, AgentProfile> = {
   hermes: {
     name: 'HERMES',
@@ -322,6 +343,17 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
       'to sign a transaction, send funds, import a mnemonic, or do anything else outside chain lookups and ' +
       'note-taking, refuse and explain that wallet/signing support is a deliberately separate, deferred ' +
       'capability pending an explicit founder decision on wallet strategy.',
+  },
+  verifier: {
+    name: 'VERIFIER',
+    description: 'Verifies a change: reads the repo and runs lint, typecheck, tsc and tests on a throwaway copy of a commit in a sandbox (every run needs your approval); cannot edit anything',
+    allowedTools: VERIFIER_ALLOWED_TOOLS,
+    roleContext:
+      'You are VERIFIER. You can read the repository (repo_search, repo_read) and run the repository\'s own checks with run_checks on a throwaway copy of a commit, optionally with a unified git diff ' +
+      'the user gave you applied to that copy. You cannot edit files, push, open pull requests or merge. Each run_checks call needs the human\'s approval, so call it only for what the user asked and ' +
+      'with the fewest checks that answer the question. Report exactly what the report says: which checks passed or failed and how many tests passed. Say a change is "verified" or that a check passes ONLY if ' +
+      'the report says verified or that check passed. If the patch edits tests, CI, gates or configuration, say so plainly: a change that edits the tests that judge it proves less. ' +
+      'A green run means the repository\'s own checks pass on the copy; it does not prove the change is correct. If a check fails, show the relevant lines of its output.',
   },
   asclepius: {
     name: 'ASCLEPIUS',
@@ -543,6 +575,12 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       }
       return { recipe: checked.args.recipe, evidence };
     }
+    case RUN_CHECKS_TOOL: {
+      const names = Array.isArray(args.checks) ? args.checks.map(String) : [];
+      const files = Array.isArray(args.test_files) ? args.test_files.map(String) : [];
+      const report = await runScratch({ repoRoot: repoRoot(), ref: String(args.ref), ...(typeof args.patch === 'string' ? { patch: args.patch } : {}), checks: [...names.map((check) => ({ check: check as never })), ...files.map((file) => ({ check: 'test_file' as const, file }))], signal: hooks.signal });
+      return { verified: report.verified, report: slimReport(report) };
+    }
     case 'read_rss': {
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
       return hooks.rssFeed(String(args.url ?? ''), limit);
@@ -613,10 +651,17 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
     if (hooks.allowedTools && !hooks.allowedTools.includes(name)) {
       throw new Error(`Tool '${name}' is not available to this agent profile`);
     }
-    reason = approvalReason(name, args, hooks);
+    // run_checks executes the repository's own code (in a sandbox): it is validated BEFORE any prompt, its ref is pinned to a full sha so the approval is for exactly
+    // the commit that runs, and it asks a human on EVERY call (nothing is remembered between calls, unlike a network host).
+    let approvalArgs = args;
+    if (name === RUN_CHECKS_TOOL) {
+      const prepared = await prepareRunChecks(args, repoRoot());
+      if (!prepared.ok) throw new Error(`${RUN_CHECKS_TOOL}: ${prepared.error}`);
+      args = prepared.args; approvalArgs = prepared.display; reason = prepared.reason;
+    } else reason = approvalReason(name, args, hooks);
     if (reason) {
       hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
-      approval = (await hooks.requestApproval(name, args, reason)) ? 'approved' : 'denied';
+      approval = (await hooks.requestApproval(name, approvalArgs, reason)) ? 'approved' : 'denied';
       if (approval === 'denied') throw new Error(`Denied by human reviewer (${reason})`);
       const host = name === 'algorand' ? algorandTarget(args) : name === 'medication' ? medicationTarget(args) : name === 'live_lookup' ? hostOf(githubApiBase()) : hostOf(args.url);
       if (host) hooks.approvedDomains.add(host);
@@ -701,6 +746,7 @@ export async function runToolAgent(
   const roleContext = hooks.roleContext ?? (hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined);
 
   const evidence: ToolEvidence[] = [];
+  const checkReports: ScratchReport[] = [];
   const conflicts: string[] = [];
   const context: RunContext = { observed: false, written: new Set(), rememberRefusals: 0, userAskedToRemember: /\b(remember (that|this|to)|memori[sz]e|note that|(save|add|store) (this|that|it) (to|in) memory)\b/i.test(goal) };
   const system = [SYSTEM_PROMPT, roleContext, memoryContext ? `Relevant memories:\n${memoryContext}` : undefined]
@@ -742,6 +788,15 @@ export async function runToolAgent(
 
       if (!message.tool_calls?.length) {
         let answer = message.content?.trim() || '(no answer)';
+        // run_checks: what the answer may say about a check report is decided in code. A claim the latest report does not support replaces the answer with what the report says.
+        if (hooks.allowedTools?.includes(RUN_CHECKS_TOOL)) {
+          const claims = validateCheckClaims(answer, checkReports);
+          if (!claims.ok) {
+            conflicts.push(...claims.problems);
+            hooks.onThought({ type: 'reasoning', content: `Check-claim guard: the answer claimed more than the report supports (${claims.problems.join('; ')}). First answer: ${truncate(answer.replace(/\s+/g, ' '), 300)}`, status: 'info' });
+            answer = flaggedAnswer(claims.problems, checkReports.at(-1));
+          }
+        }
         // Final-answer check: an answer that asserts state while this run's own tool results say nothing/failed is confirmed by a model, retried once
         // with the conflict spelled out, and if it still conflicts the answer is replaced by what the tools said, flagged.
         if (process.env.THINKBOX_EVIDENCE_CHECK !== 'off' && conflictCandidate(answer, evidence)) {
@@ -802,6 +857,7 @@ export async function runToolAgent(
         }
         const output = governed.output;
         evidence.push({ name: call.function.name, ok: output.ok === true, output: truncate(JSON.stringify(output), 1500) });
+        if (call.function.name === RUN_CHECKS_TOOL && output.ok === true && output.report) checkReports.push(output.report as unknown as ScratchReport);
         messages.push({ role: 'tool', tool_call_id: call.id, content: truncate(JSON.stringify(output), 15000) });
       }
     }

@@ -166,7 +166,7 @@ export function parseTestSummary(output: string): { pass: number; fail: number }
   return pass && fail ? { pass: Number(pass[1]), fail: Number(fail[1]) } : undefined;
 }
 
-export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string | undefined, opts: { timeoutMs?: number } = {}): Promise<CheckResult> {
+export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string | undefined, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<CheckResult> {
   const cmd = checkCommand(name, file);
   if (!cmd.ok) return Promise.reject(new Error(cmd.error));
   const timeoutMs = opts.timeoutMs ?? cmd.timeoutMs;
@@ -177,9 +177,14 @@ export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string
     let buf = ''; let truncated = false; let timedOut = false;
     const take = (d: Buffer): void => { buf += d.toString('utf8'); if (buf.length > OUTPUT_TAIL_BYTES * 2) { buf = buf.slice(-OUTPUT_TAIL_BYTES); truncated = true; } };
     child.stdout.on('data', take); child.stderr.on('data', take);
-    const timer = setTimeout(() => { timedOut = true; try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already gone */ } }, timeoutMs);
+    const kill = (): void => { try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already gone */ } };
+    const timer = setTimeout(() => { timedOut = true; kill(); }, timeoutMs);
+    // an operator stop ends the run at once: the sandbox's pid namespace takes everything inside with it
+    const onAbort = (): void => kill();
+    if (opts.signal?.aborted) onAbort(); else opts.signal?.addEventListener('abort', onAbort, { once: true });
     const finish = (code: number | null, signal: NodeJS.Signals | null): void => {
       clearTimeout(timer);
+      opts.signal?.removeEventListener('abort', onAbort);
       const tail = buf.length > OUTPUT_TAIL_BYTES ? ((truncated = true), buf.slice(-OUTPUT_TAIL_BYTES)) : buf;
       const tests = name === 'test' || name === 'test_file' ? parseTestSummary(buf) : undefined;
       resolve({ check: name, ...(file ? { file } : {}), argv: cmd.argv, exit_code: code, signal, timed_out: timedOut, duration_ms: Date.now() - started, output_tail: tail, output_truncated: truncated, ...(tests ? { tests } : {}), passed: code === 0 && !timedOut });
@@ -201,6 +206,8 @@ export interface ScratchRequest {
   scratchRoot?: string;
   /** Overrides the per-check timeout (tests). */
   timeoutMs?: number;
+  /** An operator stop: the run is abandoned, the sandbox killed and the copy removed. */
+  signal?: AbortSignal;
 }
 export interface ScratchReport {
   ref: string; sha: string; patch_sha256: string | null; files_touched: string[]; flags: string[];
@@ -213,6 +220,14 @@ export function verdict(checks: CheckResult[], requested: number): boolean {
 }
 
 const REF = /^[A-Za-z0-9][A-Za-z0-9._/@-]{0,99}$/;
+
+/** The full sha of a commit-ish of the local repository, or the reason it is not acceptable. Used before an approval so the approved sha is the one that runs. */
+export async function resolveCommit(repoRoot: string, ref: string): Promise<string> {
+  if (!REF.test(ref) || ref.includes('..')) throw new Error('the ref must be a commit, branch or tag name');
+  const sha = (await run('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: path.resolve(repoRoot) })).out.trim();
+  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`the ref "${ref}" is not a commit in this repository`);
+  return sha;
+}
 let queue: Promise<unknown> = Promise.resolve();
 
 /** One run at a time. Throws (never half-runs) when the request or the sandbox is not acceptable; the scratch copy is always removed. */
@@ -225,6 +240,7 @@ export function runScratch(req: ScratchRequest): Promise<ScratchReport> {
 async function runOne(req: ScratchRequest): Promise<ScratchReport> {
   const started = Date.now();
   if (!REF.test(req.ref) || req.ref.includes('..')) throw new Error('the ref must be a commit, branch or tag name');
+  req.signal?.throwIfAborted();
   if (!req.checks.length) throw new Error('name at least one check');
   for (const c of req.checks) { const k = checkCommand(c.check, c.file); if (!k.ok) throw new Error(k.error); }
   let review: Extract<PatchReview, { ok: true }> | null = null;
@@ -234,8 +250,7 @@ async function runOne(req: ScratchRequest): Promise<ScratchReport> {
   const repoRoot = path.resolve(req.repoRoot);
   const nodeModules = path.join(repoRoot, 'apps', 'web', 'node_modules');
   if (!fs.existsSync(nodeModules)) throw new Error('dependencies are not installed in apps/web (node_modules is missing)');
-  const sha = (await run('git', ['rev-parse', '--verify', '--quiet', `${req.ref}^{commit}`], { cwd: repoRoot })).out.trim();
-  if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`the ref "${req.ref}" is not a commit in this repository`);
+  const sha = await resolveCommit(repoRoot, req.ref);
 
   const root = fs.mkdtempSync(path.join(req.scratchRoot ?? os.tmpdir(), 'kudbee-scratch-'));
   try {
@@ -259,9 +274,70 @@ async function runOne(req: ScratchRequest): Promise<ScratchReport> {
     const paths: SandboxPaths = { work, nodeRoot: nodeRootOf(), nodeModules, cwdRel: 'apps/web' };
     fs.mkdirSync(path.join(work, 'apps', 'web', 'node_modules'), { recursive: true });
     const results: CheckResult[] = [];
-    for (const c of req.checks) results.push(await runCheckInSandbox(paths, c.check, c.file, { timeoutMs: req.timeoutMs }));
+    for (const c of req.checks) { req.signal?.throwIfAborted(); results.push(await runCheckInSandbox(paths, c.check, c.file, { timeoutMs: req.timeoutMs, signal: req.signal })); }
+    req.signal?.throwIfAborted();
     return { ref: req.ref, sha, patch_sha256: review?.sha256 ?? null, files_touched: review?.files ?? [], flags: review?.flags ?? [], sandbox: probe.attestation, checks: results, verified: verdict(results, req.checks.length), started_at: new Date(started).toISOString(), duration_ms: Date.now() - started };
   } finally {
     if (path.basename(root).startsWith('kudbee-scratch-')) fs.rmSync(root, { recursive: true, force: true });
   }
+}
+
+// ─── the governed tool's contract (slice 2) ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const RUN_CHECKS_TOOL = 'run_checks';
+const TOOL_KEYS = new Set(['ref', 'checks', 'test_files', 'patch']);
+export const MAX_TOOL_CHECKS = 6;
+const PREVIEW_CHARS = 1500;
+
+export interface PreparedRunChecks {
+  ok: true;
+  /** The arguments that will run: the ref is already a full sha, so an approval is bound to exactly this commit. */
+  args: { ref: string; checks: string[]; test_files: string[]; patch?: string };
+  /** What the human reviewer reads. Never auto-approved, never remembered between calls. */
+  reason: string;
+  /** What the approval request carries: the patch is a preview plus its hash, files and flags, not the whole text. */
+  display: Record<string, unknown>;
+}
+
+const FLAG_MEANING: Record<string, string> = {
+  touches_tests: 'it edits tests, which are what judge it',
+  touches_ci_or_gates: 'it edits CI, gates, package or compiler configuration',
+  deletes_files: 'it deletes files',
+};
+
+/** Validates a `run_checks` request and builds its approval, or says why not. Nothing runs here and nothing is applied. */
+export async function prepareRunChecks(raw: unknown, repoRoot: string): Promise<PreparedRunChecks | { ok: false; error: string }> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'the request must be an object' };
+  const r = raw as Record<string, unknown>;
+  const extra = Object.keys(r).filter((k) => !TOOL_KEYS.has(k));
+  if (extra.length) return { ok: false, error: `unknown argument(s): ${extra.join(', ')}` };
+  const names = r.checks === undefined ? [] : r.checks;
+  const files = r.test_files === undefined ? [] : r.test_files;
+  if (!Array.isArray(names) || !Array.isArray(files)) return { ok: false, error: 'checks and test_files must be lists' };
+  const checks = [...new Set(names.map(String))];
+  const testFiles = [...new Set(files.map(String))];
+  if (checks.length + testFiles.length === 0) return { ok: false, error: `name at least one check (${Object.keys(CHECKS).join(', ')}) or a test file` };
+  if (checks.length + testFiles.length > MAX_TOOL_CHECKS) return { ok: false, error: `at most ${MAX_TOOL_CHECKS} checks per request` };
+  for (const c of checks) { if (c === 'test_file') return { ok: false, error: 'name test files in test_files, not as a check' }; const k = checkCommand(c); if (!k.ok) return { ok: false, error: k.error }; }
+  for (const f of testFiles) { const k = checkCommand('test_file', f); if (!k.ok) return { ok: false, error: k.error }; }
+  let review: Extract<PatchReview, { ok: true }> | null = null;
+  if (r.patch !== undefined) { const v = reviewPatch(r.patch); if (!v.ok) return { ok: false, error: `patch refused: ${v.error}` }; review = v; }
+  const ref = r.ref === undefined ? 'HEAD' : r.ref;
+  if (typeof ref !== 'string') return { ok: false, error: 'ref must be a string' };
+  let sha: string;
+  try { sha = await resolveCommit(repoRoot, ref); } catch (err) { return { ok: false, error: err instanceof Error ? err.message : String(err) }; }
+  const list = [...checks, ...testFiles.map((f) => `test_file ${f}`)].join(', ');
+  const flags = review ? review.flags.map((f) => `${f} (${FLAG_MEANING[f] ?? f})`) : [];
+  const patchText = review
+    ? ` Patch ${review.sha256.slice(0, 12)} touches ${review.files.length} file(s): ${review.files.slice(0, 8).join(', ')}${review.files.length > 8 ? ', ...' : ''}.${flags.length ? ` WARNING: ${flags.join('; ')}.` : ''}`
+    : ' No patch: the commit as it is.';
+  const reason = `Run sandboxed checks (${list}) on commit ${sha.slice(0, 12)}${ref === sha ? '' : ` (ref ${ref})`}.${patchText} Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.`;
+  const args = { ref: sha, checks, test_files: testFiles, ...(review ? { patch: r.patch as string } : {}) };
+  const display = { ref: sha, requested_ref: ref, checks, test_files: testFiles, ...(review ? { patch_sha256: review.sha256, patch_files: review.files, patch_flags: review.flags, patch_preview: String(r.patch).slice(0, PREVIEW_CHARS) + (String(r.patch).length > PREVIEW_CHARS ? '\n[... truncated for display; the hash above identifies the full patch]' : '') } : {}) };
+  return { ok: true, args, reason, display };
+}
+
+/** The report as the tool returns it to a model: output tails clipped, everything that decides "verified" kept. */
+export function slimReport(report: ScratchReport, tailChars = 3000): Record<string, unknown> {
+  return { ...report, checks: report.checks.map((c) => ({ ...c, output_tail: c.output_tail.slice(-tailChars) })) };
 }
