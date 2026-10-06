@@ -21,7 +21,7 @@ const REPO = 'Kudbee-Studio/think-box-ai';
 const URL = `https://github.com/${REPO}.git`;
 const CAP = '0.05';
 const FILE = 'docs/scratch-runner-design.md';
-const GOAL = "In docs/scratch-runner-design.md, the Status line near the top says slice 4 is '4 (the next PR, below)'. That PR is now merged as #381. Change that phrase to '4 (PR #381, below)' and change nothing else.";
+const GOAL = "Edit docs/scratch-runner-design.md: replace the exact text '4 (the next PR, below)' with '4 (PR #381, below)' and change nothing else.";
 const RUN = process.env.P343_RUN_LABEL || 'run';
 const key = process.env.INCEPTION_API_KEY || readTextIfPresent(path.join(repoRoot, '.env')).match(/^INCEPTION_API_KEY=(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, '') || '';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
