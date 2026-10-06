@@ -46,8 +46,8 @@ const nativeCall = (name: string, args: unknown) => turn({ tool_calls: [{ functi
 const jsonTurn = (body: unknown) => turn({ content: JSON.stringify(body) });
 /** A scripted local model: replays `turns` in order and records every request it was sent. */
 function scripted(capabilities: string[], turns: OllamaChatTurn[]) {
-  const requests: Array<{ messages: any[]; tools?: unknown[]; format?: unknown }> = [];
-  const chat: LocalChat = { modelCapabilities: async () => capabilities, chatOnce: async (_m, messages, opts = {}) => { requests.push({ messages: JSON.parse(JSON.stringify(messages)), tools: opts.tools, format: opts.format }); return turns.shift() ?? turn({ error: 'script exhausted' }); } };
+  const requests: Array<{ messages: any[]; tools?: unknown[]; format?: unknown; timeoutMs?: number }> = [];
+  const chat: LocalChat = { modelCapabilities: async () => capabilities, chatOnce: async (_m, messages, opts = {}) => { requests.push({ messages: JSON.parse(JSON.stringify(messages)), tools: opts.tools, format: opts.format, timeoutMs: opts.timeoutMs }); return turns.shift() ?? turn({ error: 'script exhausted' }); } };
   return { chat, requests, left: () => turns.length };
 }
 const MODELS = [
@@ -89,13 +89,57 @@ describe('the local patch loop (no sandbox needed)', () => {
       const denied = scripted(m.caps, [m.call('write_file', { path: 'x.txt', content: 'x' }), m.call('write_file', { path: 'x.txt', content: 'x' })]);
       const a = await drive(m.name, denied.chat); assert.equal(a.result.success, false); assert.equal(a.result.failure?.kind, 'malformed_tool_request'); assert.equal(a.approvals.length, 0);
       assert.equal(fs.existsSync(path.join(repo, 'x.txt')), false);
-      const talk = scripted(m.caps, [m.answer('Just change line 2.')]);
-      const b = await drive(m.name, talk.chat); assert.equal(b.result.success, false); assert.equal(b.result.failure?.kind, 'no_tool_call');
+      const talk = scripted(m.caps, [m.answer('Just change line 2.'), m.answer('Really, just change line 2.')]);
+      const b = await drive(m.name, talk.chat); assert.equal(b.result.success, false); assert.equal(b.result.failure?.kind, 'no_tool_call'); assert.equal(talk.requests.length, 2, 'one nudge, then it fails explicitly');
     });
   }
+  it('the prompts steer a small model: never guess a path, start with a search for a word from the goal; and the constrained prompt has NO example values to copy (run 1: smollm2 sent "optional folder" and "..." back verbatim)', () => {
+    const spec = patchSpec(sha);
+    for (const text of [spec.system, spec.constrainedSystem]) { assert.match(text, /Never guess a path/); assert.match(text, /Start by calling repo_search with a word from the goal/); assert.match(text, new RegExp(sha.slice(0, 12))); }
+    assert.doesNotMatch(spec.constrainedSystem, /optional folder|"\.\.\."|exact old text|new text"|\{"action"/, 'no JSON template to echo back');
+    assert.match(spec.constrainedSystem, /Leave out keys the tool does not use/);
+  });
+  it('keys that do not belong to a tool are dropped, never rejected (run 1: start/end on repo_search failed 6 of smollm2\'s 15)', () => {
+    const spec = patchSpec(sha);
+    const search = spec.checkCall('repo_search', { query: 'greet', path: '', start: 1, end: 60, find: '', edits: null });
+    assert.equal(search.ok, true, JSON.stringify(search)); if (search.ok) { assert.equal(search.args.query, 'greet'); assert.ok(!('start' in search.args) && !('end' in search.args) && !('find' in search.args) && !('edits' in search.args)); }
+    const read = spec.checkCall('repo_read', { path: 'apps/web/src/greeter.js', query: 'x', find: 'y', replace: 'z' }); assert.equal(read.ok, true); if (read.ok) { assert.equal(read.args.path, 'apps/web/src/greeter.js'); assert.ok(!('query' in read.args) && !('find' in read.args) && !('replace' in read.args)); }
+    assert.equal(spec.checkCall('repo_read', { path: 'a.js', start: 1, end: 5 }).ok, true);
+    assert.equal(spec.checkCall('delete_everything', {}).ok, false);
+  });
+  it('propose_change takes FLAT arguments from the model (path, find, replace) and still hands the governed tool one edit; the nested form and a new file are accepted too', async () => {
+    const spec = patchSpec(sha);
+    assert.deepEqual(spec.checkCall('propose_change', { path: 'a.js', find: 'x', replace: 'y', summary: 's', start: 3, query: 'q' }), { ok: true, args: { edits: [{ path: 'a.js', find: 'x', replace: 'y' }], summary: 's' } });
+    assert.deepEqual(spec.checkCall('propose_change', { path: 'n.js', create: 'text' }), { ok: true, args: { edits: [{ path: 'n.js', create: 'text' }] } });
+    assert.deepEqual(spec.checkCall('propose_change', { edits: FIX, summary: 's' }), { ok: true, args: { edits: FIX, summary: 's' } });
+    for (const bad of [{}, { path: 'a.js' }, { path: 'a.js', find: '' , replace: 'y' }, { find: 'x', replace: 'y' }]) assert.equal(spec.checkCall('propose_change', bad).ok, false, JSON.stringify(bad));
+    const flat = (spec.nativeTools[2] as any).function; assert.equal(flat.name, 'propose_change'); assert.deepEqual(Object.keys(flat.parameters.properties).sort(), ['create', 'find', 'path', 'replace', 'summary']); assert.deepEqual(flat.parameters.required, ['path']);
+    // end to end: a flat call produces the same patch as the nested one
+    const a = await drive('qwen2.5:3b', scripted(['tools'], [nativeCall('repo_read', { path: 'apps/web/src/greeter.js' }), nativeCall('propose_change', { path: 'apps/web/src/greeter.js', find: "'helo '", replace: "'hello '", summary: 'flat' })]).chat);
+    const b = await drive('qwen2.5:3b', scripted(['tools'], [nativeCall('repo_read', { path: 'apps/web/src/greeter.js' }), nativeCall('propose_change', { edits: FIX, summary: 'nested' })]).chat);
+    assert.equal(a.result.success, true, JSON.stringify(a.result.failure)); assert.equal(b.result.success, true);
+    assert.equal((a.result.evidence.at(-1) as any).patch_sha256, (b.result.evidence.at(-1) as any).patch_sha256); assert.equal(a.result.answer, 'flat');
+  });
+  for (const m of MODELS) {
+    it(`${m.name}: an empty reply or plain text BEFORE any tool call gets ONE nudge to call a tool, and then the run goes on (run 1: qwen2.5:3b returned empty replies, qwen2.5:1.5b answered in text 15 times)`, async () => {
+      for (const first of [m.name.startsWith('qwen') ? turn({ content: '' }) : m.answer(''), m.answer('The total function is not defined, you should define it.')]) {
+        const s = scripted(m.caps, [first, m.call('repo_read', { path: 'apps/web/src/greeter.js' }), m.call('propose_change', { path: 'apps/web/src/greeter.js', find: "'helo '", replace: "'hello '", summary: 'Fixed.' })]);
+        const { result } = await drive(m.name, s.chat);
+        assert.equal(result.success, true, JSON.stringify(result.failure)); assert.equal(result.answer, 'Fixed.');
+        assert.ok(result.steps.some((x) => x.outcome === 'recovery_retry'), 'the nudge is a step on the record'); assert.match(JSON.stringify(s.requests[1]!.messages), /Do not answer in text\. Call repo_search now/);
+      }
+    });
+  }
+  it('a patch worker may be handed back FOUR recoverable errors in a row (guessed paths), not two; the fifth ends the run (run 1: several models guessed three paths)', async () => {
+    const bad = (p: string) => nativeCall('repo_read', { path: p });
+    const ok = scripted(['tools'], [bad('src/a.js'), bad('lib/b.js'), bad('c.py'), bad('d/e.js'), nativeCall('repo_read', { path: 'apps/web/src/greeter.js' }), nativeCall('propose_change', { path: 'apps/web/src/greeter.js', find: "'helo '", replace: "'hello '" })]);
+    const a = await drive('qwen2.5:3b', ok.chat); assert.equal(a.result.success, true, JSON.stringify(a.result.failure)); assert.equal(a.result.tool_retries, 4);
+    const tooMany = scripted(['tools'], [bad('a1.js'), bad('a2.js'), bad('a3.js'), bad('a4.js'), bad('a5.js'), nativeCall('repo_read', { path: 'apps/web/src/greeter.js' })]);
+    const b = await drive('qwen2.5:3b', tooMany.chat); assert.equal(b.result.success, false); assert.equal(b.result.failure?.kind, 'tool_failed'); assert.match(String(b.result.failure?.message), /file not found: a5\.js/);
+  });
   it('a malformed propose_change request (no edits) is repaired once, never run', async () => {
     const s = scripted(['tools'], [nativeCall('propose_change', { summary: 'x' }), nativeCall('propose_change', { summary: 'x' })]);
-    const { result } = await drive('qwen2.5:3b', s.chat); assert.equal(result.success, false); assert.match(String(result.failure?.message), /propose_change needs edits/);
+    const { result } = await drive('qwen2.5:3b', s.chat); assert.equal(result.success, false); assert.match(String(result.failure?.message), /propose_change needs path, find and replace/);
   });
 });
 
@@ -140,6 +184,7 @@ describe('a SIMULATE convoy with a local patch worker, end to end', () => {
     const c = await executeConvoy(h.deps(s.chat), h.c.id);
     assert.equal(c.state, 'FAILED'); assert.equal(h.approvals.length, 0); assert.equal(c.workers.find((w) => w.id === 'checks-1')!.status, 'skipped'); assert.equal(c.simulation, undefined);
     assert.match(c.error ?? '', /patch worker failed: agent_failed|agent_failed:/); assert.deepEqual(h.agentCalls, []);
+    assert.ok(s.requests.length >= 1 && s.requests.every((r) => r.timeoutMs === 300_000), `a local patch worker waits up to 300 s per call, got ${JSON.stringify(s.requests.map((r) => r.timeoutMs))}`);
   });
   it('a local proposal that does not fix the problem is PARTIAL (verified: NO), and the model\'s claim that tests pass changes nothing', { skip }, async () => {
     const h = harness();
