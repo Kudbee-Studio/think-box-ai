@@ -1,6 +1,6 @@
 // Ollama chat/model listing and the optional Janus image service client. Moved out of server.ts unchanged; the base URLs and the
 // Janus switch, which were module constants there, are passed in.
-import { INCEPTION_MODELS, inceptionConfigured } from './agent.ts';
+import { configuredCloudModels } from './agent.ts';
 import { LOCAL_CHAT_OPTIONS } from './local-model.ts';
 import { parseOllamaLine } from './ollama-line.ts';
 import { errorMessage, type ChatMessage, type OllamaTokenMessage } from './types.ts';
@@ -54,9 +54,7 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
   }
 
   async function listModels(): Promise<OllamaTag[]> {
-    const cloud = inceptionConfigured()
-      ? INCEPTION_MODELS.map((name) => ({ name, provider: 'inception', agent: true }))
-      : [];
+    const cloud = configuredCloudModels().map((m) => ({ name: m.name, provider: m.provider, agent: true }));
     return [...cloud, ...(await listOllamaModels())];
   }
 

@@ -1122,7 +1122,7 @@ async function runSlashCommand(command) {
     case '/model': {
       const name = args.join(' ').trim();
       if (!name) {
-        const list = state.models.map(m => `  ${m.name} ${m.agent ? '— Worker Agent (Inception)' : `[${m.provider || 'ollama'}]`}`).join('\n');
+        const list = state.models.map(m => `  ${m.name} ${m.agent ? `— Worker Agent (${m.provider === 'deepseek' ? 'DeepSeek' : 'Inception'})` : `[${m.provider || 'ollama'}]`}`).join('\n');
         appendTerminalMessage('system', `Current model: ${state.config.model || '(none)'}\nAvailable models:\n${list}\nUsage: /model NAME`);
         return true;
       }
@@ -1834,13 +1834,13 @@ function renderModels() {
   if (select.dataset.modelsKey === key) return;
   select.dataset.modelsKey = key;
   if (!state.models.length) {
-    select.innerHTML = '<option value="">No models (set INCEPTION_API_KEY or start Ollama)</option>';
+    select.innerHTML = '<option value="">No models (set INCEPTION_API_KEY or DEEPSEEK_API_KEY, or start Ollama)</option>';
     return;
   }
   const previous = select.value || state.config.model;
   select.innerHTML = state.models.map(m => {
-    const label = m.provider === 'inception'
-      ? `⚡ ${m.name} — Worker Agent (Inception)`
+    const label = m.agent
+      ? `⚡ ${m.name} — Worker Agent (${m.provider === 'deepseek' ? 'DeepSeek' : 'Inception'})`
       : `${m.name} — local (${((m.size || 0) / 1e9).toFixed(1)}GB)`;
     return `<option value="${escapeHtml(m.name)}">${escapeHtml(label)}</option>`;
   }).join('');
@@ -1875,7 +1875,7 @@ function initProfileSwitcher() {
 function submitGoal(goal) {
   if (!goal) return false;
   if (!state.models.length) {
-    appendTerminalMessage('error', 'No model is available. Set INCEPTION_API_KEY in .env or start Ollama, then refresh models.');
+    appendTerminalMessage('error', 'No model is available. Set INCEPTION_API_KEY or DEEPSEEK_API_KEY in .env, or start Ollama, then refresh models.');
     return false;
   }
   if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {

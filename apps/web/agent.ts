@@ -12,12 +12,18 @@ import { RUN_CHECKS_TOOL, prepareRunChecks, resolveCommit, runScratch, slimRepor
 import { REPO_TOOLS, repoRead, repoRoot, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
-const INCEPTION_BASE_URL = process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1';
-export const INCEPTION_MODELS = ['mercury-2'];
+/** A cloud model the worker agent can run on. Both speak the OpenAI-compatible chat API; only the endpoint, the key and the price differ. */
+export interface CloudModel { name: string; provider: 'inception' | 'deepseek'; vendor: string; keyEnv: string; baseUrlEnv: string; baseUrlDefault: string }
+export const CLOUD_MODELS: CloudModel[] = [
+  { name: 'mercury-2', provider: 'inception', vendor: 'Inception', keyEnv: 'INCEPTION_API_KEY', baseUrlEnv: 'INCEPTION_BASE_URL', baseUrlDefault: 'https://api.inceptionlabs.ai/v1' },
+  { name: 'deepseek-flash', provider: 'deepseek', vendor: 'DeepSeek', keyEnv: 'DEEPSEEK_API_KEY', baseUrlEnv: 'DEEPSEEK_BASE_URL', baseUrlDefault: 'https://api.deepseek.com/v1' },
+];
+const MERCURY = CLOUD_MODELS[0]!;
 
-// USD per million tokens (Inception price list, /v1/models).
+// USD per million tokens. mercury-2: Inception price list (/v1/models). deepseek-flash: a conservative ESTIMATE (above DeepSeek's published rates for its chat model), so budgets err on the side of stopping early; replace with the exact rate from DeepSeek's price page.
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'mercury-2': { input: 0.25, output: 0.75 },
+  'deepseek-flash': { input: 0.30, output: 1.20 },
 };
 
 export function costUsd(model: string, promptTokens: number, completionTokens: number): number {
@@ -26,13 +32,38 @@ export function costUsd(model: string, promptTokens: number, completionTokens: n
   return (promptTokens * price.input + completionTokens * price.output) / 1_000_000;
 }
 
-export function inceptionConfigured(): boolean {
-  return Boolean(process.env.INCEPTION_API_KEY);
+export const cloudModel = (model: string): CloudModel | undefined => CLOUD_MODELS.find((m) => m.name === model);
+/** A model name outside the registry (an experiment's alias) keeps the original behaviour: Inception's endpoint and key. */
+const cloudOrMercury = (model: string): CloudModel => cloudModel(model) ?? MERCURY;
+
+export function isCloudModel(model: string): boolean {
+  return cloudModel(model) !== undefined;
 }
 
-export function isInceptionModel(model: string): boolean {
-  return INCEPTION_MODELS.includes(model);
+/** The provider label recorded on a run for this model. */
+export function providerOf(model: string): string {
+  return cloudModel(model)?.provider ?? 'ollama';
 }
+
+export function cloudConfigured(model: string): boolean {
+  return Boolean(process.env[cloudOrMercury(model).keyEnv]);
+}
+
+export function inceptionConfigured(): boolean {
+  return cloudConfigured(MERCURY.name);
+}
+
+/** The cloud worker-agent models whose key is set, in registry order. */
+export function configuredCloudModels(): CloudModel[] {
+  return CLOUD_MODELS.filter((m) => cloudConfigured(m.name));
+}
+
+/** The worker agent used when nothing else is chosen: the first configured cloud model, or null. */
+export function defaultAgentModel(): string | null {
+  return configuredCloudModels()[0]?.name ?? null;
+}
+
+const cloudBaseUrl = (model: string): string => { const m = cloudOrMercury(model); return process.env[m.baseUrlEnv] || m.baseUrlDefault; };
 
 interface ToolCall {
   id: string;
@@ -725,19 +756,19 @@ async function chat(
   temperature: number,
   signal: AbortSignal,
   tools: typeof TOOLS = TOOLS,
-  apiBaseUrl = process.env.INCEPTION_BASE_URL || INCEPTION_BASE_URL,
+  apiBaseUrl: string = cloudBaseUrl(model),
 ): Promise<{ message: AgentMessage; prompt: number; completion: number }> {
   const response = await fetch(`${apiBaseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.INCEPTION_API_KEY}`,
+      Authorization: `Bearer ${process.env[cloudOrMercury(model).keyEnv]}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ model, messages, ...(tools.length ? { tools } : {}), temperature, max_tokens: 8000 }),
     signal: AbortSignal.any([signal, AbortSignal.timeout(90000)]),
   });
   if (!response.ok) {
-    throw new Error(`Inception API HTTP ${response.status}: ${truncate(await response.text(), 300)}`);
+    throw new Error(`${cloudOrMercury(model).vendor} API HTTP ${response.status}: ${truncate(await response.text(), 300)}`);
   }
   const data = (await response.json()) as {
     choices: Array<{ message: AgentMessage }>;
@@ -745,7 +776,7 @@ async function chat(
   };
   const message = data.choices?.[0]?.message;
   if (!message) {
-    throw new Error(`Inception API returned no choices: ${truncate(JSON.stringify(data), 300)}`);
+    throw new Error(`${cloudOrMercury(model).vendor} API returned no choices: ${truncate(JSON.stringify(data), 300)}`);
   }
   return {
     message,
@@ -766,7 +797,7 @@ export async function runToolAgent(
   const totals = { steps: 0, tool_calls: 0, prompt_tokens: 0, completion_tokens: 0, tokens: 0, cost_usd: 0 };
   const finish = (extra: Partial<AgentRunResult> & { success: boolean }): AgentRunResult => ({ ...totals, ...extra });
 
-  if (!inceptionConfigured()) return finish({ success: false, error: 'INCEPTION_API_KEY is not set in .env' });
+  if (!cloudConfigured(model)) return finish({ success: false, error: `${cloudOrMercury(model).keyEnv} is not set in .env` });
 
   const tools = hooks.allowedTools ? TOOLS.filter((t) => hooks.allowedTools!.includes(t.function.name)) : TOOLS.filter((t) => !OPT_IN_TOOLS.has(t.function.name));
   const roleContext = hooks.roleContext ?? (hooks.allowedTools ? Object.values(AGENT_PROFILES).find((p) => p.allowedTools === hooks.allowedTools)?.roleContext : undefined);

@@ -57,7 +57,7 @@ export function classifyFailure(error: string | undefined, stopped: boolean): st
   if (!error) return undefined;
   if (/budget/i.test(error)) return 'budget';
   if (/step limit/i.test(error)) return 'step_limit';
-  if (/Inception API HTTP|timeout|aborted/i.test(error)) return 'api_error';
+  if (/(Inception|DeepSeek) API HTTP|timeout|aborted/i.test(error)) return 'api_error';
   if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(error)) return 'network';
   return 'error';
 }
