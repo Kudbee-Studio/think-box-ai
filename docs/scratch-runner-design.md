@@ -1,6 +1,6 @@
 # Scratch runner: design, threat model and the slices to come
 
-Status: slice 1 built (PR #377). Slices 2 to 5 are planned here and **not built**; each needs its own PR, its own evidence and, where it widens what the agent can do, the founder's explicit go-ahead.
+Status: slice 1 built (PR #377) and slice 2 built (PR #378, below). Slices 3 to 5 are planned here and **not built**; each needs its own PR, its own evidence and, where it widens what the agent can do, the founder's explicit go-ahead.
 
 ## Why
 
@@ -41,7 +41,7 @@ Two things are **flagged, not refused**, and a later approval prompt must show t
 
 ## What slice 1 does not do
 
-It is not wired into the agent, the server, the dashboard or the Mayor: nothing calls it yet except its tests and `npm run test:live-scratch`. It does not fetch from GitHub (it exports a commit that is already in the local repository, so a stale local `main` is a stale copy; the report names the sha). It does not push, open a pull request, merge, write to the real tree, read a key, or run a model. It is Linux with bubblewrap only; anywhere else it refuses to run.
+Slice 1 alone was not wired into anything; slice 2 makes it reachable only through the opt-in `run_checks` tool and the `verifier` profile, each call with a human's approval. It does not fetch from GitHub (it exports a commit that is already in the local repository, so a stale local `main` is a stale copy; the report names the sha). It does not push, open a pull request, merge, write to the real tree, read a key, or run a model. It is Linux with bubblewrap only; anywhere else it refuses to run.
 
 ## Residual risks (stated, not hidden)
 
@@ -53,7 +53,12 @@ It is not wired into the agent, the server, the dashboard or the Mayor: nothing 
 
 ## Slices still to come (each its own PR, in this order)
 
-2. **Governed tool.** `run_checks` as a tool with `exec` permission, through `runGovernedTool`: the approval prompt shows the commit, the check names, the files the patch touches and its flags; never auto-approved; a run record with the full report; the grounding rule that a model may only say "verified" for a report whose `verified` is true. Needs the founder's go-ahead because it makes execution reachable from the agent.
+2. **Governed tool (built, PR #378).** `run_checks` in the one tool registry, through `runGovernedTool`:
+   - **Opt-in:** callable only when a run's allowlist names it (never a default; a hallucinated call outside an allowlist is rejected before the approval gate). The new `verifier` profile (`repo_search`, `repo_read`, `run_checks`) is the only one that names it; it cannot edit anything.
+   - **Validated before any prompt:** unknown keys, unknown check names, `test_file` smuggled into `checks`, more than 6 checks, a bad test path, a refused patch, a ref that is not a commit, and a patch that does **not apply to the commit** (decided with a temporary index file and `git apply --check --cached`, so the repository is untouched) all return an error with no prompt.
+   - **A human on every call, bound to the exact commit:** the ref is resolved to a full sha before the approval, so the commit shown is the commit that runs even if a branch moves while the human decides (tested). The prompt names the sha, the checks, the patch hash, files and flags with what each flag means, and a bounded preview, never the whole patch. Nothing is remembered between calls (unlike a network host).
+   - **Operator stop** kills the sandbox and removes the copy.
+   - **What a model may say is decided in code** (`check-claims.ts`, pure): "verified", "everything passes", "safe to merge", "<check> passes" and "N tests passed" must be supported by the LATEST report, a patch that edits tests or gates must be said to, and a statement of failure is never flagged. An unsupported claim replaces the answer with what the report says. Offers, questions, intentions, negations and quoted field names are not claims (found live and fixed; see `docs/evidence/p3.39-run-checks/PLAN.md`).
 3. **SIMULATE convoy mode.** The Mayor plans a worker that proposes a patch (Mercury, since a 3B local model cannot, see P3.33 to P3.35) and a worker that runs the checks; the human approves the plan once, and the runner is called only with that approval.
 4. **Draft pull request.** Fetch from GitHub and open a **draft** PR from a branch, with the report as the body; never ready, never merged by the agent. Needs credentials only the founder holds and a separate explicit approval each time. The founder's `origin` remote currently points at GitLab, so this also needs a decision about which remote is the source of truth.
 5. **A write-capable loop** that iterates propose, verify, revise within the budget and the spend cap. Last, and only once 2 to 4 have live evidence.
