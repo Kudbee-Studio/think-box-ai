@@ -87,6 +87,7 @@ export function summarize(c: ConvoyRecord): Record<string, unknown> {
     workers: c.workers.map((w) => ({ id: w.id, name: w.name, model: w.model, status: w.status, lane: laneOf(c, w)?.lane ?? null, run_id: w.run_id ?? null, bead: beadId(c.id, w.id) })), review: c.review?.state ?? null, cost_usd: c.cost_usd, tool_calls: c.tool_calls, tokens: c.tokens,
     worker_duration_ms: c.worker_duration_ms, duration_ms: c.finished_at && c.started_at ? c.finished_at - c.started_at : null, risk: c.policy.risk,
     grounding: c.grounding?.status ?? null, approval: c.approval?.state ?? null, think_mode: c.plan.think_mode, learned_tokens: c.learned_tokens?.length ?? 0,
+    draft_pr: c.draft_pr ? { state: c.draft_pr.state, url: c.draft_pr.url ?? null, branch: c.draft_pr.branch } : null,
   };
 }
 

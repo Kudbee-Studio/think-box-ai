@@ -3,6 +3,7 @@
 import type { Express, Response } from 'express';
 import { ConvoyError, verifyChain, type ConvoyRecord, type ConvoyStore } from '../convoy.ts';
 import { summarize } from '../convoy-runner.ts';
+import { draftPrConfig, draftPrEligibility } from '../draft-pr.ts';
 import { projectJobState } from '../convoy-job-state.ts';
 import { boardFor, laneOf } from '../convoy-board.ts';
 import { beadsFor, type BeadStatus } from '../convoy-beads.ts';
@@ -25,7 +26,8 @@ const status = (e: ConvoyError): number => (e.code === 'not_found' ? 404 : e.cod
 export function convoyDetail(c: ConvoyRecord, runStore: RunStore): Record<string, unknown> {
   const runs = c.run_ids.map((id) => runStore.get(id)).filter((r): r is RunRecord => Boolean(r));
   const lanes = Object.fromEntries(c.workers.map((w) => [w.id, laneOf(c, w)]));
-  return { ...c, chain: verifyChain(c), summary: summarize(c), job_state: projectJobState(c), lanes, runs };
+  const eligibility = draftPrEligibility(c, draftPrConfig());
+  return { ...c, chain: verifyChain(c), summary: summarize(c), job_state: projectJobState(c), lanes, runs, draft_pr_available: eligibility.ok, draft_pr_reason: eligibility.ok ? null : eligibility.error };
 }
 
 export function registerConvoyRoutes(app: Express, deps: ConvoyRouteDeps): void {
