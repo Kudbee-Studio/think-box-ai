@@ -33,3 +33,12 @@ V0 every task fails as written and passes with its reference fix; V1 the unsandb
 - I chose these five fixes after reading run 1's failures, on the same tasks. That makes run 2 an experiment about the fixed implementation, not an untouched held-out test; there is no new task set. A held-out set (fresh tasks, same rule) would be the next step before relying on any number here.
 - Default sampling, unseeded; no browser; the script approves the sandbox run.
 - If the result surprises me or any criterion fails, I report it as it is, keep every run, and disclose amendments in this file; I will not tune the tasks or the rule to the outcome.
+
+## Amendment: DeepSeek added as a cloud reference model (written BEFORE any DeepSeek run)
+The founder has a DeepSeek API and asked for it to be put in the test.
+- **Model and path:** `deepseek-chat` (override with `P348_DEEPSEEK_MODEL`) at `https://api.deepseek.com/v1`, an OpenAI-compatible endpoint, through the **same worker-agent path Mercury uses** (the convoy's patch worker on the agent loop); only the base URL and the key differ, set per model by the experiment script. No provider code is added to the product. The key is looked up by its own name (`DEEPSEEK_API_KEY`) in the environment or the repo `.env`, never printed, and the script checks it does not appear in the results.
+- **What leaves the machine:** only each task's tiny fixture code (a few lines of JavaScript and its test) goes to DeepSeek, as the agent reads and edits it. **This repository's source is never sent.**
+- **Same design:** the same 15 frozen tasks (tasks hash must equal run 1's), one trial, one round, `test` only, the real sandbox, V0 to V5 (V5 also checks neither provider's key is in the results).
+- **Not part of the decision rule:** DeepSeek is a cloud model, not a local one. It is a second reference next to Mercury (run 1: 15 of 15), reported descriptively: it answers "could another cloud model do SIMULATE's patch step", not "should local patching be built".
+- **Cost:** the script prices every cloud model's tokens at Mercury's rates, which is wrong for DeepSeek; the token counts are the honest measure and the results say so.
+- **Risks stated now:** DeepSeek's tool-calling format has not been tried with this agent path. If the first calls fail with HTTP or format errors, those rows are a path failure, not ability; I will diagnose before reading them as results. No threshold for DeepSeek: whatever it scores is reported as it is.
