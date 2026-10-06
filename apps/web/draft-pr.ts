@@ -52,6 +52,14 @@ export const defaultRun: RunFn = (cmd, args, opts = {}) => new Promise((resolve)
 });
 
 const oneLine = (t: unknown, max: number): string => String(t ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+/** A one-line pull-request title from the goal: cut at a word boundary with an ellipsis, so a truncated title reads as truncated (it used to stop mid-word or mid-quote with nothing to say so). */
+export function titleFromGoal(goal: unknown, max = 72): string {
+  const line = oneLine(goal, 10_000);
+  if (line.length <= max) return `kudbEE: ${line}`;
+  const room = line.slice(0, max - 1);
+  const cut = room.lastIndexOf(' ');
+  return `kudbEE: ${(cut >= Math.floor(max / 2) ? room.slice(0, cut) : room).trimEnd()}\u2026`;
+}
 const FLAG_TEXT: Record<string, string> = {
   touches_tests: 'the patch edits tests, which are what judge it',
   touches_ci_or_gates: 'the patch edits CI, gates, package or compiler configuration',
@@ -118,7 +126,7 @@ export async function prepareDraftPr(c: ConvoyRecord, cfg: DraftPrConfig, repoRo
   const repo = cfg.repo!; const remoteUrl = cfg.remoteUrl!;
   const branch = `kudbee/sim-${c.id.slice(0, 8)}-${s.patch_sha256.slice(0, 8)}`;
   if (!BRANCH.test(branch)) return { ok: false, error: 'the branch name is not valid' };
-  const title = `kudbEE: ${oneLine(c.goal, 72)}`;
+  const title = titleFromGoal(c.goal);
   const flags = s.flags;
   const resume = c.draft_pr?.state === 'branch_pushed' && c.draft_pr.branch === branch ? { branch, commit: c.draft_pr.commit } : undefined;
   const flagWarn = flags.length ? ` WARNING: ${flags.map((f) => `${f} (${FLAG_TEXT[f] ?? f})`).join('; ')}.` : '';

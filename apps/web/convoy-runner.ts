@@ -462,7 +462,7 @@ async function runSimulateConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () =
   const head = `Proposed change by ${model} on commit ${sha.slice(0, 8)}, ${proposal.files.length} file(s): ${proposal.files.join(', ')}. Patch ${proposal.sha256.slice(0, 12)}.${flagText}${proposal.summary ? ` Its summary: ${proposal.summary}` : ''}`;
   const history = rounds.length > 1 ? `Rounds: ${rounds.map((x) => `${x.round}: ${x.outcome}`).join('; ')}.` : '';
   const tail = report ? `Sandbox verification (round ${last.round}): ${describeReport(report)}.` : `NOT VERIFIED: the checks were not run (${whyNotRun}).`;
-  c.final_answer = [head, history, tail, stopNote ? `Stopped early: ${stopNote}.` : '', 'The change was NOT applied to your working tree and nothing was pushed; the patch is in this convoy\'s record.'].filter(Boolean).join('\n');
+  c.final_answer = [head, history, tail, stopNote ? `Stopped early: ${stopNote}.` : '', 'The change was NOT applied to your working tree. The patch is in this convoy\'s record; nothing is pushed unless a person later chooses to open a draft pull request from it.'].filter(Boolean).join('\n');
   store.aggregate(c); update();
   if (verified) store.finish(c.id, 'success', rounds.length > 1 ? `a change was proposed, revised ${rounds.length - 1} time(s) and verified in the sandbox; it was not applied` : 'a change was proposed and verified in the sandbox; it was not applied');
   else store.finish(c.id, 'partial', report ? `a change was proposed but the sandbox checks did not all pass${rounds.length > 1 ? ` after ${rounds.length} round(s)` : ''}` : 'a change was proposed but not verified: the checks did not run', report ? 'verification failed' : `checks: ${checksFailure?.kind}`);

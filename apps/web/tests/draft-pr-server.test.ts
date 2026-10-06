@@ -112,6 +112,7 @@ describe('SIMULATE -> accepted -> draft pull request, through the real server', 
     const calls = ghCalls(); assert.equal(calls.length, 1);
     assert.deepEqual(calls[0]!.slice(0, 9), ['pr', 'create', '--repo', REPO, '--draft', '--base', 'main', '--head', upd.data.draft_pr.branch]);
     const d = (await get(`/api/convoys/${id}`)).convoy;
+    assert.doesNotMatch(d.final_answer, /nothing was pushed/i, 'the result text must not claim nothing was pushed after a branch was pushed'); assert.match(d.final_answer, /nothing is pushed unless a person later chooses to open a draft pull request/);
     assert.equal(d.draft_pr.state, 'opened'); assert.equal(d.draft_pr.by, 'human'); assert.equal(d.draft_pr_available, false); assert.equal(d.chain.ok, true, 'the evidence chain still verifies');
     assert.ok(d.events.some((e: any) => /draft pull request opened: https:\/\/github\.com\/Acme\/widgets\/pull\/42/.test(e.note ?? e.message ?? JSON.stringify(e))));
     assert.equal(fixtureState(), before, 'the checkout (refs, index, work tree) is exactly as it was');

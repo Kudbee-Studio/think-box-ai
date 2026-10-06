@@ -1632,6 +1632,12 @@ function closeRunModal() {
   state.openRunId = null;
 }
 
+// A request a person started by clicking a button is not "the agent wants to run" anything; own-property lookup, because the tool name is text from outside.
+function approvalTitle(tool) {
+  const startedByPerson = { open_draft_pr: 'You asked to open a draft pull request: confirm' };
+  return Object.prototype.hasOwnProperty.call(startedByPerson, tool) ? startedByPerson[tool] : `Agent wants to run ${tool}`;
+}
+
 let approvalTicker = null;
 function showNextApproval() {
   const modal = document.getElementById('approval-modal');
@@ -1641,7 +1647,7 @@ function showNextApproval() {
     modal.hidden = true;
     return;
   }
-  document.getElementById('approval-title').textContent = `Agent wants to run ${next.tool}`;
+  document.getElementById('approval-title').textContent = approvalTitle(next.tool);
   document.getElementById('approval-reason').textContent = `⚖ ${next.reason}`;
   document.getElementById('approval-args').textContent = JSON.stringify(next.args, null, 2);
   const tick = () => {
