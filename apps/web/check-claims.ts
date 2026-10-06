@@ -35,11 +35,14 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
   // 1. "everything passes", "verified", "safe to merge": needs a verified report
   const overall: RegExp[] = [
     new RegExp(`\\b(?:all(?: of)?(?: the)?(?: \\w+){0,2} checks?|everything|all of them|all green)\\b[^.\\n]{0,25}\\b${PASS}\\b`, 'gi'),
-    /(?<![\w-])(?<!un)verified\b/gi,
+    /(?<![\w-])(?<!un)verified\b(?!\W*(?:(?:flag|field|value|status)\W*(?:is|=|:)?|(?:is|=|:))\W*(?:false|no)\b)/gi,
     /\b(?:safe|ready) to merge\b/gi,
   ];
   let claimsOverall = false;
-  for (const re of overall) for (const m of text.matchAll(re)) { if (!negated(m.index!, m[0])) { claimsOverall = true; if (!latest?.verified) add(`it says the change is verified or everything passes, but ${latest ? 'the latest report is not verified' : 'no check was run'}`); } }
+  // the word "verified" in backticks or quotes ("the `verified` flag is false") names a field; it is a claim only if it is then said to be true
+  const quotedMention = (index: number, span: string): boolean => /^verified\b/i.test(span) && /[`"'‘“]$/.test(text.slice(0, index)) && /^[`"'’”]/.test(text.slice(index + span.length));
+  const saidTrue = (index: number, span: string): boolean => /^[`"'’”]?\s*(?:flag|field|value|status)?\s*(?:is|=|:)\s*\**\s*(?:true|yes|✅)/i.test(text.slice(index + span.length, index + span.length + 30));
+  for (const re of overall) for (const m of text.matchAll(re)) { if (quotedMention(m.index!, m[0]) && !saidTrue(m.index!, m[0])) continue; if (!negated(m.index!, m[0])) { claimsOverall = true; if (!latest?.verified) add(`it says the change is verified or everything passes, but ${latest ? 'the latest report is not verified' : 'no check was run'}`); } }
 
   // 2. a named check passes
   const passMentions = [...text.matchAll(new RegExp(`\\b(lint(?:ing)?|type ?check(?:ing|s)?|tsc|(?:unit )?tests?(?: suite)?)\\b[^.\\n]{0,25}?\\b${PASS}\\b`, 'gi'))];

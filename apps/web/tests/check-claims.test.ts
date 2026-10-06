@@ -73,3 +73,18 @@ describe('describeReport and flaggedAnswer', () => {
     assert.match(flaggedAnswer(['x', 'y'], r), /^FLAGGED: my answer claimed more than the check report supports \(x; y\)\. What the report says: commit aaaaaaaa/);
   });
 });
+
+describe('no false alarm on a correct answer (found live: real Mercury text, 2026-10-06)', () => {
+  const red = report([check('typecheck', false), check('tsc', false)]);
+  it('quoting the `verified` field to say it is false is not a claim that the change is verified', () => {
+    const real = 'The patch was applied and the repository\u2019s own checks were run:\n\n| Check | Result |\n|-------|--------|\n| **typecheck** | \u274c Failed (TS2322: `string` is not assignable to `number`) |\n| **tsc**       | \u274c Failed (same type error) |\n\nBecause both checks returned a non\u2011zero exit code, the overall `verified` flag is **false**.  \n\n**Conclusion:** The change is **not verified**; it introduces a TypeScript type error.';
+    assert.deepEqual(validateCheckClaims(real, [red]), { ok: true, problems: [] });
+    for (const a of ['The `verified` flag is false.', 'The "verified" field is no.', 'verified: false, so do not merge.', 'The verified flag is false.', 'Result: not **verified**.']) assert.equal(validateCheckClaims(a, [red]).ok, true, a);
+  });
+  it('but saying the quoted field is true still needs a verified report', () => {
+    assert.match(problems('The change is verified, no regressions found.', [red]), /latest report is not verified/, 'a comma and "no" after the word is not the field being false');
+    for (const a of ['The `verified` flag is true.', 'The "verified" field is yes.', 'The `verified` value: **true**.']) assert.match(problems(a, [red]), /latest report is not verified/, a);
+    assert.equal(problems('The `verified` flag is true.', [green]), '');
+  });
+});
+
