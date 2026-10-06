@@ -17,9 +17,14 @@ const NAMED: Array<[RegExp, string, string[]]> = [
 const clauseBefore = (text: string, index: number): string => text.slice(0, index).split(/[.;:!?\n]/).pop() ?? '';
 
 /** The latest report, in one line a person can check. */
+/** "1387 passed, 0 failed, 1 cancelled": a cancelled test (timeout) fails the run without being counted as failed, so it is always stated when there is one. */
+export function formatTestCounts(t: { pass: number; fail: number; cancelled?: number }): string {
+  return `${t.pass} passed, ${t.fail} failed${t.cancelled ? `, ${t.cancelled} cancelled` : ''}`;
+}
+
 export function describeReport(r: ScratchReport | undefined): string {
   if (!r) return 'no check was run';
-  const checks = r.checks.map((c) => `${c.check}${c.file ? ` ${c.file}` : ''} ${c.timed_out ? 'TIMED OUT' : c.passed ? 'passed' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${c.tests.pass} passed, ${c.tests.fail} failed)` : ''}`).join('; ');
+  const checks = r.checks.map((c) => `${c.check}${c.file ? ` ${c.file}` : ''} ${c.timed_out ? 'TIMED OUT' : c.passed ? 'passed' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${formatTestCounts(c.tests)})` : ''}`).join('; ');
   return `commit ${r.sha.slice(0, 8)}${r.patch_sha256 ? ` with patch ${r.patch_sha256.slice(0, 8)}` : ''}: ${checks}; verified: ${r.verified ? 'yes' : 'NO'}${r.flags.length ? `; flags: ${r.flags.join(', ')}` : ''}`;
 }
 
@@ -89,7 +94,7 @@ export function flaggedAnswer(problems: string[], latest: ScratchReport | undefi
  * the repository's own commands' output, i.e. data: it is clipped (per check and in total) and the caller delimits it as data, never as instructions.
  */
 export function failureBrief(r: ScratchReport, perCheckChars = 1200, totalChars = 3500): string {
-  const parts = r.checks.map((c) => (c.passed ? `${c.check}${c.file ? ` ${c.file}` : ''}: passed` : `${c.check}${c.file ? ` ${c.file}` : ''}: ${c.timed_out ? 'TIMED OUT' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${c.tests.pass} passed, ${c.tests.fail} failed)` : ''}\n${c.output_tail.trim().slice(-perCheckChars)}`));
+  const parts = r.checks.map((c) => (c.passed ? `${c.check}${c.file ? ` ${c.file}` : ''}: passed` : `${c.check}${c.file ? ` ${c.file}` : ''}: ${c.timed_out ? 'TIMED OUT' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${formatTestCounts(c.tests)})` : ''}\n${c.output_tail.trim().slice(-perCheckChars)}`));
   const text = parts.join('\n---\n');
   return text.length > totalChars ? `${text.slice(0, totalChars)}\n[... clipped]` : text;
 }

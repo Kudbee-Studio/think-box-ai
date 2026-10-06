@@ -126,6 +126,10 @@ describe('prepareDraftPr: everything decided before the human is asked', () => {
     assert.match(body, /\*\*Flags for the reviewer:\*\* `touches_tests` \(the patch edits tests/); assert.match(body, /not proof the change is correct/);
     assert.match(body, new RegExp(`\\*\\*Base commit:\\*\\* \`${sha.slice(0, 12)}\``)); assert.doesNotMatch(body, /diff --git|\+  return/);
   });
+  it('the PR body table states a cancelled test too', () => {
+    const body = renderPrBody(convoy({ simulation: { report: report({ checks: [{ check: 'test', passed: false, exit_code: 1, tests: { pass: 1387, fail: 0, cancelled: 1 } }] }) } }));
+    assert.match(body, /\| test \| FAILED \| 1387 passed, 0 failed, 1 cancelled \|/);
+  });
   it('refuses a recorded patch the policy now refuses, or that no longer applies to the pinned commit', async () => {
     const evil = 'diff --git a/.env b/.env\nnew file mode 100644\n--- /dev/null\n+++ b/.env\n@@ -0,0 +1 @@\n+SECRET=1\n';
     const eh = createHash('sha256').update(evil).digest('hex');

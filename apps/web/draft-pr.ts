@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describeReport } from './check-claims.ts';
+import { describeReport, formatTestCounts } from './check-claims.ts';
 import type { ConvoyRecord, ConvoyStore } from './convoy.ts';
 import { patchProblem, reviewPatch, type ScratchReport } from './scratch-runner.ts';
 
@@ -86,7 +86,7 @@ export function draftPrEligibility(c: ConvoyRecord, cfg: DraftPrConfig): { ok: t
 export function renderPrBody(c: ConvoyRecord): string {
   const s = c.simulation!;
   const report = s.report as unknown as ScratchReport;
-  const rows = report.checks.map((k) => `| ${k.check}${k.file ? ` ${k.file}` : ''} | ${k.passed ? 'passed' : 'FAILED'} | ${k.tests ? `${k.tests.pass} passed, ${k.tests.fail} failed` : ''} |`);
+  const rows = report.checks.map((k) => `| ${k.check}${k.file ? ` ${k.file}` : ''} | ${k.passed ? 'passed' : 'FAILED'} | ${k.tests ? formatTestCounts(k.tests) : ''} |`);
   const flags = s.flags.length ? ['', `**Flags for the reviewer:** ${s.flags.map((f) => `\`${f}\` (${FLAG_TEXT[f] ?? f})`).join('; ')}.`] : [];
   const rounds = (s.rounds?.length ?? 0) > 1 ? ['', `**Rounds:** ${s.rounds!.map((r) => `${r.round}: ${oneLine(r.outcome, 80)}`).join('; ')}.`] : [];
   return [

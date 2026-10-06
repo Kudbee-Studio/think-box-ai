@@ -2,7 +2,7 @@
 // or gates must be disclosed. Pure, deterministic.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeReport, failureBrief, flaggedAnswer, validateCheckClaims } from '../check-claims.ts';
+import { describeReport, failureBrief, formatTestCounts, flaggedAnswer, validateCheckClaims } from '../check-claims.ts';
 import type { CheckResult, ScratchReport } from '../scratch-runner.ts';
 
 const check = (name: CheckResult['check'], ok = true, over: Partial<CheckResult> = {}): CheckResult => ({ check: name, argv: [], exit_code: ok ? 0 : 1, signal: null, timed_out: false, duration_ms: 1, output_tail: '', output_truncated: false, passed: ok, ...over });
@@ -61,6 +61,17 @@ describe('a patch that edits the tests or the gates must be disclosed', () => {
   it('no disclosure is demanded when the answer vouches for nothing, or the patch has no such flag', () => {
     assert.equal(problems('The tsc check failed.', [patched(['touches_tests'])]), '');
     assert.equal(problems('The change is verified.', [patched([])]), '');
+  });
+});
+
+describe('a cancelled test is shown wherever the counts are (the live P3.47 report said "1387 passed, 0 failed" for a run that exited 1)', () => {
+  const cancelled = report([check('test', false, { tests: { pass: 1387, fail: 0, cancelled: 1 }, output_tail: 'ℹ cancelled 1\n✖ failing tests:\n✖ a slow test (30002ms)\n  \'test timed out after 30000ms\'\n' })]);
+  it('formatTestCounts adds cancelled only when there is one', () => {
+    assert.equal(formatTestCounts({ pass: 4, fail: 1 }), '4 passed, 1 failed'); assert.equal(formatTestCounts({ pass: 1387, fail: 0, cancelled: 1 }), '1387 passed, 0 failed, 1 cancelled');
+  });
+  it('describeReport and the failure brief both say it, and the brief keeps the output that names the test', () => {
+    assert.match(describeReport(cancelled), /test FAILED \(exit 1\) \(1387 passed, 0 failed, 1 cancelled\)/);
+    const brief = failureBrief(cancelled); assert.match(brief, /FAILED \(exit 1\) \(1387 passed, 0 failed, 1 cancelled\)/); assert.match(brief, /test timed out after 30000ms/);
   });
 });
 
