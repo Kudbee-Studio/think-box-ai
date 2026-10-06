@@ -7,8 +7,15 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { CHECK_NAMES, MAX_PATCH_CHARS, OUTPUT_TAIL_BYTES, bwrapArgs, checkCommand, nodeRootOf, parseTestSummary, probeSandbox, reviewPatch, runScratch, sandboxEnv, verdict, type CheckResult } from '../scratch-runner.ts';
+import { CHECK_NAMES, MAX_PATCH_CHARS, MAX_TOOL_CHECKS, OUTPUT_TAIL_BYTES, bwrapArgs, checkCommand, nodeRootOf, parseTestSummary, prepareRunChecks, probeSandbox, resolveCommit, reviewPatch, runScratch, sandboxEnv, slimReport, verdict, type CheckResult, type ScratchReport } from '../scratch-runner.ts';
 
+// Each test file gets a private temporary directory (os.tmpdir() honours TMPDIR at call time), so counting scratch copies left behind cannot see another test file's runs.
+const realTmp = process.env.TMPDIR;
+const privateTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-tests-'));
+process.env.TMPDIR = privateTmp;
+after(() => { if (realTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = realTmp; fs.rmSync(privateTmp, { recursive: true, force: true }); });
+
+const newFile = (file: string, text: string): string => `diff --git a/${file} b/${file}\nnew file mode 100644\n--- /dev/null\n+++ b/${file}\n@@ -0,0 +1 @@\n+${text}\n`;
 const diff = (file: string, body = '@@ -1 +1 @@\n-a\n+b\n'): string => `diff --git a/${file} b/${file}\nindex 111..222 100644\n--- a/${file}\n+++ b/${file}\n${body}`;
 
 describe('checkCommand: named checks only', () => {
@@ -249,6 +256,15 @@ const s = http.createServer((q, r) => r.end('ok')).listen(0, '127.0.0.1', async 
     assert.ok(Date.now() - t0 < 15_000, `took ${Date.now() - t0} ms`);
   });
 
+  it('an operator stop abandons the run at once: the sandbox is killed, the call rejects, and no copy is left', { skip }, async () => {
+    const ac = new AbortController(); const left = leftovers().length; const t0 = Date.now();
+    setTimeout(() => ac.abort(), 800);
+    await assert.rejects(runScratch({ repoRoot: repo, ref: 'slow', checks: [{ check: 'lint' }], signal: ac.signal }), /abort/i);
+    assert.ok(Date.now() - t0 < 10_000, `took ${Date.now() - t0} ms`);
+    assert.equal(leftovers().length, left);
+    await assert.rejects(runScratch({ repoRoot: repo, ref: 'main', checks: [{ check: 'lint' }], signal: AbortSignal.abort() }), /abort/i, 'already stopped: nothing starts');
+  });
+
   it('a very loud check is capped to its tail and says so', { skip }, async () => {
     const r = await runScratch({ repoRoot: repo, ref: 'loud', checks: [{ check: 'lint' }] });
     assert.equal(r.checks[0]!.passed, true); assert.equal(r.checks[0]!.output_truncated, true);
@@ -267,3 +283,90 @@ const s = http.createServer((q, r) => r.end('ok')).listen(0, '127.0.0.1', async 
     assert.ok(Date.parse(b.started_at) >= Date.parse(a.started_at));
   });
 });
+
+describe('resolveCommit and prepareRunChecks: the governed tool\'s contract', () => {
+  let repo = ''; let sha = ''; let first = '';
+  before(() => {
+    repo = fs.mkdtempSync(path.join(os.tmpdir(), 'prep-fixture-'));
+    const g = (...a: string[]): string => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd: repo, encoding: 'utf8' }).trim();
+    g('init', '-q', '-b', 'main'); fs.writeFileSync(path.join(repo, 'a.txt'), '1'); g('add', '-A'); g('commit', '-qm', 'one'); first = g('rev-parse', 'HEAD');
+    g('tag', 'v1'); fs.writeFileSync(path.join(repo, 'a.txt'), '2'); g('commit', '-qam', 'two'); sha = g('rev-parse', 'HEAD');
+  });
+  after(() => fs.rmSync(repo, { recursive: true, force: true }));
+
+  it('resolveCommit returns the full sha for a branch, tag, HEAD or short sha, and refuses anything else', async () => {
+    assert.equal(await resolveCommit(repo, 'main'), sha); assert.equal(await resolveCommit(repo, 'HEAD'), sha);
+    assert.equal(await resolveCommit(repo, 'v1'), first); assert.equal(await resolveCommit(repo, sha.slice(0, 10)), sha);
+    for (const bad of ['', '-x', '--all', 'a..b', 'no-such-ref', 'main;id']) await assert.rejects(resolveCommit(repo, bad), /ref must be|is not a commit/, bad);
+  });
+
+  it('a valid request is normalised: the ref is pinned to a full sha, checks are de-duplicated, and the approval text names commit, checks and the sandbox', async () => {
+    const p = await prepareRunChecks({ ref: 'main', checks: ['lint', 'test', 'lint'], test_files: ['tests/a.test.ts'] }, repo) as any;
+    assert.equal(p.ok, true);
+    assert.deepEqual(p.args, { ref: sha, checks: ['lint', 'test'], test_files: ['tests/a.test.ts'] });
+    assert.match(p.reason, new RegExp(`^Run sandboxed checks \\(lint, test, test_file tests/a\\.test\\.ts\\) on commit ${sha.slice(0, 12)} \\(ref main\\)\\. No patch: the commit as it is\\. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched\\.$`));
+    const dflt = await prepareRunChecks({ checks: ['lint'] }, repo) as any;
+    assert.equal(dflt.args.ref, sha, 'HEAD by default'); assert.match(dflt.reason, /\(ref HEAD\)/);
+    const bySha = await prepareRunChecks({ ref: sha, checks: ['tsc'] }, repo) as any;
+    assert.doesNotMatch(bySha.reason, /\(ref /, 'no ref note when the ref already is the sha');
+  });
+
+  it('a patch is summarised for the approver: hash, files, the flags with what they mean, and a bounded preview; the arguments keep the whole patch', async () => {
+    const big = newFile('apps/web/tests/a.test.ts', 'b'.repeat(4000));
+    const p = await prepareRunChecks({ checks: ['test'], patch: big }, repo) as any;
+    assert.equal(p.ok, true);
+    assert.match(p.reason, /Patch [0-9a-f]{12} touches 1 file\(s\): apps\/web\/tests\/a\.test\.ts\. WARNING: touches_tests \(it edits tests, which are what judge it\)\./);
+    assert.equal(p.args.patch, big);
+    assert.equal(p.display.patch_sha256, createHash('sha256').update(big).digest('hex'));
+    assert.deepEqual(p.display.patch_files, ['apps/web/tests/a.test.ts']); assert.deepEqual(p.display.patch_flags, ['touches_tests']);
+    assert.ok(p.display.patch_preview.length < 1700 && /truncated for display/.test(p.display.patch_preview));
+    assert.equal(p.display.patch, undefined, 'the approval request does not carry the full patch');
+    const gate = await prepareRunChecks({ checks: ['lint'], patch: newFile('apps/web/gates.ts', 'x') }, repo) as any;
+    assert.match(gate.reason, /touches_ci_or_gates \(it edits CI, gates, package or compiler configuration\)/);
+    const many = await prepareRunChecks({ checks: ['lint'], patch: Array.from({ length: 10 }, (_, i) => newFile(`apps/web/f${i}.ts`, 'x')).join('') }, repo) as any;
+    assert.match(many.reason, /touches 10 file\(s\): .*, \.\.\./);
+  });
+
+  it('refuses, with a reason and before any approval, everything that is not a valid request', async () => {
+    const e = async (raw: unknown): Promise<string> => { const r = await prepareRunChecks(raw, repo) as any; assert.equal(r.ok, false, JSON.stringify(raw)?.slice(0, 60)); return r.error; };
+    assert.match(await e(null), /must be an object/); assert.match(await e([]), /must be an object/); assert.match(await e('lint'), /must be an object/);
+    assert.match(await e({ checks: ['lint'], cmd: 'rm -rf /' }), /unknown argument\(s\): cmd/);
+    assert.match(await e({}), /name at least one check/); assert.match(await e({ checks: [] }), /name at least one check/);
+    assert.match(await e({ checks: 'lint' }), /must be lists/); assert.match(await e({ checks: ['lint'], test_files: 'x' }), /must be lists/);
+    assert.match(await e({ checks: ['lint', 'tsc', 'test', 'typecheck'], test_files: ['tests/a.test.ts', 'tests/b.test.ts', 'tests/c.test.ts'] }), new RegExp(`at most ${MAX_TOOL_CHECKS} checks`));
+    assert.match(await e({ checks: ['rm'] }), /unknown check "rm"/); assert.match(await e({ checks: ['constructor'] }), /unknown check/);
+    assert.match(await e({ checks: ['test_file'] }), /name test files in test_files/);
+    assert.match(await e({ test_files: ['../a.test.ts'] }), /test_file needs a path/); assert.match(await e({ test_files: ['tests/a.ts'] }), /test_file needs a path/);
+    assert.match(await e({ checks: ['lint'], patch: 'hello' }), /patch refused: the patch must be a unified git diff/);
+    assert.match(await e({ checks: ['lint'], patch: diff('../x.ts') }), /patch refused: \.\.\/x\.ts/);
+    assert.match(await e({ checks: ['lint'], ref: 7 }), /ref must be a string/);
+    assert.match(await e({ checks: ['lint'], ref: 'nope' }), /is not a commit in this repository/);
+    assert.match(await e({ checks: ['lint'], ref: '--upload-pack=x' }), /ref must be a commit, branch or tag name/);
+  });
+
+  it('a patch that cannot apply to the commit is refused BEFORE any approval, and checking it leaves the repository exactly as it was', async () => {
+    const state = (): string => createHash('sha256').update(execFileSync('git', ['status', '--porcelain', '--ignored'], { cwd: repo, encoding: 'utf8' }) + execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }) + fs.readFileSync(path.join(repo, '.git', 'index'))).digest('hex');
+    const idx = (): number => fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith('kudbee-idx-')).length;
+    const before = state(); const left = idx();
+    const wrong = await prepareRunChecks({ checks: ['lint'], patch: diff('a.txt', '@@ -1 +1 @@\n-1\n+9\n') }, repo) as any;
+    assert.equal(wrong.ok, false); assert.match(wrong.error, new RegExp(`^the patch does not apply to ${sha.slice(0, 8)}: `));
+    const corrupt = await prepareRunChecks({ checks: ['lint'], patch: 'diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n garbage\n' }, repo) as any;
+    assert.equal(corrupt.ok, false); assert.match(corrupt.error, /does not apply/);
+    const clash = await prepareRunChecks({ checks: ['lint'], patch: newFile('a.txt', 'x') }, repo) as any;
+    assert.equal(clash.ok, false, 'a new-file patch for a path that already exists');
+    const fits = await prepareRunChecks({ checks: ['lint'], patch: diff('a.txt', '@@ -1 +1 @@\n-2\n\\ No newline at end of file\n+3\n\\ No newline at end of file\n') }, repo) as any;
+    assert.equal(fits.ok, true, JSON.stringify(fits));
+    assert.equal(state(), before, 'HEAD, status, ignored files and the index are untouched');
+    assert.equal(idx(), left, 'the temporary index is removed');
+    assert.equal(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8'), '2');
+  });
+
+  it('slimReport clips each output tail and keeps everything that decides "verified"', () => {
+    const r: ScratchReport = { ref: 'HEAD', sha: 'a'.repeat(40), patch_sha256: null, files_touched: [], flags: [], sandbox: { tool: 'bwrap', version: '1', network: 'blocked', home_hidden: true, system_read_only: true, env_cleared: true }, verified: true, started_at: 'x', duration_ms: 1,
+      checks: [{ check: 'lint', argv: [], exit_code: 0, signal: null, timed_out: false, duration_ms: 1, output_tail: `${'x'.repeat(10_000)}END`, output_truncated: false, passed: true }] };
+    const slim = slimReport(r, 100) as any;
+    assert.equal(slim.checks[0].output_tail.length, 100); assert.ok(slim.checks[0].output_tail.endsWith('END'));
+    assert.equal(slim.verified, true); assert.equal(slim.sha, r.sha); assert.equal(slim.sandbox.network, 'blocked');
+  });
+});
+

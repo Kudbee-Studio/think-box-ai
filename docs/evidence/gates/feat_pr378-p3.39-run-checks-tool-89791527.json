@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T09:59:16.242Z",
+  "head": "89791527",
+  "base": "gh/main",
+  "base_sha": "fc977faf",
+  "branch": "feat/pr378-p3.39-run-checks-tool",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1367
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1369
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1371
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1301 passed, 0 failed; lines 92.23% (floor 90%)",
+      "ms": 52364
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 459632
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 288136
+    }
+  ],
+  "verdict": "PASS"
+}

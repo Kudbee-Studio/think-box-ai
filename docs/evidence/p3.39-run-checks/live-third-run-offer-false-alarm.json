@@ -1,0 +1,121 @@
+{
+  "generated_at": "2026-10-06T09:40:32.884Z",
+  "note": "real Chromium, real server on a random 127.0.0.1 port (throwaway data), real Mercury, the real repository at its committed HEAD; clicks by Playwright, not a person",
+  "plan": "docs/evidence/p3.39-run-checks/PLAN.md",
+  "head": "4da3d247ef8c237a3258f89b97a69d2c6cb2684e",
+  "criteria": {
+    "c1_prompts_show_head_and_sandbox": true,
+    "c1_prompt_count_equals_calls": true,
+    "c2_A": true,
+    "c3_B": true,
+    "c4_C": true,
+    "c5_tree_untouched": true,
+    "c5_no_scratch_left": true,
+    "c5_key_never_seen": true,
+    "c5_no_console_errors": true,
+    "c5_cost_within_cap": true,
+    "c6_screenshot_saved": true
+  },
+  "verdict": "PASS",
+  "console_errors": [],
+  "screenshot": "p3.39-approval-modal.png",
+  "how_answers_ended": {
+    "A_flagged": false,
+    "B_flagged": false,
+    "C_flagged": true
+  },
+  "results": [
+    {
+      "id": "A-clean",
+      "decision": "approve",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (lint, typecheck) on commit 4da3d247ef8c (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"4da3d247ef8c237a3258f89b97a69d2c6cb2684e\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"lint\",\n    \"typecheck\"\n  ],\n  \"test_files\": []\n}"
+        }
+      ],
+      "run_id": "26e5f170-42e1-4fde-9874-981e3d5eb00a",
+      "status": "completed",
+      "cost_usd": 0.00075125,
+      "wall_ms": 8202,
+      "tool_calls": [
+        {
+          "approval": "approved",
+          "ok": true,
+          "verified": true,
+          "error": null,
+          "sent_patch": false,
+          "checks": [
+            "lint",
+            "typecheck"
+          ],
+          "ref": "4da3d247ef8c237a3258f89b97a69d2c6cb2684e"
+        }
+      ],
+      "final": "The repository’s own checks were run on **HEAD**:\n\n| Check   | Result |\n|---------|--------|\n| **lint**     | Passed (exit code 0) |\n| **typecheck**| Passed (exit code 0) |\n\nBoth lint and type‑check succeeded.",
+      "final_is_flagged": false,
+      "model_final_raw": "The repository’s own checks were run on **HEAD**:\n\n| Check   | Result |\n|---------|--------|\n| **lint**     | Passed (exit code 0) |\n| **typecheck**| Passed (exit code 0) |\n\nBoth lint and type‑check succeeded."
+    },
+    {
+      "id": "B-broken-patch",
+      "decision": "approve",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (typecheck, tsc) on commit 4da3d247ef8c (ref HEAD). Patch fb488d0f91f8 touches 1 file(s): apps/web/zz-live-type-error.ts. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"4da3d247ef8c237a3258f89b97a69d2c6cb2684e\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"typecheck\",\n    \"tsc\"\n  ],\n  \"test_files\": [],\n  \"patch_sha256\": \"fb488d0f91f8c507c54fe24ebb17ff0b5e4dfb5f4ee37a7a0a5d70d41d38024b\",\n  \"patch_files\": [\n    \"apps/web/zz-live-type-error.ts\"\n  ],\n  \"patch_flags\": [],\n  \"patch_preview\": \"diff --git a/apps/web/zz-live-type-error.ts b/apps/web/zz-live-type-error.ts\\nnew file mode 100644\\n--- /dev/null\\n+++ b/apps/web/zz-live-type-error.ts\\n@@ -0,0 +1 @@\\n+export const broken: number = 'not a number';\\n\"\n}"
+        }
+      ],
+      "run_id": "54075a67-f868-4eb1-a25a-91b756b8f1c7",
+      "status": "completed",
+      "cost_usd": 0.0012277500000000001,
+      "wall_ms": 21038,
+      "tool_calls": [
+        {
+          "approval": "approved",
+          "ok": true,
+          "verified": false,
+          "error": null,
+          "sent_patch": true,
+          "checks": [
+            "typecheck",
+            "tsc"
+          ],
+          "ref": "4da3d247ef8c237a3258f89b97a69d2c6cb2684e"
+        }
+      ],
+      "final": "The patch was applied and the repository’s own checks were run:\n\n| Check | Result |\n|-------|--------|\n| **typecheck** | **Failed** – `TS2322: Type 'string' is not assignable to type 'number'` |\n| **tsc**      | **Failed** – same type error as above |\n\nBecause both checks exited with a non‑zero code, the change is **not verified**. The new file `apps/web/zz-live-type-error.ts` introduces a TypeScript type error, so the commit does not pass the repository’s type‑checking or `tsc` checks.",
+      "final_is_flagged": false,
+      "model_final_raw": "The patch was applied and the repository’s own checks were run:\n\n| Check | Result |\n|-------|--------|\n| **typecheck** | **Failed** – `TS2322: Type 'string' is not assignable to type 'number'` |\n| **tsc**      | **Failed** – same type error as above |\n\nBecause both checks exited with a non‑zero code, the change is **not verified**. The new file `apps/web/zz-live-type-error.ts` introduces a TypeScript type error, so the commit does not pass the repository’s type‑checking or `tsc` checks."
+    },
+    {
+      "id": "C-denied",
+      "decision": "deny",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (test) on commit 4da3d247ef8c (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"4da3d247ef8c237a3258f89b97a69d2c6cb2684e\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"test\"\n  ],\n  \"test_files\": []\n}"
+        }
+      ],
+      "run_id": "aff586a9-5538-40d2-8cb2-eb23c2afc22d",
+      "status": "completed",
+      "cost_usd": 0.00106175,
+      "wall_ms": 21613,
+      "tool_calls": [
+        {
+          "approval": "denied",
+          "ok": false,
+          "verified": null,
+          "error": "Denied by human reviewer (Run sandboxed checks (test) on commit 4da3d247ef8c (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed a",
+          "sent_patch": false,
+          "checks": [
+            "test"
+          ],
+          "ref": "4da3d247ef8c237a3258f89b97a69d2c6cb2684e"
+        }
+      ],
+      "final": "FLAGGED: my answer claimed more than the check report supports (it says tests passes, but that check was not run). What the report says: no check was run",
+      "final_is_flagged": true,
+      "model_final_raw": "I’m unable to run the test suite because the request to execute `run_checks` for the test suite was denied by the human reviewer. To proceed, I would need approval to run the repository’s checks (e.g., a “test” check) on the current HEAD. Please grant permission, and I’ll run the tests and report how many passed."
+    }
+  ]
+}
