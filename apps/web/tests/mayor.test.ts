@@ -227,6 +227,11 @@ describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', (
       assert.equal(evaluatePolicy(p).decision, 'denied');
     }
   });
+  it('a change request that merely mentions a PR is plannable (the live P3.43 goal was blocked as "a question or an investigation")', () => {
+    for (const g of ["Change the phrase '4 (the next PR, below)' to '4 (PR #381, below)' in the Status line of docs/scratch-runner-design.md. Change nothing else.", 'In docs/scratch-runner-design.md the Status line says slice 4 is the next PR. That PR is now merged as #381. Replace that phrase with PR #381.']) {
+      const p = plan(g, { mode: 'simulate', availableTools: SIM_TOOLS }); assert.equal(p.executable, true, `${g}: ${p.blocked_reasons.join()}`); assert.deepEqual(p.workers.map((w: any) => w.id), ['patch-1', 'checks-1']);
+    }
+  });
   it('the worker budget still applies: one worker is not enough for two', () => {
     assert.match(sim({ budget: { max_workers: 1 } }).blocked_reasons.join(), /worker budget exceeded: 2 worker\(s\) possible/);
     assert.equal(sim({ budget: { max_workers: 2 } }).executable, true);
