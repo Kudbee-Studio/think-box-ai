@@ -2,7 +2,7 @@
 // 360M model from stating anything that is not in the data.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule } from '../local-recipes.ts';
+import { buildFacts, buildPrompt, groundedAnswer, matchRecipe, matchRepoGoal, recipeAvailable, recipeToolArgs, sentenceRule } from '../local-recipes.ts';
 
 describe('matchRecipe', () => {
   it('matches the open-PR question in the ways people ask it', () => {
@@ -22,6 +22,18 @@ describe('matchRecipe', () => {
     for (const goal of ['merge the PR', 'close PR 12', 'create a pull request for this branch', 'open a PR', 'review the pull request and approve it', 'write notes.md with a summary', 'delete config.json', 'fetch https://example.com/a.json', 'What is the weather today?', 'What is 2 plus 2?', 'Say hi', '', 'x'.repeat(400)]) {
       assert.equal(matchRecipe(goal), null, goal);
     }
+  });
+  it('a request to CHANGE something that merely mentions a PR, an issue, CI, a file or a branch is not a lookup (the live P3.43 goal was misread as "open pull requests")', () => {
+    for (const goal of [
+      "In docs/scratch-runner-design.md, the Status line near the top says slice 4 is '4 (the next PR, below)'. That PR is now merged as #381. Change that phrase to '4 (PR #381, below)' and change nothing else.",
+      "Change the phrase '4 (the next PR, below)' to '4 (PR #381, below)' in the Status line of docs/scratch-runner-design.md. Change nothing else.",
+      'Replace the word PR with pull request in README.md', 'Modify the open PRs section of notes.md', 'Correct the CI status line in status.md', 'Rewrite the list of issues in docs/issues.md',
+      'Add a note about the latest PR to CHANGELOG.md', 'Implement the check that lists open pull requests', 'Refactor the function that shows the current PR', 'Insert the issue number into the title', 'Adjust the branches list in the docs', 'Tweak which branches the CI checks run on', 'Amend the commit message for the latest PR',
+    ]) { assert.equal(matchRecipe(goal), null, goal); assert.equal(matchRepoGoal(goal), false, goal); }
+  });
+  it('the questions are still lookups: the change verbs are matched as whole words, so "changed" and "address" do not turn a question into a change request', () => {
+    for (const [goal, id] of [['What is the last PR?', 'latest_pr'], ['What changed in the latest PR?', 'latest_pr'], ['Which pull requests are open?', 'open_prs'], ['Is the CI green?', 'ci_status'], ['How many open issues are there?', 'open_issues'], ['Which branches are there?', 'branches']] as const) assert.equal(matchRecipe(goal)?.id, id, goal);
+    assert.equal(matchRepoGoal('Find one function in apps/web that has no test'), true);
   });
   it('refuses path tricks in a file recipe', () => {
     assert.equal(matchRecipe('read ../../etc/passwd.txt'), null);

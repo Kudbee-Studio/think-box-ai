@@ -22,7 +22,7 @@ export interface RecipeMatch {
 const PR = /\b(prs?|pull[- ]requests?)\b/i;
 const PR_QUESTION = /\b(what|which|how many|are we|any|list|show|current|currently|open|latest|working on|status|number)\b/i;
 // A goal that asks to CHANGE something is never a read-only recipe: it goes to the worker agent.
-const MUTATION = /\b(re-?run|re-?start|trigger|cancel|retry|merge|close|create|make|approve|comment on|review|fix|delete|revert|rebase|open a|open an|submit|push|update|edit|write|rename|remove)\b/i;
+const MUTATION = /\b(re-?run|re-?start|trigger|cancel|retry|merge|close|create|make|approve|comment on|review|fix|delete|revert|rebase|open a|open an|submit|push|update|edit|write|rename|remove|change|replace|modify|correct|rewrite|implement|refactor|insert|add|adjust|tweak|amend)\b/i;
 // "the last PR", "the newest pull request": the most recent one in ANY state (a merged PR is not "open").
 const LATEST = /\b(last|latest|most recent|newest|previous|recent(ly)?)\b/i;
 const CI = /\b(ci|continuous integration|github actions|workflow runs?|checks?|build status|pipeline)\b/i;
