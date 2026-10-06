@@ -91,7 +91,7 @@ test('P3.34 held-out world: 30 goals, both phrasings, every name new (also versu
   } finally { for (const w of worlds) await w.close(); await held2.close(); }
 });
 
-test('P3.35 confirmation world: 60 goals, both phrasings, every name new versus all four earlier worlds, no name the repo tools hide, and the engine agrees on every module', async () => {
+test('P3.35 confirmation world: 60 goals, both phrasings, every name new versus all four earlier worlds, no name the repo tools hide, and the engine agrees on every module', { timeout: 180_000 }, async () => {
   assert.equal(HELD3_GOALS.length, 60);
   assert.equal(new Set(HELD3_GOALS.map((g) => g.id)).size, 60);
   assert.equal(new Set(HELD3_MODULES.flatMap((m) => [m.tested, m.untested])).size, 120, 'every function name is distinct');

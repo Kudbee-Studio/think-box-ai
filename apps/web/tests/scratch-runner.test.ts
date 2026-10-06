@@ -109,6 +109,11 @@ describe('summaries and the verdict', () => {
     assert.equal(parseTestSummary('nothing here'), undefined);
     assert.equal(parseTestSummary('ℹ pass 4\n'), undefined);
   });
+  it('parseTestSummary states cancelled tests (a timed-out test exits 1 with "0 failed": it was dropped, which hid the live P3.47 failure) and leaves the shape alone when there are none', () => {
+    assert.deepEqual(parseTestSummary('ℹ tests 1388\nℹ suites 165\nℹ pass 1387\nℹ fail 0\nℹ cancelled 1\nℹ skipped 0\n'), { pass: 1387, fail: 0, cancelled: 1 });
+    assert.deepEqual(parseTestSummary('ℹ pass 4\nℹ fail 1\nℹ cancelled 0\n'), { pass: 4, fail: 1 });
+    assert.deepEqual(parseTestSummary('ℹ pass 4\nℹ fail 0\nℹ cancelled 12\n'), { pass: 4, fail: 0, cancelled: 12 });
+  });
   it('verified needs every requested check to have run and passed', () => {
     assert.equal(verdict([res()], 1), true);
     assert.equal(verdict([res(), res({ passed: false, exit_code: 2 })], 2), false);

@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T18:04:21.829Z",
+  "head": "e26e2e3e",
+  "base": "gh/main",
+  "base_sha": "82b01ebe",
+  "branch": "feat/pr387-p3.47-sandbox-test-timeouts",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1546
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1280
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1307
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1392 passed, 0 failed; lines 92.5% (floor 90%)",
+      "ms": 58969
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 544620
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 370125
+    }
+  ],
+  "verdict": "PASS"
+}

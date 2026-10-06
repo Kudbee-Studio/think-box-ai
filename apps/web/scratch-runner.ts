@@ -177,13 +177,16 @@ export function probeSandbox(opts: { nodeRoot?: string; nodeModules?: string; fo
 
 export interface CheckResult {
   check: CheckName; file?: string; argv: string[]; exit_code: number | null; signal: string | null; timed_out: boolean; duration_ms: number;
-  output_tail: string; output_truncated: boolean; tests?: { pass: number; fail: number }; passed: boolean;
+  output_tail: string; output_truncated: boolean; tests?: { pass: number; fail: number; cancelled?: number }; passed: boolean;
 }
 
 /** node:test's summary lines, if present. */
-export function parseTestSummary(output: string): { pass: number; fail: number } | undefined {
+export function parseTestSummary(output: string): { pass: number; fail: number; cancelled?: number } | undefined {
   const pass = /ℹ pass (\d+)/.exec(output); const fail = /ℹ fail (\d+)/.exec(output);
-  return pass && fail ? { pass: Number(pass[1]), fail: Number(fail[1]) } : undefined;
+  if (!pass || !fail) return undefined;
+  // node:test counts a test that timed out or was cut off as `cancelled`, not `fail`: the run exits 1 with "0 failed", so it must be shown, never dropped
+  const cancelled = Number(/ℹ cancelled (\d+)/.exec(output)?.[1] ?? 0);
+  return { pass: Number(pass[1]), fail: Number(fail[1]), ...(cancelled > 0 ? { cancelled } : {}) };
 }
 
 export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string | undefined, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<CheckResult> {
