@@ -1,0 +1,121 @@
+{
+  "generated_at": "2026-10-06T09:43:26.397Z",
+  "note": "real Chromium, real server on a random 127.0.0.1 port (throwaway data), real Mercury, the real repository at its committed HEAD; clicks by Playwright, not a person",
+  "plan": "docs/evidence/p3.39-run-checks/PLAN.md",
+  "head": "eddf738be2d36003a686e175f135ca28b9d7cf77",
+  "criteria": {
+    "c1_prompts_show_head_and_sandbox": true,
+    "c1_prompt_count_equals_calls": true,
+    "c2_A": true,
+    "c3_B": true,
+    "c4_C": true,
+    "c5_tree_untouched": true,
+    "c5_no_scratch_left": true,
+    "c5_key_never_seen": true,
+    "c5_no_console_errors": true,
+    "c5_cost_within_cap": true,
+    "c6_screenshot_saved": true
+  },
+  "verdict": "PASS",
+  "console_errors": [],
+  "screenshot": "p3.39-approval-modal.png",
+  "how_answers_ended": {
+    "A_flagged": false,
+    "B_flagged": false,
+    "C_flagged": false
+  },
+  "results": [
+    {
+      "id": "A-clean",
+      "decision": "approve",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (lint, typecheck) on commit eddf738be2d3 (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"eddf738be2d36003a686e175f135ca28b9d7cf77\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"lint\",\n    \"typecheck\"\n  ],\n  \"test_files\": []\n}"
+        }
+      ],
+      "run_id": "8ab85bb1-b04a-43cd-8c87-0fb33c6343fa",
+      "status": "completed",
+      "cost_usd": 0.0007667500000000001,
+      "wall_ms": 8496,
+      "tool_calls": [
+        {
+          "approval": "approved",
+          "ok": true,
+          "verified": true,
+          "error": null,
+          "sent_patch": false,
+          "checks": [
+            "lint",
+            "typecheck"
+          ],
+          "ref": "eddf738be2d36003a686e175f135ca28b9d7cf77"
+        }
+      ],
+      "final": "The repository’s own checks were run on the current HEAD commit.\n\n- **lint** – passed (exit code 0)  \n- **typecheck** – passed (exit code 0)\n\nBoth checks succeeded. No changes were made to the repository.",
+      "final_is_flagged": false,
+      "model_final_raw": "The repository’s own checks were run on the current HEAD commit.\n\n- **lint** – passed (exit code 0)  \n- **typecheck** – passed (exit code 0)\n\nBoth checks succeeded. No changes were made to the repository."
+    },
+    {
+      "id": "B-broken-patch",
+      "decision": "approve",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (typecheck, tsc) on commit eddf738be2d3 (ref HEAD). Patch fb488d0f91f8 touches 1 file(s): apps/web/zz-live-type-error.ts. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"eddf738be2d36003a686e175f135ca28b9d7cf77\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"typecheck\",\n    \"tsc\"\n  ],\n  \"test_files\": [],\n  \"patch_sha256\": \"fb488d0f91f8c507c54fe24ebb17ff0b5e4dfb5f4ee37a7a0a5d70d41d38024b\",\n  \"patch_files\": [\n    \"apps/web/zz-live-type-error.ts\"\n  ],\n  \"patch_flags\": [],\n  \"patch_preview\": \"diff --git a/apps/web/zz-live-type-error.ts b/apps/web/zz-live-type-error.ts\\nnew file mode 100644\\n--- /dev/null\\n+++ b/apps/web/zz-live-type-error.ts\\n@@ -0,0 +1 @@\\n+export const broken: number = 'not a number';\\n\"\n}"
+        }
+      ],
+      "run_id": "ccb2ece9-4698-4543-b2af-46401a8ec28b",
+      "status": "completed",
+      "cost_usd": 0.00123475,
+      "wall_ms": 21174,
+      "tool_calls": [
+        {
+          "approval": "approved",
+          "ok": true,
+          "verified": false,
+          "error": null,
+          "sent_patch": true,
+          "checks": [
+            "typecheck",
+            "tsc"
+          ],
+          "ref": "eddf738be2d36003a686e175f135ca28b9d7cf77"
+        }
+      ],
+      "final": "The patch was applied and the repository’s own checks were run:\n\n* **typecheck** – failed (exit code 1) – TypeScript error: `Type 'string' is not assignable to type 'number'`.\n* **tsc** – failed (exit code 1) – same TypeScript error.\n\nThe overall `verified` flag is **false**. The change is **not verified** because the type‑checking step does not pass.",
+      "final_is_flagged": false,
+      "model_final_raw": "The patch was applied and the repository’s own checks were run:\n\n* **typecheck** – failed (exit code 1) – TypeScript error: `Type 'string' is not assignable to type 'number'`.\n* **tsc** – failed (exit code 1) – same TypeScript error.\n\nThe overall `verified` flag is **false**. The change is **not verified** because the type‑checking step does not pass."
+    },
+    {
+      "id": "C-denied",
+      "decision": "deny",
+      "prompts": [
+        {
+          "reason": "⚖ Run sandboxed checks (test) on commit eddf738be2d3 (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed and your working tree is not touched.",
+          "args_preview": "{\n  \"ref\": \"eddf738be2d36003a686e175f135ca28b9d7cf77\",\n  \"requested_ref\": \"HEAD\",\n  \"checks\": [\n    \"test\"\n  ],\n  \"test_files\": []\n}"
+        }
+      ],
+      "run_id": "a82c5484-ec91-4c5d-8018-b36f50679f6e",
+      "status": "completed",
+      "cost_usd": 0.00106725,
+      "wall_ms": 20508,
+      "tool_calls": [
+        {
+          "approval": "denied",
+          "ok": false,
+          "verified": null,
+          "error": "Denied by human reviewer (Run sandboxed checks (test) on commit eddf738be2d3 (ref HEAD). No patch: the commit as it is. Runs in a throwaway copy with no network and no credentials; nothing is pushed a",
+          "sent_patch": false,
+          "checks": [
+            "test"
+          ],
+          "ref": "eddf738be2d36003a686e175f135ca28b9d7cf77"
+        }
+      ],
+      "final": "The request to run the test suite was denied by the human reviewer, so I’m unable to execute the `run_checks` call for the test run. Consequently, I can’t provide the number of passed tests. If you’d like to proceed, please approve the test‑run request or let me know an alternative approach you’d like me to take.",
+      "final_is_flagged": false,
+      "model_final_raw": "The request to run the test suite was denied by the human reviewer, so I’m unable to execute the `run_checks` call for the test run. Consequently, I can’t provide the number of passed tests. If you’d like to proceed, please approve the test‑run request or let me know an alternative approach you’d like me to take."
+    }
+  ]
+}
