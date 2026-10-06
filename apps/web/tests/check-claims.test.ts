@@ -2,7 +2,7 @@
 // or gates must be disclosed. Pure, deterministic.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeReport, flaggedAnswer, validateCheckClaims } from '../check-claims.ts';
+import { describeReport, failureBrief, flaggedAnswer, validateCheckClaims } from '../check-claims.ts';
 import type { CheckResult, ScratchReport } from '../scratch-runner.ts';
 
 const check = (name: CheckResult['check'], ok = true, over: Partial<CheckResult> = {}): CheckResult => ({ check: name, argv: [], exit_code: ok ? 0 : 1, signal: null, timed_out: false, duration_ms: 1, output_tail: '', output_truncated: false, passed: ok, ...over });
@@ -117,6 +117,29 @@ describe('no false alarm on an honest answer: offers, questions, intentions, quo
   it('real claims are still caught: the stricter rule did not open a hole', () => {
     for (const a of ['The tests pass.', 'The tests all passed successfully.', 'Lint and typecheck passed.', 'tsc passes cleanly.', 'I ran the tests and they passed.', 'The type check is green.', 'The test suite passed: all good.']) assert.match(problems(a, none), /that check was not run/, a);
     assert.match(problems('Lint passes and tsc passes.', [red]), /tsc passes, but the report says it failed/);
+  });
+});
+
+describe('failureBrief: what a patch worker is shown about a failing run (data, clipped)', () => {
+  it('lists every check, shows the end of the output of the ones that failed, and clips per check and in total', () => {
+    const r = report([check('lint'), check('tsc', false, { output_tail: `${'x'.repeat(5000)}END tsc error TS2322` }), check('test', false, { output_tail: 'not ok 1 - greets\n  expected hello x', tests: { pass: 0, fail: 1 } })]);
+    const b = failureBrief(r);
+    assert.match(b, /^lint: passed\n---\ntsc: FAILED \(exit 1\)\n/);
+    assert.match(b, /END tsc error TS2322/); assert.ok(!b.includes('x'.repeat(1300)), 'a failed check keeps only the end of its output');
+    assert.match(b, /test: FAILED \(exit 1\) \(0 passed, 1 failed\)\nnot ok 1 - greets/);
+    const huge = failureBrief(report(Array.from({ length: 6 }, () => check('test', false, { output_tail: 'y'.repeat(2000) }))));
+    assert.ok(huge.length <= 3500 + 20); assert.match(huge, /\[\.\.\. clipped\]$/);
+    assert.match(failureBrief(report([check('test', false, { timed_out: true, exit_code: null })])), /test: TIMED OUT/);
+    assert.equal(failureBrief(report([check('lint')])), 'lint: passed');
+  });
+});
+
+describe('a patch that detects the test harness must be disclosed when the answer vouches for it (found live)', () => {
+  const sniffing = report([check('test', true, { tests: { pass: 2, fail: 0 } })], { patch_sha256: 'd'.repeat(64), files_touched: ['apps/web/src/greeter.js'], flags: ['harness_detection'] });
+  it('vouching without saying so is refused; saying so passes; not vouching needs nothing', () => {
+    assert.match(problems('The change is verified.', [sniffing]), /refers to tests or detects the test harness without saying so \(flag harness_detection\)/);
+    for (const a of ['The change is verified, but note it special-cases the tests: it detects the test harness.', 'Verified; the source change refers to the test files by name (flag harness_detection).', 'All checks pass, though the code inspects the call stack to tell which test is running.']) assert.equal(problems(a, [sniffing]), '', a);
+    assert.equal(problems('The test check failed.', [sniffing]), '');
   });
 });
 

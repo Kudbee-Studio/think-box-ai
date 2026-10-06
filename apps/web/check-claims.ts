@@ -74,6 +74,7 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
     const edits = '(?:touch|edit|chang|modif|updat|add|delet|remov|rewrit)\\w*';
     if (latest.flags.includes('touches_tests') && !new RegExp(`\\b${edits}\\b[^.]{0,50}\\btests?\\b|\\btests?\\b[^.]{0,50}\\b${edits}\\b|touches_tests`, 'i').test(text)) add('it vouches for a patch that edits tests without saying so (flag touches_tests)');
     if (latest.flags.includes('touches_ci_or_gates') && !new RegExp(`\\b${edits}\\b[^.]{0,60}\\b(?:gates?|ci\\b|workflows?|package\\.json|tsconfig|config\\w*)\\b|\\b(?:gates?|ci\\b|workflows?|package\\.json|tsconfig|config\\w*)\\b[^.]{0,60}\\b${edits}\\b|touches_ci_or_gates`, 'i').test(text)) add('it vouches for a patch that edits CI, gates or configuration without saying so (flag touches_ci_or_gates)');
+    if (latest.flags.includes('harness_detection') && !/\b(?:harness|special[- ]cases?|detects? (?:the )?tests?|refers? to (?:the )?tests?|names? (?:a |the )?test files?|call stack|stack)\b|harness_detection/i.test(text)) add('it vouches for a patch whose source refers to tests or detects the test harness without saying so (flag harness_detection)');
   }
   return { ok: problems.length === 0, problems };
 }
@@ -82,3 +83,14 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
 export function flaggedAnswer(problems: string[], latest: ScratchReport | undefined): string {
   return `FLAGGED: my answer claimed more than the check report supports (${problems.join('; ')}). What the report says: ${describeReport(latest)}`;
 }
+
+/**
+ * What a failing report says, as short text a patch worker can act on in its next round: each check's verdict and, for the ones that failed, the end of their output. The output is
+ * the repository's own commands' output, i.e. data: it is clipped (per check and in total) and the caller delimits it as data, never as instructions.
+ */
+export function failureBrief(r: ScratchReport, perCheckChars = 1200, totalChars = 3500): string {
+  const parts = r.checks.map((c) => (c.passed ? `${c.check}${c.file ? ` ${c.file}` : ''}: passed` : `${c.check}${c.file ? ` ${c.file}` : ''}: ${c.timed_out ? 'TIMED OUT' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${c.tests.pass} passed, ${c.tests.fail} failed)` : ''}\n${c.output_tail.trim().slice(-perCheckChars)}`));
+  const text = parts.join('\n---\n');
+  return text.length > totalChars ? `${text.slice(0, totalChars)}\n[... clipped]` : text;
+}
+

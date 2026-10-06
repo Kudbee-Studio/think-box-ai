@@ -1,6 +1,6 @@
 # Scratch runner: design, threat model and the slices to come
 
-Status: slices 1 (PR #377), 2 (PR #378) and 3 (PR #379, below) are built. Slices 4 and 5 are planned here and **not built**; each needs its own PR, its own evidence and, where it widens what the agent can do, the founder's explicit go-ahead.
+Status: slices 1 (PR #377), 2 (PR #378), 3 (PR #379) and 5 (PR #380, below) are built. Slice 4 (a draft pull request) is planned here and **not built**; each needs its own PR, its own evidence and, where it widens what the agent can do, the founder's explicit go-ahead.
 
 ## Why
 
@@ -66,12 +66,9 @@ Slice 1 alone was not wired into anything; slice 2 makes it reachable only throu
    - **A patch that edits tests or gates is flagged** in the run prompt, the record, the answer and the dashboard, because it can make a broken change pass (tested: weakening the test verifies, loudly flagged).
    - **Never applied to the working tree, never pushed.** The patch is in the convoy record for a human to use.
 4. **Draft pull request.** Fetch from GitHub and open a **draft** PR from a branch, with the report as the body; never ready, never merged by the agent. Needs credentials only the founder holds and a separate explicit approval each time. The founder's `origin` remote currently points at GitLab, so this also needs a decision about which remote is the source of truth.
-5. **A write-capable loop** that iterates propose, verify, revise within the budget and the spend cap. Last, and only once 2 to 4 have live evidence.
-
-## Decisions this design records
-
-| Question put to the founder | Answer built in slice 1 |
-|---|---|
-| May it clone to a temporary directory? | Yes, an export of a local commit into a temp directory, removed after every run. No fetch from GitHub yet. |
-| May it run the repository's own test commands there? | Yes, only the named checks above, only inside the proven sandbox, with no network or credentials. |
-| May it only ever open draft PRs? | Not built. Slice 4 is draft-only by design, with separate approval and founder-held credentials. |
+5. **A propose / verify / revise loop (built, PR #380).** When the sandbox says a proposal does not pass, the patch worker is shown what went wrong and may revise.
+   - **Bounded by the budget:** the Mayor plans how many rounds the worker and tool-call budgets allow (the default budget allows two, the cap is three) and the runner re-checks cost, workers and tool calls before each revision. A revision that proposes the identical patch is not run again.
+   - **A human on every run, told the round:** each round's sandbox run asks again through the same governed path, and the prompt starts "ROUND 2 of 2. The previous attempt did not pass (test failed)." A denial stops the loop with that proposal kept and marked unverified.
+   - **The failure report is data:** it is the repository's own commands' output, clipped (per check and in total) and delimited as data in the revision prompt, with the previous patch; the model's only tool is `propose_change`, which writes and runs nothing.
+   - **Making a check pass by weakening it is visible:** a revision that starts editing tests after attempts that did not is flagged `tests_edited_after_failure` at the approval gate, in the record, the answer and the dashboard.
+   - **Found live (P3.41):** with two contradictory tests Mercury satisfied both by sniffing the call stack for the test file's name, and every check passed with no flag. A deterministic `harness_detection` flag now marks added lines in SOURCE files that name a test file, read a test framework's environment marker or sniff the stack (a heuristic: it flags, never blocks). It does not recognise every trick (a call-counter or an unnamed caller check slips past); "verified" still means only that the repository's own checks passed.

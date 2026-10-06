@@ -74,6 +74,19 @@ export interface ReviewRecord {
 }
 
 /** A SIMULATE convoy's result: the proposal (a diff built by code from exact text edits), who proposed it, and the sandbox report. `verified` is the report's, never a model's. */
+/** One propose/verify round of a SIMULATE convoy. `verified` is the sandbox report's; null when the checks did not run. */
+export interface SimulationRound {
+  round: number;
+  patch_sha256: string;
+  files: string[];
+  flags: string[];
+  summary: string;
+  checks_ran: boolean;
+  verified: boolean | null;
+  /** What failed, in one line, when the checks ran and did not all pass; or why they did not run. */
+  outcome: string;
+}
+
 export interface SimulationResult {
   ref: string;
   /** The one commit the whole convoy was pinned to. */
@@ -90,6 +103,9 @@ export interface SimulationResult {
   verified: boolean | null;
   report: Record<string, unknown> | null;
   note?: string;
+  /** Every propose/verify round in order (the fields above are the LAST round's). */
+  rounds?: SimulationRound[];
+  max_rounds?: number;
 }
 
 export interface WorkerRecord {

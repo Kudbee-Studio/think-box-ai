@@ -52,6 +52,19 @@ const SENSITIVE: Array<[string, RegExp]> = [
   ['touches_ci_or_gates', /(^|\/)\.github\/|(^|\/)gates\.ts$|(^|\/)package(-lock)?\.json$|(^|\/)tsconfig[\w.-]*\.json$|(^|\/)\.c8rc|vitest\.config/],
 ];
 
+/**
+ * Added lines in SOURCE files (not test files) that name a test file, read a test framework's environment marker, or sniff the call stack: signs a change that detects the checks
+ * and behaves differently under them. Found live: a model satisfied two contradictory tests by returning a different value depending on which test file was in the call stack,
+ * and every check passed. A heuristic, so it flags and never blocks; a human decides.
+ */
+const HARNESS_HINTS: RegExp[] = [
+  /\b[\w-]+\.(?:test|spec)\.[cm]?[jt]sx?\b/,
+  /\b(?:NODE_TEST_CONTEXT|JEST_WORKER_ID|VITEST|PYTEST_CURRENT_TEST)\b/,
+  /process\.env\.NODE_ENV\s*[!=]==?\s*['"]test['"]/,
+  /\bnew Error\(\)\.stack\b|\bError\.captureStackTrace\b|\.stack\b[^;\n]*\.(?:includes|match|indexOf|search|test)\(/,
+  /process\.argv[^;\n]*--test|\bprocess\.execArgv\b/,
+];
+
 /** Judges a unified diff before anything is applied. Pure. */
 export function reviewPatch(diff: unknown): PatchReview {
   if (typeof diff !== 'string' || !diff.trim()) return { ok: false, error: 'the patch is empty' };
@@ -61,8 +74,12 @@ export function reviewPatch(diff: unknown): PatchReview {
   if (/^GIT binary patch$|^Binary files /m.test(diff)) return { ok: false, error: 'binary patches are not accepted' };
   if (/^(?:new|old|deleted) (?:file )?mode 120000$|^index [0-9a-f.]+ 120000$/m.test(diff) || /^new file mode 120000/m.test(diff)) return { ok: false, error: 'symlinks are not accepted' };
   const files = new Set<string>();
+  let current = ''; let harness = false;
+  const isTestFile = (f: string): boolean => SENSITIVE[0]![1].test(f);
   for (const line of diff.split('\n')) {
+    if (line.startsWith('+') && !line.startsWith('+++') && current && !isTestFile(current) && HARNESS_HINTS.some((re) => re.test(line))) harness = true;
     const m = PATCH_PATH.exec(line.replace(/\r$/, ''));
+    if (m && (m[2] || m[6])) current = (m[2] ?? m[6])!;
     if (!m) continue;
     for (const raw of m.slice(1).filter((x): x is string => Boolean(x))) {
       const p = checkRepoPath(raw);
@@ -74,6 +91,7 @@ export function reviewPatch(diff: unknown): PatchReview {
   if (files.size > MAX_PATCH_FILES) return { ok: false, error: `the patch touches more than ${MAX_PATCH_FILES} files` };
   const flags = SENSITIVE.filter(([, re]) => [...files].some((f) => re.test(f))).map(([name]) => name);
   if (/^deleted file mode /m.test(diff)) flags.push('deletes_files');
+  if (harness) flags.push('harness_detection');
   return { ok: true, files: [...files].sort(), flags, sha256: createHash('sha256').update(diff).digest('hex') };
 }
 
@@ -305,6 +323,7 @@ const FLAG_MEANING: Record<string, string> = {
   touches_tests: 'it edits tests, which are what judge it',
   touches_ci_or_gates: 'it edits CI, gates, package or compiler configuration',
   deletes_files: 'it deletes files',
+  harness_detection: 'the source change refers to tests or detects the test harness, so it may special-case the checks',
 };
 
 /**

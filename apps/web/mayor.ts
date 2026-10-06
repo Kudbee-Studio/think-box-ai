@@ -40,6 +40,11 @@ const REPO_TOOL_NAMES = ['repo_search', 'repo_read'];
 /** What a SIMULATE convoy needs: read the repo, propose edits, run the repository's own checks in the sandbox. */
 const SIMULATE_TOOLS = ['repo_search', 'repo_read', 'propose_change', 'run_checks'];
 const SIMULATE_CHECKS = ['lint', 'typecheck', 'tsc', 'test'];
+/** The most propose/verify rounds a SIMULATE convoy may run, whatever the budget. */
+const MAX_SIMULATE_ROUNDS = 3;
+/** Upper bounds on tool calls per round: a first proposal reads the repo, a revision already has the failure report. */
+const CALLS_FIRST_ROUND = 13;
+export const CALLS_PER_REVISION = 7;
 
 export interface PlannedWorker {
   id: string;
@@ -75,7 +80,7 @@ export interface ConvoyPlan {
   /** Workers the Mayor added to the Director's selection, and why (the specialist proof refuses a job without an independent Validator). */
   added_by_mayor: Array<{ id: string; reason: string }>;
   /** SIMULATE only: the commit it is pinned to and the repository checks the sandbox will run. Frozen with the plan, so the approval covers them. */
-  simulation?: { ref: string; checks: string[] };
+  simulation?: { ref: string; checks: string[]; /** Propose/verify rounds the budget allows (1 = no revision): a failing report goes back to the patch worker for another try, each sandbox run asking a human again. */ max_rounds: number };
   /** Local-model grounding failures are retried once on this model through the same governed path, when one is configured. */
   escalation: { model: string; when: string } | null;
   budget: WorkerBudget;
@@ -138,6 +143,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   if (!AVAILABLE_MODES.includes(mode)) blocked.push(`${mode.toUpperCase()} mode is not available yet (only ${AVAILABLE_MODES.join(' and ')}): it needs a scratch workspace and a test runner`);
 
   const recipe = matchRecipe(goal);
+  const warnings: string[] = [];
   let simulation: ConvoyPlan['simulation'];
   if (mode === 'simulate') {
     if ((recipe && isGithubRecipe(recipe)) || matchRepoGoal(goal)) blocked.push('SIMULATE proposes and verifies a change; this goal reads like a question or an investigation (use OBSERVE for that)');
@@ -156,7 +162,14 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
       estimated_cost_usd: 0, cost_basis: 'no model: the repository\'s own checks run in a sandbox', estimated_tool_calls: 1,
     });
     waves.push(['patch-1'], ['checks-1']);
-    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS] };
+    {
+      const rounds = Math.max(1, Math.min(MAX_SIMULATE_ROUNDS, Math.floor(budget.max_workers / 2), 1 + Math.floor((budget.max_tool_calls - CALLS_FIRST_ROUND) / CALLS_PER_REVISION)));
+      warnings.push(rounds > 1
+        ? `If the sandbox checks fail, the patch worker gets the failure report and may revise: up to ${rounds} round(s) in all, as the worker and tool-call budgets allow. Every round's sandbox run asks for your approval again, saying which round it is and what the last attempt got wrong.`
+        : 'No revision round fits the worker or tool-call budget: a failing proposal is reported as it is.');
+    }
+    const rounds = Math.max(1, Math.min(MAX_SIMULATE_ROUNDS, Math.floor(budget.max_workers / 2), 1 + Math.floor((budget.max_tool_calls - CALLS_FIRST_ROUND) / CALLS_PER_REVISION)));
+    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS], max_rounds: rounds };
   } else if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
     const missing = REPO_TOOL_NAMES.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the repository tools are not available in this runtime: ${missing.join(', ')}`);
@@ -213,7 +226,6 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     }
   }
 
-  const warnings: string[] = [];
   if (mode === 'simulate') warnings.push('The proposed change is never applied to your working tree and nothing is pushed: you get a patch, the files it touches and a verification report.', 'Running the checks asks for your approval again, showing the exact commit and the patch hash.', 'Verified means the repository\'s own checks passed on a throwaway copy; it is not proof the change is right.');
   if (workers.some((w) => w.kind === 'specialist') && !workers.some((w) => w.tools.includes('write_file'))) {
     warnings.push('No worker writes an artifact, so the Validator may have nothing to check and the specialist job proof can end PARTIAL even if every worker succeeds.');
@@ -229,7 +241,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   const escalationCost = escalation ? input.costOf(escalation.model, first?.kind === 'repo' ? 'repo' : 'lookup').usd : 0;
   const worstCost = estimatedCost === null || escalationCost === null ? null : round6(estimatedCost + escalationCost);
   const estimatedCalls = workers.reduce((t, w) => t + w.estimated_tool_calls, 0);
-  const worstWorkers = workers.length + (escalation ? 1 : 0);
+  const worstWorkers = simulation ? 2 * simulation.max_rounds : workers.length + (escalation ? 1 : 0);
   if (worstWorkers > budget.max_workers) blocked.push(`worker budget exceeded: ${worstWorkers} worker(s) possible (${workers.length} planned${escalation ? ' + 1 escalation' : ''}), budget allows ${budget.max_workers}`);
   if (worstCost !== null && worstCost > budget.max_cost_usd) blocked.push(`cost budget exceeded: up to $${worstCost} estimated, budget allows $${budget.max_cost_usd}`);
   if (estimatedCalls > budget.max_tool_calls) blocked.push(`tool-call budget exceeded: up to ${estimatedCalls} tool calls possible, budget allows ${budget.max_tool_calls}`);
@@ -265,6 +277,7 @@ export function evaluatePolicy(plan: ConvoyPlan): PolicyEvaluation {
   const patchers = plan.workers.filter((w) => w.kind === 'patch').map((w) => w.id);
   const sandboxed = plan.workers.filter((w) => w.permission === 'sandbox_exec').map((w) => w.id);
   if (patchers.length) rules.push({ id: 'source-leaves-machine', effect: 'info', reason: 'The patch worker runs on the agent model (a cloud API): the source it reads and the change it writes are sent to that provider. Secrets, .env files, keys, databases, .git and node_modules are not readable by its tools. It cannot write or run anything: it only proposes.', workers: patchers });
+  if (plan.simulation && plan.simulation.max_rounds > 1) rules.push({ id: 'revision-rounds', effect: 'info', reason: `If the sandbox checks fail, the patch worker is shown the failure output (data from the repository's own commands, clipped) and may propose a revision: up to ${plan.simulation.max_rounds} round(s) in all. Every round's sandbox run asks for your approval again; the cost and worker budgets are re-checked before each revision.`, workers: patchers });
   if (sandboxed.length) { risk = 'medium'; rules.push({ id: 'sandboxed-checks', effect: 'require_approval', reason: 'This worker runs the repository\'s own checks on a throwaway copy of one commit with the proposed change applied, inside a sandbox with no network, no home directory and no credentials. Nothing touches your working tree. It asks for your approval again when it runs, showing the exact commit, the checks and the patch.', workers: sandboxed }); restrictions.push('Checks run only in the sandbox, only after a second approval that names the exact commit and patch.'); }
   if (network.length) rules.push({ id: 'network-read', effect: 'info', reason: 'These workers read from the network; the first access to each host still asks for approval at run time.', workers: network });
   if (write.length) { risk = 'medium'; rules.push({ id: 'workspace-write', effect: 'require_approval', reason: 'These workers can write files or memory inside their own workspace.', workers: write }); restrictions.push('Writes stay inside the worker workspace; overwriting an existing file asks again.'); }

@@ -195,7 +195,7 @@ describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', (
       ['checks-1', 'checks', null, ['run_checks'], 'sandbox_exec', ['patch-1'], 2],
     ]);
     assert.deepEqual(p.waves, [['patch-1'], ['checks-1']]);
-    assert.deepEqual(p.simulation, { ref: 'HEAD', checks: ['lint', 'typecheck', 'tsc', 'test'] });
+    assert.deepEqual(p.simulation, { ref: 'HEAD', checks: ['lint', 'typecheck', 'tsc', 'test'], max_rounds: 2 });
     assert.equal(p.escalation, null);
     assert.equal(p.workers[1].estimated_cost_usd, 0);
     assert.match(p.workers[0].cost_basis, /average of 1 measured mercury-2 run|no measured/);
@@ -232,3 +232,29 @@ describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', (
     assert.equal(sim({ budget: { max_workers: 2 } }).executable, true);
   });
 });
+
+describe('SIMULATE revision rounds in the plan (P3.41): the budget decides how many', () => {
+  const SIM_TOOLS = [...TOOLS, 'propose_change', 'run_checks'];
+  const sim = (budget?: unknown) => plan('Fix the typo in the greeting', { mode: 'simulate', availableTools: SIM_TOOLS, ...(budget ? { budget } : {}) });
+  it('the default budget (4 workers, 20 tool calls) allows exactly two rounds, says so, and counts the worst case', () => {
+    const p = sim();
+    assert.equal(p.simulation.max_rounds, 2); assert.equal(p.budget_use.worst_case_workers, 4);
+    assert.ok(p.warnings.some((w: string) => /up to 2 round\(s\) in all.*asks for your approval again, saying which round it is/.test(w)));
+    const rule = evaluatePolicy(p).rules.find((r) => r.id === 'revision-rounds')!;
+    assert.match(rule.reason, /failure output \(data from the repository's own commands, clipped\).*up to 2 round\(s\).*approval again.*budgets are re-checked before each revision/); assert.deepEqual(rule.workers, ['patch-1']);
+  });
+  it('rounds follow the worker and tool-call budgets and never exceed three', () => {
+    const rounds = (b: unknown) => sim(b).simulation.max_rounds;
+    assert.equal(rounds({ max_workers: 2 }), 1); assert.equal(rounds({ max_workers: 3 }), 1); assert.equal(rounds({ max_workers: 4 }), 2); assert.equal(rounds({ max_workers: 5 }), 2);
+    assert.equal(rounds({ max_workers: 12, max_tool_calls: 100 }), 3); assert.equal(rounds({ max_workers: 6, max_tool_calls: 27 }), 3); assert.equal(rounds({ max_workers: 6, max_tool_calls: 26 }), 2);
+    assert.equal(rounds({ max_tool_calls: 13 }), 1); assert.equal(rounds({ max_tool_calls: 19 }), 1); assert.equal(rounds({ max_tool_calls: 20 }), 2);
+  });
+  it('with no room for a revision the plan says so and has no revision rule; with no room for even the first round it is blocked', () => {
+    const one = sim({ max_workers: 2 });
+    assert.equal(one.executable, true); assert.ok(one.warnings.some((w: string) => /No revision round fits/.test(w)));
+    assert.ok(!evaluatePolicy(one).rules.some((r) => r.id === 'revision-rounds'));
+    assert.match(sim({ max_tool_calls: 12 }).blocked_reasons.join(), /tool-call budget exceeded: up to 13 tool calls possible/);
+    assert.match(sim({ max_workers: 1 }).blocked_reasons.join(), /worker budget exceeded: 2 worker\(s\) possible/);
+  });
+});
+
