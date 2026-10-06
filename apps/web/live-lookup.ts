@@ -26,6 +26,9 @@ export interface LookupEvidence {
   complete: boolean;
   /** true when GitHub may hold more than the items shown: the reply was cut off, the page came back full (before pull requests were filtered out of an issues list), or items were dropped to the display limit. A count from this list is not a total. */
   more?: boolean;
+  /** The exact number of open issues / open pull requests in the repository, from GitHub's own search count (a second read-only request). Absent when the count could not be read: a count from the list alone is not a total. */
+  total?: number;
+  total_url?: string;
   items: LookupItem[];
   /** ci_status only: the newest run's result in one word (success, failure, in_progress ...). */
   verdict?: string;
@@ -74,6 +77,28 @@ export function lookupUrl(args: LookupArgs, githubBase = 'https://api.github.com
     case 'open_issues': return `${api}/issues?state=open&per_page=${PAGE_SIZE.open_issues}`;
     case 'branches': return `${api}/branches?per_page=${PAGE_SIZE.branches}`;
   }
+}
+
+/** The read-only request that returns an exact total for this recipe (GitHub's search count), or null when the recipe has no cheap exact count. Issues exclude pull requests. */
+export function countUrl(args: LookupArgs, githubBase = 'https://api.github.com'): string | null {
+  if (args.recipe !== 'open_issues' && args.recipe !== 'open_prs') return null;
+  const q = `repo:${args.repo} type:${args.recipe === 'open_issues' ? 'issue' : 'pr'} state:open`;
+  return `${githubBase.replace(/\/$/, '')}/search/issues?q=${encodeURIComponent(q)}&per_page=1`;
+}
+
+/** The total from a search-count reply, or null (anything but a clean, complete, non-negative whole number is "unknown", never a guess). */
+export function parseTotal(reply: { status: unknown; text: unknown }): number | null {
+  if (Number(reply.status) !== 200) return null;
+  let body: any;
+  try { body = JSON.parse(String(reply.text ?? '')); } catch { return null; }
+  if (!body || body.incomplete_results === true) return null;
+  const n = body.total_count;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 1_000_000 ? n : null;
+}
+
+/** The evidence with its exact total attached; `more` then means exactly "GitHub holds more than the items shown". */
+export function withTotal(e: LookupEvidence, total: number, url: string): LookupEvidence {
+  return { ...e, total, total_url: url, more: total > e.items.length };
 }
 
 /** How many characters of the reply the fetch may keep for this recipe. */
@@ -176,13 +201,16 @@ export function renderFacts(e: LookupEvidence): string {
   }
   if (e.recipe === 'open_issues') {
     const is = e.items.filter((i): i is Extract<LookupItem, { kind: 'issue' }> => i.kind === 'issue');
-    if (!is.length) return none('Open issues');
+    if (e.total === 0 || (!is.length && e.total === undefined)) return none('Open issues');
+    if (!is.length) return `Open issues in ${e.repo} (live from GitHub just now): ${e.total} open in total; none of them is in the first page fetched.`;
+    if (e.total !== undefined) return `Open issues in ${e.repo} (live from GitHub just now): ${e.total} open in total. Newest first, showing ${is.length}${cut}:\n${is.map((i) => `- #${i.number} "${i.title}" by ${i.author}, updated ${i.updated_at} ${i.url}`).join('\n')}`;
     return `Open issues in ${e.repo} (live from GitHub just now, newest first, showing ${is.length}${cut}):\n${is.map((i) => `- #${i.number} "${i.title}" by ${i.author}, updated ${i.updated_at} ${i.url}`).join('\n')}`;
   }
   const prs = e.items.filter((i): i is Extract<LookupItem, { kind: 'pr' }> => i.kind === 'pr');
   if (e.recipe === 'open_prs') {
-    if (!prs.length) return none('Open pull requests');
-    const head = e.complete ? `${prs.length}.` : `showing the first ${prs.length} (the reply was longer than the limit and was cut off).`;
+    if (e.total === 0 || (!prs.length && e.total === undefined)) return none('Open pull requests');
+    if (!prs.length) return `Open pull requests in ${e.repo} (live from GitHub just now): ${e.total} open in total; none of them is in the first page fetched.`;
+    const head = e.total !== undefined ? `${e.total} open in total. Newest first, showing ${prs.length}${e.complete ? '' : ' (the reply was longer than the limit and was cut off)'}.` : e.complete ? `${prs.length}.` : `showing the first ${prs.length} (the reply was longer than the limit and was cut off).`;
     return `Open pull requests in ${e.repo} (live from GitHub just now): ${head}\n${prs.map((p) => `- #${p.number} "${p.title}"${p.draft ? ' (draft)' : ''} by ${p.author}, updated ${p.updated_at} ${p.url}${p.head_ref ? ` branch ${p.head_ref}` : ''}`.trim()).join('\n')}`;
   }
   if (!prs.length) return none('Latest pull requests');

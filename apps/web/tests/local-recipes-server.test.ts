@@ -95,7 +95,7 @@ test('"WHAT PR ARE WE ON": the lookup needs approval like any network access, th
   const approval = messages.find((m) => m.type === 'approval_request');
   assert.ok(approval, 'the first network access asks for approval');
   assert.match(approval.data.reason, /First network access to 127\.0\.0\.1/);
-  assert.deepEqual(githubHits, ['/repos/Acme/widgets/pulls?state=open&per_page=5']);
+  assert.deepEqual(githubHits, ['/repos/Acme/widgets/pulls?state=open&per_page=5', '/search/issues?q=repo%3AAcme%2Fwidgets%20type%3Apr%20state%3Aopen&per_page=1'], 'the list, then GitHub\'s own count of open pull requests');
   const prompt = chats.at(-1).messages.at(-1).content;
   assert.match(prompt, /#330 "P3\.18: escalate goals" \(draft\)/);
   assert.ok(chats.at(-1).messages.every((m: any) => m.role !== 'system'), 'plain chat to the small model');
