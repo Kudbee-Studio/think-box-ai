@@ -106,6 +106,8 @@ const run = (cmd: string, args: string[], opts: { cwd?: string; input?: string; 
     const child = execFile(cmd, args, { cwd: opts.cwd, env: opts.env ?? { PATH: '/usr/bin:/bin' }, timeout: opts.timeoutMs ?? 120_000, maxBuffer: 80 * 1024 * 1024, encoding: 'utf8' }, (err, stdout, stderr) => {
       resolve({ code: err ? (typeof (err as { code?: unknown }).code === 'number' ? (err as { code: number }).code : 1) : 0, out: `${stdout}${stderr}` });
     });
+    // git apply may exit on a bad patch before reading all of stdin: that is a failed apply (reported by its exit code), not a crash
+    child.stdin?.on('error', () => undefined);
     if (opts.input !== undefined) child.stdin?.end(opts.input);
   });
 

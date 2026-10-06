@@ -74,3 +74,4 @@
 @keyframes convoy-pulse { 50% { box-shadow: 0 0 0 3px rgba(240, 190, 60, .25); } }
 @media (prefers-reduced-motion: reduce) { .convoy-chip.has-review { animation: none; } }
 @media (max-width: 700px) { .convoy-chip { display: none; } }
+.convoy-patch { margin: 6px 0 0; padding: 8px 10px; max-height: 320px; overflow: auto; border-radius: 6px; background: rgba(255, 255, 255, .04); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre; }

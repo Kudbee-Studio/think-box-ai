@@ -32,20 +32,24 @@ export function normalizeBudget(raw: unknown): { ok: true; budget: WorkerBudget 
   return { ok: true, budget };
 }
 
-/** How much a convoy may do. OBSERVE reads only; LEARN also lets the outcome feed Think Token candidates. SIMULATE and AUTONOMOUS are not available yet. */
+/** How much a convoy may do. OBSERVE reads only; LEARN also lets the outcome feed Think Token candidates; SIMULATE proposes a change and verifies it in a sandbox (nothing is applied to the working tree). AUTONOMOUS is not available yet. */
 export type ThinkMode = 'observe' | 'learn' | 'simulate' | 'autonomous';
 export const THINK_MODES: readonly ThinkMode[] = ['observe', 'learn', 'simulate', 'autonomous'];
-const AVAILABLE_MODES: readonly ThinkMode[] = ['observe', 'learn'];
+const AVAILABLE_MODES: readonly ThinkMode[] = ['observe', 'learn', 'simulate'];
 const REPO_TOOL_NAMES = ['repo_search', 'repo_read'];
+/** What a SIMULATE convoy needs: read the repo, propose edits, run the repository's own checks in the sandbox. */
+const SIMULATE_TOOLS = ['repo_search', 'repo_read', 'propose_change', 'run_checks'];
+const SIMULATE_CHECKS = ['lint', 'typecheck', 'tsc', 'test'];
 
 export interface PlannedWorker {
   id: string;
-  kind: 'lookup' | 'specialist' | 'repo';
+  kind: 'lookup' | 'specialist' | 'repo' | 'patch' | 'checks';
   name: string;
   /** The model that will run this worker (null when none is available: the plan is then not executable). */
   model: string | null;
   tools: string[];
-  permission: 'read_only' | 'read_write' | 'none';
+  /** `sandbox_exec`: runs the repository's own checks in a throwaway copy with no network and no credentials; writes nothing outside that copy. */
+  permission: 'read_only' | 'read_write' | 'none' | 'sandbox_exec';
   depends_on: string[];
   wave: number;
   purpose: string;
@@ -70,6 +74,8 @@ export interface ConvoyPlan {
   handled_by_orchestrator: string[];
   /** Workers the Mayor added to the Director's selection, and why (the specialist proof refuses a job without an independent Validator). */
   added_by_mayor: Array<{ id: string; reason: string }>;
+  /** SIMULATE only: the commit it is pinned to and the repository checks the sandbox will run. Frozen with the plan, so the approval covers them. */
+  simulation?: { ref: string; checks: string[] };
   /** Local-model grounding failures are retried once on this model through the same governed path, when one is configured. */
   escalation: { model: string; when: string } | null;
   budget: WorkerBudget;
@@ -132,7 +138,26 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   if (!AVAILABLE_MODES.includes(mode)) blocked.push(`${mode.toUpperCase()} mode is not available yet (only ${AVAILABLE_MODES.join(' and ')}): it needs a scratch workspace and a test runner`);
 
   const recipe = matchRecipe(goal);
-  if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
+  let simulation: ConvoyPlan['simulation'];
+  if (mode === 'simulate') {
+    if ((recipe && isGithubRecipe(recipe)) || matchRepoGoal(goal)) blocked.push('SIMULATE proposes and verifies a change; this goal reads like a question or an investigation (use OBSERVE for that)');
+    const missing = SIMULATE_TOOLS.filter((t) => !input.availableTools.includes(t));
+    if (missing.length) blocked.push(`the tools SIMULATE needs are not available in this runtime: ${missing.join(', ')}`);
+    if (!input.agentModel) blocked.push('SIMULATE needs the agent model (Mercury) to propose a change; none is configured');
+    const cost = input.costOf(input.agentModel, 'patch');
+    workers.push({
+      id: 'patch-1', kind: 'patch', name: 'Propose a change (nothing is written)', model: input.agentModel, tools: ['repo_search', 'repo_read', 'propose_change'], permission: 'read_only', depends_on: [], wave: 1,
+      purpose: 'Read the source and propose the change as exact text edits; the system builds the diff from the real files at one commit and checks that it applies. Nothing is written or run.',
+      estimated_cost_usd: cost.usd, cost_basis: cost.basis, estimated_tool_calls: 12,
+    });
+    workers.push({
+      id: 'checks-1', kind: 'checks', name: 'Verify in the sandbox', model: null, tools: ['run_checks'], permission: 'sandbox_exec', depends_on: ['patch-1'], wave: 2,
+      purpose: `Run the repository's own checks (${SIMULATE_CHECKS.join(', ')}) on a throwaway copy of the commit with the proposed change applied: no network, no credentials, nothing touches your working tree. Asks for your approval again, showing the exact commit and patch.`,
+      estimated_cost_usd: 0, cost_basis: 'no model: the repository\'s own checks run in a sandbox', estimated_tool_calls: 1,
+    });
+    waves.push(['patch-1'], ['checks-1']);
+    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS] };
+  } else if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
     const missing = REPO_TOOL_NAMES.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the repository tools are not available in this runtime: ${missing.join(', ')}`);
     if (!input.lookupModel) blocked.push('no model is available to run the investigation');
@@ -189,6 +214,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   }
 
   const warnings: string[] = [];
+  if (mode === 'simulate') warnings.push('The proposed change is never applied to your working tree and nothing is pushed: you get a patch, the files it touches and a verification report.', 'Running the checks asks for your approval again, showing the exact commit and the patch hash.', 'Verified means the repository\'s own checks passed on a throwaway copy; it is not proof the change is right.');
   if (workers.some((w) => w.kind === 'specialist') && !workers.some((w) => w.tools.includes('write_file'))) {
     warnings.push('No worker writes an artifact, so the Validator may have nothing to check and the specialist job proof can end PARTIAL even if every worker succeeds.');
   }
@@ -196,7 +222,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     warnings.push('The Researcher is read-only, so its evidence has no artifact for the Validator to re-read; the existing job proof refuses such evidence and the convoy can end PARTIAL even though every worker succeeded.');
   }
   const first = workers[0];
-  const escalation = (first?.kind === 'lookup' || first?.kind === 'repo') && first.model && input.isLocalModel(first.model) && input.agentModel
+  const escalation = mode !== 'simulate' && (first?.kind === 'lookup' || first?.kind === 'repo') && first.model && input.isLocalModel(first.model) && input.agentModel
     ? { model: input.agentModel, when: first.kind === 'repo' ? 'the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one' : 'the local model fails the grounding check or cannot complete the lookup' } : null;
   const known = workers.every((w) => w.estimated_cost_usd !== null);
   const estimatedCost = workers.length && known ? round6(workers.reduce((t, w) => t + (w.estimated_cost_usd ?? 0), 0)) : null;
@@ -211,7 +237,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   return {
     ok: true,
     plan: {
-      plan_only: true, side_effects: 'none', routing: input.routing ?? null, goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, added_by_mayor: added, escalation, budget,
+      plan_only: true, side_effects: 'none', routing: input.routing ?? null, goal, created_at: input.now, workers, waves, handled_by_orchestrator: handled, added_by_mayor: added, escalation, ...(simulation ? { simulation } : {}), budget,
       budget_use: { workers: workers.length, worst_case_workers: worstWorkers, estimated_cost_usd: estimatedCost, worst_case_cost_usd: worstCost, estimated_tool_calls: estimatedCalls },
       expected_convoy: { dashboard_rows: 1, children: workers.length, waves: waves.length },
       executable: blocked.length === 0 && workers.length > 0,
@@ -234,8 +260,12 @@ export function evaluatePolicy(plan: ConvoyPlan): PolicyEvaluation {
   const write = withTool(WRITE_TOOLS);
   const exec = plan.workers.filter((w) => w.tools.includes('exec')).map((w) => w.id);
   let risk: PolicyEvaluation['risk'] = 'low';
-  rules.push({ id: `mode-${plan.think_mode}`, effect: 'info', reason: plan.think_mode === 'observe' ? 'OBSERVE: read-only. No file is changed and nothing is learned from this convoy.' : plan.think_mode === 'learn' ? 'LEARN: read-only like OBSERVE, and the verified outcome may produce Think Token candidates (never auto-accepted).' : `${plan.think_mode.toUpperCase()}: not available yet.` });
+  rules.push({ id: `mode-${plan.think_mode}`, effect: 'info', reason: plan.think_mode === 'observe' ? 'OBSERVE: read-only. No file is changed and nothing is learned from this convoy.' : plan.think_mode === 'learn' ? 'LEARN: read-only like OBSERVE, and the verified outcome may produce Think Token candidates (never auto-accepted).' : plan.think_mode === 'simulate' ? 'SIMULATE: proposes a change and verifies it in a sandbox. The change is never applied to your working tree and nothing is pushed or opened as a pull request.' : `${plan.think_mode.toUpperCase()}: not available yet.` });
   if (repoReaders.length) rules.push({ id: 'repo-read', effect: 'info', reason: 'These workers read this repository\'s source through read-only tools. Secrets, .env files, keys, databases, .git and node_modules are not readable. Source text a local model reads stays on this machine.', workers: repoReaders });
+  const patchers = plan.workers.filter((w) => w.kind === 'patch').map((w) => w.id);
+  const sandboxed = plan.workers.filter((w) => w.permission === 'sandbox_exec').map((w) => w.id);
+  if (patchers.length) rules.push({ id: 'source-leaves-machine', effect: 'info', reason: 'The patch worker runs on the agent model (a cloud API): the source it reads and the change it writes are sent to that provider. Secrets, .env files, keys, databases, .git and node_modules are not readable by its tools. It cannot write or run anything: it only proposes.', workers: patchers });
+  if (sandboxed.length) { risk = 'medium'; rules.push({ id: 'sandboxed-checks', effect: 'require_approval', reason: 'This worker runs the repository\'s own checks on a throwaway copy of one commit with the proposed change applied, inside a sandbox with no network, no home directory and no credentials. Nothing touches your working tree. It asks for your approval again when it runs, showing the exact commit, the checks and the patch.', workers: sandboxed }); restrictions.push('Checks run only in the sandbox, only after a second approval that names the exact commit and patch.'); }
   if (network.length) rules.push({ id: 'network-read', effect: 'info', reason: 'These workers read from the network; the first access to each host still asks for approval at run time.', workers: network });
   if (write.length) { risk = 'medium'; rules.push({ id: 'workspace-write', effect: 'require_approval', reason: 'These workers can write files or memory inside their own workspace.', workers: write }); restrictions.push('Writes stay inside the worker workspace; overwriting an existing file asks again.'); }
   if (exec.length) { risk = 'high'; rules.push({ id: 'command-execution', effect: 'deny', reason: 'Command execution is not available to convoys.', workers: exec }); }

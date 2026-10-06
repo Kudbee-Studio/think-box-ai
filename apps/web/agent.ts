@@ -6,8 +6,9 @@ import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwor
 import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
 import { LOOKUP_RECIPES, countUrl, lookupMaxChars, lookupUrl, normalizeLookup, parseTotal, validateLookupArgs, withTotal } from './live-lookup.ts';
 import { detectRepo } from './repo-context.ts';
+import { PROPOSE_CHANGE_TOOL, buildPatch } from './change-proposal.ts';
 import { flaggedAnswer, validateCheckClaims } from './check-claims.ts';
-import { RUN_CHECKS_TOOL, prepareRunChecks, runScratch, slimReport, type ScratchReport } from './scratch-runner.ts';
+import { RUN_CHECKS_TOOL, prepareRunChecks, resolveCommit, runScratch, slimReport, type ScratchReport } from './scratch-runner.ts';
 import { REPO_TOOLS, repoRead, repoRoot, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
@@ -90,6 +91,8 @@ export interface AgentHooks {
    *  or otherwise disallowed tool call is rejected before it ever reaches the approval gate —
    *  the model isn't even offered the tool in its function list, but this is the hard backstop. */
   allowedTools?: string[];
+  /** The commit a SIMULATE convoy is pinned to (a full sha): propose_change builds its patch against exactly this commit. HEAD when absent. */
+  scratchRef?: string;
   /** Called with the FULL output of every governed tool call (the stored event output is truncated), so callers can keep structured evidence. */
   onToolOutput?: (name: string, args: Record<string, unknown>, output: Record<string, unknown>) => void;
   /** Additional role context for a contract-backed specialist run. */
@@ -112,7 +115,7 @@ export interface AgentRunResult {
 }
 
 /** Tools that exist in the one registry but are offered, and callable, ONLY when a run's allowlist names them (repository access is never a default). */
-export const OPT_IN_TOOLS: ReadonlySet<string> = new Set<string>([...REPO_TOOLS, RUN_CHECKS_TOOL]);
+export const OPT_IN_TOOLS: ReadonlySet<string> = new Set<string>([...REPO_TOOLS, RUN_CHECKS_TOOL, PROPOSE_CHANGE_TOOL]);
 
 export const TOOLS = [
   {
@@ -190,6 +193,21 @@ export const TOOLS = [
           end: { type: 'integer', description: 'Last line (default start + 119)' },
         },
         required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: PROPOSE_CHANGE_TOOL,
+      description: "Propose a code change as EXACT TEXT EDITS; the system builds and validates the diff from the real files at one commit. Nothing is written or run: the proposal is only checked (does each find match exactly once? does the result apply?) and returned. Each edit is {path, find, replace} (find = text copied exactly from the file, WITHOUT the line-number prefixes repo_read adds, and it must occur exactly once; replace = what to put there, empty to delete) or {path, create} to add a new file. Up to 10 edits. If it returns an error, fix the edit and call it again.",
+      parameters: {
+        type: 'object',
+        properties: {
+          edits: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, find: { type: 'string' }, replace: { type: 'string' }, create: { type: 'string' } }, required: ['path'] }, description: 'The edits, applied in order.' },
+          summary: { type: 'string', description: 'One or two sentences saying what the change does and why.' },
+        },
+        required: ['edits'],
       },
     },
   },
@@ -574,6 +592,14 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
         } catch (err) { if (hooks.signal.aborted) throw err; }
       }
       return { recipe: checked.args.recipe, evidence };
+    }
+    case PROPOSE_CHANGE_TOOL: {
+      const extra = Object.keys(args).filter((k) => k !== 'edits' && k !== 'summary');
+      if (extra.length) throw new Error(`${PROPOSE_CHANGE_TOOL}: unknown argument(s): ${extra.join(', ')}`);
+      const sha = await resolveCommit(repoRoot(), hooks.scratchRef ?? 'HEAD');
+      const proposal = await buildPatch(repoRoot(), sha, args.edits);
+      if (!proposal.ok) throw new Error(`${PROPOSE_CHANGE_TOOL}: ${proposal.error}`);
+      return { ref: sha, patch: proposal.patch, patch_sha256: proposal.sha256, files: proposal.files, flags: proposal.flags, edits: proposal.edits, summary: truncate(String(args.summary ?? ''), 400), note: 'Proposed only: nothing was written or run. It is verified in a sandbox afterwards.' };
     }
     case RUN_CHECKS_TOOL: {
       const names = Array.isArray(args.checks) ? args.checks.map(String) : [];

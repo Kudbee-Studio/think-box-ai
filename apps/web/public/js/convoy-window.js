@@ -314,9 +314,9 @@
     var row2 = this._el('div', 'convoy-form-row');
     [['Worker budget', workers], ['Max $', cost]].forEach(function (p) { var l = self._el('label', 'convoy-field'); l.appendChild(self._el('span', null, p[0])); l.appendChild(p[1]); row2.appendChild(l); });
     row2.appendChild(go);
-    // The control mode: OBSERVE reads only; LEARN also lets a verified outcome become Think Token candidates. The other two are shown but cannot be chosen yet.
+    // The control mode: OBSERVE reads only; LEARN also lets a verified outcome become Think Token candidates. SIMULATE proposes and verifies a change in a sandbox; AUTONOMOUS is shown but cannot be chosen yet.
     var modes = this._el('div', 'convoy-modes'); modes.setAttribute('role', 'radiogroup'); modes.setAttribute('aria-label', 'Think Token mode');
-    [['observe', 'OBSERVE', 'Read-only. Nothing is changed and nothing is learned.', true], ['learn', 'LEARN', 'Read-only, and a verified outcome may become Think Token candidates (never auto-accepted).', true], ['simulate', 'SIMULATE', 'Not available yet: needs a scratch workspace and a test runner.', false], ['autonomous', 'AUTONOMOUS', 'Not available yet.', false]].forEach(function (m) {
+    [['observe', 'OBSERVE', 'Read-only. Nothing is changed and nothing is learned.', true], ['learn', 'LEARN', 'Read-only, and a verified outcome may become Think Token candidates (never auto-accepted).', true], ['simulate', 'SIMULATE', 'Proposes a change and verifies it in a sandbox. Never applied to your working tree; the run asks for your approval again.', true], ['autonomous', 'AUTONOMOUS', 'Not available yet.', false]].forEach(function (m) {
       var label = self._el('label', 'convoy-mode' + (m[3] ? '' : ' convoy-mode-off'));
       label.title = m[2];
       var radio = self._el('input'); radio.type = 'radio'; radio.name = 'convoy-mode'; radio.value = m[0]; radio.id = 'convoy-mode-' + m[0]; radio.disabled = !m[3]; radio.checked = f.mode === m[0];
@@ -432,6 +432,20 @@
       if (c.final_answer) out.appendChild(this._el('div', 'convoy-answer', c.final_answer));
       if (c.error) out.appendChild(this._el('div', 'convoy-blocked', c.error));
       box.appendChild(out);
+    }
+
+    // SIMULATE: the proposed change and the sandbox's verdict (the verdict is the report's, never the model's words)
+    if (c.simulation) {
+      var sm0 = c.simulation;
+      var simBox = this._section('Proposed change · ' + (sm0.verified === true ? 'VERIFIED in the sandbox' : sm0.verified === false ? 'NOT verified: the sandbox checks failed' : 'NOT verified: the checks were not run'));
+      simBox.appendChild(this._el('div', 'convoy-line', 'Commit ' + String(sm0.sha).slice(0, 12) + ' · patch ' + String(sm0.patch_sha256).slice(0, 12) + ' · ' + (sm0.files || []).join(', ') + ' · proposed by ' + sm0.proposed_by));
+      if (sm0.flags && sm0.flags.length) simBox.appendChild(this._el('div', 'convoy-blocked', 'Flags: ' + sm0.flags.join(', ') + (sm0.flags.indexOf('touches_tests') >= 0 ? ' — the proposal edits tests, which are what judge it' : '') + (sm0.flags.indexOf('touches_ci_or_gates') >= 0 ? ' — the proposal edits CI, gates or configuration' : '')));
+      if (sm0.note) simBox.appendChild(this._el('div', 'convoy-blocked', sm0.note));
+      var patchDetails = this._el('details', 'convoy-run');
+      patchDetails.appendChild(this._el('summary', null, 'The patch (not applied to your working tree)'));
+      patchDetails.appendChild(this._el('pre', 'convoy-patch', sm0.patch));
+      simBox.appendChild(patchDetails);
+      box.appendChild(simBox);
     }
 
     // totals + drill-down
