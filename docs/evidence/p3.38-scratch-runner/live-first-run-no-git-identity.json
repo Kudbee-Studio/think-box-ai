@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-10-06T08:40:05.846Z",
+  "head": "d4cc5b27b3198d46af60b8a30f7592c75a326a53",
+  "sandbox": {
+    "tool": "bwrap",
+    "version": "0.11.1",
+    "network": "blocked",
+    "home_hidden": true,
+    "system_read_only": true,
+    "env_cleared": true
+  },
+  "clean": {
+    "sha": "d4cc5b27b3198d46af60b8a30f7592c75a326a53",
+    "verified": false,
+    "patch_sha256": null,
+    "files_touched": [],
+    "flags": [],
+    "sandbox": {
+      "tool": "bwrap",
+      "version": "0.11.1",
+      "network": "blocked",
+      "home_hidden": true,
+      "system_read_only": true,
+      "env_cleared": true
+    },
+    "duration_ms": 43300,
+    "checks": [
+      {
+        "check": "lint",
+        "file": null,
+        "exit_code": 0,
+        "passed": true,
+        "timed_out": false,
+        "duration_ms": 1234,
+        "tests": null,
+        "output_tail": ""
+      },
+      {
+        "check": "typecheck",
+        "file": null,
+        "exit_code": 0,
+        "passed": true,
+        "timed_out": false,
+        "duration_ms": 1148,
+        "tests": null,
+        "output_tail": ""
+      },
+      {
+        "check": "tsc",
+        "file": null,
+        "exit_code": 0,
+        "passed": true,
+        "timed_out": false,
+        "duration_ms": 1174,
+        "tests": null,
+        "output_tail": ""
+      },
+      {
+        "check": "test",
+        "file": null,
+        "exit_code": 1,
+        "passed": false,
+        "timed_out": false,
+        "duration_ms": 37288,
+        "tests": {
+          "pass": 1255,
+          "fail": 0
+        },
+        "output_tail": "ory.\\n\\nfatal: unable to auto-detect email address (got 'unknown@DESKTOP-22KC5S1.(none)')\\n` ],\n    pid: 1656,\n    stdout: '',\n    stderr: `Author identity unknown\\n\\n*** Please tell me who you are.\\n\\nRun\\n\\n  git config --global user.email \"you@example.com\"\\n  git config --global user.name \"Your Name\"\\n\\nto set your account's default identity.\\nOmit --global to set the identity only in this repository.\\n\\nfatal: unable to auto-detect email address (got 'unknown@DESKTOP-22KC5S1.(none)')\\n`\n  }\n"
+      }
+    ]
+  },
+  "type_error_patch": {
+    "sha": "d4cc5b27b3198d46af60b8a30f7592c75a326a53",
+    "verified": false,
+    "patch_sha256": "99d5593754ee84215da1f2494ab77c385515adfc8702f0b15560db39c60010a2",
+    "files_touched": [
+      "apps/web/zz-scratch-type-error.ts"
+    ],
+    "flags": [],
+    "sandbox": {
+      "tool": "bwrap",
+      "version": "0.11.1",
+      "network": "blocked",
+      "home_hidden": true,
+      "system_read_only": true,
+      "env_cleared": true
+    },
+    "duration_ms": 4836,
+    "checks": [
+      {
+        "check": "typecheck",
+        "file": null,
+        "exit_code": 1,
+        "passed": false,
+        "timed_out": false,
+        "duration_ms": 1362,
+        "tests": null,
+        "output_tail": "\n> thinkbox-web@0.1.0 typecheck\n> tsgo --noEmit\n\n\u001b[96mzz-scratch-type-error.ts\u001b[0m:\u001b[93m1\u001b[0m:\u001b[93m14\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2322: \u001b[0mType 'string' is not assignable to type 'number'.\n\n\u001b[7m1\u001b[0m export const broken: number = 'not a number';\n\u001b[7m \u001b[0m \u001b[91m             ~~~~~~\u001b[0m\n\n\nFound 1 error in zz-scratch-type-error.ts\u001b[90m:1\u001b[0m\n\n"
+      },
+      {
+        "check": "tsc",
+        "file": null,
+        "exit_code": 1,
+        "passed": false,
+        "timed_out": false,
+        "duration_ms": 1210,
+        "tests": null,
+        "output_tail": "\n> thinkbox-web@0.1.0 typecheck:tsc\n> tsc --noEmit\n\n\u001b[96mzz-scratch-type-error.ts\u001b[0m:\u001b[93m1\u001b[0m:\u001b[93m14\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2322: \u001b[0mType 'string' is not assignable to type 'number'.\n\n\u001b[7m1\u001b[0m export const broken: number = 'not a number';\n\u001b[7m \u001b[0m \u001b[91m             ~~~~~~\u001b[0m\n\n\nFound 1 error in zz-scratch-type-error.ts\u001b[90m:1\u001b[0m\n\n"
+      }
+    ]
+  },
+  "constant_patch": {
+    "sha": "d4cc5b27b3198d46af60b8a30f7592c75a326a53",
+    "verified": false,
+    "patch_sha256": "aa0640318d7d44c2038716ee8d075941dcf6717caf948044e0e937ce99593935",
+    "files_touched": [
+      "apps/web/gates.ts"
+    ],
+    "flags": [
+      "touches_ci_or_gates"
+    ],
+    "sandbox": {
+      "tool": "bwrap",
+      "version": "0.11.1",
+      "network": "blocked",
+      "home_hidden": true,
+      "system_read_only": true,
+      "env_cleared": true
+    },
+    "duration_ms": 3266,
+    "checks": [
+      {
+        "check": "test_file",
+        "file": "tests/gates.test.ts",
+        "exit_code": 1,
+        "passed": false,
+        "timed_out": false,
+        "duration_ms": 331,
+        "tests": {
+          "pass": 7,
+          "fail": 1
+        },
+        "output_tail": "_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 91,\n    expected: 90,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n"
+      }
+    ]
+  },
+  "working_tree_unchanged": true,
+  "criteria": {
+    "c1_clean_head_verifies_all_four": false,
+    "c2_type_error_caught": true,
+    "c3_broken_constant_caught": true,
+    "c4_real_tree_untouched": true
+  },
+  "verdict": "FAIL"
+}
