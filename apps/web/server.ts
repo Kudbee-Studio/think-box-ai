@@ -1370,7 +1370,7 @@ export class AgentSession {
       newChildRun: (goal, runId, model, convoyId, workerId) => {
         const record = this.newRun(goal, runId);
         record.model = model;
-        record.provider = isInceptionModel(model) ? 'inception' : 'ollama';
+        record.provider = isInceptionModel(model) ? 'inception' : model === 'sandbox' ? 'sandbox' : 'ollama';
         record.jobId = convoyId;
         record.specialistId = workerId;
         return record;
@@ -2165,7 +2165,9 @@ registerMemoryRoutes(app, { memoryStore, persistence, sessions });
 registerProfileRoutes(app, { profileManager, runStore, sessions, activateProfile, profilesDir });
 
 /** The measured average cost of a completed run on this model, or null: a plan never invents a number. */
-function costOfModel(model: string | null, kindIn: 'lookup' | 'specialist' | 'repo' = 'lookup'): { usd: number | null; basis: string } {
+function costOfModel(model: string | null, kindIn: 'lookup' | 'specialist' | 'repo' | 'patch' | 'checks' = 'lookup'): { usd: number | null; basis: string } {
+  if (kindIn === 'checks') return { usd: 0, basis: 'no model: the repository\'s own checks run in a sandbox' };
+  if (kindIn === 'patch') return { usd: null, basis: 'no measured patch-proposal runs yet' };
   if (!model) return { usd: null, basis: 'no model' };
   if (!isInceptionModel(model)) return { usd: 0, basis: 'local model, no API cost' };
   // A lookup costs a fraction of a specialist job; averaging them together made estimates 10x off. Estimate from runs of the same kind of worker.

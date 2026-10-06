@@ -421,9 +421,12 @@ test('LEARN mode: a verified lookup convoy leaves deterministic Think Token CAND
   assert.equal(c.job_state.facts.learned_tokens, c.learned_tokens.length);
 });
 
-test('mode is validated: an unknown mode is a 400, SIMULATE and AUTONOMOUS plan as not executable, and stopping a convoy that is not running is an error', async () => {
+test('mode is validated: an unknown mode is a 400, a question is refused for SIMULATE and AUTONOMOUS is not executable, and stopping a convoy that is not running is an error', async () => {
   assert.equal((await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'yolo' })).status, 400);
-  for (const mode of ['simulate', 'autonomous']) {
+  // SIMULATE plans a change, so a question is refused for that mode; AUTONOMOUS is not available at all
+  const simQ = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode: 'simulate' })).body.convoy;
+  assert.equal(simQ.plan.executable, false); assert.match(simQ.plan.blocked_reasons.join(), /reads like a question or an investigation/);
+  for (const mode of ['autonomous']) {
     const c = (await post('/api/convoys/plan', { goal: 'What is the last PR?', model: QWEN, mode })).body.convoy;
     assert.equal(c.plan.executable, false, mode);
     assert.match(c.plan.blocked_reasons.join(), /not available yet/);

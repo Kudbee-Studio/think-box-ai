@@ -73,6 +73,25 @@ export interface ReviewRecord {
   note?: string;
 }
 
+/** A SIMULATE convoy's result: the proposal (a diff built by code from exact text edits), who proposed it, and the sandbox report. `verified` is the report's, never a model's. */
+export interface SimulationResult {
+  ref: string;
+  /** The one commit the whole convoy was pinned to. */
+  sha: string;
+  proposed_by: string;
+  /** The proposing model's own summary of the change: its words, not a verdict. */
+  summary: string;
+  patch: string;
+  patch_sha256: string;
+  files: string[];
+  flags: string[];
+  /** false when the checks were not run (approval denied, or the run could not start). */
+  checks_ran: boolean;
+  verified: boolean | null;
+  report: Record<string, unknown> | null;
+  note?: string;
+}
+
 export interface WorkerRecord {
   id: string;
   kind: PlannedWorker['kind'];
@@ -115,6 +134,8 @@ export interface ConvoyRecord {
   learn_error?: string;
   finding?: RepoFinding;
   finding_check?: { disk_verified: boolean; reason?: string };
+  /** SIMULATE only: the proposed change and what the sandbox said about it. Never applied to the working tree, never pushed. */
+  simulation?: SimulationResult;
   cost_usd: number;
   tool_calls: number;
   tokens: number;

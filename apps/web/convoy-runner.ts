@@ -7,7 +7,9 @@
 // agent through the same governed path (the plan named that escalation up front). The worker budget is enforced as the convoy runs.
 
 import { randomUUID } from 'node:crypto';
-import { newRunContext, type AgentHooks, type AgentRunResult } from './agent.ts';
+import { newRunContext, runGovernedTool, type AgentHooks, type AgentRunResult } from './agent.ts';
+import { describeReport } from './check-claims.ts';
+import { resolveCommit, type ScratchReport } from './scratch-runner.ts';
 import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
@@ -15,7 +17,7 @@ import type { LookupEvidence } from './live-lookup.ts';
 import { COLD_LOAD_MS, runLocalToolLoop, type LocalChat } from './local-tools.ts';
 import { attemptRepo, repoEscalationReason, type RepoAttempt } from './escalation.ts';
 import { loopCostUsd } from './mercury-chat.ts';
-import { REPO_TOOLS, type RepoEvidence } from './repo-tools.ts';
+import { REPO_TOOLS, repoRoot, type RepoEvidence } from './repo-tools.ts';
 import type { RunRecord, RunStore } from './runs.ts';
 
 export interface RunnerDeps {
@@ -55,6 +57,7 @@ export async function executeConvoy(deps: RunnerDeps, convoyId: string): Promise
     const kind = c.plan.workers[0]?.kind;
     if (kind === 'specialist') await runSpecialistConvoy(deps, c, update);
     else if (kind === 'repo') await runRepoConvoy(deps, c, update);
+    else if (kind === 'patch') await runSimulateConvoy(deps, c, update);
     else await runLookupConvoy(deps, c, update);
   } catch (err) {
     // An unexpected crash is a failure with its message, never a silent success; partial evidence on the record stays.
@@ -319,3 +322,90 @@ async function runRepoWorker(deps: RunnerDeps, c: ConvoyRecord, worker: WorkerRe
   update();
   return { attempt, ...(failure ? { failure } : {}), grounding, ...(answer ? { answer } : {}) };
 }
+
+// ─── SIMULATE: propose a change, verify it in the sandbox ────────────────────────────────────────────────────────────────────────────────────────
+
+/** What the patch worker is told. It can read and propose; it cannot write or run anything. */
+function engineerRole(sha: string): string {
+  return [
+    `You are the patch worker of a SIMULATE convoy, pinned to commit ${sha.slice(0, 12)}. You can read the repository (repo_search, repo_read) and propose ONE change with propose_change. You cannot write files, run anything, push or open a pull request; the proposal is only checked, and then verified in a sandbox by someone else.`,
+    'Read the relevant files first. Propose the smallest change that does what the goal asks. Each edit is {path, find, replace}: `find` must be text copied EXACTLY from the file (never include the line-number prefixes that repo_read adds) and must occur exactly once, so include enough surrounding lines; or {path, create} for a new file.',
+    'If propose_change returns an error, read the message, fix that edit and call it again. When it returns ok, STOP: reply with one or two sentences saying what the change does. Do not claim it works or that tests pass: you cannot run anything, and the verdict comes from the sandbox.',
+    'Do not edit tests, CI, gates or configuration unless the goal asks for it, and if you do, say so plainly.',
+  ].join(' ');
+}
+
+async function runSimulateConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => void): Promise<void> {
+  const { store, runStore } = deps;
+  const now = deps.now ?? Date.now;
+  const patchW = c.workers.find((w) => w.id === 'patch-1');
+  const checksW = c.workers.find((w) => w.id === 'checks-1');
+  const sim = c.plan.simulation;
+  if (!sim || !patchW || !checksW || !patchW.model) { store.finish(c.id, 'failed', 'the plan is not a runnable SIMULATE plan', 'simulate_plan: it needs a patch worker with a model, a checks worker and a simulation block'); return; }
+  const plannedTools = (id: string): string[] => c.plan.workers.find((w) => w.id === id)?.tools ?? [];
+  const skip = (w: WorkerRecord, message: string): void => { w.status = 'skipped'; w.failure = { kind: 'not_run', message }; };
+
+  // One commit for the whole convoy: the proposal is built against it and the checks run on it.
+  let sha: string;
+  try { sha = await resolveCommit(repoRoot(), sim.ref); } catch (err) {
+    patchW.status = 'failed'; patchW.failure = { kind: 'ref', message: err instanceof Error ? err.message : String(err) }; skip(checksW, 'no commit to work on');
+    store.aggregate(c); store.finish(c.id, 'failed', 'the commit could not be resolved', `ref: ${patchW.failure.message}`); return;
+  }
+
+  // 1. the patch worker proposes
+  const t1 = now();
+  patchW.status = 'running';
+  const rec1 = deps.newChildRun(c.goal, randomUUID(), patchW.model, c.id, patchW.id);
+  patchW.run_id = rec1.id; c.run_ids.push(rec1.id); store.save(); update();
+  const got: { p?: { patch: string; sha256: string; files: string[]; flags: string[]; summary: string } } = {};
+  let failure: { kind: string; message: string } | undefined;
+  let cost = 0; let tokens = 0; let calls = 0;
+  try {
+    const hooks: AgentHooks = { ...deps.hooksFor(rec1, deps.signal, [...plannedTools('patch-1')]), scratchRef: sha, roleContext: engineerRole(sha) };
+    const inner = hooks.onToolOutput;
+    hooks.onToolOutput = (name, args, output) => {
+      inner?.(name, args, output);
+      if (name === 'propose_change' && output.ok === true && typeof output.patch === 'string') got.p = { patch: output.patch, sha256: String(output.patch_sha256), files: Array.isArray(output.files) ? output.files.map(String) : [], flags: Array.isArray(output.flags) ? output.flags.map(String) : [], summary: String(output.summary ?? '') };
+    };
+    const r = await deps.runAgent(c.goal, patchW.model, hooks);
+    cost = r.cost_usd; tokens = r.tokens; calls = r.tool_calls;
+    if (!r.success) failure = { kind: r.stopped ? 'stopped' : 'agent_failed', message: r.error ?? 'the worker agent failed' };
+    else if (!got.p) failure = { kind: 'no_patch', message: `${patchW.model} did not produce a valid proposal: no propose_change call succeeded` };
+  } catch (err) { failure = { kind: deps.signal.aborted ? 'stopped' : 'error', message: err instanceof Error ? err.message : String(err) }; }
+  patchW.status = failure ? 'failed' : 'completed'; patchW.cost_usd = cost; patchW.tokens = tokens; patchW.tool_calls = calls; patchW.duration_ms = now() - t1;
+  if (failure) patchW.failure = failure; else patchW.answer = got.p!.summary;
+  runStore.finish(rec1, failure ? { status: 'failed', error: `${failure.kind}: ${failure.message}`, failure_kind: failure.kind === 'stopped' ? 'stopped' : 'error' } : { status: 'completed', result: got.p!.summary });
+  store.aggregate(c); update();
+  if (failure || !got.p) { skip(checksW, 'there was no proposal to verify'); store.aggregate(c); store.finish(c.id, 'failed', `patch worker failed: ${failure?.kind}`, `${failure?.kind}: ${failure?.message}`); return; }
+  const proposal = got.p;
+
+  // 2. the sandbox verifies, through the governed tool: a human approves THIS run, shown the exact commit, the checks and the patch
+  const t2 = now();
+  checksW.status = 'running';
+  const rec2 = deps.newChildRun(c.goal, randomUUID(), 'sandbox', c.id, checksW.id);
+  checksW.run_id = rec2.id; c.run_ids.push(rec2.id); store.save(); update();
+  let report: ScratchReport | null = null; let checksFailure: { kind: string; message: string } | undefined;
+  try {
+    const hooks = deps.hooksFor(rec2, deps.signal, [...plannedTools('checks-1')]);
+    const gov = await runGovernedTool('run_checks', { ref: sha, checks: sim.checks, patch: proposal.patch }, hooks, newRunContext(), 1);
+    if (gov.approval === 'denied') checksFailure = { kind: 'tool_denied', message: String(gov.output.error ?? 'the run was denied') };
+    else if (gov.output.ok !== true) checksFailure = { kind: 'checks_not_run', message: String(gov.output.error ?? 'the checks could not run') };
+    else report = gov.output.report as unknown as ScratchReport;
+    checksW.tool_calls = 1;
+  } catch (err) { checksFailure = { kind: deps.signal.aborted ? 'stopped' : 'error', message: err instanceof Error ? err.message : String(err) }; }
+  checksW.status = checksFailure ? 'failed' : 'completed'; checksW.duration_ms = now() - t2;
+  if (checksFailure) checksW.failure = checksFailure; else checksW.answer = describeReport(report!);
+  runStore.finish(rec2, checksFailure ? { status: 'failed', error: `${checksFailure.kind}: ${checksFailure.message}`, failure_kind: checksFailure.kind === 'tool_denied' ? 'denied' : checksFailure.kind === 'stopped' ? 'stopped' : 'error' } : { status: 'completed', result: checksW.answer });
+
+  // 3. the result is built by code: the model's words are its summary, the verdict is the report's
+  const verified = report ? report.verified === true : null;
+  c.simulation = { ref: sim.ref, sha, proposed_by: patchW.model, summary: proposal.summary, patch: proposal.patch, patch_sha256: proposal.sha256, files: proposal.files, flags: proposal.flags, checks_ran: Boolean(report), verified, report: report as unknown as Record<string, unknown> | null, ...(checksFailure ? { note: `${checksFailure.kind}: ${checksFailure.message}`.slice(0, 300) } : {}) };
+  const flagText = proposal.flags.length ? ` Flags: ${proposal.flags.join(', ')} (the proposal edits ${proposal.flags.includes('touches_tests') ? 'tests, which are what judge it' : 'CI, gates or configuration'}).` : '';
+  const head = `Proposed change by ${patchW.model} on commit ${sha.slice(0, 8)}, ${proposal.files.length} file(s): ${proposal.files.join(', ')}. Patch ${proposal.sha256.slice(0, 12)}.${flagText}${proposal.summary ? ` Its summary: ${proposal.summary}` : ''}`;
+  const tail = report ? `Sandbox verification: ${describeReport(report)}.` : `NOT VERIFIED: the checks were not run (${checksFailure?.kind}: ${checksFailure?.message.slice(0, 160)}).`;
+  c.final_answer = `${head}\n${tail}\nThe change was NOT applied to your working tree and nothing was pushed; the patch is in this convoy's record.`;
+  store.aggregate(c); update();
+  if (verified) store.finish(c.id, 'success', 'a change was proposed and verified in the sandbox; it was not applied');
+  else store.finish(c.id, 'partial', report ? 'a change was proposed but the sandbox checks did not all pass' : 'a change was proposed but not verified: the checks did not run', report ? 'verification failed' : `checks: ${checksFailure?.kind}`);
+}
+

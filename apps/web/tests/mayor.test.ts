@@ -168,19 +168,67 @@ describe('repository investigation plans (OBSERVE)', () => {
     assert.match(plan(goal, { lookupModel: 'qwen2.5:3b', availableTools: ['live_lookup'] }).blocked_reasons.join(), /repository tools are not available/);
     assert.match(plan(goal, { lookupModel: null }).blocked_reasons.join(), /no model is available/);
   });
-  it('gates modes: observe and learn plan, simulate and autonomous are refused until they exist, and an unknown mode is an error', () => {
+  it('gates modes: observe, learn and simulate plan, autonomous is refused until it exists, and an unknown mode is an error', () => {
     assert.equal(plan(goal, { lookupModel: 'qwen2.5:3b', mode: 'learn' }).executable, true);
     assert.match(evaluatePolicy(plan(goal, { lookupModel: 'qwen2.5:3b', mode: 'learn' })).rules.find((r) => r.id === 'mode-learn')!.reason, /never auto-accepted/);
-    for (const mode of ['simulate', 'autonomous'] as const) {
-      const p = plan(goal, { lookupModel: 'qwen2.5:3b', mode });
-      assert.equal(p.executable, false);
-      assert.match(p.blocked_reasons.join(), new RegExp(`${mode.toUpperCase()} mode is not available yet`));
-      assert.equal(evaluatePolicy(p).decision, 'denied');
-    }
+    const p = plan(goal, { lookupModel: 'qwen2.5:3b', mode: 'autonomous' });
+    assert.equal(p.executable, false);
+    assert.match(p.blocked_reasons.join(), /AUTONOMOUS mode is not available yet/);
+    assert.equal(evaluatePolicy(p).decision, 'denied');
     assert.equal(planConvoy(input(goal, { mode: 'yolo' as any })).ok, false);
   });
   it('a live GitHub question is still a lookup, and the default mode is observe', () => {
     assert.equal(plan('What is the last PR?').workers[0].kind, 'lookup');
     assert.equal(plan('What is the last PR?').think_mode, 'observe');
+  });
+});
+
+describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', () => {
+  const goal = 'Fix the typo in the greeting so the greeting test passes';
+  const SIM_TOOLS = [...TOOLS, 'propose_change', 'run_checks'];
+  const sim = (o: Partial<PlanInput> = {}) => plan(goal, { mode: 'simulate', availableTools: SIM_TOOLS, ...o });
+  it('is a patch worker on the agent model, then a sandbox checks worker with no model, pinned to HEAD, executable, with no escalation', () => {
+    const p = sim();
+    assert.equal(p.think_mode, 'simulate'); assert.equal(p.executable, true); assert.deepEqual(p.blocked_reasons, []);
+    assert.deepEqual(p.workers.map((w: any) => [w.id, w.kind, w.model, w.tools, w.permission, w.depends_on, w.wave]), [
+      ['patch-1', 'patch', 'mercury-2', ['repo_search', 'repo_read', 'propose_change'], 'read_only', [], 1],
+      ['checks-1', 'checks', null, ['run_checks'], 'sandbox_exec', ['patch-1'], 2],
+    ]);
+    assert.deepEqual(p.waves, [['patch-1'], ['checks-1']]);
+    assert.deepEqual(p.simulation, { ref: 'HEAD', checks: ['lint', 'typecheck', 'tsc', 'test'] });
+    assert.equal(p.escalation, null);
+    assert.equal(p.workers[1].estimated_cost_usd, 0);
+    assert.match(p.workers[0].cost_basis, /average of 1 measured mercury-2 run|no measured/);
+    assert.ok(p.warnings.some((w: string) => /never applied to your working tree and nothing is pushed/.test(w)));
+    assert.ok(p.warnings.some((w: string) => /asks for your approval again/.test(w)));
+    assert.ok(p.warnings.some((w: string) => /not proof the change is right/.test(w)));
+  });
+  it('the plan carries no simulation block in any other mode, and the same input always gives the same plan', () => {
+    assert.equal(plan(goal, { lookupModel: 'qwen2.5:3b' }).simulation, undefined);
+    assert.deepEqual(sim(), sim());
+  });
+  it('policy: a human must approve, risk is medium, and the approver is told the source goes to the agent model and what the sandbox is', () => {
+    const pol = evaluatePolicy(sim());
+    assert.equal(pol.decision, 'requires_approval'); assert.equal(pol.risk, 'medium');
+    const rule = (id: string) => pol.rules.find((r) => r.id === id)!;
+    assert.match(rule('mode-simulate').reason, /never applied to your working tree and nothing is pushed or opened as a pull request/);
+    assert.match(rule('source-leaves-machine').reason, /sent to that provider/); assert.deepEqual(rule('source-leaves-machine').workers, ['patch-1']);
+    assert.match(rule('sandboxed-checks').reason, /no network, no home directory and no credentials.*asks for your approval again/); assert.deepEqual(rule('sandboxed-checks').workers, ['checks-1']);
+    assert.equal(rule('sandboxed-checks').effect, 'require_approval');
+    assert.ok(pol.restrictions.some((r) => /second approval that names the exact commit and patch/.test(r)));
+    assert.ok(!pol.rules.some((r) => r.id === 'command-execution'), 'the sandbox is not "command execution"');
+  });
+  it('is not executable without the agent model, without the tools, or for a question or an investigation', () => {
+    assert.match(sim({ agentModel: null }).blocked_reasons.join(), /needs the agent model \(Mercury\)/);
+    assert.match(plan(goal, { mode: 'simulate', availableTools: TOOLS }).blocked_reasons.join(), /tools SIMULATE needs are not available.*propose_change, run_checks/);
+    assert.match(plan(goal, { mode: 'simulate', availableTools: [...TOOLS, 'run_checks'] }).blocked_reasons.join(), /propose_change/);
+    for (const q of ['What is the last PR?', 'Which pull requests are open?', 'Find one function in apps/web that has no test']) {
+      const p = sim() && plan(q, { mode: 'simulate', availableTools: SIM_TOOLS }); assert.equal(p.executable, false, q); assert.match(p.blocked_reasons.join(), /reads like a question or an investigation/, q);
+      assert.equal(evaluatePolicy(p).decision, 'denied');
+    }
+  });
+  it('the worker budget still applies: one worker is not enough for two', () => {
+    assert.match(sim({ budget: { max_workers: 1 } }).blocked_reasons.join(), /worker budget exceeded: 2 worker\(s\) possible/);
+    assert.equal(sim({ budget: { max_workers: 2 } }).executable, true);
   });
 });
