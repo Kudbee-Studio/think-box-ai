@@ -127,9 +127,18 @@ describe('what is NOT a verified proposal', () => {
     assert.equal(c.state, 'PARTIAL');
     assert.equal(c.simulation!.checks_ran, false); assert.equal(c.simulation!.verified, null); assert.equal(c.simulation!.report, null);
     assert.equal(c.workers[1]!.status, 'failed'); assert.equal(c.workers[1]!.failure?.kind, 'tool_denied');
-    assert.match(c.final_answer!, /NOT VERIFIED: the checks were not run \(tool_denied: Denied by human reviewer/);
+    assert.match(c.final_answer!, /NOT VERIFIED: the checks were not run \(a human denied the run\)\./); assert.equal(c.simulation!.note, 'a human denied the run');
     assert.ok(c.simulation!.patch.length > 0);
     assert.equal(h.approvals.length, 1);
+  });
+  it('a proposal that edits the TEST can verify, and says so loudly: flagged in the run prompt, in the record and in the answer', { skip }, async () => {
+    const h = harness();
+    const c = await executeConvoy(h.deps(proposing([{ path: 'apps/web/tests/greeter.test.js', find: "'hello x'", replace: "'helo x'" }], 'Update the expected greeting in the test.')), h.c.id);
+    assert.equal(c.simulation!.verified, true, 'weakening the test makes it pass');
+    assert.deepEqual(c.simulation!.files, ['apps/web/tests/greeter.test.js']); assert.deepEqual(c.simulation!.flags, ['touches_tests']);
+    assert.match(h.approvals[0]!.reason, /WARNING: touches_tests \(it edits tests, which are what judge it\)/);
+    assert.match(c.final_answer!, /Flags: touches_tests \(the proposal edits tests, which are what judge it\)\./);
+    assert.match(c.final_answer!, /verified: yes/, 'the verdict is still the report\'s: the flag is what tells the reader it proves less');
   });
   it('no proposal at all is FAILED, the checks worker is skipped, and a model that claims it fixed things in words is not believed', async () => {
     const h = harness();

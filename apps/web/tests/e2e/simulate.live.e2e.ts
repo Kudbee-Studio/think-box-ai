@@ -114,7 +114,7 @@ try {
       let runChecksCalls = 0;
       for (const rid of d.run_ids ?? []) { const full = await getJson(`/api/runs/${rid}`); const evs = (full.events ?? full.run?.events ?? full.steps ?? full.run?.steps ?? []) as any[]; runChecksCalls += evs.filter((e) => e.kind === 'tool' && e.name === 'run_checks').length; }
       r.run_checks_calls = runChecksCalls;
-      if (g.id === 'S1-real-bug' && sim && !detailShot) { detailShot = 'p3.40-convoy-detail.png'; try { await page.locator('#convoy-detail').scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(OUT, detailShot), animations: 'disabled', timeout: 8000 }); } catch { detailShot = null; } }
+      if (g.id === 'S1-real-bug' && sim && !detailShot) { detailShot = 'p3.40-convoy-detail.png'; try { await page.getByText(/^Proposed change ·/).first().scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(OUT, detailShot), animations: 'disabled', timeout: 8000 }); } catch { detailShot = null; } }
       log(`${g.id}: ${r.state}/${r.outcome} prompts=${r.prompts.length} run_checks=${runChecksCalls} verified=${sim?.verified} files=${sim?.files?.join(',')} flags=${JSON.stringify(sim?.flags)} $${d.cost_usd}`);
     } catch (e) { r.exception = String((e as Error).message ?? e).slice(0, 500); log(`${g.id} ERROR ${r.exception}`); }
     try { await page.click('.convoy-close', { timeout: 1500 }); } catch { /* window may stay open */ }

@@ -399,10 +399,11 @@ async function runSimulateConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () =
 
   // 3. the result is built by code: the model's words are its summary, the verdict is the report's
   const verified = report ? report.verified === true : null;
-  c.simulation = { ref: sim.ref, sha, proposed_by: patchW.model, summary: proposal.summary, patch: proposal.patch, patch_sha256: proposal.sha256, files: proposal.files, flags: proposal.flags, checks_ran: Boolean(report), verified, report: report as unknown as Record<string, unknown> | null, ...(checksFailure ? { note: `${checksFailure.kind}: ${checksFailure.message}`.slice(0, 300) } : {}) };
+  c.simulation = { ref: sim.ref, sha, proposed_by: patchW.model, summary: proposal.summary, patch: proposal.patch, patch_sha256: proposal.sha256, files: proposal.files, flags: proposal.flags, checks_ran: Boolean(report), verified, report: report as unknown as Record<string, unknown> | null, ...(checksFailure ? { note: checksFailure.kind === 'tool_denied' ? 'a human denied the run' : `${checksFailure.kind}: ${checksFailure.message}`.slice(0, 300) } : {}) };
   const flagText = proposal.flags.length ? ` Flags: ${proposal.flags.join(', ')} (the proposal edits ${proposal.flags.includes('touches_tests') ? 'tests, which are what judge it' : 'CI, gates or configuration'}).` : '';
   const head = `Proposed change by ${patchW.model} on commit ${sha.slice(0, 8)}, ${proposal.files.length} file(s): ${proposal.files.join(', ')}. Patch ${proposal.sha256.slice(0, 12)}.${flagText}${proposal.summary ? ` Its summary: ${proposal.summary}` : ''}`;
-  const tail = report ? `Sandbox verification: ${describeReport(report)}.` : `NOT VERIFIED: the checks were not run (${checksFailure?.kind}: ${checksFailure?.message.slice(0, 160)}).`;
+  const whyNotRun = checksFailure?.kind === 'tool_denied' ? 'a human denied the run' : `${checksFailure?.kind}: ${String(checksFailure?.message).replace(/\s+/g, ' ').slice(0, 160)}`;
+  const tail = report ? `Sandbox verification: ${describeReport(report)}.` : `NOT VERIFIED: the checks were not run (${whyNotRun}).`;
   c.final_answer = `${head}\n${tail}\nThe change was NOT applied to your working tree and nothing was pushed; the patch is in this convoy's record.`;
   store.aggregate(c); update();
   if (verified) store.finish(c.id, 'success', 'a change was proposed and verified in the sandbox; it was not applied');
