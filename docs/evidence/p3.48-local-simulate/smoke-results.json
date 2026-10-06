@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-10-06T17:56:35.124Z",
+  "plan": "docs/evidence/p3.48-local-simulate/PLAN.md",
+  "tasks_sha256": "6eadb56a071161892691e87beec22b40dcfe23371c5014d28bb5ca3ebe9b41af",
+  "models": [
+    "qwen2.5:3b"
+  ],
+  "tasks": [
+    "T01"
+  ],
+  "note": "real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder's instruction; one trial per cell, default sampling",
+  "preflight": [
+    {
+      "id": "T01",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    }
+  ],
+  "validity": {
+    "v0_preflight": true,
+    "v1_independent_agreement": true,
+    "v1_checked": 1,
+    "v2_integrity": true,
+    "v3_all_terminal": true,
+    "v4_same_input": true,
+    "v5_hygiene": true
+  },
+  "mercury_spend_usd": 0,
+  "by_model": [
+    {
+      "model": "qwen2.5:3b",
+      "n": 1,
+      "success": 1,
+      "success_ci95": [
+        0.21,
+        1
+      ],
+      "verified_flagged": 0,
+      "proposal_wrong": 0,
+      "no_proposal": 0,
+      "no_proposal_reasons": {},
+      "median_wall_s": 53.1,
+      "tokens": 2741,
+      "tool_calls": 4,
+      "cost_usd": 0,
+      "success_tasks": [
+        "T01"
+      ]
+    }
+  ],
+  "best_local": "qwen2.5:3b",
+  "decision_by_pre_registered_rule": "do not pursue local patching now",
+  "mercury_sanity": "not run",
+  "rows": [
+    {
+      "model": "qwen2.5:3b",
+      "task": "T01",
+      "kind": "typo, file named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/greeter.js"
+      ],
+      "patch": "diff --git a/apps/web/src/greeter.js b/apps/web/src/greeter.js\nindex 2165c46..790db20 100644\n--- a/apps/web/src/greeter.js\n+++ b/apps/web/src/greeter.js\n@@ -1,4 +1,4 @@\n function greet(name) {\n-  return 'helo ' + name;\n+  return 'hello ' + name;\n }\n module.exports = { greet };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 53121,
+      "tokens": 2741,
+      "tool_calls": 4,
+      "cost_usd": 0,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "",
+      "error": null
+    }
+  ]
+}
