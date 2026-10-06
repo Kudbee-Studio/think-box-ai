@@ -14,11 +14,14 @@ import { lookupHooks } from '../helpers/lookup-hooks.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = path.resolve(appDir, '../..');
-const OUT = path.join(repoRoot, 'docs/evidence/p3.48-local-simulate');
+const OUT = path.join(repoRoot, process.env.P348_OUT || 'docs/evidence/p3.48-local-simulate');
 const LABEL = process.env.P348_RUN_LABEL || 'run';
 const MODELS = (process.env.P348_MODELS || 'smollm2:360m,qwen2.5:1.5b,qwen2.5:3b,gemma3:4b,mercury-2').split(',');
 const ONLY = process.env.P348_TASKS ? new Set(process.env.P348_TASKS.split(',')) : null;
-const TIMEOUT_MS = 400_000; const MERCURY_CAP_USD = 0.20;
+const TIMEOUT_MS = Number(process.env.P348_TIMEOUT_MS) || 400_000; const MERCURY_CAP_USD = 0.20;
+// trials per model, e.g. P348_TRIALS=smollm2:360m=2,qwen2.5:3b=2 (default 1 each)
+const TRIALS = new Map((process.env.P348_TRIALS || '').split(',').filter(Boolean).map((x) => [x.slice(0, x.lastIndexOf('=')), Number(x.slice(x.lastIndexOf('=') + 1))] as const));
+const trialsFor = (m: string): number => Math.max(1, TRIALS.get(m) ?? 1);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (s: string) => console.log(`[p3.48 ${new Date().toISOString().slice(11, 19)}] ${s}`);
 function notRun(why: string): never { console.error(`NOT RUN: ${why}`); process.exit(2); }
@@ -44,7 +47,7 @@ for (const m of MODELS) if (m !== 'mercury-2' && !installed.has(m)) notRun(`${m}
 
 const git = (cwd: string, ...a: string[]): string => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd, encoding: 'utf8' }).trim();
 const realGit = (...a: string[]): string => git(repoRoot, ...a);
-const EXCLUDE = [':(exclude)docs/evidence/p3.48-local-simulate'];
+const EXCLUDE = [`:(exclude)${path.relative(repoRoot, OUT)}`];
 const realState = (): string => createHash('sha256').update(realGit('status', '--porcelain', '--', '.', ...EXCLUDE) + realGit('diff', '--', '.', ...EXCLUDE) + realGit('rev-parse', 'HEAD')).digest('hex');
 const scratchDirs = (): number => fs.readdirSync(privateTmp).filter((n) => n.startsWith('kudbee-scratch-')).length;
 const tasksHash = createHash('sha256').update(fs.readFileSync(path.join(appDir, 'tests/helpers/local-sim-tasks.ts'))).digest('hex');
@@ -81,13 +84,14 @@ for (const task of tasks) {
 if (!preflight.every((p) => p.ok)) { console.error(JSON.stringify(preflight)); notRun('V0 failed: a task does not fail as written or does not pass with its reference fix'); }
 log(`V0 ok: ${tasks.length} tasks fail as written and pass with the reference fix`);
 
-interface Row { model: string; task: string; kind: string; state: string; outcome: string | null; category: string; reason: string | null; verified: boolean | null; flags: string[]; files: string[]; patch: string | null; independent: number | null; agrees: boolean | null; wall_ms: number; tokens: number; tool_calls: number; cost_usd: number; approvals: number; repo_clean: boolean; summary: string | null; error: string | null }
+interface Row { model: string; task: string; trial: number; kind: string; state: string; outcome: string | null; category: string; reason: string | null; verified: boolean | null; flags: string[]; files: string[]; patch: string | null; independent: number | null; agrees: boolean | null; wall_ms: number; tokens: number; tool_calls: number; cost_usd: number; approvals: number; repo_clean: boolean; summary: string | null; error: string | null }
 const rows: Row[] = [];
 const before = { real: realState(), scratch: scratchDirs() };
 let mercurySpend = 0;
 const lookup = (m: string | null) => (m === 'mercury-2' ? { usd: 0.01, basis: 'estimate' } : { usd: 0, basis: 'local model, no API cost' });
 
 for (const model of MODELS) {
+  for (let trial = 1; trial <= trialsFor(model); trial += 1) {
   for (const task of tasks) {
     if (model === 'mercury-2' && mercurySpend >= MERCURY_CAP_USD) { log(`mercury spend cap reached: skipping ${task.id}`); continue; }
     const { dir, sha } = makeRepo(task); const headBefore = git(dir, 'rev-parse', 'HEAD');
@@ -122,10 +126,11 @@ for (const model of MODELS) {
     else if (sim?.checks_ran === true) category = 'proposal_wrong';
     else { category = 'no_proposal'; reason = timedOut ? 'timeout' : (patchW?.failure?.message ?? error ?? c.error ?? 'unknown').split(':')[0]!.trim().slice(0, 40); if (!timedOut && patchW?.failure?.kind === 'no_patch') reason = 'no_valid_proposal'; }
     const cost = Number(c.cost_usd) || 0; if (model === 'mercury-2') mercurySpend += cost;
-    const row: Row = { model, task: task.id, kind: task.kind, state: c.state, outcome: c.outcome ?? null, category, reason, verified: sim?.verified ?? null, flags, files: sim?.files ?? [], patch: sim?.patch ?? null, independent, agrees, wall_ms: wall, tokens: c.tokens, tool_calls: c.tool_calls, cost_usd: cost, approvals, repo_clean: git(dir, 'status', '--porcelain') === '' && git(dir, 'rev-parse', 'HEAD') === headBefore, summary: sim?.summary ?? null, error: c.error ?? error };
+    const row: Row = { model, task: task.id, trial, kind: task.kind, state: c.state, outcome: c.outcome ?? null, category, reason, verified: sim?.verified ?? null, flags, files: sim?.files ?? [], patch: sim?.patch ?? null, independent, agrees, wall_ms: wall, tokens: c.tokens, tool_calls: c.tool_calls, cost_usd: cost, approvals, repo_clean: git(dir, 'status', '--porcelain') === '' && git(dir, 'rev-parse', 'HEAD') === headBefore, summary: sim?.summary ?? null, error: c.error ?? error };
     rows.push(row);
-    log(`${model.padEnd(13)} ${task.id} ${category.padEnd(15)} ${reason ?? ''} ${(wall / 1000).toFixed(1)}s ${row.tool_calls} calls $${cost.toFixed(4)}${agrees === false ? '  !! DISAGREES with the independent test' : ''}`);
+    log(`${model.padEnd(13)} ${task.id}${trialsFor(model) > 1 ? ` t${trial}` : ''} ${category.padEnd(15)} ${reason ?? ''} ${(wall / 1000).toFixed(1)}s ${row.tool_calls} calls $${cost.toFixed(4)}${agrees === false ? '  !! DISAGREES with the independent test' : ''}`);
     process.env.KUDBEE_REPO_ROOT = ''; fs.rmSync(dir, { recursive: true, force: true });
+  }
   }
 }
 
@@ -136,22 +141,23 @@ const byModel = MODELS.map((model) => {
   const r = rows.filter((x) => x.model === model); const n = r.length; const cnt = (cat: string) => r.filter((x) => x.category === cat).length;
   const reasons: Record<string, number> = {}; for (const x of r.filter((y) => y.category === 'no_proposal')) reasons[x.reason ?? 'unknown'] = (reasons[x.reason ?? 'unknown'] ?? 0) + 1;
   const ci = wilson(cnt('success'), n);
-  return { model, n, success: cnt('success'), success_ci95: [Number(ci[0].toFixed(2)), Number(ci[1].toFixed(2))], verified_flagged: cnt('verified_flagged'), proposal_wrong: cnt('proposal_wrong'), no_proposal: cnt('no_proposal'), no_proposal_reasons: reasons, median_wall_s: Number((median(r.map((x) => x.wall_ms)) / 1000).toFixed(1)), tokens: r.reduce((t, x) => t + x.tokens, 0), tool_calls: r.reduce((t, x) => t + x.tool_calls, 0), cost_usd: Number(r.reduce((t, x) => t + x.cost_usd, 0).toFixed(5)), success_tasks: r.filter((x) => x.category === 'success').map((x) => x.task) };
+  return { model, trials: trialsFor(model), n, success: cnt('success'), success_ci95: [Number(ci[0].toFixed(2)), Number(ci[1].toFixed(2))], verified_flagged: cnt('verified_flagged'), proposal_wrong: cnt('proposal_wrong'), no_proposal: cnt('no_proposal'), no_proposal_reasons: reasons, median_wall_s: Number((median(r.map((x) => x.wall_ms)) / 1000).toFixed(1)), tokens: r.reduce((t, x) => t + x.tokens, 0), tool_calls: r.reduce((t, x) => t + x.tool_calls, 0), cost_usd: Number(r.reduce((t, x) => t + x.cost_usd, 0).toFixed(5)), success_tasks: r.filter((x) => x.category === 'success').map((x) => x.task) };
 });
 const validity = {
   v0_preflight: preflight.every((p) => p.ok),
   v1_independent_agreement: rows.every((r) => r.agrees !== false), v1_checked: rows.filter((r) => r.agrees !== null).length,
   v2_integrity: rows.every((r) => r.repo_clean) && realState() === before.real,
   v3_all_terminal: rows.every((r) => ['COMPLETED', 'PARTIAL', 'FAILED'].includes(r.state)),
-  v4_same_input: true,
+  v4_same_input: !process.env.P348_EXPECT_TASKS_SHA || process.env.P348_EXPECT_TASKS_SHA === tasksHash,
   v5_hygiene: mercurySpend <= MERCURY_CAP_USD && !JSON.stringify(rows).includes(key || '\u0000') && scratchDirs() === before.scratch,
 };
-const bestLocal = byModel.filter((m) => m.model !== 'mercury-2').reduce((a, b) => (b.success > a.success ? b : a), byModel[0]!);
+const bestLocal = byModel.filter((m) => m.model !== 'mercury-2').reduce((a, b) => (b.n && b.success / b.n > (a.n ? a.success / a.n : -1) ? b : a), byModel[0]!);
 const mercury = byModel.find((m) => m.model === 'mercury-2');
-const decision = bestLocal.success >= 9 ? 'build the local-first + Mercury fallback lane (needs go-ahead)' : bestLocal.success >= 5 ? 'offer local as an opt-in privacy mode; no fallback without a repeat run' : 'do not pursue local patching now';
+const rate = bestLocal.n ? bestLocal.success / bestLocal.n : 0;
+const decision = rate >= 0.6 ? 'build the local-first + Mercury fallback lane (needs go-ahead)' : rate >= 0.33 ? 'offer local as an opt-in privacy mode; no fallback without a repeat run' : 'do not pursue local patching now';
 const sanity = mercury ? (mercury.success >= 13 ? 'ok' : `SUSPECT: mercury-2 reached only ${mercury.success}/${mercury.n}`) : 'not run';
 console.table(byModel.map((m) => ({ model: m.model, success: `${m.success}/${m.n}`, flagged: m.verified_flagged, wrong: m.proposal_wrong, none: m.no_proposal, reasons: JSON.stringify(m.no_proposal_reasons), p50_s: m.median_wall_s, cost: m.cost_usd })));
-await writeEvidence(OUT, path.join(OUT, `${LABEL}-results.json`), { generated_at: new Date().toISOString(), plan: 'docs/evidence/p3.48-local-simulate/PLAN.md', tasks_sha256: tasksHash, models: MODELS, tasks: tasks.map((t) => t.id), note: 'real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder\'s instruction; one trial per cell, default sampling', preflight, validity, mercury_spend_usd: Number(mercurySpend.toFixed(5)), by_model: byModel, best_local: bestLocal.model, decision_by_pre_registered_rule: decision, mercury_sanity: sanity, rows });
+await writeEvidence(OUT, path.join(OUT, `${LABEL}-results.json`), { generated_at: new Date().toISOString(), plan: `${path.relative(repoRoot, OUT)}/PLAN.md`, tasks_sha256: tasksHash, models: MODELS, tasks: tasks.map((t) => t.id), note: 'real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder\'s instruction; one trial per cell, default sampling', preflight, validity, mercury_spend_usd: Number(mercurySpend.toFixed(5)), by_model: byModel, best_local: bestLocal.model, decision_by_pre_registered_rule: decision, mercury_sanity: sanity, rows });
 process.env.TMPDIR = savedTmp ?? ''; fs.rmSync(privateTmp, { recursive: true, force: true });
 log(`validity ${JSON.stringify(validity)}; best local ${bestLocal.model} ${bestLocal.success}/${bestLocal.n}; rule says: ${decision}; mercury sanity: ${sanity}`);
 void randomUUID;
