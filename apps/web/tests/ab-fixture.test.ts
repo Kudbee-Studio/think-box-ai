@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { EVAL_TASKS } from '../local-eval.ts';
 import fs from 'node:fs';
 import path from 'node:path';
-import { AB_GOALS, HELD2_GOALS, HELD2_MODULES, HELD_GOALS, HELD_MODULES, TRAIN_GOALS, goalsHash, held2GoalsHash, heldGoalsHash, startAbWorld, startHeld2World, startHeldWorld, startTrainWorld, trainGoalsHash } from './helpers/ab-fixture.ts';
+import { AB_GOALS, HELD2_GOALS, HELD2_MODULES, HELD3_GOALS, HELD3_MODULES, HELD_GOALS, HELD_MODULES, TRAIN_GOALS, goalsHash, held2GoalsHash, held3GoalsHash, heldGoalsHash, startAbWorld, startHeld2World, startHeld3World, startHeldWorld, startTrainWorld, trainGoalsHash } from './helpers/ab-fixture.ts';
 import { runAbsenceCheck } from '../absence.ts';
 
 test('30 frozen goals, 15 lookup + 15 repo, unique, none reused from the earlier eval', () => {
@@ -89,5 +89,31 @@ test('P3.34 held-out world: 30 goals, both phrasings, every name new (also versu
     assert.equal(g.check({ finding: { found: true, file: `src/${m.file}.ts`, quote: `export function ${m.tested}(x: number): number {` } } as any).ok, false);
     assert.equal(g.check({ finding: { found: false, reason: 'x' } } as any).ok, false);
   } finally { for (const w of worlds) await w.close(); await held2.close(); }
+});
+
+test('P3.35 confirmation world: 60 goals, both phrasings, every name new versus all four earlier worlds, no name the repo tools hide, and the engine agrees on every module', async () => {
+  assert.equal(HELD3_GOALS.length, 60);
+  assert.equal(new Set(HELD3_GOALS.map((g) => g.id)).size, 60);
+  assert.equal(new Set(HELD3_MODULES.flatMap((m) => [m.tested, m.untested])).size, 120, 'every function name is distinct');
+  assert.equal(HELD3_GOALS.filter((g) => g.goal.startsWith('Find an exported function')).length, 30);
+  assert.ok(new Set([held3GoalsHash(), held2GoalsHash(), heldGoalsHash(), goalsHash(), trainGoalsHash()]).size === 5);
+  const seen = new Set<string>();
+  const worlds = [await startAbWorld(), await startTrainWorld(), await startHeldWorld(), await startHeld2World()];
+  const held3 = await startHeld3World();
+  try {
+    for (const w of worlds) for (const f of fs.readdirSync(path.join(w.root, 'src'))) { seen.add(f); for (const id of fs.readFileSync(path.join(w.root, 'src', f), 'utf8').match(/[A-Za-z_]{4,}/g) ?? []) seen.add(id); }
+    for (const m of HELD3_MODULES) {
+      assert.ok(!seen.has(`${m.file}.ts`), m.file);
+      assert.ok(!seen.has(m.tested) && !seen.has(m.untested), `${m.tested}/${m.untested}`);
+      assert.doesNotMatch(`${m.file} ${m.tested} ${m.untested}`, /secret|credential|token|password/i, 'the repo tools hide files with such names');
+      const line = (fn: string): number => fs.readFileSync(path.join(held3.root, 'src', `${m.file}.ts`), 'utf8').split('\n').findIndex((l) => l.includes(`function ${fn}(`)) + 1;
+      const f = (fn: string) => ({ found: true, file: `src/${m.file}.ts`, line: line(fn), quote: `export function ${fn}(x: number): number {`, claim: `\`${fn}\` has no tests` });
+      assert.equal((await runAbsenceCheck(f(m.untested), held3.root)).contradicted.length, 0, `${m.untested} is untested`);
+      assert.ok((await runAbsenceCheck(f(m.tested), held3.root)).contradicted.length >= 1, `${m.tested} is tested`);
+    }
+    const g = HELD3_GOALS[0]!; const m = HELD3_MODULES[0]!;
+    assert.equal(g.check({ finding: { found: true, file: `src/${m.file}.ts`, quote: `export function ${m.untested}(x: number): number {` } } as any).ok, true);
+    assert.equal(g.check({ finding: { found: true, file: `src/${m.file}.ts`, quote: `export function ${m.tested}(x: number): number {` } } as any).ok, false);
+  } finally { for (const w of worlds) await w.close(); await held3.close(); }
 });
 
