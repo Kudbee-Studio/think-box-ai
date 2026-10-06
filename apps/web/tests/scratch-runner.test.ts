@@ -74,6 +74,7 @@ describe('the sandbox definition', () => {
       assert.equal(env.PATH, '/opt/node-v24/bin:/usr/bin:/bin'); assert.equal(env.HOME, '/tmp/home'); assert.equal(env.CI, '1');
       assert.doesNotMatch(JSON.stringify(env), /sk-should|ghp_should|\/home\/|INCEPTION|GITHUB/);
       assert.ok(Object.keys(env).every((k) => /^[A-Za-z_]+$/.test(k)));
+      assert.deepEqual([env.GIT_AUTHOR_EMAIL, env.GIT_COMMITTER_EMAIL], ['scratch@localhost', 'scratch@localhost'], 'a fixed, non-secret git identity so commits in temporary repositories work');
     } finally { if (saved.k === undefined) delete process.env.INCEPTION_API_KEY; else process.env.INCEPTION_API_KEY = saved.k; if (saved.g === undefined) delete process.env.GITHUB_TOKEN; else process.env.GITHUB_TOKEN = saved.g; }
   });
   it('bwrapArgs unshares everything, clears the environment, binds read-only except the work copy, and ends with the argv', () => {

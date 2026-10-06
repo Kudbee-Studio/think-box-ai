@@ -86,6 +86,8 @@ export function sandboxEnv(nodeRoot: string): Record<string, string> {
   return {
     PATH: `${nodeRoot}/bin:/usr/bin:/bin`, HOME: '/tmp/home', TMPDIR: '/tmp', LANG: 'C.UTF-8', CI: '1', NODE_ENV: 'test', FORCE_COLOR: '0',
     npm_config_update_notifier: 'false', npm_config_audit: 'false', npm_config_fund: 'false', npm_config_cache: '/tmp/npm-cache', GIT_CONFIG_NOSYSTEM: '1',
+    // a fixed, non-secret identity: the suite commits in temporary repositories and the host's global git config is (rightly) not visible here
+    GIT_AUTHOR_NAME: 'scratch', GIT_AUTHOR_EMAIL: 'scratch@localhost', GIT_COMMITTER_NAME: 'scratch', GIT_COMMITTER_EMAIL: 'scratch@localhost',
   };
 }
 
