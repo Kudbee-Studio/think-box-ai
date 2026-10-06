@@ -48,7 +48,7 @@ export type PatchReview = { ok: true; files: string[]; flags: string[]; sha256: 
 const PATCH_PATH = /^(?:diff --git a\/(.+) b\/(.+)|rename (?:from|to) (.+)|copy (?:from|to) (.+)|--- a\/(.+)|\+\+\+ b\/(.+))$/;
 /** Paths whose change deserves a flag: a patch that edits the tests or the gates that judge it can make a broken change look green. */
 const SENSITIVE: Array<[string, RegExp]> = [
-  ['touches_tests', /(^|\/)tests?\/|\.test\.[cm]?[jt]s$/],
+  ['touches_tests', /(?:^|\/)(?:tests?\/|[^/]*\.test\.[cm]?[jt]s$)/],
   ['touches_ci_or_gates', /(^|\/)\.github\/|(^|\/)gates\.ts$|(^|\/)package(-lock)?\.json$|(^|\/)tsconfig[\w.-]*\.json$|(^|\/)\.c8rc|vitest\.config/],
 ];
 
