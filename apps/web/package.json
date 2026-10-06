@@ -27,6 +27,8 @@
     "test:live-repo-escalation-report": "node --experimental-strip-types --no-warnings tests/e2e/repo-escalation-report.ts",
     "test:live-token-learning": "node --experimental-strip-types --no-warnings tests/e2e/token-learning.live.ts",
     "test:live-token-learning-report": "node --experimental-strip-types --no-warnings tests/e2e/token-learning-report.ts",
+    "test:live-token-learning2": "node --experimental-strip-types --no-warnings tests/e2e/token-learning2.live.ts",
+    "test:live-token-learning2-report": "node --experimental-strip-types --no-warnings tests/e2e/token-learning2-report.ts",
     "test:live-repo-recovery": "node --experimental-strip-types --no-warnings tests/e2e/repo-recovery.live.ts",
     "test:e2e:gemma-route": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/gemma-route-live.e2e.ts",
     "test:live-grounding-audit-replay": "node --experimental-strip-types --no-warnings tests/e2e/grounding-audit-replay.ts",
