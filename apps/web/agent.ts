@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
 import { EVIDENCE_JUDGE_SYSTEM, EVIDENCE_RULE, conflictCandidate, parseJudge, supersededFlags, type ToolEvidence } from './evidence.ts';
-import { LOOKUP_RECIPES, lookupMaxChars, lookupUrl, normalizeLookup, validateLookupArgs } from './live-lookup.ts';
+import { LOOKUP_RECIPES, countUrl, lookupMaxChars, lookupUrl, normalizeLookup, parseTotal, validateLookupArgs, withTotal } from './live-lookup.ts';
 import { detectRepo } from './repo-context.ts';
 import { REPO_TOOLS, repoRead, repoSearch, validateRepoReadArgs, validateRepoSearchArgs } from './repo-tools.ts';
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
@@ -531,7 +531,17 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
       const text = truncate(await response.text(), lookupMaxChars(checked.args.recipe));
       const normalized = normalizeLookup(checked.args, { status: response.status, text, url, fetched_at: new Date().toISOString(), latency_ms: Date.now() - startedAt });
       if (!normalized.ok) throw new Error(`live_lookup: ${normalized.error}`);
-      return { recipe: checked.args.recipe, evidence: normalized.evidence };
+      let evidence = normalized.evidence;
+      // A list is one page; an exact total (open issues, open pull requests) comes from GitHub's own search count. If that read fails the list alone stands and no total is claimed.
+      const cUrl = countUrl(checked.args, githubApiBase());
+      if (cUrl) {
+        try {
+          const countReply = await fetch(cUrl, { headers: { 'User-Agent': 'kudbEE-Worker/1.0', Accept: 'application/vnd.github+json' }, signal: AbortSignal.any([hooks.signal, AbortSignal.timeout(15000)]) });
+          const total = parseTotal({ status: countReply.status, text: truncate(await countReply.text(), 4000) });
+          if (total !== null) evidence = withTotal(evidence, total, cUrl);
+        } catch (err) { if (hooks.signal.aborted) throw err; }
+      }
+      return { recipe: checked.args.recipe, evidence };
     }
     case 'read_rss': {
       const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);

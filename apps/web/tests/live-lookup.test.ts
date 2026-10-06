@@ -2,7 +2,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runGovernedTool, newRunContext } from '../agent.ts';
-import { LOOKUP_RECIPES, PAGE_SIZE, lookupUrl, normalizeLookup, renderFacts, validateLookupArgs } from '../live-lookup.ts';
+import { LOOKUP_RECIPES, PAGE_SIZE, countUrl, lookupUrl, normalizeLookup, parseTotal, renderFacts, validateLookupArgs, withTotal } from '../live-lookup.ts';
 import { lookupHooks, startFakeGithub, type FakeGithub } from './helpers/lookup-hooks.ts';
 
 const REPO = 'Acme/widgets';
@@ -153,3 +153,82 @@ describe('the live_lookup tool through the governed path (fake GitHub)', () => {
     assert.match(renderFacts((g.output as any).evidence), /none\./);
   });
 });
+
+describe('exact totals (P3.37): a list is one page, GitHub\'s own count is the total', () => {
+  const issue = (n: number) => ({ number: n, title: `bug ${n}`, state: 'open', user: { login: 'a' }, html_url: `https://github.com/Acme/widgets/issues/${n}`, updated_at: '2026-10-04T10:00:00Z' });
+  const evidence = (recipe: any, body: unknown) => (normalizeLookup({ recipe, repo: REPO }, reply(body)) as any).evidence;
+  it('countUrl exists only for open issues and open PRs, asks the search endpoint, and encodes the query', () => {
+    const u = (recipe: any) => countUrl({ recipe, repo: REPO }, 'http://127.0.0.1:9/');
+    assert.equal(u('open_issues'), 'http://127.0.0.1:9/search/issues?q=repo%3AAcme%2Fwidgets%20type%3Aissue%20state%3Aopen&per_page=1');
+    assert.equal(u('open_prs'), 'http://127.0.0.1:9/search/issues?q=repo%3AAcme%2Fwidgets%20type%3Apr%20state%3Aopen&per_page=1');
+    for (const r of ['latest_pr', 'ci_status', 'branches']) assert.equal(u(r), null, r);
+    assert.match(countUrl({ recipe: 'open_issues', repo: REPO })!, /^https:\/\/api\.github\.com\/search\/issues/);
+  });
+  it('parseTotal accepts only a clean, complete, whole, non-negative count; everything else is "unknown"', () => {
+    const t = (status: unknown, text: unknown) => parseTotal({ status, text });
+    assert.equal(t(200, JSON.stringify({ total_count: 12, incomplete_results: false, items: [] })), 12);
+    assert.equal(t(200, '{"total_count":0}'), 0);
+    for (const [st, tx] of [[403, '{"total_count":5}'], [200, 'nope'], [200, '[]'], [200, '{"total_count":5,"incomplete_results":true}'], [200, '{"total_count":"5"}'], [200, '{"total_count":2.5}'], [200, '{"total_count":-1}'], [200, '{"total_count":99999999}'], [200, '{}'], [200, undefined]] as Array<[number, unknown]>) assert.equal(t(st, tx), null, `${st} ${String(tx)}`);
+  });
+  it('withTotal makes `more` mean exactly "GitHub holds more than shown"', () => {
+    const e = evidence('open_issues', Array.from({ length: 7 }, (_, i) => issue(i + 1)));
+    assert.equal(e.items.length, 5);
+    assert.equal(withTotal(e, 7, 'u').more, true, '7 exist, 5 shown');
+    assert.equal(withTotal(e, 5, 'u').more, false, 'exactly the 5 shown exist');
+    assert.deepEqual([withTotal(e, 12, 'http://x').total, withTotal(e, 12, 'http://x').total_url], [12, 'http://x']);
+  });
+  it('renderFacts states the exact total next to the shown items; without a total the wording is unchanged', () => {
+    const e = evidence('open_issues', Array.from({ length: 10 }, (_, i) => issue(i + 1)));
+    assert.match(renderFacts(withTotal(e, 10, 'u')), /^Open issues in Acme\/widgets \(live from GitHub just now\): 10 open in total\. Newest first, showing 5:/);
+    assert.match(renderFacts(e), /^Open issues in Acme\/widgets \(live from GitHub just now, newest first, showing 5\):/);
+    assert.match(renderFacts(withTotal(evidence('open_issues', []), 0, 'u')), /: none\.$/);
+    assert.match(renderFacts(withTotal(evidence('open_issues', [{ number: 9, title: 'a pr', pull_request: {} }]), 4, 'u')), /: 4 open in total; none of them is in the first page fetched\.$/);
+    const prs = withTotal(evidence('open_prs', [pr(361, { state: 'open', merged_at: null }), pr(360, { state: 'open', merged_at: null })]), 9, 'u');
+    assert.match(renderFacts(prs), /Open pull requests in Acme\/widgets \(live from GitHub just now\): 9 open in total\. Newest first, showing 2\.\n- #361/);
+    assert.match(renderFacts(withTotal(evidence('open_prs', []), 0, 'u')), /: none\.$/);
+  });
+});
+
+describe('the live_lookup tool reads the exact total (fake GitHub, P3.37)', () => {
+  let gh: FakeGithub; let prev: string | undefined;
+  const issue = (n: number, o: Record<string, unknown> = {}) => ({ number: n, title: `bug ${n}`, state: 'open', user: { login: 'a' }, html_url: `https://github.com/Acme/widgets/issues/${n}`, updated_at: '2026-10-04T10:00:00Z', ...o });
+  before(async () => {
+    // order matters: the fake matches by substring, and "search/issues" contains "issues"
+    gh = await startFakeGithub({ 'search/issues': { body: { total_count: 12, incomplete_results: false, items: [] } }, 'repos/Acme/widgets/issues': { body: Array.from({ length: 10 }, (_, i) => (i < 3 ? issue(i + 1, { pull_request: {} }) : issue(i + 1))) } });
+    prev = process.env.KUDBEE_GITHUB_API; process.env.KUDBEE_GITHUB_API = gh.url; process.env.KUDBEE_REPO = REPO;
+  });
+  after(async () => { if (prev === undefined) delete process.env.KUDBEE_GITHUB_API; else process.env.KUDBEE_GITHUB_API = prev; delete process.env.KUDBEE_REPO; await gh.close(); });
+  const look = async (recipe: string) => (await runGovernedTool('live_lookup', { recipe }, lookupHooks().hooks, newRunContext(), 1)).output as any;
+
+  it('attaches the total GitHub reports, after the list, with both URLs on the record', async () => {
+    gh.hits.length = 0;
+    const o = await look('open_issues');
+    assert.equal(o.ok, true);
+    assert.equal(o.evidence.total, 12);
+    assert.match(o.evidence.total_url, /\/search\/issues\?q=repo%3AAcme%2Fwidgets%20type%3Aissue%20state%3Aopen/);
+    assert.equal(o.evidence.items.length, 5);
+    assert.equal(o.evidence.more, true);
+    assert.equal(gh.hits.length, 2);
+    assert.match(gh.hits[0]!, /\/repos\/Acme\/widgets\/issues\?state=open/);
+    assert.match(gh.hits[1]!, /^\/search\/issues/);
+  });
+  it('a failed, rate-limited, unreadable or incomplete count leaves the list alone and claims no total; recipes without a count make no second request', async () => {
+    for (const bad of [{ status: 403, body: { message: 'rate limit' } }, { status: 200, body: 'not json' }, { status: 200, body: { total_count: 12, incomplete_results: true } }, { status: 200, body: { total_count: 'many' } }]) {
+      gh.routes['search/issues'] = bad;
+      const o = await look('open_issues');
+      assert.equal(o.ok, true); assert.equal(o.evidence.total, undefined, JSON.stringify(bad)); assert.equal(o.evidence.items.length, 5);
+    }
+    gh.routes['search/issues'] = { body: { total_count: 12, incomplete_results: false } };
+    gh.hits.length = 0;
+    gh.routes['branches'] = { body: [{ name: 'main', protected: true }] };
+    await look('branches');
+    assert.deepEqual(gh.hits.filter((h) => h.includes('search')), []);
+  });
+  it('a dead count endpoint (connection error) does not fail the lookup', async () => {
+    const saved = gh.routes['search/issues']!;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: any, init: any) => { if (String(url).includes('/search/issues')) throw new Error('connect ECONNREFUSED'); return realFetch(url, init); }) as typeof fetch;
+    try { const o = await look('open_issues'); assert.equal(o.ok, true); assert.equal(o.evidence.total, undefined); } finally { globalThis.fetch = realFetch; gh.routes['search/issues'] = saved; }
+  });
+});
+

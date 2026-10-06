@@ -188,10 +188,12 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[], op
     rest = mask(rest, m.index! + m[0].search(/\S/), m[1]!.length); // judged here against the list; not again as a bare number
     const hedged = HEDGE.test(rest.slice(Math.max(0, m.index! - 40), m.index! + m[0].length + 25)) || (ask.askedCount === Number(n));
     const len = lists[0]!.items.filter(pred).length;
+    const total = lists.find((e) => e.total !== undefined)?.total;
     const capped = lists.some((e) => e.more ?? e.items.length >= PAGE_SIZE[e.recipe]);
     const label = /^\d/.test(m[1]!) ? m[1]! : `${m[1]!.toLowerCase()} ${m[2]!.toLowerCase()}`;
-    if (Number(n) > len || (!hedged && Number(n) !== len)) add('number', label, `the tool evidence lists ${len} of that kind, not ${n}`);
-    else if (!hedged && capped) add('number', label, `the lookup returns only the first ${len}, so this is not a total (there may be more)`);
+    if (total !== undefined && Number(n) === total) continue; // the exact total GitHub reported
+    if (Number(n) > len || (!hedged && Number(n) !== len)) add('number', label, `the tool evidence lists ${len} of that kind${total !== undefined ? ` and GitHub's total is ${total}` : ''}, not ${n}`);
+    else if (!hedged && capped) add('number', label, total !== undefined ? `the lookup shows only the first ${len}, and GitHub's total is ${total}` : `the lookup returns only the first ${len}, so this is not a total (there may be more)`);
   }
   // "main is not listed" / "no such branch" from a list that stops at its page size is not proof the branch does not exist
   if (evidence.some((e) => e.recipe === 'branches' && (e.more ?? e.items.length >= PAGE_SIZE.branches)) && /\b(not listed|isn'?t listed|is not (?:in|among)|does not exist|doesn'?t exist|no such branch|not present)\b/i.test(rest)) add('absence', 'a branch is "not listed"', 'the lookup returns only the first page of branches, so a branch missing from it may still exist');
@@ -201,7 +203,7 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[], op
   }
 
   // a flat denial ("no open issues", "no draft pull requests") while the evidence lists some is a contradiction
-  const listed = (recipe: string, kind: LookupItem['kind']): number => evidence.filter((e) => e.recipe === recipe).flatMap((e) => e.items).filter((i) => i.kind === kind).length;
+  const listed = (recipe: string, kind: LookupItem['kind']): number => Math.max(evidence.filter((e) => e.recipe === recipe).flatMap((e) => e.items).filter((i) => i.kind === kind).length, ...evidence.filter((e) => e.recipe === recipe).map((e) => e.total ?? 0));
   if (listed('open_prs', 'pr') && /\b(?:no|zero|not any|none of)\b[^.\n]{0,20}\bopen\b[^.\n]{0,15}\b(?:pull requests?|prs?)\b/i.test(text)) add('state', 'no open pull requests', `the tool evidence lists ${listed('open_prs', 'pr')} open pull request(s)`);
   if (listed('open_issues', 'issue') && /\b(?:no|zero|not any|none of)\b[^.\n]{0,20}\bopen\b[^.\n]{0,15}\bissues?\b/i.test(text)) add('state', 'no open issues', `the tool evidence lists ${listed('open_issues', 'issue')} open issue(s)`);
   if (items.some((i) => i.kind === 'pr' && i.draft) && /\bno\s+drafts?\b|\bno\s+draft\s+(?:pull requests?|prs?)\b|\bnone\b[^.\n]{0,30}\bdrafts?\b/i.test(text)) add('state', 'no draft pull requests', 'the tool evidence lists a draft pull request');

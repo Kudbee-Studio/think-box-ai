@@ -87,7 +87,8 @@ describe('local tool calling', () => {
         const { chat, requests } = scripted(m.caps, [m.call({ recipe: 'merge_everything' }), m.call({ recipe: 'open_prs' }), m.answer('There is 1 open item: #361 (PR 361).')]);
         const { result } = await drive(m.name, chat, 'Which PRs are open?');
         assert.deepEqual(result.steps.map((s) => s.outcome), ['malformed', 'tool_ok', 'answer']);
-        assert.equal(gh.hits.length, 1, 'only the repaired request reached GitHub');
+        assert.equal(gh.hits.filter((h) => !h.includes('/search/issues')).length, 1, 'only the repaired request reached GitHub (plus its one read-only count request)');
+        assert.equal(gh.hits.filter((h) => h.includes('/search/issues')).length, 1);
         assert.match(JSON.stringify(requests[1]!.messages), /That request was invalid: recipe must be one of/);
       });
 

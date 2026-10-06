@@ -2,7 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { presentAnswer, validateGrounding } from '../grounding.ts';
-import { normalizeLookup, type LookupEvidence, type LookupRecipe } from '../live-lookup.ts';
+import { normalizeLookup, withTotal, type LookupEvidence, type LookupRecipe } from '../live-lookup.ts';
 
 const REPO = 'Acme/widgets';
 const evidenceOf = (recipe: LookupRecipe, body: unknown, branch?: string): LookupEvidence => {
@@ -265,3 +265,40 @@ describe('validateGrounding: list-style answers (second real Mercury answer from
     assert.ok(claims('The newest is #361, merged; #360 was merged and closed.', [ev]).includes('state:#360 merged'));
   });
 });
+
+describe('validateGrounding: an exact total from GitHub makes a count answerable (P3.37)', () => {
+  const issue = (n: number) => ({ number: n, title: `bug ${n}`, state: 'open', user: { login: 'a' }, html_url: `https://github.com/Acme/widgets/issues/${n}`, updated_at: '2026-10-04T10:00:00Z' });
+  const issues10 = evidenceOf('open_issues', Array.from({ length: 10 }, (_, i) => issue(i + 1)));
+  const withTen = withTotal(issues10, 10, 'https://api.github.com/search/issues?x');
+  const status = (a: string, ev: LookupEvidence) => validateGrounding(a, [ev], { goal: 'How many issues are open?' });
+  it('the real total is accepted; the first page\'s length is not, and nothing changes without a total', () => {
+    assert.equal(status('There are 10 open issues.', withTen).status, 'GROUNDED');
+    assert.equal(status('Ten open issues are open right now.', withTen).status, 'GROUNDED');
+    const five = status('There are 5 open issues.', withTen);
+    assert.equal(five.status, 'GROUNDING FAILED');
+    assert.match(five.unsupported.map((u) => u.why).join(), /shows only the first 5, and GitHub's total is 10/);
+    assert.equal(status('There are 5 open issues.', issues10).status, 'GROUNDING FAILED', 'without a total a count from a full page is still refused');
+    assert.equal(status('There are 10 open issues.', issues10).status, 'GROUNDING FAILED');
+  });
+  it('a hedged count of what is shown still passes, and a total larger than the page can be stated while only some are named', () => {
+    const big = withTotal(issues10, 42, 'u');
+    assert.equal(status('There are 42 open issues; the newest shown is #1.', big).status, 'GROUNDED');
+    assert.equal(status('Here are the 3 most recent open issues: #1, #2, #3.', big).status, 'GROUNDED');
+    assert.equal(status('There are 41 open issues.', big).status, 'GROUNDING FAILED');
+  });
+  it('"no open issues" is a contradiction when the total says there are some, even if the first page held none of them', () => {
+    const onlyPrsOnPage = withTotal(evidenceOf('open_issues', [{ number: 9, title: 'a pr', pull_request: {} }]), 4, 'u');
+    assert.equal(onlyPrsOnPage.items.length, 0);
+    const r = status('There are no open issues.', onlyPrsOnPage);
+    assert.equal(r.status, 'GROUNDING FAILED');
+    assert.ok(r.unsupported.some((u) => /no open issues/.test(u.claim)));
+    assert.equal(status('There are 4 open issues.', onlyPrsOnPage).status, 'GROUNDED');
+    assert.equal(status('There are no open issues.', withTotal(evidenceOf('open_issues', []), 0, 'u')).status, 'GROUNDED');
+  });
+  it('open pull requests work the same way', () => {
+    const prs = withTotal(evidenceOf('open_prs', [pr(361, 'a', { merged_at: null, state: 'open' }), pr(360, 'b', { merged_at: null, state: 'open' })]), 9, 'u');
+    assert.equal(validateGrounding('There are 9 open pull requests; the newest is #361.', [prs]).status, 'GROUNDED');
+    assert.equal(validateGrounding('There are 2 open pull requests.', [prs]).status, 'GROUNDING FAILED');
+  });
+});
+
