@@ -1,0 +1,401 @@
+{
+  "generated_at": "2026-10-06T07:07:02.868Z",
+  "note": "real Chromium, real server on a random 127.0.0.1 port (throwaway data), real Ollama qwen2.5:3b, real Mercury, fixture repository; clicks by Playwright, not a person",
+  "plan": "docs/evidence/p3.36-live-escalation/PLAN.md",
+  "world_hash_note": "P3.34 held-out world",
+  "escalated_count": 2,
+  "total_cost_usd": 0.003101,
+  "criteria": {
+    "c1_to_c4_every_convoy": true,
+    "c5_at_least_two_escalated": true,
+    "c6_cost_within_cap": true,
+    "c6_key_never_seen": true,
+    "c6_no_console_errors": true,
+    "c7_screenshot_saved": true
+  },
+  "verdict": "PASS",
+  "console_errors": [],
+  "screenshot": "p3.36-escalated-convoy.png",
+  "results": [
+    {
+      "goal_id": "held2-untested-ledgerbook",
+      "goal": "Find an exported function in src/ledgerbook.ts that has no test.",
+      "shape": "untested",
+      "convoy_id": "9167e44b-7e8c-4e7b-b0c1-fa4af0e665ee",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0.001368,
+      "wall_ms": 18443,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "No finding: repo_search found no matches for 'exported function has no test' in src"
+        },
+        {
+          "id": "escalation-1",
+          "model": "mercury-2",
+          "status": "completed",
+          "cost_usd": 0.001368,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "src/ledgerbook.ts:5 — `unbookEntry` is exported but has no corresponding test in the repository."
+        }
+      ],
+      "finding": {
+        "found": true,
+        "file": "src/ledgerbook.ts",
+        "line": 5
+      },
+      "finding_check": {
+        "disk_verified": true
+      },
+      "run_ids": [
+        "ce76d05b-fc3d-4414-9b43-398dd3212a7e",
+        "4c14075d-e041-4c33-8c7b-b763a9cbc5b2"
+      ],
+      "machine_check": true,
+      "final_answer": "src/ledgerbook.ts:5 — `unbookEntry` is exported but has no corresponding test in the repository.",
+      "escalated": true,
+      "first_worker_reason": "no finding where one is expected",
+      "escalation_run_has_spend_line": true,
+      "escalation_run_model": "mercury-2",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    },
+    {
+      "goal_id": "held2-untested-thermostat",
+      "goal": "Which exported function in src/thermostat.ts is never covered by a test?",
+      "shape": "untested",
+      "convoy_id": "0480709a-9b6b-485c-a5fb-84b0b3ce62cf",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "wall_ms": 42237,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "src/thermostat.ts:5 — The function calibrateProbe in src/thermostat.ts is never covered by a test."
+        }
+      ],
+      "finding": {
+        "found": true,
+        "file": "src/thermostat.ts",
+        "line": 5
+      },
+      "finding_check": {
+        "disk_verified": true
+      },
+      "run_ids": [
+        "256e2ed9-c3b2-4061-9aec-a0c2fe3aaca1"
+      ],
+      "machine_check": true,
+      "final_answer": "src/thermostat.ts:5 — The function calibrateProbe in src/thermostat.ts is never covered by a test.",
+      "escalated": false,
+      "first_worker_reason": "accepted",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    },
+    {
+      "goal_id": "held2-untested-playlist",
+      "goal": "Find an exported function in src/playlist.ts that has no test.",
+      "shape": "untested",
+      "convoy_id": "73701d46-8ad2-4f96-947c-a6a26ae2b4e8",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0.001733,
+      "wall_ms": 54299,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "No finding: The function `addTrack` is tested in tests/playlist.test.ts."
+        },
+        {
+          "id": "escalation-1",
+          "model": "mercury-2",
+          "status": "completed",
+          "cost_usd": 0.00173275,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "src/playlist.ts:5 — The exported function `shuffleOrder` in src/playlist.ts has no test."
+        }
+      ],
+      "finding": {
+        "found": true,
+        "file": "src/playlist.ts",
+        "line": 5
+      },
+      "finding_check": {
+        "disk_verified": true
+      },
+      "run_ids": [
+        "070a1af4-4ae5-4f8f-a3fa-0ce6910c34aa",
+        "9d023b75-9fab-4b4c-b849-80e17a6a7f59"
+      ],
+      "machine_check": true,
+      "final_answer": "src/playlist.ts:5 — The exported function `shuffleOrder` in src/playlist.ts has no test.",
+      "escalated": true,
+      "first_worker_reason": "no finding where one is expected",
+      "escalation_run_has_spend_line": true,
+      "escalation_run_model": "mercury-2",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    },
+    {
+      "goal_id": "constant-playlist",
+      "goal": "Which file defines CAP_3 and what is its value?",
+      "shape": "constant",
+      "convoy_id": "b1a4bf57-2b78-44c9-9c02-046329540818",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "wall_ms": 35509,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "src/playlist.ts:1 — The value of CAP_3 is 35."
+        }
+      ],
+      "finding": {
+        "found": true,
+        "file": "src/playlist.ts",
+        "line": 1
+      },
+      "finding_check": {
+        "disk_verified": true
+      },
+      "run_ids": [
+        "9259c8af-84f2-4ad1-bf4e-5a0491df5e36"
+      ],
+      "machine_check": true,
+      "final_answer": "src/playlist.ts:1 — The value of CAP_3 is 35.",
+      "escalated": false,
+      "first_worker_reason": "accepted",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    },
+    {
+      "goal_id": "constant-cron",
+      "goal": "Which file defines CAP_8 and what is its value?",
+      "shape": "constant",
+      "convoy_id": "25d7bde5-eaea-41e4-879c-54802f62d497",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "wall_ms": 21569,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "src/cron.ts:1 — The value of CAP_8 is 70."
+        }
+      ],
+      "finding": {
+        "found": true,
+        "file": "src/cron.ts",
+        "line": 1
+      },
+      "finding_check": {
+        "disk_verified": true
+      },
+      "run_ids": [
+        "af5e2338-b3bb-4c94-89b4-8eb647b773a2"
+      ],
+      "machine_check": true,
+      "final_answer": "src/cron.ts:1 — The value of CAP_8 is 70.",
+      "escalated": false,
+      "first_worker_reason": "accepted",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    },
+    {
+      "goal_id": "missing-dissolveQuasar",
+      "goal": "Find a function named dissolveQuasar.",
+      "shape": "missing",
+      "convoy_id": "1e826556-2657-4796-bab4-370f74d263c3",
+      "plan": {
+        "kind": "repo",
+        "model": "qwen2.5:3b",
+        "routing": {
+          "source": "default",
+          "model": "qwen2.5:3b",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded); starting on qwen2.5:3b (best measured, 4/6) and escalating to the agent model if it does not verify"
+        },
+        "escalation": {
+          "model": "mercury-2",
+          "when": "the local model fails, is not grounded, cannot be verified on disk, or reports no finding where the goal expects one"
+        },
+        "executable": true,
+        "blocked": []
+      },
+      "state": "COMPLETED",
+      "outcome": "success",
+      "grounding": "GROUNDED",
+      "cost_usd": 0,
+      "wall_ms": 13379,
+      "workers": [
+        {
+          "id": "repo-1",
+          "model": "qwen2.5:3b",
+          "status": "completed",
+          "cost_usd": 0,
+          "grounding": "GROUNDED",
+          "failure": null,
+          "answer": "No finding: dissolveQuasar not found in the repository"
+        }
+      ],
+      "finding": {
+        "found": false
+      },
+      "finding_check": null,
+      "run_ids": [
+        "8d4350cd-addc-476f-be62-ec98fd39e301"
+      ],
+      "machine_check": true,
+      "final_answer": "No finding: dissolveQuasar not found in the repository",
+      "escalated": false,
+      "first_worker_reason": "accepted",
+      "page_shows_escalation_worker": true,
+      "criteria": {
+        "c1_plan_names_escalation": true,
+        "c2_completed_grounded_correct": true,
+        "c3_escalated_ok": true,
+        "c4_not_escalated_ok": true
+      },
+      "pass": true
+    }
+  ]
+}
