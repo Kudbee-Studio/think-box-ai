@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T23:01:36.608Z",
+  "head": "c6a0cd43",
+  "base": "gh/main",
+  "base_sha": "ecf2a4ba",
+  "branch": "feat/pr389-p3.49-local-patch-interface",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1221
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1194
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1402
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1414 passed, 0 failed; lines 92.56% (floor 90%)",
+      "ms": 50460
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 531972
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 267473
+    }
+  ],
+  "verdict": "PASS"
+}

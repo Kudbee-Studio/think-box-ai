@@ -31,6 +31,8 @@ Best local model, pooled: qwen2.5:3b at 10% (3 of 30). Below 33%, so the rule sa
 - Not supported: anything about gemma3:4b; anything about larger local models; that no local approach could work (for example one where the engine finds the file and shows it, so the model only writes the edit).
 
 ## DeepSeek, added as a cloud reference (see the amendment in PLAN.md)
+
+**Model identity (found after the run):** a 1-token call showed the API serves `deepseek-chat` as an alias of `deepseek-flash` (it reports that model name; the API also lists `deepseek-v4-pro`). The 15/15 is for `deepseek-flash`, not a larger model.
 `deepseek-chat` through the same worker-agent path Mercury uses (an OpenAI-compatible endpoint; only the base URL and key differ; no product code change). The same 15 frozen tasks, one trial: **15 of 15 verified**, none flagged, all 15 sandbox verdicts confirmed by the independent test, median 5.7 s per task, 113,051 tokens and 67 tool calls (Mercury in run 1: 15 of 15, 2.5 s, 104,761 tokens, 65 calls). The cost figure in the results file is wrong for DeepSeek (tokens are priced at Mercury's rates): use the token counts. Only the fixtures' tiny code went to DeepSeek, never this repository. This shows another cloud model can do SIMULATE's patch step as well as Mercury on these easy tasks; it is one trial of 15 one-line fixes, and says nothing about real code.
 
 ## Disclosures

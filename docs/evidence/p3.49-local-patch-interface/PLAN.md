@@ -42,3 +42,5 @@ The founder has a DeepSeek API and asked for it to be put in the test.
 - **Not part of the decision rule:** DeepSeek is a cloud model, not a local one. It is a second reference next to Mercury (run 1: 15 of 15), reported descriptively: it answers "could another cloud model do SIMULATE's patch step", not "should local patching be built".
 - **Cost:** the script prices every cloud model's tokens at Mercury's rates, which is wrong for DeepSeek; the token counts are the honest measure and the results say so.
 - **Risks stated now:** DeepSeek's tool-calling format has not been tried with this agent path. If the first calls fail with HTTP or format errors, those rows are a path failure, not ability; I will diagnose before reading them as results. No threshold for DeepSeek: whatever it scores is reported as it is.
+
+_Note added after the run (not a criteria change): `deepseek-chat` is served as an alias of `deepseek-flash`, per the API's own reported model name._
