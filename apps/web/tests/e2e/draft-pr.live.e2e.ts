@@ -140,7 +140,11 @@ try {
   }
   d = (await getJson(`/api/convoys/${id}`)).convoy; r.draft_pr_record = d.draft_pr ?? null;
   log(`convoy ${r.state}/${r.outcome} verified=${sim?.verified} link=${r.link} cost=$${d.cost_usd}`);
-} catch (e) { r.exception = String((e as Error).message ?? e).slice(0, 500); log(`ERROR ${r.exception}`); }
+} catch (e) {
+  r.exception = String((e as Error).message ?? e).slice(0, 500); log(`ERROR ${r.exception}`);
+  // diagnostics only (added after run 1; see PLAN.md amendment): what the server says about the convoy at the moment of failure
+  try { const c = (await getJson(`/api/convoys/${r.convoy_id}`)).convoy; r.diagnostic = { state: c.state, error: c.error ?? null, executable: c.plan?.executable, blocked: c.plan?.blocked_reasons, warnings: c.plan?.warnings, policy: c.policy?.decision, rules: (c.policy?.rules ?? []).map((x: any) => `${x.effect}:${x.id}`), approval: c.approval?.state ?? null }; } catch { /* no convoy */ }
+}
 finally { await browser.close(); }
 
 // ---- independent verification: GitHub's API and git plumbing, not the app's records ----

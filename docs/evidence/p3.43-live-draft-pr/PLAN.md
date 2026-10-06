@@ -27,3 +27,6 @@ The founder said GO to one real branch and one real draft pull request. That is 
 - Not exercised live: the `branch_pushed` recovery path, a base tip that moved, an existing branch, a GitHub or network failure. Those remain hermetic-only.
 - The pull request and its branch stay on GitHub when the run ends: I will not merge, close or delete them; the founder decides. This run also uses PR number #382, so this evidence is PR #383.
 - If any criterion fails, I report FAIL with the reading of why, keep every run, and disclose amendments in this file; I will not tune a criterion to pass.
+
+## Amendment after run 1 (disclosed; criteria unchanged)
+Run 1 (`run1-live.json`) ended NOT RUN-like before anything was written: after the plan and submit clicks the "Approve and run LIVE" button never appeared within 20 s, so the convoy was never approved, no prompt was shown, and GitHub is provably untouched (no ref added or removed, newest PR still #381, read from `git ls-remote` and `gh pr list` after the run). The script did not record why. I added a diagnostic block (convoy state, plan executability and blocked reasons, policy decision) to the failure path and will run again as run 2. No criterion, goal or setup value changed. Every run is kept.
