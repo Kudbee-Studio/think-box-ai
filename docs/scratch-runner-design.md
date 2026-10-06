@@ -1,6 +1,6 @@
 # Scratch runner: design, threat model and the slices to come
 
-Status: slices 1 (PR #377), 2 (PR #378), 3 (PR #379), 5 (PR #380) and 4 (the next PR, below) are built. Slice 4 is verified **hermetically only** (a local bare repository standing in for GitHub and a fake `gh`); it has never pushed to, or created a pull request on, the real GitHub, and it is OFF unless `KUDBEE_DRAFT_PR=on`.
+Status: slices 1 (PR #377), 2 (PR #378), 3 (PR #379), 5 (PR #380) and 4 (PR #381, below) are built. Slice 4 is verified **hermetically only** (a local bare repository standing in for GitHub and a fake `gh`); it has never pushed to, or created a pull request on, the real GitHub, and it is OFF unless `KUDBEE_DRAFT_PR=on`.
 
 ## Why
 
