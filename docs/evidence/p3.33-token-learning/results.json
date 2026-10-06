@@ -1,0 +1,35 @@
+{
+  "stage1": {
+    "runs": 10,
+    "passed": 10,
+    "accepted": 3,
+    "accepted_by_mercury": 3,
+    "spend_usd": 0.022945
+  },
+  "stage2": {
+    "complete": true,
+    "n": 20,
+    "A_pass": 1,
+    "B_pass": 0,
+    "diff": -0.05,
+    "ci_lo": -0.15,
+    "ci_hi": 0,
+    "mcnemar_p": 1,
+    "b_only": 0,
+    "a_only": 1,
+    "false_accepts": {
+      "A": 14,
+      "B": 2
+    },
+    "would_escalate": {
+      "A": 19,
+      "B": 19
+    },
+    "retrieval_coverage": 20,
+    "spend_usd": 0.022945,
+    "commit": "b398dc27",
+    "goals_hash": "3d83676e521214f8a24fd22c987d8c931e5b002e211dbe60a561f8d509974169",
+    "tokens_sha256": "83c2d6dc94928766f408245efae16cf15c2320aa29a1b219ee2e6c991dfd0104"
+  },
+  "verdict": "UNPROVEN"
+}

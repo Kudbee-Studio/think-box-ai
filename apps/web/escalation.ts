@@ -3,7 +3,7 @@
 // local attempt produce something we may accept?", and the one attempt function, so the convoy runner and the pre-registered experiment cannot drift apart.
 import { newRunContext, type AgentHooks } from './agent.ts';
 import { goalShape } from './investigation-assist.ts';
-import { repoSpec, runLocalToolLoop, type LocalChat, type LocalToolResult } from './local-tools.ts';
+import { repoSpec, runLocalToolLoop, type LocalChat, type LocalToolResult, type LoopSpec } from './local-tools.ts';
 import { repoRoot, verifyQuoteOnDisk, type RepoEvidence } from './repo-tools.ts';
 
 export interface DiskCheck { disk_verified: boolean; reason?: string }
@@ -15,8 +15,8 @@ export interface RepoAttempt {
 }
 
 /** One governed repository investigation on `model`, with the finding's quote re-read from disk outside the model's loop. */
-export async function attemptRepo(o: { model: string; goal: string; chat: LocalChat; hooks: AgentHooks; signal?: AbortSignal; maxSteps?: number; root?: string }): Promise<RepoAttempt> {
-  const result = await runLocalToolLoop<RepoEvidence>({ model: o.model, goal: o.goal, hooks: o.hooks, context: newRunContext(), chat: o.chat, repo: null, spec: repoSpec(), maxSteps: o.maxSteps ?? 8, signal: o.signal });
+export async function attemptRepo(o: { model: string; goal: string; chat: LocalChat; hooks: AgentHooks; signal?: AbortSignal; maxSteps?: number; root?: string; spec?: LoopSpec<RepoEvidence> }): Promise<RepoAttempt> {
+  const result = await runLocalToolLoop<RepoEvidence>({ model: o.model, goal: o.goal, hooks: o.hooks, context: newRunContext(), chat: o.chat, repo: null, spec: o.spec ?? repoSpec(), maxSteps: o.maxSteps ?? 8, signal: o.signal });
   let disk: DiskCheck | undefined;
   const f = result.finding;
   if (result.success && f && f.found && result.grounding?.status === 'GROUNDED') {
