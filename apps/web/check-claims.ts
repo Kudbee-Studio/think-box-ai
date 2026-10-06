@@ -74,6 +74,7 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
     const edits = '(?:touch|edit|chang|modif|updat|add|delet|remov|rewrit)\\w*';
     if (latest.flags.includes('touches_tests') && !new RegExp(`\\b${edits}\\b[^.]{0,50}\\btests?\\b|\\btests?\\b[^.]{0,50}\\b${edits}\\b|touches_tests`, 'i').test(text)) add('it vouches for a patch that edits tests without saying so (flag touches_tests)');
     if (latest.flags.includes('touches_ci_or_gates') && !new RegExp(`\\b${edits}\\b[^.]{0,60}\\b(?:gates?|ci\\b|workflows?|package\\.json|tsconfig|config\\w*)\\b|\\b(?:gates?|ci\\b|workflows?|package\\.json|tsconfig|config\\w*)\\b[^.]{0,60}\\b${edits}\\b|touches_ci_or_gates`, 'i').test(text)) add('it vouches for a patch that edits CI, gates or configuration without saying so (flag touches_ci_or_gates)');
+    if (latest.flags.includes('harness_detection') && !/\b(?:harness|special[- ]cases?|detects? (?:the )?tests?|refers? to (?:the )?tests?|names? (?:a |the )?test files?|call stack|stack)\b|harness_detection/i.test(text)) add('it vouches for a patch whose source refers to tests or detects the test harness without saying so (flag harness_detection)');
   }
   return { ok: problems.length === 0, problems };
 }

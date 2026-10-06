@@ -134,3 +134,12 @@ describe('failureBrief: what a patch worker is shown about a failing run (data, 
   });
 });
 
+describe('a patch that detects the test harness must be disclosed when the answer vouches for it (found live)', () => {
+  const sniffing = report([check('test', true, { tests: { pass: 2, fail: 0 } })], { patch_sha256: 'd'.repeat(64), files_touched: ['apps/web/src/greeter.js'], flags: ['harness_detection'] });
+  it('vouching without saying so is refused; saying so passes; not vouching needs nothing', () => {
+    assert.match(problems('The change is verified.', [sniffing]), /refers to tests or detects the test harness without saying so \(flag harness_detection\)/);
+    for (const a of ['The change is verified, but note it special-cases the tests: it detects the test harness.', 'Verified; the source change refers to the test files by name (flag harness_detection).', 'All checks pass, though the code inspects the call stack to tell which test is running.']) assert.equal(problems(a, [sniffing]), '', a);
+    assert.equal(problems('The test check failed.', [sniffing]), '');
+  });
+});
+

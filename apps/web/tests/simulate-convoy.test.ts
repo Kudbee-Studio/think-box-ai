@@ -140,6 +140,16 @@ describe('what is NOT a verified proposal', () => {
     assert.match(c.final_answer!, /Flags: touches_tests \(the proposal edits tests, which are what judge it\)\./);
     assert.match(c.final_answer!, /verified: yes/, 'the verdict is still the report\'s: the flag is what tells the reader it proves less');
   });
+  it('a SOURCE change that detects the test harness verifies in the sandbox and is flagged loudly: at the gate, in the record and in the answer (found live in P3.41)', { skip }, async () => {
+    const h = harness();
+    const sniff = [{ path: 'apps/web/src/greeter.js', find: "return 'helo ' + name;", replace: "const caller = new Error().stack || '';\n  return (caller.includes('greeter.test.js') ? 'hello ' : 'hello ') + name;" }];
+    const c = await executeConvoy(h.deps(proposing(sniff, 'Return hello, checking the caller.')), h.c.id);
+    assert.equal(c.simulation!.verified, true, 'every check passes: that is exactly why the flag matters');
+    assert.deepEqual(c.simulation!.files, ['apps/web/src/greeter.js']); assert.deepEqual(c.simulation!.flags, ['harness_detection']);
+    assert.match(h.approvals[0]!.reason, /WARNING: harness_detection \(the source change refers to tests or detects the test harness, so it may special-case the checks\)\./);
+    assert.match(c.final_answer!, /Flags: harness_detection \(the source change refers to tests or detects the test harness, so it may special-case the checks\)\./);
+    assert.match(c.final_answer!, /verified: yes/);
+  });
   it('no proposal at all is FAILED, the checks worker is skipped, and a model that claims it fixed things in words is not believed', async () => {
     const h = harness();
     const c = await executeConvoy(h.deps(async () => done({ result: 'I fixed the typo; everything passes.' })), h.c.id);
