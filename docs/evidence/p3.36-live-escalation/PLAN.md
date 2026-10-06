@@ -20,3 +20,6 @@ Question: does the escalation lane (#371) work through the real path an operator
 - Six goals, one local model, one run each: this shows the path works, not how often.
 - The fixture is the same synthetic family as the experiments; GitHub lookups and specialist convoys are not exercised.
 - Playwright clicks, not a person; the approval gate is exercised but its human judgement is not.
+
+## Amendment after the first attempt (disclosed; criteria above unchanged)
+The first run of this script (kept as `first-attempt-blocked-plan.json`) FAILED all six goals before any model ran: with the model field blank, the measured table qualified no local model for repository goals (qwen2.5:3b 4/6, 2 ungrounded), so the plan fell back to Mercury and the planner blocked it ("repository investigation runs on local models in this version"). The real server could not plan a repository convoy unless the operator picked a local model by hand. That is a product defect found by this check, fixed in this PR (`pickRepoStarter`: a repository goal starts on the best-measured installed native-tool local model, else the configured local model, and the plan names the Mercury escalation; a test reproduces the block without the fix). The script and the pass criteria were not changed; the run below is the second attempt, made after the fix.

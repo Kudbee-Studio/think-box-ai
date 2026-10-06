@@ -7,7 +7,7 @@ import path from 'node:path';
 import { newRunContext } from '../agent.ts';
 import { COLD_LOAD_MS, LOCAL_CALL_TIMEOUT_MS, lookupSpec, runLocalToolLoop, type LocalChat } from '../local-tools.ts';
 import { routeLine } from '../convoy-runner.ts';
-import { DEFAULT_EVAL_FILE, goalClassOf, loadMeasurements, pickMeasured, rerouteLookup, type Measurements } from '../measured-routing.ts';
+import { DEFAULT_EVAL_FILE, goalClassOf, loadMeasurements, pickMeasured, pickRepoStarter, rerouteLookup, type Measurements } from '../measured-routing.ts';
 import { planConvoy } from '../mayor.ts';
 import type { Trial } from '../local-eval.ts';
 import type { OllamaChatTurn } from '../ollama-client.ts';
@@ -144,3 +144,27 @@ describe('rerouteLookup: a chosen model the table does not qualify is replaced, 
     assert.equal(rerouteLookup('qwen2.5:3b', INSTALLED, m, { KUDBEE_MEASURED_ROUTING: 'off' }), null);
   });
 });
+
+describe('pickRepoStarter: a repository goal always starts on a local model (P3.36)', () => {
+  const why = 'no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)';
+  it('takes the best-measured installed model that ran in native tool mode, and says the escalation is the backstop', () => {
+    const m = table([...many('qwen2.5:3b', 'repo', 4, 6, 'native', { ungrounded: 2 }), ...many('qwen2.5:1.5b', 'repo', 1, 6, 'native'), ...many('gemma3:4b', 'repo', 6, 6, 'constrained')]);
+    const r = pickRepoStarter(INSTALLED, m, 'smollm2:360m', why);
+    assert.equal(r.model, 'qwen2.5:3b');
+    assert.match(r.reason, /no installed model is measured sufficient.*starting on qwen2\.5:3b \(best measured, \d+\/6\) and escalating to the agent model/);
+  });
+  it('ignores JSON-prompted models and models that are not installed, then falls back to the configured local model without inventing a measurement', () => {
+    const m = table([...many('gemma3:4b', 'repo', 6, 6, 'constrained'), ...many('llama3:8b', 'repo', 6, 6, 'native')]);
+    const r = pickRepoStarter(INSTALLED, m, 'qwen2.5:1.5b', why);
+    assert.equal(r.model, 'qwen2.5:1.5b');
+    assert.match(r.reason, /configured local model qwen2\.5:1\.5b \(no native-tool repo measurements for an installed model\)/);
+    assert.equal(pickRepoStarter(null, table(many('qwen2.5:3b', 'repo', 6, 6, 'native')), 'qwen2.5:1.5b', why).model, 'qwen2.5:1.5b', 'unknown installed list');
+    assert.equal(pickRepoStarter(INSTALLED, null, 'qwen2.5:1.5b', why).model, 'qwen2.5:1.5b', 'no table');
+  });
+  it('matches an untagged installed name and ranks by pass rate, then latency', () => {
+    const m = table([...many('qwen2.5:3b', 'repo', 3, 6, 'native'), ...many('qwen2.5:1.5b', 'repo', 3, 6, 'native')].map((t) => (t.model === 'qwen2.5:1.5b' ? { ...t, latency_ms: 2000 } : t)));
+    assert.equal(pickRepoStarter(INSTALLED, m, 'x', why).model, 'qwen2.5:1.5b', 'equal pass rate: the faster one');
+    assert.equal(pickRepoStarter(['qwen2.5:3b:latest'.replace(':latest', '')], table(many('qwen2.5:3b', 'repo', 3, 6, 'native')), 'x', why).model, 'qwen2.5:3b');
+  });
+});
+

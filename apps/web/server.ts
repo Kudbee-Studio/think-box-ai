@@ -48,7 +48,7 @@ import { createMercuryChat } from './mercury-chat.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
 import { renderFacts, type LookupEvidence } from './live-lookup.ts';
-import { goalClassOf, loadMeasurements, pickMeasured, rerouteLookup } from './measured-routing.ts';
+import { goalClassOf, loadMeasurements, pickMeasured, pickRepoStarter, rerouteLookup } from './measured-routing.ts';
 import { isGithubRecipe, matchRepoGoal, buildFacts, buildPrompt, groundedAnswer, matchRecipe, recipeAvailable, recipeToolArgs, sentenceRule, type RecipeMatch } from './local-recipes.ts';
 import { needsToolsOrLiveData } from './goal-routing.ts';
 import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
@@ -2199,7 +2199,10 @@ registerConvoyRoutes(app, {
       const recipe = matchRecipe(goal);
       const cls = goalClassOf(!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal));
       const pick = pickMeasured(cls, installedLocal, loadMeasurements());
-      routing = pick.model ? { source: 'measured', model: pick.model, reason: pick.reason } : { source: 'default', model: agentModel || resolveLocalModel(), reason: pick.reason };
+      // A repository goal always starts on a local model (the plan names the escalation); a lookup falls back to the agent model as before.
+      if (pick.model) routing = { source: 'measured', model: pick.model, reason: pick.reason };
+      else if (cls === 'repo') { const starter = pickRepoStarter(installedLocal, loadMeasurements(), resolveLocalModel(), pick.reason); routing = { source: 'default', model: starter.model, reason: starter.reason }; }
+      else routing = { source: 'default', model: agentModel || resolveLocalModel(), reason: pick.reason };
     }
     const result = planConvoy({
       goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isInceptionModel(m),

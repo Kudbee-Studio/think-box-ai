@@ -1,0 +1,160 @@
+{
+  "generated_at": "2026-10-06T06:58:31.241Z",
+  "note": "real Chromium, real server on a random 127.0.0.1 port (throwaway data), real Ollama qwen2.5:3b, real Mercury, fixture repository; clicks by Playwright, not a person",
+  "plan": "docs/evidence/p3.36-live-escalation/PLAN.md",
+  "world_hash_note": "P3.34 held-out world",
+  "escalated_count": 0,
+  "total_cost_usd": 0,
+  "criteria": {
+    "c1_to_c4_every_convoy": false,
+    "c5_at_least_two_escalated": false,
+    "c6_cost_within_cap": true,
+    "c6_key_never_seen": true,
+    "c6_no_console_errors": false,
+    "c7_screenshot_saved": false
+  },
+  "verdict": "FAIL",
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "screenshot": null,
+  "results": [
+    {
+      "goal_id": "held2-untested-ledgerbook",
+      "goal": "Find an exported function in src/ledgerbook.ts that has no test.",
+      "shape": "untested",
+      "convoy_id": "fa9d5c77-4f10-4d3b-bdd8-857fc42f3b1f",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    },
+    {
+      "goal_id": "held2-untested-thermostat",
+      "goal": "Which exported function in src/thermostat.ts is never covered by a test?",
+      "shape": "untested",
+      "convoy_id": "fa9d5c77-4f10-4d3b-bdd8-857fc42f3b1f",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    },
+    {
+      "goal_id": "held2-untested-playlist",
+      "goal": "Find an exported function in src/playlist.ts that has no test.",
+      "shape": "untested",
+      "convoy_id": "5d28399d-dfe3-4d47-8b63-42f8bad6efdf",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    },
+    {
+      "goal_id": "constant-playlist",
+      "goal": "Which file defines CAP_3 and what is its value?",
+      "shape": "constant",
+      "convoy_id": "7ef1d78b-0095-4368-93ea-590c5e9da6f2",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    },
+    {
+      "goal_id": "constant-cron",
+      "goal": "Which file defines CAP_8 and what is its value?",
+      "shape": "constant",
+      "convoy_id": "ae6c2e84-ee2d-4e5f-8223-ce7f0e23c18c",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    },
+    {
+      "goal_id": "missing-dissolveQuasar",
+      "goal": "Find a function named dissolveQuasar.",
+      "shape": "missing",
+      "convoy_id": "51c16782-d290-4e94-a284-ba9dcc402466",
+      "plan": {
+        "kind": "repo",
+        "model": "mercury-2",
+        "routing": {
+          "source": "default",
+          "model": "mercury-2",
+          "reason": "no installed model is measured sufficient for repo goals (best: qwen2.5:3b 4/6, 2 ungrounded)"
+        },
+        "escalation": null,
+        "executable": false,
+        "blocked": [
+          "repository investigation runs on local models in this version; mercury-2 is not one (pick a local model)"
+        ]
+      },
+      "pass": false,
+      "error": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#convoy-approve') to be visible\u001b[22m\n"
+    }
+  ]
+}
