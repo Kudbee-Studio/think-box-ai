@@ -92,6 +92,8 @@ export function createMercuryCaller(env: Env = process.env, fetchImpl: FetchLike
       throw new Error('mercury returned a non-JSON body');
     }
     const text = body?.choices?.[0]?.message?.content;
+    // A reply cut off at max_tokens is not a malformed reply: say so, so the rejection record points at the cap instead of at the model's format.
+    if (body?.choices?.[0]?.finish_reason === 'length') throw new Error(`mercury reply was cut off at max_tokens (${opts.maxTokens ?? 900})`);
     if (typeof text !== 'string' || !text.trim()) throw new Error('mercury returned no text');
     return {
       text,

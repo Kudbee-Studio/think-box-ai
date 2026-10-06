@@ -42,6 +42,8 @@ export interface LocalToolStep {
 export const LOCAL_CALL_TIMEOUT_MS = 120_000;
 /** A call that spent longer than this loading the model counts as a cold start. */
 export const COLD_LOAD_MS = 1500;
+/** Recoverable tool errors a run may hand back to the model (each still counts as a tool call). */
+export const MAX_TOOL_RETRIES = 2;
 
 export interface LocalToolResult<E = LookupEvidence> {
   success: boolean;
@@ -59,6 +61,8 @@ export interface LocalToolResult<E = LookupEvidence> {
   completion_tokens: number;
   latency_ms: number;
   grounding: GroundingResult | null;
+  /** How many recoverable tool errors were handed back to the model (0 = none). */
+  tool_retries?: number;
   /** For a claim that something is missing: which path ran (engine search, or could not check and needs a stronger lane). */
   absence?: { path: AbsenceCheck['path']; symbol?: string; aliases: string[]; contradicted: number; searches: number; reason?: string };
   /** Empty-reply recovery: which step ran ('retry' = one forced retry, 'engine_assist' = the engine ran the first tool), and whether the run was recovered by it. */
@@ -88,6 +92,8 @@ export interface LoopSpec<E> {
   evidenceOf: (output: Record<string, unknown>) => E | null;
   render: (e: E) => string;
   repairHint: string;
+  /** A tool error the model can fix by calling again (a guessed path that does not exist). Such an error goes back to the model instead of ending the run; at most MAX_TOOL_RETRIES per run. */
+  recoverable?: (error: string) => boolean;
   /** Judge the model's final text or structured report against the evidence. */
   /** Runs before judge, may add evidence (the engine's own searches) and returns whatever judge needs. */
   /** For goal shapes the engine knows: run the first read-only tool itself, through `call`, when the model gave nothing usable. Returns how many calls it made. */
@@ -196,6 +202,7 @@ export function repoSpec(opts: { engineAbsence?: boolean } = {}): LoopSpec<RepoE
     evidenceOf: (o) => ((o as { evidence?: RepoEvidence }).evidence ?? null),
     render: renderRepoEvidence,
     repairHint: 'Tools: repo_search {query, path?} and repo_read {path, start?, end?}.',
+    recoverable: (error) => /^(path|file) not found: /.test(error),
     assist: runRepoAssist,
     prepare: opts.engineAbsence === false ? undefined : async (final, evidence) => {
       if (!('args' in final)) return undefined;
@@ -292,8 +299,8 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
   let absence: LocalToolResult<E>['absence'];
   // empty-reply recovery budget: ONE forced retry and ONE engine assist per run
   let loadMs = 0; let retried = false; let assisted = false; let assistCalls = 0; let recoveryPath: 'retry' | 'engine_assist' | 'exhausted' | undefined;
-  let toolCalls = 0; let promptTokens = 0; let completionTokens = 0; let repairs = 0; let groundingRetries = 0;
-  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, cold_load_ms: loadMs, tool_calls: toolCalls + assistCalls, prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...(recoveryPath ? { recovery: { path: recoveryPath, retries: retried ? 1 : 0, assist_calls: assistCalls, ...(recoveryPath !== 'exhausted' && partial.success ? { recovered_by: recoveryPath } : {}) } } : {}), ...partial });
+  let toolRetries = 0; let toolCalls = 0; let promptTokens = 0; let completionTokens = 0; let repairs = 0; let groundingRetries = 0;
+  const done = (partial: Partial<LocalToolResult<E>>): LocalToolResult<E> => ({ success: false, model, mode, evidence, steps, cold_load_ms: loadMs, tool_calls: toolCalls + assistCalls, ...(toolRetries ? { tool_retries: toolRetries } : {}), prompt_tokens: promptTokens, completion_tokens: completionTokens, latency_ms: Date.now() - startedAt, grounding: null, ...(absence ? { absence } : {}), ...(recoveryPath ? { recovery: { path: recoveryPath, retries: retried ? 1 : 0, assist_calls: assistCalls, ...(recoveryPath !== 'exhausted' && partial.success ? { recovered_by: recoveryPath } : {}) } } : {}), ...partial });
   const fail = (kind: LocalFailureKind, message: string): LocalToolResult<E> => done({ failure: { kind, message } });
   const noun = spec.terminalTool ? 'report' : 'answer';
 
@@ -395,7 +402,21 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
     toolCalls += 1;
     const gov = await runGovernedTool(call.name, args, hooks, context, toolCalls);
     if (gov.approval === 'denied') { steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_denied', error: String(gov.output.error) }); return fail('tool_denied', String(gov.output.error)); }
-    if (gov.output.ok !== true) { steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_failed', error: String(gov.output.error) }); return fail('tool_failed', String(gov.output.error)); }
+    if (gov.output.ok !== true) {
+      const error = String(gov.output.error);
+      steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_failed', error });
+      // A guessed path that does not exist is the model's to fix: hand the error (which names what does exist) back, a bounded number of times.
+      if (!spec.recoverable?.(error) || toolRetries >= MAX_TOOL_RETRIES) return fail('tool_failed', error);
+      toolRetries += 1;
+      if (mode === 'native') {
+        messages.push({ role: 'assistant', content: '', tool_calls: turn.tool_calls });
+        messages.push({ role: 'tool', tool_name: call.name, content: `ERROR: ${error} Check the path and call the tool again.` });
+      } else {
+        messages.push({ role: 'assistant', content: parsed.raw });
+        messages.push({ role: 'user', content: `Tool error for ${call.name}: ${error} Check the path and call the tool again.` });
+      }
+      continue;
+    }
     const found = spec.evidenceOf(gov.output);
     if (!found) { steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_failed', error: 'the tool returned no evidence' }); return fail('tool_failed', 'the tool returned no evidence'); }
     evidence.push(found);

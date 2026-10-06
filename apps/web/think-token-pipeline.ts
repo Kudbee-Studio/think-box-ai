@@ -23,6 +23,10 @@ const DEFAULT_CALLS_PER_RUN = 10;
 const DEFAULT_CALLS_PER_DAY = 200;
 // A Mercury reply can fail transiently (an empty body was seen in a live run), so it gets one retry before the local model.
 const MERCURY_ATTEMPTS = 2;
+// Mercury 2 spends part of max_tokens on hidden reasoning: a live run showed 885 and 866 output tokens against a cap of 900 for about 1,300 visible characters,
+// so the JSON was cut off and rejected. The caps are ceilings, not targets.
+export const EXTRACT_MAX_TOKENS = 2500;
+export const CHALLENGE_MAX_TOKENS = 1200;
 
 // ─── The run, as the models see it ──────────────────────────────
 
@@ -196,7 +200,7 @@ async function callModel(deps: PipelineDeps, runId: string, step: 'extract' | 'c
       }
       const started = Date.now();
       try {
-        const result = await caller(messages, { maxTokens: step === 'extract' ? 900 : 700 });
+        const result = await caller(messages, { maxTokens: step === 'extract' ? EXTRACT_MAX_TOKENS : CHALLENGE_MAX_TOKENS });
         deps.store.recordModelCall({ run_id: runId, step, provider, model: result.model, ok: true, latency_ms: result.latency_ms, tokens_in: result.tokens_in, tokens_out: result.tokens_out });
         return result;
       } catch (err) {

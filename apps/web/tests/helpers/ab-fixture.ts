@@ -106,3 +106,41 @@ export const HELD_GOALS: AbGoal[] = HELD_MODULES.map((m, i) => ({
   check: (r: LocalToolResult<any>) => r.finding?.found && r.finding.file === `src/${m.file}.ts` && String(r.finding.quote ?? '').includes(m.untested) ? { ok: true, why: `${m.untested} in src/${m.file}.ts` } : { ok: false, why: `reported ${r.finding?.found ? `${r.finding.file}: ${String(r.finding.quote ?? '').slice(0, 40)}` : 'nothing'}` },
 }));
 export const heldGoalsHash = (): string => createHash('sha256').update(JSON.stringify(HELD_GOALS.map((g) => [g.id, g.class, g.goal]))).digest('hex');
+
+// ── P3.34 fresh held-out world: thirty MORE new modules (disjoint from the A/B, training and P3.33 worlds), for the re-test after the loop and pipeline fixes
+// (docs/evidence/p3.34-recoverable-errors/PLAN.md). ──
+export const HELD2_MODULES = [
+  { file: 'ledgerbook', tested: 'bookEntry', untested: 'unbookEntry' }, { file: 'thermostat', tested: 'readTemp', untested: 'calibrateProbe' },
+  { file: 'playlist', tested: 'addTrack', untested: 'shuffleOrder' }, { file: 'invoicer', tested: 'issueInvoice', untested: 'writeCredit' },
+  { file: 'mapper', tested: 'plotPoint', untested: 'simplifyPath' }, { file: 'dispatcher', tested: 'routeCall', untested: 'requeueDropped' },
+  { file: 'vault', tested: 'sealItem', untested: 'rotateSeal' }, { file: 'cron', tested: 'nextRun', untested: 'pauseAll' },
+  { file: 'avatar', tested: 'cropImage', untested: 'stripExif' }, { file: 'ratings', tested: 'castVote', untested: 'purgeSpam' },
+  { file: 'timesheet', tested: 'logHours', untested: 'lockPeriod' }, { file: 'mailbox', tested: 'fileMessage', untested: 'emptyTrash' },
+  { file: 'telemetry', tested: 'emitSpan', untested: 'flushBuffer' }, { file: 'gateway', tested: 'forwardRequest', untested: 'tripBreaker' },
+  { file: 'recipes', tested: 'scaleServing', untested: 'convertUnits' }, { file: 'tickets', tested: 'openTicket', untested: 'mergeDuplicates' },
+  { file: 'orbit', tested: 'stepBody', untested: 'collapseStar' }, { file: 'glossary', tested: 'defineTerm', untested: 'dropObsolete' },
+  { file: 'wallet', tested: 'creditFunds', untested: 'freezeAccount' }, { file: 'pager', tested: 'pageOnCall', untested: 'silenceWindow' },
+  { file: 'bookmarks', tested: 'saveLink', untested: 'dedupeLinks' }, { file: 'quotas', tested: 'checkLimit', untested: 'resetMonth' },
+  { file: 'poller', tested: 'pollOnce', untested: 'backoffHard' }, { file: 'diffing', tested: 'compareText', untested: 'applyPatchSet' },
+  { file: 'feedback', tested: 'recordNote', untested: 'anonymizeAll' }, { file: 'roster', tested: 'assignShift', untested: 'swapShifts' },
+  { file: 'threads', tested: 'startThread', untested: 'archiveCold' }, { file: 'maskings', tested: 'maskValue', untested: 'auditAccess' },
+  { file: 'banners', tested: 'showBanner', untested: 'expireOld' }, { file: 'snippets', tested: 'expandSnippet', untested: 'importPack' },
+] as const;
+
+export async function startHeld2World(): Promise<EvalWorld> {
+  const world = await startEvalWorld();
+  const w = (rel: string, text: string): void => { fs.mkdirSync(path.dirname(path.join(world.root, rel)), { recursive: true }); fs.writeFileSync(path.join(world.root, rel), text); };
+  HELD2_MODULES.forEach((m, i) => {
+    w(`src/${m.file}.ts`, `export const CAP_${i + 1} = ${(i + 3) * 7};\nexport function ${m.tested}(x: number): number {\n  return x + 1;\n}\nexport function ${m.untested}(x: number): number {\n  return x - 1;\n}\n`);
+    w(`tests/${m.file}.test.ts`, `import { ${m.tested} } from "../src/${m.file}.ts";\ntest("${m.tested}", () => ${m.tested}(1));\n`);
+  });
+  return world;
+}
+
+export const HELD2_GOALS: AbGoal[] = HELD2_MODULES.map((m, i) => ({
+  id: `held2-untested-${m.file}`,
+  class: 'repo' as const,
+  goal: i % 2 === 0 ? `Find an exported function in src/${m.file}.ts that has no test.` : `Which exported function in src/${m.file}.ts is never covered by a test?`,
+  check: (r: LocalToolResult<any>) => r.finding?.found && r.finding.file === `src/${m.file}.ts` && String(r.finding.quote ?? '').includes(m.untested) ? { ok: true, why: `${m.untested} in src/${m.file}.ts` } : { ok: false, why: `reported ${r.finding?.found ? `${r.finding.file}: ${String(r.finding.quote ?? '').slice(0, 40)}` : 'nothing'}` },
+}));
+export const held2GoalsHash = (): string => createHash('sha256').update(JSON.stringify(HELD2_GOALS.map((g) => [g.id, g.class, g.goal]))).digest('hex');

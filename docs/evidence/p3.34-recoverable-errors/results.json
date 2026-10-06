@@ -1,0 +1,70 @@
+{
+  "stage1": {
+    "runs": 10,
+    "usable_runs": 6,
+    "unusable_replies": 0,
+    "accepted": 8,
+    "accepted_by_mercury": 8,
+    "spend_usd": 0.032223
+  },
+  "primary": {
+    "complete": true,
+    "n": 30,
+    "A": {
+      "pass": 3,
+      "false_accepts": 24,
+      "would_escalate": 27,
+      "tool_failed": 0,
+      "malformed": 0,
+      "used_retry": 2,
+      "ungrounded": 3,
+      "mean_latency_ms": 31038
+    },
+    "B": {
+      "pass": 11,
+      "false_accepts": 18,
+      "would_escalate": 19,
+      "tool_failed": 0,
+      "malformed": 0,
+      "used_retry": 2,
+      "ungrounded": 1,
+      "mean_latency_ms": 21079
+    },
+    "A_pass": 3,
+    "B_pass": 11,
+    "diff": 0.2666666666666666,
+    "ci_lo": 0.03333333333333333,
+    "ci_hi": 0.4666666666666667,
+    "mcnemar_p": 0.057373046875,
+    "retrieval_coverage": 30,
+    "commit": "45fcff47",
+    "goals_hash": "9fb7ce053a04baaf70b2bfb11b2c07ecbbbdd209424e21bf4319de014b1818fd",
+    "tokens_sha256": "f9af4ea16ce7dd7388085b24c9fb2fe1974ec45291c7e5a0a9e9ca111c735757"
+  },
+  "regression": {
+    "n": 20,
+    "A": {
+      "pass": 1,
+      "false_accepts": 17,
+      "would_escalate": 19,
+      "tool_failed": 0,
+      "malformed": 0,
+      "used_retry": 3,
+      "ungrounded": 2,
+      "mean_latency_ms": 29218
+    },
+    "B": {
+      "pass": 6,
+      "false_accepts": 13,
+      "would_escalate": 14,
+      "tool_failed": 0,
+      "malformed": 0,
+      "used_retry": 1,
+      "ungrounded": 1,
+      "mean_latency_ms": 22514
+    },
+    "A_pass": 1,
+    "B_pass": 6
+  },
+  "verdict": "UNPROVEN"
+}

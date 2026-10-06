@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T01:56:57.770Z",
+  "head": "7a7d3235",
+  "base": "gh/main",
+  "base_sha": "0190efa7",
+  "branch": "feat/pr373-p3.34-recoverable-path-errors",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1334
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1281
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1163
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1223 passed, 0 failed; lines 91.98% (floor 90%)",
+      "ms": 42464
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 438050
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 277851
+    }
+  ],
+  "verdict": "PASS"
+}

@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { SqliteTokenStore, formatTokenId, normalizeTokenId, scoreBreakdown, computeScore, type TokenDraft } from '../think-token-store.ts';
-import { buildRunView, challengeLesson, checkGrounding, checkSpecificity, processFinishedRun, type PipelineDeps } from '../think-token-pipeline.ts';
+import { CHALLENGE_MAX_TOKENS, EXTRACT_MAX_TOKENS, buildRunView, challengeLesson, checkGrounding, checkSpecificity, processFinishedRun, type PipelineDeps } from '../think-token-pipeline.ts';
 import { createMercuryCaller, createLocalCaller, sanitizeForModel, scrubSecrets, type ModelCaller, type ModelMessage, type TokenModels } from '../think-token-model.ts';
 import { formatTokenDetail, formatTokenLine, readToken, readTokens, toApiToken } from '../think-token-reader.ts';
 import { resolveLocalModel, sameLocalModel } from '../local-model.ts';
@@ -605,3 +605,22 @@ test('reader: one projection shows id, title, lesson, status, score breakdown, r
   store.close();
   assert.throws(() => SqliteTokenStore.openReadOnly(path.join(os.tmpdir(), 'does-not-exist-kudbee.db')));
 });
+
+test('a Mercury reply cut off at max_tokens is reported as such, not as a malformed reply (P3.34)', async () => {
+  const env = { INCEPTION_API_KEY_2: 'k-test' };
+  const cut = (async () => new Response(JSON.stringify({ choices: [{ message: { content: '{"lessons":[{"kind":"lesson"' }, finish_reason: 'length' }], usage: { prompt_tokens: 10, completion_tokens: 900 } }), { status: 200 })) as unknown as typeof fetch;
+  const msg = await createMercuryCaller(env, cut)!([{ role: 'user', content: 'x' }], { maxTokens: 900 }).catch((e: Error) => e.message);
+  assert.equal(msg, 'mercury reply was cut off at max_tokens (900)');
+  const ok = (async () => new Response(JSON.stringify({ choices: [{ message: { content: '{"lessons":[]}' }, finish_reason: 'stop' }] }), { status: 200 })) as unknown as typeof fetch;
+  assert.equal((await createMercuryCaller(env, ok)!([{ role: 'user', content: 'x' }])).text, '{"lessons":[]}');
+});
+
+test('the pipeline asks for enough output tokens for a reasoning model (caps are ceilings, P3.34)', async () => {
+  const seen: Array<number | undefined> = [];
+  const caller: ModelCaller = async (_m, opts) => { seen.push(opts?.maxTokens); return { text: '{"lessons":[]}', provider: 'mercury', model: 'm', latency_ms: 1, tokens_in: 1, tokens_out: 1 }; };
+  const store = new SqliteTokenStore(':memory:');
+  await processFinishedRun({ store, models: { mercury: caller, local: null } }, RUN, 'agent');
+  assert.deepEqual(seen, [EXTRACT_MAX_TOKENS]);
+  assert.ok(EXTRACT_MAX_TOKENS >= 2000 && CHALLENGE_MAX_TOKENS >= 1000);
+});
+
