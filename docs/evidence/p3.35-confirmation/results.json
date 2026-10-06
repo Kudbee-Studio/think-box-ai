@@ -1,0 +1,56 @@
+{
+  "stage1": {
+    "runs": 10,
+    "usable_runs": 7,
+    "unusable_replies": 0,
+    "accepted": 7,
+    "accepted_by_mercury": 7,
+    "spend_usd": 0.026477
+  },
+  "primary": {
+    "b_only": 5,
+    "a_only": 2,
+    "complete": true,
+    "n": 60,
+    "A": {
+      "pass": 2,
+      "false_accepts": 52,
+      "would_escalate": 54,
+      "tool_failed": 0,
+      "malformed": 0,
+      "used_retry": 3,
+      "ungrounded": 6,
+      "mean_latency_ms": 27606
+    },
+    "B": {
+      "pass": 5,
+      "false_accepts": 36,
+      "would_escalate": 54,
+      "tool_failed": 2,
+      "malformed": 9,
+      "used_retry": 13,
+      "ungrounded": 8,
+      "mean_latency_ms": 48092
+    },
+    "A_pass": 2,
+    "B_pass": 5,
+    "diff": 0.049999999999999996,
+    "ci_lo": -0.03333333333333333,
+    "ci_hi": 0.13333333333333333,
+    "mcnemar_p": 0.453125,
+    "retrieval_coverage": 60,
+    "commit": "a79de495",
+    "goals_hash": "79f5ca0f9e0cf96edc71076b9fbd7b8e0621cbc3efc2fa8c046f151f0403c307",
+    "tokens_sha256": "3b8ed2df625cef634cbc40da87b727ada720a81c3f3a84f2519ba8fede2825f5"
+  },
+  "pooled_descriptive": {
+    "n": 90,
+    "A_pass": 5,
+    "B_pass": 16,
+    "discordant_b_only": 16,
+    "discordant_a_only": 5,
+    "mcnemar_p": 0.02660369873046875,
+    "note": "two independent token sets; not a pre-registered test"
+  },
+  "verdict": "UNPROVEN"
+}

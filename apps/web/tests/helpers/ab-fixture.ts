@@ -144,3 +144,31 @@ export const HELD2_GOALS: AbGoal[] = HELD2_MODULES.map((m, i) => ({
   check: (r: LocalToolResult<any>) => r.finding?.found && r.finding.file === `src/${m.file}.ts` && String(r.finding.quote ?? '').includes(m.untested) ? { ok: true, why: `${m.untested} in src/${m.file}.ts` } : { ok: false, why: `reported ${r.finding?.found ? `${r.finding.file}: ${String(r.finding.quote ?? '').slice(0, 40)}` : 'nothing'}` },
 }));
 export const held2GoalsHash = (): string => createHash('sha256').update(JSON.stringify(HELD2_GOALS.map((g) => [g.id, g.class, g.goal]))).digest('hex');
+
+// ── P3.35 confirmation world: SIXTY more new modules (generated from fixed word lists, names disjoint from every earlier world), for the confirmatory run
+// (docs/evidence/p3.35-confirmation/PLAN.md). ──
+const H3_NOUNS = ['harbor', 'lantern', 'compass', 'orchard', 'glacier', 'tavern', 'meadow', 'quarry', 'citadel', 'foundry', 'granary', 'lighthouse', 'monastery', 'observatory', 'pavilion', 'refinery', 'sawmill', 'tannery', 'vineyard', 'windmill',
+  'aqueduct', 'barracks', 'cathedral', 'dockyard', 'embassy', 'fortress', 'gallery', 'hangar', 'infirmary', 'junction', 'kiln', 'laboratory', 'market', 'nursery', 'outpost', 'palace', 'quay', 'reservoir', 'shipyard', 'tower',
+  'university', 'viaduct', 'warehouse', 'workshop', 'yardage', 'zeppelin', 'almanac', 'beacon', 'canal', 'depot', 'estuary', 'ferry', 'garrison', 'hostel', 'island', 'jetty', 'kennel', 'lagoon', 'millrace', 'nook'] as const;
+const H3_TESTED = ['load', 'store', 'fetch', 'mark', 'count', 'pack'] as const;
+const H3_UNTESTED = ['purge', 'audit', 'retire', 'rebuild', 'archive', 'revoke'] as const;
+const cap = (w: string): string => w[0]!.toUpperCase() + w.slice(1);
+export const HELD3_MODULES = H3_NOUNS.map((noun, i) => ({ file: noun, tested: `${H3_TESTED[i % H3_TESTED.length]}${cap(noun)}`, untested: `${H3_UNTESTED[(i + Math.floor(i / 6)) % H3_UNTESTED.length]}${cap(noun)}` }));
+
+export async function startHeld3World(): Promise<EvalWorld> {
+  const world = await startEvalWorld();
+  const w = (rel: string, text: string): void => { fs.mkdirSync(path.dirname(path.join(world.root, rel)), { recursive: true }); fs.writeFileSync(path.join(world.root, rel), text); };
+  HELD3_MODULES.forEach((m, i) => {
+    w(`src/${m.file}.ts`, `export const SPAN_${i + 1} = ${(i + 5) * 3};\nexport function ${m.tested}(x: number): number {\n  return x + 1;\n}\nexport function ${m.untested}(x: number): number {\n  return x - 1;\n}\n`);
+    w(`tests/${m.file}.test.ts`, `import { ${m.tested} } from "../src/${m.file}.ts";\ntest("${m.tested}", () => ${m.tested}(1));\n`);
+  });
+  return world;
+}
+
+export const HELD3_GOALS: AbGoal[] = HELD3_MODULES.map((m, i) => ({
+  id: `held3-untested-${m.file}`,
+  class: 'repo' as const,
+  goal: i % 2 === 0 ? `Find an exported function in src/${m.file}.ts that has no test.` : `Which exported function in src/${m.file}.ts is never covered by a test?`,
+  check: (r: LocalToolResult<any>) => r.finding?.found && r.finding.file === `src/${m.file}.ts` && String(r.finding.quote ?? '').includes(m.untested) ? { ok: true, why: `${m.untested} in src/${m.file}.ts` } : { ok: false, why: `reported ${r.finding?.found ? `${r.finding.file}: ${String(r.finding.quote ?? '').slice(0, 40)}` : 'nothing'}` },
+}));
+export const held3GoalsHash = (): string => createHash('sha256').update(JSON.stringify(HELD3_GOALS.map((g) => [g.id, g.class, g.goal]))).digest('hex');
