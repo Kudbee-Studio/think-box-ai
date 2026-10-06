@@ -189,10 +189,31 @@ UpCloud server), six read-only commands, token admission, immutable admission bi
 - **(b)** real worker-02 evidence for items 3 and 4 (to move them to LIVE VERIFIED);
 - **(c)** explicit lifting of the item 7 deferral.
 
-No new implementation lane is authorized until one of these gates changes.
+No new implementation lane is authorized until one of these gates changes. (The agent OS arc recorded below was done on explicit founder instructions and does not change this.)
 
 Founder decisions still open: delete the orphan server `00068975`; keep or delete worker-01; an SSH-only
 firewall on worker-02.
+
+---
+
+## Agent OS arc after the Phase 3 gate (P3.19 to P3.45; reconciled 2026-10-06, docs-only)
+
+This work was **not** authorized by a roadmap item: it was done on explicit founder instructions ("GO" to each recommended step), after the Phase 3 gate above. It changes none of the founder gates (items 3/4 evidence, item 5, item 7). States use the four-state model; "PROVEN" below means measured or checked against an independent source, not "production".
+
+| Lane | PRs | State |
+|---|---|---|
+| Local recipes, reliable local model and smart router, live-data lookups routed from a measured table, grounding (the repo's own name is not a clue) | #343, #344, #367, #368 | CODE COMPLETE / TEST VERIFIED |
+| Grounding audit against real model answers (8 false alarms and 4 false passes fixed) | #369 | TEST VERIFIED; measured on real answers |
+| Dashboard live verification, agent board with human outcome review, beads, layered agent windows, LEARN mode | #360, #364 | CODE COMPLETE / TEST VERIFIED; browser-checked per their `AGENTS.md` entries (P3.21, P3.22) |
+| Local gates: `npm run gates` replaces CI (lint, tsgo, tsc, tests with a coverage floor, CodeQL alert diff against the base) | #370 | TEST VERIFIED; CI itself is still not the merge gate |
+| Escalation lane: a failed local repo investigation retries once on Mercury through the same governed path | #371, #375 | **PROVEN live** (P3.36: real server, real Mercury) |
+| Exact counts for open issues and open PRs (a count is only stated from a verified total) | #376 | TEST VERIFIED |
+| **Think Token learning benefit** (P3.24, P3.33 to P3.35) | #365, #372, #373, #374 | **UNPROVEN**: a +26.7 point effect on one goal set did not replicate (+5.0 on a confirmation set). Item 5 stays a founder decision; this is the evidence it should be read against |
+| Scratch runner: sandboxed checks on a throwaway copy of one commit; governed `run_checks`; SIMULATE convoy mode (Mercury proposes exact text edits, the sandbox verifies, result built by code); propose / verify / revise loop with `harness_detection` | #377, #378, #379, #380 | CODE COMPLETE / TEST VERIFIED; live-checked with real Mercury and Chromium on trivial fixtures |
+| Draft pull request from a verified, human-accepted SIMULATE proposal (off unless `KUDBEE_DRAFT_PR=on`) | #381, then #383 live | TEST VERIFIED hermetically (#381); **LIVE VERIFIED once** (#383, run 3 PASS: one real branch, one draft PR #382, read back from GitHub). Not shown live: `branch_pushed` recovery, a moved base, an existing branch, GitHub or network failure |
+| Fixes found by that live run | #384, #385 | TEST VERIFIED |
+
+Limits that stay true: "verified" means only that the repository's own checks passed on a throwaway copy with no network and no credentials; live evidence uses one model, trivial changes, and Playwright clicks acting on a founder instruction, not a person; `harness_detection` is a heuristic. Draft PR #382 is left open for the founder to close.
 
 ---
 
@@ -216,4 +237,4 @@ Phase 3 items 4 (live evidence), 5 and 7 and Phase 4's RBAC, audit compliance, c
 
 **Built by**: Claude Haiku 4.5  
 **Date**: 2026-09-29  
-**Next:** Phase 3 implementation lanes are exhausted; the next step is a founder gate (item 5 decision, real worker-02 evidence for items 3/4, or lifting the item 7 deferral). No implementation PR is authorized until then.
+**Next:** no implementation lane is authorized by this roadmap. The open items are founder decisions: (a) item 5, wire / decouple / drop the #288 learning library (read it against the UNPROVEN measurements above); (b) real worker-02 evidence for items 3 and 4; (c) lifting the item 7 deferral (dashboard authentication + HTTPS). Candidate lanes that would widen what the agent can do, each needing an explicit go-ahead: AUTONOMOUS convoy mode (the Mayor lists it unavailable), and running SIMULATE / draft PRs against more than one fixture goal.
