@@ -224,6 +224,105 @@ describe('repository investigation convoys', () => {
   });
 });
 
+describe('repository convoys: the escalation lane', () => {
+  const GOAL = 'Find an exported function in src/alpha.ts that has no test.';
+  const root = fs0.mkdtempSync(path0.join(os.tmpdir(), 'runner-esc-'));
+  fs0.mkdirSync(path0.join(root, 'src'), { recursive: true });
+  fs0.mkdirSync(path0.join(root, 'tests'), { recursive: true });
+  fs0.writeFileSync(path0.join(root, 'src/alpha.ts'), 'export function alpha() {\n  return 1;\n}\nexport function orphan() {\n  return 7;\n}\n');
+  fs0.writeFileSync(path0.join(root, 'tests/alpha.test.ts'), 'alpha();\n');
+  const call = (name: string, args: object) => turn({ tool_calls: [{ function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) } }] });
+  const chatOf = (turns: OllamaChatTurn[], counter = { n: 0 }) => ({ chat: { modelCapabilities: async () => ['tools'], chatOnce: async () => { counter.n += 1; return turns.shift() ?? turn({ error: 'script exhausted' }); } }, counter });
+  const good = { found: true, file: 'src/alpha.ts', line: 4, quote: 'export function orphan()', claim: 'The function `orphan` has no tests.', absence_search: { query: 'orphan', path: 'tests' } };
+  const alwaysText = (): any => ({ modelCapabilities: async () => ['tools'], chatOnce: async () => turn({ content: 'I could not find anything.' }) });
+  const winning = (finish: object = good): OllamaChatTurn[] => [call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('repo_search', { query: 'orphan', path: 'tests' }), call('report_finding', finish), call('report_finding', finish)];
+  const setupEsc = (goal = GOAL, tweak: (p: any) => void = () => {}) => setup(goal, (p) => { p.workers = [{ ...p.workers[0], id: 'repo-1', kind: 'repo', name: 'Repository investigation (read-only)', model: 'qwen2.5:3b', tools: ['repo_search', 'repo_read'], permission: 'read_only' }]; p.escalation = { model: 'mercury-2', when: 'test' }; p.think_mode = 'observe'; tweak(p); });
+  const withRoot = async <T>(f: () => Promise<T>): Promise<T> => { process.env.KUDBEE_REPO_ROOT = root; try { return await f(); } finally { delete process.env.KUDBEE_REPO_ROOT; } };
+
+  it('a local model that never looks is retried once on Mercury through the same tools; the retry is a second worker with its own run, cost and answer', async () => {
+    const t = setupEsc();
+    const merc = chatOf(winning());
+    const c = await withRoot(() => executeConvoy(t.deps({ chat: alwaysText(), escalationChat: merc.chat }), t.c.id));
+    assert.equal(c.state, 'COMPLETED'); assert.equal(c.outcome, 'success');
+    assert.deepEqual(c.workers.map((w) => [w.id, w.model, w.status]), [['repo-1', 'qwen2.5:3b', 'failed'], ['escalation-1', 'mercury-2', 'completed']]);
+    assert.equal(c.workers[0]!.failure?.kind, 'malformed_tool_request', 'the first attempt stays failed with its reason');
+    assert.equal(c.run_ids.length, 2);
+    assert.equal(c.workers[0]!.cost_usd, 0);
+    assert.ok(c.workers[1]!.cost_usd > 0 && Math.abs(c.cost_usd - c.workers[1]!.cost_usd) < 1e-6, `cost ${c.cost_usd}`);
+    assert.equal(c.finding?.file, 'src/alpha.ts');
+    assert.deepEqual(c.finding_check, { disk_verified: true });
+    assert.match(JSON.stringify(c.events), /escalated to mercury-2/);
+    assert.ok(t.broadcasts.some((b) => b.type === 'thought' && /Retrying once on mercury-2/.test(b.data.content)));
+    const events = t.runStore.get(c.run_ids[1]!)!.steps.map((e: any) => e.content).join('\n');
+    assert.match(events, /spend: \$0\.0000\d+ for \d+ tokens on mercury-2/);
+    assert.equal(t.calls.agent, 0, 'the escalation uses the governed repo loop, not the lookup agent');
+  });
+
+  it('a grounded "no finding" on a goal that expects one is retried on Mercury; on a "function named X" goal it is kept', async () => {
+    const t = setupEsc();
+    const local = chatOf([call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('report_finding', { found: false, reason: 'all are tested' })]);
+    const merc = chatOf(winning());
+    const c = await withRoot(() => executeConvoy(t.deps({ chat: local.chat, escalationChat: merc.chat }), t.c.id));
+    assert.equal(c.outcome, 'success'); assert.equal(c.workers.length, 2); assert.equal(c.finding?.found, true);
+    assert.equal(c.workers[0]!.status, 'completed', 'the first attempt was a valid, grounded answer; it was simply not enough for this goal');
+
+    const named = setupEsc('Find a function named doesNotExistAnywhere.');
+    const nl = chatOf([call('repo_search', { query: 'doesNotExistAnywhere', path: '' }), call('report_finding', { found: false, reason: 'no such function', absence_search: { query: 'doesNotExistAnywhere', path: '' } })]);
+    const nm = chatOf(winning());
+    const nc = await withRoot(() => executeConvoy(named.deps({ chat: nl.chat, escalationChat: nm.chat }), named.c.id));
+    assert.equal(nc.outcome, 'success'); assert.equal(nc.workers.length, 1); assert.equal(nm.counter.n, 0, 'Mercury was never called');
+  });
+
+  it('a verified local finding is accepted and Mercury is never called', async () => {
+    const t = setupEsc();
+    const merc = chatOf(winning());
+    const c = await withRoot(() => executeConvoy(t.deps({ chat: chatOf(winning()).chat, escalationChat: merc.chat }), t.c.id));
+    assert.equal(c.outcome, 'success'); assert.equal(c.workers.length, 1); assert.equal(merc.counter.n, 0); assert.equal(c.cost_usd, 0);
+  });
+
+  it('no escalation chat configured, an abort, or a spent budget: nothing is re-run', async () => {
+    const failing = alwaysText;
+    const merc = chatOf(winning());
+    const none = setupEsc();
+    const nc = await withRoot(() => executeConvoy(none.deps({ chat: failing() }), none.c.id));
+    assert.equal(nc.outcome, 'failed'); assert.equal(nc.workers.length, 1);
+
+    const ac = new AbortController(); ac.abort();
+    const aborted = setupEsc();
+    const abc = await withRoot(() => executeConvoy(aborted.deps({ chat: failing(), escalationChat: merc.chat, signal: ac.signal }), aborted.c.id));
+    assert.equal(abc.workers.length, 1); assert.equal(abc.state, 'FAILED');
+
+    const poor = setupEsc(GOAL, (p) => { p.budget.max_cost_usd = 0; });
+    const pc = await withRoot(() => executeConvoy(poor.deps({ chat: failing(), escalationChat: merc.chat }), poor.c.id));
+    assert.equal(pc.workers.length, 1); assert.equal(pc.state, 'FAILED');
+    const solo = setupEsc(GOAL, (p) => { p.budget.max_workers = 1; });
+    const sc = await withRoot(() => executeConvoy(solo.deps({ chat: failing(), escalationChat: merc.chat }), solo.c.id));
+    assert.equal(sc.workers.length, 1);
+    assert.equal(merc.counter.n, 0, 'Mercury was never called in any of these');
+  });
+
+  it('when the retry also fails, the convoy fails with the retry\'s reason and both attempts stay on the record', async () => {
+    const t = setupEsc();
+    const merc = chatOf([call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('repo_search', { query: 'orphan', path: 'tests' }), call('report_finding', { ...good, line: 5 }), call('report_finding', { ...good, line: 5 })]);
+    const c = await withRoot(() => executeConvoy(t.deps({ chat: alwaysText(), escalationChat: merc.chat }), t.c.id));
+    assert.equal(c.outcome, 'grounding_failed'); assert.equal(c.final_answer, undefined);
+    assert.equal(c.workers.length, 2); assert.equal(c.run_ids.length, 2);
+    assert.equal(c.workers[0]!.failure?.kind, 'malformed_tool_request');
+    assert.equal(c.workers[1]!.grounding?.status, 'GROUNDING FAILED');
+  });
+
+  it('a Mercury error is a failed retry, not a crash, and a thrown local loop is escalated unless it was a stop', async () => {
+    const t = setupEsc();
+    const c = await withRoot(() => executeConvoy(t.deps({ chat: alwaysText(), escalationChat: chatOf([turn({ error: 'Inception API HTTP 402: out of credit' })]).chat }), t.c.id));
+    assert.equal(c.outcome, 'failed'); assert.equal(c.workers[1]!.failure?.kind, 'model_error'); assert.match(c.error!, /out of credit/);
+    const crash = setupEsc();
+    const merc = chatOf(winning());
+    const boom: any = { modelCapabilities: async () => ['tools'], chatOnce: async () => { throw new Error('ollama is down'); } };
+    const cc = await withRoot(() => executeConvoy(crash.deps({ chat: boom, escalationChat: merc.chat }), crash.c.id));
+    assert.equal(cc.outcome, 'success'); assert.equal(cc.workers[0]!.failure?.kind, 'error'); assert.equal(cc.workers[1]!.status, 'completed');
+  });
+});
+
 describe('LEARN mode and the operator stop', () => {
   const lookupMercury = (mode: string) => setup('What is the last PR?', (p) => { p.workers[0].model = 'mercury-2'; p.escalation = null; p.think_mode = mode; });
   const okAgent = (runStore: any) => async () => ({ success: true, result: 'The last PR is #1.', steps: 1, tool_calls: 1, prompt_tokens: 1, completion_tokens: 1, tokens: 2, cost_usd: 0 });

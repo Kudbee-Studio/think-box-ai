@@ -149,11 +149,12 @@ describe('repository investigation plans (OBSERVE)', () => {
     for (const g of [goal, 'Inspect the code for unused exports', 'Which files have a TODO?', 'audit the source for duplicated code', 'find untested modules']) assert.equal(matchRepoGoal(g), true, g);
     for (const g of ['What is the last PR?', 'did CI pass', 'fix the failing test', 'write a file notes.md', 'delete the unused functions', 'find the weather', 'hello', 'list the files in my workspace', 'show me what is in the workspace folder', 'read notes.md', '', 'find a function at https://x.io/a.ts', 'x'.repeat(700)]) assert.equal(matchRepoGoal(g), false, g);
   });
-  it('is one read-only worker on a local model with the two repo tools, in OBSERVE mode, low risk, and no escalation', () => {
+  it('is one read-only worker on a local model with the two repo tools, in OBSERVE mode, low risk, and one named escalation to the agent model', () => {
     const p = plan(goal, { lookupModel: 'qwen2.5:3b' });
     assert.equal(p.think_mode, 'observe');
     assert.deepEqual(p.workers.map((w: any) => [w.id, w.kind, w.model, w.tools, w.permission]), [['repo-1', 'repo', 'qwen2.5:3b', ['repo_search', 'repo_read'], 'read_only']]);
-    assert.equal(p.escalation, null);
+    assert.ok(p.escalation && /no finding where the goal expects one/.test(p.escalation.when), JSON.stringify(p.escalation));
+    assert.equal(plan(goal, { lookupModel: 'qwen2.5:3b', agentModel: null }).escalation, null);
     assert.equal(p.executable, true);
     const pol = evaluatePolicy(p);
     assert.equal(pol.risk, 'low');

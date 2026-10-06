@@ -44,6 +44,7 @@ import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isIncepti
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
+import { createMercuryChat } from './mercury-chat.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
 import { validateGrounding, presentAnswer, type GroundingResult } from './grounding.ts';
 import { renderFacts, type LookupEvidence } from './live-lookup.ts';
@@ -1364,7 +1365,7 @@ export class AgentSession {
     convoyAborts.set(id, stopper);
     this.abort = stopper;
     const deps: RunnerDeps = {
-      store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, repo: getKnownRepo(),
+      store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, ...(inceptionConfigured() ? { escalationChat: createMercuryChat() } : {}), repo: getKnownRepo(),
       isLocalModel: (model) => !isInceptionModel(model),
       newChildRun: (goal, runId, model, convoyId, workerId) => {
         const record = this.newRun(goal, runId);

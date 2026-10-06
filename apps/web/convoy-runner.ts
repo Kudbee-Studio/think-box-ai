@@ -12,14 +12,18 @@ import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
-import { COLD_LOAD_MS, repoSpec, runLocalToolLoop, type LocalChat } from './local-tools.ts';
-import { REPO_TOOLS, repoRoot, verifyQuoteOnDisk, type RepoEvidence } from './repo-tools.ts';
+import { COLD_LOAD_MS, runLocalToolLoop, type LocalChat } from './local-tools.ts';
+import { attemptRepo, repoEscalationReason, type RepoAttempt } from './escalation.ts';
+import { loopCostUsd } from './mercury-chat.ts';
+import { REPO_TOOLS, type RepoEvidence } from './repo-tools.ts';
 import type { RunRecord, RunStore } from './runs.ts';
 
 export interface RunnerDeps {
   store: ConvoyStore;
   runStore: RunStore;
   chat: LocalChat;
+  /** The stronger model's chat, for escalating a repository investigation. Absent = no escalation lane (nothing is ever re-run). */
+  escalationChat?: LocalChat;
   repo: string | null;
   isLocalModel: (model: string) => boolean;
   /** Creates the child run record for a worker (already tagged with the convoy id as jobId). */
@@ -218,9 +222,55 @@ export function routeLine(lane: 'lookup' | 'repo', model: string, mode: string, 
   return `route: lane=${lane} model=${model} mode=${mode} latency=${(latencyMs / 1000).toFixed(1)}s ${coldLoadMs >= COLD_LOAD_MS ? `cold (model load ${(coldLoadMs / 1000).toFixed(1)}s)` : 'warm'}`;
 }
 
+interface RepoOutcome { attempt: RepoAttempt | null; failure?: { kind: string; message: string }; grounding: Grounding | null; answer?: string }
+
 async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => void): Promise<void> {
+  const { store } = deps;
+  const primary = c.workers[0]!;
+  let outcome = await runRepoWorker(deps, c, primary, deps.chat, update);
+  // Escalation: one retry on the stronger model through the same governed loop, only when the plan named it up front (so the approval covered it) and a human
+  // has not said no. The first attempt's record stays as it is; the retry is a second worker.
+  const esc = c.plan.escalation;
+  let escalated = false;
+  if (esc && deps.escalationChat && primary.model && deps.isLocalModel(primary.model)) {
+    const reason = outcome.attempt ? repoEscalationReason(c.goal, outcome.attempt, deps.signal.aborted) : (deps.signal.aborted || outcome.failure?.kind === 'stopped' ? null : `${outcome.failure?.kind}: ${outcome.failure?.message}`.slice(0, 200));
+    if (reason) {
+      if (c.workers.length + 1 > c.worker_budget.max_workers) store.worker(c, primary.id).failure ??= { kind: 'budget', message: 'no worker budget left to escalate' };
+      else if (c.cost_usd >= c.worker_budget.max_cost_usd) store.worker(c, primary.id).failure ??= { kind: 'budget', message: 'no cost budget left to escalate' };
+      else {
+        const worker: WorkerRecord = { id: 'escalation-1', kind: 'repo', name: `Escalation to ${esc.model}`, model: esc.model, status: 'pending', cost_usd: 0, duration_ms: 0, tool_calls: 0, tokens: 0 };
+        c.workers.push(worker);
+        store.save();
+        deps.broadcast({ type: 'thought', data: { type: 'routing', content: `Convoy ${c.id.slice(0, 8)}: ${primary.model} did not produce a verified finding (${reason}). Retrying once on ${esc.model} through the same governed repository tools.`, status: 'info', jobId: c.id } });
+        outcome = await runRepoWorker(deps, c, worker, deps.escalationChat, update);
+        escalated = true;
+      }
+    }
+  }
+  store.aggregate(c);
+  const { attempt, failure, grounding, answer } = outcome;
+  if (failure || !attempt) { store.finish(c.id, 'failed', `worker failed: ${failure?.kind}`, `${failure?.kind}: ${failure?.message}`); return; }
+  c.finding = attempt.result.finding;
+  if (attempt.disk) c.finding_check = attempt.disk;
+  if (grounding?.status !== 'GROUNDED') {
+    c.grounding = grounding ?? undefined;
+    const needs = grounding?.classification === 'needs_escalation';
+    store.finish(c.id, 'grounding_failed', needs ? `GROUNDING FAILED: this absence claim could not be checked${escalated ? ', even after escalation' : ' here and no stronger lane ran'}` : 'GROUNDING FAILED: the finding was not shown as verified', `GROUNDING FAILED (${grounding?.classification})`);
+    return;
+  }
+  if (attempt.result.finding?.found && !attempt.disk?.disk_verified) {
+    c.grounding = grounding;
+    store.finish(c.id, 'grounding_failed', 'the quote could not be re-read from disk', `disk re-check failed: ${attempt.disk?.reason ?? 'unknown'}`);
+    return;
+  }
+  c.grounding = grounding;
+  c.final_answer = answer;
+  store.finish(c.id, 'success', `${escalated ? `escalated to ${esc?.model}: ` : ''}${attempt.result.finding?.found ? 'finding grounded in the tool evidence and re-read from disk' : 'the worker looked and reported nothing worth flagging'}`);
+}
+
+/** One repository worker on one model: the governed loop, the run record with its events, the worker's numbers. Returns what the convoy needs to decide. */
+async function runRepoWorker(deps: RunnerDeps, c: ConvoyRecord, worker: WorkerRecord, chat: LocalChat, update: () => void): Promise<RepoOutcome> {
   const { store, runStore } = deps;
-  const worker = c.workers[0]!;
   const model = worker.model!;
   const now = deps.now ?? Date.now;
   const startedAt = now();
@@ -230,29 +280,27 @@ async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => vo
   c.run_ids.push(record.id);
   store.save();
   update();
+  let attempt: RepoAttempt | null = null;
   let evidence: RepoEvidence[] = [];
-  let tokens = 0; let toolCalls = 0;
+  let tokens = 0; let toolCalls = 0; let cost = 0;
   let failure: { kind: string; message: string } | undefined;
   let grounding: Grounding | null = null;
   let answer: string | undefined;
-  let diskCheck: { disk_verified: boolean; reason?: string } | undefined;
   try {
     const hooks = deps.hooksFor(record, deps.signal, [...REPO_TOOLS]);
-    const r = await runLocalToolLoop<RepoEvidence>({ model, goal: c.goal, hooks, context: newRunContext(), chat: deps.chat, repo: null, spec: repoSpec(), maxSteps: 8, signal: deps.signal });
+    attempt = await attemptRepo({ model, goal: c.goal, chat, hooks, signal: deps.signal });
+    const r = attempt.result;
     evidence = r.evidence; tokens = r.prompt_tokens + r.completion_tokens; toolCalls = r.tool_calls;
+    if (!deps.isLocalModel(model)) cost = loopCostUsd(model, r);
+    const paid = cost > 0 ? cost : 0;
     runStore.addEvent(record, { kind: 'model', step: r.steps.length + 3, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: routeLine('repo', r.model, r.mode, r.latency_ms, r.cold_load_ms) });
     for (const step of r.steps) runStore.addEvent(record, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['repo'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
-    if (r.recovery) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 2, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `empty-reply recovery: ${r.recovery.path}${r.recovery.recovered_by ? ` (recovered by ${r.recovery.recovered_by})` : r.recovery.path === 'exhausted' ? ' (needs a stronger lane; not auto-rerun yet)' : ''}, ${r.recovery.retries} retry, ${r.recovery.assist_calls} engine tool call(s)`.slice(0, 600) });
+    if (paid) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 4, latency_ms: 0, prompt_tokens: r.prompt_tokens, completion_tokens: r.completion_tokens, cost_usd: paid, tool_calls: [], content: `spend: $${paid.toFixed(6)} for ${tokens} tokens on ${model}` });
+    if (r.recovery) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 2, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `empty-reply recovery: ${r.recovery.path}${r.recovery.recovered_by ? ` (recovered by ${r.recovery.recovered_by})` : r.recovery.path === 'exhausted' ? ' (escalates to the stronger lane when the plan names one)' : ''}, ${r.recovery.retries} retry, ${r.recovery.assist_calls} engine tool call(s)`.slice(0, 600) });
     if (r.absence) runStore.addEvent(record, { kind: 'model', step: r.steps.length + 1, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `absence check: ${r.absence.path}${r.absence.symbol ? ` for ${r.absence.symbol}` : ''}${r.absence.aliases.length ? ` (aliases ${r.absence.aliases.join(', ')})` : ''}, ${r.absence.contradicted} contradicting reference(s), ${r.absence.searches} engine search(es)${r.absence.reason ? `; ${r.absence.reason}` : ''}`.slice(0, 600) });
     if (!r.success) failure = r.failure;
     else {
       grounding = r.grounding ? brief(r.grounding) : null;
-      c.finding = r.finding;
-      if (r.finding && r.finding.found && grounding?.status === 'GROUNDED') {
-        const disk = await verifyQuoteOnDisk(String(r.finding.file), Number(r.finding.line), String(r.finding.quote), repoRoot());
-        diskCheck = { disk_verified: disk.ok, ...(disk.reason ? { reason: disk.reason } : {}) };
-        c.finding_check = diskCheck;
-      }
       answer = r.finding?.found ? `${r.finding.file}:${r.finding.line} \u2014 ${r.finding.claim}` : `No finding: ${r.finding?.reason ?? ''}`;
     }
   } catch (err) {
@@ -261,26 +309,13 @@ async function runRepoConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () => vo
   c.repo_evidence.push(...evidence);
   const ok = !failure;
   worker.status = ok ? 'completed' : 'failed';
-  worker.cost_usd = 0; worker.tokens = tokens; worker.tool_calls = toolCalls; worker.duration_ms = now() - startedAt;
+  worker.cost_usd = cost; worker.tokens = tokens; worker.tool_calls = toolCalls; worker.duration_ms = now() - startedAt;
   if (failure) worker.failure = failure;
   if (grounding) worker.grounding = grounding;
   if (answer) worker.answer = answer;
   record.grounding = grounding ?? undefined;
   runStore.finish(record, ok ? { status: 'completed', result: answer } : { status: 'failed', error: `${failure!.kind}: ${failure!.message}`, failure_kind: failure!.kind === 'stopped' ? 'stopped' : 'error' });
   store.aggregate(c);
-  if (failure) { store.finish(c.id, 'failed', `worker failed: ${failure.kind}`, `${failure.kind}: ${failure.message}`); return; }
-  if (grounding?.status !== 'GROUNDED') {
-    c.grounding = grounding ?? undefined;
-    const escalate = grounding?.classification === 'needs_escalation';
-    store.finish(c.id, 'grounding_failed', escalate ? 'GROUNDING FAILED: this absence claim could not be checked here and needs a stronger lane (not auto-rerun yet)' : 'GROUNDING FAILED: the finding was not shown as verified', `GROUNDING FAILED (${grounding?.classification})`);
-    return;
-  }
-  if (c.finding?.found && !diskCheck?.disk_verified) {
-    c.grounding = grounding;
-    store.finish(c.id, 'grounding_failed', 'the quote could not be re-read from disk', `disk re-check failed: ${diskCheck?.reason ?? 'unknown'}`);
-    return;
-  }
-  c.grounding = grounding;
-  c.final_answer = answer;
-  store.finish(c.id, 'success', c.finding?.found ? 'finding grounded in the tool evidence and re-read from disk' : 'the worker looked and reported nothing worth flagging');
+  update();
+  return { attempt, ...(failure ? { failure } : {}), grounding, ...(answer ? { answer } : {}) };
 }
