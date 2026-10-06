@@ -31,10 +31,12 @@ function notRun(why: string): never { console.error(`NOT RUN: ${why}`); process.
 
 // Cloud (API) models talk through the SAME worker-agent path (an OpenAI-compatible endpoint); only the base URL and key differ. Each key is looked up by its own NAME only, never printed.
 const DEEPSEEK_MODEL = process.env.P348_DEEPSEEK_MODEL || 'deepseek-chat';
+const XAI_MODEL = process.env.P348_XAI_MODEL || 'grok-4.3';
 const readKey = (name: string): string => process.env[name] || readTextIfPresent(path.join(repoRoot, '.env')).match(new RegExp(`^${name}=(.+)$`, 'm'))?.[1]?.trim().replace(/^["']|["']$/g, '') || '';
 const CLOUD: Record<string, { baseUrl: string; keyEnv: string; key: string }> = {
   'mercury-2': { baseUrl: process.env.INCEPTION_BASE_URL || 'https://api.inceptionlabs.ai/v1', keyEnv: 'INCEPTION_API_KEY', key: '' },
   [DEEPSEEK_MODEL]: { baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1', keyEnv: 'DEEPSEEK_API_KEY', key: '' },
+  [XAI_MODEL]: { baseUrl: process.env.XAI_BASE_URL || 'https://api.x.ai/v1', keyEnv: 'XAI_API_KEY', key: '' },
 };
 const isCloud = (m: string): boolean => Object.prototype.hasOwnProperty.call(CLOUD, m);
 for (const m of MODELS) if (isCloud(m)) { CLOUD[m]!.key = readKey(CLOUD[m]!.keyEnv); if (!CLOUD[m]!.key) notRun(`No ${CLOUD[m]!.keyEnv} in the environment or the repo .env (needed for ${m})`); }
