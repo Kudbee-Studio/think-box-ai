@@ -73,7 +73,7 @@ for (const task of tasks) {
   const { dir, sha } = makeRepo(task);
   const before = independentTest(dir, sha, null);
   const x = fs.mkdtempSync(path.join(privateTmp, 'ref-')); const work = path.join(x, 'w'); fs.mkdirSync(work);
-  execFileSync('tar', ['-x', '-f', '/dev/stdin', '-C', work], { input: execFileSync('git', ['archive', '--format=tar', sha], { cwd: dir, maxBuffer: 50_000_000 }) });
+  execFileSync('git', ['archive', '--format=tar', '-o', path.join(x, 'ref.tar'), sha], { cwd: dir }); execFileSync('tar', ['-x', '-f', path.join(x, 'ref.tar'), '-C', work]);
   for (const e of task.ref) { const p = path.join(work, e.path); const s = fs.readFileSync(p, 'utf8'); if (s.split(e.find!).length !== 2) notRun(`${task.id}: the reference find text is not unique`); fs.writeFileSync(p, s.replace(e.find!, () => e.replace!)); }
   const after = spawnSync('sh', ['-c', 'node --test tests/*.test.js'], { cwd: path.join(work, 'apps/web'), encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: x } }).status ?? 1;
   preflight.push({ id: task.id, before, after, ok: before !== 0 && after === 0 }); fs.rmSync(x, { recursive: true, force: true });
