@@ -35,6 +35,7 @@
     "test:live-true-counts": "node --experimental-strip-types --no-warnings tests/e2e/true-counts.live.ts",
     "test:live-scratch": "node --experimental-strip-types --no-warnings tests/e2e/scratch-runner.live.ts",
     "test:e2e:run-checks": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/run-checks.live.e2e.ts",
+    "test:e2e:draft-pr": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/draft-pr.live.e2e.ts",
     "test:e2e:simulate": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/simulate.live.e2e.ts",
     "test:e2e:revise-loop": "LD_LIBRARY_PATH=$HOME/tools/chromelibs/usr/lib/x86_64-linux-gnu node --experimental-strip-types --no-warnings tests/e2e/revise-loop.live.e2e.ts",
     "test:live-repo-recovery": "node --experimental-strip-types --no-warnings tests/e2e/repo-recovery.live.ts",
