@@ -3694,3 +3694,9 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 - **Tests (+7, 1414 -> 1421):** `tests/cloud-models.test.ts` (registry, configured models and default, pricing, endpoint and key per model against a local stub, fallback for an unregistered name, missing key and HTTP error naming, dashboard model list).
 - **Not shown / limits:** not exercised live from the dashboard UI (no browser); one 1-token API check of the model name `deepseek-flash` only. DeepSeek's tool calling is proven only on the P3.49 SIMULATE tasks, not on every Worker Agent tool. The price is an estimate.
 
+### 2026-10-06 — P3.52: xAI (Grok) as a third cloud reference model in the experiment (branch feat/pr392-p3.52-xai-experiment)
+- **Why:** the founder has an xAI key and asked to test Mercury, DeepSeek and xAI. The runner takes `grok-4.3` at `https://api.x.ai/v1` with `XAI_API_KEY` (same worker-agent path; no product provider code). PLAN.md was committed before any xAI run.
+- **Result** (`docs/evidence/p3.52-xai/`): grok-4.3 **15 of 15** on the easy set and **22 of 24** on the hard set; every validity criterion held and the independent test agreed on all 39 verdicts. Both misses are H10 (both trials): its test also requires the empty string to be rejected, which the goal never says; Mercury and DeepSeek added that check unprompted. That is an underspecified task as much as a model difference, and the frozen set was not edited.
+- **Speed:** median 6.7 s per hard row (Mercury 2.6 s, DeepSeek 5.1 s).
+- **Not shown / limits:** nothing about real repositories or local models; one run; unseeded; xAI cost not computed; xAI is not yet a selectable dashboard model (that is a separate PR after the DeepSeek one).
+
