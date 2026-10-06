@@ -108,6 +108,20 @@ export interface SimulationResult {
   max_rounds?: number;
 }
 
+/** SIMULATE only: a draft pull request a human opened from the verified proposal. `branch_pushed` means the branch is on the remote but the pull request was not created (a retry only creates it). */
+export interface DraftPrRecord {
+  state: 'branch_pushed' | 'opened';
+  repo: string;
+  base: string;
+  branch: string;
+  commit: string;
+  url?: string;
+  number?: number;
+  by: string;
+  at: number;
+  error?: string;
+}
+
 export interface WorkerRecord {
   id: string;
   kind: PlannedWorker['kind'];
@@ -152,6 +166,7 @@ export interface ConvoyRecord {
   finding_check?: { disk_verified: boolean; reason?: string };
   /** SIMULATE only: the proposed change and what the sandbox said about it. Never applied to the working tree, never pushed. */
   simulation?: SimulationResult;
+  draft_pr?: DraftPrRecord;
   cost_usd: number;
   tool_calls: number;
   tokens: number;
@@ -361,6 +376,16 @@ export class ConvoyStore {
     this.finishRecord(c, to, 'system', note, outcome, error);
     // Something to judge (a result, even a partial one) waits for a human; a failure has nothing to accept.
     c.review = outcome === 'success' || outcome === 'partial' ? { state: 'pending', requested_at: this.now() } : { state: 'not_required' };
+    this.save();
+    return c;
+  }
+
+  /** Records the draft pull request a human opened (or the pushed branch that still lacks its pull request), on the audit chain. */
+  recordDraftPr(id: string, rec: DraftPrRecord): ConvoyRecord {
+    const c = this.must(id);
+    c.draft_pr = rec;
+    c.updated_at = this.now();
+    appendEvent(c, c.state, rec.by, rec.state === 'opened' ? `draft pull request opened: ${rec.url}` : `branch ${rec.branch} pushed to ${rec.repo}; the draft pull request was not created: ${String(rec.error ?? '').slice(0, 160)}`, c.updated_at);
     this.save();
     return c;
   }

@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T12:01:46.159Z",
+  "head": "ecd6076c",
+  "base": "gh/main",
+  "base_sha": "0f24347b",
+  "branch": "feat/pr381-p3.42-draft-pr",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1234
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1284
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1247
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1380 passed, 0 failed; lines 92.51% (floor 90%)",
+      "ms": 53473
+    },
+    {
+      "step": "codeql-js",
+      "status": "fail",
+      "detail": "34 alerts here, 33 on base, 1 new: js/insecure-temporary-file apps/web/tests/draft-pr.test.ts:175",
+      "ms": 235371
+    },
+    {
+      "step": "codeql-py",
+      "status": "not_run",
+      "detail": "base scan: cannot check out 0f24347b: Preparing worktree (detached HEAD 0f24347b) | fatal: '/home/domin/.cache/kudbee-gates/wt-0f24347b' is a missing but already registered worktree; | use 'add -f' to override, or 'prune' or 'remove' to clear",
+      "ms": 80
+    }
+  ],
+  "verdict": "FAIL"
+}

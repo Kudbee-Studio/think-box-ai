@@ -192,6 +192,11 @@
     if (EventCtor && this.win.dispatchEvent) this.win.dispatchEvent(new EventCtor('convoy:review', { detail: { id: id, decision: decision } }));
   };
 
+  ConvoyWindow.prototype.openDraftPr = function (id) {
+    var EventCtor = this.win.CustomEvent || root.CustomEvent;
+    if (EventCtor && this.win.dispatchEvent) this.win.dispatchEvent(new EventCtor('convoy:open_draft_pr', { detail: { id: id } }));
+  };
+
   /** READY / OPEN / REVIEW / FINISHED for every worker. REVIEW means a result is waiting for a human to accept or reject it. */
   ConvoyWindow.prototype._board = function () {
     var self = this; var b = this.board;
@@ -449,6 +454,15 @@
       patchDetails.appendChild(this._el('summary', null, 'The patch (not applied to your working tree)'));
       patchDetails.appendChild(this._el('pre', 'convoy-patch', sm0.patch));
       simBox.appendChild(patchDetails);
+      // Draft pull request (slice 4): offered only when the server says the proposal is verified AND a human accepted the review; the link is shown only if it is a github.com pull request
+      var dp = c.draft_pr;
+      if (dp && dp.state === 'opened' && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/.test(String(dp.url))) {
+        var link = this._el('a', 'convoy-draft-link', 'Draft pull request: ' + dp.url); link.href = dp.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.id = 'convoy-draft-link';
+        simBox.appendChild(link);
+      } else if (c.draft_pr_available) {
+        if (dp && dp.state === 'branch_pushed') simBox.appendChild(this._el('div', 'convoy-blocked', 'Branch ' + dp.branch + ' is pushed to ' + dp.repo + ' but its draft pull request was not created' + (dp.error ? ': ' + dp.error : '') + '.'));
+        simBox.appendChild(this._button(dp && dp.state === 'branch_pushed' ? 'Finish opening the draft PR\u2026' : 'Open a draft PR\u2026', 'btn-secondary convoy-open-draft-pr', function () { self.openDraftPr(c.id); }, 'convoy-open-draft-pr'));
+      }
       box.appendChild(simBox);
     }
 

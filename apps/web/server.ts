@@ -43,6 +43,8 @@ import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
+import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
+import { repoRoot } from './repo-tools.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
 import { createMercuryChat } from './mercury-chat.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
@@ -224,6 +226,8 @@ const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
 /** Abort controllers of running convoys, so convoy_stop can stop exactly one. */
 const convoyAborts = new Map<string, AbortController>();
+/** Convoys whose draft pull request is being opened right now: a second click must not start a second push. */
+const draftPrInFlight = new Set<string>();
 const convoyStore = new ConvoyStore(path.join(profilesDir, activeProfileId, 'convoys.json'), activeProfileId);
 const memoryStore = new MemoryStore(profileMemoryRoot(profilesDir, activeProfileId), process.env, activeProfileId);
 void memoryStore.syncVectors();
@@ -1906,6 +1910,21 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           } catch (err) {
             ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: errorMessage(err), code: err instanceof ConvoyError ? err.code : undefined } }));
           }
+          break;
+        }
+
+        // Slice 4: a human turns a verified, accepted SIMULATE proposal into a DRAFT pull request on the configured repository. Off unless KUDBEE_DRAFT_PR=on.
+        // Nothing but this socket reaches it (no model, no tool, no HTTP route), and it asks the human again with the repository, branch, patch hash and files.
+        case 'convoy_open_draft_pr': {
+          const id = typeof msg.id === 'string' ? msg.id : '';
+          const fail = (error: string): void => ws.send(JSON.stringify({ type: 'convoy_error', data: { id, error: scrubSecrets(error) } }));
+          if (draftPrInFlight.has(id)) { fail('a draft pull request for this convoy is already being opened'); break; }
+          draftPrInFlight.add(id);
+          try {
+            const r = await requestDraftPr({ store: convoyStore, id, repoRoot: repoRoot(), approve: (tool, args, reason) => session.requestApproval(`draft-pr:${id}`, tool, args, reason) });
+            if (r.convoy) session.broadcast({ type: 'convoy_update', data: summarizeConvoy(r.convoy) });
+            if (!r.ok) fail(r.error);
+          } catch (err) { fail(errorMessage(err)); } finally { draftPrInFlight.delete(id); }
           break;
         }
 
