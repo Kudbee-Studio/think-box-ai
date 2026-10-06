@@ -73,3 +73,36 @@ export const TRAIN_GOALS: AbGoal[] = [
   ...TRAIN_MISSING.map((name) => ({ id: `train-missing-${name}`, class: 'repo' as const, goal: `Find a function named ${name}.`, check: (r: LocalToolResult<any>) => r.finding && r.finding.found === false ? { ok: true, why: 'reported that it does not exist' } : { ok: false, why: 'invented a finding for a function that is not there' } })),
 ];
 export const trainGoalsHash = (): string => createHash('sha256').update(JSON.stringify(TRAIN_GOALS.map((g) => [g.id, g.goal]))).digest('hex');
+
+// ── P3.33 held-out world: twenty NEW modules (names disjoint from the A/B and training worlds), each with one tested and one untested function, for the
+// learning test (docs/evidence/p3.33-token-learning/PLAN.md). Tokens learned in the training world cannot contain these names. ──
+export const HELD_MODULES = [
+  { file: 'inventory', tested: 'addItem', untested: 'writeOff' }, { file: 'scheduler', tested: 'planJob', untested: 'skipJob' },
+  { file: 'notifier', tested: 'pushAlert', untested: 'muteAll' }, { file: 'exporter', tested: 'toCsv', untested: 'toParquet' },
+  { file: 'sessions', tested: 'openSession', untested: 'expireStale' }, { file: 'search', tested: 'indexDoc', untested: 'rebuildIndex' },
+  { file: 'metrics', tested: 'recordHit', untested: 'resetCounters' }, { file: 'uploader', tested: 'storeBlob', untested: 'abortUpload' },
+  { file: 'payments', tested: 'settleOrder', untested: 'reverseCharge' }, { file: 'shipping', tested: 'quoteRate', untested: 'voidLabel' },
+  { file: 'tagger', tested: 'labelItem', untested: 'mergeTags' }, { file: 'catalog', tested: 'listSku', untested: 'retireSku' },
+  { file: 'scoring', tested: 'rankPlayer', untested: 'decayScores' }, { file: 'backup', tested: 'snapshotDb', untested: 'pruneOld' },
+  { file: 'geocode', tested: 'lookupCity', untested: 'clearCache' }, { file: 'webhook', tested: 'deliverEvent', untested: 'replayFailed' },
+  { file: 'coupons', tested: 'applyCode', untested: 'revokeBatch' }, { file: 'reports', tested: 'buildDaily', untested: 'archiveYear' },
+  { file: 'locale', tested: 'pickLanguage', untested: 'dropUnused' }, { file: 'sandbox', tested: 'runSafe', untested: 'killStuck' },
+] as const;
+
+export async function startHeldWorld(): Promise<EvalWorld> {
+  const world = await startEvalWorld();
+  const w = (rel: string, text: string): void => { fs.mkdirSync(path.dirname(path.join(world.root, rel)), { recursive: true }); fs.writeFileSync(path.join(world.root, rel), text); };
+  HELD_MODULES.forEach((m, i) => {
+    w(`src/${m.file}.ts`, `export const LIMIT_${i + 1} = ${(i + 1) * 10};\nexport function ${m.tested}(x: number): number {\n  return x + 1;\n}\nexport function ${m.untested}(x: number): number {\n  return x - 1;\n}\n`);
+    w(`tests/${m.file}.test.ts`, `import { ${m.tested} } from "../src/${m.file}.ts";\ntest("${m.tested}", () => ${m.tested}(1));\n`);
+  });
+  return world;
+}
+
+export const HELD_GOALS: AbGoal[] = HELD_MODULES.map((m, i) => ({
+  id: `held-untested-${m.file}`,
+  class: 'repo' as const,
+  goal: i % 2 === 0 ? `Find an exported function in src/${m.file}.ts that has no test.` : `Which exported function in src/${m.file}.ts is never covered by a test?`,
+  check: (r: LocalToolResult<any>) => r.finding?.found && r.finding.file === `src/${m.file}.ts` && String(r.finding.quote ?? '').includes(m.untested) ? { ok: true, why: `${m.untested} in src/${m.file}.ts` } : { ok: false, why: `reported ${r.finding?.found ? `${r.finding.file}: ${String(r.finding.quote ?? '').slice(0, 40)}` : 'nothing'}` },
+}));
+export const heldGoalsHash = (): string => createHash('sha256').update(JSON.stringify(HELD_GOALS.map((g) => [g.id, g.class, g.goal]))).digest('hex');

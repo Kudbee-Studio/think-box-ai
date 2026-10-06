@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { repoSpec } from '../local-tools.ts';
 import { accepted, attemptRepo, repoEscalationReason, type RepoAttempt } from '../escalation.ts';
 import type { LocalChat, LocalToolResult } from '../local-tools.ts';
 import type { OllamaChatTurn } from '../ollama-client.ts';
@@ -80,5 +81,12 @@ describe('attemptRepo', () => {
     assert.match(repoEscalationReason(UNTESTED, a)!, /re-read from disk/);
     const none = await attemptRepo({ model: 'm', goal: UNTESTED, maxSteps: 4, chat: chatOf([call('repo_read', { path: 'src/alpha.ts', start: 1, end: 6 }), call('report_finding', { found: false, reason: 'nothing' })]), hooks: hooks() });
     assert.equal(none.disk, undefined);
+  });
+  it('a custom spec is what the model sees (the token block reaches the system prompt)', async () => {
+    const seen: string[] = [];
+    const chat: LocalChat = { modelCapabilities: async () => ['tools'], chatOnce: async (_m, messages) => { seen.push(String((messages[0] as { content: string }).content)); return turn({ error: 'stop' }); } };
+    const base = repoSpec();
+    await attemptRepo({ model: 'm', goal: UNTESTED, chat, hooks: hooks(), spec: { ...base, system: `${base.system}\n\nTHINK TOKENS: marker` } });
+    assert.match(seen[0]!, /THINK TOKENS: marker/);
   });
 });
