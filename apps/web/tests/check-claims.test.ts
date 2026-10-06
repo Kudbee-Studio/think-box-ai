@@ -88,3 +88,35 @@ describe('no false alarm on a correct answer (found live: real Mercury text, 202
   });
 });
 
+describe('no false alarm on an honest answer: offers, questions, intentions, quotes (found live: real Mercury text after a denied approval)', () => {
+  const none: ScratchReport[] = [];
+  const red = report([check('lint'), check('tsc', false)]);
+  it('the real text of a denied run: an offer to run the tests and report how many passed', () => {
+    const real = 'I\u2019m unable to run the test suite because the request to execute `run_checks` for the test suite was denied by the human reviewer. To proceed, I would need approval to run the repository\u2019s checks (e.g., a \u201ctest\u201d check) on the current HEAD. Please grant permission, and I\u2019ll run the tests and report how many passed.';
+    assert.deepEqual(validateCheckClaims(real, none), { ok: true, problems: [] });
+    assert.deepEqual(validateCheckClaims(real, [red]), { ok: true, problems: [] });
+  });
+  it('a table of honest sentences in different styles passes, with no report and with a failed one', () => {
+    const honest = [
+      'I could not run anything: approval was denied. Once approved I will run lint and tell you whether it passes.',
+      'Do you want me to check whether the tests pass on this commit?',
+      'I need your approval to find out if typecheck passes.',
+      'To see whether tsc passes I have to run it; it has not been run yet.',
+      'Whether the tests pass is unknown until the run happens.',
+      'You can ask me to confirm that lint passes after the patch.',
+      'The tests have not passed yet; the run failed.',
+      'Lint did not pass.',
+      'No test passed in this run, the suite failed.',
+      'Nothing was run, so I cannot say that the tests pass.',
+      'If the tests pass, the change could be considered verified, but no run happened.',
+      'Let me run the tests and see how many passed.',
+    ];
+    for (const a of honest) assert.deepEqual(validateCheckClaims(a, none), { ok: true, problems: [] }, a);
+    for (const a of honest.filter((x) => !/verified/.test(x))) assert.deepEqual(validateCheckClaims(a, [red]).ok, true, a);
+  });
+  it('real claims are still caught: the stricter rule did not open a hole', () => {
+    for (const a of ['The tests pass.', 'The tests all passed successfully.', 'Lint and typecheck passed.', 'tsc passes cleanly.', 'I ran the tests and they passed.', 'The type check is green.', 'The test suite passed: all good.']) assert.match(problems(a, none), /that check was not run/, a);
+    assert.match(problems('Lint passes and tsc passes.', [red]), /tsc passes, but the report says it failed/);
+  });
+});
+

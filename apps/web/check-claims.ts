@@ -38,17 +38,22 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
     /(?<![\w-])(?<!un)verified\b(?!\W*(?:(?:flag|field|value|status)\W*(?:is|=|:)?|(?:is|=|:))\W*(?:false|no)\b)/gi,
     /\b(?:safe|ready) to merge\b/gi,
   ];
+  // "could be considered verified", "once it is verified", "must be verified by a human": a condition or a wish, not a statement of what the report shows
+  const HYPOTHETICAL = /\b(?:if|once|until|unless|could|would|might|may|should|must|can be|to be|before)\b/i;
   let claimsOverall = false;
   // the word "verified" in backticks or quotes ("the `verified` flag is false") names a field; it is a claim only if it is then said to be true
   const quotedMention = (index: number, span: string): boolean => /^verified\b/i.test(span) && /[`"'‘“]$/.test(text.slice(0, index)) && /^[`"'’”]/.test(text.slice(index + span.length));
   const saidTrue = (index: number, span: string): boolean => /^[`"'’”]?\s*(?:flag|field|value|status)?\s*(?:is|=|:)\s*\**\s*(?:true|yes|✅)/i.test(text.slice(index + span.length, index + span.length + 30));
-  for (const re of overall) for (const m of text.matchAll(re)) { if (quotedMention(m.index!, m[0]) && !saidTrue(m.index!, m[0])) continue; if (!negated(m.index!, m[0])) { claimsOverall = true; if (!latest?.verified) add(`it says the change is verified or everything passes, but ${latest ? 'the latest report is not verified' : 'no check was run'}`); } }
+  for (const re of overall) for (const m of text.matchAll(re)) { if (quotedMention(m.index!, m[0]) && !saidTrue(m.index!, m[0])) continue; if (HYPOTHETICAL.test(clauseBefore(text, m.index!).slice(-40))) continue; if (!negated(m.index!, m[0])) { claimsOverall = true; if (!latest?.verified) add(`it says the change is verified or everything passes, but ${latest ? 'the latest report is not verified' : 'no check was run'}`); } }
 
   // 2. a named check passes
   const passMentions = [...text.matchAll(new RegExp(`\\b(lint(?:ing)?|type ?check(?:ing|s)?|tsc|(?:unit )?tests?(?: suite)?)\\b[^.\\n]{0,25}?\\b${PASS}\\b`, 'gi'))];
+  // words that make "tests ... passed" an offer, a question or an intention rather than a statement of what happened ("I'll run the tests and report how many passed")
+  const NOT_A_CLAIM_BETWEEN = /\b(report|reports|reporting|tell|show|say|confirm|see|how|many|much|whether|if|will|would|can|could|should|must|need|needs|want|try|let|please|unable|cannot)\b/i;
+  const NOT_A_CLAIM_BEFORE = /\b(?:if|when|once|until|should|must|to|whether|ensure|confirm|verify|check|see|so that|in order|need|want|ask|please|will|would|can|could|let)\b/i;
   for (const m of passMentions) {
     // a number right before the word makes it a count (judged in step 3), not a claim that the whole check passes
-    if (negated(m.index!, m[0]) || /\b\d[\d,]*\s+(?:\w+\s+)?$/.test(text.slice(0, m.index!)) || /\b(?:if|when|once|until|should|must|to)\b/i.test(clauseBefore(text, m.index!).slice(-25))) continue;
+    if (negated(m.index!, m[0]) || /\b\d[\d,]*\s+(?:\w+\s+)?$/.test(text.slice(0, m.index!)) || NOT_A_CLAIM_BETWEEN.test(m[0]) || NOT_A_CLAIM_BEFORE.test(clauseBefore(text, m.index!).slice(-40))) continue;
     const [, label, names] = NAMED.find(([re]) => re.test(m[1]!)) ?? [];
     const ran = latest?.checks.filter((c) => (names as string[] | undefined)?.includes(c.check)) ?? [];
     if (!label) continue;
