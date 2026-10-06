@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-10-06T22:42:50.504Z",
+  "plan": "docs/evidence/p3.49-local-patch-interface/PLAN.md",
+  "tasks_sha256": "6eadb56a071161892691e87beec22b40dcfe23371c5014d28bb5ca3ebe9b41af",
+  "models": [
+    "deepseek-chat"
+  ],
+  "tasks": [
+    "T01"
+  ],
+  "note": "real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder's instruction; one trial per cell, default sampling",
+  "preflight": [
+    {
+      "id": "T01",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    }
+  ],
+  "validity": {
+    "v0_preflight": true,
+    "v1_independent_agreement": true,
+    "v1_checked": 1,
+    "v2_integrity": true,
+    "v3_all_terminal": true,
+    "v4_same_input": true,
+    "v5_hygiene": true
+  },
+  "cloud_spend_usd_at_mercury_rates": 0,
+  "by_model": [
+    {
+      "model": "deepseek-chat",
+      "provider": "cloud API (OpenAI-compatible)",
+      "cost_note": "cost_usd is tokens priced with Mercury's rates, not this provider's: use the token counts",
+      "trials": 1,
+      "n": 1,
+      "success": 1,
+      "success_ci95": [
+        0.21,
+        1
+      ],
+      "verified_flagged": 0,
+      "proposal_wrong": 0,
+      "no_proposal": 0,
+      "no_proposal_reasons": {},
+      "median_wall_s": 4,
+      "tokens": 7833,
+      "tool_calls": 5,
+      "cost_usd": 0,
+      "success_tasks": [
+        "T01"
+      ]
+    }
+  ],
+  "best_local": "deepseek-chat",
+  "decision_by_pre_registered_rule": "build the local-first + Mercury fallback lane (needs go-ahead)",
+  "mercury_sanity": "not run",
+  "rows": [
+    {
+      "model": "deepseek-chat",
+      "task": "T01",
+      "trial": 1,
+      "kind": "typo, file named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/greeter.js"
+      ],
+      "patch": "diff --git a/apps/web/src/greeter.js b/apps/web/src/greeter.js\nindex 2165c46..790db20 100644\n--- a/apps/web/src/greeter.js\n+++ b/apps/web/src/greeter.js\n@@ -1,4 +1,4 @@\n function greet(name) {\n-  return 'helo ' + name;\n+  return 'hello ' + name;\n }\n module.exports = { greet };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 4034,
+      "tokens": 7833,
+      "tool_calls": 5,
+      "cost_usd": 0,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix the typo in greet() so it returns 'hello ' + name, matching the expectation in apps/web/tests/greeter.test.js.",
+      "error": null
+    }
+  ]
+}
