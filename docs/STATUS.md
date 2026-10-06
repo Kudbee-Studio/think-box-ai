@@ -1,4 +1,10 @@
 # STATUS — Think Box AI
+## CURRENT (2026-10-06) — Agent OS arc P3.19 to P3.45 reconciled into the roadmap (branch `feat/pr386-p3.46-roadmap-reconciliation`, PR **#386**)
+
+- **Docs-only reconciliation** (no application code): the roadmap and status stopped at #342; `main` has moved on to #385. `docs/roadmaps/ROADMAP.md` now has a table of the P3.19 to P3.45 lanes with their states, and its **Next** line names the real gates instead of a stale one.
+- **States:** escalation lane **PROVEN live** (#371, #375); scratch runner, SIMULATE and the draft-PR path TEST VERIFIED, the draft PR **LIVE VERIFIED once** (#383, draft PR #382 left open); Think Token learning benefit **UNPROVEN** (did not replicate). Nothing here is PRODUCTION READY; the dashboard is still local-only with no authentication.
+- **Gate (unchanged):** item 5 FOUNDER DECISION; items 3/4 LIVE VERIFIED need real worker-02 evidence; item 7 DEFERRED. No implementation lane is authorized by the roadmap; `docs/CONTINUITY.md` (last updated 2026-09-30) was **not** reconciled here.
+
 ## CURRENT (2026-10-04) — Switchable profiles with persistent memory (agent OS web surface, branch `kilo/able-codec-tjy`)
 
 - **CODE COMPLETE / TEST VERIFIED:** named profiles each with isolated memory (per-profile Markdown folders) and profile-scoped run history, SQLite-backed profile CRUD, export/import with a fresh UUID, and a header profile switcher. Backend `apps/web/profile-manager.ts` + `apps/web/routes/profiles.ts`; `MemoryStore.switchTo`/`profileMemoryRoot`; `RunStore.setProfile`/`flush`; `server.ts` `activateProfile()`; frontend `public/js/profile-switcher.js` + `profile-switcher.css`.
