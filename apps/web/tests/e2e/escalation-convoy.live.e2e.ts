@@ -67,9 +67,13 @@ try {
       await page.waitForSelector('#convoy-window', { state: 'visible' });
       await page.fill('#convoy-goal', g.goal);
       await page.fill('#convoy-model', '');
+      const seen = new Set<string>(((await getJson('/api/convoys')).convoys ?? []).map((c: any) => c.id));
       await page.click('#convoy-plan');
-      await page.waitForSelector('#convoy-detail');
-      const id = (await page.locator('.convoy-row-selected').getAttribute('data-convoy-id')) || '';
+      // identify THIS goal's convoy through the API (a convoy from the previous goal is still selected in the window until the new row appears)
+      let id = '';
+      for (let i = 0; i < 60 && !id; i += 1) { id = ((await getJson('/api/convoys')).convoys ?? []).find((c: any) => !seen.has(c.id) && c.goal === g.goal)?.id ?? ''; if (!id) await sleep(250); }
+      if (!id) throw new Error('the plan did not create a convoy');
+      await page.waitForSelector(`.convoy-row-selected[data-convoy-id="${id}"]`);
       r.convoy_id = id;
       const planned = (await getJson(`/api/convoys/${id}`)).convoy;
       r.plan = { kind: planned.plan.workers[0]?.kind, model: planned.plan.workers[0]?.model, routing: planned.plan.routing, escalation: planned.plan.escalation, executable: planned.plan.executable, blocked: planned.plan.blocked_reasons };
