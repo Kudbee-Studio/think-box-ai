@@ -98,6 +98,8 @@ export function readGoal(goal: string | undefined): { given: boolean; specificNu
   };
 }
 const HEDGE = /\b(at least|first|latest|most recent|newest|recent|shown|listed|top|only|up to|so far)\b/i;
+/** For "how many" on a capped list with no exact total, only wording that says the number is partial counts as a hedge ("ten branches currently listed" reads as a total). */
+const PARTIAL = /\b(at least|more than|first|latest|most recent|newest|top|shown|showing|only|up to|so far)\b/i;
 
 export function validateGrounding(answer: string, evidence: LookupEvidence[], opts: { goal?: string } = {}): GroundingResult {
   const ask = readGoal(opts.goal);
@@ -167,7 +169,9 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[], op
     // "branches currently present", "branch failed": an English word after "branch" is not a branch name. A name counts when it is introduced ("named X"), quoted, or shaped like one.
     const nm = m[3]!.replace(/[.,;:!?)]+$/, '');
     if (m[1] || m[2] || /[/_.\-\d]/.test(nm) || /^(main|master|develop|dev|trunk)$/i.test(nm)) claimBranch(nm);
-    rest = mask(rest, m.index!, m[0].length);
+    // mask what follows the word "branch(es)" but leave the word itself, so "ten branches currently listed" still reaches the count check
+    const after = m[0].search(/\s/);
+    rest = mask(rest, m.index! + after, m[0].length - after);
   }
   for (const m of [...rest.matchAll(/(?<![\w/:.-])[\w.-]+(?:\/[\w.-]+)+/g)]) { if (BRANCH_PREFIX.test(m[0])) claimBranch(m[0]); rest = mask(rest, m.index!, m[0].length); }
 
@@ -186,10 +190,12 @@ export function validateGrounding(answer: string, evidence: LookupEvidence[], op
       continue;
     }
     rest = mask(rest, m.index! + m[0].search(/\S/), m[1]!.length); // judged here against the list; not again as a bare number
-    const hedged = HEDGE.test(rest.slice(Math.max(0, m.index! - 40), m.index! + m[0].length + 25)) || (ask.askedCount === Number(n));
     const len = lists[0]!.items.filter(pred).length;
     const total = lists.find((e) => e.total !== undefined)?.total;
     const capped = lists.some((e) => e.more ?? e.items.length >= PAGE_SIZE[e.recipe]);
+    const hedgeWords = ask.given && /\bhow many\b/i.test(opts.goal ?? '') && capped && total === undefined ? PARTIAL : HEDGE;
+    // the window is read from the original sentence (the masks keep lengths, so positions agree): a hedge word that an earlier step masked is still a hedge
+    const hedged = hedgeWords.test(text.slice(Math.max(0, m.index! - 40), m.index! + m[0].length + 25)) || (ask.askedCount === Number(n));
     const label = /^\d/.test(m[1]!) ? m[1]! : `${m[1]!.toLowerCase()} ${m[2]!.toLowerCase()}`;
     if (total !== undefined && Number(n) === total) continue; // the exact total GitHub reported
     if (Number(n) > len || (!hedged && Number(n) !== len)) add('number', label, `the tool evidence lists ${len} of that kind${total !== undefined ? ` and GitHub's total is ${total}` : ''}, not ${n}`);

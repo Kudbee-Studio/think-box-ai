@@ -1,0 +1,148 @@
+{
+  "generated_at": "2026-10-06T07:35:24.031Z",
+  "repo": "Kudbee-Studio/think-box-ai",
+  "totals": {
+    "open_issues": {
+      "tool_total": 10,
+      "independent": 10,
+      "match": true
+    },
+    "open_prs": {
+      "tool_total": 0,
+      "independent": 0,
+      "match": true
+    }
+  },
+  "answers": [
+    {
+      "model": "gemma3:4b",
+      "question": "How many issues are open?",
+      "answer": "There are currently 10 open issues in the repository.",
+      "success": true,
+      "failure": null,
+      "verdict": "GROUNDED",
+      "grounded": true,
+      "numbers": [
+        10
+      ],
+      "true_value": 10,
+      "criterion_ok": true,
+      "expects": "the true total 10",
+      "tool_total": 10
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "How many pull requests are open?",
+      "answer": "There are no open pull requests in the Kudbee-Studio/think-box-ai repository.",
+      "success": true,
+      "failure": null,
+      "verdict": "GROUNDED",
+      "grounded": true,
+      "numbers": [],
+      "true_value": 0,
+      "criterion_ok": false,
+      "expects": "the true total 0",
+      "tool_total": 0
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "How many branches are there?",
+      "answer": "There are ten branches currently listed in the repository: agent/dashboard-command-center/kilo-20260916, agent-template/dashboard-evolution, chore/deps-upgrade, chore/p34-postmerge-audit, claude/model-run-env-vars-ljvknb",
+      "success": true,
+      "failure": null,
+      "verdict": "GROUNDED",
+      "grounded": true,
+      "numbers": [
+        20260916,
+        289,
+        288
+      ],
+      "true_value": "unknown (100+)",
+      "criterion_ok": false,
+      "expects": "a count of branches",
+      "tool_total": null
+    },
+    {
+      "model": "qwen2.5:3b",
+      "question": "How many issues are open?",
+      "answer": "There are 10 open issues in the repository. The newest ones are:\n- #59 \"Frontend: 10x the graphics, make the links actually work\" by KudbeeZero, updated 2026-09-01T13:31:11Z\n- #21 \"Phase 4 Milestone: Cloud Sandbox + CLI ",
+      "success": true,
+      "failure": null,
+      "verdict": "GROUNDED",
+      "grounded": true,
+      "numbers": [
+        10,
+        59,
+        2026,
+        9,
+        31,
+        21,
+        4,
+        2026,
+        8,
+        39,
+        20,
+        3,
+        16,
+        3,
+        2026,
+        8,
+        39,
+        17,
+        4,
+        28,
+        2026,
+        8,
+        38,
+        16,
+        4
+      ],
+      "true_value": 10,
+      "criterion_ok": true,
+      "expects": "the true total 10",
+      "tool_total": 10
+    },
+    {
+      "model": "qwen2.5:3b",
+      "question": "How many pull requests are open?",
+      "answer": "There are no open pull requests in the repository Kudbee-Studio/think-box-ai.",
+      "success": true,
+      "failure": null,
+      "verdict": "GROUNDED",
+      "grounded": true,
+      "numbers": [],
+      "true_value": 0,
+      "criterion_ok": false,
+      "expects": "the true total 0",
+      "tool_total": 0
+    },
+    {
+      "model": "qwen2.5:3b",
+      "question": "How many branches are there?",
+      "answer": "",
+      "success": false,
+      "failure": "no_tool_call",
+      "verdict": null,
+      "grounded": false,
+      "numbers": [],
+      "true_value": "unknown (100+)",
+      "criterion_ok": true,
+      "expects": "a count of branches",
+      "tool_total": null
+    }
+  ],
+  "independent_at_answers": {
+    "issues": 10,
+    "prs": 0,
+    "branches": 213
+  },
+  "criteria": {
+    "c1_totals_match": true,
+    "c2_no_wrong_count_verified": false,
+    "c3_grounded_correct_counts": {
+      "issues_prs": 2,
+      "of": 4
+    }
+  },
+  "verdict": "FAIL"
+}

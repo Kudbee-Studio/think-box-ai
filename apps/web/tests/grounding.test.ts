@@ -302,3 +302,20 @@ describe('validateGrounding: an exact total from GitHub makes a count answerable
   });
 });
 
+describe('validateGrounding: "how many" on a capped list with no total needs a genuinely partial hedge (P3.37, found live)', () => {
+  const branches = evidenceOf('branches', Array.from({ length: 10 }, (_, i) => ({ name: `feat/b${i}`, protected: false })));
+  const ask = (a: string, goal = 'How many branches are there?') => validateGrounding(a, [branches], { goal }).status;
+  it('"ten branches currently listed" is a total in disguise and is refused; "at least ten" and "the first ten" pass', () => {
+    assert.equal(ask('There are ten branches currently listed in the repository: feat/b0, feat/b1.'), 'GROUNDING FAILED');
+    assert.equal(ask('There are 10 branches listed.'), 'GROUNDING FAILED');
+    assert.equal(ask('There are at least ten branches: feat/b0, feat/b1.'), 'GROUNDED');
+    assert.equal(ask('The first ten branches are feat/b0, feat/b1, feat/b2.'), 'GROUNDED');
+    assert.equal(ask('Showing 10 branches, there may be more: feat/b0.'), 'GROUNDED');
+  });
+  it('other questions, and lists with an exact total, keep the broader hedge words', () => {
+    assert.equal(ask('The 10 branches listed include feat/b0.', 'List the branches.'), 'GROUNDED');
+    const lone = evidenceOf('branches', [{ name: 'main', protected: true }, { name: 'feat/x', protected: false }]);
+    assert.equal(validateGrounding('There are 2 branches: main and feat/x.', [lone], { goal: 'How many branches are there?' }).status, 'GROUNDED', 'a list that is not capped is a total');
+  });
+});
+
