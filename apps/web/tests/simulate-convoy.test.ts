@@ -104,7 +104,7 @@ describe('a verified proposal', () => {
     // the answer is code: it states the verdict from the report
     assert.match(c.final_answer!, /^Proposed change by mercury-2 on commit [0-9a-f]{8}, 1 file\(s\): apps\/web\/src\/greeter\.js\./);
     assert.match(c.final_answer!, /Sandbox verification \(round 1\): commit [0-9a-f]{8} with patch [0-9a-f]{8}: test passed \(1 passed, 0 failed\); verified: yes\./);
-    assert.match(c.final_answer!, /NOT applied to your working tree and nothing was pushed/);
+    assert.match(c.final_answer!, /NOT applied to your working tree\. The patch is in this convoy's record; nothing is pushed unless a person later chooses to open a draft pull request/);
     assert.equal(c.run_ids.length, 2); assert.ok(Math.abs(c.cost_usd - 0.0012) < 1e-9, `cost ${c.cost_usd}`);
     assert.equal(h.runStore.get(c.run_ids[1]!)?.provider, 'sandbox'); assert.equal(h.runStore.get(c.run_ids[0]!)?.jobId, c.id);
     assert.equal(state(), before, 'the repository is exactly as it was'); assert.equal(scratch(), left);

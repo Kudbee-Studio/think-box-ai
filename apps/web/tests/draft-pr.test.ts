@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildPatch } from '../change-proposal.ts';
 import type { ConvoyRecord } from '../convoy.ts';
-import { buildCommit, defaultRun, draftPrConfig, draftPrEligibility, openDraftPr, prepareDraftPr, renderPrBody, scrub, type DraftPrConfig, type RunFn } from '../draft-pr.ts';
+import { buildCommit, defaultRun, draftPrConfig, titleFromGoal, draftPrEligibility, openDraftPr, prepareDraftPr, renderPrBody, scrub, type DraftPrConfig, type RunFn } from '../draft-pr.ts';
 
 let root = ''; let checkout = ''; let bare = ''; let sha = ''; let patch = ''; let patchHash = '';
 const realTmp = process.env.TMPDIR; let privateTmp = '';
@@ -81,6 +81,28 @@ describe('eligibility: a human may turn a verified, accepted proposal into a dra
     for (const review of [{ state: 'pending' }, { state: 'rejected' }, { state: 'not_required' }, undefined]) refuse(convoy({ review }), /a human must accept the convoy's outcome first/);
     refuse(convoy({ draft_pr: { state: 'opened', url: `https://github.com/${REPO}/pull/3` } }), /already opened: https:\/\/github\.com\/Acme\/widgets\/pull\/3/);
     assert.equal(draftPrEligibility(convoy({ draft_pr: { state: 'branch_pushed' } }), cfg()).ok, true, 'a pushed branch without its pull request may be finished');
+  });
+});
+
+describe('titleFromGoal', () => {
+  it('keeps a short goal whole, one line, with control characters turned into spaces', () => {
+    assert.equal(titleFromGoal('Fix the greeting typo'), 'kudbEE: Fix the greeting typo'); assert.equal(titleFromGoal('Fix\n  the\u0007typo'), 'kudbEE: Fix the typo');
+    const exactly72 = 'x'.repeat(30) + ' ' + 'y'.repeat(41); assert.equal(exactly72.length, 72); assert.equal(titleFromGoal(exactly72), `kudbEE: ${exactly72}`);
+  });
+  it('cuts a long goal at a word boundary and ends with an ellipsis, so it reads as truncated (the live title stopped mid-quote with nothing to say so)', () => {
+    const live = "Edit docs/scratch-runner-design.md: replace the exact text '4 (the next PR, below)' with '4 (PR #381, below)' and change nothing else.";
+    const t = titleFromGoal(live); const body = t.slice('kudbEE: '.length);
+    assert.ok(t.endsWith('\u2026')); assert.ok(body.length <= 72, `${body.length}`); assert.ok(live.startsWith(body.slice(0, -1)), 'a prefix of the goal'); assert.equal(live[body.length - 1], ' ', 'the cut falls on a word boundary');
+    assert.equal(t, "kudbEE: Edit docs/scratch-runner-design.md: replace the exact text '4 (the\u2026");
+  });
+  it('a long goal with no usable space is cut hard, still with the ellipsis and within the limit; the limit is configurable', () => {
+    const t = titleFromGoal('z'.repeat(200)); assert.equal(t, `kudbEE: ${'z'.repeat(71)}\u2026`);
+    assert.equal(titleFromGoal('aaaa bbbb cccc dddd eeee', 12), 'kudbEE: aaaa bbbb\u2026');
+    assert.equal(titleFromGoal(undefined), 'kudbEE: '); assert.equal(titleFromGoal(null), 'kudbEE: ');
+  });
+  it('is the title prepareDraftPr gives the pull request', async () => {
+    const goal = `Fix the greeting typo in greeter.js and then also tidy up a number of other things nobody asked for ${'z'.repeat(20)}`;
+    const p = await prepared(convoy({ goal })); assert.equal(p.title, titleFromGoal(goal)); assert.ok(p.title.endsWith('\u2026'));
   });
 });
 

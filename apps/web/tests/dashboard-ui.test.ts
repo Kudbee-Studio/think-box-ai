@@ -64,6 +64,16 @@ test('escapeHtml escapes quotes so a value cannot break out of an HTML attribute
   assert.equal(escapeHtml(42), '42');
 });
 
+test('the approval title says "You asked" for a request a person started and "Agent wants to run" for a tool call; a tool name cannot hit the lookup\'s prototype', () => {
+  const fn = read('js/app.js').match(/function approvalTitle\(tool\) \{[\s\S]*?\n\}/);
+  assert.ok(fn, 'approvalTitle not found in app.js');
+  const approvalTitle = new Function(`${fn[0]}; return approvalTitle;`)() as (tool: unknown) => string;
+  assert.equal(approvalTitle('open_draft_pr'), 'You asked to open a draft pull request: confirm');
+  assert.equal(approvalTitle('write_file'), 'Agent wants to run write_file');
+  for (const t of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) assert.equal(approvalTitle(t), `Agent wants to run ${t}`, t);
+  assert.match(read('js/app.js'), /textContent = approvalTitle\(next\.tool\)/, 'the modal uses it');
+});
+
 test('every capped-height region scrolls: a max-height always comes with overflow auto/scroll', () => {
   const scrollsIn = (body: string) => /overflow(-y)?\s*:\s*(auto|scroll)/.test(body);
   const rules = stylesheets.flatMap((sheet) =>
