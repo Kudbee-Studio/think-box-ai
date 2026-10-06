@@ -305,6 +305,21 @@ const FLAG_MEANING: Record<string, string> = {
   deletes_files: 'it deletes files',
 };
 
+/**
+ * Whether a patch applies to a commit, decided WITHOUT a work tree and without touching the repository: the commit's tree is read into a temporary index file outside
+ * .git and `git apply --check --cached` runs against that. Returns the reason it does not, or null. A reviewer is never asked to approve a run that cannot happen.
+ */
+export async function patchProblem(repoRoot: string, sha: string, patch: string): Promise<string | null> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kudbee-idx-'));
+  const env = { PATH: '/usr/bin:/bin', GIT_INDEX_FILE: path.join(dir, 'index'), GIT_CONFIG_NOSYSTEM: '1' };
+  try {
+    const read = await run('git', ['read-tree', sha], { cwd: path.resolve(repoRoot), env });
+    if (read.code !== 0) return `could not read the commit: ${read.out.trim().slice(0, 160)}`;
+    const check = await run('git', ['apply', '--check', '--cached', '--whitespace=nowarn', '-'], { cwd: path.resolve(repoRoot), env, input: patch });
+    return check.code === 0 ? null : check.out.trim().slice(0, 200);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 /** Validates a `run_checks` request and builds its approval, or says why not. Nothing runs here and nothing is applied. */
 export async function prepareRunChecks(raw: unknown, repoRoot: string): Promise<PreparedRunChecks | { ok: false; error: string }> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'the request must be an object' };
@@ -326,6 +341,7 @@ export async function prepareRunChecks(raw: unknown, repoRoot: string): Promise<
   if (typeof ref !== 'string') return { ok: false, error: 'ref must be a string' };
   let sha: string;
   try { sha = await resolveCommit(repoRoot, ref); } catch (err) { return { ok: false, error: err instanceof Error ? err.message : String(err) }; }
+  if (review) { const why = await patchProblem(repoRoot, sha, r.patch as string); if (why) return { ok: false, error: `the patch does not apply to ${sha.slice(0, 8)}: ${why}` }; }
   const list = [...checks, ...testFiles.map((f) => `test_file ${f}`)].join(', ');
   const flags = review ? review.flags.map((f) => `${f} (${FLAG_MEANING[f] ?? f})`) : [];
   const patchText = review

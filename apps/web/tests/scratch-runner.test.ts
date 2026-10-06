@@ -9,6 +9,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { CHECK_NAMES, MAX_PATCH_CHARS, MAX_TOOL_CHECKS, OUTPUT_TAIL_BYTES, bwrapArgs, checkCommand, nodeRootOf, parseTestSummary, prepareRunChecks, probeSandbox, resolveCommit, reviewPatch, runScratch, sandboxEnv, slimReport, verdict, type CheckResult, type ScratchReport } from '../scratch-runner.ts';
 
+// Each test file gets a private temporary directory (os.tmpdir() honours TMPDIR at call time), so counting scratch copies left behind cannot see another test file's runs.
+const realTmp = process.env.TMPDIR;
+const privateTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-tests-'));
+process.env.TMPDIR = privateTmp;
+after(() => { if (realTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = realTmp; fs.rmSync(privateTmp, { recursive: true, force: true }); });
+
+const newFile = (file: string, text: string): string => `diff --git a/${file} b/${file}\nnew file mode 100644\n--- /dev/null\n+++ b/${file}\n@@ -0,0 +1 @@\n+${text}\n`;
 const diff = (file: string, body = '@@ -1 +1 @@\n-a\n+b\n'): string => `diff --git a/${file} b/${file}\nindex 111..222 100644\n--- a/${file}\n+++ b/${file}\n${body}`;
 
 describe('checkCommand: named checks only', () => {
@@ -305,7 +312,7 @@ describe('resolveCommit and prepareRunChecks: the governed tool\'s contract', ()
   });
 
   it('a patch is summarised for the approver: hash, files, the flags with what they mean, and a bounded preview; the arguments keep the whole patch', async () => {
-    const big = diff('apps/web/tests/a.test.ts', `@@ -1 +1 @@\n-a\n+${'b'.repeat(4000)}\n`);
+    const big = newFile('apps/web/tests/a.test.ts', 'b'.repeat(4000));
     const p = await prepareRunChecks({ checks: ['test'], patch: big }, repo) as any;
     assert.equal(p.ok, true);
     assert.match(p.reason, /Patch [0-9a-f]{12} touches 1 file\(s\): apps\/web\/tests\/a\.test\.ts\. WARNING: touches_tests \(it edits tests, which are what judge it\)\./);
@@ -314,9 +321,9 @@ describe('resolveCommit and prepareRunChecks: the governed tool\'s contract', ()
     assert.deepEqual(p.display.patch_files, ['apps/web/tests/a.test.ts']); assert.deepEqual(p.display.patch_flags, ['touches_tests']);
     assert.ok(p.display.patch_preview.length < 1700 && /truncated for display/.test(p.display.patch_preview));
     assert.equal(p.display.patch, undefined, 'the approval request does not carry the full patch');
-    const gate = await prepareRunChecks({ checks: ['lint'], patch: diff('apps/web/gates.ts') }, repo) as any;
+    const gate = await prepareRunChecks({ checks: ['lint'], patch: newFile('apps/web/gates.ts', 'x') }, repo) as any;
     assert.match(gate.reason, /touches_ci_or_gates \(it edits CI, gates, package or compiler configuration\)/);
-    const many = await prepareRunChecks({ checks: ['lint'], patch: Array.from({ length: 10 }, (_, i) => diff(`apps/web/f${i}.ts`)).join('') }, repo) as any;
+    const many = await prepareRunChecks({ checks: ['lint'], patch: Array.from({ length: 10 }, (_, i) => newFile(`apps/web/f${i}.ts`, 'x')).join('') }, repo) as any;
     assert.match(many.reason, /touches 10 file\(s\): .*, \.\.\./);
   });
 
@@ -335,6 +342,23 @@ describe('resolveCommit and prepareRunChecks: the governed tool\'s contract', ()
     assert.match(await e({ checks: ['lint'], ref: 7 }), /ref must be a string/);
     assert.match(await e({ checks: ['lint'], ref: 'nope' }), /is not a commit in this repository/);
     assert.match(await e({ checks: ['lint'], ref: '--upload-pack=x' }), /ref must be a commit, branch or tag name/);
+  });
+
+  it('a patch that cannot apply to the commit is refused BEFORE any approval, and checking it leaves the repository exactly as it was', async () => {
+    const state = (): string => createHash('sha256').update(execFileSync('git', ['status', '--porcelain', '--ignored'], { cwd: repo, encoding: 'utf8' }) + execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }) + fs.readFileSync(path.join(repo, '.git', 'index'))).digest('hex');
+    const idx = (): number => fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith('kudbee-idx-')).length;
+    const before = state(); const left = idx();
+    const wrong = await prepareRunChecks({ checks: ['lint'], patch: diff('a.txt', '@@ -1 +1 @@\n-1\n+9\n') }, repo) as any;
+    assert.equal(wrong.ok, false); assert.match(wrong.error, new RegExp(`^the patch does not apply to ${sha.slice(0, 8)}: `));
+    const corrupt = await prepareRunChecks({ checks: ['lint'], patch: 'diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n garbage\n' }, repo) as any;
+    assert.equal(corrupt.ok, false); assert.match(corrupt.error, /does not apply/);
+    const clash = await prepareRunChecks({ checks: ['lint'], patch: newFile('a.txt', 'x') }, repo) as any;
+    assert.equal(clash.ok, false, 'a new-file patch for a path that already exists');
+    const fits = await prepareRunChecks({ checks: ['lint'], patch: diff('a.txt', '@@ -1 +1 @@\n-2\n\\ No newline at end of file\n+3\n\\ No newline at end of file\n') }, repo) as any;
+    assert.equal(fits.ok, true, JSON.stringify(fits));
+    assert.equal(state(), before, 'HEAD, status, ignored files and the index are untouched');
+    assert.equal(idx(), left, 'the temporary index is removed');
+    assert.equal(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8'), '2');
   });
 
   it('slimReport clips each output tail and keeps everything that decides "verified"', () => {

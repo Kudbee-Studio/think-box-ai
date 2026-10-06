@@ -20,7 +20,9 @@ if (!key) { console.error('No INCEPTION_API_KEY in the environment or the repo .
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (s: string) => console.log(`[run-checks ${new Date().toISOString().slice(11, 19)}] ${s}`);
 const git = (...a: string[]): string => execFileSync('git', a, { cwd: repoRoot, encoding: 'utf8' }).trim();
-const treeState = (): string => createHash('sha256').update(git('status', '--porcelain') + git('diff') + git('rev-parse', 'HEAD')).digest('hex');
+// the evidence folder is where this script writes its own screenshot and results, so it is outside the comparison
+const EXCLUDE = [':(exclude)docs/evidence/p3.39-run-checks'];
+const treeState = (): string => createHash('sha256').update(git('status', '--porcelain', '--', '.', ...EXCLUDE) + git('diff', '--', '.', ...EXCLUDE) + git('rev-parse', 'HEAD')).digest('hex');
 const scratchDirs = (): number => fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith('kudbee-scratch-')).length;
 
 const head = git('rev-parse', 'HEAD');
@@ -91,6 +93,8 @@ try {
       r.tool_calls = tool.map((e) => ({ approval: e.approval ?? null, ok: e.ok, verified: /"verified":true/.test(String(e.output)) ? true : /"verified":false/.test(String(e.output)) ? false : null, error: e.error ? String(e.error).slice(0, 200) : null, sent_patch: typeof e.args?.patch === 'string' ? e.args.patch.includes('zz-live-type-error') : false, checks: e.args?.checks ?? null, ref: e.args?.ref ?? null }));
       r.final = String(run.result ?? full.result ?? full.run?.result ?? '').slice(0, 700);
       r.final_is_flagged = /^FLAGGED:/.test(r.final);
+      // what the model itself said last, before the guard looked at it (the model event is logged first)
+      r.model_final_raw = String([...events].reverse().find((e) => e.kind === 'model' && !(e.tool_calls ?? []).length)?.content ?? '').slice(0, 700);
       log(`${g.id}: ${r.status}, ${tool.length} run_checks call(s), ${r.prompts.length} prompt(s), final: ${r.final.slice(0, 100).replace(/\n/g, ' ')}`);
     } catch (e) { r.error = String((e as Error).message ?? e).slice(0, 500); log(`${g.id} ERROR ${r.error}`); }
   }

@@ -12,6 +12,12 @@ import { probeSandbox } from '../scratch-runner.ts';
 import { lookupHooks } from './helpers/lookup-hooks.ts';
 import { call, say, startMockInception, type MockInception } from './helpers/mock-inception.ts';
 
+// Each test file gets a private temporary directory (os.tmpdir() honours TMPDIR at call time), so counting scratch copies left behind cannot see another test file's runs.
+const realTmp = process.env.TMPDIR;
+const privateTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'run-checks-tests-'));
+process.env.TMPDIR = privateTmp;
+after(() => { if (realTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = realTmp; fs.rmSync(privateTmp, { recursive: true, force: true }); });
+
 const probe = await probeSandbox();
 const skip = probe.ok ? false : `no proven sandbox here: ${(probe as { reason: string }).reason}`;
 let repo = ''; let mock: MockInception; const saved: Record<string, string | undefined> = {};
@@ -60,6 +66,12 @@ describe('run_checks is opt-in and validated before any prompt', () => {
     assert.deepEqual(def.parameters.properties.checks.items.enum, ['lint', 'typecheck', 'tsc', 'test']);
     assert.match(def.description, /ONLY if the report says so/);
   });
+  it('a patch that does not apply to the commit never reaches the prompt (the live run once asked a human to approve a corrupt patch)', async () => {
+    const h = lookupHooks({ allowedTools: PROFILE });
+    const g = await go({ checks: ['tsc'], patch: 'diff --git a/apps/web/package.json b/apps/web/package.json\n--- a/apps/web/package.json\n+++ b/apps/web/package.json\n@@ -1,4 +1,4 @@\n this line is not in the file\n' }, h.hooks);
+    assert.equal(g.output.ok, false); assert.match(String(g.output.error), /^run_checks: the patch does not apply to [0-9a-f]{8}: /);
+    assert.equal(h.approvals.length, 0);
+  });
   it('a bad request is an error result with the reason, and no approval is asked', async () => {
     for (const [args, why] of [[{ checks: ['rm -rf /'] }, /unknown check/], [{}, /name at least one check/], [{ checks: ['lint'], patch: 'nope' }, /patch refused/], [{ checks: ['lint'], ref: 'no-such-ref' }, /is not a commit/], [{ checks: ['lint'], extra: 1 }, /unknown argument/]] as Array<[Record<string, unknown>, RegExp]>) {
       const h = lookupHooks({ allowedTools: PROFILE });
@@ -89,11 +101,11 @@ describe('every call asks a human, bound to the exact commit', () => {
   it('the approval request carries the patch hash, files, flags and a preview, never the full patch', { skip }, async () => {
     const seen: Array<Record<string, unknown>> = [];
     const h = lookupHooks({ allowedTools: PROFILE, requestApproval: async (_t, a) => { seen.push(a); return false; } });
-    const patch = `diff --git a/apps/web/tests/a.test.js b/apps/web/tests/a.test.js\n--- a/apps/web/tests/a.test.js\n+++ b/apps/web/tests/a.test.js\n@@ -1 +1 @@\n-x\n+${'y'.repeat(5000)}\n`;
+    const patch = `diff --git a/apps/web/tests/new.test.js b/apps/web/tests/new.test.js\nnew file mode 100644\n--- /dev/null\n+++ b/apps/web/tests/new.test.js\n@@ -0,0 +1 @@\n+${'y'.repeat(5000)}\n`;
     await go({ checks: ['test'], patch }, h.hooks);
     assert.equal(seen.length, 1);
     assert.equal(seen[0]!.patch, undefined); assert.equal(seen[0]!.patch_sha256, createHash('sha256').update(patch).digest('hex'));
-    assert.deepEqual(seen[0]!.patch_files, ['apps/web/tests/a.test.js']); assert.deepEqual(seen[0]!.patch_flags, ['touches_tests']);
+    assert.deepEqual(seen[0]!.patch_files, ['apps/web/tests/new.test.js']); assert.deepEqual(seen[0]!.patch_flags, ['touches_tests']);
     assert.ok(String(seen[0]!.patch_preview).length < 1700);
   });
 
