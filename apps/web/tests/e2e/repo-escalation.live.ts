@@ -49,9 +49,10 @@ const shown = (a: RepoAttempt, task: { id: string; class: 'lookup' | 'repo'; goa
 
 for (const set of sets) {
   const raw = path.join(outDir, `raw-${set.name}.jsonl`);
-  if (fs.existsSync(raw)) { console.error(`${raw} already exists: a pre-registered run is never repeated or overwritten`); process.exit(2); }
   const repo = set.goals.filter(set.repoGoals);
-  fs.writeFileSync(raw, `${JSON.stringify({ meta: { plan: 'docs/evidence/p3.32-escalation/PLAN.md', set: set.name, goals: repo.length, goals_hash: hash(repo as typeof AB_GOALS), local_model: LOCAL_MODEL, escalation_model: MERCURY, seed: `${set.seedBase} + index in the full ${set.name === 'primary' ? 'AB' : 'TRAIN'} goal list`, max_steps: 8, cap_usd: CAP_USD, commit, started_at: new Date().toISOString() } })}\n`);
+  // 'wx' creates the file or fails if it exists, in one step: a pre-registered run is never repeated or overwritten.
+  try { fs.writeFileSync(raw, '', { flag: 'wx' }); } catch { console.error(`${raw} already exists: a pre-registered run is never repeated or overwritten`); process.exit(2); }
+  fs.appendFileSync(raw, `${JSON.stringify({ meta: { plan: 'docs/evidence/p3.32-escalation/PLAN.md', set: set.name, goals: repo.length, goals_hash: hash(repo as typeof AB_GOALS), local_model: LOCAL_MODEL, escalation_model: MERCURY, seed: `${set.seedBase} + index in the full ${set.name === 'primary' ? 'AB' : 'TRAIN'} goal list`, max_steps: 8, cap_usd: CAP_USD, commit, started_at: new Date().toISOString() } })}\n`);
   const world = await set.world();
   process.env.KUDBEE_REPO = EVAL_REPO; process.env.KUDBEE_GITHUB_API = world.github.url; process.env.KUDBEE_REPO_ROOT = world.root;
   let n = 0;
