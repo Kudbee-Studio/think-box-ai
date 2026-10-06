@@ -47,6 +47,18 @@ export function pickMeasured(cls: TaskClass, installed: string[] | null, m: Meas
   return { model: null, reason: best ? `no installed model is measured sufficient for ${cls} goals (best: ${best.model} ${best.pass}/${best.trials}, ${best.ungrounded} ungrounded)` : `no installed model has been measured on ${cls} goals`, summary: best ?? null };
 }
 
+/**
+ * A repository goal when no installed model is measured sufficient: the plan must still start on a LOCAL model (repository investigation does not start on
+ * Mercury), and the escalation named in the plan is the backstop. So take the best-measured installed model that ran in native tool mode (repository
+ * investigation needs native tool calls), else the configured local model; never invent a measurement. The reason says what the table did and did not show.
+ */
+export function pickRepoStarter(installed: string[] | null, m: Measurements | null, configuredLocal: string, whyNotSufficient: string): { model: string; reason: string } {
+  const rows = m && installed ? summarize(m.trials.filter((t) => t.mode === 'native')).filter((s) => s.class === 'repo' && installed.some((i) => sameLocalModel(s.model, i))) : [];
+  const best = [...rows].sort((a, b) => b.pass_rate - a.pass_rate || a.p50_ms - b.p50_ms)[0];
+  if (best) return { model: installed!.find((i) => sameLocalModel(best.model, i)) ?? best.model, reason: `${whyNotSufficient}; starting on ${best.model} (best measured, ${best.pass}/${best.trials}) and escalating to the agent model if it does not verify` };
+  return { model: configuredLocal, reason: `${whyNotSufficient}; starting on the configured local model ${configuredLocal} (no native-tool repo measurements for an installed model) and escalating to the agent model if it does not verify` };
+}
+
 /** A goal class from the goal text, using the same matchers the Mayor uses. Pure. */
 export function goalClassOf(isRepoGoal: boolean): TaskClass { return isRepoGoal ? 'repo' : 'lookup'; }
 
