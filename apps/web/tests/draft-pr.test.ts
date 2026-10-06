@@ -11,7 +11,7 @@ import { buildPatch } from '../change-proposal.ts';
 import type { ConvoyRecord } from '../convoy.ts';
 import { buildCommit, defaultRun, draftPrConfig, draftPrEligibility, openDraftPr, prepareDraftPr, renderPrBody, scrub, type DraftPrConfig, type RunFn } from '../draft-pr.ts';
 
-let checkout = ''; let bare = ''; let sha = ''; let patch = ''; let patchHash = '';
+let root = ''; let checkout = ''; let bare = ''; let sha = ''; let patch = ''; let patchHash = '';
 const realTmp = process.env.TMPDIR; let privateTmp = '';
 const G = (cwd: string, ...a: string[]): string => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...a], { cwd, encoding: 'utf8' }).trim();
 const GREETER = "function greet(name) {\n  return 'helo ' + name;\n}\nmodule.exports = { greet };\n";
@@ -19,14 +19,14 @@ const REPO = 'Acme/widgets';
 
 before(async () => {
   privateTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dpr-tests-')); process.env.TMPDIR = privateTmp;
-  checkout = fs.mkdtempSync(path.join(os.tmpdir(), 'dpr-checkout-')); bare = path.join(os.tmpdir(), `dpr-remote-${path.basename(checkout)}.git`);
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'dpr-root-')); checkout = path.join(root, 'checkout'); bare = path.join(root, 'remote.git'); fs.mkdirSync(checkout);
   fs.mkdirSync(path.join(checkout, 'apps/web/src'), { recursive: true }); fs.writeFileSync(path.join(checkout, 'apps/web/src/greeter.js'), GREETER); fs.writeFileSync(path.join(checkout, 'README.md'), '# x\n');
   G(checkout, 'init', '-q', '-b', 'main'); G(checkout, 'add', '-A'); G(checkout, 'commit', '-qm', 'base'); sha = G(checkout, 'rev-parse', 'HEAD');
   execFileSync('git', ['init', '-q', '--bare', '-b', 'main', bare]); G(checkout, 'push', '-q', bare, 'main:refs/heads/main');
   const p = await buildPatch(checkout, sha, [{ path: 'apps/web/src/greeter.js', find: "'helo '", replace: "'hello '" }]);
   assert.ok(p.ok); patch = p.patch; patchHash = p.sha256;
 });
-after(() => { for (const d of [checkout, bare]) fs.rmSync(d, { recursive: true, force: true }); if (realTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = realTmp; fs.rmSync(privateTmp, { recursive: true, force: true }); });
+after(() => { fs.rmSync(root, { recursive: true, force: true }); if (realTmp === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = realTmp; fs.rmSync(privateTmp, { recursive: true, force: true }); });
 
 const cfg = (over: Partial<DraftPrConfig> = {}): DraftPrConfig => ({ enabled: true, repo: REPO, base: 'main', remoteUrl: bare, ...over });
 const report = (over: Record<string, unknown> = {}) => ({ ref: 'HEAD', sha, patch_sha256: patchHash, files_touched: ['apps/web/src/greeter.js'], flags: [], sandbox: { tool: 'bwrap', version: '0.11', network: 'blocked' }, checks: [{ check: 'lint', passed: true, exit_code: 0 }, { check: 'test', passed: true, exit_code: 0, tests: { pass: 1, fail: 0 } }], verified: true, started_at: 'x', duration_ms: 1, ...over });
@@ -159,7 +159,7 @@ describe('openDraftPr: push one new branch, create the draft, and nothing else',
   });
 
   it('refuses without pushing or calling gh when the remote base is not the commit the proposal was made on (it would publish unpublished history)', async () => {
-    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'dpr-other-')); G(other, 'clone', '-q', bare, '.'); fs.writeFileSync(path.join(other, 'later.txt'), 'x'); G(other, 'add', '-A'); G(other, 'commit', '-qm', 'later'); G(other, 'push', '-q', 'origin', 'main');
+    const other = fs.mkdtempSync(path.join(root, 'other-')); G(other, 'clone', '-q', bare, '.'); fs.writeFileSync(path.join(other, 'later.txt'), 'x'); G(other, 'add', '-A'); G(other, 'commit', '-qm', 'later'); G(other, 'push', '-q', 'origin', 'main');
     try {
       const r = rig(); const res = await openDraftPr(await prepared(), checkout, r.run);
       assert.equal(res.ok, false); assert.match(res.error!, new RegExp(`made on ${sha.slice(0, 8)} but ${REPO}'s main is at [0-9a-f]{8}.*unpublished history`));
@@ -170,7 +170,7 @@ describe('openDraftPr: push one new branch, create the draft, and nothing else',
   it('refuses when the branch already exists, when the remote cannot be read, and when the push is rejected; gh is never called after a failure before the push', async () => {
     const p = await prepared(); G(checkout, 'push', '-q', bare, `${sha}:refs/heads/${p.branch}`);
     try { const r = rig(); const res = await openDraftPr(p, checkout, r.run); assert.equal(res.ok, false); assert.match(res.error!, /already exists on the remote; nothing was changed/); assert.ok(!r.calls.some((c) => c.args[0] === 'push' || c.cmd === 'gh')); } finally { G(bare, 'update-ref', '-d', `refs/heads/${p.branch}`); }
-    const r2 = rig(); const noRemote = await openDraftPr({ ...p, cfg: { ...p.cfg, remoteUrl: path.join(os.tmpdir(), 'no-such-remote.git') } }, checkout, r2.run);
+    const r2 = rig(); const noRemote = await openDraftPr({ ...p, cfg: { ...p.cfg, remoteUrl: path.join(root, 'no-such-remote.git') } }, checkout, r2.run);
     assert.equal(noRemote.ok, false); assert.match(noRemote.error!, /could not read the remote/); assert.ok(!r2.calls.some((c) => c.cmd === 'gh'));
     const hook = path.join(bare, 'hooks', 'pre-receive'); fs.writeFileSync(hook, '#!/bin/sh\necho "rejected by policy" >&2\nexit 1\n', { mode: 0o755 });
     try { const r3 = rig(); const res = await openDraftPr(p, checkout, r3.run); assert.equal(res.ok, false); assert.match(res.error!, /the push failed: .*rejected/s); assert.ok(!r3.calls.some((c) => c.cmd === 'gh'), 'no pull request after a failed push'); assert.equal(remoteBranches().split('\n').length, 1); } finally { fs.rmSync(hook, { force: true }); }
