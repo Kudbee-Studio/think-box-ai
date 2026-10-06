@@ -15,7 +15,7 @@ import { beadId, laneOf } from './convoy-board.ts';
 import type { ConvoyRecord, ConvoyStore, SimulationRound, WorkerRecord } from './convoy.ts';
 import { validateGrounding, type GroundingResult } from './grounding.ts';
 import type { LookupEvidence } from './live-lookup.ts';
-import { COLD_LOAD_MS, runLocalToolLoop, type LocalChat } from './local-tools.ts';
+import { COLD_LOAD_MS, patchSpec, runLocalToolLoop, type LocalChat, type PatchEvidence } from './local-tools.ts';
 import { attemptRepo, repoEscalationReason, type RepoAttempt } from './escalation.ts';
 import { loopCostUsd } from './mercury-chat.ts';
 import { REPO_TOOLS, repoRoot, type RepoEvidence } from './repo-tools.ts';
@@ -327,6 +327,9 @@ async function runRepoWorker(deps: RunnerDeps, c: ConvoyRecord, worker: WorkerRe
 
 // ─── SIMULATE: propose a change, verify it in the sandbox ────────────────────────────────────────────────────────────────────────────────────────
 
+/** Tool calls a local patch worker may make in one round: look a few times, then propose (and fix a bad edit a couple of times). */
+const LOCAL_PATCH_STEPS = 8;
+
 /** What the patch worker is told. It can read and propose; it cannot write or run anything. */
 function engineerRole(sha: string): string {
   return [
@@ -401,7 +404,15 @@ async function runSimulateConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () =
         inner?.(name, args, output);
         if (name === 'propose_change' && output.ok === true && typeof output.patch === 'string') got.p = { patch: output.patch, sha256: String(output.patch_sha256), files: Array.isArray(output.files) ? output.files.map(String) : [], flags: Array.isArray(output.flags) ? output.flags.map(String) : [], summary: String(output.summary ?? '') };
       };
-      const r = await deps.runAgent(round === 1 ? c.goal : revisionGoal(c.goal, round, maxRounds, prior!), model, hooks);
+      const patchGoal = round === 1 ? c.goal : revisionGoal(c.goal, round, maxRounds, prior!);
+      let r: Pick<AgentRunResult, 'success' | 'cost_usd' | 'tokens' | 'tool_calls' | 'stopped' | 'error'>;
+      if (deps.isLocalModel(model)) {
+        // A local model patches through the same governed tools (propose_change builds and checks the diff against the pinned commit); the loop ends when one proposal is accepted.
+        const l = await runLocalToolLoop<PatchEvidence>({ model, goal: patchGoal, hooks, context: newRunContext(), chat: deps.chat, repo: deps.repo, spec: patchSpec(sha), maxSteps: LOCAL_PATCH_STEPS, signal: deps.signal });
+        runStore.addEvent(rec1, { kind: 'model', step: l.steps.length + 1, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `route: lane=patch model=${l.model} mode=${l.mode} latency=${(l.latency_ms / 1000).toFixed(1)}s ${l.cold_load_ms >= COLD_LOAD_MS ? `cold (model load ${(l.cold_load_ms / 1000).toFixed(1)}s)` : 'warm'}` });
+        for (const step of l.steps) runStore.addEvent(rec1, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['patch'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
+        r = { success: l.success, cost_usd: 0, tokens: l.prompt_tokens + l.completion_tokens, tool_calls: l.tool_calls, ...(l.failure ? { error: `${l.failure.kind}: ${l.failure.message}` } : {}), ...(deps.signal.aborted ? { stopped: true } : {}) };
+      } else r = await deps.runAgent(patchGoal, model, hooks);
       cost = r.cost_usd; tokens = r.tokens; calls = r.tool_calls;
       if (!r.success) failure = { kind: r.stopped ? 'stopped' : 'agent_failed', message: r.error ?? 'the worker agent failed' };
       else if (!got.p) failure = { kind: 'no_patch', message: `${model} did not produce a valid proposal: no propose_change call succeeded` };

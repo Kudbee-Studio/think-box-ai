@@ -15,6 +15,7 @@ import { parseFinding, validateFinding, validateGrounding, type GroundingResult,
 import { LOOKUP_RECIPES, renderFacts, validateLookupArgs, type LookupEvidence } from './live-lookup.ts';
 import type { OllamaChatTurn } from './ollama-client.ts';
 import { renderRepoEvidence, validateRepoReadArgs, validateRepoSearchArgs, type RepoEvidence } from './repo-tools.ts';
+import { PROPOSE_CHANGE_TOOL } from './change-proposal.ts';
 
 export type ToolMode = 'native' | 'constrained';
 export type LocalFailureKind = 'malformed_tool_request' | 'no_tool_call' | 'tool_denied' | 'tool_failed' | 'model_error' | 'step_limit';
@@ -99,7 +100,9 @@ export interface LoopSpec<E> {
   /** For goal shapes the engine knows: run the first read-only tool itself, through `call`, when the model gave nothing usable. Returns how many calls it made. */
   assist?: (goal: string, call: (tool: 'repo_search' | 'repo_read', args: Record<string, unknown>) => Promise<RepoEvidence | null>) => Promise<number>;
   prepare?: (final: { text: string } | { args: unknown }, evidence: E[]) => Promise<unknown>;
-  judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown, goal?: string) => { ok: true; answer?: string; finding?: RepoFinding; grounding: GroundingResult } | { ok: false; error: string };
+  judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown, goal?: string) => { ok: true; answer?: string; finding?: RepoFinding; grounding?: GroundingResult } | { ok: false; error: string };
+  /** A goal whose work ends the moment one tool call succeeds (a proposed change): the answer to finish with, decided by the evidence, not by the model's next turn. */
+  finishWith?: (found: E) => string | null;
 }
 
 const toolSchema = (name: string) => TOOLS.find((t) => t.function.name === name)!;
@@ -218,6 +221,68 @@ export function repoSpec(opts: { engineAbsence?: boolean } = {}): LoopSpec<RepoE
       const parsed = parseFinding(final.args);
       if (!parsed.ok) return { ok: false, error: `the finding is malformed: ${parsed.error}` };
       return { ok: true, finding: parsed.finding, grounding: validateFinding(parsed.finding, evidence, extra as AbsenceCheck | undefined) };
+    },
+  };
+}
+
+// ─── propose a change: SIMULATE's patch worker on a local model ──────────────────────────
+
+/** An accepted proposal: the patch the system built from the model's exact text edits (nothing is written or run). */
+export interface ProposalEvidence { tool: typeof PROPOSE_CHANGE_TOOL; ref: string; patch: string; patch_sha256: string; files: string[]; flags: string[]; summary: string }
+export type PatchEvidence = RepoEvidence | ProposalEvidence;
+
+const patchSystem = (sha: string): string => [
+  `You are the patch worker of a SIMULATE convoy, pinned to commit ${sha.slice(0, 12)}. You change this repository ONLY by calling propose_change; you cannot write files or run anything.`,
+  'Read first: call repo_search (literal text search) or repo_read (numbered lines of one file) to find the file and see its exact text.',
+  'Then call propose_change with edits [{path, find, replace}]: find must be text copied EXACTLY from the file (never the line-number prefixes repo_read shows) and must occur exactly once; replace is the new text. Make the smallest change that does what the goal asks. Do not edit tests, CI or configuration unless the goal asks.',
+  'If propose_change returns an error, read it, fix that edit and call it again. When it returns ok you are finished: do not claim it works or that tests pass, you cannot run anything.',
+].join(' ');
+
+export const PATCH_CONSTRAINED_SCHEMA = {
+  type: 'object',
+  properties: {
+    action: { type: 'string', enum: ['call', 'answer'] },
+    tool: { type: 'string', enum: ['repo_search', 'repo_read', PROPOSE_CHANGE_TOOL] },
+    query: { type: 'string' },
+    path: { type: 'string' },
+    start: { type: 'integer' },
+    end: { type: 'integer' },
+    edits: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, find: { type: 'string' }, replace: { type: 'string' }, create: { type: 'string' } }, required: ['path'] } },
+    summary: { type: 'string' },
+    answer: { type: 'string' },
+  },
+  required: ['action'],
+} as const;
+
+export function patchSpec(sha: string): LoopSpec<PatchEvidence> {
+  const system = patchSystem(sha);
+  return {
+    nativeTools: [toolSchema('repo_search'), toolSchema('repo_read'), toolSchema(PROPOSE_CHANGE_TOOL)],
+    system,
+    constrainedSystem: `${system} Reply ONLY with JSON. To look: {"action":"call","tool":"repo_search","query":"...","path":"optional folder"} or {"action":"call","tool":"repo_read","path":"file","start":1,"end":60}. To propose: {"action":"call","tool":"propose_change","edits":[{"path":"file","find":"exact old text","replace":"new text"}],"summary":"one sentence"}.`,
+    constrainedSchema: PATCH_CONSTRAINED_SCHEMA,
+    toolNames: ['repo_search', 'repo_read', PROPOSE_CHANGE_TOOL],
+    checkCall: (name, args) => {
+      if (name === PROPOSE_CHANGE_TOOL) {
+        const a = (args && typeof args === 'object' ? args : {}) as Record<string, unknown>;
+        if (!Array.isArray(a.edits) || a.edits.length === 0) return { ok: false, error: 'propose_change needs edits: [{path, find, replace}]' };
+        return { ok: true, args: { edits: a.edits, ...(typeof a.summary === 'string' ? { summary: a.summary } : {}) } };
+      }
+      const c = name === 'repo_search' ? validateRepoSearchArgs(args) : name === 'repo_read' ? validateRepoReadArgs(args) : ({ ok: false, error: `unknown tool "${name}"` } as const);
+      return c.ok ? { ok: true, args: c.args as Record<string, unknown> } : c;
+    },
+    evidenceOf: (o) => {
+      if (typeof o.patch === 'string' && o.ok === true) return { tool: PROPOSE_CHANGE_TOOL, ref: String(o.ref), patch: o.patch, patch_sha256: String(o.patch_sha256), files: Array.isArray(o.files) ? o.files.map(String) : [], flags: Array.isArray(o.flags) ? o.flags.map(String) : [], summary: String(o.summary ?? '') };
+      return ((o as { evidence?: RepoEvidence }).evidence ?? null);
+    },
+    render: (e) => (e.tool === PROPOSE_CHANGE_TOOL ? `propose_change accepted: patch ${e.patch_sha256.slice(0, 12)} touching ${e.files.join(', ')}. It will be verified in a sandbox.` : renderRepoEvidence(e)),
+    repairHint: 'Tools: repo_search {query, path?}, repo_read {path, start?, end?} and propose_change {edits: [{path, find, replace}], summary?}.',
+    // a wrong find text or a path that does not exist is the model's to fix: the error says what is wrong
+    recoverable: (error) => /^propose_change:/.test(error) || /^(path|file) not found: /.test(error),
+    finishWith: (e) => (e.tool === PROPOSE_CHANGE_TOOL ? (e.summary.trim() || 'Proposed a change.') : null),
+    judge: (final, evidence) => {
+      if (!('text' in final)) return { ok: false, error: 'a patch worker ends by calling propose_change, not by reporting' };
+      return evidence.some((e) => e.tool === PROPOSE_CHANGE_TOOL) ? { ok: true, answer: final.text } : { ok: false, error: 'you have not proposed a change: call propose_change with the edits' };
     },
   };
 }
@@ -371,7 +436,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
       }
       // A report that did not trace to the evidence gets ONE round of feedback naming the unsupported claims, so the model can run the missing tool call
       // and report again. The retry is a step on the record; a second failure is returned as it is.
-      if (spec.terminalTool && judged.grounding.status !== 'GROUNDED' && judged.grounding.classification !== 'needs_escalation' && groundingRetries < 1 && toolCalls < maxSteps) {
+      if (spec.terminalTool && judged.grounding && judged.grounding.status !== 'GROUNDED' && judged.grounding.classification !== 'needs_escalation' && groundingRetries < 1 && toolCalls < maxSteps) {
         groundingRetries += 1;
         steps.push({ ...base, raw: parsed.raw, outcome: 'malformed', error: `not grounded: ${judged.grounding.unsupported.map((u) => `${u.kind} ${u.claim}`).join('; ')}` });
         messages.push({ role: 'assistant', content: mode === 'native' ? '' : parsed.raw, ...(mode === 'native' ? { tool_calls: turn.tool_calls } : {}) });
@@ -380,7 +445,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
         continue;
       }
       steps.push({ ...base, raw: parsed.raw, outcome: 'answer' });
-      return done({ success: true, ...(judged.answer !== undefined ? { answer: judged.answer } : {}), ...(judged.finding ? { finding: judged.finding } : {}), grounding: judged.grounding });
+      return done({ success: true, ...(judged.answer !== undefined ? { answer: judged.answer } : {}), ...(judged.finding ? { finding: judged.finding } : {}), grounding: judged.grounding ?? null });
     }
     if (parsed.kind === 'empty') { if (await recover(parsed.raw, base, 'empty reply') === 'again') continue; steps.push({ ...base, raw: parsed.raw, outcome: 'no_tool_call', error: 'empty reply' }); return fail('no_tool_call', `${model} returned neither a tool call nor a ${noun}`); }
 
@@ -421,6 +486,8 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
     if (!found) { steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_failed', error: 'the tool returned no evidence' }); return fail('tool_failed', 'the tool returned no evidence'); }
     evidence.push(found);
     steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_ok' });
+    const finished = spec.finishWith?.(found);
+    if (finished) return done({ success: true, answer: finished, grounding: null });
     const facts = spec.render(found);
     if (mode === 'native') {
       messages.push({ role: 'assistant', content: '', tool_calls: turn.tool_calls });

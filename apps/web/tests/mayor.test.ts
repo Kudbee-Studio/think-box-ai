@@ -195,7 +195,7 @@ describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', (
       ['checks-1', 'checks', null, ['run_checks'], 'sandbox_exec', ['patch-1'], 2],
     ]);
     assert.deepEqual(p.waves, [['patch-1'], ['checks-1']]);
-    assert.deepEqual(p.simulation, { ref: 'HEAD', checks: ['lint', 'typecheck', 'tsc', 'test'], max_rounds: 2 });
+    assert.deepEqual(p.simulation, { ref: 'HEAD', checks: ['lint', 'typecheck', 'tsc', 'test'], patch_local: false, max_rounds: 2 });
     assert.equal(p.escalation, null);
     assert.equal(p.workers[1].estimated_cost_usd, 0);
     assert.match(p.workers[0].cost_basis, /average of 1 measured mercury-2 run|no measured/);
@@ -226,6 +226,23 @@ describe('SIMULATE plans: propose a change, verify it in the sandbox (P3.40)', (
       const p = sim() && plan(q, { mode: 'simulate', availableTools: SIM_TOOLS }); assert.equal(p.executable, false, q); assert.match(p.blocked_reasons.join(), /reads like a question or an investigation/, q);
       assert.equal(evaluatePolicy(p).decision, 'denied');
     }
+  });
+  it('a local model the OPERATOR picked becomes the patch worker (the source stays on this machine, and the policy says so); no other routing ever does', () => {
+    const local = sim({ lookupModel: 'qwen2.5:3b', routing: { source: 'operator', model: 'qwen2.5:3b', reason: 'chosen by the operator' } });
+    assert.equal(local.executable, true); assert.equal(local.workers[0].model, 'qwen2.5:3b'); assert.equal(local.simulation.patch_local, true); assert.equal(local.workers[0].estimated_cost_usd, 0);
+    const pol = evaluatePolicy(local); const ids = pol.rules.map((r) => r.id);
+    assert.ok(ids.includes('source-stays-local')); assert.ok(!ids.includes('source-leaves-machine'));
+    assert.match(pol.rules.find((r) => r.id === 'source-stays-local')!.reason, /local model \(qwen2\.5:3b\).*stay on this machine/); assert.deepEqual(pol.rules.find((r) => r.id === 'source-stays-local')!.workers, ['patch-1']);
+    // the operator picking Mercury, the measured table or the default all leave Mercury as the patch worker and say the source goes to a cloud API
+    for (const routing of [{ source: 'operator' as const, model: 'mercury-2', reason: 'x' }, { source: 'measured' as const, model: 'gemma3:4b', reason: 'x' }, { source: 'default' as const, model: 'qwen2.5:3b', reason: 'x' }, undefined]) {
+      const p = sim({ lookupModel: routing?.model ?? 'gemma3:4b', routing }); assert.equal(p.workers[0].model, 'mercury-2', JSON.stringify(routing)); assert.equal(p.simulation.patch_local, false);
+      assert.ok(evaluatePolicy(p).rules.some((r) => r.id === 'source-leaves-machine'));
+    }
+  });
+  it('a local patch model needs no Mercury key: SIMULATE is executable with no agent model when the operator chose a local one', () => {
+    const p = sim({ agentModel: null, lookupModel: 'gemma3:4b', routing: { source: 'operator', model: 'gemma3:4b', reason: 'x' } });
+    assert.equal(p.executable, true, p.blocked_reasons.join()); assert.equal(p.workers[0].model, 'gemma3:4b');
+    assert.match(sim({ agentModel: null }).blocked_reasons.join(), /needs the agent model \(Mercury\).*no local model was chosen/);
   });
   it('a change request that merely mentions a PR is plannable (the live P3.43 goal was blocked as "a question or an investigation")', () => {
     for (const g of ["Change the phrase '4 (the next PR, below)' to '4 (PR #381, below)' in the Status line of docs/scratch-runner-design.md. Change nothing else.", 'In docs/scratch-runner-design.md the Status line says slice 4 is the next PR. That PR is now merged as #381. Replace that phrase with PR #381.']) {

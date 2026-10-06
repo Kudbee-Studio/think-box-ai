@@ -80,7 +80,7 @@ export interface ConvoyPlan {
   /** Workers the Mayor added to the Director's selection, and why (the specialist proof refuses a job without an independent Validator). */
   added_by_mayor: Array<{ id: string; reason: string }>;
   /** SIMULATE only: the commit it is pinned to and the repository checks the sandbox will run. Frozen with the plan, so the approval covers them. */
-  simulation?: { ref: string; checks: string[]; /** Propose/verify rounds the budget allows (1 = no revision): a failing report goes back to the patch worker for another try, each sandbox run asking a human again. */ max_rounds: number };
+  simulation?: { ref: string; checks: string[]; /** True when the patch worker runs on a local model, so the source it reads stays on this machine (frozen with the plan: the approval covers it). */ patch_local: boolean; /** Propose/verify rounds the budget allows (1 = no revision): a failing report goes back to the patch worker for another try, each sandbox run asking a human again. */ max_rounds: number };
   /** Local-model grounding failures are retried once on this model through the same governed path, when one is configured. */
   escalation: { model: string; when: string } | null;
   budget: WorkerBudget;
@@ -149,10 +149,13 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     if ((recipe && isGithubRecipe(recipe)) || matchRepoGoal(goal)) blocked.push('SIMULATE proposes and verifies a change; this goal reads like a question or an investigation (use OBSERVE for that)');
     const missing = SIMULATE_TOOLS.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the tools SIMULATE needs are not available in this runtime: ${missing.join(', ')}`);
-    if (!input.agentModel) blocked.push('SIMULATE needs the agent model (Mercury) to propose a change; none is configured');
-    const cost = input.costOf(input.agentModel, 'patch');
+    // Mercury unless the operator picked a local model for this convoy; the measured table never decides this (nothing has been measured for patching).
+    const operatorLocal = input.routing?.source === 'operator' && input.lookupModel && input.isLocalModel(input.lookupModel) ? input.lookupModel : null;
+    const patchModel = operatorLocal ?? input.agentModel;
+    if (!patchModel) blocked.push('SIMULATE needs the agent model (Mercury) to propose a change; none is configured and no local model was chosen');
+    const cost = input.costOf(patchModel, 'patch');
     workers.push({
-      id: 'patch-1', kind: 'patch', name: 'Propose a change (nothing is written)', model: input.agentModel, tools: ['repo_search', 'repo_read', 'propose_change'], permission: 'read_only', depends_on: [], wave: 1,
+      id: 'patch-1', kind: 'patch', name: 'Propose a change (nothing is written)', model: patchModel, tools: ['repo_search', 'repo_read', 'propose_change'], permission: 'read_only', depends_on: [], wave: 1,
       purpose: 'Read the source and propose the change as exact text edits; the system builds the diff from the real files at one commit and checks that it applies. Nothing is written or run.',
       estimated_cost_usd: cost.usd, cost_basis: cost.basis, estimated_tool_calls: 12,
     });
@@ -169,7 +172,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
         : 'No revision round fits the worker or tool-call budget: a failing proposal is reported as it is.');
     }
     const rounds = Math.max(1, Math.min(MAX_SIMULATE_ROUNDS, Math.floor(budget.max_workers / 2), 1 + Math.floor((budget.max_tool_calls - CALLS_FIRST_ROUND) / CALLS_PER_REVISION)));
-    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS], max_rounds: rounds };
+    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS], patch_local: operatorLocal !== null, max_rounds: rounds };
   } else if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
     const missing = REPO_TOOL_NAMES.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the repository tools are not available in this runtime: ${missing.join(', ')}`);
@@ -276,7 +279,11 @@ export function evaluatePolicy(plan: ConvoyPlan): PolicyEvaluation {
   if (repoReaders.length) rules.push({ id: 'repo-read', effect: 'info', reason: 'These workers read this repository\'s source through read-only tools. Secrets, .env files, keys, databases, .git and node_modules are not readable. Source text a local model reads stays on this machine.', workers: repoReaders });
   const patchers = plan.workers.filter((w) => w.kind === 'patch').map((w) => w.id);
   const sandboxed = plan.workers.filter((w) => w.permission === 'sandbox_exec').map((w) => w.id);
-  if (patchers.length) rules.push({ id: 'source-leaves-machine', effect: 'info', reason: 'The patch worker runs on the agent model (a cloud API): the source it reads and the change it writes are sent to that provider. Secrets, .env files, keys, databases, .git and node_modules are not readable by its tools. It cannot write or run anything: it only proposes.', workers: patchers });
+  if (patchers.length) {
+    const tail = ' Secrets, .env files, keys, databases, .git and node_modules are not readable by its tools. It cannot write or run anything: it only proposes.';
+    if (plan.simulation?.patch_local) rules.push({ id: 'source-stays-local', effect: 'info', reason: `The patch worker runs on a local model (${plan.workers.find((w) => w.kind === 'patch')?.model ?? 'local'}): the source it reads and the change it writes stay on this machine.${tail}`, workers: patchers });
+    else rules.push({ id: 'source-leaves-machine', effect: 'info', reason: `The patch worker runs on the agent model (a cloud API): the source it reads and the change it writes are sent to that provider.${tail}`, workers: patchers });
+  }
   if (plan.simulation && plan.simulation.max_rounds > 1) rules.push({ id: 'revision-rounds', effect: 'info', reason: `If the sandbox checks fail, the patch worker is shown the failure output (data from the repository's own commands, clipped) and may propose a revision: up to ${plan.simulation.max_rounds} round(s) in all. Every round's sandbox run asks for your approval again; the cost and worker budgets are re-checked before each revision.`, workers: patchers });
   if (sandboxed.length) { risk = 'medium'; rules.push({ id: 'sandboxed-checks', effect: 'require_approval', reason: 'This worker runs the repository\'s own checks on a throwaway copy of one commit with the proposed change applied, inside a sandbox with no network, no home directory and no credentials. Nothing touches your working tree. It asks for your approval again when it runs, showing the exact commit, the checks and the patch.', workers: sandboxed }); restrictions.push('Checks run only in the sandbox, only after a second approval that names the exact commit and patch.'); }
   if (network.length) rules.push({ id: 'network-read', effect: 'info', reason: 'These workers read from the network; the first access to each host still asks for approval at run time.', workers: network });
