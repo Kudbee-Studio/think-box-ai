@@ -439,7 +439,11 @@
       var sm0 = c.simulation;
       var simBox = this._section('Proposed change · ' + (sm0.verified === true ? 'VERIFIED in the sandbox' : sm0.verified === false ? 'NOT verified: the sandbox checks failed' : 'NOT verified: the checks were not run'));
       simBox.appendChild(this._el('div', 'convoy-line', 'Commit ' + String(sm0.sha).slice(0, 12) + ' · patch ' + String(sm0.patch_sha256).slice(0, 12) + ' · ' + (sm0.files || []).join(', ') + ' · proposed by ' + sm0.proposed_by));
-      if (sm0.flags && sm0.flags.length) simBox.appendChild(this._el('div', 'convoy-blocked', 'Flags: ' + sm0.flags.join(', ') + (sm0.flags.indexOf('touches_tests') >= 0 ? ' — the proposal edits tests, which are what judge it' : '') + (sm0.flags.indexOf('touches_ci_or_gates') >= 0 ? ' — the proposal edits CI, gates or configuration' : '')));
+      if (sm0.flags && sm0.flags.length) simBox.appendChild(this._el('div', 'convoy-blocked', 'Flags: ' + sm0.flags.join(', ') + (sm0.flags.indexOf('touches_tests') >= 0 ? ' — the proposal edits tests, which are what judge it' : '') + (sm0.flags.indexOf('touches_ci_or_gates') >= 0 ? ' — the proposal edits CI, gates or configuration' : '') + (sm0.flags.indexOf('tests_edited_after_failure') >= 0 ? ' — it started editing tests only after an attempt failed' : '')));
+      if (sm0.rounds && sm0.rounds.length > 1) {
+        var roundsList = this._el('div', 'convoy-line', 'Rounds (' + sm0.rounds.length + ' of at most ' + (sm0.max_rounds || sm0.rounds.length) + '): ' + sm0.rounds.map(function (r) { return r.round + ': ' + r.outcome + ' (patch ' + String(r.patch_sha256).slice(0, 8) + ')'; }).join(' · '));
+        simBox.appendChild(roundsList);
+      }
       if (sm0.note) simBox.appendChild(this._el('div', 'convoy-blocked', sm0.note));
       var patchDetails = this._el('details', 'convoy-run');
       patchDetails.appendChild(this._el('summary', null, 'The patch (not applied to your working tree)'));

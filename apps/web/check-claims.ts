@@ -82,3 +82,14 @@ export function validateCheckClaims(answer: string, reports: ScratchReport[]): C
 export function flaggedAnswer(problems: string[], latest: ScratchReport | undefined): string {
   return `FLAGGED: my answer claimed more than the check report supports (${problems.join('; ')}). What the report says: ${describeReport(latest)}`;
 }
+
+/**
+ * What a failing report says, as short text a patch worker can act on in its next round: each check's verdict and, for the ones that failed, the end of their output. The output is
+ * the repository's own commands' output, i.e. data: it is clipped (per check and in total) and the caller delimits it as data, never as instructions.
+ */
+export function failureBrief(r: ScratchReport, perCheckChars = 1200, totalChars = 3500): string {
+  const parts = r.checks.map((c) => (c.passed ? `${c.check}${c.file ? ` ${c.file}` : ''}: passed` : `${c.check}${c.file ? ` ${c.file}` : ''}: ${c.timed_out ? 'TIMED OUT' : `FAILED (exit ${c.exit_code})`}${c.tests ? ` (${c.tests.pass} passed, ${c.tests.fail} failed)` : ''}\n${c.output_tail.trim().slice(-perCheckChars)}`));
+  const text = parts.join('\n---\n');
+  return text.length > totalChars ? `${text.slice(0, totalChars)}\n[... clipped]` : text;
+}
+
