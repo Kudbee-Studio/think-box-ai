@@ -101,6 +101,10 @@ export interface LoopSpec<E> {
   assist?: (goal: string, call: (tool: 'repo_search' | 'repo_read', args: Record<string, unknown>) => Promise<RepoEvidence | null>) => Promise<number>;
   prepare?: (final: { text: string } | { args: unknown }, evidence: E[]) => Promise<unknown>;
   judge: (final: { text: string } | { args: unknown }, evidence: E[], extra?: unknown, goal?: string) => { ok: true; answer?: string; finding?: RepoFinding; grounding?: GroundingResult } | { ok: false; error: string };
+  /** A goal with no terminal tool: when the model answers or says nothing before using any tool, ONE forced retry with this message (never an engine-run tool). */
+  noToolNudge?: string;
+  /** Recoverable tool errors a run may hand back to the model (default MAX_TOOL_RETRIES). */
+  maxToolRetries?: number;
   /** A goal whose work ends the moment one tool call succeeds (a proposed change): the answer to finish with, decided by the evidence, not by the model's next turn. */
   finishWith?: (found: E) => string | null;
 }
@@ -233,10 +237,20 @@ export type PatchEvidence = RepoEvidence | ProposalEvidence;
 
 const patchSystem = (sha: string): string => [
   `You are the patch worker of a SIMULATE convoy, pinned to commit ${sha.slice(0, 12)}. You change this repository ONLY by calling propose_change; you cannot write files or run anything.`,
-  'Read first: call repo_search (literal text search) or repo_read (numbered lines of one file) to find the file and see its exact text.',
-  'Then call propose_change with edits [{path, find, replace}]: find must be text copied EXACTLY from the file (never the line-number prefixes repo_read shows) and must occur exactly once; replace is the new text. Make the smallest change that does what the goal asks. Do not edit tests, CI or configuration unless the goal asks.',
-  'If propose_change returns an error, read it, fix that edit and call it again. When it returns ok you are finished: do not claim it works or that tests pass, you cannot run anything.',
+  'Never guess a path: use only paths that repo_search or repo_read returned, or that an error message lists. Start by calling repo_search with a word from the goal (a function name or the text in the error), without a path. Then call repo_read on the file it found.',
+  'Then call propose_change with path, find and replace: find must be text copied EXACTLY from the file (never the line-number prefixes repo_read shows) and must occur exactly once in it; replace is the new text. Make the smallest change that does what the goal asks. Do not edit tests, CI or configuration unless the goal asks.',
+  'If a tool returns an error, read it, fix that call and call again. When propose_change returns ok you are finished: do not claim it works or that tests pass, you cannot run anything.',
 ].join(' ');
+
+// Flat arguments for the model (one edit); the governed tool still receives `edits`. A model that sends the nested form is accepted too.
+const PATCH_PROPOSE_NATIVE = {
+  type: 'function',
+  function: {
+    name: PROPOSE_CHANGE_TOOL,
+    description: 'Propose one edit to one file. find must be text copied EXACTLY from the file (without line-number prefixes) and occur exactly once; replace is the new text. To add a new file give path and create (the whole new file) instead of find and replace. Nothing is written or run.',
+    parameters: { type: 'object', properties: { path: { type: 'string', description: 'repo-relative path of the file' }, find: { type: 'string', description: 'exact text to replace' }, replace: { type: 'string', description: 'the new text' }, create: { type: 'string', description: 'contents of a NEW file (instead of find and replace)' }, summary: { type: 'string', description: 'one or two sentences saying what the change does' } }, required: ['path'] },
+  },
+};
 
 export const PATCH_CONSTRAINED_SCHEMA = {
   type: 'object',
@@ -247,28 +261,39 @@ export const PATCH_CONSTRAINED_SCHEMA = {
     path: { type: 'string' },
     start: { type: 'integer' },
     end: { type: 'integer' },
-    edits: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, find: { type: 'string' }, replace: { type: 'string' }, create: { type: 'string' } }, required: ['path'] } },
+    find: { type: 'string' },
+    replace: { type: 'string' },
+    create: { type: 'string' },
     summary: { type: 'string' },
     answer: { type: 'string' },
   },
   required: ['action'],
 } as const;
 
+/** The keys each tool takes: a constrained model fills every property the schema lists, so keys that do not belong to the tool are dropped, never rejected. */
+const PICK: Record<string, string[]> = { repo_search: ['query', 'path'], repo_read: ['path', 'start', 'end'] };
+const pick = (a: Record<string, unknown>, keys: string[]): Record<string, unknown> => Object.fromEntries(keys.filter((k) => a[k] !== undefined && a[k] !== null && a[k] !== '').map((k) => [k, a[k]]));
+
 export function patchSpec(sha: string): LoopSpec<PatchEvidence> {
   const system = patchSystem(sha);
   return {
-    nativeTools: [toolSchema('repo_search'), toolSchema('repo_read'), toolSchema(PROPOSE_CHANGE_TOOL)],
+    nativeTools: [toolSchema('repo_search'), toolSchema('repo_read'), PATCH_PROPOSE_NATIVE],
     system,
-    constrainedSystem: `${system} Reply ONLY with JSON. To look: {"action":"call","tool":"repo_search","query":"...","path":"optional folder"} or {"action":"call","tool":"repo_read","path":"file","start":1,"end":60}. To propose: {"action":"call","tool":"propose_change","edits":[{"path":"file","find":"exact old text","replace":"new text"}],"summary":"one sentence"}.`,
+    constrainedSystem: `${system} Reply ONLY with a JSON object with these keys: action (always "call"), tool (repo_search, repo_read or propose_change). For repo_search add query (the text to find) and, only if you know the folder exists, path. For repo_read add path and, optionally, start and end (line numbers). For propose_change add path, find, replace and summary (or path and create for a new file). Leave out keys the tool does not use.`,
     constrainedSchema: PATCH_CONSTRAINED_SCHEMA,
     toolNames: ['repo_search', 'repo_read', PROPOSE_CHANGE_TOOL],
+    noToolNudge: 'Your last reply had no tool call. Do not answer in text. Call repo_search now with a word from the goal (a function name or the text in the error), then repo_read the file it finds, then propose_change.',
+    maxToolRetries: 4,
     checkCall: (name, args) => {
+      const a = (args && typeof args === 'object' ? args : {}) as Record<string, unknown>;
       if (name === PROPOSE_CHANGE_TOOL) {
-        const a = (args && typeof args === 'object' ? args : {}) as Record<string, unknown>;
-        if (!Array.isArray(a.edits) || a.edits.length === 0) return { ok: false, error: 'propose_change needs edits: [{path, find, replace}]' };
-        return { ok: true, args: { edits: a.edits, ...(typeof a.summary === 'string' ? { summary: a.summary } : {}) } };
+        const summary = typeof a.summary === 'string' ? { summary: a.summary } : {};
+        if (Array.isArray(a.edits) && a.edits.length) return { ok: true, args: { edits: a.edits, ...summary } };
+        if (typeof a.path === 'string' && a.path && typeof a.create === 'string' && a.create) return { ok: true, args: { edits: [{ path: a.path, create: a.create }], ...summary } };
+        if (typeof a.path === 'string' && a.path && typeof a.find === 'string' && a.find && typeof a.replace === 'string') return { ok: true, args: { edits: [{ path: a.path, find: a.find, replace: a.replace }], ...summary } };
+        return { ok: false, error: 'propose_change needs path, find and replace (or path and create for a new file)' };
       }
-      const c = name === 'repo_search' ? validateRepoSearchArgs(args) : name === 'repo_read' ? validateRepoReadArgs(args) : ({ ok: false, error: `unknown tool "${name}"` } as const);
+      const c = name === 'repo_search' ? validateRepoSearchArgs(pick(a, PICK.repo_search!)) : name === 'repo_read' ? validateRepoReadArgs(pick(a, PICK.repo_read!)) : ({ ok: false, error: `unknown tool "${name}"` } as const);
       return c.ok ? { ok: true, args: c.args as Record<string, unknown> } : c;
     },
     evidenceOf: (o) => {
@@ -276,13 +301,13 @@ export function patchSpec(sha: string): LoopSpec<PatchEvidence> {
       return ((o as { evidence?: RepoEvidence }).evidence ?? null);
     },
     render: (e) => (e.tool === PROPOSE_CHANGE_TOOL ? `propose_change accepted: patch ${e.patch_sha256.slice(0, 12)} touching ${e.files.join(', ')}. It will be verified in a sandbox.` : renderRepoEvidence(e)),
-    repairHint: 'Tools: repo_search {query, path?}, repo_read {path, start?, end?} and propose_change {edits: [{path, find, replace}], summary?}.',
+    repairHint: 'Tools: repo_search {query, path?}, repo_read {path, start?, end?} and propose_change {path, find, replace, summary?}.',
     // a wrong find text or a path that does not exist is the model's to fix: the error says what is wrong
     recoverable: (error) => /^propose_change:/.test(error) || /^(path|file) not found: /.test(error),
     finishWith: (e) => (e.tool === PROPOSE_CHANGE_TOOL ? (e.summary.trim() || 'Proposed a change.') : null),
     judge: (final, evidence) => {
       if (!('text' in final)) return { ok: false, error: 'a patch worker ends by calling propose_change, not by reporting' };
-      return evidence.some((e) => e.tool === PROPOSE_CHANGE_TOOL) ? { ok: true, answer: final.text } : { ok: false, error: 'you have not proposed a change: call propose_change with the edits' };
+      return evidence.some((e) => e.tool === PROPOSE_CHANGE_TOOL) ? { ok: true, answer: final.text } : { ok: false, error: 'you have not proposed a change: call propose_change with path, find and replace' };
     },
   };
 }
@@ -371,12 +396,13 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
 
   /** An empty reply, or an answer with no tool call, is recoverable on an investigation goal: one forced retry, then the engine runs the first tool itself. */
   const recover = async (raw: string, base: Omit<LocalToolStep, 'raw' | 'outcome'>, why: string): Promise<'again' | null> => {
-    if (!spec.terminalTool) return null;
+    if (!spec.terminalTool && !spec.noToolNudge) return null;
     const looked = evidence.length > 0;
     if (!retried) {
       retried = true; recoveryPath = 'retry';
       steps.push({ ...base, raw, outcome: 'recovery_retry', error: why });
       if (raw.trim() && raw.trim() !== '""') messages.push({ role: 'assistant', content: raw });
+      if (!spec.terminalTool) { messages.push({ role: 'user', content: spec.noToolNudge! }); return 'again'; }
       messages.push({ role: 'user', content: looked ? `Your last reply was empty. Either call repo_search or repo_read, or report your finding with report_finding. Use only paths the tools returned.` : `Your last reply had no tool call. You MUST call repo_search or repo_read now, before any claim. Use only paths named in the goal or returned by a tool.` });
       return 'again';
     }
@@ -471,7 +497,7 @@ export async function runLocalToolLoop<E = LookupEvidence>(opts: LocalToolOption
       const error = String(gov.output.error);
       steps.push({ ...base, raw: parsed.raw, request: args, outcome: 'tool_failed', error });
       // A guessed path that does not exist is the model's to fix: hand the error (which names what does exist) back, a bounded number of times.
-      if (!spec.recoverable?.(error) || toolRetries >= MAX_TOOL_RETRIES) return fail('tool_failed', error);
+      if (!spec.recoverable?.(error) || toolRetries >= (spec.maxToolRetries ?? MAX_TOOL_RETRIES)) return fail('tool_failed', error);
       toolRetries += 1;
       if (mode === 'native') {
         messages.push({ role: 'assistant', content: '', tool_calls: turn.tool_calls });

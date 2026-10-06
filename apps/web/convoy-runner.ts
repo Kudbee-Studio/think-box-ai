@@ -328,7 +328,9 @@ async function runRepoWorker(deps: RunnerDeps, c: ConvoyRecord, worker: WorkerRe
 // ─── SIMULATE: propose a change, verify it in the sandbox ────────────────────────────────────────────────────────────────────────────────────────
 
 /** Tool calls a local patch worker may make in one round: look a few times, then propose (and fix a bad edit a couple of times). */
-const LOCAL_PATCH_STEPS = 8;
+const LOCAL_PATCH_STEPS = 10;
+/** A local model on a small GPU can take minutes for one call; the patch worker waits longer than the lookup default (120 s) rather than failing a slow but working model. */
+const LOCAL_PATCH_CALL_TIMEOUT_MS = 300_000;
 
 /** What the patch worker is told. It can read and propose; it cannot write or run anything. */
 function engineerRole(sha: string): string {
@@ -408,7 +410,7 @@ async function runSimulateConvoy(deps: RunnerDeps, c: ConvoyRecord, update: () =
       let r: Pick<AgentRunResult, 'success' | 'cost_usd' | 'tokens' | 'tool_calls' | 'stopped' | 'error'>;
       if (deps.isLocalModel(model)) {
         // A local model patches through the same governed tools (propose_change builds and checks the diff against the pinned commit); the loop ends when one proposal is accepted.
-        const l = await runLocalToolLoop<PatchEvidence>({ model, goal: patchGoal, hooks, context: newRunContext(), chat: deps.chat, repo: deps.repo, spec: patchSpec(sha), maxSteps: LOCAL_PATCH_STEPS, signal: deps.signal });
+        const l = await runLocalToolLoop<PatchEvidence>({ model, goal: patchGoal, hooks, context: newRunContext(), chat: deps.chat, repo: deps.repo, spec: patchSpec(sha), maxSteps: LOCAL_PATCH_STEPS, callTimeoutMs: LOCAL_PATCH_CALL_TIMEOUT_MS, signal: deps.signal });
         runStore.addEvent(rec1, { kind: 'model', step: l.steps.length + 1, latency_ms: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0, tool_calls: [], content: `route: lane=patch model=${l.model} mode=${l.mode} latency=${(l.latency_ms / 1000).toFixed(1)}s ${l.cold_load_ms >= COLD_LOAD_MS ? `cold (model load ${(l.cold_load_ms / 1000).toFixed(1)}s)` : 'warm'}` });
         for (const step of l.steps) runStore.addEvent(rec1, { kind: 'model', step: step.step, latency_ms: step.latency_ms, prompt_tokens: step.prompt_tokens, completion_tokens: step.completion_tokens, cost_usd: 0, tool_calls: step.request ? ['patch'] : [], content: `${step.outcome}${step.error ? `: ${step.error}` : ''} ${step.raw}`.slice(0, 600) });
         r = { success: l.success, cost_usd: 0, tokens: l.prompt_tokens + l.completion_tokens, tool_calls: l.tool_calls, ...(l.failure ? { error: `${l.failure.kind}: ${l.failure.message}` } : {}), ...(deps.signal.aborted ? { stopped: true } : {}) };
