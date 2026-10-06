@@ -161,14 +161,15 @@ const validity = {
   v4_same_input: !process.env.P348_EXPECT_TASKS_SHA || process.env.P348_EXPECT_TASKS_SHA === tasksHash,
   v5_hygiene: cloudSpend <= MERCURY_CAP_USD && !allKeys.some((k) => JSON.stringify(rows).includes(k)) && scratchDirs() === before.scratch,
 };
-const bestLocal = byModel.filter((m) => !isCloud(m.model)).reduce((a, b) => (b.n && b.success / b.n > (a.n ? a.success / a.n : -1) ? b : a), byModel[0]!);
+const localModels = byModel.filter((m) => !isCloud(m.model));
+const bestLocal = localModels.reduce((a, b) => (b.n && b.success / b.n > (a.n ? a.success / a.n : -1) ? b : a), localModels[0] ?? { model: '(none)', n: 0, success: 0 } as (typeof byModel)[number]);
 const mercury = byModel.find((m) => m.model === 'mercury-2');
 const rate = bestLocal.n ? bestLocal.success / bestLocal.n : 0;
-const decision = rate >= 0.6 ? 'build the local-first + Mercury fallback lane (needs go-ahead)' : rate >= 0.33 ? 'offer local as an opt-in privacy mode; no fallback without a repeat run' : 'do not pursue local patching now';
+const decision = !localModels.length ? 'n/a: no local model in this run (the rule applies to local models only)' : rate >= 0.6 ? 'build the local-first + Mercury fallback lane (needs go-ahead)' : rate >= 0.33 ? 'offer local as an opt-in privacy mode; no fallback without a repeat run' : 'do not pursue local patching now';
 const sanity = mercury ? (mercury.success >= 13 ? 'ok' : `SUSPECT: mercury-2 reached only ${mercury.success}/${mercury.n}`) : 'not run';
 console.table(byModel.map((m) => ({ model: m.model, success: `${m.success}/${m.n}`, flagged: m.verified_flagged, wrong: m.proposal_wrong, none: m.no_proposal, reasons: JSON.stringify(m.no_proposal_reasons), p50_s: m.median_wall_s, cost: m.cost_usd })));
 await writeEvidence(OUT, path.join(OUT, `${LABEL}-results.json`), { generated_at: new Date().toISOString(), plan: `${path.relative(repoRoot, OUT)}/PLAN.md`, tasks_sha256: tasksHash, models: MODELS, tasks: tasks.map((t) => t.id), note: 'real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder\'s instruction; one trial per cell, default sampling', preflight, validity, cloud_spend_usd_at_mercury_rates: Number(cloudSpend.toFixed(5)), by_model: byModel, best_local: bestLocal.model, decision_by_pre_registered_rule: decision, mercury_sanity: sanity, rows });
 process.env.TMPDIR = savedTmp ?? ''; fs.rmSync(privateTmp, { recursive: true, force: true });
-log(`validity ${JSON.stringify(validity)}; best local ${bestLocal.model} ${bestLocal.success}/${bestLocal.n}; rule says: ${decision}; mercury sanity: ${sanity}`);
+log(`validity ${JSON.stringify(validity)}; ${localModels.length ? `best local ${bestLocal.model} ${bestLocal.success}/${bestLocal.n}; ` : ''}rule: ${decision}; mercury sanity: ${sanity}`);
 void randomUUID;
 process.exit(Object.values(validity).every(Boolean) ? 0 : 1);
