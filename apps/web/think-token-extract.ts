@@ -22,6 +22,8 @@ export interface FinishedRun {
   result?: string;
   /** Set when the final-answer check caught the answer contradicting the run's own tool results. */
   evidence_conflicts?: string[];
+  /** The `repo:` tag of the repository the run worked on, when one was chosen (think-token-repo.ts): what it learns is scoped to that repository. */
+  repo?: string | null;
 }
 
 function clip(text: string, max: number): string {

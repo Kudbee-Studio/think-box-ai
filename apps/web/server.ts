@@ -1244,7 +1244,7 @@ export class AgentSession {
       const retrievalOff = process.env.THINKBOX_TOKEN_RETRIEVAL === '0' || process.env.THINKBOX_TOKEN_RETRIEVAL === 'off';
       const retrievalStarted = Date.now();
       const semantic = retrievalOff ? {} : await goalEmbedding(goal);
-      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), goalVector: semantic.goalVector, embedModel: semantic.embedModel });
+      const thinkTokens = retrievalOff ? [] : tokenStore.retrieve(goal, 3, { knownTools: TOOLS.map((t) => t.function.name), goalVector: semantic.goalVector, embedModel: semantic.embedModel, repo: activeRepos.tag(profileManager.getActiveId()) });
       if (!retrievalOff) {
         const ranker = semantic.goalVector ? `${process.env.THINKBOX_RETRIEVER && RANKERS.includes(process.env.THINKBOX_RETRIEVER as RankerName) ? process.env.THINKBOX_RETRIEVER : DEFAULT_RANKER} (${semantic.embedModel})` : `lexical (${semantic.why ?? 'no vectors'})`;
         this.addThought({ type: 'think_token', content: `Think Token ranking: ${ranker}, ${Date.now() - retrievalStarted} ms, ${thinkTokens.length} found`, status: 'info' });
@@ -1688,7 +1688,7 @@ export class AgentSession {
       const deps = { store: tokenStore, models: createTokenModels(), knownTools: TOOLS.map((t) => t.function.name) };
       const result = await processFinishedRun(
         deps,
-        { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result, evidence_conflicts: record.evidence_conflicts },
+        { id: record.id, goal: record.goal, success, steps: record.steps, files: record.files, result: record.result, evidence_conflicts: record.evidence_conflicts, repo: activeRepos.tag(profileManager.getActiveId()) },
         actor,
       );
       // A token whose challenge could not run earlier (model down) is retried now that a run has finished; at most 3 per run.

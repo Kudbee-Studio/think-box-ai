@@ -26,6 +26,7 @@ import { SIMILAR_THRESHOLD, rankAgainstQuery, similarityToPool } from './think-t
 import { blobToVector, cosine, embedText, vectorToBlob } from './think-token-embed.ts';
 import { buildCells, diffCells, lessonFailureModes, type Cell, type CubeInputs } from './think-token-cube.ts';
 import { createHash } from 'node:crypto';
+import { inRepoScope } from './think-token-repo.ts';
 import { freshnessLabel } from './evidence.ts';
 import fs from 'node:fs';
 
@@ -221,6 +222,8 @@ export interface RetrieveOptions {
   /** Which ranker to use. Default: THINKBOX_RETRIEVER if it names one, else DEFAULT_RANKER. */
   ranker?: RankerName;
   knownTools?: readonly string[];
+  /** The `repo:` tag of the repository being worked on (think-token-repo.ts): tokens tagged for another repository are left out. Null or absent: only general tokens. */
+  repo?: string | null;
   diverse?: boolean;
   /** Epoch ms used for the recency term of every token's score. Default: THINKBOX_TOKEN_CLOCK (epoch ms) if set, else the real clock. Evals and A/B runs freeze it. */
   now?: number;
@@ -1072,7 +1075,7 @@ export class SqliteTokenStore implements TokenStore {
     const clock = Number(process.env.THINKBOX_TOKEN_CLOCK);
     const now = opts.now ?? (Number.isFinite(clock) && clock > 0 ? clock : Date.now());
     const known = new Set(opts.knownTools ?? DEFAULT_KNOWN_TOOLS);
-    const accepted = (this.db.prepare("SELECT * FROM think_tokens WHERE tenant_id = ? AND status = 'accepted'").all(this.tenant) as any[]).map(rowFrom);
+    const accepted = (this.db.prepare("SELECT * FROM think_tokens WHERE tenant_id = ? AND status = 'accepted'").all(this.tenant) as any[]).map(rowFrom).filter((t) => inRepoScope(t.tags, opts.repo));
     if (!accepted.length) return [];
     const text = (t: ThinkTokenRow): string => `${t.title}\n${t.content}`;
     const bm25 = rankAgainstQuery(goal, accepted.map((t) => ({ id: t.id, text: text(t) })));

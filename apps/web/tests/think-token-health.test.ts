@@ -36,5 +36,10 @@ test('thumbs and challenge verdicts are totalled over every token', () => {
 
 test('the text form states the counts and says it is not a measurement of benefit', () => {
   const text = formatTokenHealth(tokenHealth([tok({ uses: 3, last_used_at: NOW - DAY, success_runs: 3, created_at: NOW - 40 * DAY }), tok({ id: 'TT-000002', created_at: NOW - 90 * DAY })], NOW));
-  assert.match(text, /2 saved, 2 accepted/); assert.match(text, /used by a run: 1 of 2/); assert.match(text, /most used:\n\s+TT-000001  3x/); assert.match(text, /to re-check: TT-000002/); assert.match(text, /measured by the A\/B experiments/);
+  assert.match(text, /2 saved, 2 accepted \(0 learned in one repository/); assert.match(text, /used by a run: 1 of 2/); assert.match(text, /most used:\n\s+TT-000001  3x/); assert.match(text, /to re-check: TT-000002/); assert.match(text, /measured by the A\/B experiments/);
+});
+
+test('accepted tokens learned in one repository are counted as repository-scoped', () => {
+  const h = tokenHealth([tok({ tags: ['repo:acme:demo', 'lesson'] }), tok({ id: 'TT-000002' }), tok({ id: 'TT-000003', status: 'rejected', tags: ['repo:acme:demo'] })], NOW);
+  assert.equal(h.repo_scoped, 1);
 });
