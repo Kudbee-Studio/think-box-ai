@@ -3,6 +3,7 @@
 // id, title, lesson, status, score breakdown, run id and ledger receipt everywhere. Layer 1: read-only, no network.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tokenHealth, type TokenHealth } from './think-token-health.ts';
 import { CELL_COUNT, projectTo54, type Cell, type Sticker } from './think-token-cube.ts';
 import { SqliteTokenStore, normalizeTokenId, type ListOptions, type Receipt, type ScoreBreakdown, type ThinkTokenLink, type ThinkTokenRow, type TokenStatus } from './think-token-store.ts';
 
@@ -78,6 +79,11 @@ export function toApiToken(row: ThinkTokenRow, store?: SqliteTokenStore): ApiTok
 
 export function readTokens(store: SqliteTokenStore, opts: ListOptions = {}): ApiToken[] {
   return store.list(opts).map((row) => toApiToken(row, store));
+}
+
+/** Counts over every saved token (see think-token-health.ts). */
+export function readHealth(store: SqliteTokenStore): TokenHealth {
+  return tokenHealth(readTokens(store, { limit: 5000 }));
 }
 
 export function readToken(store: SqliteTokenStore, idLike: string): ApiToken | null {

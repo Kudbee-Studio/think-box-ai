@@ -192,9 +192,11 @@ class ThinkTokenDashboard {
         if (!Array.isArray(data.tokens)) return;
         this.tokens = data.tokens.filter(ttIsToken);
         this.ledger = data.ledger || null;
+        this.health = data.health && typeof data.health.total === 'number' ? data.health : null;
         this.loaded = true;
         this.listError = null;
         this.renderList();
+        this.renderHealth();
         this.refreshRunInfo();
         return;
       }
@@ -487,6 +489,7 @@ class ThinkTokenDashboard {
           </div>
 
           <div class="dashboard-secondary">
+            <div class="tt-health" aria-live="polite"></div>
             <div class="tt-toolbar">
               <input id="tt-search" type="search" maxlength="100" placeholder="Search, or jump to TT-42" aria-label="Search Think Tokens or jump to an id">
               <select id="tt-status" aria-label="Filter by status">
@@ -593,6 +596,27 @@ class ThinkTokenDashboard {
     }
     if (this.actionMessage) parts.push(this.actionMessage);
     line.textContent = parts.join(' · ');
+  }
+
+  /** The health card: plain counts from the saved tokens. It does not claim the tokens make runs better; that is measured separately. */
+  renderHealth() {
+    if (!this.isOpen()) return;
+    const host = this.modalEl.querySelector('.tt-health');
+    if (!host) return;
+    host.replaceChildren();
+    const h = this.health;
+    if (!h) return;
+    const cell = (value, label, title) => { const c = ttEl('div', 'tt-health-cell'); c.title = title; c.append(ttEl('strong', '', String(value)), ttEl('span', '', label)); return c; };
+    const row = ttEl('div', 'tt-health-row');
+    row.append(
+      cell(h.accepted, 'accepted', 'Tokens that passed every check and can be recalled'),
+      cell(`${h.used}/${h.accepted}`, 'used by a run', 'Accepted tokens that at least one run has used'),
+      cell(h.used_7d, 'used this week', 'Accepted tokens used in the last 7 days'),
+      cell(h.waiting, 'waiting', 'Accepted, older than a week, not needed yet'),
+      cell(h.stale, 'stale', 'Not used for 30 days: re-check or retire'),
+      cell(`${h.runs_finished}/${h.runs_finished + h.runs_failed}`, 'runs finished', 'Runs that used a token and finished OK, out of all runs that used one (not a comparison with runs without tokens)'),
+    );
+    host.append(row, ttEl('div', 'tt-health-note', h.note));
   }
 
   renderList() {
