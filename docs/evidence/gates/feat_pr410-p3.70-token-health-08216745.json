@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T23:04:56.838Z",
+  "head": "08216745",
+  "base": "gh/main",
+  "base_sha": "00e02605",
+  "branch": "feat/pr410-p3.70-token-health",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1391
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1686
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1307
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1509 passed, 0 failed; lines 92.79% (floor 90%)",
+      "ms": 63299
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 557640
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 273370
+    }
+  ],
+  "verdict": "PASS"
+}
