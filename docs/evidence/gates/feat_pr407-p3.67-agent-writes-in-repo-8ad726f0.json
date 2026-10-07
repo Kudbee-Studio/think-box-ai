@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T17:09:26.452Z",
+  "head": "8ad726f0",
+  "base": "gh/main",
+  "base_sha": "8cbea0ef",
+  "branch": "feat/pr407-p3.67-agent-writes-in-repo",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1627
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1543
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1379
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1486 passed, 0 failed; lines 92.7% (floor 90%)",
+      "ms": 83174
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 306350
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 147977
+    }
+  ],
+  "verdict": "PASS"
+}
