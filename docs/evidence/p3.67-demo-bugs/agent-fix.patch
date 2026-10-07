@@ -1,0 +1,36 @@
+diff --git a/src/cart.js b/src/cart.js
+index efdf465..329dbec 100644
+--- a/src/cart.js
++++ b/src/cart.js
+@@ -1,5 +1,7 @@
+ // Shopping cart totals. Prices are in integer cents.
+ export function total(items, discountPercent = 0) {
+   const sum = items.reduce((s, i) => s + i.priceCents * i.qty, 0);
+-  return Math.round(sum - sum * discountPercent);
++  // Apply discount percentage correctly (e.g., 10 means 10%)
++  const discounted = sum * (1 - discountPercent / 100);
++  return Math.round(discounted);
+ }
+diff --git a/src/paginate.js b/src/paginate.js
+index 2a14850..948fae1 100644
+--- a/src/paginate.js
++++ b/src/paginate.js
+@@ -1,5 +1,5 @@
+ // Split a list into pages of `size`. Pages are numbered from 1.
+ export function page(list, number, size) {
+-  const start = number * size;
++  const start = (number - 1) * size;
+   return list.slice(start, start + size);
+ }
+diff --git a/src/slug.js b/src/slug.js
+index 4268765..fe479f8 100644
+--- a/src/slug.js
++++ b/src/slug.js
+@@ -2,5 +2,6 @@
+ export function slugify(title) {
+   return title
+     .toLowerCase()
+-    .replace(/[^a-z0-9]+/g, '-');
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^[-]+|[-]+$/g, '');
+ }

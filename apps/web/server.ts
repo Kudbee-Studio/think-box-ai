@@ -33,7 +33,7 @@ import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, type AgentHooks } from './agent.ts';
 import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
 import { createWorkspaceResolver } from './workspace-resolver.ts';
-import { ActiveRepoManager } from './active-repo.ts';
+import { ActiveRepoManager, repoFilePath } from './active-repo.ts';
 import { registerActiveRepoRoutes } from './routes/active-repo.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
@@ -1160,14 +1160,18 @@ export class AgentSession {
     pending.resolve(approved);
   }
 
+  private agentRoot(): string { return activeRepos.active(profileManager.getActiveId())?.root ?? sessionWorkspace(this.id); }
+
   /** The hooks every tool run gets: workspace confinement, approvals, budget, memory. The worker agent and the local recipes share them. */
   private agentHooks(record: RunRecord, signal: AbortSignal, profile?: (typeof AGENT_PROFILES)[string]): AgentHooks {
     return {
-      workspace: sessionWorkspace(this.id),
+      // With "use for agent" on, the agent's file tools work inside that repository so a fix lands where `git diff` shows it.
+      workspace: this.agentRoot(),
       resolvePath: (relativePath) => {
         // The agent's file tools must not follow a symlink out (e.g. one inside a cloned repository).
-        const destination = safeWorkspacePath(this.id, relativePath);
-        assertRealInsideSync(sessionWorkspace(this.id), destination);
+        const repo = activeRepos.active(profileManager.getActiveId());
+        const destination = repo ? repoFilePath(repo.root, relativePath) : safeWorkspacePath(this.id, relativePath);
+        assertRealInsideSync(repo ? repo.root : sessionWorkspace(this.id), destination);
         return destination;
       },
       onThought: (thought) => this.addThought(thought),

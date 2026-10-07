@@ -77,3 +77,14 @@ export class ActiveRepoManager {
     return null;
   }
 }
+
+/** A path the agent's file tools may use inside a chosen repository: relative, no "..", never the .git folder. */
+export function repoFilePath(root: string, relativePath: string): string {
+  const normalized = relativePath.replaceAll('\\', '/').replace(/^\/+/, '');
+  const parts = normalized.split('/');
+  if (!normalized || parts.some((part) => part === '..')) throw new Error('Invalid workspace path');
+  if (parts.some((part) => part === '.git')) throw new Error('The .git folder is not available to the agent');
+  const abs = path.resolve(root, normalized);
+  if (abs !== root && !abs.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
+  return abs;
+}
