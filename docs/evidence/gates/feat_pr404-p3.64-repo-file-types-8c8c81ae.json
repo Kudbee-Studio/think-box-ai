@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T13:43:27.172Z",
+  "head": "8c8c81ae",
+  "base": "gh/main",
+  "base_sha": "879baa9c",
+  "branch": "feat/pr404-p3.64-repo-file-types",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1404
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1430
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1452
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1466 passed, 0 failed; lines 92.66% (floor 90%)",
+      "ms": 59771
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 290261
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 138401
+    }
+  ],
+  "verdict": "PASS"
+}
