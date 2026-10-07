@@ -23,6 +23,7 @@ import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
 import { installCoverageFlush } from './coverage-flush.ts';
 import type { Thought, WsMessage } from './types.ts';
+import { MODELS_PRIVACY_NOTE, cloudModelNote, localModelNote, quickHelp, welcome } from './cli-help.ts';
 
 const HOST = process.env.KUDBEE_URL || 'http://127.0.0.1:3000';
 const WS_URL = HOST.replace(/^http/, 'ws') + '/ws';
@@ -540,7 +541,7 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
   const [cmd, ...args] = line.split(/\s+/);
   switch (cmd) {
     case '/help':
-      console.log(HELP);
+      console.log(args[0]?.toLowerCase() === 'all' ? HELP : quickHelp(c));
       break;
     case '/models': {
       // Enterprise: show model categories with metadata
@@ -548,27 +549,28 @@ async function handleCommand(client: Client, line: string, sessionId: string): P
       const local = client.models.filter((m) => !m.agent);
 
       if (mercury.length) {
-        console.log(c.bold('\n  🤖 Enterprise Worker Agents (tool-using)'));
+        console.log(c.bold('\n  🤖 Cloud agents (they can use tools)'));
         for (const m of mercury) {
           const mark = m.name === client.model ? c.green('●') : ' ';
-          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'inference'}] · low-latency, full toolkit`)}`);
+          console.log(`    ${mark} ${m.name} ${c.dim(cloudModelNote(m.name, m.provider))}`);
         }
       }
       if (local.length) {
-        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        console.log(c.bold('\n  💻 Local models (on this machine)'));
         for (const m of local) {
           const mark = m.name === client.model ? c.green('●') : ' ';
           const cheapRoute = sameLocalModel(LOCAL_MODEL, m.name) ? c.dim(' (cheap route)') : '';
-          console.log(`    ${mark} ${m.name} ${c.dim(`[${m.provider ?? 'ollama'}] · lightweight, privacy-first`)}${cheapRoute}`);
+          console.log(`    ${mark} ${m.name} ${c.dim(localModelNote(m.provider))}${cheapRoute}`);
         }
       }
       const localRouteReady = local.some((m) => sameLocalModel(LOCAL_MODEL, m.name));
       if (!localRouteReady) {
-        console.log(c.bold('\n  💻 Local Models (streaming, offline)'));
+        console.log(c.bold('\n  💻 Local models (on this machine)'));
         console.log(c.red(`    ✗ ${LOCAL_MODEL} is not installed — auto-routing falls back to Mercury-2 for simple goals`));
         console.log(c.dim('      Set THINKBOX_LOCAL_MODEL to a model from `ollama list` (nothing is pulled for you).'));
       }
-      console.log(c.dim(`\n  Use: /model MERCURY-2  or  /model ${LOCAL_MODEL}`));
+      console.log(c.dim(`\n  ${MODELS_PRIVACY_NOTE}`));
+      console.log(c.dim(`  Use: /model NAME, for example /model ${client.models.find((m) => m.agent)?.name ?? LOCAL_MODEL}`));
       break;
     }
     case '/model':
@@ -1270,8 +1272,7 @@ async function main(): Promise<void> {
     process.exit(ok ? 0 : 1);
   }
 
-  console.log(`${c.yellow('🐝 kudbEE Agent OS')} ${c.dim(`— session ${client.sessionId.slice(0, 8)} · model ${client.model} · ${HOST}`)}`);
-  console.log(c.dim('Type a goal, or /help. Ctrl+C to exit.'));
+  console.log(welcome(c, { session: client.sessionId.slice(0, 8), model: client.model, host: HOST }));
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: c.yellow('kudbee› ') });
   rl.on('error', (err) => {
     console.log(c.red(`Error: ${err instanceof Error ? err.message : String(err)}`));
