@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, beforeEach, test } from 'node:test';
-import { CLOUD_MODELS, cloudConfigured, cloudModel, configuredCloudModels, costUsd, defaultAgentModel, inceptionConfigured, isCloudModel, providerOf, runToolAgent, type AgentHooks } from '../agent.ts';
+import { CLOUD_MODELS, cloudConfigured, cloudModel, configuredCloudModels, costUsd, inceptionConfigured, isCloudModel, providerOf, runToolAgent, type AgentHooks } from '../agent.ts';
+import { defaultAgentModel } from '../cloud-routing.ts';
 import { createModelClients } from '../ollama-client.ts';
 
 const KEYS = ['INCEPTION_API_KEY', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'INCEPTION_BASE_URL', 'DEEPSEEK_BASE_URL', 'XAI_BASE_URL'] as const;

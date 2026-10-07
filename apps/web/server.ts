@@ -34,13 +34,13 @@ import type {
   PluginInput,
   PluginResult,
   SessionConfigInput,
-  Task,
-  Thought,
+  Task, Thought,
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
-import { AGENT_PROFILES, TOOLS, configuredCloudModels, defaultAgentModel, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
+import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, type AgentHooks } from './agent.ts';
+import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
@@ -1268,9 +1268,9 @@ export class AgentSession {
       }
       const liveFlags = await liveStateFlags([...recalled.hits.map((h) => ({ key: h.item.id, text: `${h.item.title} ${h.item.content}` })), ...thinkTokens.map((t) => ({ key: t.id, text: `${t.title} ${t.content}` }))]);
       const plannerContext = [repoContextLine(getKnownRepo()), MemoryStore.formatForPrompt(recalled.hits, Date.now(), liveFlags), formatTokensForPrompt(thinkTokens, Date.now(), liveFlags)].filter(Boolean).join('\n\n');
-      const run = await runToolAgent(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, this.agentHooks(record, this.abort.signal, profile), plannerContext);
+      const run = await runToolAgentWithFailover(goal, this.config.model, this.config.maxIterations, this.config.temperature, this.history, this.agentHooks(record, this.abort.signal, profile), plannerContext);
       const status = run.success ? 'completed' : run.stopped ? 'stopped' : 'failed';
-      runStore.finish(record, { status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)), ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}) });
+      runStore.finish(record, { ...(run.model_used ? { model: run.model_used, provider: providerOf(run.model_used) } : {}), status, result: run.result, error: run.error, failure_kind: classifyFailure(run.error, Boolean(run.stopped)), ...(run.evidence_conflicts ? { evidence_conflicts: run.evidence_conflicts } : {}) });
       await this.recordEpisode(record);
       if (!run.stopped) await this.saveThinkTokens(record, run.success);
 
@@ -1380,7 +1380,7 @@ export class AgentSession {
         return record;
       },
       hooksFor: (record, signal, allowedTools) => ({ ...this.agentHooks(record, signal), allowedTools }),
-      runAgent: (goal, model, hooks) => runToolAgent(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
+      runAgent: (goal, model, hooks) => runToolAgentWithFailover(goal, model, this.config.maxIterations, this.config.temperature, [], hooks, repoContextLine(getKnownRepo())),
       runSpecialists: (goal, convoyId, specialists) => this.runSpecialistJob(goal, undefined, {}, { jobId: convoyId, specialists }),
       broadcast: (message) => this.broadcast(message as Parameters<AgentSession['broadcast']>[0]),
       signal: stopper.signal,
