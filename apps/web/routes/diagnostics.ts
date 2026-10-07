@@ -1,7 +1,7 @@
 // Health, monitoring and dashboard stats routes. Moved out of server.ts unchanged; the live objects they read come in as `deps`.
 import os from 'node:os';
 import type { Express, Response } from 'express';
-import { inceptionConfigured } from '../agent.ts';
+import { cloudModel, inceptionConfigured } from '../agent.ts';
 import { SDK_VERSION, loadConfigFromEnv } from '../sdk/index.ts';
 import { errorMessage } from '../types.ts';
 import type { MemoryStore } from '../memory.ts';
@@ -71,6 +71,7 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
       sessions: sessions.size,
       plugins: plugins.size,
       inception_configured: inceptionConfigured(),
+      deepseek_configured: Boolean(process.env.DEEPSEEK_API_KEY),
       sdk_version: SDK_VERSION,
       dry_run: sdkConfig.dryRun,
       uptime_seconds: Math.floor((Date.now() - serverStartedAt) / 1000),
@@ -91,6 +92,9 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
         : []),
       ...(inceptionConfigured()
         ? [monitorEndpoint('Inception Mercury 2', 'https://api.inceptionlabs.ai/v1/models', { Authorization: `Bearer ${process.env.INCEPTION_API_KEY}` })]
+        : []),
+      ...(process.env.DEEPSEEK_API_KEY
+        ? [monitorEndpoint('DeepSeek', `${process.env.DEEPSEEK_BASE_URL || cloudModel('deepseek-flash')!.baseUrlDefault}/models`, { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` })]
         : []),
     ]);
     monitorAgent.checks += 1;

@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-06T23:59:45.160Z",
+  "head": "72dfd994",
+  "base": "gh/main",
+  "base_sha": "77d3c975",
+  "branch": "feat/pr391-p3.51-deepseek-model",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1361
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1387
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1246
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1421 passed, 0 failed; lines 92.55% (floor 90%)",
+      "ms": 56709
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 268380
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 137139
+    }
+  ],
+  "verdict": "PASS"
+}

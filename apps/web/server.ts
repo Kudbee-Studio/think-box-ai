@@ -40,7 +40,7 @@ import type {
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
-import { AGENT_PROFILES, INCEPTION_MODELS, TOOLS, inceptionConfigured, isInceptionModel, newRunContext, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
+import { AGENT_PROFILES, TOOLS, configuredCloudModels, defaultAgentModel, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, runToolAgent, type AgentHooks } from './agent.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
@@ -673,8 +673,8 @@ export class AgentSession {
   constructor(id: string, config: SessionConfigInput = {}) {
     this.id = id;
     this.config = {
-      model: config.model ?? (inceptionConfigured() ? INCEPTION_MODELS[0] : defaultLocalModel),
-      provider: config.provider ?? (inceptionConfigured() ? 'inception' : 'ollama'),
+      model: config.model ?? (defaultAgentModel() ?? defaultLocalModel),
+      provider: config.provider ?? (defaultAgentModel() ? providerOf(defaultAgentModel()!) : 'ollama'),
       maxIterations: config.maxIterations ?? 20,
       temperature: config.temperature ?? 0.7,
     };
@@ -930,7 +930,7 @@ export class AgentSession {
     try {
       while (next) {
         // A common live question on a local model runs as a recipe (the code makes the lookup, the model words the answer).
-        const recipe = next.model && !isInceptionModel(next.model) ? matchRecipe(next.goal) : null;
+        const recipe = next.model && !isCloudModel(next.model) ? matchRecipe(next.goal) : null;
         if (recipe && next.model && recipeAvailable(recipe, getKnownRepo())) {
           // The measured table decides which local model words a live lookup. A model it does not qualify is replaced by one it does, and the thought line says so.
           refreshInstalledLocal();
@@ -951,7 +951,7 @@ export class AgentSession {
           continue;
         }
         // A local chat has no tools: any other goal that needs tools or live state goes to the worker agent, or fails plainly. It is never answered from the model's head.
-        const escalation = next.model && !isInceptionModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
+        const escalation = next.model && !isCloudModel(next.model) ? this.escalateLocalGoal(next.goal, next.model) : null;
         if (escalation?.error) {
           if (next.task) this.updateTask(next.task.id, { status: 'failed', error: escalation.error });
           this.broadcast({ type: 'result', data: { success: false, error: escalation.error, route: refusedRoute(next.model!, escalation.error) } });
@@ -962,10 +962,10 @@ export class AgentSession {
         if (escalation?.model) next = { ...next, model: escalation.model };
         if (next.model) {
           this.config.model = next.model;
-          this.config.provider = isInceptionModel(next.model) ? 'inception' : 'ollama';
+          this.config.provider = providerOf(next.model);
         }
         this.route = escalation?.model && requested ? escalatedRoute(requested, escalation.model, escalation.why ?? 'it needs tools or live data')
-          : isInceptionModel(this.config.model) ? agentRoute(this.config.model) : localChatRoute(this.config.model);
+          : isCloudModel(this.config.model) ? agentRoute(this.config.model) : localChatRoute(this.config.model);
         this.broadcast({ type: 'status', data: 'running' });
         const result = await this.runGoal(next.goal, next.task, next.routeTelemetry, next.agentProfile);
         this.broadcast({ type: 'result', data: { ...result, route: this.route ?? undefined } });
@@ -984,10 +984,10 @@ export class AgentSession {
   private escalateLocalGoal(goal: string, localModel: string): { model?: string; error?: string; why?: string } | null {
     const why = needsToolsOrLiveData(goal);
     if (!why) return null;
-    if (!inceptionConfigured()) {
-      return { error: `This goal needs tools or live data (${why}), which ${localModel} cannot use, and no worker agent is configured. Set INCEPTION_API_KEY to run it with ${INCEPTION_MODELS[0]}.` };
+    const model = defaultAgentModel();
+    if (!model) {
+      return { error: `This goal needs tools or live data (${why}), which ${localModel} cannot use, and no worker agent is configured. Set INCEPTION_API_KEY or DEEPSEEK_API_KEY to run it on a cloud agent.` };
     }
-    const model = INCEPTION_MODELS[0];
     this.addThought({ type: 'routing', content: `Routed to ${model} instead of ${localModel}: ${why}. A local chat has no tools and cannot check live state.`, status: 'info' });
     return { model, why };
   }
@@ -1071,7 +1071,7 @@ export class AgentSession {
   }
 
   async runGoal(goal: string, queuedTask?: Task, routeTelemetry?: Record<string, any>, agentProfile?: string): Promise<PluginResult> {
-    if (isInceptionModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry, agentProfile);
+    if (isCloudModel(this.config.model)) return this.runAgentGoal(goal, queuedTask, routeTelemetry, agentProfile);
     this.status = 'running';
     this.addThought({ type: 'goal', content: `Starting goal: ${goal}`, status: 'info' });
 
@@ -1363,18 +1363,18 @@ export class AgentSession {
   async runConvoy(id: string): Promise<void> {
     const convoy = convoyStore.get(id);
     const first = convoy?.plan.workers[0];
-    if (first?.model && first.kind === 'specialist') { this.config.model = first.model; this.config.provider = isInceptionModel(first.model) ? 'inception' : 'ollama'; }
+    if (first?.model && first.kind === 'specialist') { this.config.model = first.model; this.config.provider = providerOf(first.model); }
     // One abort controller per convoy, so an operator can stop exactly this convoy (convoy_stop).
     const stopper = new AbortController();
     convoyAborts.set(id, stopper);
     this.abort = stopper;
     const deps: RunnerDeps = {
       store: convoyStore, runStore, chat: { chatOnce, modelCapabilities }, ...(inceptionConfigured() ? { escalationChat: createMercuryChat() } : {}), repo: getKnownRepo(),
-      isLocalModel: (model) => !isInceptionModel(model),
+      isLocalModel: (model) => !isCloudModel(model),
       newChildRun: (goal, runId, model, convoyId, workerId) => {
         const record = this.newRun(goal, runId);
         record.model = model;
-        record.provider = isInceptionModel(model) ? 'inception' : model === 'sandbox' ? 'sandbox' : 'ollama';
+        record.provider = model === 'sandbox' ? 'sandbox' : providerOf(model);
         record.jobId = convoyId;
         record.specialistId = workerId;
         return record;
@@ -2188,7 +2188,7 @@ function costOfModel(model: string | null, kindIn: 'lookup' | 'specialist' | 're
   if (kindIn === 'checks') return { usd: 0, basis: 'no model: the repository\'s own checks run in a sandbox' };
   if (kindIn === 'patch') return { usd: null, basis: 'no measured patch-proposal runs yet' };
   if (!model) return { usd: null, basis: 'no model' };
-  if (!isInceptionModel(model)) return { usd: 0, basis: 'local model, no API cost' };
+  if (!isCloudModel(model)) return { usd: 0, basis: 'local model, no API cost' };
   // A lookup costs a fraction of a specialist job; averaging them together made estimates 10x off. Estimate from runs of the same kind of worker.
   const kind = kindIn === 'repo' ? 'lookup' : kindIn;
   const isLookup = (r: { specialistId?: string }): boolean => String(r.specialistId ?? '').startsWith('lookup') || String(r.specialistId ?? '').startsWith('escalation');
@@ -2210,7 +2210,7 @@ registerConvoyRoutes(app, {
   convoyStore,
   runStore,
   plan: (goal, model, budget, mode) => {
-    const agentModel = inceptionConfigured() ? INCEPTION_MODELS[0]! : null;
+    const agentModel = defaultAgentModel();
     refreshInstalledLocal();
     // The operator's choice wins. Otherwise the measured table decides (an installed local model that is measured sufficient for this class of goal);
     // when nothing qualifies, the existing default applies and the reason says why the table did not decide.
@@ -2226,7 +2226,7 @@ registerConvoyRoutes(app, {
       else routing = { source: 'default', model: agentModel || resolveLocalModel(), reason: pick.reason };
     }
     const result = planConvoy({
-      goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isInceptionModel(m),
+      goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isCloudModel(m),
       availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
     });
     if (!result.ok) return result;
@@ -2486,7 +2486,7 @@ server.listen(PORT_NUM, LISTEN_ADDR, () => {
   console.log(`\n🚀 THINK BOX AI — Devin-like Interface`);
   console.log(`   Backend:  http://${LISTEN_ADDR}:${PORT}`);
   console.log(`   WebSocket: ws://${LISTEN_ADDR}:${PORT}`);
-  console.log(`   Models:   Ollama ${ollamaBaseUrl}${inceptionConfigured() ? ' + Inception mercury-2 (worker agent)' : ''}`);
+  console.log(`   Models:   Ollama ${ollamaBaseUrl}${configuredCloudModels().map((m) => ` + ${m.vendor} ${m.name} (worker agent)`).join('')}`);
   console.log(`\n   Ready.\n`);
 });
 
