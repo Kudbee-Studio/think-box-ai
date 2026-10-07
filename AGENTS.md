@@ -3722,3 +3722,8 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 - **Tests (+4, `tests/cloud-cost.test.ts`):** the prices reproduce the billed cost of six recorded real calls; billed cost used as is with reasoning counted; price fallback includes reasoning; nonsense ignored.
 - **Not shown / limits:** only xAI reports a billed cost today; DeepSeek and Inception costs are still token times price (DeepSeek's price is an estimate); cached-prompt discounts are not modelled in the price fallback (the billed cost covers them when present); the dashboard UI was not exercised.
 
+### 2026-10-07 — P3.55: grok-4.7 and grok-build-0.1 measured on the frozen sets (branch feat/pr396-p3.55-xai-models-measured)
+- **Why:** the founder pasted xAI's model cards (grok-4.7 $2/$6, grok-build-0.1 $1/$2 per million tokens) and asked to keep testing. PLAN.md was committed before any run.
+- **Result** (`docs/evidence/p3.55-xai-models/`): both models **15 of 15** easy and **22 of 24** hard; every validity criterion held and the independent test agreed on all 78 verdicts. All four misses are H10 (both trials, both models): the same empty-string requirement the goal never states that grok-4.3 also missed; Mercury and DeepSeek added that check unprompted. grok-build-0.1 is the slowest (median 16 s hard, max 66 s); grok-4.7 uses about 1.7x grok-4.3's tokens.
+- **Not shown / limits:** token counts exclude reasoning tokens (the code then did not count them; fixed in P3.56), so xAI cost cannot be read from these runs and they are NOT added to the routing table; a re-run on the fixed code is needed for true cost per task. Cloud only; one run; unseeded.
+
