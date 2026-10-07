@@ -1864,11 +1864,19 @@ function renderModels() {
   const previous = select.value || state.config.model;
   select.innerHTML = state.models.map(m => {
     const label = m.agent
-      ? `⚡ ${m.name} — Worker Agent (${m.vendor || 'Inception'})`
+      ? `⚡ ${m.name} — ${m.vendor || 'Inception'}${modelMeasureNote(m)}`
       : `${m.name} — local (${((m.size || 0) / 1e9).toFixed(1)}GB)`;
     return `<option value="${escapeHtml(m.name)}">${escapeHtml(label)}</option>`;
   }).join('');
   if (state.models.some(m => m.name === previous)) select.value = previous;
+}
+
+/** What was measured for a cloud agent, for its picker label: " · ~$0.0021/task · 2.6 s" (estimated prices are marked), or nothing when it was never measured. */
+function modelMeasureNote(m) {
+  const x = m && m.measured;
+  if (!x) return '';
+  const usd = x.usd >= 0.01 ? x.usd.toFixed(3) : x.usd.toFixed(4);
+  return ` · ~$${usd}/task${x.estimated ? ' (est.)' : ''} · ${x.secs} s`;
 }
 
 function renderAgents(agents) {
@@ -2256,18 +2264,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   appendTerminalMessage('system', [
-    '╔══════════════════════════════════════════════════════════════╗',
-    '║  🐝 kudbEE Agent OS — Enterprise Edition                     ║',
-    '╚══════════════════════════════════════════════════════════════╝',
+    '🐝 kudbEE Agent OS — agents propose, you decide.',
     '',
-    '✨ Agent tracking:',
-    '  🕑 Run history + step timeline (click any task or run)',
-    '  💲 Live token & cost tracking   ⚖️  Approval gates',
-    '  📊 Server metrics & capacity    🔐 Audit logging',
+    'Get started:',
+    '  1. Pick a model above. ⚡ models are cloud agents that can use tools; the list shows what each costs per task.',
+    '  2. Optional: paste a GitHub repository link under Files, press Clone, then "use for agent".',
+    '  3. Type a goal in plain English below and press Run, for example:',
+    '       Read https://hnrss.org/frontpage and write top5.md with the 5 top stories',
     '',
-    'Pick ⚡ mercury-2 and give the Worker Agent a real goal, e.g.:',
-    '  Read https://hnrss.org/frontpage and write top5.md with the 5 top stories',
-    'Type /help for CLI commands.',
+    'Anything that writes a file, runs a command or sends your data off this machine asks you first.',
+    'Type /help for more.',
   ].join('\n'));
 
   // Load models periodically

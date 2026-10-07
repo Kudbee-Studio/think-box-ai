@@ -1,6 +1,7 @@
 // Ollama chat/model listing and the optional Janus image service client. Moved out of server.ts unchanged; the base URLs and the
 // Janus switch, which were module constants there, are passed in.
 import { configuredCloudModels } from './agent.ts';
+import { CLOUD_MEASUREMENTS, MEASUREMENT_ALIASES, estCostPerTask } from './cloud-routing.ts';
 import { LOCAL_CHAT_OPTIONS } from './local-model.ts';
 import { parseOllamaLine } from './ollama-line.ts';
 import { errorMessage, type ChatMessage, type OllamaTokenMessage } from './types.ts';
@@ -54,7 +55,9 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
   }
 
   async function listModels(): Promise<OllamaTag[]> {
-    const cloud = configuredCloudModels().map((m) => ({ name: m.name, provider: m.provider, vendor: m.vendor, agent: true }));
+    // Each cloud agent carries what was measured for it (verified fixes, cost per task, time) so the dashboard can show it; absent when the model was never measured.
+    const measured = (name: string) => { const m = CLOUD_MEASUREMENTS.find((x) => x.model === (MEASUREMENT_ALIASES[name] ?? name)); return m ? { verified: m.success, tasks: m.tasks, usd: estCostPerTask(m), secs: Math.round(m.median_ms / 100) / 10, estimated: m.cost_basis === 'tokens at an estimated price' } : undefined; };
+    const cloud = configuredCloudModels().map((m) => ({ name: m.name, provider: m.provider, vendor: m.vendor, agent: true, measured: measured(m.name) }));
     return [...cloud, ...(await listOllamaModels())];
   }
 
