@@ -639,8 +639,8 @@
     var items = ADRS.filter(function (a) { return !q || (a.n + ' ' + a.slug + ' ' + human(a.slug)).toLowerCase().indexOf(q) > -1; });
     adrList.innerHTML = items.map(function (a) {
       var st = STATUS[a.n + '-' + a.slug];
-      return '<li class="adr"><a href="' + REPO + '/blob/main/' + a.path + '" rel="noopener"><span class="adr__n">ADR ' + a.n + '</span><span class="adr__t">' + esc(human(a.slug)) + '</span>' +
-        (st ? '<span class="badge adr__s ' + st[1] + '">' + st[0] + '</span>' : '<span class="badge adr__s b-file">Status in file</span>') + '</a></li>';
+      return '<li class="adr"><a href="' + esc(REPO + '/blob/main/' + a.path) + '" rel="noopener"><span class="adr__n">ADR ' + esc(a.n) + '</span><span class="adr__t">' + esc(human(a.slug)) + '</span>' +
+        (st ? '<span class="badge adr__s ' + esc(st[1]) + '">' + esc(st[0]) + '</span>' : '<span class="badge adr__s b-file">Status in file</span>') + '</a></li>';
     }).join('') || '<li class="muted">No ADRs match.</li>';
   }
   adrQ.addEventListener('input', renderADR);

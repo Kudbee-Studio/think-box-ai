@@ -24,11 +24,10 @@ test('every local file the site page, its stylesheet and its manifest name exist
 });
 
 test('the site has no inline executable script, so the dashboard CSP (script-src self) cannot block it', () => {
-  for (const m of html.matchAll(/<script\b([^>]*)>/g)) {
-    const attrs = m[1]!;
-    assert.ok(/\bsrc=/.test(attrs) || /type="application\/(ld\+json|json)"/.test(attrs), `script tag is external or a data block: <script${attrs}>`);
-  }
-  assert.ok(!/\son(click|load|error|change|submit)\s*=/i.test(html), 'no inline event handler attributes');
+  const tags = html.split('<script').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('>')));
+  assert.ok(tags.length >= 5, 'found the script tags');
+  for (const attrs of tags) assert.ok(attrs.includes('src=') || attrs.includes('type="application/ld+json"') || attrs.includes('type="application/json"'), `script tag is external or a data block: <script${attrs}>`);
+  for (const handler of [' onclick=', ' onload=', ' onerror=', ' onchange=', ' onsubmit=']) assert.ok(!html.toLowerCase().includes(handler), `no inline handler ${handler.trim()}`);
 });
 
 let server: ChildProcess; let base = ''; let tmp = '';

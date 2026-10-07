@@ -1,4 +1,4 @@
-/* thinkTokens: scroll-driven, interactive 3D cube. three.js is vendored locally (vendor/three.module.js), no CDN.
+/* thinkTokens: scroll-driven, interactive 3D cube. three.js is vendored locally (vendor/three.module.min.js), no CDN.
    Tap any sticker: its layer twists and an "issue → resolution" card explains the concept.
    Scramble / Solve: a metaphor. Each twist stands for one problem, and solving replays the fixes in reverse. */
 import * as THREE from './vendor/three.module.min.js';
