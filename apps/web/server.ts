@@ -269,7 +269,7 @@ fs.mkdirSync(workspaceRoot, { recursive: true });
 
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Interactive sessions share one persistent workspace per profile; a specialist Think Box keeps its own folder; older session folders still resolve to themselves (workspace-resolver.ts).
-const workspaces = createWorkspaceResolver({ root: workspaceRoot, idRe: SESSION_ID_RE, activeProfile: () => profileManager.getActiveId() });
+const workspaces = createWorkspaceResolver({ root: workspaceRoot, activeProfile: () => profileManager.getActiveId() });
 const prunedWorkspaces = workspaces.pruneEmpty(); if (prunedWorkspaces) console.log(`   Workspace: removed ${prunedWorkspaces} empty session folder(s) left by earlier versions`);
 // Session ids are server-made UUIDs; the resolver refuses anything else so no caller can build a workspace path from a stray string.
 const sessionWorkspace = (sessionId: string): string => workspaces.dirFor(sessionId);

@@ -19,7 +19,7 @@ after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 test('resolver: interactive sessions share the active profile workspace; an isolated box and a legacy folder keep their own', () => {
   const root = path.join(tmp, 'unit'); fs.mkdirSync(root, { recursive: true });
   let profile = 'default';
-  const r = createWorkspaceResolver({ root, idRe: ID, activeProfile: () => profile });
+  const r = createWorkspaceResolver({ root, activeProfile: () => profile });
   r.register(A); r.register(B);
   assert.equal(r.dirFor(A), r.dirFor(B)); assert.equal(r.dirFor(A), path.join(root, '_profiles', 'default')); assert.ok(fs.existsSync(r.dirFor(A)));
   profile = 'work'; assert.equal(r.dirFor(A), path.join(root, '_profiles', 'work'), 'switching profile switches the workspace');
@@ -37,10 +37,10 @@ test('resolver: pruneEmpty removes only empty, old, UUID-named folders', () => {
   for (const d of [empty, full, fresh, 'notes', '_profiles']) fs.mkdirSync(path.join(root, d));
   fs.writeFileSync(path.join(root, full, 'a.md'), 'x');
   const old = new Date(Date.now() - 3600_000); fs.utimesSync(path.join(root, empty), old, old); fs.utimesSync(path.join(root, full), old, old);
-  const r = createWorkspaceResolver({ root, idRe: ID, activeProfile: () => 'default' });
+  const r = createWorkspaceResolver({ root, activeProfile: () => 'default' });
   assert.equal(r.pruneEmpty(), 1);
   assert.ok(!fs.existsSync(path.join(root, empty)) && fs.existsSync(path.join(root, full)) && fs.existsSync(path.join(root, fresh)) && fs.existsSync(path.join(root, 'notes')) && fs.existsSync(path.join(root, '_profiles')));
-  const boxed = '99999999-9999-4999-8999-999999999999'; const rr = createWorkspaceResolver({ root, idRe: ID, activeProfile: () => 'default' }); rr.isolate(boxed); fs.utimesSync(path.join(root, boxed), old, old);
+  const boxed = '99999999-9999-4999-8999-999999999999'; const rr = createWorkspaceResolver({ root, activeProfile: () => 'default' }); rr.isolate(boxed); fs.utimesSync(path.join(root, boxed), old, old);
   assert.equal(rr.pruneEmpty(), 0, 'an isolated box folder is never pruned');
 });
 

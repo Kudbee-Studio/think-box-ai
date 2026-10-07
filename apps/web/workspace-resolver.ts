@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const SAFE_PROFILE = /^[A-Za-z0-9_-]{1,64}$/;
+/** Session and Think Box ids are server-made UUIDs; anything else never reaches a path. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface WorkspaceResolver {
   /** Mark a connection (dashboard tab or CLI run) as an interactive session: its files go to the active profile's workspace. */
@@ -23,11 +25,13 @@ export interface WorkspaceResolver {
   pruneEmpty(olderThanMs?: number): number;
 }
 
-export function createWorkspaceResolver(opts: { root: string; idRe: RegExp; activeProfile: () => string }): WorkspaceResolver {
+export function createWorkspaceResolver(opts: { root: string; activeProfile: () => string }): WorkspaceResolver {
   const root = path.resolve(opts.root);
   const interactive = new Set<string>();
   const isolated = new Set<string>();
-  const check = (id: string): void => { if (!opts.idRe.test(id)) throw new Error('Invalid session id'); };
+  const check = (id: string): void => { if (!UUID.test(id)) throw new Error('Invalid session id'); };
+  /** <root>/<id> for a valid id, confined to the root even if a regex were ever loosened. */
+  const own = (id: string): string => { check(id); const dir = path.resolve(root, id); if (!dir.startsWith(root + path.sep)) throw new Error('Invalid session id'); return dir; };
   const profileDir = (profileId: string): string => {
     const name = SAFE_PROFILE.test(profileId) ? profileId : `p-${crypto.createHash('sha1').update(profileId).digest('hex').slice(0, 12)}`;
     const dir = path.join(root, '_profiles', name);
@@ -36,21 +40,20 @@ export function createWorkspaceResolver(opts: { root: string; idRe: RegExp; acti
   };
   return {
     register(id) { check(id); interactive.add(id); },
-    isolate(id) { check(id); isolated.add(id); const dir = path.join(root, id); fs.mkdirSync(dir, { recursive: true }); return dir; },
+    isolate(id) { const dir = own(id); isolated.add(id); fs.mkdirSync(dir, { recursive: true }); return dir; },
     dirFor(id) {
-      check(id);
-      if (!isolated.has(id) && interactive.has(id)) return profileDir(opts.activeProfile());
-      return path.join(root, id);
+      if (!isolated.has(id) && interactive.has(id)) { check(id); return profileDir(opts.activeProfile()); }
+      return own(id);
     },
-    exists(id) { return opts.idRe.test(id) && (interactive.has(id) || isolated.has(id) || fs.existsSync(path.join(root, id))); },
+    exists(id) { return UUID.test(id) && (interactive.has(id) || isolated.has(id) || fs.existsSync(own(id))); },
     profileDir,
     pruneEmpty(olderThanMs = 60_000) {
       let removed = 0;
       let entries: fs.Dirent[] = [];
       try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch { return 0; }
       for (const e of entries) {
-        if (!e.isDirectory() || !opts.idRe.test(e.name)) continue;
-        const dir = path.join(root, e.name);
+        if (!e.isDirectory() || !UUID.test(e.name)) continue;
+        const dir = own(e.name);
         try {
           if (Date.now() - fs.statSync(dir).mtimeMs < olderThanMs || isolated.has(e.name) || fs.readdirSync(dir).length) continue;
           fs.rmdirSync(dir); removed += 1;

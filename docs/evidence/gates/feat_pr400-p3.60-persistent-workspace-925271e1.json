@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T12:37:51.198Z",
+  "head": "925271e1",
+  "base": "gh/main",
+  "base_sha": "c4078b18",
+  "branch": "feat/pr400-p3.60-persistent-workspace",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1289
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1317
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1371
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1457 passed, 0 failed; lines 92.61% (floor 90%)",
+      "ms": 62568
+    },
+    {
+      "step": "codeql-js",
+      "status": "fail",
+      "detail": "33 alerts here, 33 on base, 1 new: js/path-injection apps/web/workspace-resolver.ts:45",
+      "ms": 559595
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 279104
+    }
+  ],
+  "verdict": "FAIL"
+}
